@@ -30,6 +30,9 @@ const render = async (page, doc, zoom) => {
     doc.querySelector('#canvas').replaceChildren(doc.adoptNode(canvas))
 
     const container = doc.querySelector('.textLayer')
+    // DEBASER: a page drawn again (a new zoom) starts its words afresh, instead of a second copy after the first, so a
+    // highlight's characters within the page's words (app/lib/books/copies.ts) mean the same words every time.
+    container.replaceChildren()
     const textLayer = new pdfjsLib.TextLayer({
         textContentSource: await page.streamTextContent(),
         container, viewport,
@@ -58,6 +61,8 @@ const render = async (page, doc, zoom) => {
     container.onpointerup = () => container.classList.remove('selecting')
 
     const div = doc.querySelector('.annotationLayer')
+    // DEBASER: the same for the page's links.
+    div.replaceChildren()
     const linkService = {
         goToDestination: () => {},
         getDestinationHash: dest => JSON.stringify(dest),

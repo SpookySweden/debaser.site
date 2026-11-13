@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { getBooksRepository } from '../lib/books/repository';
 import { bookThreadAnchor, isCfi, isReadable, readHref, type BookReader as Reader } from '../lib/books/types';
+import { workOf } from '../lib/books/copies';
 import { threadDomId } from '../lib/forum/anchors';
 import { TITLE_BAR } from '../lib/ui/controls';
 import type { WebItem } from '../lib/web/types';
@@ -110,7 +111,12 @@ export default function BookPage({ bookRef }: { bookRef: string }) {
         {readers !== null && readers.length === 0 ? <p className="p-3 text-label text-ink">NOBODY HAS HIGHLIGHTED THIS BOOK YET.</p> : null}
         <ul className="flex flex-col gap-1 p-2">
           {(readers ?? []).map((reader, index) => {
-            const thread = reader.person && workRef ? forum.threadForAnchor(bookThreadAnchor(reader.person, workRef, '')) : undefined;
+            // Their thread for the book: one for every copy of its work (copies.ts), else the one this copy had before.
+            const work = workRef ? workOf(workRef) : null;
+            const thread =
+              reader.person && workRef
+                ? ((work ? forum.threadForAnchor(bookThreadAnchor(reader.person, work, '')) : undefined) ?? forum.threadForAnchor(bookThreadAnchor(reader.person, workRef, '')))
+                : undefined;
             return (
               <li key={reader.person ?? `anon-${index}`} className="rule-pixel flex flex-wrap items-center gap-2 py-1 text-label">
                 {reader.person ? (

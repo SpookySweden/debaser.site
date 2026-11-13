@@ -63,13 +63,14 @@ export function placeFromStored(bookRef: string, raw: string | null): BookPlace 
   });
   if (!clean.cfi) return null;
   const updatedAt = typeof record.updatedAt === 'string' && !Number.isNaN(Date.parse(record.updatedAt)) ? record.updatedAt : '';
-  return { ...clean, bookRef, updatedAt };
+  const workRef = typeof record.workRef === 'string' && /^(books:OL[1-9][0-9]{0,11}W|none)$/.test(record.workRef) ? record.workRef : null;
+  return { ...clean, bookRef, updatedAt, workRef };
 }
 
 /** A place as this browser keeps it. A blank title keeps the one it had. */
 export function storedPlace(place: PlaceSave, held: BookPlace | null, now: Date = new Date()): string {
   const clean = cleanPlace(place);
-  return JSON.stringify({ ...clean, title: clean.title || held?.title || '', updatedAt: now.toISOString() });
+  return JSON.stringify({ ...clean, title: clean.title || held?.title || '', workRef: clean.workRef ?? held?.workRef ?? null, updatedAt: now.toISOString() });
 }
 
 /** Every place this browser kept (a visitor's /read), from a Storage's keys. Unreadable ones are left out. */
@@ -84,10 +85,30 @@ export function browserPlaces(storage: Pick<Storage, 'length' | 'key' | 'getItem
   return found;
 }
 
-/** CONTINUE READING (not finished, last read first) and READ (finished, last finished first). */
+/** The book a place counts as: its work when known (every copy of a book is one book), else its own copy. */
+export function bookOf(place: Pick<BookPlace, 'bookRef' | 'workRef'>): string {
+  const work = typeof place.workRef === 'string' && /^books:OL[1-9][0-9]{0,11}W$/.test(place.workRef) ? place.workRef : null;
+  return work ?? /^(books:OL[1-9][0-9]{0,11}W)(?:-pg[1-9][0-9]{0,6})?$/.exec(place.bookRef)?.[1] ?? place.bookRef;
+}
+
+/**
+ * CONTINUE READING (not finished, last read first) and READ (finished, last finished first). Only places with a page to go
+ * back to (your own file can be matched before it is read), and one row a book: the copy last read, when there are many.
+ */
 export function shelves(places: readonly BookPlace[]): { reading: BookPlace[]; read: BookPlace[] } {
-  const reading = places.filter((place) => !place.finishedAt).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  const read = places.filter((place) => place.finishedAt).sort((a, b) => (b.finishedAt ?? '').localeCompare(a.finishedAt ?? ''));
+  const seen = new Set<string>();
+  const once = (place: BookPlace) => {
+    const book = bookOf(place);
+    if (seen.has(book)) return false;
+    seen.add(book);
+    return true;
+  };
+  const started = places.filter((place) => place.cfi !== null).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const reading = started.filter((place) => !place.finishedAt).filter(once);
+  const read = started
+    .filter((place) => place.finishedAt)
+    .sort((a, b) => (b.finishedAt ?? '').localeCompare(a.finishedAt ?? ''))
+    .filter(once);
   return { reading, read };
 }
 

@@ -32,9 +32,16 @@ export type BookHighlight = {
   isLocked: boolean;
   forumCommentId: string | null;
   createdAt: string;
+  /** The Open Library work the copy it was made in is (`books:OL85892W`), or null (copies.ts). */
+  workRef: string | null;
 };
 
-export type NewHighlight = Pick<BookHighlight, 'bookRef' | 'bookTitle' | 'cfi' | 'quote' | 'comment' | 'colour' | 'isLocked'>;
+/**
+ * A new highlight. A PDF's keeps its page in `cfi` (the page's short address, `epubcfi(/6/24)`) and the characters within
+ * the page's words in `startAt` and `endAt`; an EPUB's CFI says it all.
+ */
+export type NewHighlight = Pick<BookHighlight, 'bookRef' | 'bookTitle' | 'cfi' | 'quote' | 'comment' | 'colour' | 'isLocked'> &
+  Partial<Pick<BookHighlight, 'startAt' | 'endAt' | 'workRef'>>;
 
 export type BookBookmark = { id: string; person: string; bookRef: string; cfi: string; label: string; createdAt: string };
 
@@ -66,10 +73,12 @@ export type BookPlace = {
   progress: number;
   finishedAt: string | null;
   updatedAt: string;
+  /** The work this copy is (`books:OL85892W`), `none` for your own file you said is NOT LISTED, or null (copies.ts). */
+  workRef?: string | null;
 };
 
-/** What the reader saves on a page turn. A blank title leaves the saved one as it was. */
-export type PlaceSave = Pick<BookPlace, 'cfi' | 'page' | 'title' | 'progress' | 'finishedAt'>;
+/** What the reader saves on a page turn. A blank title leaves the saved one as it was; a missing work leaves the saved one. */
+export type PlaceSave = Pick<BookPlace, 'cfi' | 'page' | 'title' | 'progress' | 'finishedAt'> & { workRef?: string | null };
 
 export const PLACE_TITLE_MAX = 300;
 export const PLACES_LISTED_MAX = 200;
@@ -94,6 +103,8 @@ export function cleanPlace(place: PlaceSave): PlaceSave {
     title: place.title.replace(/\s+/g, ' ').trim().slice(0, PLACE_TITLE_MAX),
     progress,
     finishedAt: place.finishedAt && !Number.isNaN(Date.parse(place.finishedAt)) ? place.finishedAt : null,
+    // A work, `none` (your own file, NOT LISTED), or left out (the saved one stays).
+    ...(typeof place.workRef === 'string' && /^(books:OL[1-9][0-9]{0,11}W|none)$/.test(place.workRef) ? { workRef: place.workRef } : {}),
   };
 }
 
@@ -113,6 +124,15 @@ export type BooksRepository = {
   places(person: string): Promise<BookPlace[]>;
   /** `[ NOT FINISHED ]`: the book goes back to CONTINUE READING. */
   unfinish(person: string, bookRef: string): Promise<void>;
+  /**
+   * Every highlight in any copy of this book this reader may see (Luke, 2026-11-13): their own, locked or not, and other
+   * readers' public ones; the copy's own, and, when its work is known, every other copy's of the same work.
+   */
+  acrossCopies(person: string, bookRef: string, work: string | null): Promise<BookHighlight[]>;
+  /** This reader's places in every copy of a work (to offer `CONTINUE FROM 42% (READ IN ANOTHER COPY)`). */
+  placesOfWork(person: string, work: string): Promise<BookPlace[]>;
+  /** Ties a copy (your own file) to its work, or `none` for NOT LISTED; the place, if any, stays as it was. */
+  setWork(person: string, bookRef: string, work: string): Promise<void>;
   bookmarks(person: string, bookRef: string): Promise<BookBookmark[]>;
   addBookmark(person: string, bookmark: Pick<BookBookmark, 'bookRef' | 'cfi' | 'label'>): Promise<BookBookmark>;
   removeBookmark(id: string): Promise<void>;
@@ -168,8 +188,9 @@ export function readHref(bookRef: string, spot: { cfi?: string | null; highlight
 }
 
 /** A highlight's post in that thread: the quote, the comment, and the way back to that spot. Plain text. */
-export function highlightPost(highlight: Pick<BookHighlight, 'quote' | 'comment' | 'bookRef' | 'cfi'>): string {
-  const back = readHref(highlight.bookRef, { cfi: highlight.cfi });
+export function highlightPost(highlight: Pick<BookHighlight, 'quote' | 'comment' | 'bookRef' | 'cfi'>, backLink?: string): string {
+  // A reader's own file has no address anyone else can open: its post points at the book's page instead (copies.ts).
+  const back = backLink ?? readHref(highlight.bookRef, { cfi: highlight.cfi });
   return [`"${highlight.quote}"`, highlight.comment.trim(), `READ IT THERE: ${back}`].filter(Boolean).join('\n\n');
 }
 

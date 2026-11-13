@@ -1,6 +1,6 @@
 /*
  * Keeping your place in every book (SPEC-reading-places.md, Luke 2026-11-13), offline: the pure parts.
- *   npx tsc app/lib/books/reading-places.ts app/lib/books/page-pictures.ts --outDir Temp/out-reading-places --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop --moduleResolution node
+ *   npx tsc app/lib/books/reading-places.ts app/lib/books/page-pictures.ts app/lib/books/copies.ts --outDir Temp/out-reading-places --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop --moduleResolution node
  *   node Temp/check-reading-places.cjs
  *
  * - a place as this browser keeps it: the JSON record, the old bare CFI, junk refused; a blank title keeps the saved one
@@ -173,6 +173,48 @@ console.log('  ok    CONTINUE READING and READ');
   for (const column of ['title', 'progress', 'finished_at']) assert.match(sql, new RegExp(`add column if not exists ${column} `), `the migration adds ${column}, re-runnably`);
   assert.doesNotMatch(sql, /create table|drop table|delete from|update public/i, 'no new table and no rows changed');
   console.log('  ok    the table`s shape');
+
+  /* 9. Every copy of a book (Luke, 2026-11-13; copies.ts) ---------------------------------------------- */
+  const copies = require(path.join(OUT, 'lib/books/copies.js'));
+  assert.equal(copies.workOf('books:OL138052W-pg11'), 'books:OL138052W', 'a Gutenberg ref names its work');
+  assert.equal(copies.workOf('books:OL138052W'), 'books:OL138052W');
+  assert.equal(copies.workOf('internet_archive:x'), null, 'an Archive ref is asked');
+  assert.equal(copies.workOf(`own:${'a'.repeat(64)}`), null);
+  assert.equal(copies.cleanWork('books:OL1W'), 'books:OL1W');
+  assert.equal(copies.cleanWork('none'), null);
+  assert.equal(copies.threadKeyOf(`own:${'a'.repeat(64)}`, 'books:OL1W'), 'books:OL1W', 'a matched copy posts to the book`s thread');
+  assert.equal(copies.threadKeyOf(`own:${'a'.repeat(64)}`, null), `own:${'a'.repeat(64)}`, 'an unmatched file keeps its own');
+  assert.equal(copies.backLinkOf(`own:${'a'.repeat(64)}`, 'books:OL1W'), '/media/book/books:OL1W', 'a post from your own file points at the book`s page');
+  assert.equal(copies.backLinkOf(`own:${'a'.repeat(64)}`, null), '/read');
+  const offered = copies.matchesOf({
+    docs: [
+      { key: '/works/OL138052W', title: 'A Title', author_name: ['An Author'], cover_i: 7 },
+      { key: '/books/OL1M', title: 'An edition, not a work' },
+      { key: '/works/OL2W', title: '' },
+      { key: '/works/OL3W', title: '<b>Plain</b>', author_name: 'not a list' },
+    ],
+  });
+  assert.deepEqual(offered.map((each) => [each.work, each.author]), [['books:OL138052W', 'An Author'], ['books:OL3W', '']], 'works only, with a title');
+  assert.equal(copies.matchLine({ title: 'A Title', author: 'An Author' }), 'THIS IS: A TITLE BY AN AUTHOR');
+  assert.equal(copies.searchWords('Alice’s  Adventures: in <Wonderland>!'), 'Alice s Adventures in Wonderland', 'only letters, digits and spaces are sent');
+  const fakeFetch = (answers) => async (url) => ({ ok: true, json: async () => answers.shift() ?? { docs: [] }, url });
+  assert.equal((await copies.findWorks('A Title', 'Odd, Author', fakeFetch([{ docs: [] }, { docs: [{ key: '/works/OL9W', title: 'A Title' }] }])))[0].work, 'books:OL9W', 'no answer by title and author: asked again by title alone');
+  assert.equal(copies.pageCfi(105), 'epubcfi(/6/212)', 'page 106 is the fixed page CFI the engine makes');
+  assert.equal(copies.pageOfCfi('epubcfi(/6/212)'), 105);
+  assert.equal(copies.pageOfCfi('epubcfi(/6/14!/4/2)'), null, 'an EPUB CFI is not a page');
+  assert.equal(copies.pageOfCfi(null), null);
+  // Made-up words, shaped like a quote with dialogue marks (no book text in a check).
+  const probe = copies.quoteProbe('“Grey!” said the test, “the purple kettle hums beside a quiet lamp, and the ruler counts nothing but blue!”');
+  assert.ok(probe.length >= 12 && probe.length <= 80 && !/[“”!]/.test(probe), 'a quote is searched for by a plain run of its words');
+  assert.equal(copies.copyName(`own:${'a'.repeat(64)}`), "A READER'S OWN FILE");
+  // One row a book on the shelf, whichever copy was read last.
+  const shelf = places.shelves([
+    { bookRef: 'books:OL5W-pg5', cfi: CFI, page: 0, title: 'G', progress: 10, finishedAt: null, updatedAt: '2026-11-01T00:00:00Z', workRef: null },
+    { bookRef: `own:${'b'.repeat(64)}`, cfi: CFI, page: 3, title: 'P', progress: 30, finishedAt: null, updatedAt: '2026-11-02T00:00:00Z', workRef: 'books:OL5W' },
+    { bookRef: `own:${'c'.repeat(64)}`, cfi: null, page: 0, title: '', progress: 0, finishedAt: null, updatedAt: '2026-11-03T00:00:00Z', workRef: 'books:OL6W' },
+  ]);
+  assert.deepEqual(shelf.reading.map((place) => place.title), ['P'], 'two copies of one book are one row, the last read; a matched file not yet read is none');
+  console.log('  ok    every copy of a book');
   console.log('reading places: all passed');
 })().catch((error) => {
   console.error(error);

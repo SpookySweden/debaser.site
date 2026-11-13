@@ -20,8 +20,9 @@ export function createMockBooksRepository(): BooksRepository {
       const highlight: BookHighlight = {
         ...input,
         place: 0,
-        startAt: 0,
-        endAt: 0,
+        startAt: input.startAt ?? 0,
+        endAt: input.endAt ?? 0,
+        workRef: input.workRef ?? null,
         id: `mock-highlight-${next++}`,
         person,
         forumCommentId: null,
@@ -55,7 +56,7 @@ export function createMockBooksRepository(): BooksRepository {
     async savePlace(person, bookRef, place) {
       const clean = cleanPlace(place);
       const held = places.get(`${person}|${bookRef}`);
-      places.set(`${person}|${bookRef}`, { ...clean, title: clean.title || held?.title || '', bookRef, updatedAt: new Date().toISOString() });
+      places.set(`${person}|${bookRef}`, { ...clean, title: clean.title || held?.title || '', workRef: clean.workRef ?? held?.workRef ?? null, bookRef, updatedAt: new Date().toISOString() });
     },
     async places(person) {
       return [...places]
@@ -63,6 +64,21 @@ export function createMockBooksRepository(): BooksRepository {
         .map(([, place]) => place)
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
         .slice(0, PLACES_LISTED_MAX);
+    },
+    async acrossCopies(person, bookRef, work) {
+      const sameWork = (ref: string, of: string | null) => ref === bookRef || (work !== null && (of === work || ref === work || ref.startsWith(`${work}-pg`)));
+      const all = [...highlights.values()].filter((each) => sameWork(each.bookRef, each.workRef)).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+      return [...all.filter((each) => each.person === person), ...all.filter((each) => each.person !== person && !each.isLocked)];
+    },
+    async placesOfWork(person, work) {
+      return [...places]
+        .filter(([key, place]) => key.startsWith(`${person}|`) && (place.workRef === work || place.bookRef === work || place.bookRef.startsWith(`${work}-pg`)))
+        .map(([, place]) => place)
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    },
+    async setWork(person, bookRef, work) {
+      const held = places.get(`${person}|${bookRef}`);
+      places.set(`${person}|${bookRef}`, held ? { ...held, workRef: work } : { bookRef, cfi: null, page: 0, title: '', progress: 0, finishedAt: null, updatedAt: new Date().toISOString(), workRef: work });
     },
     async unfinish(person, bookRef) {
       const held = places.get(`${person}|${bookRef}`);

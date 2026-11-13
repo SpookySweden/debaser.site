@@ -32,6 +32,9 @@ Left out: the comic book, FB2 and MOBI readers, `dict.js`, `opds.js`, `footnotes
 - `pdf.js`: pdf.js's helper files come from the site's `/vendor/pdfjs/`; `wasmUrl` and `iccUrl` are given; and only the
   pages being read are fetched, in half-megabyte slices (`rangeChunkSize`, `disableAutoFetch`, `disableStream`), so a
   scan of hundreds of megabytes is never pulled whole.
+- `pdf.js`, `render`: a page drawn again at a new zoom empties its text and link layers first (upstream added a second
+  copy of the words after the first), so a PDF highlight's characters within the page's words (2026-11-13,
+  `app/lib/books/copies.ts`) always mean the same words.
 
 ## Scripts in books
 foliate-js frames each chapter with `sandbox="allow-same-origin allow-scripts"` (a WebKit bug needs

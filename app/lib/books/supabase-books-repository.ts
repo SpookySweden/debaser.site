@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { cleanWork } from './copies';
 import {
   BOOKMARKS_PER_BOOK_MAX,
   HIGHLIGHTS_PER_BOOK_MAX,
@@ -13,7 +14,7 @@ import {
   type BooksRepository,
 } from './types';
 
-const COLUMNS = 'id, person, book_ref, book_title, cfi, place, start_at, end_at, quote, comment, colour, is_locked, forum_comment_id, created_at';
+const COLUMNS = 'id, person, book_ref, book_title, cfi, place, start_at, end_at, quote, comment, colour, is_locked, forum_comment_id, created_at, work_ref';
 const BOOKMARK_COLUMNS = 'id, person, book_ref, cfi, label, created_at';
 
 type Row = {
@@ -31,6 +32,7 @@ type Row = {
   is_locked: boolean;
   forum_comment_id: string | null;
   created_at: string;
+  work_ref: string | null;
 };
 
 type BookmarkRow = { id: string; person: string; book_ref: string; cfi: string; label: string; created_at: string };
@@ -51,11 +53,21 @@ function fromRow(row: Row): BookHighlight {
     isLocked: row.is_locked,
     forumCommentId: row.forum_comment_id,
     createdAt: row.created_at,
+    workRef: row.work_ref ?? null,
   };
 }
 
-const PLACE_COLUMNS = 'book_ref, cfi, place, title, progress, finished_at, updated_at';
-type PlaceRow = { book_ref: string; cfi: string | null; place: number; title: string | null; progress: number | null; finished_at: string | null; updated_at: string };
+const PLACE_COLUMNS = 'book_ref, cfi, place, title, progress, finished_at, updated_at, work_ref';
+type PlaceRow = {
+  book_ref: string;
+  cfi: string | null;
+  place: number;
+  title: string | null;
+  progress: number | null;
+  finished_at: string | null;
+  updated_at: string;
+  work_ref: string | null;
+};
 
 function fromPlaceRow(row: PlaceRow): BookPlace {
   return {
@@ -66,6 +78,7 @@ function fromPlaceRow(row: PlaceRow): BookPlace {
     progress: row.progress ?? 0,
     finishedAt: row.finished_at,
     updatedAt: row.updated_at,
+    workRef: row.work_ref ?? null,
   };
 }
 
@@ -102,6 +115,9 @@ export function createSupabaseBooksRepository(client: SupabaseClient): BooksRepo
           comment: highlight.comment,
           colour: highlight.colour,
           is_locked: highlight.isLocked,
+          start_at: highlight.startAt ?? 0,
+          end_at: highlight.endAt ?? 0,
+          work_ref: cleanWork(highlight.workRef),
         })
         .select(COLUMNS)
         .single();
@@ -148,8 +164,9 @@ export function createSupabaseBooksRepository(client: SupabaseClient): BooksRepo
         finished_at: clean.finishedAt,
         updated_at: new Date().toISOString(),
       };
-      // A title not known yet leaves the saved one alone.
+      // A title not known yet leaves the saved one alone; so does a work not known yet.
       if (clean.title) row.title = clean.title;
+      if (clean.workRef) row.work_ref = clean.workRef;
       await client.from('book_places').upsert(row, { onConflict: 'person,book_ref' });
     },
     async places(person) {
@@ -161,6 +178,38 @@ export function createSupabaseBooksRepository(client: SupabaseClient): BooksRepo
         .limit(PLACES_LISTED_MAX);
       if (error) throw new Error('Your books could not be read.');
       return (data as PlaceRow[]).map(fromPlaceRow);
+    },
+    async acrossCopies(person, bookRef, work) {
+      // This copy's, and every copy of the same work: matched to it, or a Gutenberg ref of it. RLS keeps others' locked ones out.
+      const copies = [`book_ref.eq."${bookRef}"`];
+      if (work) copies.push(`work_ref.eq."${work}"`, `book_ref.eq."${work}"`, `book_ref.like."${work}-pg*"`);
+      const { data, error } = await client
+        .from('book_highlights')
+        .select(COLUMNS)
+        .or(copies.join(','))
+        .order('created_at', { ascending: true })
+        .limit(HIGHLIGHTS_PER_BOOK_MAX);
+      if (error) throw new Error('The highlights could not be read.');
+      // Yours first in the order they were made; others' public ones after.
+      const rows = (data as Row[]).map(fromRow);
+      return [...rows.filter((each) => each.person === person), ...rows.filter((each) => each.person !== person && !each.isLocked)];
+    },
+    async placesOfWork(person, work) {
+      const { data, error } = await client
+        .from('book_places')
+        .select(PLACE_COLUMNS)
+        .eq('person', person)
+        .or(`work_ref.eq."${work}",book_ref.eq."${work}",book_ref.like."${work}-pg*"`)
+        .order('updated_at', { ascending: false })
+        .limit(50);
+      if (error) return [];
+      return (data as PlaceRow[]).map(fromPlaceRow);
+    },
+    async setWork(person, bookRef, work) {
+      if (!/^(books:OL[1-9][0-9]{0,11}W|none)$/.test(work)) throw new Error('That is not a book.');
+      // Only the match: an upsert names just these columns, so a place already saved stays as it was.
+      const { error } = await client.from('book_places').upsert({ person, book_ref: bookRef, work_ref: work }, { onConflict: 'person,book_ref' });
+      if (error) throw new Error('The match could not be saved.');
     },
     async unfinish(person, bookRef) {
       const { error } = await client.from('book_places').update({ finished_at: null, updated_at: new Date().toISOString() }).eq('person', person).eq('book_ref', bookRef);

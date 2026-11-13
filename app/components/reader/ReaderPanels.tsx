@@ -4,6 +4,7 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 import { LAYOUTS, MARGINS, nudge, PAGE_COUNTS, PAPERS, READER_FONTS, SIZE_MAX, SIZE_MIN, SPACING_MAX, SPACING_MIN, type ReaderSettings } from '../../lib/books/reader-look';
 import type { SearchExcerpt, TocItem } from '../../lib/books/reader-engine';
 import { highlightRef, type BookBookmark, type BookHighlight } from '../../lib/books/types';
+import { copyName, pageOfCfi } from '../../lib/books/copies';
 import { FIELD_TIGHT, PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR } from '../../lib/ui/controls';
 import AddToLetterKey from '../AddToLetterKey';
 import { SWATCH } from './HighlightBar';
@@ -150,15 +151,27 @@ export function BookmarkList({
 }
 
 /** Your highlights in this book: the words, your comment, when, the colour, and GO TO, the lock, DELETE and + LETTER. */
+/**
+ * The highlights panel: yours in every copy of this book, then other readers' public ones (Luke, 2026-11-13). One made in
+ * another copy goes to where its words were found in this one; when they weren't (a scan with no words, or different
+ * wording), it says FROM ANOTHER COPY, with its quote and where it was, instead of being lost.
+ */
 export function HighlightList({
   signedIn,
+  me,
+  bookRef,
   highlights,
+  findable,
   onGo,
   onLock,
   onRemove,
 }: {
   signedIn: boolean;
+  me: string | null;
+  bookRef: string;
   highlights: readonly BookHighlight[];
+  /** The highlights there is a place to go to in this copy: their own, or one found by its words. */
+  findable: ReadonlySet<string>;
   onGo: (highlight: BookHighlight) => void;
   onLock: (highlight: BookHighlight) => void;
   onRemove: (highlight: BookHighlight) => void;
@@ -167,30 +180,43 @@ export function HighlightList({
   if (highlights.length === 0) return <p className="text-label">NO HIGHLIGHTS IN THIS BOOK YET.</p>;
   return (
     <ul>
-      {highlights.map((highlight) => (
-        <li key={highlight.id} className="rule-pixel py-1.5">
-          <p className="flex gap-1.5">
-            <span aria-hidden="true" className={`frame mt-0.5 h-3 w-3 shrink-0 ${SWATCH[highlight.colour]}`} />
-            <span className="min-w-0 break-words text-label">&quot;{highlight.quote}&quot;</span>
-          </p>
-          {highlight.comment ? <p className="break-words pl-4.5 text-label text-ink-quiet">{highlight.comment}</p> : null}
-          <p className="mt-1 flex flex-wrap items-center gap-1 pl-4">
-            <time className="text-label text-ink-quiet" dateTime={highlight.createdAt}>
-              {highlight.createdAt.slice(0, 16).replace('T', ' ')}
-            </time>
-            <button type="button" onClick={() => onGo(highlight)} disabled={!highlight.cfi} className={PLATE}>
-              [ GO TO ]
-            </button>
-            <button type="button" onClick={() => onLock(highlight)} aria-pressed={highlight.isLocked} className={PLATE}>
-              {highlight.isLocked ? '[ 🔒 PRIVATE ]' : '[ 🔓 POSTED ]'}
-            </button>
-            <button type="button" onClick={() => onRemove(highlight)} className={PLATE}>
-              [ DELETE ]
-            </button>
-            <AddToLetterKey thing={{ kind: 'highlight', ref: highlightRef(highlight), title: highlight.quote.slice(0, 120) }} />
-          </p>
-        </li>
-      ))}
+      {highlights.map((highlight) => {
+        const mine = highlight.person === me;
+        const elsewhere = highlight.bookRef !== bookRef;
+        const lost = elsewhere && !findable.has(highlight.id);
+        const page = pageOfCfi(highlight.cfi);
+        const where = lost ? `FROM ANOTHER COPY: ${copyName(highlight.bookRef)}${page !== null ? `, PAGE ${page + 1}` : ''}` : elsewhere ? 'FOUND FROM ANOTHER COPY' : '';
+        const about = [mine ? '' : "A READER'S", where].filter(Boolean).join(' · ');
+        return (
+          <li key={highlight.id} className="rule-pixel py-1.5" data-highlight={highlight.id} data-from-another-copy={lost ? 'true' : undefined}>
+            {about ? <p className="text-label text-ink-quiet">{about}</p> : null}
+            <p className="flex gap-1.5">
+              <span aria-hidden="true" className={`frame mt-0.5 h-3 w-3 shrink-0 ${SWATCH[highlight.colour]}`} />
+              <span className="min-w-0 break-words text-label">&quot;{highlight.quote}&quot;</span>
+            </p>
+            {highlight.comment ? <p className="break-words pl-4.5 text-label text-ink-quiet">{highlight.comment}</p> : null}
+            <p className="mt-1 flex flex-wrap items-center gap-1 pl-4">
+              <time className="text-label text-ink-quiet" dateTime={highlight.createdAt}>
+                {highlight.createdAt.slice(0, 16).replace('T', ' ')}
+              </time>
+              <button type="button" onClick={() => onGo(highlight)} disabled={!findable.has(highlight.id)} className={PLATE}>
+                [ GO TO ]
+              </button>
+              {mine ? (
+                <>
+                  <button type="button" onClick={() => onLock(highlight)} aria-pressed={highlight.isLocked} className={PLATE}>
+                    {highlight.isLocked ? '[ 🔒 PRIVATE ]' : '[ 🔓 POSTED ]'}
+                  </button>
+                  <button type="button" onClick={() => onRemove(highlight)} className={PLATE}>
+                    [ DELETE ]
+                  </button>
+                  <AddToLetterKey thing={{ kind: 'highlight', ref: highlightRef(highlight), title: highlight.quote.slice(0, 120) }} />
+                </>
+              ) : null}
+            </p>
+          </li>
+        );
+      })}
     </ul>
   );
 }

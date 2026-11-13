@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   bookmarkLabel,
@@ -19,6 +19,27 @@ import { bookKind, loadEngine, metadataText, openBook, remotePdf, type EngineBoo
 import { getBooksRepository } from '../../lib/books/repository';
 import { fetchPages, pictureBook } from '../../lib/books/page-pictures';
 import {
+  archiveWork,
+  backLinkOf,
+  cleanWork,
+  findWorks,
+  ipfsWork,
+  matchLine,
+  offsetIn,
+  pageCfi,
+  pageOfCfi,
+  quoteProbe,
+  rangeIn,
+  searchWorks,
+  threadKeyOf,
+  workKey,
+  workOf,
+  NOT_LISTED,
+  type WorkMatch,
+} from '../../lib/books/copies';
+import {
+  bookOf,
+  browserPlaces,
   chapterLeftText,
   fingerprint,
   finishedAfter,
@@ -46,7 +67,9 @@ import {
   archiveBookId,
   archiveViewerUrl,
   isCfi,
+  ownHash,
   ownRef,
+  HIGHLIGHT_COLOURS,
   QUOTE_MAX,
   type BookBookmark,
   type BookHighlight,
@@ -54,7 +77,7 @@ import {
   type HighlightColour,
   type PlaceSave,
 } from '../../lib/books/types';
-import { PLATE, PLATE_MAIN, PLATE_PRESSED } from '../../lib/ui/controls';
+import { FIELD_TIGHT, PLATE, PLATE_MAIN, PLATE_PRESSED } from '../../lib/ui/controls';
 import { useAuth } from '../AuthProvider';
 import { useForum } from '../ForumProvider';
 import HighlightBar, { type BarSpot } from './HighlightBar';
@@ -80,6 +103,63 @@ const IPFS_LINES: Record<IpfsProblem, string> = {
 function arrivedText(progress: IpfsProgress): string {
   if (progress.total) return `${Math.min(100, Math.floor((progress.loaded / progress.total) * 100))}%`;
   return `${(progress.loaded / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/**
+ * [ CHANGE ] for your own file: BOOKS search (Open Library's works), each with [ THIS ONE ], and [ NOT LISTED ] at the foot.
+ * Only the words typed go to Open Library.
+ */
+function MatchSearch({ start, onChoose }: { start: string; onChoose: (chosen: WorkMatch | 'none') => void }) {
+  const [query, setQuery] = useState(start);
+  const [results, setResults] = useState<WorkMatch[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!query.trim()) return;
+    setBusy(true);
+    setResults(await searchWorks(query));
+    setBusy(false);
+  };
+  return (
+    <div className="flex flex-col gap-2">
+      <form onSubmit={(event) => void submit(event)} className="flex gap-1">
+        <label className="min-w-0 flex-1">
+          <span className="sr-only">Search BOOKS for this file&apos;s book</span>
+          <input value={query} onChange={(event) => setQuery(event.target.value)} className={FIELD_TIGHT} maxLength={200} />
+        </label>
+        <button type="submit" className={PLATE} disabled={busy}>
+          [ SEARCH BOOKS ]
+        </button>
+      </form>
+      {busy ? <p className="text-label" role="status">SEARCHING...</p> : null}
+      {results !== null && results.length === 0 && !busy ? <p className="text-label">NO BOOKS FOUND.</p> : null}
+      <ul>
+        {(results ?? []).map((result) => (
+          <li key={result.work} className="rule-pixel flex items-center gap-2 py-1.5" data-work={result.work}>
+            <span className="min-w-0 flex-1 break-words text-label">
+              {result.title.toUpperCase()}
+              {result.author ? ` BY ${result.author.toUpperCase()}` : ''}
+            </span>
+            <button type="button" onClick={() => onChoose(result)} className={PLATE} aria-label={`THIS ONE: ${result.title}`}>
+              [ THIS ONE ]
+            </button>
+          </li>
+        ))}
+      </ul>
+      <button type="button" onClick={() => onChoose('none')} className={PLATE}>
+        [ NOT LISTED ]
+      </button>
+    </div>
+  );
+}
+
+/** Every place this browser kept, or none where storage is blocked. */
+function placesHere(): BookPlace[] {
+  try {
+    return browserPlaces(window.localStorage);
+  } catch {
+    return [];
+  }
 }
 
 /** Per-browser memory (a visitor's look and place): never trusted, never required. */
@@ -150,7 +230,11 @@ type Relocated = {
   section?: { current?: number; total?: number };
   cfi?: string;
 };
-type Picked = { cfi: string; quote: string; spot: BarSpot };
+/** Words chosen to highlight: an EPUB's CFI, or a PDF page's short address and the characters within its words. */
+type Picked = { cfi: string; quote: string; spot: BarSpot; startAt?: number; endAt?: number };
+/** The question before a started book: its place, and whether that place was in another copy of the same book. */
+type Asked = BookPlace & { other?: boolean };
+type PdfWindow = Window & { Highlight?: new (...ranges: Range[]) => unknown; CSS: { highlights?: Map<string, unknown> } };
 type Shown = { highlight: BookHighlight; spot: BarSpot };
 
 /**
@@ -204,7 +288,22 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
   const savedTitle = useRef('');
   const opened = useRef(false);
   const answerAsk = useRef<((choice: 'continue' | 'over') => void) | null>(null);
-  const [ask, setAsk] = useState<BookPlace | null>(null);
+  const [ask, setAsk] = useState<Asked | null>(null);
+  // Every copy of a book counts as that book (Luke, 2026-11-13; lib/books/copies.ts): this copy's ref (your own file's once
+  // its fingerprint is known), the Open Library work it is a copy of, and for your own file the match and its words.
+  const [copyRef, setCopyRef] = useState<string | null>(own ? null : bookRef);
+  const [work, setWork] = useState<string | null>(null);
+  const workNow = useRef<string | null>(null);
+  const [ownMeta, setOwnMeta] = useState<{ title: string; author: string } | null>(null);
+  const [match, setMatch] = useState<WorkMatch | 'none' | 'unfound' | null>(null);
+  const [choosing, setChoosing] = useState(false);
+  // A scanned book's page pictures: fixed pages with no words to highlight.
+  const [pictures, setPictures] = useState(false);
+  // Highlights made in another copy, found by their words in this one: highlight id -> where (a CFI here).
+  const [found, setFound] = useState<Record<string, string>>({});
+  // A PDF's pages on screen, and each one's highlights as ranges (for a click on one).
+  const pdfDocs = useRef(new Map<number, Document>());
+  const pdfHits = useRef(new WeakMap<Document, { highlight: BookHighlight; range: Range }[]>());
 
   const [phase, setPhase] = useState<'choose' | 'reading-file' | 'opening' | 'ask' | 'ready' | 'viewer' | { fault: string }>(own ? 'choose' : 'reading-file');
   // What the engine opened (an EPUB reflows and takes highlights; a PDF has fixed pages), a reader's own file, and a count
@@ -232,9 +331,14 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
   const [focus, setFocus] = useState(false);
   const [ownHighlights, setHighlights] = useState<BookHighlight[]>([]);
   const [ownBookmarks, setBookmarks] = useState<BookBookmark[]>([]);
-  // Signed out, there are none to show (what was read for an account stays with it).
-  const mine = me ? ownHighlights : NONE_HIGHLIGHTED;
-  const highlights = mine;
+  // Signed out, there are none to show (what was read for an account stays with it). Signed in: yours in every copy of the
+  // book, and other readers' public ones. Drawn here: this copy's own, and those from another copy whose words were found.
+  const highlights = me ? ownHighlights : NONE_HIGHLIGHTED;
+  const mine = useMemo(
+    () => highlights.flatMap((highlight) => (highlight.bookRef === copyRef ? [highlight] : found[highlight.id] ? [{ ...highlight, cfi: found[highlight.id] }] : [])),
+    [highlights, copyRef, found],
+  );
+  const findable = useMemo(() => new Set(mine.filter((highlight) => highlight.cfi).map((highlight) => highlight.id)), [mine]);
   const bookmarks = me ? ownBookmarks : NONE_BOOKMARKED;
   const [picked, setPicked] = useState<Picked | null>(null);
   const [shown, setShown] = useState<Shown | null>(null);
@@ -250,6 +354,7 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
     barsOpenRef.current = picked !== null || shown !== null;
     // Your own file's saved title is the one written inside it (set as it opens), never its file name.
     if (!own) savedTitle.current = title;
+    workNow.current = work;
   });
 
   // ---------- the look: read once (the account's, else this browser's), applied to the engine on every change ----------
@@ -328,34 +433,167 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
 
   // ---------- this reader's highlights and bookmarks ----------
 
+  // ---------- which book this copy is (copies.ts) ----------
+
   useEffect(() => {
-    if (!me || own) return;
+    if (!copyRef) return;
     let live = true;
-    void getBooksRepository()
-      .mine(me.id, bookRef)
-      .then((found) => live && setHighlights(found))
-      .catch(() => undefined);
-    void getBooksRepository()
-      .bookmarks(me.id, bookRef)
-      .then((found) => live && setBookmarks(found))
-      .catch(() => undefined);
+    (async () => {
+      const cid = ipfsCid(copyRef);
+      let found = workOf(copyRef) ?? (cid ? ipfsWork(cid) : null) ?? (archiveBookId(copyRef) ? await archiveWork(copyRef) : null);
+      if (ownHash(copyRef)) {
+        // Your own file: the match saved to the account (so another device finds it), else this browser's, else a guess from
+        // the title and author written inside the file, saved at once (THIS IS: ... with [ CHANGE ] and [ NOT LISTED ]).
+        const person = meRef.current;
+        const saved = (person ? (await getBooksRepository().place(person.id, copyRef).catch(() => null))?.workRef : null) ?? remembered(workKey(copyRef));
+        const savedWork = cleanWork(saved);
+        if (saved === NOT_LISTED) {
+          if (live) setMatch('none');
+        } else if (savedWork) {
+          found = savedWork;
+          const info = await fetch(`/api/web/book/info?ref=${encodeURIComponent(savedWork)}`).then((response) => (response.ok ? response.json() : null)).catch(() => null);
+          const item = (info as { item?: { title?: string; creator?: string } } | null)?.item;
+          if (live) setMatch({ work: savedWork, title: item?.title ?? 'THE MATCHED BOOK', author: item?.creator ?? '', cover: null });
+        } else if (ownMeta?.title) {
+          const guess = (await findWorks(ownMeta.title, ownMeta.author))[0];
+          if (guess) {
+            found = guess.work;
+            remember(workKey(copyRef), guess.work);
+            if (person) await getBooksRepository().setWork(person.id, copyRef, guess.work).catch(() => undefined);
+            if (live) setMatch(guess);
+          } else if (live) setMatch('unfound');
+        } else if (live) setMatch('unfound');
+      }
+      if (live) setWork(found);
+    })();
     return () => {
       live = false;
     };
-  }, [me, bookRef, own]);
+  }, [copyRef, ownMeta]);
+
+  /** [ CHANGE ]: this file is that book (or [ NOT LISTED ]), on the account and in this browser. */
+  const chooseMatch = async (chosen: WorkMatch | 'none') => {
+    if (!copyRef) return;
+    const value = chosen === 'none' ? NOT_LISTED : chosen.work;
+    remember(workKey(copyRef), value);
+    if (me) await getBooksRepository().setWork(me.id, copyRef, value).catch(() => setFault('THE MATCH COULD NOT BE SAVED.'));
+    setMatch(chosen);
+    setWork(chosen === 'none' ? null : chosen.work);
+    setChoosing(false);
+  };
+
+  // ---------- this reader's highlights and bookmarks ----------
+
+  useEffect(() => {
+    if (!me || !copyRef) return;
+    let live = true;
+    void getBooksRepository()
+      .acrossCopies(me.id, copyRef, work)
+      .then((got) => live && setHighlights(got))
+      .catch(() => undefined);
+    if (!own) {
+      void getBooksRepository()
+        .bookmarks(me.id, copyRef)
+        .then((got) => live && setBookmarks(got))
+        .catch(() => undefined);
+    }
+    return () => {
+      live = false;
+    };
+  }, [me, copyRef, work, own]);
+
+  /**
+   * A PDF page's highlights, painted over its words with the browser's own highlight layer (CSS Custom Highlights: the
+   * engine's drawing layer is an EPUB's only). Each is the page's words from its start to its end character.
+   */
+  const paintPdf = useCallback((doc: Document, index: number) => {
+    const win = doc.defaultView as PdfWindow | null;
+    const layer = doc.querySelector('.textLayer');
+    if (!win || !layer || !win.Highlight || !win.CSS.highlights) return;
+    let style = doc.getElementById('debaser-marks');
+    if (!style) {
+      style = doc.createElement('style');
+      style.id = 'debaser-marks';
+      (doc.head ?? doc.documentElement).append(style);
+    }
+    // The page's words are an invisible layer over its picture: multiplied onto it, a highlight tints the page and its
+    // printed words still show through.
+    style.textContent = [
+      '.textLayer { mix-blend-mode: multiply; }',
+      ...HIGHLIGHT_COLOURS.map((colour) => `::highlight(debaser-${colour}) { background-color: ${tokenValue(markToken(colour))}; }`),
+    ].join('\n');
+    const hits: { highlight: BookHighlight; range: Range }[] = [];
+    const byColour = new Map<string, Range[]>();
+    for (const highlight of highlightsRef.current) {
+      if (pageOfCfi(highlight.cfi) !== index || highlight.endAt <= highlight.startAt) continue;
+      const range = rangeIn(layer, highlight.startAt, highlight.endAt);
+      if (!range) continue;
+      hits.push({ highlight, range });
+      byColour.set(highlight.colour, [...(byColour.get(highlight.colour) ?? []), range]);
+    }
+    for (const colour of HIGHLIGHT_COLOURS) {
+      const ranges = byColour.get(colour) ?? [];
+      if (ranges.length) win.CSS.highlights.set(`debaser-${colour}`, new win.Highlight(...ranges));
+      else win.CSS.highlights.delete(`debaser-${colour}`);
+    }
+    pdfHits.current.set(doc, hits);
+  }, []);
 
   // Every highlight with a place drawn on whatever chapters are on screen (the engine draws only those it holds).
   const drawAll = useCallback(() => {
     const view = viewRef.current;
     if (!view) return;
+    if (kindRef.current === 'pdf') {
+      for (const [index, doc] of pdfDocs.current) paintPdf(doc, index);
+      return;
+    }
     for (const highlight of highlightsRef.current) {
       if (highlight.cfi) void view.addAnnotation({ value: highlight.cfi, color: tokenValue(markToken(highlight.colour)) }).catch(() => undefined);
     }
-  }, []);
+  }, [paintPdf]);
 
   useEffect(() => {
     if (phase === 'ready') drawAll();
-  }, [highlights, phase, drawAll]);
+  }, [mine, phase, drawAll]);
+
+  /**
+   * Highlights made in another copy of this book, found here by their words (an EPUB only: the engine searches its text).
+   * A short run of the quote is searched for; found, it is drawn and GO TO goes there; not found, the panel lists it FROM
+   * ANOTHER COPY with its quote and where it was. At most 60, one at a time, after the book is open.
+   */
+  useEffect(() => {
+    if (phase !== 'ready' || kind !== 'epub' || !copyRef) return;
+    const elsewhere = highlights.filter((highlight) => highlight.bookRef !== copyRef && !(highlight.id in found)).slice(0, 60);
+    if (elsewhere.length === 0) return;
+    let live = true;
+    (async () => {
+      const view = viewRef.current;
+      if (!view) return;
+      const located: Record<string, string> = {};
+      for (const highlight of elsewhere) {
+        if (!live) return;
+        let at = '';
+        try {
+          for await (const result of view.search({ query: quoteProbe(highlight.quote) })) {
+            if (result === 'done') break;
+            if ('subitems' in result && result.subitems[0]) {
+              at = result.subitems[0].cfi;
+              break;
+            }
+          }
+        } catch {
+          at = '';
+        }
+        located[highlight.id] = at;
+      }
+      view.clearSearch();
+      // Found: where; not found: empty, so it isn't searched for again and the panel says FROM ANOTHER COPY.
+      if (live) setFound((held) => ({ ...held, ...Object.fromEntries(Object.entries(located).map(([id, at]) => [id, isCfi(at) ? at : ''])) }));
+    })();
+    return () => {
+      live = false;
+    };
+  }, [phase, kind, copyRef, highlights, found]);
 
   // ---------- opening the book ----------
 
@@ -489,6 +727,7 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
         heldPlace.current = null;
         lastTurn.current = null;
         storyEnd.current = 1;
+        pdfDocs.current.clear();
         const cid = own ? null : ipfsCid(bookRef);
         if (cid) {
           // A book on IPFS: fetched by this browser straight from a gateway, one at a time, into memory (ipfs.ts).
@@ -521,6 +760,14 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
           // device. Only the fingerprint is ever sent; the bytes stay in this browser.
           placeRefOf.current = ownRef(await fingerprint(ownFile).catch(() => ''));
           savedTitle.current = '';
+          // Its highlights and match are kept under that ref too (copies.ts).
+          if (live) {
+            setCopyRef(placeRefOf.current);
+            setWork(null);
+            setMatch(null);
+            setOwnMeta(null);
+            setFound({});
+          }
         } else {
           const response = await fetch(`/api/web/book/epub?ref=${encodeURIComponent(bookRef)}`, { cache: 'no-store' });
           const json = (response.headers.get('content-type') ?? '').startsWith('application/json');
@@ -549,7 +796,12 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
         drawRef.current = engine.highlight;
         const book = prepared ?? (file ? await openBook(file, engine.makeBook) : null);
         if (!book) throw new Error('THIS BOOK COULD NOT BE OPENED.');
-        if (own) savedTitle.current = metadataText(book.metadata?.title);
+        if (own) {
+          savedTitle.current = metadataText(book.metadata?.title);
+          // The title and author written inside your own file: what it is matched to an Open Library work by.
+          if (live) setOwnMeta({ title: metadataText(book.metadata?.title), author: metadataText(book.metadata?.author) });
+        }
+        if (live) setPictures(prepared !== null);
         const openedKind = bookKind(book);
         kindRef.current = openedKind;
         setKind(openedKind);
@@ -569,10 +821,20 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
           indexOf.current.set(doc, index);
           doc.addEventListener('keydown', (keyEvent) => keysRef.current(keyEvent));
           doc.addEventListener('dblclick', cancelTurn);
+          // A PDF page: its highlights painted now and again whenever its words are drawn afresh (a new zoom).
+          if (kindRef.current === 'pdf' && !prepared) {
+            pdfDocs.current.set(index, doc);
+            let paintTimer: number | null = null;
+            new MutationObserver(() => {
+              if (paintTimer !== null) window.clearTimeout(paintTimer);
+              paintTimer = window.setTimeout(() => paintPdf(doc, index), 120);
+            }).observe(doc.body ?? doc.documentElement, { childList: true, subtree: true });
+            paintPdf(doc, index);
+          }
           let timer: number | null = null;
           doc.addEventListener('selectionchange', () => {
-            // Highlights are an EPUB's, in a book the site knows: none on a PDF's fixed pages or in a reader's own file.
-            if (kindRef.current !== 'epub' || own) return;
+            // Highlights: an EPUB's words, or a PDF page's (its words layer); a scan's pictures have no words to choose.
+            if (kindRef.current !== 'epub' && (kindRef.current !== 'pdf' || prepared)) return;
             if (timer !== null) window.clearTimeout(timer);
             timer = window.setTimeout(() => {
               const selection = doc.getSelection();
@@ -582,6 +844,17 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
               const spot = spotOf(doc, range);
               const current = viewRef.current;
               if (!quote || !spot || !current) return;
+              if (kindRef.current === 'pdf') {
+                // A PDF highlight: the page, and the characters within its words where the choice starts and ends.
+                const layer = doc.querySelector('.textLayer');
+                if (!layer || !layer.contains(range.commonAncestorContainer)) return;
+                const startAt = offsetIn(layer, range.startContainer, range.startOffset);
+                const endAt = offsetIn(layer, range.endContainer, range.endOffset);
+                if (endAt <= startAt) return;
+                setShown(null);
+                setPicked({ cfi: pageCfi(indexOf.current.get(doc) ?? index), quote, spot, startAt, endAt });
+                return;
+              }
               const cfi = current.getCFI(indexOf.current.get(doc) ?? index, range);
               if (!isCfi(cfi)) return;
               setShown(null);
@@ -598,6 +871,18 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
               const selection = doc.getSelection();
               if (selection && !selection.isCollapsed) return;
               if ((click.target as Element | null)?.closest?.('a[href]')) return;
+              // A click on one of your highlights on a PDF page opens it (the engine finds an EPUB's itself).
+              const hit = (pdfHits.current.get(doc) ?? []).find(({ range }) =>
+                Array.from(range.getClientRects()).some((box) => click.clientX >= box.left && click.clientX <= box.right && click.clientY >= box.top && click.clientY <= box.bottom),
+              );
+              if (hit && hit.highlight.person === meRef.current?.id) {
+                const spot = spotOf(doc, hit.range);
+                if (spot) {
+                  setPicked(null);
+                  setShown({ highlight: hit.highlight, spot });
+                }
+                return;
+              }
               const frame = doc.defaultView?.frameElement;
               if (frame) tapAt(frame.getBoundingClientRect().left + click.clientX, doc);
             }, 0);
@@ -633,7 +918,15 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
           placeTimer.current = window.setTimeout(() => {
             const held = heldPlace.current;
             const finishedAt = finishedAfter(fraction, held?.finishedAt ?? null);
-            const save: PlaceSave = { cfi, page, title: savedTitle.current, progress: finishedAt ? 100 : percentOf(fraction), finishedAt };
+            const save: PlaceSave = {
+              cfi,
+              page,
+              title: savedTitle.current,
+              progress: finishedAt ? 100 : percentOf(fraction),
+              finishedAt,
+              // The work this copy is, so every copy of the book is found together (copies.ts).
+              ...(workNow.current ? { workRef: workNow.current } : {}),
+            };
             remember(placeKey(ref), storedPlace(save, held));
             remember(paceKey(ref), JSON.stringify(pace.current));
             heldPlace.current = { bookRef: ref, ...save, title: save.title || held?.title || '', updatedAt: new Date().toISOString() };
@@ -652,7 +945,8 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
           const highlight = highlightsRef.current.find((each) => each.cfi === value);
           const doc = viewRef.current?.renderer.getContents().find((each) => each.index === index)?.doc;
           const spot = doc ? spotOf(doc, range) : null;
-          if (highlight && spot) {
+          // Only your own open the bar (another reader's public one is theirs to change).
+          if (highlight && spot && highlight.person === meRef.current?.id) {
             setPicked(null);
             setShown({ highlight, spot });
           }
@@ -676,6 +970,20 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
           if (highlight?.bookRef === bookRef && highlight.cfi) start = highlight.cfi;
         }
         const ref = placeRefOf.current;
+        /** The one question, answered by its keys. */
+        const askAbout = async (place: Asked): Promise<'continue' | 'over' | null> => {
+          setAsk(place);
+          setPhase('ask');
+          const choice = await new Promise<'continue' | 'over'>((resolve) => {
+            answerAsk.current = resolve;
+          });
+          answerAsk.current = null;
+          if (!live) return null;
+          setAsk(null);
+          return choice;
+        };
+        // A place in another copy of the same book, offered by how far through: `CONTINUE FROM 42% (READ IN ANOTHER COPY)`.
+        let elsewhere: number | null = null;
         if (ref) {
           const person = meRef.current;
           const saved = (person ? await getBooksRepository().place(person.id, ref).catch(() => null) : null) ?? placeFromStored(ref, remembered(placeKey(ref)));
@@ -683,19 +991,30 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
           pace.current = paceFrom(remembered(paceKey(ref)));
           if (!start && saved?.cfi) {
             if (!live) return;
-            setAsk(saved);
-            setPhase('ask');
-            const choice = await new Promise<'continue' | 'over'>((resolve) => {
-              answerAsk.current = resolve;
-            });
-            answerAsk.current = null;
-            if (!live) return;
-            setAsk(null);
+            const choice = await askAbout(saved);
+            if (choice === null) return;
             if (choice === 'continue') start = saved.cfi;
+          } else if (!start) {
+            const cidHere = ipfsCid(ref);
+            const workHere = own
+              ? cleanWork(saved?.workRef ?? remembered(workKey(ref)))
+              : (workOf(ref) ?? (cidHere ? ipfsWork(cidHere) : null) ?? (archiveBookId(ref) ? await archiveWork(ref) : null));
+            if (workHere) {
+              const candidates = person ? await getBooksRepository().placesOfWork(person.id, workHere).catch(() => []) : placesHere().filter((place) => bookOf(place) === workHere);
+              const other = candidates
+                .filter((place) => place.bookRef !== ref && place.cfi !== null && place.progress > 0 && !place.finishedAt)
+                .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+              if (other && live) {
+                const choice = await askAbout({ ...other, other: true });
+                if (choice === null) return;
+                if (choice === 'continue') elsewhere = other.progress / 100;
+              }
+            }
           }
         }
         if (!live) return;
-        await view.init({ lastLocation: start, showTextStart: start === null });
+        await view.init({ lastLocation: start, showTextStart: start === null && elsewhere === null });
+        if (elsewhere !== null) await view.goToFraction(Math.min(1, elsewhere * storyEnd.current));
         opened.current = true;
         if (live) setPhase('ready');
       } catch (error) {
@@ -721,23 +1040,46 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
   // ---------- highlights ----------
 
   /** An unlocked highlight's post in the reader's own thread for the book, made the first time it's needed. */
+  // The book's name for its thread and its highlights: the matched book's for your own file (else the title inside it).
+  const matched = match && match !== 'none' && match !== 'unfound' ? match : null;
+  const bookName = (own ? matched?.title || ownMeta?.title || title : title) || 'A BOOK';
+
+  /**
+   * An unlocked highlight's post in the reader's own thread for the book, made the first time it's needed: one thread for
+   * every copy of the book once the copy's work is known (copies.ts), found first by the work and then by the copy's own
+   * ref (threads made before 2026-11-13 were named by the copy).
+   */
   const post = async (highlight: BookHighlight): Promise<string | null> => {
     if (!me) return null;
-    const name = title || 'A BOOK';
-    const anchor = bookThreadAnchor(me.id, bookRef, name);
-    const thread = forum.threadForAnchor(anchor) ?? (await forum.createThread({ title: bookThreadTitle(me.displayName, name), body: '', anchor }));
-    const result = await forum.addComment({ threadId: thread.id, body: highlightPost(highlight) });
+    const ref = copyRef ?? bookRef;
+    const anchor = bookThreadAnchor(me.id, threadKeyOf(ref, work), bookName);
+    const thread =
+      forum.threadForAnchor(anchor) ??
+      (work ? forum.threadForAnchor(bookThreadAnchor(me.id, ref, bookName)) : undefined) ??
+      (await forum.createThread({ title: bookThreadTitle(me.displayName, bookName), body: '', anchor }));
+    const result = await forum.addComment({ threadId: thread.id, body: highlightPost(highlight, own ? backLinkOf(ref, work) : undefined) });
     return result.comment.id;
   };
 
   const save = async (colour: HighlightColour, comment: string, locked: boolean) => {
-    if (!me || !picked) return;
+    if (!me || !picked || !copyRef) return;
     setFault(null);
     const chosen = picked;
     closeBars();
     viewRef.current?.deselect();
     try {
-      let highlight = await getBooksRepository().add(me.id, { bookRef, bookTitle: title || 'A BOOK', cfi: chosen.cfi, quote: chosen.quote, comment: comment.trim(), colour, isLocked: locked });
+      let highlight = await getBooksRepository().add(me.id, {
+        bookRef: copyRef,
+        bookTitle: bookName,
+        cfi: chosen.cfi,
+        quote: chosen.quote,
+        comment: comment.trim(),
+        colour,
+        isLocked: locked,
+        startAt: chosen.startAt,
+        endAt: chosen.endAt,
+        workRef: work,
+      });
       if (!locked) {
         const forumCommentId = await post(highlight).catch(() => null);
         if (forumCommentId) {
@@ -904,14 +1246,15 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
             {own && phase === 'choose' ? 'YOUR BOOKS' : title ? title.toUpperCase() : own ? 'YOUR OWN BOOK' : 'BOOK'}
           </h1>
           <nav aria-label="The reader's keys" className="flex flex-wrap items-center gap-1">
-            {/* The Archive's viewer has its own contents and search: only FOCUS is ours there. Bookmarks and highlights belong
-                to a book the site knows (not a reader's own file), and highlights to an EPUB (not a PDF's fixed pages). */}
+            {/* The Archive's viewer has its own contents and search: only FOCUS is ours there. Bookmarks belong to a book the
+                site knows (not a reader's own file); highlights to any book with words, your own file and PDFs included
+                (2026-11-13), but not a scan's page pictures. */}
             {phase !== 'viewer' && phase !== 'choose' ? (
               <>
                 {topKey('contents', 'CONTENTS')}
                 {topKey('search', 'SEARCH')}
                 {own ? null : topKey('bookmarks', `BOOKMARKS${bookmarks.length ? ` ${bookmarks.length}` : ''}`)}
-                {own || kind === 'pdf' ? null : topKey('highlights', `HIGHLIGHTS${highlights.length ? ` ${highlights.length}` : ''}`)}
+                {pictures ? null : topKey('highlights', `HIGHLIGHTS${highlights.length ? ` ${highlights.length}` : ''}`)}
                 {topKey('look', 'LOOK')}
               </>
             ) : null}
@@ -923,6 +1266,26 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
             )}
           </nav>
         </header>
+      ) : null}
+      {!focus && own && phase !== 'choose' && match !== null ? (
+        // Your own file, matched to its book (copies.ts): its highlights and place then count as that book's.
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-ink bg-sun-pale px-2 py-1 text-label text-ink" data-match>
+          <span className="min-w-0 break-words">
+            {match === 'none'
+              ? 'NOT LISTED: KEPT AS YOUR OWN FILE.'
+              : match === 'unfound'
+                ? 'NO BOOK FOUND FOR THIS FILE: KEPT AS YOUR OWN FILE.'
+                : matchLine(match)}
+          </span>
+          <button type="button" onClick={() => setChoosing(true)} className={PLATE}>
+            {match === 'unfound' || match === 'none' ? '[ FIND IT ]' : '[ CHANGE ]'}
+          </button>
+          {match !== 'none' ? (
+            <button type="button" onClick={() => void chooseMatch('none')} className={PLATE}>
+              [ NOT LISTED ]
+            </button>
+          ) : null}
+        </p>
       ) : null}
 
       <div ref={stageRef} className={`relative min-h-0 flex-1 overflow-hidden ${PAPER_CLASS[settings.paper]}`}>
@@ -962,11 +1325,15 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
             <p className="w-fit bg-sun-pale px-1 text-label text-ink">
               {ask.finishedAt
                 ? `YOU FINISHED THIS ${finishedWhen(ask.finishedAt)}.`
-                : `YOU'RE ${ask.progress > 0 ? `${progressText(ask)} THROUGH` : 'PART WAY THROUGH'}${ask.updatedAt ? ` · LAST READ ${whenText(ask.updatedAt)}` : ''}.`}
+                : `YOU'RE ${ask.progress > 0 ? `${progressText(ask)} THROUGH` : 'PART WAY THROUGH'}${ask.other ? ' IN ANOTHER COPY OF THIS BOOK' : ''}${ask.updatedAt ? ` · LAST READ ${whenText(ask.updatedAt)}` : ''}.`}
             </p>
             <div className="flex flex-wrap justify-center gap-1">
               <button type="button" onClick={() => answerAsk.current?.('continue')} className={PLATE_MAIN} autoFocus>
-                {ask.progress > 0 || ask.finishedAt ? `CONTINUE FROM ${ask.finishedAt ? '100%' : progressText(ask)}` : 'CONTINUE WHERE YOU WERE'}
+                {ask.other
+                  ? `CONTINUE FROM ${progressText(ask)} (READ IN ANOTHER COPY)`
+                  : ask.progress > 0 || ask.finishedAt
+                    ? `CONTINUE FROM ${ask.finishedAt ? '100%' : progressText(ask)}`
+                    : 'CONTINUE WHERE YOU WERE'}
               </button>
               <button type="button" onClick={() => answerAsk.current?.('over')} className={PLATE}>
                 [ START OVER ]
@@ -1076,11 +1443,22 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
           <Panel title="HIGHLIGHTS" onClose={() => setPanel(null)}>
             <HighlightList
               signedIn={me !== null}
+              me={me?.id ?? null}
+              bookRef={copyRef ?? bookRef}
               highlights={highlights}
-              onGo={(highlight) => highlight.cfi && go(highlight.cfi)}
+              findable={findable}
+              onGo={(highlight) => {
+                const here = mine.find((each) => each.id === highlight.id)?.cfi;
+                if (here) go(here);
+              }}
               onLock={(highlight) => void flipLock(highlight)}
               onRemove={(highlight) => void remove(highlight)}
             />
+          </Panel>
+        ) : null}
+        {choosing ? (
+          <Panel title="WHICH BOOK IS THIS?" onClose={() => setChoosing(false)}>
+            <MatchSearch start={ownMeta?.title || title} onChoose={(chosen) => void chooseMatch(chosen)} />
           </Panel>
         ) : null}
         {panel === 'look' ? (
