@@ -4,8 +4,8 @@ import ReaderPage from '../components/reader/ReaderPage';
 import SiteWindow from '../components/SiteWindow';
 
 export const metadata: Metadata = {
-  title: 'DEBASER.SITE - Your own book',
-  description: 'Read your own PDF or EPUB in the DEBASER reader. It opens in your browser and stays on your device.',
+  title: 'DEBASER.SITE - Your books',
+  description: 'Continue the books you are reading, see the ones you finished, or open your own PDF or EPUB in the DEBASER reader.',
 };
 
 /**
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
  */
 export default function OwnBookRoute() {
   return (
-    <SiteWindow title="DEBASER_OS - v1.0 [READER]" active="web" tip="Your own book, read here." fill>
+    <SiteWindow title="DEBASER_OS - v1.0 [READER]" active="web" tip="Your books, and your own files, read here." fill>
       <Suspense fallback={null}>
         <ReaderPage bookRef={null} />
       </Suspense>

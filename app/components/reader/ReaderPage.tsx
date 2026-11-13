@@ -7,7 +7,6 @@ import {
   markTint,
   markToken,
   pageLayout,
-  minutesLeft,
   percentOf,
   quoteOf,
   readerCss,
@@ -16,32 +15,57 @@ import {
   DEFAULT_SETTINGS,
   type ReaderSettings,
 } from '../../lib/books/reader-look';
-import { bookKind, loadEngine, metadataText, openBook, remotePdf, type EngineView, type HighlightDraw, type TocItem } from '../../lib/books/reader-engine';
+import { bookKind, loadEngine, metadataText, openBook, remotePdf, type EngineBook, type EngineView, type HighlightDraw, type TocItem } from '../../lib/books/reader-engine';
 import { getBooksRepository } from '../../lib/books/repository';
+import { fetchPages, pictureBook } from '../../lib/books/page-pictures';
+import {
+  chapterLeftText,
+  fingerprint,
+  finishedAfter,
+  finishedWhen,
+  pageText,
+  paceAfter,
+  paceFrom,
+  paceKey,
+  placeFromStored,
+  placeKey,
+  progressText,
+  storedPlace,
+  storyEndOf,
+  storyFraction,
+  whenText,
+  LICENCE_LABEL,
+  NO_PACE,
+  type Pace,
+} from '../../lib/books/reading-places';
 import { fetchFromGateways, ipfsCid, IpfsFetchError, IPFS_MAX_BYTES, type IpfsProblem, type IpfsProgress } from '../../lib/books/ipfs';
 import {
   bookThreadAnchor,
   bookThreadTitle,
   highlightPost,
+  archiveBookId,
   archiveViewerUrl,
   isCfi,
+  ownRef,
   QUOTE_MAX,
   type BookBookmark,
   type BookHighlight,
+  type BookPlace,
   type HighlightColour,
+  type PlaceSave,
 } from '../../lib/books/types';
 import { PLATE, PLATE_MAIN, PLATE_PRESSED } from '../../lib/ui/controls';
 import { useAuth } from '../AuthProvider';
 import { useForum } from '../ForumProvider';
 import HighlightBar, { type BarSpot } from './HighlightBar';
 import { BookmarkList, ContentsList, HighlightList, LookSettings, Panel, SearchBox, type PanelName, type SearchGroup } from './ReaderPanels';
+import ReadingShelf from './ReadingShelf';
 
 const LOOK_KEY = 'debaser-reader-look';
 /** How long a click on the page's edge waits before turning it: long enough for a double-click to choose a word. */
 const TURN_WAIT_MS = 250;
 const NONE_HIGHLIGHTED: BookHighlight[] = [];
 const NONE_BOOKMARKED: BookBookmark[] = [];
-const placeKey = (bookRef: string) => `debaser-reader-place:${bookRef}`;
 
 /** What the reader says when no IPFS gateway gave the book (`ipfs.ts`). */
 const IPFS_LINES: Record<IpfsProblem, string> = {
@@ -104,7 +128,28 @@ function siteFontFaces(): string {
   return rules.join('\n');
 }
 
-type Location = { fraction: number; chapter: string; chapterHref: string | null; timeLeft: string; cfi: string | null };
+/** Where the book itself ends: the start of the contents item that is Project Gutenberg's licence, as the engine counts. */
+function bookEnd(view: EngineView, toc: readonly TocItem[]): number {
+  const flat = (items: readonly TocItem[]): TocItem[] => items.flatMap((item) => [item, ...flat(item.subitems ?? [])]);
+  const licence = flat(toc).find((item) => LICENCE_LABEL.test(item.label ?? '') && item.href);
+  if (!licence?.href) return 1;
+  try {
+    const resolved = (view as unknown as { resolveNavigation: (target: string) => { index?: number } | undefined }).resolveNavigation(licence.href);
+    const start = typeof resolved?.index === 'number' ? view.getSectionFractions()[resolved.index] : undefined;
+    return storyEndOf([{ label: licence.label ?? '', start: typeof start === 'number' ? start : null }]);
+  } catch {
+    return 1;
+  }
+}
+
+type Location = { fraction: number; chapter: string; chapterHref: string | null; timeLeft: string; cfi: string | null; page: number };
+type Relocated = {
+  fraction?: number;
+  tocItem?: { label?: string; href?: string };
+  time?: { section?: number; total?: number };
+  section?: { current?: number; total?: number };
+  cfi?: string;
+};
 type Picked = { cfi: string; quote: string; spot: BarSpot };
 type Shown = { highlight: BookHighlight; spot: BarSpot };
 
@@ -117,7 +162,12 @@ type Shown = { highlight: BookHighlight; spot: BarSpot };
  *
  * Since Luke's asks of 2026-11-11 it also reads an Internet Archive book: its own EPUB, else its PDF a slice at a time (fixed
  * pages: no highlights there, the engine can't draw them on a PDF), else the Archive's own viewer. And a reader's own PDF or
- * EPUB (`bookRef` null, at /read): opened in this browser from their device, never sent anywhere, nothing saved about it.
+ * EPUB (`bookRef` null, at /read): opened in this browser from their device, never sent anywhere. Since
+ * SPEC-reading-places.md (2026-11-13) it is known by a fingerprint of its bytes (`own:<SHA-256>`), so its place, the title
+ * written inside it and how far you are save like any book's; the bytes themselves still go nowhere.
+ * Keeping your place (the same spec): a started book asks CONTINUE FROM 42% or START OVER before its page; the foot shows how
+ * far you are, PAGE 12 OF 300 on fixed pages and minutes left in the chapter at your own pace; the last page marks it
+ * FINISHED. A scanned Archive book with no EPUB or PDF shows its page pictures here, straight from archive.org.
  * And a book on IPFS (`ipfs:<CID>`, Luke 2026-11-11): fetched by this browser from a public gateway (`lib/books/ipfs.ts`),
  * with how much has come shown as it arrives, a line and TRY AGAIN when no gateway gives it, and its title from the book.
  */
@@ -142,8 +192,21 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
   const turnTimer = useRef<number | null>(null);
   const placeTimer = useRef<number | null>(null);
   const meRef = useRef(me);
+  // Keeping your place (SPEC-reading-places.md): the ref places are saved under (the book's, or `own:<fingerprint>` for your
+  // own file), what was saved when it opened, your pace in it, the title to save, and whether the reader has moved yet (the
+  // page it opens at isn't saved: only where you go from there).
+  const placeRefOf = useRef<string | null>(own ? null : bookRef);
+  const heldPlace = useRef<BookPlace | null>(null);
+  const pace = useRef<Pace>(NO_PACE);
+  // Where the book itself ends in the engine's fraction: before a Gutenberg book's licence, else 1 (reading-places.ts).
+  const storyEnd = useRef(1);
+  const lastTurn = useRef<{ at: number; left: number } | null>(null);
+  const savedTitle = useRef('');
+  const opened = useRef(false);
+  const answerAsk = useRef<((choice: 'continue' | 'over') => void) | null>(null);
+  const [ask, setAsk] = useState<BookPlace | null>(null);
 
-  const [phase, setPhase] = useState<'choose' | 'reading-file' | 'opening' | 'ready' | 'viewer' | { fault: string }>(own ? 'choose' : 'reading-file');
+  const [phase, setPhase] = useState<'choose' | 'reading-file' | 'opening' | 'ask' | 'ready' | 'viewer' | { fault: string }>(own ? 'choose' : 'reading-file');
   // What the engine opened (an EPUB reflows and takes highlights; a PDF has fixed pages), a reader's own file, and a count
   // that opens the book again where it was (a PDF's ONE PAGE / TWO PAGES is decided when it opens).
   const [kind, setKind] = useState<'epub' | 'pdf' | null>(null);
@@ -162,7 +225,7 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
   const kindRef = useRef<'epub' | 'pdf' | null>(null);
   const [title, setTitle] = useState('');
   const [settings, setSettings] = useState<ReaderSettings>(DEFAULT_SETTINGS);
-  const [location, setLocation] = useState<Location>({ fraction: 0, chapter: '', chapterHref: null, timeLeft: '', cfi: null });
+  const [location, setLocation] = useState<Location>({ fraction: 0, chapter: '', chapterHref: null, timeLeft: '', cfi: null, page: 0 });
   const [dragging, setDragging] = useState<number | null>(null);
   const [toc, setToc] = useState<TocItem[]>([]);
   const [panel, setPanel] = useState<PanelName | null>(null);
@@ -185,6 +248,8 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
     meRef.current = me;
     highlightsRef.current = mine;
     barsOpenRef.current = picked !== null || shown !== null;
+    // Your own file's saved title is the one written inside it (set as it opens), never its file name.
+    if (!own) savedTitle.current = title;
   });
 
   // ---------- the look: read once (the account's, else this browser's), applied to the engine on every change ----------
@@ -406,6 +471,8 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
   }, []);
 
   const asked = search.toString();
+  // `/read?file=<fingerprint>`: CONTINUE READING's READ for your own file, which the site doesn't have: choose it again.
+  const wantedFile = own && /^[0-9a-f]{64}$/.test(search.get('file') ?? '') ? search.get('file') : null;
 
   useEffect(() => {
     let live = true;
@@ -415,7 +482,13 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
     const leaving = new AbortController();
     (async () => {
       try {
-        let file: Blob;
+        let file: Blob | null = null;
+        // A scanned Archive book's page pictures, made into a book the engine opens like a PDF (page-pictures.ts).
+        let prepared: EngineBook | null = null;
+        opened.current = false;
+        heldPlace.current = null;
+        lastTurn.current = null;
+        storyEnd.current = 1;
         const cid = own ? null : ipfsCid(bookRef);
         if (cid) {
           // A book on IPFS: fetched by this browser straight from a gateway, one at a time, into memory (ipfs.ts).
@@ -444,31 +517,44 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
           }
           file = ownFile;
           setTitle(ownFile.name.replace(/\.(pdf|epub)$/i, ''));
+          // Known by a fingerprint of its bytes (SHA-256, worked out here), so its place follows the account to another
+          // device. Only the fingerprint is ever sent; the bytes stay in this browser.
+          placeRefOf.current = ownRef(await fingerprint(ownFile).catch(() => ''));
+          savedTitle.current = '';
         } else {
           const response = await fetch(`/api/web/book/epub?ref=${encodeURIComponent(bookRef)}`, { cache: 'no-store' });
           const json = (response.headers.get('content-type') ?? '').startsWith('application/json');
           const said = json ? ((await response.json().catch(() => ({}))) as { error?: string; viewer?: boolean; pdf?: { size?: number } }) : null;
-          // An Internet Archive book with neither an EPUB nor a PDF: the Archive's own viewer, on this page (Luke, 2026-11-11).
-          if (said?.viewer === true && archiveViewerUrl(bookRef) !== null) {
-            if (live) setPhase('viewer');
-            return;
+          // An Internet Archive book with neither an EPUB nor a PDF: its page pictures in the site's own reader, straight from
+          // archive.org (SPEC-reading-places.md, 2026-11-13); the Archive's own viewer when those can't be read.
+          const archiveId = archiveBookId(bookRef);
+          if (said?.viewer === true && archiveId !== null) {
+            const found = await fetchPages(archiveId, leaving.signal);
+            if (!found) {
+              if (live) setPhase('viewer');
+              return;
+            }
+            prepared = pictureBook(found, '');
+          } else {
+            if (!response.ok) throw new Error(said?.error ?? 'THIS BOOK CAN\'T BE READ HERE.');
+            // One with only a PDF: read a slice at a time through the site's route, never kept.
+            if (said?.pdf && typeof said.pdf.size === 'number' && said.pdf.size > 0) file = remotePdf(bookRef, said.pdf.size);
+            else if (said) throw new Error(said.error ?? 'THIS BOOK CAN\'T BE READ HERE.');
+            else file = await response.blob();
           }
-          if (!response.ok) throw new Error(said?.error ?? 'THIS BOOK CAN\'T BE READ HERE.');
-          // One with only a PDF: read a slice at a time through the site's route, never kept.
-          if (said?.pdf && typeof said.pdf.size === 'number' && said.pdf.size > 0) file = remotePdf(bookRef, said.pdf.size);
-          else if (said) throw new Error(said.error ?? 'THIS BOOK CAN\'T BE READ HERE.');
-          else file = await response.blob();
         }
         if (!live) return;
         setPhase('opening');
         const engine = await loadEngine();
         drawRef.current = engine.highlight;
-        const book = await openBook(file, engine.makeBook);
-        const opened = bookKind(book);
-        kindRef.current = opened;
-        setKind(opened);
+        const book = prepared ?? (file ? await openBook(file, engine.makeBook) : null);
+        if (!book) throw new Error('THIS BOOK COULD NOT BE OPENED.');
+        if (own) savedTitle.current = metadataText(book.metadata?.title);
+        const openedKind = bookKind(book);
+        kindRef.current = openedKind;
+        setKind(openedKind);
         // A PDF shows one page at a time when ONE PAGE is chosen (its spread is set as it opens).
-        if (opened === 'pdf' && settingsRef.current.pages === 'one') {
+        if (openedKind === 'pdf' && settingsRef.current.pages === 'one') {
           const rendition = (book as { rendition?: Record<string, unknown> }).rendition;
           if (rendition) rendition.spread = 'none';
         }
@@ -518,15 +604,41 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
           });
         });
         view.addEventListener('relocate', (event) => {
-          const detail = (event as CustomEvent<{ fraction?: number; tocItem?: { label?: string; href?: string }; time?: { section?: number }; cfi?: string }>).detail;
+          const detail = (event as CustomEvent<Relocated>).detail;
           const cfi = isCfi(detail.cfi) ? detail.cfi : null;
-          setLocation({ fraction: detail.fraction ?? 0, chapter: (detail.tocItem?.label ?? '').trim(), chapterHref: detail.tocItem?.href ?? null, timeLeft: minutesLeft(detail.time?.section), cfi });
-          if (!cfi || own) return;
+          const fraction = storyFraction(typeof detail.fraction === 'number' ? detail.fraction : 0, storyEnd.current);
+          // Fixed pages (a PDF, a scan's pictures): PAGE 12 OF 300. Reflowing ones: minutes left in the chapter at your own
+          // pace in this book, once there's enough to judge (reading-places.ts).
+          const fixed = kindRef.current === 'pdf';
+          const page = fixed && typeof detail.section?.current === 'number' ? detail.section.current + 1 : 0;
+          const pages = fixed && typeof detail.section?.total === 'number' ? detail.section.total : 0;
+          const left = detail.time?.total;
+          if (!fixed && typeof left === 'number' && Number.isFinite(left)) {
+            const now = Date.now();
+            if (lastTurn.current && opened.current) pace.current = paceAfter(pace.current, lastTurn.current, { at: now, left });
+            lastTurn.current = { at: now, left };
+          }
+          setLocation({
+            fraction,
+            chapter: (detail.tocItem?.label ?? '').trim(),
+            chapterHref: detail.tocItem?.href ?? null,
+            timeLeft: fixed ? pageText(page, pages) : chapterLeftText(pace.current, detail.time?.section),
+            cfi,
+            page,
+          });
+          const ref = placeRefOf.current;
+          // Saved only once the reader has moved from where the book opened, 1.5 s after the last turn.
+          if (!cfi || !ref || !opened.current) return;
           if (placeTimer.current !== null) window.clearTimeout(placeTimer.current);
           placeTimer.current = window.setTimeout(() => {
-            remember(placeKey(bookRef), cfi);
+            const held = heldPlace.current;
+            const finishedAt = finishedAfter(fraction, held?.finishedAt ?? null);
+            const save: PlaceSave = { cfi, page, title: savedTitle.current, progress: finishedAt ? 100 : percentOf(fraction), finishedAt };
+            remember(placeKey(ref), storedPlace(save, held));
+            remember(paceKey(ref), JSON.stringify(pace.current));
+            heldPlace.current = { bookRef: ref, ...save, title: save.title || held?.title || '', updatedAt: new Date().toISOString() };
             const person = meRef.current;
-            if (person) void getBooksRepository().savePlace(person.id, bookRef, cfi).catch(() => undefined);
+            if (person) void getBooksRepository().savePlace(person.id, ref, save).catch(() => undefined);
           }, 1500);
         });
         view.addEventListener('create-overlay', () => drawAll());
@@ -548,26 +660,43 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
 
         await view.open(book);
         if (!live) return;
+        storyEnd.current = openedKind === 'epub' ? bookEnd(view, book.toc ?? []) : 1;
         applyLook(settingsRef.current);
         setToc(book.toc ?? []);
         setTitle((held) => held || metadataText(book.metadata?.title));
 
-        // Where to open: back where it was (opened again for ONE PAGE / TWO PAGES), a highlight (`?h=`), a spot (`?at=`),
-        // or where this reader left off. A reader's own file starts at its start.
+        // Where to open: back where it was (opened again for ONE PAGE / TWO PAGES), a highlight (`?h=`) or a spot (`?at=`),
+        // which skip the question; else, for a book you've started, the question (SPEC-reading-places.md): CONTINUE FROM 42%
+        // or START OVER. The place is the account's (it follows you between devices), else this browser's.
         const spot = own ? { cfi: null, highlight: null } : spotFromSearch(asked);
         let start: string | null = resumeRef.current ?? spot.cfi;
         resumeRef.current = null;
-        if (own) start = start ?? null;
-        else if (!start && spot.highlight) {
+        if (!own && !start && spot.highlight) {
           const highlight = await getBooksRepository().get(spot.highlight).catch(() => null);
           if (highlight?.bookRef === bookRef && highlight.cfi) start = highlight.cfi;
         }
-        if (!start && !own && meRef.current) start = await getBooksRepository().place(meRef.current.id, bookRef).catch(() => null);
-        if (!start && !own) {
-          const local = remembered(placeKey(bookRef));
-          start = isCfi(local) ? local : null;
+        const ref = placeRefOf.current;
+        if (ref) {
+          const person = meRef.current;
+          const saved = (person ? await getBooksRepository().place(person.id, ref).catch(() => null) : null) ?? placeFromStored(ref, remembered(placeKey(ref)));
+          heldPlace.current = saved;
+          pace.current = paceFrom(remembered(paceKey(ref)));
+          if (!start && saved?.cfi) {
+            if (!live) return;
+            setAsk(saved);
+            setPhase('ask');
+            const choice = await new Promise<'continue' | 'over'>((resolve) => {
+              answerAsk.current = resolve;
+            });
+            answerAsk.current = null;
+            if (!live) return;
+            setAsk(null);
+            if (choice === 'continue') start = saved.cfi;
+          }
         }
+        if (!live) return;
         await view.init({ lastLocation: start, showTextStart: start === null });
+        opened.current = true;
         if (live) setPhase('ready');
       } catch (error) {
         if (!live) return;
@@ -578,7 +707,9 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
     return () => {
       live = false;
       leaving.abort();
+      answerAsk.current = null;
       if (placeTimer.current !== null) window.clearTimeout(placeTimer.current);
+      (view?.book as { destroy?: () => void } | undefined)?.destroy?.();
       view?.close();
       view?.remove();
       viewRef.current = null;
@@ -751,7 +882,8 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
   const ready = phase === 'ready';
 
   const commitDrag = () => {
-    if (dragging !== null) void viewRef.current?.goToFraction(dragging);
+    // The bar spans the book itself: its end is where a Gutenberg book's licence starts.
+    if (dragging !== null) void viewRef.current?.goToFraction(Math.min(1, dragging * storyEnd.current));
     setDragging(null);
   };
 
@@ -769,7 +901,7 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
             [ ◀ BACK ]
           </button>
           <h1 className="min-w-0 flex-1 truncate px-1 text-key text-accent-ink" title={title}>
-            {title ? title.toUpperCase() : own ? 'YOUR OWN BOOK' : 'BOOK'}
+            {own && phase === 'choose' ? 'YOUR BOOKS' : title ? title.toUpperCase() : own ? 'YOUR OWN BOOK' : 'BOOK'}
           </h1>
           <nav aria-label="The reader's keys" className="flex flex-wrap items-center gap-1">
             {/* The Archive's viewer has its own contents and search: only FOCUS is ours there. Bookmarks and highlights belong
@@ -784,9 +916,11 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
               </>
             ) : null}
             {own && phase !== 'choose' ? ownPicker('[ ANOTHER FILE ]', PLATE) : null}
-            <button type="button" onClick={() => setFocus(true)} className={PLATE}>
-              [ FOCUS ]
-            </button>
+            {phase === 'choose' ? null : (
+              <button type="button" onClick={() => setFocus(true)} className={PLATE}>
+                [ FOCUS ]
+              </button>
+            )}
           </nav>
         </header>
       ) : null}
@@ -821,10 +955,23 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
           </div>
         ) : null}
 
-        {phase === 'choose' ? (
-          <div className="absolute inset-x-0 top-1/4 flex flex-col items-center gap-3 p-4 text-center">
-            {ownPicker('CHOOSE A PDF OR EPUB', PLATE_MAIN)}
-            <p className="text-label">IT OPENS HERE AND STAYS ON YOUR DEVICE.</p>
+        {phase === 'choose' ? <ReadingShelf me={me} wantedFile={wantedFile} picker={ownPicker('CHOOSE A PDF OR EPUB', PLATE_MAIN)} /> : null}
+        {phase === 'ask' && ask ? (
+          // The one question before a started book's page (SPEC-reading-places.md): where you were, or the start.
+          <div className="absolute inset-x-0 top-1/3 flex flex-col items-center gap-2 p-4 text-center" role="dialog" aria-label="Where to open the book">
+            <p className="w-fit bg-sun-pale px-1 text-label text-ink">
+              {ask.finishedAt
+                ? `YOU FINISHED THIS ${finishedWhen(ask.finishedAt)}.`
+                : `YOU'RE ${ask.progress > 0 ? `${progressText(ask)} THROUGH` : 'PART WAY THROUGH'}${ask.updatedAt ? ` · LAST READ ${whenText(ask.updatedAt)}` : ''}.`}
+            </p>
+            <div className="flex flex-wrap justify-center gap-1">
+              <button type="button" onClick={() => answerAsk.current?.('continue')} className={PLATE_MAIN} autoFocus>
+                {ask.progress > 0 || ask.finishedAt ? `CONTINUE FROM ${ask.finishedAt ? '100%' : progressText(ask)}` : 'CONTINUE WHERE YOU WERE'}
+              </button>
+              <button type="button" onClick={() => answerAsk.current?.('over')} className={PLATE}>
+                [ START OVER ]
+              </button>
+            </div>
           </div>
         ) : null}
         {phase === 'reading-file' || phase === 'opening' ? (
@@ -952,7 +1099,7 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
       {!focus && phase === 'viewer' ? (
         <footer className="border-t border-ink bg-sun-pale px-2 py-1 text-label text-ink-quiet">THE INTERNET ARCHIVE&apos;S OWN VIEWER: THIS BOOK HAS NO EPUB FOR THE SITE&apos;S READER.</footer>
       ) : null}
-      {!focus && phase !== 'viewer' ? (
+      {!focus && phase !== 'viewer' && phase !== 'choose' ? (
         <footer className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-ink bg-sun-pale px-2 py-1 text-ink">
           <button type="button" onClick={() => turn('left')} disabled={!ready} className={PLATE} aria-label="Page back">
             [ ◀ ]
@@ -973,7 +1120,7 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
               aria-valuetext={`${percent}%`}
               className="min-w-0 flex-1 max-sm:min-h-tap"
             />
-            <span className="w-10 text-right text-key" aria-live="off">
+            <span className="w-10 text-right text-key" aria-live="off" data-reader-percent>
               {percent}%
             </span>
           </label>
@@ -982,7 +1129,7 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
           </button>
           <p className="flex w-full min-w-0 flex-wrap justify-between gap-x-2 text-label text-ink-quiet">
             <span className="min-w-0 truncate">{location.chapter.toUpperCase()}</span>
-            <span>{location.timeLeft}</span>
+            <span data-reader-left>{location.timeLeft}</span>
           </p>
         </footer>
       ) : null}

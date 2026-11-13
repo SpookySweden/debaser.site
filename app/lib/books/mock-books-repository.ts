@@ -1,10 +1,10 @@
-import { BOOKMARKS_PER_BOOK_MAX, HIGHLIGHTS_PER_BOOK_MAX, type BookBookmark, type BookHighlight, type BooksRepository } from './types';
+import { BOOKMARKS_PER_BOOK_MAX, HIGHLIGHTS_PER_BOOK_MAX, PLACES_LISTED_MAX, cleanPlace, type BookBookmark, type BookHighlight, type BookPlace, type BooksRepository } from './types';
 
 /** Highlights, bookmarks, places and settings in memory for the page load, for the mock accounts: no database, so nothing is kept. */
 export function createMockBooksRepository(): BooksRepository {
   const highlights = new Map<string, BookHighlight>();
   const bookmarks = new Map<string, BookBookmark>();
-  const places = new Map<string, string>();
+  const places = new Map<string, BookPlace>();
   const settings = new Map<string, Record<string, unknown>>();
   let next = 1;
 
@@ -52,8 +52,21 @@ export function createMockBooksRepository(): BooksRepository {
     async place(person, bookRef) {
       return places.get(`${person}|${bookRef}`) ?? null;
     },
-    async savePlace(person, bookRef, cfi) {
-      places.set(`${person}|${bookRef}`, cfi);
+    async savePlace(person, bookRef, place) {
+      const clean = cleanPlace(place);
+      const held = places.get(`${person}|${bookRef}`);
+      places.set(`${person}|${bookRef}`, { ...clean, title: clean.title || held?.title || '', bookRef, updatedAt: new Date().toISOString() });
+    },
+    async places(person) {
+      return [...places]
+        .filter(([key]) => key.startsWith(`${person}|`))
+        .map(([, place]) => place)
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+        .slice(0, PLACES_LISTED_MAX);
+    },
+    async unfinish(person, bookRef) {
+      const held = places.get(`${person}|${bookRef}`);
+      if (held) places.set(`${person}|${bookRef}`, { ...held, finishedAt: null, updatedAt: new Date().toISOString() });
     },
     async bookmarks(person, bookRef) {
       return [...bookmarks.values()]

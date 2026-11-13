@@ -53,6 +53,50 @@ export function isCfi(value: unknown): value is string {
   return typeof value === 'string' && value.length >= 10 && value.length <= CFI_MAX && value.startsWith('epubcfi(') && value.endsWith(')');
 }
 
+/**
+ * Where a person is in one book (SPEC-reading-places.md, Luke 2026-11-13): its place (a CFI; for a PDF or a scanned book's
+ * pictures also the page, from 1, else 0), the title the reader showed, how far through (0 to 100), when it was finished (or
+ * null), and when it was last read. A reader's own file is `own:<SHA-256 of its bytes>`: the file itself is never stored.
+ */
+export type BookPlace = {
+  bookRef: string;
+  cfi: string | null;
+  page: number;
+  title: string;
+  progress: number;
+  finishedAt: string | null;
+  updatedAt: string;
+};
+
+/** What the reader saves on a page turn. A blank title leaves the saved one as it was. */
+export type PlaceSave = Pick<BookPlace, 'cfi' | 'page' | 'title' | 'progress' | 'finishedAt'>;
+
+export const PLACE_TITLE_MAX = 300;
+export const PLACES_LISTED_MAX = 200;
+
+/** A reader's own file as a book ref: `own:` and the 64 hex characters of its SHA-256. */
+export function ownRef(hash: string): string | null {
+  return /^[0-9a-f]{64}$/.test(hash) ? `own:${hash}` : null;
+}
+
+/** The fingerprint in an own-file ref, or null for any other ref. */
+export function ownHash(bookRef: string): string | null {
+  return /^own:([0-9a-f]{64})$/.exec(bookRef)?.[1] ?? null;
+}
+
+/** A place as the tables take it: the CFI checked, the page a whole number, the title cut to 300, the percent 0 to 100. */
+export function cleanPlace(place: PlaceSave): PlaceSave {
+  const page = Number.isFinite(place.page) ? Math.min(1_000_000, Math.max(0, Math.floor(place.page))) : 0;
+  const progress = Number.isFinite(place.progress) ? Math.min(100, Math.max(0, Math.floor(place.progress))) : 0;
+  return {
+    cfi: isCfi(place.cfi) ? place.cfi : null,
+    page,
+    title: place.title.replace(/\s+/g, ' ').trim().slice(0, PLACE_TITLE_MAX),
+    progress,
+    finishedAt: place.finishedAt && !Number.isNaN(Date.parse(place.finishedAt)) ? place.finishedAt : null,
+  };
+}
+
 export type BooksRepository = {
   /** This reader's own highlights in a book, in the order they were made. */
   mine(person: string, bookRef: string): Promise<BookHighlight[]>;
@@ -62,9 +106,13 @@ export type BooksRepository = {
   /** One highlight, if this reader may see it (a letter's or a recommendation's card, a `?h=` link). */
   get(id: string): Promise<BookHighlight | null>;
   readers(bookRef: string): Promise<BookReader[]>;
-  /** Where this reader left off in a book, as a CFI. */
-  place(person: string, bookRef: string): Promise<string | null>;
-  savePlace(person: string, bookRef: string, cfi: string): Promise<void>;
+  /** Where this reader left off in a book, how far through, and whether they finished it. */
+  place(person: string, bookRef: string): Promise<BookPlace | null>;
+  savePlace(person: string, bookRef: string, place: PlaceSave): Promise<void>;
+  /** Every book this reader has a place in, newest first (CONTINUE READING and READ on /read). */
+  places(person: string): Promise<BookPlace[]>;
+  /** `[ NOT FINISHED ]`: the book goes back to CONTINUE READING. */
+  unfinish(person: string, bookRef: string): Promise<void>;
   bookmarks(person: string, bookRef: string): Promise<BookBookmark[]>;
   addBookmark(person: string, bookmark: Pick<BookBookmark, 'bookRef' | 'cfi' | 'label'>): Promise<BookBookmark>;
   removeBookmark(id: string): Promise<void>;

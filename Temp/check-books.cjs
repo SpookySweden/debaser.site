@@ -24,6 +24,7 @@ const BOOK = 'books:OL1W-pg1';
   const aId = (await a.client.auth.getUser()).data.user.id;
   const made = [];
   const marks = [];
+  const kindRefs = [];
   let lookBefore = null;
   const add = (client, row) => client.from('book_highlights').insert({ person: aId, book_ref: BOOK, book_title: 'CHECK BOOK', place: 3, start_at: 0, end_at: 9, quote: 'made up', ...row }).select('id').single();
 
@@ -111,8 +112,42 @@ const BOOK = 'books:OL1W-pg1';
     const twice = await store.addBookmark(aId, { bookRef: BOOK, cfi: OTHER, label: 'CHAPTER II · 5%' });
     assert.equal(twice.id, first.id, 'the same page bookmarked twice is the one bookmark');
     assert.equal((await store.bookmarks(aId, BOOK)).length, 2, 'the store lists both of A`s bookmarks');
-    await store.savePlace(aId, BOOK, OTHER);
-    assert.equal(await store.place(aId, BOOK), OTHER, 'the store keeps a place');
+    await store.savePlace(aId, BOOK, { cfi: OTHER, page: 0, title: 'CHECK BOOK', progress: 42, finishedAt: null });
+    const kept = await store.place(aId, BOOK);
+    assert.deepEqual([kept.cfi, kept.title, kept.progress, kept.finishedAt], [OTHER, 'CHECK BOOK', 42, null], 'the store keeps a place, its title and how far');
+    await store.savePlace(aId, BOOK, { cfi: OTHER, page: 0, title: '', progress: 43, finishedAt: null });
+    assert.equal((await store.place(aId, BOOK)).title, 'CHECK BOOK', 'a blank title leaves the saved one');
+
+    // Keeping your place (SPEC-reading-places.md): one place for each kind of book, each listed at its percent, and
+    // finishing one, all on the account. Your own file is its fingerprint; a PDF's or a scan's page is in `place`.
+    const KINDS = [
+      { ref: 'books:OL2W-pg2', cfi: OTHER, page: 0, progress: 40 },
+      { ref: 'internet_archive:check_epub', cfi: OTHER, page: 0, progress: 41 },
+      { ref: 'internet_archive:check_pdf', cfi: 'epubcfi(/6/100)', page: 50, progress: 39 },
+      { ref: 'internet_archive:check_pictures', cfi: 'epubcfi(/6/94)', page: 47, progress: 38 },
+      { ref: 'ipfs:bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi', cfi: OTHER, page: 0, progress: 37 },
+      { ref: `own:${'ab'.repeat(32)}`, cfi: 'epubcfi(/6/12)', page: 6, progress: 50 },
+    ];
+    kindRefs.push(...KINDS.map((kind) => kind.ref));
+    for (const kind of KINDS) await store.savePlace(aId, kind.ref, { cfi: kind.cfi, page: kind.page, title: `CHECK ${kind.ref.split(':')[0]}`, progress: kind.progress, finishedAt: null });
+    const listed = await store.places(aId);
+    for (const kind of KINDS) {
+      const row = listed.find((place) => place.bookRef === kind.ref);
+      assert.ok(row, `${kind.ref} is listed`);
+      assert.deepEqual([row.cfi, row.page, row.progress, row.finishedAt], [kind.cfi, kind.page, kind.progress, null], `${kind.ref} reopens at its place and percent`);
+    }
+    assert.equal(listed[0].bookRef, KINDS[KINDS.length - 1].ref, 'newest first');
+    assert.equal((await b.client.from('book_places').select('book_ref').in('book_ref', kindRefs)).data.length, 0, 'B reads none of them');
+    assert.equal((await visitor.from('book_places').select('book_ref').in('book_ref', kindRefs)).data?.length ?? 0, 0, 'nor does a visitor');
+    const done = '2026-11-13T10:00:00.000Z';
+    await store.savePlace(aId, KINDS[0].ref, { cfi: KINDS[0].cfi, page: 0, title: '', progress: 100, finishedAt: done });
+    assert.equal(Date.parse((await store.place(aId, KINDS[0].ref)).finishedAt), Date.parse(done), 'the last page: finished, with the date');
+    await store.unfinish(aId, KINDS[0].ref);
+    assert.equal((await store.place(aId, KINDS[0].ref)).finishedAt, null, '[ NOT FINISHED ] empties it');
+    assert.notEqual((await a.client.from('book_places').upsert({ person: aId, book_ref: KINDS[0].ref, progress: 101 }, { onConflict: 'person,book_ref' })).error, null, 'a percent is 0 to 100');
+    assert.notEqual((await a.client.from('book_places').upsert({ person: aId, book_ref: KINDS[0].ref, title: 'x'.repeat(301) }, { onConflict: 'person,book_ref' })).error, null, 'a title is 300 characters at most');
+    assert.notEqual((await b.client.from('book_places').upsert({ person: aId, book_ref: 'books:OL9W-pg9', progress: 5 }, { onConflict: 'person,book_ref' })).error, null, 'B cannot write A`s');
+    console.log('  ok    a place for every kind of book, how far, and finished');
     await store.saveReaderSettings(aId, { paper: 'light', size: 100 });
     assert.equal((await store.readerSettings(aId)).paper, 'light', 'and a look');
     const coloured = await store.add(aId, { bookRef: BOOK, bookTitle: 'CHECK BOOK', cfi: OTHER, quote: 'made up', comment: '', colour: 'blue', isLocked: true });
@@ -134,6 +169,7 @@ const BOOK = 'books:OL1W-pg1';
   } finally {
     for (const id of made) await a.client.from('book_highlights').delete().eq('id', id);
     await a.client.from('book_places').delete().eq('person', aId).eq('book_ref', BOOK);
+    if (kindRefs.length) await a.client.from('book_places').delete().eq('person', aId).in('book_ref', kindRefs);
     for (const id of marks) await a.client.from('book_bookmarks').delete().eq('id', id);
     if (lookBefore) await a.client.from('book_reader_settings').upsert({ person: aId, settings: lookBefore.settings }, { onConflict: 'person' });
     else await a.client.from('book_reader_settings').delete().eq('person', aId);

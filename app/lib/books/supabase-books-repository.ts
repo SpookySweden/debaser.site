@@ -2,7 +2,11 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   BOOKMARKS_PER_BOOK_MAX,
   HIGHLIGHTS_PER_BOOK_MAX,
+  PLACES_LISTED_MAX,
+  cleanPlace,
+  isCfi,
   isHighlightColour,
+  type BookPlace,
   type BookBookmark,
   type BookHighlight,
   type BookReader,
@@ -47,6 +51,21 @@ function fromRow(row: Row): BookHighlight {
     isLocked: row.is_locked,
     forumCommentId: row.forum_comment_id,
     createdAt: row.created_at,
+  };
+}
+
+const PLACE_COLUMNS = 'book_ref, cfi, place, title, progress, finished_at, updated_at';
+type PlaceRow = { book_ref: string; cfi: string | null; place: number; title: string | null; progress: number | null; finished_at: string | null; updated_at: string };
+
+function fromPlaceRow(row: PlaceRow): BookPlace {
+  return {
+    bookRef: row.book_ref,
+    cfi: isCfi(row.cfi) ? row.cfi : null,
+    page: row.place ?? 0,
+    title: row.title ?? '',
+    progress: row.progress ?? 0,
+    finishedAt: row.finished_at,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -115,11 +134,37 @@ export function createSupabaseBooksRepository(client: SupabaseClient): BooksRepo
       );
     },
     async place(person, bookRef) {
-      const { data } = await client.from('book_places').select('cfi').eq('person', person).eq('book_ref', bookRef).maybeSingle();
-      return data ? ((data as { cfi: string | null }).cfi ?? null) : null;
+      const { data } = await client.from('book_places').select(PLACE_COLUMNS).eq('person', person).eq('book_ref', bookRef).maybeSingle();
+      return data ? fromPlaceRow(data as PlaceRow) : null;
     },
-    async savePlace(person, bookRef, cfi) {
-      await client.from('book_places').upsert({ person, book_ref: bookRef, cfi, updated_at: new Date().toISOString() }, { onConflict: 'person,book_ref' });
+    async savePlace(person, bookRef, place) {
+      const clean = cleanPlace(place);
+      const row: Record<string, unknown> = {
+        person,
+        book_ref: bookRef,
+        cfi: clean.cfi,
+        place: clean.page,
+        progress: clean.progress,
+        finished_at: clean.finishedAt,
+        updated_at: new Date().toISOString(),
+      };
+      // A title not known yet leaves the saved one alone.
+      if (clean.title) row.title = clean.title;
+      await client.from('book_places').upsert(row, { onConflict: 'person,book_ref' });
+    },
+    async places(person) {
+      const { data, error } = await client
+        .from('book_places')
+        .select(PLACE_COLUMNS)
+        .eq('person', person)
+        .order('updated_at', { ascending: false })
+        .limit(PLACES_LISTED_MAX);
+      if (error) throw new Error('Your books could not be read.');
+      return (data as PlaceRow[]).map(fromPlaceRow);
+    },
+    async unfinish(person, bookRef) {
+      const { error } = await client.from('book_places').update({ finished_at: null, updated_at: new Date().toISOString() }).eq('person', person).eq('book_ref', bookRef);
+      if (error) throw new Error('That could not be saved.');
     },
     async bookmarks(person, bookRef) {
       const { data, error } = await client
