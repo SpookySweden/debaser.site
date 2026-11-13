@@ -164,7 +164,9 @@ async function safeFetchResponse(url: string, options: SafeFetchOptions): Promis
           : { method: 'POST', redirect: 'manual', signal, credentials: 'omit', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(options.postJson) },
       );
     } catch (error) {
-      throw new SafeFetchError(signal.aborted ? 'timed out' : `request failed: ${(error as Error).name}`);
+      const err = error as Error & { cause?: { code?: string; message?: string; name?: string } };
+      const causeNote = err?.cause ? ` (cause: ${err.cause.code ?? err.cause.name ?? ''} ${err.cause.message ?? ''})`.trim() : '';
+      throw new SafeFetchError(signal.aborted ? 'timed out' : `request failed: ${err.name}${causeNote}`);
     }
 
     if (response.status >= 300 && response.status < 400) {
