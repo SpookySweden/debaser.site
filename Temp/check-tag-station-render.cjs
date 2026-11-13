@@ -30,6 +30,7 @@ let authStatus = 'signed-in';
 stub(path.join(__dirname, 'tag-station-render-out/components/AuthProvider.js'), { useAuth: () => ({ status: authStatus, user: authStatus === 'signed-in' ? { id: 'reader' } : null }) });
 stub(path.join(__dirname, 'tag-station-render-out/components/ForumProvider.js'), { useForum: () => ({ threads: [] }), default: ({ children }) => children });
 stub(path.join(__dirname, 'tag-station-render-out/components/MusicLibraryProvider.js'), { useMusicLibrary: () => ({ barredSrcs: new Set() }), default: ({ children }) => children });
+stub(path.join(__dirname, 'tag-station-render-out/components/CommsProvider.js'), { useComms: () => ({ accounts: [] }), default: ({ children }) => children });
 stub(path.join(__dirname, 'tag-station-render-out/components/MusicPlayerProvider.js'), {
   useMusicPlayer: () => ({ track: null, playing: false, toggle() {}, playList() {} }),
   default: ({ children }) => children,

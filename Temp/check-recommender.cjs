@@ -70,7 +70,7 @@ assert.deepEqual(sharedLane.map((pick) => pick.why), ['PLAYED BY PEOPLE YOU MESS
 // 5. From the files.
 const page = fs.readFileSync('app/components/ForYou.tsx', 'utf8');
 assert.doesNotMatch(page, /\.score\b|tasteScore|plays\b.*\}/, 'the page draws no score or count');
-assert.match(page, /\[ NOT FOR ME \]/);
+assert.match(fs.readFileSync('app/components/ForYouParts.tsx', 'utf8'), /\[ NOT FOR ME \]/, 'every pick has NOT FOR ME (the shared foot, ForYouParts.tsx)');
 for (const [file, kind] of [
   ['app/components/WebStream.tsx', "kind: 'media'"],
   ['app/components/TagStation.tsx', "kind: 'media'"],
@@ -85,5 +85,15 @@ for (const [file, kind] of [
 }
 assert.match(fs.readFileSync('app/components/reader/ReaderPage.tsx', 'utf8'), /!own && bookRef\) noteHistory/, "a reader's own file stays out of the history");
 assert.match(fs.readFileSync('app/components/ForumProvider.tsx', 'utf8'), /!thread\.privateRecord/, "a private stream's record stays out");
+
+// 6. Step 2's lanes (ForYouCommunity.tsx): only what's shared openly, people only when dealt with or openly alike.
+const community = fs.readFileSync('app/components/ForYouCommunity.tsx', 'utf8');
+assert.match(community, /listedAccounts\(accounts\)/, 'hidden accounts (the test accounts) are never offered');
+assert.match(community, /!thread\.privateRecord/, "a private stream's record is never a pick");
+assert.match(community, /room\.isPublic && room\.hostId !== me && roomIsLive\(room, now\)/, 'only public rooms live right now, not your own');
+assert.match(community, /letter\.isPublic/, 'only public letters');
+assert.match(community, /if \(reason === undefined && shared === undefined\) continue;/, "a person is offered only if you've dealt with them or they openly post about your words");
+assert.doesNotMatch(community, /user_history|readHistory\(/, "no one else's history is read: picks come from the reader's own and what's public");
+assert.doesNotMatch(community, /\{[^{}]*\.(score|plays|closeness|weight)[^{}]*\}\s*<\//, 'no score, play count, closeness or weight is drawn');
 
 console.log('ok: FOR YOU engine: taste, 7 to 3, hidden and seen left out, steady per day, why-lines in words');

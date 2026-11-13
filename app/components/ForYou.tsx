@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { forYou } from '../lib/audio/for-you';
 import { collectFiledTracks } from '../lib/audio/forum-tracks';
 import { getMusicRepository } from '../lib/audio/repository';
@@ -22,59 +22,21 @@ import { useForum } from './ForumProvider';
 import HistoryPanel from './HistoryPanel';
 import { useMusicLibrary } from './MusicLibraryProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
+import ForYouCommunity from './ForYouCommunity';
+import { Lane, MOST, PickFoot } from './ForYouParts';
 import { STATION_KEY, STATION_KEY_ON, Thumb } from './TagStationParts';
 
 /**
  * FOR YOU (SPEC-recommender.md, Luke 2026-11-13): lanes of picks at the top of DISCOVER, from the person's private history
  * and what is shared openly, one engine for every lane (`lib/recommender/engine.ts`). Every pick says why in plain words;
- * NOT FOR ME hides it and shows less like it. No scores or counts are drawn. Step 1: MEDIA, SONGS and BOOKS.
+ * NOT FOR ME hides it and shows less like it. No scores or counts are drawn. MEDIA, SONGS and BOOKS here; the board, rooms,
+ * letters, lore and people in ForYouCommunity.tsx.
  */
 
-const FIRST = 4;
-const MOST = 18;
 /** How many words BOOKS asks Open Library about. */
 const BOOK_QUERIES = 3;
 
 type Hidden = ReadonlySet<string>;
-
-/** Rows for one lane, its picks drawn by the caller. A lane with nothing honest to offer draws nothing at all. */
-function Lane<T>({ id, title, picks, loading, render }: { id: string; title: string; picks: LanePick<T>[]; loading: boolean; render: (pick: LanePick<T>) => ReactNode }) {
-  const [shown, setShown] = useState(FIRST);
-  if (!loading && picks.length === 0) return null;
-  return (
-    <section aria-labelledby={id} className="flex min-w-0 flex-col gap-1" data-for-you-lane={id}>
-      <h3 id={id} className="title-line text-ink text-title">
-        {title}
-      </h3>
-      {loading && picks.length === 0 ? (
-        <p role="status" className="text-label text-ink-quiet">
-          READING...
-        </p>
-      ) : (
-        <ul className="flex flex-col">{picks.slice(0, shown).map(render)}</ul>
-      )}
-      {picks.length > shown && shown < MOST ? (
-        <button type="button" onClick={() => setShown((now) => now + FIRST)} className={`${STATION_KEY} w-fit`}>
-          [ MORE ]
-        </button>
-      ) : null}
-    </section>
-  );
-}
-
-/** The why-line and NOT FOR ME, under every pick. */
-function PickFoot({ why, onHide, title }: { why: string; onHide: () => void; title: string }) {
-  return (
-    <div className="flex flex-wrap items-center gap-x-2">
-      <p className="min-w-0 break-words px-1 text-label text-ink-quiet" data-why>
-        {why}
-      </p>
-      <button type="button" onClick={onHide} aria-label={`Not for me: hide ${title}`} className={STATION_KEY}>
-        [ NOT FOR ME ]
-      </button>
-    </div>
-  );
-}
 
 /** The site's own songs, as VANITY lists them, and who close to the reader played what (`music_for_you`). */
 function useSongs(userId: string | null) {
@@ -102,7 +64,7 @@ function useSongs(userId: string | null) {
     if (data === null) return null;
     const songs = vanitySongs(data.tracks, filed, data.counts, uploaderIdFromSrc);
     const picks = forYou({ songs, rows: data.rows, mine: data.mine, barred: library.barredSrcs, selfId: userId });
-    return { songs: songs.filter((song) => !library.barredSrcs.has(song.track.src)), picks };
+    return { songs: songs.filter((song) => !library.barredSrcs.has(song.track.src)), picks, close: data.rows };
   }, [data, filed, library.barredSrcs, userId]);
 }
 
@@ -308,6 +270,7 @@ export default function ForYou({ index, extraHosts, onPick }: { index: StationIn
           />
         </div>
       </div>
+      <ForYouCommunity context={context} hidden={hidden} onHide={hide} close={songData?.close ?? null} loading={loading} />
     </section>
   );
 }
