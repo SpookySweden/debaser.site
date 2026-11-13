@@ -225,6 +225,8 @@ const KIND_DEFAULT_HREF: Record<ForumAnchor['kind'], string> = {
   // An item from another platform is listed on the archive (app/lib/web/bridges.ts, `webAnchor`); the
   // database keeps no address for these, so every thread follows the page to its new address.
   web: '/media',
+  // A document's thread carries its own address (`docAnchor`); the file browser is the fallback.
+  doc: '/docs',
 };
 
 export function allKnownAnchors(): ForumAnchor[] {

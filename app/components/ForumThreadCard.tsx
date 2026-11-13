@@ -19,6 +19,7 @@ import { useCatalogue } from '../lib/media/catalogue';
 import { previewFor, recordUses, replyUse } from '../lib/media/uses';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { bodyWords, songHrefIn } from '../lib/forum/song-link';
+import { docLinkIn } from '../lib/docs/forum';
 import { PLATE, ROW_READ, ROW_UNREAD } from '../lib/ui/controls';
 import CommentComposer from './CommentComposer';
 import CommentThreadList from './CommentThreadList';
@@ -437,6 +438,14 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
               <Link href={songHrefIn(layout.right.body) as string} className={PLATE}>
                 [ OPEN SONG ]
               </Link>
+            ) : docLinkIn(layout.right.body) !== null ? (
+              // A document's board post (SPEC-live-docs.md): its first lines, then the key that opens it.
+              <>
+                <p className="whitespace-pre-line text-prose leading-normal wrap-anywhere text-ink">{docLinkIn(layout.right.body)?.words}</p>
+                <Link href={docLinkIn(layout.right.body)?.href ?? '/docs'} className={PLATE}>
+                  [ OPEN DOC ]
+                </Link>
+              </>
             ) : (
               <p className="whitespace-pre-line text-prose leading-normal wrap-anywhere text-ink">{layout.right.body}</p>
             )}

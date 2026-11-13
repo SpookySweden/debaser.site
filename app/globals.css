@@ -229,6 +229,154 @@ body {
   background: var(--color-pointed);
 }
 
+/* DOCS (SPEC-live-docs.md) --------------------------------------------------------
+   A person in a document wears a face: their 20px picture and their name on a tag filled with their name
+   colour, the words in whichever of Black or White reads on it (set inline from `inkOnNameColour`), with a
+   thin edge in the page's own ink so a dark colour still stands off a dark page (the light strip). */
+.doc-face {
+  display: inline-flex;
+  align-items: center;
+  gap: --spacing(1);
+  padding-right: --spacing(1);
+  outline: var(--default-border-width) solid var(--color-ink);
+  font-size: var(--text-label);
+  font-weight: bold;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.doc-face__picture {
+  display: inline-block;
+  width: --spacing(5);
+  height: --spacing(5);
+  flex-shrink: 0;
+  overflow: hidden;
+  /* No picture: the dithered field `SpriteSlot` leaves, not a drawing. */
+  background: repeating-conic-gradient(var(--color-ink) 0 25%, var(--color-paper) 0 50%) 0 0 / 2px 2px;
+}
+
+.doc-face__picture--drawn {
+  background: var(--color-paper);
+}
+
+.doc-face__picture img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* The caret's face sits above the bar, like the lore pages' name did. */
+.lore-document .collaboration-carets__label.doc-face {
+  top: -1.45rem;
+  padding-left: 0;
+  color: inherit;
+}
+
+.doc-frame {
+  /* The pointers are drawn over the writing, inside this frame. */
+  isolation: isolate;
+}
+
+.doc-pointers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* Drawn after the writing, inside the frame's own layer, so over it with no number. */
+  overflow: hidden;
+}
+
+/* A pointer jumps: no transition on purpose (docs/design.md, no easing). */
+.doc-pointer {
+  position: absolute;
+  display: flex;
+  align-items: flex-start;
+  gap: --spacing(0.5);
+}
+
+.doc-pointer__arrow {
+  font-size: var(--text-key);
+  line-height: 1;
+  /* The arrow is a text glyph in the person's colour, edged in the page's ink so it reads on any theme. */
+  text-shadow:
+    1px 0 var(--color-paper),
+    -1px 0 var(--color-paper),
+    0 1px var(--color-paper),
+    0 -1px var(--color-paper);
+}
+
+.doc-pointer .doc-face {
+  margin-top: --spacing(3);
+}
+
+/* Words a margin comment is left on, and the one under the pointer. */
+.doc-commented {
+  background: var(--color-ice-pale);
+  border-bottom: var(--border-width-line) solid var(--color-accent-ink);
+}
+
+.doc-commented--on {
+  background: var(--color-pointed);
+}
+
+.doc-margin-card {
+  padding: --spacing(1.5);
+  margin-bottom: --spacing(2);
+  outline: var(--default-border-width) solid var(--color-ink);
+}
+
+.doc-margin-card--on {
+  outline-color: var(--color-accent-ink);
+  outline-width: var(--border-width-line);
+}
+
+.doc-margin-quote {
+  font-size: var(--text-label);
+  color: var(--color-accent-ink);
+  overflow-wrap: anywhere;
+}
+
+.doc-document img.doc-picture {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: var(--default-border-width) solid var(--color-ink);
+}
+
+.doc-document img.doc-picture.ProseMirror-selectednode {
+  outline: var(--border-width-line) solid var(--color-accent-ink);
+}
+
+.doc-picture-refused {
+  font-size: var(--text-label);
+}
+
+/* Checklists: a box per line, ticked or not. */
+.doc-document ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0;
+}
+
+.doc-document ul[data-type='taskList'] li {
+  display: flex;
+  align-items: flex-start;
+  gap: --spacing(2);
+}
+
+.doc-document ul[data-type='taskList'] li > label {
+  flex-shrink: 0;
+  margin-top: --spacing(1);
+}
+
+.doc-document ul[data-type='taskList'] li > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.doc-document ul[data-type='taskList'] li[data-checked='true'] > div {
+  text-decoration: line-through;
+}
+
 /* Retro OS primitives -------------------------------------------------------
    Collapsible forum threads use native <details>/<summary>; the stock marker
    is replaced with the Win95 [+]/[-] text indicator rendered in JSX. */

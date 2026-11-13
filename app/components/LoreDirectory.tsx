@@ -2,46 +2,54 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { lorePagePath } from '../lib/lore/pages';
-import { getLoreRepository } from '../lib/lore/repository';
-import type { LorePageSummary } from '../lib/lore/types';
+import { getDocsRepository } from '../lib/docs/repository';
+import { docPath, folderPath } from '../lib/docs/rules';
+import { LORE_FOLDER_ID, type DocFolder, type DocSummary, type DocViewer } from '../lib/docs/types';
 import { PANEL, PLATE, PLATE_LINK, TITLE_BAR } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
-import NewLorePageWindow from './NewLorePageWindow';
+import NewDocWindow from './NewDocWindow';
 import TimeStamp from './TimeStamp';
 
+/** The LORE folder as NEW LORE PAGE needs it: shared, PUBLIC by default. */
+const LORE_FOLDER: DocFolder = {
+  id: LORE_FOLDER_ID,
+  name: 'LORE',
+  parentId: null,
+  kind: 'shared',
+  ownerId: null,
+  ownerLabel: 'debaser.site',
+  defaultAccess: 'public',
+  createdAt: '2026-11-13T00:00:00.000Z',
+};
+
 /**
- * The lore shelf: every page, most recently written in first, and the way to open another.
- *
- * The list is read from the store rather than from a manifest, because a page is written by
- * whoever is at the keyboard - so the shelf is what the site actually holds, in the order people
- * last touched it. Guest readers get the list and one line explaining what an account would buy
- * them, which is the same shape the media catalogue's audio shelf keeps (see ./MediaCatalogue.tsx).
+ * The lore shelf: every page in DOCS' LORE folder, most recently written in first, and the way to open
+ * another. The same documents DOCS > LORE lists (SPEC-live-docs.md): one system, two doors.
  */
 export default function LoreDirectory() {
   const { user, status } = useAuth();
-  const repository = useMemo(() => getLoreRepository(), []);
-  const [pages, setPages] = useState<LorePageSummary[]>([]);
+  const viewer = useMemo<DocViewer | null>(() => (user === null ? null : { id: user.id, name: user.displayName }), [user]);
+  const repository = useMemo(() => getDocsRepository(viewer?.id ?? null), [viewer?.id]);
+  const [pages, setPages] = useState<DocSummary[]>([]);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    if (status === 'loading') return;
     let cancelled = false;
 
     repository
-      .listPages()
+      .listDocs()
       .then((rows) => {
         if (cancelled) return;
-
-        setPages(rows);
+        setPages(rows.filter((row) => row.folderId === LORE_FOLDER_ID));
         setError(null);
         setReady(true);
       })
       .catch((caught: unknown) => {
         if (cancelled) return;
-
         setError(caught instanceof Error ? caught.message : 'LORE DID NOT LOAD.');
         setReady(true);
       });
@@ -49,10 +57,9 @@ export default function LoreDirectory() {
     return () => {
       cancelled = true;
     };
-  }, [attempt, repository]);
+  }, [attempt, repository, status]);
 
   const refresh = useCallback(() => setAttempt((current) => current + 1), []);
-  const signedIn = status === 'signed-in' && user !== null;
 
   return (
     <section className={PANEL}>
@@ -60,15 +67,9 @@ export default function LoreDirectory() {
         <span>PAGES</span>
       </div>
 
-      {/* One row of keys. A guest is told once, in one line, what an account would add; the sentence
-          that used to sit beside the keys is the new page key's tip (SPEC-efficiency.md). */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-ink px-3 py-2">
-        {signedIn ? (
-          <button
-            type="button"
-            onClick={() => setOpening(true)}
-            className={PLATE}
-          >
+      <div className="flex flex-wrap items-center gap-2 px-3 py-2">
+        {viewer !== null ? (
+          <button type="button" onClick={() => setOpening(true)} className={PLATE}>
             [ NEW PAGE ]
           </button>
         ) : (
@@ -80,13 +81,11 @@ export default function LoreDirectory() {
           </p>
         )}
 
-        <button
-          type="button"
-          onClick={refresh}
-          title="Read the shelf again"
-          aria-label="Read the shelf again"
-          className={PLATE}
-        >
+        <Link href={folderPath(LORE_FOLDER_ID)} className={PLATE_LINK}>
+          [ IN DOCS ]
+        </Link>
+
+        <button type="button" onClick={refresh} title="Read the shelf again" aria-label="Read the shelf again" className={PLATE}>
           [ ↻ ]
         </button>
       </div>
@@ -100,28 +99,21 @@ export default function LoreDirectory() {
       ) : (
         <ol>
           {pages.map((page, position) => (
-            <li
-              key={page.id}
-              className="flex flex-wrap items-baseline gap-x-2 gap-y-1 border-b border-ink px-3 py-2 text-ink last:border-b-0"
-            >
+            <li key={page.id} className="rule-pixel flex flex-wrap items-baseline gap-x-2 gap-y-1 px-3 py-2 text-ink">
               <span className="w-4 shrink-0 text-right text-label font-bold text-ink">{position + 1}.</span>
-
-              <Link href={lorePagePath(page.slug)} className="text-key font-bold underline hover:bg-ice-pale">
+              <Link href={docPath(page)} className="text-key font-bold underline hover:bg-ice-pale">
                 {page.title}
               </Link>
-
-              {/* A page with no summary draws nothing here, rather than a line saying so. */}
               <span className="min-w-0 flex-1 text-label font-bold">{page.summary}</span>
-
               <span className="text-label text-ink">
-                LAST FILED BY {page.updatedByLabel} <TimeStamp at={page.updatedAt} />
+                LAST SAVED BY {page.updatedByLabel} <TimeStamp at={page.updatedAt} />
               </span>
             </li>
           ))}
         </ol>
       )}
 
-      {opening ? <NewLorePageWindow onClose={() => setOpening(false)} onOpened={refresh} /> : null}
+      {opening && viewer !== null ? <NewDocWindow viewer={viewer} folder={LORE_FOLDER} onClose={() => setOpening(false)} /> : null}
     </section>
   );
 }

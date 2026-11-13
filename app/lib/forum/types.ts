@@ -24,7 +24,7 @@ export type ForumTag = {
  * Where a thread came from: the board itself, a hand-drawn asset, a text box, a profile, a track, or an
  * item in the WEB stream (`web`, keyed by `web_items.id`; app/lib/web/bridges.ts).
  */
-export type ForumAnchorKind = 'board' | 'asset' | 'text-box' | 'profile' | 'track' | 'web';
+export type ForumAnchorKind = 'board' | 'asset' | 'text-box' | 'profile' | 'track' | 'web' | 'doc';
 
 /** Artwork preview shown when hovering a link back to the item. */
 export type ForumPreview = {

@@ -1,5 +1,5 @@
 import { commentDomId, threadDomId } from '../forum/anchors';
-import { lorePagePath } from '../lore/pages';
+import { LORE_PATH } from '../docs/rules';
 import { highlightHref } from '../books/types';
 import type { LetterItem, LetterKind } from './types';
 
@@ -57,7 +57,7 @@ export function hrefOf(item: Pick<LetterItem, 'kind' | 'ref' | 'title'>): string
     case 'post':
       return `/forum#${commentDomId(item.ref)}`;
     case 'lore':
-      return lorePagePath(item.ref);
+      return `${LORE_PATH}/${item.ref}`;
     case 'file':
       return '/files';
     case 'song':

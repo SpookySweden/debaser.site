@@ -6,7 +6,7 @@ import { contrastRatio } from './colour';
  * turns on hover. Pure, so a check can hold it. An unticked module's address still works; only its key goes.
  */
 
-export type ModuleKey = 'home' | 'forum' | 'web' | 'tagstation' | 'recommendations' | 'beatbox' | 'cytube' | 'animate' | 'modules';
+export type ModuleKey = 'home' | 'forum' | 'web' | 'tagstation' | 'recommendations' | 'docs' | 'beatbox' | 'cytube' | 'animate' | 'modules';
 
 export type ModuleDef = {
   key: ModuleKey;
@@ -31,6 +31,8 @@ export const MODULES: readonly ModuleDef[] = [
   { key: 'tagstation', label: 'DISCOVER', href: '/discover', group: 'site', startsOn: false, wip: true },
   // Queues of things sent to people or posted publicly (SPEC-recommendations.md, Luke 2026-11-10): off until ticked.
   { key: 'recommendations', label: 'RECOMMENDATIONS', href: '/recommendations', group: 'site', startsOn: false },
+  // Shared live documents in folders, the lore pages among them (SPEC-live-docs.md, Luke 2026-11-13).
+  { key: 'docs', label: 'DOCS', href: '/docs', group: 'site', startsOn: true },
   // The music maker (app/features/beatbox).
   { key: 'beatbox', label: 'BEATBOX', href: '/beatbox', group: 'creative', startsOn: false, wip: true },
   { key: 'cytube', label: 'STREAM', href: '/stream', group: 'creative', startsOn: true },

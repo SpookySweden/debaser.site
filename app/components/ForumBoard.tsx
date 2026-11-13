@@ -63,6 +63,8 @@ const SOURCE_FILTERS: { value: SourceFilter; label: string }[] = [
   { value: 'track', label: 'TRACK THREADS' },
   // Posts filed under an item on the MEDIA page, which was WEB, then ARCHIVE (app/lib/web/bridges.ts, `webAnchor`).
   { value: 'web', label: 'MEDIA THREADS' },
+  // Posts filed under a document's [ COMMENT ] key (SPEC-live-docs.md, `docAnchor` in app/lib/docs/forum.ts).
+  { value: 'doc', label: 'DOC THREADS' },
   // The records of watch-together streams (SPEC-watch-together.md): board posts that name a room.
   { value: 'stream', label: 'STREAMS' },
 ];

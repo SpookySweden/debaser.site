@@ -1,6 +1,6 @@
 /*
  * Scratch check for the Supabase hook and the import script (run from the root):
- *   npx tsc app/lib/profile/supabase-profile-repository.ts app/lib/comms/supabase-comms-repository.ts app/lib/profile/repository.ts app/lib/comms/repository.ts app/lib/forum/repository.ts app/lib/notifications/repository.ts app/lib/auth/auth-repository.ts app/lib/profile/avatar-upload.ts app/lib/profile/song-upload.ts app/lib/audio/catalogue.ts app/lib/audio/repository.ts app/lib/lore/repository.ts app/lib/lore/supabase-lore-repository.ts --outDir Temp/supabase-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strict
+ *   npx tsc app/lib/profile/supabase-profile-repository.ts app/lib/comms/supabase-comms-repository.ts app/lib/profile/repository.ts app/lib/comms/repository.ts app/lib/forum/repository.ts app/lib/notifications/repository.ts app/lib/auth/auth-repository.ts app/lib/profile/avatar-upload.ts app/lib/profile/song-upload.ts app/lib/audio/catalogue.ts app/lib/audio/repository.ts app/lib/docs/repository.ts app/lib/docs/supabase-docs-repository.ts --outDir Temp/supabase-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strict
  *   npx tsc app/lib/forum/format.ts app/lib/profile/name-colours.ts app/lib/profile/visibility.ts app/lib/profile/mock-profile-repository.ts app/lib/profile/avatar-catalogue.ts --outDir Temp/check-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop
  *   npx tsc app/components/ProfileCustomiserPictureTab.tsx --outDir Temp/render-out --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
  *   node Temp/check-supabase.cjs
@@ -35,7 +35,8 @@ if (process.env.CHECK_SUPABASE_MODE === 'supabase') {
   const { FORUM_DATA_SOURCE } = require('./supabase-out/forum/repository.js');
   const { NOTIFICATIONS_DATA_SOURCE } = require('./supabase-out/notifications/repository.js');
   const { AUTH_BACKEND } = require('./supabase-out/auth/auth-repository.js');
-  const { LORE_DATA_SOURCE, getLoreRepository } = require('./supabase-out/lore/repository.js');
+  // The lore pages are documents now (SPEC-live-docs.md): DOCS follows the lore switch as well as its own.
+  const { DOCS_DATA_SOURCE, getDocsRepository } = require('./supabase-out/docs/repository.js');
 
   assert.equal(AUTH_BACKEND, 'supabase');
   assert.equal(FORUM_DATA_SOURCE, 'supabase');
@@ -44,12 +45,12 @@ if (process.env.CHECK_SUPABASE_MODE === 'supabase') {
   // Nothing told the notification feed where to read: it follows the board, because a tag is a
   // board event. That is what makes it live on a project that only set the board's switch.
   assert.equal(NOTIFICATIONS_DATA_SOURCE, 'supabase', 'the feed follows the board');
-  assert.equal(LORE_DATA_SOURCE, 'supabase', 'and the lore shelf moves over when it is told to');
+  assert.equal(DOCS_DATA_SOURCE, 'supabase', 'and DOCS, lore among them, moves over when it is told to');
   assert.equal(getProfileRepository().source, 'supabase');
   assert.equal(getCommsRepository().source, 'supabase');
-  assert.equal(getLoreRepository().source, 'supabase');
+  assert.equal(getDocsRepository().source, 'supabase');
 
-  console.log('  switches      : supabase selected for auth, board, profiles, comms and lore');
+  console.log('  switches      : supabase selected for auth, board, profiles, comms and docs');
   process.exit(0);
 }
 
@@ -68,17 +69,17 @@ const { COMMS_DATA_SOURCE, getCommsRepository } = require('./supabase-out/comms/
 const { FORUM_DATA_SOURCE } = require('./supabase-out/forum/repository.js');
 const { NOTIFICATIONS_DATA_SOURCE } = require('./supabase-out/notifications/repository.js');
 const { AUTH_BACKEND } = require('./supabase-out/auth/auth-repository.js');
-const { LORE_DATA_SOURCE, getLoreRepository } = require('./supabase-out/lore/repository.js');
+const { DOCS_DATA_SOURCE, getDocsRepository } = require('./supabase-out/docs/repository.js');
 
 assert.equal(AUTH_BACKEND, 'mock', 'no keys: accounts stay local');
 assert.equal(FORUM_DATA_SOURCE, 'mock');
 assert.equal(PROFILE_DATA_SOURCE, 'mock');
 assert.equal(COMMS_DATA_SOURCE, 'mock');
 assert.equal(NOTIFICATIONS_DATA_SOURCE, 'mock', 'and the feed has nowhere to read from either');
-assert.equal(LORE_DATA_SOURCE, 'mock', 'the lore pages fall back with everything else');
+assert.equal(DOCS_DATA_SOURCE, 'mock', 'DOCS falls back with everything else');
 assert.equal(getProfileRepository().source, 'mock');
 assert.equal(getCommsRepository().source, 'mock');
-assert.equal(getLoreRepository().source, 'mock');
+assert.equal(getDocsRepository().source, 'mock');
 
 /** The keys, without any of the switches: what each store does with them is the point. */
 const KEYS = {
@@ -136,7 +137,8 @@ const TABLES = [
   'music_folders',
   'forum_notifications',
   'forum_pins',
-  'lore_pages',
+  // lore_pages left this list on 2026-11-13: the lore pages are documents (docs, 20261113022846_live_docs.sql) and the
+  // table is a kept backup no code reads. Its section of the script is still checked below by its policy names.
 ];
 
 const SOURCES = [
@@ -146,7 +148,6 @@ const SOURCES = [
   'app/lib/auth/supabase-auth.ts',
   'app/lib/audio/supabase-music-repository.ts',
   'app/lib/notifications/supabase-notifications-repository.ts',
-  'app/lib/lore/supabase-lore-repository.ts',
 ].map((file) => ({ file, text: fs.readFileSync(path.join(process.cwd(), file), 'utf8') }));
 
 for (const table of TABLES) {

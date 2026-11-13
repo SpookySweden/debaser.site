@@ -1,17 +1,14 @@
 import type { Metadata } from 'next';
-import LorePageView from '../../components/LorePageView';
+import DocView from '../../components/DocView';
 import ProjectSectionNav from '../../components/ProjectSectionNav';
 import SiteWindow from '../../components/SiteWindow';
-import { titleFromSlug } from '../../lib/lore/pages';
+import { titleFromSlug } from '../../lib/docs/rules';
 
 type LorePageProps = {
   params: Promise<{ slug: string }>;
 };
 
-/**
- * The tab and the address bar can say what the page is before the store has been asked: the title
- * is read off the slug, which is the same title the page was filed under.
- */
+/** The tab can say what the page is before the store has been asked: the title is read off the slug. */
 export async function generateMetadata({ params }: LorePageProps): Promise<Metadata> {
   const { slug } = await params;
   const name = titleFromSlug(decodeURIComponent(slug));
@@ -23,12 +20,8 @@ export async function generateMetadata({ params }: LorePageProps): Promise<Metad
 }
 
 /**
- * One lore page.
- *
- * The shell is static and the page itself is not: the writing is a shared document, so it is read
- * and joined on the client (see ../components/LorePageView.tsx). A visitor who is not signed in
- * still gets the writing - it is the last copy somebody filed, drawn as plain text - because a
- * world's lore is worth reading before you have an account.
+ * One lore page. Lore pages are documents in DOCS' LORE folder now (SPEC-live-docs.md): this address and
+ * DOCS > LORE open the same document, with the same live editor, carets, pointers and comments.
  */
 export default async function LorePage({ params }: LorePageProps) {
   const { slug } = await params;
@@ -40,7 +33,7 @@ export default async function LorePage({ params }: LorePageProps) {
 
       <ProjectSectionNav current="lore" />
 
-      <LorePageView slug={address} />
+      <DocView target={{ slug: address }} />
     </SiteWindow>
   );
 }
