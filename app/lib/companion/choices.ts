@@ -1,5 +1,6 @@
 /**
- * The COMPANION switch (SPEC-companion.md, decision 2): whether your companion is out, and which character it wears.
+ * The COMPANION switch (SPEC-companion.md, decision 2): whether your companion is out. It always wears your profile's
+ * SHOWN character (Luke, 2026-11-13: "Only the shown one"), so there is no character to choose.
  *
  * Pure: no browser, no database. `companion-slot.ts` keeps them in this browser and on the account.
  */
@@ -12,13 +13,9 @@ export type CompanionChoices = {
   computer: boolean | null;
   /** On a phone or tablet: off unless you turn it on there. */
   phone: boolean;
-  /** One of your saved characters by id, or null for your profile's SHOWN one. */
-  character: string | null;
 };
 
-export const DEFAULT_COMPANION: CompanionChoices = { computer: null, phone: false, character: null };
-
-const ID_MAX = 200;
+export const DEFAULT_COMPANION: CompanionChoices = { computer: null, phone: false };
 
 /** Reads saved choices back. Anything unrecognised falls back to the default, never throws. */
 export function parseCompanionChoices(value: unknown): CompanionChoices {
@@ -27,7 +24,6 @@ export function parseCompanionChoices(value: unknown): CompanionChoices {
   return {
     computer: typeof raw.computer === 'boolean' ? raw.computer : null,
     phone: raw.phone === true,
-    character: typeof raw.character === 'string' && raw.character.length > 0 && raw.character.length <= ID_MAX ? raw.character : null,
   };
 }
 

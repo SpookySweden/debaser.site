@@ -119,8 +119,9 @@ ok('the switch: none signed out, off on a phone until switched on there, off by 
   const phoneOn = choices.withSwitch(d, true, true);
   assert.equal(choices.companionOut(phoneOn, { signedIn: true, phone: true, hasShown: false }), true);
   assert.equal(choices.companionOut(phoneOn, { signedIn: true, phone: false, hasShown: false }), false, 'the phone switch leaves the computer alone');
-  assert.deepEqual(choices.parseCompanionChoices({ computer: 'yes', phone: 1, character: '' }), d);
-  assert.deepEqual(choices.parseCompanionChoices({ computer: false, phone: true, character: 'abc' }), { computer: false, phone: true, character: 'abc' });
+  assert.deepEqual(choices.parseCompanionChoices({ computer: 'yes', phone: 1 }), d);
+  assert.deepEqual(choices.parseCompanionChoices({ computer: false, phone: true, character: 'abc' }), { computer: false, phone: true }, 'no character to choose: always the SHOWN one');
+  assert.doesNotMatch(read('app/components/CompanionPreferences.tsx'), /WEARS|readLibrary/, 'no character picker');
 });
 
 ok('somebody else presence is read carefully: junk is no companion, the share stays 0..1', () => {

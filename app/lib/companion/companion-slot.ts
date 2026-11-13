@@ -8,8 +8,8 @@ import { DEFAULT_COMPANION, parseCompanionChoices, type CompanionChoices } from 
  * copy draws at once, and a signed-in person's choices are saved to their account as well, in `user_companion`, which
  * only they can read or write, so the switch follows them between machines.
  *
- * Until that table exists (it waits for Luke's OK), the account's read fails and the browser's copy is all there is:
- * nothing breaks, the choice just stays on this machine.
+ * (`20261113133346_user_companion.sql`, Luke's OK 2026-11-13). A read or save that fails leaves the browser's copy
+ * standing: nothing breaks, the choice just stays on this machine.
  */
 
 export type CompanionStore = {
@@ -30,25 +30,21 @@ const SUPABASE_STORE: CompanionStore = {
   read: async (person) => {
     const client = getSupabaseBrowserClient();
     if (client === null) throw new Error('No database.');
-    const { data, error } = await client.from('user_companion').select('choices').eq('person', person).maybeSingle();
+    const { data, error } = await client.from('user_companion').select('on_computer, on_phone').eq('person', person).maybeSingle();
     if (error) throw new Error('Your companion could not be read.');
-    return data === null ? null : parseCompanionChoices((data as { choices: unknown }).choices);
+    if (data === null) return null;
+    const row = data as { on_computer: unknown; on_phone: unknown };
+    return parseCompanionChoices({ computer: row.on_computer, phone: row.on_phone });
   },
   save: async (person, choices) => {
     const client = getSupabaseBrowserClient();
     if (client === null) throw new Error('No database.');
-    const { error } = await client.from('user_companion').upsert({ person, choices });
+    const { error } = await client.from('user_companion').upsert({ person, on_computer: choices.computer, on_phone: choices.phone });
     if (error) throw new Error('Your companion could not be saved.');
   },
 };
 
-/**
- * Whether `user_companion` exists yet (supabase/pending/user_companion.sql, waiting for Luke's OK). Until it does, the
- * account is not asked at all, so no sign-in or press sends a request that can only fail: the browser's copy is the copy.
- */
-const ACCOUNT_TABLE_LIVE = false;
-
-const store = (): CompanionStore | null => (USING_MOCK_AUTH ? MOCK_STORE : ACCOUNT_TABLE_LIVE ? SUPABASE_STORE : null);
+const store = (): CompanionStore | null => (USING_MOCK_AUTH ? MOCK_STORE : SUPABASE_STORE);
 
 const STORAGE_KEY = 'debaser-companion';
 

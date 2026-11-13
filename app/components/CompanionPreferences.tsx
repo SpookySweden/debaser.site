@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useState, useSyncExternalStore } from 'react';
-import { readLibrary, subscribeToLibrary, type SavedCharacter } from '../lib/character/library';
+import { useSyncExternalStore } from 'react';
 import { companionOut, withSwitch } from '../lib/companion/choices';
 import {
   companionChoicesState,
@@ -32,15 +31,13 @@ function ChoiceRow({ label, note, active, onPress }: { label: string; note: stri
 
 /**
  * The COMPANION row in Preferences (SPEC-companion.md, decision 2): your companion on or off on this kind of device (a
- * computer and a phone keep separate switches; a phone starts off), and which of your characters it wears. Signed out,
- * there is no companion and no row.
+ * computer and a phone keep separate switches; a phone starts off). It always wears your profile's SHOWN character (Luke,
+ * 2026-11-13: "Only the shown one"), so there is nothing to pick. Signed out, there is no companion and no row.
  */
 export default function CompanionPreferences() {
   const { user } = useAuth();
   const choices = useSyncExternalStore(subscribeToCompanionChoices, companionChoicesState, serverCompanionChoices);
   const phone = usePhone();
-  const [shelf, setShelf] = useState<SavedCharacter[]>(readLibrary);
-  useEffect(() => subscribeToLibrary(() => setShelf(readLibrary())), []);
 
   if (user === null || phone === null) return null;
 
@@ -48,7 +45,6 @@ export default function CompanionPreferences() {
   const hasShown = false;
   const on = companionOut(choices, { signedIn: true, phone, hasShown });
   const where = phone ? 'ON THIS PHONE' : 'ON A COMPUTER';
-  const chosen = shelf.some((character) => character.id === choices.character) ? choices.character : null;
 
   return (
     <section className="mt-2" data-companion-preferences>
@@ -71,27 +67,6 @@ export default function CompanionPreferences() {
         />
       </div>
 
-      <div className={TITLE_BAR_INACTIVE}>
-        <span title="WHICH OF YOUR CHARACTERS IT IS">WEARS</span>
-      </div>
-
-      <div className="space-y-1 p-2">
-        <ChoiceRow
-          label="SHOWN CHARACTER"
-          note="THE CHARACTER YOUR PROFILE SHOWS"
-          active={chosen === null}
-          onPress={() => setCompanionChoices({ ...choices, character: null })}
-        />
-        {shelf.map((character) => (
-          <ChoiceRow
-            key={character.id}
-            label={character.name.toUpperCase()}
-            note={`${character.name.toUpperCase()}, FROM YOUR SAVED CHARACTERS`}
-            active={chosen === character.id}
-            onPress={() => setCompanionChoices({ ...choices, character: character.id })}
-          />
-        ))}
-      </div>
     </section>
   );
 }

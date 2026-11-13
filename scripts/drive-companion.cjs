@@ -40,7 +40,7 @@ const pass = (what) => {
 };
 const left = [];
 
-const COMPANION_ON = JSON.stringify({ computer: true, phone: true, character: null });
+const COMPANION_ON = JSON.stringify({ computer: true, phone: true });
 
 async function person(browser, letter, { phone = false } = {}) {
   const account = await signInTestAccount(letter);
@@ -253,7 +253,7 @@ async function waitMood(page, wanted, ms) {
     await a.page.goto(`${BASE}/media`, { waitUntil: 'domcontentloaded' });
     await a.page.waitForFunction(() => document.querySelector('[data-watch-in-room="start"]') !== null || document.querySelector('button[aria-label^="Play"]') !== null, null, { timeout: 45000 });
     await clearPrivacyWindow(a.page);
-    const row = a.page.locator('li').filter({ hasText: 'YOUTUBE' }).filter({ hasText: '[ â–¶ PLAY ]' }).first();
+    const row = a.page.locator('li').filter({ hasText: 'YOUTUBE' }).filter({ hasText: '[ ▶ PLAY ]' }).first();
     await row.locator('button[aria-label^="Play"]').first().click();
     await a.page.waitForSelector('[data-floating-player] iframe', { timeout: 20000 });
     await sleep(3000);
