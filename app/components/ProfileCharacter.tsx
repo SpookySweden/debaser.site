@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
 import type { ShownCharacter } from '../lib/character/profile-character-repository';
 import { useShownCharacter } from '../lib/character/use-shown-character';
+import { DANCES, type MotionId } from '../lib/character/motion';
 import {
   findLanes,
   react,
+  REACTIONS,
   startWalker,
   stepWalker,
   WALK_BLOCKS_PER_TICK,
@@ -88,6 +90,53 @@ function placeOn(root: HTMLElement, skip: HTMLElement | null, shown: ShownCharac
     return { lane: same ?? lanes[0], scale };
   }
   return null;
+}
+
+/**
+ * The character standing in the profile's status-bar sprite spot instead of walking the page (Luke, 2026-11-13): its idle
+ * loop, one of its dances while the profile's track plays, and a wave, hop or turn when pressed. Drawn at one screen pixel
+ * per strip pixel, cut at its feet. Under reduced motion it stands still in its idle frame and nothing ticks.
+ */
+export function ProfileCharacterLoop({ shown, music }: { shown: ShownCharacter; music: boolean }) {
+  const reduced = useSyncExternalStore(subscribeReduced, reducedNow, reducedOnServer);
+  const [state, setState] = useState<{ motion: MotionId; tick: number; reacted: number }>({ motion: 'idle', tick: 0, reacted: 0 });
+
+  useEffect(() => {
+    if (reduced) return;
+    const every = Math.round(1000 / shown.sheet.fps);
+    const timer = setInterval(() => {
+      setState((current) => {
+        const playing = shown.sheet.motions[current.motion];
+        const tick = current.tick + 1;
+        const dancing = DANCES.includes(current.motion);
+        // A one-off (a reaction, or a dance that doesn't loop) plays to its end; then it dances while the track plays, else idles.
+        const ended = !playing.loop && tick >= playing.ticks.length;
+        if (!playing.loop && !ended) return { ...current, tick };
+        if (music && (ended || !dancing)) return { ...current, motion: DANCES[Math.floor(Math.random() * DANCES.length)], tick: 0 };
+        if (!music && (ended || dancing)) return { ...current, motion: 'idle', tick: 0 };
+        return { ...current, tick };
+      });
+    }, every);
+    return () => clearInterval(timer);
+  }, [reduced, shown, music]);
+
+  const motion = reduced ? 'idle' : state.motion;
+  return (
+    <button
+      type="button"
+      data-profile-character=""
+      data-motion={motion}
+      aria-label="THEIR CHARACTER: PRESS TO SAY HELLO"
+      title="SAY HELLO"
+      onClick={() => {
+        if (!reduced) setState((current) => ({ motion: REACTIONS[current.reacted % REACTIONS.length], tick: 0, reacted: current.reacted + 1 }));
+      }}
+      className="block shrink-0 cursor-pointer overflow-hidden focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-acid"
+      style={{ width: shown.sheet.cell.w, height: shown.sheet.floor }}
+    >
+      <CharacterSprite stripUrl={shown.stripUrl} sheet={shown.sheet} motion={motion} tick={reduced ? 0 : state.tick} dir={1} scale={1} />
+    </button>
+  );
 }
 
 export default function ProfileCharacter({ userId, root, music }: { userId: string; root: RefObject<HTMLElement | null>; music: boolean }) {

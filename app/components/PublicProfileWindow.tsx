@@ -3,7 +3,7 @@
 import { profileContext } from '../lib/audio/track-context';
 import { getMusicRepository } from '../lib/audio/repository';
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { authorFromAccount } from '../lib/auth/author';
 import { elementAsTrack } from '../lib/audio/profile-track';
 import {
@@ -28,7 +28,6 @@ import ElementComments from './ElementComments';
 import { useForum } from './ForumProvider';
 import ProfileAvatar from './ProfileAvatar';
 import ProfileBoardActivity from './ProfileBoardActivity';
-import ProfileCharacter from './ProfileCharacter';
 import ProfileCommentMenu, { type ProfileCommentOption } from './ProfileCommentMenu';
 import ProfileCommentPin from './ProfileCommentPin';
 import ProfileCommentWindow from './ProfileCommentWindow';
@@ -135,12 +134,10 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
   ];
 
 
-  // The page area the owner's character lives in (SPEC-profile-characters.md), and whether the track on show is playing.
-  const pageArea = useRef<HTMLDivElement>(null);
+  // Whether the track on show is playing: the owner's character (SPEC-profile-characters.md) dances to it in the status bar.
   const trackPlaying = player.playing && track !== undefined && player.track?.src === track.src;
 
   return (
-    <div ref={pageArea} className="relative">
     <div className="space-y-3">
       <section>
         <div className="title-line text-accent-ink">
@@ -283,7 +280,7 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
             everything the profile carries, which is where a desktop of this era put it. It is the only
             place the "when were they last here" question is answered now, and it answers it in words
             that age on their own. */}
-        <ProfileStatusBar userId={userId} />
+        <ProfileStatusBar userId={userId} music={trackPlaying} />
       </section>
 
       {customising ? <ProfileCustomiserWindow userId={userId} onClose={() => setCustomising(false)} /> : null}
@@ -327,9 +324,6 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
         userId={userId}
         repository={repository}
       />
-    </div>
-    {/* Last, so it is drawn over the page; it lets every click through except on the character itself. */}
-    <ProfileCharacter userId={userId} root={pageArea} music={trackPlaying} />
     </div>
   );
 }
