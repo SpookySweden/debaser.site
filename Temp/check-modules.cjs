@@ -45,8 +45,9 @@ async function up() {
 
     const keys = async () => (await nav.locator('a, button:not([aria-label])').allInnerTexts()).map((text) => text.trim().replace(/\s+/g, ' '));
     // (2026-11-13) DOCS is on for everyone from a first visit (Luke: "on for everyone", SPEC-live-docs.md).
-    assert.deepEqual(await keys(), ['PROJECTS', 'FORUM', 'MEDIA', 'DOCS', 'STREAM', 'MODULOS'], 'the keys a first visit shows');
-    console.log('  ok    first visit: PROJECTS FORUM MEDIA DOCS STREAM MODULOS, no DISCOVER, BEATBOX or ANIMATE');
+    // (2026-11-13) READ, the reader's module, is on for everyone too (Luke: 'a new module for reading').
+    assert.deepEqual(await keys(), ['PROJECTS', 'FORUM', 'MEDIA', 'READ', 'DOCS', 'STREAM', 'MODULOS'], 'the keys a first visit shows');
+    console.log('  ok    first visit: PROJECTS FORUM MEDIA READ DOCS STREAM MODULOS, no DISCOVER, BEATBOX or ANIMATE');
 
     // MODULOS is a solid block: neither a bare word nor the dark block of the page you're on, and its word reads.
     const modulosKey = nav.getByRole('button', { name: 'MODULOS', exact: true });
@@ -89,14 +90,14 @@ async function up() {
     assert.equal(await tick('DISCOVER').getAttribute('aria-checked'), 'false', 'DISCOVER starts unticked');
     for (const name of ['DISCOVER', 'BEATBOX', 'ANIMATE']) assert.match(await tick(name).innerText(), /WIP/, `${name} is tagged WIP in the list`);
     assert.equal(await tick('DOCS').getAttribute('aria-checked'), 'true', 'DOCS starts ticked (Luke, 2026-11-13)');
-    for (const name of ['PROJECTS', 'FORUM', 'MEDIA', 'DOCS', 'STREAM', 'MODULOS']) assert.doesNotMatch(await tick(name).innerText(), /WIP/, `${name} is not tagged WIP`);
+    for (const name of ['PROJECTS', 'FORUM', 'MEDIA', 'READ', 'DOCS', 'STREAM', 'MODULOS']) assert.doesNotMatch(await tick(name).innerText(), /WIP/, `${name} is not tagged WIP`);
     assert.ok(await tick('MODULOS').isDisabled(), 'MODULOS cannot be unticked');
     console.log('  ok    list: CREATIVE holds BEATBOX, STREAM (ticked), ANIMATE; DISCOVER, BEATBOX and ANIMATE tagged WIP; MODULOS can\'t be unticked');
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/modules-list.png` });
 
     await tick('BEATBOX').click();
     await tick('MEDIA').click();
-    assert.deepEqual(await keys(), ['PROJECTS', 'FORUM', 'DOCS', 'BEATBOX WIP', 'STREAM', 'MODULOS'], 'ticking moves the bar at once, and BEATBOX wears its tag');
+    assert.deepEqual(await keys(), ['PROJECTS', 'FORUM', 'READ', 'DOCS', 'BEATBOX WIP', 'STREAM', 'MODULOS'], 'ticking moves the bar at once, and BEATBOX wears its tag');
     console.log('  ok    ticking BEATBOX on and MEDIA off changes the bar at once');
 
     // A hover colour: the word turns it on the bar, with no fill.
@@ -140,7 +141,7 @@ async function up() {
     await page.reload({ waitUntil: 'domcontentloaded' });
     await nav.waitFor({ state: 'visible' });
     await page.waitForTimeout(800);
-    assert.deepEqual(await keys(), ['PROJECTS', 'FORUM', 'DOCS', 'BEATBOX WIP', 'STREAM', 'MODULOS'], 'choices survive a reload');
+    assert.deepEqual(await keys(), ['PROJECTS', 'FORUM', 'READ', 'DOCS', 'BEATBOX WIP', 'STREAM', 'MODULOS'], 'choices survive a reload');
     console.log('  ok    choices survive a reload');
 
     // An unticked module's address still works.

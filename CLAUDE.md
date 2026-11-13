@@ -36,7 +36,9 @@ The house rules live in `.claude/rules/core.md` (loaded automatically).
   an Archive book with no EPUB but a PDF reads in our reader a slice at a time (`Range` requests through the same route,
   answered 206, never kept, the slice only of the PDF the item's metadata lists), fetched from the item's own file
   servers; the Archive's viewer is for a book with neither. A reader's own PDF or EPUB opens at `/read` in their
-  browser and is never uploaded.
+  browser and is never uploaded. The READ module (the `read` key on the top bar, 2026-11-13) matches it to its Open Library
+  work before it opens (the ISBN printed inside, then the title inside, then the file's name: only those go to Open
+  Library), and may keep it in that browser's own storage (IndexedDB, `app/lib/books/own-library.ts`), never anywhere else.
 - Public APIs, RSS/Atom, oEmbed and open-data endpoints; unofficial JSON APIs a platform's own site uses
   (YouTube's InnerTube) are fine too, with an official fallback where one exists (core.md, "forever project").
   Never parse HTML pages.

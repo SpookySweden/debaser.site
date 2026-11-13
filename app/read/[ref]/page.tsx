@@ -18,7 +18,7 @@ export default async function ReadRoute({ params }: { params: Promise<{ ref: str
   const { ref } = await params;
   const bookRef = decodeURIComponent(ref);
   return (
-    <SiteWindow title="DEBASER_OS - v1.0 [READER]" active="web" tip="A free book, read here." fill>
+    <SiteWindow title="DEBASER_OS - v1.0 [READER]" active="read" tip="A free book, read here." fill>
       {isReadable(bookRef) ? (
         <Suspense fallback={null}>
           <ReaderPage bookRef={bookRef} />

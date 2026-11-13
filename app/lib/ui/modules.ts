@@ -6,7 +6,7 @@ import { contrastRatio } from './colour';
  * turns on hover. Pure, so a check can hold it. An unticked module's address still works; only its key goes.
  */
 
-export type ModuleKey = 'home' | 'forum' | 'web' | 'tagstation' | 'recommendations' | 'docs' | 'beatbox' | 'cytube' | 'animate' | 'modules';
+export type ModuleKey = 'home' | 'forum' | 'web' | 'read' | 'tagstation' | 'recommendations' | 'docs' | 'beatbox' | 'cytube' | 'animate' | 'modules';
 
 export type ModuleDef = {
   key: ModuleKey;
@@ -27,6 +27,8 @@ export const MODULES: readonly ModuleDef[] = [
   { key: 'home', label: 'PROJECTS', href: '/projects', group: 'site', startsOn: true },
   { key: 'forum', label: 'FORUM', href: '/forum', group: 'site', startsOn: true },
   { key: 'web', label: 'MEDIA', href: '/media', group: 'site', startsOn: true },
+  // The reader (Luke, 2026-11-13: "a new module for reading"): your books, and your own PDFs and EPUBs matched to their book.
+  { key: 'read', label: 'READ', href: '/read', group: 'site', startsOn: true },
   // A map of the words on MEDIA's items (SPEC-tag-station.md, SPEC-discover.md).
   { key: 'tagstation', label: 'DISCOVER', href: '/discover', group: 'site', startsOn: false, wip: true },
   // Queues of things sent to people or posted publicly (SPEC-recommendations.md, Luke 2026-11-10): off until ticked.
