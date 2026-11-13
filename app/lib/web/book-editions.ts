@@ -154,16 +154,18 @@ export function ipfsCopyOf(work: string): string | null {
 
 /**
  * The best copy of a work to open in the reader (Luke, 2026-11-13: "any book can be read in the ereader"): Project
- * Gutenberg's copy first (its EPUB passes through our server, pictures included); then a free Archive scan; then any
- * other scan (the reader shows the Archive's own viewer, with its borrow flow when the scan is lent); null when no
- * edition has a copy to open. One page of editions is read (500 at a time is already the catalogue's own page), which is
- * enough for every work checked live: Dracula's first 500 editions carry its scans. Open to visitors.
+ * Gutenberg's copy first (its EPUB passes through our server, pictures included); then a free Archive scan; else, when a
+ * lending-library scan exists, that scan's identifier as `borrowOnArchive` so the reader's no-free-copy page can offer
+ * `[ BORROW ON ARCHIVE ↗ ]` beside `[ OPEN LIBRARY ↗ ]` (Luke, 2026-11-13: the Archive's own embed for a borrow-only
+ * copyrighted book renders a black viewer until the reader borrows, and the reader can't borrow inside an iframe, so
+ * sending them to archive.org for the borrow is kinder than a blank page). One page of editions is read (500 at a time
+ * is already the catalogue's own page), which is enough for every work checked live. Open to visitors.
  */
 export async function resolveWorkCopy(
   work: string,
   fetchImpl: FetchLike | undefined,
   now: Date = new Date(),
-): Promise<{ ref: string } | null> {
+): Promise<{ ref: string } | { borrowOnArchive: string } | null> {
   if (!WORK_KEY_ID.test(work)) return null;
   const [row, firstPage] = await Promise.all([
     readWorkRow(work, fetchImpl, now).catch(() => null),
@@ -182,9 +184,10 @@ export async function resolveWorkCopy(
   const access = await readScanAccess(ocaids, fetchImpl);
   const free = parsed.find((edition) => edition.ocaid && access.get(edition.ocaid) === 'free');
   if (free?.ocaid) return { ref: `internet_archive:${free.ocaid}` };
-  // No free scan read: any scan the Archive has (lent or unknown) opens through the reader's viewer branch.
-  const any = parsed.find((edition) => edition.ocaid !== null);
-  return any?.ocaid ? { ref: `internet_archive:${any.ocaid}` } : null;
+  // No free scan: the first lending scan the Archive confirms is lent (free-of-charge to borrow for an hour). An
+  // unknown-access scan is never offered as a borrow, since the reader has no way to find out it's actually there.
+  const lent = parsed.find((edition) => edition.ocaid && access.get(edition.ocaid) === 'lent');
+  return lent?.ocaid ? { borrowOnArchive: lent.ocaid } : null;
 }
 
 /** The book's page's list: its editions in an order, filtered, fifty from `offset`, and the one it was opened at. */

@@ -213,8 +213,10 @@ function savedWeb(overrides = {}) {
     return json({}, 404);
   }, NOW);
   same(noCopy, null, 'a work with no copy at all resolves to null');
+  // Luke, 2026-11-13 (Dune fix): a copyrighted work whose only Archive scan is a lending copy no longer redirects to a
+  // black viewer iframe; the resolver returns { borrowOnArchive } and the reader's no-free-copy page offers a BORROW key.
   const archiveResolve = await listing.resolveWorkCopy('OL24218144W', savedWeb().fetch, NOW);
-  same(archiveResolve, { ref: 'internet_archive:journalofdisappo0000barb' }, 'a work with only a scan resolves to its Archive ref (reader opens the viewer)');
+  same(archiveResolve, { borrowOnArchive: 'journalofdisappo0000barb' }, 'a work with only a lending scan: borrowOnArchive, not a dead viewer ref');
   // openBookEpub for a bare work ref signals a redirect; for a work with no copy, a noFreeCopy marker.
   const redirected = await books.openBookEpub('books:OL85892W', savedWeb().fetch);
   same(redirected, { redirect: 'books:OL85892W-pg345' }, 'the route tells the reader where the copy is');
@@ -224,7 +226,9 @@ function savedWeb(overrides = {}) {
     if (at.pathname === '/works/OL999999W/editions.json') return json({ size: 0, entries: [] });
     return json({}, 404);
   });
-  same(nothing, { noFreeCopy: { work: 'OL999999W', openLibraryUrl: 'https://openlibrary.org/works/OL999999W' } }, 'a work with no free copy: the reader shows a link to Open Library');
+  same(nothing, { noFreeCopy: { work: 'OL999999W', openLibraryUrl: 'https://openlibrary.org/works/OL999999W' } }, 'a work with no free copy and no lending scan: Open Library only');
+  const borrowOnly = await books.openBookEpub('books:OL24218144W', savedWeb().fetch);
+  same(borrowOnly, { noFreeCopy: { work: 'OL24218144W', openLibraryUrl: 'https://openlibrary.org/works/OL24218144W', borrowOnArchive: 'https://archive.org/details/journalofdisappo0000barb' } }, 'a borrow-only work: the reader also gets a borrow link, not a dead viewer');
   // archiveBookOf for a lending-library item no longer refuses outright: EPUB and PDF stay null so the reader shows the Archive's viewer.
   const lentStub = books.archiveBookOf({ files: [{ name: 'book.epub', size: 1024 }], metadata: { mediatype: 'texts', 'access-restricted-item': 'true' } });
   same([lentStub && lentStub.epub, lentStub && lentStub.pdf, Array.isArray(lentStub && lentStub.servers) ? lentStub.servers.length : -1], [null, null, 0], 'a lending-library item is a viewer-only stub, never a file passed through us');

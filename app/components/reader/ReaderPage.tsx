@@ -259,8 +259,10 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
   const pdfHits = useRef(new WeakMap<Document, { highlight: BookHighlight; range: Range }[]>());
 
   const [phase, setPhase] = useState<'choose' | 'reading-file' | 'opening' | 'ask' | 'ready' | 'viewer' | 'no-free-copy' | { fault: string }>(own ? 'choose' : 'reading-file');
-  // A work with no free copy anywhere (Luke, 2026-11-13): shown inside the reader with a link to Open Library.
+  // A work with no free copy anywhere (Luke, 2026-11-13): shown inside the reader with a link to Open Library, and, when
+  // a lending-library Archive scan exists, a [ BORROW ON ARCHIVE ↗ ] key beside it.
   const [noFreeCopyUrl, setNoFreeCopyUrl] = useState<string | null>(null);
+  const [borrowOnArchive, setBorrowOnArchive] = useState<string | null>(null);
   // What the engine opened (an EPUB reflows and takes highlights; a PDF has fixed pages), a reader's own file, and a count
   // that opens the book again where it was (a PDF's ONE PAGE / TWO PAGES is decided when it opens).
   const [kind, setKind] = useState<'epub' | 'pdf' | null>(null);
@@ -794,7 +796,7 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
                 viewer?: boolean;
                 pdf?: { size?: number };
                 redirect?: string;
-                noFreeCopy?: { work?: string; openLibraryUrl?: string };
+                noFreeCopy?: { work?: string; openLibraryUrl?: string; borrowOnArchive?: string };
               })
             : null;
           // A bare Open Library work (Luke, 2026-11-13: "any book can be read in the ereader"): the server resolved it to a
@@ -803,10 +805,16 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
             if (live) router.replace(said.redirect);
             return;
           }
-          // A work with no free copy anywhere: a page inside the reader with a link to Open Library (nothing outside /read).
+          // A work with no free copy anywhere: a page inside the reader with a link to Open Library, and, when a
+          // lending-library Archive scan exists, a [ BORROW ON ARCHIVE ↗ ] key beside it.
           if (said?.noFreeCopy?.openLibraryUrl && /^https:\/\/openlibrary\.org\/works\/OL[1-9][0-9]{0,11}W$/.test(said.noFreeCopy.openLibraryUrl)) {
             if (live) {
               setNoFreeCopyUrl(said.noFreeCopy.openLibraryUrl);
+              setBorrowOnArchive(
+                typeof said.noFreeCopy.borrowOnArchive === 'string' && /^https:\/\/archive\.org\/details\/[A-Za-z0-9][A-Za-z0-9._-]{0,100}$/.test(said.noFreeCopy.borrowOnArchive)
+                  ? said.noFreeCopy.borrowOnArchive
+                  : null,
+              );
               setPhase('no-free-copy');
             }
             return;
@@ -1419,20 +1427,33 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
           />
         ) : null}
         {phase === 'no-free-copy' && noFreeCopyUrl ? (
-          // A work with no free copy anywhere (Luke, 2026-11-13): shown inside the reader. The link opens Open Library in
-          // a new tab; the browser never leaves /read on its own.
+          // A work with no free copy anywhere (Luke, 2026-11-13): shown inside the reader. The keys open Open Library
+          // and, when offered, the Internet Archive's borrow page in new tabs; the browser never leaves /read on its own.
           <div className="absolute inset-x-0 top-1/3 flex flex-col items-center gap-2 p-4 text-center">
             <p className="w-fit bg-sun-pale px-1 text-label text-ink">NO FREE COPY OF THIS BOOK WAS FOUND.</p>
             <p className="max-w-prose text-label text-ink">
-              Open Library lists libraries that lend it and shops that sell it.
+              {borrowOnArchive
+                ? 'The Internet Archive lends it for an hour at a time (free; a reader account is needed). Open Library lists libraries that lend it and shops that sell it.'
+                : 'Open Library lists libraries that lend it and shops that sell it.'}
             </p>
             <div className="flex flex-wrap justify-center gap-1">
+              {borrowOnArchive ? (
+                <a
+                  href={borrowOnArchive}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  aria-label="Borrow this book on the Internet Archive (new tab)"
+                  className={PLATE_MAIN}
+                >
+                  [ BORROW ON ARCHIVE ↗ ]
+                </a>
+              ) : null}
               <a
                 href={noFreeCopyUrl}
                 target="_blank"
                 rel="noopener noreferrer nofollow"
                 aria-label="Open this book on Open Library (new tab)"
-                className={PLATE_MAIN}
+                className={borrowOnArchive ? PLATE : PLATE_MAIN}
               >
                 [ OPEN LIBRARY ↗ ]
               </a>

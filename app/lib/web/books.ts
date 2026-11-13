@@ -166,7 +166,7 @@ export async function openBookEpub(
   | { pdf: { size: number } }
   | 'viewer'
   | { redirect: string }
-  | { noFreeCopy: { work: string; openLibraryUrl: string } }
+  | { noFreeCopy: { work: string; openLibraryUrl: string; borrowOnArchive?: string } }
   | null
 > {
   if (!BOOK_REF.test(ref)) return null;
@@ -179,8 +179,15 @@ export async function openBookEpub(
   // to Open Library inside its own frame; the browser never leaves /read on its own.
   if (!parts.gutenberg) {
     const resolved = await resolveWorkCopy(parts.work, epubFetch).catch(() => null);
-    if (resolved) return { redirect: resolved.ref };
-    return { noFreeCopy: { work: parts.work, openLibraryUrl: `https://openlibrary.org/works/${parts.work}` } };
+    if (resolved && 'ref' in resolved) return { redirect: resolved.ref };
+    const borrow = resolved && 'borrowOnArchive' in resolved ? `https://archive.org/details/${resolved.borrowOnArchive}` : null;
+    return {
+      noFreeCopy: {
+        work: parts.work,
+        openLibraryUrl: `https://openlibrary.org/works/${parts.work}`,
+        ...(borrow ? { borrowOnArchive: borrow } : {}),
+      },
+    };
   }
   const urls = gutenbergEpubUrls(parts.gutenberg);
   let last: unknown = null;
