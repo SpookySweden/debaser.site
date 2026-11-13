@@ -32,6 +32,8 @@ const BASE = opt('--base', 'https://debaser-site.vercel.app').replace(/\/$/, '')
 const QUICK = flag('--quick');
 /** Only the room and the phone (after switching on and B's message): for re-running the end of a drive. */
 const ROOM_ONLY = flag('--room-only');
+/** Only switching on, the pages and the dance (with its music notes): leaves nothing behind to clear. */
+const DANCE_ONLY = flag('--dance-only');
 const SHOTS = join('Temp', 'browse');
 mkdirSync(SHOTS, { recursive: true });
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -209,8 +211,15 @@ async function waitMood(page, wanted, ms) {
     assert.ok(danced, `dances while playing (mood ${await mood(a.page)})`);
     const dancing = await a.page.evaluate(() => document.querySelector('[data-companion="own"]')?.dataset.motion);
     assert.match(dancing ?? '', /^dance[123]$/, "plays one of the strip's dances");
-    await a.page.screenshot({ path: join(SHOTS, 'companion-dance.png') });
     pass(`the music bar playing: it dances (the strip's ${dancing})`);
+    // (2026-11-13) Colourful music notes trail up from it while it dances (Luke): text characters, inside its own box.
+    const notes = await a.page
+      .waitForFunction(() => document.querySelectorAll('[data-companion="own"] [aria-hidden="true"] > span').length > 0, null, { timeout: 4000 })
+      .then(() => true)
+      .catch(() => false);
+    assert.ok(notes, 'music notes trail up from it while it dances');
+    await a.page.screenshot({ path: join(SHOTS, 'companion-dance.png') });
+    pass('music notes trail up from it while it dances');
     // Quiet again: every press of the cell until nothing plays.
     for (let press = 0; press < 4 && (await cell.getAttribute('title')) !== 'Paused'; press += 1) {
       await cell.click();
@@ -221,6 +230,10 @@ async function waitMood(page, wanted, ms) {
     await sleep(1500);
     assert.notEqual(await mood(a.page), 'dance', 'stops dancing when the music stops');
     pass('the music stopping: it stops dancing');
+    if (DANCE_ONLY) {
+      console.log(`\n${passed} passed (--dance-only). Screenshots in ${SHOTS}/companion-*.png`);
+      return;
+    }
 
     if (!QUICK) {
       console.log('It falls asleep with nothing happening, and wakes');
