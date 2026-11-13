@@ -107,3 +107,16 @@ changing the board; recommending to visitors; profile-visit lists.
 - A check that people picks only come from shared signals (another account's private history can't steer A's picks).
 - Screenshots at desktop and phone width of FOR YOU's lanes and the HISTORY controls, live.
 - The house loop: verify, checks:changed, capture + audit, verify:clean, push, deploy-status.
+
+## Built (2026-11-13)
+- Step 1 (`09f1081`): the two tables, history written from MEDIA, DISCOVER, songs heard, free books read and finished, board
+  threads, rooms, others' letters and lore pages; HISTORY on FOR YOU and the PRIVACY tab; MEDIA, SONGS and BOOKS lanes.
+- Step 2 (`3179372`): ON THE BOARD, OPEN ROOMS, LORE, PEOPLE and LETTERS (`ForYouCommunity.tsx`).
+- Step 3: MEDIA's PICKED FOR YOU, RECOMMENDED and DISCOVER order with the history too (counted if it is read before the
+  first rows, then fixed for the visit, so nothing moves); NOT FOR ME leaves an item out there too. FROM YOUR YOUTUBE lane
+  and the map's YouTube topic chips (`ForYouYouTube.tsx`), drawing nothing until `NEXT_PUBLIC_GOOGLE_VIDEOS_LINK=on`.
+- Proof: `check-recommender` (engine and rules), `check-user-history` (live, test accounts A and B),
+  `check-tag-station-render` (the page drawn). Live pictures were taken with three made-up history rows for test account A,
+  removed in the same run (`Temp/browse/foryou-drive.cjs`, untracked).
+- Left for Luke: one `user_history_settings` row for TEST ACCOUNT A ("not paused"), left by the live check; deleting it is
+  his call. The live site has no lore pages, so LORE stays hidden until one exists.

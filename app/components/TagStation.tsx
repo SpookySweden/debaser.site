@@ -29,6 +29,7 @@ import { FindInMedia, ItemRow, STATION_KEY, STATION_KEY_ON, Thumb, TitleLine, Wo
 import TagStationSearch from './TagStationSearch';
 import { noteHistory } from '../lib/recommender/history';
 import ForYou from './ForYou';
+import { YouTubeTopicChips } from './ForYouYouTube';
 
 const PAGE_PATH = '/discover';
 const ITEMS_STEP = 12;
@@ -391,6 +392,9 @@ export function Station({ index: mapIndex }: { index: StationIndex }) {
           <a href="https://www.wikipedia.org" target="_blank" rel="noopener noreferrer nofollow" className="underline">WIKIPEDIA</a>.
         </InfoFold>
       </div>
+
+      {/* YOUR YOUTUBE's topics as starting words (SPEC-recommender.md step 3); nothing until Google is set up. */}
+      <YouTubeTopicChips index={index} onWord={pickTag} />
 
       {index.graph.limitReached ? <p className="w-fit bg-bubble-pale px-1 text-label text-ink-bar">TAGGING STOPPED: THE $60 LIMIT IS REACHED.</p> : null}
 

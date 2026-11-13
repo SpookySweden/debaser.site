@@ -11,6 +11,9 @@ import { keepShownFirst } from '../lib/tag-station/title-quality';
 import type { StationItem } from '../lib/tag-station/types';
 import { ANON_PERSON, getRecommendationStore, RECOMMEND_NOTE, type RecommendedPick } from '../lib/web/recommendations';
 import { readTaste } from '../lib/web/taste-store';
+import type { Taste } from '../lib/web/recommend';
+import { hiddenKeys, keyOf, tasteFromHistory } from '../lib/recommender/engine';
+import { useHistoryRows } from '../lib/recommender/use-history';
 import type { WebItem } from '../lib/web/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import InfoFold from './InfoFold';
@@ -72,8 +75,13 @@ export default function WebPickedList({ list, sort, renderRow }: { list: 'recomm
   const [picks, setPicks] = useState<readonly RecommendedPick[]>([]);
   const [recipe, setRecipe] = useState<Recipe>(EMPTY_RECIPE);
   const [shown, setShown] = useState(STEP);
-  // Fixed for this visit, so a list doesn't shuffle under the reader while they look at it.
-  const [{ taste, now }] = useState(() => ({ taste: readTaste(), now: Date.now() }));
+  // Fixed for this visit, so a list doesn't shuffle under the reader while they look at it: this browser's taste, and the
+  // reader's own FOR YOU history once it has been read (SPEC-recommender.md step 3), with NOT FOR ME left out.
+  const [{ browserTaste, now }] = useState(() => ({ browserTaste: readTaste(), now: Date.now() }));
+  const history = useHistoryRows();
+  const [taste, setTaste] = useState<Taste | null>(null);
+  if (taste === null && (history !== null || loaded !== null)) setTaste(tasteFromHistory(history ?? [], now, browserTaste));
+  const notForMe = useMemo(() => hiddenKeys(history ?? []), [history]);
 
   useEffect(() => {
     let live = true;
@@ -96,7 +104,7 @@ export default function WebPickedList({ list, sort, renderRow }: { list: 'recomm
 
   // What the preset's words or the reader's own taste find in the pool's files, or else whatever the files hold, so the list isn't limited to what's on the map.
   const ask = useMemo((): PoolAsk | null => {
-    if (loaded === null || !poolReady(loaded)) return null;
+    if (loaded === null || !poolReady(loaded) || taste === null) return null;
     const own = Object.entries(taste.tags).sort(([, a], [, b]) => b - a).map(([word]) => word);
     const wanted = list === 'discover' && recipe.must.length + recipe.any.length > 0 ? [...recipe.must, ...recipe.any] : own;
     return wanted.length > 0 ? { words: wanted.slice(0, 12) } : { browse: true };
@@ -105,9 +113,10 @@ export default function WebPickedList({ list, sort, renderRow }: { list: 'recomm
   const { index } = digging;
 
   const computed = useMemo(() => {
-    if (index === null || !poolReady(index)) return [];
-    return list === 'recommended' ? recommendedList(index, picks, taste, sort, now) : discoverList(index, recipe, taste, sort, now).map((item) => ({ item, people: [] as { id: string; name: string }[] }));
-  }, [index, list, picks, recipe, taste, sort, now]);
+    if (index === null || !poolReady(index) || taste === null) return [];
+    const all = list === 'recommended' ? recommendedList(index, picks, taste, sort, now) : discoverList(index, recipe, taste, sort, now).map((item) => ({ item, people: [] as { id: string; name: string }[] }));
+    return all.filter((row) => !notForMe.has(keyOf('media', row.item.id)));
+  }, [index, list, picks, recipe, taste, sort, now, notForMe]);
   // What's on the screen stays put when more arrives. A new list or SORT starts again.
   const order = `${list}|${sort}`;
   const [pinned, setPinned] = useState<{ order: string; ids: readonly string[] }>({ order, ids: [] });

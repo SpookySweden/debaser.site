@@ -69,6 +69,7 @@ assert.ok(draw('link=https%3A%2F%2Fexample.org%2Fx&view=list').includes('READING
 assert.ok(home.indexOf('FOR YOU') !== -1 && home.indexOf('FOR YOU') < home.indexOf('WORD, ITEM OR LINK'), 'FOR YOU sits above the map');
 assert.match(home, /aria-expanded="false"[^>]*aria-controls="for-you-history"/, 'its HISTORY key starts shut');
 assert.ok(home.includes('data-for-you-lane="for-you-media"'), 'the MEDIA lane is there while it reads');
+assert.ok(!home.includes('FROM YOUR YOUTUBE'), 'YOUR YOUTUBE draws nothing on DISCOVER while its switch is off');
 assert.doesNotMatch(home.slice(home.indexOf('FOR YOU'), home.indexOf('WORD, ITEM OR LINK')), /SCORE|\d+%/, 'no score drawn');
 {
   const HistoryPanel = require('./tag-station-render-out/components/HistoryPanel.js').default;

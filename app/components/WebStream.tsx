@@ -55,6 +55,9 @@ import { PLATFORM_LABELS, type WebItem, type WebPlatform } from '../lib/web/type
 import { canSort, ORDER_KEYS, orderLabel, searchOrder, type SortChoice } from '../lib/web/web-sort';
 import WebFilterFold, { FILTER_KEY, FILTER_KEY_ON } from './WebFilterFold';
 import { noteHistory } from '../lib/recommender/history';
+import { hiddenKeys, keyOf, tasteFromHistory } from '../lib/recommender/engine';
+import { useHistoryRows } from '../lib/recommender/use-history';
+import type { HistoryRow } from '../lib/recommender/types';
 import { contentLanguage } from '../lib/web/language';
 import { burnedInSubtitles } from '../lib/web/subtitles';
 import { isBarAudioPlatform, parseWebAudioSrc, playsInBar } from '../lib/web/web-audio';
@@ -358,7 +361,18 @@ export default function WebStream() {
   /** The channel names, for `subscribedFirst` while a search's rows arrive (read from a ref, so asking never restarts). */
   const subscribed = useRef<ReadonlySet<string>>(new Set());
   const [linkProblem, setLinkProblem] = useState<string | null>(null);
-  const taste = useMemo(() => mine.reduce((sum, item) => withOpened(sum, item), withYouTube(savedTaste, mineSignals)), [mine, mineSignals, savedTaste]);
+  // The reader's own FOR YOU history too (SPEC-recommender.md step 3): what they opened, played and read anywhere on the site.
+  const history = useHistoryRows();
+  const [historyNow] = useState(() => Date.now());
+  const notForMe = useMemo(() => hiddenKeys(history ?? []), [history]);
+  // The history counts if it is read before the first rows arrive; then it is fixed for the visit, so nothing on screen
+  // moves when it comes (NOT FOR ME still takes a row out at once).
+  const [historyUsed, setHistoryUsed] = useState<readonly HistoryRow[] | null>(null);
+  if (historyUsed === null && (history !== null || list.shown.length > 0)) setHistoryUsed(history ?? []);
+  const taste = useMemo(
+    () => mine.reduce((sum, item) => withOpened(sum, item), withYouTube(tasteFromHistory(historyUsed ?? [], historyNow, savedTaste), mineSignals)),
+    [mine, mineSignals, savedTaste, historyUsed, historyNow],
+  );
   useEffect(() => {
     if (!YOUTUBE_LINK_ON) return;
     let live = true;
@@ -745,8 +759,8 @@ export default function WebStream() {
       pages.set(key, [...(pages.get(key) ?? []), item]);
     }
     const words = new Map(list.shown.map((item) => [item.id, item.pickWords ?? []]));
-    return [...pages.values()].flatMap((page) => recommendOrder(page, taste, (id) => words.get(id) ?? [], openedAt));
-  }, [picksOrdered, list.shown, taste, openedAt]);
+    return [...pages.values()].flatMap((page) => recommendOrder(page, taste, (id) => words.get(id) ?? [], openedAt)).filter((item) => !notForMe.has(keyOf('media', item.id)));
+  }, [picksOrdered, list.shown, taste, openedAt, notForMe]);
   const empty = list.shown.length === 0 && list.held.length === 0;
   // By date, only once the first top-up has been decided, so the related sections start below a settled list.
   if (!busy && !firstRoundDone && (!sortedByDate || toppedUp)) setFirstRoundDone(true);

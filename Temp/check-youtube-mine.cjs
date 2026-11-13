@@ -131,7 +131,8 @@ const google = (over = {}) => {
   assert.match(fs.readFileSync('app/lib/auth/mock-auth.ts', 'utf8'), /linkYouTube/, 'the mock answers too');
   const page = fs.readFileSync('app/components/WebStream.tsx', 'utf8');
   assert.match(page, /YOUTUBE_LINK_ON && browsing \? \(/, 'the key shows only with the switch on');
-  assert.match(page, /withYouTube\(savedTaste, mineSignals\)/, "the page's order learns from the YouTube signals");
+  // Updated on purpose 2026-11-13 (SPEC-recommender.md step 3): the taste YouTube adds to is now this browser's and the FOR YOU history's.
+  assert.match(page, /withYouTube\(tasteFromHistory\([^)]*savedTaste\), mineSignals\)/, "the page's order learns from the YouTube signals");
   assert.match(page, /sortOf\(what\.filters\)\.sort === 'best' \? subscribedFirst\(ownRows, subscribed\.current\) : ownRows/, 'subscribed rows lead only under BEST MATCH');
   assert.doesNotMatch(fs.readFileSync('.env.production', 'utf8'), /NEXT_PUBLIC_GOOGLE_VIDEOS_LINK=on/, 'and it is off in production until Google is set up');
 

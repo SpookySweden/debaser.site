@@ -88,6 +88,14 @@ function takeLinker(): string | null {
   }
 }
 
+let readOnce: Promise<YouTubeMine> | null = null;
+
+/** `readMine`, asked once per page load and shared (DISCOVER's FOR YOU lane and its map chips both use it). */
+export function readMineOnce(): Promise<YouTubeMine> {
+  readOnce ??= readMine();
+  return readOnce;
+}
+
 /**
  * `needsLink`: nothing to show, or the link has run out. `fresh`: just read from Google, while its permission lasts
  * (about an hour after linking or REFRESH); otherwise it is what this browser kept, up to a week old.

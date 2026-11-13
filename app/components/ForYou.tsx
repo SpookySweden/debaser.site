@@ -23,6 +23,7 @@ import HistoryPanel from './HistoryPanel';
 import { useMusicLibrary } from './MusicLibraryProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import ForYouCommunity from './ForYouCommunity';
+import { YouTubeLane } from './ForYouYouTube';
 import { Lane, MOST, PickFoot } from './ForYouParts';
 import { STATION_KEY, STATION_KEY_ON, Thumb } from './TagStationParts';
 
@@ -222,6 +223,7 @@ export default function ForYou({ index, extraHosts, onPick }: { index: StationIn
               );
             }}
           />
+          <YouTubeLane context={context} hidden={hidden} onHide={hide} extraHosts={extraHosts} />
         </div>
         <div className="flex min-w-0 flex-1 basis-72 flex-col">
           <Lane

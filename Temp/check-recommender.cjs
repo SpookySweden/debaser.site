@@ -96,4 +96,20 @@ assert.match(community, /if \(reason === undefined && shared === undefined\) con
 assert.doesNotMatch(community, /user_history|readHistory\(/, "no one else's history is read: picks come from the reader's own and what's public");
 assert.doesNotMatch(community, /\{[^{}]*\.(score|plays|closeness|weight)[^{}]*\}\s*<\//, 'no score, play count, closeness or weight is drawn');
 
+// 7. Step 3: MEDIA's lists on the same engine; YouTube on DISCOVER behind its switch and never sent to the tagger.
+const stream = fs.readFileSync('app/components/WebStream.tsx', 'utf8');
+assert.match(stream, /tasteFromHistory\(historyUsed \?\? \[\], historyNow, savedTaste\)/, "PICKED FOR YOU orders by the reader's history too");
+assert.match(
+  stream,
+  /if \(historyUsed === null && \(history !== null \|\| list\.shown\.length > 0\)\) setHistoryUsed\(history \?\? \[\]\);/,
+  '... fixed once the history or the first rows arrive, so the picks never move under the reader and never wait on it',
+);
+assert.match(stream, /!notForMe\.has\(keyOf\('media', item\.id\)\)/, '... and NOT FOR ME leaves it out');
+const picked = fs.readFileSync('app/components/WebPickedList.tsx', 'utf8');
+assert.match(picked, /tasteFromHistory\(history \?\? \[\], now, browserTaste\)/, 'RECOMMENDED and DISCOVER order by it too');
+assert.match(picked, /!notForMe\.has\(keyOf\('media', row\.item\.id\)\)/);
+const youtube = fs.readFileSync('app/components/ForYouYouTube.tsx', 'utf8');
+assert.equal((youtube.match(/if \(!YOUTUBE_LINK_ON[^)]*\) return null;/g) ?? []).length, 2, 'the lane and the chips draw nothing while the switch is off');
+assert.doesNotMatch(youtube, /from '[^']*(seen-items|tagging|save-opened|youtube-taste)'|recordOpened\(|noteSeen/, 'the YouTube list is never sent to the tagger or saved');
+
 console.log('ok: FOR YOU engine: taste, 7 to 3, hidden and seen left out, steady per day, why-lines in words');
