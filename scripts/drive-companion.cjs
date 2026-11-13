@@ -30,6 +30,8 @@ const flag = (name) => args.includes(name);
 const opt = (name, fallback) => (args.includes(name) ? args[args.indexOf(name) + 1] : fallback);
 const BASE = opt('--base', 'https://debaser-site.vercel.app').replace(/\/$/, '');
 const QUICK = flag('--quick');
+/** Only the room and the phone (after switching on and B's message): for re-running the end of a drive. */
+const ROOM_ONLY = flag('--room-only');
 const SHOTS = join('Temp', 'browse');
 mkdirSync(SHOTS, { recursive: true });
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -63,10 +65,12 @@ async function clearPrivacyWindow(page) {
 
 /** Switches the companion on through Preferences, as a person would. */
 async function switchOn(page) {
-  const settings = page.getByRole('button', { name: 'Profile settings' }).first();
-  await settings.click();
-  await page.locator('button, [role="menuitem"]').filter({ hasText: 'PREFERENCES' }).first().click();
   const section = page.locator('[data-companion-preferences]');
+  // The site reopens windows a browser had open (WindowLayoutHost), so Preferences may be up already.
+  if (!(await section.isVisible().catch(() => false))) {
+    await page.getByRole('button', { name: 'Profile settings' }).first().click();
+    await page.locator('button, [role="menuitem"]').filter({ hasText: 'PREFERENCES' }).first().click();
+  }
   await section.waitFor({ timeout: 15000 });
   await section.getByRole('button', { name: /^\[ ON \]$/ }).click();
   assert.equal(await section.getByRole('button', { name: /^\[ ON \]$/ }).getAttribute('aria-pressed'), 'true');
@@ -173,6 +177,7 @@ async function waitMood(page, wanted, ms) {
     await switchOn(a.page);
     pass('Preferences > COMPANION > [ ON ] puts it on the strip');
 
+    if (!ROOM_ONLY) {
     console.log('Several pages, the bar open');
     await openBar(a.page);
     await watchStrip(a.page, QUICK ? 6 : 20, '/forum');
@@ -226,6 +231,8 @@ async function waitMood(page, wanted, ms) {
       pass('the pointer moving wakes it');
     }
 
+    }
+
     console.log('B messages A: A\'s companion hops with a `!`');
     const b = await person(browser, 'B');
     const { client: asB } = await testAccountClient('B');
@@ -258,10 +265,11 @@ async function waitMood(page, wanted, ms) {
     await a.page.waitForFunction(() => document.querySelector('[data-watch-in-room="start"]') !== null || document.querySelector('button[aria-label^="Play"]') !== null, null, { timeout: 45000 });
     await clearPrivacyWindow(a.page);
     const row = a.page.locator('li').filter({ hasText: 'YOUTUBE' }).filter({ hasText: '[ ▶ PLAY ]' }).first();
+    const title = await row.locator('p').first().innerText();
     await row.locator('button[aria-label^="Play"]').first().click();
     await a.page.waitForSelector('[data-floating-player] iframe', { timeout: 20000 });
     await sleep(3000);
-    await a.page.locator('[data-watch-in-room="start"]').first().click();
+    await a.page.locator('li').filter({ hasText: title }).first().locator('[data-watch-in-room="start"]').click();
     const dialog = a.page.getByRole('dialog', { name: 'WATCH IN ROOM' });
     await dialog.waitFor();
     await dialog.locator('[data-go-live-name]').fill('COMPANION DRIVE');
@@ -289,8 +297,11 @@ async function waitMood(page, wanted, ms) {
       if (counting.on && /"presence"/.test(response.payloadData) && /"companion"/.test(response.payloadData)) frames += 1;
     });
     await b.page.goto(`${BASE}/forum?watch=${roomId}`, { waitUntil: 'domcontentloaded' });
-    await b.page.waitForSelector('[data-room-picture]', { timeout: 30000 });
-    await b.page.locator('[data-dock-window="stream"]').getByRole('button', { name: /^Fold / }).click();
+    // In the room: its window open, or already folded (the site remembers a folded room), with the TV up-box showing.
+    await b.page.waitForSelector('[data-room-picture], [data-watch-tv-box]', { state: 'attached', timeout: 45000 });
+    await b.page.screenshot({ path: join(SHOTS, 'companion-room-b-joined.png') });
+    const foldB = b.page.locator('[data-dock-window="stream"]').getByRole('button', { name: /^Fold / });
+    if (await foldB.isVisible().catch(() => false)) await foldB.click();
     const nameA = await a.page.evaluate(() => document.querySelector('[data-companion="own"]')?.getAttribute('aria-label'));
     assert.equal(nameA, 'Your companion');
     await b.page.waitForSelector('[data-companion="room"]', { timeout: 30000 });
