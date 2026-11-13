@@ -4,6 +4,8 @@ import { guestClient, hasStoredGuest, roomClient } from './room-client';
 import type { AddSeriesInput, AddToQueueInput, OpenMusicRoomInput, OpenRoomInput, PlayNowInput, PlaybackPatch, RoomChange, RoomMembership, RoomSettingsInput, SendMessageInput, WatchRepository } from './repository';
 import { isLinkKind, queueRefusal } from './links';
 import { MUSIC_ROOM_GONE_SECONDS, goPublicPlan } from './music-rooms';
+import { companionOutState, parseCompanionWire, setRoomCompanions, subscribeToCompanionOut, type RoomCompanion } from '../companion/wire';
+import { membersSignature } from './members-signature';
 import { NOT_ALLOWED, hasCrown, nextPlayIndex, nextQueuePosition, watchClockSkewMs } from './rules';
 import type { GuestNameAnswer, JoinAnswer, LiveRoom, PrivateLine, PrivateSize, PrivateFold, PrivateRoomLine, QueueMove, RoomDoor, RoomGuest, RoomMemberRow, RoomOutline, RoomPrivacy, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
@@ -1012,6 +1014,20 @@ class SupabaseWatchRepository implements WatchRepository {
     let left = false;
     let channel: RealtimeChannel | null = null;
     const topic = `watch:${roomId}`;
+    let subscribed = false;
+    let heardMembers = '';
+    const presencePayload = () => ({
+      user_id: self.userId,
+      guest_id: self.guestId ?? null,
+      name: self.name,
+      joined_at: self.joinedAt,
+      // This tab's companion, re-said only when it changes (SPEC-companion.md); null while it is off or a guest's.
+      companion: self.userId === null ? null : companionOutState(),
+    });
+    const offCompanion = subscribeToCompanionOut(() => {
+      if (left || !subscribed || channel === null || self.userId === null) return;
+      void channel.track(presencePayload()).catch(() => undefined);
+    });
 
     // Presence is per topic, so this channel cannot take a fresh name: a leave still in flight for the same
     // topic (a remount, guest -> signed in) is waited for, because the client hands back a channel that is
@@ -1025,24 +1041,36 @@ class SupabaseWatchRepository implements WatchRepository {
       joined.on('presence', { event: 'sync' }, () => {
       if (left) return;
       const members: WatchMember[] = [];
+      const companions: RoomCompanion[] = [];
       for (const [key, metas] of Object.entries(joined.presenceState())) {
-        const meta = metas[0] as { user_id?: unknown; guest_id?: unknown; name?: unknown; joined_at?: unknown } | undefined;
+        const meta = metas[0] as { user_id?: unknown; guest_id?: unknown; name?: unknown; joined_at?: unknown; companion?: unknown } | undefined;
         if (meta === undefined) continue;
-        members.push({
+        const member: WatchMember = {
           key,
           userId: typeof meta.user_id === 'string' ? meta.user_id : null,
           guestId: typeof meta.guest_id === 'string' ? meta.guest_id : null,
           name: typeof meta.name === 'string' ? meta.name : '',
           joinedAt: typeof meta.joined_at === 'number' ? meta.joined_at : Date.now(),
-        });
+        };
+        members.push(member);
+        // A companion is an account's (SPEC-companion.md): a guest's presence never carries one that is drawn, and your own
+        // other tabs' companions are yours, already walking here.
+        const wire = key === self.key || member.userId === null || member.userId === self.userId ? null : parseCompanionWire(meta.companion);
+        if (wire !== null) companions.push({ key, name: member.name, joinedAt: member.joinedAt, wire });
       }
       if (!members.some((member) => member.key === self.key)) members.push(self);
+      setRoomCompanions(companions);
+      // A companion re-saying where it walks is a sync too: the room's own list is told only when who is here changes.
+      const said = membersSignature(members);
+      if (said === heardMembers) return;
+      heardMembers = said;
       onMembers(members);
       });
       joined.subscribe((status) => {
         if (left) return;
         if (status === 'SUBSCRIBED') {
-          void joined.track({ user_id: self.userId, guest_id: self.guestId ?? null, name: self.name, joined_at: self.joinedAt }).catch(() => undefined);
+          subscribed = true;
+          void joined.track(presencePayload()).catch(() => undefined);
         }
       });
     };
@@ -1065,6 +1093,8 @@ class SupabaseWatchRepository implements WatchRepository {
       leave: () => {
         if (left) return;
         left = true;
+        offCompanion();
+        setRoomCompanions([]);
         if (channel === null) return;
         const removal = client
           .removeChannel(channel)

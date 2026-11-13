@@ -258,6 +258,7 @@ function UpBox({ live, hostName }: { live: boolean; hostName: string }) {
       // Over the bar's left key (`--music-key-left`, ./MusicPlayer.tsx); the folded tile and the phone card sit at 0.5rem.
       style={{ bottom: 'calc(var(--music-top, 0px) + 0.5rem)', left: 'var(--music-key-left, 0.5rem)' }}
       data-watch-tv-box={live ? 'live' : 'ended'}
+      data-companion-avoid
     >
       <button type="button" onClick={expandWatch} className={PLATE} aria-label={tip} title={tip}>
         <ArtMark src={UP_MARK_SRC} size={UP_MARK_HEIGHT} width={UP_MARK_WIDTH} fallback="[ ▲ ]" />

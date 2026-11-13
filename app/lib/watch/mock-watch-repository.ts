@@ -2,6 +2,8 @@ import type { AddSeriesInput, AddToQueueInput, OpenMusicRoomInput, OpenRoomInput
 import { queueRefusal } from './links';
 import { getMockAuthRepository } from '../auth/mock-auth';
 import { goPublicPlan } from './music-rooms';
+import { companionOutState, parseCompanionWire, setRoomCompanions, subscribeToCompanionOut, type CompanionWire, type RoomCompanion } from '../companion/wire';
+import { membersSignature } from './members-signature';
 import { NOT_ALLOWED, ROOM_NAME_MAX, ROOM_TOPIC_MAX, TAKE_OVER_QUIET_MS, cleanRoomWords, guestNameLooksRight, hasCrown, mayEditRoom, nextPlayIndex, nextQueuePosition } from './rules';
 import type { GuestNameAnswer, JoinAnswer, LiveRoom, PrivateLine, PrivateSize, PrivateFold, PrivateRoomLine, QueueMove, RoomDoor, RoomGuest, RoomMemberRow, RoomOutline, RoomPrivacy, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
@@ -156,7 +158,7 @@ function newId(): string {
 
 type WireMessage =
   | { type: 'changed'; roomId: string | null }
-  | { type: 'here'; roomId: string; member: WatchMember }
+  | { type: 'here'; roomId: string; member: WatchMember; companion?: unknown }
   | { type: 'hello'; roomId: string }
   | { type: 'bye'; roomId: string; key: string }
   | { type: 'watching'; key: string; entry: WatchingEntry }
@@ -926,33 +928,49 @@ class MockWatchRepository implements WatchRepository {
 
   joinRoom(roomId: string, me: Omit<WatchMember, 'joinedAt'>, onMembers: (members: WatchMember[]) => void): RoomMembership {
     const self: WatchMember = { ...me, joinedAt: Date.now() };
-    const others = new Map<string, { member: WatchMember; seen: number }>();
+    const others = new Map<string, { member: WatchMember; seen: number; companion: CompanionWire | null }>();
     let left = false;
+    let heardMembers = '';
+    // This tab's companion rides on its presence, as on the real room's (SPEC-companion.md); a guest's never does.
+    const here = (): WireMessage => ({ type: 'here', roomId, member: self, companion: self.userId === null ? null : companionOutState() });
 
     const emit = () => {
       if (left) return;
       const now = Date.now();
       for (const [key, { seen }] of others) if (now - seen > GONE_MS) others.delete(key);
-      onMembers([self, ...[...others.values()].map((other) => other.member)]);
+      const companions: RoomCompanion[] = [];
+      for (const [key, { member, companion }] of others) {
+        if (companion === null || member.userId === null || member.userId === self.userId) continue;
+        companions.push({ key, name: member.name, joinedAt: member.joinedAt, wire: companion });
+      }
+      setRoomCompanions(companions);
+      const members = [self, ...[...others.values()].map((other) => other.member)];
+      const said = membersSignature(members);
+      if (said === heardMembers) return;
+      heardMembers = said;
+      onMembers(members);
     };
 
     const off = onWire((message) => {
       if (!('roomId' in message) || message.roomId !== roomId) return;
       if (message.type === 'here' && message.member.key !== self.key) {
-        others.set(message.member.key, { member: message.member, seen: Date.now() });
+        others.set(message.member.key, { member: message.member, seen: Date.now(), companion: parseCompanionWire(message.companion) });
         emit();
       } else if (message.type === 'bye') {
         others.delete(message.key);
         emit();
       } else if (message.type === 'hello') {
-        send({ type: 'here', roomId, member: self });
+        send(here());
       }
+    });
+    const offCompanion = subscribeToCompanionOut(() => {
+      if (!left && self.userId !== null) send(here());
     });
 
     send({ type: 'hello', roomId });
-    send({ type: 'here', roomId, member: self });
+    send(here());
     const beat = setInterval(() => {
-      send({ type: 'here', roomId, member: self });
+      send(here());
       emit();
     }, BEAT_MS);
     const bye = () => send({ type: 'bye', roomId, key: self.key });
@@ -965,6 +983,8 @@ class MockWatchRepository implements WatchRepository {
         left = true;
         clearInterval(beat);
         off();
+        offCompanion();
+        setRoomCompanions([]);
         if (typeof window !== 'undefined') window.removeEventListener('pagehide', bye);
         bye();
       },

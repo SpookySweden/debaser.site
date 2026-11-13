@@ -24,6 +24,7 @@ import {
   type ThemeId,
 } from '../lib/ui/theme-slot';
 import { resetLayout } from '../lib/ui/window-layout';
+import CompanionPreferences from './CompanionPreferences';
 import DockWindow from './DockWindow';
 
 /** The lamp on a theme's row: filled with the field it would give you, inked with that theme's prose. */
@@ -211,6 +212,9 @@ export default function PreferencesWindow() {
           ))}
         </div>
       </section>
+
+      {/* Your companion along the bottom of the site (SPEC-companion.md): on phones too, where it has its own switch. */}
+      <CompanionPreferences />
 
       {/* Window layout: a desktop thing only, so a phone - which has bottom sheets, not windows - does
           not see it at all. */}

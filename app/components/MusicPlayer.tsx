@@ -205,7 +205,7 @@ export default function MusicPlayer() {
       // A bare bracket key would sit straight on the desktop, and Royal Blue on the bright theme's pink
       // desktop is under 3:1.
       // In a room it says STREAM with the TV mark and wiggles, as the bar's own TV key does.
-      <span ref={tile} className={`fixed bottom-2 left-2 z-50 frame bg-sun-pale p-0.5 ${roomId !== null ? 'animate-wiggle hover:animate-none' : ''}`}>
+      <span ref={tile} className={`fixed bottom-2 left-2 z-50 frame bg-sun-pale p-0.5 ${roomId !== null ? 'animate-wiggle hover:animate-none' : ''}`} data-companion-avoid>
         <BarrNotice anchor={tile} />
         <button type="button" onClick={() => setBarOpen(true)} className={`${PLATE} inline-flex items-center gap-1`}>
           {streamOn ? (
@@ -833,7 +833,7 @@ function CompactBar({ roomId, onHide, onMusic, onQueues, onSettings }: CardContr
   const seekable = lengthSeconds > 0;
 
   return (
-    <section ref={card} className="fixed bottom-2 left-2 z-50 w-[min(19rem,calc(100vw-1rem))] frame bg-sun-pale font-mono text-ink">
+    <section ref={card} className="fixed bottom-2 left-2 z-50 w-[min(19rem,calc(100vw-1rem))] frame bg-sun-pale font-mono text-ink" data-companion-avoid>
       <BarrNotice anchor={card} />
       {/* Every key on this row is a thumb's 44px, so the row is as tall as they are and the keys sit
           edge to edge: their own boxes are the spacing. Only the two glyph keys sit here: the music and

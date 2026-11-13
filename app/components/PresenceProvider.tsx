@@ -24,6 +24,8 @@ export type PresenceContextValue = {
   selfId: string | null;
   recordFor: (userId: string) => PresenceRecord | undefined;
   statusFor: (userId: string) => PresenceStatus;
+  /** Who the live room says is here right now (null until it answers): the companion hops when somebody arrives. */
+  live: LivePresence | null;
 };
 
 const PresenceContext = createContext<PresenceContextValue | null>(null);
@@ -244,6 +246,7 @@ export default function PresenceProvider({ children }: { children: React.ReactNo
         // No stamp to read is a lamp switched off, whatever anybody says on the live wire.
         return records[userId] === undefined && userId !== accountId ? 'offline' : presenceStatus(records[userId], now, live, userId);
       },
+      live,
     }),
     [ready, accountId, shareOnline, ownState, records, now, live, liveWaitOver],
   );

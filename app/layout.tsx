@@ -23,6 +23,7 @@ import PrivacyFirstLook from './components/PrivacyFirstLook';
 import PresenceProvider from './components/PresenceProvider';
 import ThemeHost from './components/ThemeHost';
 import CatCursor from './components/CatCursor';
+import Companion from './components/Companion';
 import WatchWindow from './components/WatchWindow';
 import LetterWindow from './components/LetterWindow';
 import WindowLayoutHost from './components/WindowLayoutHost';
@@ -97,6 +98,8 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
                       <CommsNotifier />
                       {/* ...and the player's bar sits over every page, docked to the bottom. */}
                       <MusicPlayer />
+                      {/* Your companion, walking the top edge of that bar (SPEC-companion.md); others' too, in a room. */}
+                      <Companion />
                       {/* A music broadcast is a room now (SPEC-music-queues.md): the room window keeps it
                           going, and this opens yours again after a reload while it is public. PLAY FOR YOU
                           keeps topping up up-next from the shell, whatever window is open. */}
