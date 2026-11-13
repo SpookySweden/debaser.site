@@ -14,7 +14,8 @@
  *   - the realtime messages both browsers sent and heard in a minute of working together;
  *   - the same at phone width;
  *   - a lore page opens at /lore/<slug> and from DOCS > LORE, and its first save makes the one board post.
- * Everything it makes (two documents, one picture, one board post) is deleted at the end by A.
+ * Everything it makes (two documents, one picture, two board posts) is deleted at the end by A. (The picture is only freed once
+ * accounts can see their own doc pictures under the storage rules; until then removal finds nothing.)
  */
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright-core');
@@ -328,10 +329,16 @@ async function seesOthers(page, otherName, otherPage, label) {
     await sleep(2500);
     await pageB.screenshot({ path: join(SHOTS, 'docs-browser-desktop.png') });
   } finally {
+    // Every document's own board post too: an ANYONE SIGNED IN document posts on its first save, like a lore page.
+    for (const id of cleanup.docs) {
+      const row = await a.client.from('docs').select('board_thread_id').eq('id', id).maybeSingle();
+      const thread = row.data?.board_thread_id;
+      if (typeof thread === 'string' && !cleanup.threads.includes(thread)) cleanup.threads.push(thread);
+    }
     for (const threadId of cleanup.threads) await a.client.from('forum_threads').delete().eq('id', threadId);
     if (cleanup.pictures.length > 0) await a.client.storage.from('doc-pictures').remove(cleanup.pictures);
     for (const id of cleanup.docs) await a.client.from('docs').delete().eq('id', id);
-    console.log(`cleaned up: ${cleanup.docs.length} documents, ${cleanup.threads.length} board post, ${cleanup.pictures.length} picture`);
+    console.log(`cleaned up: ${cleanup.docs.length} documents, ${cleanup.threads.length} board post(s), ${cleanup.pictures.length} picture`);
     await browser.close();
   }
 
