@@ -138,7 +138,10 @@ export async function GET(request: Request): Promise<Response> {
   const statuses = result.statuses.map((status) => ({ ...status, label: PLATFORM_LABELS[status.platform] }));
   const complete = statuses.every((status) => status.problem === null);
   // In an order, the provider's own order is kept and the media servers' titles follow it (the page places them).
-  const items = order === undefined ? [...result.items, ...wildcard].sort(compareItems) : [...result.items, ...wildcard];
+  // A word search filtered to one provider (Luke, 2026-11-13: BOOKS for "dune frank herbert") also keeps the provider's
+  // order, so a relevance-ranked match stays at the top instead of being re-sorted by date.
+  const keepProviderOrder = order !== undefined || (words !== null && only !== null && only.length > 0);
+  const items = keepProviderOrder ? [...result.items, ...wildcard] : [...result.items, ...wildcard].sort(compareItems);
   // Names only, once the answer has gone: what appeared gets Claude's words in the next batch (SPEC-tag-station.md).
   noteSeenLater(request, items);
   return json({ items, statuses, nextCursor: result.nextCursor }, 200, complete);
