@@ -23,6 +23,7 @@
  * Addresses: page https://openlibrary.org/works/OL…W, cover https://covers.openlibrary.org/b/id/{n}-M.jpg. An item's
  * external id is the work's key, with `-pg{n}` when Project Gutenberg has it: `OL85892W-pg345`.
  */
+import { findNamedWorks, type NamedWork } from '../../../books/book-sources';
 import { isbnOf } from '../../../books/editions';
 import { findIpfsBooks, type IpfsBook } from '../../../books/ipfs-catalogue';
 import { gatewayUrl, IPFS_GATEWAYS } from '../../../books/ipfs';
@@ -135,6 +136,27 @@ export async function isbnRow(isbn: string, deps: Pick<SearchDeps, 'fetch'>, fet
 }
 
 /**
+ * An Open Library work named by hand in `book-sources.ts` as a row (Luke, 2026-11-11): `books:<work>`, the same shape as one
+ * Open Library's own search returns, so the row's page and READ behave the same. Its edition count isn't known until the
+ * book's page reads it live, so the row names none.
+ */
+export function toNamedWorkItem(work: NamedWork, fetchedAt: string): WebItem {
+  const page = buildUrl(API_HOST, ['works', work.work]);
+  return {
+    id: `books:${work.work}`,
+    platform: 'books',
+    externalId: work.work,
+    kind: 'text',
+    url: page,
+    canonicalUrl: page,
+    title: sanitiseText(work.title, 300),
+    creator: sanitiseText(work.author, 200) || undefined,
+    publishedAt: new Date(Date.UTC(work.year, 0, 1)).toISOString(),
+    fetchedAt,
+  };
+}
+
+/**
  * A book on IPFS named in `ipfs-catalogue.ts` as a row (Luke, 2026-11-11): `ipfs:<CID>`, the reader's own name for it, so
  * the row's READ opens it at /read. Its page and cover are the first gateway's addresses for the CIDs.
  */
@@ -180,14 +202,16 @@ export const booksSearch: SearchProvider = {
       const found = await isbnRow(isbn, deps, fetchedAt);
       if (found) return { items: [found], next: null };
     }
-    // The books on IPFS named in the site's own list come first, on the first page only: read here, nothing is asked.
+    // The books named in the site's own lists come first, on the first page only: read here, nothing is asked. The IPFS
+    // copies, then the Open Library works named by hand (a work Open Library's own answer also returns is left to that row).
     const fromIpfs = at === 1 ? findIpfsBooks(words, author).map((book) => toIpfsItem(book, fetchedAt)) : [];
+    const namedWorks = at === 1 ? findNamedWorks(words, author).map((work) => toNamedWorkItem(work, fetchedAt)) : [];
     // Both sources at once: Open Library's works, and the Archive's library scans.
     const [gutenberg, scans] = await Promise.allSettled([
       safeFetchJson(booksSearchUrl(words, at, author, order), { allowedHosts: BOOKS_SEARCH_HOSTS, fetchImpl: deps.fetch }),
       safeFetchJson(iaSearchUrl(libraryScanQuery(words, author), at, order), { allowedHosts: IA_SEARCH_HOSTS, fetchImpl: deps.fetch, timeoutMs: IA_SEARCH_TIMEOUT_MS }),
     ]);
-    if (gutenberg.status === 'rejected' && scans.status === 'rejected' && fromIpfs.length === 0) throw new SearchProblemError('NO ANSWER');
+    if (gutenberg.status === 'rejected' && scans.status === 'rejected' && fromIpfs.length === 0 && namedWorks.length === 0) throw new SearchProblemError('NO ANSWER');
     let works: WebItem[] = [];
     let libraryScans: WebItem[] = [];
     let more = false;
@@ -214,8 +238,15 @@ export const booksSearch: SearchProvider = {
         // An answer of the wrong shape is no rows, as a failed request is.
       }
     }
-    // The IPFS copies, the Gutenberg works, the library scans, then every other work (a free scan of an edition first).
-    const items = [...fromIpfs, ...works.filter((item) => readsFirst(item) === 0), ...libraryScans, ...works.filter((item) => readsFirst(item) !== 0)];
+    // The IPFS copies, the works named by hand, the Gutenberg works, the library scans, then every other work (a free scan
+    // of an edition first). A work both named here and returned by Open Library shows once, in the named place, as Open
+    // Library's row: that one knows its Gutenberg copy, cover and edition count.
+    const workOf = (item: WebItem) => bookParts(item.externalId)?.work ?? item.externalId;
+    const fromOpenLibrary = new Map(works.map((item) => [workOf(item), item]));
+    const named = namedWorks.map((item) => fromOpenLibrary.get(item.externalId) ?? item);
+    const namedKeys = new Set(namedWorks.map((item) => item.externalId));
+    const rest = works.filter((item) => !namedKeys.has(workOf(item)));
+    const items = [...fromIpfs, ...named, ...rest.filter((item) => readsFirst(item) === 0), ...libraryScans, ...rest.filter((item) => readsFirst(item) !== 0)];
     return { items, next: at < MAX_PAGE && more ? at + 1 : null };
   },
   // A BOOKS row is never saved into the stream: its book page reads it again from Open Library when it's opened.
