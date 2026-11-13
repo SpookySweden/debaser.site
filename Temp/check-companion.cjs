@@ -167,6 +167,11 @@ ok('the wiring: the room presence carries it, no new channel, clicks pass throug
   assert.match(join, /companion: self\.userId === null \? null : companionOutState\(\)/, 'the companion rides in the tracked presence');
   assert.match(join, /subscribeToCompanionOut\(/, 're-says only when the companion changes');
   assert.match(join, /setRoomCompanions\(\[\]\)/, 'leaving the room empties the strip of other companions');
+  // (2026-11-13) A failed join is tried again with a fresh sign-in, or the room hears only this tab for good (Luke saw it).
+  assert.match(join, /status === 'CHANNEL_ERROR' \|\| status === 'TIMED_OUT' \|\| status === 'CLOSED'/, 'a refused, timed-out or closed join is noticed');
+  assert.match(join, /client\.auth\.getSession\(\)\)\s*\.then\(\(\) => client\.realtime\.setAuth\(\)\)/, 'a fresh sign-in is asked for first');
+  assert.match(join, /\.then\(join\)/, 'and the room is joined again');
+  assert.match(join, /if \(retry !== null\) clearTimeout\(retry\)/, 'leaving stops any try still waiting');
   const mock = read('app/lib/watch/mock-watch-repository.ts');
   assert.match(mock, /subscribeToCompanionOut\(/, 'the mock room carries companions too');
 

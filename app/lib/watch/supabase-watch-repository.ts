@@ -1016,6 +1016,9 @@ class SupabaseWatchRepository implements WatchRepository {
     const topic = `watch:${roomId}`;
     let subscribed = false;
     let heardMembers = '';
+    // A failed join's next try, and how many have failed in a row (see the subscribe below).
+    let retry: ReturnType<typeof setTimeout> | null = null;
+    let tries = 0;
     const presencePayload = () => ({
       user_id: self.userId,
       guest_id: self.guestId ?? null,
@@ -1067,10 +1070,36 @@ class SupabaseWatchRepository implements WatchRepository {
       onMembers(members);
       });
       joined.subscribe((status) => {
-        if (left) return;
+        if (left || channel !== joined) return;
         if (status === 'SUBSCRIBED') {
           subscribed = true;
+          tries = 0;
           void joined.track(presencePayload()).catch(() => undefined);
+          return;
+        }
+        // A join that fails is tried again (Luke, 2026-11-13: two people in one room each heard only themselves). Until
+        // now a refused or timed-out join was the end of it, and the room heard only this tab for good. The usual cause
+        // is a sign-in that went stale while the tab slept, so a fresh one is asked for first. Waits 2 s, 4 s, 8 s...,
+        // at most 30 s apart, for as long as the room is open here.
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          subscribed = false;
+          if (retry !== null) return;
+          const wait = Math.min(30_000, 2_000 * 2 ** tries);
+          tries += 1;
+          retry = setTimeout(() => {
+            retry = null;
+            if (left) return;
+            void Promise.resolve(client.auth.getSession())
+              .then(() => client.realtime.setAuth())
+              .catch(() => undefined)
+              .finally(() => {
+                if (left || channel !== joined) return;
+                channel = null;
+                void Promise.resolve(client.removeChannel(joined))
+                  .catch(() => undefined)
+                  .then(join);
+              });
+          }, wait);
         }
       });
     };
@@ -1093,6 +1122,7 @@ class SupabaseWatchRepository implements WatchRepository {
       leave: () => {
         if (left) return;
         left = true;
+        if (retry !== null) clearTimeout(retry);
         offCompanion();
         setRoomCompanions([]);
         if (channel === null) return;
