@@ -190,14 +190,15 @@ export async function resolveWorkCopy(
     const free = parsed.find((edition) => edition.ocaid && access.get(edition.ocaid) === 'free');
     if (free?.ocaid) return { ref: `internet_archive:${free.ocaid}` };
     // No free scan: try LibGen before the borrow fallback, so a book with a lending Archive scan AND a LibGen copy opens.
-    if (title.length >= 3 && fetchImpl) {
+    // Shadow fetches run through their own insecure-TLS agent in production; the caller's fetchImpl applies only in tests.
+    if (title.length >= 3) {
       const shadow = await findShadowCopy(title, author, fetchImpl).catch(() => null);
       if (shadow) return { shadow, title, author };
     }
     const lent = parsed.find((edition) => edition.ocaid && access.get(edition.ocaid) === 'lent');
     if (lent?.ocaid) return { borrowOnArchive: lent.ocaid, title, author };
   }
-  if (title.length >= 3 && fetchImpl) {
+  if (title.length >= 3) {
     const shadow = await findShadowCopy(title, author, fetchImpl).catch(() => null);
     if (shadow) return { shadow, title, author };
   }

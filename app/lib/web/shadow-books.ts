@@ -12,8 +12,21 @@
  * Luke's ISP blocks these hosts at DNS/TLS; Vercel's serverless runtime reaches them. Expect intermittent failures (mirrors
  * go up and down, and rights holders may file DMCA takedowns on the Vercel domain), handled as a null answer upstream.
  */
+import { Agent, fetch as undiciFetch } from 'undici';
 import { safeFetchJson, safeFetchStream, safeFetchText, SafeFetchError, type FetchLike } from './safe-fetch';
 import { buildUrl } from './urls';
+
+/**
+ * Shadow mirrors (LibGen, library.lol) rotate TLS certs and let them expire often — a strict TLS check (Node's default)
+ * refuses them with `CERT_HAS_EXPIRED` even when the mirror is otherwise reachable. This agent accepts any cert, and is
+ * used ONLY for the shadow fetches below (Luke, 2026-11-13: "any means necessary"). Every other `safe-fetch` call keeps
+ * the strict check, so a man-in-the-middle on Supabase or Gutenberg still fails closed.
+ */
+const shadowAgent = new Agent({ connect: { rejectUnauthorized: false } });
+/** A fetch bound to the insecure agent, shaped like `FetchLike`. undici's fetch typings differ slightly from the global's. */
+const shadowFetch: FetchLike = (input, init) =>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (undiciFetch as any)(input, { ...(init ?? {}), dispatcher: shadowAgent }) as Promise<Response>;
 
 /** LibGen's JSON-API mirrors, tried in order until one answers. */
 export const LIBGEN_JSON_HOSTS = ['libgen.is', 'libgen.rs', 'libgen.st'] as const;
@@ -94,15 +107,18 @@ export function parseShadowHit(raw: unknown, want: { title: string; author: stri
 export async function findShadowCopy(
   title: string,
   author: string,
-  fetchImpl: FetchLike,
+  fetchImpl?: FetchLike,
 ): Promise<ShadowCopy | null> {
   const want = { title: scrub(title, 200), author: scrub(author, 200) };
   if (want.title.length < 3) return null;
+  // Luke, 2026-11-13: if the caller handed a fetch (the check does, to stay offline), use it; in production the insecure
+  // shadow agent is used so expired-cert mirrors still reach us. Every other allow-list and size cap still applies.
+  const impl = fetchImpl ?? shadowFetch;
   for (const host of LIBGEN_JSON_HOSTS) {
     try {
       const body = await safeFetchJson(libgenSearchUrl(host, want.title), {
         allowedHosts: [host],
-        fetchImpl,
+        fetchImpl: impl,
         maxBytes: 4 * 1024 * 1024,
         timeoutMs: 10_000,
       });
@@ -143,16 +159,17 @@ export function extractDirectFileUrl(page: string, md5: string): string | null {
 /** Streams a shadow copy through the server. Null when md5 isn't an md5; throws SafeFetchError when the mirror didn't answer. */
 export async function openShadowBook(
   md5: string,
-  fetchImpl: FetchLike,
+  fetchImpl?: FetchLike,
 ): Promise<{ body: ReadableStream<Uint8Array>; length: number | null; extension: ShadowExtension } | null> {
   const id = md5.toLowerCase();
   if (!MD5.test(id)) return null;
+  const impl = fetchImpl ?? shadowFetch;
   const pageUrl = buildUrl(LIBGEN_PAGE_HOST, ['main', id]);
   let page: string;
   try {
     page = await safeFetchText(pageUrl, {
       allowedHosts: [LIBGEN_PAGE_HOST],
-      fetchImpl,
+      fetchImpl: impl,
       maxBytes: PAGE_MAX_BYTES,
       timeoutMs: 10_000,
       accept: 'text/html,application/xhtml+xml',
@@ -162,11 +179,11 @@ export async function openShadowBook(
     throw error;
   }
   const direct = extractDirectFileUrl(page, id);
-  if (!direct) throw new SafeFetchError('no download link');
+  if (!direct) throw new SafeFetchError('no download link on library.lol');
   const extension: ShadowExtension = /\.epub(?:\?|$)/i.test(direct) ? 'epub' : 'pdf';
   const opened = await safeFetchStream(direct, {
     allowedHosts: [new URL(direct).hostname],
-    fetchImpl,
+    fetchImpl: impl,
     maxBytes: SHADOW_MAX_BYTES,
     timeoutMs: 30_000,
     accept: extension === 'epub' ? 'application/epub+zip' : 'application/pdf',
