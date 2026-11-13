@@ -22,8 +22,60 @@ import { buildUrl } from './urls';
  * used ONLY for the shadow fetches below (Luke, 2026-11-13: "any means necessary"). Every other `safe-fetch` call keeps
  * the strict check, so a man-in-the-middle on Supabase or Gutenberg still fails closed.
  */
-const shadowAgent = new Agent({ connect: { rejectUnauthorized: false } });
-/** A fetch bound to the insecure agent, shaped like `FetchLike`. undici's fetch typings differ slightly from the global's. */
+/**
+ * Vercel's DNS refuses to resolve shadow-library hostnames (annas-archive.org, libgen.*) at the system level — fetch
+ * throws `ENOTFOUND` before the request leaves the box. We bypass it by resolving via Cloudflare's DNS-over-HTTPS
+ * (which Vercel CAN reach) and giving undici the resolved IPv4 directly, with SNI still set to the hostname so the TLS
+ * cert validates. Resolved IPs are cached briefly per hostname so a search doesn't do N DoH lookups.
+ */
+type DohEntry = { address: string; expires: number };
+const dohCache = new Map<string, DohEntry>();
+const DOH_TTL_MS = 10 * 60 * 1000;
+
+async function dohResolve(hostname: string): Promise<string | null> {
+  const cached = dohCache.get(hostname);
+  if (cached && cached.expires > Date.now()) return cached.address;
+  try {
+    const response = await fetch(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(hostname)}&type=A`, {
+      headers: { Accept: 'application/dns-json' },
+      cache: 'no-store',
+    });
+    if (!response.ok) return null;
+    const body = (await response.json()) as { Answer?: { type?: number; data?: string }[] };
+    const answer = body.Answer?.find((entry) => entry.type === 1 && typeof entry.data === 'string' && /^(\d{1,3}\.){3}\d{1,3}$/.test(entry.data));
+    if (!answer?.data) return null;
+    dohCache.set(hostname, { address: answer.data, expires: Date.now() + DOH_TTL_MS });
+    return answer.data;
+  } catch {
+    return null;
+  }
+}
+
+/** Hostnames whose DNS Vercel refuses — undici resolves them via DoH instead. Others take Node's default DNS. */
+const DNS_BYPASS_HOSTS = new Set<string>(['annas-archive.org', 'annas-archive.se', 'annas-archive.li', 'libgen.is', 'libgen.rs', 'libgen.st', 'libgen.li', 'libgen.lc', 'library.lol']);
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function customLookup(hostname: string, _options: unknown, callback: (err: Error | null, address?: any, family?: number) => void): void {
+  if (!DNS_BYPASS_HOSTS.has(hostname)) {
+    // Fall through to Node's default behaviour for everything else.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    const nodeDns = require('node:dns') as typeof import('node:dns');
+    nodeDns.lookup(hostname, callback);
+    return;
+  }
+  void dohResolve(hostname).then((address) => {
+    if (address) callback(null, address, 4);
+    else callback(new Error(`DoH could not resolve ${hostname}`));
+  });
+}
+
+const shadowAgent = new Agent({
+  connect: {
+    rejectUnauthorized: false,
+    lookup: customLookup,
+  },
+});
+/** A fetch bound to the insecure DoH-resolving agent, shaped like `FetchLike`. */
 const shadowFetch: FetchLike = (input, init) =>
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (undiciFetch as any)(input, { ...(init ?? {}), dispatcher: shadowAgent }) as Promise<Response>;
@@ -35,16 +87,6 @@ export const ANNAS_HOSTS = ['annas-archive.org', 'annas-archive.se', 'annas-arch
 /** Kept for the existing openShadowBook fallback — first reachable mirror wins. */
 export const ANNAS_HOST = ANNAS_HOSTS[0];
 
-/**
- * Public CORS proxies to route through when Vercel's DNS refuses a shadow host (Luke, 2026-11-13: "get annahs archive
- * working by any means"). Each URL has `TARGET` where the destination goes, URL-encoded. Tried in order; the first to
- * answer wins. These proxies are rate-limited and go up and down (said once per `forever-project` note in core.md).
- */
-export const CORS_PROXIES = [
-  'https://api.allorigins.win/raw?url=TARGET',
-  'https://corsproxy.io/?TARGET',
-  'https://cors-anywhere.herokuapp.com/TARGET',
-] as const;
 /** Where a file is asked for. One host, so the allow-list stays small; the redirect allow-list catches the actual file host. */
 export const LIBGEN_PAGE_HOST = 'library.lol';
 /** Hosts a file download may be served from, as library.lol's redirect takes us through. Narrow on purpose. */
@@ -208,55 +250,41 @@ export function extractAnnasMd5(html: string, wantTitle: string): string | null 
   return null;
 }
 
-/** A direct Anna's URL wrapped in each CORS proxy. Each proxy embeds the target as `TARGET`. */
-function proxiedUrls(targetUrl: string): { proxy: string; url: string }[] {
-  return CORS_PROXIES.map((template) => {
-    const encoded = encodeURIComponent(targetUrl);
-    return { proxy: new URL(template.replace('TARGET', '')).hostname, url: template.replace('TARGET', encoded) };
-  });
-}
-
-/** Fetches Anna's Archive HTML through one of the public CORS proxies, since Vercel blocks the direct DNS. Short timeout. */
-async function fetchAnnasHtml(targetUrl: string, fetchImpl: FetchLike, trace: ShadowTrace): Promise<string | null> {
-  for (const { proxy, url } of proxiedUrls(targetUrl)) {
-    try {
-      const html = await safeFetchText(url, {
-        allowedHosts: [proxy],
-        fetchImpl,
-        maxBytes: 2 * 1024 * 1024,
-        timeoutMs: 8_000,
-        accept: 'text/html,application/xhtml+xml',
-        userAgent: 'Mozilla/5.0 DebaserSiteWEB/1.0 (+https://debaser.site)',
-      });
-      if (html.length > 0) return html;
-      trace.push({ host: proxy, status: 'no-match', note: `empty response for ${targetUrl}` });
-    } catch (error) {
-      trace.push({ host: proxy, status: 'failed', note: (error as Error).message });
-    }
-  }
-  return null;
-}
-
 async function findOnAnnas(
   title: string,
   author: string,
   fetchImpl: FetchLike,
   trace: ShadowTrace,
 ): Promise<ShadowCopy | null> {
-  // EPUB only (scope-cut for the 60 s function timeout): if a book has no EPUB on Anna's, the reader still shows the
-  // no-free-copy page with a BORROW ON ARCHIVE key.
+  // EPUB only (scope-cut for the 60s function timeout): if a book has no EPUB on Anna's, the reader still shows the
+  // no-free-copy page with a BORROW ON ARCHIVE key. Resolution of annas-archive.org goes through the DoH-resolving
+  // shadow agent so it bypasses Vercel's DNS block.
   const query = author ? `${title} ${author}` : title;
-  const target = buildUrl(ANNAS_HOST, ['search'], [
-    ['q', query],
-    ['ext', 'epub'],
-    ['lang', 'en'],
-    ['sort', ''],
-  ]);
-  const html = await fetchAnnasHtml(target, fetchImpl, trace);
-  if (!html) return null;
-  const md5 = extractAnnasMd5(html, title);
-  if (md5) return { md5, extension: 'epub', filesize: 0, title, author, year: '', language: 'en' };
-  trace.push({ host: ANNAS_HOST, status: 'no-match', note: `no /md5/ in ${html.length}B via proxy` });
+  for (const host of ANNAS_HOSTS) {
+    const target = buildUrl(host, ['search'], [
+      ['q', query],
+      ['ext', 'epub'],
+      ['lang', 'en'],
+      ['sort', ''],
+    ]);
+    let html = '';
+    try {
+      html = await safeFetchText(target, {
+        allowedHosts: [host],
+        fetchImpl,
+        maxBytes: 2 * 1024 * 1024,
+        timeoutMs: 10_000,
+        accept: 'text/html,application/xhtml+xml',
+        userAgent: 'Mozilla/5.0 DebaserSiteWEB/1.0 (+https://debaser.site)',
+      });
+    } catch (error) {
+      trace.push({ host, status: 'failed', note: (error as Error).message });
+      continue;
+    }
+    const md5 = extractAnnasMd5(html, title);
+    if (md5) return { md5, extension: 'epub', filesize: 0, title, author, year: '', language: 'en' };
+    trace.push({ host, status: 'no-match', note: `no /md5/ in ${html.length}B of HTML` });
+  }
   return null;
 }
 
