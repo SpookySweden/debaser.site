@@ -225,6 +225,14 @@ export function createSupabaseBooksRepository(client: SupabaseClient): BooksRepo
       const { error } = await client.from('book_places').update({ finished_at: null, updated_at: new Date().toISOString() }).eq('person', person).eq('book_ref', bookRef);
       if (error) throw new Error('That could not be saved.');
     },
+    async setTitle(person, bookRef, title) {
+      const clean = cleanPlace({ cfi: null, page: 0, title, progress: 0, finishedAt: null }).title;
+      if (!clean) return;
+      // Only a place that still has none: a title saved since (by the reader) is never written over. updated_at stays, so the
+      // shelf's order doesn't change.
+      const { error } = await client.from('book_places').update({ title: clean }).eq('person', person).eq('book_ref', bookRef).or('title.is.null,title.eq.');
+      if (error) throw new Error('The title could not be saved.');
+    },
     async bookmarks(person, bookRef) {
       const { data, error } = await client
         .from('book_bookmarks')

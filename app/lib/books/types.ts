@@ -124,6 +124,8 @@ export type BooksRepository = {
   places(person: string): Promise<BookPlace[]>;
   /** `[ NOT FINISHED ]`: the book goes back to CONTINUE READING. */
   unfinish(person: string, bookRef: string): Promise<void>;
+  /** A place saved with no title (before titles were kept): its book's title, found by the shelf, written onto it. */
+  setTitle(person: string, bookRef: string, title: string): Promise<void>;
   /**
    * Every highlight in any copy of this book this reader may see (Luke, 2026-11-13): their own, locked or not, and other
    * readers' public ones; the copy's own, and, when its work is known, every other copy's of the same work.

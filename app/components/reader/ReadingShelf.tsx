@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState, type DragEvent } from 'react';
-import type { WorkMatch } from '../../lib/books/copies';
+import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react';
+import { cleanWork, ipfsWork, type WorkMatch } from '../../lib/books/copies';
+import { ipfsCid } from '../../lib/books/ipfs';
 import { sizeText, workCover } from '../../lib/books/own-files';
 import { asFile, forgetFile, keptFileOf, keptFiles, type KeptRow } from '../../lib/books/own-library';
 import { getBooksRepository } from '../../lib/books/repository';
@@ -39,9 +40,33 @@ function Cover({ src, own }: { src: string | null; own: boolean }) {
   );
 }
 
-function titleOf(place: BookPlace): string {
-  if (place.title) return place.title.toUpperCase();
-  return ownHash(place.bookRef) ? 'A FILE WITH NO TITLE INSIDE' : 'A BOOK';
+/** A ref the site's book info route answers for (`/api/web/book/info`): a Gutenberg book, an Open Library work, an Archive book. */
+const LOOKUP_REF = /^(books:OL[1-9][0-9]{0,11}W(?:-pg[1-9][0-9]{0,6})?|internet_archive:[A-Za-z0-9][A-Za-z0-9._-]{0,100})$/;
+
+/**
+ * Where a place with no title (saved before titles were kept, 2026-11-13) can have it looked up: the book itself, or for your
+ * own file or an IPFS copy, the work it was matched to. Null when nothing can be asked.
+ */
+function lookupRefOf(place: BookPlace): string | null {
+  const work = cleanWork(place.workRef);
+  if (ownHash(place.bookRef)) return work;
+  const cid = ipfsCid(place.bookRef);
+  if (cid) return work ?? ipfsWork(cid);
+  return LOOKUP_REF.test(place.bookRef) ? place.bookRef : work;
+}
+
+type Named = { title: string; author: string };
+
+/** A book's title and author from the site's own book info route, or null. */
+async function namedBook(ref: string): Promise<Named | null> {
+  try {
+    const response = await fetch(`/api/web/book/info?ref=${encodeURIComponent(ref)}`);
+    const body = response.ok ? ((await response.json()) as { item?: { title?: unknown; creator?: unknown } }) : null;
+    const title = typeof body?.item?.title === 'string' ? body.item.title.trim() : '';
+    return title ? { title, author: typeof body?.item?.creator === 'string' ? body.item.creator.trim() : '' } : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -96,6 +121,45 @@ export default function ReadingShelf({
   useEffect(() => {
     readKept();
   }, [readKept]);
+
+  // Places saved with no title (Luke, 2026-11-13: "make sure they come with their titles here"): each book's title and author
+  // looked up as its page does, shown, and written onto the place (yours on the account, a visitor's in this browser) so it
+  // is there next time. Your own file is shown by its matched book's title, and that is never written onto it.
+  const [named, setNamed] = useState<Record<string, Named>>({});
+  const asked = useRef(new Set<string>());
+  useEffect(() => {
+    if (!places) return;
+    for (const place of places) {
+      if (place.title || asked.current.has(place.bookRef)) continue;
+      asked.current.add(place.bookRef);
+      const ref = lookupRefOf(place);
+      if (!ref) continue;
+      void namedBook(ref).then((found) => {
+        if (!found) return;
+        setNamed((held) => ({ ...held, [place.bookRef]: found }));
+        if (ownHash(place.bookRef)) return;
+        if (meId) void getBooksRepository().setTitle(meId, place.bookRef, found.title).catch(() => undefined);
+        else {
+          try {
+            window.localStorage.setItem(placeKey(place.bookRef), storedPlace({ ...place, title: found.title }, place, new Date(place.updatedAt || Date.now())));
+          } catch {
+            // Blocked storage: shown now, looked up again next time.
+          }
+        }
+      });
+    }
+  }, [places, meId]);
+
+  /** A row's title: the one saved, else the one looked up, else your file's matched book, else what it is. */
+  const titleOf = (place: BookPlace): string => {
+    const title = place.title || named[place.bookRef]?.title || (ownHash(place.bookRef) ? (kept.find((row) => row.ref === place.bookRef)?.match?.title ?? '') : '');
+    if (title) return title.toUpperCase();
+    return ownHash(place.bookRef) ? 'YOUR FILE' : 'A BOOK';
+  };
+  const byOf = (place: BookPlace): string => {
+    const author = named[place.bookRef]?.author;
+    return author ? `BY ${author.toUpperCase()} · ` : '';
+  };
 
   const unfinish = async (place: BookPlace) => {
     setFault(null);
@@ -197,6 +261,7 @@ export default function ReadingShelf({
                     <p className="break-words text-key">{titleOf(place)}</p>
                     <p className="text-label text-ink-quiet">
                       {ownHash(place.bookRef) ? (keptRefs.has(place.bookRef) ? 'YOUR FILE, ON THIS DEVICE · ' : 'YOUR FILE · ') : ''}
+                      {byOf(place)}
                       <span data-progress>{progressText(place)}</span>
                       {place.updatedAt ? ` · LAST READ ${whenText(place.updatedAt)}` : ''}
                     </p>
@@ -271,7 +336,8 @@ export default function ReadingShelf({
                   <div className="min-w-0 flex-1">
                     <p className="break-words text-key">{titleOf(place)}</p>
                     <p className="text-label text-ink-quiet">
-                      {ownHash(place.bookRef) ? 'YOUR FILE · ' : ''}FINISHED {finishedWhen(place.finishedAt)}
+                      {ownHash(place.bookRef) ? 'YOUR FILE · ' : ''}
+                      {byOf(place)}FINISHED {finishedWhen(place.finishedAt)}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-1">
