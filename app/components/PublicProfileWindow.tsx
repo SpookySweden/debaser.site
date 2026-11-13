@@ -33,6 +33,7 @@ import ProfileCommentPin from './ProfileCommentPin';
 import ProfileCommentWindow from './ProfileCommentWindow';
 import ProfileCustomiserWindow from './ProfileCustomiserWindow';
 import ProfileLetters from './ProfileLetters';
+import ProfileRoom from './ProfileRoom';
 import ProfileStatusBar from './ProfileStatusBar';
 import ProfileTrackPanel from './ProfileTrackPanel';
 import ProfileTagList from './ProfileTagList';
@@ -134,7 +135,7 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
   ];
 
 
-  // Whether the track on show is playing: the owner's character (SPEC-profile-characters.md) dances to it in the status bar.
+  // Whether the track on show is playing: the owner's character (SPEC-profile-characters.md) dances to it in their room.
   const trackPlaying = player.playing && track !== undefined && player.track?.src === track.src;
 
   return (
@@ -280,7 +281,7 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
             everything the profile carries, which is where a desktop of this era put it. It is the only
             place the "when were they last here" question is answered now, and it answers it in words
             that age on their own. */}
-        <ProfileStatusBar userId={userId} music={trackPlaying} />
+        <ProfileStatusBar userId={userId} />
       </section>
 
       {customising ? <ProfileCustomiserWindow userId={userId} onClose={() => setCustomising(false)} /> : null}
@@ -324,6 +325,10 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
         userId={userId}
         repository={repository}
       />
+
+      {/* Last on the page: their room, where their shown character lives and your companion climbs up to visit
+          (Luke, 2026-11-13). */}
+      <ProfileRoom userId={userId} displayName={displayName} music={trackPlaying} />
     </div>
   );
 }

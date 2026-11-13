@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
 import type { ShownCharacter } from '../lib/character/profile-character-repository';
+import type { CharacterSheet, Mood } from '../lib/character/sheet';
+import { SPRITE_SLOT } from '../lib/ui/controls';
 import { useShownCharacter } from '../lib/character/use-shown-character';
 import { DANCES, type MotionId } from '../lib/character/motion';
 import {
@@ -92,65 +94,103 @@ function placeOn(root: HTMLElement, skip: HTMLElement | null, shown: ShownCharac
   return null;
 }
 
+/** Screen pixels per strip pixel in a profile's room: the companion's own scale, so it hands over without a jump. */
+export const ROOM_SCALE = 2;
+/** The placeholder field's box, when a figure has no SHOWN character to wear (the companion's own size). */
+const ROOM_PLACEHOLDER = { w: 32, h: 32 } as const;
+
+/** What a figure in the room wears: a baked strip, or nothing (the placeholder field). */
+export type RoomLook = { stripUrl: string; sheet: CharacterSheet } | null;
+
+/** A figure's box in the room: a cell of its strip cut at the feet, or the placeholder's. */
+export function roomFigureSize(look: RoomLook): { w: number; h: number } {
+  return look === null ? ROOM_PLACEHOLDER : { w: look.sheet.cell.w * ROOM_SCALE, h: look.sheet.floor * ROOM_SCALE };
+}
+
 /**
- * The account's shown character on a strip of its own, the width of the profile, just over the status line (Luke,
- * 2026-11-13: moved from walking the page into the sprite spot, then given room to move). It walks, idles and dances along
- * the strip by its mood, dances while the profile's track plays (with colourful notes trailing up from it), and waves, hops
- * or turns when pressed. It starts at the left, where the sprite spot is. Drawn at one screen pixel per strip pixel, cut at
- * its feet. Under reduced motion it stands still in its idle frame and nothing ticks.
+ * One figure living in a profile's room (`ProfileRoom.tsx`; Luke, 2026-11-13): the owner's shown character, or your
+ * companion once it has climbed up into it. It walks, idles and dances along the room's floor by its mood, dances while
+ * `music` plays (with colourful notes trailing up from it), and waves, hops or turns when pressed. Drawn at the companion's
+ * scale, cut at its feet. Under reduced motion it stands still in its idle frame and nothing ticks.
+ *
+ * `onSpot` hears where it stands on screen after every step (the companion climbs down from there when the page changes).
  */
-export function ProfileCharacterStrip({ shown, music }: { shown: ShownCharacter; music: boolean }) {
+export function RoomWalker({
+  look,
+  mood,
+  music,
+  width,
+  startX,
+  who,
+  label,
+  onSpot,
+}: {
+  look: RoomLook;
+  mood: Mood;
+  music: boolean;
+  /** The room's width: how far it may walk. */
+  width: number;
+  /** Where its left edge starts; somewhere at random when not given. */
+  startX?: number;
+  /** The owner's character, or your companion visiting. */
+  who: 'owner' | 'visitor';
+  label: string;
+  onSpot?: (figure: HTMLElement) => void;
+}) {
   const reduced = useSyncExternalStore(subscribeReduced, reducedNow, reducedOnServer);
-  const strip = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(0);
-  const [state, setState] = useState<WalkerState>(() => startWalker(0, Math.random));
-  const w = shown.sheet.cell.w;
-  const h = shown.sheet.floor;
+  const { w, h } = roomFigureSize(look);
   const room = Math.max(0, width - w);
+  const [state, setState] = useState<WalkerState>(() => {
+    const start = startWalker(room, Math.random);
+    return startX === undefined ? start : { ...start, x: Math.round(startX) };
+  });
+  const figure = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    const element = strip.current;
-    if (element === null) return;
-    const sizes = new ResizeObserver((entries) => setWidth(Math.floor(entries[0]?.contentRect.width ?? 0)));
-    sizes.observe(element);
-    return () => sizes.disconnect();
-  }, []);
-
-  const ticksOf = useCallback((motion: MotionId) => shown.sheet.motions[motion].ticks.length, [shown]);
+  const ticksOf = useCallback((motion: MotionId) => (look === null ? 6 : look.sheet.motions[motion].ticks.length), [look]);
 
   useEffect(() => {
     if (reduced || width === 0) return;
-    const every = Math.round(1000 / shown.sheet.fps);
+    const every = Math.round(1000 / (look?.sheet.fps ?? 10));
     const timer = setInterval(() => {
-      setState((current) => stepWalker(current, { mood: shown.mood, music, room, step: WALK_BLOCKS_PER_TICK, ticksOf, random: Math.random }));
+      setState((current) => stepWalker(current, { mood, music, room, step: WALK_BLOCKS_PER_TICK * ROOM_SCALE, ticksOf, random: Math.random }));
     }, every);
     return () => clearInterval(timer);
-  }, [reduced, width, shown, music, room, ticksOf]);
+  }, [reduced, width, look, mood, music, room, ticksOf]);
+
+  useEffect(() => {
+    if (onSpot !== undefined && figure.current !== null) onSpot(figure.current);
+  });
 
   const motion = reduced ? 'idle' : state.motion;
   const dancing = !reduced && DANCES.includes(motion);
+  const visitor = who === 'visitor';
   return (
-    <div ref={strip} className="relative border-t border-ink" style={{ height: h }}>
-      <div className="absolute top-0" style={{ left: Math.min(Math.max(0, state.x), room), width: w, height: h }}>
-        <NoteTrail active={dancing} />
-        <button
-          type="button"
-          data-profile-character=""
-          data-motion={motion}
-          aria-label="THEIR CHARACTER: PRESS TO SAY HELLO"
-          title="SAY HELLO"
-          onClick={() => {
-            if (!reduced) setState((current) => react(current));
-          }}
-          className="block cursor-pointer overflow-hidden focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-acid"
-          style={{ width: w, height: h }}
-        >
-          <CharacterSprite stripUrl={shown.stripUrl} sheet={shown.sheet} motion={motion} tick={reduced ? 0 : state.tick} dir={state.dir} scale={1} />
-        </button>
-      </div>
+    <div className="absolute bottom-0" style={{ left: Math.min(Math.max(0, state.x), room), width: w, height: h }}>
+      <NoteTrail active={dancing} />
+      <button
+        ref={figure}
+        type="button"
+        {...(visitor ? { 'data-companion': 'visiting' } : { 'data-profile-character': '' })}
+        data-motion={motion}
+        aria-label={visitor ? 'YOUR COMPANION: PRESS TO SAY HELLO' : `${label}: PRESS TO SAY HELLO`}
+        title="SAY HELLO"
+        onClick={() => {
+          if (!reduced) setState((current) => react(current));
+        }}
+        className="block cursor-pointer overflow-hidden focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-acid"
+        style={{ width: w, height: h }}
+      >
+        {look === null ? (
+          // No SHOWN character: the placeholder field, as the companion wears it. Code draws no figure.
+          <span className={`${SPRITE_SLOT} block h-full w-full`} data-companion-figure="placeholder" />
+        ) : (
+          <CharacterSprite stripUrl={look.stripUrl} sheet={look.sheet} motion={motion} tick={reduced ? 0 : state.tick} dir={state.dir} scale={ROOM_SCALE} />
+        )}
+      </button>
     </div>
   );
 }
+
 
 export default function ProfileCharacter({ userId, root, music }: { userId: string; root: RefObject<HTMLElement | null>; music: boolean }) {
   const shown = useShownCharacter(userId);

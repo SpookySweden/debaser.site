@@ -16,6 +16,10 @@ The slots that exist today, and what belongs in each:
                    (app/components/ProfileStatusBar.tsx). Anything that moves: a blinking
                    thing, a bobbing thing, whatever the account is.
 
+  portal.gif       48x48, may loop. The portal a companion pops back out of on its strip
+                   above the music bar after leaving a profile's room too fast to climb down
+                   (app/components/Companion.tsx).
+
 Adding a slot: a component imports `SpriteSlot` and gives it a path in here, a size, and
 the words for what it is. A GIF may use any palette, but the sizes above are what the
 layout has been built around, so a replacement at another size will move things.

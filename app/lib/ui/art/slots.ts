@@ -728,6 +728,17 @@ export const ART_SLOTS = [
     fallback: 'an empty sprite slot, which reads as "no drawing yet"',
     brief: 'The figure beside an account name. 24px, still or looping, and it must read as a person.',
   },
+  {
+    id: 'sprite-portal',
+    label: 'SPRITE: COMPANION PORTAL',
+    kind: 'sprite',
+    path: 'assets/sprites/portal.gif',
+    shown: [[48, 48]],
+    k: 1,
+    fit: 'contain',
+    fallback: 'an empty sprite slot, which reads as "no drawing yet"',
+    brief: 'The portal a companion pops back out of on its strip above the music bar, when the page changed before it could climb down from a profile\'s room (Luke, 2026-11-13). 48px, standing on the strip, open for just over a second; looping is fine.',
+  },
 
   /* ------------------------------------------------------------------ the flags */
   {

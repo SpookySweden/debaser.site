@@ -16,6 +16,25 @@ import { onCompanionPoke } from '../lib/companion/events';
 import { measureFloor, type Floor } from '../lib/companion/floor';
 import { usePhone, useReducedMotion } from '../lib/companion/use-phone';
 import {
+  boxOf,
+  clipOf,
+  climbToward,
+  noteRoomSpot,
+  PORTAL_AFTER_MS,
+  PORTAL_OPEN_MS,
+  PORTAL_SIZE,
+  PORTAL_STEP_OUT_MS,
+  roomFloor,
+  roomSpot,
+  setCompanionInRoom,
+  setCompanionOut,
+  visitRoomState,
+  whenRoomGoes,
+  type VisitLook,
+  type VisitPhase,
+  type VisitRoom,
+} from '../lib/companion/visit';
+import {
   companionsToDraw,
   reactionShowsMark,
   roomCompanionsState,
@@ -31,6 +50,7 @@ import { useAuth } from './AuthProvider';
 import CompanionReactions from './CompanionReactions';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import NoteTrail from './NoteTrail';
+import SpriteSlot from './SpriteSlot';
 
 /**
  * Your companion: your character, living along the bottom of the site on every page (SPEC-companion.md).
@@ -45,6 +65,11 @@ import NoteTrail from './NoteTrail';
  * baked from their own hand-built character (SPEC-profile-characters.md, `bake.ts`), played a cell at a time from the
  * strip's own motions (walk, idle, sit, sleep, the dances, hop). With no SHOWN character it is a placeholder field.
  * The code never draws a character.
+ *
+ * On a profile it climbs up into the room at the foot of the page once the room is on screen, and the room draws it there
+ * (`ProfileRoom.tsx`, `../lib/companion/visit.ts`; Luke, 2026-11-13). Leaving the page, it climbs back down from where it
+ * stood; if the page changes again before it is down, or it was still climbing up, it vanishes and pops out of a portal on
+ * its strip a moment later. Under reduced motion it appears in the room, or back on its strip, standing still.
  *
  * Every frame is a write to the figure's style through a ref, ten a second in whole steps (the site's no-easing rule),
  * so nothing re-renders as it walks. Clicks pass straight through everything but the figure itself. Under reduced
@@ -164,6 +189,22 @@ function hide(place: HTMLDivElement | null) {
   if (place !== null) place.style.visibility = 'hidden';
 }
 
+/** Opens the portal (an art slot, `sprite-portal`) with its foot on the strip, centred on `middle`. */
+function openPortal(portal: HTMLDivElement | null, middle: number, floorY: number) {
+  if (portal === null) return;
+  portal.style.transform = `translate3d(${Math.round(middle - PORTAL_SIZE / 2)}px, ${Math.round(floorY - PORTAL_SIZE)}px, 0)`;
+  portal.style.visibility = 'visible';
+  portal.dataset.open = 'true';
+}
+function closePortal(portal: HTMLDivElement | null) {
+  if (portal === null) return;
+  portal.style.visibility = 'hidden';
+  portal.dataset.open = 'false';
+}
+
+/** Where it is: on its strip, climbing up into a profile's room, in it, climbing down, gone, or stepping out of the portal. */
+type Phase = VisitPhase | 'portal';
+
 /** Puts the `!` up for a moment. */
 function showMark(mark: HTMLSpanElement | null, timer: ReturnType<typeof setTimeout> | null): ReturnType<typeof setTimeout> | null {
   if (mark === null) return timer;
@@ -259,6 +300,7 @@ function OwnCompanion({ label, musicPlaying, still, look, lookRef }: { label: st
   const placeRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLSpanElement>(null);
   const markRef = useRef<HTMLSpanElement>(null);
+  const portalRef = useRef<HTMLDivElement>(null);
   const music = useRef(musicPlaying);
   const wearing = useRef<{ look: Look; ref: string | null }>({ look, ref: lookRef });
   useEffect(() => {
@@ -271,6 +313,7 @@ function OwnCompanion({ label, musicPlaying, still, look, lookRef }: { label: st
   useEffect(() => {
     const place = placeRef.current;
     const mark = markRef.current;
+    const portal = portalRef.current;
     const now = Date.now();
     let brain: BrainState = startBrain(now);
     let lastActivity = now;
@@ -284,6 +327,29 @@ function OwnCompanion({ label, musicPlaying, still, look, lookRef }: { label: st
     let motionTick = 0;
     let markTimer: ReturnType<typeof setTimeout> | null = null;
     let lastSaid: { mood: CompanionMood; target: number | null; ref: string | null; at: number } | null = null;
+    // Visiting a profile's room.
+    let phase: Phase = 'strip';
+    /** Its feet while it climbs, from the top of the screen. */
+    let y = 0;
+    /** The room it is climbing into, or is in. */
+    let visiting: VisitRoom | null = null;
+    let path = window.location.pathname;
+    /** The page it started climbing down on: another page before it is down, and it vanishes. */
+    let downFrom = path;
+    let goneUntil = 0;
+    let stepOutAt = 0;
+    let portalUntil = 0;
+
+    const leaveRoom = () => {
+      visiting = null;
+      setCompanionInRoom(false);
+    };
+    const vanish = () => {
+      phase = 'gone';
+      goneUntil = Date.now() + PORTAL_AFTER_MS;
+      leaveRoom();
+      hide(place);
+    };
 
     const say = (floor: Floor, size: Size, force: boolean) => {
       const target = brain.target ?? x ?? 0;
@@ -299,6 +365,130 @@ function OwnCompanion({ label, musicPlaying, still, look, lookRef }: { label: st
       const look = wearing.current.look;
       const size = sizeOf(look);
       const floor = floorNow(size);
+      const now = Date.now();
+      const room = visitRoomState();
+      const pathNow = window.location.pathname;
+      const pageChanged = pathNow !== path;
+      path = pathNow;
+      if (portalUntil !== 0 && now >= portalUntil) {
+        portalUntil = 0;
+        closePortal(portal);
+      }
+
+      if (still) {
+        // Reduced motion: nothing climbs. It is in a profile's room while there is one, and back on its strip when it goes.
+        if (room !== null) {
+          if (visiting !== room) {
+            visiting = room;
+            phase = 'room';
+            noteRoomSpot(null);
+            setCompanionInRoom(true, Math.max(0, room.stage.clientWidth - size.w - 16));
+          }
+          hide(place);
+          return;
+        }
+        if (phase === 'room') {
+          phase = 'strip';
+          leaveRoom();
+        }
+      } else {
+        // In a profile's room, the room draws it. When the room goes (the page changed) it climbs down from where it stood,
+        // or vanishes when that spot was off screen.
+        if (phase === 'room') {
+          if (room !== null && room === visiting) {
+            hide(place);
+            return;
+          }
+          const spot = roomSpot();
+          phase = whenRoomGoes('room', spot !== null && spot.onScreen && spot.bottom <= floor.y);
+          leaveRoom();
+          if (phase === 'down' && spot !== null) {
+            x = spot.left;
+            y = spot.bottom;
+            downFrom = pathNow;
+          } else {
+            vanish();
+            return;
+          }
+        }
+        // The room went (or the page changed) while it was still climbing up; another page while it climbs down.
+        if (phase === 'up' && (room === null || room !== visiting || pageChanged)) {
+          vanish();
+          return;
+        }
+        if (phase === 'down' && pathNow !== downFrom) {
+          vanish();
+          return;
+        }
+        if (phase === 'gone') {
+          if (now < goneUntil) {
+            hide(place);
+            return;
+          }
+          // Back on its strip, out of a portal.
+          const back = spanFor(floor.spans, x ?? floor.screen - size.w - 48);
+          if (back === null) {
+            hide(place);
+            return;
+          }
+          x = Math.min(back.right, Math.max(back.left, x ?? back.right));
+          openPortal(portal, x + size.w / 2, floor.y);
+          portalUntil = now + PORTAL_OPEN_MS;
+          stepOutAt = now + PORTAL_STEP_OUT_MS;
+          phase = 'portal';
+        }
+        if (phase === 'portal') {
+          if (now < stepOutAt) {
+            hide(place);
+            return;
+          }
+          phase = 'strip';
+          brain = startBrain(now);
+          hop = 0;
+        }
+        // Climbing, a step a frame with its own walk frames: up into the room (walking along its strip to under it
+        // first), or back down to its strip.
+        if (phase === 'up' && visiting !== null) {
+          const into = roomFloor(boxOf(visiting.stage), clipOf(visiting.stage), size, floor.y);
+          if (into === null) {
+            // Scrolled away above it: back down.
+            visiting = null;
+            phase = 'down';
+            downFrom = pathNow;
+          } else {
+            const from = x ?? into.left;
+            const column = Math.min(into.right, Math.max(into.left, from));
+            const strip = spanFor(floor.spans, column);
+            const below = strip === null ? column : Math.min(strip.right, Math.max(strip.left, column));
+            if (y >= floor.y && Math.abs(below - from) >= 1) {
+              facing = below > from ? 1 : -1;
+              x = from + Math.sign(below - from) * Math.min(WALK_STEP, Math.abs(below - from));
+            } else {
+              if (Math.abs(column - from) >= 1) {
+                facing = column > from ? 1 : -1;
+                x = from + Math.sign(column - from) * Math.min(WALK_STEP, Math.abs(column - from));
+              } else x = from;
+              y = climbToward(y, into.floor);
+            }
+            if (y === into.floor && Math.abs(column - (x ?? column)) < 1) {
+              phase = 'room';
+              noteRoomSpot(null);
+              setCompanionInRoom(true, (x ?? column) - boxOf(visiting.stage).left);
+              hide(place);
+              return;
+            }
+          }
+        }
+        if (phase === 'down') y = climbToward(y, floor.y);
+        if (phase === 'up' || phase === 'down') {
+          motionTick = motion === 'walk' ? motionTick + 1 : 0;
+          motion = 'walk';
+          draw(place, bodyRef.current, look, { x: x ?? 0, floorY: y, facing, mood: 'walk', motion, tick: motionTick, lift: 0 });
+          if (phase === 'down' && y >= floor.y) phase = 'strip';
+          return;
+        }
+      }
+
       const span: Span | null = spanFor(floor.spans, x ?? floor.screen - size.w - 48);
       if (span === null) {
         hide(place);
@@ -306,6 +496,13 @@ function OwnCompanion({ label, musicPlaying, still, look, lookRef }: { label: st
       }
       if (x === null) x = span.right;
       if (x < span.left || x > span.right) x = Math.min(span.right, Math.max(span.left, x));
+
+      // A profile's room on screen: up it goes.
+      if (!still && phase === 'strip' && room !== null && roomFloor(boxOf(room.stage), clipOf(room.stage), size, floor.y) !== null) {
+        phase = 'up';
+        visiting = room;
+        y = floor.y;
+      }
 
       if (still) {
         brain = { mood: 'stand', target: null, until: Infinity, chaseUntil: 0 };
@@ -403,10 +600,34 @@ function OwnCompanion({ label, musicPlaying, still, look, lookRef }: { label: st
       document.removeEventListener('pointerout', onOut);
       window.removeEventListener('blur', onBlur);
       sayCompanion(null);
+      setCompanionInRoom(false);
+      closePortal(portal);
     };
   }, [still]);
 
-  return <Figure placeRef={placeRef} bodyRef={bodyRef} markRef={markRef} label={label} own look={look} />;
+  return (
+    <>
+      {/* The portal it pops back out of: Luke's drawing (an art slot), an empty dithered field until it is filed. Drawn
+          first, so the figure stepping out is in front of it. */}
+      <div
+        ref={portalRef}
+        aria-hidden="true"
+        className="invisible absolute left-0 top-0"
+        style={{ width: PORTAL_SIZE, height: PORTAL_SIZE }}
+        data-companion-portal
+        data-open="false"
+      >
+        <SpriteSlot
+          src="/assets/sprites/portal.gif"
+          alt=""
+          width={PORTAL_SIZE}
+          height={PORTAL_SIZE}
+          title="A portal opens here once assets/sprites/portal.gif is drawn"
+        />
+      </div>
+      <Figure placeRef={placeRef} bodyRef={bodyRef} markRef={markRef} label={label} own look={look} />
+    </>
+  );
 }
 
 /** Somebody else's companion in the room: wears their SHOWN character, walks where their browser says, plays the rest. */
@@ -521,10 +742,17 @@ export default function Companion() {
     void setCompanionAccount(userId);
   }, [userId]);
 
+  const ready = phone !== null && still !== null && shown !== undefined;
+  const mine = ready && companionOut(choices, { signedIn: userId !== null, phone, hasShown: shown !== null });
+  // What a profile's room needs to know of your companion (`../lib/companion/visit.ts`): whether it is out, and what it wears.
+  const visitLook = useMemo<VisitLook>(() => (shown ? { stripUrl: shown.stripUrl, sheet: shown.sheet, mood: shown.mood } : null), [shown]);
+  useEffect(() => {
+    setCompanionOut({ known: ready, out: mine, look: visitLook, still: still === true });
+  }, [ready, mine, visitLook, still]);
+
   // Nothing until the device, the motion setting and your SHOWN character can be read: never one frame on a guess.
   if (phone === null || still === null || shown === undefined) return null;
   const look: Look = shown === null ? null : { stripUrl: shown.stripUrl, sheet: shown.sheet };
-  const mine = companionOut(choices, { signedIn: userId !== null, phone, hasShown: shown !== null });
   const drawn = companionsToDraw(others, mine);
 
   if (!mine && drawn.length === 0) return null;

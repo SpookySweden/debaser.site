@@ -6,7 +6,6 @@ import { STATUS_BAR } from '../lib/ui/controls';
 import { useNow } from '../lib/ui/use-now';
 import { useComms } from './CommsProvider';
 import { usePresence } from './PresenceProvider';
-import { ProfileCharacterStrip } from './ProfileCharacter';
 import SpriteSlot from './SpriteSlot';
 import StatusDot from './StatusDot';
 import TimeStamp from './TimeStamp';
@@ -14,8 +13,6 @@ import TimeStamp from './TimeStamp';
 type ProfileStatusBarProps = {
   /** The account the page is about. */
   userId: string;
-  /** Whether the profile's track is playing: their character dances to it. */
-  music?: boolean;
 };
 
 /**
@@ -33,7 +30,7 @@ type ProfileStatusBarProps = {
  * drawing exist. What a reader wants off a profile - who this is, what they made, and whether they are
  * about - is all this line and the panel above it carry.
  */
-export default function ProfileStatusBar({ userId, music = false }: ProfileStatusBarProps) {
+export default function ProfileStatusBar({ userId }: ProfileStatusBarProps) {
   const { allAccounts } = useComms();
   const presence = usePresence(userId);
   const shown = useShownCharacter(userId);
@@ -47,14 +44,11 @@ export default function ProfileStatusBar({ userId, music = false }: ProfileStatu
   const line = presence.noLamp ? '' : presence.status === undefined ? 'CHECKING...' : presenceLine(presence.status, presence.record, now);
 
   return (
-    <>
-    {/* The account's own shown character, on a strip of its own the width of the page just over this line (Luke, 2026-11-13:
-        from the sprite spot, given room to move). It starts at the left, where the sprite spot is. */}
-    {shown ? <ProfileCharacterStrip shown={shown} music={music} /> : null}
     <div className={STATUS_BAR}>
       <span className="flex min-w-0 items-center gap-1">
         {/* The room for a looping sprite: a hand-drawn GIF, 24x24 (assets/sprites/README.txt), for an account with no
-            shown character. */}
+            shown character. One with a shown character has it living in the room at the foot of the profile
+            (ProfileRoom.tsx; Luke, 2026-11-13). */}
         {shown ? null : (
           <SpriteSlot
             src="/assets/sprites/profile.gif"
@@ -77,6 +71,5 @@ export default function ProfileStatusBar({ userId, music = false }: ProfileStatu
         JOINED <TimeStamp at={joinedAt} />
       </span>
     </div>
-    </>
   );
 }
