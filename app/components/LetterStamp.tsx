@@ -10,6 +10,11 @@ const ENVELOPE = `/${artSlot('letter-envelope')?.path ?? 'assets/letters/envelop
 const ENVELOPE_W = 21;
 const ENVELOPE_H = 13;
 const RING = { left: 8, top: 4, size: 5 };
+/**
+ * The stamp picture: a little bigger than the ring's inside (Luke, 2026-11-13), seven pixels across and centred on it, so it
+ * covers the ring's own line.
+ */
+const PICTURE = { left: RING.left - 1, top: RING.top - 1, size: RING.size + 2 };
 
 /**
  * A letter's stamp: its picture cropped to a circle (Luke, 2026-11-10: "the stamp is replaced by a circular cropped picture").
@@ -33,7 +38,8 @@ export function StampCircle({ src, className, children }: { src?: string; classN
  * middle"). His drawing is the mask: its pixels are painted in the letter's text colour (the theme's accent ink with none
  * chosen), it glows in the same colour, and it's scaled up in whole pixels. The stamp picture sits inside its ring.
  */
-export default function LetterStamp({ letter, scale = 3 }: { letter: Pick<Letter, 'name' | 'stampUrl' | 'textColour'>; scale?: number }) {
+// Two screen pixels per envelope pixel unless asked otherwise (three until Luke asked for smaller envelopes, 2026-11-13).
+export default function LetterStamp({ letter, scale = 2 }: { letter: Pick<Letter, 'name' | 'stampUrl' | 'textColour'>; scale?: number }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [drawn, setDrawn] = useState(false);
 
@@ -64,7 +70,7 @@ export default function LetterStamp({ letter, scale = 3 }: { letter: Pick<Letter
 
   const box: CSSProperties = { width: ENVELOPE_W * scale, height: ENVELOPE_H * scale };
   const glow: CSSProperties = { ...(letter.textColour ? nameInkStyle(letter.textColour) : {}), filter: `drop-shadow(0 0 ${scale}px currentColor)` };
-  const ring: CSSProperties = { left: RING.left * scale, top: RING.top * scale, width: RING.size * scale, height: RING.size * scale };
+  const ring: CSSProperties = { left: PICTURE.left * scale, top: PICTURE.top * scale, width: PICTURE.size * scale, height: PICTURE.size * scale };
 
   return (
     <span className="relative inline-block shrink-0" style={box} data-envelope={drawn ? 'drawn' : 'waiting'}>

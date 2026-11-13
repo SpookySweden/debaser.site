@@ -7,7 +7,6 @@ import { DANCES, type MotionId } from '../lib/character/motion';
 import {
   findLanes,
   react,
-  REACTIONS,
   startWalker,
   stepWalker,
   WALK_BLOCKS_PER_TICK,
@@ -16,6 +15,7 @@ import {
   type WalkerState,
 } from '../lib/character/walker';
 import CharacterSprite from './CharacterSprite';
+import NoteTrail from './NoteTrail';
 
 /**
  * The character a person shows on their profile, living in the page's empty space (SPEC-profile-characters.md).
@@ -93,49 +93,62 @@ function placeOn(root: HTMLElement, skip: HTMLElement | null, shown: ShownCharac
 }
 
 /**
- * The character standing in the profile's status-bar sprite spot instead of walking the page (Luke, 2026-11-13): its idle
- * loop, one of its dances while the profile's track plays, and a wave, hop or turn when pressed. Drawn at one screen pixel
- * per strip pixel, cut at its feet. Under reduced motion it stands still in its idle frame and nothing ticks.
+ * The account's shown character on a strip of its own, the width of the profile, just over the status line (Luke,
+ * 2026-11-13: moved from walking the page into the sprite spot, then given room to move). It walks, idles and dances along
+ * the strip by its mood, dances while the profile's track plays (with colourful notes trailing up from it), and waves, hops
+ * or turns when pressed. It starts at the left, where the sprite spot is. Drawn at one screen pixel per strip pixel, cut at
+ * its feet. Under reduced motion it stands still in its idle frame and nothing ticks.
  */
-export function ProfileCharacterLoop({ shown, music }: { shown: ShownCharacter; music: boolean }) {
+export function ProfileCharacterStrip({ shown, music }: { shown: ShownCharacter; music: boolean }) {
   const reduced = useSyncExternalStore(subscribeReduced, reducedNow, reducedOnServer);
-  const [state, setState] = useState<{ motion: MotionId; tick: number; reacted: number }>({ motion: 'idle', tick: 0, reacted: 0 });
+  const strip = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  const [state, setState] = useState<WalkerState>(() => startWalker(0, Math.random));
+  const w = shown.sheet.cell.w;
+  const h = shown.sheet.floor;
+  const room = Math.max(0, width - w);
 
   useEffect(() => {
-    if (reduced) return;
+    const element = strip.current;
+    if (element === null) return;
+    const sizes = new ResizeObserver((entries) => setWidth(Math.floor(entries[0]?.contentRect.width ?? 0)));
+    sizes.observe(element);
+    return () => sizes.disconnect();
+  }, []);
+
+  const ticksOf = useCallback((motion: MotionId) => shown.sheet.motions[motion].ticks.length, [shown]);
+
+  useEffect(() => {
+    if (reduced || width === 0) return;
     const every = Math.round(1000 / shown.sheet.fps);
     const timer = setInterval(() => {
-      setState((current) => {
-        const playing = shown.sheet.motions[current.motion];
-        const tick = current.tick + 1;
-        const dancing = DANCES.includes(current.motion);
-        // A one-off (a reaction, or a dance that doesn't loop) plays to its end; then it dances while the track plays, else idles.
-        const ended = !playing.loop && tick >= playing.ticks.length;
-        if (!playing.loop && !ended) return { ...current, tick };
-        if (music && (ended || !dancing)) return { ...current, motion: DANCES[Math.floor(Math.random() * DANCES.length)], tick: 0 };
-        if (!music && (ended || dancing)) return { ...current, motion: 'idle', tick: 0 };
-        return { ...current, tick };
-      });
+      setState((current) => stepWalker(current, { mood: shown.mood, music, room, step: WALK_BLOCKS_PER_TICK, ticksOf, random: Math.random }));
     }, every);
     return () => clearInterval(timer);
-  }, [reduced, shown, music]);
+  }, [reduced, width, shown, music, room, ticksOf]);
 
   const motion = reduced ? 'idle' : state.motion;
+  const dancing = !reduced && DANCES.includes(motion);
   return (
-    <button
-      type="button"
-      data-profile-character=""
-      data-motion={motion}
-      aria-label="THEIR CHARACTER: PRESS TO SAY HELLO"
-      title="SAY HELLO"
-      onClick={() => {
-        if (!reduced) setState((current) => ({ motion: REACTIONS[current.reacted % REACTIONS.length], tick: 0, reacted: current.reacted + 1 }));
-      }}
-      className="block shrink-0 cursor-pointer overflow-hidden focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-acid"
-      style={{ width: shown.sheet.cell.w, height: shown.sheet.floor }}
-    >
-      <CharacterSprite stripUrl={shown.stripUrl} sheet={shown.sheet} motion={motion} tick={reduced ? 0 : state.tick} dir={1} scale={1} />
-    </button>
+    <div ref={strip} className="relative border-t border-ink" style={{ height: h }}>
+      <div className="absolute top-0" style={{ left: Math.min(Math.max(0, state.x), room), width: w, height: h }}>
+        <NoteTrail active={dancing} />
+        <button
+          type="button"
+          data-profile-character=""
+          data-motion={motion}
+          aria-label="THEIR CHARACTER: PRESS TO SAY HELLO"
+          title="SAY HELLO"
+          onClick={() => {
+            if (!reduced) setState((current) => react(current));
+          }}
+          className="block cursor-pointer overflow-hidden focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-acid"
+          style={{ width: w, height: h }}
+        >
+          <CharacterSprite stripUrl={shown.stripUrl} sheet={shown.sheet} motion={motion} tick={reduced ? 0 : state.tick} dir={state.dir} scale={1} />
+        </button>
+      </div>
+    </div>
   );
 }
 

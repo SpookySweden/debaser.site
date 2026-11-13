@@ -550,6 +550,31 @@ img {
   }
 }
 
+/* A dancing character's music notes (Luke, 2026-11-13): up from its head, drifting to one side, gone by the top. */
+@keyframes note-left {
+  0% {
+    transform: translate(0, 0);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate(-1.5em, -3em);
+    opacity: 0;
+  }
+}
+
+@keyframes note-right {
+  0% {
+    transform: translate(0, 0);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate(1.5em, -3em);
+    opacity: 0;
+  }
+}
+
 /* A RADI-OH face perking up under the pointer: a two-frame hop, the size of the text's own pixels. */
 @keyframes hop {
   0%,

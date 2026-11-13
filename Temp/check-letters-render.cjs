@@ -96,8 +96,10 @@ const AddToLetterKey = require('./letters-render-out/components/AddToLetterKey.j
   const envelope = renderToStaticMarkup(el(LetterStamp, { letter }));
   // (2026-11-11) Luke's own envelope (assets/letters/envelope.png, 21x13), painted in the letter's colour on a canvas.
   assert.match(envelope, /<canvas[^>]*width="21" height="13"[^>]*class="canvas-pixels[^"]*name-ink/, 'the envelope is Luke`s 21x13 drawing, in the letter`s colour');
-  assert.match(envelope, /--name-ink:#e6004c;filter:drop-shadow\(0 0 3px currentColor\)/, 'glowing in that colour');
-  assert.match(envelope, /left:24px;top:12px;width:15px;height:15px[\s\S]*rounded-full[^>]*><img src="https:\/\/example\.org\/stamp\.png"/, 'the stamp picture sits inside the ring, round');
+  // (2026-11-13) Smaller envelopes, a bigger picture (Luke): two screen pixels per envelope pixel, and the picture seven
+  // pixels across, centred on the ring.
+  assert.match(envelope, /--name-ink:#e6004c;filter:drop-shadow\(0 0 2px currentColor\)/, 'glowing in that colour');
+  assert.match(envelope, /left:14px;top:6px;width:14px;height:14px[\s\S]*rounded-full[^>]*><img src="https:\/\/example\.org\/stamp\.png"/, 'the stamp picture sits inside the ring, round');
   const plain = renderToStaticMarkup(el(LetterStamp, { letter: { ...letter, textColour: undefined } }));
   assert.match(plain, /class="canvas-pixels[^"]*text-accent-ink/, 'with no colour chosen, the theme`s accent ink');
   console.log('  ok    the canvas and the envelope');

@@ -237,6 +237,9 @@
   --animate-blip: blip 1s steps(2, jump-none) infinite;
   /* A RADI-OH face perking up under the pointer. */
   --animate-hop: hop 320ms steps(2, jump-none) infinite;
+  /* A dancing character's music notes: each rises and drifts off to one side in eight stepped frames, then is gone. */
+  --animate-note-left: note-left 1600ms steps(8, end) 1 forwards;
+  --animate-note-right: note-right 1600ms steps(8, end) 1 forwards;
   /* The alarm: Emerald and Rose, alternating in whole frames. */
   --animate-alarm: alarm 400ms steps(1, jump-none) infinite;
   /* A docked window shaken out of its group: its frame blinks Brilliant Pink three times, then is gone. */

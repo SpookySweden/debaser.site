@@ -6,7 +6,7 @@ import { STATUS_BAR } from '../lib/ui/controls';
 import { useNow } from '../lib/ui/use-now';
 import { useComms } from './CommsProvider';
 import { usePresence } from './PresenceProvider';
-import { ProfileCharacterLoop } from './ProfileCharacter';
+import { ProfileCharacterStrip } from './ProfileCharacter';
 import SpriteSlot from './SpriteSlot';
 import StatusDot from './StatusDot';
 import TimeStamp from './TimeStamp';
@@ -47,13 +47,15 @@ export default function ProfileStatusBar({ userId, music = false }: ProfileStatu
   const line = presence.noLamp ? '' : presence.status === undefined ? 'CHECKING...' : presenceLine(presence.status, presence.record, now);
 
   return (
+    <>
+    {/* The account's own shown character, on a strip of its own the width of the page just over this line (Luke, 2026-11-13:
+        from the sprite spot, given room to move). It starts at the left, where the sprite spot is. */}
+    {shown ? <ProfileCharacterStrip shown={shown} music={music} /> : null}
     <div className={STATUS_BAR}>
       <span className="flex min-w-0 items-center gap-1">
-        {/* The room for a looping sprite. The account's own shown character plays here when it has one (Luke, 2026-11-13:
-            moved from walking the page into this spot); otherwise the slot for a hand-drawn GIF, 24x24 (assets/sprites/README.txt). */}
-        {shown ? (
-          <ProfileCharacterLoop shown={shown} music={music} />
-        ) : (
+        {/* The room for a looping sprite: a hand-drawn GIF, 24x24 (assets/sprites/README.txt), for an account with no
+            shown character. */}
+        {shown ? null : (
           <SpriteSlot
             src="/assets/sprites/profile.gif"
             alt="A looping sprite for this account"
@@ -75,5 +77,6 @@ export default function ProfileStatusBar({ userId, music = false }: ProfileStatu
         JOINED <TimeStamp at={joinedAt} />
       </span>
     </div>
+    </>
   );
 }

@@ -30,6 +30,7 @@ import { SPRITE_SLOT } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import CompanionReactions from './CompanionReactions';
 import { useMusicPlayer } from './MusicPlayerProvider';
+import NoteTrail from './NoteTrail';
 
 /**
  * Your companion: your character, living along the bottom of the site on every page (SPEC-companion.md).
@@ -206,6 +207,8 @@ function Figure({ placeRef, bodyRef, markRef, label, own, look }: FigureProps) {
       >
         {label}
       </span>
+      {/* Colourful music notes while it dances (Luke, 2026-11-13): text, not art, and none under reduced motion. */}
+      <NoteTrail watch={placeRef} />
       {/* The `!`: text, not art (SPEC-companion.md, decision 3). */}
       <span
         ref={markRef}
