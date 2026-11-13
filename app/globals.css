@@ -295,18 +295,19 @@ body {
 }
 
 .doc-pointer__arrow {
-  font-size: var(--text-key);
+  font-size: var(--text-headline);
   line-height: 1;
-  /* The arrow is a text glyph in the person's colour, edged in the page's ink so it reads on any theme. */
+  /* The arrow is a text glyph in the person's colour, edged in the page's own ink (light on a dark theme, dark on a
+     bright one) so a dark colour still shows on a dark page. */
   text-shadow:
-    1px 0 var(--color-paper),
-    -1px 0 var(--color-paper),
-    0 1px var(--color-paper),
-    0 -1px var(--color-paper);
+    1px 0 var(--color-ink),
+    -1px 0 var(--color-ink),
+    0 1px var(--color-ink),
+    0 -1px var(--color-ink);
 }
 
 .doc-pointer .doc-face {
-  margin-top: --spacing(3);
+  margin-top: --spacing(5);
 }
 
 /* Words a margin comment is left on, and the one under the pointer. */

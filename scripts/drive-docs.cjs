@@ -89,8 +89,9 @@ async function person(browser, letter, viewport) {
 }
 
 async function clearPrivacyWindow(page) {
+  // The one-time PRIVACY window a fresh browser is shown arrives a moment after the page: wait for it briefly.
   const close = page.locator('[data-dock-window="privacy-first-look"]').getByRole('button', { name: /^Close / });
-  if ((await close.count()) > 0) await close.click().catch(() => undefined);
+  await close.waitFor({ timeout: 5000 }).then(() => close.click(), () => undefined);
 }
 
 const editorOf = (page) => page.locator('.doc-document[contenteditable="true"]');
@@ -176,7 +177,9 @@ async function seesOthers(page, otherName, otherPage, label) {
 
     await seesOthers(pageB, 'TEST ACCOUNT A', pageA, 'B sees');
     await seesOthers(pageA, 'TEST ACCOUNT B', pageB, 'A sees');
-    await pageA.mouse.move(700, 500);
+    await clearPrivacyWindow(pageA);
+    await clearPrivacyWindow(pageB);
+    await wander(pageA, 4);
     await pageB.screenshot({ path: join(SHOTS, 'docs-two-people-desktop-B.png') });
     await pageA.screenshot({ path: join(SHOTS, 'docs-two-people-desktop-A.png') });
 
@@ -227,7 +230,10 @@ async function seesOthers(page, otherName, otherPage, label) {
     const src = await pageB.locator('img.doc-picture').first().getAttribute('src');
     assert.match(src, /\/storage\/v1\/object\/public\/doc-pictures\//);
     cleanup.pictures.push(src.split('/doc-pictures/')[1]);
-    const loaded = await pageB.locator('img.doc-picture').first().evaluate((img) => img.complete && img.naturalWidth > 0);
+    await pageB.locator('img.doc-picture').first().scrollIntoViewIfNeeded();
+    const loaded = await pageB
+      .waitForFunction(() => { const img = document.querySelector('img.doc-picture'); return img !== null && img.complete && img.naturalWidth > 0; }, null, { timeout: 15000 })
+      .then(() => true, () => false);
     assert.ok(loaded, 'the picture loads');
     pass('a picture A added is filed and shows for B');
 
@@ -307,7 +313,14 @@ async function seesOthers(page, otherName, otherPage, label) {
     await pageB.goto(`${BASE}/docs?folder=${LORE_FOLDER_ID}`, { waitUntil: 'domcontentloaded' });
     await pageB.getByRole('link', { name: 'DRIVE LORE PAGE' }).click();
     await pageB.waitForURL(/\/lore\/drive-lore-page$/);
-    await pageB.waitForFunction(() => document.querySelector('.doc-document')?.textContent.includes('nine blocks'), null, { timeout: 20000 });
+    await pageB
+      .waitForFunction(() => document.querySelector('.doc-document')?.textContent.includes('nine blocks'), null, { timeout: 20000 })
+      .catch(async (error) => {
+        const seen = await pageB.evaluate(() => ({ doc: document.querySelector('.doc-document')?.textContent ?? null, main: document.querySelector('main')?.innerText.slice(0, 400) ?? document.body.innerText.slice(0, 400) }));
+        console.log(`  B's lore page: ${JSON.stringify(seen)}`);
+        await pageB.screenshot({ path: join(SHOTS, 'docs-lore-from-docs-failed.png') });
+        throw error;
+      });
     pass('the lore page opens from DOCS > LORE, at its /lore address, with its writing');
     await pageB.screenshot({ path: join(SHOTS, 'docs-lore-from-docs.png') });
 

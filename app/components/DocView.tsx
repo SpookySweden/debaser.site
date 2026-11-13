@@ -208,7 +208,7 @@ export default function DocView({ target }: DocViewProps) {
         status={live.status}
         onSave={onSave}
         saving={live.saving}
-        savedAt={live.savedAt}
+        savedAt={live.savedAt ?? record.updatedAt}
         saveError={live.saveError}
         onEditor={onEditor}
       />
