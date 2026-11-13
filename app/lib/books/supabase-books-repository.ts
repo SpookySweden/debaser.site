@@ -57,7 +57,10 @@ function fromRow(row: Row): BookHighlight {
   };
 }
 
-const PLACE_COLUMNS = 'book_ref, cfi, place, title, progress, finished_at, updated_at, work_ref';
+/** Other readers' public highlights shown in a book: the newest 200. */
+const OTHERS_HIGHLIGHTS_MAX = 200;
+
+const PLACE_COLUMNS ='book_ref, cfi, place, title, progress, finished_at, updated_at, work_ref';
 type PlaceRow = {
   book_ref: string;
   cfi: string | null;
@@ -150,7 +153,9 @@ export function createSupabaseBooksRepository(client: SupabaseClient): BooksRepo
       );
     },
     async place(person, bookRef) {
-      const { data } = await client.from('book_places').select(PLACE_COLUMNS).eq('person', person).eq('book_ref', bookRef).maybeSingle();
+      const { data, error } = await client.from('book_places').select(PLACE_COLUMNS).eq('person', person).eq('book_ref', bookRef).maybeSingle();
+      // A failed read says so (it isn't "no place"): your own file's match must not be guessed over (ReaderPage).
+      if (error) throw new Error('Your place could not be read.');
       return data ? fromPlaceRow(data as PlaceRow) : null;
     },
     async savePlace(person, bookRef, place) {
@@ -183,16 +188,21 @@ export function createSupabaseBooksRepository(client: SupabaseClient): BooksRepo
       // This copy's, and every copy of the same work: matched to it, or a Gutenberg ref of it. RLS keeps others' locked ones out.
       const copies = [`book_ref.eq."${bookRef}"`];
       if (work) copies.push(`work_ref.eq."${work}"`, `book_ref.eq."${work}"`, `book_ref.like."${work}-pg*"`);
-      const { data, error } = await client
-        .from('book_highlights')
-        .select(COLUMNS)
-        .or(copies.join(','))
-        .order('created_at', { ascending: true })
-        .limit(HIGHLIGHTS_PER_BOOK_MAX);
-      if (error) throw new Error('The highlights could not be read.');
-      // Yours first in the order they were made; others' public ones after.
-      const rows = (data as Row[]).map(fromRow);
-      return [...rows.filter((each) => each.person === person), ...rows.filter((each) => each.person !== person && !each.isLocked)];
+      // Yours and others' asked apart, so a busy book's public highlights never crowd yours out.
+      const [yours, theirs] = await Promise.all([
+        client.from('book_highlights').select(COLUMNS).eq('person', person).or(copies.join(',')).order('created_at', { ascending: true }).limit(HIGHLIGHTS_PER_BOOK_MAX * 4),
+        client
+          .from('book_highlights')
+          .select(COLUMNS)
+          .neq('person', person)
+          .eq('is_locked', false)
+          .or(copies.join(','))
+          .order('created_at', { ascending: false })
+          .limit(OTHERS_HIGHLIGHTS_MAX),
+      ]);
+      if (yours.error || theirs.error) throw new Error('The highlights could not be read.');
+      // Yours first in the order they were made; others' public ones after, newest first.
+      return [...(yours.data as Row[]).map(fromRow), ...(theirs.data as Row[]).map(fromRow)];
     },
     async placesOfWork(person, work) {
       const { data, error } = await client

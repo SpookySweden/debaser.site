@@ -111,7 +111,18 @@ const marks = renderToStaticMarkup(el(panels.BookmarkList, { signedIn: true, boo
 assert.match(marks, /\+ BOOKMARK THIS PAGE/);
 assert.match(marks, /CHAPTER I · 3%[\s\S]*\[ GO TO \][\s\S]*\[ DELETE \]/);
 const held = { id: 'h1', person: 'me', bookRef: 'books:OL1W-pg1', bookTitle: 'X', cfi: null, place: 4, startAt: 0, endAt: 3, quote: 'old one', comment: 'a note', colour: 'blue', isLocked: false, forumCommentId: null, createdAt: '2026-11-10T10:00:00Z' };
-const listed = renderToStaticMarkup(el(panels.HighlightList, { signedIn: true, highlights: [held], onGo: noop, onLock: noop, onRemove: noop }));
+// The panel knows who you are, which copy is open and which highlights have a place here (every copy of a book, Luke
+// 2026-11-13): an old paragraph highlight has none.
+const listed = renderToStaticMarkup(el(panels.HighlightList, { signedIn: true, me: 'me', bookRef: 'books:OL1W-pg1', highlights: [held], findable: new Set(), onGo: noop, onLock: noop, onRemove: noop }));
+// From another copy, not found here: listed FROM ANOTHER COPY with where it was; another reader's has no lock or delete.
+const elsewhere = { ...held, id: 'h2', bookRef: `own:${'a'.repeat(64)}`, cfi: 'epubcfi(/6/24)', person: 'someone', quote: 'made up words' };
+const across = renderToStaticMarkup(el(panels.HighlightList, { signedIn: true, me: 'me', bookRef: 'books:OL1W-pg1', highlights: [elsewhere], findable: new Set(), onGo: noop, onLock: noop, onRemove: noop }));
+assert.match(across, /data-from-another-copy="true"/, 'a highlight not found here is marked');
+assert.match(across, /A READER&#x27;S · FROM ANOTHER COPY: A READER&#x27;S OWN FILE, PAGE 12/, 'whose, and where it was');
+assert.doesNotMatch(across, /\[ DELETE \]|POSTED|PRIVATE/, 'another reader`s highlight can`t be changed from here');
+const foundHere = renderToStaticMarkup(el(panels.HighlightList, { signedIn: true, me: 'me', bookRef: 'books:OL1W-pg1', highlights: [{ ...elsewhere, person: 'me' }], findable: new Set(['h2']), onGo: noop, onLock: noop, onRemove: noop }));
+assert.match(foundHere, /FOUND FROM ANOTHER COPY/, 'found by its words: said so');
+assert.doesNotMatch(foundHere, /disabled=""[^>]*>\[ GO TO \]/, 'and GO TO goes there');
 assert.match(listed, /old one[\s\S]*a note[\s\S]*2026-11-10 10:00/, 'a highlight, its comment, and when');
 assert.match(listed, /disabled=""[^>]*>\[ GO TO \]/, 'an old paragraph highlight has nowhere to go in the EPUB');
 assert.match(listed, /\[ 🔓 POSTED \]/);

@@ -68,7 +68,9 @@ export function createMockBooksRepository(): BooksRepository {
     async acrossCopies(person, bookRef, work) {
       const sameWork = (ref: string, of: string | null) => ref === bookRef || (work !== null && (of === work || ref === work || ref.startsWith(`${work}-pg`)));
       const all = [...highlights.values()].filter((each) => sameWork(each.bookRef, each.workRef)).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-      return [...all.filter((each) => each.person === person), ...all.filter((each) => each.person !== person && !each.isLocked)];
+      // As the tables are asked: yours, then others' public ones, newest first, the newest 200.
+      const theirs = all.filter((each) => each.person !== person && !each.isLocked).reverse().slice(0, 200);
+      return [...all.filter((each) => each.person === person), ...theirs];
     },
     async placesOfWork(person, work) {
       return [...places]

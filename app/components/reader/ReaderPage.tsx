@@ -445,7 +445,17 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
         // Your own file: the match saved to the account (so another device finds it), else this browser's, else a guess from
         // the title and author written inside the file, saved at once (THIS IS: ... with [ CHANGE ] and [ NOT LISTED ]).
         const person = meRef.current;
-        const saved = (person ? (await getBooksRepository().place(person.id, copyRef).catch(() => null))?.workRef : null) ?? remembered(workKey(copyRef));
+        // A failed read isn't "no match": then only this browser's is used, and no guess is saved over the account's.
+        let unread = false;
+        const onAccount = person
+          ? await getBooksRepository()
+              .place(person.id, copyRef)
+              .catch(() => {
+                unread = true;
+                return null;
+              })
+          : null;
+        const saved = onAccount?.workRef ?? remembered(workKey(copyRef));
         const savedWork = cleanWork(saved);
         if (saved === NOT_LISTED) {
           if (live) setMatch('none');
@@ -454,7 +464,7 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
           const info = await fetch(`/api/web/book/info?ref=${encodeURIComponent(savedWork)}`).then((response) => (response.ok ? response.json() : null)).catch(() => null);
           const item = (info as { item?: { title?: string; creator?: string } } | null)?.item;
           if (live) setMatch({ work: savedWork, title: item?.title ?? 'THE MATCHED BOOK', author: item?.creator ?? '', cover: null });
-        } else if (ownMeta?.title) {
+        } else if (ownMeta?.title && !unread) {
           const guess = (await findWorks(ownMeta.title, ownMeta.author))[0];
           if (guess) {
             found = guess.work;
@@ -1042,7 +1052,8 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
   /** An unlocked highlight's post in the reader's own thread for the book, made the first time it's needed. */
   // The book's name for its thread and its highlights: the matched book's for your own file (else the title inside it).
   const matched = match && match !== 'none' && match !== 'unfound' ? match : null;
-  const bookName = (own ? matched?.title || ownMeta?.title || title : title) || 'A BOOK';
+  // Never your own file's name: it may say more than you'd post (only the title written inside the file, or the match's).
+  const bookName = (own ? matched?.title || ownMeta?.title || 'MY OWN BOOK' : title) || 'A BOOK';
 
   /**
    * An unlocked highlight's post in the reader's own thread for the book, made the first time it's needed: one thread for
