@@ -69,7 +69,11 @@ export async function POST(request: Request): Promise<Response> {
       runIngest(makeIngestStore(db, lock), WEB_ADAPTERS, {}, resolving),
       runMediaIngest(makeMediaStore(db, lock), { tmdbToken: process.env.TMDB_READ_TOKEN }),
     ]);
-    return json({ ...result, media }, 200);
+    // YOUR YOUTUBE's account copies not refreshed for 30 days go (YouTube's terms; Luke's OK 2026-11-13,
+    // 20261113173009_youtube_taste.sql). Lock-checked like the rest; a failure here never fails the run.
+    const forgot = await db.rpc('web_forget_old_youtube_taste', { p_secret: lock });
+    const youtubeTasteForgotten = forgot.error === null && typeof forgot.data === 'number' ? forgot.data : null;
+    return json({ ...result, media, youtubeTasteForgotten }, 200);
   } catch (error) {
     if (error instanceof IngestLockError) return json({ error: 'Not allowed.' }, 401);
     return json({ error: 'The WEB sources could not be read.' }, 500);

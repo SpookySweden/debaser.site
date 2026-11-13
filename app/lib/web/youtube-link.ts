@@ -3,6 +3,7 @@
 import { getSupabaseBrowserClient } from '../supabase/client';
 import type { WebItem } from './types';
 import type { YouTubeSignals } from './recommend';
+import { forgetAccountTaste, readAccountTaste, saveAccountTaste } from './youtube-taste';
 
 /**
  * The browser's half of linking YouTube (youtube-mine.ts). Off until Luke has allowed the YouTube permission in Google
@@ -19,7 +20,7 @@ const LINKER = 'debaser.youtube-linker.v1';
 const KEEP_MS = 7 * 86_400_000;
 
 /** What one read found: the videos, and the channels, topics and playlist names that teach the page's order. */
-export type YouTubeFound = YouTubeSignals & { items: WebItem[] };
+export type YouTubeFound = { items: WebItem[]; channels: { id: string; name: string }[]; topics: string[]; playlists: string[] } & YouTubeSignals;
 
 const NOTHING_FOUND: YouTubeFound = { items: [], channels: [], topics: [], playlists: [] };
 
@@ -55,12 +56,14 @@ function keep(user: string, what: YouTubeFound): void {
   }
 }
 
+/** UNLINK: this browser's copy and the account's copy (youtube-taste.ts) both go. */
 export function forgetYouTube(): void {
   try {
     window.localStorage.removeItem(KEY);
   } catch {
     // Nothing was kept.
   }
+  void forgetAccountTaste();
 }
 
 /** Notes who is linking, because choosing another Google account on Google's page can come back as another account here. */
@@ -106,7 +109,12 @@ export async function readMine(): Promise<YouTubeMine> {
     const linker = takeLinker();
     if (linker !== null && linker !== session.user.id) return { ...nothing, needsLink: true, wrongAccount: true };
     const saved = kept(session.user.id);
-    if (!session.provider_token) return { ...nothing, ...saved, needsLink: saved.items.length === 0 };
+    if (!session.provider_token) {
+      // Nothing kept in this browser (another machine linked it, or the week ran out): the account's channels and
+      // topics still teach the order, while LINK YOUTUBE offers the videos again.
+      const account = saved.channels.length === 0 && saved.topics.length === 0 ? await readAccountTaste(session.user.id) : null;
+      return { ...nothing, ...saved, ...(account ?? {}), needsLink: saved.items.length === 0 };
+    }
     const answer = await fetch('/api/web/youtube/mine', {
       method: 'POST',
       headers: { Authorization: `Bearer ${session.access_token}`, 'x-google-token': session.provider_token },
@@ -114,6 +122,7 @@ export async function readMine(): Promise<YouTubeMine> {
     if (!answer.ok) return { ...nothing, ...saved, needsLink: answer.status === 403 };
     const read = found((await answer.json()) as Record<string, unknown>);
     keep(session.user.id, read);
+    void saveAccountTaste(session.user.id, { channels: read.channels, topics: read.topics });
     return { ...nothing, ...read, fresh: true };
   } catch {
     return { ...nothing, needsLink: true };

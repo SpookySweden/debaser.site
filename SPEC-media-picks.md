@@ -29,6 +29,14 @@
 - **YouTube:** `[ LINK YOUTUBE ]` asks Google for read-only access. Up to 6 uploads and likes show under YOUR YOUTUBE and
   teach that visit's order. The token is used for one request from the person's own browser, and stored by neither us
   nor the server; the answer is kept in their browser for a week.
+  Widened 2026-11-13 (Luke: "takes into account what would be shown on your youtube homepage"; the honest limit: Google
+  has no home feed, and the real one needs YouTube cookies the site never holds). It reads 50 subscribed channels (the
+  first 25's newest uploads), 50 likes, playlist names and the channels' topics. The channels and topics teach
+  PICKED FOR YOU (topics are its first searches), and under BEST MATCH a site's rows by those channels lead its page.
+  The shelf shows 6, then `[ MORE FROM YOUR YOUTUBE ]`; `[ REFRESH ]` asks Google again. The channels and topics are
+  also kept on the account (`user_youtube_taste`, owner only, Luke's OK 2026-11-13): UNLINK deletes the row, and the
+  hourly MEDIA fetch deletes rows not refreshed for 30 days. Still switched off until Luke's Google steps are done
+  (`docs/youtube-link-setup.md`).
 
 ## What the tagging costs (Luke's cost plan, 2026-11-05)
 Prices from the Claude API notes: Haiku 5.5 is $0.10 in, $0.50 out per million tokens, half that in a batch.

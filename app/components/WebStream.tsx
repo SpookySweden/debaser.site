@@ -687,9 +687,15 @@ export default function WebStream() {
   /** RESET FILTERS: every filter back to its start, the words kept. STREAM ART is a source, so it goes too. */
   const resetFilters = () => {
     const next = withoutFilters(draft);
-    // On RECOMMENDED or DISCOVER the list reads the box's order itself, as for a SORT key.
-    if (picked !== null) setDraft(next);
-    else applyBox(next);
+    if (picked === null) {
+      applyBox(next);
+      return;
+    }
+    // On RECOMMENDED or DISCOVER: the list stays (it reads the box's order itself), and the search under it is asked
+    // again without its filters, so leaving the list later shows what the line says. The address keeps `?list=`.
+    setDraft(next);
+    setTried(new Set());
+    start(requestFor(next), null);
   };
 
   /** Which filter sections are open: shut on the server's draw, then what this browser kept. */
