@@ -15,7 +15,7 @@
  *      the share, only the owner changes sharing, and the hourly copy is refused within the hour;
  *   5. the forum: the `doc` anchor, the one board post, and the [ OPEN DOC ] link read back out of it.
  *
- * The database's own rules are held live by Temp/check-docs-live.cjs (two accounts, the real tables).
+ * The database's own rules are held live by scripts/drive-docs-privacy.cjs (two accounts, the real tables and channel).
  */
 const assert = require('node:assert/strict');
 const Y = require('yjs');
