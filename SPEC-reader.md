@@ -44,9 +44,14 @@ ereader." Proprietary here means the site's own reader, looking like DEBASER, no
 - `CLAUDE.md`'s MEDIA section gets the widened exception, worded like the subtitles one.
 
 ## Out of scope
-- Books other than Project Gutenberg's (Open Library borrowing stays on Open Library).
 - Text-to-speech, dictionaries, translation.
 - Sharing a reading position live with others.
+
+Luke widened this on 2026-11-13 ("any book can be read in the ereader"): every Open Library work opens inside `/read`.
+Gutenberg copies and free Archive scans read as the reader already does; a lending-library scan shows the Archive's own
+viewer (`archive.org/embed/<ocaid>`) inside the reader, which carries the Archive's borrow flow with nothing passing
+through our server; a work with no copy at all shows a page inside the reader with the title, cover and a link to Open
+Library, so the browser never leaves `/read` on its own.
 
 ## Proof (for the build session)
 - Checks: the EPUB route serves only Gutenberg's file for a book with a Gutenberg number, `no-store` both ways, and

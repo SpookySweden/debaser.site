@@ -257,21 +257,25 @@ export type WayToRead =
   | { kind: 'none'; href: string };
 
 /**
- * Every legal way to read an edition that a source covers (SPEC-book-editions.md): its own Archive scan in the site's reader
- * when it's free, BORROW on archive.org when it's a lending-library copy (never opened here), its archive.org page when the
- * Archive's search said nothing about it, the work's Project Gutenberg
- * copy and an IPFS copy in the reader. With none, NO FREE COPY and its Open Library page (libraries and shops are there).
+ * Every legal way to read an edition that a source covers (SPEC-book-editions.md; Luke, 2026-11-13: "any book can be read
+ * in the ereader"): every way opens inside the site's reader. A free scan reads its EPUB or PDF a slice at a time; a
+ * lending-library scan opens the Archive's own viewer at `/read/internet_archive:<ocaid>`, which carries the Archive's
+ * borrow flow with nothing passing through our server; a scan the Archive's search didn't find opens the same way, since
+ * the reader's route asks the Archive's metadata again and falls through to the viewer when needed. The work's Project
+ * Gutenberg copy and its IPFS copy read in the reader. With none, NO FREE COPY opens the reader on the work, which
+ * shows a page with a link to Open Library (libraries and shops are listed there) inside its own frame.
  */
-export function waysToRead(edition: ListedEdition, work: { gutenbergRef: string | null; ipfsCid: string | null }): WayToRead[] {
+export function waysToRead(edition: ListedEdition, work: { gutenbergRef: string | null; ipfsCid: string | null; key?: string }): WayToRead[] {
   const ways: WayToRead[] = [];
   if (edition.ocaid && edition.scan === 'free') ways.push({ kind: 'scan', href: `/read/internet_archive:${edition.ocaid}` });
-  if (edition.ocaid && edition.scan === 'lent') ways.push({ kind: 'borrow', href: `https://archive.org/details/${edition.ocaid}` });
-  // A scan the Archive's search didn't say anything about (not found, not asked, or the search failed): not opened here,
-  // and not NO FREE COPY either, since there is a scan; its page on archive.org says whether it reads or lends.
-  if (edition.ocaid && edition.scan === null) ways.push({ kind: 'archive', href: `https://archive.org/details/${edition.ocaid}` });
+  if (edition.ocaid && edition.scan === 'lent') ways.push({ kind: 'borrow', href: `/read/internet_archive:${edition.ocaid}` });
+  if (edition.ocaid && edition.scan === null) ways.push({ kind: 'archive', href: `/read/internet_archive:${edition.ocaid}` });
   if (work.gutenbergRef) ways.push({ kind: 'gutenberg', href: `/read/${work.gutenbergRef}` });
   if (work.ipfsCid) ways.push({ kind: 'ipfs', href: `/read/ipfs:${work.ipfsCid}` });
-  if (ways.length === 0) ways.push({ kind: 'none', href: `https://openlibrary.org/books/${edition.key}` });
+  if (ways.length === 0) {
+    const workKey = edition.work;
+    ways.push({ kind: 'none', href: workKey ? `/read/books:${workKey}` : `https://openlibrary.org/books/${edition.key}` });
+  }
   return ways;
 }
 

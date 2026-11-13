@@ -159,7 +159,10 @@ const ask = (ref, address = '203.0.113.1') => GET(new Request(`https://debaser.s
   assert.equal(asked[0].redirect, 'manual', 'redirects followed by hand');
   assert.equal(asked[0].credentials, 'omit');
 
-  for (const ref of ['books:OL85892W', 'audiobooks:271', 'books:OL1W-pg1/../x', 'https://evil.example/a.epub', '']) {
+  // Luke, 2026-11-13 ("any book can be read in the ereader"): `books:OL85892W` (a bare Open Library work ref) is no
+  // longer refused here — the route resolves it to a concrete copy, so it fetches Open Library on purpose. The refused
+  // set is: audiobooks (not books the reader opens), path-traversal and off-site refs, and the empty string.
+  for (const ref of ['audiobooks:271', 'books:OL1W-pg1/../x', 'https://evil.example/a.epub', '']) {
     asked = [];
     response = await ask(ref, '203.0.113.2');
     assert.ok(response.status === 400 || response.status === 404, `${ref || 'nothing'} is refused`);
@@ -251,8 +254,16 @@ const ask = (ref, address = '203.0.113.1') => GET(new Request(`https://debaser.s
   assert.deepEqual(await response.json(), { error: 'NO EPUB', viewer: true }, 'no EPUB or PDF anyone may read: the reader shows the Archive`s viewer');
   assert.equal(asked.length, 1, 'and no file is fetched');
 
+  // Luke, 2026-11-13 ("any book can be read in the ereader"): a lending-library item is no longer refused outright — the
+  // reader shows the Archive's own viewer (its pages come straight from archive.org, its borrow flow with it); no EPUB
+  // or PDF ever passes through our server for a lent item. A film or a dark item is still refused.
+  asked = [];
+  answer = archive(item([{ name: 'Made Up.epub' }], { 'access-restricted-item': 'true' }));
+  response = await ask('internet_archive:made_up_book', '203.0.113.21');
+  assert.equal(response.status, 404, 'a lending-library item is still a 404 for the file');
+  assert.deepEqual(await response.json(), { error: 'NO EPUB', viewer: true }, 'a lending-library item opens the Archive`s viewer in /read');
+  assert.equal(asked.length, 1, 'a lending-library item: nothing but the metadata is asked');
   for (const [why, body] of [
-    ['a lending-library item', item([{ name: 'Made Up.epub' }], { 'access-restricted-item': 'true' })],
     ['a film, not a book', item([{ name: 'Made Up.epub' }], { mediatype: 'movies' })],
     ['a dark item', JSON.stringify({ is_dark: true, files: [] })],
   ]) {

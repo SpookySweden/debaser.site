@@ -2,7 +2,7 @@
  * Every edition of every book (SPEC-book-editions.md, Luke 2026-11-11), offline, from saved Open Library and Archive answers
  * (`scripts/fixtures/web/book-editions.json`: Dracula's first ten editions as Open Library lists them, its twelve most
  * detailed, the Archive's answer for their scans, the ISBN 9780141439846's edition, and a book with one edition).
- *   npx tsc app/lib/books/editions.ts app/lib/web/book-editions.ts app/lib/web/books.ts app/lib/web/search/providers/books.ts app/lib/letters/things.ts app/lib/web/row-addresses.ts --outDir Temp/out-book-editions --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop --moduleResolution node
+ *   npx tsc app/lib/books/editions.ts app/lib/books/types.ts app/lib/books/ipfs.ts app/lib/web/book-editions.ts app/lib/web/books.ts app/lib/web/search/providers/books.ts app/lib/letters/things.ts app/lib/web/row-addresses.ts --outDir Temp/out-book-editions --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop --moduleResolution node
  *   node Temp/check-book-editions.cjs
  *
  * - every saved edition parses, to plain text: notes as a string or `{ value }`, `contributions` and `contributors` as
@@ -178,21 +178,58 @@ function savedWeb(overrides = {}) {
   const elsewhere = await listing.listEditions({ ref: 'books:OL24218144W', offset: 0, show: 'all', order: 'details', at: 'OL10416488M' }, savedWeb().fetch, NOW);
   same(elsewhere.at, null, 'an edition of another book is not shown as this one`s');
 
-  /* 5. READ / BORROW / NO FREE COPY --------------------------------------------------------------------------------- */
-  const base = editions.parseEdition({ key: '/books/OL5M', title: 'x' }, NOW);
+  /* 5. READ / BORROW / NO FREE COPY -------------------------------------------------------------------------------- */
+  // Luke, 2026-11-13 ("any book can be read in the ereader"): every way opens inside /read. BORROW and SCAN-ON-ARCHIVE
+  // route through /read/internet_archive:<ocaid>, where the reader shows the Archive's own viewer (lending flow carried
+  // by the embed). NO FREE COPY opens /read/books:<work>, where the reader shows a page with a link to Open Library.
+  const base = { ...editions.parseEdition({ key: '/books/OL5M', title: 'x' }, NOW), work: 'OL1W' };
   const kinds = (edition, work = { gutenbergRef: null, ipfsCid: null }) => editions.waysToRead(edition, work).map((way) => `${way.kind} ${way.href}`);
   same(kinds({ ...base, ocaid: 'freescan', scan: 'free' }), ['scan /read/internet_archive:freescan'], 'a free scan reads in the site`s reader');
-  same(kinds({ ...base, ocaid: 'lentscan', scan: 'lent' }), ['borrow https://archive.org/details/lentscan'], 'a lent scan is borrowed on archive.org, never opened here');
-  same(kinds({ ...base, ocaid: 'unknown', scan: null }), ['archive https://archive.org/details/unknown'], 'a scan the Archive said nothing about: its archive.org page, not NO FREE COPY');
-  same(kinds({ ...base, scan: null }), ['none https://openlibrary.org/books/OL5M'], 'no scan and no copy: NO FREE COPY and Open Library`s page');
+  same(kinds({ ...base, ocaid: 'lentscan', scan: 'lent' }), ['borrow /read/internet_archive:lentscan'], 'a lent scan opens the Archive`s viewer inside /read');
+  same(kinds({ ...base, ocaid: 'unknown', scan: null }), ['archive /read/internet_archive:unknown'], 'a scan the Archive said nothing about: inside /read too');
+  same(kinds({ ...base, scan: null }), ['none /read/books:OL1W'], 'no scan and no copy: NO FREE COPY opens the reader on the work');
   const lcp = await listing.readScanAccess(['made_up_lcp'], async () => json({ response: { docs: [{ identifier: 'made_up_lcp' }] } }));
   same(lcp.get('made_up_lcp'), 'lent', 'an LCP lending copy is lent even without the flag');
   same(kinds({ ...base, scan: null }, { gutenbergRef: 'books:OL85892W-pg345', ipfsCid: 'QmT78zSuBmuS4z925WZfrqQ1qHaJ56DQaTfyMUF7F8ff5o' }), ['gutenberg /read/books:OL85892W-pg345', 'ipfs /read/ipfs:QmT78zSuBmuS4z925WZfrqQ1qHaJ56DQaTfyMUF7F8ff5o'], 'the work`s Gutenberg and IPFS copies');
   const lentDracula = list.editions.find((edition) => edition.scan === 'lent');
-  same(kinds(lentDracula, list).map((line) => line.split(' ')[0]), ['borrow', 'gutenberg'], 'a lent Dracula: BORROW, and Gutenberg`s text in the reader');
+  same(kinds(lentDracula, list).map((line) => line.split(' ')[0]), ['borrow', 'gutenberg'], 'a lent Dracula: BORROW (inside /read), and Gutenberg`s text in the reader');
   const oneList = await listing.listEditions({ ref: 'books:OL24218144W', offset: 0, show: 'all', order: 'details', at: null }, savedWeb().fetch, NOW);
   same([oneList.size, oneList.editions.length, oneList.gutenbergRef], [1, 1, null], 'the one-edition book: one edition, no Gutenberg copy');
-  same(kinds(oneList.editions[0], oneList), ['borrow https://archive.org/details/journalofdisappo0000barb'], 'its lending-library scan: BORROW');
+  same(kinds(oneList.editions[0], oneList), ['borrow /read/internet_archive:journalofdisappo0000barb'], 'its lending-library scan: BORROW inside /read');
+
+  /* 5b. Any book opens inside /read ------------------------------------------------------------------------------- */
+  const { isReadable } = require(path.join(OUT, 'lib', 'books', 'types.js'));
+  ok(isReadable('books:OL85892W'), 'a bare Open Library work ref is readable');
+  ok(isReadable('books:OL85892W-pg345'), 'a Gutenberg ref is readable');
+  ok(isReadable('internet_archive:draculaIA'), 'an Internet Archive ref is readable');
+  ok(!isReadable('books:OL85892M'), 'an edition key is not a bare work ref');
+  // The route answers { redirect } for a bare work ref the resolver resolves, and { noFreeCopy } when nothing is found.
+  const resolver = await listing.resolveWorkCopy('OL85892W', savedWeb().fetch, NOW);
+  same(resolver, { ref: 'books:OL85892W-pg345' }, 'Dracula resolves to its Gutenberg copy');
+  const noCopy = await listing.resolveWorkCopy('OL999999W', async (url) => {
+    const at = new URL(url);
+    if (at.pathname === '/search.json') return json({ docs: [] });
+    if (at.pathname === '/works/OL999999W/editions.json') return json({ size: 0, entries: [] });
+    return json({}, 404);
+  }, NOW);
+  same(noCopy, null, 'a work with no copy at all resolves to null');
+  const archiveResolve = await listing.resolveWorkCopy('OL24218144W', savedWeb().fetch, NOW);
+  same(archiveResolve, { ref: 'internet_archive:journalofdisappo0000barb' }, 'a work with only a scan resolves to its Archive ref (reader opens the viewer)');
+  // openBookEpub for a bare work ref signals a redirect; for a work with no copy, a noFreeCopy marker.
+  const redirected = await books.openBookEpub('books:OL85892W', savedWeb().fetch);
+  same(redirected, { redirect: 'books:OL85892W-pg345' }, 'the route tells the reader where the copy is');
+  const nothing = await books.openBookEpub('books:OL999999W', async (url) => {
+    const at = new URL(url);
+    if (at.pathname === '/search.json') return json({ docs: [] });
+    if (at.pathname === '/works/OL999999W/editions.json') return json({ size: 0, entries: [] });
+    return json({}, 404);
+  });
+  same(nothing, { noFreeCopy: { work: 'OL999999W', openLibraryUrl: 'https://openlibrary.org/works/OL999999W' } }, 'a work with no free copy: the reader shows a link to Open Library');
+  // archiveBookOf for a lending-library item no longer refuses outright: EPUB and PDF stay null so the reader shows the Archive's viewer.
+  const lentStub = books.archiveBookOf({ files: [{ name: 'book.epub', size: 1024 }], metadata: { mediatype: 'texts', 'access-restricted-item': 'true' } });
+  same([lentStub && lentStub.epub, lentStub && lentStub.pdf, Array.isArray(lentStub && lentStub.servers) ? lentStub.servers.length : -1], [null, null, 0], 'a lending-library item is a viewer-only stub, never a file passed through us');
+  const darkItem = books.archiveBookOf({ files: [], is_dark: true, metadata: { mediatype: 'texts' } });
+  same(darkItem, null, 'a dark item is still refused');
 
   /* 6. ISBN --------------------------------------------------------------------------------------------------------- */
   same(['978-0-14-143984-6', 'isbn 014143984x', 'ISBN-10: 0-8044-2957-X', '9780141439847', '12345', 'dracula'].map(editions.isbnOf), ['9780141439846', '014143984X', '080442957X', null, null, null], 'ISBNs read, a wrong check digit is not one');

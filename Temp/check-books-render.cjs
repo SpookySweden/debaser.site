@@ -53,7 +53,11 @@ assert.equal(
 );
 assert.equal(types.highlightPost({ quote: 'old', comment: '', bookRef: 'books:OL1W-pg1', cfi: null }), '"old"\n\nREAD IT THERE: /read/books:OL1W-pg1', 'an old one goes to the book');
 assert.equal(types.isReadable('books:OL85892W-pg345'), true);
-assert.equal(types.isReadable('books:OL85892W'), false, 'no Gutenberg copy: not readable here');
+// Luke, 2026-11-13 ("any book can be read in the ereader"): a bare Open Library work ref is readable too; the reader
+// resolves it server-side to a Gutenberg copy, a free Archive scan, a lending-library scan opened in the Archive's
+// viewer, or a "no free copy" page with a link to Open Library.
+assert.equal(types.isReadable('books:OL85892W'), true, 'a bare Open Library work ref is readable (server resolves the copy)');
+assert.equal(types.isReadable('books:OL85892M'), false, 'an edition key is not a work ref');
 console.log('  ok    where a book and a highlight go');
 
 /* 2. A book's page --------------------------------------------------------------------------------- */

@@ -112,7 +112,10 @@ async function problemOf(promise) {
   ok(types.isReadable(`ipfs:${V0}`) && types.isReadable(`ipfs:${V1}`), 'the reader opens an ipfs: book');
   ok(!types.isReadable(`ipfs:${V0}/x`) && !types.isReadable('ipfs:https://evil.example/x') && !types.isReadable('ipfs:'), 'and nothing that only looks like one');
   ok(types.isReadable('books:OL85892W-pg345') && types.isReadable('internet_archive:dracula00stok'), 'Gutenberg and Archive books still open');
-  ok(!types.isReadable('youtube:abc') && !types.isReadable('books:OL85892W'), 'other refs still do not');
+  // Luke, 2026-11-13 ("any book can be read in the ereader"): a bare Open Library work ref is readable too; the reader
+  // resolves it server-side to a concrete copy or shows a "no free copy" page with a link to Open Library.
+  ok(types.isReadable('books:OL85892W'), 'a bare Open Library work ref is readable');
+  ok(!types.isReadable('youtube:abc') && !types.isReadable('books:OL85892M'), 'other refs (and an edition key) still do not');
   ok(types.readHref(`ipfs:${V1}`) === `/read/ipfs:${V1}`, "an ipfs: book's reader address");
 
   /* 2. staying on the gateway --------------------------------------------------------------------- */

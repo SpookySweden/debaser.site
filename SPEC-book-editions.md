@@ -19,13 +19,15 @@ books and editions.** Nobody has to read anything on the site.
 - **Every book is searchable**, not only the ones the reader opens. This replaces today's rule that BOOKS lists only works
   with a Project Gutenberg copy or a library scan (`GUTENBERG_ONLY` in `app/lib/web/search/providers/books.ts`). Those
   copies still come first.
-- **Each edition shows every legal way to read it that a source covers:**
-  - its own Archive scan, opened in the site's reader when it is free (`internet_archive:<ocaid>`, as today);
-  - `[ BORROW ON ARCHIVE.ORG ↗ ]` when that scan is a lending-library copy (read on archive.org with the reader's own
-    account; the site never opens it);
+- **Each edition shows every legal way to read it that a source covers, each opened inside the site's reader**
+  (Luke, 2026-11-13: "any book can be read in the ereader"):
+  - its own Archive scan, opened in the site's reader when it is free (`internet_archive:<ocaid>`);
+  - `[ BORROW ]` when that scan is a lending-library copy: the reader embeds the Archive's own viewer at
+    `archive.org/embed/<ocaid>`, which carries the Archive's borrow flow; nothing passes through our server;
   - the work's Project Gutenberg copy, in the reader;
   - an IPFS copy named in `app/lib/books/ipfs-catalogue.ts`, in the reader.
-  - With none, the edition says `NO FREE COPY` and links to its Open Library page (libraries and shops are listed there).
+  - With none, the edition says `NO FREE COPY` and the row's key opens the reader on the work (`/read/books:<work>`),
+    where the reader shows a page with the cover, title and a link to Open Library (libraries and shops are listed there).
 - **No database changes in this work.** Editions are read live from Open Library when a book's page opens. "Marked as
   read", reviews and ratings come later, each with Luke's OK for its tables.
 - **Ratings (later):** CLAUDE.md says MEDIA never shows ratings. That rule is about other platforms' counts. The site's own

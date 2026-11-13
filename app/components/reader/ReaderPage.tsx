@@ -258,7 +258,9 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
   const pdfDocs = useRef(new Map<number, Document>());
   const pdfHits = useRef(new WeakMap<Document, { highlight: BookHighlight; range: Range }[]>());
 
-  const [phase, setPhase] = useState<'choose' | 'reading-file' | 'opening' | 'ask' | 'ready' | 'viewer' | { fault: string }>(own ? 'choose' : 'reading-file');
+  const [phase, setPhase] = useState<'choose' | 'reading-file' | 'opening' | 'ask' | 'ready' | 'viewer' | 'no-free-copy' | { fault: string }>(own ? 'choose' : 'reading-file');
+  // A work with no free copy anywhere (Luke, 2026-11-13): shown inside the reader with a link to Open Library.
+  const [noFreeCopyUrl, setNoFreeCopyUrl] = useState<string | null>(null);
   // What the engine opened (an EPUB reflows and takes highlights; a PDF has fixed pages), a reader's own file, and a count
   // that opens the book again where it was (a PDF's ONE PAGE / TWO PAGES is decided when it opens).
   const [kind, setKind] = useState<'epub' | 'pdf' | null>(null);
@@ -786,7 +788,29 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
         } else {
           const response = await fetch(`/api/web/book/epub?ref=${encodeURIComponent(bookRef)}`, { cache: 'no-store' });
           const json = (response.headers.get('content-type') ?? '').startsWith('application/json');
-          const said = json ? ((await response.json().catch(() => ({}))) as { error?: string; viewer?: boolean; pdf?: { size?: number } }) : null;
+          const said = json
+            ? ((await response.json().catch(() => ({}))) as {
+                error?: string;
+                viewer?: boolean;
+                pdf?: { size?: number };
+                redirect?: string;
+                noFreeCopy?: { work?: string; openLibraryUrl?: string };
+              })
+            : null;
+          // A bare Open Library work (Luke, 2026-11-13: "any book can be read in the ereader"): the server resolved it to a
+          // concrete copy; the reader reopens at that ref. Only a /read/… address on this site, and never where we came from.
+          if (said?.redirect && /^\/read\/[A-Za-z0-9][A-Za-z0-9:_.-]{1,200}(?:\?[A-Za-z0-9=&_.-]*)?$/.test(said.redirect) && said.redirect !== `/read/${bookRef}`) {
+            if (live) router.replace(said.redirect);
+            return;
+          }
+          // A work with no free copy anywhere: a page inside the reader with a link to Open Library (nothing outside /read).
+          if (said?.noFreeCopy?.openLibraryUrl && /^https:\/\/openlibrary\.org\/works\/OL[1-9][0-9]{0,11}W$/.test(said.noFreeCopy.openLibraryUrl)) {
+            if (live) {
+              setNoFreeCopyUrl(said.noFreeCopy.openLibraryUrl);
+              setPhase('no-free-copy');
+            }
+            return;
+          }
           // An Internet Archive book with neither an EPUB nor a PDF: its page pictures in the site's own reader, straight from
           // archive.org (SPEC-reading-places.md, 2026-11-13); the Archive's own viewer when those can't be read.
           const archiveId = archiveBookId(bookRef);
@@ -1274,7 +1298,7 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
             {/* The Archive's viewer has its own contents and search: only FOCUS is ours there. Bookmarks belong to a book the
                 site knows (not a reader's own file); highlights to any book with words, your own file and PDFs included
                 (2026-11-13), but not a scan's page pictures. */}
-            {phase !== 'viewer' && phase !== 'choose' ? (
+            {phase !== 'viewer' && phase !== 'choose' && phase !== 'no-free-copy' ? (
               <>
                 {topKey('contents', 'CONTENTS')}
                 {topKey('search', 'SEARCH')}
@@ -1394,6 +1418,30 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
             referrerPolicy="no-referrer"
           />
         ) : null}
+        {phase === 'no-free-copy' && noFreeCopyUrl ? (
+          // A work with no free copy anywhere (Luke, 2026-11-13): shown inside the reader. The link opens Open Library in
+          // a new tab; the browser never leaves /read on its own.
+          <div className="absolute inset-x-0 top-1/3 flex flex-col items-center gap-2 p-4 text-center">
+            <p className="w-fit bg-sun-pale px-1 text-label text-ink">NO FREE COPY OF THIS BOOK WAS FOUND.</p>
+            <p className="max-w-prose text-label text-ink">
+              Open Library lists libraries that lend it and shops that sell it.
+            </p>
+            <div className="flex flex-wrap justify-center gap-1">
+              <a
+                href={noFreeCopyUrl}
+                target="_blank"
+                rel="noopener noreferrer nofollow"
+                aria-label="Open this book on Open Library (new tab)"
+                className={PLATE_MAIN}
+              >
+                [ OPEN LIBRARY ↗ ]
+              </a>
+              <button type="button" onClick={back} className={PLATE}>
+                [ ◀ BACK ]
+              </button>
+            </div>
+          </div>
+        ) : null}
         {typeof phase === 'object' ? (
           <div className="absolute inset-x-0 top-1/3 flex flex-col items-center gap-2 p-4">
             <p className="w-fit bg-bubble-pale px-1 text-label text-ink-bar">{phase.fault}</p>
@@ -1508,7 +1556,7 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
       {!focus && phase === 'viewer' ? (
         <footer className="border-t border-ink bg-sun-pale px-2 py-1 text-label text-ink-quiet">THE INTERNET ARCHIVE&apos;S OWN VIEWER: THIS BOOK HAS NO EPUB FOR THE SITE&apos;S READER.</footer>
       ) : null}
-      {!focus && phase !== 'viewer' && phase !== 'choose' ? (
+      {!focus && phase !== 'viewer' && phase !== 'choose' && phase !== 'no-free-copy' ? (
         <footer className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-ink bg-sun-pale px-2 py-1 text-ink">
           <button type="button" onClick={() => turn('left')} disabled={!ready} className={PLATE} aria-label="Page back">
             [ ◀ ]

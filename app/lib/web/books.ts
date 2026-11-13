@@ -11,13 +11,15 @@
  * And an Internet Archive book (Luke, 2026-11-11: "options 2 for epubs and 1 for eveyrthing else"): when the item offers
  * its own EPUB to everyone (listed, not private, not the Archive's LCP lending copy), that file passes through the same way,
  * never kept; when it has none, the reader shows the Archive's own viewer instead (`archive.org/embed/<id>`, played from
- * the Archive). Lending-library items are never opened: MEDIA leaves them out and the metadata is checked again here.
+ * the Archive). Luke widened this on 2026-11-13 ("any book can be read in the ereader"): a lending-library item is no
+ * longer refused outright; its EPUB and PDF stay out (we never pass a lent file through our server), but the reader is
+ * told to show the Archive's own viewer, which carries the Archive's borrow flow with nothing passing through us.
  *
  * The details for a book's page: Open Library's search answer for one work, LibriVox's for one book, or the Archive's
  * metadata for one item: title, authors, year, cover, and whether the reader can open it. No counts or ratings are asked for.
  */
 import { bookParts } from './search/providers/books';
-import { readEdition, readWorkRow } from './book-editions';
+import { readEdition, readWorkRow, resolveWorkCopy } from './book-editions';
 import { AUDIOBOOKS_SEARCH_HOSTS, toAudiobookItem } from './search/providers/audiobooks';
 import { toWebItem as toArchiveItem, IA_ALLOWED_HOSTS } from './adapters/internet-archive';
 import { SafeFetchError, safeFetchJson, safeFetchStream, type FetchLike } from './safe-fetch';
@@ -65,8 +67,10 @@ export function archiveBookOf(body: unknown): ArchiveBook | null {
   if (!root || root.is_dark === true || !Array.isArray(root.files)) return null;
   const metadata = root.metadata && typeof root.metadata === 'object' ? (root.metadata as Record<string, unknown>) : {};
   const flag = (value: unknown) => String(Array.isArray(value) ? value[0] : value ?? '').trim().toLowerCase();
-  if (flag(metadata['access-restricted-item']) === 'true') return null;
   if (flag(metadata.mediatype) !== 'texts') return null;
+  // A lending-library item (Luke, 2026-11-13: "any book can be read in the ereader"): no EPUB or PDF passes through our
+  // server, but the reader shows the Archive's own viewer (the stub below), which carries the Archive's borrow flow.
+  if (flag(metadata['access-restricted-item']) === 'true') return { metadata, epub: null, pdf: null, servers: [], dir: null };
   // Every file anyone may read, with a path inside the item and nothing odd in it.
   const files = root.files.flatMap((raw) => {
     const file = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : null;
@@ -157,12 +161,27 @@ export function gutenbergEpubUrls(number: string): string[] {
 export async function openBookEpub(
   ref: string,
   epubFetch: FetchLike,
-): Promise<{ body: ReadableStream<Uint8Array>; length: number | null } | { pdf: { size: number } } | 'viewer' | null> {
+): Promise<
+  | { body: ReadableStream<Uint8Array>; length: number | null }
+  | { pdf: { size: number } }
+  | 'viewer'
+  | { redirect: string }
+  | { noFreeCopy: { work: string; openLibraryUrl: string } }
+  | null
+> {
   if (!BOOK_REF.test(ref)) return null;
   if (ref.startsWith('internet_archive:')) return openArchiveEpub(ref.slice('internet_archive:'.length), epubFetch);
   if (!ref.startsWith('books:')) return null;
   const parts = bookParts(ref.slice('books:'.length));
-  if (!parts?.gutenberg) return null;
+  if (!parts) return null;
+  // A bare Open Library work ref (Luke, 2026-11-13: "any book can be read in the ereader"): resolve to the best copy and
+  // let the reader redirect to its concrete ref. If no copy is found, the reader shows a "no free copy" page with a link
+  // to Open Library inside its own frame; the browser never leaves /read on its own.
+  if (!parts.gutenberg) {
+    const resolved = await resolveWorkCopy(parts.work, epubFetch).catch(() => null);
+    if (resolved) return { redirect: resolved.ref };
+    return { noFreeCopy: { work: parts.work, openLibraryUrl: `https://openlibrary.org/works/${parts.work}` } };
+  }
   const urls = gutenbergEpubUrls(parts.gutenberg);
   let last: unknown = null;
   for (const [index, url] of urls.entries()) {

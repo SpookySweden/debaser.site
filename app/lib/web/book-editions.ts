@@ -152,6 +152,41 @@ export function ipfsCopyOf(work: string): string | null {
   return IPFS_BOOKS.find((book) => book.work === work && usableIpfsBook(book))?.cid ?? null;
 }
 
+/**
+ * The best copy of a work to open in the reader (Luke, 2026-11-13: "any book can be read in the ereader"): Project
+ * Gutenberg's copy first (its EPUB passes through our server, pictures included); then a free Archive scan; then any
+ * other scan (the reader shows the Archive's own viewer, with its borrow flow when the scan is lent); null when no
+ * edition has a copy to open. One page of editions is read (500 at a time is already the catalogue's own page), which is
+ * enough for every work checked live: Dracula's first 500 editions carry its scans. Open to visitors.
+ */
+export async function resolveWorkCopy(
+  work: string,
+  fetchImpl: FetchLike | undefined,
+  now: Date = new Date(),
+): Promise<{ ref: string } | null> {
+  if (!WORK_KEY_ID.test(work)) return null;
+  const [row, firstPage] = await Promise.all([
+    readWorkRow(work, fetchImpl, now).catch(() => null),
+    safeFetchJson(editionsUrl(work, 0), { allowedHosts: [OL_HOST], fetchImpl, maxBytes: EDITIONS_MAX_BYTES, timeoutMs: 15_000 }).catch(() => null),
+  ]);
+  const rowParts = row ? bookParts(row.externalId) : null;
+  if (rowParts?.gutenberg) return { ref: `books:${rowParts.work}-pg${rowParts.gutenberg}` };
+  const ipfs = ipfsCopyOf(work);
+  if (ipfs) return { ref: `ipfs:${ipfs}` };
+  const entries = entriesOf(firstPage).entries;
+  const parsed = entries
+    .map((entry) => parseEdition(entry, now))
+    .filter((edition): edition is NonNullable<typeof edition> => edition !== null && edition.work === work && edition.ocaid !== null);
+  if (parsed.length === 0) return null;
+  const ocaids = parsed.flatMap((edition) => (edition.ocaid ? [edition.ocaid] : []));
+  const access = await readScanAccess(ocaids, fetchImpl);
+  const free = parsed.find((edition) => edition.ocaid && access.get(edition.ocaid) === 'free');
+  if (free?.ocaid) return { ref: `internet_archive:${free.ocaid}` };
+  // No free scan read: any scan the Archive has (lent or unknown) opens through the reader's viewer branch.
+  const any = parsed.find((edition) => edition.ocaid !== null);
+  return any?.ocaid ? { ref: `internet_archive:${any.ocaid}` } : null;
+}
+
 /** The book's page's list: its editions in an order, filtered, fifty from `offset`, and the one it was opened at. */
 export async function listEditions(
   ask: { ref: string; offset: number; show: EditionsShow; order: EditionsOrder; at: string | null },

@@ -96,6 +96,10 @@ export async function GET(request: Request): Promise<Response> {
     if (opened === null) return refuse('THIS BOOK CAN\'T BE READ HERE.', 404);
     // An Internet Archive book with neither an EPUB nor a PDF: the reader shows the Archive's own viewer instead.
     if (opened === 'viewer') return answer({ error: 'NO EPUB', viewer: true }, 404);
+    // A bare Open Library work (Luke, 2026-11-13): the reader is told where its copy is, and reopens at that ref.
+    if ('redirect' in opened) return answer({ redirect: `/read/${opened.redirect}` });
+    // A work with no copy at all: the reader shows a page with the title and a link to Open Library inside its frame.
+    if ('noFreeCopy' in opened) return answer({ noFreeCopy: opened.noFreeCopy }, 404);
     // One with a PDF: the reader asks for it a slice at a time (above).
     if ('pdf' in opened) return answer({ pdf: { size: opened.pdf.size } });
     const headers: Record<string, string> = { ...NEVER_KEPT, 'Content-Type': 'application/epub+zip', 'Content-Disposition': 'inline' };

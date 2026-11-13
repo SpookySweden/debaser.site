@@ -164,11 +164,14 @@ export default function BookEditions({ bookRef, at, startShow }: { bookRef: stri
 
 const WAY_LABELS = {
   scan: '[ READ ]',
-  borrow: '[ BORROW ON ARCHIVE.ORG ↗ ]',
-  archive: '[ SCAN ON ARCHIVE.ORG ↗ ]',
+  // Luke, 2026-11-13 ("any book can be read in the ereader"): BORROW opens the Archive's own viewer inside /read, which
+  // carries the Archive's borrow flow; the ARCHIVE SCAN key works the same way for a scan the search didn't find. NO
+  // FREE COPY opens the reader on the work, which shows a link to Open Library inside its own frame.
+  borrow: '[ BORROW ]',
+  archive: '[ SCAN ON ARCHIVE ]',
   gutenberg: '[ READ GUTENBERG TEXT ]',
   ipfs: '[ READ IPFS COPY ]',
-  none: '[ OPEN LIBRARY ↗ ]',
+  none: '[ READ ]',
 } as const;
 
 function EditionRow({ edition, work, marked }: { edition: ListedEdition; work: { gutenbergRef: string | null; ipfsCid: string | null }; marked: boolean }) {
@@ -216,32 +219,26 @@ function EditionRow({ edition, work, marked }: { edition: ListedEdition; work: {
           {edition.editionName ? <p className="text-label text-ink wrap-anywhere">{edition.editionName}</p> : null}
           {facts.length > 0 ? <p className="text-label text-ink-quiet wrap-anywhere">{facts.join(' · ')}</p> : null}
           <div className="mt-1 flex flex-wrap items-center gap-1">
-            {ways.map((way) =>
-              way.kind === 'borrow' || way.kind === 'archive' || way.kind === 'none' ? (
-                <span key={way.kind} className="contents">
-                  {way.kind === 'none' ? <span className="text-label font-bold text-ink-quiet">NO FREE COPY</span> : null}
-                  <a
-                    href={way.href}
-                    target="_blank"
-                    rel="noopener noreferrer nofollow"
-                    aria-label={
-                      way.kind === 'borrow'
-                        ? `Borrow "${edition.title}" on archive.org (new tab)`
-                        : way.kind === 'archive'
-                          ? `Scan of "${edition.title}" on archive.org (new tab)`
-                          : `Open Library's page for this edition of "${edition.title}" (new tab)`
-                    }
-                    className={PLATE}
-                  >
-                    {WAY_LABELS[way.kind]}
-                  </a>
-                </span>
-              ) : (
-                <Link key={way.kind} href={way.href} className={PLATE}>
+            {ways.map((way) => (
+              <span key={way.kind} className="contents">
+                {way.kind === 'none' ? <span className="text-label font-bold text-ink-quiet">NO FREE COPY</span> : null}
+                <Link
+                  href={way.href}
+                  aria-label={
+                    way.kind === 'borrow'
+                      ? `Borrow "${edition.title}" (Archive's viewer inside the reader)`
+                      : way.kind === 'archive'
+                        ? `Scan of "${edition.title}" (Archive's viewer inside the reader)`
+                        : way.kind === 'none'
+                          ? `Open "${edition.title}" (no free copy; a link to Open Library inside the reader)`
+                          : `Read "${edition.title}"`
+                  }
+                  className={PLATE}
+                >
                   {WAY_LABELS[way.kind]}
                 </Link>
-              ),
-            )}
+              </span>
+            ))}
             {detailed ? (
               <button type="button" aria-expanded={open} aria-controls={detailsId} onClick={() => setOpen((was) => !was)} className={open ? PLATE_PRESSED : PLATE}>
                 {open ? 'DETAILS ▴' : '[ DETAILS ▾ ]'}

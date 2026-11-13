@@ -147,10 +147,14 @@ const deps = (fetch, order) => ({ fetch, now: () => new Date(NOW), order });
   const epub = fakeFetch('PK made-up bytes');
   const opened = await reading.openBookEpub('books:OL85892W-pg345', epub.fetch);
   same(await new Response(opened.body).text(), 'PK made-up bytes', 'the file is passed through as it came');
-  same(await reading.openBookEpub('books:OL85892W', epub.fetch), null, 'a book with no Gutenberg copy has no file here');
+  // Luke, 2026-11-13 ("any book can be read in the ereader"): a bare work ref is no longer null — the route resolves to
+  // a copy, or answers `noFreeCopy` when none is found (so the reader shows a link to Open Library inside its frame).
+  const bareWork = await reading.openBookEpub('books:OL85892W', epub.fetch);
+  same(bareWork, { noFreeCopy: { work: 'OL85892W', openLibraryUrl: 'https://openlibrary.org/works/OL85892W' } }, 'a bare work ref with no copy answers noFreeCopy');
   same(await reading.openBookEpub('audiobooks:271', epub.fetch), null, 'nor does an audiobook');
   same(await reading.openBookEpub('books:OL1W-pg1/../../x', epub.fetch), null, 'a bad ref is refused');
-  same(epub.urls.length, 1, 'only the one good ref fetched anything');
+  // Fetches: Gutenberg's EPUB once, Open Library's work row and the first editions page for the bare-work resolver.
+  ok(epub.urls.length === 3 && epub.urls[0].startsWith('https://www.gutenberg.org/') && epub.urls.slice(1).every((url) => url.startsWith('https://openlibrary.org/')), 'the Gutenberg ref fetches Gutenberg; the bare work fetches Open Library only');
   const feed = `<?xml version="1.0"?><rss><channel><title>A Book</title><item><title>Chapter 1</title><enclosure url="https://www.archive.org/download/a_book/ch1.mp3" type="audio/mpeg"/><itunes:duration>10:00</itunes:duration></item><item><title>Elsewhere</title><enclosure url="https://evil.example/ch2.mp3" type="audio/mpeg"/></item></channel></rss>`;
   const parsed = files.parseLibrivoxFeed(feed);
   same(parsed.files.length, 1, 'a chapter off archive.org is left out');

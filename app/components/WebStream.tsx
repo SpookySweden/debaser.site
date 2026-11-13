@@ -1312,11 +1312,11 @@ export function WebRow({
   const source = PLATFORM_LABELS[item.platform];
   const addresses = rowAddresses(item, extraHosts);
   const { link, embed, licence } = addresses;
-  // A book the site's reader opens: a Gutenberg book from BOOKS, any Internet Archive book, or a book on IPFS (Luke, 2026-11-11).
+  // A book the site's reader opens (Luke, 2026-11-13: "any book can be read in the ereader"): every Open Library work,
+  // every Internet Archive text (free, lent or unknown), and every book on IPFS. The reader resolves a bare OL work ref
+  // to its best copy server-side, opens the Archive's viewer for lent items, and shows a "no free copy" page inside its
+  // own frame when nothing opens.
   const readable = (item.platform === 'books' || item.platform === 'ipfs' || (item.platform === 'internet_archive' && item.kind === 'text')) && isReadable(item.id);
-  // A book with no Gutenberg copy but a free scan of one of its editions (SPEC-book-editions.md): READ opens its page at the
-  // editions the reader opens. Its EDITIONS key opens the page, at the edition an ISBN search found when there is one.
-  const readsOnPage = item.platform === 'books' && !readable && item.book?.scan === true;
   const bookPage = item.platform === 'books' && item.book?.edition ? `/media/book/edition:${item.book.edition}` : `/media/book/${item.id}`;
   const thumb = thumbFailed ? null : addresses.thumb;
   const inBar = playsInBar(item);
@@ -1445,10 +1445,6 @@ ${item.description}` : item.title)} className="ml-1.5" />
                 Archive's own viewer on that page). */}
             {readable ? (
               <Link href={`/read/${item.id}`} onClick={opened} className={PLATE}>
-                [ READ ]
-              </Link>
-            ) : readsOnPage ? (
-              <Link href={`${bookPage}?show=readable`} onClick={opened} aria-label={`Read "${item.title}": its editions that open here`} className={PLATE}>
                 [ READ ]
               </Link>
             ) : null}

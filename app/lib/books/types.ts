@@ -155,12 +155,15 @@ const BOOK_ITEM = /^(books:OL[1-9][0-9]{0,11}W(?:-pg[1-9][0-9]{0,6})?|internet_a
 const ARCHIVE_BOOK = /^internet_archive:([A-Za-z0-9][A-Za-z0-9._-]{0,100})$/;
 
 /**
- * A book the reader can open: a Gutenberg one (its MEDIA ref carries a Gutenberg number), an Internet Archive book
- * (Luke, 2026-11-11), read in the site's reader when it has its own EPUB and in the Archive's viewer when it hasn't, or a
- * book on IPFS by its CID (`ipfs:<CID>`, Luke 2026-11-11), fetched by the reader's own browser from a gateway (`ipfs.ts`).
+ * A book the reader can open (Luke, 2026-11-13: "any book can be read in the ereader"): an Open Library work by its key
+ * (`books:OL85892W`, resolved server-side to a Gutenberg copy, a free Archive scan, a lending-library scan opened in the
+ * Archive's viewer, or a "no free copy" page with a link to Open Library); a Gutenberg copy named directly (its ref
+ * carries a Gutenberg number); an Internet Archive book, read in the site's reader when it has its own EPUB and in the
+ * Archive's viewer when it hasn't or is a lending-library copy; a book on IPFS by its CID (`ipfs:<CID>`), fetched by the
+ * reader's own browser from a gateway (`ipfs.ts`).
  */
 export function isReadable(bookRef: string): boolean {
-  return /^books:OL[1-9][0-9]{0,11}W-pg[1-9][0-9]{0,6}$/.test(bookRef) || ARCHIVE_BOOK.test(bookRef) || ipfsCid(bookRef) !== null;
+  return /^books:OL[1-9][0-9]{0,11}W(?:-pg[1-9][0-9]{0,6})?$/.test(bookRef) || ARCHIVE_BOOK.test(bookRef) || ipfsCid(bookRef) !== null;
 }
 
 /** An Internet Archive book's identifier, or null for any other ref. */
