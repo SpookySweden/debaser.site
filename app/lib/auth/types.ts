@@ -72,6 +72,9 @@ export type AuthSuccess = {
 
 export type AuthResult = AuthSuccess | AuthFailure;
 
+/** A signed-in account's Google link: whether one is linked, its address, and whether it may be unlinked. */
+export type GoogleLink = { linked: boolean; email: string | null; canUnlink: boolean };
+
 export type AuthRepository = {
   readonly backend: AuthBackend;
   /** True when the backend emails a confirmation link before allowing sign-in. */
@@ -110,6 +113,15 @@ export type AuthRepository = {
   signInWithGoogle?(): Promise<AuthResult>;
   /** Asks Google for leave to read this person's YouTube subscriptions and likes (lib/web/youtube-link.ts). */
   linkYouTube?(): Promise<AuthResult>;
+  /**
+   * The Google account linked to this one (Luke, 2026-11-13): its address, and whether it may be unlinked (only while
+   * another way in, an email and password, remains). Null when nobody is signed in.
+   */
+  googleLink?(): Promise<GoogleLink | null>;
+  /** Links a Google account to the signed-in one: leaves the page for Google and comes back to /account. */
+  linkGoogle?(): Promise<AuthResult>;
+  /** Unlinks it again, while another way in remains. */
+  unlinkGoogle?(): Promise<AuthResult>;
   /**
    * The accounts this browser can see, which is what the comms "new message"
    * picker offers. Supabase answers with `select id, display_name from profiles`

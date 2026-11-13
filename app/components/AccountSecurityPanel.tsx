@@ -5,6 +5,7 @@ import { hasErrors, validateEmailChange, validatePasswordChange } from '../lib/a
 import type { CredentialErrors } from '../lib/auth/validation';
 import { getProfileRepository } from '../lib/profile/repository';
 import { FIELD, PLATE_LARGE } from '../lib/ui/controls';
+import AccountGoogleLink from './AccountGoogleLink';
 import { useAuth } from './AuthProvider';
 
 const NOTE = 'text-label font-bold text-ink';
@@ -244,6 +245,9 @@ export default function AccountSecurityPanel() {
             {passwordState.message === null ? null : <p className={NOTE}>{passwordState.message}</p>}
           </div>
         </div>
+
+        {/* A Google account linked to this one (Luke, 2026-11-13). */}
+        <AccountGoogleLink />
       </div>
     </section>
   );

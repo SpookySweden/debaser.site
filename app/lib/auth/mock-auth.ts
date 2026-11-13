@@ -11,6 +11,7 @@ import type {
   AccountUser,
   AuthRepository,
   AuthResult,
+  GoogleLink,
   SignInInput,
   SignUpInput,
   UpdateEmailInput,
@@ -336,6 +337,19 @@ class MockAuthRepository implements AuthRepository {
 
   async signInWithGoogle(): Promise<AuthResult> {
     return { ok: false, error: GOOGLE_NEEDS_SUPABASE };
+  }
+
+  /** The mock accounts live in this browser, so there is never a Google account linked to one. */
+  async googleLink(): Promise<GoogleLink | null> {
+    return { linked: false, email: null, canUnlink: false };
+  }
+
+  async linkGoogle(): Promise<AuthResult> {
+    return { ok: false, error: GOOGLE_NEEDS_SUPABASE };
+  }
+
+  async unlinkGoogle(): Promise<AuthResult> {
+    return { ok: false, error: 'NO GOOGLE ACCOUNT IS LINKED.' };
   }
 
   async updateEmail(input: UpdateEmailInput): Promise<AuthResult> {

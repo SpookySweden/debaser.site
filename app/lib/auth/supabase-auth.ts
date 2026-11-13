@@ -7,6 +7,7 @@ import type {
   AccountUser,
   AuthRepository,
   AuthResult,
+  GoogleLink,
   SignInInput,
   SignUpInput,
   UpdateEmailInput,
@@ -192,6 +193,46 @@ class SupabaseAuthRepository implements AuthRepository {
       ? await auth.signInWithOAuth({ provider: 'google', options })
       : await auth.linkIdentity({ provider: 'google', options });
     if (error !== null) return { ok: false, error: error.message.toUpperCase() };
+    return { ok: true, user: null };
+  }
+
+  async googleLink(): Promise<GoogleLink | null> {
+    const { data, error } = await this.client().auth.getUser();
+    if (error !== null || !data.user) return null;
+    const identities = data.user.identities ?? [];
+    const google = identities.find((identity) => identity.provider === 'google');
+    const email = typeof google?.identity_data?.email === 'string' ? google.identity_data.email : null;
+    // Supabase refuses to unlink the last way in, so the key is only offered while another one remains.
+    return { linked: google !== undefined, email, canUnlink: google !== undefined && identities.length > 1 };
+  }
+
+  /**
+   * Links a Google account to this one (Luke, 2026-11-13). Needs, in the Supabase dashboard, the Google provider on and
+   * "Allow manual linking" on (Authentication -> Sign In / Providers); without them Supabase's refusal is shown as it is.
+   */
+  async linkGoogle(): Promise<AuthResult> {
+    const auth = this.client().auth;
+    const { data } = await auth.getUser();
+    if (!data.user) return { ok: false, error: 'SIGN IN FIRST.' };
+    const { error } = await auth.linkIdentity({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/account`, queryParams: { prompt: 'select_account' } },
+    });
+    if (error !== null) return { ok: false, error: error.message.toUpperCase() };
+    // ok with no user yet: the browser is on its way to Google, and comes back to /account linked.
+    return { ok: true, user: null };
+  }
+
+  async unlinkGoogle(): Promise<AuthResult> {
+    const auth = this.client().auth;
+    const { data, error } = await auth.getUserIdentities();
+    if (error !== null) return { ok: false, error: error.message.toUpperCase() };
+    const identities = data?.identities ?? [];
+    const google = identities.find((identity) => identity.provider === 'google');
+    if (!google) return { ok: false, error: 'NO GOOGLE ACCOUNT IS LINKED.' };
+    if (identities.length < 2) return { ok: false, error: 'GOOGLE IS YOUR ONLY WAY IN: ADD AN EMAIL AND PASSWORD FIRST.' };
+    const unlinked = await auth.unlinkIdentity(google);
+    if (unlinked.error !== null) return { ok: false, error: unlinked.error.message.toUpperCase() };
     return { ok: true, user: null };
   }
 
