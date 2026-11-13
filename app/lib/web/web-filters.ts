@@ -78,12 +78,15 @@ export const SOURCE_OPTIONS: readonly { value: SourceValue; label: string }[] = 
     .map((platform) => ({ value: platform, label: PLATFORM_LABELS[platform] })),
 ];
 
+// Luke, 2026-11-13 ("book search is included under 'what kind' rather than 'where from'"): the TEXT kind is relabelled
+// BOOK since books are what the TEXT filter actually means on this site; its internal value stays `text` so saved
+// addresses don't break. The BOOKS group under WHERE FROM is dropped in SOURCE_GROUP_OF below.
 export const TYPE_OPTIONS: readonly { value: TypeValue; label: string }[] = [
   { value: 'all', label: 'ALL' },
   { value: 'video', label: 'VIDEO' },
   { value: 'audio', label: 'AUDIO' },
   { value: 'image', label: 'IMAGE' },
-  { value: 'text', label: 'TEXT' },
+  { value: 'text', label: 'BOOK' },
 ];
 
 /** Short words people will type, beside each platform's own (`in:archive`, `in:commons`). */
@@ -281,10 +284,10 @@ const SOURCE_GROUP_OF: Readonly<Partial<Record<WebPlatform, string>>> = {
   audiobooks: 'SOUND',
   openverse: 'PICTURES',
   wikimedia_commons: 'PICTURES',
-  books: 'BOOKS',
-  ipfs: 'BOOKS',
+  // Luke, 2026-11-13: the BOOKS group moved to WHAT KIND (BOOK). `books`, `ipfs` and the new `shadow` platform fall into
+  // OTHER here — the reader picks WHAT KIND = BOOK to filter to books instead of SOURCE = BOOKS.
 };
-const SOURCE_GROUP_ORDER = ['FILMS AND VIDEO', 'SOUND', 'PICTURES', 'BOOKS', 'ARCHIVES (EVERY KIND)', 'OTHER'];
+const SOURCE_GROUP_ORDER = ['FILMS AND VIDEO', 'SOUND', 'PICTURES', 'ARCHIVES (EVERY KIND)', 'OTHER'];
 
 export function sourceGroups(): { heading: string; options: { value: SourceValue; label: string }[] }[] {
   const groups = new Map<string, { value: SourceValue; label: string }[]>();

@@ -30,8 +30,10 @@ const shadowFetch: FetchLike = (input, init) =>
 
 /** LibGen's JSON-API mirrors, tried in order. Most are blocked from Vercel's egress, so Anna's Archive is the primary. */
 export const LIBGEN_JSON_HOSTS = ['libgen.is', 'libgen.rs', 'libgen.st', 'libgen.li', 'libgen.lc'] as const;
-/** Anna's Archive's search page host; its HTML is scanned with one regex for the first `/md5/<hash>` link. */
-export const ANNAS_HOST = 'annas-archive.org';
+/** Anna's Archive's hosts (and mirrors), tried in order. Vercel's DNS refuses to resolve annas-archive.org, so mirrors matter. */
+export const ANNAS_HOSTS = ['annas-archive.org', 'annas-archive.se', 'annas-archive.li'] as const;
+/** Kept for the existing openShadowBook fallback — first reachable mirror wins. */
+export const ANNAS_HOST = ANNAS_HOSTS[0];
 /** Where a file is asked for. One host, so the allow-list stays small; the redirect allow-list catches the actual file host. */
 export const LIBGEN_PAGE_HOST = 'library.lol';
 /** Hosts a file download may be served from, as library.lol's redirect takes us through. Narrow on purpose. */
@@ -202,27 +204,32 @@ async function findOnAnnas(
   trace: ShadowTrace,
 ): Promise<ShadowCopy | null> {
   const query = author ? `${title} ${author}` : title;
-  for (const extension of ['epub', 'pdf'] as const) {
-    const url = annasSearchUrl(query, extension);
-    let html = '';
-    try {
-      html = await safeFetchText(url, {
-        allowedHosts: [ANNAS_HOST],
-        fetchImpl,
-        maxBytes: 2 * 1024 * 1024,
-        timeoutMs: 15_000,
-        accept: 'text/html,application/xhtml+xml',
-        userAgent: 'Mozilla/5.0 DebaserSiteWEB/1.0 (+https://debaser.site)',
-      });
-    } catch (error) {
-      trace.push({ host: ANNAS_HOST, status: 'failed', note: `${extension}: ${(error as Error).message}` });
-      continue;
+  for (const host of ANNAS_HOSTS) {
+    for (const extension of ['epub', 'pdf'] as const) {
+      const url = buildUrl(host, ['search'], [
+        ['q', query],
+        ['ext', extension],
+        ['lang', 'en'],
+        ['sort', ''],
+      ]);
+      let html = '';
+      try {
+        html = await safeFetchText(url, {
+          allowedHosts: [host],
+          fetchImpl,
+          maxBytes: 2 * 1024 * 1024,
+          timeoutMs: 15_000,
+          accept: 'text/html,application/xhtml+xml',
+          userAgent: 'Mozilla/5.0 DebaserSiteWEB/1.0 (+https://debaser.site)',
+        });
+      } catch (error) {
+        trace.push({ host, status: 'failed', note: `${extension}: ${(error as Error).message}` });
+        continue;
+      }
+      const md5 = extractAnnasMd5(html, title);
+      if (md5) return { md5, extension, filesize: 0, title, author, year: '', language: 'en' };
+      trace.push({ host, status: 'no-match', note: `${extension}: no /md5/ link in ${html.length}B of HTML` });
     }
-    const md5 = extractAnnasMd5(html, title);
-    if (md5) return { md5, extension, filesize: 0, title, author, year: '', language: 'en' };
-    // No md5 in the HTML: report page size as a clue (a Cloudflare challenge is a small page, a real empty-results page is bigger).
-    const bodyBytes = html.length;
-    trace.push({ host: ANNAS_HOST, status: 'no-match', note: `${extension}: no /md5/ link in ${bodyBytes}B of HTML` });
   }
   return null;
 }
