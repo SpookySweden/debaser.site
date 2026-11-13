@@ -115,7 +115,14 @@ export async function GET(request: Request): Promise<Response> {
     if (opened.length !== null) headers['Content-Length'] = String(opened.length);
     return new Response(opened.body, { status: 200, headers });
   } catch (error) {
-    if (error instanceof SafeFetchError) return refuse(ref.startsWith('internet_archive:') ? 'THE INTERNET ARCHIVE DID NOT ANSWER.' : 'PROJECT GUTENBERG DID NOT ANSWER.', 502);
+    if (error instanceof SafeFetchError) {
+      const source = ref.startsWith('internet_archive:')
+        ? 'THE INTERNET ARCHIVE'
+        : ref.startsWith('shadow:')
+          ? 'THE SHADOW MIRROR'
+          : 'PROJECT GUTENBERG';
+      return refuse(`${source} DID NOT ANSWER.`, 502);
+    }
     return refuse('THIS BOOK CAN\'T BE READ HERE.', 404);
   }
 }
