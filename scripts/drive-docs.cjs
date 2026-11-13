@@ -203,7 +203,7 @@ async function seesOthers(page, otherName, otherPage, label) {
     await sleep(300);
     await pageA.getByRole('button', { name: '[ COMMENT ON THIS ]' }).click();
     await pageA.locator('#doc-comment-new').fill('Is it really glass?');
-    await pageA.getByRole('button', { name: '[ COMMENT ]', exact: true }).click();
+    await pageA.getByRole('button', { name: '[ ADD COMMENT ]' }).click();
     await pageA.waitForSelector('.doc-commented', { timeout: 10000 });
     await editorOf(pageB).click();
     await pageB.keyboard.press('Control+Home');
@@ -217,7 +217,12 @@ async function seesOthers(page, otherName, otherPage, label) {
 
     // A picture.
     await pageA.locator('input[type="file"][aria-label="Picture to add"]').setInputFiles({ name: 'drive.png', mimeType: 'image/png', buffer: testPng() });
-    await pageA.waitForSelector('img.doc-picture', { timeout: 20000 });
+    await pageA.waitForSelector('img.doc-picture', { timeout: 20000 }).catch(async (error) => {
+      const said = await pageA.evaluate(() => [...document.querySelectorAll('.bg-bubble-pale')].map((el) => el.textContent).join(' | '));
+      const refused = await pageA.locator('.doc-picture-refused').count();
+      console.log(`  picture not shown: "${said}", refused lines: ${refused}`);
+      throw error;
+    });
     await pageB.waitForSelector('img.doc-picture', { timeout: 20000 });
     const src = await pageB.locator('img.doc-picture').first().getAttribute('src');
     assert.match(src, /\/storage\/v1\/object\/public\/doc-pictures\//);

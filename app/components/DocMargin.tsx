@@ -259,7 +259,7 @@ export default function DocMargin({ editor, docId, viewer, role, draft, onDraftD
             />
             <div className="mt-1 flex flex-wrap gap-2">
               <button type="button" className={PLATE_MAIN} disabled={busy || body.trim().length === 0} onClick={() => void leave()}>
-                [ COMMENT ]
+                [ ADD COMMENT ]
               </button>
               <button type="button" className={PLATE} onClick={onDraftDone}>
                 [ CANCEL ]
