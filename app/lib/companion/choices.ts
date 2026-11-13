@@ -7,8 +7,8 @@
 
 export type CompanionChoices = {
   /**
-   * On a computer. Null is the default: on once you have a SHOWN character (SPEC-profile-characters.md), and off until
-   * that is built, so nobody gets an empty placeholder walking about without asking for it.
+   * On a computer. Null is the default: on when you have a SHOWN character (SPEC-profile-characters.md), off when you
+   * have none, so nobody gets an empty placeholder walking about without asking for it.
    */
   computer: boolean | null;
   /** On a phone or tablet: off unless you turn it on there. */

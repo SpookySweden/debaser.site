@@ -26,6 +26,8 @@ stub('components/MusicPlayerProvider.js', { useMusicPlayer: () => ({ playing: fa
 stub('components/NotificationsProvider.js', { useNotifications: () => ({ items: [], ready: true }) });
 stub('components/CommsProvider.js', { useComms: () => ({ ready: true, userId: user?.id ?? null, threads: [] }) });
 stub('components/PresenceProvider.js', { usePresenceDirectory: () => ({ live: {}, selfId: user?.id ?? null }) });
+// The SHOWN character: still being read on the first paint.
+stub('lib/character/use-shown-character.js', { useShownCharacter: () => undefined });
 
 const Companion = require('./companion-render/components/Companion.js').default;
 const CompanionReactions = require('./companion-render/components/CompanionReactions.js').default;
@@ -45,7 +47,7 @@ ok('signed out: no companion and no COMPANION row', () => {
   assert.equal(draw(CompanionPreferences), '');
 });
 
-ok('signed in, first paint: still nothing until the device and the motion setting are read in the browser', () => {
+ok('signed in, first paint: still nothing until the device, the motion setting and the SHOWN character are read in the browser', () => {
   user = { id: 'u-1', displayName: 'TEST' };
   assert.equal(draw(Companion), '', 'no strip on a guess');
   assert.equal(draw(CompanionPreferences), '', 'no row until it knows which switch (phone or computer) it is');

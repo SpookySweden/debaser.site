@@ -8,6 +8,7 @@ import {
   setCompanionChoices,
   subscribeToCompanionChoices,
 } from '../lib/companion/companion-slot';
+import { useShownCharacter } from '../lib/character/use-shown-character';
 import { usePhone } from '../lib/companion/use-phone';
 import { TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
@@ -38,12 +39,12 @@ export default function CompanionPreferences() {
   const { user } = useAuth();
   const choices = useSyncExternalStore(subscribeToCompanionChoices, companionChoicesState, serverCompanionChoices);
   const phone = usePhone();
+  // A SHOWN character makes the companion on by default on a computer.
+  const shown = useShownCharacter(user?.id ?? null);
 
-  if (user === null || phone === null) return null;
+  if (user === null || phone === null || shown === undefined) return null;
 
-  // TODO(SPEC-profile-characters.md): whether the account has a SHOWN character, which makes "on" the default.
-  const hasShown = false;
-  const on = companionOut(choices, { signedIn: true, phone, hasShown });
+  const on = companionOut(choices, { signedIn: true, phone, hasShown: shown !== null });
   const where = phone ? 'ON THIS PHONE' : 'ON A COMPUTER';
 
   return (

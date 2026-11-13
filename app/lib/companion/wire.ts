@@ -33,8 +33,8 @@ export type CompanionWire = {
   /** The latest reaction's kind, read with `r`. */
   k: CompanionReaction | null;
   /**
-   * Which baked picture strip it wears: the owner's character, once SPEC-profile-characters.md is live. Null is the
-   * placeholder field.
+   * Which baked strip it wears: when its owner's SHOWN character was baked (SPEC-profile-characters.md), so a viewer
+   * reads it again when it changes. Null is the placeholder field (no SHOWN character).
    */
   c: string | null;
 };
@@ -43,6 +43,8 @@ export type CompanionWire = {
 export type RoomCompanion = {
   /** The tab's presence key: one account in two tabs is two companions, as it is two members. */
   key: string;
+  /** Its owner's account: viewers read that account's SHOWN character to draw it (anyone may). */
+  userId: string;
   name: string;
   joinedAt: number;
   wire: CompanionWire;
@@ -103,7 +105,7 @@ export function setRoomCompanions(next: readonly RoomCompanion[]): void {
   const now = roomSlot.state();
   const same =
     now.length === next.length &&
-    now.every((one, i) => one.key === next[i].key && one.name === next[i].name && sameWire(one.wire, next[i].wire));
+    now.every((one, i) => one.key === next[i].key && one.userId === next[i].userId && one.name === next[i].name && sameWire(one.wire, next[i].wire));
   if (same) return;
   roomSlot.set(next.length === 0 ? EMPTY : next);
 }

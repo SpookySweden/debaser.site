@@ -174,10 +174,13 @@ ok('the wiring: the room presence carries it, no new channel, clicks pass throug
   assert.match(strip, /pointer-events-none fixed inset-0 z-40/, 'the strip layer takes no clicks');
   assert.match(strip, /group pointer-events-auto/, 'only the figure does');
   assert.match(read('app/lib/companion/use-phone.ts'), /prefers-reduced-motion: reduce/, 'reduced motion is read');
-  assert.match(strip, /if \(phone === null \|\| still === null\) return null;/, 'nothing is drawn on a guess before the device and motion setting are read');
+  assert.match(strip, /if \(phone === null \|\| still === null \|\| shown === undefined\) return null;/, 'nothing is drawn on a guess before the device, the motion setting and the SHOWN character are read');
+  assert.match(strip, /hasShown: shown !== null/, 'a SHOWN character makes it on by default');
+  assert.match(strip, /useShownCharacter\(companion\.wire\.c === null \? null : companion\.userId\)/, "room companions wear their owner's SHOWN character");
   assert.match(strip, /if \(still\) \{\s*brain = \{ mood: 'stand'/, 'and stands it still in one frame');
   assert.doesNotMatch(strip, /requestAnimationFrame/, 'stepped frames on a ten-a-second clock, not a smooth loop');
-  assert.match(strip, /data-companion-figure="placeholder"/, 'a placeholder field until the baked strips are wired; no drawn stand-in');
+  assert.match(strip, /data-companion-figure="placeholder"/, 'a placeholder field when there is no SHOWN character; no drawn stand-in');
+  assert.match(strip, /data-companion-figure="character"/, "the SHOWN character's baked strip otherwise");
   assert.doesNotMatch(strip, /<svg|<canvas/, 'the code never draws a character');
 
   for (const file of ['app/components/MusicPlayer.tsx', 'app/components/WatchWindow.tsx']) {

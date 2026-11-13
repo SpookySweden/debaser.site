@@ -1,6 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { DANCES, type MotionId } from '../lib/character/motion';
+import { cellAt, type CharacterSheet } from '../lib/character/sheet';
+import { useShownCharacter } from '../lib/character/use-shown-character';
 import { spanFor, startBrain, think, type BrainState, type Span } from '../lib/companion/brain';
 import { companionOut } from '../lib/companion/choices';
 import {
@@ -37,18 +40,21 @@ import { useMusicPlayer } from './MusicPlayerProvider';
  * over its head for a reply, a message or someone coming online). In a stream or music room everyone's companions
  * share the strip, each with its owner's name on hover; outside rooms only you see yours.
  *
- * Every frame is a write to `transform` through a ref, ten a second in whole steps (the site's no-easing rule), so
- * nothing re-renders as it walks. Clicks pass straight through everything but the figure itself. Under reduced motion
- * it stands still in one frame.
+ * It wears its owner's SHOWN character (Luke, 2026-11-13: "Only the shown one"): the picture strip the owner's browser
+ * baked from their own hand-built character (SPEC-profile-characters.md, `bake.ts`), played a cell at a time from the
+ * strip's own motions (walk, idle, sit, sleep, the dances, hop). With no SHOWN character it is a placeholder field.
+ * The code never draws a character.
  *
- * The figure is a placeholder field for now: it will wear the owner's SHOWN character's baked picture strip once
- * SPEC-profile-characters.md is live (`CompanionWire.c` carries which strip). The code never draws a character.
+ * Every frame is a write to the figure's style through a ref, ten a second in whole steps (the site's no-easing rule),
+ * so nothing re-renders as it walks. Clicks pass straight through everything but the figure itself. Under reduced
+ * motion it stands still in one frame.
  */
 
-/** The figure's box, in CSS pixels. The baked strips will be drawn to it. */
-export const COMPANION_W = 32;
-export const COMPANION_H = 32;
-/** One frame: ten a second. */
+/** The placeholder's box, in CSS pixels, when there is no SHOWN character to wear. */
+const PLACEHOLDER = { w: 32, h: 32 } as const;
+/** Screen pixels per strip pixel: a whole number, so every block of the character is the same size. */
+const SCALE = 2;
+/** One frame: ten a second, as the strips are baked (`sheet.fps`). */
 const TICK_MS = 100;
 /** Pixels a frame, walking and chasing. */
 const WALK_STEP = 3;
@@ -59,8 +65,37 @@ const NEAR_PX = 120;
 const CHASE_SAY_MS = 2_000;
 /** How long the `!` stays up. */
 const MARK_MS = 1_600;
-/** The hop: how high the figure is on each frame, then back down. */
+/** The placeholder's hop: how high it is on each frame, then back down. A character plays its own `hop`. */
 const HOP = [-4, -8, -10, -8, -4, 0];
+
+/** What a figure wears: a SHOWN character's baked strip, or nothing (the placeholder field). */
+type Look = { stripUrl: string; sheet: CharacterSheet } | null;
+
+type Size = { w: number; h: number };
+
+/** The box: a cell of the strip, cut at the feet (the spare row under them is margin), or the placeholder's. */
+function sizeOf(look: Look): Size {
+  return look === null ? PLACEHOLDER : { w: look.sheet.cell.w * SCALE, h: look.sheet.floor * SCALE };
+}
+
+/** Which of the strip's motions a mood plays. */
+function motionFor(mood: CompanionMood, dance: MotionId): MotionId {
+  switch (mood) {
+    case 'walk':
+    case 'chase':
+      return 'walk';
+    case 'sit':
+      return 'sit';
+    case 'sleep':
+      return 'sleep';
+    case 'dance':
+      return dance;
+    default:
+      return 'idle';
+  }
+}
+
+const pickDance = (): MotionId => DANCES[Math.floor(Math.random() * DANCES.length)] ?? 'dance1';
 
 /** Whether the music bar is playing, without re-rendering the strip on every tick of the track's clock. */
 function MusicWatch({ onChange }: { onChange: (playing: boolean) => void }) {
@@ -69,22 +104,31 @@ function MusicWatch({ onChange }: { onChange: (playing: boolean) => void }) {
   return null;
 }
 
-/** The floor, measured at most once a second (and at once when the screen changes size), shared by every figure. */
-let floorCache: { at: number; w: number; h: number; floor: Floor } | null = null;
-function floorNow(): Floor {
+/** The floor, measured at most once a second (and at once when the screen changes size), shared by figures of a size. */
+const floorCache = new Map<string, { at: number; w: number; h: number; floor: Floor }>();
+function floorNow(size: Size): Floor {
   const now = Date.now();
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-  if (floorCache === null || now - floorCache.at > 1_000 || floorCache.w !== w || floorCache.h !== h) {
-    floorCache = { at: now, w, h, floor: measureFloor(COMPANION_W, COMPANION_H) };
+  const key = `${size.w}x${size.h}`;
+  const held = floorCache.get(key);
+  if (held === undefined || now - held.at > 1_000 || held.w !== window.innerWidth || held.h !== window.innerHeight) {
+    const floor = measureFloor(size.w, size.h);
+    floorCache.set(key, { at: now, w: window.innerWidth, h: window.innerHeight, floor });
+    return floor;
   }
-  return floorCache.floor;
+  return held.floor;
 }
 
-function draw(place: HTMLDivElement | null, body: HTMLSpanElement | null, x: number, floorY: number, lift: number, facing: 1 | -1, mood: CompanionMood) {
+/** Places the figure and paints its body: a cell of the strip (mirrored when it faces left), or the placeholder. */
+function draw(
+  place: HTMLDivElement | null,
+  body: HTMLSpanElement | null,
+  look: Look,
+  frame: { x: number; floorY: number; facing: 1 | -1; mood: CompanionMood; motion: MotionId; tick: number; lift: number },
+) {
+  const size = sizeOf(look);
   if (place !== null) {
     // Its name opens toward the middle of the screen, so it is never cut off at either edge.
-    const side = x > window.innerWidth / 2 ? 'right' : 'left';
+    const side = frame.x > window.innerWidth / 2 ? 'right' : 'left';
     if (place.dataset.side !== side) {
       place.dataset.side = side;
       const tag = place.querySelector<HTMLElement>('[data-companion-name]');
@@ -93,13 +137,26 @@ function draw(place: HTMLDivElement | null, body: HTMLSpanElement | null, x: num
         tag.style.right = side === 'right' ? '0' : 'auto';
       }
     }
-    place.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(floorY - COMPANION_H)}px, 0)`;
+    place.style.transform = `translate3d(${Math.round(frame.x)}px, ${Math.round(frame.floorY - size.h)}px, 0)`;
     place.style.visibility = 'visible';
-    if (place.dataset.mood !== mood) place.dataset.mood = mood;
-    const face = facing === 1 ? 'right' : 'left';
+    if (place.dataset.mood !== frame.mood) place.dataset.mood = frame.mood;
+    if (place.dataset.motion !== frame.motion) place.dataset.motion = frame.motion;
+    const face = frame.facing === 1 ? 'right' : 'left';
     if (place.dataset.facing !== face) place.dataset.facing = face;
   }
-  if (body !== null) body.style.transform = lift === 0 ? '' : `translateY(${lift}px)`;
+  if (body === null) return;
+  if (look === null) {
+    body.style.transform = frame.lift === 0 ? '' : `translateY(${frame.lift}px)`;
+    return;
+  }
+  // The same arithmetic as CharacterSprite.tsx, written straight to the style so a frame re-renders nothing.
+  const { sheet } = look;
+  const playing = sheet.motions[frame.motion];
+  const count = playing.ticks.length;
+  const index = playing.ticks[playing.loop ? ((frame.tick % count) + count) % count : Math.min(Math.max(0, frame.tick), count - 1)];
+  const at = cellAt(sheet, index);
+  body.style.backgroundPosition = `${-at.x * SCALE}px ${-at.y * SCALE}px`;
+  body.style.transform = frame.facing < 0 && playing.facing === 'side' ? 'scaleX(-1)' : '';
 }
 
 function hide(place: HTMLDivElement | null) {
@@ -122,17 +179,22 @@ type FigureProps = {
   markRef: React.RefObject<HTMLSpanElement | null>;
   label: string;
   own: boolean;
+  look: Look;
 };
 
-/** One figure on the strip: the placeholder field, its name on hover, and the `!` over its head. */
-function Figure({ placeRef, bodyRef, markRef, label, own }: FigureProps) {
+/** One figure on the strip: the character (or the placeholder field), its name on hover, and the `!` over its head. */
+function Figure({ placeRef, bodyRef, markRef, label, own, look }: FigureProps) {
+  const size = sizeOf(look);
+  const rows = look === null ? 0 : Math.ceil(look.sheet.cells / look.sheet.columns);
+  // The `!` sits just over the head (`sheet.head`), not over the box's empty top.
+  const markBottom = look === null ? undefined : size.h - look.sheet.head * SCALE + 2;
   return (
     <div
       ref={placeRef}
       role="img"
       aria-label={own ? 'Your companion' : `${label}'s companion`}
-      className="group pointer-events-auto invisible absolute left-0 top-0"
-      style={{ width: COMPANION_W, height: COMPANION_H }}
+      className="group pointer-events-auto invisible absolute left-0 top-0 overflow-visible"
+      style={{ width: size.w, height: size.h }}
       data-companion={own ? 'own' : 'room'}
       data-mood="stand"
       data-facing="right"
@@ -147,20 +209,36 @@ function Figure({ placeRef, bodyRef, markRef, label, own }: FigureProps) {
       {/* The `!`: text, not art (SPEC-companion.md, decision 3). */}
       <span
         ref={markRef}
-        className="invisible absolute bottom-full right-0 mb-1 border border-ink bg-sun-pale px-1 font-mono text-label leading-none text-ink"
+        className={`invisible absolute right-0 border border-ink bg-sun-pale px-1 font-mono text-label leading-none text-ink ${look === null ? 'bottom-full mb-1' : ''}`}
+        style={markBottom === undefined ? undefined : { bottom: markBottom }}
         data-companion-mark
       >
         !
       </span>
-      {/* The figure: a placeholder field until the owner's SHOWN character's baked strip is wired in. */}
-      <span ref={bodyRef} className={`${SPRITE_SLOT} block h-full w-full`} data-companion-figure="placeholder" />
+      {look === null ? (
+        // No SHOWN character: the placeholder field.
+        <span ref={bodyRef} className={`${SPRITE_SLOT} block h-full w-full`} data-companion-figure="placeholder" />
+      ) : (
+        // A cell of the owner's baked strip, whole pixels, no smoothing; the loop moves the window onto each cell.
+        <span
+          ref={bodyRef}
+          className="block h-full w-full overflow-hidden"
+          style={{
+            backgroundImage: `url("${look.stripUrl}")`,
+            backgroundRepeat: 'no-repeat',
+            backgroundSize: `${look.sheet.columns * look.sheet.cell.w * SCALE}px ${rows * look.sheet.cell.h * SCALE}px`,
+            imageRendering: 'pixelated',
+          }}
+          data-companion-figure="character"
+        />
+      )}
     </div>
   );
 }
 
 /** A share of the strip's width, rounded so a pixel's wobble is not a new message. */
-function share(x: number, floor: Floor): number {
-  const room = Math.max(1, floor.screen - COMPANION_W);
+function share(x: number, floor: Floor, size: Size): number {
+  const room = Math.max(1, floor.screen - size.w);
   return Math.round(Math.min(1, Math.max(0, x / room)) * 1000) / 1000;
 }
 
@@ -171,18 +249,24 @@ function share(x: number, floor: Floor): number {
 let reactions = 0;
 let reactionKind: CompanionWire['k'] = null;
 
-function OwnCompanion({ label, musicPlaying, still }: { label: string; musicPlaying: boolean; still: boolean }) {
+/** The strip's own hop, in ticks, or the placeholder's. */
+const hopLength = (look: Look): number => (look === null ? HOP.length : look.sheet.motions.hop.ticks.length);
+
+function OwnCompanion({ label, musicPlaying, still, look, lookRef }: { label: string; musicPlaying: boolean; still: boolean; look: Look; lookRef: string | null }) {
   const placeRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLSpanElement>(null);
   const markRef = useRef<HTMLSpanElement>(null);
   const music = useRef(musicPlaying);
+  const wearing = useRef<{ look: Look; ref: string | null }>({ look, ref: lookRef });
   useEffect(() => {
     music.current = musicPlaying;
   }, [musicPlaying]);
+  useEffect(() => {
+    wearing.current = { look, ref: lookRef };
+  }, [look, lookRef]);
 
   useEffect(() => {
     const place = placeRef.current;
-    const body = bodyRef.current;
     const mark = markRef.current;
     const now = Date.now();
     let brain: BrainState = startBrain(now);
@@ -192,21 +276,27 @@ function OwnCompanion({ label, musicPlaying, still }: { label: string; musicPlay
     let facing: 1 | -1 = 1;
     let frame = 0;
     let hop = -1;
+    let dance = pickDance();
+    let motion: MotionId = 'idle';
+    let motionTick = 0;
     let markTimer: ReturnType<typeof setTimeout> | null = null;
-    let lastSaid: { mood: CompanionMood; target: number | null; at: number } | null = null;
+    let lastSaid: { mood: CompanionMood; target: number | null; ref: string | null; at: number } | null = null;
 
-    const say = (floor: Floor, force: boolean) => {
+    const say = (floor: Floor, size: Size, force: boolean) => {
       const target = brain.target ?? x ?? 0;
-      const changed = lastSaid === null || lastSaid.mood !== brain.mood || lastSaid.target !== brain.target;
+      const ref = wearing.current.ref;
+      const changed = lastSaid === null || lastSaid.mood !== brain.mood || lastSaid.target !== brain.target || lastSaid.ref !== ref;
       if (!changed && !force) return;
-      if (!force && brain.mood === 'chase' && lastSaid?.mood === 'chase' && Date.now() - lastSaid.at < CHASE_SAY_MS) return;
-      lastSaid = { mood: brain.mood, target: brain.target, at: Date.now() };
-      sayCompanion({ x: share(target, floor), m: brain.mood, r: reactions, k: reactionKind, c: null });
+      if (!force && brain.mood === 'chase' && lastSaid?.mood === 'chase' && lastSaid.ref === ref && Date.now() - lastSaid.at < CHASE_SAY_MS) return;
+      lastSaid = { mood: brain.mood, target: brain.target, ref, at: Date.now() };
+      sayCompanion({ x: share(target, floor, size), m: brain.mood, r: reactions, k: reactionKind, c: ref });
     };
 
     const tick = () => {
-      const floor = floorNow();
-      const span: Span | null = spanFor(floor.spans, x ?? floor.screen - COMPANION_W - 48);
+      const look = wearing.current.look;
+      const size = sizeOf(look);
+      const floor = floorNow(size);
+      const span: Span | null = spanFor(floor.spans, x ?? floor.screen - size.w - 48);
       if (span === null) {
         hide(place);
         return;
@@ -216,15 +306,16 @@ function OwnCompanion({ label, musicPlaying, still }: { label: string; musicPlay
 
       if (still) {
         brain = { mood: 'stand', target: null, until: Infinity, chaseUntil: 0 };
-        draw(place, body, x, floor.y, 0, facing, 'stand');
-        say(floor, false);
+        draw(place, bodyRef.current, look, { x, floorY: floor.y, facing, mood: 'stand', motion: 'idle', tick: 0, lift: 0 });
+        say(floor, size, false);
         return;
       }
 
-      const near = pointer !== null && pointer.y >= floor.y - NEAR_PX ? pointer.x - COMPANION_W / 2 : null;
+      const near = pointer !== null && pointer.y >= floor.y - NEAR_PX ? pointer.x - size.w / 2 : null;
       const was = brain.mood;
       brain = think(brain, { now: Date.now(), lastActivity, musicPlaying: music.current, pointerX: near, x, span, random: Math.random });
       if (was === 'sleep' && brain.mood !== 'sleep') react('wake');
+      if (was !== 'dance' && brain.mood === 'dance') dance = pickDance();
 
       if (brain.target !== null && (brain.mood === 'walk' || brain.mood === 'chase')) {
         const step = brain.mood === 'chase' ? CHASE_STEP : WALK_STEP;
@@ -234,19 +325,27 @@ function OwnCompanion({ label, musicPlaying, still }: { label: string; musicPlay
           x += Math.sign(gap) * Math.min(step, Math.abs(gap));
         }
       }
+      const walking = brain.target !== null && Math.abs(brain.target - x) >= 1;
 
       frame += 1;
       let lift = 0;
+      let next: MotionId;
       if (hop >= 0) {
-        lift = HOP[hop];
-        hop = hop + 1 < HOP.length ? hop + 1 : -1;
-      } else if (brain.mood === 'dance') {
-        // A stepped bob, turning every half second: motion only, the strip will carry the dance itself.
-        lift = frame % 4 < 2 ? -2 : 0;
-        if (frame % 5 === 0) facing = facing === 1 ? -1 : 1;
+        next = 'hop';
+        if (look === null) lift = HOP[hop] ?? 0;
+        hop = hop + 1 < hopLength(look) ? hop + 1 : -1;
+      } else {
+        next = motionFor(brain.mood === 'walk' && !walking ? 'stand' : brain.mood, dance);
+        // The placeholder has no dance of its own: a stepped bob, turning every half second.
+        if (look === null && brain.mood === 'dance') {
+          lift = frame % 4 < 2 ? -2 : 0;
+          if (frame % 5 === 0) facing = facing === 1 ? -1 : 1;
+        }
       }
-      draw(place, body, x, floor.y, lift, facing, brain.mood);
-      say(floor, false);
+      motionTick = next === motion ? motionTick + 1 : 0;
+      motion = next;
+      draw(place, bodyRef.current, look, { x, floorY: floor.y, facing, mood: brain.mood, motion, tick: motionTick, lift });
+      say(floor, size, false);
     };
 
     const react = (kind: NonNullable<CompanionWire['k']>) => {
@@ -254,7 +353,8 @@ function OwnCompanion({ label, musicPlaying, still }: { label: string; musicPlay
       reactionKind = kind;
       if (!still) hop = 0;
       if (reactionShowsMark(kind)) markTimer = showMark(mark, markTimer);
-      say(floorNow(), true);
+      const size = sizeOf(wearing.current.look);
+      say(floorNow(size), size, true);
     };
 
     const active = () => {
@@ -303,34 +403,46 @@ function OwnCompanion({ label, musicPlaying, still }: { label: string; musicPlay
     };
   }, [still]);
 
-  return <Figure placeRef={placeRef} bodyRef={bodyRef} markRef={markRef} label={label} own />;
+  return <Figure placeRef={placeRef} bodyRef={bodyRef} markRef={markRef} label={label} own look={look} />;
 }
 
-/** Somebody else's companion in the room: walks to where its owner's browser says, and plays the rest itself. */
+/** Somebody else's companion in the room: wears their SHOWN character, walks where their browser says, plays the rest. */
 function RoomFigure({ companion, still }: { companion: RoomCompanion; still: boolean }) {
   const placeRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLSpanElement>(null);
   const markRef = useRef<HTMLSpanElement>(null);
+  // Anyone may read anyone's SHOWN character (SPEC-profile-characters.md); the figure is keyed by the strip the owner
+  // says it wears, so a new one is read again.
+  const shown = useShownCharacter(companion.wire.c === null ? null : companion.userId);
+  const look = useMemo<Look>(() => (shown === null || shown === undefined ? null : { stripUrl: shown.stripUrl, sheet: shown.sheet }), [shown]);
   const wire = useRef(companion.wire);
+  const wearing = useRef(look);
   useEffect(() => {
     wire.current = companion.wire;
   }, [companion.wire]);
+  useEffect(() => {
+    wearing.current = look;
+  }, [look]);
 
   useEffect(() => {
     const place = placeRef.current;
-    const body = bodyRef.current;
     const mark = markRef.current;
     let x: number | null = null;
     let facing: 1 | -1 = 1;
     let frame = 0;
     let hop = -1;
+    let dance = pickDance();
+    let motion: MotionId = 'idle';
+    let motionTick = 0;
     let seen: number | null = null;
     let markTimer: ReturnType<typeof setTimeout> | null = null;
 
     const tick = () => {
-      const floor = floorNow();
+      const lookNow = wearing.current;
+      const size = sizeOf(lookNow);
+      const floor = floorNow(size);
       const now = wire.current;
-      const target = now.x * Math.max(1, floor.screen - COMPANION_W);
+      const target = now.x * Math.max(1, floor.screen - size.w);
       const span = spanFor(floor.spans, x ?? target);
       if (span === null) {
         hide(place);
@@ -348,26 +460,36 @@ function RoomFigure({ companion, still }: { companion: RoomCompanion; still: boo
       }
 
       if (still) {
-        draw(place, body, x, floor.y, 0, facing, 'stand');
+        draw(place, bodyRef.current, lookNow, { x, floorY: floor.y, facing, mood: 'stand', motion: 'idle', tick: 0, lift: 0 });
         return;
       }
 
-      const moving = now.m === 'walk' || now.m === 'chase' || Math.abs(goal - x) >= 1;
-      if (moving && Math.abs(goal - x) >= 1) {
+      const walking = Math.abs(goal - x) >= 1;
+      if (walking) {
         const step = now.m === 'chase' ? CHASE_STEP : WALK_STEP;
         facing = goal > x ? 1 : -1;
         x += Math.sign(goal - x) * Math.min(step, Math.abs(goal - x));
       }
+      const mood: CompanionMood = walking ? (now.m === 'chase' ? 'chase' : 'walk') : now.m === 'walk' || now.m === 'chase' ? 'stand' : now.m;
+      if (mood === 'dance' && motion !== dance && !DANCES.includes(motion)) dance = pickDance();
+
       frame += 1;
       let lift = 0;
+      let next: MotionId;
       if (hop >= 0) {
-        lift = HOP[hop];
-        hop = hop + 1 < HOP.length ? hop + 1 : -1;
-      } else if (now.m === 'dance') {
-        lift = frame % 4 < 2 ? -2 : 0;
-        if (frame % 5 === 0) facing = facing === 1 ? -1 : 1;
+        next = 'hop';
+        if (lookNow === null) lift = HOP[hop] ?? 0;
+        hop = hop + 1 < hopLength(lookNow) ? hop + 1 : -1;
+      } else {
+        next = motionFor(mood, dance);
+        if (lookNow === null && mood === 'dance') {
+          lift = frame % 4 < 2 ? -2 : 0;
+          if (frame % 5 === 0) facing = facing === 1 ? -1 : 1;
+        }
       }
-      draw(place, body, x, floor.y, lift, facing, Math.abs(goal - x) >= 1 && now.m !== 'chase' ? 'walk' : now.m);
+      motionTick = next === motion ? motionTick + 1 : 0;
+      motion = next;
+      draw(place, bodyRef.current, lookNow, { x, floorY: floor.y, facing, mood, motion, tick: motionTick, lift });
     };
 
     tick();
@@ -378,7 +500,7 @@ function RoomFigure({ companion, still }: { companion: RoomCompanion; still: boo
     };
   }, [still]);
 
-  return <Figure placeRef={placeRef} bodyRef={bodyRef} markRef={markRef} label={companion.name || 'SOMEONE'} own={false} />;
+  return <Figure placeRef={placeRef} bodyRef={bodyRef} markRef={markRef} label={companion.name || 'SOMEONE'} own={false} look={look} />;
 }
 
 export default function Companion() {
@@ -389,16 +511,17 @@ export default function Companion() {
   const phone = usePhone();
   const still = useReducedMotion();
   const [musicPlaying, setMusicPlaying] = useState(false);
+  // Your SHOWN character: what your companion wears, and whether it is out by default (undefined while it is read).
+  const shown = useShownCharacter(userId);
 
   useEffect(() => {
     void setCompanionAccount(userId);
   }, [userId]);
 
-  // TODO(SPEC-profile-characters.md): true once the account has a SHOWN character; it makes the companion on by default.
-  const hasShown = false;
-  // Nothing until the device and the motion setting can be read: never one frame on a guess.
-  if (phone === null || still === null) return null;
-  const mine = companionOut(choices, { signedIn: userId !== null, phone, hasShown });
+  // Nothing until the device, the motion setting and your SHOWN character can be read: never one frame on a guess.
+  if (phone === null || still === null || shown === undefined) return null;
+  const look: Look = shown === null ? null : { stripUrl: shown.stripUrl, sheet: shown.sheet };
+  const mine = companionOut(choices, { signedIn: userId !== null, phone, hasShown: shown !== null });
   const drawn = companionsToDraw(others, mine);
 
   if (!mine && drawn.length === 0) return null;
@@ -410,13 +533,13 @@ export default function Companion() {
         <>
           <MusicWatch onChange={setMusicPlaying} />
           <CompanionReactions />
-          <OwnCompanion label={user?.displayName ?? 'YOU'} musicPlaying={musicPlaying} still={still} />
+          {/* Re-made when the strip changes: a new character is a new box. */}
+          <OwnCompanion key={shown?.bakedAt ?? 'placeholder'} label={user?.displayName ?? 'YOU'} musicPlaying={musicPlaying} still={still} look={look} lookRef={shown?.bakedAt ?? null} />
         </>
       ) : null}
       {drawn.map((companion) => (
-        <RoomFigure key={companion.key} companion={companion} still={still} />
+        <RoomFigure key={`${companion.key}:${companion.wire.c ?? ''}`} companion={companion} still={still} />
       ))}
     </div>
   );
 }
-

@@ -941,7 +941,7 @@ class MockWatchRepository implements WatchRepository {
       const companions: RoomCompanion[] = [];
       for (const [key, { member, companion }] of others) {
         if (companion === null || member.userId === null || member.userId === self.userId) continue;
-        companions.push({ key, name: member.name, joinedAt: member.joinedAt, wire: companion });
+        companions.push({ key, userId: member.userId, name: member.name, joinedAt: member.joinedAt, wire: companion });
       }
       setRoomCompanions(companions);
       const members = [self, ...[...others.values()].map((other) => other.member)];

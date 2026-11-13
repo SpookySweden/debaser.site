@@ -1056,7 +1056,7 @@ class SupabaseWatchRepository implements WatchRepository {
         // A companion is an account's (SPEC-companion.md): a guest's presence never carries one that is drawn, and your own
         // other tabs' companions are yours, already walking here.
         const wire = key === self.key || member.userId === null || member.userId === self.userId ? null : parseCompanionWire(meta.companion);
-        if (wire !== null) companions.push({ key, name: member.name, joinedAt: member.joinedAt, wire });
+        if (wire !== null && member.userId !== null) companions.push({ key, userId: member.userId, name: member.name, joinedAt: member.joinedAt, wire });
       }
       if (!members.some((member) => member.key === self.key)) members.push(self);
       setRoomCompanions(companions);

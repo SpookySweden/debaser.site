@@ -107,7 +107,8 @@ function readStrip() {
       return at !== null && own.contains(at);
     })
     .map((key) => key.getAttribute('aria-label') || key.textContent.trim());
-  return { drawn: true, bottom: Math.round(box.bottom), floor: Math.round(floor), left: Math.round(box.left), keys: keys.length, hitKeys, avoid, covered, mood: own.dataset.mood };
+  const figure = own.querySelector('[data-companion-figure]')?.getAttribute('data-companion-figure') ?? null;
+  return { drawn: true, bottom: Math.round(box.bottom), floor: Math.round(floor), left: Math.round(box.left), keys: keys.length, hitKeys, avoid, covered, mood: own.dataset.mood, motion: own.dataset.motion ?? null, figure, w: Math.round(box.width), h: Math.round(box.height) };
 }
 
 async function watchStrip(page, seconds, label) {
@@ -176,6 +177,10 @@ async function waitMood(page, wanted, ms) {
     await clearPrivacyWindow(a.page);
     await switchOn(a.page);
     pass('Preferences > COMPANION > [ ON ] puts it on the strip');
+    await sleep(1500);
+    const wearing = await a.page.evaluate(readStrip);
+    assert.equal(wearing.figure, 'character', "it wears A's SHOWN character, not the placeholder");
+    pass(`it wears A's SHOWN character (PROFILE DRIVE): a ${wearing.w} x ${wearing.h} box of its baked strip, playing ${wearing.motion}`);
 
     if (!ROOM_ONLY) {
     console.log('Several pages, the bar open');
@@ -202,8 +207,10 @@ async function waitMood(page, wanted, ms) {
       danced = await waitMood(a.page, 'dance', 4000);
     }
     assert.ok(danced, `dances while playing (mood ${await mood(a.page)})`);
+    const dancing = await a.page.evaluate(() => document.querySelector('[data-companion="own"]')?.dataset.motion);
+    assert.match(dancing ?? '', /^dance[123]$/, "plays one of the strip's dances");
     await a.page.screenshot({ path: join(SHOTS, 'companion-dance.png') });
-    pass('the music bar playing: it dances');
+    pass(`the music bar playing: it dances (the strip's ${dancing})`);
     // Quiet again: every press of the cell until nothing plays.
     for (let press = 0; press < 4 && (await cell.getAttribute('title')) !== 'Paused'; press += 1) {
       await cell.click();
@@ -307,10 +314,13 @@ async function waitMood(page, wanted, ms) {
     await b.page.waitForSelector('[data-companion="room"]', { timeout: 30000 });
     await a.page.waitForSelector('[data-companion="room"]', { timeout: 30000 });
     const seenByB = await b.page.locator('[data-companion="room"]').first().getAttribute('aria-label');
+    await sleep(2000);
+    const aSeenByB = await b.page.locator('[data-companion="room"] [data-companion-figure]').first().getAttribute('data-companion-figure');
+    assert.equal(aSeenByB, 'character', "B sees A's companion wearing A's SHOWN character");
     const seenByA = await a.page.locator('[data-companion="room"]').first().getAttribute('aria-label');
     assert.match(seenByB, /TEST ACCOUNT A/i);
     assert.match(seenByA, /TEST ACCOUNT B/i);
-    pass(`each sees the other's companion: B sees "${seenByB}", A sees "${seenByA}"`);
+    pass(`each sees the other's companion: B sees "${seenByB}" wearing A's character, A sees "${seenByA}"`);
     await b.page.locator('[data-companion="room"]').first().hover();
     await sleep(300);
     await b.page.screenshot({ path: join(SHOTS, 'companion-room-b.png') });
