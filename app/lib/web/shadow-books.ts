@@ -106,17 +106,22 @@ export async function findShadowCopy(
         maxBytes: 4 * 1024 * 1024,
         timeoutMs: 10_000,
       });
-      if (!Array.isArray(body) || body.length === 0) continue;
+      if (!Array.isArray(body) || body.length === 0) {
+        console.warn(`[shadow] ${host}: ${Array.isArray(body) ? 'no results' : 'not an array'} for "${want.title}"`);
+        continue;
+      }
       const ranked = body
         .map((raw) => parseShadowHit(raw, want))
         .filter((hit): hit is NonNullable<ReturnType<typeof parseShadowHit>> => hit !== null)
         .sort((a, b) => b.score - a.score);
       if (ranked[0]) {
         const { score: _score, ...best } = ranked[0];
+        console.warn(`[shadow] ${host}: picked md5=${best.md5} ${best.extension} for "${want.title}"`);
         return best;
       }
-    } catch {
-      // Try the next mirror.
+      console.warn(`[shadow] ${host}: ${body.length} hits, none passed the title filter for "${want.title}"`);
+    } catch (error) {
+      console.warn(`[shadow] ${host} failed: ${(error as Error).message}`);
     }
   }
   return null;
@@ -143,13 +148,19 @@ export async function openShadowBook(
   const id = md5.toLowerCase();
   if (!MD5.test(id)) return null;
   const pageUrl = buildUrl(LIBGEN_PAGE_HOST, ['main', id]);
-  const page = await safeFetchText(pageUrl, {
-    allowedHosts: [LIBGEN_PAGE_HOST],
-    fetchImpl,
-    maxBytes: PAGE_MAX_BYTES,
-    timeoutMs: 10_000,
-    accept: 'text/html,application/xhtml+xml',
-  });
+  let page: string;
+  try {
+    page = await safeFetchText(pageUrl, {
+      allowedHosts: [LIBGEN_PAGE_HOST],
+      fetchImpl,
+      maxBytes: PAGE_MAX_BYTES,
+      timeoutMs: 10_000,
+      accept: 'text/html,application/xhtml+xml',
+    });
+  } catch (error) {
+    console.warn(`[shadow] library.lol/${id} failed: ${(error as Error).message}`);
+    throw error;
+  }
   const direct = extractDirectFileUrl(page, id);
   if (!direct) throw new SafeFetchError('no download link');
   const extension: ShadowExtension = /\.epub(?:\?|$)/i.test(direct) ? 'epub' : 'pdf';

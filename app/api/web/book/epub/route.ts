@@ -121,7 +121,10 @@ export async function GET(request: Request): Promise<Response> {
         : ref.startsWith('shadow:')
           ? 'THE SHADOW MIRROR'
           : 'PROJECT GUTENBERG';
-      return refuse(`${source} DID NOT ANSWER.`, 502);
+      // Temporary: the SafeFetchError's message (what actually went wrong — timeout, host blocked, HTTP code) is sent
+      // back in the JSON so drive-shadow.cjs can tell libgen reachability from title-ranker misses. Remove once working.
+      const detail = (error as Error).message || 'unknown';
+      return new Response(JSON.stringify({ error: `${source} DID NOT ANSWER.`, detail }), { status: 502, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
     }
     return refuse('THIS BOOK CAN\'T BE READ HERE.', 404);
   }
