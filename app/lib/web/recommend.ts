@@ -112,6 +112,47 @@ export function withOpened(taste: Taste, item: Pick<ScoredItem, 'platform' | 'cr
   };
 }
 
+/** What a linked YouTube account says about its owner (youtube-mine.ts): names and words only, never a count. */
+export type YouTubeSignals = { channels: readonly { name: string }[]; topics: readonly string[]; playlists: readonly string[] };
+
+/** How much each YouTube signal teaches: a subscribed channel and a topic its channels share count most. */
+const YOUTUBE_WEIGHT = { channel: 2, topic: 2, playlist: 1 };
+
+/**
+ * A reader's taste with their YouTube in it (Luke, 2026-11-13: "takes into account what would be shown on your youtube
+ * homepage"): their subscribed channels as creators, the topics YouTube files those channels under and their own
+ * playlists' names as words. The topics come first in `pickSeed`, so the page's own searches lean to what they watch.
+ */
+export function withYouTube(taste: Taste, signals: YouTubeSignals): Taste {
+  const bump = (from: Readonly<Record<string, number>>, key: string, by: number) => (key === '' ? from : { ...from, [key]: (from[key] ?? 0) + by });
+  // The first topics are the ones most of their channels share: a little more for them, so they are tried first.
+  const topics = signals.topics.reduce<Readonly<Record<string, number>>>(
+    (tags, word, index) => bump(tags, normal(word), YOUTUBE_WEIGHT.topic + (index < MAX_TASTE_SEEDS ? 1 : 0)),
+    taste.tags,
+  );
+  return {
+    tags: signals.playlists.reduce<Readonly<Record<string, number>>>((tags, name) => bump(tags, normal(name), YOUTUBE_WEIGHT.playlist), topics),
+    creators: signals.channels.reduce<Readonly<Record<string, number>>>((creators, { name }) => bump(creators, normal(name), YOUTUBE_WEIGHT.channel), taste.creators),
+    platforms: taste.platforms,
+  };
+}
+
+/**
+ * A search's rows from a site, with the ones by channels the reader subscribes to moved to the front of that site's
+ * page (Luke, 2026-11-13). Only within one page, and only under BEST MATCH, so the sites still take turns and no row
+ * already shown moves. Every row comes back once.
+ */
+export function subscribedFirst<T extends Pick<ScoredItem, 'creator'>>(items: readonly T[], channels: ReadonlySet<string>): T[] {
+  if (channels.size === 0) return [...items];
+  const theirs = items.filter((item) => (item.creator ? channels.has(normal(item.creator)) : false));
+  return theirs.length === 0 ? [...items] : [...theirs, ...items.filter((item) => !theirs.includes(item))];
+}
+
+/** A set of channel names as `subscribedFirst` compares them. */
+export function channelNames(channels: readonly { name: string }[]): ReadonlySet<string> {
+  return new Set(channels.map(({ name }) => normal(name)).filter(Boolean));
+}
+
 /** Keeps the strongest `limit` keys, so a browser's saved taste cannot grow for ever. */
 export function trimCounts(counts: Readonly<Record<string, number>>, limit: number): Record<string, number> {
   return Object.fromEntries(

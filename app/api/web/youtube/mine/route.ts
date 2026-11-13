@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { readYouTubeMine, YouTubeTokenError } from '../../../../lib/web/youtube-mine';
 
 /**
- * A signed-in person's own YouTube uploads and likes (lib/web/youtube-mine.ts). Their session proves who they are; their
+ * A signed-in person's own YouTube: their channels' uploads, their likes, and what those say they like (lib/web/youtube-mine.ts). Their session proves who they are; their
  * Google token, sent by their own browser, reads their own account for this one request. Neither is stored or logged,
  * and neither comes back in an answer.
  */
@@ -28,7 +28,8 @@ export async function POST(request: Request): Promise<Response> {
   if (error || !data.user || data.user.is_anonymous === true) return json({ error: 'Sign in first.' }, 401);
 
   try {
-    return json({ items: await readYouTubeMine(request.headers.get('x-google-token') ?? '') }, 200);
+    // The videos, and the channels, topics and playlist names that teach the page's order (youtube-mine.ts).
+    return json({ ...(await readYouTubeMine(request.headers.get('x-google-token') ?? '')) }, 200);
   } catch (failure) {
     if (failure instanceof YouTubeTokenError) return json({ error: 'YOUTUBE NEEDS LINKING AGAIN.' }, 403);
     return json({ error: 'YOUTUBE COULD NOT BE READ.' }, 502);

@@ -1216,9 +1216,13 @@ test('WebStream: the plain stream draws the search box and every filter, says it
   const html = draw(el(WebStream));
   const words = visible(html);
   assert.ok(html.includes('role="search"') && html.includes('id="web-search"'));
-  for (const group of ['SOURCE:', 'TYPE:', 'VIBE:', 'SORT:', 'READING MEDIA...', '[ YOUTUBE ]', '[ STREAM ART ]']) assert.ok(words.includes(group), group);
-  assert.match(openingTag(html, '[ OFF ]'), /aria-pressed="false"/);
-  assert.match(openingTag(html, '[ ALL ]'), /aria-pressed="true"/, 'SOURCE starts on ALL');
+  // Updated on purpose 2026-11-13 (Luke: "expandable, organised and much clearer"): the filters are folding sections
+  // with plain headings and one line of what is chosen; shut, their keys are still drawn (hidden).
+  for (const group of ['WHERE FROM', 'WHAT KIND', 'ORDER', 'MOOD SEARCH', 'SHOWING:', 'ALL SOURCES, ALL KINDS, BEST MATCH', 'READING MEDIA...', '[ YOUTUBE ]', '[ STREAM ART ]']) assert.ok(words.includes(group), group);
+  assert.match(openingTag(html, '[ OFF ]'), /aria-pressed="true"/, 'MOOD SEARCH starts OFF');
+  assert.match(openingTag(html, '[ ON ]'), /aria-pressed="false"/);
+  assert.match(openingTag(html, '[ ALL SOURCES ]'), /aria-pressed="true"/, 'SOURCE starts on ALL');
+  assert.ok(!words.includes('[ RESET FILTERS ]'), 'nothing to reset yet');
   assert.ok(!words.includes('[ CLEAR ]'), 'nothing to clear yet');
   await inBrowser(fakeBrowser(), async () => runEffects());
   await tick();
@@ -1250,7 +1254,8 @@ test('WebStream: SOURCE in the address presses that key and asks that source alo
   address = 'q=trains&in=kino';
   const html = draw(el(WebStream));
   assert.match(openingTag(html, '[ KINO ]'), /aria-pressed="true"/);
-  assert.match(openingTag(html, '[ ALL ]'), /aria-pressed="false"/);
+  assert.match(openingTag(html, '[ ALL SOURCES ]'), /aria-pressed="false"/);
+  assert.ok(visible(html).includes('[ RESET FILTERS ]'), 'a filter set: RESET shows');
   await inBrowser(fakeBrowser(), async () => {
     runEffects();
     await tick();

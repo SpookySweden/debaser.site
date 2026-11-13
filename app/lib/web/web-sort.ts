@@ -25,6 +25,22 @@ export const SORT_OPTIONS: readonly { value: WebSort; label: string }[] = [
   { value: 'date', label: 'DATE' },
 ];
 
+/**
+ * The ORDER keys in the filter panel (Luke, 2026-11-13: "much clearer"): DATE's two directions are two plain keys,
+ * NEWEST FIRST and OLDEST FIRST, in place of DATE and a flip arrow. The same three orders underneath.
+ */
+export const ORDER_KEYS: readonly { choice: SortChoice; label: string }[] = [
+  { choice: { sort: 'best', dir: 'desc' }, label: 'BEST MATCH' },
+  { choice: { sort: 'popular', dir: 'desc' }, label: 'POPULAR' },
+  { choice: { sort: 'date', dir: 'desc' }, label: 'NEWEST FIRST' },
+  { choice: { sort: 'date', dir: 'asc' }, label: 'OLDEST FIRST' },
+];
+
+/** Which ORDER key a choice is. */
+export function orderLabel(choice: SortChoice): string {
+  return ORDER_KEYS.find((key) => key.choice.sort === choice.sort && key.choice.dir === choice.dir)?.label ?? ORDER_KEYS[0].label;
+}
+
 /** The order a search asks each source for (search/types.ts `SearchOrder`). */
 export function searchOrder(choice: SortChoice): 'relevance' | 'popular' | 'newest' | 'oldest' {
   if (choice.sort === 'best') return 'relevance';

@@ -247,6 +247,58 @@ export function withAuthor(box: string, name: string): string {
   return formatWebSearch({ source: search.source, type: search.type, text: '', authors: keptAuthors([name]), ...(search.vibe ? { vibe: true as const } : {}), ...(search.sort ? { sort: search.sort } : {}) });
 }
 
+/** `[ × NAME ]` on a chosen creator: the box without that `from:`, everything else untouched. */
+export function withoutAuthor(box: string, name: string): string {
+  const search = parseWebSearch(box);
+  const left = authorsOf(search).filter((author) => author !== name);
+  if (left.length > 0) search.authors = left;
+  else delete search.authors;
+  return formatWebSearch(search);
+}
+
+/** `[ RESET FILTERS ]`: every filter back to its start (ALL, ALL, anyone, VIBE off, BEST MATCH), the words kept. */
+export function withoutFilters(box: string): string {
+  return formatWebSearch({ text: parseWebSearch(box).text, source: 'all', type: 'all' });
+}
+
+/** Whether a box sets any filter at all (RESET has nothing to do otherwise). */
+export function hasFilters(search: WebSearch): boolean {
+  return search.source !== 'all' || search.type !== 'all' || authorsOf(search).length > 0 || search.vibe === true || search.sort !== undefined;
+}
+
+/**
+ * The WHERE FROM section's small groups (Luke, 2026-11-13: "organised and much clearer"). Every SOURCE choice lands in
+ * one group: a platform not named here goes to OTHER, so a new provider can never go missing from the panel
+ * (`scripts/check-web-filters.cjs` holds it). ALL stays its own key above the groups.
+ */
+const SOURCE_GROUP_OF: Readonly<Partial<Record<WebPlatform, string>>> = {
+  kino: 'FILMS AND VIDEO',
+  youtube: 'FILMS AND VIDEO',
+  peertube: 'FILMS AND VIDEO',
+  vimeo: 'FILMS AND VIDEO',
+  internet_archive: 'ARCHIVES (EVERY KIND)',
+  podcast: 'SOUND',
+  audiobooks: 'SOUND',
+  openverse: 'PICTURES',
+  wikimedia_commons: 'PICTURES',
+  books: 'BOOKS',
+  ipfs: 'BOOKS',
+};
+const SOURCE_GROUP_ORDER = ['FILMS AND VIDEO', 'SOUND', 'PICTURES', 'BOOKS', 'ARCHIVES (EVERY KIND)', 'OTHER'];
+
+export function sourceGroups(): { heading: string; options: { value: SourceValue; label: string }[] }[] {
+  const groups = new Map<string, { value: SourceValue; label: string }[]>();
+  for (const option of SOURCE_OPTIONS) {
+    if (option.value === 'all') continue;
+    const heading = SOURCE_GROUP_OF[option.value] ?? 'OTHER';
+    groups.set(heading, [...(groups.get(heading) ?? []), option]);
+  }
+  return SOURCE_GROUP_ORDER.flatMap((heading) => {
+    const options = groups.get(heading);
+    return options === undefined ? [] : [{ heading, options }];
+  });
+}
+
 /** A SOURCE or TYPE key pressed: the box with that filter set (or taken out, for ALL), words untouched. */
 export function withFilter(box: string, key: FilterKey, value: string): string {
   const search = parseWebSearch(box);

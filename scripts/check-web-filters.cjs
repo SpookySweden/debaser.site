@@ -126,13 +126,23 @@ ok(f.anchorsWildcard('kino', false) === true, 'a KINO search runs it on the kino
 
 /* ---------------------------------------------------------------- the page */
 const page = readFileSync(join(ROOT, 'app/components/WebStream.tsx'), 'utf8');
-ok(/SOURCE_OPTIONS\.map/.test(page) && /TYPE_OPTIONS\.map/.test(page), 'the keys are drawn from the choices');
+// Updated on purpose 2026-11-13 (Luke: "expandable, organised and much clearer"): the SOURCE keys are drawn from
+// sourceGroups(), which every SOURCE choice lands in (held below), plus ALL; the keys are the panel's larger ones.
+ok(/sourceGroups\(\)\.map/.test(page) && /sourceKey\(SOURCE_OPTIONS\[0\]\)/.test(page) && /TYPE_OPTIONS\.map/.test(page), 'the keys are drawn from the choices');
+{
+  const grouped = f.sourceGroups().flatMap((group) => group.options.map((option) => option.value));
+  same([...grouped].sort(), f.SOURCE_OPTIONS.filter((option) => option.value !== 'all').map((option) => option.value).sort(), 'every SOURCE choice but ALL sits in exactly one WHERE FROM group');
+  ok(!f.sourceGroups().some((group) => group.heading === 'OTHER'), '... and each has a named group (a new platform lands in OTHER until it gets one)');
+}
+same(f.withoutFilters('trains in:youtube type:video from:prelinger vibe:on sort:oldest'), 'trains', 'RESET FILTERS: every filter gone, the words kept');
+same(f.withoutAuthor('trains from:a from:b in:youtube', 'a'), 'trains in:youtube from:b', 'dropping one creator keeps the rest');
+ok(!f.hasFilters(f.parseWebSearch('trains')) && f.hasFilters(f.parseWebSearch('trains sort:popular')), 'hasFilters: words alone are no filter');
 // A SOURCE key may read `!art && ...` (SPEC-stream-art.md, 2026-11-03): while STREAM ART shows, it is the SOURCE
 // key that is on, so no other is. Changed on purpose; the rule (each key says whether it is on) is the same.
 ok((page.match(/aria-pressed=\{(?:!art && )?boxFilters\.(source|type) === option\.value\}/g) ?? []).length === 2, 'each key says whether it is on');
 ok(/aria-pressed=\{art\}/.test(page), '... the STREAM ART key too');
 ok(/aria-label=\{`Source: \$\{option\.label\}`\}/.test(page) && /aria-label=\{`Type: \$\{option\.label\}`\}/.test(page), 'each key has a name');
-ok(/className=\{(?:!art && )?boxFilters\.source === option\.value \? PLATE_PRESSED : PLATE\}/.test(page),'keys are the shared plates (44px tap height on a phone)');
+ok(/className=\{(?:!art && )?boxFilters\.source === option\.value \? FILTER_KEY_ON : FILTER_KEY\}/.test(page) && /export const FILTER_KEY = PLATE_LARGE;/.test(readFileSync(join(ROOT, 'app/components/WebFilterFold.tsx'), 'utf8')), "keys are the site's largest plate (44px tap height on a phone)");
 ok(/onClick=\{\(\) => pickFilter\('in', option\.value\)\}/.test(page) && /const next = withFilter\(draft, key, value\);/.test(page), 'a key writes its filter into the box');
 ok(/className="absolute top-full right-0 left-0 z-menu/.test(page), 'the suggestion list is drawn over the page, so typing never moves the rows');
 ok(/max-sm:min-h-tap/.test(page.slice(page.indexOf('role="option"'))), 'a suggestion row is 44px tall on a phone');
@@ -147,13 +157,21 @@ ok(/anchorsWildcard\(only, providers\.includes\(SEARCH_PROVIDERS\[0\]\)\)/.test(
 ok(/window\.history\.replaceState\(/.test(page) && /searchAddress\(/.test(page), 'the search is put in the address');
 ok(/useState\(\(\) => boxFromAddress\(params\)\)/.test(page), 'the page opens on the address search');
 ok(/matchesFilters\(item, what\.filters, source === 'stream'\)/.test(page), 'arriving rows are kept only when they match');
-ok(!/transition|animate-/.test(page.slice(page.indexOf('role="group" aria-label="Source"'), page.indexOf('emptyLine !== null'))), 'no transitions on the filter keys');
-ok(/role="group" aria-label="Sort"/.test(page) && /SORT_OPTIONS\.map/.test(page) && /aria-pressed=\{boxSort\.sort === option\.value\}/.test(page), 'the SORT keys are drawn from the choices and say which is on');
-ok(/disabled=\{boxSort\.sort !== 'date'\}/.test(page), 'the flip key works on DATE only, and is disabled (with its reason in its name) otherwise');
+ok(!/transition|animate-/.test(page.slice(page.indexOf('data-filter-panel'), page.indexOf('emptyLine !== null'))), 'no transitions on the filter keys');
+{
+  const fold = readFileSync(join(ROOT, 'app/components/WebFilterFold.tsx'), 'utf8');
+  ok(/aria-expanded=\{open\}/.test(fold) && /aria-controls=\{.\$\{id\}-panel.\}/.test(fold) && /hidden=\{!open\}/.test(fold), 'a section folds with a named key that says whether it is open; shut, its keys stay in the page');
+  ok(/role="group" aria-label=\{heading\}/.test(fold), '... and its keys are a named group');
+  ok(/data-reset-filters/.test(page) && /withoutFilters\(draft\)/.test(page), 'RESET FILTERS keeps the words');
+  ok(/filtersInWords\(boxFilters, art\)/.test(page), 'one plain line says what is chosen');
+}
+// Updated on purpose 2026-11-13: ORDER's four keys (DATE's two directions as NEWEST FIRST and OLDEST FIRST) replace
+// DATE and the flip key; the same three orders underneath.
+ok(/heading="ORDER"/.test(page) && /ORDER_KEYS\.map/.test(page) && /const on = boxSort\.sort === key\.choice\.sort && boxSort\.dir === key\.choice\.dir;/.test(page) && /aria-pressed=\{on\}/.test(page), 'the ORDER keys are drawn from the choices and say which is on');
 
 // The IMDB key (Luke, 2026-11-04): above the SOURCE choices, centred, and it is the KINO filter.
 const imdbKey = page.indexOf('data-imdb-key');
-ok(imdbKey !== -1 && imdbKey < page.indexOf('role="group" aria-label="Source"'), 'the IMDB key sits above the SOURCE choices');
+ok(imdbKey !== -1 && imdbKey < page.indexOf('heading="WHERE FROM"'), 'the IMDB key sits above the SOURCE choices');
 // Updated on purpose 2026-11-05: RECOMMENDED and DISCOVER sit beside it on the same centred row (SPEC-discover.md).
 ok(/flex flex-wrap justify-center gap-1">/.test(page) && /onClick=\{\(\) => pickFilter\('in', 'kino'\)\}[\s\S]{0,400}data-imdb-key/.test(page), 'centred, and it filters to KINO');
 ok(
