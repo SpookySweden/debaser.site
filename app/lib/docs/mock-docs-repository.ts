@@ -498,9 +498,19 @@ class MockDocsRepository implements DocsRepository {
     return load().versions.find((version) => version.id === versionId)?.state ?? null;
   }
 
+  async deleteVersion(versionId: string): Promise<void> {
+    const store = load();
+    store.versions = store.versions.filter((version) => version.id !== versionId);
+    persist();
+  }
+
   async keepVersion(input: { docId: string; state: string; snippet: string; name: string | null; viewer: DocViewer }): Promise<DocVersion | null> {
     const store = load();
     const now = Date.now();
+
+    if (input.name !== null && store.versions.filter((version) => version.docId === input.docId && version.name !== null).length >= 20) {
+      throw new Error('THAT IS 20 NAMED VERSIONS - REMOVE ONE FIRST.');
+    }
 
     if (input.name === null) {
       const recent = store.versions.some(

@@ -250,6 +250,7 @@ export default function DocView({ target }: DocViewProps) {
           editor={editor}
           viewer={viewer}
           editing={live.editing}
+          owner={owner}
           onKept={live.noteVersionKept}
           onClose={() => setOpen(null)}
         />

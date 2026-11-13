@@ -199,6 +199,8 @@ export type DocsRepository = {
   deleteComment(commentId: string): Promise<void>;
   listVersions(docId: string): Promise<DocVersion[]>;
   versionState(versionId: string): Promise<string | null>;
+  /** The owner removes a kept version (to make room for another named one). */
+  deleteVersion(versionId: string): Promise<void>;
   /** Keeps a copy. An unnamed one is refused within the hour of the last, and answers null. */
   keepVersion(input: { docId: string; state: string; snippet: string; name: string | null; viewer: DocViewer }): Promise<DocVersion | null>;
   /** A picture for a document: shrunk already, filed, and answered with its address. */

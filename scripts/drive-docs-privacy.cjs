@@ -128,6 +128,29 @@ async function join(client, topic, label) {
     console.log('  PUBLIC                             a visitor reads it');
 
     await aRoom.leave();
+
+    // --- the review's tightened rules (20261113133339_docs_rules_tightened.sql) ----------------------------
+    const sneaky = await a.client.from('docs').update({ title: 'PRIVACY DRIVE' }).eq('id', id).select('slug').single();
+    assert.equal(sneaky.data.slug, null, 'a document outside LORE has no lore address');
+    const claimed = await a.client.from('docs').insert({ title: 'SLUG GRAB', access: 'private', slug: 'slug-grab-drive', owner_label: 'A', created_by_label: 'A', updated_by_label: 'A' }).select('id, slug').single();
+    assert.equal(claimed.error, null);
+    assert.equal(claimed.data.slug, null, 'nobody can claim a /lore address on a document outside LORE');
+    await a.client.from('docs').delete().eq('id', claimed.data.id);
+    const lore = await a.client.from('docs').insert({ title: 'LORE DRIVE', access: 'public', slug: 'lore-drive-rules', folder_id: '00000000-0000-4000-8000-00000000d0c1', owner_label: 'A', created_by_label: 'A', updated_by_label: 'A' }).select('id, slug').single();
+    assert.equal(lore.data.slug, 'lore-drive-rules', 'a page made in LORE keeps its address');
+    const moved = await a.client.from('docs').update({ folder_id: null }).eq('id', lore.data.id).select('id');
+    assert.notEqual(moved.error, null, 'and cannot be moved out of LORE');
+    await a.client.from('docs').delete().eq('id', lore.data.id);
+    for (let n = 1; n <= 20; n += 1) {
+      const kept = await a.client.from('doc_versions').insert({ doc_id: id, yjs_state: 'AA==', snippet: '', name: `NAMED ${n}`, created_by_label: 'A' });
+      assert.equal(kept.error, null, `named version ${n}: ${kept.error?.message}`);
+    }
+    const twentyFirst = await a.client.from('doc_versions').insert({ doc_id: id, yjs_state: 'AA==', snippet: '', name: 'NAMED 21', created_by_label: 'A' });
+    assert.notEqual(twentyFirst.error, null, 'a 21st named version is refused');
+    const hourly = await a.client.from('doc_versions').insert({ doc_id: id, yjs_state: 'AA==', snippet: '', name: null, created_by_label: 'A' }).select('id').single();
+    const renamed = await a.client.from('doc_versions').update({ name: 'SNEAKED' }).eq('id', hourly.data.id).select('id');
+    assert.notEqual(renamed.error, null, 'and naming an hourly copy cannot slip past the cap');
+    console.log('  TIGHTENED RULES                    no /lore address outside LORE, lore stays in LORE, 20 named versions at most');
   } finally {
     const gone = await a.client.from('docs').delete().eq('id', id).select('id');
     console.log(`A deleted the document again (${gone.data?.length ?? 0} row).`);

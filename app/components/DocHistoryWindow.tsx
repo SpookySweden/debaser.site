@@ -23,6 +23,8 @@ type DocHistoryWindowProps = {
   editor: Editor | null;
   viewer: DocViewer | null;
   editing: boolean;
+  /** The owner may remove versions. */
+  owner: boolean;
   onKept: (at: string) => void;
   onClose: () => void;
 };
@@ -58,7 +60,7 @@ function VersionView({ content }: { content: Record<string, unknown> }) {
  * A restore writes the old version into the live document as one ordinary edit, so everybody in it sees
  * it at once, and it can itself be undone or restored over.
  */
-export default function DocHistoryWindow({ docId, doc, editor, viewer, editing, onKept, onClose }: DocHistoryWindowProps) {
+export default function DocHistoryWindow({ docId, doc, editor, viewer, editing, owner, onKept, onClose }: DocHistoryWindowProps) {
   const repository = useMemo(() => getDocsRepository(viewer?.id ?? null), [viewer?.id]);
   const [versions, setVersions] = useState<DocVersion[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -90,6 +92,16 @@ export default function DocHistoryWindow({ docId, doc, editor, viewer, editing, 
       setOpen({ version, content: versionContent(state) });
     } catch (caught: unknown) {
       setError(caught instanceof Error ? caught.message : 'THAT VERSION DID NOT LOAD.');
+    }
+  }
+
+  async function remove(version: DocVersion): Promise<void> {
+    setError(null);
+    try {
+      await repository.deleteVersion(version.id);
+      setAttempt((value) => value + 1);
+    } catch (caught: unknown) {
+      setError(caught instanceof Error ? caught.message : 'NOT REMOVED.');
     }
   }
 
@@ -161,6 +173,11 @@ export default function DocHistoryWindow({ docId, doc, editor, viewer, editing, 
                   <button type="button" className={PLATE} onClick={() => void view(version)}>
                     [ VIEW ]
                   </button>
+                  {owner ? (
+                    <button type="button" className={PLATE} onClick={() => void remove(version)}>
+                      [ REMOVE ]
+                    </button>
+                  ) : null}
                 </li>
               ))}
             </ol>

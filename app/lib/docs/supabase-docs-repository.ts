@@ -153,6 +153,8 @@ function plain(error: { message: string; code?: string }, fallback: string): Err
   if (message.includes('someone else')) return new Error('THAT FOLDER IS SOMEONE ELSE\'S.');
   if (message.includes('lore stays')) return new Error('LORE STAYS.');
   if (message.includes('less than an hour')) return new Error('A COPY WAS KEPT LESS THAN AN HOUR AGO.');
+  if (message.includes('named versions')) return new Error('THAT IS 20 NAMED VERSIONS - REMOVE ONE FIRST.');
+  if (message.includes('stays in lore')) return new Error('A LORE PAGE STAYS IN LORE.');
 
   return new Error(fallback);
 }
@@ -405,6 +407,12 @@ class SupabaseDocsRepository implements DocsRepository {
     const { data, error } = await this.client().from('doc_versions').select('yjs_state').eq('id', versionId).limit(1);
     if (error !== null) throw plain(error, 'THAT VERSION DID NOT LOAD.');
     return ((data ?? []) as { yjs_state: string }[])[0]?.yjs_state ?? null;
+  }
+
+  async deleteVersion(versionId: string): Promise<void> {
+    const { data, error } = await this.client().from('doc_versions').delete().eq('id', versionId).select('id');
+    if (error !== null) throw plain(error, 'NOT REMOVED.');
+    if ((data ?? []).length === 0) throw new Error('ONLY THE OWNER REMOVES A VERSION.');
   }
 
   async keepVersion(input: { docId: string; state: string; snippet: string; name: string | null; viewer: DocViewer }): Promise<DocVersion | null> {
