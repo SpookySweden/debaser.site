@@ -104,16 +104,26 @@ export function parseShadowHit(raw: unknown, want: { title: string; author: stri
 }
 
 /** The best LibGen hit for a book (EPUB first, then PDF), or null when no mirror answers or no hit passes the title check. */
+/** A diagnostic trace of what each LibGen mirror said, for the API response when debug is asked. */
+export type ShadowTrace = { host: string; status: 'picked' | 'no-hits' | 'no-match' | 'failed'; note?: string }[];
+/** Set by `findShadowCopyWithTrace` and read by the route for `?debug=1`. Module-scoped, not request-scoped, so not for real use. */
+let lastTrace: ShadowTrace = [];
+export function readLastShadowTrace(): ShadowTrace {
+  return lastTrace;
+}
+
 export async function findShadowCopy(
   title: string,
   author: string,
   fetchImpl?: FetchLike,
 ): Promise<ShadowCopy | null> {
   const want = { title: scrub(title, 200), author: scrub(author, 200) };
-  if (want.title.length < 3) return null;
-  // Luke, 2026-11-13: if the caller handed a fetch (the check does, to stay offline), use it; in production the insecure
-  // shadow agent is used so expired-cert mirrors still reach us. Every other allow-list and size cap still applies.
+  if (want.title.length < 3) {
+    lastTrace = [{ host: '', status: 'no-hits', note: `title too short: "${title}"` }];
+    return null;
+  }
   const impl = fetchImpl ?? shadowFetch;
+  const trace: ShadowTrace = [];
   for (const host of LIBGEN_JSON_HOSTS) {
     try {
       const body = await safeFetchJson(libgenSearchUrl(host, want.title), {
@@ -122,8 +132,12 @@ export async function findShadowCopy(
         maxBytes: 4 * 1024 * 1024,
         timeoutMs: 10_000,
       });
-      if (!Array.isArray(body) || body.length === 0) {
-        console.warn(`[shadow] ${host}: ${Array.isArray(body) ? 'no results' : 'not an array'} for "${want.title}"`);
+      if (!Array.isArray(body)) {
+        trace.push({ host, status: 'failed', note: 'not an array' });
+        continue;
+      }
+      if (body.length === 0) {
+        trace.push({ host, status: 'no-hits' });
         continue;
       }
       const ranked = body
@@ -132,14 +146,16 @@ export async function findShadowCopy(
         .sort((a, b) => b.score - a.score);
       if (ranked[0]) {
         const { score: _score, ...best } = ranked[0];
-        console.warn(`[shadow] ${host}: picked md5=${best.md5} ${best.extension} for "${want.title}"`);
+        trace.push({ host, status: 'picked', note: `md5=${best.md5} ${best.extension}` });
+        lastTrace = trace;
         return best;
       }
-      console.warn(`[shadow] ${host}: ${body.length} hits, none passed the title filter for "${want.title}"`);
+      trace.push({ host, status: 'no-match', note: `${body.length} hits dropped` });
     } catch (error) {
-      console.warn(`[shadow] ${host} failed: ${(error as Error).message}`);
+      trace.push({ host, status: 'failed', note: (error as Error).message });
     }
   }
+  lastTrace = trace;
   return null;
 }
 

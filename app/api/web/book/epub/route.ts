@@ -99,7 +99,13 @@ export async function GET(request: Request): Promise<Response> {
     // A bare Open Library work (Luke, 2026-11-13): the reader is told where its copy is, and reopens at that ref.
     if ('redirect' in opened) return answer({ redirect: `/read/${opened.redirect}` });
     // A work with no copy at all: the reader shows a page with the title and a link to Open Library inside its frame.
-    if ('noFreeCopy' in opened) return answer({ noFreeCopy: opened.noFreeCopy }, 404);
+    if ('noFreeCopy' in opened) {
+      const debug = params.get('debug') === '1';
+      // Temporary: `?debug=1` returns the shadow trace so Dune's failure mode on Vercel can be diagnosed.
+      const { readLastShadowTrace } = await import('../../../../lib/web/shadow-books');
+      const extra = debug ? { shadow: readLastShadowTrace() } : {};
+      return answer({ noFreeCopy: opened.noFreeCopy, ...extra }, 404);
+    }
     // One with a PDF: the reader asks for it a slice at a time (above).
     if ('pdf' in opened) return answer({ pdf: { size: opened.pdf.size } });
     // A shadow copy from LibGen (Luke, 2026-11-13): passed through from its mirror as it streams, never kept. The
