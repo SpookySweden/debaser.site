@@ -157,19 +157,15 @@ export async function findShadowCopy(
       trace.push({ host, status: 'failed', note: (error as Error).message });
     }
   }
-  lastTrace = trace;
   // LibGen's JSON API is blocked from Vercel for most mirrors; Anna's Archive serves an HTML search that is reachable, so
   // it is the fallback. One regex over the HTML picks the first `/md5/<hash>` and the extension (EPUB preferred, then PDF).
-  const annas = await findOnAnnas(want.title, want.author, impl).catch((error) => {
-    trace.push({ host: ANNAS_HOST, status: 'failed', note: (error as Error).message });
-    lastTrace = trace;
-    return null;
-  });
+  const annas = await findOnAnnas(want.title, want.author, impl, trace);
   if (annas) {
     trace.push({ host: ANNAS_HOST, status: 'picked', note: `md5=${annas.md5} ${annas.extension}` });
     lastTrace = trace;
     return annas;
   }
+  lastTrace = trace;
   return null;
 }
 
@@ -199,21 +195,34 @@ export function extractAnnasMd5(html: string, wantTitle: string): string | null 
   return null;
 }
 
-async function findOnAnnas(title: string, author: string, fetchImpl: FetchLike): Promise<ShadowCopy | null> {
+async function findOnAnnas(
+  title: string,
+  author: string,
+  fetchImpl: FetchLike,
+  trace: ShadowTrace,
+): Promise<ShadowCopy | null> {
   const query = author ? `${title} ${author}` : title;
   for (const extension of ['epub', 'pdf'] as const) {
     const url = annasSearchUrl(query, extension);
-    const html = await safeFetchText(url, {
-      allowedHosts: [ANNAS_HOST],
-      fetchImpl,
-      maxBytes: 2 * 1024 * 1024,
-      timeoutMs: 15_000,
-      accept: 'text/html,application/xhtml+xml',
-      userAgent: 'Mozilla/5.0 DebaserSiteWEB/1.0 (+https://debaser.site)',
-    }).catch(() => '');
-    if (!html) continue;
+    let html = '';
+    try {
+      html = await safeFetchText(url, {
+        allowedHosts: [ANNAS_HOST],
+        fetchImpl,
+        maxBytes: 2 * 1024 * 1024,
+        timeoutMs: 15_000,
+        accept: 'text/html,application/xhtml+xml',
+        userAgent: 'Mozilla/5.0 DebaserSiteWEB/1.0 (+https://debaser.site)',
+      });
+    } catch (error) {
+      trace.push({ host: ANNAS_HOST, status: 'failed', note: `${extension}: ${(error as Error).message}` });
+      continue;
+    }
     const md5 = extractAnnasMd5(html, title);
     if (md5) return { md5, extension, filesize: 0, title, author, year: '', language: 'en' };
+    // No md5 in the HTML: report page size as a clue (a Cloudflare challenge is a small page, a real empty-results page is bigger).
+    const bodyBytes = html.length;
+    trace.push({ host: ANNAS_HOST, status: 'no-match', note: `${extension}: no /md5/ link in ${bodyBytes}B of HTML` });
   }
   return null;
 }
