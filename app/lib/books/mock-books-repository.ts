@@ -86,6 +86,11 @@ export function createMockBooksRepository(): BooksRepository {
       const held = places.get(`${person}|${bookRef}`);
       if (held) places.set(`${person}|${bookRef}`, { ...held, finishedAt: null, updatedAt: new Date().toISOString() });
     },
+    async setTitle(person, bookRef, title) {
+      const held = places.get(`${person}|${bookRef}`);
+      const clean = cleanPlace({ cfi: null, page: 0, title, progress: 0, finishedAt: null }).title;
+      if (held && !held.title && clean) places.set(`${person}|${bookRef}`, { ...held, title: clean });
+    },
     async bookmarks(person, bookRef) {
       return [...bookmarks.values()]
         .filter((bookmark) => bookmark.person === person && bookmark.bookRef === bookRef)
