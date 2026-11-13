@@ -108,10 +108,11 @@ export function toBookItem(doc: unknown, fetchedAt: string): WebItem | null {
   };
 }
 
-/** How a row stands among Open Library's: a Gutenberg copy first, then a free scan of an edition, then the rest. */
-function readsFirst(item: WebItem): number {
-  return bookParts(item.externalId)?.gutenberg ? 0 : item.book?.scan ? 1 : 2;
-}
+/**
+ * Luke, 2026-11-13: dropped the "Gutenberg copy or free scan first" ranker — every book now opens in the reader (shadow
+ * copies, SPEC-books.md's "Shadow-library sources"), so demoting a copyrighted work like Dune below Dune-adjacent books
+ * with free scans just hid what the reader was searching for. Open Library's own relevance order is kept.
+ */
 
 /**
  * An ISBN's book (SPEC-book-editions.md): Open Library's edition for it (its `/isbn/` address answers with a redirect to the
@@ -218,13 +219,10 @@ export const booksSearch: SearchProvider = {
     if (gutenberg.status === 'fulfilled') {
       const record = gutenberg.value && typeof gutenberg.value === 'object' ? (gutenberg.value as Record<string, unknown>) : {};
       const docs = Array.isArray(record.docs) ? record.docs : [];
-      // Every work found, the ones the reader opens first (Open Library's own order kept within each).
+      // Every work found, in Open Library's own relevance order (the reader can open any of them now).
       works = docs
         .map((doc) => toBookItem(doc, fetchedAt))
-        .filter((item): item is WebItem => item !== null)
-        .map((item, index) => ({ item, index }))
-        .sort((a, b) => readsFirst(a.item) - readsFirst(b.item) || a.index - b.index)
-        .map(({ item }) => item);
+        .filter((item): item is WebItem => item !== null);
       const found = typeof record.numFound === 'number' ? record.numFound : 0;
       more = at * BOOKS_PAGE_SIZE < found;
     }
@@ -238,15 +236,15 @@ export const booksSearch: SearchProvider = {
         // An answer of the wrong shape is no rows, as a failed request is.
       }
     }
-    // The IPFS copies, the works named by hand, the Gutenberg works, the library scans, then every other work (a free scan
-    // of an edition first). A work both named here and returned by Open Library shows once, in the named place, as Open
-    // Library's row: that one knows its Gutenberg copy, cover and edition count.
+    // The IPFS copies and the named works lead (nothing from Open Library is asked for them); then Open Library's own
+    // relevance order, with the Archive's library scans at the end as a catalogue tail. A work both named here and
+    // returned by Open Library shows once, in the named place, carrying Open Library's cover and edition count.
     const workOf = (item: WebItem) => bookParts(item.externalId)?.work ?? item.externalId;
     const fromOpenLibrary = new Map(works.map((item) => [workOf(item), item]));
     const named = namedWorks.map((item) => fromOpenLibrary.get(item.externalId) ?? item);
     const namedKeys = new Set(namedWorks.map((item) => item.externalId));
     const rest = works.filter((item) => !namedKeys.has(workOf(item)));
-    const items = [...fromIpfs, ...named, ...rest.filter((item) => readsFirst(item) === 0), ...libraryScans, ...rest.filter((item) => readsFirst(item) !== 0)];
+    const items = [...fromIpfs, ...named, ...rest, ...libraryScans];
     return { items, next: at < MAX_PAGE && more ? at + 1 : null };
   },
   // A BOOKS row is never saved into the stream: its book page reads it again from Open Library when it's opened.
