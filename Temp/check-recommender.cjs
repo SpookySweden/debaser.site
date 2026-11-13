@@ -112,4 +112,14 @@ const youtube = fs.readFileSync('app/components/ForYouYouTube.tsx', 'utf8');
 assert.equal((youtube.match(/if \(!YOUTUBE_LINK_ON[^)]*\) return null;/g) ?? []).length, 2, 'the lane and the chips draw nothing while the switch is off');
 assert.doesNotMatch(youtube, /from '[^']*(seen-items|tagging|save-opened|youtube-taste)'|recordOpened\(|noteSeen/, 'the YouTube list is never sent to the tagger or saved');
 
+// 8. The code review's fixes (2026-11-13), held.
+assert.match(fs.readFileSync('app/components/WatchRoom.tsx', 'utf8'), /if \(user === null \|\| !roomOpen\) return;/, "a private room's name is never written down");
+assert.match(fs.readFileSync('app/components/LetterWindow.tsx', 'utf8'), /!owner && value\.isPublic;/, "a private letter's name is never written down");
+assert.match(youtube, /onHide=\{\(\) => onHide\(pick\.key\)\}/, 'NOT FOR ME on a YouTube video hides it for the visit and writes nothing');
+assert.match(page, /onHide=\{hideHere\}/, '... wired to the visit-only hide');
+assert.match(page, /readHistory\(3000\)/, 'every row the cap allows is read, so an old NOT FOR ME still holds');
+assert.match(fs.readFileSync('app/lib/recommender/use-history.ts', 'utf8'), /limit = 3000/);
+assert.match(page, /if \(tasteRows === null && rows !== null\) setTasteRows\(rows\);/, 'the taste is read once a visit, so NOT FOR ME does not reshuffle every lane');
+assert.match(page, /if \(!saved\) setPausedHide\(true\);/, 'NOT FOR ME while paused says it lasts only this visit');
+
 console.log('ok: FOR YOU engine: taste, 7 to 3, hidden and seen left out, steady per day, why-lines in words');

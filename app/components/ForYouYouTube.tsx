@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { keyOf, pickLane, type Candidate } from '../lib/recommender/engine';
-import type { HistoryKind, HistoryRow } from '../lib/recommender/types';
+import type { HistoryRow } from '../lib/recommender/types';
 import { findTag, type StationIndex } from '../lib/tag-station/query';
 import type { Taste } from '../lib/web/recommend';
 import { rowAddresses, type ExtraHosts } from '../lib/web/row-addresses';
@@ -20,7 +20,6 @@ import { STATION_KEY, Thumb } from './TagStationParts';
  */
 
 type Context = { taste: Taste; rows: readonly HistoryRow[]; explore: ReadonlyMap<string, string>; now: number; size: number };
-type Hide = (kind: HistoryKind, ref: string, title: string, maker: string, words: readonly string[]) => void;
 
 /** The reader's YouTube, once per page; null until read, and always null while the switch is off. */
 export function useYouTubeMine(): YouTubeMine | null {
@@ -37,7 +36,8 @@ export function useYouTubeMine(): YouTubeMine | null {
 }
 
 /** FROM YOUR YOUTUBE: the reader's channels' newest videos and likes, ordered by the same engine. */
-export function YouTubeLane({ context, hidden, onHide, extraHosts }: { context: Context; hidden: ReadonlySet<string>; onHide: Hide; extraHosts: ExtraHosts }) {
+/** NOT FOR ME here (`onHide`) hides a video for this visit only: NOT FOR ME here never writes the YouTube list to the database. */
+export function YouTubeLane({ context, hidden, onHide, extraHosts }: { context: Context; hidden: ReadonlySet<string>; onHide: (key: string) => void; extraHosts: ExtraHosts }) {
   const mine = useYouTubeMine();
   const picks = useMemo(() => {
     const candidates: Candidate<WebItem>[] = (mine?.items ?? []).map((item) => ({
@@ -71,7 +71,7 @@ export function YouTubeLane({ context, hidden, onHide, extraHosts }: { context: 
                 <p className="break-words px-1 text-label text-ink">{item.title}</p>
               )}
               {item.creator ? <p className="break-words px-1 text-label text-ink">{item.creator}</p> : null}
-              <PickFoot why={pick.why} title={item.title} onHide={() => onHide('media', item.id, item.title, item.creator ?? '', item.tags ?? [])} />
+              <PickFoot why={pick.why} title={item.title} onHide={() => onHide(pick.key)} />
             </div>
           </li>
         );

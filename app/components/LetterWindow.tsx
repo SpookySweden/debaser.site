@@ -52,7 +52,8 @@ function LetterWindowBody({ letterId, onClose }: { letterId: string; onClose: ()
   const held = items.value ?? [];
   // FOR YOU's private history (SPEC-recommender.md): someone else's letter, opened by a signed-in person.
   const letterName = value?.name ?? '';
-  const othersLetter = value !== null && user !== null && !owner;
+  // Public letters only: a private one opened by its link is never written down (code review, 2026-11-13).
+  const othersLetter = value !== null && user !== null && !owner && value.isPublic;
   useEffect(() => {
     if (othersLetter && letterName !== '') noteHistory({ kind: 'letter', ref: letterId, title: letterName, maker: '', words: [], action: 'opened' });
   }, [othersLetter, letterId, letterName]);

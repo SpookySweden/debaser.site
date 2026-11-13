@@ -183,10 +183,12 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   const roomName = room.name ?? '';
   const roomTopic = room.topic ?? '';
   const roomHost = room.originalHostLabel;
+  // Open rooms only: a private room's name is never written down (code review, 2026-11-13).
+  const roomOpen = room.privacy === 'open';
   useEffect(() => {
-    if (user === null) return;
+    if (user === null || !roomOpen) return;
     noteHistory({ kind: 'room', ref: roomId, title: roomName || `${roomHost.toUpperCase()}'S ROOM`, maker: roomHost, words: roomTopic ? [roomTopic] : [], action: 'opened' });
-  }, [user, roomId, roomName, roomTopic, roomHost]);
+  }, [user, roomOpen, roomId, roomName, roomTopic, roomHost]);
   const webSong = useWebTrack(song?.url);
   const songTrack = song === null ? null : trackForSong(song, player.queue, webSong);
   /** What the stage plays: the link's own address, or the catalogue file's. */

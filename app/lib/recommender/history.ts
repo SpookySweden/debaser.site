@@ -92,15 +92,17 @@ function mockPaused(): boolean {
 
 /* --- writing ----------------------------------------------------------------------------------- */
 
-async function send(kind: HistoryKind, ref: string, fields: Omit<HistoryRow, 'kind' | 'ref' | 'firstAt' | 'lastAt'>): Promise<void> {
+/** True when the row was kept; false when it wasn't (signed out, a guest, or history paused, refused by the database). */
+async function send(kind: HistoryKind, ref: string, fields: Omit<HistoryRow, 'kind' | 'ref' | 'firstAt' | 'lastAt'>): Promise<boolean> {
   const db = getSupabaseBrowserClient();
   if (db === null) {
+    if (mockPaused()) return false;
     mockNote(kind, ref, fields);
-    return;
+    return true;
   }
-  if (!(await signedIn())) return;
-  // A paused history or a guest is refused by the database itself; nothing to do here about it.
-  await db.rpc('history_note', { p_kind: kind, p_ref: ref, p_title: fields.title, p_maker: fields.maker, p_words: fields.words, p_action: fields.action });
+  if (!(await signedIn())) return false;
+  const { error } = await db.rpc('history_note', { p_kind: kind, p_ref: ref, p_title: fields.title, p_maker: fields.maker, p_words: fields.words, p_action: fields.action });
+  return error === null;
 }
 
 /** Something opened, played or read. Fire-and-forget; the same thing again within ten minutes is not sent again. */
@@ -118,17 +120,18 @@ export function noteHistory(note: HistoryNote): void {
 }
 
 /** `[ NOT FOR ME ]`: this thing is hidden from FOR YOU, and its words and maker count less. */
-export async function notForMe(note: Omit<HistoryNote, 'action'>): Promise<void> {
+export async function notForMe(note: Omit<HistoryNote, 'action'>): Promise<boolean> {
   const ref = clip(note.ref, MAX_REF);
-  if (ref === '') return;
-  await send(note.kind, ref, { title: clip(note.title, MAX_TITLE), maker: clip(note.maker, MAX_MAKER), words: cleanWords(note.words), action: 'not_for_me' }).catch(() => undefined);
-  changed();
+  if (ref === '') return false;
+  const kept = await send(note.kind, ref, { title: clip(note.title, MAX_TITLE), maker: clip(note.maker, MAX_MAKER), words: cleanWords(note.words), action: 'not_for_me' }).catch(() => false);
+  if (kept) changed();
+  return kept;
 }
 
 /* --- reading and the controls ------------------------------------------------------------------- */
 
 /** The person's own history, newest first (at most `limit` rows). Signed out: nothing. */
-export async function readHistory(limit = 1000): Promise<HistoryRow[]> {
+export async function readHistory(limit = 3000): Promise<HistoryRow[]> {
   const db = getSupabaseBrowserClient();
   if (db === null) return mockRows().slice(0, limit);
   if (!(await signedIn())) return [];

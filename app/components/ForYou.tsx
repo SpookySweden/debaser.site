@@ -103,9 +103,12 @@ export default function ForYou({ index, extraHosts, onPick }: { index: StationIn
   const [browserTaste] = useState(readTaste);
   const [hidden, setHidden] = useState<Hidden>(() => new Set());
   const [historyOpen, setHistoryOpen] = useState(false);
+  /** NOT FOR ME pressed while history is paused: hidden for this visit only, and the reader is told. */
+  const [pausedHide, setPausedHide] = useState(false);
 
   const load = useCallback(() => {
-    void readHistory(1000).then(setRows);
+    // Every row the cap allows, so a NOT FOR ME from long ago is still read (code review, 2026-11-13).
+    void readHistory(3000).then(setRows);
   }, []);
   useEffect(() => {
     if (userId === null) return;
@@ -114,7 +117,10 @@ export default function ForYou({ index, extraHosts, onPick }: { index: StationIn
   }, [userId, load]);
 
   const history = useMemo(() => rows ?? [], [rows]);
-  const taste = useMemo(() => tasteFromHistory(history, now, browserTaste), [history, now, browserTaste]);
+  // The taste is read once a visit, so NOT FOR ME takes one pick out without reshuffling every lane (code review).
+  const [tasteRows, setTasteRows] = useState<HistoryRow[] | null>(null);
+  if (tasteRows === null && rows !== null) setTasteRows(rows);
+  const taste = useMemo(() => tasteFromHistory(tasteRows ?? [], now, browserTaste), [tasteRows, now, browserTaste]);
   const explore = useMemo(
     () => exploreWords(taste, (word) => findTag(index, word)?.partners.filter((partner) => partner.close).map((partner) => partner.name) ?? []),
     [taste, index],
@@ -123,8 +129,12 @@ export default function ForYou({ index, extraHosts, onPick }: { index: StationIn
 
   const hide = (kind: HistoryKind, ref: string, title: string, maker: string, words: readonly string[]) => {
     setHidden((current) => new Set([...current, keyOf(kind, ref)]));
-    void notForMe({ kind, ref, title, maker, words: [...words] });
+    void notForMe({ kind, ref, title, maker, words: [...words] }).then((saved) => {
+      if (!saved) setPausedHide(true);
+    });
   };
+  /** FROM YOUR YOUTUBE: hidden for this visit only, so nothing of the YouTube list reaches the database (code review). */
+  const hideHere = (key: string) => setHidden((current) => new Set([...current, key]));
   const visible = <T,>(picks: LanePick<T>[]) => picks.filter((pick) => !hidden.has(pick.key));
 
   /* MEDIA: the map's own items that have an address (a search result nobody saved has none). */
@@ -191,6 +201,11 @@ export default function ForYou({ index, extraHosts, onPick }: { index: StationIn
           {historyOpen ? 'HISTORY' : '[ HISTORY ]'}
         </button>
       </div>
+      {pausedHide ? (
+        <p role="status" className="text-label text-ink-quiet">
+          HISTORY IS PAUSED: NOT FOR ME LASTS UNTIL YOU LEAVE. RESUME HISTORY TO KEEP IT.
+        </p>
+      ) : null}
       <div id="for-you-history" hidden={!historyOpen}>
         {historyOpen ? <HistoryPanel /> : null}
       </div>
@@ -223,7 +238,7 @@ export default function ForYou({ index, extraHosts, onPick }: { index: StationIn
               );
             }}
           />
-          <YouTubeLane context={context} hidden={hidden} onHide={hide} extraHosts={extraHosts} />
+          <YouTubeLane context={context} hidden={hidden} onHide={hideHere} extraHosts={extraHosts} />
         </div>
         <div className="flex min-w-0 flex-1 basis-72 flex-col">
           <Lane
