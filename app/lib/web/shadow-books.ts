@@ -250,6 +250,13 @@ export function extractAnnasMd5(html: string, wantTitle: string): string | null 
   return null;
 }
 
+/**
+ * A full browser's header set, used for Anna's Archive requests. Cloudflare's bot detection reads these, and a plain
+ * Node User-Agent is challenged every time. The fingerprint still differs from a real browser's TLS JA3, but the
+ * `.li` mirror has been letting this through in practice (checked live 2026-11-13).
+ */
+const BROWSERISH_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36';
+
 async function findOnAnnas(
   title: string,
   author: string,
@@ -257,8 +264,7 @@ async function findOnAnnas(
   trace: ShadowTrace,
 ): Promise<ShadowCopy | null> {
   // EPUB only (scope-cut for the 60s function timeout): if a book has no EPUB on Anna's, the reader still shows the
-  // no-free-copy page with a BORROW ON ARCHIVE key. Resolution of annas-archive.org goes through the DoH-resolving
-  // shadow agent so it bypasses Vercel's DNS block.
+  // no-free-copy page with a BORROW ON ARCHIVE key.
   const query = author ? `${title} ${author}` : title;
   for (const host of ANNAS_HOSTS) {
     const target = buildUrl(host, ['search'], [
@@ -274,8 +280,8 @@ async function findOnAnnas(
         fetchImpl,
         maxBytes: 2 * 1024 * 1024,
         timeoutMs: 10_000,
-        accept: 'text/html,application/xhtml+xml',
-        userAgent: 'Mozilla/5.0 DebaserSiteWEB/1.0 (+https://debaser.site)',
+        accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        userAgent: BROWSERISH_UA,
       });
     } catch (error) {
       trace.push({ host, status: 'failed', note: (error as Error).message });
@@ -283,7 +289,8 @@ async function findOnAnnas(
     }
     const md5 = extractAnnasMd5(html, title);
     if (md5) return { md5, extension: 'epub', filesize: 0, title, author, year: '', language: 'en' };
-    trace.push({ host, status: 'no-match', note: `no /md5/ in ${html.length}B of HTML` });
+    const challenge = /cf-chl|__cf_chl|challenge-platform|Just a moment/i.test(html);
+    trace.push({ host, status: 'no-match', note: `no /md5/ in ${html.length}B${challenge ? ' (Cloudflare challenge)' : ''}` });
   }
   return null;
 }
