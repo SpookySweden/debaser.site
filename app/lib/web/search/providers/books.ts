@@ -109,10 +109,22 @@ export function toBookItem(doc: unknown, fetchedAt: string): WebItem | null {
 }
 
 /**
- * Luke, 2026-11-13: dropped the "Gutenberg copy or free scan first" ranker — every book now opens in the reader (shadow
- * copies, SPEC-books.md's "Shadow-library sources"), so demoting a copyrighted work like Dune below Dune-adjacent books
- * with free scans just hid what the reader was searching for. Open Library's own relevance order is kept.
+ * How well a work's title matches the search words: 2 when the title IS one of the search words (an exact one-word title
+ * hit, so "dune" finds Dune the novel first, not "The road to Dune"), 1 when every word of the title is in the search, 0
+ * otherwise. Added 2026-11-13 ("i cant see frank herburt dune when searching it now at all"): Open Library's own
+ * relevance order for "dune frank herbert" bumps Dune-adjacent books above Dune itself, because many hits match "frank
+ * herbert" and the title+author ranker spreads the signal; a plain title-match preference restores the obvious result.
  */
+function titleMatchScore(title: string, words: string): number {
+  const titleWords = title.toLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length > 0);
+  const searchWords = new Set(words.toLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length > 0));
+  if (titleWords.length === 0 || searchWords.size === 0) return 0;
+  // One-word title that is one of the search words: an exact hit for a short title like "Dune".
+  if (titleWords.length === 1 && searchWords.has(titleWords[0])) return 2;
+  // Every word of the title appears in the search (the search may have extra words like an author's name).
+  if (titleWords.every((word) => searchWords.has(word))) return 1;
+  return 0;
+}
 
 /**
  * An ISBN's book (SPEC-book-editions.md): Open Library's edition for it (its `/isbn/` address answers with a redirect to the
@@ -219,10 +231,13 @@ export const booksSearch: SearchProvider = {
     if (gutenberg.status === 'fulfilled') {
       const record = gutenberg.value && typeof gutenberg.value === 'object' ? (gutenberg.value as Record<string, unknown>) : {};
       const docs = Array.isArray(record.docs) ? record.docs : [];
-      // Every work found, in Open Library's own relevance order (the reader can open any of them now).
+      // Every work found, in Open Library's own order, with a title-match bump (so "dune" finds Dune the novel first).
       works = docs
         .map((doc) => toBookItem(doc, fetchedAt))
-        .filter((item): item is WebItem => item !== null);
+        .filter((item): item is WebItem => item !== null)
+        .map((item, index) => ({ item, index, score: titleMatchScore(item.title, words) }))
+        .sort((a, b) => b.score - a.score || a.index - b.index)
+        .map(({ item }) => item);
       const found = typeof record.numFound === 'number' ? record.numFound : 0;
       more = at * BOOKS_PAGE_SIZE < found;
     }
