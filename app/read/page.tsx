@@ -4,8 +4,8 @@ import ReaderPage from '../components/reader/ReaderPage';
 import SiteWindow from '../components/SiteWindow';
 
 export const metadata: Metadata = {
-  title: 'DEBASER.SITE - Your books',
-  description: 'Continue the books you are reading, see the ones you finished, or open your own PDF or EPUB in the DEBASER reader.',
+  title: 'DEBASER.SITE - Read',
+  description: 'Continue the books you are reading, see the ones you finished, or open your own PDF or EPUB: the site finds which book it is, so your highlights count in every copy.',
 };
 
 /**
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
  */
 export default function OwnBookRoute() {
   return (
-    <SiteWindow title="DEBASER_OS - v1.0 [READER]" active="web" tip="Your books, and your own files, read here." fill>
+    <SiteWindow title="DEBASER_OS - v1.0 [READER]" active="read" tip="Your books, and your own PDFs and EPUBs, matched to their book." fill>
       <Suspense fallback={null}>
         <ReaderPage bookRef={null} />
       </Suspense>

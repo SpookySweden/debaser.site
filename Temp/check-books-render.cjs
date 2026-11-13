@@ -75,10 +75,13 @@ console.log('  ok    the reader, before the book arrives');
 
 // A reader's own PDF or EPUB (Luke, 2026-11-11): the page asks for a file, and offers nothing that would save anything.
 const ownPage = renderToStaticMarkup(el(ReaderPage, { bookRef: null }));
-assert.match(ownPage, /YOUR OWN BOOK/, 'the page says what it is for');
-assert.match(ownPage, /CHOOSE A PDF OR EPUB[\s\S]*type="file"[^>]*accept="\.pdf,\.epub/, 'a file picker for a PDF or an EPUB');
+// (2026-11-13) The READ module's drop box replaced the picker at the foot (Luke: "a new module for reading"); its words
+// say highlights count in every copy, so the keys are what must be absent, not the word.
+assert.match(ownPage, /OPEN YOUR OWN PDF OR EPUB/, 'the page says what it is for');
+assert.match(ownPage, /DROP IT HERE/, 'a file can be dropped on it');
+assert.match(ownPage, /CHOOSE A FILE[\s\S]*type="file"[^>]*accept="\.pdf,\.epub/, 'a file picker for a PDF or an EPUB');
 assert.match(ownPage, /STAYS ON YOUR DEVICE/, 'and says the file goes nowhere');
-assert.doesNotMatch(ownPage, /BOOKMARKS|HIGHLIGHTS|READING THE BOOK FROM/, 'no bookmarks or highlights, nothing fetched');
+assert.doesNotMatch(ownPage, /\[ BOOKMARKS|\[ HIGHLIGHTS|READING THE BOOK FROM/, 'no bookmarks or highlights keys, nothing fetched');
 console.log('  ok    your own book');
 
 const spot = { x: 300, top: 200, bottom: 230, stageWidth: 900, stageHeight: 600 };

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   bookmarkLabel,
@@ -30,7 +30,6 @@ import {
   pageOfCfi,
   quoteProbe,
   rangeIn,
-  searchWorks,
   threadKeyOf,
   workKey,
   workOf,
@@ -77,12 +76,14 @@ import {
   type HighlightColour,
   type PlaceSave,
 } from '../../lib/books/types';
-import { FIELD_TIGHT, PLATE, PLATE_MAIN, PLATE_PRESSED } from '../../lib/ui/controls';
+import { PLATE, PLATE_MAIN, PLATE_PRESSED } from '../../lib/ui/controls';
+import { asFile, keptFileOf, rematchKept } from '../../lib/books/own-library';
 import { useAuth } from '../AuthProvider';
 import { useForum } from '../ForumProvider';
 import HighlightBar, { type BarSpot } from './HighlightBar';
 import { BookmarkList, ContentsList, HighlightList, LookSettings, Panel, SearchBox, type PanelName, type SearchGroup } from './ReaderPanels';
 import ReadingShelf from './ReadingShelf';
+import { MatchSearch, OWN_ACCEPT } from './OwnFileDrop';
 
 const LOOK_KEY = 'debaser-reader-look';
 /** How long a click on the page's edge waits before turning it: long enough for a double-click to choose a word. */
@@ -103,54 +104,6 @@ const IPFS_LINES: Record<IpfsProblem, string> = {
 function arrivedText(progress: IpfsProgress): string {
   if (progress.total) return `${Math.min(100, Math.floor((progress.loaded / progress.total) * 100))}%`;
   return `${(progress.loaded / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-/**
- * [ CHANGE ] for your own file: BOOKS search (Open Library's works), each with [ THIS ONE ], and [ NOT LISTED ] at the foot.
- * Only the words typed go to Open Library.
- */
-function MatchSearch({ start, onChoose }: { start: string; onChoose: (chosen: WorkMatch | 'none') => void }) {
-  const [query, setQuery] = useState(start);
-  const [results, setResults] = useState<WorkMatch[] | null>(null);
-  const [busy, setBusy] = useState(false);
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!query.trim()) return;
-    setBusy(true);
-    setResults(await searchWorks(query));
-    setBusy(false);
-  };
-  return (
-    <div className="flex flex-col gap-2">
-      <form onSubmit={(event) => void submit(event)} className="flex gap-1">
-        <label className="min-w-0 flex-1">
-          <span className="sr-only">Search BOOKS for this file&apos;s book</span>
-          <input value={query} onChange={(event) => setQuery(event.target.value)} className={FIELD_TIGHT} maxLength={200} />
-        </label>
-        <button type="submit" className={PLATE} disabled={busy}>
-          [ SEARCH BOOKS ]
-        </button>
-      </form>
-      {busy ? <p className="text-label" role="status">SEARCHING...</p> : null}
-      {results !== null && results.length === 0 && !busy ? <p className="text-label">NO BOOKS FOUND.</p> : null}
-      <ul>
-        {(results ?? []).map((result) => (
-          <li key={result.work} className="rule-pixel flex items-center gap-2 py-1.5" data-work={result.work}>
-            <span className="min-w-0 flex-1 break-words text-label">
-              {result.title.toUpperCase()}
-              {result.author ? ` BY ${result.author.toUpperCase()}` : ''}
-            </span>
-            <button type="button" onClick={() => onChoose(result)} className={PLATE} aria-label={`THIS ONE: ${result.title}`}>
-              [ THIS ONE ]
-            </button>
-          </li>
-        ))}
-      </ul>
-      <button type="button" onClick={() => onChoose('none')} className={PLATE}>
-        [ NOT LISTED ]
-      </button>
-    </div>
-  );
 }
 
 /** Every place this browser kept, or none where storage is blocked. */
@@ -310,6 +263,15 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
   // that opens the book again where it was (a PDF's ONE PAGE / TWO PAGES is decided when it opens).
   const [kind, setKind] = useState<'epub' | 'pdf' | null>(null);
   const [ownFile, setOwnFile] = useState<File | null>(null);
+  // The READ module (2026-11-13): a file dropped or chosen goes to the drop box's card first, which finds its book.
+  const [incoming, setIncoming] = useState<File | null>(null);
+  // `/read?file=<fingerprint>`: whether this browser keeps that file (null while asking).
+  const [keptMissing, setKeptMissing] = useState<boolean | null>(null);
+  // `/read?for=<work>`: a book page's READ YOUR OWN COPY.
+  // Its title and author, once the site's book info answers; the work itself is known from the address at once.
+  const [forInfo, setForInfo] = useState<{ work: string; title: string; author: string } | null>(null);
+  // It applies to the first file opened from that address only: a later one is matched as any file is.
+  const [forDoneFor, setForDoneFor] = useState<string | null>(null);
   const [openCount, setOpenCount] = useState(0);
   // An IPFS book (`ipfs:<CID>`): fetched by this browser from a gateway, and how much of it has come.
   const ipfs = own ? null : ipfsCid(bookRef);
@@ -461,9 +423,15 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
           if (live) setMatch('none');
         } else if (savedWork) {
           found = savedWork;
-          const info = await fetch(`/api/web/book/info?ref=${encodeURIComponent(savedWork)}`).then((response) => (response.ok ? response.json() : null)).catch(() => null);
-          const item = (info as { item?: { title?: string; creator?: string } } | null)?.item;
-          if (live) setMatch({ work: savedWork, title: item?.title ?? 'THE MATCHED BOOK', author: item?.creator ?? '', cover: null });
+          // The book as this browser kept it with the file (YOUR FILES), else the catalogue's (which may not answer).
+          const keptMatch = (await keptFileOf(copyRef))?.match;
+          if (keptMatch?.work === savedWork) {
+            if (live) setMatch(keptMatch);
+          } else {
+            const info = await fetch(`/api/web/book/info?ref=${encodeURIComponent(savedWork)}`).then((response) => (response.ok ? response.json() : null)).catch(() => null);
+            const item = (info as { item?: { title?: string; creator?: string } } | null)?.item;
+            if (live) setMatch({ work: savedWork, title: item?.title ?? 'THE MATCHED BOOK', author: item?.creator ?? '', cover: null });
+          }
         } else if (ownMeta?.title && !unread) {
           const guess = (await findWorks(ownMeta.title, ownMeta.author))[0];
           if (guess) {
@@ -487,6 +455,7 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
     const value = chosen === 'none' ? NOT_LISTED : chosen.work;
     remember(workKey(copyRef), value);
     if (me) await getBooksRepository().setWork(me.id, copyRef, value).catch(() => setFault('THE MATCH COULD NOT BE SAVED.'));
+    await rematchKept(copyRef, chosen === 'none' ? null : chosen);
     setMatch(chosen);
     setWork(chosen === 'none' ? null : chosen.work);
     setChoosing(false);
@@ -721,6 +690,42 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
   const asked = search.toString();
   // `/read?file=<fingerprint>`: CONTINUE READING's READ for your own file, which the site doesn't have: choose it again.
   const wantedFile = own && /^[0-9a-f]{64}$/.test(search.get('file') ?? '') ? search.get('file') : null;
+  const forRef = own ? cleanWork(search.get('for')) : null;
+
+  useEffect(() => {
+    // A file this browser keeps (YOUR FILES) opens at once; one it doesn't asks to be chosen again.
+    if (!wantedFile) return;
+    let live = true;
+    void keptFileOf(`own:${wantedFile}`).then((kept) => {
+      if (!live) return;
+      setKeptMissing(kept === null);
+      if (kept) {
+        setToc([]);
+        setOwnFile(asFile(kept));
+      }
+    });
+    return () => {
+      live = false;
+    };
+  }, [wantedFile]);
+
+  useEffect(() => {
+    // READ YOUR OWN COPY from a book page: the file chosen here is that book.
+    if (!forRef) return;
+    let live = true;
+    void fetch(`/api/web/book/info?ref=${encodeURIComponent(forRef)}`)
+      .then((response) => (response.ok ? response.json() : null))
+      .catch(() => null)
+      .then((body: { item?: { title?: string; creator?: string } } | null) => {
+        if (live) setForInfo({ work: forRef, title: body?.item?.title ?? '', author: body?.item?.creator ?? '' });
+      });
+    return () => {
+      live = false;
+    };
+  }, [forRef]);
+  // Known from the address before its title comes (a file chosen at once is still that book); the card fills the title in.
+  const forWork: WorkMatch | null =
+    forRef && forDoneFor !== forRef ? { work: forRef, title: forInfo?.work === forRef ? forInfo.title : '', author: forInfo?.work === forRef ? forInfo.author : '', cover: null } : null;
 
   useEffect(() => {
     let live = true;
@@ -1213,15 +1218,24 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
       setFault('A PDF OR AN EPUB, PLEASE.');
       return;
     }
+    // To the drop box's card, which finds its book before it opens.
+    setFault(null);
+    setPanel(null);
+    setOwnFile(null);
+    setIncoming(chosen);
+  };
+  /** The card's [ READ ], or a file YOUR FILES keeps: it opens here and goes nowhere else. */
+  const openOwn = (file: File) => {
+    setForDoneFor(forRef);
     setFault(null);
     setPanel(null);
     setToc([]);
-    setOwnFile(chosen);
+    setOwnFile(file);
   };
   const ownPicker = (label: string, className: string) => (
     <label className={`${className} cursor-pointer`}>
       {label}
-      <input type="file" accept=".pdf,.epub,application/pdf,application/epub+zip" onChange={chooseOwn} className="sr-only" />
+      <input type="file" accept={OWN_ACCEPT} onChange={chooseOwn} className="sr-only" />
     </label>
   );
 
@@ -1329,7 +1343,13 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
           </div>
         ) : null}
 
-        {phase === 'choose' ? <ReadingShelf me={me} wantedFile={wantedFile} picker={ownPicker('CHOOSE A PDF OR EPUB', PLATE_MAIN)} /> : null}
+        {phase === 'choose' && wantedFile && keptMissing === null ? (
+          <p className="absolute inset-x-0 top-1/3 text-center text-label" role="status">
+            OPENING YOUR FILE...
+          </p>
+        ) : phase === 'choose' ? (
+          <ReadingShelf me={me} wantedFile={keptMissing ? wantedFile : null} forWork={forWork} incoming={incoming} onIncoming={setIncoming} onOpen={openOwn} />
+        ) : null}
         {phase === 'ask' && ask ? (
           // The one question before a started book's page (SPEC-reading-places.md): where you were, or the start.
           <div className="absolute inset-x-0 top-1/3 flex flex-col items-center gap-2 p-4 text-center" role="dialog" aria-label="Where to open the book">

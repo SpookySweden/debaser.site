@@ -7,7 +7,7 @@ import { getBooksRepository } from '../lib/books/repository';
 import { bookThreadAnchor, isCfi, isReadable, readHref, type BookReader as Reader } from '../lib/books/types';
 import { workOf } from '../lib/books/copies';
 import { threadDomId } from '../lib/forum/anchors';
-import { TITLE_BAR } from '../lib/ui/controls';
+import { PLATE, TITLE_BAR } from '../lib/ui/controls';
 import type { WebItem } from '../lib/web/types';
 import { useForum } from './ForumProvider';
 import BookEditions from './BookEditions';
@@ -93,6 +93,15 @@ export default function BookPage({ bookRef }: { bookRef: string }) {
         {/* Every legal way to get it (Luke, 2026-11-13): borrow, a library, buy, listen, preview. */}
         {item && item.platform === 'books' ? (
           <GetThisBook title={item.title} author={item.creator} work={/^books:(OL[1-9][0-9]{0,11}W)/.exec(item.id)?.[1]} />
+        ) : null}
+        {/* The READ module (2026-11-13): your own PDF or EPUB of this book, opened in the reader and counted as this book. */}
+        {item && item.platform === 'books' && workOf(item.id) ? (
+          <p className="flex flex-wrap items-center gap-2 px-3 py-1 text-label text-ink" data-own-copy>
+            <Link href={`/read?for=${encodeURIComponent(workOf(item.id) as string)}`} className={PLATE}>
+              [ READ YOUR OWN COPY ]
+            </Link>
+            HAVE A PDF OR EPUB OF IT? IT OPENS IN OUR READER, STAYS ON YOUR DEVICE, AND ITS HIGHLIGHTS COUNT AS THIS BOOK&apos;S.
+          </p>
         ) : null}
         <p className="px-3 text-label">
           <Link href="/media" className="underline">

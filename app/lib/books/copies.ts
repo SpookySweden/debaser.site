@@ -77,7 +77,7 @@ async function askArchiveWork(bookRef: string, fetchImpl: typeof fetch): Promise
 }
 
 /** A work Open Library's search offered for your own file: its ref, title and first author, and a cover number. */
-export type WorkMatch = { work: string; title: string; author: string; cover: number | null };
+export type WorkMatch = { work: string; title: string; author: string; cover: number | null; editions?: number | null };
 
 /** Open Library's search answer as matches: works only, plain text, at most `limit`. */
 export function matchesOf(body: unknown, limit = 8): WorkMatch[] {
@@ -86,11 +86,13 @@ export function matchesOf(body: unknown, limit = 8): WorkMatch[] {
   const found: WorkMatch[] = [];
   for (const doc of docs) {
     if (!doc || typeof doc !== 'object') continue;
-    const { key, title, author_name: authors, cover_i: cover } = doc as Record<string, unknown>;
+    const { key, title, author_name: authors, cover_i: cover, edition_count: editions } = doc as Record<string, unknown>;
     const id = typeof key === 'string' ? /^\/works\/(OL[1-9][0-9]{0,11}W)$/.exec(key)?.[1] : undefined;
     if (!id || typeof title !== 'string' || !title.trim()) continue;
     const author = Array.isArray(authors) && typeof authors[0] === 'string' ? authors[0] : '';
-    found.push({ work: `books:${id}`, title: title.trim().slice(0, 300), author: author.trim().slice(0, 200), cover: typeof cover === 'number' && Number.isInteger(cover) && cover > 0 ? cover : null });
+    found.push({ work: `books:${id}`, title: title.trim().slice(0, 300), author: author.trim().slice(0, 200), cover: typeof cover === 'number' && Number.isInteger(cover) && cover > 0 ? cover : null,
+      editions: typeof editions === 'number' && Number.isInteger(editions) && editions > 0 ? editions : null,
+    });
     if (found.length >= limit) break;
   }
   return found;
@@ -111,7 +113,7 @@ export function searchWords(text: string): string {
 export async function findWorks(title: string, author: string, fetchImpl: typeof fetch = fetch): Promise<WorkMatch[]> {
   const words = searchWords(title);
   if (!words) return [];
-  const params = new URLSearchParams({ title: words, fields: 'key,title,author_name,cover_i', limit: '8' });
+  const params = new URLSearchParams({ title: words, fields: 'key,title,author_name,cover_i,edition_count', limit: '8' });
   const by = searchWords(author);
   if (by) params.set('author', by);
   try {
@@ -130,7 +132,7 @@ export async function findWorks(title: string, author: string, fetchImpl: typeof
 export async function searchWorks(query: string, fetchImpl: typeof fetch = fetch): Promise<WorkMatch[]> {
   const words = searchWords(query);
   if (!words) return [];
-  const params = new URLSearchParams({ q: words, fields: 'key,title,author_name,cover_i', limit: '8' });
+  const params = new URLSearchParams({ q: words, fields: 'key,title,author_name,cover_i,edition_count', limit: '8' });
   try {
     const response = await fetchImpl(`https://openlibrary.org/search.json?${params.toString()}`, { credentials: 'omit', referrerPolicy: 'no-referrer' });
     return response.ok ? matchesOf(await response.json()) : [];

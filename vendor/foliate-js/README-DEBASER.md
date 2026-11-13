@@ -35,6 +35,9 @@ Left out: the comic book, FB2 and MOBI readers, `dict.js`, `opds.js`, `footnotes
 - `pdf.js`, `render`: a page drawn again at a new zoom empties its text and link layers first (upstream added a second
   copy of the words after the first), so a PDF highlight's characters within the page's words (2026-11-13,
   `app/lib/books/copies.ts`) always mean the same words.
+- `pdf.js`, `book.pageText(i)`: a page's words as plain text, nothing drawn, so the READ module can find the ISBN
+  printed inside a reader's own PDF (`app/lib/books/own-files.ts`, 2026-11-13); and `metadata.keywords`, the PDF's
+  Keywords field, where an Internet Archive PDF names its item.
 
 ## Scripts in books
 foliate-js frames each chapter with `sandbox="allow-same-origin allow-scripts"` (a WebKit bug needs

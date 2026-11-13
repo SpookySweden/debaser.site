@@ -155,6 +155,8 @@ export const makePDF = async file => {
         identifier: metadata?.get('dc:identifier'),
         source: metadata?.get('dc:source'),
         rights: metadata?.get('dc:rights'),
+        // DEBASER: an Internet Archive PDF names its item here (archive.org/details/<id>), which says which book it is.
+        keywords: info?.Keywords,
     }
 
     const outline = await pdf.getOutline()
@@ -189,6 +191,11 @@ export const makePDF = async file => {
     }
     book.getTOCFragment = doc => doc.documentElement
     book.getCover = async () => renderPage(await pdf.getPage(1), true)
+    // DEBASER: a page's words as plain text (no drawing), for finding the ISBN printed inside a reader's own file.
+    book.pageText = async i => {
+        const content = await (await pdf.getPage(i + 1)).getTextContent()
+        return content.items.map(item => item.str ?? '').join(' ')
+    }
     book.destroy = () => pdf.destroy()
     return book
 }
