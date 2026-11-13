@@ -165,7 +165,12 @@ const ARCHIVE_BOOK = /^internet_archive:([A-Za-z0-9][A-Za-z0-9._-]{0,100})$/;
  * reader's own browser from a gateway (`ipfs.ts`).
  */
 export function isReadable(bookRef: string): boolean {
-  return /^books:OL[1-9][0-9]{0,11}W(?:-pg[1-9][0-9]{0,6})?$/.test(bookRef) || ARCHIVE_BOOK.test(bookRef) || ipfsCid(bookRef) !== null;
+  return (
+    /^books:OL[1-9][0-9]{0,11}W(?:-pg[1-9][0-9]{0,6})?$/.test(bookRef)
+    || ARCHIVE_BOOK.test(bookRef)
+    || /^shadow:[0-9a-f]{32}$/.test(bookRef)
+    || ipfsCid(bookRef) !== null
+  );
 }
 
 /** An Internet Archive book's identifier, or null for any other ref. */

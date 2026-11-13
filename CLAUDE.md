@@ -39,11 +39,12 @@ The house rules live in `.claude/rules/core.md` (loaded automatically).
   browser and is never uploaded.
   Widened again ("remove the rule that is impeding and find a way to have it so any book can be read in the ereader",
   2026-11-13, SPEC-books.md and SPEC-book-editions.md updated): every Open Library work opens inside `/read`.
-  `/read/books:OL…W` (the bare work ref) resolves server-side to a Gutenberg copy, a free Archive scan, or, for a work
-  with only a lending-library scan, the Archive's own viewer (`archive.org/embed/<ocaid>`), which carries the Archive's
-  borrow flow with nothing passing through our server; a work with no copy at all shows a reader-framed page with the
-  title, cover and a link to Open Library (`/api/web/book/epub` answers `{ noFreeCopy: true, work, openLibraryUrl }`),
-  so the browser never leaves `/read` on its own. The READ module (the `read` key on the top bar, 2026-11-13) matches it to its Open Library
+  `/read/books:OL…W` (the bare work ref) resolves server-side to a Gutenberg copy, a free Archive scan, or a shadow
+  copy from LibGen (Luke lifted the Anna's Archive refusal the same day, SPEC-books.md's "Shadow-library sources":
+  "get rid of the no free copy thing and just add them by any means necessary"): the file passes through our server
+  (`/api/web/book/epub?ref=shadow:<md5>`) and is never kept, the same rule as Gutenberg. When no copy is found anywhere,
+  the reader shows a page with the title, cover and a link to Open Library, so the browser never leaves `/read` on its
+  own. Said once: LibGen mirrors go up and down, and rights holders may file DMCA takedowns on the Vercel domain. The READ module (the `read` key on the top bar, 2026-11-13) matches it to its Open Library
   work before it opens (the ISBN printed inside, then the title inside, then the file's name: only those go to Open
   Library), and may keep it in that browser's own storage (IndexedDB, `app/lib/books/own-library.ts`), never anywhere else.
 - Public APIs, RSS/Atom, oEmbed and open-data endpoints; unofficial JSON APIs a platform's own site uses

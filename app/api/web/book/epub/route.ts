@@ -102,7 +102,16 @@ export async function GET(request: Request): Promise<Response> {
     if ('noFreeCopy' in opened) return answer({ noFreeCopy: opened.noFreeCopy }, 404);
     // One with a PDF: the reader asks for it a slice at a time (above).
     if ('pdf' in opened) return answer({ pdf: { size: opened.pdf.size } });
-    const headers: Record<string, string> = { ...NEVER_KEPT, 'Content-Type': 'application/epub+zip', 'Content-Disposition': 'inline' };
+    // A shadow copy from LibGen (Luke, 2026-11-13): passed through from its mirror as it streams, never kept. The
+    // extension decides the type; the reader opens an EPUB directly and a PDF the same way as an own-file PDF.
+    const shadowExtension = 'shadow' in opened ? opened.shadow?.extension : undefined;
+    const contentType =
+      shadowExtension === 'pdf'
+        ? 'application/pdf'
+        : shadowExtension === 'epub'
+          ? 'application/epub+zip'
+          : 'application/epub+zip';
+    const headers: Record<string, string> = { ...NEVER_KEPT, 'Content-Type': contentType, 'Content-Disposition': 'inline' };
     if (opened.length !== null) headers['Content-Length'] = String(opened.length);
     return new Response(opened.body, { status: 200, headers });
   } catch (error) {

@@ -23,6 +23,7 @@ import { readEdition, readWorkRow, resolveWorkCopy } from './book-editions';
 import { AUDIOBOOKS_SEARCH_HOSTS, toAudiobookItem } from './search/providers/audiobooks';
 import { toWebItem as toArchiveItem, IA_ALLOWED_HOSTS } from './adapters/internet-archive';
 import { SafeFetchError, safeFetchJson, safeFetchStream, type FetchLike } from './safe-fetch';
+import { openShadowBook, type ShadowExtension } from './shadow-books';
 import { buildUrl, isSafeIdentifier } from './urls';
 import type { WebItem } from './types';
 
@@ -33,7 +34,7 @@ export const GUTENBERG_HOST = 'www.gutenberg.org';
  * book, `/read/internet_archive:<identifier>`, and one edition of a book, `/media/book/edition:OL7247530M`
  * (SPEC-book-editions.md: its book's page, opened at that edition).
  */
-export const BOOK_REF = /^(books:OL[1-9][0-9]{0,11}W(?:-pg[1-9][0-9]{0,6})?|audiobooks:[1-9][0-9]{0,8}|internet_archive:[A-Za-z0-9][A-Za-z0-9._-]{0,100}|edition:OL[1-9][0-9]{0,11}M)$/;
+export const BOOK_REF = /^(books:OL[1-9][0-9]{0,11}W(?:-pg[1-9][0-9]{0,6})?|audiobooks:[1-9][0-9]{0,8}|internet_archive:[A-Za-z0-9][A-Za-z0-9._-]{0,100}|edition:OL[1-9][0-9]{0,11}M|shadow:[0-9a-f]{32})$/;
 
 /** The Archive's file servers a download is sent on to (`ia800300.us.archive.org`, `dn721905.ca.archive.org`). */
 const IA_FILE_SERVER = /^(?:ia|dn)\d{1,8}\.(?:[a-z]{2}\.)?archive\.org$/;
@@ -162,7 +163,7 @@ export async function openBookEpub(
   ref: string,
   epubFetch: FetchLike,
 ): Promise<
-  | { body: ReadableStream<Uint8Array>; length: number | null }
+  | { body: ReadableStream<Uint8Array>; length: number | null; shadow?: { extension: ShadowExtension } }
   | { pdf: { size: number } }
   | 'viewer'
   | { redirect: string }
@@ -171,15 +172,26 @@ export async function openBookEpub(
 > {
   if (!BOOK_REF.test(ref)) return null;
   if (ref.startsWith('internet_archive:')) return openArchiveEpub(ref.slice('internet_archive:'.length), epubFetch);
+  if (ref.startsWith('shadow:')) {
+    // Luke, 2026-11-13 (SPEC-books.md's "Shadow-library sources"): a shadow copy by its md5, passed through from LibGen's
+    // mirrors and never kept. Returned as a stream so the caller sets the right Content-Type.
+    const opened = await openShadowBook(ref.slice('shadow:'.length), epubFetch);
+    return opened ? { body: opened.body, length: opened.length, shadow: { extension: opened.extension } } : null;
+  }
   if (!ref.startsWith('books:')) return null;
   const parts = bookParts(ref.slice('books:'.length));
   if (!parts) return null;
-  // A bare Open Library work ref (Luke, 2026-11-13: "any book can be read in the ereader"): resolve to the best copy and
-  // let the reader redirect to its concrete ref. If no copy is found, the reader shows a "no free copy" page with a link
-  // to Open Library inside its own frame; the browser never leaves /read on its own.
+  // A bare Open Library work ref (Luke, 2026-11-13: "any book can be read in the ereader"): resolve to the best copy.
+  // Free copies (Gutenberg, free Archive scan, IPFS) redirect to their concrete ref. A shadow copy streams in-place, so
+  // the reader's URL stays `/read/books:OL…W` and highlights still save against the work. With nothing, the reader shows
+  // a "no free copy" page with a link to Open Library inside its own frame.
   if (!parts.gutenberg) {
     const resolved = await resolveWorkCopy(parts.work, epubFetch).catch(() => null);
     if (resolved && 'ref' in resolved) return { redirect: resolved.ref };
+    if (resolved && 'shadow' in resolved) {
+      const opened = await openShadowBook(resolved.shadow.md5, epubFetch).catch(() => null);
+      if (opened) return { body: opened.body, length: opened.length, shadow: { extension: opened.extension } };
+    }
     const borrow = resolved && 'borrowOnArchive' in resolved ? `https://archive.org/details/${resolved.borrowOnArchive}` : null;
     return {
       noFreeCopy: {

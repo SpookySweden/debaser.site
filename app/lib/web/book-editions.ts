@@ -31,6 +31,7 @@ import {
   type ScanAccess,
 } from '../books/editions';
 import { safeFetchJson, type FetchLike } from './safe-fetch';
+import { findShadowCopy, type ShadowCopy } from './shadow-books';
 import { bookParts, BOOKS_FIELDS, BOOKS_SEARCH_HOSTS, toBookItem } from './search/providers/books';
 import { IA_SEARCH_HOSTS, IA_SEARCH_TIMEOUT_MS } from './search/providers/internet-archive';
 import { buildUrl } from './urls';
@@ -153,19 +154,21 @@ export function ipfsCopyOf(work: string): string | null {
 }
 
 /**
- * The best copy of a work to open in the reader (Luke, 2026-11-13: "any book can be read in the ereader"): Project
- * Gutenberg's copy first (its EPUB passes through our server, pictures included); then a free Archive scan; else, when a
- * lending-library scan exists, that scan's identifier as `borrowOnArchive` so the reader's no-free-copy page can offer
- * `[ BORROW ON ARCHIVE ↗ ]` beside `[ OPEN LIBRARY ↗ ]` (Luke, 2026-11-13: the Archive's own embed for a borrow-only
- * copyrighted book renders a black viewer until the reader borrows, and the reader can't borrow inside an iframe, so
- * sending them to archive.org for the borrow is kinder than a blank page). One page of editions is read (500 at a time
- * is already the catalogue's own page), which is enough for every work checked live. Open to visitors.
+ * The best copy of a work to open in the reader (Luke, 2026-11-13: "any book can be read in the ereader"; later, same day,
+ * "get rid of the no free copy thing and just add them by any means necessary"): Project Gutenberg first, then a free
+ * Archive scan, then LibGen as a shadow copy (SPEC-books.md's "Shadow-library sources"), then, when LibGen has nothing,
+ * the first lending Archive scan as `borrowOnArchive` so the no-free-copy page offers `[ BORROW ON ARCHIVE ↗ ]`.
  */
 export async function resolveWorkCopy(
   work: string,
   fetchImpl: FetchLike | undefined,
   now: Date = new Date(),
-): Promise<{ ref: string } | { borrowOnArchive: string } | null> {
+): Promise<
+  | { ref: string }
+  | { shadow: ShadowCopy; title: string; author: string }
+  | { borrowOnArchive: string; title: string; author: string }
+  | null
+> {
   if (!WORK_KEY_ID.test(work)) return null;
   const [row, firstPage] = await Promise.all([
     readWorkRow(work, fetchImpl, now).catch(() => null),
@@ -175,19 +178,30 @@ export async function resolveWorkCopy(
   if (rowParts?.gutenberg) return { ref: `books:${rowParts.work}-pg${rowParts.gutenberg}` };
   const ipfs = ipfsCopyOf(work);
   if (ipfs) return { ref: `ipfs:${ipfs}` };
+  const title = row?.title ?? '';
+  const author = row?.creator ?? '';
   const entries = entriesOf(firstPage).entries;
   const parsed = entries
     .map((entry) => parseEdition(entry, now))
     .filter((edition): edition is NonNullable<typeof edition> => edition !== null && edition.work === work && edition.ocaid !== null);
-  if (parsed.length === 0) return null;
-  const ocaids = parsed.flatMap((edition) => (edition.ocaid ? [edition.ocaid] : []));
-  const access = await readScanAccess(ocaids, fetchImpl);
-  const free = parsed.find((edition) => edition.ocaid && access.get(edition.ocaid) === 'free');
-  if (free?.ocaid) return { ref: `internet_archive:${free.ocaid}` };
-  // No free scan: the first lending scan the Archive confirms is lent (free-of-charge to borrow for an hour). An
-  // unknown-access scan is never offered as a borrow, since the reader has no way to find out it's actually there.
-  const lent = parsed.find((edition) => edition.ocaid && access.get(edition.ocaid) === 'lent');
-  return lent?.ocaid ? { borrowOnArchive: lent.ocaid } : null;
+  if (parsed.length > 0) {
+    const ocaids = parsed.flatMap((edition) => (edition.ocaid ? [edition.ocaid] : []));
+    const access = await readScanAccess(ocaids, fetchImpl);
+    const free = parsed.find((edition) => edition.ocaid && access.get(edition.ocaid) === 'free');
+    if (free?.ocaid) return { ref: `internet_archive:${free.ocaid}` };
+    // No free scan: try LibGen before the borrow fallback, so a book with a lending Archive scan AND a LibGen copy opens.
+    if (title.length >= 3 && fetchImpl) {
+      const shadow = await findShadowCopy(title, author, fetchImpl).catch(() => null);
+      if (shadow) return { shadow, title, author };
+    }
+    const lent = parsed.find((edition) => edition.ocaid && access.get(edition.ocaid) === 'lent');
+    if (lent?.ocaid) return { borrowOnArchive: lent.ocaid, title, author };
+  }
+  if (title.length >= 3 && fetchImpl) {
+    const shadow = await findShadowCopy(title, author, fetchImpl).catch(() => null);
+    if (shadow) return { shadow, title, author };
+  }
+  return null;
 }
 
 /** The book's page's list: its editions in an order, filtered, fifty from `offset`, and the one it was opened at. */

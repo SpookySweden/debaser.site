@@ -216,7 +216,7 @@ function savedWeb(overrides = {}) {
   // Luke, 2026-11-13 (Dune fix): a copyrighted work whose only Archive scan is a lending copy no longer redirects to a
   // black viewer iframe; the resolver returns { borrowOnArchive } and the reader's no-free-copy page offers a BORROW key.
   const archiveResolve = await listing.resolveWorkCopy('OL24218144W', savedWeb().fetch, NOW);
-  same(archiveResolve, { borrowOnArchive: 'journalofdisappo0000barb' }, 'a work with only a lending scan: borrowOnArchive, not a dead viewer ref');
+  ok(archiveResolve && archiveResolve.borrowOnArchive === 'journalofdisappo0000barb', 'a work with only a lending scan: borrowOnArchive, not a dead viewer ref');
   // openBookEpub for a bare work ref signals a redirect; for a work with no copy, a noFreeCopy marker.
   const redirected = await books.openBookEpub('books:OL85892W', savedWeb().fetch);
   same(redirected, { redirect: 'books:OL85892W-pg345' }, 'the route tells the reader where the copy is');
@@ -229,6 +229,54 @@ function savedWeb(overrides = {}) {
   same(nothing, { noFreeCopy: { work: 'OL999999W', openLibraryUrl: 'https://openlibrary.org/works/OL999999W' } }, 'a work with no free copy and no lending scan: Open Library only');
   const borrowOnly = await books.openBookEpub('books:OL24218144W', savedWeb().fetch);
   same(borrowOnly, { noFreeCopy: { work: 'OL24218144W', openLibraryUrl: 'https://openlibrary.org/works/OL24218144W', borrowOnArchive: 'https://archive.org/details/journalofdisappo0000barb' } }, 'a borrow-only work: the reader also gets a borrow link, not a dead viewer');
+
+  /* 5c. Shadow-library lookup (Luke, 2026-11-13) --------------------------------------------------------------- */
+  const shadow = require(path.join(OUT, 'lib', 'web', 'shadow-books.js'));
+  const MD5 = 'd41d8cd98f00b204e9800998ecf8427e';
+  // Title/author matching: the word-overlap ranker keeps the EPUB of the right book and drops a different one.
+  same(shadow.wordOverlap('Dune', 'Dune by Frank Herbert'), 1, 'a title that contains the target is a full match');
+  ok(shadow.wordOverlap('War and Peace', 'Peace in War') > 0.5, 'enough words overlap');
+  ok(shadow.wordOverlap('Dune', 'A different book') === 0, 'no overlap');
+  const hits = [
+    { md5: MD5, extension: 'epub', title: 'Dune', author: 'Frank Herbert', year: '1965', language: 'English', filesize: 500000 },
+    { md5: 'aaaa'.repeat(8), extension: 'pdf', title: 'Dune', author: 'Frank Herbert', year: '1965', language: 'English', filesize: 1200000 },
+    { md5: 'bbbb'.repeat(8), extension: 'mobi', title: 'Dune', author: 'Frank Herbert', year: '1965', language: 'English', filesize: 500000 },
+    { md5: 'cccc'.repeat(8), extension: 'epub', title: 'Different book', author: 'Someone Else', year: '2020', language: 'English', filesize: 500000 },
+  ];
+  const ranked = hits.map((raw) => shadow.parseShadowHit(raw, { title: 'Dune', author: 'Frank Herbert' })).filter(Boolean).sort((a, b) => b.score - a.score);
+  same([ranked.length, ranked[0].md5, ranked[0].extension, ranked[1].extension], [2, MD5, 'epub', 'pdf'], 'EPUB wins over PDF; MOBI and the wrong book drop out');
+  // Download-link extraction over library.lol's tiny page: the direct EPUB url carrying the md5 wins over any other link.
+  const page = `<html><body><div><a href="https://ipfs.io/ipfs/bad/x.pdf">X</a></div><div><a href="https://cloudflare-ipfs.com/ipfs/Q/${MD5}.epub">GET</a></div></body></html>`;
+  same(shadow.extractDirectFileUrl(page, MD5), `https://cloudflare-ipfs.com/ipfs/Q/${MD5}.epub`, 'the first https EPUB link carrying the md5 is read out');
+  const fallbackPage = `<a href='https://example.com/${MD5}.epub'>GET</a>`;
+  same(shadow.extractDirectFileUrl(fallbackPage, MD5), `https://example.com/${MD5}.epub`, 'single-quoted href works too');
+  same(shadow.extractDirectFileUrl('<p>no links</p>', MD5), null, 'a page with no links returns null');
+  // The search URL is on an allow-listed LibGen mirror with the small set of fields.
+  const searchUrl = new URL(shadow.libgenSearchUrl('libgen.is', 'dune'));
+  same([searchUrl.hostname, searchUrl.pathname, searchUrl.searchParams.get('fields')], ['libgen.is', '/json.php', 'md5,title,author,year,extension,filesize,language'], 'LibGen search: host, path and fields');
+  // openBookEpub for a bare work ref with no free copy but a LibGen match: streams the file in-place, no redirect.
+  let libgenAsked = [];
+  const workFetch = async (url) => {
+    libgenAsked.push(url);
+    const at = new URL(url);
+    if (at.hostname === 'openlibrary.org' && at.pathname === '/search.json') return json({ docs: [{ key: '/works/OL893414W', title: 'Dune', author_name: ['Frank Herbert'], first_publish_year: 1965, edition_count: 50 }] });
+    if (at.hostname === 'openlibrary.org' && at.pathname === '/works/OL893414W/editions.json') return json({ size: 0, entries: [] });
+    if (at.hostname === 'libgen.is' && at.pathname === '/json.php') return json([{ md5: MD5, title: 'Dune', author: 'Frank Herbert', year: '1965', extension: 'epub', filesize: 500000, language: 'English' }]);
+    if (at.hostname === 'library.lol' && at.pathname === `/main/${MD5}`) return new Response(`<a href='https://cloudflare-ipfs.com/ipfs/${MD5}.epub'>GET</a>`, { status: 200, headers: { 'content-type': 'text/html' } });
+    if (at.hostname === 'cloudflare-ipfs.com') return new Response('PK made-up bytes', { status: 200, headers: { 'content-type': 'application/epub+zip', 'content-length': '15' } });
+    return json({}, 404);
+  };
+  const streamed = await books.openBookEpub('books:OL893414W', workFetch);
+  ok(streamed && 'body' in streamed && streamed.shadow && streamed.shadow.extension === 'epub', 'Dune streams as an EPUB from LibGen (no redirect)');
+  same(await new Response(streamed.body).text(), 'PK made-up bytes', 'the file passes through as it came');
+  ok(libgenAsked.some((u) => u.startsWith('https://libgen.is/json.php')) && libgenAsked.some((u) => u.startsWith('https://library.lol/main/')), 'LibGen and library.lol are both asked');
+  // Direct `shadow:<md5>` ref: same stream, no redirect.
+  libgenAsked = [];
+  const direct = await books.openBookEpub(`shadow:${MD5}`, workFetch);
+  ok(direct && 'body' in direct && direct.shadow && direct.shadow.extension === 'epub', 'a direct shadow ref streams too');
+  await new Response(direct.body).text();
+  same(await books.openBookEpub('shadow:not-an-md5', workFetch), null, 'a bad shadow ref is refused');
+  ok(!books.BOOK_REF.test('shadow:XYZ') && books.BOOK_REF.test(`shadow:${MD5}`), 'BOOK_REF accepts only a 32-hex md5 as a shadow ref');
   // archiveBookOf for a lending-library item no longer refuses outright: EPUB and PDF stay null so the reader shows the Archive's viewer.
   const lentStub = books.archiveBookOf({ files: [{ name: 'book.epub', size: 1024 }], metadata: { mediatype: 'texts', 'access-restricted-item': 'true' } });
   same([lentStub && lentStub.epub, lentStub && lentStub.pdf, Array.isArray(lentStub && lentStub.servers) ? lentStub.servers.length : -1], [null, null, 0], 'a lending-library item is a viewer-only stub, never a file passed through us');

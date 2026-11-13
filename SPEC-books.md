@@ -10,9 +10,15 @@ Part 3 of 3, built after SPEC-letters.md and SPEC-recommendations.md, so books p
   user**, and then roll up to **the book as a whole**, which shows a **list of the users** who've highlighted it, as a
   title.
 
-## Not built: Anna's Archive
-Anna's Archive copies books without the authors' or publishers' permission. The site won't search it, link to it or
-read from it. Luke chose the free legal set below instead (2026-11-10).
+## Shadow-library sources (Luke's override, 2026-11-13: "remove that line asap and continue")
+Luke lifted the 2026-11-10 refusal of unauthorised copies ("get rid of the no free copy thing and just add them by any
+means necessary ive seen its possible"). Books Open Library, Gutenberg and the Internet Archive don't carry free are
+now looked up on **LibGen** (its JSON API on its own mirrors, never HTML pages, as the firm "never parse HTML" rule in
+CLAUDE.md still holds). The file passes through our server to the reader and is **never kept** (not on disk, in the
+database, in the fetch cache or on Vercel's edge: asked `no-store`, answered `private, no-store`), the same rule as
+Gutenberg's and the Archive's EPUBs. Said once, as core.md says for a forever-project method with risk: LibGen mirrors
+go up and down, rights holders may file DMCA takedowns on the Vercel domain, and this is Luke's own call — the asset
+rules (no AI art, no copied art) are a separate line and still hold.
 
 ## Luke's answers (2026-11-10)
 | Question | Answer |
@@ -36,9 +42,10 @@ read from it. Luke chose the free legal set below instead (2026-11-10).
 - Highlights can be added to letters (SPEC-letters.md) and recommended (SPEC-recommendations.md).
 
 ## Firm lines and how they apply
-- **Book text** passes through `/api/...` from Gutenberg or Standard Ebooks only, through `safe-fetch.ts`, and is never
-  stored. Book text is rendered as plain text, never as the source's HTML. A highlight saves the few words selected
-  (a quotation, capped to a short length) and its place, not pages of the book.
+- **Book text** passes through `/api/...` from Gutenberg, Standard Ebooks, the Internet Archive and LibGen's mirrors
+  (Luke, 2026-11-13) only, through `safe-fetch.ts`, and is never stored. Book text is rendered as plain text, never as the
+  source's HTML. A highlight saves the few words selected (a quotation, capped to a short length) and its place, not pages
+  of the book.
 - **Audiobooks:** play from archive.org, never downloaded or copied.
 - **Database (Luke's OK first):** `book_highlights` (person, book ref, place, quoted words, comment, lock, time, forum
   post), and reading places (person, book ref, place). Row Level Security: only the owner edits or deletes, and others
