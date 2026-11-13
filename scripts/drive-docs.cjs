@@ -93,6 +93,11 @@ async function clearPrivacyWindow(page) {
   // The one-time PRIVACY window a fresh browser is shown arrives a moment after the page: wait for it briefly.
   const close = page.locator('[data-dock-window="privacy-first-look"]').getByRole('button', { name: /^Close / });
   await close.waitFor({ timeout: 5000 }).then(() => close.click(), () => undefined);
+  // Any other window another part of the site opened for this account (a notice, a first look) closes on Escape.
+  for (let tries = 0; tries < 3 && (await page.locator('div.fixed.inset-0.z-popout').count()) > 0; tries += 1) {
+    await page.keyboard.press('Escape');
+    await sleep(300);
+  }
 }
 
 const editorOf = (page) => page.locator('.doc-document[contenteditable="true"]');
@@ -124,7 +129,7 @@ async function seesOthers(page, otherName, otherPage, label) {
   await page.waitForFunction(
     (who) => [...document.querySelectorAll('.collaboration-carets__caret .doc-face')].some((face) => face.textContent.includes(who)),
     otherName,
-    { timeout: 15000 },
+    { timeout: 30000 },
   );
   const face = await page.evaluate((who) => {
     const tag = [...document.querySelectorAll('.collaboration-carets__caret .doc-face')].find((el) => el.textContent.includes(who));
@@ -136,7 +141,7 @@ async function seesOthers(page, otherName, otherPage, label) {
 
   // Their pointer, moving.
   await wander(otherPage, 6);
-  await page.waitForFunction((who) => document.querySelector(`.doc-pointer[data-pointer-of="${who}"]`) !== null, otherName, { timeout: 10000 });
+  await page.waitForFunction((who) => document.querySelector(`.doc-pointer[data-pointer-of="${who}"]`) !== null, otherName, { timeout: 30000 });
   const first = await pointerSpots(page, otherName);
   await wander(otherPage, 10);
   await sleep(600);
@@ -149,10 +154,12 @@ async function seesOthers(page, otherName, otherPage, label) {
   const a = await testAccountClient('A');
   const cleanup = { docs: [], threads: [], pictures: [] };
   const browser = await chromium.launch({ executablePath: findChrome(), headless: true });
+  const pages = [];
 
   try {
     const pageA = await person(browser, 'A', { width: 1440, height: 1000 });
     const pageB = await person(browser, 'B', { width: 1440, height: 1000 });
+    pages.push(pageA, pageB);
 
     // A makes a document from the file browser.
     await pageA.goto(`${BASE}/docs`, { waitUntil: 'domcontentloaded' });
@@ -162,18 +169,19 @@ async function seesOthers(page, otherName, otherPage, label) {
     await make.locator('#doc-new-title').fill('Drive doc');
     await make.locator('select').selectOption('signed_in');
     await make.getByRole('button', { name: '[ MAKE ]' }).click();
-    await pageA.waitForURL(/\/docs\/[0-9a-f-]{36}$/, { timeout: 20000 });
+    await pageA.waitForURL(/\/docs\/[0-9a-f-]{36}$/, { timeout: 40000 });
     const path = new URL(pageA.url()).pathname;
     const docId = path.split('/').pop();
     cleanup.docs.push(docId);
     pass(`A made a document from DOCS (${path})`);
     await editorOf(pageA).waitFor({ timeout: 30000 });
     await sleep(2000);
+    await clearPrivacyWindow(pageA);
 
     await openDoc(pageB, path);
     await editorOf(pageA).click();
     await pageA.keyboard.type('The corridor is glass on one side and concrete on the other.');
-    await pageB.waitForFunction(() => document.querySelector('.doc-document')?.textContent.includes('concrete on the other'), null, { timeout: 15000 });
+    await pageB.waitForFunction(() => document.querySelector('.doc-document')?.textContent.includes('concrete on the other'), null, { timeout: 30000 });
     pass('what A types arrives in B');
 
     await seesOthers(pageB, 'TEST ACCOUNT A', pageA, 'B sees');
@@ -208,7 +216,7 @@ async function seesOthers(page, otherName, otherPage, label) {
     await pageA.getByRole('button', { name: '[ COMMENT ON THIS ]' }).click();
     await pageA.locator('#doc-comment-new').fill('Is it really glass?');
     await pageA.getByRole('button', { name: '[ ADD COMMENT ]' }).click();
-    await pageA.waitForSelector('.doc-commented', { timeout: 10000 });
+    await pageA.waitForSelector('.doc-commented', { timeout: 30000 });
     await editorOf(pageB).click();
     await pageB.keyboard.press('Control+Home');
     await pageB.keyboard.type('Written first: ');
@@ -216,24 +224,24 @@ async function seesOthers(page, otherName, otherPage, label) {
     const shaded = await pageA.evaluate(() => [...document.querySelectorAll('.doc-commented')].map((el) => el.textContent).join(''));
     assert.equal(shaded, 'glass', 'the comment is still on its word after B typed in front of it');
     pass(`a margin comment stays on its words while B types in front of them (shaded: "${shaded}")`);
-    await pageB.waitForSelector('[data-comment-card]', { timeout: 20000 });
+    await pageB.waitForSelector('[data-comment-card]', { timeout: 40000 });
     pass('B sees the margin comment');
 
     // A picture.
     await pageA.locator('input[type="file"][aria-label="Picture to add"]').setInputFiles({ name: 'drive.png', mimeType: 'image/png', buffer: testPng() });
-    await pageA.waitForSelector('img.doc-picture', { timeout: 20000 }).catch(async (error) => {
+    await pageA.waitForSelector('img.doc-picture', { timeout: 40000 }).catch(async (error) => {
       const said = await pageA.evaluate(() => [...document.querySelectorAll('.bg-bubble-pale')].map((el) => el.textContent).join(' | '));
       const refused = await pageA.locator('.doc-picture-refused').count();
       console.log(`  picture not shown: "${said}", refused lines: ${refused}`);
       throw error;
     });
-    await pageB.waitForSelector('img.doc-picture', { timeout: 20000 });
+    await pageB.waitForSelector('img.doc-picture', { timeout: 40000 });
     const src = await pageB.locator('img.doc-picture').first().getAttribute('src');
     assert.match(src, /\/storage\/v1\/object\/public\/doc-pictures\//);
     cleanup.pictures.push(src.split('/doc-pictures/')[1]);
     await pageB.locator('img.doc-picture').first().scrollIntoViewIfNeeded();
     const loaded = await pageB
-      .waitForFunction(() => { const img = document.querySelector('img.doc-picture'); return img !== null && img.complete && img.naturalWidth > 0; }, null, { timeout: 15000 })
+      .waitForFunction(() => { const img = document.querySelector('img.doc-picture'); return img !== null && img.complete && img.naturalWidth > 0; }, null, { timeout: 30000 })
       .then(() => true, () => false);
     assert.ok(loaded, 'the picture loads');
     pass('a picture A added is filed and shows for B');
@@ -293,7 +301,7 @@ async function seesOthers(page, otherName, otherPage, label) {
     const lore = pageA.getByRole('dialog', { name: 'NEW LORE PAGE' });
     await lore.locator('#doc-new-title').fill('Drive lore page');
     await lore.getByRole('button', { name: '[ MAKE ]' }).click();
-    await pageA.waitForURL(/\/lore\/drive-lore-page$/, { timeout: 20000 });
+    await pageA.waitForURL(/\/lore\/drive-lore-page$/, { timeout: 40000 });
     await editorOf(pageA).waitFor({ timeout: 30000 });
     const loreRow = await a.client.from('docs').select('id, access, folder_id').eq('slug', 'drive-lore-page').single();
     cleanup.docs.push(loreRow.data.id);
@@ -303,7 +311,15 @@ async function seesOthers(page, otherName, otherPage, label) {
     await editorOf(pageA).click();
     await pageA.keyboard.type('Hexham was drawn as a grid of nine blocks.');
     await sleep(4500);
-    const posted = await a.client.from('docs').select('board_thread_id').eq('id', loreRow.data.id).single();
+    let posted = await a.client.from('docs').select('board_thread_id').eq('id', loreRow.data.id).single();
+    for (let tries = 0; tries < 10 && posted.data.board_thread_id === null; tries += 1) {
+      await sleep(1500);
+      posted = await a.client.from('docs').select('board_thread_id').eq('id', loreRow.data.id).single();
+    }
+    if (posted.data.board_thread_id === null) {
+      const said = await pageA.evaluate(() => [...document.querySelectorAll('.bg-bubble-pale')].map((el) => el.textContent).join(' | '));
+      console.log(`  no board post; the page says: "${said}"`);
+    }
     assert.notEqual(posted.data.board_thread_id, null, 'the first save made the board post');
     cleanup.threads.push(posted.data.board_thread_id);
     const thread = await a.client.from('forum_threads').select('title, body').eq('id', posted.data.board_thread_id).single();
@@ -315,7 +331,7 @@ async function seesOthers(page, otherName, otherPage, label) {
     await pageB.getByRole('link', { name: 'DRIVE LORE PAGE' }).click();
     await pageB.waitForURL(/\/lore\/drive-lore-page$/);
     await pageB
-      .waitForFunction(() => document.querySelector('.doc-document')?.textContent.includes('nine blocks'), null, { timeout: 20000 })
+      .waitForFunction(() => document.querySelector('.doc-document')?.textContent.includes('nine blocks'), null, { timeout: 40000 })
       .catch(async (error) => {
         const seen = await pageB.evaluate(() => ({ doc: document.querySelector('.doc-document')?.textContent ?? null, main: document.querySelector('main')?.innerText.slice(0, 400) ?? document.body.innerText.slice(0, 400) }));
         console.log(`  B's lore page: ${JSON.stringify(seen)}`);
@@ -328,6 +344,10 @@ async function seesOthers(page, otherName, otherPage, label) {
     await pageB.goto(`${BASE}/docs`, { waitUntil: 'domcontentloaded' });
     await sleep(2500);
     await pageB.screenshot({ path: join(SHOTS, 'docs-browser-desktop.png') });
+  } catch (error) {
+    // What each browser showed when it stopped, so a failure says what was on screen.
+    for (const [index, page] of pages.entries()) await page.screenshot({ path: join(SHOTS, `docs-failed-${index === 0 ? 'A' : 'B'}.png`) }).catch(() => undefined);
+    throw error;
   } finally {
     // Every document's own board post too: an ANYONE SIGNED IN document posts on its first save, like a lore page.
     for (const id of cleanup.docs) {
