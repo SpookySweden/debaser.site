@@ -83,6 +83,16 @@ function floorNow(): Floor {
 
 function draw(place: HTMLDivElement | null, body: HTMLSpanElement | null, x: number, floorY: number, lift: number, facing: 1 | -1, mood: CompanionMood) {
   if (place !== null) {
+    // Its name opens toward the middle of the screen, so it is never cut off at either edge.
+    const side = x > window.innerWidth / 2 ? 'right' : 'left';
+    if (place.dataset.side !== side) {
+      place.dataset.side = side;
+      const tag = place.querySelector<HTMLElement>('[data-companion-name]');
+      if (tag !== null) {
+        tag.style.left = side === 'left' ? '0' : 'auto';
+        tag.style.right = side === 'right' ? '0' : 'auto';
+      }
+    }
     place.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(floorY - COMPANION_H)}px, 0)`;
     place.style.visibility = 'visible';
     if (place.dataset.mood !== mood) place.dataset.mood = mood;
@@ -128,7 +138,10 @@ function Figure({ placeRef, bodyRef, markRef, label, own }: FigureProps) {
       data-facing="right"
     >
       {/* Its owner's name, over its head on hover: absolutely placed, so it moves nothing. */}
-      <span className="invisible absolute bottom-full left-1/2 mb-1 -translate-x-1/2 whitespace-nowrap border border-ink bg-ink px-1 font-mono text-label text-paper group-hover:visible">
+      <span
+        className="invisible absolute bottom-full left-0 mb-1 whitespace-nowrap border border-ink bg-ink px-1 font-mono text-label text-paper group-hover:visible"
+        data-companion-name
+      >
         {label}
       </span>
       {/* The `!`: text, not art (SPEC-companion.md, decision 3). */}
