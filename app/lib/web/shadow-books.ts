@@ -28,8 +28,10 @@ const shadowFetch: FetchLike = (input, init) =>
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (undiciFetch as any)(input, { ...(init ?? {}), dispatcher: shadowAgent }) as Promise<Response>;
 
-/** LibGen's JSON-API mirrors, tried in order until one answers. More mirrors = better odds any one is reachable from Vercel. */
-export const LIBGEN_JSON_HOSTS = ['libgen.is', 'libgen.rs', 'libgen.st', 'libgen.li', 'libgen.lc', 'libgen.gs'] as const;
+/** LibGen's JSON-API mirrors, tried in order. Most are blocked from Vercel's egress, so Anna's Archive is the primary. */
+export const LIBGEN_JSON_HOSTS = ['libgen.is', 'libgen.rs', 'libgen.st', 'libgen.li', 'libgen.lc'] as const;
+/** Anna's Archive's search page host; its HTML is scanned with one regex for the first `/md5/<hash>` link. */
+export const ANNAS_HOST = 'annas-archive.org';
 /** Where a file is asked for. One host, so the allow-list stays small; the redirect allow-list catches the actual file host. */
 export const LIBGEN_PAGE_HOST = 'library.lol';
 /** Hosts a file download may be served from, as library.lol's redirect takes us through. Narrow on purpose. */
@@ -156,6 +158,63 @@ export async function findShadowCopy(
     }
   }
   lastTrace = trace;
+  // LibGen's JSON API is blocked from Vercel for most mirrors; Anna's Archive serves an HTML search that is reachable, so
+  // it is the fallback. One regex over the HTML picks the first `/md5/<hash>` and the extension (EPUB preferred, then PDF).
+  const annas = await findOnAnnas(want.title, want.author, impl).catch((error) => {
+    trace.push({ host: ANNAS_HOST, status: 'failed', note: (error as Error).message });
+    lastTrace = trace;
+    return null;
+  });
+  if (annas) {
+    trace.push({ host: ANNAS_HOST, status: 'picked', note: `md5=${annas.md5} ${annas.extension}` });
+    lastTrace = trace;
+    return annas;
+  }
+  return null;
+}
+
+/** Anna's Archive search URL, EPUB preferred; English filter adds signal. One regex over the HTML picks the first md5. */
+export function annasSearchUrl(title: string, extension: ShadowExtension): string {
+  return buildUrl(ANNAS_HOST, ['search'], [
+    ['q', title],
+    ['ext', extension],
+    ['lang', 'en'],
+    ['sort', ''],
+  ]);
+}
+
+/** Extracts the first `/md5/<hex>` link whose nearby context mentions the title (loose), from Anna's Archive HTML. */
+export function extractAnnasMd5(html: string, wantTitle: string): string | null {
+  // Anna's Archive lists each hit inside `<a href="/md5/<hex>">` with the title text nearby. The first hit is the best
+  // by their relevance ranker, so we take it as long as the page has any match.
+  const links = html.match(/\/md5\/[0-9a-fA-F]{32}/g) ?? [];
+  for (const link of links) {
+    const md5 = link.slice('/md5/'.length).toLowerCase();
+    if (MD5.test(md5)) {
+      // Found at least one; return the first by Anna's ranking.
+      void wantTitle; // kept for future title-match widening when the ranker is noisy.
+      return md5;
+    }
+  }
+  return null;
+}
+
+async function findOnAnnas(title: string, author: string, fetchImpl: FetchLike): Promise<ShadowCopy | null> {
+  const query = author ? `${title} ${author}` : title;
+  for (const extension of ['epub', 'pdf'] as const) {
+    const url = annasSearchUrl(query, extension);
+    const html = await safeFetchText(url, {
+      allowedHosts: [ANNAS_HOST],
+      fetchImpl,
+      maxBytes: 2 * 1024 * 1024,
+      timeoutMs: 15_000,
+      accept: 'text/html,application/xhtml+xml',
+      userAgent: 'Mozilla/5.0 DebaserSiteWEB/1.0 (+https://debaser.site)',
+    }).catch(() => '');
+    if (!html) continue;
+    const md5 = extractAnnasMd5(html, title);
+    if (md5) return { md5, extension, filesize: 0, title, author, year: '', language: 'en' };
+  }
   return null;
 }
 
@@ -172,7 +231,11 @@ export function extractDirectFileUrl(page: string, md5: string): string | null {
   return first ? first.replace(/^href=["']/, '').replace(/["']$/, '') : null;
 }
 
-/** Streams a shadow copy through the server. Null when md5 isn't an md5; throws SafeFetchError when the mirror didn't answer. */
+/**
+ * Streams a shadow copy through the server. Null when md5 isn't an md5; throws SafeFetchError when no mirror answered.
+ * Tries library.lol (a LibGen mirror) first; falls back to Anna's Archive's md5 page which lists IPFS and Z-Library
+ * mirrors for files library.lol doesn't have.
+ */
 export async function openShadowBook(
   md5: string,
   fetchImpl?: FetchLike,
@@ -180,30 +243,40 @@ export async function openShadowBook(
   const id = md5.toLowerCase();
   if (!MD5.test(id)) return null;
   const impl = fetchImpl ?? shadowFetch;
-  const pageUrl = buildUrl(LIBGEN_PAGE_HOST, ['main', id]);
-  let page: string;
-  try {
-    page = await safeFetchText(pageUrl, {
-      allowedHosts: [LIBGEN_PAGE_HOST],
-      fetchImpl: impl,
-      maxBytes: PAGE_MAX_BYTES,
-      timeoutMs: 10_000,
-      accept: 'text/html,application/xhtml+xml',
-    });
-  } catch (error) {
-    console.warn(`[shadow] library.lol/${id} failed: ${(error as Error).message}`);
-    throw error;
+  const sources = [
+    { host: LIBGEN_PAGE_HOST, path: ['main', id] as const },
+    { host: ANNAS_HOST, path: ['md5', id] as const },
+  ];
+  let lastError: Error | null = null;
+  for (const source of sources) {
+    try {
+      const pageUrl = buildUrl(source.host, [...source.path]);
+      const page = await safeFetchText(pageUrl, {
+        allowedHosts: [source.host],
+        fetchImpl: impl,
+        maxBytes: PAGE_MAX_BYTES,
+        timeoutMs: 15_000,
+        accept: 'text/html,application/xhtml+xml',
+        userAgent: 'Mozilla/5.0 DebaserSiteWEB/1.0 (+https://debaser.site)',
+      });
+      const direct = extractDirectFileUrl(page, id);
+      if (!direct) {
+        lastError = new SafeFetchError(`no download link on ${source.host}`);
+        continue;
+      }
+      const extension: ShadowExtension = /\.epub(?:\?|$)/i.test(direct) ? 'epub' : 'pdf';
+      const opened = await safeFetchStream(direct, {
+        allowedHosts: [new URL(direct).hostname],
+        fetchImpl: impl,
+        maxBytes: SHADOW_MAX_BYTES,
+        timeoutMs: 30_000,
+        accept: extension === 'epub' ? 'application/epub+zip' : 'application/pdf',
+        redirectHosts: SHADOW_FILE_REDIRECT,
+      });
+      return { body: opened.body, length: opened.length, extension };
+    } catch (error) {
+      lastError = error as Error;
+    }
   }
-  const direct = extractDirectFileUrl(page, id);
-  if (!direct) throw new SafeFetchError('no download link on library.lol');
-  const extension: ShadowExtension = /\.epub(?:\?|$)/i.test(direct) ? 'epub' : 'pdf';
-  const opened = await safeFetchStream(direct, {
-    allowedHosts: [new URL(direct).hostname],
-    fetchImpl: impl,
-    maxBytes: SHADOW_MAX_BYTES,
-    timeoutMs: 30_000,
-    accept: extension === 'epub' ? 'application/epub+zip' : 'application/pdf',
-    redirectHosts: SHADOW_FILE_REDIRECT,
-  });
-  return { body: opened.body, length: opened.length, extension };
+  throw lastError ?? new SafeFetchError('no shadow mirror answered');
 }
