@@ -250,6 +250,65 @@ export function extractAnnasMd5(html: string, wantTitle: string): string | null 
   return null;
 }
 
+/** One hit from Anna's Archive search HTML: just the md5 and whatever text appears around it. */
+export type AnnaHit = { md5: string; title: string; author: string; year: string };
+
+/** Pulls up to `limit` distinct md5s from Anna's search HTML, with the title/author/year text that follows each anchor. */
+export function extractAnnasHits(html: string, limit: number): AnnaHit[] {
+  const hits: AnnaHit[] = [];
+  const seen = new Set<string>();
+  const anchorRegex = /\/md5\/([0-9a-f]{32})"[^>]*>([\s\S]*?)<\/a>/gi;
+  for (let match: RegExpExecArray | null; (match = anchorRegex.exec(html)) !== null && hits.length < limit; ) {
+    const md5 = match[1].toLowerCase();
+    if (!MD5.test(md5) || seen.has(md5)) continue;
+    seen.add(md5);
+    const inner = match[2];
+    const text = inner.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    const yearMatch = text.match(/\b(1\d{3}|20\d{2})\b/);
+    hits.push({
+      md5,
+      title: text.slice(0, 200),
+      author: '',
+      year: yearMatch ? yearMatch[1] : '',
+    });
+  }
+  return hits;
+}
+
+/**
+ * Searches Anna's Archive for many hits, returning each as its md5 + title. Tries each mirror until one reaches with
+ * real HTML (not a parked-domain page or a Cloudflare challenge); returns an empty list when none does.
+ */
+export async function searchAnnasMany(query: string, limit: number, fetchImpl?: FetchLike): Promise<AnnaHit[]> {
+  if (query.length < 2) return [];
+  const impl = fetchImpl ?? shadowFetch;
+  for (const host of ANNAS_HOSTS) {
+    const target = buildUrl(host, ['search'], [
+      ['q', query],
+      ['ext', 'epub'],
+      ['lang', 'en'],
+      ['sort', ''],
+    ]);
+    try {
+      const html = await safeFetchText(target, {
+        allowedHosts: [host],
+        fetchImpl: impl,
+        maxBytes: 4 * 1024 * 1024,
+        timeoutMs: 10_000,
+        accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        userAgent: BROWSERISH_UA,
+      });
+      // A parked-domain page (forsale.min.js, abovedomains.com) or Cloudflare challenge: carries no /md5/ anchors.
+      if (!/\/md5\/[0-9a-f]{32}/i.test(html)) continue;
+      const hits = extractAnnasHits(html, limit);
+      if (hits.length > 0) return hits;
+    } catch {
+      // Try the next mirror.
+    }
+  }
+  return [];
+}
+
 /**
  * A full browser's header set, used for Anna's Archive requests. Cloudflare's bot detection reads these, and a plain
  * Node User-Agent is challenged every time. The fingerprint still differs from a real browser's TLS JA3, but the

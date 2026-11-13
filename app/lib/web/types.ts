@@ -34,7 +34,7 @@ void STREAM_PLATFORMS_COMPLETE;
  * Found only by searching everywhere or by a pasted link (`app/lib/web/search/`, SPEC-web-search.md): no
  * stream source reads them, but an opened one can be saved into the stream like any other item.
  */
-export type SearchOnlyPlatform = 'wikimedia_commons' | 'vimeo' | 'kino' | 'books' | 'audiobooks' | 'ipfs';
+export type SearchOnlyPlatform = 'wikimedia_commons' | 'vimeo' | 'kino' | 'books' | 'audiobooks' | 'ipfs' | 'anna';
 
 export type WebItemKind = 'audio' | 'video' | 'image' | 'text' | 'other';
 
@@ -117,5 +117,9 @@ export const PLATFORM_LABELS: Record<WebPlatform, string> = {
   audiobooks: 'AUDIOBOOKS',
   // Books on IPFS named in `app/lib/books/ipfs-catalogue.ts`, listed by BOOKS and read in the site's reader (Luke, 2026-11-11).
   ipfs: 'IPFS',
+  // Anna's Archive (Luke, 2026-11-13: "annahs archive as a specific search option under where from"). Server-side
+  // reach is blocked by Vercel's DNS for the real mirrors; this label is the option the reader picks when the Vercel
+  // block is worked around (an outside proxy, or client-side fetching).
+  anna: "ANNA'S ARCHIVE",
   ...(Object.fromEntries(MEDIA_SERVERS.map((server) => [server.id, server.label])) as Record<MediaServerId, string>),
 };

@@ -1,6 +1,7 @@
 import type { WebPlatform } from '../types';
 import { internetArchiveSearch } from './providers/internet-archive';
 import { kinoSearch } from './providers/kino';
+import { annaSearch } from './providers/anna';
 import { audiobooksSearch } from './providers/audiobooks';
 import { booksSearch } from './providers/books';
 import { openverseSearch } from './providers/openverse';
@@ -23,6 +24,7 @@ export const SEARCH_PROVIDERS: readonly SearchProvider[] = [
   kinoSearch,
   booksSearch,
   audiobooksSearch,
+  annaSearch,
 ];
 
 /**

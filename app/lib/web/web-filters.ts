@@ -51,6 +51,10 @@ export const LIVE_SOURCE_KINDS: Readonly<Partial<Record<WebPlatform, readonly We
   // Asked only when chosen, as KINO is (`sourcesToAsk`): Open Library's books and LibriVox's audiobooks (SPEC-books.md).
   books: ['text'],
   audiobooks: ['audio'],
+  // Anna's Archive (Luke, 2026-11-13: "annahs archive as a specific search option under where from"). Reaches the
+  // real mirrors through the server's shadow-books fetch (DoH, proxies — Vercel's DNS refuses the real hosts). When
+  // nothing is reachable the source answers with no items; the panel still lists it so the reader can pick it.
+  anna: ['text'],
 };
 
 export const LIVE_PROVIDERS = Object.keys(LIVE_SOURCE_KINDS) as WebPlatform[];
@@ -78,15 +82,14 @@ export const SOURCE_OPTIONS: readonly { value: SourceValue; label: string }[] = 
     .map((platform) => ({ value: platform, label: PLATFORM_LABELS[platform] })),
 ];
 
-// Luke, 2026-11-13 ("book search is included under 'what kind' rather than 'where from'"): the TEXT kind is relabelled
-// BOOK since books are what the TEXT filter actually means on this site; its internal value stays `text` so saved
-// addresses don't break. The BOOKS group under WHERE FROM is dropped in SOURCE_GROUP_OF below.
+// Luke, 2026-11-13 ("two book buttons in the media filter"): the TEXT kind is back under WHAT KIND and the BOOKS group
+// is back under WHERE FROM with Anna's Archive as a new source. One filter of each kind for books, as before.
 export const TYPE_OPTIONS: readonly { value: TypeValue; label: string }[] = [
   { value: 'all', label: 'ALL' },
   { value: 'video', label: 'VIDEO' },
   { value: 'audio', label: 'AUDIO' },
   { value: 'image', label: 'IMAGE' },
-  { value: 'text', label: 'BOOK' },
+  { value: 'text', label: 'TEXT' },
 ];
 
 /** Short words people will type, beside each platform's own (`in:archive`, `in:commons`). */
@@ -97,6 +100,8 @@ const SOURCE_ALIASES: Readonly<Record<string, SourceValue>> = {
   wikimedia: 'wikimedia_commons',
   yt: 'youtube',
   tmdb: 'kino',
+  annas: 'anna',
+  annas_archive: 'anna',
 };
 
 export function readSource(word: unknown): SourceValue | null {
@@ -284,10 +289,11 @@ const SOURCE_GROUP_OF: Readonly<Partial<Record<WebPlatform, string>>> = {
   audiobooks: 'SOUND',
   openverse: 'PICTURES',
   wikimedia_commons: 'PICTURES',
-  // Luke, 2026-11-13: the BOOKS group moved to WHAT KIND (BOOK). `books`, `ipfs` and the new `shadow` platform fall into
-  // OTHER here — the reader picks WHAT KIND = BOOK to filter to books instead of SOURCE = BOOKS.
+  books: 'BOOKS',
+  ipfs: 'BOOKS',
+  anna: 'BOOKS',
 };
-const SOURCE_GROUP_ORDER = ['FILMS AND VIDEO', 'SOUND', 'PICTURES', 'ARCHIVES (EVERY KIND)', 'OTHER'];
+const SOURCE_GROUP_ORDER = ['FILMS AND VIDEO', 'SOUND', 'PICTURES', 'BOOKS', 'ARCHIVES (EVERY KIND)', 'OTHER'];
 
 export function sourceGroups(): { heading: string; options: { value: SourceValue; label: string }[] }[] {
   const groups = new Map<string, { value: SourceValue; label: string }[]>();
@@ -357,7 +363,7 @@ function withSortWord(choice: SortChoice): { sort?: SortWord } {
  * platform the SOURCE filter allows and which can return the TYPE asked for. Nothing is asked of the rest.
  */
 /** Sources an ALL search never asks: each only when it is the SOURCE (KINO; BOOKS and AUDIOBOOKS, SPEC-books.md). */
-export const ASKED_ONLY_WHEN_CHOSEN: readonly WebPlatform[] = ['kino', 'books', 'audiobooks'];
+export const ASKED_ONLY_WHEN_CHOSEN: readonly WebPlatform[] = ['kino', 'books', 'audiobooks', 'anna'];
 
 export function sourcesToAsk(search: Pick<WebSearch, 'source' | 'type'>): { stream: boolean; live: WebPlatform[] } {
   const typeOk = (kinds: readonly WebItemKind[]) => search.type === 'all' || kinds.includes(search.type);
