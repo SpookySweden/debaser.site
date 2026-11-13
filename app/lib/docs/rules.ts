@@ -60,18 +60,19 @@ export const LORE_PATH = '/lore';
 
 export const DOC_ACCESS_ORDER: DocAccess[] = ['private', 'shared', 'signed_in', 'public'];
 
+/** The four levels as their owner picks them, in plain words (Luke, 2026-11-13). The code's names stay. */
 export const DOC_ACCESS_LABELS: Record<DocAccess, string> = {
-  private: 'PRIVATE',
-  shared: 'SHARED WITH',
+  private: 'ONLY ME',
+  shared: 'PEOPLE I PICK',
   signed_in: 'ANYONE SIGNED IN',
-  public: 'PUBLIC',
+  public: 'EVERYONE',
 };
 
 export const DOC_ACCESS_NOTES: Record<DocAccess, string> = {
-  private: 'Only you.',
-  shared: 'The people you name, each able to edit or only read.',
-  signed_in: 'Every account can read and edit it.',
-  public: 'Anyone can read it; accounts can edit it, as lore is.',
+  private: 'Nobody else can see it.',
+  shared: 'Only the people you add below.',
+  signed_in: 'Everyone with an account can read it and write in it.',
+  public: 'Anyone can read it. People with an account can write in it.',
 };
 
 export function isDocAccess(value: unknown): value is DocAccess {

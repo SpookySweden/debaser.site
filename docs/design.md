@@ -99,6 +99,13 @@ No Win95 bevels anywhere - not on windows, not on buttons, not on the scrollbar.
 - Plex Mono is **about 20% wider** than DotGothic16 (each letter 0.6em, not 0.5em). Tight strips - the
   player bar, the side panel, title lines with extras, the taskbar - were cut down before the swap; keep
   them short.
+- **DOCS is bigger on purpose** (Luke, 2026-11-13: "usable by a grandad"). Its screens and windows sit in
+  `.docs-ui` (`DocsScale`), whose TEXT SIZE step (1-6, the reader's `[ A− ] [ A+ ]` keys, kept in that browser)
+  picks which of the tokens above the writing, keys, small lines and title use: a computer starts on step 2
+  (writing 18px, keys 16px), a phone on step 5 (writing 36px), because a phone shows the 1280px desktop at a
+  third of its size. Its keys are `DOC_KEY`, `DOC_KEY_ON` and `DOC_KEY_MAIN` (`app/lib/docs/ui.ts`): the same
+  bracket key, a thumb tall at every width, with a text character beside the word on the toolbar. Its words
+  are plain ones: `ALL CHANGES SAVED`, `ONLY YOU HERE`, `CHANGED YESTERDAY AT 09:10`, `ONLY ME / EVERYONE`.
 - Labels stay in capitals, as written: that is the site's voice. Prose shows the case people typed.
 - Glyphs like ♪ ▶ ◀ ↻ ⌂ ☻ ✉ ⚿ fall back to system fonts. RADI-OH's faces use `--font-emote` (a
   typewriter face).

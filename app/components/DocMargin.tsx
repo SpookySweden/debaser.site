@@ -6,8 +6,8 @@ import { positionOf } from '../lib/docs/anchors';
 import { commentMarksKey, type CommentRange } from '../lib/docs/comment-marks';
 import { getDocsRepository } from '../lib/docs/repository';
 import type { DocComment, DocRole, DocViewer } from '../lib/docs/types';
-import { FIELD, PLATE, PLATE_MAIN, TITLE_BAR } from '../lib/ui/controls';
-import TimeStamp from './TimeStamp';
+import { DOC_FAULT, DOC_KEY, DOC_KEY_MAIN, dateWords } from '../lib/docs/ui';
+import { FIELD, TITLE_BAR } from '../lib/ui/controls';
 
 /** Words picked for a new comment: where they are (relative places) and what they say. */
 export type CommentDraft = {
@@ -22,6 +22,10 @@ type DocMarginProps = {
   viewer: DocViewer | null;
   role: DocRole;
   draft: CommentDraft | null;
+  /** Whether the panel is open beside the page (each comment level with its words), not shut or stacked under it. */
+  beside: boolean;
+  /** Told how many comments are open, for the key that opens the panel. */
+  onCount: (open: number) => void;
   onDraftDone: () => void;
 };
 
@@ -30,13 +34,15 @@ const REREAD_MS = 15_000;
 const GAP = 8;
 
 /**
- * Margin comments: each beside the words it was left on, with its replies, resolvable.
+ * Margin comments: each beside the words it was left on, with its replies, and a DONE key to put it away.
  *
  * A comment's place is two Yjs relative positions (../lib/docs/anchors.ts), so it stays on its words
- * while the text around it changes. On a wide screen each sits level with its words (pushed down when
- * two would overlap); on a phone they are a list under the document, in the order their words come.
+ * while the text around it changes. In the side panel each sits level with its words (pushed down when
+ * two would overlap); on a narrow screen, or at the biggest text sizes, they are a list under the
+ * document, in the order their words come. It stays drawn while the panel is shut, because it is also
+ * what shades the commented words in the document and counts the open comments for the panel's key.
  */
-export default function DocMargin({ editor, docId, viewer, role, draft, onDraftDone }: DocMarginProps) {
+export default function DocMargin({ editor, docId, viewer, role, draft, beside, onCount, onDraftDone }: DocMarginProps) {
   const repository = useMemo(() => getDocsRepository(viewer?.id ?? null), [viewer?.id]);
   const [comments, setComments] = useState<DocComment[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +55,8 @@ export default function DocMargin({ editor, docId, viewer, role, draft, onDraftD
   const [textTick, setTextTick] = useState(0);
   const [tops, setTops] = useState<Record<string, number>>({});
   const [height, setHeight] = useState(0);
-  const [wide, setWide] = useState(false);
+  const [wideScreen, setWideScreen] = useState(false);
+  const wide = wideScreen && beside;
   const list = useRef<HTMLDivElement | null>(null);
   const editing = role === 'owner' || role === 'edit';
 
@@ -90,7 +97,7 @@ export default function DocMargin({ editor, docId, viewer, role, draft, onDraftD
 
   useEffect(() => {
     const query = window.matchMedia('(min-width: 1024px)');
-    const update = () => setWide(query.matches);
+    const update = () => setWideScreen(query.matches);
     update();
     query.addEventListener('change', update);
     return () => query.removeEventListener('change', update);
@@ -227,19 +234,24 @@ export default function DocMargin({ editor, docId, viewer, role, draft, onDraftD
   }
 
   const resolvedCount = top.filter((comment) => comment.resolved).length;
+  const openCount = top.length - resolvedCount;
+
+  useEffect(() => {
+    onCount(openCount);
+  }, [onCount, openCount]);
 
   return (
     <aside className="min-w-0" aria-label="Margin comments">
       <div className={TITLE_BAR}>
         <span>COMMENTS</span>
         {resolvedCount === 0 ? null : (
-          <button type="button" className={PLATE} onClick={() => setShowResolved((value) => !value)}>
-            {showResolved ? '[ HIDE RESOLVED ]' : `[ RESOLVED ${resolvedCount} ]`}
+          <button type="button" className={DOC_KEY} onClick={() => setShowResolved((value) => !value)}>
+            {showResolved ? '[ HIDE DONE ]' : `[ SHOW DONE ${resolvedCount} ]`}
           </button>
         )}
       </div>
 
-      {error === null ? null : <p className="my-1 w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">{error}</p>}
+      {error === null ? null : <p className={`${DOC_FAULT} my-1`}>{error}</p>}
 
       <div ref={list} className="relative" style={wide ? { minHeight: height } : undefined}>
         {draft === null ? null : (
@@ -254,21 +266,21 @@ export default function DocMargin({ editor, docId, viewer, role, draft, onDraftD
               onChange={(event) => setBody(event.target.value)}
               maxLength={2000}
               rows={3}
-              className={FIELD}
+              className={`${FIELD} docs-meta`}
               autoFocus
             />
             <div className="mt-1 flex flex-wrap gap-2">
-              <button type="button" className={PLATE_MAIN} disabled={busy || body.trim().length === 0} onClick={() => void leave()}>
+              <button type="button" className={DOC_KEY_MAIN} disabled={busy || body.trim().length === 0} onClick={() => void leave()}>
                 [ ADD COMMENT ]
               </button>
-              <button type="button" className={PLATE} onClick={onDraftDone}>
+              <button type="button" className={DOC_KEY} onClick={onDraftDone}>
                 [ CANCEL ]
               </button>
             </div>
           </section>
         )}
 
-        {ordered.length === 0 && draft === null ? <p className="py-1 text-label text-ink">NONE YET.</p> : null}
+        {ordered.length === 0 && draft === null ? <p className="docs-meta py-1 text-ink">NONE YET.</p> : null}
 
         {ordered.map(({ comment, from }) => {
           const mine = viewer !== null && comment.authorId === viewer.id;
@@ -287,20 +299,20 @@ export default function DocMargin({ editor, docId, viewer, role, draft, onDraftD
                   “{comment.quote}”{from === null ? ' (WORDS GONE)' : ''}
                 </p>
               )}
-              <p className="text-label font-bold text-ink">
-                {comment.authorLabel} <TimeStamp at={comment.createdAt} />
-                {comment.resolved ? ` :: RESOLVED${comment.resolvedByLabel === null ? '' : ` BY ${comment.resolvedByLabel}`}` : ''}
+              <p className="docs-meta text-ink">
+                {comment.authorLabel} <span className="text-accent-ink">{dateWords(comment.createdAt)}</span>
+                {comment.resolved ? ` · DONE${comment.resolvedByLabel === null ? '' : ` (${comment.resolvedByLabel})`}` : ''}
               </p>
-              <p className="whitespace-pre-wrap break-words text-label text-ink">{comment.body}</p>
+              <p className="docs-meta whitespace-pre-wrap break-words text-ink">{comment.body}</p>
 
               {repliesOf(comment.id).map((answerRow) => (
                 <div key={answerRow.id} className="mt-1 border-l-line border-ink pl-2">
-                  <p className="text-label font-bold text-ink">
-                    {answerRow.authorLabel} <TimeStamp at={answerRow.createdAt} />
+                  <p className="docs-meta text-ink">
+                    {answerRow.authorLabel} <span className="text-accent-ink">{dateWords(answerRow.createdAt)}</span>
                   </p>
-                  <p className="whitespace-pre-wrap break-words text-label text-ink">{answerRow.body}</p>
+                  <p className="docs-meta whitespace-pre-wrap break-words text-ink">{answerRow.body}</p>
                   {viewer !== null && answerRow.authorId === viewer.id ? (
-                    <button type="button" className={PLATE} onClick={() => void act(() => repository.deleteComment(answerRow.id))}>
+                    <button type="button" className={DOC_KEY} onClick={() => void act(() => repository.deleteComment(answerRow.id))}>
                       [ DELETE ]
                     </button>
                   ) : null}
@@ -318,32 +330,28 @@ export default function DocMargin({ editor, docId, viewer, role, draft, onDraftD
                     onChange={(event) => setReply(event.target.value)}
                     maxLength={2000}
                     rows={2}
-                    className={FIELD}
+                    className={`${FIELD} docs-meta`}
                     autoFocus
                   />
                   <div className="mt-1 flex flex-wrap gap-2">
-                    <button type="button" className={PLATE} disabled={busy || reply.trim().length === 0} onClick={() => void answer(comment.id)}>
+                    <button type="button" className={DOC_KEY} disabled={busy || reply.trim().length === 0} onClick={() => void answer(comment.id)}>
                       [ SEND ]
                     </button>
-                    <button type="button" className={PLATE} onClick={() => setReplyTo(null)}>
+                    <button type="button" className={DOC_KEY} onClick={() => setReplyTo(null)}>
                       [ CANCEL ]
                     </button>
                   </div>
                 </div>
               ) : editing && viewer !== null ? (
-                <div className="mt-1 flex flex-wrap gap-2">
-                  <button type="button" className={PLATE} onClick={() => setReplyTo(comment.id)}>
+                <div className="mt-1 flex flex-wrap gap-x-2">
+                  <button type="button" className={DOC_KEY} onClick={() => setReplyTo(comment.id)}>
                     [ REPLY ]
                   </button>
-                  <button
-                    type="button"
-                    className={PLATE}
-                    onClick={() => void act(() => repository.setResolved(comment.id, !comment.resolved, viewer))}
-                  >
-                    {comment.resolved ? '[ REOPEN ]' : '[ RESOLVE ]'}
+                  <button type="button" className={DOC_KEY} onClick={() => void act(() => repository.setResolved(comment.id, !comment.resolved, viewer))}>
+                    {comment.resolved ? '[ OPEN AGAIN ]' : '[ DONE ]'}
                   </button>
                   {mine || role === 'owner' ? (
-                    <button type="button" className={PLATE} onClick={() => void act(() => repository.deleteComment(comment.id))}>
+                    <button type="button" className={DOC_KEY} onClick={() => void act(() => repository.deleteComment(comment.id))}>
                       [ DELETE ]
                     </button>
                   ) : null}

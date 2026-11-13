@@ -3,23 +3,27 @@
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { getDocsRepository } from '../lib/docs/repository';
-import { DOC_ACCESS_LABELS, DOC_ACCESS_ORDER, docPath, docSlug, isDocSlug } from '../lib/docs/rules';
-import { LORE_FOLDER_ID, type DocAccess, type DocFolder, type DocViewer } from '../lib/docs/types';
-import { FIELD, PLATE_LARGE, PLATE_MAIN } from '../lib/ui/controls';
+import { docPath, docSlug, isDocSlug } from '../lib/docs/rules';
+import { LORE_FOLDER_ID, type DocFolder, type DocViewer } from '../lib/docs/types';
+import { DOC_FAULT, DOC_KEY, DOC_KEY_MAIN } from '../lib/docs/ui';
+import { FIELD } from '../lib/ui/controls';
+import DocsScale from './DocsScale';
 import PopoutWindow from './PopoutWindow';
 
 type NewDocWindowProps = {
   viewer: DocViewer;
-  /** Where it is made: a folder, or null for MY DOCS. */
+  /** Where it is made: a folder, or null for MY DOCUMENTS. */
   folder: DocFolder | null;
   onClose: () => void;
 };
 
 /**
- * Making a document: a title, a line about it, and who can see it (the folder's default to start with).
+ * Making a document: its title, and nothing else (Luke, 2026-11-13: "ask for a title first"). It starts as
+ * its folder's default, or ONLY ME; who can open it is changed afterwards with SHARE.
  *
- * Made in LORE it is a lore page: PUBLIC, with a `/lore/<slug>` address read off its title and printed
- * as it is typed, since that address is the one thing that cannot change afterwards.
+ * Made in LORE it is a lore page: open to EVERYONE, with a `/lore/<slug>` address read off its title and printed
+ * as it is typed, since that address is the one thing that cannot change afterwards, and the one line
+ * the lore shelf prints under it.
  */
 export default function NewDocWindow({ viewer, folder, onClose }: NewDocWindowProps) {
   const router = useRouter();
@@ -27,7 +31,6 @@ export default function NewDocWindow({ viewer, folder, onClose }: NewDocWindowPr
   const lore = folder?.id === LORE_FOLDER_ID;
   const [title, setTitle] = useState('');
   const [summary, setSummary] = useState('');
-  const [access, setAccess] = useState<DocAccess>(lore ? 'public' : (folder?.defaultAccess ?? 'private'));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,15 +38,15 @@ export default function NewDocWindow({ viewer, folder, onClose }: NewDocWindowPr
   const usable = title.trim().length > 0 && (!lore || isDocSlug(slug));
 
   async function make(): Promise<void> {
-    if (!usable) return;
+    if (!usable || busy) return;
     setBusy(true);
     setError(null);
     try {
       const doc = await repository.createDoc({
         title,
-        summary,
+        summary: lore ? summary : '',
         folderId: folder?.id ?? null,
-        access: lore ? 'public' : access,
+        access: lore ? 'public' : (folder?.defaultAccess ?? 'private'),
         slug: lore ? slug : undefined,
         viewer,
       });
@@ -55,52 +58,54 @@ export default function NewDocWindow({ viewer, folder, onClose }: NewDocWindowPr
   }
 
   return (
-    <PopoutWindow title={lore ? 'NEW LORE PAGE' : 'NEW DOC'} onClose={onClose} maxWidth="max-w-xl">
-      <label className="block text-label font-bold text-ink" htmlFor="doc-new-title">
-        TITLE
-      </label>
-      <input
-        id="doc-new-title"
-        value={title}
-        onChange={(event) => setTitle(event.target.value)}
-        maxLength={120}
-        placeholder={lore ? 'THE GLASS CORRIDOR' : 'ISSUE 3 PLAN'}
-        className={FIELD}
-        autoFocus
-      />
+    <PopoutWindow title={lore ? 'NEW LORE PAGE' : 'NEW DOCUMENT'} onClose={onClose} maxWidth="max-w-2xl" centred>
+      <DocsScale>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void make();
+          }}
+        >
+          <label className="docs-key block text-ink" htmlFor="doc-new-title">
+            {lore ? 'NAME THE PAGE' : 'NAME YOUR DOCUMENT'}
+          </label>
+          <input
+            id="doc-new-title"
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            maxLength={120}
+            placeholder={lore ? 'THE GLASS CORRIDOR' : 'SHOPPING LIST'}
+            className={`${FIELD} docs-text`}
+            autoComplete="off"
+            autoFocus
+          />
 
-      <label className="mt-2 block text-label font-bold text-ink" htmlFor="doc-new-summary">
-        ONE LINE ABOUT IT (OPTIONAL)
-      </label>
-      <input id="doc-new-summary" value={summary} onChange={(event) => setSummary(event.target.value)} maxLength={300} className={FIELD} />
+          {lore ? (
+            <>
+              <label className="docs-meta mt-3 block text-ink" htmlFor="doc-new-summary">
+                ONE LINE ABOUT IT (OPTIONAL)
+              </label>
+              <input id="doc-new-summary" value={summary} onChange={(event) => setSummary(event.target.value)} maxLength={300} className={`${FIELD} docs-meta`} />
+              <p className="docs-meta mt-3 text-ink">
+                LIVES AT: <span className="text-accent-ink">{isDocSlug(slug) ? `/lore/${slug}` : 'NEEDS A LETTER OR DIGIT'}</span>
+              </p>
+            </>
+          ) : (
+            <p className="docs-meta mt-3 text-ink">GOES IN: {folder?.name ?? 'MY DOCUMENTS'}</p>
+          )}
 
-      {lore ? (
-        <p className="mt-2 text-label font-bold text-ink">
-          LIVES AT: <span className="text-accent-ink">{isDocSlug(slug) ? `/lore/${slug}` : 'NEEDS A LETTER OR DIGIT'}</span>
-        </p>
-      ) : (
-        <label className="mt-2 block text-label font-bold text-ink">
-          WHO CAN SEE IT
-          <select value={access} onChange={(event) => setAccess(event.target.value as DocAccess)} className="mt-1 block bg-paper text-label text-ink">
-            {DOC_ACCESS_ORDER.map((level) => (
-              <option key={level} value={level}>
-                {DOC_ACCESS_LABELS[level]}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
+          {error === null ? null : <p className={`${DOC_FAULT} mt-3`}>{error}</p>}
 
-      {error === null ? null : <p className="mt-2 w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">{error}</p>}
-
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button type="button" onClick={() => void make()} disabled={busy || !usable} className={PLATE_MAIN}>
-          {busy ? '[ MAKING... ]' : '[ MAKE ]'}
-        </button>
-        <button type="button" onClick={onClose} className={PLATE_LARGE}>
-          [ CANCEL ]
-        </button>
-      </div>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button type="submit" disabled={busy || !usable} className={DOC_KEY_MAIN}>
+              {busy ? '[ CREATING... ]' : '[ CREATE ]'}
+            </button>
+            <button type="button" onClick={onClose} className={DOC_KEY}>
+              [ CANCEL ]
+            </button>
+          </div>
+        </form>
+      </DocsScale>
     </PopoutWindow>
   );
 }

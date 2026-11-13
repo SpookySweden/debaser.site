@@ -5,7 +5,8 @@
  *   node scripts/drive-docs.cjs --base https://debaser-site.vercel.app
  *   (--minute counts a full minute of two people working for the realtime cost; --quick skips it)
  *
- * TEST ACCOUNT A and B sign in. A makes a document (ANYONE SIGNED IN) from the file browser; both open it.
+ * TEST ACCOUNT A and B sign in. A makes a document from the file browser (title only), opens it to ANYONE SIGNED IN
+ * with SHARE, and both open it.
  * Proven, each by what the other browser shows:
  *   - each sees the other's face (picture slot and name) at their typing spot, and the other's pointer moving;
  *   - a margin comment stays on its words while the other types in front of them;
@@ -164,11 +165,11 @@ async function seesOthers(page, otherName, otherPage, label) {
     // A makes a document from the file browser.
     await pageA.goto(`${BASE}/docs`, { waitUntil: 'domcontentloaded' });
     await clearPrivacyWindow(pageA);
-    await pageA.getByRole('button', { name: '[ NEW DOC ]' }).click();
-    const make = pageA.getByRole('dialog', { name: 'NEW DOC' });
+    // The window asks only for a title (the 2026-11-13 overhaul); who can open it is set afterwards with SHARE.
+    await pageA.getByRole('button', { name: '[ + NEW DOCUMENT ]' }).click();
+    const make = pageA.getByRole('dialog', { name: 'NEW DOCUMENT' });
     await make.locator('#doc-new-title').fill('Drive doc');
-    await make.locator('select').selectOption('signed_in');
-    await make.getByRole('button', { name: '[ MAKE ]' }).click();
+    await make.getByRole('button', { name: '[ CREATE ]' }).click();
     await pageA.waitForURL(/\/docs\/[0-9a-f-]{36}$/, { timeout: 40000 });
     const path = new URL(pageA.url()).pathname;
     const docId = path.split('/').pop();
@@ -178,11 +179,26 @@ async function seesOthers(page, otherName, otherPage, label) {
     await sleep(2000);
     await clearPrivacyWindow(pageA);
 
+    // It starts as ONLY ME. A opens SHARE and picks ANYONE SIGNED IN, one of the four big rows.
+    assert.equal((await a.client.from('docs').select('access').eq('id', docId).single()).data.access, 'private', 'a new document starts as ONLY ME');
+    await pageA.getByRole('button', { name: '[ SHARE ]' }).click();
+    const share = pageA.getByRole('dialog', { name: 'SHARE' });
+    assert.ok((await share.locator('#doc-share-link').inputValue()).endsWith(path), 'SHARE shows the document\'s own link to copy');
+    await share.getByText('ANYONE SIGNED IN', { exact: true }).click();
+    await share.getByRole('button', { name: '[ SAVE ]' }).click();
+    await share.waitFor({ state: 'detached', timeout: 30000 });
+    assert.equal((await a.client.from('docs').select('access').eq('id', docId).single()).data.access, 'signed_in');
+    pass('a new document starts as ONLY ME; SHARE shows its link and opens it to ANYONE SIGNED IN');
+
     await openDoc(pageB, path);
     await editorOf(pageA).click();
     await pageA.keyboard.type('The corridor is glass on one side and concrete on the other.');
     await pageB.waitForFunction(() => document.querySelector('.doc-document')?.textContent.includes('concrete on the other'), null, { timeout: 30000 });
     pass('what A types arrives in B');
+    // The saved state, in plain words: SAVING... while the typing waits, then ALL CHANGES SAVED.
+    await pageA.waitForFunction(() => document.querySelector('[data-doc-saved]')?.getAttribute('data-doc-saved') === 'saved', null, { timeout: 30000 });
+    assert.match(await pageA.locator('[data-doc-saved]').innerText(), /ALL CHANGES SAVED/);
+    pass('A is told ALL CHANGES SAVED once the typing has landed');
 
     await seesOthers(pageB, 'TEST ACCOUNT A', pageA, 'B sees');
     await seesOthers(pageA, 'TEST ACCOUNT B', pageB, 'A sees');
@@ -213,7 +229,7 @@ async function seesOthers(page, otherName, otherPage, label) {
     });
     assert.ok(glass);
     await sleep(300);
-    await pageA.getByRole('button', { name: '[ COMMENT ON THIS ]' }).click();
+    await pageA.getByRole('button', { name: '[ COMMENT ]', exact: true }).click();
     await pageA.locator('#doc-comment-new').fill('Is it really glass?');
     await pageA.getByRole('button', { name: '[ ADD COMMENT ]' }).click();
     await pageA.waitForSelector('.doc-commented', { timeout: 30000 });
@@ -300,7 +316,7 @@ async function seesOthers(page, otherName, otherPage, label) {
     await pageA.getByRole('button', { name: '[ NEW PAGE ]' }).click();
     const lore = pageA.getByRole('dialog', { name: 'NEW LORE PAGE' });
     await lore.locator('#doc-new-title').fill('Drive lore page');
-    await lore.getByRole('button', { name: '[ MAKE ]' }).click();
+    await lore.getByRole('button', { name: '[ CREATE ]' }).click();
     await pageA.waitForURL(/\/lore\/drive-lore-page$/, { timeout: 40000 });
     await editorOf(pageA).waitFor({ timeout: 30000 });
     const loreRow = await a.client.from('docs').select('id, access, folder_id').eq('slug', 'drive-lore-page').single();

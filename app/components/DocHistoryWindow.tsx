@@ -11,13 +11,14 @@ import { DOCS_PICTURE_BASE, getDocsRepository } from '../lib/docs/repository';
 import { snippetOf } from '../lib/docs/rules';
 import { base64ToBytes, bytesToBase64 } from '../lib/docs/session';
 import { DOC_FIELD, type DocVersion, type DocViewer } from '../lib/docs/types';
-import { FIELD, PLATE, PLATE_MAIN, TITLE_BAR } from '../lib/ui/controls';
+import { dateWords, DOC_FAULT, DOC_KEY, DOC_KEY_MAIN } from '../lib/docs/ui';
+import { FIELD, TITLE_BAR } from '../lib/ui/controls';
+import DocsScale from './DocsScale';
 import PopoutWindow from './PopoutWindow';
-import TimeStamp from './TimeStamp';
 
 type DocHistoryWindowProps = {
   docId: string;
-  /** The live document, so KEEP THIS VERSION copies what is there now. */
+  /** The live document, so KEEP copies what is there now. */
   doc: Y.Doc;
   /** The live editor, which a restore writes into. Null for a reader. */
   editor: Editor | null;
@@ -135,76 +136,82 @@ export default function DocHistoryWindow({ docId, doc, editor, viewer, editing, 
   }
 
   return (
-    <PopoutWindow title="HISTORY" onClose={onClose} maxWidth="max-w-3xl">
-      {error === null ? null : <p className="mb-2 w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">{error}</p>}
+    <PopoutWindow title="HISTORY" onClose={onClose} maxWidth="max-w-4xl">
+      <DocsScale>
+        {error === null ? null : <p className={`${DOC_FAULT} mb-2`}>{error}</p>}
 
-      {open === null ? (
-        <>
-          {editing ? (
-            <div className="mb-3 flex flex-wrap items-end gap-2">
-              <label className="min-w-0 flex-1 text-label font-bold text-ink">
-                NAME THIS VERSION
-                <input value={name} onChange={(event) => setName(event.target.value)} maxLength={80} className={FIELD} />
-              </label>
-              <button type="button" className={PLATE_MAIN} disabled={busy || name.trim().length === 0} onClick={() => void keep()}>
-                [ KEEP ]
+        {open === null ? (
+          <>
+            {editing ? (
+              <div className="mb-3 flex flex-wrap items-end gap-2">
+                <label className="docs-meta min-w-0 flex-1 text-ink">
+                  KEEP A COPY OF IT AS IT IS NOW, UNDER A NAME
+                  <input value={name} onChange={(event) => setName(event.target.value)} maxLength={80} className={`${FIELD} docs-meta`} />
+                </label>
+                <button type="button" className={DOC_KEY_MAIN} disabled={busy || name.trim().length === 0} onClick={() => void keep()}>
+                  [ KEEP ]
+                </button>
+              </div>
+            ) : null}
+
+            <div className={TITLE_BAR}>
+              <span>EARLIER VERSIONS</span>
+            </div>
+
+            {versions === null ? (
+              <p className="docs-key py-2 text-ink">READING...</p>
+            ) : versions.length === 0 ? (
+              <p className="docs-key py-2 text-ink">NONE YET.</p>
+            ) : (
+              <ol>
+                {versions.map((version) => (
+                  <li key={version.id} className="rule-pixel flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-ink">
+                    <span className="min-w-0 flex-1">
+                      <span className="docs-key block">
+                        {dateWords(version.createdAt)}
+                        {version.name === null ? null : <span className="text-accent-ink"> · {version.name}</span>}
+                      </span>
+                      <span className="docs-meta block break-words">
+                        BY {version.createdByLabel}
+                        {version.snippet.length === 0 ? '' : ` · ${version.snippet}`}
+                      </span>
+                    </span>
+                    <button type="button" className={DOC_KEY} onClick={() => void view(version)}>
+                      [ VIEW ]
+                    </button>
+                    {owner ? (
+                      <button type="button" className={DOC_KEY} onClick={() => void remove(version)}>
+                        [ REMOVE ]
+                      </button>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            )}
+          </>
+        ) : (
+          <>
+            <div className={TITLE_BAR}>
+              <span>
+                {open.version.name ?? 'VERSION'} · {dateWords(open.version.createdAt)}
+              </span>
+            </div>
+            <div className="frame my-2 max-h-96 overflow-y-auto bg-paper p-3">
+              <VersionView content={open.content} />
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {editing && editor !== null ? (
+                <button type="button" className={DOC_KEY_MAIN} onClick={restore}>
+                  [ RESTORE ]
+                </button>
+              ) : null}
+              <button type="button" className={DOC_KEY} onClick={() => setOpen(null)}>
+                [ &lt; ALL VERSIONS ]
               </button>
             </div>
-          ) : null}
-
-          <div className={TITLE_BAR}>
-            <span>EARLIER VERSIONS</span>
-          </div>
-
-          {versions === null ? (
-            <p className="py-1 text-label font-bold text-ink">READING...</p>
-          ) : versions.length === 0 ? (
-            <p className="py-1 text-label font-bold text-ink">NONE YET.</p>
-          ) : (
-            <ol>
-              {versions.map((version) => (
-                <li key={version.id} className="rule-pixel flex flex-wrap items-baseline gap-x-2 gap-y-1 py-1.5 text-label text-ink">
-                  <span className="font-bold">
-                    <TimeStamp at={version.createdAt} />
-                  </span>
-                  {version.name === null ? null : <span className="font-bold text-accent-ink">{version.name}</span>}
-                  <span>BY {version.createdByLabel}</span>
-                  <span className="min-w-0 flex-1 truncate">{version.snippet}</span>
-                  <button type="button" className={PLATE} onClick={() => void view(version)}>
-                    [ VIEW ]
-                  </button>
-                  {owner ? (
-                    <button type="button" className={PLATE} onClick={() => void remove(version)}>
-                      [ REMOVE ]
-                    </button>
-                  ) : null}
-                </li>
-              ))}
-            </ol>
-          )}
-        </>
-      ) : (
-        <>
-          <div className={TITLE_BAR}>
-            <span>
-              {open.version.name ?? 'VERSION'} :: <TimeStamp at={open.version.createdAt} />
-            </span>
-          </div>
-          <div className="my-2 max-h-96 overflow-y-auto p-2">
-            <VersionView content={open.content} />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {editing && editor !== null ? (
-              <button type="button" className={PLATE_MAIN} onClick={restore}>
-                [ RESTORE ]
-              </button>
-            ) : null}
-            <button type="button" className={PLATE} onClick={() => setOpen(null)}>
-              [ &lt; ALL VERSIONS ]
-            </button>
-          </div>
-        </>
-      )}
+          </>
+        )}
+      </DocsScale>
     </PopoutWindow>
   );
 }

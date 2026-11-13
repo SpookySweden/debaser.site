@@ -55,7 +55,13 @@ assert.match(text(draw(el(DocView, { target: { id: 'doc-0b9d6f3e-1a2b-4c3d-8e9f-
 assert.match(text(draw(el(DocView, { target: { slug: 'hexham-grid' } }))), /READING THE DOCUMENT/);
 assert.match(text(draw(el(DocsBrowser))), /FOLDERS/);
 searchParams = new URLSearchParams(`folder=${LORE_FOLDER_ID}`);
-assert.match(text(draw(el(DocsBrowser))), /PUBLIC DOCS\//, 'signed out, the browser offers the public documents');
+assert.match(text(draw(el(DocsBrowser))), /PUBLIC DOCUMENTS/, 'signed out, the browser offers the public documents');
+// The front page's big keys (the 2026-11-13 overhaul): where to look, and the text size, drawn before any row arrives.
+searchParams = new URLSearchParams();
+const front = draw(el(DocsBrowser));
+assert.match(text(front), /\[ PUBLIC DOCUMENTS \].*\[ FOLDERS \]/, 'the places to look are keys across the top');
+assert.match(text(front), /TEXT SIZE \[ A− \] \[ A\+ \]/, 'the text size keys are on the front page');
+assert.match(front, /class="docs-ui" data-docs-size="2"/, 'the page is drawn at the starting text size until the browser says otherwise');
 assert.match(text(draw(el(LoreDirectory))), /PAGES/);
 
 // A face: a picture slot always, the name, the colour as the fill.
@@ -77,10 +83,43 @@ const doc = new Y.Doc();
 assert.equal(typeof text(draw(el(DocHistoryWindow, { docId: 'doc-x', doc, editor: null, viewer, editing: true, owner: true, onKept: () => undefined, onClose: () => undefined }))), 'string');
 
 // The margin with nothing in it yet, and the pointer layer with nobody moving.
-assert.match(text(draw(el(DocMargin, { editor: null, docId: 'doc-x', viewer, role: 'edit', draft: null, onDraftDone: () => undefined }))), /COMMENTS NONE YET\./);
-const draftHtml = text(draw(el(DocMargin, { editor: null, docId: 'doc-x', viewer, role: 'edit', draft: { anchorFrom: 'AA', anchorTo: 'AA', quote: 'glass' }, onDraftDone: () => undefined })));
+const margin = { editor: null, docId: 'doc-x', viewer, role: 'edit', beside: true, onCount: () => undefined, onDraftDone: () => undefined };
+assert.match(text(draw(el(DocMargin, { ...margin, draft: null }))), /COMMENTS NONE YET\./);
+const draftHtml = text(draw(el(DocMargin, { ...margin, draft: { anchorFrom: 'AA', anchorTo: 'AA', quote: 'glass' } })));
 assert.match(draftHtml, /“glass”/, 'a new comment shows the words it is about');
 assert.match(draftHtml, /\[ ADD COMMENT \]/, 'and its key is not the forum key [ COMMENT ]');
 assert.match(draw(el(DocPointers, { editor: null, session: null, peers: [], frame: { current: null }, sends: true })), /doc-pointers/);
 
-console.log('check-docs-render: the browser, a document, the lore shelf, faces, the margin, pointers and the windows all draw');
+// A row of the list: the title, then who can open it, whose it is and when it changed, in plain words; the whole row is the link.
+const { DocRow, FolderRow } = require('./docs-render/components/DocRows.js');
+const DocMoveWindow = require('./docs-render/components/DocMoveWindow.js').default;
+const ui = require('./docs-render/lib/docs/ui.js');
+const noon = new Date(2026, 10, 13, 12, 0).getTime();
+const iso = (...parts) => new Date(...parts).toISOString();
+const summary = { id: 'doc-0b9d6f3e-1a2b-4c3d-8e9f-0a1b2c3d4e5f', slug: null, title: 'SHOPPING LIST', summary: '', access: 'private', folderId: null, ownerId: 'user-a', ownerLabel: 'TEST ACCOUNT A', createdAt: iso(2026, 10, 13, 9, 0), createdByLabel: 'TEST ACCOUNT A', updatedAt: iso(2026, 10, 13, 11, 55), updatedByLabel: 'TEST ACCOUNT A' };
+const mineRow = renderToStaticMarkup(el('ul', null, el(DocRow, { doc: summary, viewerId: 'user-a', now: noon })));
+assert.match(text(mineRow), /SHOPPING LIST ONLY YOU · BY YOU · CHANGED 5 MINUTES AGO/, 'my own row, in plain words');
+assert.match(mineRow, /<a [^>]*href="\/docs\/doc-0b9d6f3e-1a2b-4c3d-8e9f-0a1b2c3d4e5f"/, 'the row is a link to the document');
+const theirRow = text(renderToStaticMarkup(el('ul', null, el(DocRow, { doc: { ...summary, access: 'shared', updatedAt: iso(2026, 10, 12, 9, 10) }, viewerId: 'user-b', now: noon, folderName: 'NOTES' }))));
+assert.match(theirRow, /SHARED WITH YOU · BY TEST ACCOUNT A · IN NOTES · CHANGED YESTERDAY AT 09:10/, 'somebody else\'s row says whose it is and where');
+assert.match(text(renderToStaticMarkup(el('ul', null, el(FolderRow, { folder: lore, href: '/docs?folder=x' })))), /LORE FOLDER · BY debaser\.site/);
+assert.equal(typeof text(draw(el(DocMoveWindow, { doc: summary, folders: [lore], onMove: async () => undefined, onClose: () => undefined }))), 'string');
+
+// The plain words themselves (app/lib/docs/ui.ts).
+assert.equal(ui.whenWords(iso(2026, 10, 13, 11, 59, 40), noon), 'JUST NOW');
+assert.equal(ui.whenWords(iso(2026, 10, 13, 11, 59), noon), '1 MINUTE AGO');
+assert.equal(ui.whenWords(iso(2026, 10, 13, 8, 5), noon), 'TODAY AT 08:05');
+assert.equal(ui.whenWords(iso(2026, 10, 12, 23, 30), noon), 'YESTERDAY AT 23:30');
+assert.equal(ui.whenWords(iso(2026, 10, 10, 15, 0), noon), '3 DAYS AGO');
+assert.equal(ui.whenWords(iso(2026, 9, 2, 15, 0), noon), '2 OCT 2026');
+assert.equal(ui.whenWords('not a date', noon), 'SOME TIME AGO');
+assert.equal(ui.dateWords(iso(2026, 10, 13, 15, 49)), '13 NOV 2026, 15:49');
+assert.deepEqual(['private', 'shared', 'signed_in', 'public'].map((level) => ui.accessWords(level, true)), ['ONLY YOU', 'PEOPLE YOU PICKED', 'ANYONE SIGNED IN', 'EVERYONE']);
+assert.equal(ui.accessWords('shared', false), 'SHARED WITH YOU');
+assert.equal(ui.roomWords(true, 0, true), 'CONNECTING...');
+assert.equal(ui.roomWords(false, 0, true), 'ONLY YOU HERE');
+assert.equal(ui.roomWords(false, 2, true), '3 PEOPLE HERE');
+assert.equal(ui.roomWords(false, 0, false), 'NOBODY WRITING NOW');
+assert.deepEqual([0, 1, 3.4, 6, 9, Number.NaN].map(ui.clampDocsSize), [1, 1, 3, 6, 6, 2], 'a text size is always one of the six steps');
+
+console.log('check-docs-render: the browser, a document, the lore shelf, rows, faces, the margin, pointers and the windows all draw, in plain words');

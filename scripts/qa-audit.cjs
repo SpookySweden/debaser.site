@@ -56,6 +56,8 @@ const ROUTES = [
   ['concepts', '/concepts'],
   ['lore', '/lore'],
   ['lorepage', '/lore/the-glass-corridor'],
+  // DOCS' front page (the 2026-11-13 overhaul): its big keys before any row arrives; scripts/drive-docs.cjs drives the rest live.
+  ['docs', '/docs'],
   ['notes', '/notes'],
   ['links', '/links'],
   ['project', '/projects/debaser'],

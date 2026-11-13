@@ -378,6 +378,132 @@ body {
   text-decoration: line-through;
 }
 
+/* DOCS, made big (Luke, 2026-11-13: "more like google docs ... usable by a grandad") ----------------
+   DOCS is read by someone with poor eyesight, often on a phone showing the desktop zoomed out. So every
+   DOCS screen (and each window it opens) is wrapped in `.docs-ui`, whose `data-docs-size` step (1-6, the
+   reader's TEXT SIZE keys, app/lib/docs/ui.ts) names which of the site's own text tokens the writing, the
+   keys, the small lines and the title use. A computer starts on step 2, a phone on step 5. */
+.docs-ui {
+  --docs-text: var(--text-heading);
+  --docs-key: var(--text-title);
+  --docs-meta: var(--text-key);
+  --docs-title: var(--text-headline);
+}
+
+.docs-ui[data-docs-size='1'] {
+  --docs-text: var(--text-prose);
+  --docs-key: var(--text-key);
+  --docs-meta: var(--text-label);
+  --docs-title: var(--text-display);
+}
+
+.docs-ui[data-docs-size='3'] {
+  --docs-text: var(--text-display);
+  --docs-key: var(--text-heading);
+  --docs-meta: var(--text-prose);
+}
+
+.docs-ui[data-docs-size='4'] {
+  --docs-text: var(--text-headline);
+  --docs-key: var(--text-display);
+  --docs-meta: var(--text-title);
+  --docs-title: var(--text-4xl);
+}
+
+.docs-ui[data-docs-size='5'] {
+  --docs-text: var(--text-4xl);
+  --docs-key: var(--text-headline);
+  --docs-meta: var(--text-display);
+  --docs-title: var(--text-4xl);
+}
+
+.docs-ui[data-docs-size='6'] {
+  --docs-text: var(--text-5xl);
+  --docs-key: var(--text-4xl);
+  --docs-meta: var(--text-headline);
+  --docs-title: var(--text-5xl);
+}
+
+.docs-key {
+  font-size: var(--docs-key);
+  line-height: 1.2;
+}
+
+.docs-meta {
+  font-size: var(--docs-meta);
+  line-height: 1.45;
+}
+
+.docs-title {
+  font-size: var(--docs-title);
+  line-height: 1.2;
+}
+
+.docs-text {
+  font-size: var(--docs-text);
+  line-height: 1.5;
+}
+
+/* The writing follows the step wherever DOCS draws it (the page, an earlier version in HISTORY). */
+.docs-ui .lore-document {
+  font-size: var(--docs-text);
+  line-height: 1.6;
+}
+
+.docs-ui .lore-document h1 {
+  font-size: calc(var(--docs-text) * 1.5);
+}
+
+.docs-ui .lore-document h2 {
+  font-size: calc(var(--docs-text) * 1.25);
+}
+
+/* The page: one large sheet with room round the words, tall enough to look like somewhere to write. */
+.docs-ui .doc-frame {
+  padding: --spacing(6) --spacing(8);
+}
+
+.docs-ui .doc-frame .lore-document {
+  /* Capped, because a phone's zoomed-out desktop is three screens tall and 60% of that is a page nobody reaches the end of. */
+  min-height: min(60vh, 36rem);
+}
+
+@media (width < 640px) {
+  .docs-ui .doc-frame {
+    padding: --spacing(3);
+  }
+}
+
+/* A checklist's box grows with the writing. */
+.docs-ui .doc-document ul[data-type='taskList'] li > label input {
+  width: 1em;
+  height: 1em;
+}
+
+/* The people in the document, on the bar, and a margin comment's quoted words, in the step's small size.
+   (A caret's own name tag stays the site's smallest label: it floats over the line above.) */
+.docs-ui .docs-people .doc-face,
+.docs-ui .doc-margin-quote {
+  font-size: var(--docs-meta);
+}
+
+/* The bar (saved state, people, the toolbar) stays at the top while the page scrolls. At the two biggest
+   steps it is several rows tall, so it only stays put where the screen is tall enough to spare them
+   (a phone's zoomed-out desktop is; a laptop is not). */
+@media (height < 1400px) {
+  .docs-ui[data-docs-size='5'] .docs-bar,
+  .docs-ui[data-docs-size='6'] .docs-bar {
+    position: static;
+  }
+}
+
+/* The narrow layout: the keys wrap to half a dozen rows there, more than a small screen can give up. */
+@media (width < 640px) {
+  .docs-ui .docs-bar {
+    position: static;
+  }
+}
+
 /* Retro OS primitives -------------------------------------------------------
    Collapsible forum threads use native <details>/<summary>; the stock marker
    is replaced with the Win95 [+]/[-] text indicator rendered in JSX. */

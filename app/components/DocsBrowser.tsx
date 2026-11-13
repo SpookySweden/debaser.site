@@ -2,30 +2,41 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getDocsRepository } from '../lib/docs/repository';
-import { DOC_ACCESS_LABELS, DOC_ACCESS_ORDER, docPath } from '../lib/docs/rules';
+import { DOC_ACCESS_LABELS, DOC_ACCESS_ORDER } from '../lib/docs/rules';
 import { LORE_FOLDER_ID, type DocAccess, type DocFolder, type DocSummary, type DocViewer } from '../lib/docs/types';
-import { FIELD_TIGHT, PLATE, PLATE_LINK, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR } from '../lib/ui/controls';
+import { DOC_FAULT, DOC_KEY, DOC_KEY_MAIN, DOC_KEY_ON } from '../lib/docs/ui';
+import { FIELD_TIGHT, TITLE_BAR } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
+import DocMoveWindow from './DocMoveWindow';
+import { DocRow, FolderRow } from './DocRows';
+import DocsScale, { DocsSizeKeys } from './DocsScale';
 import NewDocFolderWindow from './NewDocFolderWindow';
 import NewDocWindow from './NewDocWindow';
-import TimeStamp from './TimeStamp';
 
-/** Where the browser is: MY DOCS, the shared folders' top, everything else I can see, or one folder. */
-type Place = 'mine' | 'shared' | 'others' | string;
+/**
+ * Where the browser is: RECENT (everything this reader can open, newest first), MY DOCUMENTS, everything
+ * else shared with them, the shared folders' top, or one folder (its id).
+ */
+type Place = 'recent' | 'mine' | 'others' | 'shared' | string;
+
+/** How many rows RECENT shows before [ SHOW ALL ]. */
+const RECENT_ROWS = 30;
 
 function placeHref(place: Place): string {
-  return place === 'mine' ? '/docs' : `/docs?folder=${encodeURIComponent(place)}`;
+  return place === 'recent' ? '/docs' : `/docs?folder=${encodeURIComponent(place)}`;
 }
 
 /**
- * DOCS' front page: a file browser.
+ * DOCS' front page (Luke, 2026-11-13: laid out like Google Docs' home, for someone who does not use
+ * computers much): one big [ + NEW DOCUMENT ] key, four big keys for where to look, and every document
+ * and folder as a large row that opens when pressed.
  *
- * MY DOCS is each person's own (with their own folders inside it); the shared folders are seen by every
- * account (LORE by everyone); SHARED WITH ME is every other document this reader may open, wherever its
- * owner filed it. What a reader may see is the database's decision (Row Level Security): this page
- * only arranges what it is given.
+ * MY DOCUMENTS is each person's own (with their own folders inside it); FOLDERS are the shared ones, seen
+ * by every account (LORE by everyone); SHARED WITH ME is every other document this reader may open,
+ * wherever its owner filed it. What a reader may see is the database's decision (Row Level Security):
+ * this page only arranges what it is given.
  */
 export default function DocsBrowser() {
   const { user, status } = useAuth();
@@ -35,34 +46,41 @@ export default function DocsBrowser() {
   const repository = useMemo(() => getDocsRepository(viewer?.id ?? null), [viewer?.id]);
   const [folders, setFolders] = useState<DocFolder[]>([]);
   const [docs, setDocs] = useState<DocSummary[]>([]);
+  /** When the rows were read, so every row says its age against the same clock. */
+  const [readAt, setReadAt] = useState(0);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [making, setMaking] = useState<'doc' | 'folder' | null>(null);
+  const [moving, setMoving] = useState<DocSummary | null>(null);
+  /** The folder whose settings are folded open (its id), so walking to another folder finds them shut. */
+  const [settingsFor, setSettingsFor] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [removing, setRemoving] = useState(false);
+  const [showAll, setShowAll] = useState(false);
 
   const signedIn = viewer !== null;
   const viewerId = viewer?.id ?? null;
-  const asked = params.get('folder');
-  const place: Place = asked ?? (signedIn ? 'mine' : LORE_FOLDER_ID);
+  const place: Place = params.get('folder') ?? 'recent';
 
   useEffect(() => {
     if (status === 'loading') return;
     let cancelled = false;
     // Each place asks for its own documents, so a folder never loses its older ones behind 500 newer elsewhere.
-    const scope = place === 'mine' ? { ownerId: viewerId ?? '', folderId: null } : place === 'others' || place === 'shared' ? {} : { folderId: place };
+    const scope =
+      place === 'mine' ? { ownerId: viewerId ?? '', folderId: null } : place === 'recent' || place === 'others' || place === 'shared' ? {} : { folderId: place };
     Promise.all([repository.listFolders(), place === 'shared' ? Promise.resolve([]) : repository.listDocs(scope)])
       .then(([folderRows, docRows]) => {
         if (cancelled) return;
         setFolders(folderRows);
         setDocs(docRows);
+        setReadAt(Date.now());
         setError(null);
         setReady(true);
       })
       .catch((caught: unknown) => {
         if (cancelled) return;
-        setError(caught instanceof Error ? caught.message : 'DOCS DID NOT LOAD.');
+        setError(caught instanceof Error ? caught.message : 'DOCUMENTS DID NOT LOAD.');
         setReady(true);
       });
     return () => {
@@ -73,6 +91,7 @@ export default function DocsBrowser() {
   const refresh = useCallback(() => setAttempt((value) => value + 1), []);
 
   const seen = useMemo(() => new Set(folders.map((folder) => folder.id)), [folders]);
+  const folderNames = useMemo(() => new Map(folders.map((folder) => [folder.id, folder.name])), [folders]);
   const folder = folders.find((candidate) => candidate.id === place) ?? null;
   const childrenOf = (parentId: string | null, kind: 'home' | 'shared') =>
     folders
@@ -80,27 +99,63 @@ export default function DocsBrowser() {
       .sort((left, right) => (left.id === LORE_FOLDER_ID ? -1 : right.id === LORE_FOLDER_ID ? 1 : left.name.localeCompare(right.name)));
 
   const inPlace = docs.filter((doc) => {
+    if (place === 'recent') return true;
     if (place === 'mine') return doc.ownerId === viewer?.id && doc.folderId === null;
-    if (place === 'others') {
-      const mineAtHome = doc.ownerId === viewer?.id && doc.folderId === null;
-      return !mineAtHome && (doc.folderId === null || !seen.has(doc.folderId));
-    }
+    if (place === 'others') return doc.ownerId !== viewer?.id && (doc.folderId === null || !seen.has(doc.folderId));
     if (place === 'shared') return false;
     return doc.folderId === place;
   });
+  const shown = place === 'recent' && !showAll ? inPlace.slice(0, RECENT_ROWS) : inPlace;
 
   const subfolders =
     place === 'mine' ? childrenOf(null, 'home') : place === 'shared' ? childrenOf(null, 'shared') : folder === null ? [] : childrenOf(folder.id, folder.kind);
 
   const placeName =
-    place === 'mine' ? 'MY DOCS' : place === 'shared' ? 'SHARED FOLDERS' : place === 'others' ? (signedIn ? 'SHARED WITH ME' : 'PUBLIC DOCS') : (folder?.name ?? 'FOLDER');
+    place === 'recent'
+      ? signedIn
+        ? 'RECENT DOCUMENTS'
+        : 'PUBLIC DOCUMENTS'
+      : place === 'mine'
+        ? 'MY DOCUMENTS'
+        : place === 'shared'
+          ? 'FOLDERS'
+          : place === 'others'
+            ? 'SHARED WITH ME'
+            : (folder?.name ?? 'FOLDER');
 
-  // Where a document can be moved by its owner: MY DOCS, their own folders, any shared folder.
+  // The big key the reader is standing on: a folder counts as the place it lives under.
+  const tab: Place = folder === null ? place : folder.kind === 'shared' ? 'shared' : 'mine';
+  const tabs: { place: Place; label: string }[] = signedIn
+    ? [
+        { place: 'recent', label: 'RECENT' },
+        { place: 'mine', label: 'MY DOCUMENTS' },
+        { place: 'others', label: 'SHARED WITH ME' },
+        { place: 'shared', label: 'FOLDERS' },
+      ]
+    : [
+        { place: 'recent', label: 'PUBLIC DOCUMENTS' },
+        { place: 'shared', label: 'FOLDERS' },
+      ];
+
+  // One step back out of a folder: its parent, or the place it lives under.
+  const parent = folder === null ? null : (folders.find((candidate) => candidate.id === folder.parentId) ?? null);
+  const back =
+    folder === null
+      ? null
+      : parent !== null
+        ? { href: placeHref(parent.id), label: parent.name }
+        : folder.kind === 'shared'
+          ? { href: placeHref('shared'), label: 'FOLDERS' }
+          : { href: placeHref('mine'), label: 'MY DOCUMENTS' };
+
+  // Where a document can be moved by its owner: MY DOCUMENTS, their own folders, any shared folder.
   const moveTargets = folders.filter((candidate) => candidate.kind === 'shared' || candidate.ownerId === viewer?.id);
 
-  const canMakeDoc = signedIn && (place === 'mine' || folder !== null);
-  const canMakeFolder = signedIn && place !== 'others';
+  // A new document is filed where the reader is standing when that is a folder, and in MY DOCUMENTS otherwise.
+  const canMakeFolder = signedIn && (place === 'mine' || place === 'shared' || folder !== null);
   const ownsFolder = folder !== null && folder.ownerId === viewer?.id && folder.id !== LORE_FOLDER_ID;
+  const lore = folder?.id === LORE_FOLDER_ID;
+  const settings = folder !== null && settingsFor === folder.id;
 
   async function run(work: () => Promise<void>): Promise<void> {
     setError(null);
@@ -112,129 +167,108 @@ export default function DocsBrowser() {
     }
   }
 
-  const renderTree = (parentId: string | null, kind: 'home' | 'shared', depth: number): ReactNode => {
-    const rows = childrenOf(parentId, kind);
-    if (rows.length === 0) return null;
-    return (
-      <ul>
-        {rows.map((row) => (
-          <li key={row.id}>
-            <Link
-              href={placeHref(row.id)}
-              className={place === row.id ? PLATE_PRESSED : PLATE}
-              style={{ marginLeft: `${depth}rem` }}
-              aria-current={place === row.id ? 'page' : undefined}
-            >
-              {row.name}/
-            </Link>
-            {renderTree(row.id, kind, depth + 1)}
-          </li>
-        ))}
-      </ul>
-    );
-  };
-
   return (
-    <div className="gap-4 md:flex">
-      <nav className="mb-3 shrink-0 md:mb-0 md:w-56" aria-label="Folders">
-        <div className={TITLE_BAR}>
-          <span>FOLDERS</span>
-        </div>
-        <div className="space-y-1 py-1 text-label">
-          {signedIn ? (
-            <div>
-              <Link href={placeHref('mine')} className={place === 'mine' ? PLATE_PRESSED : PLATE} aria-current={place === 'mine' ? 'page' : undefined}>
-                MY DOCS/
-              </Link>
-              {renderTree(null, 'home', 1)}
-            </div>
-          ) : null}
-          <div>
-            {signedIn ? (
-              <Link href={placeHref('shared')} className={place === 'shared' ? PLATE_PRESSED : PLATE}>
-                SHARED FOLDERS/
-              </Link>
-            ) : null}
-            {renderTree(null, 'shared', signedIn ? 1 : 0)}
-          </div>
-          <div>
-            <Link href={placeHref('others')} className={place === 'others' ? PLATE_PRESSED : PLATE}>
-              {signedIn ? 'SHARED WITH ME/' : 'PUBLIC DOCS/'}
-            </Link>
-          </div>
-        </div>
+    <DocsScale>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pb-3">
+        {signedIn ? (
+          <button type="button" className={DOC_KEY_MAIN} onClick={() => setMaking('doc')}>
+            {lore ? '[ + NEW LORE PAGE ]' : '[ + NEW DOCUMENT ]'}
+          </button>
+        ) : status === 'loading' ? null : (
+          <p className="docs-key text-ink">
+            <Link href="/account" className={DOC_KEY}>
+              [ LOG IN ]
+            </Link>{' '}
+            TO MAKE DOCUMENTS
+          </p>
+        )}
+        {canMakeFolder ? (
+          <button type="button" className={DOC_KEY} onClick={() => setMaking('folder')}>
+            [ + NEW FOLDER ]
+          </button>
+        ) : null}
+        <span className="ml-auto">
+          <DocsSizeKeys />
+        </span>
+      </div>
+
+      <nav className="flex flex-wrap items-center gap-x-3 gap-y-2 pb-3" aria-label="Where to look">
+        {tabs.map((entry) => (
+          <Link key={entry.place} href={placeHref(entry.place)} className={tab === entry.place ? DOC_KEY_ON : DOC_KEY} aria-current={place === entry.place ? 'page' : undefined}>
+            [ {entry.label} ]
+          </Link>
+        ))}
       </nav>
 
-      <section className="min-w-0 flex-1">
+      <section>
         <div className={TITLE_BAR}>
-          <span className="truncate">{placeName}</span>
+          <h2 className="docs-key truncate">{placeName}</h2>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 py-2">
-          {canMakeDoc ? (
-            <button type="button" className={PLATE_MAIN} onClick={() => setMaking('doc')}>
-              {folder?.id === LORE_FOLDER_ID ? '[ NEW LORE PAGE ]' : '[ NEW DOC ]'}
-            </button>
-          ) : null}
-          {canMakeFolder ? (
-            <button type="button" className={PLATE} onClick={() => setMaking('folder')}>
-              [ NEW FOLDER ]
-            </button>
-          ) : null}
-          {!signedIn && status !== 'loading' ? (
-            <p className="text-label text-ink">
-              <Link href="/account" className={PLATE_LINK}>
-                [ LOG IN ]
-              </Link>{' '}
-              TO MAKE DOCS
-            </p>
-          ) : null}
-          <button type="button" className={PLATE} onClick={refresh} aria-label="Read the folders again" title="Read again">
-            [ ↻ ]
-          </button>
-        </div>
-
-        {ownsFolder && folder !== null ? (
-          <div className="flex flex-wrap items-center gap-2 pb-2 text-label text-ink">
-            {renaming === null ? (
-              <button type="button" className={PLATE} onClick={() => setRenaming(folder.name)}>
-                [ RENAME ]
+        {back === null ? null : (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 pt-2">
+            <Link href={back.href} className={DOC_KEY}>
+              [ &lt; {back.label} ]
+            </Link>
+            {ownsFolder ? (
+              <button type="button" className={settings ? DOC_KEY_ON : DOC_KEY} aria-expanded={settings} onClick={() => {
+                  setSettingsFor(settings ? null : folder.id);
+                  setRenaming(null);
+                  setRemoving(false);
+                }}>
+                [ FOLDER SETTINGS ]
               </button>
-            ) : (
-              <>
-                <label className="sr-only" htmlFor="doc-folder-rename">
-                  Folder name
-                </label>
-                <input
-                  id="doc-folder-rename"
-                  value={renaming}
-                  onChange={(event) => setRenaming(event.target.value)}
-                  maxLength={60}
-                  className={FIELD_TIGHT}
-                />
-                <button
-                  type="button"
-                  className={PLATE}
-                  onClick={() => {
-                    const name = renaming;
-                    setRenaming(null);
-                    void run(() => repository.updateFolder(folder.id, { name }));
-                  }}
-                >
-                  [ OK ]
+            ) : null}
+          </div>
+        )}
+
+        {settings && ownsFolder && folder !== null ? (
+          <div className="docs-meta space-y-3 py-3 text-ink">
+            <div className="flex flex-wrap items-center gap-2">
+              {renaming === null ? (
+                <button type="button" className={DOC_KEY} onClick={() => setRenaming(folder.name)}>
+                  [ RENAME THE FOLDER ]
                 </button>
-              </>
-            )}
-            <label className="flex items-center gap-1">
-              NEW DOCS START AS
+              ) : (
+                <>
+                  <label className="sr-only" htmlFor="doc-folder-rename">
+                    Folder name
+                  </label>
+                  <input
+                    id="doc-folder-rename"
+                    value={renaming}
+                    onChange={(event) => setRenaming(event.target.value)}
+                    maxLength={60}
+                    className={`${FIELD_TIGHT} docs-key min-h-tap min-w-0 flex-1`}
+                  />
+                  <button
+                    type="button"
+                    className={DOC_KEY}
+                    disabled={renaming.trim().length === 0}
+                    onClick={() => {
+                      const name = renaming;
+                      setRenaming(null);
+                      void run(() => repository.updateFolder(folder.id, { name }));
+                    }}
+                  >
+                    [ SAVE NAME ]
+                  </button>
+                  <button type="button" className={DOC_KEY} onClick={() => setRenaming(null)}>
+                    [ CANCEL ]
+                  </button>
+                </>
+              )}
+            </div>
+            <label className="flex flex-wrap items-center gap-2">
+              WHO CAN OPEN A NEW DOCUMENT MADE HERE
               <select
                 value={folder.defaultAccess ?? ''}
                 onChange={(event) =>
                   void run(() => repository.updateFolder(folder.id, { defaultAccess: event.target.value === '' ? null : (event.target.value as DocAccess) }))
                 }
-                className="bg-paper text-label text-ink"
+                className="docs-meta min-h-tap bg-paper text-ink"
               >
-                <option value="">PRIVATE</option>
+                <option value="">{DOC_ACCESS_LABELS.private}</option>
                 {DOC_ACCESS_ORDER.filter((level) => level !== 'private').map((level) => (
                   <option key={level} value={level}>
                     {DOC_ACCESS_LABELS[level]}
@@ -242,76 +276,76 @@ export default function DocsBrowser() {
                 ))}
               </select>
             </label>
-            {removing ? (
-              <button
-                type="button"
-                className={PLATE}
-                onClick={() => {
-                  setRemoving(false);
-                  void run(async () => {
-                    await repository.deleteFolder(folder.id);
-                    router.push(folder.kind === 'shared' ? placeHref('shared') : placeHref('mine'));
-                  });
-                }}
-              >
-                [ REALLY REMOVE? ITS DOCS GO BACK TO THEIR OWNERS ]
-              </button>
-            ) : (
-              <button type="button" className={PLATE} onClick={() => setRemoving(true)}>
-                [ REMOVE FOLDER ]
-              </button>
-            )}
+            <div className="flex flex-wrap items-center gap-2">
+              {removing ? (
+                <>
+                  <button
+                    type="button"
+                    className={DOC_KEY}
+                    onClick={() => {
+                      setRemoving(false);
+                      setSettingsFor(null);
+                      void run(async () => {
+                        await repository.deleteFolder(folder.id);
+                        router.push(folder.kind === 'shared' ? placeHref('shared') : placeHref('mine'));
+                      });
+                    }}
+                  >
+                    [ REALLY REMOVE IT? ITS DOCUMENTS GO BACK TO THEIR OWNERS ]
+                  </button>
+                  <button type="button" className={DOC_KEY} onClick={() => setRemoving(false)}>
+                    [ KEEP IT ]
+                  </button>
+                </>
+              ) : (
+                <button type="button" className={DOC_KEY} onClick={() => setRemoving(true)}>
+                  [ REMOVE THE FOLDER ]
+                </button>
+              )}
+            </div>
           </div>
         ) : null}
 
-        {error === null ? null : <p className="my-2 w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">{error}</p>}
+        {error === null ? null : <p className={`${DOC_FAULT} my-2`}>{error}</p>}
 
         {!ready ? (
-          <p className="py-2 text-label font-bold text-ink">READING...</p>
+          <p className="docs-key py-3 text-ink">READING...</p>
         ) : subfolders.length === 0 && inPlace.length === 0 ? (
-          <p className="py-2 text-label font-bold text-ink">EMPTY.</p>
+          <p className="docs-key py-3 text-ink">{place === 'shared' ? 'NO FOLDERS YET.' : 'NO DOCUMENTS YET.'}</p>
         ) : (
           <ul>
             {subfolders.map((row) => (
-              <li key={row.id} className="rule-pixel flex flex-wrap items-baseline gap-x-2 py-2 text-ink">
-                <Link href={placeHref(row.id)} className="text-key font-bold underline hover:bg-ice-pale">
-                  {row.name}/
-                </Link>
-                <span className="text-label">FOLDER{row.kind === 'shared' && row.ownerLabel.length > 0 ? ` :: BY ${row.ownerLabel}` : ''}</span>
-              </li>
+              <FolderRow key={row.id} folder={row} href={placeHref(row.id)} />
             ))}
-            {inPlace.map((doc) => (
-              <li key={doc.id} className="rule-pixel flex flex-wrap items-baseline gap-x-2 gap-y-1 py-2 text-ink" data-doc-row={doc.id}>
-                <Link href={docPath(doc)} className="text-key font-bold underline hover:bg-ice-pale">
-                  {doc.title}
-                </Link>
-                <span className="text-label font-bold">{DOC_ACCESS_LABELS[doc.access]}</span>
-                {doc.summary.length === 0 ? null : <span className="min-w-0 flex-1 text-label">{doc.summary}</span>}
-                <span className="text-label">
-                  {doc.ownerId === viewer?.id ? '' : `${doc.ownerLabel} :: `}
-                  <TimeStamp at={doc.updatedAt} />
-                </span>
-                {doc.ownerId !== null && doc.ownerId === viewer?.id && doc.slug === null ? (
-                  <label className="text-label">
-                    <span className="sr-only">Move {doc.title}</span>
-                    <select
-                      value={doc.folderId ?? ''}
-                      onChange={(event) => void run(() => repository.updateDoc(doc.id, { folderId: event.target.value === '' ? null : event.target.value }))}
-                      className="bg-paper text-label text-ink"
-                    >
-                      <option value="">MY DOCS</option>
-                      {moveTargets.map((target) => (
-                        <option key={target.id} value={target.id}>
-                          {target.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                ) : null}
-              </li>
+            {shown.map((doc) => (
+              <DocRow
+                key={doc.id}
+                doc={doc}
+                viewerId={viewerId}
+                now={readAt}
+                folderName={place === 'recent' && doc.folderId !== null ? (folderNames.get(doc.folderId) ?? null) : null}
+                action={
+                  doc.ownerId !== null && doc.ownerId === viewer?.id && doc.slug === null ? (
+                    <button type="button" className={DOC_KEY} onClick={() => setMoving(doc)} aria-label={`Move ${doc.title}`}>
+                      [ MOVE ]
+                    </button>
+                  ) : null
+                }
+              />
             ))}
           </ul>
         )}
+
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 pt-3">
+          {shown.length < inPlace.length ? (
+            <button type="button" className={DOC_KEY} onClick={() => setShowAll(true)}>
+              [ SHOW ALL {inPlace.length} ]
+            </button>
+          ) : null}
+          <button type="button" className={DOC_KEY} onClick={refresh}>
+            [ ↻ CHECK FOR NEW ONES ]
+          </button>
+        </div>
       </section>
 
       {making === 'doc' && viewer !== null ? <NewDocWindow viewer={viewer} folder={folder} onClose={() => setMaking(null)} /> : null}
@@ -319,7 +353,7 @@ export default function DocsBrowser() {
         <NewDocFolderWindow
           viewer={viewer}
           parent={folder}
-          kind={place === 'mine' ? 'home' : 'shared'}
+          kind={place === 'shared' ? 'shared' : 'home'}
           onMade={(made) => {
             setMaking(null);
             refresh();
@@ -328,6 +362,17 @@ export default function DocsBrowser() {
           onClose={() => setMaking(null)}
         />
       ) : null}
-    </div>
+      {moving === null ? null : (
+        <DocMoveWindow
+          doc={moving}
+          folders={moveTargets}
+          onMove={async (folderId) => {
+            await repository.updateDoc(moving.id, { folderId });
+            refresh();
+          }}
+          onClose={() => setMoving(null)}
+        />
+      )}
+    </DocsScale>
   );
 }

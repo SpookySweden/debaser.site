@@ -3,14 +3,16 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getDocsRepository } from '../lib/docs/repository';
-import { docPath, folderPath } from '../lib/docs/rules';
+import { folderPath } from '../lib/docs/rules';
 import { LORE_FOLDER_ID, type DocFolder, type DocSummary, type DocViewer } from '../lib/docs/types';
-import { PANEL, PLATE, PLATE_LINK, TITLE_BAR } from '../lib/ui/controls';
+import { DOC_FAULT, DOC_KEY, DOC_KEY_MAIN } from '../lib/docs/ui';
+import { PANEL, TITLE_BAR } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
+import { DocRow } from './DocRows';
+import DocsScale, { DocsSizeKeys } from './DocsScale';
 import NewDocWindow from './NewDocWindow';
-import TimeStamp from './TimeStamp';
 
-/** The LORE folder as NEW LORE PAGE needs it: shared, PUBLIC by default. */
+/** The LORE folder as NEW PAGE needs it: shared, open to EVERYONE by default. */
 const LORE_FOLDER: DocFolder = {
   id: LORE_FOLDER_ID,
   name: 'LORE',
@@ -24,13 +26,16 @@ const LORE_FOLDER: DocFolder = {
 
 /**
  * The lore shelf: every page in DOCS' LORE folder, most recently written in first, and the way to open
- * another. The same documents DOCS > LORE lists (SPEC-live-docs.md): one system, two doors.
+ * another. The same documents DOCS > FOLDERS > LORE lists (SPEC-live-docs.md): one system, two doors, and
+ * the same large rows.
  */
 export default function LoreDirectory() {
   const { user, status } = useAuth();
   const viewer = useMemo<DocViewer | null>(() => (user === null ? null : { id: user.id, name: user.displayName }), [user]);
   const repository = useMemo(() => getDocsRepository(viewer?.id ?? null), [viewer?.id]);
   const [pages, setPages] = useState<DocSummary[]>([]);
+  /** When the shelf was read, so every row says its age against the same clock. */
+  const [readAt, setReadAt] = useState(0);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
@@ -45,6 +50,7 @@ export default function LoreDirectory() {
       .then((rows) => {
         if (cancelled) return;
         setPages(rows);
+        setReadAt(Date.now());
         setError(null);
         setReady(true);
       })
@@ -62,58 +68,57 @@ export default function LoreDirectory() {
   const refresh = useCallback(() => setAttempt((current) => current + 1), []);
 
   return (
-    <section className={PANEL}>
-      <div className={TITLE_BAR}>
-        <span>PAGES</span>
-      </div>
+    <DocsScale>
+      <section className={PANEL}>
+        <div className={TITLE_BAR}>
+          <span>PAGES</span>
+        </div>
 
-      <div className="flex flex-wrap items-center gap-2 px-3 py-2">
-        {viewer !== null ? (
-          <button type="button" onClick={() => setOpening(true)} className={PLATE}>
-            [ NEW PAGE ]
-          </button>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2">
+          {viewer !== null ? (
+            <button type="button" onClick={() => setOpening(true)} className={DOC_KEY_MAIN}>
+              [ NEW PAGE ]
+            </button>
+          ) : (
+            <p className="docs-key text-ink">
+              <Link href="/account" className={DOC_KEY}>
+                [ LOG IN ]
+              </Link>{' '}
+              TO OPEN A PAGE
+            </p>
+          )}
+
+          <Link href={folderPath(LORE_FOLDER_ID)} className={DOC_KEY}>
+            [ IN DOCS ]
+          </Link>
+
+          <span className="ml-auto">
+            <DocsSizeKeys />
+          </span>
+        </div>
+
+        {error === null ? null : <p className={`${DOC_FAULT} my-2`}>{error}</p>}
+
+        {!ready ? (
+          <p className="docs-key py-2 text-ink">READING THE SHELF...</p>
+        ) : pages.length === 0 ? (
+          <p className="docs-key py-2 text-ink">NO PAGES YET.</p>
         ) : (
-          <p className="text-label text-ink">
-            <Link href="/account" className={PLATE_LINK}>
-              [ LOG IN ]
-            </Link>{' '}
-            TO OPEN A PAGE
-          </p>
+          <ol>
+            {pages.map((page) => (
+              <DocRow key={page.id} doc={page} viewerId={viewer?.id ?? null} now={readAt} />
+            ))}
+          </ol>
         )}
 
-        <Link href={folderPath(LORE_FOLDER_ID)} className={PLATE_LINK}>
-          [ IN DOCS ]
-        </Link>
+        <div className="pt-3">
+          <button type="button" onClick={refresh} className={DOC_KEY}>
+            [ ↻ CHECK FOR NEW ONES ]
+          </button>
+        </div>
 
-        <button type="button" onClick={refresh} title="Read the shelf again" aria-label="Read the shelf again" className={PLATE}>
-          [ ↻ ]
-        </button>
-      </div>
-
-      {error === null ? null : <p className="mx-3 my-2 w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">{error}</p>}
-
-      {!ready ? (
-        <p className="px-3 py-2 text-label font-bold text-ink">READING THE SHELF...</p>
-      ) : pages.length === 0 ? (
-        <p className="px-3 py-2 text-label font-bold text-ink">NO PAGES YET.</p>
-      ) : (
-        <ol>
-          {pages.map((page, position) => (
-            <li key={page.id} className="rule-pixel flex flex-wrap items-baseline gap-x-2 gap-y-1 px-3 py-2 text-ink">
-              <span className="w-4 shrink-0 text-right text-label font-bold text-ink">{position + 1}.</span>
-              <Link href={docPath(page)} className="text-key font-bold underline hover:bg-ice-pale">
-                {page.title}
-              </Link>
-              <span className="min-w-0 flex-1 text-label font-bold">{page.summary}</span>
-              <span className="text-label text-ink">
-                LAST SAVED BY {page.updatedByLabel} <TimeStamp at={page.updatedAt} />
-              </span>
-            </li>
-          ))}
-        </ol>
-      )}
-
-      {opening && viewer !== null ? <NewDocWindow viewer={viewer} folder={LORE_FOLDER} onClose={() => setOpening(false)} /> : null}
-    </section>
+        {opening && viewer !== null ? <NewDocWindow viewer={viewer} folder={LORE_FOLDER} onClose={() => setOpening(false)} /> : null}
+      </section>
+    </DocsScale>
   );
 }

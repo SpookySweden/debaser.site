@@ -6,7 +6,7 @@ import { TaskItem, TaskList } from '@tiptap/extension-list';
 import { EditorContent, useEditor, useEditorState, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { ySyncPluginKey } from '@tiptap/y-tiptap';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Awareness } from 'y-protocols/awareness';
 import type * as Y from 'yjs';
 import { placeAt } from '../lib/docs/anchors';
@@ -17,21 +17,59 @@ import { DOCS_PICTURE_BASE, getDocsRepository } from '../lib/docs/repository';
 import { SAVE_AFTER_MS } from '../lib/docs/rules';
 import { docPresence, type DocIdentity, type DocPeer, type DocSession, type DocStatus } from '../lib/docs/session';
 import { DOC_FIELD, type DocRole, type DocViewer } from '../lib/docs/types';
-import { PLATE, TITLE_BAR } from '../lib/ui/controls';
+import { DOCS_SIZE_STACKS_FROM, DOC_FAULT, DOC_KEY, DOC_KEY_ON, roomWords } from '../lib/docs/ui';
+import { useDocsSize } from '../lib/docs/use-docs-size';
 import DocFace from './DocFace';
 import DocMargin, { type CommentDraft } from './DocMargin';
 import DocPointers from './DocPointers';
-import TimeStamp from './TimeStamp';
+import { DocsSizeKeys } from './DocsScale';
 
-/** What the room's line says. */
-export const DOC_STATUS_LINES: Record<DocStatus, string> = {
-  SYNCING: 'CONNECTING...',
-  LIVE: 'LIVE',
-  ALONE: 'ALONE',
+/** The gap kept between the typing spot and the edge of what can be seen, in pixels of scroll (not a look value). */
+const CARET_ROOM = 12;
+
+/**
+ * Keeps the typing spot in view under the bar. The bar sticks to the top of the scrolling pane and covers
+ * the first lines there, which the editor's own scrolling does not know: it would leave the caret behind
+ * the toolbar. Answers false (the editor's own scrolling) when there is no pane to scroll.
+ */
+function keepCaretInView(view: Editor['view']): boolean {
+  try {
+    let pane: HTMLElement | null = view.dom.parentElement;
+    while (pane !== null && !/auto|scroll/.test(window.getComputedStyle(pane).overflowY)) pane = pane.parentElement;
+    if (pane === null) return false;
+
+    const caret = view.coordsAtPos(view.state.selection.head);
+    const box = pane.getBoundingClientRect();
+    const bar = view.dom.closest('section')?.querySelector<HTMLElement>('.docs-bar') ?? null;
+    const stuck = bar !== null && window.getComputedStyle(bar).position === 'sticky';
+    const topEdge = Math.max(box.top, stuck ? bar.getBoundingClientRect().bottom : box.top) + CARET_ROOM;
+    const bottomEdge = box.bottom - CARET_ROOM;
+
+    if (caret.top < topEdge) pane.scrollTop -= topEdge - caret.top;
+    else if (caret.bottom > bottomEdge) pane.scrollTop += caret.bottom - bottomEdge;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+type ToolKeyProps = {
+  /** A text character beside the word (never a drawn icon): hidden from screen readers, which read the word. */
+  glyph: ReactNode;
+  label: string;
+  /** Whether what it does is on where the typing spot is (BOLD inside bold words). Leave out for a key that is not a switch. */
+  on?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
 };
 
-function toolClass(isOn: boolean): string {
-  return isOn ? 'cursor-pointer key key-fill [--key-fill:var(--color-ink)] px-2 py-0.5 text-label font-bold text-paper' : PLATE;
+/** One key of the toolbar: big, labelled, a thumb tall. `[ B BOLD ]`. */
+function ToolKey({ glyph, label, on, disabled = false, onClick }: ToolKeyProps) {
+  return (
+    <button type="button" className={`${on === true ? DOC_KEY_ON : DOC_KEY} whitespace-nowrap`} aria-pressed={on} disabled={disabled} onClick={onClick}>
+      [ <span aria-hidden="true">{glyph}</span> {label} ]
+    </button>
+  );
 }
 
 type DocEditorProps = {
@@ -47,9 +85,6 @@ type DocEditorProps = {
   status: DocStatus;
   onSave: (text: string) => void;
   saving: boolean;
-  savedAt: string | null;
-  /** When the document was last saved by anybody, for the filing line before this tab has saved. */
-  lastSavedAt: string;
   saveError: string | null;
   /** Hands the editor up, for the history window's restore. */
   onEditor: (editor: Editor | null) => void;
@@ -58,6 +93,11 @@ type DocEditorProps = {
 /**
  * A document's editor: Tiptap over the shared Yjs document, with everyone's carets (picture and name),
  * everyone's pointers, pictures, checklists and margin comments.
+ *
+ * Laid out for someone who does not use computers much (Luke, 2026-11-13): one bar that stays at the top
+ * while the page scrolls, holding the saved state in plain words (ALL CHANGES SAVED), who is here, and one
+ * toolbar of big labelled keys; under it one large framed page; comments in a side panel that opens and
+ * shuts. Nothing appears on hover.
  *
  * The document's words come only from the Yjs state, never a string handed to the editor, so two tabs
  * opening it at once cannot each add a copy. Undo is per person (the collaboration extension's own).
@@ -76,8 +116,6 @@ export default function DocEditor({
   status,
   onSave,
   saving,
-  savedAt,
-  lastSavedAt,
   saveError,
   onEditor,
 }: DocEditorProps) {
@@ -88,8 +126,16 @@ export default function DocEditor({
   const [draft, setDraft] = useState<CommentDraft | null>(null);
   const [pictureNote, setPictureNote] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  /** Typing waiting for its save: what UNSAVED means. */
+  /** Typing waiting for its save: SAVING... until it lands. */
   const [pending, setPending] = useState(false);
+  /** The rarer keys' second row. */
+  const [more, setMore] = useState(false);
+  /** COMMENT pressed with no words selected: says what to do first. */
+  const [needsWords, setNeedsWords] = useState(false);
+  /** The comments panel: the reader's own choice once they press its key; until then it is open while there are comments. */
+  const [commentsChoice, setCommentsChoice] = useState<boolean | null>(null);
+  const [commentCount, setCommentCount] = useState(0);
+  const { size } = useDocsSize();
 
   const editor = useEditor(
     {
@@ -104,7 +150,7 @@ export default function DocEditor({
       ],
       editable: editing,
       immediatelyRender: false,
-      editorProps: { attributes: { class: 'lore-document doc-document', 'aria-label': 'The document' } },
+      editorProps: { attributes: { class: 'lore-document doc-document', 'aria-label': 'The document' }, handleScrollToSelection: keepCaretInView },
       onUpdate: ({ editor: instance, transaction }) => {
         // Only this tab's own typing schedules a save; a change that arrived from someone else is theirs to save.
         if (editing && transaction.getMeta(ySyncPluginKey) === undefined) schedule(instance.getText());
@@ -179,10 +225,15 @@ export default function DocEditor({
   function startComment(): void {
     if (editor === null) return;
     const { from, to } = editor.state.selection;
-    if (from === to) return;
+    if (from === to) {
+      setNeedsWords(true);
+      return;
+    }
     const anchorFrom = placeAt(editor, from);
     const anchorTo = placeAt(editor, to);
     if (anchorFrom === null || anchorTo === null) return;
+    setNeedsWords(false);
+    setCommentsChoice(true);
     setDraft({ anchorFrom, anchorTo, quote: editor.state.doc.textBetween(from, to, ' ').slice(0, 300) });
   }
 
@@ -202,112 +253,113 @@ export default function DocEditor({
     }
   }
 
+  const onCommentCount = useCallback((count: number) => setCommentCount(count), []);
+  const onDraftDone = useCallback(() => setDraft(null), []);
+
   const others = peers.filter((peer) => !peer.self);
+  const showComments = draft !== null || (commentsChoice ?? commentCount > 0);
+  // Beside the page while the text is a size a narrow panel can hold; under it at the two biggest steps.
+  const beside = showComments && size < DOCS_SIZE_STACKS_FROM;
+  const tools = editor !== null && marks !== null && editing;
 
   return (
     <section>
-      <div className={TITLE_BAR}>
-        <span>THE DOCUMENT</span>
-        <span className="min-w-0 shrink whitespace-normal text-right">{editing ? DOC_STATUS_LINES[status] : 'READ ONLY'}</span>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2 px-2 py-1 text-label font-bold text-ink">
-        <span>IN IT:</span>
-        {editing ? <DocFace name={identity.name} colour={identity.colour} userId={identity.userId} self /> : null}
-        {others.map((peer) => (
-          <DocFace key={peer.clientId} name={peer.name} colour={peer.colour} userId={peer.userId} />
-        ))}
-        {!editing && others.length === 0 ? <span>NOBODY EDITING</span> : null}
-      </div>
-
-      {editor === null || marks === null || !editing ? null : (
-        <div className="flex flex-wrap items-center gap-1 px-2 py-1">
-          <button type="button" className={toolClass(marks.bold)} onClick={() => editor.chain().focus().toggleBold().run()}>
-            [ BOLD ]
-          </button>
-          <button type="button" className={toolClass(marks.italic)} onClick={() => editor.chain().focus().toggleItalic().run()}>
-            [ ITALIC ]
-          </button>
-          <button type="button" className={toolClass(marks.strike)} onClick={() => editor.chain().focus().toggleStrike().run()}>
-            [ STRIKE ]
-          </button>
-          <button type="button" className={toolClass(marks.h1)} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
-            [ H1 ]
-          </button>
-          <button type="button" className={toolClass(marks.h2)} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
-            [ H2 ]
-          </button>
-          <button type="button" className={toolClass(marks.bullets)} onClick={() => editor.chain().focus().toggleBulletList().run()}>
-            [ BULLETS ]
-          </button>
-          <button type="button" className={toolClass(marks.numbers)} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
-            [ NUMBERS ]
-          </button>
-          <button type="button" className={toolClass(marks.checklist)} onClick={() => editor.chain().focus().toggleTaskList().run()}>
-            [ CHECKLIST ]
-          </button>
-          <button type="button" className={toolClass(marks.quote)} onClick={() => editor.chain().focus().toggleBlockquote().run()}>
-            [ QUOTE ]
-          </button>
-          <button type="button" className={PLATE} onClick={() => editor.chain().focus().setHorizontalRule().run()}>
-            [ RULE ]
-          </button>
-          <button type="button" className={PLATE} disabled={uploading} onClick={() => pictureInput.current?.click()}>
-            {uploading ? '[ ADDING... ]' : '[ PICTURE ]'}
-          </button>
-          <input
-            ref={pictureInput}
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/gif"
-            className="sr-only"
-            tabIndex={-1}
-            aria-label="Picture to add"
-            onChange={(event) => void addPicture(event.target.files?.[0])}
-          />
-          <button type="button" className={PLATE} disabled={!marks.picked} onClick={startComment} title="Select words first">
-            [ COMMENT ON THIS ]
-          </button>
-
-          <span className="ml-auto flex items-center gap-1">
-            <button type="button" className={PLATE} onClick={() => editor.chain().focus().undo().run()}>
-              [ UNDO ]
+      <div className="docs-bar sticky top-0 z-10 border-b-line border-ink bg-paper">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 py-2">
+          <span className="docs-key inline-flex flex-wrap items-center gap-2 text-ink" role="status" aria-live="polite" data-doc-saved={!editing ? 'reading' : pending || saving ? 'saving' : saveError !== null ? 'failed' : 'saved'}>
+            {!editing ? (
+              'YOU CAN READ THIS, NOT CHANGE IT'
+            ) : pending || saving ? (
+              'SAVING...'
+            ) : saveError !== null ? (
+              <>
+                <span className="bg-bubble-pale px-2 py-1 text-ink-bar">NOT SAVED</span>
+                <span className="docs-meta">{saveError}</span>
+              </>
+            ) : (
+              <>
+                <span aria-hidden="true">✓</span> ALL CHANGES SAVED
+              </>
+            )}
+          </span>
+          {editing && saveError !== null && !pending && !saving ? (
+            <button type="button" className={DOC_KEY} onClick={saveNow}>
+              [ TRY AGAIN ]
             </button>
-            <button type="button" className={PLATE} onClick={() => editor.chain().focus().redo().run()}>
-              [ REDO ]
+          ) : null}
+
+          <span className="docs-people docs-meta inline-flex flex-wrap items-center gap-2 text-ink">
+            {roomWords(status === 'SYNCING', others.length, editing)}
+            {editing ? <DocFace name={identity.name} colour={identity.colour} userId={identity.userId} self /> : null}
+            {others.map((peer) => (
+              <DocFace key={peer.clientId} name={peer.name} colour={peer.colour} userId={peer.userId} />
+            ))}
+          </span>
+
+          <span className="ml-auto inline-flex flex-wrap items-center gap-x-4 gap-y-1">
+            <DocsSizeKeys />
+            <button
+              type="button"
+              className={`${showComments ? DOC_KEY_ON : DOC_KEY} whitespace-nowrap`}
+              aria-expanded={showComments}
+              disabled={draft !== null}
+              onClick={() => setCommentsChoice(!showComments)}
+            >
+              [ COMMENTS{commentCount > 0 ? ` ${commentCount}` : ''} ]
             </button>
           </span>
         </div>
-      )}
 
-      {pictureNote === null ? null : <p className="mx-2 w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">{pictureNote}</p>}
+        {tools ? (
+          <div className="flex flex-wrap items-center gap-x-1 gap-y-1 pb-2" role="toolbar" aria-label="Writing tools">
+            <ToolKey glyph="↶" label="UNDO" onClick={() => editor.chain().focus().undo().run()} />
+            <ToolKey glyph="↷" label="REDO" onClick={() => editor.chain().focus().redo().run()} />
+            <ToolKey glyph="B" label="BOLD" on={marks.bold} onClick={() => editor.chain().focus().toggleBold().run()} />
+            <ToolKey glyph="I" label="ITALIC" on={marks.italic} onClick={() => editor.chain().focus().toggleItalic().run()} />
+            <ToolKey glyph="H" label="HEADING" on={marks.h1} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} />
+            <ToolKey glyph="•" label="LIST" on={marks.bullets} onClick={() => editor.chain().focus().toggleBulletList().run()} />
+            <ToolKey glyph="1." label="NUMBERS" on={marks.numbers} onClick={() => editor.chain().focus().toggleOrderedList().run()} />
+            <ToolKey glyph="☑" label="CHECKLIST" on={marks.checklist} onClick={() => editor.chain().focus().toggleTaskList().run()} />
+            <ToolKey glyph="▣" label={uploading ? 'ADDING...' : 'PICTURE'} disabled={uploading} onClick={() => pictureInput.current?.click()} />
+            <input
+              ref={pictureInput}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              className="sr-only"
+              tabIndex={-1}
+              aria-label="Picture to add"
+              onChange={(event) => void addPicture(event.target.files?.[0])}
+            />
+            <ToolKey glyph="✎" label="COMMENT" onClick={startComment} />
+            <button type="button" className={`${more ? DOC_KEY_ON : DOC_KEY} whitespace-nowrap`} aria-expanded={more} onClick={() => setMore((value) => !value)}>
+              [ MORE <span aria-hidden="true">{more ? '▴' : '▾'}</span> ]
+            </button>
+          </div>
+        ) : null}
 
-      <div className="lg:grid lg:grid-cols-4 lg:gap-3">
-        <div ref={frame} className="doc-frame relative p-2 lg:col-span-3">
+        {tools && more ? (
+          <div className="flex flex-wrap items-center gap-x-1 gap-y-1 pb-2" role="toolbar" aria-label="More writing tools">
+            <ToolKey glyph="h" label="SMALL HEADING" on={marks.h2} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} />
+            <ToolKey glyph={<span className="line-through">S</span>} label="STRIKE OUT" on={marks.strike} onClick={() => editor.chain().focus().toggleStrike().run()} />
+            <ToolKey glyph="❝" label="QUOTE" on={marks.quote} onClick={() => editor.chain().focus().toggleBlockquote().run()} />
+            <ToolKey glyph="—" label="LINE ACROSS" onClick={() => editor.chain().focus().setHorizontalRule().run()} />
+          </div>
+        ) : null}
+
+        {tools && needsWords && !marks.picked ? <p className="docs-meta pb-2 text-ink">FIRST SELECT THE WORDS IT IS ABOUT, THEN PRESS COMMENT.</p> : null}
+        {pictureNote === null ? null : <p className={`${DOC_FAULT} mb-2`}>{pictureNote}</p>}
+      </div>
+
+      <div className={beside ? 'mt-3 lg:grid lg:grid-cols-4 lg:gap-4' : 'mt-3'}>
+        <div ref={frame} className={`doc-frame frame relative bg-paper ${beside ? 'lg:col-span-3' : ''}`}>
           <EditorContent editor={editor} />
           <DocPointers editor={editor} session={session} peers={peers} frame={frame} sends={editing} />
         </div>
 
-        <div className="px-2 lg:px-0">
-          <DocMargin editor={editor} docId={docId} viewer={viewer} role={role} draft={draft} onDraftDone={() => setDraft(null)} />
+        <div className={showComments ? (beside ? 'pt-3 lg:pt-0' : 'pt-3') : 'hidden'}>
+          <DocMargin editor={editor} docId={docId} viewer={viewer} role={role} draft={draft} beside={beside} onCount={onCommentCount} onDraftDone={onDraftDone} />
         </div>
       </div>
-
-      {editing ? (
-        <div className="flex flex-wrap items-center gap-2 px-2 py-1 text-label font-bold text-ink">
-          {pending ? (
-            <span className="bg-bubble-pale px-1 text-ink-bar">UNSAVED</span>
-          ) : (
-            <span>
-              SAVED :: <TimeStamp at={savedAt ?? lastSavedAt} />
-            </span>
-          )}
-          {saving ? <span>SAVING...</span> : null}
-          {saveError === null ? null : <span className="bg-bubble-pale px-1 text-ink-bar">{saveError}</span>}
-          <button type="button" className={`ml-auto ${PLATE}`} onClick={saveNow} disabled={saving}>
-            [ SAVE NOW ]
-          </button>
-        </div>
-      ) : null}
     </section>
   );
 }
