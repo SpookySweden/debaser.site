@@ -290,7 +290,9 @@ async function findOnAnnas(
     const md5 = extractAnnasMd5(html, title);
     if (md5) return { md5, extension: 'epub', filesize: 0, title, author, year: '', language: 'en' };
     const challenge = /cf-chl|__cf_chl|challenge-platform|Just a moment/i.test(html);
-    trace.push({ host, status: 'no-match', note: `no /md5/ in ${html.length}B${challenge ? ' (Cloudflare challenge)' : ''}` });
+    // Sample of what we got, for diagnosing redirects/challenge pages.
+    const sample = html.slice(0, 180).replace(/\s+/g, ' ').trim();
+    trace.push({ host, status: 'no-match', note: `${html.length}B${challenge ? ' (Cloudflare challenge)' : ''}: ${sample}` });
   }
   return null;
 }
