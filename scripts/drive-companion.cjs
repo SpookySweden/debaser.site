@@ -40,7 +40,6 @@ const pass = (what) => {
 };
 const left = [];
 
-const COMPANION_ON = JSON.stringify({ computer: true, phone: true });
 
 async function person(browser, letter, { phone = false } = {}) {
   const account = await signInTestAccount(letter);
@@ -201,17 +200,22 @@ async function waitMood(page, wanted, ms) {
     await a.page.screenshot({ path: join(SHOTS, 'companion-dance.png') });
     pass('the music bar playing: it dances');
     // Quiet again: every press of the cell until nothing plays.
-    for (let press = 0; press < 4 && (await mood(a.page)) === 'dance'; press += 1) {
+    for (let press = 0; press < 4 && (await cell.getAttribute('title')) !== 'Paused'; press += 1) {
       await cell.click();
-      await sleep(1500);
+      await sleep(800);
     }
+    assert.equal(await cell.getAttribute('title'), 'Paused', 'the bar is paused');
+    await a.page.mouse.move(700, 200);
+    await sleep(1500);
     assert.notEqual(await mood(a.page), 'dance', 'stops dancing when the music stops');
     pass('the music stopping: it stops dancing');
 
     if (!QUICK) {
       console.log('It falls asleep with nothing happening, and wakes');
       await a.page.mouse.move(700, 200);
-      assert.ok(await waitMood(a.page, 'sit', 40000), `sits after 30 s (mood ${await mood(a.page)})`);
+      // From this last move: by 31 s it has to be sitting (a wander can sit sooner; nothing but quiet sits it for good).
+      await sleep(31000);
+      assert.equal(await mood(a.page), 'sit', 'sits after 30 s with nothing happening');
       pass('30 s with nothing happening: it sits');
       assert.ok(await waitMood(a.page, 'sleep', 40000), `sleeps after 60 s (mood ${await mood(a.page)})`);
       await a.page.screenshot({ path: join(SHOTS, 'companion-asleep.png') });
@@ -281,7 +285,8 @@ async function waitMood(page, wanted, ms) {
     const cdp = await a.page.context().newCDPSession(a.page);
     await cdp.send('Network.enable');
     cdp.on('Network.webSocketFrameSent', ({ response }) => {
-      if (counting.on && /"event":"presence"/.test(response.payloadData) && /"companion"/.test(response.payloadData)) frames += 1;
+      // A presence re-say carrying the companion (Supabase's wire is either an object or an array; both name the event).
+      if (counting.on && /"presence"/.test(response.payloadData) && /"companion"/.test(response.payloadData)) frames += 1;
     });
     await b.page.goto(`${BASE}/forum?watch=${roomId}`, { waitUntil: 'domcontentloaded' });
     await b.page.waitForSelector('[data-room-picture]', { timeout: 30000 });
@@ -322,11 +327,11 @@ async function waitMood(page, wanted, ms) {
 
     console.log('Phone width, its own switch on');
     const phone = await person(browser, 'A', { phone: true });
-    await phone.page.addInitScript((value) => window.localStorage.setItem('debaser-companion', value), COMPANION_ON);
     await phone.page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded' });
     await sleep(4000);
     await clearPrivacyWindow(phone.page);
-    await phone.page.waitForSelector('[data-companion="own"]', { state: 'attached', timeout: 15000 });
+    // The account's own switch for phones (saved in user_companion), pressed on the phone as a person would.
+    await switchOn(phone.page);
     await sleep(1500);
     const onPhone = await phone.page.evaluate(readStrip);
     assert.ok(onPhone.drawn, 'drawn on the phone');
