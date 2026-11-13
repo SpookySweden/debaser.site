@@ -142,6 +142,17 @@ async function highlightChosen(page) {
   await page.waitForTimeout(4000);
 }
 
+/** Asks the database until a row is there (a save and its forum post can take seconds on the live site), up to 30 s. */
+async function until(ask, test, seconds = 30) {
+  let last = null;
+  for (let waited = 0; waited < seconds; waited += 1) {
+    last = await ask();
+    if (test(last)) return last;
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+  return last;
+}
+
 async function goTo(page, fraction) {
   await page.evaluate((to) => document.querySelector('foliate-view')?.goToFraction(to), fraction);
   await page.waitForTimeout(2500);
@@ -203,12 +214,19 @@ async function openPanel(page) {
     const pdfChosen = await chooseWords(one.page, { pdf: true });
     ok(pdfChosen > 0, 'words chosen on a PDF page', `${pdfChosen} characters`);
     await highlightChosen(one.page);
-    const pdfHighlight = (await a.client.from('book_highlights').select('id, cfi, start_at, end_at, work_ref, forum_comment_id, quote').eq('person', a.id).eq('book_ref', OWN)).data?.[0];
+    const pdfHighlight = await until(
+      async () => (await a.client.from('book_highlights').select('id, cfi, start_at, end_at, work_ref, forum_comment_id').eq('person', a.id).eq('book_ref', OWN)).data?.[0],
+      (row) => Boolean(row?.forum_comment_id),
+    );
     ok(Boolean(pdfHighlight), 'the PDF highlight is saved on the account');
     ok(pdfHighlight && /^epubcfi\(\/6\/\d+\)$/.test(pdfHighlight.cfi) && pdfHighlight.end_at > pdfHighlight.start_at, 'kept as its page and the characters within its words', pdfHighlight ? `${pdfHighlight.cfi}, ${pdfHighlight.start_at}-${pdfHighlight.end_at}` : '');
     ok(pdfHighlight?.work_ref === WORK, 'and counted as the book', pdfHighlight?.work_ref ?? 'no work');
     ok(Boolean(pdfHighlight?.forum_comment_id), 'and posted in the forum');
-    const painted = await Promise.all(one.page.frames().map((frame) => frame.evaluate(() => (CSS.highlights ? CSS.highlights.size : 0)).catch(() => 0)));
+    const painted = await until(
+      () => Promise.all(one.page.frames().map((frame) => frame.evaluate(() => (CSS.highlights ? CSS.highlights.size : 0)).catch(() => 0))),
+      (counts) => counts.some((count) => count > 0),
+      15,
+    );
     ok(painted.some((count) => count > 0), 'it is painted on the PDF page');
     const pdfAt = await percentShown(one.page);
 
@@ -233,7 +251,10 @@ async function openPanel(page) {
     const epubChosen = await chooseWords(one.page, { pdf: false });
     ok(epubChosen > 0, 'words chosen in the EPUB', `${epubChosen} characters`);
     await highlightChosen(one.page);
-    const epubHighlight = (await a.client.from('book_highlights').select('id, work_ref, forum_comment_id').eq('person', a.id).eq('book_ref', EPUB)).data?.[0];
+    const epubHighlight = await until(
+      async () => (await a.client.from('book_highlights').select('id, work_ref, forum_comment_id').eq('person', a.id).eq('book_ref', EPUB)).data?.[0],
+      (row) => Boolean(row?.forum_comment_id),
+    );
     ok(epubHighlight?.work_ref === WORK && Boolean(epubHighlight?.forum_comment_id), 'the EPUB highlight is saved with the book and posted', epubHighlight?.work_ref ?? 'missing');
 
     // 3. One thread for both: A's posts for the two copies are in the same thread, the work's.
