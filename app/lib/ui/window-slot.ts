@@ -1,3 +1,5 @@
+import { windowSlotChanged } from './undo-trail';
+
 /**
  * One window's state, as a store outside React.
  *
@@ -35,8 +37,15 @@ export function createWindowSlot<State>(initial: State): WindowSlot<State> {
       };
     },
     set: (next) => {
+      const before = state;
       state = next;
       for (const listener of listeners) listener();
+      // A window opened or closed by a press is a step the top bar's arrows can undo (`./undo-trail.ts`). Undoing writes the old
+      // state straight back, without coming through here again.
+      windowSlotChanged(before, next, (restored) => {
+        state = restored;
+        for (const listener of listeners) listener();
+      });
     },
   };
 }

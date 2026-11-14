@@ -249,8 +249,11 @@ const nav = read('app/components/SiteNav.tsx');
 ok(nav.indexOf('<SiteArrows />') > -1 && nav.indexOf('<SiteArrows />') < nav.indexOf('MODULES.filter'), 'the arrows sit left of the modules');
 const arrows = read('app/components/SiteArrows.tsx');
 ok(/◄/.test(arrows) && /►/.test(arrows) && !/\[ ◄ \]/.test(arrows), 'the arrows are small keys without brackets (Luke, 2026-11-06: they take much less room)');
-ok(/aria-label="Back"/.test(arrows) && /aria-label="Forward"/.test(arrows), 'named for a screen reader');
-ok(/disabled=\{!back\}/.test(arrows) && /disabled=\{!forward\}/.test(arrows), 'quiet when there is nowhere to go');
+// Changed on purpose 2026-11-14 (Luke: "make the back button in the top left ... act like a general undo button ... with the other button
+// acting in reverse"): the arrows are UNDO and REDO now (app/lib/ui/undo-trail.ts). With nothing to undo, and for a page step, they keep
+// the plain names Back and Forward, and each still goes quiet when it has nothing to do. It was a fixed aria-label and `disabled={!back}`.
+ok(/'Back'/.test(arrows) && /'Forward'/.test(arrows) && /aria-label=\{undoName\}/.test(arrows) && /aria-label=\{redoName\}/.test(arrows), 'named for a screen reader: Back and Forward for pages, Undo and Redo with the words for the rest');
+ok(/disabled=\{!undoes && !back\}/.test(arrows) && /disabled=\{!redoes && !forward\}/.test(arrows), 'quiet when there is nothing to undo and nowhere to go');
 ok(/pointer-coarse:min-h-tap/.test(arrows), 'a full tap size for a finger');
 ok(/data-scroll-pane="page"/.test(read('app/components/SiteWindow.tsx')), 'the page\'s pane is named for its place');
 const keeper = read('app/components/SiteHistoryKeeper.tsx');

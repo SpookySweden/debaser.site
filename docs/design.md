@@ -164,6 +164,23 @@ No Win95 bevels anywhere - not on windows, not on buttons, not on the scrollbar.
     an area opened by a key asks for it with the class `fold-body`.
   - So: every key that folds something open carries `aria-expanded` (or is a `<summary>`). Colour only, so
     nothing moves under the pointer. Not for tree rows, search boxes or the beat box. `Temp/check-open-look.cjs`.
+- **The arrows are UNDO and REDO** (Luke, 2026-11-14: "act like a general undo button, for every function such as
+  expanding even, with the other button acting in reverse"). `◄ ►` at the start of the top bar step back and
+  forward through what a person did on screen, in the order done (`app/lib/ui/undo-trail.ts`):
+  - Recorded: a page change; anything folded open or shut (every `aria-expanded` key and every `<details>`, seen
+    by one listener, so a component records nothing itself); a window opened or closed (through the shared
+    window store). One press is one step, whatever it changed.
+  - Not recorded: anything sent or saved. A form that sends leaves a marker, and undoing onto it shows one line
+    under the arrows, `CAN'T UNDO: SENT` (a Rose chip), and steps past to the thing before. A stream room's
+    window is left alone (other people see you leave). Typing keeps the browser's own Ctrl+Z. Settings, and a
+    panel's own picks that are not in the address, are not in the trail yet.
+  - Each arrow's hover tip says what a press will do (`UNDO: CLOSE FILTERS`, `REDO: FORWARD TO FORUM`), a screen
+    reader hears the same, and an arrow with nothing to do goes quiet. A page step keeps the plain names Back and
+    Forward. Ctrl+Z and Ctrl+Y (or Ctrl+Shift+Z) do the same when not typing in a box, unless a tool on the page
+    keeps an undo of its own (the beat box, the character workbench).
+  - Undo presses the same control again, so a window that asks before it closes still asks. A control no longer
+    on the page is stepped past. The trail is this tab's memory, 100 steps long; after a reload the arrows are
+    plain back and forward. A new step after an undo clears redo. `Temp/check-undo-trail.cjs`.
 
 ## Readability floors
 - Text contrast 4.5:1 or better in both themes (`check-themes` holds the token pairs; `npm run contrast`
