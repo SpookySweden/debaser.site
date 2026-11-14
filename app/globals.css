@@ -653,6 +653,12 @@ img {
 .country-flag img {
   image-rendering: auto;
 }
+/* A letter's envelope (app/components/LetterStamp.tsx; Luke, 2026-11-14: "far less bulky and more simplistic regarding the
+   outline"): drawn plain while it rests, and it glows in its own colour only while the key or link it sits in is pointed at
+   or focused. At once, with no fade. */
+:is(a, button):is(:hover, :focus-visible) .letter-envelope canvas {
+  filter: drop-shadow(0 0 2px currentColor);
+}
 /* The colours ---------------------------------------------------------------------------------------
    Declared in app/theme/tokens.css, generated from app/lib/ui/themes.ts: the nine dyes ("Dyacid Dyes",
    docs/design.md) are named once there, and each theme says which dye plays which part. What each colour

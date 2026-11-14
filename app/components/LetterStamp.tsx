@@ -36,10 +36,20 @@ export function StampCircle({ src, className, children }: { src?: string; classN
  * One letter as Luke's envelope (Luke, 2026-11-11: "use this template for the letters, give it a glow ... make the pixels
  * change colour based on the colour chosen in the letter settings. the letter stamp picture goes inside the circle in the
  * middle"). His drawing is the mask: its pixels are painted in the letter's text colour (the theme's accent ink with none
- * chosen), it glows in the same colour, and it's scaled up in whole pixels. The stamp picture sits inside its ring.
+ * chosen) and it's scaled in whole pixels. The stamp picture sits inside its ring.
+ *
+ * Slim since 2026-11-14 (Luke: "far less bulky and more simplistic regarding the outline and text ans size of the letter
+ * itself. more slim"):
+ * - one screen pixel per envelope pixel unless asked otherwise (it was two, and three before 2026-11-13), so the envelope
+ *   is the size of a line of text;
+ * - no glow while it rests. The glow he asked for on 2026-11-11 comes back, at once, while the row it sits in is pointed
+ *   at or focused (`.letter-envelope` in globals.css);
+ * - a letter with no picture shows the drawing's own ring, not an empty circle laid over it.
+ * It still stands in the room the two-pixel envelope had (`ROOM_H`), as empty space above and below, so every row it
+ * sits in is as easy to press as it was.
  */
-// Two screen pixels per envelope pixel unless asked otherwise (three until Luke asked for smaller envelopes, 2026-11-13).
-export default function LetterStamp({ letter, scale = 2 }: { letter: Pick<Letter, 'name' | 'stampUrl' | 'textColour'>; scale?: number }) {
+const ROOM_H = ENVELOPE_H * 2;
+export default function LetterStamp({ letter, scale = 1 }: { letter: Pick<Letter, 'name' | 'stampUrl' | 'textColour'>; scale?: number }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [drawn, setDrawn] = useState(false);
 
@@ -68,22 +78,26 @@ export default function LetterStamp({ letter, scale = 2 }: { letter: Pick<Letter
     };
   }, [letter.textColour]);
 
+  const room: CSSProperties = { height: Math.max(ROOM_H, ENVELOPE_H * scale) };
   const box: CSSProperties = { width: ENVELOPE_W * scale, height: ENVELOPE_H * scale };
-  const glow: CSSProperties = { ...(letter.textColour ? nameInkStyle(letter.textColour) : {}), filter: `drop-shadow(0 0 ${scale}px currentColor)` };
   const ring: CSSProperties = { left: PICTURE.left * scale, top: PICTURE.top * scale, width: PICTURE.size * scale, height: PICTURE.size * scale };
 
   return (
-    <span className="relative inline-block shrink-0" style={box} data-envelope={drawn ? 'drawn' : 'waiting'}>
-      <canvas
-        ref={canvasRef}
-        width={ENVELOPE_W}
-        height={ENVELOPE_H}
-        aria-hidden="true"
-        className={`canvas-pixels block h-full w-full ${letter.textColour ? 'name-ink' : 'text-accent-ink'}`}
-        style={glow}
-      />
-      <span className="absolute block" style={ring}>
-        <StampCircle src={letter.stampUrl} className="h-full w-full" />
+    <span className="letter-envelope inline-flex shrink-0 items-center" style={room} data-envelope={drawn ? 'drawn' : 'waiting'}>
+      <span className="relative block" style={box}>
+        <canvas
+          ref={canvasRef}
+          width={ENVELOPE_W}
+          height={ENVELOPE_H}
+          aria-hidden="true"
+          className={`canvas-pixels block h-full w-full ${letter.textColour ? 'name-ink' : 'text-accent-ink'}`}
+          style={letter.textColour ? nameInkStyle(letter.textColour) : undefined}
+        />
+        {letter.stampUrl ? (
+          <span className="absolute block" style={ring}>
+            <StampCircle src={letter.stampUrl} className="h-full w-full" />
+          </span>
+        ) : null}
       </span>
     </span>
   );

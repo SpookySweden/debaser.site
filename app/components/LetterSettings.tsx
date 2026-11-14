@@ -109,7 +109,8 @@ export default function LetterSettings({ letter, items, onClose }: { letter: Let
       <div className="flex flex-col gap-4 p-3">
         <section aria-labelledby="letter-picture" className="flex flex-wrap items-start gap-4">
           <div className="flex flex-col items-center gap-1">
-            <LetterStamp letter={draft} />
+            {/* Twice the size it has in a list, so the picture being chosen can be seen. */}
+            <LetterStamp letter={draft} scale={2} />
             <h3 id="letter-picture" className="text-label text-ink">
               PICTURE
             </h3>

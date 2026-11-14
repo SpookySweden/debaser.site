@@ -225,8 +225,8 @@ export default function RecommendationComposer({ me, onSend }: { me: string; onS
       {queue.length > 0 ? <p className="text-label text-ink-quiet">TITLE: {letterCopy ? letterCopy.name : recommendationTitle(message, queue)}</p> : null}
       {letterCopy ? (
         <p className="flex flex-wrap items-center gap-2 text-label text-ink">
-          <LetterStamp letter={letterCopy} scale={2} />
-          <span>THE LETTER &quot;{letterCopy.name}&quot; GOES WITH IT: ITS ENVELOPE OPENS ITS CANVAS.</span>
+          <LetterStamp letter={letterCopy} />
+          <span>GOES AS A LETTER</span>
           <button type="button" className={PLATE} onClick={() => setLetterCopy(null)}>
             [ NOT AS A LETTER ]
           </button>

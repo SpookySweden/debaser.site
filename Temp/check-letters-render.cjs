@@ -96,12 +96,22 @@ const AddToLetterKey = require('./letters-render-out/components/AddToLetterKey.j
   const envelope = renderToStaticMarkup(el(LetterStamp, { letter }));
   // (2026-11-11) Luke's own envelope (assets/letters/envelope.png, 21x13), painted in the letter's colour on a canvas.
   assert.match(envelope, /<canvas[^>]*width="21" height="13"[^>]*class="canvas-pixels[^"]*name-ink/, 'the envelope is Luke`s 21x13 drawing, in the letter`s colour');
-  // (2026-11-13) Smaller envelopes, a bigger picture (Luke): two screen pixels per envelope pixel, and the picture seven
-  // pixels across, centred on the ring.
-  assert.match(envelope, /--name-ink:#e6004c;filter:drop-shadow\(0 0 2px currentColor\)/, 'glowing in that colour');
-  assert.match(envelope, /left:14px;top:6px;width:14px;height:14px[\s\S]*rounded-full[^>]*><img src="https:\/\/example\.org\/stamp\.png"/, 'the stamp picture sits inside the ring, round');
+  // (2026-11-14) The slim letter (Luke: "far less bulky and more simplistic regarding the outline and text ans size of the
+  // letter itself. more slim"). It was two screen pixels per envelope pixel with a glow always on (2026-11-13); now it is
+  // one, the picture seven pixels across and centred on the ring, and the glow is the stylesheet's, for a row pointed at.
+  assert.match(envelope, /class="letter-envelope[^"]*"[^>]*style="height:26px"/, 'it keeps the room the bigger envelope had, so its row presses as easily');
+  assert.match(envelope, /style="width:21px;height:13px"/, 'drawn one screen pixel per envelope pixel');
+  assert.match(envelope, /--name-ink:#e6004c/, 'in the letter`s colour');
+  assert.doesNotMatch(envelope, /drop-shadow/, 'with no glow while it rests');
+  assert.match(envelope, /left:7px;top:3px;width:7px;height:7px[\s\S]*rounded-full[^>]*><img src="https:\/\/example\.org\/stamp\.png"/, 'the stamp picture sits inside the ring, round');
+  const big = renderToStaticMarkup(el(LetterStamp, { letter, scale: 2 }));
+  assert.match(big, /style="width:42px;height:26px"[\s\S]*left:14px;top:6px;width:14px;height:14px/, 'asked for twice the size (the settings), it scales in whole pixels');
   const plain = renderToStaticMarkup(el(LetterStamp, { letter: { ...letter, textColour: undefined } }));
   assert.match(plain, /class="canvas-pixels[^"]*text-accent-ink/, 'with no colour chosen, the theme`s accent ink');
+  const bare = renderToStaticMarkup(el(LetterStamp, { letter: { ...letter, stampUrl: undefined } }));
+  assert.doesNotMatch(bare, /rounded-full/, 'with no picture, the drawing`s own ring shows: no empty circle laid over it');
+  const glowRule = require('node:fs').readFileSync(path.join(__dirname, '..', 'app', 'globals.css'), 'utf8');
+  assert.match(glowRule, /:is\(a, button\):is\(:hover, :focus-visible\) \.letter-envelope canvas \{\s*filter: drop-shadow\(0 0 2px currentColor\);/, 'the glow comes back while its key is pointed at or focused');
   console.log('  ok    the canvas and the envelope');
 
   /* 4. The window: the owner's keys, and no one else's -------------------------------------- */
@@ -153,6 +163,22 @@ const AddToLetterKey = require('./letters-render-out/components/AddToLetterKey.j
   assert.match(renderToStaticMarkup(el(AddToLetterKey, { thing: { kind: 'lore', ref: 'x', title: 'X' } })), /\[ \+ LETTER \]/, 'signed in, there is');
   assert.equal(renderToStaticMarkup(el(ProfileLetters, { userId: 'nobody', owner: false })), '', 'a profile with no letters to show shows nothing to a visitor');
   assert.match(renderToStaticMarkup(el(ProfileLetters, { userId: 'me', owner: true })), /\[ \+ NEW LETTER \]/, 'its owner can start one');
+  // (2026-11-14, the slim letter) What one letter draws on a profile: the small envelope and its name, and nothing else.
+  const readLetters = store.useLettersOf;
+  store.useLettersOf = () => ({ value: [letter, { ...letter, id: 'L2', name: 'OPEN ONE', isPublic: true }], loading: false, error: null });
+  try {
+    const owned = renderToStaticMarkup(el(ProfileLetters, { userId: 'me', owner: true }));
+    assert.match(owned, /<ul class="flex flex-wrap[^"]*"/, 'letters sit side by side, as many as the width holds');
+    assert.match(owned, /<button[^>]*title="warm things"[^>]*>[\s\S]*?letter-envelope[\s\S]*?>SUMMER<\/span>/, 'a letter is its envelope and its name; the description is the key`s hint');
+    assert.doesNotMatch(owned, /SUMMER : |: warm things/, 'the description is no longer written out beside it');
+    assert.equal((owned.match(/🔒/g) ?? []).length, 1, 'the owner sees a lock on the private letter only');
+    assert.doesNotMatch(owned, /🔓/, 'and no open lock on a public one');
+    assert.match(owned, /max-sm:min-h-tap/, 'each is still a full-height key under a finger');
+    const visited = renderToStaticMarkup(el(ProfileLetters, { userId: 'me', owner: false }));
+    assert.doesNotMatch(visited, /🔒|NEW LETTER/, 'a visitor sees no locks and no form');
+  } finally {
+    store.useLettersOf = readLetters;
+  }
   console.log('  ok    the key and the profile');
   console.log('letters render checks passed');
 })().catch((error) => {

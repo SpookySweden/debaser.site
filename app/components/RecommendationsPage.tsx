@@ -202,9 +202,10 @@ function RecommendationRow({
             aria-haspopup="dialog"
             aria-label={`Open the letter "${rec.letter.name}"`}
             title="Open the letter"
-            className="relative cursor-pointer p-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-ink"
+            className="relative flex cursor-pointer items-center px-1.5 py-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-ink max-sm:min-h-tap"
           >
-            <LetterStamp letter={rec.letter} scale={2} />
+            {/* The slim envelope (Luke, 2026-11-14); the padding round it is the room a finger needs, and is not drawn. */}
+            <LetterStamp letter={rec.letter} />
           </button>
         ) : null}
         <span className="min-w-0 flex-1 break-words text-label text-ink">: {rec.title}</span>
