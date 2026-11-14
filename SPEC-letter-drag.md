@@ -76,7 +76,9 @@ Built on SPEC-letters.md and SPEC-recommendations.md.
   people), one optional line for a note, `SEND` and `[ CANCEL ]`.
 - This is the way for a keyboard and a screen reader, the way to add a note, the way to send to several people at once,
   and the only way to reach someone who isn't among the 12 in the side panel.
-- No phone-specific work (Luke's Q5). The key is an ordinary key, so it works wherever the letter's window does.
+- No phone-specific work (Luke's Q5, and his standing rule for the whole list). A phone's own way of sending a letter
+  waits for the phone pass; `[ SEND TO ]` is built and proved as the desktop's keyboard way, and phone width is only
+  looked at once to see nothing broke.
 
 ### The catch animation
 - Played by the COMPANION session's `companionCatches(userId)` on the figure the letter was dropped on.
