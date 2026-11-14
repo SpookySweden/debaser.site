@@ -58,6 +58,7 @@ import { canSort, ORDER_KEYS, orderLabel, searchOrder, type SortChoice } from '.
 import { FILTER_KEY, FILTER_KEY_ON, FilterRow, FOLD_KEY } from './WebFilterFold';
 import { noteHistory } from '../lib/recommender/history';
 import { isShort } from '../lib/web/shorts';
+import { useHiddenShort } from '../lib/web/use-hidden-short';
 import { useAuth } from './AuthProvider';
 import { useMediaView, viewLabel, viewListClass, type MediaView } from '../lib/web/media-view';
 import WebViewKey from './WebViewKey';
@@ -1534,6 +1535,10 @@ export function WebRow({
   const [alsoOpen, setAlsoOpen] = useState(false);
   const alsoId = `${rowTitleId(item.id)}-also`;
   const facts = [source, KIND_LABELS[item.kind]];
+  // No YouTube Shorts anywhere in MEDIA (shorts-client.ts; Luke, 2026-11-14): the last net for rows from the picks, the tagged
+  // catalogue and YOUR YOUTUBE. A marked Short never draws; one YouTube confirms goes; an unsure one (and music) stays.
+  const hiddenShort = useHiddenShort(item);
+  if (hiddenShort) return null;
 
   return (
     <li className={`rule-pixel ${full ? 'py-2' : 'py-1'} ${view === 'grid' ? 'min-w-0' : ''}`} data-view={view}>

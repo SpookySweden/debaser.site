@@ -120,6 +120,12 @@ export async function runIngest(
       let items: WebItem[] | null = null;
       try {
         items = await adapter.fetchItems(source, deps);
+        // No YouTube Shorts saved (search/shorts-check.ts): the marked ones are already left out; these are the ones YouTube
+        // confirms. If it can't be asked, every video is saved, as before.
+        if (source.platform === 'youtube' && deps.dropShorts !== undefined) {
+          const fetched = items;
+          items = await deps.dropShorts(fetched).catch(() => fetched);
+        }
       } catch (error) {
         result.error = plainError(error, 'read');
       }

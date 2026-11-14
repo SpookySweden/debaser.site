@@ -5,6 +5,11 @@ import type { WebItem, WebPlatform, WebSource } from '../types';
 export type WebAdapterDeps = {
   fetch?: FetchLike;
   now?: () => Date;
+  /**
+   * Leaves confirmed YouTube Shorts out of what the hourly run saves (search/shorts-check.ts `dropShorts`; Luke, 2026-11-14).
+   * The ingest route hands it in; a check that leaves it out asks nothing of YouTube.
+   */
+  dropShorts?: (items: WebItem[]) => Promise<WebItem[]>;
 };
 
 /**

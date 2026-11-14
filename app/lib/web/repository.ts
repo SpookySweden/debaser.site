@@ -2,6 +2,7 @@ import { isSupabaseConfigured } from '../supabase/client';
 import type { WebStreamPage } from './dedupe';
 import { getMockWebRepository } from './mock-web-repository';
 import { getSupabaseWebRepository } from './supabase-web-repository';
+import { withoutShorts } from './shorts-client';
 import type { WebItem, WebPlatform, WebSource } from './types';
 
 /**
@@ -65,5 +66,31 @@ export type WebRepository = {
 };
 
 export function getWebRepository(): WebRepository {
-  return WEB_DATA_SOURCE === 'supabase' ? getSupabaseWebRepository() : getMockWebRepository();
+  return withoutShortsRepository(WEB_DATA_SOURCE === 'supabase' ? getSupabaseWebRepository() : getMockWebRepository());
+}
+
+/**
+ * The stream as read, without YouTube Shorts (shorts-client.ts; Luke, 2026-11-14: "excluded from the results entirely"):
+ * rows saved before Shorts were left out are dropped as they are read, so nothing in the database changes. A page may come
+ * back shorter than asked; its cursor is the same.
+ */
+const cleaned = new WeakMap<WebRepository, WebRepository>();
+function withoutShortsRepository(inner: WebRepository): WebRepository {
+  const known = cleaned.get(inner);
+  if (known) return known;
+  const outer: WebRepository = {
+    ...inner,
+    listItems: async (input) => {
+      const page = await inner.listItems(input);
+      return { ...page, items: await withoutShorts(page.items) };
+    },
+    searchItems: async (input) => {
+      const page = await inner.searchItems(input);
+      return { ...page, items: await withoutShorts(page.items) };
+    },
+    // `getItem` is left as it is: the music bar and a room's queue read a saved item back by it, and what is already playing
+    // or queued is never taken away (Luke: "make sure the shorts thing doesnt affect any music on youtube at all").
+  };
+  cleaned.set(inner, outer);
+  return outer;
 }

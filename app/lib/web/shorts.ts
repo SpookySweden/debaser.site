@@ -29,8 +29,35 @@ export function taggedShort(...texts: (string | null | undefined)[]): boolean {
   return texts.some((text) => typeof text === 'string' && SHORTS_TAG.test(text));
 }
 
-/** A row MEDIA should leave out: a YouTube item that is known, or tagged, as a Short. */
-export function isShort(item: { platform: string; url?: string; canonicalUrl?: string; title?: string; description?: string }): boolean {
-  if (item.platform !== 'youtube') return false;
+type ShortsItem = { platform: string; url?: string; canonicalUrl?: string; title?: string; description?: string; creator?: string; durationSeconds?: number };
+
+/**
+ * Music is never left out on a guess (Luke, 2026-11-14: "make sure the shorts thing doesnt affect any music on youtube at
+ * all"): a song or music video, YouTube's auto-made `- Topic` artist channels and YouTube Music among them, is dropped only
+ * when YouTube's own `/shorts/<id>` page says it is a Short (shorts-check.ts), never by a tag or its length.
+ */
+export function isMusicItem(item: ShortsItem): boolean {
+  return item.platform === 'youtube' && typeof item.creator === 'string' && /\s-\sTopic$/i.test(item.creator.trim());
+}
+
+/** YouTube lets a Short run to three minutes, so anything that long or less (or of unknown length) is worth asking about. */
+export const SHORT_MAX_SECONDS = 180;
+
+/**
+ * Whether a YouTube row's length makes it worth asking YouTube about (shorts-check.ts). Length only picks what to ask: it
+ * never leaves a row out by itself, since plenty of songs and music videos are under three minutes.
+ */
+export function shortCandidate(item: ShortsItem): boolean {
+  return item.platform === 'youtube' && (item.durationSeconds === undefined || item.durationSeconds <= SHORT_MAX_SECONDS);
+}
+
+/** A row MEDIA should leave out: a YouTube item that is known, or tagged, as a Short. A music item never is, by marks alone. */
+export function isShort(item: ShortsItem): boolean {
+  if (item.platform !== 'youtube' || isMusicItem(item)) return false;
   return isShortsAddress(item.url) || isShortsAddress(item.canonicalUrl) || taggedShort(item.title, item.description);
+}
+
+/** A YouTube video's id from a row (`youtube:<id>`), or null. */
+export function youtubeIdOf(item: { platform: string; externalId?: string }): string | null {
+  return item.platform === 'youtube' && typeof item.externalId === 'string' && /^[A-Za-z0-9_-]{11}$/.test(item.externalId) ? item.externalId : null;
 }

@@ -3,6 +3,7 @@ import { WEB_ADAPTERS } from '../../../lib/web/adapters';
 import { IngestLockError, makeIngestStore, runIngest } from '../../../lib/web/ingest';
 import { makeMediaStore, runMediaIngest } from '../../../lib/web/media-ingest';
 import { FETCH_ONE_PROVIDERS } from '../../../lib/web/search/index';
+import { dropShorts } from '../../../lib/web/search/shorts-check';
 
 /**
  * WEB's ingest (SPEC-web.md): reads each enabled `web_sources` row through its adapter and saves what it
@@ -66,7 +67,7 @@ export async function POST(request: Request): Promise<Response> {
     // The media servers' lists and TMDB's details (SPEC-media-servers.md) alongside the stream's sources, so the
     // two together stay inside maxDuration. TMDB_READ_TOKEN is server-only; it never reaches an answer.
     const [result, media] = await Promise.all([
-      runIngest(makeIngestStore(db, lock), WEB_ADAPTERS, {}, resolving),
+      runIngest(makeIngestStore(db, lock), WEB_ADAPTERS, { dropShorts: (items) => dropShorts(items) }, resolving),
       runMediaIngest(makeMediaStore(db, lock), { tmdbToken: process.env.TMDB_READ_TOKEN }),
     ]);
     // YOUR YOUTUBE's account copies not refreshed for 30 days go (YouTube's terms; Luke's OK 2026-11-13,

@@ -107,7 +107,17 @@ export function toWebItem(renderer: unknown, fetchedAt: string): WebItem | null 
   const publishedAt = relativeDate(text(video.publishedTimeText), fetchedAt);
   if (!publishedAt) return null;
   const snippet = text(record(list(video.detailedMetadataSnippets)[0])?.snippetText);
-  return youtubeItem(id, { title: text(video.title), creator: text(video.ownerText) ?? text(video.longBylineText), description: snippet }, publishedAt, fetchedAt);
+  const item = youtubeItem(id, { title: text(video.title), creator: text(video.ownerText) ?? text(video.longBylineText), description: snippet }, publishedAt, fetchedAt);
+  // Its length (`4:05`), so only a video of three minutes or less is asked about as a possible Short (shorts-check.ts).
+  const seconds = clockSeconds(text(video.lengthText));
+  return seconds === null ? item : { ...item, durationSeconds: seconds };
+}
+
+/** A clock reading (`4:05`, `1:02:03`) as seconds, or null. */
+export function clockSeconds(value: string | undefined): number | null {
+  const match = /^(?:(\d{1,2}):)?(\d{1,2}):(\d{2})$/.exec(value?.trim() ?? '');
+  if (!match) return null;
+  return Number(match[1] ?? 0) * 3600 + Number(match[2]) * 60 + Number(match[3]);
 }
 
 /**

@@ -194,6 +194,33 @@ async function safeFetchResponse(url: string, options: SafeFetchOptions): Promis
   throw new SafeFetchError('too many redirects');
 }
 
+/**
+ * HEAD an allow-listed https URL and say how it answered, following no redirect: for a check whose answer IS the redirect
+ * (shorts-check.ts: YouTube's `/shorts/<id>` answers 200 for a Short and sends a normal video on to `/watch`). No body is
+ * read. The location is handed back as written; the caller only reads it, never follows it.
+ */
+export async function safeFetchHead(
+  url: string,
+  options: Pick<SafeFetchOptions, 'allowedHosts' | 'fetchImpl' | 'timeoutMs' | 'userAgent'> & {
+    /** A fixed, public cookie the caller names (YouTube's "reject all" consent answer, `SOCS=CAI`); never a person's. */
+    cookie?: string;
+  },
+): Promise<{ status: number; location: string | null }> {
+  const { allowedHosts, fetchImpl = fetch, timeoutMs = FETCH_TIMEOUT_MS } = options;
+  if (!isAllowedUrl(url, allowedHosts)) throw new SafeFetchError('host not allowed');
+  const signal = AbortSignal.timeout(timeoutMs);
+  const headers: Record<string, string> = { 'User-Agent': options.userAgent ?? userAgent(), Accept: 'text/html' };
+  if (options.cookie !== undefined && /^[A-Za-z0-9_]+=[A-Za-z0-9_+.-]+$/.test(options.cookie)) headers.Cookie = options.cookie;
+  let response: Response;
+  try {
+    response = await fetchImpl(url, { method: 'HEAD', redirect: 'manual', signal, credentials: 'omit', headers });
+  } catch (error) {
+    throw new SafeFetchError(signal.aborted ? 'timed out' : `request failed: ${(error as Error).name}`);
+  }
+  await response.body?.cancel().catch(() => undefined);
+  return { status: response.status, location: response.headers.get('location') };
+}
+
 /** `safeFetchText`, parsed as JSON. */
 export async function safeFetchJson(url: string, options: SafeFetchOptions): Promise<unknown> {
   const text = await safeFetchText(url, options);

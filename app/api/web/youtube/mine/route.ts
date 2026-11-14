@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { readYouTubeMine, YouTubeTokenError } from '../../../../lib/web/youtube-mine';
+import { dropShorts } from '../../../../lib/web/search/shorts-check';
 
 /**
  * A signed-in person's own YouTube: their channels' uploads, their likes, and what those say they like (lib/web/youtube-mine.ts). Their session proves who they are; their
@@ -29,7 +30,9 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     // The videos, and the channels, topics and playlist names that teach the page's order (youtube-mine.ts).
-    return json({ ...(await readYouTubeMine(request.headers.get('x-google-token') ?? '')) }, 200);
+    // No Shorts among them (search/shorts-check.ts; Luke, 2026-11-14): the uploads list already has none, a liked Short goes here.
+    const mine = await readYouTubeMine(request.headers.get('x-google-token') ?? '');
+    return json({ ...mine, items: await dropShorts(mine.items).catch(() => mine.items) }, 200);
   } catch (failure) {
     if (failure instanceof YouTubeTokenError) return json({ error: 'YOUTUBE NEEDS LINKING AGAIN.' }, 403);
     return json({ error: 'YOUTUBE COULD NOT BE READ.' }, 502);

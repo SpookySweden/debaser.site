@@ -122,6 +122,12 @@ export async function searchEverywhere(
     if (outcome.value.next !== null) next[platform] = outcome.value.next;
   });
 
+  // No YouTube Shorts (shorts-check.ts): the marked ones, then the ones YouTube confirms, from every list before it is merged.
+  if (deps.dropShorts !== undefined) {
+    const drop = deps.dropShorts;
+    const cleaned = await Promise.all(lists.map((list) => (list.some((item) => item.platform === 'youtube') ? drop(list).catch(() => list) : Promise.resolve(list))));
+    lists.splice(0, lists.length, ...cleaned);
+  }
   let items: WebItem[];
   if (order === undefined) items = lists.flat().sort(compareItems);
   else if (order === 'newest' || order === 'oldest') items = lists.flat().sort(compareByDate(order === 'newest' ? 'desc' : 'asc'));

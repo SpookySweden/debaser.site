@@ -8,7 +8,8 @@ import { peertubeHosts } from '../../../lib/web/search/peertube-index';
 import { clientAddress, makeDailyBudgets, makeRateLimiter } from '../../../lib/web/search/rate-limit';
 import { searchEverywhere } from '../../../lib/web/search/run';
 import { SEARCH_KINDS, SEARCH_ORDERS } from '../../../lib/web/search/types';
-import { PLATFORM_LABELS } from '../../../lib/web/types';
+import { PLATFORM_LABELS, type WebItem } from '../../../lib/web/types';
+import { dropShorts } from '../../../lib/web/search/shorts-check';
 import { anchorsWildcard, ASKED_ONLY_WHEN_CHOSEN } from '../../../lib/web/web-filters';
 import { noteSeenLater } from '../../../lib/web/seen-items';
 import { wildcardSearch } from '../../../lib/web/wildcard-search';
@@ -88,6 +89,8 @@ export async function GET(request: Request): Promise<Response> {
   const deps = {
     fetch: cachedFetch,
     env: { YOUTUBE_API_KEY: process.env.YOUTUBE_API_KEY, TMDB_READ_TOKEN: process.env.TMDB_READ_TOKEN },
+    // No YouTube Shorts in an answer (shorts-check.ts): asked of YouTube's own /shorts/ page, plain fetch (never the cache).
+    dropShorts: (items: WebItem[]) => dropShorts(items),
     ...(vibe ? { vibe } : {}),
     ...(keyword !== undefined && only === 'kino' ? { keyword } : {}),
     ...(order !== undefined ? { order } : {}),

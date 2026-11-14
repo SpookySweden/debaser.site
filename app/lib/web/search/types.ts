@@ -25,6 +25,11 @@ export type SearchDeps = {
   /** KINO only: a TMDB keyword number from /api/web/related, for the titles tagged with it. */
   keyword?: number;
   /**
+   * Leaves the confirmed YouTube Shorts out of an answer (shorts-check.ts `dropShorts`; Luke, 2026-11-14). The route hands it
+   * in; a check that leaves it out asks nothing of YouTube.
+   */
+  dropShorts?: (items: WebItem[]) => Promise<WebItem[]>;
+  /**
    * The order asked for (SPEC-web-sort.md). Absent is the platform's own best match. A provider is only handed
    * an order it lists in `orders`; run.ts answers for the rest with "NO POPULARITY ORDER" or "CAN'T SORT BY DATE".
    */
