@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import type { ReactNode } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import { authorTag } from '../lib/auth/author';
 import type { ForumAuthor } from '../lib/forum/types';
 import { commentTag } from '../lib/profile/elements';
@@ -55,6 +55,11 @@ type CommentRowProps = {
   href?: string;
   hrefTitle?: string;
   /**
+   * Heard when the row's words are pressed, before the link is followed: a profile's comment slider opens the full
+   * list at that comment instead of going anywhere (./CommentSlider.tsx). The words stay a real link either way.
+   */
+  onHrefClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
+  /**
    * Set on the row a moderator has pinned: `PINNED`, `PINNED FOREVER`, `PINNED 3H LEFT`. It is
    * drawn as a dark plate at the front of the row, and the row itself is tinted, so a pinned
    * message is the thing the eye lands on as the wire goes past - which is the whole point of
@@ -82,7 +87,7 @@ type CommentRowProps = {
  * those places, which is the point of settling on it rather than writing a second one per
  * surface.
  */
-export default function CommentRow({ data, variant = 'full', href, hrefTitle, pinnedLabel, action }: CommentRowProps) {
+export default function CommentRow({ data, variant = 'full', href, hrefTitle, onHrefClick, pinnedLabel, action }: CommentRowProps) {
   const author = data.author;
   const pinned = pinnedLabel === undefined ? null : (
     <span className="border border-ink-plate bg-bubble-pale px-1 text-label font-bold text-ink-bar">
@@ -114,7 +119,7 @@ export default function CommentRow({ data, variant = 'full', href, hrefTitle, pi
         {href === undefined ? (
           <span className="text-ink">&quot;{data.body}&quot;</span>
         ) : (
-          <Link href={href} title={hrefTitle} className="text-ink hover:bg-ena hover:text-ink-bar">
+          <Link href={href} title={hrefTitle} onClick={onHrefClick} className="text-ink hover:bg-ena hover:text-ink-bar">
             &quot;{data.body}&quot;
           </Link>
         )}

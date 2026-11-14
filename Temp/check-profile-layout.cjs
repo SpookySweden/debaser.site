@@ -442,6 +442,51 @@ assert.doesNotMatch(html, /ACCOUNT ID/, "the account id is not on a profile: it 
 assert.doesNotMatch(html, /PICTURE VERSIONS|TRACK VERSIONS|TAGS GIVEN/, 'nor is a count of how much is filed');
 assert.doesNotMatch(html, /TAGS: VISIBLE|VISIBLE :: /, 'nor the row of visibility switches the customiser owns');
 
+// 9. The comments as a newswire you can drive (Luke's list, 2026-11-14: "make the profile comments section into a
+//    newswire style slider too"). What the server draws is the still slider: nothing moves before a browser has said
+//    whether it may, and that still shape is also what a reader who asked for less motion keeps. The moving line, its
+//    hold and its steps need a browser: `scripts/drive-profile-comments.cjs`.
+const slider = indexOf(/data-comment-slider="still"/);
+assert.equal(profileComments < slider, true, 'the slider sits in the comments section');
+assert.equal(slider < html.indexOf('aria-expanded', slider), true, 'over the fold that still holds the full list');
+assert.match(html.slice(slider), /the drawing is the one for me/, "carrying the page's own remark");
+assert.equal((html.slice(slider).match(/the second drawing is the one|this mix is the one/g) ?? []).length, 0, 'and not the ones about the picture or the track');
+
+const CommentSlider = require('./layout-render/components/CommentSlider.js').default;
+const sliderOf = (comments) => renderToStaticMarkup(element(CommentSlider, { comments, onOpen: () => undefined }));
+const remark = (id, body, extra = {}) => ({
+  id,
+  kind: 'profile',
+  author: { id: 'user-luke', displayName: 'luke' },
+  body,
+  createdAt: '2026-09-04T01:00:00.000Z',
+  ...extra,
+});
+const LONG = `${'a long remark that runs on and on '.repeat(4)}THE VERY END`;
+
+assert.equal(sliderOf([]), '', 'nothing said, nothing drawn');
+
+const lone = sliderOf([remark('s1', 'only one')]);
+assert.match(lone, /only one/, 'one comment is simply shown');
+assert.doesNotMatch(lone, /<button/, 'with no keys: there is nothing to step to');
+
+const three = sliderOf([remark('s1', '<b>first</b> & pinned', { pinned: true }), remark('s2', LONG), remark('s3', 'third')]);
+assert.match(three, /data-comment-slider="still"/, 'the server draws it still');
+assert.equal((three.match(/<li/g) ?? []).length, 1, 'one comment at a time');
+assert.match(three, /aria-label="Previous comment"/, 'a key back');
+assert.match(three, /aria-label="Next comment"/, 'and a key on');
+assert.match(three, /\[ ◀ \]/, 'drawn as full bracket keys, not bare little arrows');
+assert.doesNotMatch(three, /Hold the comments still/, 'and no hold key while nothing moves');
+assert.match(three, /&lt;b&gt;first&lt;\/b&gt; &amp; pinned/, "somebody's words are plain text, never markup");
+assert.match(three, /\[ PINNED \]/, 'a pinned comment wears its plate here too');
+assert.match(three, /href="#profile-comments"/, "the words are a link to the comments, which a press opens at that comment");
+assert.doesNotMatch(three, /class="crawl/, "it does not borrow the stylesheet's crawl, which cannot be stepped");
+
+const long = sliderOf([remark('s2', LONG), remark('s3', 'third')]);
+assert.match(long, /a long remark that runs on and on/, 'a long comment starts as written');
+assert.match(long, /\.\.\.&quot;/, 'and is cut to a line');
+assert.doesNotMatch(long, /THE VERY END/, 'the rest is in the full list');
+
 console.log('profile layout checks passed');
 console.log('  columns     : drawing P2 and track M1, each with its fold and its own list');
 console.log('  comment     : one control above both columns, opening a menu of the three aspects');

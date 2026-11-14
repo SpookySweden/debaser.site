@@ -573,6 +573,12 @@ summary::-webkit-details-marker {
   animation-play-state: paused;
 }
 
+/* The keyboard inside the strip holds it too (2026-11-14): a link tabbed to must not slide out from under the reader.
+   `:focus-visible`, so a mouse press that leaves focus behind does not leave the wire stuck. */
+.crawl:has(:focus-visible) {
+  animation-play-state: paused;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .crawl {
     animation: none;

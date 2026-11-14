@@ -3,7 +3,7 @@
 import { profileContext } from '../lib/audio/track-context';
 import { getMusicRepository } from '../lib/audio/repository';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { authorFromAccount } from '../lib/auth/author';
 import { elementAsTrack } from '../lib/audio/profile-track';
 import {
@@ -23,6 +23,7 @@ import { PLATE } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import AddToLetterKey from './AddToLetterKey';
 import CommentRow, { commentRowData } from './CommentRow';
+import CommentSlider from './CommentSlider';
 import CountryFlag from './CountryFlag';
 import ElementComments from './ElementComments';
 import { useForum } from './ForumProvider';
@@ -329,6 +330,9 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
 }
 
 
+/** What a comment opened from the slider wears for a moment: the press flash and a dotted ring, as on the board. */
+const COMMENT_MARK = ['animate-flash', 'outline-2', 'outline-dotted', 'outline-bubble', 'outline-offset-2'];
+
 type CommentsSectionProps = {
   owner: boolean;
   visibility: ProfileVisibility;
@@ -348,6 +352,11 @@ type CommentsSectionProps = {
  * this section only reads. Folded is the default, because a profile reads as a picture and a
  * track rather than as a comment page.
  *
+ * **The comments also go past as a newswire you can drive** (Luke, 2026-11-14: "make the profile comments section into
+ * a newswire style slider too"): one slim line over the fold, with keys to step and to hold it (./CommentSlider.tsx).
+ * Pressing a comment there opens the fold with that comment in view and marked, as a row found by the board's search is.
+ * Arriving at the section's own address (`#profile-comments`, where the page's wire rows lead) opens the fold too.
+ *
  * It is also where a pin is taken, and only the owner is handed the control: a small blue
  * pushpin beside each comment, which pins it to the wire's every-third row and unpins it again
  * (see ./ProfileCommentPin, and ../lib/profile/feed on the run of threes). A comment that is
@@ -363,6 +372,51 @@ function CommentsSection({
   repository,
 }: CommentsSectionProps) {
   const [open, setOpen] = useState(false);
+  const list = useRef<HTMLUListElement | null>(null);
+
+  /** The full list opened at one comment: in view, and wearing the mark a jump on the board wears. */
+  const openAt = useCallback(
+    (commentId: string) => {
+      setOpen(true);
+      const index = comments.findIndex((comment) => comment.id === commentId);
+      if (index === -1) return;
+
+      // Two frames: the first lets the fold draw its list, and by the second the row is there to scroll to.
+      window.requestAnimationFrame(() =>
+        window.requestAnimationFrame(() => {
+          const row = list.current?.children[index];
+          if (!(row instanceof HTMLElement)) return;
+          row.scrollIntoView({ block: 'center' });
+          row.classList.add(...COMMENT_MARK);
+          window.setTimeout(() => row.classList.remove(...COMMENT_MARK), 1600);
+        }),
+      );
+    },
+    [comments],
+  );
+
+  // The section's own address opens it: on arrival, when the address changes, and when a link to it is pressed on
+  // this same page (the page's wire rows; the router moves the address without telling anybody, so the press is heard).
+  useEffect(() => {
+    const asked = () => window.location.hash === `#${PROFILE_COMMENTS_ANCHOR}`;
+    const openIfAsked = () => {
+      if (asked()) setOpen(true);
+    };
+    const onClick = (event: MouseEvent) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest(`a[href$="#${PROFILE_COMMENTS_ANCHOR}"]`) !== null) setOpen(true);
+    };
+
+    const frame = window.requestAnimationFrame(openIfAsked);
+    window.addEventListener('hashchange', openIfAsked);
+    document.addEventListener('click', onClick);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('hashchange', openIfAsked);
+      document.removeEventListener('click', onClick);
+    };
+  }, []);
 
   // No readout on the title line: how many are visible and pinned is counted back at a visitor,
   // and the fold's own arrow already carries the count. No `general` label either - the comment
@@ -374,6 +428,8 @@ function CommentsSection({
       <div className="title-line text-accent-ink">
         <span>COMMENTS</span>
       </div>
+
+      <CommentSlider comments={comments} onOpen={openAt} />
 
       <div className="flex flex-wrap items-baseline gap-x-2 px-2 py-1 text-label font-bold text-ink">
         <button
@@ -402,7 +458,7 @@ function CommentsSection({
               {owner || visibility.showProfileComments ? 'NONE YET.' : 'COMMENTS OFF.'}
             </p>
           ) : (
-            <ul className="space-y-1">
+            <ul ref={list} className="space-y-1">
               {comments.map((comment) => (
                 <CommentRow
                   key={comment.id}
