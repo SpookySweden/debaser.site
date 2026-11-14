@@ -222,7 +222,8 @@ const walk = async (repo, query, size) => {
   // The box's filters (in:, type:) are taken out first (web-filters.ts), then the words go through searchText.
   ok(/const query = searchText\(parsed\.text\);/.test(page), 'a typed search goes through searchText (letters and digits, capped)');
   ok(/\.searchItems\(/.test(page), 'it searches through the repository');
-  ok(/aria-label="Clear the search"/.test(page), 'the CLEAR key has an accessible name');
+  // Updated on purpose 2026-11-14 (Luke: "Remove both"): MEDIA has no CLEAR key; RESET FILTERS is the one way back.
+  ok(!/aria-label="Clear the search"/.test(page) && /data-reset-filters/.test(page), 'no CLEAR key; RESET FILTERS is there');
   ok(!/dangerouslySetInnerHTML/.test(page), 'nothing is rendered as HTML');
 
   console.log(`ok: ${passed} assertions (WEB search: words, matching, mock and Supabase paging, parameters, migration, page)`);

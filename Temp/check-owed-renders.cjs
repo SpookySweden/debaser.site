@@ -1223,7 +1223,9 @@ test('WebStream: the plain stream draws the search box and every filter, says it
   assert.match(openingTag(html, '[ ON ]'), /aria-pressed="false"/);
   assert.match(openingTag(html, '[ ALL SOURCES ]'), /aria-pressed="true"/, 'SOURCE starts on ALL');
   assert.ok(!words.includes('[ RESET FILTERS ]'), 'nothing to reset yet');
-  assert.ok(!words.includes('[ CLEAR ]'), 'nothing to clear yet');
+  // Updated on purpose 2026-11-14 (Luke: "Remove both"): MEDIA has no CLEAR key; RESET FILTERS is the one way back.
+  assert.ok(!words.includes('[ CLEAR ]'), 'no CLEAR key');
+  assert.ok(!html.includes('data-imdb-key'), 'no IMDB key: films and shows are KINO under WHERE FROM');
   await inBrowser(fakeBrowser(), async () => runEffects());
   await tick();
   assert.deepEqual(said('listItems').length, 1);
@@ -1236,7 +1238,7 @@ test('WebStream: a search in the address fills the box and asks the stream and e
   const html = draw(el(WebStream));
   assert.match(html, /<input[^>]*id="web-search"[^>]*value="trains"/);
   assert.ok(visible(html).includes('ASKING: THE STREAM'));
-  assert.ok(visible(html).includes('[ CLEAR ]'));
+  assert.ok(!visible(html).includes('[ CLEAR ]'), 'no CLEAR key even with a search in the box (Luke, 2026-11-14)');
   await inBrowser(browser, async () => {
     const stop = runEffects();
     await tick();

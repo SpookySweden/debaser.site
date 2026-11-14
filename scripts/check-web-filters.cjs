@@ -177,11 +177,13 @@ ok(!/transition|animate-/.test(page.slice(page.indexOf('data-filter-panel'), pag
 // DATE and the flip key; the same three orders underneath.
 ok(/heading="ORDER"/.test(page) && /ORDER_KEYS\.map/.test(page) && /const on = boxSort\.sort === key\.choice\.sort && boxSort\.dir === key\.choice\.dir;/.test(page) && /aria-pressed=\{on\}/.test(page), 'the ORDER keys are drawn from the choices and say which is on');
 
-// The IMDB key (Luke, 2026-11-04): above the SOURCE choices, centred, and it is the KINO filter.
-const imdbKey = page.indexOf('data-imdb-key');
-ok(imdbKey !== -1 && imdbKey < page.indexOf('heading="WHERE FROM"'), 'the IMDB key sits above the SOURCE choices');
-// Updated on purpose 2026-11-05: RECOMMENDED and DISCOVER sit beside it on the same centred row (SPEC-discover.md).
-ok(/flex flex-wrap justify-center gap-1">/.test(page) && /onClick=\{\(\) => pickFilter\('in', 'kino'\)\}[\s\S]{0,400}data-imdb-key/.test(page), 'centred, and it filters to KINO');
+// The IMDB key (Luke, 2026-11-04) was taken off MEDIA on purpose on 2026-11-14 ("Remove both"): KINO is reached under
+// WHERE FROM, as before. The stream room's own IMDB key is another screen (check-queue-filters).
+ok(page.indexOf('data-imdb-key') === -1, 'no IMDB key on MEDIA');
+ok(/\{ value: 'all', label: 'ALL' \},\n  \{ value: 'kino', label: PLATFORM_LABELS\.kino \}/.test(require('node:fs').readFileSync(join(ROOT, 'app/lib/web/web-filters.ts'), 'utf8').replace(/\r\n/g, '\n')), '... KINO is still a WHERE FROM choice');
+// RECOMMENDED and DISCOVER keep their centred row (SPEC-discover.md); the IMDB key that sat beside them is gone (above).
+ok(/flex flex-wrap justify-center gap-1">/.test(page) && /data-list-key=\{list\}/.test(page), 'RECOMMENDED and DISCOVER on their centred row');
+ok(!/\[ CLEAR \]/.test(page) && !/const clear = /.test(page), 'no CLEAR key on MEDIA (Luke, 2026-11-14): RESET FILTERS is the one way back');
 ok(
   require('node:fs').readFileSync('next.config.ts', 'utf8').includes("{ source: '/cytube', destination: '/stream', permanent: true }"),
   'an old /cytube address lands on /stream',

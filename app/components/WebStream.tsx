@@ -618,12 +618,6 @@ export default function WebStream() {
     restart(draft);
   };
 
-  const clear = () => {
-    setDraft('');
-    restart('');
-    document.getElementById('web-search')?.focus();
-  };
-
   /** A SOURCE or TYPE key: the filter is written into the box (so the two never disagree) and the search runs. */
   /** A press that changes nothing (the choice already on, the same search already showing) asks no source again. */
   const alreadyShowing = (box: string) => !art && picked === null && JSON.stringify(requestFor(box)) === JSON.stringify(shown);
@@ -792,7 +786,6 @@ export default function WebStream() {
   /** VIEW (media-view.ts): how the lists below are laid out, kept in this browser. */
   const view = useMediaView();
   const boxSort = sortOf(boxFilters);
-  const filtered = shown.kind !== 'stream' || shown.filters.source !== 'all' || shown.filters.type !== 'all';
   const busy = asking.length > 0 || target !== null;
   const unsorted = unsortedFor(shown);
   // The plain stream under BEST MATCH, ordered for this reader a page at a time, so LOAD MORE adds below and never moves
@@ -920,11 +913,7 @@ export default function WebStream() {
         <button type="submit" className={PLATE}>
           [ SEARCH ]
         </button>
-        {filtered || draft.length > 0 ? (
-          <button type="button" onClick={clear} aria-label="Clear the search" className={PLATE}>
-            [ CLEAR ]
-          </button>
-        ) : null}
+        {/* No CLEAR key (Luke, 2026-11-14: "Remove both"): RESET FILTERS clears the filters, and the box empties by hand. */}
       </form>
 
       {/* The filters, as keys. Each writes its filter into the box above, which stays the one truth. */}
@@ -949,17 +938,7 @@ export default function WebStream() {
               {picked === list ? list.toUpperCase() : `[ ${list.toUpperCase()} ]`}
             </button>
           ))}
-          <button
-            type="button"
-            onClick={() => pickFilter('in', 'kino')}
-            aria-pressed={!art && boxFilters.source === 'kino'}
-            aria-label="IMDB: search films and shows, the same as the KINO source"
-            title="Films and shows. Same as KINO; the titles come from TMDB."
-            className={!art && boxFilters.source === 'kino' ? PLATE_PRESSED : PLATE}
-            data-imdb-key
-          >
-            [ IMDB ]
-          </button>
+          {/* No IMDB key any more (Luke, 2026-11-14: "Remove both"): films and shows are KINO under WHERE FROM. */}
           {/* Luke, 2026-11-11: your own PDF or EPUB in the site's reader, opened in the browser, never uploaded. */}
           {/* A key to the site's own page: nothing to prefetch for a page that only opens a file picker. */}
           <button type="button" onClick={() => window.location.assign('/read')} className={PLATE} data-own-book-key>
