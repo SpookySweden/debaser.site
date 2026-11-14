@@ -82,10 +82,26 @@ const shadowFetch: FetchLike = (input, init) =>
 
 /** LibGen's JSON-API mirrors, tried first with a short timeout. Most are blocked from Vercel; Anna's via proxy is the real path. */
 export const LIBGEN_JSON_HOSTS = ['libgen.is', 'libgen.li'] as const;
-/** Anna's Archive's hosts (and mirrors), tried in order. Vercel's DNS refuses to resolve these at all. */
-export const ANNAS_HOSTS = ['annas-archive.org', 'annas-archive.se', 'annas-archive.li'] as const;
+/**
+ * Anna's Archive's live clearnet mirrors (Luke, 2026-11-14 — the .org/.se domains are NXDOMAIN now). All three are
+ * reached through the home-laptop proxy at `SHADOW_PROXY_URL` (a WireGuard split-tunnel on the laptop routes just these
+ * three IPs through ProtonVPN, dodging the UK ISP's TLS MITM). The proxy's `/?token=…&url=https://<anna>/path` returns
+ * the upstream body verbatim with `Access-Control-Allow-Origin: *`.
+ */
+export const ANNAS_HOSTS = ['annas-archive.gd', 'annas-archive.gl', 'annas-archive.pk'] as const;
 /** Kept for the existing openShadowBook fallback — first reachable mirror wins. */
 export const ANNAS_HOST = ANNAS_HOSTS[0];
+
+/** The home-laptop proxy's URL and token, set on Vercel as env vars. When unset, Anna's calls fail (no answer). */
+const SHADOW_PROXY_URL = (process.env.SHADOW_PROXY_URL ?? '').trim();
+const SHADOW_PROXY_TOKEN = (process.env.SHADOW_PROXY_TOKEN ?? '').trim();
+
+/** Wraps a target URL for the home proxy: `https://<proxy>/?token=<t>&url=<encoded-target>`. */
+function throughProxy(targetUrl: string): string | null {
+  if (!SHADOW_PROXY_URL || !SHADOW_PROXY_TOKEN) return null;
+  const base = SHADOW_PROXY_URL.replace(/\/+$/, '');
+  return `${base}/?token=${encodeURIComponent(SHADOW_PROXY_TOKEN)}&url=${encodeURIComponent(targetUrl)}`;
+}
 
 /** Where a file is asked for. One host, so the allow-list stays small; the redirect allow-list catches the actual file host. */
 export const LIBGEN_PAGE_HOST = 'library.lol';
@@ -289,12 +305,14 @@ export async function searchAnnasMany(query: string, limit: number, fetchImpl?: 
       ['lang', 'en'],
       ['sort', ''],
     ]);
+    const proxied = throughProxy(target);
+    const [fetchUrl, allowed] = proxied ? [proxied, [new URL(proxied).hostname]] : [target, [host]];
     try {
-      const html = await safeFetchText(target, {
-        allowedHosts: [host],
+      const html = await safeFetchText(fetchUrl, {
+        allowedHosts: allowed,
         fetchImpl: impl,
         maxBytes: 4 * 1024 * 1024,
-        timeoutMs: 10_000,
+        timeoutMs: 15_000,
         accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
         userAgent: BROWSERISH_UA,
       });
@@ -332,13 +350,15 @@ async function findOnAnnas(
       ['lang', 'en'],
       ['sort', ''],
     ]);
+    const proxied = throughProxy(target);
+    const [fetchUrl, allowed] = proxied ? [proxied, [new URL(proxied).hostname]] : [target, [host]];
     let html = '';
     try {
-      html = await safeFetchText(target, {
-        allowedHosts: [host],
+      html = await safeFetchText(fetchUrl, {
+        allowedHosts: allowed,
         fetchImpl,
         maxBytes: 2 * 1024 * 1024,
-        timeoutMs: 10_000,
+        timeoutMs: 15_000,
         accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
         userAgent: BROWSERISH_UA,
       });
@@ -381,16 +401,20 @@ export async function openShadowBook(
   const id = md5.toLowerCase();
   if (!MD5.test(id)) return null;
   const impl = fetchImpl ?? shadowFetch;
+  // Anna's current clearnet mirrors (reached via the home proxy) are the primary source; library.lol kept as fallback
+  // in case LibGen revives. Each md5-page URL is wrapped by `throughProxy` when the env vars are set.
   const sources = [
-    { host: LIBGEN_PAGE_HOST, path: ['main', id] as const },
-    { host: ANNAS_HOST, path: ['md5', id] as const },
+    { host: ANNAS_HOST, path: ['md5', id] as const, proxy: true },
+    { host: LIBGEN_PAGE_HOST, path: ['main', id] as const, proxy: false },
   ];
   let lastError: Error | null = null;
   for (const source of sources) {
     try {
       const pageUrl = buildUrl(source.host, [...source.path]);
-      const page = await safeFetchText(pageUrl, {
-        allowedHosts: [source.host],
+      const proxied = source.proxy ? throughProxy(pageUrl) : null;
+      const [pageFetchUrl, pageAllowed] = proxied ? [proxied, [new URL(proxied).hostname]] : [pageUrl, [source.host]];
+      const page = await safeFetchText(pageFetchUrl, {
+        allowedHosts: pageAllowed,
         fetchImpl: impl,
         maxBytes: PAGE_MAX_BYTES,
         timeoutMs: 15_000,
@@ -403,8 +427,12 @@ export async function openShadowBook(
         continue;
       }
       const extension: ShadowExtension = /\.epub(?:\?|$)/i.test(direct) ? 'epub' : 'pdf';
-      const opened = await safeFetchStream(direct, {
-        allowedHosts: [new URL(direct).hostname],
+      // The direct file URL might be on Anna's own CDN (reachable through the proxy) or on a public IPFS gateway
+      // (reachable without). Try direct first; if that's an Anna host and we have a proxy, route through it.
+      const directProxied = source.proxy && /annas-archive\./.test(new URL(direct).hostname) ? throughProxy(direct) : null;
+      const [fileFetchUrl, fileAllowed] = directProxied ? [directProxied, [new URL(directProxied).hostname]] : [direct, [new URL(direct).hostname]];
+      const opened = await safeFetchStream(fileFetchUrl, {
+        allowedHosts: fileAllowed,
         fetchImpl: impl,
         maxBytes: SHADOW_MAX_BYTES,
         timeoutMs: 30_000,
