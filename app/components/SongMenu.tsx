@@ -3,15 +3,15 @@
 import Link from 'next/link';
 import { type RefObject, useState } from 'react';
 import { forumTrackFromArchive } from '../lib/audio/forum-tracks';
-import { validatePlaylistName } from '../lib/audio/library';
 import type { AudioTrack } from '../lib/audio/tracks';
 import { keepableSong } from '../lib/audio/up-next';
 import { folderCategoryId } from '../lib/media/categories';
-import { FIELD_TIGHT, PLATE, PLATE_LINK, PLATE_PRESSED } from '../lib/ui/controls';
+import { PLATE, PLATE_LARGE, PLATE_LINK, PLATE_PRESSED } from '../lib/ui/controls';
 import { songOwner } from '../lib/audio/song-notes';
 import AboveAnchor from './AboveAnchor';
 import { useAuth } from './AuthProvider';
 import AddToLetterKey from './AddToLetterKey';
+import AddToPlaylistKey, { BLANK_LINE, songAsPlaylistThing } from './AddToPlaylistKey';
 import type { LetterThing } from '../lib/letters/types';
 import { parseWebTrackId } from '../lib/web/web-audio';
 import { SongCardEditor } from './SongCoverCard';
@@ -22,8 +22,12 @@ import NewPostForm from './NewPostForm';
 /**
  * The song settings panel (SPEC-vanity.md): one `[ ⋯ ]` key on a song row, and the short menu it opens.
  *
- * Every per-song action lives here, so the rows only keep their play key: ADD TO PLAYLIST, LIKE, BARR,
- * ADD TO QUEUE / PLAY NEXT, COPY LINK / ATTACH TO POST and GO TO FOLDER. The row owns whether it is
+ * **One option to a line** (Luke, 2026-11-14: "THE LIST OF OPTIONS at the end of the player needs to be a vertical
+ * list. add to needs to go like 'add to: (playlist) (letter)'"): the adding line first, then LIKE, PLAY NEXT,
+ * ADD TO QUEUE, ATTACH TO POST, COPY LINK, GO TO FOLDER, COVER CARD and BARR, each a row as wide as the list.
+ * The same list wherever the menu opens (the player bar, a shelf row, a posted track).
+ *
+ * Every per-song action lives here, so the rows only keep their play key. The row owns whether it is
  * open (`SongMenuKey` + `SongMenuPanel`), because the row decides where the panel goes: under the row
  * in a list, above the key on the player bar (`placement="above"`).
  *
@@ -72,6 +76,14 @@ export function SongMenuKey({
   );
 }
 
+/** A row of the list: a key with the line to itself, as wide as the list, so the whole line is the target. */
+const ROW = `${PLATE_LARGE} block w-full text-left`;
+/** The same row switched on (BARR): the filled pill, in the row's own box (its 2px outline is the rest of the padding). */
+const ROW_ON =
+  'key key-fill key-on [--key-fill:var(--color-ink)] block w-full cursor-pointer px-1 py-1 text-left text-key text-paper max-sm:min-h-tap max-sm:py-2 max-sm:text-base';
+/** A line of the list that is not one key (the adding line, a note): the rows' own inset. */
+const LINE = 'px-1.5 py-0.5';
+
 type SongMenuPanelProps = {
   track: AudioTrack;
   onClose: () => void;
@@ -107,8 +119,6 @@ export function SongMenuPanel({ track, onClose, placement = 'below', anchor, sid
   const player = useMusicPlayer();
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [naming, setNaming] = useState(false);
-  const [newName, setNewName] = useState('');
   const [posting, setPosting] = useState(false);
   // COVER CARD (SPEC-music-queues.md): the uploader's picture and words for their own song, shown in a room.
   const { user } = useAuth();
@@ -134,27 +144,6 @@ export function SongMenuPanel({ track, onClose, placement = 'below', anchor, sid
     }
   }
 
-  const toggleList = (listId: string, name: string, inList: boolean) =>
-    run(async () => {
-      await library.togglePlaylistTrack(listId, song.id);
-      return inList ? `TAKEN OUT OF ${name}.` : `ADDED TO ${name}.`;
-    });
-
-  const makeList = () => {
-    const problem = validatePlaylistName(newName);
-    if (problem !== undefined) {
-      setNotice(problem);
-      return;
-    }
-    void run(async () => {
-      const made = await library.savePlaylist(newName);
-      if (!made.items.some((item) => item.trackId === song.id)) await library.togglePlaylistTrack(made.id, song.id);
-      setNaming(false);
-      setNewName('');
-      return `ADDED TO ${made.name}.`;
-    });
-  };
-
   const copyLink = () =>
     run(async () => {
       await navigator.clipboard.writeText(new URL(song.src, window.location.origin).href);
@@ -162,169 +151,118 @@ export function SongMenuPanel({ track, onClose, placement = 'below', anchor, sid
     });
 
   const above = placement === 'above' && anchor !== undefined;
-  const shell = above ? 'frame bg-sun-pale p-2' : 'mt-1 border-t border-dotted border-ink pt-1';
+  const shell = above ? 'frame bg-sun-pale p-1' : 'mt-1 max-w-md border-t border-dotted border-ink pt-1';
 
   const menu = (
       <div
         role="menu"
         aria-label={`Options for ${song.title}`}
-        className={`${shell} text-label text-ink`}
+        className={`${shell} flex flex-col text-label text-ink`}
+        data-song-menu
         onKeyDown={(event) => {
           if (event.key === 'Escape') onClose();
         }}
       >
-        {/* ADD TO PLAYLIST: every list, the ones holding this song pressed in. */}
+        {/* The adding line (Luke, 2026-11-14): `ADD TO: [ PLAYLIST ] [ LETTER ]`. Each key opens its own short window,
+            so nothing in this list moves when one is pressed. A letter and a playlist are both saved to an account. */}
         {!library.canWrite ? (
-          <p className="py-0.5">
+          <p className={LINE}>
             <Link href="/account" className={PLATE_LINK}>
               [ LOG IN ]
             </Link>{' '}
             TO LIKE AND KEEP LISTS
           </p>
-        ) : !onShelf ? (
-          <p className="py-0.5 text-ink-quiet">NOT IN THE ARCHIVE :: NO LIKES OR LISTS</p>
         ) : (
-          <div className="flex flex-wrap items-center gap-1">
-            <span className="font-bold">ADD TO PLAYLIST:</span>
-            {library.playlists.map((list) => {
-              const inList = list.items.some((item) => item.trackId === song.id);
-              return (
-                <button
-                  key={list.id}
-                  type="button"
-                  role="menuitemcheckbox"
-                  aria-checked={inList}
-                  disabled={busy}
-                  onClick={() => void toggleList(list.id, list.name, inList)}
-                  className={inList ? `${PLATE_PRESSED} cursor-pointer` : PLATE}
-                  title={inList ? `Take it out of ${list.name}` : `Add it to ${list.name}`}
-                >
-                  [ {inList ? '✓ ' : ''}
-                  {list.name} ]
-                </button>
-              );
-            })}
-            {naming ? (
-              <span className="flex flex-wrap items-center gap-1">
-                <input
-                  value={newName}
-                  onChange={(event) => setNewName(event.target.value)}
-                  placeholder="NEW LIST"
-                  maxLength={40}
-                  aria-label="New playlist name"
-                  autoFocus
-                  className={`${FIELD_TIGHT} w-32`}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') makeList();
-                    if (event.key === 'Escape') {
-                      event.stopPropagation();
-                      setNaming(false);
-                    }
-                  }}
-                />
-                <button type="button" onClick={makeList} disabled={busy} className={PLATE}>
-                  [ MAKE ]
-                </button>
-              </span>
-            ) : (
-              <button type="button" role="menuitem" onClick={() => setNaming(true)} className={PLATE}>
-                [ + NEW ]
-              </button>
-            )}
+          <div role="group" aria-label="Add to" className={`${LINE} flex flex-wrap items-center gap-x-1`} data-song-add-to>
+            <span className="text-key">ADD TO:</span>
+            <AddToPlaylistKey thing={songAsPlaylistThing(song)} disabled={!onShelf} reason="Not in the archive" className={PLATE_LARGE} />
+            {/* A MEDIA track goes in as its MEDIA row, a site song as its file (Luke, 2026-11-11). */}
+            <AddToLetterKey thing={songThing(song)} className={PLATE_LARGE} />
           </div>
         )}
+        {library.canWrite && !onShelf ? <p className={`${LINE} text-ink-quiet`}>NOT IN THE ARCHIVE :: NO LIKES OR LISTS</p> : null}
 
-        <div className="mt-1 flex flex-wrap items-center gap-1">
-          {library.canWrite && onShelf ? (
-            <button
-              type="button"
-              role="menuitemcheckbox"
-              aria-checked={liked}
-              disabled={busy}
-              onClick={() =>
-                void run(async () => {
-                  const result = await library.toggleLike(song.id);
-                  return result.liked ? 'LIKED.' : 'UNLIKED.';
-                })
-              }
-              className={PLATE}
-            >
-              {liked ? '[ ♥ UNLIKE ]' : '[ ♡ LIKE ]'}
-            </button>
-          ) : null}
-          {/* BARR: a personal mark, by file, so it holds wherever the song turns up. Nobody else sees it. */}
-          {library.canWrite ? (
-            <button
-              type="button"
-              role="menuitemcheckbox"
-              aria-checked={barred}
-              disabled={busy}
-              onClick={() =>
-                void run(async () => {
-                  const result = await library.toggleBarr(song.src);
-                  return result.barred ? 'BARRED. ONLY YOU SEE THIS.' : 'UNBARRED.';
-                })
-              }
-              className={barred ? `${PLATE_PRESSED} cursor-pointer` : PLATE}
-            >
-              {barred ? '[ UNBARR ]' : '[ BARR ]'}
-            </button>
-          ) : null}
+        {library.canWrite && onShelf ? (
           <button
             type="button"
-            role="menuitem"
-            onClick={() => {
-              player.enqueue(song, 'end');
-              setNotice('ADDED TO THE QUEUE.');
-            }}
-            className={PLATE}
+            role="menuitemcheckbox"
+            aria-checked={liked}
+            disabled={busy}
+            onClick={() =>
+              void run(async () => {
+                const result = await library.toggleLike(song.id);
+                return result.liked ? 'LIKED.' : 'UNLIKED.';
+              })
+            }
+            className={ROW}
           >
-            [ ADD TO QUEUE ]
+            {liked ? '[ ♥ UNLIKE ]' : '[ ♡ LIKE ]'}
           </button>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              player.enqueue(song, 'next');
-              setNotice('PLAYS NEXT.');
-            }}
-            className={PLATE}
-          >
-            [ PLAY NEXT ]
-          </button>
-        </div>
-
-        <div className="mt-1 flex flex-wrap items-center gap-1">
-          <button type="button" role="menuitem" onClick={() => void copyLink()} className={PLATE}>
-            [ COPY LINK ]
-          </button>
-          <button type="button" role="menuitem" onClick={() => setPosting(true)} className={PLATE}>
-            [ ATTACH TO POST ]
-          </button>
-          {/* The song into a letter (Luke, 2026-11-11): a MEDIA track as its MEDIA row, a site song as its file. */}
-          <AddToLetterKey thing={songThing(song)} />
-          {top.length === 0 ? null : (
-            <Link
-              href={`/files?cat=${encodeURIComponent(folderCategoryId(top))}`}
-              role="menuitem"
-              className={PLATE_LINK}
-              title={song.folderPath ?? top}
-            >
-              [ GO TO {top} ]
-            </Link>
-          )}
-          {user !== null && songOwner(song.id) === user.id ? (
-            <button type="button" role="menuitem" onClick={() => setCarding(true)} className={PLATE} title="The picture and words a room shows while this song plays">
-              [ COVER CARD ]
-            </button>
-          ) : null}
-        </div>
-
-        {notice === null ? null : (
-          <p role="status" className="mt-1 font-bold">
-            {notice}
-          </p>
+        ) : null}
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            player.enqueue(song, 'next');
+            setNotice('PLAYS NEXT.');
+          }}
+          className={ROW}
+        >
+          [ PLAY NEXT ]
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            player.enqueue(song, 'end');
+            setNotice('ADDED TO THE QUEUE.');
+          }}
+          className={ROW}
+        >
+          [ ADD TO QUEUE ]
+        </button>
+        <button type="button" role="menuitem" onClick={() => setPosting(true)} className={ROW}>
+          [ ATTACH TO POST ]
+        </button>
+        <button type="button" role="menuitem" onClick={() => void copyLink()} className={ROW}>
+          [ COPY LINK ]
+        </button>
+        {top.length === 0 ? null : (
+          <Link href={`/files?cat=${encodeURIComponent(folderCategoryId(top))}`} role="menuitem" className={`${ROW} truncate`} title={song.folderPath ?? top}>
+            [ GO TO {top} ]
+          </Link>
         )}
+        {user !== null && songOwner(song.id) === user.id ? (
+          <button type="button" role="menuitem" onClick={() => setCarding(true)} className={ROW} title="The picture and words a room shows while this song plays">
+            [ COVER CARD ]
+          </button>
+        ) : null}
+        {/* BARR: a personal mark, by file, so it holds wherever the song turns up. Nobody else sees it. Last, as the one that takes away. */}
+        {library.canWrite ? (
+          <button
+            type="button"
+            role="menuitemcheckbox"
+            aria-checked={barred}
+            disabled={busy}
+            onClick={() =>
+              void run(async () => {
+                const result = await library.toggleBarr(song.src);
+                return result.barred ? 'BARRED. ONLY YOU SEE THIS.' : 'UNBARRED.';
+              })
+            }
+            className={barred ? ROW_ON : ROW}
+          >
+            {barred ? '[ UNBARR ]' : '[ BARR ]'}
+          </button>
+        ) : null}
+
+        {/* Over the player the list grows upward from its foot, so the answer's line keeps its height while empty:
+            an answer must not lift the key that was just pressed out from under the pointer. */}
+        {above || notice !== null ? (
+          <p role="status" className={`${LINE} font-bold`}>
+            {notice ?? BLANK_LINE}
+          </p>
+        ) : null}
       </div>
   );
 

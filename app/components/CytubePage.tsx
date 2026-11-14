@@ -24,25 +24,31 @@ import StreamQueueWindow from './StreamQueueWindow';
 /**
  * The CYTUBE page (SPEC-cytube.md): what streaming here is, the live rooms, the stream canvases, and - always
  * above the tabs - GO LIVE (with the side panel's GO LIVE key, the only places a room is started) and CUSTOMIZE LAYOUT (your broadcast look).
- * Signed out (SPEC-guests.md): ABOUT and ROOM, to join from. Going live, your look and the canvases are for accounts.
+ * Signed out (SPEC-guests.md): ROOMS and ABOUT, to join from. Going live, your look and the canvases are for accounts.
  *
- * The tab is in the address (`?tab=live`), so a link can open on the list of live rooms.
+ * The tab is in the address (`?tab=about`, `?tab=canvases`). A bare address opens on the rooms (Luke, 2026-11-14), and
+ * an old `?tab=live` link still opens them.
  */
 
 type Tab = 'about' | 'live' | 'canvases';
 
+// ROOMS first and the default, ABOUT last (Luke, 2026-11-14: "re order the sub pages so that 'rooms' is the default and
+// 'about' is the last option"). It read ROOM from 2026-11-05; ROOMS now, as he calls it and as it lists them. The key
+// stays 'live', so an old `?tab=live` link still opens it.
 const TABS: readonly { key: Tab; label: string }[] = [
-  { key: 'about', label: 'ABOUT' },
-  // Reads ROOM (Luke, 2026-11-05); the address keeps `?tab=live`, so old links still open it.
-  { key: 'live', label: 'ROOM' },
+  { key: 'live', label: 'ROOMS' },
   { key: 'canvases', label: 'CANVASES' },
+  { key: 'about', label: 'ABOUT' },
 ];
+
+/** The tab a bare address opens on. */
+const FIRST_TAB: Tab = 'live';
 
 /** How many live rooms the CANVASES tab asks about an open canvas. */
 const OPEN_CANVAS_ROOMS = 12;
 
 function readTab(value: string | null, tabs: readonly { key: Tab }[]): Tab {
-  return tabs.find((tab) => tab.key === value)?.key ?? 'about';
+  return tabs.find((tab) => tab.key === value)?.key ?? FIRST_TAB;
 }
 
 export default function CytubePage() {
@@ -68,7 +74,7 @@ function StreamTabs({ user }: { user: AccountUser | null }) {
   const [layoutOpen, setLayoutOpen] = useState(false);
 
   function show(next: Tab) {
-    router.replace(next === 'about' ? pathname : `${pathname}?tab=${next}`, { scroll: false });
+    router.replace(next === FIRST_TAB ? pathname : `${pathname}?tab=${next}`, { scroll: false });
   }
 
   return (
@@ -156,7 +162,7 @@ function About() {
         before.
       </AboutPart>
       <AboutPart title="GUESTS">
-        You can join a room without an account: from the ROOM tab, or with a room&apos;s link. A private room asks for its password if it has one, and until you are in you see
+        You can join a room without an account: from the ROOMS tab, or with a room&apos;s link. A private room asks for its password if it has one, and until you are in you see
         only ANON tags and bars. To talk or draw you pick a name, which shows with [GUEST] after it, or log in. Going live, the queue, saving a canvas and chat pictures need an account. A host can
         turn GUESTS CAN TALK off, which stops guests drawing too, and can remove a guest.
       </AboutPart>

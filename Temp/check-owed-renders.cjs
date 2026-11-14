@@ -570,34 +570,47 @@ test('CytubeLiveStreams: null until the first answer, then only live rooms, play
 });
 
 // --- CytubePage
-test('CytubePage: signed out, ABOUT and ROOM to join from and no way to go live (SPEC-guests.md); still checking, a prompt', () => {
+test('CytubePage: signed out, ROOMS and ABOUT to join from and no way to go live (SPEC-guests.md); still checking, a prompt', () => {
   auth = { status: 'signed-out', user: null };
   let html = draw(el(CytubePage));
   assert.doesNotMatch(visible(html), /SIGN IN TO USE \w+/);
   assert.match(visible(html), /YOU CAN JOIN A ROOM WITHOUT AN ACCOUNT/);
   assert.match(openingTag(html, '[ LOG IN ]'), /href="\/account"/);
-  assert.ok(html.includes('role="tablist"') && visible(html).includes('[ ROOM ]') && visible(html).includes('[ ABOUT ]'));
+  assert.ok(html.includes('role="tablist"') && visible(html).includes('[ ROOMS ]') && visible(html).includes('[ ABOUT ]'));
   assert.ok(!html.includes('GO LIVE ]') && !html.includes('data-cytube-layout-key') && !visible(html).includes('[ CANVASES ]'));
   auth = { status: 'loading', user: null };
   html = draw(el(CytubePage));
   assert.equal(visible(html), 'CHECKING YOUR SIGN-IN...');
 });
-test('CytubePage: opens on ABOUT, whatever the address says that is not a tab', () => {
-  for (const at of ['', 'tab=nonsense']) {
+// (2026-11-14, Luke: "re order the sub pages so that 'rooms' is the default and 'about' is the last option") These three
+// pinned ABOUT first and the default, and the tab reading ROOM; changed on purpose to ROOMS first and ABOUT last.
+test('CytubePage: opens on ROOMS, whatever the address says that is not a tab; an old ?tab=live link opens them too', () => {
+  for (const at of ['', 'tab=nonsense', 'tab=live']) {
     address = at;
     const html = draw(el(CytubePage));
-    assert.match(openingTag(html, '[ ABOUT ]'), /aria-selected="true"/);
-    assert.match(openingTag(html, '[ ROOM ]'), /aria-selected="false"/);
-    assert.ok(html.includes('id="cytube-panel-about"'));
-    for (const heading of ['ROOMS', 'CROWNS', 'THE CANVAS', 'YOUR LOOK']) assert.ok(html.includes(`>${heading}</h2>`), heading);
+    assert.match(openingTag(html, '[ ROOMS ]'), /aria-selected="true"/, at);
+    assert.match(openingTag(html, '[ ABOUT ]'), /aria-selected="false"/, at);
+    assert.ok(html.includes('id="cytube-panel-live"'), at);
+    assert.ok(!html.includes('data-cytube-about'), at);
   }
 });
-test('CytubePage: a tab key writes the address, and ABOUT clears it', () => {
+test('CytubePage: the tabs read ROOMS, CANVASES, ABOUT in that order, and ?tab=about opens ABOUT', () => {
+  address = 'tab=about';
+  const html = draw(el(CytubePage));
+  const words = visible(html);
+  const at = ['[ ROOMS ]', '[ CANVASES ]', '[ ABOUT ]'].map((label) => words.indexOf(label));
+  assert.ok(at[0] >= 0 && at[0] < at[1] && at[1] < at[2], `ROOMS, CANVASES, ABOUT: ${at}`);
+  assert.ok(!words.includes('[ ROOM ]'), 'the tab reads ROOMS now');
+  assert.match(openingTag(html, '[ ABOUT ]'), /aria-selected="true"/);
+  assert.ok(html.includes('id="cytube-panel-about"'));
+  for (const heading of ['ROOMS', 'CROWNS', 'THE CANVAS', 'YOUR LOOK']) assert.ok(html.includes(`>${heading}</h2>`), heading);
+});
+test('CytubePage: a tab key writes the address, and ROOMS clears it', () => {
   draw(el(CytubePage));
-  press('[ ROOM ]');
   press('[ ABOUT ]');
+  press('[ ROOMS ]');
   assert.deepEqual(said('replace'), [
-    ['replace', '/here?tab=live', { scroll: false }],
+    ['replace', '/here?tab=about', { scroll: false }],
     ['replace', '/here', { scroll: false }],
   ]);
 });

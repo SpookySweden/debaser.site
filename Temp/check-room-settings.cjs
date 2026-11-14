@@ -99,7 +99,8 @@ const room = { hostId: 'host', endedAt: null, addMode: 'anyone' };
 
   // 6. The page.
   const page = fs.readFileSync('app/components/CytubePage.tsx', 'utf8');
-  assert.match(page, /\{ key: 'live', label: 'ROOM' \}/, 'the tab reads ROOM, and old ?tab=live links still open it');
+  // (2026-11-14) It read ROOM; Luke's list makes it the first tab and calls it "rooms", so it reads ROOMS. The key is unchanged.
+  assert.match(page, /\{ key: 'live', label: 'ROOMS' \}/, 'the tab reads ROOMS, and old ?tab=live links still open it');
   assert.match(page, /\[ GO LIVE \]/, 'GO LIVE stays, as Luke chose');
   const roomPage = fs.readFileSync('app/components/WatchRoom.tsx', 'utf8');
   assert.match(roomPage, /mayEditRoom\(room, read\.crowns, user\.id, live\) \? \(\s*<button[\s\S]{0,300}data-room-settings-key/,'the cog is only for those who may use it');
