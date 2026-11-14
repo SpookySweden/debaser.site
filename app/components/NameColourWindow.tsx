@@ -7,7 +7,7 @@ import {
   SITE_COLOUR_LABEL,
   nameColourDark,
   nameColourPairLabel,
-  nameColourWearsStrip,
+  nameColourWearsEdge,
   nameOnThemes,
 } from '../lib/profile/name-colours';
 import { KEY_FOCUS, PLATE_MAIN } from '../lib/ui/controls';
@@ -25,8 +25,13 @@ const COLOUR_ROW = `${KEY_FOCUS} flex w-full cursor-pointer flex-wrap items-cent
 /** The two groups the arithmetic produces (see app/lib/profile/name-colours.ts). */
 const NAME_COLOUR_GROUPS = [
   { label: 'READS ON ITS OWN', colours: NAME_COLOURS_THAT_READ },
-  { label: 'DARK STRIP ON BRIGHT THEMES', colours: NAME_COLOURS_THAT_GLOW },
+  { label: 'OUTLINED ON BRIGHT THEMES', colours: NAME_COLOURS_THAT_GLOW },
 ];
+
+/** The same eight hard copies `.name-edge` draws (globals.css), for a line shown in another theme's colours than the one in use. */
+function edgeShadow(edge: string): string {
+  return [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]].map(([x, y]) => `${x}px ${y}px 0 ${edge}`).join(', ');
+}
 
 /** The pair `.name-ink` picks between (globals.css), so this draws exactly what the board draws. */
 export function nameInkStyle(hex: string): CSSProperties {
@@ -36,10 +41,10 @@ export function nameInkStyle(hex: string): CSSProperties {
 function NameColourRow({ hex, label, sample, chosen, onChoose }: { hex: string; label: string; sample: string; chosen: boolean; onChoose: (hex: string) => void }) {
   // No swatch means the theme's own ink, which has no pair to pick between.
   const ink = hex.length === 0 ? { className: 'text-ink', style: undefined } : { className: 'name-ink', style: nameInkStyle(hex) };
-  // The block shows what the name is drawn in. A colour on the strip takes its dark reading on every theme.
-  const stripped = nameColourWearsStrip(hex);
+  // The block shows what the name is drawn in. An outlined colour takes its dark reading on every theme.
+  const edged = nameColourWearsEdge(hex);
   const dark = nameColourDark(hex);
-  const blockStyle = stripped ? ({ '--name-ink': dark, '--name-ink-dark': dark } as CSSProperties) : ink.style;
+  const blockStyle = edged ? ({ '--name-ink': dark, '--name-ink-dark': dark } as CSSProperties) : ink.style;
 
   return (
     <button
@@ -56,8 +61,8 @@ function NameColourRow({ hex, label, sample, chosen, onChoose }: { hex: string; 
       <span aria-hidden="true" className={`${ink.className} h-6 w-6 shrink-0 border-line border-ink bg-current`} style={blockStyle} />
       <span className="w-52 shrink-0">{label}</span>
       <span aria-hidden="true" className="min-w-0 flex-1 basis-40 truncate text-title">
-        {/* Its own inline box, so a strip is as wide as the name and not the row. The block above never wears one. */}
-        <span className={`${ink.className} ${stripped ? 'name-strip' : ''}`} style={ink.style}>
+        {/* The name as the board draws it, outline and all. The block above never wears one. */}
+        <span className={`${ink.className} ${edged ? 'name-edge' : ''}`} style={ink.style}>
           {sample}
         </span>
       </span>
@@ -79,7 +84,7 @@ function NameOnEveryTheme({ hex, sample }: { hex: string; sample: string }) {
           >
             <span className="w-24 shrink-0">{theme.label}</span>
             <span className="min-w-0 flex-1 basis-40 truncate text-title">
-              <span className={theme.strip === null ? undefined : 'px-1'} style={{ color: theme.value, backgroundColor: theme.strip ?? undefined }}>
+              <span style={{ color: theme.value, textShadow: theme.edge === null ? undefined : edgeShadow(theme.edge) }}>
                 {sample}
               </span>
             </span>

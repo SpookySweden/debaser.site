@@ -185,7 +185,10 @@ assert.equal(typeof validateNameColour('#123456'), 'string', 'off-swatch colours
   assert.match(chooserHtml, /aria-label="BLACK \/ WHITE"/, 'a dye that draws two colours says both');
   assert.match(chooserHtml, /aria-label="TEAL"/, 'and the new colours are there');
   assert.match(chooserHtml, />READS ON ITS OWN<\/p>/, 'the readable colours are one group');
-  assert.match(chooserHtml, />DARK STRIP ON BRIGHT THEMES<\/p>/, 'and the bright ones another');
+  // Changed on purpose 2026-11-14 (Luke: "opt for a border instead of a bar"): those colours are outlined now, so the group says so.
+  // It was `DARK STRIP ON BRIGHT THEMES`.
+  assert.match(chooserHtml, />OUTLINED ON BRIGHT THEMES<\/p>/, 'and the bright ones another');
+  assert.doesNotMatch(chooserHtml, /DARK STRIP/, 'named for the outline, not the strip that went');
   assert.doesNotMatch(chooserHtml, />INK<\/p>|>GLOW<\/p>|PREVIEW ::/, 'the old heads and the readback are gone');
   assert.equal((chooserHtml.match(/>sweden<\/span>/g) ?? []).length, 18 + 5, 'the reader own name beside each choice and on all five themes');
   for (const colour of NAME_COLOURS) assert.doesNotMatch(chooser(colour.hex), /HARD TO READ/, colour.label + ' reads on every theme, so nothing warns');

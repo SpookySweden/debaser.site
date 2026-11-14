@@ -4,7 +4,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { authorLabel } from '../lib/auth/author';
 import { showsPresenceLamp } from '../lib/auth/builtin-account';
 import type { ForumAuthor } from '../lib/forum/types';
-import { nameColourDark, nameColourWearsStrip, profileNameColour } from '../lib/profile/name-colours';
+import { nameColourDark, nameColourWearsEdge, profileNameColour } from '../lib/profile/name-colours';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import CountryFlag from './CountryFlag';
 import { usePresence } from './PresenceProvider';
@@ -66,8 +66,8 @@ export default function ProfileName({ author, children, className, colour, lamp 
       ? undefined
       : ({ '--name-ink': chosen, '--name-ink-dark': nameColourDark(chosen) } as CSSProperties);
 
-  // A colour that would fade into a bright window wears a dark strip there: see `.name-strip` in globals.css.
-  const inkClass = chosen !== undefined && nameColourWearsStrip(chosen) ? 'name-ink name-strip' : 'name-ink';
+  // A colour that would fade into a bright window has its letters outlined there: see `.name-edge` in globals.css.
+  const inkClass = chosen !== undefined && nameColourWearsEdge(chosen) ? 'name-ink name-edge' : 'name-ink';
   const classes = ink === undefined ? className : className === undefined ? inkClass : `${className} ${inkClass}`;
 
   return (

@@ -60,6 +60,12 @@ No Win95 bevels anywhere - not on windows, not on buttons, not on the scrollbar.
   and the side panel's shelf has no ARCADE key (`ARCADE_KEY_SHOWN` in `SiteNav.tsx`; the arcade still opens
   from an invitation or a challenge). Docked and pop-up windows have no foot unless they carry their own
   keys there.
+- **FILL WINDOW** (Luke, 2026-11-07; reworked 2026-11-14): one worded key at the far end of the top bar,
+  `[ FILL WINDOW ]`, makes the OS window run edge to edge (its title line stands aside) and then reads
+  `[ SHRINK WINDOW ]`. It changes the window's size and nothing else: the side panel stays as the reader has it.
+  The choice is kept in the browser and written on `<html>` before the first paint (`data-site-fill`), and the
+  stylesheet lays the window out from that mark, so a reload never draws the normal window first. From `md` up
+  only; a page that fills by itself (the beat box, ANIMATE, the reader) has no key.
 - **Keys are bracket keys** (`PLATE`, `.key`; SPEC-efficiency.md, 2026-10-23): a key is its label in
   brackets, `[ LOG IN ]`, in the accent ink, with **no outline**. Accent-ink brackets mean "press me", so
   a bracketed readout that is not a key (`[ 3 ]`, `[ READ ONLY ]`) is cut or loses its brackets.
@@ -87,7 +93,11 @@ No Win95 bevels anywhere - not on windows, not on buttons, not on the scrollbar.
   action elsewhere is one line, `[ LOG IN ] TO <DO THE THING>`.
 - Colour is for accents. Big fills are the window colour; colour marks what matters.
 - **Names keep their colour and stay readable** (Luke, 2026-11-06): on a bright theme, a name in a colour that would
-  fade into the window (Emerald, Rose, Brilliant Pink, Flavine, Daffodil) sits on a thin Black strip (`.name-strip`).
+  fade into the window (Emerald, Rose, Brilliant Pink, Flavine, Daffodil) has each letter outlined in Black: a hard
+  one-pixel edge all the way round, no blur, as lettering in a pixel game has (`.name-edge`; Luke, 2026-11-14: "a
+  border instead of a bar"; it was a Black strip behind the name until then). The letter inside takes its dark
+  reading. Readable means two things here, both 4.5:1 or better: the edge against the window, and the letter against
+  its edge (`Temp/check-name-colour.cjs`). No outline on a dark theme, where every name colour reads on its own.
 - **Faults are Rose chips** (errors, refusals, warnings, the unread count): White words on a Rose strip,
   `bg-bubble-pale px-1 text-ink-bar` (`w-fit` on a block), 4.70:1 in both themes. Never Rose *words* on
   the window: that is 3.79:1 on Nigrosine and 4.14:1 on Flavine. `Temp/check-themes.cjs` holds it.

@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { countryName, countryOptions } from '../lib/profile/countries';
-import { SITE_COLOUR_LABEL, nameColourWearsStrip, nameColourWords } from '../lib/profile/name-colours';
+import { SITE_COLOUR_LABEL, nameColourWearsEdge, nameColourWords } from '../lib/profile/name-colours';
 import { MAX_BIO_LENGTH, MAX_STATUS_LENGTH } from '../lib/profile/types';
 import type { PublicProfile } from '../lib/profile/types';
 import { FIELD, PLATE_LARGE } from '../lib/ui/controls';
@@ -75,7 +75,7 @@ export function ProfileIdentityTab({
       {/* The name as it stands, in the colour it will be read in, and that colour in words. */}
       <p className="mt-1 flex flex-wrap items-center gap-x-2 text-label text-ink">
         <span
-          className={`text-title ${nameColour.length === 0 ? 'text-ink' : 'name-ink'} ${nameColourWearsStrip(nameColour) ? 'name-strip' : ''}`}
+          className={`text-title ${nameColour.length === 0 ? 'text-ink' : 'name-ink'} ${nameColourWearsEdge(nameColour) ? 'name-edge' : ''}`}
           style={nameColour.length === 0 ? undefined : nameInkStyle(nameColour)}
         >
           {preview}

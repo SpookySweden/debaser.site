@@ -54,6 +54,37 @@ body {
   background-size: 4px 4px;
 }
 
+/* FILL WINDOW, the reader's own choice (app/lib/ui/site-fill.ts): while `<html>` carries the mark, the site window runs edge to edge
+   between the strips, its title line stands aside and the desk shows no margin, from `md` up as before. Laid out here, from the
+   mark, rather than from classes React swaps in: the mark is written before the first paint, so a reload never draws the normal
+   window first and then jumps (Luke, 2026-11-14). Unlayered, so it wins over the window's own size utilities. A page that fills by
+   itself (`SiteWindow`'s `fill`: the beat box, ANIMATE, the reader) carries the same sizes as classes and never reads the mark. */
+@media (width >= theme(--breakpoint-md)) {
+  html[data-site-fill='on'] [data-site-window='desk'] {
+    padding: 0;
+  }
+
+  html[data-site-fill='on'] [data-site-window='frame'] {
+    flex: 1 1 0%;
+    width: 100%;
+    max-width: none;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    margin-block: 0;
+  }
+
+  html[data-site-fill='on'] [data-site-window='title'] {
+    display: none;
+  }
+}
+
+/* The key's own words follow the same mark (FullWindowKey.tsx): FILL WINDOW when normal, SHRINK WINDOW when filled. */
+html:not([data-site-fill='on']) .fill-key-on,
+html[data-site-fill='on'] .fill-key-off {
+  display: none;
+}
+
 
 /* Cursors ---------------------------------------------------------------------
    The retro pointer is a hand-drawn file, like every other mark on this site: nothing draws an
@@ -1103,6 +1134,11 @@ img {
   .key.key-fill.module-on {
     --key-fill: var(--module-ink, var(--color-ink));
     color: var(--color-paper);
+  }
+
+  /* Only the page you are on glows. MODULOS wears the same filled face while its list is open, without the halo: it is open, not
+     where you are. */
+  .key.key-fill.module-on[aria-current='page'] {
     box-shadow:
       0 0 0 2px color-mix(in srgb, var(--key-fill) 60%, transparent),
       0 0 0 4px color-mix(in srgb, var(--key-fill) 28%, transparent);
@@ -1122,7 +1158,7 @@ img {
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .key.key-fill.module-on {
+    .key.key-fill.module-on[aria-current='page'] {
       animation: none;
     }
   }
@@ -1723,15 +1759,25 @@ img {
   color: var(--name-ink-dark, var(--name-ink));
 }
 
-/* The colours that would fade into a bright window sit on a thin Black strip (Luke, 2026-11-06): Flavine on the
-   Flavine window was 1:1. The strip is a piece of dark field, so a name takes its dark reading on it (Rose's lighter
-   shade, because plain Rose on Black is 4.47:1). `clone` so a name that wraps has its strip on every line. */
-:root[data-scheme='light'] .name-strip {
+/* The colours that would fade into a bright window have each letter outlined in Black (Luke, 2026-11-14: "opt for a border
+   instead of a bar"; Flavine on the Flavine window was 1:1). Eight copies of the letters, one pixel out in every direction and
+   with no blur, make a hard edge all the way round, as lettering in a pixel game has. The letter inside takes its dark reading,
+   the shade made to be read against dark (Rose's lighter one: plain Rose on Black is 4.47:1). A shadow takes no room, so the
+   name keeps its width and nothing beside it moves. It was a Black strip behind the whole name from 2026-11-06. */
+:root[data-scheme='light'] .name-edge {
+  --edge: var(--color-hardware);
   color: var(--name-ink-dark, var(--name-ink));
-  background-color: var(--color-hardware);
-  padding-inline: 0.25em;
-  -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
+  /* A linked name's underline is edged too: dropped a little, so it does not run into the letters' tails. */
+  text-underline-offset: 0.2em;
+  text-shadow:
+    1px 0 0 var(--edge),
+    -1px 0 0 var(--edge),
+    0 1px 0 var(--edge),
+    0 -1px 0 var(--edge),
+    1px 1px 0 var(--edge),
+    -1px 1px 0 var(--edge),
+    1px -1px 0 var(--edge),
+    -1px -1px 0 var(--edge);
 }
 
 /* A directory row under the pointer lights up in its account's name colour, and its words flip to the
@@ -1772,9 +1818,9 @@ img {
     background-color: transparent;
   }
 
-  /* The whole row is lit and the name has taken the row's ink, so a strip would be a dark box on it with dark words. */
-  :root .name-glow:hover .name-strip {
-    background-color: transparent;
+  /* The whole row is lit and the name has taken the row's ink, which reads on the fill by itself: no edge there. */
+  :root .name-glow:hover .name-edge {
+    text-shadow: none;
   }
 }
 

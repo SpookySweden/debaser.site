@@ -193,11 +193,12 @@ export function nameColourWords(hex: string): string {
 }
 
 /**
- * Whether a name in this colour wears the dark strip on a bright theme (Luke, 2026-11-06): the GLOW colours, which
- * would otherwise fade into the window, sit on a strip of `--color-hardware` (`.name-strip` in globals.css). The strip is
- * a piece of dark field, so they take their dark reading on it.
+ * Whether a name in this colour wears the dark edge on a bright theme: the GLOW colours, which would otherwise fade into the
+ * window. Each letter gets a hard one-pixel outline of `--color-hardware`, as lettering in a pixel game has (`.name-edge` in
+ * globals.css), and the letter inside takes its dark reading, the shade made to be read against dark. It was a dark strip
+ * behind the whole name from 2026-11-06 until Luke asked for "a border instead of a bar" (2026-11-14).
  */
-export function nameColourWearsStrip(hex: string): boolean {
+export function nameColourWearsEdge(hex: string): boolean {
   return NAME_COLOURS_THAT_GLOW.some((colour) => colour.hex === hex);
 }
 
@@ -210,8 +211,9 @@ export type NameOnTheme = {
   ink: string;
   /** What this choice is drawn as there: the same reading `.name-ink` picks by the theme's scheme. */
   value: string;
-  /** The strip behind the name there, or null where it stands on the window itself. */
-  strip: string | null;
+  /** The outline round the name's letters there, or null where the name stands on the window with none. */
+  edge: string | null;
+  /** With an edge: the edge reads on the window and the letter reads on its edge. Without: the letter reads on the window. */
   readable: boolean;
 };
 
@@ -222,9 +224,10 @@ export function nameOnThemes(hex: string): NameOnTheme[] {
   return THEMES.map((theme) => {
     const field = theme.tokens['sun-pale'];
     const ink = theme.tokens.ink;
-    const strip = theme.scheme === 'light' && nameColourWearsStrip(hex) ? theme.tokens.hardware : null;
-    const value = swatch === undefined ? ink : theme.scheme === 'dark' || strip !== null ? swatch.dark : swatch.hex;
-    return { id: theme.id, label: theme.label, field, ink, value, strip, readable: contrastRatio(value, strip ?? field) >= READABLE };
+    const edge = theme.scheme === 'light' && nameColourWearsEdge(hex) ? theme.tokens.hardware : null;
+    const value = swatch === undefined ? ink : theme.scheme === 'dark' || edge !== null ? swatch.dark : swatch.hex;
+    const readable = edge === null ? contrastRatio(value, field) >= READABLE : contrastRatio(edge, field) >= READABLE && contrastRatio(value, edge) >= READABLE;
+    return { id: theme.id, label: theme.label, field, ink, value, edge, readable };
   });
 }
 

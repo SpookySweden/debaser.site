@@ -204,44 +204,66 @@ for (const theme of THEMES) {
   assert.equal(shown.value, theme.scheme === 'dark' ? '#ffffff' : '#000000', 'the strip draws what .name-ink draws on ' + theme.label);
   assert.equal(shown.readable, contrastRatio(shown.value, theme.tokens['sun-pale']) >= 4.5);
 }
-// The strip (Luke, 2026-11-06): every choice reads on every theme now, and a faded colour keeps its colour on a bright one.
-const { nameColourWearsStrip } = require('./name-colour-render/lib/profile/name-colours.js');
+// The edge. Changed on purpose 2026-11-14 (Luke: "for usernames on different themes where they need it to be readable with their selected
+// colour opt for a border instead of a bar"; confirmed in the main session: "Outline the letters"). From 2026-11-06 a faded colour sat on
+// a Black strip on a bright theme (`.name-strip`, `nameColourWearsStrip`, `theme.strip`). Now each of its letters has a hard one-pixel
+// Black outline (`.name-edge`, `nameColourWearsEdge`, `theme.edge`) and no box behind the name. What "readable" means for an edged name:
+// the edge reads on the window (the letter's shape), and the letter reads on its edge (its colour). Both are held at 4.5:1 below.
+const { nameColourWearsEdge } = require('./name-colour-render/lib/profile/name-colours.js');
 for (const swatch of NAME_COLOURS) {
   for (const theme of nameOnThemes(swatch.hex)) {
-    assert.ok(theme.readable, swatch.label + ' reads on ' + theme.label + ': ' + contrastRatio(theme.value, theme.strip ?? theme.field).toFixed(2) + ':1');
+    assert.ok(theme.readable, swatch.label + ' reads on ' + theme.label + ': ' + contrastRatio(theme.value, theme.edge ?? theme.field).toFixed(2) + ':1');
   }
 }
 // All seventeen, on both surfaces a name is read on, in all five themes: the real values, not by eye.
 for (const swatch of NAME_COLOURS) {
   for (const theme of THEMES) {
-    const value = theme.scheme === 'dark' || nameColourWearsStrip(swatch.hex) ? swatch.dark : swatch.hex;
-    const fields = theme.scheme === 'light' && nameColourWearsStrip(swatch.hex) ? [theme.tokens.hardware] : [theme.tokens['sun-pale'], theme.tokens.paper];
-    for (const field of fields) {
-      const ratio = contrastRatio(value, field);
-      assert.ok(ratio >= 4.5, swatch.label + ' on ' + theme.label + ' (' + field + '): ' + ratio.toFixed(2) + ':1');
+    const edged = theme.scheme === 'light' && nameColourWearsEdge(swatch.hex);
+    const value = theme.scheme === 'dark' || nameColourWearsEdge(swatch.hex) ? swatch.dark : swatch.hex;
+    for (const field of [theme.tokens['sun-pale'], theme.tokens.paper]) {
+      if (edged) {
+        const shape = contrastRatio(theme.tokens.hardware, field);
+        const colour = contrastRatio(value, theme.tokens.hardware);
+        assert.ok(shape >= 4.5, swatch.label + "'s edge on " + theme.label + ' (' + field + '): ' + shape.toFixed(2) + ':1');
+        assert.ok(colour >= 4.5, swatch.label + ' inside its edge on ' + theme.label + ': ' + colour.toFixed(2) + ':1');
+      } else {
+        const ratio = contrastRatio(value, field);
+        assert.ok(ratio >= 4.5, swatch.label + ' on ' + theme.label + ' (' + field + '): ' + ratio.toFixed(2) + ':1');
+      }
     }
   }
 }
 assert.ok(nameOnThemes('#e6004c').every((theme, index) => theme.value !== nameOnThemes('#ff00a0')[index].value), 'Rose is its own colour again on every theme');
 for (const swatch of NAME_COLOURS) {
-  assert.equal(nameColourWearsStrip(swatch.hex), !NAME_COLOURS_THAT_READ.includes(swatch), swatch.label + ' wears the strip only if it would fade');
+  assert.equal(nameColourWearsEdge(swatch.hex), !NAME_COLOURS_THAT_READ.includes(swatch), swatch.label + ' is outlined only if it would fade');
   for (const theme of nameOnThemes(swatch.hex)) {
     const light = THEMES.find((entry) => entry.id === theme.id).scheme === 'light';
-    assert.equal(theme.strip !== null, light && nameColourWearsStrip(swatch.hex), swatch.label + ' on ' + theme.label + ': a strip on bright themes only');
-    if (theme.strip !== null) assert.equal(theme.value, swatch.dark, swatch.label + ' takes its dark reading on the strip, as .name-strip draws it');
+    assert.equal(theme.edge !== null, light && nameColourWearsEdge(swatch.hex), swatch.label + ' on ' + theme.label + ': an edge on bright themes only');
+    if (theme.edge !== null) assert.equal(theme.value, swatch.dark, swatch.label + ' takes its dark reading inside the edge, as .name-edge draws it');
+    assert.equal('strip' in theme, false, 'and nothing reports a strip any more');
   }
 }
 const flavineName = withProviders(element(ProfileName, { author: { id: 'user-x', displayName: 'x' }, colour: '#e1ff00' }));
-assert.match(flavineName, /class="name-ink name-strip"/, 'a faded name is drawn with the strip');
+assert.match(flavineName, /class="name-ink name-edge"/, 'a faded name is drawn with the edge');
+assert.doesNotMatch(flavineName, /name-strip/, 'and not with the strip');
 const blueName = withProviders(element(ProfileName, { author: { id: 'user-x', displayName: 'x' }, colour: '#1d3ca6' }));
-assert.doesNotMatch(blueName, /name-strip/, 'and a name that reads on its own is not');
+assert.doesNotMatch(blueName, /name-edge|name-strip/, 'and a name that reads on its own wears neither');
 const css = require('node:fs').readFileSync('app/globals.css', 'utf8').replace(/\r\n/g, '\n');
-const stripRule = /:root\[data-scheme='light'\] \.name-strip \{([^}]*)\}/.exec(css);
-assert.ok(stripRule, 'the strip belongs to bright themes only');
-assert.match(stripRule[1], /background-color: var\(--color-hardware\)/, 'and is the colour the arithmetic above asked about');
-assert.match(stripRule[1], /color: var\(--name-ink-dark, var\(--name-ink\)\)/, 'and draws the reading the arithmetic above asked about');
-assert.doesNotMatch(css, /^\.name-strip/m, 'nothing draws it on a dark theme');
-assert.match(css, /\.name-glow:hover \.name-strip \{\s*background-color: transparent;/, 'and a lit directory row has no dark box on it');
+const edgeRule = /:root\[data-scheme='light'\] \.name-edge \{([^}]*)\}/.exec(css);
+assert.ok(edgeRule, 'the edge belongs to bright themes only');
+assert.match(edgeRule[1], /--edge: var\(--color-hardware\)/, 'and is the colour the arithmetic above asked about');
+assert.match(edgeRule[1], /color: var\(--name-ink-dark, var\(--name-ink\)\)/, 'and draws the reading the arithmetic above asked about');
+// Each copy is `x y blur colour`: x and y are 0, 1px or -1px, and the blur is 0.
+const copies = edgeRule[1].match(/(?:-?\d+px|0) (?:-?\d+px|0) \S+ var\(--edge\)/g) ?? [];
+assert.equal(new Set(copies).size, 8, 'eight copies of the letters, one pixel out in each direction: an edge all the way round');
+assert.ok(copies.every((copy) => /^(-?1px|0) (-?1px|0) 0 /.test(copy)), 'each one pixel out and with no blur: a hard edge');
+assert.doesNotMatch(edgeRule[1], /background/, 'and no box behind the name: the bar is gone');
+assert.doesNotMatch(css, /\.name-strip/, 'the strip rule is gone from the stylesheet');
+assert.doesNotMatch(css, /^\.name-edge/m, 'nothing draws the edge on a dark theme');
+assert.match(css, /\.name-glow:hover \.name-edge \{\s*text-shadow: none;/, 'and a lit directory row, whose name takes the row\'s own ink, has no edge');
+for (const file of ['app/components/ProfileName.tsx', 'app/components/NameColourWindow.tsx', 'app/components/ProfileCustomiserOptionsTabs.tsx']) {
+  assert.doesNotMatch(require('node:fs').readFileSync(file, 'utf8'), /name-strip|WearsStrip/, file + ' no longer asks for the strip');
+}
 assert.equal(profileNameColour({ nameColour: '#800000' }), undefined, 'a colour since taken off the swatch counts as none');
 
 // MODULOS: the label beside the square is the colour in the square.

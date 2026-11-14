@@ -28,6 +28,7 @@ import WatchWindow from './components/WatchWindow';
 import LetterWindow from './components/LetterWindow';
 import WindowLayoutHost from './components/WindowLayoutHost';
 import { cursorBootScript } from './lib/ui/cursor-slot';
+import { siteFillBootScript } from './lib/ui/site-fill';
 import { themeBootScript } from './lib/ui/theme-slot';
 import { FACE_VARIABLES } from './theme/fonts';
 import './globals.css';
@@ -68,7 +69,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
           later - and it exists because those writes land in a React effect, which is one painted frame
           too late: a reader who chose the dark theme saw a white flash first. */}
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeBootScript() + cursorBootScript() }} />
+        <script dangerouslySetInnerHTML={{ __html: themeBootScript() + cursorBootScript() + siteFillBootScript() }} />
       </head>
       <body className="min-h-full flex flex-col">
         {/* The reader's theme, written onto <html> before anything else the client does. It draws

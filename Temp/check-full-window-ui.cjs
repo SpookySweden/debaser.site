@@ -67,53 +67,92 @@ async function test(name, run) {
     return { context, page: await context.newPage() };
   };
 
-  await test('the key: top right of the window, named, a full tap target; on it fills, and it collapses from the same place', async () => {
+  // Changed on purpose 2026-11-14 (Luke: "the 'fill in the window' button in the top right is pretty buggy and not very obvious so fix
+  // that"). The key was four corner characters, in the title line when normal and in the top bar when filled, and filling folded the
+  // side panel. It is now one worded key at the far end of the top bar in both states, and it changes the window's size only.
+  await test('the key: one worded key at the far end of the top bar, a full tap target; it fills, and collapses from the same bar', async () => {
     const { context, page } = await fresh();
     await go(page, '/forum');
     assert.equal(await isFilled(page), false, 'normal to begin with');
     const key = page.locator(KEY);
-    assert.equal(await key.getAttribute('aria-label'), 'Fill the window');
+    assert.equal(await key.count(), 1, 'one key');
+    assert.equal(await key.getAttribute('aria-label'), 'Fill window');
     assert.equal(await key.getAttribute('aria-pressed'), 'false');
+    assert.equal((await key.innerText()).trim(), '[ FILL WINDOW ]', 'it says what a press will do');
+    assert.equal(await page.locator(`nav[aria-label="Modules"] ${KEY}`).count(), 1, 'it sits in the top bar');
     const before = await frame(page);
     const box = await keyBox(page);
     assert.ok(box.width >= 44 && box.height >= 44, `a full target: ${box.width}x${box.height}`);
     assert.ok(box.x + box.width <= before.right + 1 && before.right - (box.x + box.width) < 24, 'at the right of the window');
-    assert.ok(box.y - before.y < 16, 'at the top of it');
+    assert.ok(box.y - before.y < 60, 'in the bar at the top of it');
+    const panelBefore = await page.locator('aside').count();
+    assert.equal(panelBefore, 1, 'the side panel is open to begin with');
     await page.screenshot({ path: path.join(OUT, 'normal-1440.png') });
     await key.click();
     await page.waitForTimeout(150);
     assert.equal(await isFilled(page), true, 'it fills');
     assert.equal(await stored(page), 'on');
+    assert.equal(await page.evaluate(() => document.documentElement.getAttribute('data-site-fill')), 'on', 'and marks the page');
     const after = await frame(page);
     const on = await keyBox(page);
-    assert.equal(await page.locator(KEY).getAttribute('aria-label'), 'Back to the normal window');
+    assert.equal(await page.locator(KEY).getAttribute('aria-label'), 'Shrink window');
+    assert.equal(await page.locator(KEY).getAttribute('aria-pressed'), 'true');
+    assert.equal((await page.locator(KEY).innerText()).trim(), '[ SHRINK WINDOW ]', 'and now says how to get back');
+    assert.equal(await page.locator(`nav[aria-label="Modules"] ${KEY}`).count(), 1, 'still in the top bar');
     assert.ok(on.x + on.width <= after.right + 1 && after.right - (on.x + on.width) < 24, 'still at the right');
-    assert.ok(on.y - after.y < 16, 'still at the top');
+    assert.ok(on.y - after.y < 16, 'at the very top now: the title line has stood aside');
     assert.ok(on.width >= 44 && on.height >= 44);
     assert.equal(await page.evaluate((selector) => document.activeElement === document.querySelector(selector), KEY), true, 'the cursor stays on the key');
-    assert.equal(await page.locator('aside').count(), 0, 'the side panel steps aside, as on the beat box');
+    assert.equal(await page.locator('aside').count(), panelBefore, 'the side panel stays as it was: the key changes the size of the window and nothing else');
     await page.screenshot({ path: path.join(OUT, 'filled-1440.png') });
     await page.locator(KEY).click();
     await page.waitForTimeout(150);
     assert.equal(await isFilled(page), false, 'and collapses');
     assert.equal(await stored(page), null);
+    assert.equal(await page.evaluate(() => document.documentElement.getAttribute('data-site-fill')), null, 'the mark is gone');
+    // By the keyboard: Enter on the key, and the cursor stays on it both ways.
+    await page.locator(KEY).focus();
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(150);
+    assert.equal(await isFilled(page), true, 'Enter fills');
+    assert.equal(await page.evaluate((selector) => document.activeElement === document.querySelector(selector), KEY), true);
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(150);
+    assert.equal(await isFilled(page), false, 'Enter again collapses');
     await context.close();
   });
 
-  await test('it stays on across pages and a reload, until collapsed', async () => {
+  await test('it stays on across pages and a reload, until collapsed; a reload paints it filled from the first frame', async () => {
     const { context, page } = await fresh();
     await go(page, '/forum');
     await page.locator(KEY).click();
     await page.waitForTimeout(100);
-    await page.getByRole('link', { name: 'PROJECTS' }).first().click();
-    await page.waitForURL(/\/projects/, { timeout: 60000 });
+    // (2026-11-14) MEDIA, not PROJECTS: PROJECTS left the first-visit bar that day.
+    await page.getByRole('link', { name: 'MEDIA' }).first().click();
+    await page.waitForURL(/\/media/, { timeout: 60000 });
     await page.waitForTimeout(500);
     assert.equal(await isFilled(page), true, 'on another page');
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(1000);
+    // The fault this holds (measured before the fix: 1280px wide at 118ms, 1440px at 315ms): the server's normal-sized window was
+    // painted first and jumped to full size once the script had loaded. Every frame of a reload is sampled; none may be narrower.
+    await context.addInitScript(() => {
+      window.__frameWidths = [];
+      const tick = () => {
+        const element = document.querySelector('main > .frame');
+        if (element) window.__frameWidths.push(Math.round(element.getBoundingClientRect().width));
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+    await page.reload({ waitUntil: 'load' });
+    await page.waitForTimeout(1500);
     await passThePopUp(page);
     assert.equal(await isFilled(page), true, 'after a reload');
-    for (const where of ['/media', '/users', '/stream']) {
+    const widths = await page.evaluate(() => window.__frameWidths);
+    const narrowest = Math.min(...widths);
+    assert.ok(widths.length > 10, `sampled ${widths.length} frames`);
+    assert.ok(narrowest >= page.viewportSize().width - 1, `filled from the first frame: the narrowest frame drawn was ${narrowest}px of ${page.viewportSize().width}`);
+    assert.equal((await page.locator(KEY).innerText()).trim(), '[ SHRINK WINDOW ]');
+    for (const where of ['/media', '/users', '/stream', '/projects', '/files']) {
       await go(page, where);
       assert.equal(await isFilled(page), true, `on ${where}`);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true, `no sideways scroll on ${where}`);

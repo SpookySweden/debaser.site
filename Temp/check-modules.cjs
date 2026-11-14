@@ -166,6 +166,8 @@ async function up() {
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await modulosKey.click();
     await list.waitFor({ state: 'visible', timeout: 5000 });
+    await page.mouse.move(0, 0);
+    assert.equal((await look(modulosKey)).halo, 'none', 'MODULOS, with its list open, does not glow: only the page you are on does');
     const standingSwatches = list.getByRole('group', { name: 'FORUM colour' }).locator('button[style]');
     const offered = await standingSwatches.count();
     assert.ok(offered >= 3, `FORUM is offered ${offered} colours`);

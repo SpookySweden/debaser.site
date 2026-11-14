@@ -55,7 +55,9 @@ for (const [name, value] of [
 
 // 2. The window is a window; the page inside it is prose. One class each, and both have to be there.
 const window = codeOf('app/components/SiteWindow.tsx');
-assert.match(window, /main className=[{`"]*desktop-tile[^"`]*select-none/, 'the window itself refuses selection');
+// (2026-11-14) `<main>` carries `data-site-window="desk"` before its classes now (FILL WINDOW's stylesheet hook), so the pattern allows
+// an attribute between the tag and its classes. What is held is unchanged: the window's own classes refuse selection.
+assert.match(window, /<main\b[^>]*className=[{`"]*desktop-tile[^"`]*select-none/, 'the window itself refuses selection');
 assert.match(window, /data-scroll-pane="page"\s+className=[^>]*select-text/, 'and the reading panel turns it back on for what it holds');
 
 // 3. The page tabs are the window's header: written above the page, so the keyboard meets them
