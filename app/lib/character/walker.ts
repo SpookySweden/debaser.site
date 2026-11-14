@@ -189,6 +189,11 @@ export function greet(state: WalkerState): WalkerState {
   return { ...state, activity: 'react', motion: 'wave', tick: 0 };
 }
 
+/** Catching something handed to it (a letter dropped on it): its catch, played through, the clicks' turn left as it was. */
+export function catchIt(state: WalkerState): WalkerState {
+  return { ...state, activity: 'react', motion: 'catch', tick: 0 };
+}
+
 /** A click: the next reaction in turn, from its first tick. */
 export function react(state: WalkerState): WalkerState {
   return { ...state, activity: 'react', motion: REACTIONS[state.nextReaction % REACTIONS.length], tick: 0, nextReaction: state.nextReaction + 1 };

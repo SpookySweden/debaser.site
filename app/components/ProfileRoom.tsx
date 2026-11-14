@@ -87,6 +87,7 @@ export default function ProfileRoom({ userId, displayName, music }: { userId: st
             who="owner"
             label={`${name}'S CHARACTER`}
             hello={visit.out && visit.inRoom}
+            person={userId}
           />
         ) : null}
         {visit.out && visit.inRoom ? (
@@ -99,6 +100,7 @@ export default function ProfileRoom({ userId, displayName, music }: { userId: st
             startX={visit.arriveX}
             who="visitor"
             label="YOUR COMPANION"
+            person={user?.id}
             onSpot={noteSpot}
           />
         ) : null}

@@ -35,7 +35,9 @@ export type CompanionReaction =
   | 'invite'
   | 'recommend'
   | 'look'
-  | 'spoke';
+  | 'spoke'
+  // Catching something handed to it (a letter dropped on it).
+  | 'catch';
 
 export const COMPANION_REACTIONS: readonly CompanionReaction[] = [
   'reply',
@@ -53,6 +55,7 @@ export const COMPANION_REACTIONS: readonly CompanionReaction[] = [
   'recommend',
   'look',
   'spoke',
+  'catch',
 ];
 
 /**
@@ -85,10 +88,10 @@ export function reactionShowsMark(kind: CompanionReaction): boolean {
 /**
  * Reactions a room is never told: they are played on the screen they happen on and nowhere else. A page turned and a
  * theme changed are its owner's own business; a line of chat every browser in the room already has, and works the hop
- * out from it, so nothing extra is sent.
+ * out from it, so nothing extra is sent; a catch is a picture on the screen something was dropped on, and nobody else's.
  */
 export function reactionIsLocal(kind: CompanionReaction): boolean {
-  return kind === 'flick' || kind === 'look' || kind === 'spoke';
+  return kind === 'flick' || kind === 'look' || kind === 'spoke' || kind === 'catch';
 }
 
 /**
@@ -111,6 +114,7 @@ const REACTION_MOTIONS: Record<CompanionReaction, MotionId> = {
   recommend: 'hop',
   look: 'turn',
   spoke: 'hop',
+  catch: 'catch',
 };
 export function reactionMotion(kind: CompanionReaction | null): MotionId {
   return kind === null ? 'hop' : REACTION_MOTIONS[kind];

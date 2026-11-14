@@ -27,7 +27,10 @@ bake.
   pose is a loop played in place of the mood's own (`run` for a chase, `curl` for a long sleep, which dance). An act is a
   one-off played through once (a hop, a stretch, a cheer, a landing); anything longer than a hop is done standing still.
 - **Being picked up** is a phase beside the room visit's (`held`, then `fall`): the brain is not asked while it is in the
-  reader's hand. It is clamped to the screen and above its own floor, and lands on the nearest stretch it can stand on.
+  reader's hand. Two ways in (Luke's list, 2026-11-14): press and drag, or two presses close together (`DOUBLE_MS`),
+  after which it follows the pointer with nothing held down until the next press, Escape or the window losing focus
+  puts it down. On a phone press-and-drag is the natural way; a double tap also lifts it and the next touch puts it
+  down there. Either way it starts and wriggles once (`lifted`, with a `!`) before it hangs (`dangle`). It is clamped to the screen and above its own floor, and lands on the nearest stretch it can stand on.
   Under reduced motion nothing is carried.
 - **Stepped, always.** Ten frames a second in whole pixels, a carry and a fall included. No `requestAnimationFrame`.
 - **Joining in.** A scene (`type`, `game`, `read`, `watch`) settles it where it stands in a pose. Typing, a game and a book
@@ -51,6 +54,11 @@ bake.
 - **Chat.** A line of stream chat hops the companion of whoever said it. Every browser has the line already, so each
   works it out for itself from `companionSpoke` (one line in `use-watch-room.ts`); nothing is sent.
 - It climbs to and from a profile's ROOM on its `climb` frames, and walks along the strip to get under it.
+- **A catch.** `companionCatches(userId)` (`events.ts`) makes that person's character play `catch` once wherever it is
+  drawn on this screen: their companion on the strip (yours, or theirs in a room you share) and their character in a
+  profile's ROOM. Nothing is sent: whoever calls it still delivers the thing. Figures carry their owner's id
+  (`data-companion-of` on the strip, `data-character-of` in a ROOM) so a drop can find whose character it landed on;
+  use the element's box, not `elementFromPoint` (a companion over a key lets presses through).
 
 ## Rules
 - Code never draws it, a prop or an effect. Text characters (`! z ♪`) are fine. A prop that would be art is an art slot.
@@ -72,8 +80,9 @@ bake.
 - `Temp/check-companion.cjs`: the brain, the fall, the wire and the wiring, in Node.
 - `scripts/drive-companion.cjs`: the first spec's proof in real browsers as TEST ACCOUNT A and B (it leaves a room and a
   message to clear; `--dance-only` leaves nothing).
-- `scripts/drive-companion-life.cjs`: the re-bake, picking up and dropping, the pokes, the run, the dances, the sleep
-  (`--long` waits five minutes for the curl). Leaves nothing to clear.
+- `scripts/drive-companion-life.cjs`: the re-bake, picking up and dropping (the start at being lifted, the double press,
+  Escape and a press to put it down), the pokes, the run, the dances, the sleep (`--long` waits five minutes for the
+  curl). Leaves nothing to clear.
 - `scripts/drive-companion-scenes.cjs`: typing along, the arcade (watching, and a slump at a game lost on purpose), a
   video, a book (reading, the page turn, presses reaching the reader's keys under it). Leaves A's place in the book.
 - `scripts/drive-companion-room.cjs`: A and B in a stream room with its window open: both in view on the window's top

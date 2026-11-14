@@ -12,7 +12,7 @@ import {
   setCompanionAccount,
   subscribeToCompanionChoices,
 } from '../lib/companion/companion-slot';
-import { onCompanionPoke, onCompanionSpoke } from '../lib/companion/events';
+import { onCompanionCatch, onCompanionPoke, onCompanionSpoke } from '../lib/companion/events';
 import { LEDGE_SELECTOR, measureFloor, type Floor } from '../lib/companion/floor';
 import { holdLedgeHeight } from '../lib/companion/ledge';
 import { companionScene } from '../lib/companion/scene';
@@ -109,6 +109,8 @@ const CHASE_SAY_MS = 2_000;
 const MARK_MS = 1_600;
 /** The placeholder's hop: how high it is on each frame, then back down. A character plays its own one-off motions. */
 const HOP = [-4, -8, -10, -8, -4, 0];
+/** Two presses on it within this long are a double press: it is picked up, and follows the pointer with no key held. */
+const DOUBLE_MS = 400;
 /** It waves at a newcomer to the room at most this often. */
 const GREET_QUIET_MS = 5_000;
 /** A pointer that has not moved for this long is no longer chased. */
@@ -307,7 +309,7 @@ function closePortal(portal: HTMLDivElement | null) {
 type Phase = VisitPhase | 'portal' | 'held' | 'fall';
 
 /** A press on the figure: a poke until it moves, then a pick-up. `off` is where on the figure it was taken hold of. */
-type Grab = { id: number; startX: number; startY: number; offX: number; offY: number; moved: boolean; px: number; py: number; dx: number };
+type Grab = { id: number; startX: number; startY: number; offX: number; offY: number; moved: boolean; px: number; py: number; dx: number; carried: boolean };
 
 /** Puts a text mark (`!`, `VS`, a heart, `...`) up over its head for a moment. */
 function showMark(mark: HTMLSpanElement | null, timer: ReturnType<typeof setTimeout> | null, text: string): ReturnType<typeof setTimeout> | null {
@@ -326,11 +328,13 @@ type FigureProps = {
   markRef: React.RefObject<HTMLSpanElement | null>;
   label: string;
   own: boolean;
+  /** Whose it is, written on the figure (`data-companion-of`) so a thing dropped on it can find its owner. */
+  ownerId: string | null;
   look: Look;
 };
 
 /** One figure on the strip: the character (or the placeholder field), its name on hover, and the `!` over its head. */
-function Figure({ placeRef, bodyRef, markRef, label, own, look }: FigureProps) {
+function Figure({ placeRef, bodyRef, markRef, label, own, ownerId, look }: FigureProps) {
   const size = sizeOf(look);
   const rows = look === null ? 0 : Math.ceil(look.sheet.cells / look.sheet.columns);
   // The `!` sits just over the head (`sheet.head`), not over the box's empty top.
@@ -346,6 +350,7 @@ function Figure({ placeRef, bodyRef, markRef, label, own, look }: FigureProps) {
       className={`group pointer-events-auto invisible absolute left-0 top-0 overflow-visible ${own ? 'cursor-grab touch-none select-none' : ''}`}
       style={{ width: size.w, height: size.h }}
       data-companion={own ? 'own' : 'room'}
+      data-companion-of={ownerId ?? undefined}
       data-mood="stand"
       data-facing="right"
       data-held="false"
@@ -480,6 +485,10 @@ function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, loo
     let looping: MotionId = 'idle';
     let posing: MotionId | null = null;
     let pokes = 0;
+    /** How far into its start at being lifted it is; -1 once it hangs. */
+    let lifting = -1;
+    /** When it was last pressed without a drag: a second press soon after picks it up. */
+    let lastTap = 0;
     let wasOnLedge = false;
     /** The room's companions it has waved at, and when it last waved (a busy door is not a flapping arm). */
     const greeted = new Set<string>();
@@ -558,7 +567,15 @@ function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, loo
         grab.dx = x === null ? 0 : nx - x;
         x = nx;
         y = ny;
-        play('dangle');
+        // Just lifted: a start and a wriggle (`lifted`), once, and then it hangs.
+        if (lifting >= 0 && lifting < actLength(look, 'lifted')) {
+          motion = 'lifted';
+          motionTick = lifting;
+          lifting += 1;
+        } else {
+          lifting = -1;
+          play('dangle');
+        }
         draw(place, bodyRef.current, look, { x, floorY: y, facing, mood: 'stand', motion, tick: motionTick, lift: 0, held: true });
         return;
       }
@@ -580,6 +597,7 @@ function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, loo
         }
         fall = null;
         phase = 'strip';
+        if (place !== null) place.style.cursor = '';
         brain = startBrain(now);
         lastActivity = now;
         react('land');
@@ -846,6 +864,8 @@ function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, loo
       active();
       const into = event.target instanceof Element ? event.target.closest(WRITING) : null;
       if (into !== null && (event.key.length === 1 || event.key === 'Backspace' || event.key === 'Enter') && !event.ctrlKey && !event.metaKey) typingUntil = Date.now() + TYPING_MS;
+      // Carried after a double press: Escape puts it down where it hangs.
+      if (event.key === 'Escape' && grab !== null && grab.carried) letGo(0);
     };
     const onMove = (event: PointerEvent) => {
       active();
@@ -857,13 +877,31 @@ function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, loo
       // gone as far as the companion can tell, rather than left where it was last seen for it to chase for good.
       if (event.relatedTarget === null || event.relatedTarget instanceof HTMLIFrameElement) pointer = null;
     };
+    /** Let go of, from where it hangs: down it comes (the frame loop does the falling), with whatever throw it was given. */
+    const letGo = (throwX: number) => {
+      grab = null;
+      fall = { x: x ?? 0, y, vx: throwX, vy: 0, landed: false };
+      phase = 'fall';
+    };
+    /** Lifted off its strip: whatever it was doing (a hop, a climb up to a room) is dropped, and it starts at being picked up. */
+    const liftOff = () => {
+      phase = 'held';
+      leaveRoom();
+      act = null;
+      queue.length = 0;
+      lifting = still ? -1 : 0;
+      // A `!` as it is lifted: text, not art.
+      markTimer = showMark(mark, markTimer, '!');
+      if (place !== null) {
+        // Its own to take presses again (it may have been letting them through to a key under it), and held in the hand.
+        place.style.pointerEvents = '';
+        place.style.cursor = 'grabbing';
+      }
+    };
     const onBlur = () => {
       pointer = null;
       // The window lost the pointer mid-carry: it is let go where it hangs.
-      if (grab !== null && grab.moved) {
-        fall = { x: x ?? 0, y, vx: 0, vy: 0, landed: false };
-        phase = 'fall';
-      }
+      if (grab !== null && grab.moved) letGo(0);
       grab = null;
     };
     /** A press without a drag: a hop, a wave, a spin, in turn. */
@@ -892,6 +930,7 @@ function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, loo
         px: event.clientX,
         py: event.clientY,
         dx: 0,
+        carried: false,
       };
       // The figure keeps hearing the pointer wherever it goes, and the drag selects no text on the page.
       event.preventDefault();
@@ -902,7 +941,14 @@ function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, loo
       }
     };
     const onDrag = (event: PointerEvent) => {
-      if (grab === null || event.pointerId !== grab.id) return;
+      if (grab === null) return;
+      // Carried after a double press: it follows the pointer, whichever pointer, with nothing held down.
+      if (grab.carried) {
+        grab.px = event.clientX;
+        grab.py = event.clientY;
+        return;
+      }
+      if (event.pointerId !== grab.id) return;
       grab.px = event.clientX;
       grab.py = event.clientY;
       if (grab.moved || Math.hypot(event.clientX - grab.startX, event.clientY - grab.startY) < GRAB_SLOP) return;
@@ -911,24 +957,48 @@ function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, loo
         grab = null;
         return;
       }
-      // Picked up: whatever it was doing (a hop, a climb up to a room) is dropped.
+      // Picked up.
       grab.moved = true;
-      phase = 'held';
-      leaveRoom();
-      act = null;
-      queue.length = 0;
+      liftOff();
+    };
+    // Carried after a double press, the next press anywhere puts it down there (Luke, 2026-11-14: "double click to pick
+    // up and drag the companion around"). It is under the pointer, so the press lands on it and on nothing behind it.
+    const onPutDown = (event: PointerEvent) => {
+      if (grab === null || !grab.carried || event.button !== 0) return;
+      grab.px = event.clientX;
+      grab.py = event.clientY;
+      // A finger has no hover: it is put down where the finger next touches, from there.
+      if (place !== null) {
+        const box = place.getBoundingClientRect();
+        x = Math.round(Math.min(Math.max(0, window.innerWidth - box.width), Math.max(0, grab.px - grab.offX)));
+        y = Math.round(Math.max(box.height, grab.py + grab.offY));
+      }
+      letGo(0);
     };
     const onDrop = (event: PointerEvent) => {
-      if (grab === null || event.pointerId !== grab.id) return;
+      // Carried after a double press, nothing is held down: letting a key go is not letting it go.
+      if (grab === null || grab.carried || event.pointerId !== grab.id) return;
       const released = grab;
       grab = null;
       if (!released.moved) {
         // A press let go where it was made is a poke, on its strip only: a climb has no frames to play one in.
-        if (event.type === 'pointerup' && phase === 'strip') poke();
+        if (event.type !== 'pointerup' || phase !== 'strip') return;
+        const at = Date.now();
+        if (at - lastTap <= DOUBLE_MS && place !== null) {
+          // The second press of two: picked up, to follow the pointer until the next press puts it down. The first
+          // press's poke is given back, so the turn of hop, wave, spin is not used up by a pick-up.
+          lastTap = 0;
+          pokes = Math.max(0, pokes - 1);
+          const box = place.getBoundingClientRect();
+          grab = { id: -1, startX: event.clientX, startY: event.clientY, offX: box.width / 2, offY: box.height / 2, moved: true, px: event.clientX, py: event.clientY, dx: 0, carried: true };
+          liftOff();
+          return;
+        }
+        lastTap = at;
+        poke();
         return;
       }
-      fall = { x: x ?? 0, y, vx: throwOf(released.dx), vy: 0, landed: false };
-      phase = 'fall';
+      letGo(throwOf(released.dx));
     };
 
     const offPoke = onCompanionPoke(react);
@@ -941,6 +1011,11 @@ function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, loo
     window.addEventListener('pointermove', onDrag, { passive: true });
     window.addEventListener('pointerup', onDrop, { passive: true });
     window.addEventListener('pointercancel', onDrop, { passive: true });
+    window.addEventListener('pointerdown', onPutDown, { passive: true });
+    // Something handed to you (a letter dropped on your character): it catches it (`../lib/companion/events.ts`).
+    const offCatch = onCompanionCatch((who) => {
+      if (who === company.current.userId && phase === 'strip') react('catch');
+    });
     window.addEventListener('pointermove', onMove, { passive: true });
     window.addEventListener('pointerdown', active, { passive: true });
     window.addEventListener('keydown', onKey, { passive: true });
@@ -956,6 +1031,13 @@ function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, loo
       if (markTimer !== null) clearTimeout(markTimer);
       offPoke();
       offSpoke();
+      offCatch();
+      window.removeEventListener('pointerdown', onPutDown);
+      // Gone while it was in the hand (the motion setting changed): nothing of the carry is left on the figure.
+      if (place !== null) {
+        place.style.cursor = '';
+        place.style.pointerEvents = '';
+      }
       place?.removeEventListener('pointerdown', onFigure);
       window.removeEventListener('pointermove', onDrag);
       window.removeEventListener('pointerup', onDrop);
@@ -993,7 +1075,7 @@ function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, loo
           title="A portal opens here once assets/sprites/portal.gif is drawn"
         />
       </div>
-      <Figure placeRef={placeRef} bodyRef={bodyRef} markRef={markRef} label={label} own look={look} />
+      <Figure placeRef={placeRef} bodyRef={bodyRef} markRef={markRef} label={label} own ownerId={userId} look={look} />
     </>
   );
 }
@@ -1098,16 +1180,21 @@ function RoomFigure({ companion, still }: { companion: RoomCompanion; still: boo
       if (!still) act = { motion: 'hop', tick: 0 };
       markTimer = showMark(mark, markTimer, '...');
     });
+    // Something handed to its owner (a letter dropped on it here): it catches it, on this screen.
+    const offCatch = onCompanionCatch((who) => {
+      if (who === owner.current && !still) act = { motion: 'catch', tick: 0 };
+    });
     tick();
     const timer = setInterval(tick, TICK_MS);
     return () => {
       clearInterval(timer);
       offSpoke();
+      offCatch();
       if (markTimer !== null) clearTimeout(markTimer);
     };
   }, [still]);
 
-  return <Figure placeRef={placeRef} bodyRef={bodyRef} markRef={markRef} label={companion.name || 'SOMEONE'} own={false} look={look} />;
+  return <Figure placeRef={placeRef} bodyRef={bodyRef} markRef={markRef} label={companion.name || 'SOMEONE'} own={false} ownerId={companion.userId} look={look} />;
 }
 
 export default function Companion() {

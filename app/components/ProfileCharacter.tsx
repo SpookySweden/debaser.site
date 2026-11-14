@@ -7,6 +7,7 @@ import { SPRITE_SLOT } from '../lib/ui/controls';
 import { useShownCharacter } from '../lib/character/use-shown-character';
 import { DANCES, type MotionId } from '../lib/character/motion';
 import {
+  catchIt,
   findLanes,
   greet,
   react,
@@ -17,6 +18,7 @@ import {
   type Lane,
   type WalkerState,
 } from '../lib/character/walker';
+import { onCompanionCatch } from '../lib/companion/events';
 import CharacterSprite from './CharacterSprite';
 import NoteTrail from './NoteTrail';
 
@@ -129,6 +131,7 @@ export function RoomWalker({
   label,
   onSpot,
   hello = false,
+  person,
 }: {
   look: RoomLook;
   mood: Mood;
@@ -143,6 +146,8 @@ export function RoomWalker({
   onSpot?: (figure: HTMLElement) => void;
   /** Somebody to say hello to has just arrived (a companion climbing into the room): it waves back, a moment later. */
   hello?: boolean;
+  /** Whose character it is: written on the figure (`data-character-of`), and it catches what is handed to that person. */
+  person?: string;
 }) {
   const reduced = useSyncExternalStore(subscribeReduced, reducedNow, reducedOnServer);
   const { w, h } = roomFigureSize(look);
@@ -152,6 +157,13 @@ export function RoomWalker({
     // A companion arriving (it starts where it climbed in) waves hello as it steps in.
     return startX === undefined ? start : greet({ ...start, x: Math.round(startX) });
   });
+  // Something handed to its owner (a letter dropped on it): it catches it (`../lib/companion/events.ts`).
+  useEffect(() => {
+    if (person === undefined || reduced) return;
+    return onCompanionCatch((who) => {
+      if (who === person) setState((current) => catchIt(current));
+    });
+  }, [person, reduced]);
   // The room's own character waves back, a moment after (nothing under reduced motion: it stands still).
   useEffect(() => {
     if (!hello || reduced) return;
@@ -185,6 +197,7 @@ export function RoomWalker({
         ref={figure}
         type="button"
         {...(visitor ? { 'data-companion': 'visiting' } : { 'data-profile-character': '' })}
+        data-character-of={person}
         data-motion={motion}
         aria-label={visitor ? 'YOUR COMPANION: PRESS TO SAY HELLO' : `${label}: PRESS TO SAY HELLO`}
         title="SAY HELLO"

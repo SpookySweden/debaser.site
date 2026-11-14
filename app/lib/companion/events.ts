@@ -45,6 +45,32 @@ export function onCompanionSpoke(listener: (userId: string) => void): () => void
   };
 }
 
+/* --- somebody's character catching something handed to it --------------------------------------------------------- */
+
+const catchers = new Set<(userId: string) => void>();
+
+/**
+ * Makes `userId`'s character play its catch, once, wherever it is drawn on this screen (Luke, 2026-11-14: "drag and drop
+ * letters ... directly to a users character ... the character plays a cute animation when grabbing it"): their companion
+ * on the strip (yours, or theirs in a stream room you share) and their character in a profile's ROOM. A person with no
+ * character on screen: nothing happens. Nothing is sent or stored: it is a picture on this screen only, so the thing
+ * that was dropped still has to be delivered by whoever calls this.
+ *
+ * To find whose character is under a drop, every drawn figure carries its owner's id: `data-companion-of="<user id>"`
+ * on a companion on the strip, `data-character-of="<user id>"` on a character in a profile's ROOM. Use the element's box
+ * (`getBoundingClientRect`), not `elementFromPoint`: a companion standing over a key lets presses through it.
+ */
+export function companionCatches(userId: string): void {
+  for (const listener of catchers) listener(userId);
+}
+
+export function onCompanionCatch(listener: (userId: string) => void): () => void {
+  catchers.add(listener);
+  return () => {
+    catchers.delete(listener);
+  };
+}
+
 export function onCompanionPoke(listener: (kind: CompanionReaction) => void): () => void {
   listeners.add(listener);
   return () => {

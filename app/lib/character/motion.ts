@@ -73,6 +73,9 @@ export const MOTION_FALLBACK = {
   flick: 'sit',
   type: 'idle',
   climb: 'walk',
+  // (Luke, 2026-11-14: "the character plays a cute animation when grabbing it", and, asked which grab, "Both".)
+  lifted: 'hop',
+  catch: 'hop',
 } as const satisfies Record<string, CoreMotionId>;
 export type ExtraMotionId = keyof typeof MOTION_FALLBACK;
 export const EXTRA_MOTION_IDS = Object.keys(MOTION_FALLBACK) as ExtraMotionId[];
@@ -382,6 +385,36 @@ const BASE: Record<MotionId, Motion> = {
     ],
   },
 
+  // Picked up by the pointer: a start, its head thrown back, then a wriggle from side to side that settles, before it
+  // hangs (`dangle`).
+  lifted: {
+    facing: 'front',
+    loop: false,
+    frames: [
+      { joints: { body: { x: -10 }, head: { x: -18 } }, root: { y: 0.06 }, hold: 2 },
+      { joints: { hips: { z: 18 }, body: { z: -12 }, head: { z: 14 } } },
+      { joints: { hips: { z: -18 }, body: { z: 12 }, head: { z: -14 } } },
+      { joints: { hips: { z: 12 }, body: { z: -8 }, head: { z: 10 } } },
+      { joints: { hips: { z: -12 }, body: { z: 8 }, head: { z: -10 } } },
+      { joints: { head: { z: 8 } }, hold: 2 },
+    ],
+  },
+
+  // Catching something handed to it (a letter dropped on it): looks up, jumps for it, hugs it and wriggles, pleased.
+  catch: {
+    facing: 'front',
+    loop: false,
+    frames: [
+      { joints: { body: { x: -6 }, head: { x: -16 } }, hold: 2 },
+      { joints: { body: { x: -8 }, head: { x: -16 } }, root: { y: 0.24 }, hold: 2 },
+      { joints: { body: { x: 8 } }, root: { y: 0.04 } },
+      { joints: { body: { x: 10, z: 8 }, head: { z: 12 } }, hold: 2 },
+      { joints: { body: { x: 10, z: -8 }, head: { z: -12 } }, hold: 2 },
+      { joints: { body: { x: 10, z: 8 }, head: { z: 12 } }, hold: 2 },
+      { joints: { head: { z: 10 } }, hold: 3 },
+    ],
+  },
+
   // Climbing up into a profile's room: its back to you, rocking from one side to the other as it goes.
   climb: {
     facing: 'front',
@@ -448,6 +481,17 @@ const GUY: Partial<Record<MotionId, Motion>> = {
   read: withArms(BASE.read, () => ({ left: { x: -70 }, right: { x: -70 } })),
   flick: withArms(BASE.flick, (index) => ({ left: { x: -70 }, right: { x: [-95, -110, -70][index] } })),
   type: withArms(BASE.type, (index) => ({ left: { x: index % 2 === 0 ? -70 : -55 }, right: { x: index % 2 === 0 ? -55 : -70 } })),
+  // Arms flung out wide in surprise, then up over its head as it is lifted.
+  lifted: withArms(BASE.lifted, (index) => {
+    const up = [100, 140, 150, 155, 155, 155][index];
+    return { left: { z: -up }, right: { z: up } };
+  }),
+  // Reaching up for it, then both arms folded in front, holding it to its chest.
+  catch: withArms(BASE.catch, (index) => {
+    if (index === 0) return { left: { z: -120 }, right: { z: 120 } };
+    if (index === 1) return { left: { z: -165 }, right: { z: 165 } };
+    return { left: { x: -80 }, right: { x: -80 } };
+  }),
   // Reaching up, one hand then the other.
   climb: withArms(BASE.climb, (index) => ({ left: { z: [-165, -150, -135, -150][index] }, right: { z: [135, 150, 165, 150][index] } })),
   walk: {

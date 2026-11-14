@@ -200,7 +200,7 @@ test('feet stay on the floor walking, idling, dancing and waving; sitting sits o
     const motions = motion.motionsFor(preset);
     const floor = lowest(motion.posedPlacements(figure, {}, 0));
     near(floor, FLOOR_Y, 0.02, `${preset} stands on the floor`);
-    for (const id of ['walk', 'idle', 'dance1', 'dance2', 'dance3', 'wave', 'turn', 'stretch', 'dance4', 'dance5', 'run', 'cheer', 'slump', 'dangle', 'land', 'type', 'climb']) {
+    for (const id of ['walk', 'idle', 'dance1', 'dance2', 'dance3', 'wave', 'turn', 'stretch', 'dance4', 'dance5', 'run', 'cheer', 'slump', 'dangle', 'land', 'type', 'climb', 'lifted', 'catch']) {
       for (const frame of motions[id].frames) {
         const low = lowest(motion.posedPlacements(figure, frame, motion.frameYaw(motions[id], frame)));
         assert.ok(low > floor - 0.08, `${preset} ${id} sinks to ${low.toFixed(3)} (floor ${floor.toFixed(3)})`);
@@ -361,6 +361,21 @@ test('a hello is a wave played through, and leaves the clicks their own turn (20
   state = walker.stepWalker(state, { mood: 'calm', music: false, room: 400, step: 2, ticksOf, random });
   assert.notEqual(state.activity, 'react', 'then back to its own business');
   assert.equal(walker.react(state).motion, 'wave', 'a click after a hello: its usual first reaction');
+  // Handed something (a letter dropped on it): its catch, played through, the clicks' turn untouched.
+  let caught = walker.catchIt(walker.startWalker(400, random));
+  assert.deepEqual([caught.activity, caught.motion, caught.nextReaction], ['react', 'catch', 0]);
+  const catchTicks = motion.motionTicks(motion.motionsFor('guy').catch).length;
+  for (let i = 1; i < catchTicks; i += 1) {
+    caught = walker.stepWalker(caught, { mood: 'calm', music: false, room: 400, step: 2, ticksOf: (m) => (m === 'catch' ? catchTicks : ticksOf(m)), random });
+    assert.equal(caught.motion, 'catch');
+  }
+  // On a strip baked before it existed, a catch (and the start at being lifted) is a hop.
+  assert.equal(motion.MOTION_FALLBACK.catch, 'hop');
+  assert.equal(motion.MOTION_FALLBACK.lifted, 'hop');
+  // GUY reaches up for it and then holds it in front: both arms raised on the jump, both forward on the hug.
+  const guyCatch = motion.motionsFor('guy').catch.frames;
+  assert.ok(guyCatch[1].joints['arm.right'].z > 150 && guyCatch[1].joints['arm.left'].z < -150, 'arms up to catch');
+  assert.ok(guyCatch[3].joints['arm.right'].x < -60 && guyCatch[3].joints['arm.left'].x < -60, 'arms folded in front to hold it');
 });
 
 

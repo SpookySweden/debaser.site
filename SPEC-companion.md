@@ -69,6 +69,11 @@ each live on its own ("Yes, all three"), and the quiet re-bake ("Yes, quietly").
 - A strip baked before a motion existed plays an older one in its place, and its owner's browser bakes it again once,
   quietly, on a computer: the same save SHOW does, to their own row and picture only.
 - Small text marks are allowed now (`z`, `...`, a heart, `VS`). Still no talking.
+- **From Luke's list the same day:** "allow the ability to double click to pick up and drag the companion around" (two
+  presses close together pick it up, it follows the pointer with nothing held, the next press or Escape puts it down;
+  press-and-drag stays), and "the character plays a cute animation when grabbing it" (asked which grab, the companion
+  being lifted or a character catching a letter: "Both"): a start and a wriggle as it is lifted, and a catch any part
+  of the site can ask a person's character to play (`companionCatches`, for letters dropped on a character).
 
 ## Database changes (need Luke's typed OK)
 - The COMPANION switch and choice follow the account: one small row of settings. It could share a table with the review's

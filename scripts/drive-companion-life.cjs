@@ -13,7 +13,9 @@
  *   5. it dances one of five dances while the music bar plays, and changes dance when the track changes;
  *   6. asleep after a minute, `z`s drift up from it; with --long, five minutes on it curls up, and stretches then waves
  *      when the pointer comes back;
- *   7. under reduced motion a drag carries nothing and nothing drifts up.
+ *   7. under reduced motion a drag carries nothing and nothing drifts up;
+ *   8. (Luke's list, 2026-11-14) lifted, it starts and wriggles (`lifted`) with a `!` before it hangs; two presses close
+ *      together pick it up with nothing held down, it follows the pointer, and Escape or the next press puts it down.
  *
  * It writes nothing but A's own re-baked strip (the same save SHOW does): no messages, no rooms, nothing to clear.
  */
@@ -37,7 +39,7 @@ const pass = (what) => {
   console.log(`  ok  ${what}`);
 };
 
-const NEWER = ['stretch', 'dance4', 'dance5', 'run', 'cheer', 'slump', 'dangle', 'land', 'curl', 'watch', 'read', 'flick', 'type', 'climb'];
+const NEWER = ['stretch', 'dance4', 'dance5', 'run', 'cheer', 'slump', 'dangle', 'land', 'curl', 'watch', 'read', 'flick', 'type', 'climb', 'lifted', 'catch'];
 
 function readOwn() {
   const own = document.querySelector('[data-companion="own"]');
@@ -55,6 +57,10 @@ function readOwn() {
     mood: own.dataset.mood,
     motion: own.dataset.motion ?? null,
     held: own.dataset.held,
+    mark: (() => {
+      const mark = own.querySelector('[data-companion-mark]');
+      return mark !== null && mark.style.visibility === 'visible' ? mark.textContent.trim() : null;
+    })(),
     trail: trail === null ? null : trail.getAttribute('data-note-trail'),
     glyphs: trail === null ? '' : trail.textContent,
     figure: own.querySelector('[data-companion-figure]')?.getAttribute('data-companion-figure') ?? null,
@@ -166,12 +172,16 @@ async function open(browser, { reduced = false } = {}) {
     const start = { x: own.left + own.w / 2, y: own.top + own.h / 2 };
     await page.mouse.move(start.x, start.y);
     await page.mouse.down();
+    const lifting = motionsOver(page, 1500);
     await page.mouse.move(start.x, start.y - 60, { steps: 4 });
     await page.mouse.move(start.x - 200, start.y - 320, { steps: 12 });
     // It moves in whole frames, ten a second: a moment for it to catch the pointer up.
     await sleep(400);
+    const lifted = await lifting;
+    assert.ok(lifted.includes('lifted'), `lifted, it starts and wriggles first (saw ${lifted.join(' ')})`);
     const held = await waitFor(page, (now) => now.held === 'true' && now.motion === 'dangle', 3000);
     assert.ok(held, 'a drag lifts it: held, dangling');
+    assert.ok(lifted.indexOf('dangle') > lifted.indexOf('lifted') || held.motion === 'dangle', 'and then it hangs');
     assert.ok(held.bottom < held.floor - 200, `it is up off its strip (feet ${held.bottom}, strip ${held.floor})`);
     assert.ok(Math.abs(held.left + held.w / 2 - (start.x - 200)) <= 2, 'it hangs where the pointer has it');
     assert.equal(held.mood, 'stand');
@@ -222,6 +232,50 @@ async function open(browser, { reduced = false } = {}) {
     }
     assert.deepEqual(pokes.map((seen) => seen[0]), ['hop', 'wave', 'dance4'], `in turn (saw ${JSON.stringify(pokes)})`);
     pass('pressed three times: a hop, a wave, a spin');
+
+    console.log('Two presses close together pick it up');
+    await page.mouse.move(700, 300);
+    await sleep(1800);
+    const before2 = await waitFor(page, (now) => now.held === 'false' && now.bottom === now.floor, 8000);
+    assert.ok(before2, 'standing on its strip');
+    const grabAt = { x: before2.left + before2.w / 2, y: before2.top + before2.h / 2 };
+    const carrying = motionsOver(page, 1600);
+    await page.mouse.dblclick(grabAt.x, grabAt.y);
+    const carried = await waitFor(page, (now) => now.held === 'true', 2500);
+    assert.ok(carried, 'a double press picks it up');
+    assert.equal(carried.mark, '!', 'with a ! as it is lifted');
+    const firstMotions = await carrying;
+    assert.ok(firstMotions.includes('lifted'), `it starts and wriggles as it is lifted (saw ${firstMotions.join(' ')})`);
+    // Nothing is held down: it follows the pointer all the same.
+    await page.mouse.move(400, 350, { steps: 8 });
+    await sleep(500);
+    const followed = await page.evaluate(readOwn);
+    assert.equal(followed.held, 'true', 'still in the hand with no key held');
+    assert.ok(Math.abs(followed.left + followed.w / 2 - 400) <= 2 && Math.abs(followed.top + followed.h / 2 - 350) <= 2, `it follows the pointer (at ${followed.left + followed.w / 2}, ${followed.top + followed.h / 2})`);
+    await page.screenshot({ path: join(SHOTS, 'companion-carried.png') });
+    await closeUp(page, 'carried');
+    // Escape puts it down where it hangs.
+    await page.keyboard.press('Escape');
+    const down1 = await waitFor(page, (now) => now.held === 'false' && now.bottom === now.floor, 6000);
+    assert.ok(down1, 'Escape puts it down: it falls back to its strip');
+    // Picked up again, and put down by the next press somewhere else.
+    await sleep(1500);
+    const again = await page.evaluate(readOwn);
+    await page.mouse.dblclick(again.left + again.w / 2, again.top + again.h / 2);
+    assert.ok(await waitFor(page, (now) => now.held === 'true', 2500), 'picked up again');
+    await page.mouse.move(900, 300, { steps: 8 });
+    await sleep(400);
+    await page.mouse.click(900, 300);
+    const down2 = await waitFor(page, (now) => now.held === 'false' && now.bottom === now.floor, 6000);
+    assert.ok(down2, 'the next press puts it down');
+    assert.ok(Math.abs(down2.left + down2.w / 2 - 900) <= 80, `about where it was put down (${down2.left + down2.w / 2})`);
+    // A single press is still only a poke: it does not pick it up.
+    await sleep(1500);
+    const single = await page.evaluate(readOwn);
+    await page.mouse.click(single.left + single.w / 2, single.top + single.h / 2);
+    await sleep(700);
+    assert.equal((await page.evaluate(readOwn)).held, 'false', 'one press does not pick it up');
+    pass(`a double press picks it up with a "!" and a wriggle (${firstMotions.join(', ')}); it follows the pointer with nothing held; Escape or the next press puts it down`);
 
     console.log('It runs after the pointer');
     const at = await page.evaluate(readOwn);

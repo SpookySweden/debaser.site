@@ -265,7 +265,7 @@ ok('picking it up: only yours, a drag not a press, nothing under reduced motion,
   assert.match(strip, /Math\.hypot\(event\.clientX - grab\.startX, event\.clientY - grab\.startY\) < GRAB_SLOP/, 'a press that has not moved is a poke');
   assert.match(strip, /if \(still \|\| !canGrab\(\)\) \{/, 'nothing is carried under reduced motion, or out of a room it is in');
   assert.match(strip, /if \(!canGrab\(\)\) \{\s*grab = null;\s*return;\s*\}/, 'a press held while it climbed into the room picks nothing up');
-  assert.match(strip, /if \(event\.type === 'pointerup' && phase === 'strip'\) poke\(\);/, 'a poke only on its strip');
+  assert.match(strip, /if \(event\.type !== 'pointerup' \|\| phase !== 'strip'\) return;/, 'a poke (or a double press) only on its strip');
   assert.match(strip, /window\.addEventListener\('pointerup', onDrop/, 'a let-go is heard anywhere on the window');
   assert.match(strip, /window\.addEventListener\('pointercancel', onDrop/);
   assert.match(strip, /Math\.min\(floor\.ledge \? window\.innerHeight : floor\.y, Math\.max\(size\.h, grab\.py \+ grab\.offY\)\)/, 'held, it stays on screen and above its own floor');
@@ -422,7 +422,7 @@ ok("a room is never told what you read or type: those poses, and a page turned, 
   assert.match(strip, /if \(kind === 'flick'\) \{[^}]*lastActivity = Date\.now\(\);\s*if \(looping === 'read' && !still\) act = \{ motion: 'flick', tick: 0 \};\s*return;\s*\}/, 'a page turned is played, counts as you being here, and is never counted for the room');
   assert.match(strip, /input:not\(\[type\]\), input\[type="text"\]/, 'typing is heard in text boxes');
   assert.doesNotMatch(strip.slice(strip.indexOf('const WRITING'), strip.indexOf('const TYPING_MS')), /password/, 'never a password box');
-  assert.doesNotMatch(strip, /event\.key(?!\.length| === 'Backspace'| === 'Enter')/, 'it hears that a key was typed, never which');
+  assert.doesNotMatch(strip, /event\.key(?!\.length| === 'Backspace'| === 'Enter'| === 'Escape')/, 'it hears that a key was typed, never which (Escape apart, which puts it down when carried)');
 });
 
 ok("on top of the room's window: the window leaves room above itself for the tallest companion, and none when nobody is out", () => {
@@ -574,7 +574,7 @@ ok('a mark for each kind of news, in text: ! for a reply, VS for a game invite, 
 });
 
 ok('what a room is never told: a page turned, a look round at a new theme, a line of chat it already has', () => {
-  for (const kind of ['flick', 'look', 'spoke']) assert.equal(wire.reactionIsLocal(kind), true, kind);
+  for (const kind of ['flick', 'look', 'spoke', 'catch']) assert.equal(wire.reactionIsLocal(kind), true, kind);
   for (const kind of ['reply', 'message', 'online', 'wake', 'poke', 'wave', 'spin', 'cheer', 'slump', 'land', 'invite', 'recommend']) assert.equal(wire.reactionIsLocal(kind), false, kind);
   const strip = read('app/components/Companion.tsx');
   assert.match(strip, /if \(reactionIsLocal\(kind\)\) return;\s*reactions \+= 1;/, 'played here, never counted for the room');
@@ -606,6 +606,54 @@ ok('hellos: it waves at a companion new to the room (not at every sync), and cli
   assert.match(strip, /if \(floor\.ledge && !wasOnLedge\) x = Math\.round\(span\.left \+ Math\.random\(\) \* \(span\.right - span\.left\)\);/, "up onto a room's window it lands somewhere along the edge, not all on one corner");
   assert.match(read('app/components/ProfileRoom.tsx'), /hello=\{visit\.out && visit\.inRoom\}/, "the room's own character is told a companion has arrived");
   assert.match(read('app/components/ProfileCharacter.tsx'), /if \(!hello \|\| reduced\) return;\s*const timer = setTimeout\(\(\) => setState\(\(current\) => greet\(current\)\), HELLO_BACK_MS\);/, 'and waves back a moment later, not under reduced motion');
+});
+
+
+/* --- Luke's list, 2026-11-14: K1 a double press picks it up, K2 a catch, K3 a start at being lifted ------------- */
+
+ok('K1: a second press soon after the first picks it up to follow the pointer; the next press, Escape or the window going puts it down', () => {
+  const strip = read('app/components/Companion.tsx');
+  assert.match(strip, /if \(at - lastTap <= DOUBLE_MS && place !== null\) \{/, 'two presses close together');
+  assert.match(strip, /carried: true \};\s*liftOff\(\);\s*return;/, 'it is picked up, carried with nothing held down');
+  assert.match(strip, /pokes = Math\.max\(0, pokes - 1\);/, "the first press's poke is given back");
+  assert.match(strip, /if \(grab\.carried\) \{\s*grab\.px = event\.clientX;\s*grab\.py = event\.clientY;\s*return;\s*\}/, 'it follows the pointer, whichever pointer');
+  assert.match(strip, /if \(grab === null \|\| grab\.carried \|\| event\.pointerId !== grab\.id\) return;/, 'letting a key go does not drop it');
+  assert.match(strip, /const onPutDown = \(event: PointerEvent\) => \{\s*if \(grab === null \|\| !grab\.carried \|\| event\.button !== 0\) return;/, 'the next press puts it down');
+  assert.match(strip, /window\.addEventListener\('pointerdown', onPutDown/, 'heard anywhere on the window');
+  assert.match(strip, /window\.removeEventListener\('pointerdown', onPutDown\);/, 'and no longer heard once it is gone');
+  assert.match(strip, /if \(event\.key === 'Escape' && grab !== null && grab\.carried\) letGo\(0\);/, 'Escape puts it down');
+  assert.match(strip, /if \(grab !== null && grab\.moved\) letGo\(0\);/, 'and so does the window losing the pointer');
+  assert.match(strip, /if \(still \|\| !canGrab\(\)\) \{\s*if \(phase === 'strip'\) poke\(\);\s*return;/, 'nothing is picked up under reduced motion: a press there never becomes a carry');
+  assert.match(strip, /Math\.hypot\(event\.clientX - grab\.startX, event\.clientY - grab\.startY\) < GRAB_SLOP/, 'and press-and-drag still picks it up, as before');
+});
+
+ok('K3: lifted, it starts and wriggles once, with a !, and then hangs', () => {
+  const strip = read('app/components/Companion.tsx');
+  assert.match(strip, /if \(lifting >= 0 && lifting < actLength\(look, 'lifted'\)\) \{\s*motion = 'lifted';\s*motionTick = lifting;\s*lifting \+= 1;\s*\} else \{\s*lifting = -1;\s*play\('dangle'\);/, 'its start at being lifted plays through once, then the dangle');
+  assert.match(strip, /lifting = still \? -1 : 0;\s*[^\n]*\n\s*markTimer = showMark\(mark, markTimer, '!'\);/, 'from the moment it is lifted, by a drag or a double press, with a ! over its head');
+  assert.match(strip, /place\.style\.pointerEvents = '';\s*place\.style\.cursor = 'grabbing';/, 'in the hand it takes presses itself again');
+  assert.match(strip, /window\.removeEventListener\('pointerdown', onPutDown\);\s*[^\n]*\n\s*if \(place !== null\) \{\s*place\.style\.cursor = '';\s*place\.style\.pointerEvents = '';/, 'and nothing of the carry is left on it when its loop restarts');
+});
+
+ok("K2: handed something, a person's character catches it, wherever it is drawn on this screen; nothing is sent", () => {
+  const heard = [];
+  const off = events.onCompanionCatch((who) => heard.push(who));
+  events.companionCatches('u7');
+  off();
+  events.companionCatches('u8');
+  assert.deepEqual(heard, ['u7']);
+  assert.equal(wire.reactionMotion('catch'), 'catch');
+  assert.equal(wire.reactionMark('catch'), null);
+  const strip = read('app/components/Companion.tsx');
+  assert.match(strip, /if \(who === company\.current\.userId && phase === 'strip'\) react\('catch'\);/, 'your own companion');
+  assert.match(strip, /if \(who === owner\.current && !still\) act = \{ motion: 'catch', tick: 0 \};/, "somebody else's in a room you share");
+  assert.match(strip, /data-companion-of=\{ownerId \?\? undefined\}/, 'a companion on the strip says whose it is');
+  const walkerSource = read('app/components/ProfileCharacter.tsx');
+  assert.match(walkerSource, /return onCompanionCatch\(\(who\) => \{\s*if \(who === person\) setState\(\(current\) => catchIt\(current\)\);\s*\}\);/, "their character in a profile's ROOM");
+  assert.match(walkerSource, /data-character-of=\{person\}/, 'which says whose it is too');
+  assert.equal((read('app/components/ProfileRoom.tsx').match(/person=\{/g) ?? []).length, 2, "the room's own character and your visiting companion");
+  const bus = read('app/lib/companion/events.ts');
+  assert.doesNotMatch(bus, /fetch\(|supabase|sayCompanion/, 'the bus sends nothing anywhere');
 });
 
 
