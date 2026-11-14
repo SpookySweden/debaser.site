@@ -83,8 +83,11 @@ const activity = withProviders(
 // (2026-10-25, SPEC-less-text.md) The empty state `SWEDEN HAS NOT FILED ANYTHING ON THE BOARD YET.` is cut to
 // `NOTHING YET.`: the profile page already names whose page it is, so this panel draws no name at all - and a
 // name that is not drawn has no colour to wear. What is held now is that no stray, uncoloured name appears.
-assert.match(activity, /NOTHING YET\./, 'the empty board activity says so in two words');
-assert.doesNotMatch(activity, /HAS NOT FILED/, 'not as a sentence');
+// Updated on purpose (Luke's list, 2026-11-14, "make board activity expandable and collapsd by default"): the section
+// is drawn shut, so its empty line is not in the page until its key is pressed. What it draws shut is the key, and
+// still no name. The open list is a browser's job (`scripts/drive-profile-rows.cjs`): a static render cannot press.
+assert.match(activity, /aria-expanded="false"/, 'the board activity is drawn folded away');
+assert.doesNotMatch(activity, /NOTHING YET\.|HAS NOT FILED/, 'with no empty line, in two words or as a sentence, until it is opened');
 assert.doesNotMatch(activity, />sweden<|>SWEDEN</, 'and draws no name, so none can lose its colour');
 assert.doesNotMatch(activity, LAMP);
 
@@ -92,7 +95,7 @@ const plainActivity = withProviders(
   element(ProfileBoardActivity, { userId: 'user-luke', displayName: 'luke', threads: [] }),
 );
 assert.doesNotMatch(plainActivity, /--name-ink/, 'an account with no swatch stays the page black');
-assert.match(plainActivity, /NOTHING YET\./);
+assert.match(plainActivity, /aria-expanded="false"/, 'folded away too (2026-11-14)');
 
 // 3. Comms: the panel names the peer it is addressed to.
 const panel = withProviders(
