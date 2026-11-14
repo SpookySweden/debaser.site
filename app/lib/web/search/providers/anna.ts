@@ -1,65 +1,80 @@
 /**
- * ANNA'S ARCHIVE (Luke, 2026-11-13: "annahs archive as a specific search option under where from"): searches Anna's
- * Archive's HTML page for a book title, extracts each hit's md5 and title with one regex, and returns them as book
- * rows with externalId `shadow:<md5>`. The reader opens each as a shadow copy (shadow-books.ts).
+ * ANNA'S ARCHIVE (Luke, 2026-11-13; rearchitected 2026-11-14): search hits a home-run proxy
+ * (Luke's desktop, WireGuard-split-tunnelled + Playwright + persistent Anna's cookies at
+ * `I:\debaser-cache\.browser-profile\`). The proxy's `/search?q=` returns JSON; each hit's
+ * externalId becomes `shadow:<md5>` so the reader can queue it for download via `/download`
+ * and serve it from `/file/<md5>` once cached on the home HDD.
  *
- * Reachability: Vercel's DNS refuses the real Anna's Archive hosts (annas-archive.org, annas-archive.se). The shadow
- * agent in shadow-books.ts uses a DoH-based lookup to try to work around this, and an insecure-TLS dispatcher for
- * mirrors whose cert expired. When no mirror is reachable, the provider answers with no items — the panel still lists
- * the source so the reader can pick it, as `SearchProblemError` would put a red line under the search box.
+ * When `SHADOW_PROXY_URL`/`SHADOW_PROXY_TOKEN` are unset (or the proxy is offline), the
+ * provider throws `SearchProblemError('NO ANSWER')` so the panel shows a one-line problem
+ * under the search box — the source still appears in WHERE FROM so the reader sees it.
  */
-import { ANNAS_HOSTS, extractAnnasMd5, searchAnnasMany, type AnnaHit } from '../../shadow-books';
 import type { WebItem } from '../../types';
 import { SearchProblemError, type ProviderPage, type SearchDeps, type SearchKind, type SearchPage, type SearchProvider } from '../types';
 
-export const ANNA_SEARCH_HOSTS = ANNAS_HOSTS;
+const SHADOW_PROXY_URL = (process.env.SHADOW_PROXY_URL ?? '').trim().replace(/\/+$/, '');
+const SHADOW_PROXY_TOKEN = (process.env.SHADOW_PROXY_TOKEN ?? '').trim();
 
-/** How many Anna's hits are returned on a page. Anna's search returns ~60; we cap at 20 to match BOOKS. */
 export const ANNA_PAGE_SIZE = 20;
 
-/** Anna's Archive hit as a MEDIA row. externalId uses the `shadow:` prefix so the reader opens it through the shadow route. */
-function toAnnaItem(hit: AnnaHit, fetchedAt: string): WebItem {
+type ProxyHit = { md5: string; title?: string; author?: string; year?: string; ext?: string; size?: string };
+type ProxyAnswer = { ok: boolean; hits?: ProxyHit[]; challenged?: boolean; lastError?: string };
+
+function toAnnaItem(hit: ProxyHit, fetchedAt: string): WebItem {
+  const md5 = hit.md5.toLowerCase();
+  const title = (hit.title ?? '').trim() || 'ANNA\'S ARCHIVE BOOK';
+  const creator = (hit.author ?? '').trim();
+  const year = (hit.year ?? '').trim();
   return {
-    id: `anna:${hit.md5}`,
+    id: `anna:${md5}`,
     platform: 'anna',
-    externalId: `shadow:${hit.md5}`,
+    externalId: `shadow:${md5}`,
     kind: 'text',
-    url: `https://${ANNAS_HOSTS[0]}/md5/${hit.md5}`,
-    canonicalUrl: `https://${ANNAS_HOSTS[0]}/md5/${hit.md5}`,
-    title: hit.title || 'ANNA\'S ARCHIVE BOOK',
-    creator: hit.author || undefined,
-    publishedAt: hit.year && /^\d{4}$/.test(hit.year)
-      ? new Date(Date.UTC(Number(hit.year), 0, 1)).toISOString()
+    url: `https://annas-archive.gd/md5/${md5}`,
+    canonicalUrl: `https://annas-archive.gd/md5/${md5}`,
+    title,
+    ...(creator ? { creator } : {}),
+    publishedAt: /^\d{4}$/.test(year)
+      ? new Date(Date.UTC(Number(year), 0, 1)).toISOString()
       : fetchedAt,
     fetchedAt,
   };
 }
 
-// Keep the regex extractor available to callers that already have the HTML.
-void extractAnnasMd5;
-
 export const annaSearch: SearchProvider = {
   platform: 'anna',
-  allowedHosts: ANNA_SEARCH_HOSTS,
-  timeoutMs: 20_000,
-  sortedTimeoutMs: 20_000,
+  allowedHosts: [],
+  timeoutMs: 25_000,
+  sortedTimeoutMs: 25_000,
   orders: [],
   byAuthor: true,
-  async search(words: string, _page: ProviderPage | null, deps: SearchDeps, author = '', kind?: SearchKind): Promise<SearchPage> {
+  async search(words: string, _page: ProviderPage | null, _deps: SearchDeps, author = '', kind?: SearchKind): Promise<SearchPage> {
     if (kind !== undefined && kind !== 'text') return { items: [], next: null };
     if (words.length === 0 && author.length === 0) return { items: [], next: null };
-    const fetchedAt = (deps.now?.() ?? new Date()).toISOString();
+    if (!SHADOW_PROXY_URL || !SHADOW_PROXY_TOKEN) {
+      throw new SearchProblemError('NO ANSWER');
+    }
+    const fetchedAt = new Date().toISOString();
     const query = author.length > 0 ? `${words} ${author}`.trim() : words;
+    const url = `${SHADOW_PROXY_URL}/search?q=${encodeURIComponent(query)}&ext=epub&limit=${ANNA_PAGE_SIZE}&token=${encodeURIComponent(SHADOW_PROXY_TOKEN)}`;
     try {
-      const hits = await searchAnnasMany(query, ANNA_PAGE_SIZE);
-      const items = hits.map((hit) => toAnnaItem(hit, fetchedAt));
+      const response = await fetch(url, {
+        cache: 'no-store',
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(25_000),
+      });
+      if (!response.ok) throw new SearchProblemError('NO ANSWER');
+      const answer = (await response.json()) as ProxyAnswer;
+      if (!answer.ok || !Array.isArray(answer.hits)) {
+        throw new SearchProblemError('NO ANSWER');
+      }
+      const items = answer.hits.filter((hit) => /^[0-9a-f]{32}$/i.test(hit.md5)).map((hit) => toAnnaItem(hit, fetchedAt));
       return { items, next: null };
-    } catch {
-      // Any failure (DNS block, Cloudflare challenge, mirror down) is reported so the panel shows the problem line.
+    } catch (error) {
+      if (error instanceof SearchProblemError) throw error;
       throw new SearchProblemError('NO ANSWER');
     }
   },
-  // Anna's Archive rows are never saved into the stream; a book opens through the shadow route when a reader clicks READ.
   async fetchOne(): Promise<WebItem | null> {
     return null;
   },

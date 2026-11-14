@@ -806,44 +806,84 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
                 pdf?: { size?: number };
                 redirect?: string;
                 noFreeCopy?: { work?: string; openLibraryUrl?: string; borrowOnArchive?: string };
+                // Luke, 2026-11-14: shadow:<md5> handling via home proxy.
+                ready?: boolean;
+                preparing?: boolean;
+                md5?: string;
+                fileUrl?: string;
+                statusUrl?: string;
+                state?: string;
+                progress?: number;
+                note?: string;
               })
             : null;
-          // A bare Open Library work (Luke, 2026-11-13: "any book can be read in the ereader"): the server resolved it to a
-          // concrete copy; the reader reopens at that ref. Only a /read/… address on this site, and never where we came from.
-          if (said?.redirect && /^\/read\/[A-Za-z0-9][A-Za-z0-9:_.-]{1,200}(?:\?[A-Za-z0-9=&_.-]*)?$/.test(said.redirect) && said.redirect !== `/read/${bookRef}`) {
-            if (live) router.replace(said.redirect);
-            return;
-          }
-          // A work with no free copy anywhere: a page inside the reader with a link to Open Library, and, when a
-          // lending-library Archive scan exists, a [ BORROW ON ARCHIVE ↗ ] key beside it.
-          if (said?.noFreeCopy?.openLibraryUrl && /^https:\/\/openlibrary\.org\/works\/OL[1-9][0-9]{0,11}W$/.test(said.noFreeCopy.openLibraryUrl)) {
-            if (live) {
-              setNoFreeCopyUrl(said.noFreeCopy.openLibraryUrl);
-              setBorrowOnArchive(
-                typeof said.noFreeCopy.borrowOnArchive === 'string' && /^https:\/\/archive\.org\/details\/[A-Za-z0-9][A-Za-z0-9._-]{0,100}$/.test(said.noFreeCopy.borrowOnArchive)
-                  ? said.noFreeCopy.borrowOnArchive
-                  : null,
-              );
-              setPhase('no-free-copy');
+          // A shadow copy that's already cached on the home proxy: fetch the file from the tunnel
+          // directly (CORS allows it; the file is served as a blob the engine opens as any other).
+          if (said?.ready && said.fileUrl && /^https?:\/\/[^/]+\/file\/[0-9a-f]{32}$/i.test(said.fileUrl)) {
+            const r = await fetch(said.fileUrl, { cache: 'no-store' });
+            if (!r.ok) throw new Error('SHADOW FILE UNAVAILABLE');
+            file = await r.blob();
+          } else if (said?.preparing && said.md5 && said.statusUrl && said.fileUrl) {
+            // Not ready yet — poll until it becomes ready. The home proxy serves the file when done.
+            setPhase('reading-file');
+            const start = Date.now();
+            let polledState = said.state ?? 'queued';
+            while (polledState !== 'ready' && polledState !== 'failed' && Date.now() - start < 10 * 60_000 && live) {
+              await new Promise((resolve) => setTimeout(resolve, 2000));
+              if (!live) return;
+              try {
+                const sr = await fetch(said.statusUrl, { cache: 'no-store' });
+                if (sr.ok) {
+                  const s = (await sr.json()) as { state?: string };
+                  polledState = s.state ?? polledState;
+                }
+              } catch {
+                // Keep polling.
+              }
             }
-            return;
-          }
-          // An Internet Archive book with neither an EPUB nor a PDF: its page pictures in the site's own reader, straight from
-          // archive.org (SPEC-reading-places.md, 2026-11-13); the Archive's own viewer when those can't be read.
-          const archiveId = archiveBookId(bookRef);
-          if (said?.viewer === true && archiveId !== null) {
-            const found = await fetchPages(archiveId, leaving.signal);
-            if (!found) {
-              if (live) setPhase('viewer');
+            if (polledState === 'failed') throw new Error('THE HOME PROXY FAILED TO FETCH THIS BOOK.');
+            if (polledState !== 'ready') throw new Error('STILL NOT READY. TRY AGAIN.');
+            const r = await fetch(said.fileUrl, { cache: 'no-store' });
+            if (!r.ok) throw new Error('SHADOW FILE UNAVAILABLE');
+            file = await r.blob();
+          } else {
+            // A bare Open Library work (Luke, 2026-11-13: "any book can be read in the ereader"): the server resolved it to a
+            // concrete copy; the reader reopens at that ref. Only a /read/… address on this site, and never where we came from.
+            if (said?.redirect && /^\/read\/[A-Za-z0-9][A-Za-z0-9:_.-]{1,200}(?:\?[A-Za-z0-9=&_.-]*)?$/.test(said.redirect) && said.redirect !== `/read/${bookRef}`) {
+              if (live) router.replace(said.redirect);
               return;
             }
-            prepared = pictureBook(found, '');
-          } else {
-            if (!response.ok) throw new Error(said?.error ?? 'THIS BOOK CAN\'T BE READ HERE.');
-            // One with only a PDF: read a slice at a time through the site's route, never kept.
-            if (said?.pdf && typeof said.pdf.size === 'number' && said.pdf.size > 0) file = remotePdf(bookRef, said.pdf.size);
-            else if (said) throw new Error(said.error ?? 'THIS BOOK CAN\'T BE READ HERE.');
-            else file = await response.blob();
+            // A work with no free copy anywhere: a page inside the reader with a link to Open Library, and, when a
+            // lending-library Archive scan exists, a [ BORROW ON ARCHIVE ↗ ] key beside it.
+            if (said?.noFreeCopy?.openLibraryUrl && /^https:\/\/openlibrary\.org\/works\/OL[1-9][0-9]{0,11}W$/.test(said.noFreeCopy.openLibraryUrl)) {
+              if (live) {
+                setNoFreeCopyUrl(said.noFreeCopy.openLibraryUrl);
+                setBorrowOnArchive(
+                  typeof said.noFreeCopy.borrowOnArchive === 'string' && /^https:\/\/archive\.org\/details\/[A-Za-z0-9][A-Za-z0-9._-]{0,100}$/.test(said.noFreeCopy.borrowOnArchive)
+                    ? said.noFreeCopy.borrowOnArchive
+                    : null,
+                );
+                setPhase('no-free-copy');
+              }
+              return;
+            }
+            // An Internet Archive book with neither an EPUB nor a PDF: its page pictures in the site's own reader, straight from
+            // archive.org (SPEC-reading-places.md, 2026-11-13); the Archive's own viewer when those can't be read.
+            const archiveId = archiveBookId(bookRef);
+            if (said?.viewer === true && archiveId !== null) {
+              const found = await fetchPages(archiveId, leaving.signal);
+              if (!found) {
+                if (live) setPhase('viewer');
+                return;
+              }
+              prepared = pictureBook(found, '');
+            } else {
+              if (!response.ok) throw new Error(said?.error ?? 'THIS BOOK CAN\'T BE READ HERE.');
+              // One with only a PDF: read a slice at a time through the site's route, never kept.
+              if (said?.pdf && typeof said.pdf.size === 'number' && said.pdf.size > 0) file = remotePdf(bookRef, said.pdf.size);
+              else if (said) throw new Error(said.error ?? 'THIS BOOK CAN\'T BE READ HERE.');
+              else file = await response.blob();
+            }
           }
         }
         if (!live) return;

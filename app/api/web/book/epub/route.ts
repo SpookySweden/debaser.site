@@ -50,6 +50,46 @@ export async function GET(request: Request): Promise<Response> {
   const ref = params.get('ref') ?? '';
   const address = clientAddress(request.headers);
 
+  // Luke, 2026-11-14: a shadow copy (`shadow:<md5>`) is now sourced from the home proxy's cache.
+  // When not yet cached, we POST /download to kick the Playwright worker and return 202 with the
+  // proxy URLs so the reader can poll /status and fetch /file directly (cross-origin, both CORS'd).
+  if (ref.startsWith('shadow:')) {
+    const md5 = ref.slice('shadow:'.length).toLowerCase();
+    if (!/^[0-9a-f]{32}$/.test(md5)) return refuse('bad md5', 400);
+    const proxyUrl = (process.env.SHADOW_PROXY_URL ?? '').trim().replace(/\/+$/, '');
+    const proxyToken = (process.env.SHADOW_PROXY_TOKEN ?? '').trim();
+    if (!proxyUrl || !proxyToken) return refuse('THE HOME SHADOW PROXY IS NOT CONFIGURED.', 503);
+    try {
+      const statusRes = await fetch(`${proxyUrl}/status/${md5}?token=${encodeURIComponent(proxyToken)}`, { cache: 'no-store' });
+      const status = statusRes.ok ? ((await statusRes.json()) as { state?: string; progress?: number; note?: string; error?: string }) : null;
+      if (status?.state === 'ready') {
+        return answer({ ready: true, fileUrl: `${proxyUrl}/file/${md5}`, md5 }, 200);
+      }
+      // Not ready — queue it (idempotent on the proxy side).
+      const queue = await fetch(`${proxyUrl}/download?token=${encodeURIComponent(proxyToken)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ md5 }),
+        cache: 'no-store',
+      });
+      const queued = queue.ok ? ((await queue.json()) as { state?: string; progress?: number; note?: string; error?: string }) : null;
+      return answer(
+        {
+          preparing: true,
+          md5,
+          state: queued?.state ?? status?.state ?? 'queued',
+          progress: queued?.progress ?? status?.progress ?? 0,
+          note: queued?.note ?? status?.note ?? 'waiting for the home proxy',
+          statusUrl: `${proxyUrl}/status/${md5}`,
+          fileUrl: `${proxyUrl}/file/${md5}`,
+        },
+        202,
+      );
+    } catch {
+      return refuse('THE HOME SHADOW PROXY DID NOT ANSWER.', 502);
+    }
+  }
+
   const cid = ipfsCid(ref);
   if (cid !== null) {
     if (!ipfsPerAddress.allow(address)) return refuse('Too many books at once. Wait a minute.', 429);
