@@ -12,6 +12,8 @@ type ProfileBoardActivityProps = {
   userId: string;
   /** The whole board as this reader sees it: the list picks this account's posts and replies out of it. */
   threads: ForumThread[];
+  /** False while the board is still being read: an empty list then says so, instead of claiming there is nothing. */
+  ready?: boolean;
 };
 
 /**
@@ -29,7 +31,7 @@ type ProfileBoardActivityProps = {
  *
  * No counts (a profile shows a person, not a console): `[ MORE ]` brings the next rows while there are any.
  */
-export default function ProfileBoardActivity({ userId, threads }: ProfileBoardActivityProps) {
+export default function ProfileBoardActivity({ userId, threads, ready = true }: ProfileBoardActivityProps) {
   const [open, setOpen] = useState(false);
   const [shown, setShown] = useState(BOARD_ACTIVITY_STEP);
   const rows = useMemo(() => boardActivityRows(threads, userId), [threads, userId]);
@@ -46,7 +48,7 @@ export default function ProfileBoardActivity({ userId, threads }: ProfileBoardAc
       {!open ? null : (
         <div className="p-3 text-ink">
           {rows.length === 0 ? (
-            <p className="text-label font-bold text-ink">NOTHING YET.</p>
+            <p className="text-label font-bold text-ink">{ready ? 'NOTHING YET.' : 'READING...'}</p>
           ) : (
             <ul className="space-y-1">
               {rows.slice(0, shown).map((row) => (

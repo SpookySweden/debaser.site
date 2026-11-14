@@ -4,7 +4,7 @@
  * nothing is written to the database (beyond the profile visit any visit records).
  *
  *   node scripts/drive-profile-rows.cjs --person <account id> [--thread <id>] [--comment <id>]
- *        [--base https://debaser-site.vercel.app] [--mobile] [--headed] [--address-only]
+ *        [--base https://debaser-site.vercel.app] [--mobile] [--bright] [--headed] [--address-only]
  *
  * `--person` is somebody with posts and replies on the board (never acted as: only their public page is read).
  *   1. the board opened cold at `/forum#thread-<id>` and at `/forum#comment-<id>` (the ids given, ideally old ones that
@@ -28,7 +28,8 @@ const PERSON = opt('--person', '');
 const THREAD = opt('--thread', '');
 const COMMENT = opt('--comment', '');
 const MOBILE = args.includes('--mobile');
-const TAG = MOBILE ? 'phone' : 'desktop';
+const BRIGHT = args.includes('--bright');
+const TAG = `${MOBILE ? 'phone' : 'desktop'}${BRIGHT ? '-bright' : ''}`;
 const SHOTS = join('Temp', 'browse', 'profile');
 mkdirSync(SHOTS, { recursive: true });
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -44,7 +45,10 @@ async function open(browser, account) {
       ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }
       : { viewport: { width: 1440, height: 900 } },
   );
-  await context.addInitScript(() => window.localStorage.setItem('debaser.lost-account.never.v1', '1'));
+  await context.addInitScript((bright) => {
+    window.localStorage.setItem('debaser.lost-account.never.v1', '1');
+    if (bright) window.localStorage.setItem('debaser.site.theme.v1', 'default');
+  }, BRIGHT);
   const page = await context.newPage();
   page.on('pageerror', (error) => console.log(`  page error: ${String(error).slice(0, 200)}`));
   await installSession(page, account);
@@ -56,9 +60,17 @@ async function landed(page, domId, what) {
   await page.waitForFunction(
     (id) => document.getElementById(id)?.classList.contains('animate-flash') === true,
     domId,
-    { timeout: 45000, polling: 50 },
-  ).catch(() => {
-    throw new Error(`${what}: never marked (no element #${domId} wearing the flash within 45 s)`);
+    { timeout: 180000, polling: 50 },
+  ).catch(async () => {
+    await page.screenshot({ path: join(SHOTS, `rows-${TAG}-FAILED.png`) }).catch(() => undefined);
+    const state = await page.evaluate((id) => ({
+      there: document.getElementById(id) !== null,
+      cards: document.querySelectorAll('#forum-thread-list > *').length,
+      fault: /COULD NOT BE READ/.test(document.body.innerText),
+      hash: window.location.hash,
+    }), domId).catch(() => null);
+    console.log(`  state at failure: ${JSON.stringify(state)}`);
+    throw new Error(`${what}: never marked (no element #${domId} wearing the flash within 3 minutes)`);
   });
   pass(`${what}: marked (the flash and its dotted ring)`);
   // The picture is taken while the ring is still on it.
@@ -132,6 +144,8 @@ async function main() {
 
     await key.click();
     assert.equal(await section.getAttribute('data-board-activity'), 'open');
+    // The rows are read out of the board's posts, which can take a while to arrive: the list says READING... until then.
+    await page.waitForFunction(() => !/READING/.test(document.querySelector('[data-board-activity]')?.textContent ?? ''), null, { timeout: 180000 });
     assert.equal(await section.getByRole('button', { name: /HIDE/ }).getAttribute('aria-expanded'), 'true');
     const rowCount = await section.locator('a[href^="/forum#"]').count();
     assert.ok(rowCount > 0, 'rows are drawn once it is open');
@@ -164,6 +178,7 @@ async function main() {
       await section.waitFor({ timeout: 60000 });
       await sleep(6000);
       await section.getByRole('button', { name: /SHOW/ }).click();
+      await page.waitForFunction(() => !/READING/.test(document.querySelector('[data-board-activity]')?.textContent ?? ''), null, { timeout: 180000 });
       for (let i = 0; i < 20; i += 1) {
         const more = section.getByRole('button', { name: /MORE/ });
         if ((await more.count()) === 0) break;

@@ -99,7 +99,7 @@ export default function AccountDetails() {
           row leading straight to its place on the board. The THREADS / REPLIES counts that stood here went with the
           old list: the fold is shut by default, so nothing was left to count over. */}
       <div id="activity">
-        <ProfileBoardActivity userId={accountId} threads={forum.threads} />
+        <ProfileBoardActivity userId={accountId} threads={forum.threads} ready={forum.ready} />
       </div>
 
       {/* Only the local backend can delete from here; on Supabase the section would hold nothing to press. */}

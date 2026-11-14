@@ -452,14 +452,18 @@ export default function ForumBoard() {
   // The address's post or reply, once the board holds it: the same jump a search result makes, so it lands
   // on whatever page the post is on, open, in view and marked (Luke, 2026-11-14: a row on a profile "needs to
   // bring you more directly to the corresponding thread"). Until then it waits: the posts arrive after the
-  // page, and a profile's comments (threads of their own here) by a second read. An address naming nothing
-  // this reader's board ever holds is let go quietly, so it cannot fire by itself much later.
+  // page, and a profile's comments (threads of their own here) by a second read. While the board is still being
+  // read it waits for as long as that takes: the database can be slow (seen live, 2026-11-14: over 45 seconds),
+  // and a jump dropped on a timer then lands the reader on page one with nothing marked. Once the board has
+  // answered, an address naming nothing it holds is let go after a few seconds (the second read's time), so it
+  // cannot fire by itself much later.
   useEffect(() => {
     if (addressJump === null) return;
     const found = findBoardPost(forum.threads, addressJump);
 
     if (found === null) {
-      const timer = window.setTimeout(() => setAddressJump(null), forum.ready ? 5000 : 20000);
+      if (!forum.ready) return;
+      const timer = window.setTimeout(() => setAddressJump(null), 8000);
       return () => window.clearTimeout(timer);
     }
 
