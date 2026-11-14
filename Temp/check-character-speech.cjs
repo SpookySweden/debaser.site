@@ -1,6 +1,6 @@
 /*
  * Character speech: who may say what, the random pick, and the cut into bubbles (SPEC-character-speech.md).
- *   npx tsc app/lib/speech/script.ts --outDir Temp/speech-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop
+ *   npx tsc app/lib/speech/script.ts app/lib/speech/voice.ts --outDir Temp/speech-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop
  *   node Temp/check-character-speech.cjs
  *
  * Luke, 2026-11-14: "have any comments made on the profile by that person, or comments in reply to that person by spoken
@@ -14,6 +14,7 @@
  */
 const assert = require('node:assert/strict');
 const speech = require('./speech-out/speech/script.js');
+const voices = require('./speech-out/speech/voice.js');
 
 const owner = { id: 'u-owner', name: 'sweden' };
 const amy = { id: 'u-amy', name: 'amy' };
@@ -159,5 +160,33 @@ for (const roll of [0, 0.5, 0.999]) {
   assert.ok(wait >= speech.SPEECH_PACE.gapMs[0] && wait <= speech.SPEECH_PACE.gapMs[1], 'the gap between bubbles stays in its range');
 }
 assert.ok(speech.SPEECH_PACE.gapMs[0] >= 5000, 'never chattering: at least a few seconds between bubbles');
+
+// 8. The voice (phase 2; Luke: "Make our own blip voice", "A: From the character"): worked out, never chosen.
+const tall = voices.voiceFor('u-amy', 30);
+const small = voices.voiceFor('u-amy', 10);
+assert.deepEqual(voices.voiceFor('u-amy', 30), tall, 'the same character always has the same voice');
+assert.ok(tall.hz < small.hz, `a taller character is deeper (${tall.hz} Hz against ${small.hz} Hz)`);
+assert.ok(tall.hz >= 150 && small.hz <= 600, 'and every voice stays where a small speaker can sound it');
+const others = ['u-bo', 'u-owner', 'u-cy', 'u-dee', 'u-eve'].map((id) => voices.voiceFor(id, 30));
+assert.ok(others.some((voice) => voice.hz !== tall.hz || voice.wave !== tall.wave || voice.blipMs !== tall.blipMs), 'two characters of one height are not one voice');
+assert.ok(new Set([tall, ...others].map((voice) => `${voice.wave}:${voice.hz}:${voice.blipMs}:${voice.wobble}`)).size >= 4, 'the accounts spread out');
+for (const voice of [tall, small, ...others]) {
+  assert.ok(voice.wave === 'square' || voice.wave === 'triangle');
+  assert.ok(voice.blipMs >= 40 && voice.blipMs <= 60, 'a blip is 40 to 60 ms');
+  assert.ok(voice.wobble > 0 && voice.wobble <= 0.1, 'with a little wobble, never a siren');
+}
+const plain = voices.voiceFor('u-amy', null);
+assert.ok(plain.hz > tall.hz && plain.hz < voices.voiceFor('u-amy', 8).hz, 'a figure with no character of its own has a plain middle voice');
+for (const letter of ['a', 'Z', '7', 'é']) assert.ok(voices.speaks(letter), `"${letter}" makes a sound`);
+for (const letter of [' ', '.', ',', '!', '?', '-', '@', '"']) assert.ok(!voices.speaks(letter), `"${letter}" is silent`);
+for (const roll of [0, 0.5, 0.999]) {
+  const consonant = voices.blipHz(tall, 'k', () => roll);
+  assert.ok(Math.abs(consonant - tall.hz) <= tall.hz * tall.wobble + 0.001, 'a letter strays no further than the wobble');
+  assert.ok(voices.blipHz(tall, 'a', () => roll) > consonant, 'and a vowel sits a little higher');
+}
+assert.equal(voices.blipGain(0), 0, 'the music bar turned right down is silence');
+assert.ok(voices.blipGain(1) > 0 && voices.blipGain(1) <= 0.15, 'at full volume a blip is still well under the music');
+assert.equal(voices.blipGain(7), voices.blipGain(1), 'and a wild number is not a loud one');
+assert.equal(voices.blipGain(Number.NaN), 0);
 
 console.log('check-character-speech: ok');

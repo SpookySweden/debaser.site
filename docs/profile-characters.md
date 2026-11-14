@@ -58,7 +58,13 @@ Read this before touching the motions, the bake or the profile walker. The spec 
 - **Reduced motion:** nothing speaks by itself. A press on a character shows its next line whole; a second press puts it away.
 - Checked by `Temp/check-character-speech.cjs` (the rules) and `scripts/drive-character-speech.cjs` (a real browser on
   a local dev server with mock data: it seeds its own accounts, comments and characters and touches no database).
-- Still to come from that spec: the voice (an audio key and blips), and companions speaking the chat in stream rooms.
+- **The voice:** the ROOM's title bar carries `[ ♪ OFF ]` (`SpeechAudioKey.tsx`) while anybody has something to say.
+  Switched on (remembered in that browser, one choice for the whole site), each letter of a bubble makes one short blip
+  made in the browser (`app/lib/speech/blip.ts`): no recordings. A character's voice is worked out, never chosen
+  (`app/lib/speech/voice.ts`): taller is deeper, and the account gives it a quirk. No sound machinery exists before a
+  press: the key's own, or, with ON remembered, the reader's first press anywhere. It follows the music bar's VOL at
+  about half the music's level. Tuning by number: `voiceFor`, `blipGain`, `SPEECH_PACE`.
+- Still to come from that spec: companions speaking the chat in stream rooms.
 
 ## Rules that came from the spec
 - **Motion isn't artwork** (core.md, Asset Rules). Code only turns the joints of shapes someone built by hand. It never

@@ -13,6 +13,9 @@
  *      what it says is one of that same person's own comments, never anybody else's;
  *   c. the bubble sits inside the room and over the head of the one speaking, never more than two lines of words;
  *   d. after it closes, the next opens within the stated gap (6 to 16 seconds);
+ *   v. the voice: the audio key is there and off, and no sound machinery exists; pressed, it is on, the machinery is
+ *      made, and a whole bubble sounds exactly one blip for each letter that speaks; the choice survives a reload,
+ *      and nothing is made again until the reader presses something;
  *   e. pressing a bubble opens COMMENTS on the page with that comment in view and marked;
  *   f. reduced motion: nothing speaks by itself; a press on a character shows its line whole; a second press puts it away;
  *   g. one quick look at phone width: no sideways scroll.
@@ -227,6 +230,27 @@ async function main() {
     pass(`one bubble at a time, ${gaps.map((gap) => (gap / 1000).toFixed(1)).join(' s, ')} s apart: within the 6 to 16 seconds stated`);
     pass(`four bubbles watched (${seenIds.size} different lines, pages seen: ${[...pagesSeen].join(' ')}): each said by its own writer, over its own head`);
 
+    /* v. the voice */
+    const sound = () => page.evaluate(() => ({ ...(window.__debaserSpeech ?? { contexts: -1, blips: -1 }) }));
+    const key = page.locator('[data-profile-room] [data-speech-audio]');
+    assert.equal(await key.getAttribute('data-speech-audio'), 'off', 'the audio key starts off');
+    assert.equal(await key.getAttribute('aria-pressed'), 'false');
+    assert.deepEqual(await sound(), { contexts: 0, blips: 0 }, 'four bubbles have typed and no sound machinery was ever made');
+    pass("the audio key is on the room's title bar and starts off; after four bubbles no sound machinery exists and nothing has sounded");
+    // Switched on between two bubbles, so the next one is heard from its first letter.
+    await waitForNoBubble(page, 45000);
+    await key.click();
+    assert.equal(await key.getAttribute('aria-pressed'), 'true', 'pressed, it says it is on');
+    assert.equal((await sound()).contexts, 1, 'and its own press is what makes the machinery');
+    const voiced = await waitForBubble(page, 20000);
+    assert.ok(voiced !== null, 'a bubble to listen to');
+    const heard = voiced.seen.bubble.label.split(' SAID: ')[1];
+    assert.ok((await waitForNoBubble(page, 45000)) !== null, 'it finishes');
+    const speaking = [...heard].filter((letter) => /[\p{L}\p{N}]/u.test(letter)).length;
+    const blips = (await sound()).blips;
+    assert.equal(blips, speaking, `one blip for each letter that speaks, none for a space or a mark (${blips} blips, ${speaking} letters)`);
+    pass(`switched on by its own press: "${heard.slice(0, 24)}..." sounded ${blips} blips for its ${speaking} letters, none for spaces or marks`);
+
     /* e. pressing a bubble */
     const current = await waitForBubble(page, 20000);
     assert.ok(current !== null, 'a bubble to press');
@@ -244,6 +268,14 @@ async function main() {
     assert.equal(page.url().split('#')[0], address.split('#')[0], 'on the same page');
     await page.screenshot({ path: join(SHOTS, 'speech-desktop-pressed.png') });
     pass(`pressing the bubble opened COMMENTS at "${wanted.slice(0, 28)}...", in view and marked`);
+
+    /* v. again: the choice is remembered, and still nothing sounds before a press */
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('[data-profile-room] [data-speech-audio="on"]', { timeout: 120000 });
+    assert.equal((await sound()).contexts, 0, 'remembered as on, and no machinery until the reader presses something');
+    await page.mouse.click(700, 60);
+    assert.equal((await sound()).contexts, 1, 'the first press anywhere lets it start');
+    pass('after a reload the key is still on, nothing is made until a press, and the first press anywhere starts it');
     await page.context().close();
 
     /* f. reduced motion */

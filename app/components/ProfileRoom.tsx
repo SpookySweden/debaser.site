@@ -15,10 +15,13 @@ import {
 } from '../lib/companion/visit';
 import type { ForumThread } from '../lib/forum/types';
 import type { ProfileComment } from '../lib/profile/types';
+import { blip } from '../lib/speech/blip';
 import { guestCandidates, linesFor, nextLine, SPEECH_PACE, waitWithin, type SpeechLine, type SpeechPerson } from '../lib/speech/script';
+import { voiceFor } from '../lib/speech/voice';
 import { useAuth } from './AuthProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import { roomFigureSize, RoomWalker, useReducedMotion, type RoomLook } from './ProfileCharacter';
+import SpeechAudioKey from './SpeechAudioKey';
 import SpeechBubble, { SPEECH_HEADROOM } from './SpeechBubble';
 
 /** Room over the tallest figure for the music notes trailing up from a dance. */
@@ -77,6 +80,11 @@ const NO_THREADS: ForumThread[] = [];
  * and nobody ever says a word they did not write). One speaker at a time, at random, a few seconds apart, and only while
  * the room is on screen. Under reduced motion nothing speaks by itself: pressing a character shows its next line whole,
  * and pressing it again puts it away.
+ *
+ * **And they can be heard** (the same spec: "an audio button on the top right which starts muted"): while anybody here
+ * has something to say, the title bar carries the audio key (`./SpeechAudioKey.tsx`). Switched on, each letter of a
+ * bubble makes a short blip in that character's own voice: deeper for a taller character, with a quirk from its
+ * account (`../lib/speech/voice.ts`).
  *
  * An owner with no shown character has no figure here (their hand-drawn sprite slot stays in the status bar); the room is
  * still drawn when your companion is coming to visit or a commenter's character is, and left out when nobody would be
@@ -226,6 +234,13 @@ export default function ProfileRoom({
   );
   const name = displayName.toUpperCase();
   const nameOf = (id: string) => people.find((person) => person.id === id)?.name ?? '';
+  /** How tall a speaker's character is, in its strip's own blocks; null for the placeholder field. */
+  const heightOf = (id: string): number | null => {
+    const guest = guests.find((one) => one.person.id === id);
+    if (guest !== undefined) return guest.shown.sheet.floor;
+    if (id === userId && drawOwner && shown) return shown.sheet.floor;
+    return visit.look?.sheet.floor ?? null;
+  };
 
   /** What a figure is saying just now, if it is the one speaking. */
   const speechOf = (id: string) =>
@@ -239,6 +254,7 @@ export default function ProfileRoom({
             within={width}
             whole={reduced}
             onDone={() => setSaying(null)}
+            onLetter={(letter) => blip(voiceFor(id, heightOf(id)), letter)}
             onOpenHere={(commentId) => onOpenComment?.(commentId)}
           />
         )
@@ -247,7 +263,11 @@ export default function ProfileRoom({
   return (
     <section aria-label={`${name}'S ROOM`} className="frame bg-ena-deep" data-profile-room>
       {lookups}
-      <div className="truncate bg-ena px-2 py-0.5 text-label font-bold text-ink-bar">{name}&apos;S ROOM</div>
+      <div className="flex items-center justify-between gap-2 bg-ena px-2 py-0.5 text-label font-bold text-ink-bar">
+        <span className="min-w-0 truncate">{name}&apos;S ROOM</span>
+        {/* A key that could never sound would be a lie: it is here only while somebody has something to say. */}
+        {talkers.length > 0 ? <SpeechAudioKey /> : null}
+      </div>
       {/* A bubble's height is kept for good once anybody here has something to say, so nothing jumps when one opens. */}
       <div
         ref={setStage}

@@ -84,6 +84,11 @@ export default function SpeechBubble({ line, name, at, within, whole = false, on
     return () => window.clearTimeout(timer);
   }, [whole, count, letters, page, pages.length]);
 
+  // Shown whole (reduced motion): one soft blip for the page, in place of one a letter.
+  useEffect(() => {
+    if (whole && letters.length > 0) letter.current?.(letters[0]);
+  }, [whole, letters]);
+
   // Measured before it is painted, and again for each page: where it sits depends on how wide it is.
   useLayoutEffect(() => {
     if (box.current !== null) setWidth(box.current.offsetWidth);
