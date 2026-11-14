@@ -36,11 +36,11 @@ function noteSpot(figure: HTMLElement): void {
 }
 
 /** Looks up whether somebody has a character to show, and says so: it draws nothing itself. */
-function GuestLook({ person, onLook }: { person: string; onLook: (person: string, shown: ShownCharacter | null) => void }) {
-  const shown = useShownCharacter(person);
+function GuestLook({ whose, onLook }: { whose: string; onLook: (person: string, shown: ShownCharacter | null) => void }) {
+  const shown = useShownCharacter(whose);
   useEffect(() => {
-    if (shown !== undefined) onLook(person, shown);
-  }, [person, shown, onLook]);
+    if (shown !== undefined) onLook(whose, shown);
+  }, [whose, shown, onLook]);
   return null;
 }
 
@@ -213,7 +213,7 @@ export default function ProfileRoom({
   }, [stage, visit.out, userId]);
 
   // The lookups are drawn whether or not the room is: they are how the room learns there is somebody to draw it for.
-  const lookups = candidates.map((person) => <GuestLook key={person.id} person={person.id} onLook={noteLook} />);
+  const lookups = candidates.map((person) => <GuestLook key={person.id} whose={person.id} onLook={noteLook} />);
 
   if (!drawn) return <>{lookups}</>;
 

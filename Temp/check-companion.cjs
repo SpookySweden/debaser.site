@@ -658,7 +658,9 @@ ok("K2: handed something, a person's character catches it, wherever it is drawn 
   const walkerSource = read('app/components/ProfileCharacter.tsx');
   assert.match(walkerSource, /return onCompanionCatch\(\(who\) => \{\s*if \(who === person\) setState\(\(current\) => catchIt\(current\)\);\s*\}\);/, "their character in a profile's ROOM");
   assert.match(walkerSource, /data-character-of=\{person\}/, 'which says whose it is too');
-  assert.equal((read('app/components/ProfileRoom.tsx').match(/person=\{/g) ?? []).length, 2, "the room's own character and your visiting companion");
+  // Updated on purpose (SPEC-character-speech.md, 2026-11-14): commenters' characters visit the room now, and each of
+  // them says whose it is too, so three figures are drawn with a person where there were two.
+  assert.equal((read('app/components/ProfileRoom.tsx').match(/person=\{/g) ?? []).length, 3, "the room's own character, each visiting commenter's, and your visiting companion");
   const bus = read('app/lib/companion/events.ts');
   assert.doesNotMatch(bus, /fetch\(|supabase|sayCompanion/, 'the bus sends nothing anywhere');
 });
