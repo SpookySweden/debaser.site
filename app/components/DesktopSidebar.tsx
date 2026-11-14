@@ -353,6 +353,10 @@ export default function DesktopSidebar({ foldedOnThisPage = false }: { foldedOnT
           <div className="space-y-1 p-2">
             {user === null ? null : <GoLiveKey user={user} />}
             <ShelfKey item={SIDE_ARCADE} isOpen={arcadeOpen} onPress={pressArcade} />
+            {/* READ, the reader's page (Luke, 2026-11-14: moved here from the top bar, where it is an off-by-default module). */}
+            <Link href="/read" className="key flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-label">
+              <span className="min-w-0 flex-1 truncate text-left">[ READ ]</span>
+            </Link>
             <RecommendationsKey me={user?.id ?? null} />
             <ShelfKey item={SIDE_MUSIC} isOpen={musicOpen} onPress={pressMusic} />
             <ShelfKey item={SIDE_QUEUES} isOpen={queuesOpen} onPress={pressQueues} />

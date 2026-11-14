@@ -46,8 +46,9 @@ async function up() {
     const keys = async () => (await nav.locator('a, button:not([aria-label])').allInnerTexts()).map((text) => text.trim().replace(/\s+/g, ' '));
     // (2026-11-13) DOCS is on for everyone from a first visit (Luke: "on for everyone", SPEC-live-docs.md).
     // (2026-11-13) READ, the reader's module, is on for everyone too (Luke: 'a new module for reading').
-    assert.deepEqual(await keys(), ['PROJECTS', 'FORUM', 'MEDIA', 'READ', 'DOCS', 'STREAM', 'MODULOS'], 'the keys a first visit shows');
-    console.log('  ok    first visit: PROJECTS FORUM MEDIA READ DOCS STREAM MODULOS, no DISCOVER, BEATBOX or ANIMATE');
+    // (2026-11-14) A first visit's bar is FORUM, MEDIA and STREAM only (Luke); PROJECTS, READ and DOCS start off.
+    assert.deepEqual(await keys(), ['FORUM', 'MEDIA', 'STREAM', 'MODULOS'], 'the keys a first visit shows');
+    console.log('  ok    first visit: FORUM MEDIA STREAM MODULOS, no PROJECTS, READ, DOCS, DISCOVER, BEATBOX or ANIMATE');
 
     // MODULOS is a solid block: neither a bare word nor the dark block of the page you're on, and its word reads.
     const modulosKey = nav.getByRole('button', { name: 'MODULOS', exact: true });
@@ -89,7 +90,9 @@ async function up() {
     assert.equal(await tick('ANIMATE').getAttribute('aria-checked'), 'false', 'ANIMATE starts unticked');
     assert.equal(await tick('DISCOVER').getAttribute('aria-checked'), 'false', 'DISCOVER starts unticked');
     for (const name of ['DISCOVER', 'BEATBOX', 'ANIMATE']) assert.match(await tick(name).innerText(), /WIP/, `${name} is tagged WIP in the list`);
-    assert.equal(await tick('DOCS').getAttribute('aria-checked'), 'true', 'DOCS starts ticked (Luke, 2026-11-13)');
+    assert.equal(await tick('DOCS').getAttribute('aria-checked'), 'false', 'DOCS starts unticked (Luke, 2026-11-14)');
+    assert.equal(await tick('READ').getAttribute('aria-checked'), 'false', 'READ starts unticked (Luke, 2026-11-14)');
+    assert.equal(await tick('PROJECTS').getAttribute('aria-checked'), 'false', 'PROJECTS starts unticked (Luke, 2026-11-14)');
     for (const name of ['PROJECTS', 'FORUM', 'MEDIA', 'READ', 'DOCS', 'STREAM', 'MODULOS']) assert.doesNotMatch(await tick(name).innerText(), /WIP/, `${name} is not tagged WIP`);
     assert.ok(await tick('MODULOS').isDisabled(), 'MODULOS cannot be unticked');
     console.log('  ok    list: CREATIVE holds BEATBOX, STREAM (ticked), ANIMATE; DISCOVER, BEATBOX and ANIMATE tagged WIP; MODULOS can\'t be unticked');
@@ -97,15 +100,15 @@ async function up() {
 
     await tick('BEATBOX').click();
     await tick('MEDIA').click();
-    assert.deepEqual(await keys(), ['PROJECTS', 'FORUM', 'READ', 'DOCS', 'BEATBOX WIP', 'STREAM', 'MODULOS'], 'ticking moves the bar at once, and BEATBOX wears its tag');
+    assert.deepEqual(await keys(), ['FORUM', 'BEATBOX WIP', 'STREAM', 'MODULOS'], 'ticking moves the bar at once, and BEATBOX wears its tag');
     console.log('  ok    ticking BEATBOX on and MEDIA off changes the bar at once');
 
     // A hover colour: the word turns it on the bar, with no fill.
-    const forumGroup = list.getByRole('group', { name: 'PROJECTS hover colour' });
+    const forumGroup = list.getByRole('group', { name: 'FORUM hover colour' });
     const first = forumGroup.locator('button[style]').first();
     const wanted = await first.evaluate((button) => getComputedStyle(button).backgroundColor);
     await first.click();
-    const coloured = nav.getByRole('link', { name: 'PROJECTS' });
+    const coloured = nav.getByRole('link', { name: 'FORUM' });
     const other = nav.getByRole('link', { name: 'STREAM' });
     await page.mouse.move(0, 0);
     await other.hover();
@@ -116,7 +119,7 @@ async function up() {
     const hovered = await coloured.evaluate((link) => getComputedStyle(link).color);
     assert.equal(hovered, wanted, 'on hover the word wears the picked colour');
     assert.notEqual(hovered, plain, 'a module with no colour keeps the site hover');
-    console.log(`  ok    PROJECTS turns ${hovered} on hover`);
+    console.log(`  ok    FORUM turns ${hovered} on hover`);
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/modules-hover.png` });
 
     // MODULOS keeps its hover colour too: it steps back to an outline, and the word turns the colour against the bar.
@@ -141,7 +144,7 @@ async function up() {
     await page.reload({ waitUntil: 'domcontentloaded' });
     await nav.waitFor({ state: 'visible' });
     await page.waitForTimeout(800);
-    assert.deepEqual(await keys(), ['PROJECTS', 'FORUM', 'READ', 'DOCS', 'BEATBOX WIP', 'STREAM', 'MODULOS'], 'choices survive a reload');
+    assert.deepEqual(await keys(), ['FORUM', 'BEATBOX WIP', 'STREAM', 'MODULOS'], 'choices survive a reload');
     console.log('  ok    choices survive a reload');
 
     // An unticked module's address still works.

@@ -125,7 +125,8 @@ const nav = withProviders(element(SiteNav, { active: 'forum' }));
 // (2026-11-05) And BEATBOX: six word keys. (2026-11-06) And ANIMATE, Luke's animator: seven.
 // (2026-11-13) And DOCS, on for everyone from a first visit (SPEC-live-docs.md, Luke: "on for everyone"): five.
 // (2026-11-13) And READ, the reader's module (Luke: "a new module for reading"), on from a first visit too: six.
-assert.equal((nav.match(/<a\b/g) ?? []).length, 6, 'six keys on a first draw, each one a link: they are modules now, BEATBOX, ANIMATE and DISCOVER start off, DOCS and READ start on, and MODULOS is a button (Luke, 2026-11-06; DOCS and READ 2026-11-13)');
+// (2026-11-14) Only FORUM, MEDIA and STREAM start on (Luke: "only on modules by default being now, forum, media, steam"): three.
+assert.equal((nav.match(/<a\b/g) ?? []).length, 3, 'three keys on a first draw, each one a link: FORUM, MEDIA and STREAM start on, everything else starts off, and MODULOS is a button (Luke, 2026-11-14)');
 assert.doesNotMatch(nav, /CONCEPTS/, 'concepts is not a key: it is a shelf of the project');
 assert.doesNotMatch(nav, /href="\/concepts"/);
 

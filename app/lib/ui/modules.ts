@@ -24,17 +24,20 @@ export type ModuleDef = {
 
 /** In the order the bar draws them, MODULOS last. Luke's choice: BEATBOX, ANIMATE and DISCOVER start off and are tagged WIP, and CREATIVE holds BEATBOX, STREAM and ANIMATE. */
 export const MODULES: readonly ModuleDef[] = [
-  { key: 'home', label: 'PROJECTS', href: '/projects', group: 'site', startsOn: true },
+  // (2026-11-14) A first visit's bar is FORUM, MEDIA and STREAM only (Luke: "only on modules by default being now, forum, media,
+  // steam"); PROJECTS, READ and DOCS start off, still a tick away in MODULOS.
+  { key: 'home', label: 'PROJECTS', href: '/projects', group: 'site', startsOn: false },
   { key: 'forum', label: 'FORUM', href: '/forum', group: 'site', startsOn: true },
   { key: 'web', label: 'MEDIA', href: '/media', group: 'site', startsOn: true },
   // The reader (Luke, 2026-11-13: "a new module for reading"): your books, and your own PDFs and EPUBs matched to their book.
-  { key: 'read', label: 'READ', href: '/read', group: 'site', startsOn: true },
+  // (2026-11-14) Off by default: READ lives on the side panel's shelf under ARCADE instead (DesktopSidebar's ReadKey).
+  { key: 'read', label: 'READ', href: '/read', group: 'site', startsOn: false },
   // A map of the words on MEDIA's items (SPEC-tag-station.md, SPEC-discover.md).
   { key: 'tagstation', label: 'DISCOVER', href: '/discover', group: 'site', startsOn: false, wip: true },
   // Queues of things sent to people or posted publicly (SPEC-recommendations.md, Luke 2026-11-10): off until ticked.
   { key: 'recommendations', label: 'RECOMMENDATIONS', href: '/recommendations', group: 'site', startsOn: false },
   // Shared live documents in folders, the lore pages among them (SPEC-live-docs.md): on the bar from a first visit (Luke, 2026-11-13: "on for everyone").
-  { key: 'docs', label: 'DOCS', href: '/docs', group: 'site', startsOn: true },
+  { key: 'docs', label: 'DOCS', href: '/docs', group: 'site', startsOn: false },
   // The music maker (app/features/beatbox).
   { key: 'beatbox', label: 'BEATBOX', href: '/beatbox', group: 'creative', startsOn: false, wip: true },
   { key: 'cytube', label: 'STREAM', href: '/stream', group: 'creative', startsOn: true },
