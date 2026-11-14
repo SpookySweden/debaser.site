@@ -53,7 +53,7 @@ import {
 } from '../lib/web/web-filters';
 import { PLATFORM_LABELS, type WebItem, type WebPlatform } from '../lib/web/types';
 import { canSort, ORDER_KEYS, orderLabel, searchOrder, type SortChoice } from '../lib/web/web-sort';
-import WebFilterFold, { FILTER_KEY, FILTER_KEY_ON } from './WebFilterFold';
+import WebFilterFold, { FILTER_KEY, FILTER_KEY_ON, FOLD_KEY } from './WebFilterFold';
 import { noteHistory } from '../lib/recommender/history';
 import { useMediaView, viewLabel, viewListClass, type MediaView } from '../lib/web/media-view';
 import WebViewKey from './WebViewKey';
@@ -223,7 +223,19 @@ const MINE_MOST = 24;
 
 /** Which filter sections are open, kept in this browser only (a convenience; shut when nothing is kept). */
 const FOLDS_KEY = 'debaser.media.filter-folds.v1';
-const FOLD_IDS = ['media-filter-source', 'media-filter-type', 'media-filter-order', 'media-filter-vibe', 'media-filter-creator'];
+const FOLD_IDS = ['media-filters', 'media-filter-source', 'media-filter-type', 'media-filter-order', 'media-filter-vibe', 'media-filter-creator', 'media-filter-view'];
+
+/**
+ * The quick picks at the top of the FILTERS panel (Luke, 2026-11-14: "more optimised"): the commonest choices in one press
+ * each. Each sets WHERE FROM and WHAT KIND together, so it is one search, not two.
+ */
+const QUICK_PICKS: readonly { label: string; name: string; source: SourceValue; type: TypeValue }[] = [
+  { label: 'ALL', name: 'everything', source: 'all', type: 'all' },
+  { label: 'VIDEO', name: 'videos from every source', source: 'all', type: 'video' },
+  { label: 'MUSIC', name: 'music and other sound from every source', source: 'all', type: 'audio' },
+  { label: 'BOOKS', name: 'books', source: 'books', type: 'all' },
+  { label: 'IMAGES', name: 'pictures from every source', source: 'all', type: 'image' },
+];
 
 function readFolds(): ReadonlySet<string> {
   try {
@@ -613,10 +625,13 @@ export default function WebStream() {
   };
 
   /** A SOURCE or TYPE key: the filter is written into the box (so the two never disagree) and the search runs. */
+  /** A press that changes nothing (the choice already on, the same search already showing) asks no source again. */
+  const alreadyShowing = (box: string) => !art && picked === null && JSON.stringify(requestFor(box)) === JSON.stringify(shown);
+
   const pickFilter = (key: FilterKey, value: string) => {
     const next = withFilter(draft, key, value);
     setDraft(next);
-    restart(next);
+    if (!alreadyShowing(next)) restart(next);
   };
 
   /** A creator's name on a row: everything from them, under the same SOURCE and TYPE (`from:` in the box). */
@@ -722,7 +737,12 @@ export default function WebStream() {
   /** A box the panel made (a creator dropped): written in and searched, as a filter key does. */
   const applyBox = (next: string) => {
     setDraft(next);
-    restart(next);
+    if (!alreadyShowing(next)) restart(next);
+  };
+
+  /** A quick pick: WHERE FROM and WHAT KIND written into the box together, and one search. */
+  const pickQuick = (pick: (typeof QUICK_PICKS)[number]) => {
+    applyBox(formatWebSearch({ ...parseWebSearch(draft), source: pick.source, type: pick.type }));
   };
 
   /** RESET FILTERS: every filter back to its start, the words kept. STREAM ART is a source, so it goes too. */
@@ -950,6 +970,18 @@ export default function WebStream() {
             chosen, RESET, and a section for each filter that folds open and shut. Every key still only writes its
             filter into the box above, which stays the one truth. */}
         <div className="flex flex-wrap items-center gap-2 py-1" data-filters-summary>
+          {/* The one fold (Luke, 2026-11-14: "one initial expansion"): every filter section sits inside it. Shut on a first
+              visit; this browser remembers it after that. */}
+          <button
+            type="button"
+            onClick={() => toggleFold('media-filters')}
+            aria-expanded={folds.has('media-filters')}
+            aria-controls="media-filters-panel"
+            className={FOLD_KEY}
+            data-filters-key
+          >
+            {`[ ${folds.has('media-filters') ? '−' : '+'} FILTERS ]`}
+          </button>
           <p className="text-key text-ink wrap-anywhere">
             <span className="text-accent-ink">SHOWING: </span>
             {filtersInWords(boxFilters, art)}
@@ -960,9 +992,18 @@ export default function WebStream() {
               [ RESET FILTERS ]
             </button>
           ) : null}
-          <WebViewKey />
         </div>
-        <div data-filter-panel>
+        <div id="media-filters-panel" data-filter-panel hidden={!folds.has('media-filters')}>
+          <div role="group" aria-label="Quick picks" className="flex flex-wrap items-center gap-1 py-1" data-quick-picks>
+            {QUICK_PICKS.map((pick) => {
+              const on = !art && boxFilters.source === pick.source && boxFilters.type === pick.type;
+              return (
+                <button key={pick.label} type="button" onClick={() => pickQuick(pick)} aria-pressed={on} aria-label={`Quick pick: ${pick.name}`} className={on ? FILTER_KEY_ON : FILTER_KEY}>
+                  {on ? pick.label : `[ ${pick.label} ]`}
+                </button>
+              );
+            })}
+          </div>
           <WebFilterFold id="media-filter-source" heading="WHERE FROM" now={art ? 'STREAM ART' : sourceInWords(boxFilters.source)} open={folds.has('media-filter-source')} onToggle={() => toggleFold('media-filter-source')}>
             <div className="flex flex-wrap items-center gap-1">{sourceKey(SOURCE_OPTIONS[0])}</div>
             {sourceGroups().map((group) => (
@@ -1032,6 +1073,10 @@ export default function WebStream() {
               })}
             </div>
             <p className="text-key text-ink-quiet">FINDS BY MOODS, TAGS, GENRES AND DECADES, NOT EXACT WORDS.</p>
+          </WebFilterFold>
+          {/* VIEW (media-view.ts): how the lists are laid out. Changing it asks no source for anything. */}
+          <WebFilterFold id="media-filter-view" heading="VIEW" now={viewLabel(view)} open={folds.has('media-filter-view')} onToggle={() => toggleFold('media-filter-view')}>
+            <WebViewKey />
           </WebFilterFold>
           {/* CREATOR (`from:`): shown once one is chosen, by a creator's name on a row or typed. */}
           {authorsOf(boxFilters).length > 0 ? (

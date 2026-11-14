@@ -164,6 +164,14 @@ ok(!/transition|animate-/.test(page.slice(page.indexOf('data-filter-panel'), pag
   ok(/role="group" aria-label=\{heading\}/.test(fold), '... and its keys are a named group');
   ok(/data-reset-filters/.test(page) && /withoutFilters\(draft\)/.test(page), 'RESET FILTERS keeps the words');
   ok(/filtersInWords\(boxFilters, art\)/.test(page), 'one plain line says what is chosen');
+  // Luke, 2026-11-14: "more optimised and one initial expansion".
+  ok(/<div id="media-filters-panel" data-filter-panel hidden=\{!folds\.has\('media-filters'\)\}>/.test(page), 'every section sits in one FILTERS fold');
+  ok(/useState<ReadonlySet<string>>\(\(\) => new Set\(\)\)/.test(page) && /'media-filters',/.test(page), '... shut on a first visit, remembered by this browser after that');
+  ok(page.indexOf('data-filters-key') < page.indexOf('filtersInWords(boxFilters, art)') && page.indexOf('filtersInWords(boxFilters, art)') < page.indexOf('data-reset-filters'), 'shut, one row: FILTERS, what is chosen, RESET');
+  ok(/data-quick-picks/.test(page) && /label: 'VIDEO'[^\n]*type: 'video'/.test(page) && /label: 'BOOKS'[^\n]*source: 'books'/.test(page), 'quick picks at the top of the panel');
+  ok(/applyBox\(formatWebSearch\(\{ \.\.\.parseWebSearch\(draft\), source: pick\.source, type: pick\.type \}\)\)/.test(page), '... each sets WHERE FROM and WHAT KIND together: one search, not two');
+  ok(/if \(!alreadyShowing\(next\)\) restart\(next\);/.test(page) && (page.match(/if \(!alreadyShowing\(next\)\) restart\(next\);/g) ?? []).length === 2, 'a press that changes nothing asks no source again');
+  ok(/heading="VIEW"/.test(page), 'VIEW is a section of the panel, not a second control');
 }
 // Updated on purpose 2026-11-13: ORDER's four keys (DATE's two directions as NEWEST FIRST and OLDEST FIRST) replace
 // DATE and the flip key; the same three orders underneath.

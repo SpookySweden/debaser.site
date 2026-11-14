@@ -36,7 +36,8 @@ assert.ok(fs.readFileSync('app/components/WebCatalogueFinds.tsx', 'utf8').includ
 assert.equal((fs.readFileSync('app/components/WebMediaRow.tsx', 'utf8').match(/rule-pixel col-span-full py-2/g) ?? []).length, 2, 'KINO and media-server cards keep their whole-width card in a GRID');
 
 const key = fs.readFileSync('app/components/WebViewKey.tsx', 'utf8');
-assert.match(key, /aria-expanded=\{open\}/, 'VIEW says whether it is open');
+// Updated on purpose 2026-11-14 ("one initial expansion"): VIEW is a section of the FILTERS panel, folded like the others.
+assert.match(stream, /<WebFilterFold id="media-filter-view" heading="VIEW" now=\{viewLabel\(view\)\}/, 'VIEW is a section of the FILTERS panel, saying which view is on');
 assert.match(key, /aria-pressed=\{on\}/, 'each choice says whether it is on');
 assert.match(key, /aria-hidden="true"[^>]*whitespace-pre/, 'the preview is decoration for screen readers; the label and line say it');
 
