@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
 import { inkOnNameColour } from '../lib/profile/name-colours';
 import { KEY_FOCUS } from '../lib/ui/controls';
@@ -62,8 +63,8 @@ function ModuleRow({ module, bar }: { module: ModuleDef; bar: string }) {
         {module.wip ? <WipTag /> : null}
         {module.always ? <span className="text-label">ALWAYS ON</span> : null}
       </button>
-      <p className="px-1 pt-1 text-label text-ink">HOVER: {pickedLabel}</p>
-      <div role="group" aria-label={`${module.label} hover colour`} className="flex flex-wrap items-center gap-1 px-1 pt-1">
+      <p className="px-1 pt-1 text-label text-ink">COLOUR: {pickedLabel}</p>
+      <div role="group" aria-label={`${module.label} colour`} className="flex flex-wrap items-center gap-1 px-1 pt-1">
         {swatches.map((swatch) => (
           <button
             key={swatch.id}
@@ -131,6 +132,19 @@ export default function ModulesWindow() {
             <ModuleRow key={module.key} module={module} bar={bar} />
           ))}
         </Group>
+        {/* The two places only the START menu led to on a computer, which went on 2026-11-14: the projects map (its shelves, CONCEPTS,
+            LORE, NOTES and LINKS, hang off it) and the catalogue of the site's own files. PROJECTS is a module too, off until ticked. */}
+        <section className="pb-2">
+          <h3 className="text-sm font-bold text-ink">ALSO</h3>
+          <p className="flex flex-wrap items-center gap-2 pt-1">
+            <Link href="/projects" className={SMALL_KEY}>
+              [ PROJECTS ]
+            </Link>
+            <Link href="/files" className={SMALL_KEY}>
+              [ FILES ]
+            </Link>
+          </p>
+        </section>
       </div>
     </DockWindow>
   );

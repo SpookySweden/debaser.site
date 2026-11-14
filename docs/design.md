@@ -53,8 +53,13 @@ No Win95 bevels anywhere - not on windows, not on buttons, not on the scrollbar.
   no bar behind it. The window being worked in is titled in the accent ink (Daffodil on dark, Royal Blue
   on bright); furniture in the field ink. Counts and keys sit at the right end; on a phone they drop to
   their own row (a window's own title keeps one row so its close key stays in the corner).
-- **Taskbar:** a rule across the foot of the OS window holding `[ START ]` and the sprite slot (no status
-  line; gone on a phone). Docked and pop-up windows have no foot unless they carry their own keys there.
+- **No taskbar** (Luke, 2026-11-14): the OS window has no strip along its foot, so the page runs to the
+  window's bottom edge. `[ START ]`, its menu and the sprite slot beside it are gone from the screen
+  (`Taskbar.tsx` and `StartMenu.tsx` are kept, not drawn). What only the menu led to on a computer, the
+  projects map and FILES, is listed under ALSO in the MODULOS window. The top bar has no `MODULES:` title,
+  and the side panel's shelf has no ARCADE key (`ARCADE_KEY_SHOWN` in `SiteNav.tsx`; the arcade still opens
+  from an invitation or a challenge). Docked and pop-up windows have no foot unless they carry their own
+  keys there.
 - **Keys are bracket keys** (`PLATE`, `.key`; SPEC-efficiency.md, 2026-10-23): a key is its label in
   brackets, `[ LOG IN ]`, in the accent ink, with **no outline**. Accent-ink brackets mean "press me", so
   a bracketed readout that is not a key (`[ 3 ]`, `[ READ ONLY ]`) is cut or loses its brackets.
@@ -118,6 +123,13 @@ No Win95 bevels anywhere - not on windows, not on buttons, not on the scrollbar.
 - **The press** is the one movement left: a 1px drop and the Brilliant Pink flash, no easing.
 - RADI-OH's faces may hop - they are text art, not labels. Motion stops under `prefers-reduced-motion`.
 - Pixel-art accents. No soft drop shadows.
+- **The one glow: the module you are on** (Luke, 2026-11-14: "make sure a modules selected colour displays
+  glowing while it is selected"). On the top bar, the key of the page you are on is filled with the colour its
+  person picked for it in MODULOS (the field ink when none is picked, or when the pick would not read on this
+  theme's bar) and wears a halo of that colour: two hard rings that step outward and fade, no blur. It breathes
+  in two frames with no easing, and holds still under reduced motion (`.module-on`, globals.css). Its word is the
+  bar's own colour, 4.5:1 or better on every pick (`moduleInk`; `Temp/check-modules.cjs` walks every pick).
+  Nothing else on the site glows.
 
 ## Readability floors
 - Text contrast 4.5:1 or better in both themes (`check-themes` holds the token pairs; `npm run contrast`

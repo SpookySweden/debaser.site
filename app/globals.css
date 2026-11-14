@@ -1045,6 +1045,38 @@ img {
     color: var(--module-ink);
   }
 
+  /* The module you are on (Luke, 2026-11-14: "make sure a modules selected colour displays glowing while it is selected"): its key is
+     filled with the colour its person picked in MODULOS (the field ink when none is picked) and wears a halo of that colour for as long
+     as it is the page. The halo is two hard rings that step outward and fade, a pixel glow with no blur, and it breathes in two frames
+     with no easing; under reduced motion it holds still. The word is the bar's own colour, which is what `moduleInk` measured the pick
+     against (4.5:1 or better, or the pick is not offered). The one glow on the site: docs/design.md, "Feel". */
+  .key.key-fill.module-on {
+    --key-fill: var(--module-ink, var(--color-ink));
+    color: var(--color-paper);
+    box-shadow:
+      0 0 0 2px color-mix(in srgb, var(--key-fill) 60%, transparent),
+      0 0 0 4px color-mix(in srgb, var(--key-fill) 28%, transparent);
+    animation: module-glow 1.8s steps(1, end) infinite;
+  }
+
+  .key.key-fill.module-on.module-key {
+    color: var(--color-sun-pale);
+  }
+
+  @keyframes module-glow {
+    50% {
+      box-shadow:
+        0 0 0 3px color-mix(in srgb, var(--key-fill) 60%, transparent),
+        0 0 0 5px color-mix(in srgb, var(--key-fill) 28%, transparent);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .key.key-fill.module-on {
+      animation: none;
+    }
+  }
+
   /* A bracket key that cannot be pressed goes quiet: the quiet ink (16:1 in both themes, never a dimmed
      field ink under 4.5:1), no fill under the pointer, and the pointer says so. */
   .key:not(.key-fill):disabled {

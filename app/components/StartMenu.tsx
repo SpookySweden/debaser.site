@@ -27,6 +27,8 @@ type StartMenuProps = {
 };
 
 /**
+ * NOT DRAWN since 2026-11-14: its key went with the START strip (./Taskbar.tsx). Kept on Luke's word, not deleted.
+ *
  * The Start menu: everything the desktop can open, in one list.
  *
  * On a wide screen that is the site's five keys, the two utility windows, and then the debaser

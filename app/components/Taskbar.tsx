@@ -8,6 +8,8 @@ import SpriteSlot from './SpriteSlot';
 import StartMenu from './StartMenu';
 
 /**
+ * NOT DRAWN since 2026-11-14 (Luke: "remove the 'start' button and the extra section it occupies"). Kept on his word, not deleted.
+ *
  * The taskbar along the foot of the window: the Start button, and the tray.
  *
  * The window's keys are the header (see ./SiteNav.tsx), so the foot strip holds the two things a

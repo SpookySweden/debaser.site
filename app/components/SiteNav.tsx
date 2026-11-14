@@ -124,6 +124,13 @@ export const SIDE_ARCADE: NavItem = {
 };
 
 /**
+ * The plain "open the arcade" key is off the screen (Luke, 2026-11-14: "remove the arcade button but dont delete the code"). Everything
+ * else stays: the window, its addresses (`/forum?arcade=1`, `?invite=`, `?challenge=`), a game invitation from the bell or a message,
+ * and CHALLENGE on a profile. Turning this back to true puts the key back in the side panel's shelf and the phone's menu.
+ */
+export const ARCADE_KEY_SHOWN: boolean = false;
+
+/**
  * The archive, as the side panel's own key.
  *
  * It is not part of `NAV_ITEMS` because the panel is not a row of page keys: the five above are
@@ -166,6 +173,9 @@ export const SIDE_QUEUES: NavItem = {
   href: QUEUES_HREF,
 };
 
+/** The windows a menu lists (the phone's picture menu): the shelf's keys, without the arcade while its key is off the screen. */
+export const SIDE_WINDOWS: NavItem[] = ARCADE_KEY_SHOWN ? [SIDE_ARCADE, SIDE_MUSIC, SIDE_QUEUES] : [SIDE_MUSIC, SIDE_QUEUES];
+
 /**
  * The header's own list is the modules (`app/lib/ui/modules.ts`, Luke 2026-11-06): named pages rather than glyphs, each person ticking which appear.
  *
@@ -189,8 +199,9 @@ const MODULOS_KEY = `${WORD_KEY} key key-fill modulos-key active:translate-y-pre
 function wordClass(isActive: boolean): string {
   const base = WORD_KEY;
 
+  // The page you're on: filled with its own picked colour and glowing in it (`.module-on`, globals.css; Luke, 2026-11-14).
   return isActive
-    ? `${base} key key-fill [--key-fill:var(--color-ink)] text-paper`
+    ? `${base} key key-fill module-on`
     : `${base} key active:translate-y-press active:bg-bubble active:text-ink-plate`;
 }
 
@@ -208,7 +219,6 @@ export default function SiteNav({ active, endKey }: { active?: NavKey; /** A key
       className="hidden min-w-0 flex-wrap items-center gap-1 border-b-line border-ink bg-sun-pale px-2 py-0.75 md:flex"
     >
       <SiteArrows />
-      <span className="px-1 text-label font-bold leading-none text-ink">MODULES:</span>
       {MODULES.filter((module) => moduleIsOn(module, choices)).map((module) => {
         const ink = moduleInk(choices.colours[module.key], bar);
         const hover = ink === null ? {} : { style: { '--module-ink': ink } as CSSProperties };

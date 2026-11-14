@@ -7,7 +7,7 @@ import { useForum } from './ForumProvider';
 import SidebarComms from './SidebarComms';
 import SidebarProfile from './SidebarProfile';
 import UserDirectory from './UserDirectory';
-import { SIDE_ARCADE, SIDE_MUSIC, SIDE_QUEUES } from './SiteNav';
+import { ARCADE_KEY_SHOWN, SIDE_ARCADE, SIDE_MUSIC, SIDE_QUEUES } from './SiteNav';
 import type { NavItem } from './SiteNav';
 import {
   arcadeAddressSpentByClose,
@@ -31,7 +31,7 @@ import {
 import type { AccountUser } from '../lib/auth/types';
 import { TITLE_BAR_BUTTON, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import { pagePanelOpen, setPagePanelOpen, subscribeToPagePanel } from '../lib/ui/side-panel-page';
-import { ICON_LIVE } from '../lib/ui/icons';
+import { ICON_LIVE, ICON_READ } from '../lib/ui/icons';
 import { useWatching } from '../lib/watch/use-watching';
 import GoLiveWindow from './GoLiveWindow';
 import { openWatch } from '../lib/watch/watch-window';
@@ -352,10 +352,14 @@ export default function DesktopSidebar({ foldedOnThisPage = false }: { foldedOnT
 
           <div className="space-y-1 p-2">
             {user === null ? null : <GoLiveKey user={user} />}
-            <ShelfKey item={SIDE_ARCADE} isOpen={arcadeOpen} onPress={pressArcade} />
-            {/* READ, the reader's page (Luke, 2026-11-14: moved here from the top bar, where it is an off-by-default module). */}
+            {/* The arcade's key is off the screen, its code kept (Luke, 2026-11-14; `ARCADE_KEY_SHOWN` in ./SiteNav.tsx). */}
+            {ARCADE_KEY_SHOWN ? <ShelfKey item={SIDE_ARCADE} isOpen={arcadeOpen} onPress={pressArcade} /> : null}
+            {/* READ, the reader's page (Luke, 2026-11-14: moved here from the top bar, where it is an off-by-default module). It wears a
+                book, a text character like its neighbours' marks (Luke, 2026-11-14: "give the 'read' button a book icon"). */}
             <Link href="/read" className="key flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-label">
-              <span className="min-w-0 flex-1 truncate text-left">[ READ ]</span>
+              <span className="min-w-0 flex-1 truncate text-left">
+                [ <span aria-hidden="true">{ICON_READ}</span> READ ]
+              </span>
             </Link>
             <RecommendationsKey me={user?.id ?? null} />
             <ShelfKey item={SIDE_MUSIC} isOpen={musicOpen} onPress={pressMusic} />

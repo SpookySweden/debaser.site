@@ -170,7 +170,9 @@ assert.doesNotMatch(forumMarkup, /GuestOffer/, 'and the board adds no second off
 //     with `order-last`: a keyboard user reaches it in one press instead of tabbing the page;
 //   - the window refuses text selection (it is a window), and the panel inside it turns selection
 //     back on, because the archive is writing somebody may want to quote.
-assert.match(frame, /order-last/, 'the taskbar is drawn at the foot of the window');
+// Changed on purpose 2026-11-14 (Luke: "remove the 'start' button and the extra section it occupies"): there is no taskbar to pull to
+// the foot any more, so nothing in the frame is reordered. It was `assert.match(frame, /order-last/)`.
+assert.doesNotMatch(frame, /order-last/, 'the window has no strip pulled to its foot');
 assert.ok(
   frame.indexOf('aria-label="Site keys"') < frame.indexOf('BODY'),
   'and comes before the page in the document, which is what a keyboard user tabs through',
@@ -283,8 +285,19 @@ assert.doesNotMatch(bar, /Notifications:/, 'the tray does not carry the notices 
 for (const item of NAV_ITEMS) {
   assert.doesNotMatch(bar, new RegExp(`>${esc(item.label)}<`), `${item.label} is a tab in the header, not drawn twice`);
 }
-assert.match(frame, /\[ START \]/, 'the frame carries that strip');
+// Changed on purpose 2026-11-14 (Luke: "remove the 'start' button and the extra section it occupies ... you can also remove the empty
+// space for pixel sprite"): the window no longer draws the strip. Taskbar.tsx and StartMenu.tsx stay in the repo on his word, so the
+// renders above and below still hold the kept code; what is held here is that the frame does not draw either.
+assert.doesNotMatch(frame, /\[ START \]/, 'the frame carries no START strip');
+assert.doesNotMatch(frame, /walk-cycle/, 'nor the space kept for the pixel sprite');
+assert.doesNotMatch(require('node:fs').readFileSync('app/components/SiteWindow.tsx', 'utf8'), /<Taskbar|from '\.\/Taskbar'/, 'and the window does not mount it');
 assert.doesNotMatch(frame, /PROJECT SHELVES/, 'and the menu is shut until it is asked for');
+// (2026-11-14, Luke: "remove the 'modules' text in the top left") The band has no title of its own; MODULOS, its last key, stays.
+assert.doesNotMatch(frame, /MODULES:/, 'the band is not titled');
+// (2026-11-14, Luke: "remove the arcade button but dont delete the code") No plain arcade key in the frame; the window and its addresses stay.
+assert.doesNotMatch(frame, /ARCADE/, 'the frame offers no arcade key');
+// What only the START menu led to on a computer has a home in the MODULOS window.
+assert.match(require('node:fs').readFileSync('app/components/ModulesWindow.tsx', 'utf8'), /href="\/projects"[\s\S]*href="\/files"/, 'PROJECTS and FILES are listed in the MODULOS window');
 // (2026-11-04, Luke 2026-10-30) The frame carries the band's named pages, as above.
 for (const item of HEADER_ITEMS) {
   assert.match(frame, new RegExp(`href="${esc(item.href)}"[^>]*>${esc(item.label)}<`), `${item.key} is in the band, under its word`);

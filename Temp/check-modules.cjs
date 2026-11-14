@@ -67,13 +67,15 @@ async function up() {
     const [lastLink, modulosBox] = await Promise.all([nav.getByRole('link', { name: 'STREAM' }).boundingBox(), modulosKey.boundingBox()]);
     console.log(`  ok    MODULOS is a solid ${modulosFace.fill} block, ${ratio(modulosFace.ink, modulosFace.fill).toFixed(1)}:1, ${Math.round(modulosBox.x - lastLink.x - lastLink.width)} px from STREAM`);
 
-    const title = nav.getByText('MODULES:', { exact: true });
+    // Changed on purpose 2026-11-14 (Luke: "remove the 'modules' text in the top left"): the band has no title, so the first module
+    // stands straight after the arrows. MODULOS, the key at the end, stays.
+    assert.equal(await nav.getByText('MODULES:', { exact: true }).count(), 0, 'the band has no MODULES: title');
     const back = nav.getByRole('button', { name: 'Back' });
     const forward = nav.getByRole('button', { name: 'Forward' });
-    const [backBox, forwardBox, titleBox] = await Promise.all([back.boundingBox(), forward.boundingBox(), title.boundingBox()]);
+    const [backBox, forwardBox, firstBox] = await Promise.all([back.boundingBox(), forward.boundingBox(), nav.getByRole('link', { name: 'FORUM' }).boundingBox()]);
     assert.ok(backBox.width <= 24 && forwardBox.width <= 24, `arrows are ${backBox.width} and ${forwardBox.width} wide`);
-    assert.ok(titleBox.x > forwardBox.x, 'MODULES: sits to the right of the arrows');
-    console.log(`  ok    arrows ${Math.round(backBox.width)} and ${Math.round(forwardBox.width)} px wide, MODULES: to their right`);
+    assert.ok(firstBox.x > forwardBox.x, 'the first module sits to the right of the arrows');
+    console.log(`  ok    arrows ${Math.round(backBox.width)} and ${Math.round(forwardBox.width)} px wide, no MODULES: title, FORUM to their right`);
 
     await modulosKey.click();
     const list = page.getByRole('dialog', { name: 'MODULOS' }).or(page.getByLabel('MODULOS', { exact: true }).filter({ hasText: 'CREATIVE' })).first();
@@ -105,7 +107,7 @@ async function up() {
 
     // A hover colour: the word turns it on the bar, with no fill. (2026-11-14) On STREAM, not FORUM: this check stands on
     // /forum, whose key is drawn as the page you're on, and PROJECTS is off the first-visit bar now.
-    const forumGroup = list.getByRole('group', { name: 'STREAM hover colour' });
+    const forumGroup = list.getByRole('group', { name: 'STREAM colour' });
     const first = forumGroup.locator('button[style]').first();
     const wanted = await first.evaluate((button) => getComputedStyle(button).backgroundColor);
     await first.click();
@@ -124,7 +126,7 @@ async function up() {
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/modules-hover.png` });
 
     // MODULOS keeps its hover colour too: it steps back to an outline, and the word turns the colour against the bar.
-    const modulosGroup = list.getByRole('group', { name: 'MODULOS hover colour' });
+    const modulosGroup = list.getByRole('group', { name: 'MODULOS colour' });
     const modulosSwatch = modulosGroup.locator('button[style]').first();
     const modulosWanted = await modulosSwatch.evaluate((button) => getComputedStyle(button).backgroundColor);
     await modulosSwatch.click();
@@ -147,6 +149,43 @@ async function up() {
     await page.waitForTimeout(800);
     assert.deepEqual(await keys(), ['FORUM', 'BEATBOX WIP', 'STREAM', 'MODULOS'], 'choices survive a reload');
     console.log('  ok    choices survive a reload');
+
+    // (2026-11-14, Luke: "make sure a modules selected colour displays glowing while it is selected") The page you're on is filled with
+    // the colour picked for it and wears a halo of that colour for as long as it is the page; its word stays readable on every pick.
+    const standingKey = nav.getByRole('link', { name: 'FORUM' });
+    const look = (key) => key.evaluate((node) => { const style = getComputedStyle(node); return { fill: style.backgroundColor, ink: style.color, halo: style.boxShadow, pulse: style.animationName }; });
+    await page.mouse.move(0, 0);
+    assert.equal(await standingKey.getAttribute('aria-current'), 'page', 'this check stands on FORUM');
+    const unpicked = await look(standingKey);
+    assert.notEqual(unpicked.halo, 'none', 'the page you are on glows before any colour is picked');
+    assert.ok(ratio(unpicked.ink, unpicked.fill) >= 4.5, `and reads at ${ratio(unpicked.ink, unpicked.fill)}`);
+    assert.equal((await look(nav.getByRole('link', { name: 'STREAM' }))).halo, 'none', 'a module you are not on has no halo');
+    assert.equal(unpicked.pulse, 'module-glow', 'the halo breathes');
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    assert.equal((await look(standingKey)).pulse, 'none', 'and holds still under reduced motion');
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await modulosKey.click();
+    await list.waitFor({ state: 'visible', timeout: 5000 });
+    const standingSwatches = list.getByRole('group', { name: 'FORUM colour' }).locator('button[style]');
+    const offered = await standingSwatches.count();
+    assert.ok(offered >= 3, `FORUM is offered ${offered} colours`);
+    const worn = [];
+    for (let index = 0; index < offered; index += 1) {
+      const swatch = standingSwatches.nth(index);
+      const picked = await swatch.evaluate((button) => getComputedStyle(button).backgroundColor);
+      await swatch.click();
+      await page.mouse.move(0, 0);
+      await page.waitForTimeout(100);
+      const on = await look(standingKey);
+      assert.equal(on.fill, picked, 'the page you are on is filled with its picked colour');
+      assert.notEqual(on.halo, 'none', 'and glows in it');
+      assert.ok(ratio(on.ink, on.fill) >= 4.5, `its word reads at ${ratio(on.ink, on.fill).toFixed(2)}:1 on ${picked}`);
+      worn.push(`${picked} ${ratio(on.ink, on.fill).toFixed(1)}:1`);
+    }
+    console.log(`  ok    FORUM, the page you are on, glows in each of its ${offered} colours: ${worn.join(', ')}`);
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/modules-selected-glow.png` });
+    await modulosKey.click();
+    await list.waitFor({ state: 'hidden', timeout: 5000 });
 
     // An unticked module's address still works.
     await page.goto(`${BASE}/animate`, { waitUntil: 'domcontentloaded' });

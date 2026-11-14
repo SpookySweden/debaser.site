@@ -468,7 +468,13 @@ assert.doesNotMatch(band, /music/, 'neither is in the header band`s list');
 assert.doesNotMatch(band, /games/, 'not the arcade either');
 
 const panelSource = read('app/components/DesktopSidebar.tsx');
-assert.match(panelSource, /item=\{SIDE_ARCADE\}/, 'which the side panel draws');
+// Changed on purpose 2026-11-14 (Luke: "remove the arcade button but dont delete the code"): the key's code is kept in the panel
+// behind one switch, which is off. The lines below still hold the kept code's place in the shelf.
+assert.match(navSource, /export const ARCADE_KEY_SHOWN: boolean = false;/, 'the plain arcade key is switched off');
+assert.match(panelSource, /\{ARCADE_KEY_SHOWN \? <ShelfKey item=\{SIDE_ARCADE\}/, 'and the side panel draws it only behind that switch');
+assert.match(read('app/components/ProfileControl.tsx'), /SIDE_WINDOWS\.map/, 'as the phone`s menu does, through the one list');
+assert.doesNotMatch(read('app/components/SiteWindow.tsx'), /<Taskbar/, 'and the START strip, the other door, is not drawn (Luke, 2026-11-14)');
+assert.match(panelSource, /item=\{SIDE_ARCADE\}/, 'which the side panel keeps the code for');
 assert.match(panelSource, /item=\{SIDE_MUSIC\}/, 'both of them');
 assert.match(
   panelSource,

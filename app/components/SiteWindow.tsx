@@ -5,7 +5,6 @@ import DesktopSidebar from './DesktopSidebar';
 import FullWindowKey from './FullWindowKey';
 import ProfileControl from './ProfileControl';
 import SiteNav from './SiteNav';
-import Taskbar from './Taskbar';
 import type { NavKey } from './SiteNav';
 import { WINDOW_TITLE_BAR } from '../lib/ui/controls';
 import { chosenFill, subscribeToChosenFill } from '../lib/ui/site-fill';
@@ -100,15 +99,8 @@ export default function SiteWindow({ title, active, tip, fill = false, children 
         {/* The page tabs: the header, and the first thing under the title bar. */}
         <SiteNav active={active} endKey={chosen && !fill ? <FullWindowKey on /> : undefined} />
 
-        {/*
-         * Taskbar: the Start menu and the tray, at the foot of the window.
-         *
-         * Written before the page and pulled to the foot with `order-last`, so a keyboard user reads
-         * the page before the tray while the window still looks like a desktop.
-         */}
-        <div className={filled ? 'contents md:hidden' : 'contents'}>
-          <Taskbar />
-        </div>
+        {/* No strip along the foot (Luke, 2026-11-14: "remove the 'start' button and the extra section it occupies"): the page runs to
+            the window's bottom edge. ./Taskbar.tsx and ./StartMenu.tsx are kept in the repo, not drawn. */}
 
         {/* Page and side panel */}
         <div className="flex min-h-0 flex-1">

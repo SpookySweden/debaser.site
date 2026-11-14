@@ -10,7 +10,7 @@ import { useCompactViewport } from '../lib/ui/use-compact-viewport';
 import { useAuth } from './AuthProvider';
 import { useNotifications } from './NotificationsProvider';
 import { NotificationMenuButton } from './NotificationBell';
-import { NAV_ITEMS, SIDE_ARCADE, SIDE_MUSIC, SIDE_QUEUES } from './SiteNav';
+import { NAV_ITEMS, SIDE_WINDOWS } from './SiteNav';
 import ProfileAvatar from './ProfileAvatar';
 import ProfileCustomiserWindow from './ProfileCustomiserWindow';
 import ProfileName from './ProfileName';
@@ -187,7 +187,7 @@ export function ProfilePictureMenu({ userId, displayName, avatarVersion, avatarC
                 below that the arcade and the archive would otherwise have no door at all on a phone. */}
             <p className="border-b-line border-ink pb-1 pt-1">WINDOWS</p>
 
-            {[SIDE_ARCADE, SIDE_MUSIC, SIDE_QUEUES].map((item) => (
+            {SIDE_WINDOWS.map((item) => (
               <Link key={item.key} href={item.href} className={MENU_ITEM} onClick={() => setOpen(false)} role="menuitem">
                 <span aria-hidden="true" className="w-4 shrink-0 text-center text-label">
                   {item.mark}
@@ -312,7 +312,7 @@ function GuestProfileMenu() {
                 sign-in the banner is already asking for would be a door with no handle. */}
             <p className="border-b-line border-ink pb-1 pt-1">WINDOWS</p>
 
-            {[SIDE_ARCADE, SIDE_MUSIC, SIDE_QUEUES].map((item) => (
+            {SIDE_WINDOWS.map((item) => (
               <Link key={item.key} href={item.href} className={MENU_ITEM} onClick={() => setOpen(false)} role="menuitem">
                 <span aria-hidden="true" className="w-4 shrink-0 text-center text-label">
                   {item.mark}

@@ -54,6 +54,13 @@ export const ICON_CYTUBE = '▣';
 /** Going live: the lamp on a camera that says it is recording (the side panel's GO LIVE key). */
 export const ICON_LIVE = '●';
 
+/**
+ * READ: an open book (Luke, 2026-11-14). The character is U+1F4D6 with the text-style selector U+FE0E after it, so a computer
+ * draws it in the key's own ink (Segoe UI Symbol on Windows) rather than as a colour picture; a phone with no plain version
+ * still draws a book.
+ */
+export const ICON_READ = '\u{1F4D6}︎';
+
 /** A notice waiting. */
 export const ICON_BELL = '☼';
 

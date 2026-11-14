@@ -155,7 +155,10 @@ const nav = fs.readFileSync('app/components/SiteNav.tsx', 'utf8');
 assert.match(nav, /className="hidden[^"]*md:flex"/, 'the key band is gone for the whole phone range');
 
 const profile = fs.readFileSync('app/components/ProfileControl.tsx', 'utf8');
-assert.match(profile, /SIDE_ARCADE, SIDE_MUSIC/, 'and the profile drawer carries the two windows');
+// Changed on purpose 2026-11-14 (Luke: "remove the arcade button but dont delete the code"): the drawer lists the windows through
+// SIDE_WINDOWS (SiteNav.tsx), which leaves the arcade out while its key is switched off. It was `[SIDE_ARCADE, SIDE_MUSIC, ...]` here.
+assert.match(profile, /SIDE_WINDOWS\.map/, 'and the profile drawer carries the windows');
+assert.match(nav, /SIDE_WINDOWS: NavItem\[\] = ARCADE_KEY_SHOWN \? \[SIDE_ARCADE, SIDE_MUSIC, SIDE_QUEUES\] : \[SIDE_MUSIC, SIDE_QUEUES\]/, 'MUSIC and QUEUES always, the arcade only behind its switch');
 assert.match(profile, /WINDOWS/, 'under a heading that separates them from the pages');
 
 // The root path still hands over to the board, which is what makes "/ mounts the feed" true.

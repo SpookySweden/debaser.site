@@ -43,7 +43,7 @@ export const MODULES: readonly ModuleDef[] = [
   { key: 'cytube', label: 'STREAM', href: '/stream', group: 'creative', startsOn: true },
   // The frame-by-frame animator (SPEC-animator.md).
   { key: 'animate', label: 'ANIMATE', href: '/animate', group: 'creative', startsOn: false, wip: true },
-  // MODULOS is the tab holding the rest of the modules, Luke's name for it (2026-11-06); the bar's title still reads MODULES:.
+  // MODULOS is the tab holding the rest of the modules, Luke's name for it (2026-11-06). The bar's own MODULES: title went on 2026-11-14.
   { key: 'modules', label: 'MODULOS', href: null, group: 'site', startsOn: true, always: true },
 ];
 
