@@ -892,6 +892,50 @@ img {
   --key-hover-ink: var(--room-bar);
 }
 
+/* The visualiser's sliders (RoomVisualiser.tsx; Luke, 2026-11-14: "accessable sliders"). They sit on the picture, which
+   is Black in both themes, so they take the bar's inks: a thick White track a tired eye can find and a tall square
+   Daffodil thumb. The whole input is a tap high, so a thumb lands on it; a press anywhere on the track moves it there.
+   Square, with no easing: the house look. */
+.vis-slider {
+  appearance: none;
+  height: var(--spacing-tap);
+  background: transparent;
+  cursor: var(--cursor-pointer);
+}
+
+.vis-slider::-webkit-slider-runnable-track {
+  height: calc(var(--spacing) * 2);
+  background: var(--color-ink-bar);
+}
+
+.vis-slider::-moz-range-track {
+  height: calc(var(--spacing) * 2);
+  background: var(--color-ink-bar);
+}
+
+.vis-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: calc(var(--spacing) * 5);
+  height: calc(var(--spacing) * 8);
+  margin-top: calc(var(--spacing) * -3);
+  background: var(--color-sun);
+  border: var(--border-width-line) solid var(--color-ink-plate);
+  border-radius: 0;
+}
+
+.vis-slider::-moz-range-thumb {
+  width: calc(var(--spacing) * 5);
+  height: calc(var(--spacing) * 8);
+  background: var(--color-sun);
+  border: var(--border-width-line) solid var(--color-ink-plate);
+  border-radius: 0;
+}
+
+.vis-slider:focus-visible {
+  outline: var(--border-width-line) dotted var(--color-sun);
+  outline-offset: calc(var(--spacing) * -1);
+}
+
 
 /* The control vocabulary --------------------------------------------------
    Every plate, field, bar and chip on this site, written once, as real CSS classes rather than as a
