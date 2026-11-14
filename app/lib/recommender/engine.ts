@@ -67,9 +67,12 @@ export function lessMakers(rows: readonly HistoryRow[]): ReadonlySet<string> {
   return new Set(rows.filter((row) => row.action === 'less' && row.maker.trim() !== '').map((row) => normal(row.maker)));
 }
 
-/** Everything already in the history: a lane offers things like them, not the same things again. */
+/**
+ * Everything already in the history: a lane offers things like them, not the same things again. MORE LIKE THIS is the
+ * exception: pressing it on a pick must not make that pick vanish from under the finger.
+ */
 export function seenKeys(rows: readonly HistoryRow[]): ReadonlySet<string> {
-  return new Set(rows.map((row) => keyOf(row.kind, row.ref)));
+  return new Set(rows.filter((row) => row.action !== 'more').map((row) => keyOf(row.kind, row.ref)));
 }
 
 /** The person's strongest words, best first. */

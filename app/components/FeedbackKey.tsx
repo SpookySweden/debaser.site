@@ -15,7 +15,8 @@ import { useAuth } from './AuthProvider';
  *   history itself (`recommender/history.ts`), so a row needs no wiring. Each press reshapes the picks at once: the
  *   history tells every list that reads it.
  * - The list is drawn on the page's own layer, fixed to where the key stands, so nothing under the pointer moves and a
- *   card that clips its contents cannot clip it. It closes on Escape, a press outside, or the page scrolling.
+ *   card that clips its contents cannot clip it. It follows its key if the page scrolls, and closes on Escape, a press
+ *   outside, or its key leaving the window.
  * - It carries `aria-expanded`, so the site's one "this is open" look applies (globals.css).
  * - A press shows as pressed and pressing it again takes it back. Signed out there is nothing to keep, so no key.
  */
@@ -54,23 +55,32 @@ export default function FeedbackKey({
 
   const close = useCallback((refocus: boolean) => {
     setOpen(false);
+    setPlace(null);
     setWhyShown(false);
     setNote(null);
-    if (refocus) key.current?.focus();
+    if (refocus) key.current?.focus({ preventScroll: true });
   }, []);
 
-  // Where the list goes: under the key, kept inside the window. Measured when it opens, and it closes rather than follow a scroll.
-  useLayoutEffect(() => {
-    if (!open || key.current === null || menu.current === null) return;
+  /** Where the list goes: under the key (over it when there is no room below), kept inside the window. False: the key has left the window. */
+  const settle = useCallback((): boolean => {
+    if (key.current === null || menu.current === null) return false;
     const at = key.current.getBoundingClientRect();
+    if (at.bottom < 0 || at.top > window.innerHeight || at.right < 0 || at.left > window.innerWidth) return false;
     const size = menu.current.getBoundingClientRect();
     const left = Math.max(4, Math.min(at.left, window.innerWidth - size.width - 4));
     const below = at.bottom + 2;
     const top = below + size.height > window.innerHeight - 4 ? Math.max(4, at.top - size.height - 2) : below;
-    // Measuring is what a layout effect is for: the list is drawn once out of sight, then placed before it is seen.
-    setPlace({ top, left });
-    menu.current.querySelector<HTMLElement>('[role^="menuitem"]')?.focus();
-  }, [open]);
+    setPlace((before) => (before !== null && before.top === top && before.left === left ? before : { top, left }));
+    return true;
+  }, []);
+
+  // Measuring is what a layout effect is for: the list is drawn once out of sight, then placed before it is seen.
+  useLayoutEffect(() => {
+    if (!open) return;
+    settle();
+    // Without scrolling: taking the focus must not move the page under the reader.
+    menu.current?.querySelector<HTMLElement>('[role^="menuitem"]')?.focus({ preventScroll: true });
+  }, [open, settle]);
 
   useEffect(() => {
     if (!open) return;
@@ -89,20 +99,24 @@ export default function FeedbackKey({
       if (items.length === 0) return;
       event.preventDefault();
       const at = items.indexOf(document.activeElement as HTMLElement);
-      items[(at + (event.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length].focus();
+      items[(at + (event.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length].focus({ preventScroll: true });
     };
-    const away = () => close(false);
+    // The page scrolling (anything on it: a list, a ticker) carries the list along with its key; once the key has left
+    // the window the list closes.
+    const moved = () => {
+      if (!settle()) close(false);
+    };
     document.addEventListener('pointerdown', outside, true);
     document.addEventListener('keydown', keys, true);
-    window.addEventListener('scroll', away, { capture: true, passive: true });
-    window.addEventListener('resize', away);
+    window.addEventListener('scroll', moved, { capture: true, passive: true });
+    window.addEventListener('resize', moved);
     return () => {
       document.removeEventListener('pointerdown', outside, true);
       document.removeEventListener('keydown', keys, true);
-      window.removeEventListener('scroll', away, { capture: true });
-      window.removeEventListener('resize', away);
+      window.removeEventListener('scroll', moved, { capture: true });
+      window.removeEventListener('resize', moved);
     };
-  }, [open, close]);
+  }, [open, close, settle]);
 
   if (user === null) return null;
 

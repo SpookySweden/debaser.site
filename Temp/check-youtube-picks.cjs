@@ -186,6 +186,10 @@ assert.equal(tasteFromHistory(less, NOW).tags.stranger, undefined, '... without 
 const more = tasteFromHistory([row({ ref: 'youtube:morelikeit1', title: 'Synth build', maker: 'Maker', words: ['synthesizer'], action: 'more', lastAt: ago(80) })], NOW);
 assert.ok(more.creators.maker >= acted('finished').creators.maker && more.tags.synthesizer > 0, 'MORE LIKE THIS counts like a finish, and does not fade');
 assert.equal(of('Maker', channelStandings({ evidence: [], rows: [row({ maker: 'Maker', action: 'more', lastAt: ago(80) })], now: NOW })).live, true, '... and its channel stands');
+const wanted = [...rows, row({ ref: uploads[3].id, title: uploads[3].title, maker: 'Live Sub', action: 'more', lastAt: ago(0) })];
+assert.ok(youTubeShelf({ uploads, liked: [], related: [], standings: channelStandings({ evidence, rows: wanted, now: NOW }), rows: wanted, now: NOW, size: 20 }).some((pick) => pick.item.id === uploads[3].id), '... and the pick it was pressed on stays where it is');
+const playedOne = [...rows, row({ ref: uploads[3].id, title: uploads[3].title, maker: 'Live Sub', action: 'played', lastAt: ago(0) })];
+assert.ok(!youTubeShelf({ uploads, liked: [], related: [], standings: channelStandings({ evidence, rows: playedOne, now: NOW }), rows: playedOne, now: NOW, size: 20 }).some((pick) => pick.item.id === uploads[3].id), 'while a video already played here is not offered again');
 
 // 5b. Which note wins on one row: a press replaces anything, and only another press replaces a press.
 assert.equal(actionAfter(null, 'played'), 'played');
@@ -254,8 +258,8 @@ assert.match(fs.readFileSync('app/lib/web/youtube-link.ts', 'utf8'), /standings:
 
 // 8. From the files: where it is wired.
 const link = fs.readFileSync('app/lib/web/youtube-link.ts', 'utf8');
-assert.match(link, /const first = weigh\(read, rows, now\);/, 'what the page is handed is weighed with the history on every visit');
-assert.match(link, /weigh\(read, rows, now, \{ related \}\)/, '... and again with YouTube\'s "watch next" once it is in');
+assert.match(link, /const first = weigh\(read, rows, now, \{ summary \}\);/, 'what the page is handed is weighed with the history (and an imported summary) on every visit');
+assert.match(link, /weigh\(read, rows, now, \{ related, summary \}\)/, '... and again with YouTube\'s "watch next" once it is in');
 assert.match(link, /prefer: watchedHere\(saved, rows\)/, 'the read is told which channels are watched here');
 const history = fs.readFileSync('app/lib/recommender/history.ts', 'utf8');
 assert.match(history, /if \(note\.kind === 'media' && note\.action === 'played'\) watchPlayback\(/, 'a played video is watched to its end or its quick close');

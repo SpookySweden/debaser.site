@@ -1,5 +1,5 @@
 import { dayJitter, type Taste } from '../web/recommend';
-import { hiddenKeys, keyOf, lessMakers, pickLane, type Candidate } from './engine';
+import { hiddenKeys, keyOf, lessMakers, pickLane, seenKeys, type Candidate } from './engine';
 import type { HistoryRow } from './types';
 
 /**
@@ -285,7 +285,7 @@ export function youTubeShelf<T extends Video>(input: {
   // Surprises (Luke, 2026-11-14: "regarding 'dead subscribes' add them in occasionally as surprises too"): the newest
   // video of a subscription they no longer watch, one channel at a time, a different one each day. Playing it brings the
   // channel back (it then stands by that play); NOT FOR ME or SHOW LESS quiets it.
-  const seen = new Set(rows.map((row) => keyOf(row.kind, row.ref)));
+  const seen = seenKeys(rows);
   const day = Math.floor(now / DAY_MS);
   const quiet = new Map<string, T>();
   for (const video of input.uploads) {
