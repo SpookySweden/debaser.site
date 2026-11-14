@@ -74,6 +74,14 @@ each live on its own ("Yes, all three"), and the quiet re-bake ("Yes, quietly").
   press-and-drag stays), and "the character plays a cute animation when grabbing it" (asked which grab, the companion
   being lifted or a character catching a letter: "Both"): a start and a wriggle as it is lifted, and a catch any part
   of the site can ask a person's character to play (`companionCatches`, for letters dropped on a character).
+- **Thrown (Luke, 2026-11-14):** "when picking up and throwing the companion around i want him to retain momentum and
+  splat against the edge of the screen and obey the principles of animation such as squash and stretch and wind up and
+  smearing". Let go on the move it keeps the pointer's speed: a beat of wind-up, a flight under gravity drawn out along
+  its path with a smear of itself behind it, a splat flat against the left, right or top of the screen when it hits hard
+  (then it peels off and drops), bounces with a squash on its floor, and it settles, dizzy with stars after a splat. Let
+  go slowly it only drops, as before. Its own baked frames scaled and copied, and three new joint motions (`flung`,
+  `splat`, `dizzy`); nothing drawn. Nothing is thrown under reduced motion. A room sees only where it ended up.
+  Desktop first: touch is not tuned. How it is built: `docs/companion.md`, "Thrown".
 
 ## Database changes (need Luke's typed OK)
 - The COMPANION switch and choice follow the account: one small row of settings. It could share a table with the review's

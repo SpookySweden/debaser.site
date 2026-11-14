@@ -9,6 +9,9 @@ bake.
   room. One loop, ten frames a second, written straight to the figure's style through refs, so nothing re-renders.
 - `app/lib/companion/brain.ts`: what it decides, kept pure (the clock, pointer, music and dice are handed in). Also the
   fall after it is let go (`fallStep`).
+- `app/lib/companion/throw.ts`: being thrown, kept pure: the speed a let-go reads off the pointer, each frame of the
+  flight (gravity, drag, the edges of the screen, the floor), and how each frame is drawn (squash, stretch, the wind-up's
+  pull back, where the smear's copies sit).
 - `app/lib/companion/wire.ts`: what a companion tells a stream or music room, riding on the room's own presence. Also
   which one-off motion each reaction plays (`reactionMotion`) and which loop a mood and pose draw (`loopMotion`).
 - `app/lib/companion/events.ts`: `pokeCompanion(kind)`, the one way the rest of the site tells it something happened.
@@ -32,7 +35,28 @@ bake.
   puts it down. On a phone press-and-drag is the natural way; a double tap also lifts it and the next touch puts it
   down there. Either way it starts and wriggles once (`lifted`, with a `!`) before it hangs (`dangle`). It is clamped to the screen and above its own floor, and lands on the nearest stretch it can stand on.
   Under reduced motion nothing is carried.
-- **Stepped, always.** Ten frames a second in whole pixels, a carry and a fall included. No `requestAnimationFrame`.
+- **Thrown** (Luke, 2026-11-14: "retain momentum and splat against the edge of the screen and obey the principles of
+  animation such as squash and stretch and wind up and smearing"). A third phase after `held`: `thrown`. Let go while the
+  pointer is moving (`releaseVelocity`: its moves over the last tenth of a second; at rest, or slower than `THROW_MIN`,
+  it is only put down and drops as before), it keeps that speed. In order:
+  - *wind-up*: two frames held where it was let go, pulled back against the throw and pressed short along it;
+  - *in the air*: gravity and a little drag, drawn out along its path (`stretchFor`), playing `flung`, and when it is fast
+    two fainter copies of the frame it is showing trail back to where it was a frame ago (the smear);
+  - *an edge of the screen* (left, right, top): at `SPLAT_SPEED` or more into it, a splat: flat against it, playing
+    `splat`, stuck for six to twelve frames (slipping down a side), pressed once more, then it peels off and drops.
+    Slower, it bounces off with half its speed and one frame of squash;
+  - *the floor*: it bounces (two fifths of its speed back), squashed on the frame it lands, until it is too slow to; in
+    low and fast it skids; down on something it steps around (the folded player) it hops off to where it can stand;
+  - *down*: the landing's squash, a spring back and a smaller dip (`settleFrames`) over its `land`; after a splat it is
+    `dizzy` instead (it reels with stars going round its head, shakes it off) and then hops.
+  A squash keeps as much of it as there was: pressed to half its length it spreads by the square root of two (`acrossFor`).
+  Everything is its own baked frame scaled, nudged or copied with a plain 2D transform on hard pixels: nothing is drawn,
+  nothing is blurred, nothing eases. It is the figure's picture, not the empty margin of its box, that meets the glass:
+  the margin is read off its `splat` cell the first time it is picked up (`measureInsets`). It can be caught out of the
+  air or peeled off the glass by pressing and dragging it. A put-down after a double press throws too if the pointer is
+  on the move. Escape, the window going and reduced motion never throw. A room is told nothing while it flies: one
+  message when it is down, saying where (and `dizzy`, which older tabs draw as a hop).
+- **Stepped, always.** Ten frames a second in whole pixels, a carry, a fall and a throw included. No `requestAnimationFrame`.
 - **Joining in.** A scene (`type`, `game`, `read`, `watch`) settles it where it stands in a pose. Typing, a game and a book
   come before the music; a video after it. It hears typing itself (a key into a text box, never which key, never a
   password box). The rest of the site tells it in one line each: `useCompanionScene`, `useCompanionMatch`,
@@ -77,7 +101,13 @@ bake.
   heard outside it, it is let be after `CHASE_FRESH_MS`.
 
 ## How it is checked
-- `Temp/check-companion.cjs`: the brain, the fall, the wire and the wiring, in Node.
+- `Temp/check-companion.cjs`: the brain, the fall, the throw (its speed, its arc, the line between a splat and a bounce,
+  the bounces, the squash that keeps its volume, the smear), the wire and the wiring, in Node.
+- `scripts/drive-companion-throw.cjs`: the throw in a real browser against a LOCAL dev server on mock accounts and mock
+  data (it refuses any other address). It bakes GUY with the workbench's own bake, takes over the page's clock, and reads
+  every frame of an arc, three splats, a soft bounce, a put-down and a catch against the rules run in Node from the same
+  let-go; close-ups go to `Temp/browse/throw/`. Leaves nothing. The same trick (mock storage seeded, `page.clock`) is the
+  cheapest way to drive anything else the companion does without the live database.
 - `scripts/drive-companion.cjs`: the first spec's proof in real browsers as TEST ACCOUNT A and B (it leaves a room and a
   message to clear; `--dance-only` leaves nothing).
 - `scripts/drive-companion-life.cjs`: the re-bake, picking up and dropping (the start at being lifted, the double press,

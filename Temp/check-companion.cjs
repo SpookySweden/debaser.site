@@ -1,6 +1,6 @@
 /*
  * The companion along the bottom of the site (SPEC-companion.md): its rules, without a browser.
- *   npx tsc app/lib/companion/brain.ts app/lib/companion/wire.ts app/lib/companion/choices.ts app/lib/companion/scene.ts app/lib/companion/events.ts app/lib/companion/ledge.ts app/lib/companion/floor.ts app/lib/watch/members-signature.ts --outDir Temp/companion-check --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strict
+ *   npx tsc app/lib/companion/brain.ts app/lib/companion/wire.ts app/lib/companion/choices.ts app/lib/companion/scene.ts app/lib/companion/events.ts app/lib/companion/ledge.ts app/lib/companion/floor.ts app/lib/companion/throw.ts app/lib/watch/members-signature.ts --outDir Temp/companion-check --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strict
  *   node Temp/check-companion.cjs
  *
  * What it holds:
@@ -11,7 +11,10 @@
  *     live) off by default on a computer;
  *   - the room wire: malformed presence is no companion, at most 8 are drawn, and a companion's step does not tell the
  *     room window that somebody joined;
- *   - the wiring: rides on the room's existing presence (no new channel), never per frame, clicks pass through the strip.
+ *   - the wiring: rides on the room's existing presence (no new channel), never per frame, clicks pass through the strip;
+ *   - thrown (Luke, 2026-11-14): let go on the move it keeps the pointer's speed, winds up, flies under gravity and drag,
+ *     splats on a side or the top of the screen it hits hard and bounces off one it hits softly, bounces on its floor and
+ *     settles; a squash keeps as much of it as there was; the smear lies back along its path; a room hears only the end.
  */
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -26,6 +29,7 @@ const scenes = require(path.join(OUT, 'companion', 'scene.js'));
 const events = require(path.join(OUT, 'companion', 'events.js'));
 const ledge = require(path.join(OUT, 'companion', 'ledge.js'));
 const floors = require(path.join(OUT, 'companion', 'floor.js'));
+const throws = require(path.join(OUT, 'companion', 'throw.js'));
 const { membersSignature } = require(path.join(OUT, 'watch', 'members-signature.js'));
 const read = (file) => fs.readFileSync(path.join(ROOT, file), 'utf8');
 
@@ -268,7 +272,9 @@ ok('picking it up: only yours, a drag not a press, nothing under reduced motion,
   assert.match(strip, /if \(event\.type !== 'pointerup' \|\| phase !== 'strip'\) return;/, 'a poke (or a double press) only on its strip');
   assert.match(strip, /window\.addEventListener\('pointerup', onDrop/, 'a let-go is heard anywhere on the window');
   assert.match(strip, /window\.addEventListener\('pointercancel', onDrop/);
-  assert.match(strip, /Math\.min\(floor\.ledge \? window\.innerHeight : floor\.y, Math\.max\(size\.h, grab\.py \+ grab\.offY\)\)/, 'held, it stays on screen and above its own floor');
+  // (2026-11-14: the line moved into `hangAt`, so a let-go starts from the same place a carry draws it; the rule is the same.)
+  assert.match(strip, /Math\.min\(floor\.ledge \? window\.innerHeight : floor\.y, Math\.max\(size\.h, held\.py \+ held\.offY\)\)/, 'held, it stays on screen and above its own floor');
+  assert.match(strip, /if \(phase === 'held' && grab !== null\) \{\s*const at = hangAt\(floor, size, grab\);\s*x = at\.x;\s*y = at\.y;/, 'which is where a carry draws it');
   assert.match(strip, /const slid = under === null \? next\.x : Math\.min\(under\.right, Math\.max\(under\.left, next\.x\)\)/, 'it lands on a stretch it can stand on');
   assert.match(read('app/components/NoteTrail.tsx'), /mood === 'sleep' \? 'snores'/, 'z z z while it sleeps');
   assert.match(read('app/components/NoteTrail.tsx'), /const trail: Trail \| null = reduced \? null/, 'and none under reduced motion');
@@ -616,7 +622,8 @@ ok('K1: a second press soon after the first picks it up to follow the pointer; t
   assert.match(strip, /if \(at - lastTap <= DOUBLE_MS && place !== null\) \{/, 'two presses close together');
   assert.match(strip, /carried: true \};\s*liftOff\(\);\s*return;/, 'it is picked up, carried with nothing held down');
   assert.match(strip, /pokes = Math\.max\(0, pokes - 1\);/, "the first press's poke is given back");
-  assert.match(strip, /if \(grab\.carried\) \{\s*grab\.px = event\.clientX;\s*grab\.py = event\.clientY;\s*return;\s*\}/, 'it follows the pointer, whichever pointer');
+  // (2026-11-14: it also keeps the pointer's last moves now, `trace`, so a put-down on the move is a throw.)
+  assert.match(strip, /if \(grab\.carried\) \{\s*grab\.px = event\.clientX;\s*grab\.py = event\.clientY;\s*trace\(grab, event\);\s*return;\s*\}/, 'it follows the pointer, whichever pointer');
   assert.match(strip, /if \(grab === null \|\| grab\.carried \|\| event\.pointerId !== grab\.id\) return;/, 'letting a key go does not drop it');
   assert.match(strip, /const onPutDown = \(event: PointerEvent\) => \{\s*if \(grab === null \|\| !grab\.carried \|\| event\.button !== 0\) return;/, 'the next press puts it down');
   assert.match(strip, /window\.addEventListener\('pointerdown', onPutDown/, 'heard anywhere on the window');
@@ -656,5 +663,327 @@ ok("K2: handed something, a person's character catches it, wherever it is drawn 
   assert.doesNotMatch(bus, /fetch\(|supabase|sayCompanion/, 'the bus sends nothing anywhere');
 });
 
+/* --- thrown (Luke, 2026-11-14: "retain momentum and splat against the edge of the screen and obey the principles of
+       animation such as squash and stretch and wind up and smearing") ------------------------------------------- */
+
+/** A screen 1440 wide for a figure 80 wide and 76 tall, its floor at 800. */
+const ARENA = { left: 0, right: 1360, ceiling: 76, floor: 800 };
+const BOX = { w: 80, h: 76 };
+
+/** A whole throw, frame by frame, until it is down (or 400 frames, which no throw should take). */
+function flight(start, arena = ARENA) {
+  const frames = [start];
+  while (frames[frames.length - 1].stage !== 'landed' && frames.length < 400) frames.push(throws.throwStep(frames[frames.length - 1], arena));
+  return frames;
+}
+
+ok('a let-go reads the speed the pointer had: on the move a throw, at rest or slowly a put-down', () => {
+  // 30 px every 10 ms to the right and 10 up: 300 px a frame, held to the most a throw may be.
+  const fast = [0, 1, 2, 3, 4, 5].map((i) => ({ x: 100 + i * 30, y: 500 - i * 10, t: 1000 + i * 10 }));
+  const hard = throws.releaseVelocity(fast, 1052);
+  assert.ok(Math.abs(Math.hypot(hard.vx, hard.vy) - throws.THROW_MAX) <= 1, `held to the fastest a throw may be (${hard.vx}, ${hard.vy})`);
+  assert.ok(hard.vx > 0 && hard.vy < 0, 'and in the way the pointer was going');
+  // 4 px every 10 ms: 40 px a frame, kept as it is.
+  const steady = [0, 1, 2, 3, 4, 5].map((i) => ({ x: 100 + i * 4, y: 500, t: 1000 + i * 10 }));
+  assert.deepEqual(throws.releaseVelocity(steady, 1052), { vx: 40, vy: 0 });
+  assert.equal(throws.isThrow(40, 0), true);
+  // The same moves, then the pointer held still a while before letting go: nothing.
+  assert.deepEqual(throws.releaseVelocity(steady, 1050 + throws.SAMPLE_FRESH_MS + 1), { vx: 0, vy: 0 }, 'it stopped first: no throw');
+  assert.deepEqual(throws.releaseVelocity([], 1000), { vx: 0, vy: 0 });
+  assert.deepEqual(throws.releaseVelocity([{ x: 5, y: 5, t: 990 }], 1000), { vx: 0, vy: 0 }, 'one move is no speed');
+  // Two moves in the same instant (a burst): judged over a screen frame at least, never divided by nothing.
+  const burst = throws.releaseVelocity([{ x: 0, y: 0, t: 1000 }, { x: 8, y: 0, t: 1000 }], 1001);
+  assert.deepEqual(burst, { vx: 50, vy: 0 });
+  // A slow carry let go is a put-down.
+  assert.equal(throws.isThrow(throws.THROW_MIN - 1, 0), false);
+  assert.equal(throws.isThrow(0, -throws.THROW_MIN), true, 'straight up counts too');
+});
+
+ok('thrown, it winds up for a beat, then keeps its speed: an arc under gravity, slowed by the air, in whole pixels, landing on its floor', () => {
+  const start = throws.startThrow(200, 600, 40, -80);
+  assert.equal(start.stage, 'wind');
+  const frames = flight(start);
+  // The wind-up: held where it was let go.
+  const wound = frames.filter((frame) => frame.stage === 'wind');
+  assert.equal(wound.length, throws.WIND_TICKS, 'a beat of wind-up before it goes');
+  assert.ok(wound.every((frame) => frame.x === 200 && frame.y === 600), 'held where it was let go');
+  const air = frames.filter((frame) => frame.stage === 'fly');
+  // Momentum: its first frame in the air is the pointer's speed, less the air and the pull of the ground.
+  assert.equal(air[0].x, Math.round(200 + 40 * throws.DRAG));
+  assert.equal(air[0].y, Math.round(600 + (-80 * throws.DRAG + throws.GRAVITY)));
+  // An arc: up, over the top, and down.
+  const top = Math.min(...air.map((frame) => frame.y));
+  const at = air.findIndex((frame) => frame.y === top);
+  assert.ok(top < 600 - 150, `it rose (${600 - top}px)`);
+  assert.ok(at > 2 && at < air.length - 2, 'and came down again');
+  for (let i = 1; i < at; i += 1) assert.ok(air[i].vy > air[i - 1].vy, 'slowing on the way up');
+  // The air slows it sideways, a little each frame.
+  assert.ok(air[5].vx < air[0].vx && air[5].vx > 0);
+  assert.ok(Math.abs(air[1].vx / air[0].vx - throws.DRAG) < 1e-9);
+  for (const frame of frames) {
+    assert.ok(Number.isInteger(frame.x) && Number.isInteger(frame.y), 'whole pixels: stepped');
+    assert.ok(frame.x >= ARENA.left && frame.x <= ARENA.right && frame.y >= ARENA.ceiling && frame.y <= ARENA.floor, `never off the screen (${frame.x}, ${frame.y})`);
+  }
+  const end = frames[frames.length - 1];
+  assert.equal(end.stage, 'landed');
+  assert.equal(end.y, ARENA.floor, 'on its floor, not through it');
+  assert.ok(end.x > 200, 'further along than where it was let go');
+  assert.equal(end.splatted, false);
+  assert.equal(throws.throwStep(end, ARENA), end, 'down is down');
+});
+
+ok('hard into a side or the top of the screen it splats: stuck flat for a beat, slipping, then it peels off and drops; softly, it bounces off', () => {
+  // Hard to the right from near the right side.
+  const frames = flight(throws.startThrow(1200, 400, 120, -10));
+  const hit = frames.find((frame) => frame.stage === 'stuck');
+  assert.ok(hit, 'it splatted');
+  assert.equal(hit.edge, 'right');
+  assert.equal(hit.x, ARENA.right, 'on the glass');
+  assert.ok(hit.impact >= throws.SPLAT_SPEED);
+  assert.equal(hit.vx, 0);
+  assert.equal(hit.vy, 0);
+  const stuck = frames.filter((frame) => frame.stage === 'stuck');
+  assert.equal(stuck.length, throws.stuckTicks(hit.impact), 'stuck for its beat');
+  assert.ok(stuck.length >= throws.STUCK_TICKS[0] && stuck.length <= throws.STUCK_TICKS[1]);
+  assert.ok(stuck.every((frame) => frame.x === ARENA.right), 'and it does not leave the glass');
+  assert.equal(stuck[1].y, stuck[0].y, 'held fast at first');
+  assert.ok(stuck[stuck.length - 1].y > stuck[0].y, 'then slipping down it');
+  const peel = frames.filter((frame) => frame.stage === 'peel');
+  assert.equal(peel.length, throws.PEEL_TICKS, 'then it peels');
+  const after = frames.slice(frames.indexOf(peel[peel.length - 1]) + 1);
+  assert.equal(after[0].stage, 'fly');
+  assert.ok(after[0].vx < 0, 'pushed off, away from the side it was on');
+  const end = frames[frames.length - 1];
+  assert.equal(end.stage, 'landed');
+  assert.equal(end.y, ARENA.floor);
+  assert.equal(end.splatted, true, 'and it lands dizzy');
+  assert.ok(frames.filter((frame) => frame.stage === 'stuck' && frame.age === 0).length === 1, 'one splat a throw: it has not the speed for another');
+  // Harder sticks longer.
+  assert.ok(throws.stuckTicks(throws.THROW_MAX) > throws.stuckTicks(throws.SPLAT_SPEED));
+  assert.equal(throws.stuckTicks(throws.SPLAT_SPEED), throws.STUCK_TICKS[0]);
+  assert.equal(throws.stuckTicks(9999), throws.STUCK_TICKS[1]);
+
+  // The left side, and the top.
+  const left = flight(throws.startThrow(150, 400, -150, 0)).find((frame) => frame.stage === 'stuck');
+  assert.equal(left.edge, 'left');
+  assert.equal(left.x, ARENA.left);
+  const up = flight(throws.startThrow(600, 300, 0, -160));
+  const ceiling = up.find((frame) => frame.stage === 'stuck');
+  assert.equal(ceiling.edge, 'top');
+  assert.equal(ceiling.y, ARENA.ceiling, 'its head at the top of the screen');
+  assert.ok(up.filter((frame) => frame.stage === 'stuck').every((frame) => frame.y === ARENA.ceiling), 'it hangs there: no slipping along the top');
+  assert.equal(up[up.length - 1].stage, 'landed');
+
+  // The line between a splat and a bounce is the speed into the glass.
+  const just = (speed) => throws.throwStep({ ...throws.startThrow(ARENA.right - 10, 400, speed / throws.DRAG, 0), stage: 'fly' }, ARENA);
+  assert.equal(just(throws.SPLAT_SPEED + 0.5).stage, 'stuck', 'just over the speed: a splat');
+  const soft = just(throws.SPLAT_SPEED - 1);
+  assert.equal(soft.stage, 'fly', 'a hair under: a bounce');
+  assert.equal(soft.edge, 'right');
+  assert.ok(Math.abs(soft.vx + (throws.SPLAT_SPEED - 1) * throws.WALL_BOUNCE) < 1e-9, 'back the way it came with a share of its speed');
+  assert.equal(soft.splatted, false);
+  assert.equal(soft.x, ARENA.right, 'the frame of the bounce is on the glass');
+  // Fast along the glass is not fast into it: sliding up a side at speed is no splat.
+  const along = throws.throwStep({ ...throws.startThrow(ARENA.right - 5, 600, 20, -150), stage: 'fly' }, ARENA);
+  assert.equal(along.stage, 'fly');
+  // A soft bump on the top comes back down.
+  const bump = throws.throwStep({ ...throws.startThrow(600, ARENA.ceiling + 10, 0, -40), stage: 'fly' }, ARENA);
+  assert.equal(bump.edge, 'top');
+  assert.ok(bump.vy > 0);
+});
+
+ok('it bounces on its floor, lower each time, and comes to rest; too slow to bounce it lands; coming in low it skids', () => {
+  // Thrown gently sideways from high up: it is the fall that bounces it.
+  const frames = flight(throws.startThrow(400, 200, 20, 0));
+  const bounces = frames.filter((frame) => frame.stage === 'fly' && frame.edge === 'floor' && frame.vy < 0);
+  assert.ok(bounces.length >= 1, 'it bounced');
+  assert.equal(bounces[0].y, ARENA.floor, 'the frame of the bounce is on the floor');
+  assert.ok(Math.abs(bounces[0].vy + bounces[0].impact * throws.FLOOR_BOUNCE) < 1e-9, 'up again with a share of what it came down with');
+  for (let i = 1; i < bounces.length; i += 1) assert.ok(bounces[i].impact < bounces[i - 1].impact, 'each bounce lower than the last');
+  const end = frames[frames.length - 1];
+  assert.equal(end.stage, 'landed');
+  assert.equal(end.bounces, bounces.length);
+  assert.ok(end.impact < throws.BOUNCE_MIN, 'it comes to rest only when it is too slow to bounce');
+  assert.ok(frames.length < 80, `and does not bounce for ever (${frames.length} frames)`);
+  // The line between a bounce and a landing.
+  const drop = (speed) => throws.throwStep({ ...throws.startThrow(400, ARENA.floor - 2, 0, (speed - throws.GRAVITY) / throws.DRAG), stage: 'fly' }, ARENA);
+  assert.equal(drop(throws.BOUNCE_MIN + 0.5).stage, 'fly');
+  assert.ok(drop(throws.BOUNCE_MIN + 0.5).vy < 0);
+  assert.equal(drop(throws.BOUNCE_MIN - 1).stage, 'landed');
+  // Let go along the floor: a skid, slower each frame, then down. Never through the floor, never bouncing.
+  const skid = flight(throws.startThrow(300, ARENA.floor, 50, 5));
+  const slide = skid.filter((frame) => frame.stage === 'fly');
+  assert.ok(slide.length >= 2, 'it slid');
+  assert.ok(slide.every((frame) => frame.y === ARENA.floor), 'along its floor');
+  for (let i = 1; i < slide.length; i += 1) assert.ok(Math.abs(slide[i].vx) < Math.abs(slide[i - 1].vx), 'losing speed');
+  assert.ok(skid[skid.length - 1].x > 300 + 40 && skid[skid.length - 1].x < 300 + 200, `a short way (${skid[skid.length - 1].x - 300}px)`);
+  assert.equal(skid[skid.length - 1].bounces, 0);
+  // A skid fast enough into a side still splats.
+  assert.ok(flight(throws.startThrow(ARENA.right - 30, ARENA.floor, 170, 0)).some((frame) => frame.stage === 'stuck' && frame.edge === 'right'));
+  // A floor that rose over it (the music bar unfolding mid-throw): on it, not under it.
+  const under = throws.throwStep({ ...throws.startThrow(400, 900, 0, 0), stage: 'fly' }, ARENA);
+  assert.equal(under.y, ARENA.floor);
+  // A floor at the very top of the screen (on a room's window with no room over it): thrown up, it is never put under it.
+  const tight = { ...ARENA, floor: 70 };
+  for (const frame of flight(throws.startThrow(600, 70, 30, -120), tight)) assert.ok(frame.y <= tight.floor, `never under a floor at the top (${frame.y})`);
+});
+
+ok('down on something it cannot stand on, it hops off to where it can', () => {
+  // The folded player takes the left of the strip: it may stand from 320 on.
+  const arena = { ...ARENA, spans: [{ left: 320, right: 1360 }] };
+  const frames = flight(throws.startThrow(100, 500, 0, 0), arena);
+  const end = frames[frames.length - 1];
+  assert.equal(end.stage, 'landed');
+  assert.ok(end.x >= 320 - throws.STEP_OVER, `it ends where it can stand, or a step from it (${end.x})`);
+  const hop = frames.find((frame) => frame.edge === 'floor' && frame.vx > 0);
+  assert.ok(hop && hop.vy <= -throws.HOP_OFF_UP, 'a hop, up and toward the free stretch');
+  assert.ok(end.bounces <= throws.HOP_OFF_MOST + 2, 'in a few hops');
+  // On a free stretch nothing pushes it sideways.
+  const free = flight(throws.startThrow(700, 500, 0, 0), arena);
+  assert.equal(free[free.length - 1].x, 700);
+  // Nowhere at all to stand: it lands where it is rather than hopping for ever.
+  const none = flight(throws.startThrow(700, 500, 0, 0), { ...ARENA, spans: [] });
+  assert.equal(none[none.length - 1].stage, 'landed');
+});
+
+ok('squash and stretch keep as much of it as there was: pressed short it spreads, drawn out it thins', () => {
+  // The harder the hit, the flatter, down to the flattest and no further; no hit, no squash.
+  assert.equal(throws.squashFor(0), 1);
+  let last = 1;
+  for (let impact = 0; impact <= 300; impact += 5) {
+    const squash = throws.squashFor(impact);
+    assert.ok(squash <= last && squash >= throws.SQUASH_MIN && squash <= 1, `squash ${squash} at ${impact}`);
+    last = squash;
+  }
+  assert.equal(throws.squashFor(300), throws.SQUASH_MIN);
+  assert.ok(throws.squashFor(throws.SPLAT_SPEED) < 0.7, 'a hit at splat speed is plainly flat');
+  // The faster, the longer, up to the longest; slow, not at all.
+  assert.equal(throws.stretchFor(0), 1);
+  assert.equal(throws.stretchFor(throws.THROW_MIN), 1);
+  assert.ok(throws.stretchFor(100) > 1.2);
+  assert.equal(throws.stretchFor(9999), throws.STRETCH_MAX);
+  // Volume: along x across x across (it has depth too) stays 1, pressed or drawn out.
+  for (const along of [0.4, 0.5, 0.62, 0.9, 1, 1.25, 1.5]) {
+    const across = throws.acrossFor(along);
+    assert.ok(Math.abs(along * across * across - 1) < 1e-9, `volume kept at ${along}`);
+    assert.ok(along < 1 ? across > 1 : along > 1 ? across < 1 : across === 1, 'shorter is wider, longer is thinner');
+  }
+  // Pressed against each edge: short the way it hit, spread the other way, and the side on the glass does not move.
+  const flat = throws.squashLook('floor', 0.5, BOX);
+  assert.equal(flat.d, 0.5);
+  assert.ok(Math.abs(flat.a - Math.SQRT2) < 1e-9);
+  assert.equal(flat.dy, 19, 'half its height shorter about its middle, moved down a quarter: feet where they were');
+  assert.equal(flat.dx, 0);
+  const wall = throws.squashLook('left', 0.5, BOX);
+  assert.equal(wall.a, 0.5);
+  assert.ok(Math.abs(wall.d - Math.SQRT2) < 1e-9);
+  assert.equal(wall.dx, -20, 'its left side stays on the glass');
+  assert.equal(throws.squashLook('right', 0.5, BOX).dx, 20);
+  assert.equal(throws.squashLook('top', 0.5, BOX).dy, -19);
+  // Its picture stops short of its box (empty margin): it is the picture that stays on the glass.
+  assert.equal(throws.squashLook('left', 0.5, { ...BOX, left: 10 }).dx, -15);
+  assert.equal(throws.squashLook('top', 0.5, { ...BOX, top: 8 }).dy, -15);
+  // Drawn out along its path, whichever way that is: the stretch is along the line it travels, the thinning across it.
+  for (const [vx, vy] of [[100, 0], [0, -100], [60, 80], [-70, 70]]) {
+    const along = 1.4;
+    const m = throws.stretchAlong(vx, vy, along);
+    const speed = Math.hypot(vx, vy);
+    const [ux, uy] = [vx / speed, vy / speed];
+    // What the matrix does to a step along the path, and to one across it.
+    const on = [m.a * ux + m.c * uy, m.b * ux + m.d * uy];
+    const off = [m.a * -uy + m.c * ux, m.b * -uy + m.d * ux];
+    assert.ok(Math.abs(Math.hypot(...on) - along) < 1e-9, `drawn out along (${vx}, ${vy})`);
+    assert.ok(Math.abs(Math.hypot(...off) - throws.acrossFor(along)) < 1e-9, 'thinned across it');
+    assert.ok(Math.abs(m.b - m.c) < 1e-12, 'never turned: it stays upright');
+  }
+  assert.deepEqual(throws.stretchAlong(0, 0, 1.4), { a: 1, b: 0, c: 0, d: 1 }, 'going nowhere, it is itself');
+});
+
+ok('the look of a throw, frame by frame: pulled back to wind up, drawn out with a smear in the air, flat on a hit, springing back when it lands', () => {
+  // The wind-up: pulled back against the throw, further each frame, and pressed short along it.
+  const start = throws.startThrow(200, 600, 100, 0);
+  const wind0 = throws.throwLook(start, BOX);
+  const wind1 = throws.throwLook(throws.throwStep(start, ARENA), BOX);
+  assert.ok(wind0.dx < 0 && wind1.dx < wind0.dx, `pulled back, away from where it is going (${wind0.dx}, ${wind1.dx})`);
+  assert.equal(wind0.dy, 0);
+  assert.ok(wind0.a < 1 && wind1.a < wind0.a, 'pressed short along the throw');
+  assert.ok(wind0.d > 1, 'and spread across it');
+  assert.deepEqual(wind0.ghosts, []);
+  const up = throws.throwLook(throws.startThrow(200, 600, 0, -100), BOX);
+  assert.ok(up.dy > 0 && up.dx === 0, 'thrown up, it crouches down first');
+  // In the air, fast: drawn out along its path, two copies of itself back along the line to where it was.
+  const frames = flight(start);
+  const fast = frames.find((frame) => frame.stage === 'fly');
+  const air = throws.throwLook(fast, BOX);
+  assert.ok(air.a > 1.2 && air.d < 1, `drawn out the way it goes (${air.a.toFixed(2)} by ${air.d.toFixed(2)})`);
+  assert.equal(air.ghosts.length, 2, 'a smear of two copies');
+  const moved = fast.x - fast.fromX;
+  assert.ok(moved > 0);
+  assert.ok(air.ghosts[0].dx < 0 && air.ghosts[1].dx < air.ghosts[0].dx && air.ghosts[1].dx > -moved, 'behind it, between where it was and where it is');
+  assert.ok(air.ghosts.every((ghost) => Number.isInteger(ghost.dx) && Number.isInteger(ghost.dy)), 'whole pixels');
+  // Slow in the air: no smear.
+  const slow = throws.throwLook({ ...fast, vx: throws.SMEAR_SPEED - 1, vy: 0 }, BOX);
+  assert.deepEqual(slow.ghosts, []);
+  assert.equal(throws.throwLook({ ...fast, vx: throws.SMEAR_SPEED, vy: 0 }, BOX).ghosts.length, 2);
+  // The frame of a bounce: flat on the floor, feet where they were.
+  const fall = flight(throws.startThrow(400, 200, 20, 0));
+  const bounce = fall.find((frame) => frame.edge === 'floor' && frame.vy < 0);
+  const pressed = throws.throwLook(bounce, BOX);
+  assert.equal(pressed.d, throws.squashFor(bounce.impact));
+  assert.ok(pressed.d < 0.75 && pressed.a > 1, `squashed on landing (${pressed.d} tall, ${pressed.a.toFixed(2)} wide)`);
+  assert.ok(pressed.dy > 0);
+  assert.deepEqual(pressed.ghosts, []);
+  // A splat: flattest on the hit, giving a little, held, pressed again just before it peels; then back toward its shape.
+  const splat = flight(throws.startThrow(1200, 400, 120, -10));
+  const stuck = splat.filter((frame) => frame.stage === 'stuck').map((frame) => throws.throwLook(frame, BOX));
+  assert.ok(stuck[0].a <= 0.45, `flat on the glass (${stuck[0].a})`);
+  assert.ok(stuck[1].a > stuck[0].a, 'it gives');
+  assert.ok(stuck.every((look) => look.a <= 0.6 && look.d > 1.25 && look.dx > 0), 'flat against the right side all the while');
+  assert.ok(stuck[stuck.length - 1].a < stuck[stuck.length - 2].a, 'pressed again before it peels: a wind-up of its own');
+  const peel = splat.filter((frame) => frame.stage === 'peel').map((frame) => throws.throwLook(frame, BOX));
+  for (let i = 1; i < peel.length; i += 1) assert.ok(peel[i].a > peel[i - 1].a, 'coming back to its shape as it peels');
+  assert.ok(peel[peel.length - 1].a < 1);
+  // Off the top it hangs and is drawn out downward before it drops.
+  const hang = flight(throws.startThrow(600, 300, 0, -160)).filter((frame) => frame.stage === 'peel').map((frame) => throws.throwLook(frame, BOX));
+  assert.ok(hang[hang.length - 1].d > 1 && hang[hang.length - 1].dy > 0, 'drawn out from the top');
+  // Settling: the landing's squash, a spring back past its shape, a smaller dip, and done. Nothing after a touch-down too soft to squash.
+  const settle = throws.settleFrames(80);
+  assert.equal(settle[0], throws.squashFor(80));
+  assert.ok(settle[1] > 1 && settle[2] < 1 && settle[2] > settle[0], `squash, spring, dip (${settle.join(' ')})`);
+  assert.ok(1 - settle[2] < settle[1] - 1, 'each smaller than the last');
+  assert.deepEqual(throws.settleFrames(0), []);
+  const landed = splat[splat.length - 1];
+  assert.equal(throws.throwLook(landed, BOX).d, throws.squashFor(landed.impact));
+});
+
+ok('the throw on the page: only on a moving let-go, never under reduced motion, its own frames and nothing drawn, and a room hears only where it ended', () => {
+  const strip = read('app/components/Companion.tsx');
+  assert.match(strip, /if \(still \|\| !isThrow\(toss\.vx, toss\.vy\) \|\| y > floor\.y\) \{\s*letGo\(throwOf\(toss\.vx\)\);\s*return;/, 'slow, or under reduced motion, it is put down as before');
+  assert.match(strip, /fling\(releaseVelocity\(released\.trail, performance\.now\(\)\)\);/, 'a drag let go reads the pointer\'s speed');
+  assert.match(strip, /fling\(releaseVelocity\(grab\.trail, performance\.now\(\)\)\);/, 'and so does a put-down after a double press');
+  assert.match(strip, /if \(event\.type !== 'pointerup'\) \{\s*letGo\(0\);/, 'a pointer taken away throws nothing');
+  // The whole of the throw's frame loop: nothing in it speaks to the room.
+  const from = strip.indexOf("if (phase === 'thrown' && thrown !== null) {");
+  const to = strip.indexOf("if (phase === 'held' || phase === 'fall') {");
+  assert.ok(from > 0 && to > from);
+  const loop = strip.slice(from, to);
+  assert.match(loop, /thrown = throwStep\(thrown, \{ left: -insets\.left, right: floor\.screen - size\.w \+ insets\.right, ceiling: size\.h - insets\.top, floor: floor\.y, spans: floor\.spans \}\);/, 'the screen is its arena');
+  const flying = loop.slice(0, loop.indexOf('// Down:'));
+  assert.doesNotMatch(flying, /say\(|sayCompanion|react\(/, 'in the air the room is told nothing');
+  assert.match(loop, /react\(dizzy \? 'dizzy' : 'land'\);/, 'down, it is told once (a reaction says where it is)');
+  assert.match(loop, /settle = settleFrames\(thrown\.impact\);/, 'and it settles');
+  // The smear is its own strip again, hidden unless thrown, yours only; the squash is a plain 2D transform on hard pixels.
+  assert.match(strip, /\{own\s*\? \(\['opacity-50', 'opacity-25'\] as const\)\.map/, 'two fainter copies, on your own companion only');
+  assert.match(strip, /className=\{`pointer-events-none invisible absolute inset-0 -z-10 block \$\{faint\}`\}\s*style=\{\{\s*backgroundImage: `url\("\$\{look\.stripUrl\}"\)`,[\s\S]{0,300}?imageRendering: 'pixelated',\s*\}\}\s*data-companion-smear/, 'the smear is its own baked strip, hard-edged, behind it');
+  assert.doesNotMatch(strip, /<svg|<canvas|clip-path|border-radius|blur\(/, 'nothing is drawn, nothing is blurred');
+  assert.doesNotMatch(strip, /requestAnimationFrame|transition/, 'stepped: no smooth motion');
+  // Dizzy: a star, the reel, and old tabs in a room see a plain hop.
+  assert.equal(wire.reactionMotion('dizzy'), 'dizzy');
+  assert.equal(wire.reactionMark('dizzy'), '\u2736');
+  assert.equal(wire.reactionIsLocal('dizzy'), false, 'the room sees it reel, where it ended up');
+  assert.equal(wire.parseCompanionWire({ x: 0.5, m: 'stand', r: 3, k: 'dizzy' }).k, 'dizzy');
+  const motions = read('app/lib/character/motion.ts');
+  assert.match(motions, /flung: 'idle',\s*splat: 'stand',\s*dizzy: 'idle',/, 'a strip baked before the throw plays older motions in their place');
+});
 
 console.log(`\n${passed} passed`);

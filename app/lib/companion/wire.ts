@@ -37,7 +37,9 @@ export type CompanionReaction =
   | 'look'
   | 'spoke'
   // Catching something handed to it (a letter dropped on it).
-  | 'catch';
+  | 'catch'
+  // Thrown hard into the edge of the screen and down again: seeing stars (`./throw.ts`).
+  | 'dizzy';
 
 export const COMPANION_REACTIONS: readonly CompanionReaction[] = [
   'reply',
@@ -56,12 +58,13 @@ export const COMPANION_REACTIONS: readonly CompanionReaction[] = [
   'look',
   'spoke',
   'catch',
+  'dizzy',
 ];
 
 /**
  * The text mark each reaction puts over its head for a moment, or null for a motion alone. Text characters, never art:
  * `!` for a reply, a message or somebody coming online, `VS` for a game invite, a heart for a recommendation, `...` for
- * speaking in a room's chat.
+ * speaking in a room's chat, a star for a head still spinning after a splat.
  */
 export function reactionMark(kind: CompanionReaction | null): string | null {
   switch (kind) {
@@ -75,6 +78,8 @@ export function reactionMark(kind: CompanionReaction | null): string | null {
       return '\u2665';
     case 'spoke':
       return '...';
+    case 'dizzy':
+      return '✶';
     default:
       return null;
   }
@@ -115,6 +120,7 @@ const REACTION_MOTIONS: Record<CompanionReaction, MotionId> = {
   look: 'turn',
   spoke: 'hop',
   catch: 'catch',
+  dizzy: 'dizzy',
 };
 export function reactionMotion(kind: CompanionReaction | null): MotionId {
   return kind === null ? 'hop' : REACTION_MOTIONS[kind];

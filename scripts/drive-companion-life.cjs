@@ -39,7 +39,7 @@ const pass = (what) => {
   console.log(`  ok  ${what}`);
 };
 
-const NEWER = ['stretch', 'dance4', 'dance5', 'run', 'cheer', 'slump', 'dangle', 'land', 'curl', 'watch', 'read', 'flick', 'type', 'climb', 'lifted', 'catch'];
+const NEWER = ['stretch', 'dance4', 'dance5', 'run', 'cheer', 'slump', 'dangle', 'land', 'curl', 'watch', 'read', 'flick', 'type', 'climb', 'lifted', 'catch', 'flung', 'splat', 'dizzy'];
 
 function readOwn() {
   const own = document.querySelector('[data-companion="own"]');

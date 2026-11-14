@@ -76,6 +76,11 @@ export const MOTION_FALLBACK = {
   // (Luke, 2026-11-14: "the character plays a cute animation when grabbing it", and, asked which grab, "Both".)
   lifted: 'hop',
   catch: 'hop',
+  // (Luke, 2026-11-14: "throwing the companion around ... splat against the edge of the screen".) Thrown through the air,
+  // flat against the glass, and seeing stars after.
+  flung: 'idle',
+  splat: 'stand',
+  dizzy: 'idle',
 } as const satisfies Record<string, CoreMotionId>;
 export type ExtraMotionId = keyof typeof MOTION_FALLBACK;
 export const EXTRA_MOTION_IDS = Object.keys(MOTION_FALLBACK) as ExtraMotionId[];
@@ -415,6 +420,48 @@ const BASE: Record<MotionId, Motion> = {
     ],
   },
 
+  // Thrown: through the air head first, its back arched and its head up, its legs trailing and kicking behind it.
+  flung: {
+    facing: 'side',
+    loop: true,
+    frames: [
+      { joints: { hips: { x: 34, z: 6 }, body: { x: -18 }, head: { x: -24 } }, root: { y: 0.1 } },
+      { joints: { hips: { x: 40 }, body: { x: -24 }, head: { x: -30, z: 8 } }, root: { y: 0.1 } },
+      { joints: { hips: { x: 34, z: -6 }, body: { x: -18 }, head: { x: -24 } }, root: { y: 0.1 } },
+      { joints: { hips: { x: 40 }, body: { x: -24 }, head: { x: -30, z: -8 } }, root: { y: 0.1 } },
+    ],
+  },
+
+  // Splat against the edge of the screen: square on to the glass, crooked, its head knocked back, slipping a little.
+  splat: {
+    facing: 'front',
+    loop: true,
+    frames: [
+      { joints: { hips: { z: 6 }, body: { x: -8, z: -10 }, head: { x: -14, z: 16 } }, hold: 6 },
+      { joints: { hips: { z: 6 }, body: { x: -8, z: -13 }, head: { x: -14, z: 21 } }, hold: 2 },
+    ],
+  },
+
+  // Seeing stars: it reels, its body going round one way and its head lolling the other, twice; then shakes its head
+  // hard, one way and the other, and is itself again.
+  dizzy: {
+    facing: 'front',
+    loop: false,
+    frames: [
+      ...[0, 1].flatMap((): Keyframe[] => [
+        { joints: { hips: { z: 6 }, body: { z: 10 }, head: { x: 8, z: -14 } }, hold: 2 },
+        { joints: { body: { x: 8 }, head: { x: -12 } }, hold: 2 },
+        { joints: { hips: { z: -6 }, body: { z: -10 }, head: { x: 8, z: 14 } }, hold: 2 },
+        { joints: { body: { x: -6 }, head: { x: 14 } }, hold: 2 },
+      ]),
+      { joints: { head: { y: 32 } } },
+      { joints: { head: { y: -32 } } },
+      { joints: { head: { y: 24 } } },
+      { joints: { head: { y: -24 } } },
+      { joints: { head: { z: 6 } }, hold: 2 },
+    ],
+  },
+
   // Climbing up into a profile's room: its back to you, rocking from one side to the other as it goes.
   climb: {
     facing: 'front',
@@ -491,6 +538,16 @@ const GUY: Partial<Record<MotionId, Motion>> = {
     if (index === 0) return { left: { z: -120 }, right: { z: 120 } };
     if (index === 1) return { left: { z: -165 }, right: { z: 165 } };
     return { left: { x: -80 }, right: { x: -80 } };
+  }),
+  // Arms out ahead of it, flailing.
+  flung: withArms(BASE.flung, (index) => ({ left: { x: [-150, -120, -150, -120][index] }, right: { x: [-120, -150, -120, -150][index] } })),
+  // Spread out flat on the glass, one arm higher than the other, slipping.
+  splat: withArms(BASE.splat, (index) => ({ left: { z: [-100, -94][index] }, right: { z: [118, 110][index] } })),
+  // Arms out for balance as it reels, and down by its sides to shake its head.
+  dizzy: withArms(BASE.dizzy, (index) => {
+    if (index >= 8) return { left: { z: -18 }, right: { z: 18 } };
+    const out = index % 2 === 0 ? 62 : 44;
+    return { left: { z: -out }, right: { z: index % 4 < 2 ? out + 14 : out - 10 } };
   }),
   // Reaching up, one hand then the other.
   climb: withArms(BASE.climb, (index) => ({ left: { z: [-165, -150, -135, -150][index] }, right: { z: [135, 150, 165, 150][index] } })),

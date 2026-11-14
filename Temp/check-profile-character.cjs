@@ -200,7 +200,7 @@ test('feet stay on the floor walking, idling, dancing and waving; sitting sits o
     const motions = motion.motionsFor(preset);
     const floor = lowest(motion.posedPlacements(figure, {}, 0));
     near(floor, FLOOR_Y, 0.02, `${preset} stands on the floor`);
-    for (const id of ['walk', 'idle', 'dance1', 'dance2', 'dance3', 'wave', 'turn', 'stretch', 'dance4', 'dance5', 'run', 'cheer', 'slump', 'dangle', 'land', 'type', 'climb', 'lifted', 'catch']) {
+    for (const id of ['walk', 'idle', 'dance1', 'dance2', 'dance3', 'wave', 'turn', 'stretch', 'dance4', 'dance5', 'run', 'cheer', 'slump', 'dangle', 'land', 'type', 'climb', 'lifted', 'catch', 'flung', 'splat', 'dizzy']) {
       for (const frame of motions[id].frames) {
         const low = lowest(motion.posedPlacements(figure, frame, motion.frameYaw(motions[id], frame)));
         assert.ok(low > floor - 0.08, `${preset} ${id} sinks to ${low.toFixed(3)} (floor ${floor.toFixed(3)})`);
