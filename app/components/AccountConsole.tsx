@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import { PLATE, PLATE_PRESSED } from '../lib/ui/controls';
 import AccountDetails from './AccountDetails';
@@ -74,6 +75,11 @@ export default function AccountConsole() {
             <div className="mt-4">
               <HistoryPanel />
             </div>
+            <p className="mt-4 text-label font-bold text-ink">
+              <Link href="/privacy" className="underline">
+                READ THE PRIVACY POLICY
+              </Link>
+            </p>
           </div>
         </section>
       )}
