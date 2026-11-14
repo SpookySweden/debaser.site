@@ -1,6 +1,6 @@
 /*
  * The companion along the bottom of the site (SPEC-companion.md): its rules, without a browser.
- *   npx tsc app/lib/companion/brain.ts app/lib/companion/wire.ts app/lib/companion/choices.ts app/lib/companion/scene.ts app/lib/companion/ledge.ts app/lib/companion/floor.ts app/lib/watch/members-signature.ts --outDir Temp/companion-check --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strict
+ *   npx tsc app/lib/companion/brain.ts app/lib/companion/wire.ts app/lib/companion/choices.ts app/lib/companion/scene.ts app/lib/companion/events.ts app/lib/companion/ledge.ts app/lib/companion/floor.ts app/lib/watch/members-signature.ts --outDir Temp/companion-check --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strict
  *   node Temp/check-companion.cjs
  *
  * What it holds:
@@ -23,6 +23,7 @@ const brain = require(path.join(OUT, 'companion', 'brain.js'));
 const wire = require(path.join(OUT, 'companion', 'wire.js'));
 const choices = require(path.join(OUT, 'companion', 'choices.js'));
 const scenes = require(path.join(OUT, 'companion', 'scene.js'));
+const events = require(path.join(OUT, 'companion', 'events.js'));
 const ledge = require(path.join(OUT, 'companion', 'ledge.js'));
 const floors = require(path.join(OUT, 'companion', 'floor.js'));
 const { membersSignature } = require(path.join(OUT, 'watch', 'members-signature.js'));
@@ -418,7 +419,7 @@ ok("a room is never told what you read or type: those poses, and a page turned, 
   assert.ok(wire.COMPANION_POSES.includes('watch'), 'watching the room\'s video is the room\'s own business');
   const strip = read('app/components/Companion.tsx');
   assert.match(strip, /posing = COMPANION_POSES\.includes\(loop\) \? loop : null;/, 'only those poses are said');
-  assert.match(strip, /if \(kind === 'flick'\) \{[^}]*lastActivity = Date\.now\(\);\s*if \(looping === 'read' && !still\) act = \{ motion: 'flick', tick: 0 \};\s*return;\s*\}\s*reactions \+= 1;/, 'a page turned is played, counts as you being here, and is never counted for the room');
+  assert.match(strip, /if \(kind === 'flick'\) \{[^}]*lastActivity = Date\.now\(\);\s*if \(looping === 'read' && !still\) act = \{ motion: 'flick', tick: 0 \};\s*return;\s*\}/, 'a page turned is played, counts as you being here, and is never counted for the room');
   assert.match(strip, /input:not\(\[type\]\), input\[type="text"\]/, 'typing is heard in text boxes');
   assert.doesNotMatch(strip.slice(strip.indexOf('const WRITING'), strip.indexOf('const TYPING_MS')), /password/, 'never a password box');
   assert.doesNotMatch(strip, /event\.key(?!\.length| === 'Backspace'| === 'Enter')/, 'it hears that a key was typed, never which');
@@ -549,5 +550,63 @@ ok('the one-line hook-ups: the reader, the arcade, the board and the stream room
   assert.match(slots, /id: 'sprite-companion-book'/, 'the book is an art slot');
   assert.match(read('app/components/Companion.tsx'), /<SpriteSlot src="\/assets\/sprites\/companion-book\.gif"/, "drawn from Luke's file, never by code");
 });
+
+/* --- social touches (Luke, 2026-11-14, step 3) ------------------------------------------------------------------ */
+
+ok('a mark for each kind of news, in text: ! for a reply, VS for a game invite, a heart for a recommendation, ... for speaking', () => {
+  assert.equal(wire.reactionMark('reply'), '!');
+  assert.equal(wire.reactionMark('message'), '!');
+  assert.equal(wire.reactionMark('online'), '!');
+  assert.equal(wire.reactionMark('invite'), 'VS');
+  assert.equal(wire.reactionMark('recommend'), '♥');
+  assert.equal(wire.reactionMark('spoke'), '...');
+  for (const quiet of ['wake', 'poke', 'wave', 'spin', 'cheer', 'slump', 'land', 'flick', 'look', null]) assert.equal(wire.reactionMark(quiet), null, `${quiet} is a motion alone`);
+  for (const kind of wire.COMPANION_REACTIONS) assert.equal(wire.reactionShowsMark(kind), wire.reactionMark(kind) !== null);
+  assert.equal(wire.reactionMotion('look'), 'turn', 'a look round is the turn it already had');
+  assert.equal(wire.reactionMotion('invite'), 'hop');
+  // A browser on older code reads a kind it does not know as none: a plain hop, no mark, nothing broken.
+  assert.equal(wire.parseCompanionWire({ x: 0.5, m: 'stand', r: 3, k: 'some-newer-kind' }).k, null);
+  const reactions = read('app/components/CompanionReactions.tsx');
+  assert.match(reactions, /pokeCompanion\(kinds\.has\('invite'\) \? 'invite' : kinds\.has\('recommend'\) \? 'recommend' : 'reply'\);/, 'the feed says which kind arrived');
+  const strip = read('app/components/Companion.tsx');
+  assert.match(strip, /if \(mark\.textContent !== text\) mark\.textContent = text;/, 'the mark is text, set as text');
+  assert.doesNotMatch(strip, /innerHTML/, 'never markup');
+});
+
+ok('what a room is never told: a page turned, a look round at a new theme, a line of chat it already has', () => {
+  for (const kind of ['flick', 'look', 'spoke']) assert.equal(wire.reactionIsLocal(kind), true, kind);
+  for (const kind of ['reply', 'message', 'online', 'wake', 'poke', 'wave', 'spin', 'cheer', 'slump', 'land', 'invite', 'recommend']) assert.equal(wire.reactionIsLocal(kind), false, kind);
+  const strip = read('app/components/Companion.tsx');
+  assert.match(strip, /if \(reactionIsLocal\(kind\)\) return;\s*reactions \+= 1;/, 'played here, never counted for the room');
+  assert.match(read('app/components/CompanionReactions.tsx'), /if \(Date\.now\(\) - since >= THEME_SETTLE_MS\) pokeCompanion\('look'\);/, 'a theme picked, not the saved one settling in as the page opens');
+});
+
+ok('a line of chat hops the companion of whoever said it, worked out in each browser; an old line read back in is nobody speaking', () => {
+  const heard = [];
+  const off = events.onCompanionSpoke((who) => heard.push(who));
+  events.companionSpoke('u1', new Date().toISOString());
+  events.companionSpoke('u2', new Date(Date.now() - 5 * 60_000).toISOString());
+  events.companionSpoke('u3', 'not a time');
+  off();
+  events.companionSpoke('u4', new Date().toISOString());
+  assert.deepEqual(heard, ['u1']);
+  assert.match(read('app/lib/watch/use-watch-room.ts'), /if \(current\.messages\.some\(\(message\) => message\.id === change\.message\.id\)\) return;\s*companionSpoke\(change\.message\.authorId, change\.message\.createdAt\);/, 'one line, after a line already held is dropped');
+  const strip = read('app/components/Companion.tsx');
+  assert.match(strip, /if \(who === company\.current\.userId\) react\('spoke'\);/, 'yours hops when you speak');
+  assert.match(strip, /if \(who !== owner\.current\) return;\s*if \(!still\) act = \{ motion: 'hop', tick: 0 \};\s*markTimer = showMark\(mark, markTimer, '\.\.\.'\);/, "and theirs when they do, with nothing sent");
+});
+
+ok('hellos: it waves at a companion new to the room (not at every sync), and climbs on its climbing frames', () => {
+  const strip = read('app/components/Companion.tsx');
+  assert.match(strip, /const fresh = \[\.\.\.present\]\.filter\(\(key\) => !greeted\.has\(key\)\);/, 'only somebody it has not waved at');
+  assert.match(strip, /for \(const key of greeted\) if \(!present\.has\(key\)\) greeted\.delete\(key\);/, 'one that left is waved at again when it comes back');
+  assert.match(strip, /else if \(now - lastGreet >= GREET_QUIET_MS\) \{\s*for \(const key of fresh\) greeted\.add\(key\);\s*greetedKeys = keys;\s*lastGreet = now;\s*react\('wave'\);/, 'not more than once every few seconds, and one arriving in that quiet is waved at once it is up');
+  assert.match(strip, /if \(brain\.mood === 'dance' && \(trackNow !== dancedTrack \|\| now >= danceUntil\)\) \{\s*dance = pickDance\(dance\);/, 'a new track is always a different dance, even after the music stopped between two tracks');
+  assert.match(strip, /play\(y < floor\.y \? 'climb' : 'walk'\);/, 'off its strip it climbs; along it, it walks');
+  assert.match(strip, /if \(floor\.ledge && !wasOnLedge\) x = Math\.round\(span\.left \+ Math\.random\(\) \* \(span\.right - span\.left\)\);/, "up onto a room's window it lands somewhere along the edge, not all on one corner");
+  assert.match(read('app/components/ProfileRoom.tsx'), /hello=\{visit\.out && visit\.inRoom\}/, "the room's own character is told a companion has arrived");
+  assert.match(read('app/components/ProfileCharacter.tsx'), /if \(!hello \|\| reduced\) return;\s*const timer = setTimeout\(\(\) => setState\(\(current\) => greet\(current\)\), HELLO_BACK_MS\);/, 'and waves back a moment later, not under reduced motion');
+});
+
 
 console.log(`\n${passed} passed`);

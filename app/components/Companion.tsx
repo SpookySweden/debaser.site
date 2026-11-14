@@ -12,7 +12,7 @@ import {
   setCompanionAccount,
   subscribeToCompanionChoices,
 } from '../lib/companion/companion-slot';
-import { onCompanionPoke } from '../lib/companion/events';
+import { onCompanionPoke, onCompanionSpoke } from '../lib/companion/events';
 import { LEDGE_SELECTOR, measureFloor, type Floor } from '../lib/companion/floor';
 import { holdLedgeHeight } from '../lib/companion/ledge';
 import { companionScene } from '../lib/companion/scene';
@@ -41,8 +41,9 @@ import {
   COMPANION_POSES,
   companionsToDraw,
   loopMotion,
+  reactionIsLocal,
+  reactionMark,
   reactionMotion,
-  reactionShowsMark,
   roomCompanionsState,
   sayCompanion,
   serverRoomCompanions,
@@ -82,6 +83,10 @@ import SpriteSlot from './SpriteSlot';
  * stood; if the page changes again before it is down, or it was still climbing up, it vanishes and pops out of a portal on
  * its strip a moment later. Under reduced motion it appears in the room, or back on its strip, standing still.
  *
+ * It takes part (2026-11-14, `docs/companion.md`): types along, watches a game or a video, reads along with a book; in a
+ * stream room whose window covers its strip it stands on that window's top edge; it waves at newcomers, hops when its
+ * owner speaks in a room's chat, and wears a different text mark for each kind of news.
+ *
  * Every frame is a write to the figure's style through a ref, ten a second in whole steps (the site's no-easing rule),
  * so nothing re-renders as it walks. Clicks pass straight through everything but the figure itself. Under reduced
  * motion it stands still in one frame.
@@ -104,6 +109,8 @@ const CHASE_SAY_MS = 2_000;
 const MARK_MS = 1_600;
 /** The placeholder's hop: how high it is on each frame, then back down. A character plays its own one-off motions. */
 const HOP = [-4, -8, -10, -8, -4, 0];
+/** It waves at a newcomer to the room at most this often. */
+const GREET_QUIET_MS = 5_000;
 /** A pointer that has not moved for this long is no longer chased. */
 const CHASE_FRESH_MS = 8_000;
 /** How far a press must move before it is a pick-up, not a poke. */
@@ -302,9 +309,10 @@ type Phase = VisitPhase | 'portal' | 'held' | 'fall';
 /** A press on the figure: a poke until it moves, then a pick-up. `off` is where on the figure it was taken hold of. */
 type Grab = { id: number; startX: number; startY: number; offX: number; offY: number; moved: boolean; px: number; py: number; dx: number };
 
-/** Puts the `!` up for a moment. */
-function showMark(mark: HTMLSpanElement | null, timer: ReturnType<typeof setTimeout> | null): ReturnType<typeof setTimeout> | null {
+/** Puts a text mark (`!`, `VS`, a heart, `...`) up over its head for a moment. */
+function showMark(mark: HTMLSpanElement | null, timer: ReturnType<typeof setTimeout> | null, text: string): ReturnType<typeof setTimeout> | null {
   if (mark === null) return timer;
+  if (mark.textContent !== text) mark.textContent = text;
   mark.style.visibility = 'visible';
   if (timer !== null) clearTimeout(timer);
   return setTimeout(() => {
@@ -417,9 +425,20 @@ const actLength = (look: Look, motion: MotionId): number => (look === null ? HOP
 /** A one-off motion being played through once: which, and how far in. */
 type Act = { motion: MotionId; tick: number };
 
-type OwnProps = { label: string; musicPlaying: boolean; track: string | null; still: boolean; look: Look; lookRef: string | null };
+type OwnProps = {
+  label: string;
+  /** Whose it is: it hops when this account speaks in a room's chat. */
+  userId: string | null;
+  /** The other companions in the room just now, as their keys joined up: it waves at a new one. */
+  roomKeys: string;
+  musicPlaying: boolean;
+  track: string | null;
+  still: boolean;
+  look: Look;
+  lookRef: string | null;
+};
 
-function OwnCompanion({ label, musicPlaying, track, still, look, lookRef }: OwnProps) {
+function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, look, lookRef }: OwnProps) {
   const placeRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLSpanElement>(null);
   const markRef = useRef<HTMLSpanElement>(null);
@@ -429,6 +448,10 @@ function OwnCompanion({ label, musicPlaying, track, still, look, lookRef }: OwnP
   useEffect(() => {
     music.current = { playing: musicPlaying, track };
   }, [musicPlaying, track]);
+  const company = useRef({ userId, keys: roomKeys });
+  useEffect(() => {
+    company.current = { userId, keys: roomKeys };
+  }, [userId, roomKeys]);
   useEffect(() => {
     wearing.current = { look, ref: lookRef };
   }, [look, lookRef]);
@@ -449,13 +472,19 @@ function OwnCompanion({ label, musicPlaying, track, still, look, lookRef }: OwnP
     const queue: MotionId[] = [];
     let dance = pickDance();
     let danceUntil = 0;
-    let danceTrack = music.current.track;
+    /** The track its dance was picked for; undefined before its first dance. */
+    let dancedTrack: string | null | undefined;
     let motion: MotionId = 'idle';
     let motionTick = 0;
     /** The loop it is in, and that loop as the room hears it (`CompanionWire.p`: not every pose is the room's business). */
     let looping: MotionId = 'idle';
     let posing: MotionId | null = null;
     let pokes = 0;
+    let wasOnLedge = false;
+    /** The room's companions it has waved at, and when it last waved (a busy door is not a flapping arm). */
+    const greeted = new Set<string>();
+    let greetedKeys = '';
+    let lastGreet = 0;
     /** It types along until then: a moment after the last key typed into a text box. */
     let typingUntil = 0;
     /** A press on it, and the fall after it is let go. */
@@ -627,7 +656,7 @@ function OwnCompanion({ label, musicPlaying, track, still, look, lookRef }: OwnP
           brain = startBrain(now);
           act = { motion: 'hop', tick: 0 };
         }
-        // Climbing, a step a frame with its own walk frames: up into the room (walking along its strip to under it
+        // Climbing, a step a frame with its own climbing frames: up into the room (walking along its strip to under it
         // first), or back down to its strip.
         if (phase === 'up' && visiting !== null) {
           const into = roomFloor(boxOf(visiting.stage), clipOf(visiting.stage), size, floor.y);
@@ -662,8 +691,8 @@ function OwnCompanion({ label, musicPlaying, track, still, look, lookRef }: OwnP
         }
         if (phase === 'down') y = climbToward(y, floor.y);
         if (phase === 'up' || phase === 'down') {
-          motionTick = motion === 'walk' ? motionTick + 1 : 0;
-          motion = 'walk';
+          // Off its strip it climbs, its back to you, reaching up (Luke, 2026-11-14); along the strip to under the room it walks.
+          play(y < floor.y ? 'climb' : 'walk');
           draw(place, bodyRef.current, look, { x: x ?? 0, floorY: y, facing, mood: 'walk', motion, tick: motionTick, lift: 0 });
           if (phase === 'down' && y >= floor.y) phase = 'strip';
           return;
@@ -676,6 +705,9 @@ function OwnCompanion({ label, musicPlaying, track, still, look, lookRef }: OwnP
         return;
       }
       if (x === null) x = span.right;
+      // Up onto a room's window: somewhere along its edge, so a room's companions do not all land on one corner.
+      if (floor.ledge && !wasOnLedge) x = Math.round(span.left + Math.random() * (span.right - span.left));
+      wasOnLedge = floor.ledge;
       if (x < span.left || x > span.right) x = Math.min(span.right, Math.max(span.left, x));
 
       // A profile's room on screen: up it goes.
@@ -722,13 +754,30 @@ function OwnCompanion({ label, musicPlaying, track, still, look, lookRef }: OwnP
       }
       // Bored: the brain asks for a stretch or a spin, once.
       if (brain.act !== null && act === null) act = { motion: brain.act, tick: 0 };
-      // A dance changes with the track, and after a while of the same one.
+      // Somebody's companion new to the room (or you new to theirs): a wave, which they see, and theirs waves too.
+      const keys = company.current.keys;
+      if (keys !== greetedKeys) {
+        const present = new Set(keys.split(',').filter((key) => key.length > 0));
+        // One that has gone is forgotten, so it gets a wave when it comes back.
+        for (const key of greeted) if (!present.has(key)) greeted.delete(key);
+        const fresh = [...present].filter((key) => !greeted.has(key));
+        if (fresh.length === 0) greetedKeys = keys;
+        else if (now - lastGreet >= GREET_QUIET_MS) {
+          for (const key of fresh) greeted.add(key);
+          greetedKeys = keys;
+          lastGreet = now;
+          react('wave');
+        }
+        // (Too soon after its last wave: looked at again next frame, so nobody arriving in that quiet goes unwaved at.)
+      }
+      // A dance changes with the track, and after a while of the same one: always to a different dance, even when the
+      // music stopped for a moment between two tracks. The same track paused and played again keeps its dance.
       const trackNow = music.current.track;
-      if (brain.mood === 'dance' && (was.mood !== 'dance' || trackNow !== danceTrack || now >= danceUntil)) {
-        dance = pickDance(was.mood === 'dance' ? dance : undefined);
+      if (brain.mood === 'dance' && (trackNow !== dancedTrack || now >= danceUntil)) {
+        dance = pickDance(dance);
+        dancedTrack = trackNow;
         danceUntil = now + DANCE_MS[0] + Math.random() * (DANCE_MS[1] - DANCE_MS[0]);
       }
-      danceTrack = trackNow;
 
       if (act === null && queue.length > 0) act = { motion: queue.shift() ?? 'hop', tick: 0 };
       // A hop goes on walking; anything longer (a stretch, a cheer) is done standing where it is.
@@ -777,10 +826,14 @@ function OwnCompanion({ label, musicPlaying, track, still, look, lookRef }: OwnP
         if (looping === 'read' && !still) act = { motion: 'flick', tick: 0 };
         return;
       }
+      const text = reactionMark(kind);
+      if (!still) act = { motion: reactionMotion(kind), tick: 0 };
+      if (text !== null) markTimer = showMark(mark, markTimer, text);
+      // A look round at a new theme, a hop as you speak in a room's chat: played here, and the room is told nothing (it
+      // has the chat line itself, and works the hop out from that).
+      if (reactionIsLocal(kind)) return;
       reactions += 1;
       reactionKind = kind;
-      if (!still) act = { motion: reactionMotion(kind), tick: 0 };
-      if (reactionShowsMark(kind)) markTimer = showMark(mark, markTimer);
       const size = sizeOf(wearing.current.look);
       say(floorNow(size), size, true);
     };
@@ -879,6 +932,10 @@ function OwnCompanion({ label, musicPlaying, track, still, look, lookRef }: OwnP
     };
 
     const offPoke = onCompanionPoke(react);
+    // You speaking in a stream room's chat: it hops with `...` (`../lib/companion/events.ts`).
+    const offSpoke = onCompanionSpoke((who) => {
+      if (who === company.current.userId) react('spoke');
+    });
     place?.addEventListener('pointerdown', onFigure);
     // On the window, not the figure: a let-go is heard wherever it happens, so it can never be left hanging.
     window.addEventListener('pointermove', onDrag, { passive: true });
@@ -898,6 +955,7 @@ function OwnCompanion({ label, musicPlaying, track, still, look, lookRef }: OwnP
       clearInterval(timer);
       if (markTimer !== null) clearTimeout(markTimer);
       offPoke();
+      offSpoke();
       place?.removeEventListener('pointerdown', onFigure);
       window.removeEventListener('pointermove', onDrag);
       window.removeEventListener('pointerup', onDrop);
@@ -951,9 +1009,11 @@ function RoomFigure({ companion, still }: { companion: RoomCompanion; still: boo
   const look = useMemo<Look>(() => (shown === null || shown === undefined ? null : { stripUrl: shown.stripUrl, sheet: shown.sheet }), [shown]);
   const wire = useRef(companion.wire);
   const wearing = useRef(look);
+  const owner = useRef(companion.userId);
   useEffect(() => {
     wire.current = companion.wire;
-  }, [companion.wire]);
+    owner.current = companion.userId;
+  }, [companion.wire, companion.userId]);
   useEffect(() => {
     wearing.current = look;
   }, [look]);
@@ -990,7 +1050,8 @@ function RoomFigure({ companion, still }: { companion: RoomCompanion; still: boo
       else if (now.r > seen) {
         seen = now.r;
         if (!still) act = { motion: reactionMotion(now.k), tick: 0 };
-        if (now.k !== null && reactionShowsMark(now.k)) markTimer = showMark(mark, markTimer);
+        const text = reactionMark(now.k);
+        if (text !== null) markTimer = showMark(mark, markTimer, text);
       }
 
       if (still) {
@@ -1031,10 +1092,17 @@ function RoomFigure({ companion, still }: { companion: RoomCompanion; still: boo
       if (frame % 5 === 0) yieldToKeys(place);
     };
 
+    // Its owner speaking in the room's chat: a hop with `...`, worked out here from the chat line this browser already has.
+    const offSpoke = onCompanionSpoke((who) => {
+      if (who !== owner.current) return;
+      if (!still) act = { motion: 'hop', tick: 0 };
+      markTimer = showMark(mark, markTimer, '...');
+    });
     tick();
     const timer = setInterval(tick, TICK_MS);
     return () => {
       clearInterval(timer);
+      offSpoke();
       if (markTimer !== null) clearTimeout(markTimer);
     };
   }, [still]);
@@ -1097,6 +1165,8 @@ export default function Companion() {
           <OwnCompanion
             key={shown?.bakedAt ?? 'placeholder'}
             label={user?.displayName ?? 'YOU'}
+            userId={userId}
+            roomKeys={drawn.map((companion) => companion.key).join(',')}
             musicPlaying={music.playing}
             track={music.track}
             still={still}

@@ -19,13 +19,76 @@ export const COMPANION_MOODS: readonly CompanionMood[] = ['stand', 'walk', 'sit'
  * What sets off a one-off motion: a reply, a message, someone coming online, waking up, a press on it, and (Luke,
  * 2026-11-14) a wave, a spin, a cheer, a slump, landing after being dropped, and a page turned.
  */
-export type CompanionReaction = 'reply' | 'message' | 'online' | 'wake' | 'poke' | 'wave' | 'spin' | 'cheer' | 'slump' | 'land' | 'flick';
+export type CompanionReaction =
+  | 'reply'
+  | 'message'
+  | 'online'
+  | 'wake'
+  | 'poke'
+  | 'wave'
+  | 'spin'
+  | 'cheer'
+  | 'slump'
+  | 'land'
+  | 'flick'
+  // Step 3 (2026-11-14): a game invite, a recommendation, a look round (the theme changed), and its owner speaking in a room's chat.
+  | 'invite'
+  | 'recommend'
+  | 'look'
+  | 'spoke';
 
-export const COMPANION_REACTIONS: readonly CompanionReaction[] = ['reply', 'message', 'online', 'wake', 'poke', 'wave', 'spin', 'cheer', 'slump', 'land', 'flick'];
+export const COMPANION_REACTIONS: readonly CompanionReaction[] = [
+  'reply',
+  'message',
+  'online',
+  'wake',
+  'poke',
+  'wave',
+  'spin',
+  'cheer',
+  'slump',
+  'land',
+  'flick',
+  'invite',
+  'recommend',
+  'look',
+  'spoke',
+];
 
-/** Reactions that put a `!` over its head; the others are a motion alone. */
+/**
+ * The text mark each reaction puts over its head for a moment, or null for a motion alone. Text characters, never art:
+ * `!` for a reply, a message or somebody coming online, `VS` for a game invite, a heart for a recommendation, `...` for
+ * speaking in a room's chat.
+ */
+export function reactionMark(kind: CompanionReaction | null): string | null {
+  switch (kind) {
+    case 'reply':
+    case 'message':
+    case 'online':
+      return '!';
+    case 'invite':
+      return 'VS';
+    case 'recommend':
+      return '\u2665';
+    case 'spoke':
+      return '...';
+    default:
+      return null;
+  }
+}
+
+/** Reactions that put a mark over its head; the others are a motion alone. */
 export function reactionShowsMark(kind: CompanionReaction): boolean {
-  return kind === 'reply' || kind === 'message' || kind === 'online';
+  return reactionMark(kind) !== null;
+}
+
+/**
+ * Reactions a room is never told: they are played on the screen they happen on and nowhere else. A page turned and a
+ * theme changed are its owner's own business; a line of chat every browser in the room already has, and works the hop
+ * out from it, so nothing extra is sent.
+ */
+export function reactionIsLocal(kind: CompanionReaction): boolean {
+  return kind === 'flick' || kind === 'look' || kind === 'spoke';
 }
 
 /**
@@ -44,6 +107,10 @@ const REACTION_MOTIONS: Record<CompanionReaction, MotionId> = {
   slump: 'slump',
   land: 'land',
   flick: 'flick',
+  invite: 'hop',
+  recommend: 'hop',
+  look: 'turn',
+  spoke: 'hop',
 };
 export function reactionMotion(kind: CompanionReaction | null): MotionId {
   return kind === null ? 'hop' : REACTION_MOTIONS[kind];

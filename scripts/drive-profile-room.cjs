@@ -12,6 +12,9 @@
  *   c. leaving A's profile while the companion is still climbing up: it vanishes, the portal opens on its strip, and it is
  *      back on its strip within a few seconds; leaving once it is settled in the room, it climbs back down;
  *   d. reduced motion: nothing climbs; the companion is simply in B's room, standing still.
+ * (2026-11-14) It climbs on its climbing frames (its back to you), and waves hello as it steps into the room; and
+ *   e. as TEST ACCOUNT B (no character: its companion is the placeholder field), on A's profile: B's companion climbs into
+ *      A's room and A's character waves back.
  * Screenshots in Temp/browse/profile-room-*.png.
  */
 const assert = require('node:assert/strict');
@@ -90,6 +93,7 @@ function look(person) {
     visitor: visitorBox === null ? null : { bottom: Math.round(visitorBox.bottom), left: Math.round(visitorBox.left), motion: visitor.getAttribute('data-motion') },
     stage: stageBox === null ? null : { bottom: Math.round(stageBox.bottom), left: Math.round(stageBox.left), right: Math.round(stageBox.right) },
     owner: document.querySelectorAll('[data-profile-room] [data-profile-character]').length,
+    ownerMotion: document.querySelector('[data-profile-room] [data-profile-character]')?.getAttribute('data-motion') ?? null,
     portalOpen: portal?.getAttribute('data-open') === 'true',
     path: window.location.pathname,
   };
@@ -128,7 +132,8 @@ async function watch(page, person, ms, done = () => false, every = 100) {
     const climbed = climbA.filter((s) => s.own !== null && s.own.bottom < s.floor - 10);
     assert.ok(arrived.visitor !== null, `A's companion reached B's room (last look ${JSON.stringify(arrived)})`);
     assert.ok(climbed.length >= 3, `its feet were seen above its strip while it climbed (${climbed.length} looks)`);
-    assert.ok(climbed.every((s) => s.own.motion === 'walk'), 'climbing on its walk frames');
+    assert.ok(climbed.every((s) => s.own.motion === 'climb'), `climbing on its climbing frames (saw ${[...new Set(climbed.map((s) => s.own.motion))].join(' ')})`);
+    assert.equal(arrived.visitor.motion, 'wave', 'it waves hello as it steps into the room');
     await sleep(600);
     const inRoom = await page.evaluate(look, A);
     assert.ok(inRoom.visitor && inRoom.stage, 'still in the room');
@@ -226,6 +231,25 @@ async function watch(page, person, ms, done = () => false, every = 100) {
     await still.screenshot({ path: join(SHOTS, 'profile-room-reduced.png') });
     pass(`(d) reduced motion: no climbing; it was simply in B's room, still, in all ${calm.length} looks`);
     await still.context().close();
+
+    /* e. B's companion on A's profile: A's character waves back */
+    const guest = await open(browser, b);
+    await guest.goto(`${BASE}/profile/${A}`, { waitUntil: 'domcontentloaded' });
+    // Headless Chrome reports no mouse until the first move, and the site would take it for a phone.
+    await guest.mouse.move(700, 300);
+    await clearPrivacyWindow(guest);
+    await guest.waitForSelector('[data-companion="own"]', { state: 'attached', timeout: 60000 });
+    await toRoom(guest);
+    const before = await watch(guest, A, 40000, (s) => s.visitor !== null);
+    const stepped = before[before.length - 1];
+    assert.ok(stepped.visitor !== null, `B's companion reached A's room (last look ${JSON.stringify(stepped)})`);
+    assert.equal(stepped.owner, 1, "A's character is in its room");
+    assert.equal(stepped.visitor.motion, 'wave', "B's companion waves hello as it steps in");
+    const hello = await watch(guest, A, 4000, (s) => s.ownerMotion === 'wave');
+    assert.equal(hello[hello.length - 1].ownerMotion, 'wave', `A's character waves back (saw ${[...new Set(hello.map((s) => s.ownerMotion))].join(' ')})`);
+    await guest.screenshot({ path: join(SHOTS, 'profile-room-hello.png') });
+    pass(`(e) B's companion climbed into A's room and waved; A's character waved back ${((hello[hello.length - 1].at - stepped.at) / 1000).toFixed(1)} s later`);
+    await guest.context().close();
   } finally {
     await browser.close();
   }

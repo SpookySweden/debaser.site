@@ -181,6 +181,14 @@ export function stepWalker(
   return nextActivity({ ...state, x }, mood, room, random);
 }
 
+/**
+ * A hello (Luke, 2026-11-14): a wave, played through like a click's reaction, without using up the clicks' own turn. A
+ * companion arriving in a profile's room waves, and the room's own character waves back.
+ */
+export function greet(state: WalkerState): WalkerState {
+  return { ...state, activity: 'react', motion: 'wave', tick: 0 };
+}
+
 /** A click: the next reaction in turn, from its first tick. */
 export function react(state: WalkerState): WalkerState {
   return { ...state, activity: 'react', motion: REACTIONS[state.nextReaction % REACTIONS.length], tick: 0, nextReaction: state.nextReaction + 1 };

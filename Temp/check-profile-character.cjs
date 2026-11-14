@@ -346,4 +346,22 @@ test('a strip baked before the newer motions still plays everything, each missin
   assert.ok(motion.DANCES.includes('dance4') && motion.DANCES.includes('dance5'), 'two more dances');
 });
 
+test('a hello is a wave played through, and leaves the clicks their own turn (2026-11-14)', () => {
+  const random = seeded(5);
+  const ticksOf = (m) => ({ wave: 11, hop: 9, turn: 13, idle: 42, walk: 8, dance1: 6, dance2: 6, dance3: 6, dance4: 8, dance5: 4 })[m];
+  let state = walker.startWalker(400, random);
+  state = walker.greet(state);
+  assert.equal(state.activity, 'react');
+  assert.equal(state.motion, 'wave');
+  assert.equal(state.nextReaction, 0, 'the next click still gets the first reaction');
+  for (let i = 1; i < ticksOf('wave'); i += 1) {
+    state = walker.stepWalker(state, { mood: 'calm', music: false, room: 400, step: 2, ticksOf, random });
+    assert.equal(state.motion, 'wave', 'played right through');
+  }
+  state = walker.stepWalker(state, { mood: 'calm', music: false, room: 400, step: 2, ticksOf, random });
+  assert.notEqual(state.activity, 'react', 'then back to its own business');
+  assert.equal(walker.react(state).motion, 'wave', 'a click after a hello: its usual first reaction');
+});
+
+
 console.log(`\n${passed} checks passed`);

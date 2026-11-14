@@ -44,6 +44,13 @@ bake.
   as a share of the floor's own width, so a window's edge and a strip agree. Up there, watching is a plain sit.
 - A companion missing from one sync of a room's presence is kept on screen a moment (`withLingering`): a tab re-saying
   itself can drop out of a sync and be back in the next.
+- **Marks** are text over its head for a moment (`reactionMark`): `!` a reply, a message or somebody online, `VS` a game
+  invite, a heart a recommendation, `...` speaking in a room's chat. `...` also shows while it types along.
+- **Hellos.** It waves at a companion new to its room (once each, at most every few seconds) and theirs waves at it. In a
+  profile's ROOM it waves as it steps in and the room's own character waves back (`walker.ts` `greet`).
+- **Chat.** A line of stream chat hops the companion of whoever said it. Every browser has the line already, so each
+  works it out for itself from `companionSpoke` (one line in `use-watch-room.ts`); nothing is sent.
+- It climbs to and from a profile's ROOM on its `climb` frames, and walks along the strip to get under it.
 
 ## Rules
 - Code never draws it, a prop or an effect. Text characters (`! z ♪`) are fine. A prop that would be art is an art slot.
@@ -56,7 +63,8 @@ bake.
 - Clicks pass through the layer everywhere but the figure itself, and through the figure too while it stands over a key
   (`yieldToKeys`: the reader's page keys and seek bar run right along its strip).
 - **A room is not told what you do elsewhere.** `read` and `type` are drawn on your own screen only (`COMPANION_POSES` is
-  what a room hears), and a page turned is never counted as a reaction.
+  what a room hears), and a page turned or a look round at a new theme is never counted as a reaction
+  (`reactionIsLocal`).
 - A pointer is chased only while it moves: resting, or gone into a frame (a book's page, a video) whose moves are not
   heard outside it, it is let be after `CHASE_FRESH_MS`.
 
@@ -70,7 +78,10 @@ bake.
   video, a book (reading, the page turn, presses reaching the reader's keys under it). Leaves A's place in the book.
 - `scripts/drive-companion-room.cjs`: A and B in a stream room with its window open: both in view on the window's top
   edge, over no key, the title bar's keys pressable, sitting while the video plays, back on the strip when the window is
-  folded; phone width too. `--before` only looks. It leaves an ended room to clear (a delete: ask Luke).
+  folded, a wave at the newcomer and a hop with `...` when one speaks; phone width too. `--before` only looks. It leaves
+  an ended room to clear (a delete: ask Luke).
+- `scripts/drive-profile-room.cjs`: the climb into a profile's ROOM on its climbing frames, the wave on stepping in, and
+  the room's own character waving back.
 - The local dev server has mock stream rooms unless it is started with production's `NEXT_PUBLIC_*_DATA_SOURCE` switches
   in its environment; two browsers cannot share a mock room.
 - A headless browser reports no mouse until the first mouse move, and the site would take it for a phone: a drive moves the

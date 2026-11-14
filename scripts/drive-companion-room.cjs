@@ -12,6 +12,8 @@
  *              none of the window's or the music bar's keys, every title bar key still taking a press; while the room's
  *              video plays they sit there; the window folded away, they are back on their strip, and up again when it
  *              is brought back.
+ *              (Step 3) A's companion waves when B's arrives; when B says a line in the room's chat, B's companion hops
+ *              with `...` over its head on both screens.
  * Also at phone width (A, its phone switch on).
  *
  * It starts one stream room as A, ended at the close: printed so it can be cleared (a delete, so Luke's OK first).
@@ -56,8 +58,12 @@ async function person(browser, letter, { phone = false } = {}) {
 }
 
 async function clearPrivacyWindow(page) {
-  const close = page.locator('[data-dock-window="privacy-first-look"]').getByRole('button', { name: /^Close / });
-  if ((await close.count()) > 0) await close.first().click().catch(() => undefined);
+  // The first-look window, and Preferences when the site has reopened it (it remembers a browser's open windows): both
+  // would sit over the room.
+  for (const id of ['privacy-first-look', 'preferences']) {
+    const close = page.locator(`[data-dock-window="${id}"]`).getByRole('button', { name: /^Close / });
+    if ((await close.count()) > 0) await close.first().click().catch(() => undefined);
+  }
 }
 
 /** Every companion on the screen: whose, where, what it plays, and whether the figure is what a look at its middle finds. */
@@ -115,6 +121,22 @@ function readCompanions() {
       };
     }),
   };
+}
+
+/** Watches one kind of companion on a page until `test` passes on one reading, ten times a second; null if it never does. */
+async function until(page, which, test, ms) {
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    const seen = await page.evaluate((selector) => {
+      const figure = document.querySelector(selector);
+      if (figure === null) return null;
+      const mark = figure.querySelector('[data-companion-mark]');
+      return { motion: figure.dataset.motion ?? null, mark: mark !== null && mark.style.visibility === 'visible' ? mark.textContent.trim() : null };
+    }, `[data-companion="${which}"]`);
+    if (seen !== null && test(seen)) return seen;
+    await sleep(90);
+  }
+  return null;
 }
 
 function describe(read) {
@@ -180,6 +202,8 @@ function describe(read) {
 
     console.log('B joins by the link, window open');
     const b = await person(browser, 'B');
+    // Watched from before B arrives: A's companion waves at the newcomer.
+    const greeting = BEFORE ? Promise.resolve(null) : until(a.page, 'own', (seen) => seen.motion === 'wave', 75000);
     await b.page.goto(`${BASE}/forum?watch=${roomId}`, { waitUntil: 'domcontentloaded' });
     await b.page.mouse.move(700, 300);
     await b.page.waitForSelector('[data-room-picture], [data-watch-tv-box]', { state: 'attached', timeout: 45000 });
@@ -188,6 +212,7 @@ function describe(read) {
     if ((await upB.count()) > 0 && (await upB.first().isVisible().catch(() => false))) await upB.first().click();
     await b.page.waitForSelector('[data-companion="room"]', { state: 'attached', timeout: 30000 });
     await a.page.waitForSelector('[data-companion="room"]', { state: 'attached', timeout: 30000 });
+    await clearPrivacyWindow(b.page);
     await a.page.mouse.move(700, 300);
     await sleep(4000);
 
@@ -216,6 +241,23 @@ function describe(read) {
       onTheWindow('A', onA, '');
       onTheWindow('B', onB, '');
       pass(`the room's window open on both screens: both companions in view on its top edge (feet at ${onA.window.top}, the window drawn ${onA.window.top}px down to make room), over no key, the title bar's keys all pressable`);
+
+      assert.ok(await greeting, "A's companion waved when B's arrived");
+      pass("B's companion arriving: A's companion waves hello");
+
+      // B says a line in the room's chat: B's companion hops with `...` on A's screen and on B's own.
+      const heardOnA = until(a.page, 'room', (seen) => seen.mark === '...', 20000);
+      const heardOnB = until(b.page, 'own', (seen) => seen.mark === '...', 20000);
+      const say = b.page.locator('[data-dock-window="stream"]').getByPlaceholder('Say something...');
+      await say.click();
+      await say.fill('companion drive: a test line');
+      await say.press('Enter');
+      const [onAScreen, onBScreen] = [await heardOnA, await heardOnB];
+      assert.ok(onAScreen, "on A's screen B's companion shows `...` when B speaks");
+      assert.ok(onBScreen, "on B's own screen its companion shows `...` when B speaks");
+      await a.page.screenshot({ path: join(SHOTS, 'companion-room-spoke-a.png') });
+      await b.page.mouse.move(700, 300);
+      pass(`B says a line in the chat: B's companion hops with "..." on A's screen (${onAScreen.motion}) and on B's own (${onBScreen.motion})`);
 
       // Watched for half a minute as they move about: always up there in view, never over a key.
       const places = new Set();

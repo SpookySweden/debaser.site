@@ -86,6 +86,7 @@ export default function ProfileRoom({ userId, displayName, music }: { userId: st
             width={width}
             who="owner"
             label={`${name}'S CHARACTER`}
+            hello={visit.out && visit.inRoom}
           />
         ) : null}
         {visit.out && visit.inRoom ? (

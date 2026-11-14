@@ -8,6 +8,7 @@ import { useShownCharacter } from '../lib/character/use-shown-character';
 import { DANCES, type MotionId } from '../lib/character/motion';
 import {
   findLanes,
+  greet,
   react,
   startWalker,
   stepWalker,
@@ -102,6 +103,9 @@ const ROOM_PLACEHOLDER = { w: 32, h: 32 } as const;
 /** What a figure in the room wears: a baked strip, or nothing (the placeholder field). */
 export type RoomLook = { stripUrl: string; sheet: CharacterSheet } | null;
 
+/** How long after a companion arrives the room's own character waves back. */
+const HELLO_BACK_MS = 900;
+
 /** A figure's box in the room: a cell of its strip cut at the feet, or the placeholder's. */
 export function roomFigureSize(look: RoomLook): { w: number; h: number } {
   return look === null ? ROOM_PLACEHOLDER : { w: look.sheet.cell.w * ROOM_SCALE, h: look.sheet.floor * ROOM_SCALE };
@@ -124,6 +128,7 @@ export function RoomWalker({
   who,
   label,
   onSpot,
+  hello = false,
 }: {
   look: RoomLook;
   mood: Mood;
@@ -136,14 +141,23 @@ export function RoomWalker({
   who: 'owner' | 'visitor';
   label: string;
   onSpot?: (figure: HTMLElement) => void;
+  /** Somebody to say hello to has just arrived (a companion climbing into the room): it waves back, a moment later. */
+  hello?: boolean;
 }) {
   const reduced = useSyncExternalStore(subscribeReduced, reducedNow, reducedOnServer);
   const { w, h } = roomFigureSize(look);
   const room = Math.max(0, width - w);
   const [state, setState] = useState<WalkerState>(() => {
     const start = startWalker(room, Math.random);
-    return startX === undefined ? start : { ...start, x: Math.round(startX) };
+    // A companion arriving (it starts where it climbed in) waves hello as it steps in.
+    return startX === undefined ? start : greet({ ...start, x: Math.round(startX) });
   });
+  // The room's own character waves back, a moment after (nothing under reduced motion: it stands still).
+  useEffect(() => {
+    if (!hello || reduced) return;
+    const timer = setTimeout(() => setState((current) => greet(current)), HELLO_BACK_MS);
+    return () => clearTimeout(timer);
+  }, [hello, reduced]);
   const figure = useRef<HTMLButtonElement>(null);
 
   const ticksOf = useCallback((motion: MotionId) => (look === null ? 6 : look.sheet.motions[motion].ticks.length), [look]);

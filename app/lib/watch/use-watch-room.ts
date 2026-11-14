@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { getWatchRepository, type RoomChange } from './repository';
+import { companionSpoke } from '../companion/events';
 import { whenRoomClientChanges } from './room-client';
 import { STALE_CLOSE_SECONDS, calibrateWatchClock, roomAgeSeconds } from './rules';
 import type { WatchRoomRead } from './types';
@@ -99,6 +100,7 @@ function apply(roomId: string, change: RoomChange): void {
       break;
     case 'message':
       if (current.messages.some((message) => message.id === change.message.id)) return;
+      companionSpoke(change.message.authorId, change.message.createdAt);
       next = { ...current, messages: [...current.messages, change.message].sort((a, b) => a.createdAt.localeCompare(b.createdAt)) };
       break;
     case 'removed':

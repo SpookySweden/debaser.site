@@ -13,7 +13,7 @@ import { createWindowSlot } from '../ui/window-slot';
  *     arrived (the room draws it from then on, walking alongside the owner's character).
  *
  * The climb itself is the companion's: it walks along its strip to under the room, climbs up into it a step at a time
- * with its own walk frames, and hands over. Leaving the page, it climbs back down from where it stood; if the page
+ * with its own climbing frames (2026-11-14; its walk frames before then), and hands over. Leaving the page, it climbs back down from where it stood; if the page
  * changes again before it is down (or it was still climbing), it vanishes and pops out of a portal on its strip a moment
  * later. Under reduced motion nothing climbs: it simply appears in the room, or back on its strip.
  *

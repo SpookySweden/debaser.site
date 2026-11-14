@@ -3,12 +3,15 @@
 import { useEffect, useRef } from 'react';
 import { pokeCompanion } from '../lib/companion/events';
 import { threadsWithNewMessages } from '../lib/comms/threads';
+import { subscribeToTheme, themeState } from '../lib/ui/theme-slot';
 import { useComms } from './CommsProvider';
 import { useNotifications } from './NotificationsProvider';
 import { usePresenceDirectory } from './PresenceProvider';
 
 /** Somebody coming online hops the companion at most this often, so a busy evening is not a trampoline. */
 const ONLINE_QUIET_MS = 10_000;
+/** A theme change this soon after the page opens is the saved theme being put on, not somebody picking one. */
+const THEME_SETTLE_MS = 3_000;
 
 /**
  * What your companion reacts to (SPEC-companion.md, decision 3): a new notification (a reply, a tag, an invite, a
@@ -27,8 +30,26 @@ export default function CompanionReactions() {
     const known = notes.current;
     notes.current = new Set(items.map((item) => item.id));
     if (known === null) return;
-    if (items.some((item) => item.readAt === null && !known.has(item.id))) pokeCompanion('reply');
+    const fresh = items.filter((item) => item.readAt === null && !known.has(item.id));
+    if (fresh.length === 0) return;
+    // One hop, with the mark of what arrived (Luke, 2026-11-14): `VS` for a game invite, a heart for a recommendation,
+    // `!` for a reply or a tag. Several at once: the invite first, then the recommendation.
+    const kinds = new Set(fresh.map((item) => item.kind));
+    pokeCompanion(kinds.has('invite') ? 'invite' : kinds.has('recommend') ? 'recommend' : 'reply');
   }, [feedReady, items]);
+
+  // The theme changed: it looks round at the new colours. On your own screen only.
+  useEffect(() => {
+    let theme = themeState().id;
+    const since = Date.now();
+    return subscribeToTheme(() => {
+      const next = themeState().id;
+      if (next === theme) return;
+      theme = next;
+      // Not the page's own theme settling in as it loads: only one picked afterwards.
+      if (Date.now() - since >= THEME_SETTLE_MS) pokeCompanion('look');
+    });
+  }, []);
 
   const messages = useRef<Set<string> | null>(null);
   useEffect(() => {

@@ -254,7 +254,7 @@ async function open(browser, { reduced = false } = {}) {
       await page.getByRole('button', { name: 'Next track' }).first().click();
       await page.mouse.move(700, 200);
       // A track that will not load stops the music, and with it the dance: that press is not counted against it.
-      const changed = await waitFor(page, (now) => now.mood === 'dance' && now.motion !== was && /^dance[1-5]$/.test(now.motion ?? ''), 6000);
+      const changed = await waitFor(page, (now) => now.mood === 'dance' && now.motion !== was && /^dance[1-5]$/.test(now.motion ?? ''), 12000);
       if (changed === null) continue;
       changes += 1;
       dances.add(changed.motion);
