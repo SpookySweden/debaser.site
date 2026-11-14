@@ -177,7 +177,7 @@ export function SongMenuPanel({ track, onClose, placement = 'below', anchor, sid
             <span className="text-key">ADD TO:</span>
             <AddToPlaylistKey thing={songAsPlaylistThing(song)} disabled={!onShelf} reason="Not in the archive" className={PLATE_LARGE} />
             {/* A MEDIA track goes in as its MEDIA row, a site song as its file (Luke, 2026-11-11). */}
-            <AddToLetterKey thing={songThing(song)} className={PLATE_LARGE} />
+            <AddToLetterKey thing={songThing(song)} className={PLATE_LARGE} label="[ LETTER ]" />
           </div>
         )}
         {library.canWrite && !onShelf ? <p className={`${LINE} text-ink-quiet`}>NOT IN THE ARCHIVE :: NO LIKES OR LISTS</p> : null}

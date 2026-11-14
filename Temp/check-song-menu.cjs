@@ -79,7 +79,7 @@ async function test(name, run) {
     const line = /<div role="group" aria-label="Add to"[^>]*>([\s\S]*?)<\/div>/.exec(html);
     assert.ok(line, 'the adding line is a named group');
     const words = visible(line[1]);
-    assert.match(words, /^ADD TO: \[ PLAYLIST \] \[ (\+ )?LETTER \]$/, words);
+    assert.equal(words, 'ADD TO: [ PLAYLIST ] [ LETTER ]', "Luke's own words for the line");
     assert.doesNotMatch(visible(html), /ADD TO PLAYLIST:/, 'the old line of every playlist is gone from the menu');
     assert.doesNotMatch(html, /LATE NIGHT|\[ \+ NEW \]|\[ MAKE \]/, 'the playlists wait in their own window, as the letters do');
   });
