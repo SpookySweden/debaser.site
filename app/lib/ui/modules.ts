@@ -1,5 +1,6 @@
 import { NAME_COLOURS } from '../profile/name-colours';
 import { contrastRatio } from './colour';
+import { DYES } from './themes';
 
 /**
  * The modules: what the top bar's keys are called (Luke, 2026-11-06). Each person ticks which ones appear on their bar, and may give each one a colour its word
@@ -105,6 +106,58 @@ export function moduleInk(colourId: string | undefined, bar: string): string | n
   if (swatch === undefined) return null;
   for (const ink of [swatch.hex, swatch.dark]) if (contrastRatio(ink, bar) >= READABLE) return ink;
   return null;
+}
+
+/** How much of the colour is in the highlighter stroke behind a selected module's word; the rest is the bar. */
+export const SWIPE_SHARE = 0.28;
+
+/** The least a stroke must differ from the bar to be seen at all (a contrast ratio; 1 is the same colour). */
+const STANDS_OFF = 1.15;
+
+/** Two hex colours mixed in sRGB, as CSS `color-mix(in srgb, ...)` does: `share` of `b`, the rest `a`. */
+export function mixHex(a: string, b: string, share: number): string {
+  const channels = (hex: string) => [1, 3, 5].map((at) => parseInt(hex.slice(at, at + 2), 16));
+  const [from, to] = [channels(a), channels(b)];
+  return `#${from.map((value, index) => Math.round(value + (to[index] - value) * share).toString(16).padStart(2, '0')).join('')}`;
+}
+
+/** What the module you are on is drawn with: its word's colour and the highlighter stroke behind the lower part of the word. */
+export type ModuleMark = { word: string; swipe: string };
+
+/**
+ * The selected module's look, from an ink for its word and a colour for its stroke (Luke, 2026-11-14: "the selected text colour is
+ * constant and ... it neatly and artistically becomes just a little bit highlighter"). The stroke is a pale tint of the colour on
+ * the bar. The word must read both on the bar and on its own stroke (4.5:1): where the colour as picked cannot, the word is stepped
+ * towards white on a dark bar, or black on a bright one, a tenth at a time until it does. Same hue, same idea, readable.
+ */
+export function moduleMarkFrom(ink: string, tint: string, bar: string): ModuleMark {
+  const swipe = mixHex(bar, tint, SWIPE_SHARE);
+  const far = contrastRatio(DYES.white, bar) >= contrastRatio(DYES.black, bar) ? DYES.white : DYES.black;
+  const reads = (word: string) => contrastRatio(word, bar) >= READABLE && contrastRatio(word, swipe) >= READABLE;
+  let word = ink;
+  for (let step = 1; step <= 10 && !reads(word); step += 1) word = mixHex(ink, far, step / 10);
+  if (contrastRatio(swipe, bar) >= STANDS_OFF) return { word, swipe };
+  // A colour too near the bar's own (Flavine on the Flavine bar) would leave a stroke nobody can see: tint with the word instead,
+  // which has just been made to stand off the bar, and make sure the word still reads on that.
+  let shown = word;
+  let stroke = mixHex(bar, shown, SWIPE_SHARE);
+  for (let step = 1; step <= 10 && contrastRatio(shown, stroke) < READABLE; step += 1) {
+    shown = mixHex(word, far, step / 10);
+    stroke = mixHex(bar, shown, SWIPE_SHARE);
+  }
+  return { word: shown, swipe: stroke };
+}
+
+/**
+ * The mark for a module with a picked colour, or null when none is picked (the stylesheet then uses the site's own inks). A pick that
+ * cannot be read as a word on this bar (Emerald on the bright theme's Flavine) still shows: the stroke is its tint, and the word is
+ * the same colour stepped darker or lighter until it reads. So a pick made on one theme is never lost on another.
+ */
+export function moduleMark(colourId: string | undefined, bar: string): ModuleMark | null {
+  const swatch = NAME_COLOURS.find((colour) => colour.id === colourId);
+  if (swatch === undefined) return null;
+  const ink = moduleInk(colourId, bar) ?? (contrastRatio(swatch.hex, bar) >= contrastRatio(swatch.dark, bar) ? swatch.hex : swatch.dark);
+  return moduleMarkFrom(ink, ink, bar);
 }
 
 /** The swatches worth offering on this bar: those that read, one for each colour they'd actually draw. The one already picked always stays, so it can be seen. */

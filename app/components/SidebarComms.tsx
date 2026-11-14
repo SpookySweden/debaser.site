@@ -94,7 +94,7 @@ export default function SidebarComms() {
       </div>
 
       {!expanded ? null : (
-        <div id="sidebar-comms-list">
+        <div id="sidebar-comms-list" className="fold-body">
           {userId === null ? (
             // A locked action is one line with the way in at its start (SPEC-efficiency.md).
             <p className="p-2 text-label text-ink">

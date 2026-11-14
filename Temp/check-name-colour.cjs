@@ -284,6 +284,44 @@ assert.equal(moduleInk('black', darkBar), '#ffffff');
 const brightBar = THEMES.find((theme) => theme.id === 'default').tokens['sun-pale'];
 assert.equal(moduleSwatches(brightBar, undefined)[0].label, 'BLACK', 'and BLACK where it draws black');
 
+// The module you are on (Luke, 2026-11-14: "the selected text colour is constant and ... becomes just a little bit highlighter"): its
+// word in its picked colour over a pale stroke of that colour. On every theme, for every colour a person can pick, the word reads on
+// the bar and on its own stroke; where the colour as picked could not, the word is stepped towards white or black and keeps its hue.
+const { moduleMark, moduleMarkFrom, mixHex, SWIPE_SHARE } = require('./name-colour-render/lib/ui/modules.js');
+assert.equal(mixHex('#000000', '#ffffff', 0.5), '#808080', 'colours mix as the stylesheet mixes them');
+let stepped = 0;
+let tightest = 99;
+for (const theme of THEMES) {
+  const bar = theme.tokens['sun-pale'];
+  // Every colour on the swatch, not only those MODULOS offers on this theme: a pick made on another theme still has to show here.
+  for (const colour of NAME_COLOURS) {
+    const offeredHere = moduleSwatches(bar, undefined).find((entry) => entry.id === colour.id);
+    const swatch = { label: colour.label, ink: offeredHere?.ink ?? moduleInk(colour.id, bar) ?? (contrastRatio(colour.hex, bar) >= contrastRatio(colour.dark, bar) ? colour.hex : colour.dark) };
+    const mark = moduleMark(colour.id, bar);
+    assert.ok(mark !== null, swatch.label + ' has a mark on ' + theme.label);
+    // The stroke is a pale tint of the picked colour on the bar, or of the word itself where the pick is too near the bar's own colour to show.
+    assert.ok([mixHex(bar, swatch.ink, SWIPE_SHARE), mixHex(bar, mark.word, SWIPE_SHARE)].includes(mark.swipe), swatch.label + "'s stroke on " + theme.label + ' is a pale tint of its colour');
+    assert.notEqual(mark.swipe, bar, 'and can be seen');
+    const onBar = contrastRatio(mark.word, bar);
+    const onStroke = contrastRatio(mark.word, mark.swipe);
+    assert.ok(onBar >= 4.5, swatch.label + ' word on the ' + theme.label + ' bar: ' + onBar.toFixed(2) + ':1');
+    assert.ok(onStroke >= 4.5, swatch.label + ' word on its stroke on ' + theme.label + ': ' + onStroke.toFixed(2) + ':1');
+    assert.ok(contrastRatio(mark.swipe, bar) >= 1.15, swatch.label + "'s stroke stands off the " + theme.label + ' bar: ' + contrastRatio(mark.swipe, bar).toFixed(2) + ':1');
+    if (mark.word !== swatch.ink) stepped += 1;
+    tightest = Math.min(tightest, onBar, onStroke);
+  }
+  assert.equal(moduleMark(undefined, bar), null, 'no colour picked: no mark of its own, the stylesheet pair stands');
+  // That pair, as globals.css writes it: the field ink for the word, 34% of the accent ink on the bar for the stroke.
+  const plain = moduleMarkFrom(theme.tokens.ink, theme.tokens['accent-ink'], bar);
+  assert.equal(plain.word, theme.tokens.ink, 'with no colour picked the field ink needs no help on ' + theme.label);
+  assert.ok(contrastRatio(theme.tokens.ink, plain.swipe) >= 4.5, 'and reads on the site stroke on ' + theme.label + ': ' + contrastRatio(theme.tokens.ink, plain.swipe).toFixed(2) + ':1');
+}
+const moduleCss = require('node:fs').readFileSync('app/globals.css', 'utf8');
+assert.ok(moduleCss.includes('color-mix(in srgb, var(--color-accent-ink) ' + Math.round(SWIPE_SHARE * 100) + '%, var(--color-sun-pale))'), 'the stylesheet mixes the site stroke at the same share the arithmetic used');
+assert.match(moduleCss, /\.key\.module-on,[\s\S]{0,200}color: var\(--module-word, var\(--color-ink\)\)/, 'and draws the word in the worked-out colour');
+assert.doesNotMatch(moduleCss, /module-glow/, 'the halo is gone');
+console.log('  modules   : the selected word reads on the bar and on its stroke for every pick on every theme (tightest ' + tightest.toFixed(2) + ':1; ' + stepped + ' picks stepped towards white or black)');
+
 // 6. A row that arrives with no name at all - a hand-made row, or a column a select skipped -
 //    reads as the anonymous default instead of taking the page down with it.
 const { authorLabel, authorTag } = require('./name-colour-render/lib/auth/author.js');

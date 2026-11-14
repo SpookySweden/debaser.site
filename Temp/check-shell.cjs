@@ -251,10 +251,14 @@ assert.ok(nav.indexOf('aria-label="Back"') > -1 && nav.indexOf('aria-label="Forw
 // "Pressed in" is a filled pill now (`key-fill`, SPEC-readability.md) rather than the inverted Win95 bevel
 // this used to count, and it is held to the tab that says it is the page - not just to a count of one.
 // Updated on purpose 2026-11-06 (Luke): MODULOS is a solid key too, so this counts the links, and MODULOS is held apart by its own class.
-assert.equal((nav.match(/<a\b[^>]*(?<=[" ])key-fill(?=[" ])[^>]*>/g) ?? []).length, 1, "the open page's tab is the one pressed in");
+// Changed on purpose 2026-11-14 (Luke: the filled, glowing block was "too chunky ... change it so the selected text colour is constant
+// and so that it neatly and artistically becomes just a little bit highlighter and wiggles"): the page you are on is no longer a filled
+// pill. It is marked `module-on` (its word in its own colour over a highlighter stroke, globals.css). It was one `key-fill` link.
+assert.equal((nav.match(/<a\b[^>]*(?<=[" ])key-fill(?=[" ])[^>]*>/g) ?? []).length, 0, 'no page key is a filled block');
+assert.equal((nav.match(/<a\b[^>]*(?<=[" ])module-on(?=[" ])[^>]*>/g) ?? []).length, 1, "the open page's key is the one marked");
 assert.equal((nav.match(/<button\b[^>]*(?<=[" ])key-fill(?=[" ])[^>]*>/g) ?? []).length, 1, 'and the only other solid key is MODULOS');
 assert.match(nav, /<button\b[^>]*modulos-key[^>]*>MODULOS</, 'wearing its own face, not the pressed one');
-assert.match(nav, /<a[^>]*class="[^"]*key-fill[^"]*"[^>]*aria-current="page"|<a[^>]*aria-current="page"[^>]*class="[^"]*key-fill/, 'and it is the open page`s tab that is filled');
+assert.match(nav, /<a[^>]*class="[^"]*module-on[^"]*"[^>]*aria-current="page"|<a[^>]*aria-current="page"[^>]*class="[^"]*module-on/, 'and it is the open page`s key that is marked');
 assert.equal((nav.match(/aria-current="page"/g) ?? []).length, 1, 'and says so to a screen reader');
 /**
  * A label or a path read back out of markup.

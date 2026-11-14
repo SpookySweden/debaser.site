@@ -141,13 +141,29 @@ No Win95 bevels anywhere - not on windows, not on buttons, not on the scrollbar.
 - **The press** is the one movement left: a 1px drop and the Brilliant Pink flash, no easing.
 - RADI-OH's faces may hop - they are text art, not labels. Motion stops under `prefers-reduced-motion`.
 - Pixel-art accents. No soft drop shadows.
-- **The one glow: the module you are on** (Luke, 2026-11-14: "make sure a modules selected colour displays
-  glowing while it is selected"). On the top bar, the key of the page you are on is filled with the colour its
-  person picked for it in MODULOS (the field ink when none is picked, or when the pick would not read on this
-  theme's bar) and wears a halo of that colour: two hard rings that step outward and fade, no blur. It breathes
-  in two frames with no easing, and holds still under reduced motion (`.module-on`, globals.css). Its word is the
-  bar's own colour, 4.5:1 or better on every pick (`moduleInk`; `Temp/check-modules.cjs` walks every pick).
-  Nothing else on the site glows.
+- **The module you are on** (Luke, 2026-11-14). On the top bar the key of the page you are on is not a block:
+  its word wears the colour its person picked for it in MODULOS, the whole time it is the page (the field ink
+  when none is picked), and a highlighter stroke lies behind the lower half of the word, a pale tint of the same
+  colour (28% of it on the bar) drawn as two overlapping bands a pixel out of line, so its ends are uneven as a
+  real stroke's are. Every few seconds the stroke wiggles: the bands swap heights and it shifts a pixel each way,
+  in whole steps, no easing. The word never moves, nor anything beside it; under reduced motion the stroke lies
+  still. The word reads 4.5:1 on the bar and on its stroke for every pick on every theme: where a colour as
+  picked could not, the word is stepped towards white (dark bar) or black (bright bar) and keeps its hue
+  (`moduleMark`, `.module-on`; `Temp/check-name-colour.cjs` walks every pick on every theme). It was a filled
+  block with a halo for a few hours, which Luke found "too chunky". Nothing on the site glows.
+- **THIS IS OPEN: one look for everything that folds open in place** (Luke, 2026-11-14: "make it clear with
+  highlights or something that the expansion is engaged, so its easier to see that and then click it again to
+  collapse"). One rule in globals.css applies it from what the markup already says, so no component draws its
+  own and none may invent another:
+  - An open **key** (a bracket key with `aria-expanded="true"`, or the `.key` summary of an open `<details>`)
+    is pressed in: a filled pill in the field ink, the same face as a tab or switch that is on. On a surface
+    that sets its keys' inks (a Black strip) the pill takes those.
+  - An open **row** (a title line, a thread, a list entry: a button or summary that is not a bracket key)
+    stays lit in `pointed`, the fill a row wears under the pointer, which every ink on a row reads on.
+  - The opened **area** is tied to it by a rule in the field ink down its left side. Automatic for `<details>`;
+    an area opened by a key asks for it with the class `fold-body`.
+  - So: every key that folds something open carries `aria-expanded` (or is a `<summary>`). Colour only, so
+    nothing moves under the pointer. Not for tree rows, search boxes or the beat box. `Temp/check-open-look.cjs`.
 
 ## Readability floors
 - Text contrast 4.5:1 or better in both themes (`check-themes` holds the token pairs; `npm run contrast`

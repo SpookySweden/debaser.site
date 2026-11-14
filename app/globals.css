@@ -546,6 +546,48 @@ summary::-webkit-details-marker {
   display: none;
 }
 
+/* THIS IS OPEN: the one look for anything that folds open in place (Luke, 2026-11-14: "make it clear with highlights or something
+   that the expansion is engaged, so its easier to see that and then click it again to collapse"). Applied here, by what the markup
+   already says, so no component draws its own: a key that carries `aria-expanded="true"`, and the `<summary>` of an open
+   `<details>`. Three parts, all in the site's own language (docs/design.md):
+
+   1. An open KEY is pressed in: a filled pill in the field ink with the window's colour for its words, the same face as a tab or
+      switch that is on (`PLATE_PRESSED`). On a surface that sets its keys' inks (a Black strip, a Rose chip) the pill takes those:
+      the key's ink is the fill and its hover ink the words.
+   2. An open ROW (a title line, a thread, a list entry: anything that opens and is not a bracket key) stays lit in `pointed`, the
+      fill a row wears under the pointer, which every ink a row carries is known to read on.
+   3. The opened AREA is tied to it by a rule in the field ink down its left side, so it is plain what belongs to the open thing
+      and where it ends. Automatic for `<details>`; `.fold-body` asks for it on an area opened by a key.
+
+   Colour only: no size, border or padding changes on the thing pressed, so nothing moves under the pointer (the area's own inset
+   belongs to content that was not on screen before). The 2px ring is the fill's own colour and takes no room. Unlayered, so it
+   wins over a component's own classes; `:not(:active)` leaves the press its flash. Not for the tools with a look of their own
+   (the beat box), tree rows or search boxes: buttons and summaries only. */
+:is(button, [role='button']).key[aria-expanded='true']:not(:active, .debaser-beatbox *),
+details[open] > summary.key:not(:active) {
+  --open-fill: var(--key-ink, var(--color-ink));
+  --key-fill: var(--open-fill);
+  --frame-line: var(--open-fill);
+  background-color: var(--open-fill);
+  color: var(--key-hover-ink, var(--color-paper));
+  box-shadow: 0 0 0 2px var(--open-fill);
+}
+
+:is(button, [role='button'])[aria-expanded='true']:not(.key, :active, .debaser-beatbox *),
+details[open] > summary:not(.key, :active) {
+  background-color: var(--color-pointed);
+}
+
+details[open]:has(> summary.key) > :not(summary),
+.fold-body {
+  border-inline-start: 2px solid var(--color-ink);
+  padding-inline-start: calc(var(--spacing) * 2);
+}
+
+details[open]:not(:has(> summary.key)) {
+  box-shadow: -3px 0 0 0 var(--color-ink);
+}
+
 /* A line of text that crawls past, the way the information bar along the foot of a news
    channel does. The track holds the same run twice and slides by exactly half its width,
    so the second copy lands where the first began and the loop has no seam. The duration is
@@ -1145,39 +1187,61 @@ img {
     color: var(--module-ink);
   }
 
-  /* The module you are on (Luke, 2026-11-14: "make sure a modules selected colour displays glowing while it is selected"): its key is
-     filled with the colour its person picked in MODULOS (the field ink when none is picked) and wears a halo of that colour for as long
-     as it is the page. The halo is two hard rings that step outward and fade, a pixel glow with no blur, and it breathes in two frames
-     with no easing; under reduced motion it holds still. The word is the bar's own colour, which is what `moduleInk` measured the pick
-     against (4.5:1 or better, or the pick is not offered). The one glow on the site: docs/design.md, "Feel". */
-  .key.key-fill.module-on {
-    --key-fill: var(--module-ink, var(--color-ink));
-    color: var(--color-paper);
+  /* The module you are on (Luke, 2026-11-14). First a filled block with a halo, which he found "too chunky": "change it so the
+     selected text colour is constant and so that it neatly and artistically becomes just a little bit highlighter and wiggles or
+     somehting to show its selected". So: no block and no glow. The word wears its picked colour the whole time it is the page (the
+     field ink when none is picked), and a highlighter stroke lies behind its lower half: a pale tint of the same colour, drawn as
+     two overlapping bands a pixel out of line with each other, so its ends are uneven as a real stroke's are. Every few seconds the
+     stroke wiggles: its two bands swap heights and it shifts a pixel each way, in whole steps with no easing. The word itself never
+     moves, nor anything round it; under reduced motion the stroke lies still. `--module-word` and `--module-swipe` come from
+     `moduleMark` (app/lib/ui/modules.ts), which keeps the word 4.5:1 on the bar and on the stroke; with no colour picked the pair
+     below stands, held to the same floor on every theme by Temp/check-name-colour.cjs. */
+  .key.module-on,
+  .key.module-on:hover:not(:disabled),
+  .key.module-on:focus-visible:not(:disabled) {
+    --swipe: var(--module-swipe, color-mix(in srgb, var(--color-accent-ink) 28%, var(--color-sun-pale)));
+    color: var(--module-word, var(--color-ink));
+    background-color: transparent;
+    /* The stroke: two bands that overlap in the middle, one a pixel higher than the other. It reaches a little past the word at
+       both ends, inside the key's own padding, and sits behind the lower half of the letters. */
+    background-image: linear-gradient(var(--swipe), var(--swipe)), linear-gradient(var(--swipe), var(--swipe));
+    background-repeat: no-repeat;
+    background-size:
+      56% 8px,
+      56% 8px;
+    background-position:
+      left 3px bottom 6px,
+      right 3px bottom 5px;
+    animation: module-swipe 4.8s steps(1, end) infinite;
   }
 
-  /* Only the page you are on glows. MODULOS wears the same filled face while its list is open, without the halo: it is open, not
-     where you are. */
-  .key.key-fill.module-on[aria-current='page'] {
-    box-shadow:
-      0 0 0 2px color-mix(in srgb, var(--key-fill) 60%, transparent),
-      0 0 0 4px color-mix(in srgb, var(--key-fill) 28%, transparent);
-    animation: module-glow 1.8s steps(1, end) infinite;
-  }
+  @keyframes module-swipe {
+    0%,
+    80%,
+    90%,
+    100% {
+      background-position:
+        left 3px bottom 6px,
+        right 3px bottom 5px;
+    }
 
-  .key.key-fill.module-on.module-key {
-    color: var(--color-sun-pale);
-  }
+    85% {
+      background-position:
+        left 2px bottom 5px,
+        right 4px bottom 6px;
+    }
 
-  @keyframes module-glow {
-    50% {
-      box-shadow:
-        0 0 0 3px color-mix(in srgb, var(--key-fill) 60%, transparent),
-        0 0 0 5px color-mix(in srgb, var(--key-fill) 28%, transparent);
+    95% {
+      background-position:
+        left 4px bottom 5px,
+        right 2px bottom 6px;
     }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .key.key-fill.module-on[aria-current='page'] {
+    .key.module-on,
+    .key.module-on:hover:not(:disabled),
+    .key.module-on:focus-visible:not(:disabled) {
       animation: none;
     }
   }

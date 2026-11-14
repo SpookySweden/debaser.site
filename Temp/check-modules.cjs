@@ -150,28 +150,56 @@ async function up() {
     assert.deepEqual(await keys(), ['FORUM', 'BEATBOX WIP', 'STREAM', 'MODULOS'], 'choices survive a reload');
     console.log('  ok    choices survive a reload');
 
-    // (2026-11-14, Luke: "make sure a modules selected colour displays glowing while it is selected") The page you're on is filled with
-    // the colour picked for it and wears a halo of that colour for as long as it is the page; its word stays readable on every pick.
+    // The page you are on. Changed on purpose 2026-11-14, twice the same day. First it was a filled block with a halo (Luke: "make sure a
+    // modules selected colour displays glowing while it is selected"); he found that "too chunky": "change it so the selected text colour
+    // is constant and so that it neatly and artistically becomes just a little bit highlighter and wiggles or somehting to show its
+    // selected". So: no block, no glow. The word wears its colour the whole time, a pale stroke of that colour lies behind its lower
+    // half, and the stroke (never the word) wiggles in whole steps and lies still under reduced motion.
     const standingKey = nav.getByRole('link', { name: 'FORUM' });
-    const look = (key) => key.evaluate((node) => { const style = getComputedStyle(node); return { fill: style.backgroundColor, ink: style.color, halo: style.boxShadow, pulse: style.animationName }; });
+    // A computed colour as `rgb(r, g, b)`, whether the browser reports it that way or as `color(srgb r g b)` (a mixed colour).
+    const asRgb = (colour) => {
+      const mixed = /color\(srgb ([\d.]+) ([\d.]+) ([\d.]+)/.exec(colour);
+      return mixed === null ? colour : `rgb(${mixed.slice(1, 4).map((value) => Math.round(Number(value) * 255)).join(', ')})`;
+    };
+    const look = (key) => key.evaluate((node) => {
+      const style = getComputedStyle(node);
+      const box = node.getBoundingClientRect();
+      return { fill: style.backgroundColor, ink: style.color, stroke: style.backgroundImage, halo: style.boxShadow, pulse: style.animationName, at: `${box.x},${box.y},${box.width},${box.height}` };
+    });
+    const strokeOf = (image) => asRgb((/rgba?\([^)]+\)|color\([^)]+\)/.exec(image) ?? ['none'])[0]);
+    const barFill = await nav.evaluate((node) => getComputedStyle(node).backgroundColor);
     await page.mouse.move(0, 0);
     assert.equal(await standingKey.getAttribute('aria-current'), 'page', 'this check stands on FORUM');
     const unpicked = await look(standingKey);
-    assert.notEqual(unpicked.halo, 'none', 'the page you are on glows before any colour is picked');
-    assert.ok(ratio(unpicked.ink, unpicked.fill) >= 4.5, `and reads at ${ratio(unpicked.ink, unpicked.fill)}`);
-    assert.equal((await look(nav.getByRole('link', { name: 'STREAM' }))).halo, 'none', 'a module you are not on has no halo');
-    assert.equal(unpicked.pulse, 'module-glow', 'the halo breathes');
+    assert.equal(unpicked.fill, 'rgba(0, 0, 0, 0)', 'the page you are on is not a filled block');
+    assert.equal(unpicked.halo, 'none', 'and has no glow');
+    assert.match(unpicked.stroke, /linear-gradient/, 'a highlighter stroke lies behind its word');
+    assert.ok(ratio(unpicked.ink, barFill) >= 4.5, `its word reads on the bar at ${ratio(unpicked.ink, barFill).toFixed(2)}:1`);
+    assert.ok(ratio(unpicked.ink, strokeOf(unpicked.stroke)) >= 4.5, `and on its stroke at ${ratio(unpicked.ink, strokeOf(unpicked.stroke)).toFixed(2)}:1`);
+    assert.notEqual(strokeOf(unpicked.stroke), barFill, 'the stroke is not the bar colour');
+    assert.equal((await look(nav.getByRole('link', { name: 'STREAM' }))).stroke, 'none', 'a module you are not on has no stroke');
+    assert.equal(unpicked.pulse, 'module-swipe', 'the stroke wiggles');
+    // The wiggle moves the stroke only: the key's own box is the same at every sample across a whole turn of it.
+    const boxes = new Set([unpicked.at]);
+    for (let sample = 0; sample < 12; sample += 1) {
+      await page.waitForTimeout(420);
+      boxes.add((await look(standingKey)).at);
+    }
+    assert.equal(boxes.size, 1, 'the word and its key never move');
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    assert.equal((await look(standingKey)).pulse, 'none', 'and holds still under reduced motion');
+    assert.equal((await look(standingKey)).pulse, 'none', 'and the stroke lies still under reduced motion');
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await modulosKey.click();
     await list.waitFor({ state: 'visible', timeout: 5000 });
     await page.mouse.move(0, 0);
-    assert.equal((await look(modulosKey)).halo, 'none', 'MODULOS, with its list open, does not glow: only the page you are on does');
+    const openModulos = await look(modulosKey);
+    assert.notEqual(openModulos.fill, 'rgba(0, 0, 0, 0)', 'MODULOS, with its list open, is a pressed-in key (the site\'s one "this is open" look)');
+    assert.notEqual(openModulos.pulse, 'module-swipe', 'and wears no wiggling stroke: only the page you are on does');
     const standingSwatches = list.getByRole('group', { name: 'FORUM colour' }).locator('button[style]');
     const offered = await standingSwatches.count();
     assert.ok(offered >= 3, `FORUM is offered ${offered} colours`);
     const worn = [];
+    let exact = 0;
     for (let index = 0; index < offered; index += 1) {
       const swatch = standingSwatches.nth(index);
       const picked = await swatch.evaluate((button) => getComputedStyle(button).backgroundColor);
@@ -179,13 +207,17 @@ async function up() {
       await page.mouse.move(0, 0);
       await page.waitForTimeout(100);
       const on = await look(standingKey);
-      assert.equal(on.fill, picked, 'the page you are on is filled with its picked colour');
-      assert.notEqual(on.halo, 'none', 'and glows in it');
-      assert.ok(ratio(on.ink, on.fill) >= 4.5, `its word reads at ${ratio(on.ink, on.fill).toFixed(2)}:1 on ${picked}`);
-      worn.push(`${picked} ${ratio(on.ink, on.fill).toFixed(1)}:1`);
+      const stroke = strokeOf(on.stroke);
+      assert.equal(on.fill, 'rgba(0, 0, 0, 0)', 'still no block');
+      assert.ok(ratio(on.ink, barFill) >= 4.5, `picked ${picked}: the word reads on the bar at ${ratio(on.ink, barFill).toFixed(2)}:1`);
+      assert.ok(ratio(on.ink, stroke) >= 4.5, `picked ${picked}: the word reads on its stroke at ${ratio(on.ink, stroke).toFixed(2)}:1`);
+      assert.notEqual(stroke, barFill, 'and the stroke shows');
+      if (on.ink === picked) exact += 1;
+      worn.push(`${picked} as ${on.ink} on ${stroke}`);
     }
-    console.log(`  ok    FORUM, the page you are on, glows in each of its ${offered} colours: ${worn.join(', ')}`);
-    if (SHOTS) await page.screenshot({ path: `${SHOTS}/modules-selected-glow.png` });
+    assert.ok(exact >= 3, `at least three picks are worn exactly as picked (${exact} of ${offered}); the rest are the same hue stepped lighter to stay readable`);
+    console.log(`  ok    FORUM, the page you are on, wears each of its ${offered} colours over a stroke of it, ${exact} exactly as picked: ${worn.slice(0, 4).join('; ')} ...`);
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/modules-selected-stroke.png` });
     await modulosKey.click();
     await list.waitFor({ state: 'hidden', timeout: 5000 });
 

@@ -136,7 +136,7 @@ export default function SidebarProfile() {
           </div>
 
           {settingsOpen ? (
-            <div className="space-y-1 border-t border-ink pt-2" role="menu" aria-label="Profile settings">
+            <div className="fold-body space-y-1 border-t border-ink pt-2" role="menu" aria-label="Profile settings">
               <Link href="/account" className={MENU_ROW} role="menuitem" onClick={() => setSettingsOpen(false)}>
                 [ ACCOUNT ]
               </Link>
