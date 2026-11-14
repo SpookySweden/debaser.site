@@ -166,13 +166,13 @@ and ends them, and prints their ids: each leaves an ended record and a board thr
 
 drive-visualiser.cjs
 --------------------
-    node scripts/drive-visualiser.cjs --base <site> [--width 390 --height 844 --mobile] [--reduced]   live, as kept test account A
+    node scripts/drive-visualiser.cjs --base http://localhost:<port> --privacy open [--reduced]   on a local dev server, as kept test account A
 
 The stream room's music visualiser in a real browser (Luke's list, 2026-11-14): starts a private room, queues a site song, switches
 the visualiser on, and reads that it listens through one kept copy of the sound, that the level it shows follows the song (playing,
 paused, playing again), that each slider is named and BRIGHTNESS and REACT change the picture, and, with --reduced, that under
-"reduce motion" one still picture shows. Each run leaves an ended room and a board thread by TEST ACCOUNT A (on a dev server the
-thread is real too): list them for Luke. It records no sound.
+"reduce motion" one still picture shows. Run it locally, not on the live site (core.md, "Test locally"): on a dev server the room is a
+mock but the board is real, so each run leaves one real board thread by TEST ACCOUNT A: list them for Luke. It records no sound.
 
 drive-queue-filters.cjs
 -----------------------

@@ -3,11 +3,14 @@
  * kept test account A, queues a site song, switches the visualiser on, and reads whether the picture follows the sound
  * and whether the sliders change it. Not in `npm run checks`: it needs a running site, a network and a browser.
  *
- *   node scripts/drive-visualiser.cjs --base https://debaser-site.vercel.app [--out Temp/browse/player] [--width 390 --height 844 --mobile] [--reduced] [--keep-room]
+ *   node scripts/drive-visualiser.cjs --base http://localhost:<port> --privacy open [--out Temp/browse/player] [--reduced] [--keep-room]
  *
- * It leaves an ended room and its board thread by TEST ACCOUNT A behind (it prints the room's id): list those for Luke.
- * On a dev server too: there the room itself is a mock, but GO LIVE still posts its thread on the real board. So run it
- * as few times as the proof needs (add --privacy open on a dev server: its mock private room asks the host to join).
+ * **Run it on a local dev server, not the live site** (core.md, "Test locally", 2026-11-14: live browser drives slowed the
+ * site for everyone). On a dev server started from `.env.local` the room is a mock (`--privacy open`: its mock private room
+ * asks the host to join), but the sign-in and the board are the real ones, so GO LIVE still posts one real board thread by
+ * TEST ACCOUNT A each run: run it as few times as the proof needs and list those threads for Luke. It has no fully mock
+ * mode yet (it signs in as the kept test account). Against the live site (`--base https://debaser-site.vercel.app`) it also
+ * leaves an ended room; that is only for what a local run can't prove.
  * It records no sound: the page's own copy of the song is only measured, as the visualiser itself does.
  */
 const assert = require('node:assert/strict');
