@@ -55,6 +55,8 @@ import { PLATFORM_LABELS, type WebItem, type WebPlatform } from '../lib/web/type
 import { canSort, ORDER_KEYS, orderLabel, searchOrder, type SortChoice } from '../lib/web/web-sort';
 import WebFilterFold, { FILTER_KEY, FILTER_KEY_ON } from './WebFilterFold';
 import { noteHistory } from '../lib/recommender/history';
+import { useMediaView, viewLabel, viewListClass, type MediaView } from '../lib/web/media-view';
+import WebViewKey from './WebViewKey';
 import { hiddenKeys, keyOf, tasteFromHistory } from '../lib/recommender/engine';
 import { useHistoryRows } from '../lib/recommender/use-history';
 import type { HistoryRow } from '../lib/recommender/types';
@@ -114,6 +116,30 @@ const KIND_LABELS: Record<WebItem['kind'], string> = {
   image: 'IMAGE',
   text: 'TEXT',
   other: 'OTHER',
+};
+
+/**
+ * VIEW (Luke, 2026-11-14; media-view.ts): how a row is laid out. LIST is today's row. GRID is a YouTube-style card, a big
+ * 16:9 picture over its title (two lines, then cut). LARGE is one big card, a wide picture beside its words. COMPACT is a
+ * small picture and the title with the main keys. A video still never plays in its row (PlayerBox, playFloating).
+ */
+const ROW_LAYOUT: Record<MediaView, string> = {
+  list: 'flex items-start gap-2',
+  grid: 'flex flex-col gap-2',
+  large: 'flex items-start gap-3 max-sm:flex-col',
+  compact: 'flex items-center gap-2',
+};
+const THUMB_BOX: Record<MediaView, string> = {
+  list: 'h-18 w-24',
+  grid: 'aspect-video w-full',
+  large: 'aspect-video w-80 max-sm:w-full',
+  compact: 'h-9 w-12',
+};
+const TITLE_CLASS: Record<MediaView, string> = {
+  list: 'text-sm',
+  grid: 'text-sm line-clamp-2',
+  large: 'text-title',
+  compact: 'text-sm line-clamp-1',
 };
 
 const MISSING_THUMB_SRC = `/${artSlot('web-thumb-missing')?.path ?? 'assets/web/thumb-missing.png'}`;
@@ -743,6 +769,8 @@ export default function WebStream() {
   );
 
   const boxFilters = parseWebSearch(draft);
+  /** VIEW (media-view.ts): how the lists below are laid out, kept in this browser. */
+  const view = useMediaView();
   const boxSort = sortOf(boxFilters);
   const filtered = shown.kind !== 'stream' || shown.filters.source !== 'all' || shown.filters.type !== 'all';
   const busy = asking.length > 0 || target !== null;
@@ -925,12 +953,14 @@ export default function WebStream() {
           <p className="text-key text-ink wrap-anywhere">
             <span className="text-accent-ink">SHOWING: </span>
             {filtersInWords(boxFilters, art)}
+            {` · ${viewLabel(view)} VIEW`}
           </p>
           {hasFilters(boxFilters) || art ? (
             <button type="button" onClick={resetFilters} className={FILTER_KEY} data-reset-filters>
               [ RESET FILTERS ]
             </button>
           ) : null}
+          <WebViewKey />
         </div>
         <div data-filter-panel>
           <WebFilterFold id="media-filter-source" heading="WHERE FROM" now={art ? 'STREAM ART' : sourceInWords(boxFilters.source)} open={folds.has('media-filter-source')} onToggle={() => toggleFold('media-filter-source')}>
@@ -1109,7 +1139,7 @@ export default function WebStream() {
         </div>
       ) : null}
       {YOUTUBE_LINK_ON && browsing && browsed !== null && mineRows.length > 0 ? (
-        <ul aria-label="From your YouTube" className="mb-2">
+        <ul aria-label="From your YouTube" className={`mb-2 ${viewListClass(view)}`}>
           {mineRows.slice(0, mineShown).map(renderRow)}
         </ul>
       ) : null}
@@ -1122,7 +1152,7 @@ export default function WebStream() {
       ) : null}
       {browsing && list.shown.length > 0 ? <p className="text-label font-bold text-ink-quiet">PICKED FOR YOU</p> : null}
       {list.shown.length === 0 ? null : (
-        <ul aria-label={picksOrdered ? 'Items picked for you' : shown.kind === 'stream' ? 'Items, newest first' : `Results, ${list.order.kind === 'turns' ? 'each site in turn' : list.order.dir === 'asc' ? 'oldest first' : 'newest first'}`}>
+        <ul className={viewListClass(view)} aria-label={picksOrdered ? 'Items picked for you' : shown.kind === 'stream' ? 'Items, newest first' : `Results, ${list.order.kind === 'turns' ? 'each site in turn' : list.order.dir === 'asc' ? 'oldest first' : 'newest first'}`}>
           {drawn.map(renderRow)}
         </ul>
       )}
@@ -1181,6 +1211,7 @@ function RelatedSection({
   /** The search's own results have all answered once, so this section starts below them, not among them. */
   ready: boolean;
 }) {
+  const view = useMediaView();
   // Each site's best match, newest first, as before the SORT row: the order chosen is the search's own.
   const what: Shown = { kind: 'search', query: topic.query, filters: { ...filters, sort: undefined } };
   const sources: Source[] = topic.keyword !== undefined ? ['kino'] : sourcesFor(what);
@@ -1262,7 +1293,7 @@ function RelatedSection({
         </p>
       ) : null}
       {started && !busy && list.shown.length === 0 ? <p className="text-label text-ink-quiet">NOTHING MORE HERE.</p> : null}
-      {list.shown.length > 0 ? <ul aria-label={`Related to ${topic.label}`}>{list.shown.map(renderRow)}</ul> : null}
+      {list.shown.length > 0 ? <ul aria-label={`Related to ${topic.label}`} className={viewListClass(view)}>{list.shown.map(renderRow)}</ul> : null}
       {started && Object.keys(cursors).length > 0 && list.shown.length > 0 ? (
         <div className="mt-3">
           <button type="button" onClick={() => askAll(cursors)} disabled={busy} className={PLATE_MAIN}>
@@ -1338,6 +1369,9 @@ export function WebRow({
   const thumb = thumbFailed ? null : addresses.thumb;
   const inBar = playsInBar(item);
   const date = item.publishedAt.slice(0, 10);
+  const view = useMediaView();
+  /** COMPACT shows the title and the main keys only. */
+  const full = view !== 'compact';
   // An Archive item with two or more videos is a series (SPEC-stream-series.md): marked here, ticked in a room's queue.
   const seriesCount = useSeriesCount(item);
   const archiveSubtitles = useArchiveRowSubtitles(item);
@@ -1377,10 +1411,10 @@ export function WebRow({
   };
 
   return (
-    <li className="rule-pixel py-2">
-      <div className="flex items-start gap-2">
+    <li className={`rule-pixel py-2 ${view === 'grid' ? 'min-w-0' : ''}`} data-view={view}>
+      <div className={ROW_LAYOUT[view]}>
         {/* A fixed box, so a slow or missing picture never moves the row. */}
-        <span className="block h-18 w-24 shrink-0 overflow-hidden border border-ink-plate bg-paper">
+        <span className={`block ${THUMB_BOX[view]} shrink-0 overflow-hidden border border-ink-plate bg-paper`}>
           {/* A hotlinked third-party thumbnail: a plain <img> sends no referrer and costs no Vercel image
               optimisation, where next/image would proxy (and count) every one. Hence the one lint exception. */}
           {thumb ? (
@@ -1409,12 +1443,12 @@ export function WebRow({
         </span>
 
         <div className="min-w-0 flex-1">
-          <p id={rowTitleId(item.id)} tabIndex={-1} className="text-sm font-bold text-ink wrap-anywhere">
+          <p id={rowTitleId(item.id)} tabIndex={-1} className={`${TITLE_CLASS[view]} font-bold text-ink wrap-anywhere`}>
             {item.title}
             <AudioSubsFlags audio={contentLanguage(item)} subs={archiveSubtitles} burnedIn={burnedInSubtitles(item.description ? `${item.title}
 ${item.description}` : item.title)} className="ml-1.5" />
           </p>
-          {item.creator && authorWords(item.creator) !== null ? (
+          {!full ? null : item.creator && authorWords(item.creator) !== null ? (
             <p>
               <button
                 type="button"
@@ -1429,9 +1463,11 @@ ${item.description}` : item.title)} className="ml-1.5" />
           ) : item.creator ? (
             <p className="text-label text-ink wrap-anywhere">{item.creator}</p>
           ) : null}
-          {item.description ? <p className="mt-0.5 line-clamp-2 text-label text-ink wrap-anywhere">{item.description}</p> : null}
+          {item.description && full && view !== 'grid' ? (
+            <p className={`mt-0.5 ${view === 'large' ? 'line-clamp-6 text-key' : 'line-clamp-2 text-label'} text-ink wrap-anywhere`}>{item.description}</p>
+          ) : null}
 
-          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-label">
+          <div className={`mt-1 ${full ? 'flex' : 'hidden'} flex-wrap items-center gap-x-2 gap-y-1 text-label`}>
             <span className="font-bold text-ink-quiet">{KIND_LABELS[item.kind]}</span>
             {seriesCount === null ? null : (
               <span className="bg-acid px-1 font-bold text-ink-plate" data-series-mark>
@@ -1500,11 +1536,11 @@ ${item.description}` : item.title)} className="ml-1.5" />
             ) : null}
             {floats && playing ? <PipKey id={playId} title={item.title} /> : null}
             {/* The bridges (Phase 5): the item's forum thread, and the stream room the reader hosts. */}
-            {!found || SAVE_OPENED ? <WebDiscussKey item={item} onOpen={opened} /> : null}
-            {roomSource !== undefined ? <WatchInRoomKey source={roomSource} playId={playId} title={item.title} onPress={opened} /> : null}
-            <AddToLetterKey thing={{ kind: 'web', ref: item.id, title: item.title, picture: addresses.thumb ?? undefined }} />
+            {full && (!found || SAVE_OPENED) ? <WebDiscussKey item={item} onOpen={opened} /> : null}
+            {full && roomSource !== undefined ? <WatchInRoomKey source={roomSource} playId={playId} title={item.title} onPress={opened} /> : null}
+            {full ? <AddToLetterKey thing={{ kind: 'web', ref: item.id, title: item.title, picture: addresses.thumb ?? undefined }} /> : null}
             {/* A book's way out to its source sits here, after the site's own keys, where READ was. */}
-            {link && readable ? (
+            {full && link && readable ? (
               <a
                 href={link}
                 target="_blank"
@@ -1515,7 +1551,7 @@ ${item.description}` : item.title)} className="ml-1.5" />
                 [ OPEN ↗ ]
               </a>
             ) : null}
-            {item.platform === 'books' ? (
+            {!full ? null : item.platform === 'books' ? (
               <Link href={bookPage} aria-label={`Editions of "${item.title}": every one Open Library lists`} className={PLATE}>
                 [ EDITIONS ]
               </Link>
@@ -1526,7 +1562,7 @@ ${item.description}` : item.title)} className="ml-1.5" />
             ) : null}
           </div>
 
-          {item.alsoOn.length > 0 ? <AlsoOn item={item} /> : null}
+          {full && item.alsoOn.length > 0 ? <AlsoOn item={item} /> : null}
         </div>
       </div>
 

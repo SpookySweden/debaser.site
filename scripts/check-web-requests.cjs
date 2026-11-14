@@ -155,7 +155,8 @@ const sqlCode = (text) => text.replace(/--.*$/gm, '').toLowerCase();
   // Switched on once the table existed (pushed with Luke's OK, 2026-10-31). Before that this asserted the opposite.
   ok(/^NEXT_PUBLIC_WEB_SAVE_OPENED=on$/m.test(read('.env.production').replace(/\r/g, '')), 'production switches saving on (the table exists)');
   const stream = read('app/components/WebStream.tsx');
-  ok(/\{!found \|\| SAVE_OPENED \? <WebDiscussKey item=\{item\} onOpen=\{opened\} \/> : null\}/.test(stream), 'DISCUSS is offered on EVERYWHERE rows only while saving is on');
+  // Updated on purpose 2026-11-14 (VIEW, media-view.ts): COMPACT shows the main keys only, so DISCUSS also waits on `full`.
+  ok(/\{full && \(!found \|\| SAVE_OPENED\) \? <WebDiscussKey item=\{item\} onOpen=\{opened\} \/> : null\}/.test(stream), 'DISCUSS is offered on EVERYWHERE rows only while saving is on');
   ok(/if \(found\) void recordOpened\(item\);/.test(stream), 'only EVERYWHERE rows ask to be saved');
 
   asserts.done();

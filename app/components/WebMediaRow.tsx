@@ -185,7 +185,7 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
   const roomAdd = roomAddFor(server, media, item.title, pick);
 
   return (
-    <li className="rule-pixel py-2">
+    <li className="rule-pixel col-span-full py-2">
       <div className="flex items-start gap-2">
         {/* A fixed box (a poster's shape), so a slow or missing picture never moves the row. */}
         <span className="block h-36 w-24 shrink-0 overflow-hidden border border-ink-plate bg-paper">
@@ -379,7 +379,7 @@ export function KinoRow({ item, titleId, action }: { item: WebItem & { media: Me
   }
 
   return (
-    <li className="rule-pixel py-2">
+    <li className="rule-pixel col-span-full py-2">
       <div className="flex items-start gap-2">
         <span className="block h-36 w-24 shrink-0 overflow-hidden border border-ink-plate bg-paper">
           {thumb ? (
@@ -439,6 +439,7 @@ export function KinoRow({ item, titleId, action }: { item: WebItem & { media: Me
   );
 }
 
+/** VIEW (media-view.ts): a film or show keeps its own card, the whole width of a GRID (col-span-full), so its WATCH keys stay usable. */
 /** Whether a row is a KINO title: TMDB's details, held by no media server (and so drawn by `KinoRow`). */
 export function isKinoRow<T extends WebItem>(item: T): item is T & { media: MediaInfo } {
   return item.media !== undefined && item.media.copies.length === 0;

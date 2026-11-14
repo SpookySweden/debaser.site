@@ -21,6 +21,7 @@ import ProfileAvatarLink from './ProfileAvatarLink';
 import ProfileName from './ProfileName';
 import { STATION_KEY } from './TagStationParts';
 import { FindInMedia } from './TagStationParts';
+import { useMediaView, viewListClass } from '../lib/web/media-view';
 
 const STEP = 25;
 
@@ -70,6 +71,7 @@ export function NoPlayerRow({ item }: { item: StationItem }) {
  * tagged: never a fake list. Words and scores only order the list and are never shown here.
  */
 export default function WebPickedList({ list, sort, renderRow }: { list: 'recommended' | 'discover'; sort: PickSort; renderRow: (item: WebItem) => ReactNode }) {
+  const view = useMediaView();
   const [loaded, setIndex] = useState<StationIndex | null>(null);
   const [fault, setFault] = useState<string | null>(null);
   const [picks, setPicks] = useState<readonly RecommendedPick[]>([]);
@@ -146,9 +148,9 @@ export default function WebPickedList({ list, sort, renderRow }: { list: 'recomm
   return (
     <div>
       {list === 'recommended' ? <InfoFold topic="Recommended">{RECOMMEND_NOTE}</InfoFold> : null}
-      <ul aria-label={list === 'recommended' ? 'Recommended' : 'Discover'}>
+      <ul aria-label={list === 'recommended' ? 'Recommended' : 'Discover'} className={viewListClass(view)}>
         {rows.slice(0, shown).map(({ item, people }) => (
-          <li key={item.id} className="list-none">
+          <li key={item.id} className="min-w-0 list-none">
             {people.length > 0 ? (
               <ul aria-label={`Recommended by ${people.map((one) => one.name).join(', ')}`} className="flex flex-wrap items-center gap-2 pt-2">
                 {people.slice(0, 6).map((person) => (

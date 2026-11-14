@@ -7,6 +7,7 @@ import type { StationItem } from '../lib/tag-station/types';
 import { PLATE } from '../lib/ui/controls';
 import type { WebItem } from '../lib/web/types';
 import { NoPlayerRow } from './WebPickedList';
+import { useMediaView, viewListClass } from '../lib/web/media-view';
 
 const STEP = 12;
 const SECTION_ID = 'web-catalogue-finds';
@@ -50,6 +51,7 @@ export function CatalogueLine({ finds }: { finds: CatalogueFinds }) {
  * site answering late never takes a row away from under the reader.
  */
 export default function WebCatalogueFinds({ finds, resultIds, renderRow }: { finds: CatalogueFinds; resultIds: ReadonlySet<string>; renderRow: (item: WebItem) => ReactNode }) {
+  const view = useMediaView();
   const [shown, setShown] = useState(STEP);
   const [pinned, setPinned] = useState<{ ids: readonly string[]; found: ReadonlySet<string> }>({ ids: [], found: new Set() });
   const rows = useMemo(() => {
@@ -67,7 +69,7 @@ export default function WebCatalogueFinds({ finds, resultIds, renderRow }: { fin
   return (
     <section id={SECTION_ID} aria-label="From the tagged catalogue" className="mt-3" data-catalogue-finds={rows.length}>
       <p className="text-label font-bold text-ink-quiet">FROM THE TAGGED CATALOGUE</p>
-      <ul>
+      <ul className={viewListClass(view)}>
         {rows.slice(0, shown).map((item) => (item.seenOnly ? <NoPlayerRow key={item.id} item={item} /> : renderRow({ ...item, tags: item.words.map((word) => word.word) })))}
       </ul>
       {rows.length > shown || finds.more ? (
