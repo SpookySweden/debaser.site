@@ -1,6 +1,6 @@
 /*
  * Character speech: who may say what, the random pick, and the cut into bubbles (SPEC-character-speech.md).
- *   npx tsc app/lib/speech/script.ts app/lib/speech/voice.ts --outDir Temp/speech-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop
+ *   npx tsc app/lib/speech/script.ts app/lib/speech/voice.ts app/lib/companion/events.ts --outDir Temp/speech-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop
  *   node Temp/check-character-speech.cjs
  *
  * Luke, 2026-11-14: "have any comments made on the profile by that person, or comments in reply to that person by spoken
@@ -15,6 +15,7 @@
 const assert = require('node:assert/strict');
 const speech = require('./speech-out/speech/script.js');
 const voices = require('./speech-out/speech/voice.js');
+const events = require('./speech-out/companion/events.js');
 
 const owner = { id: 'u-owner', name: 'sweden' };
 const amy = { id: 'u-amy', name: 'amy' };
@@ -188,5 +189,17 @@ assert.equal(voices.blipGain(0), 0, 'the music bar turned right down is silence'
 assert.ok(voices.blipGain(1) > 0 && voices.blipGain(1) <= 0.15, 'at full volume a blip is still well under the music');
 assert.equal(voices.blipGain(7), voices.blipGain(1), 'and a wild number is not a loud one');
 assert.equal(voices.blipGain(Number.NaN), 0);
+
+// 9. A stream room's chat (phase 3; Luke: "Both at once"): the words of a line reach whoever is listening for that
+//    person's companion, only while the line is fresh, and an older caller that hands over no words still works.
+const heardChat = [];
+const stopChat = events.onCompanionSpoke((who, words) => heardChat.push([who, words]));
+events.companionSpoke('u-amy', new Date().toISOString(), 'hello room');
+events.companionSpoke('u-bo', new Date().toISOString());
+events.companionSpoke('u-amy', new Date(Date.now() - 60000).toISOString(), 'an old line read back in');
+events.companionSpoke('u-amy', 'not a time', 'no time at all');
+stopChat();
+events.companionSpoke('u-amy', new Date().toISOString(), 'nobody is listening now');
+assert.deepEqual(heardChat, [['u-amy', 'hello room'], ['u-bo', undefined]], 'a fresh line is heard with its words; a stale one is nobody speaking');
 
 console.log('check-character-speech: ok');

@@ -25,20 +25,22 @@ export function cheerCompanion<T>(value: T): T {
 /** A line of chat counts as just said for this long: an old line read back in is nobody speaking. */
 const SPOKE_FRESH_MS = 15_000;
 
-const speakers = new Set<(userId: string) => void>();
+const speakers = new Set<(userId: string, words?: string) => void>();
 
 /**
  * A line of chat arrived in the stream room this tab is in (`use-watch-room.ts`, one line there): the companion of whoever
  * said it hops with `...` over its head. Every browser in the room has the line already, so each works this out for
  * itself and nothing extra is sent. `saidAt` is the line's own time.
  */
-export function companionSpoke(userId: string, saidAt: string): void {
+export function companionSpoke(userId: string, saidAt: string, words?: string): void {
   const at = Date.parse(saidAt);
   if (!Number.isFinite(at) || Math.abs(Date.now() - at) > SPOKE_FRESH_MS) return;
-  for (const listener of speakers) listener(userId);
+  // The words, when the caller hands them over, are what the companion says in its bubble (SPEC-character-speech.md,
+  // 2026-11-14). They go no further than this browser, which had the line already.
+  for (const listener of speakers) listener(userId, words);
 }
 
-export function onCompanionSpoke(listener: (userId: string) => void): () => void {
+export function onCompanionSpoke(listener: (userId: string, words?: string) => void): () => void {
   speakers.add(listener);
   return () => {
     speakers.delete(listener);
