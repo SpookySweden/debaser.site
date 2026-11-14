@@ -55,6 +55,7 @@ import { PLATFORM_LABELS, type WebItem, type WebPlatform } from '../lib/web/type
 import { canSort, ORDER_KEYS, orderLabel, searchOrder, type SortChoice } from '../lib/web/web-sort';
 import WebFilterFold, { FILTER_KEY, FILTER_KEY_ON, FOLD_KEY } from './WebFilterFold';
 import { noteHistory } from '../lib/recommender/history';
+import { useAuth } from './AuthProvider';
 import { useMediaView, viewLabel, viewListClass, type MediaView } from '../lib/web/media-view';
 import WebViewKey from './WebViewKey';
 import { hiddenKeys, keyOf, tasteFromHistory } from '../lib/recommender/engine';
@@ -217,13 +218,19 @@ function filtersInWords(search: WebSearch, art: boolean): string {
 
 /** No linked YouTube: nothing it says about the reader. */
 const NO_SIGNALS: YouTubeSignals = { channels: [], topics: [], playlists: [] };
-/** The YOUR YOUTUBE shelf: six at a time, at most four times that. */
-const MINE_STEP = 6;
-const MINE_MOST = 24;
+/** YOUR YOUTUBE's view: twelve at a time, [ MORE ] for twelve more. */
+const MINE_STEP = 12;
 
 /** Which filter sections are open, kept in this browser only (a convenience; shut when nothing is kept). */
 const FOLDS_KEY = 'debaser.media.filter-folds.v1';
-const FOLD_IDS = ['media-filters', 'media-filter-source', 'media-filter-type', 'media-filter-order', 'media-filter-vibe', 'media-filter-creator', 'media-filter-view'];
+/** PICKS: the plain search, or the site's own picks (SPEC-discover.md, SPEC-recommender.md). */
+const PICKS: readonly { value: 'recommended' | 'discover' | null; label: string; line: string }[] = [
+  { value: null, label: 'ALL', line: 'EVERYTHING THE SEARCH FINDS.' },
+  { value: 'recommended', label: 'RECOMMENDED', line: "WHAT PEOPLE HERE RECOMMEND, THEN WHAT FITS WHAT YOU OPEN, PLAY AND READ." },
+  { value: 'discover', label: 'DISCOVER', line: 'ODDER FINDS THAT FIT YOUR DISCOVER SETTINGS.' },
+];
+
+const FOLD_IDS = ['media-filters', 'media-filter-picks', 'media-filter-source', 'media-filter-type', 'media-filter-order', 'media-filter-vibe', 'media-filter-creator', 'media-filter-view'];
 
 /**
  * The quick picks at the top of the FILTERS panel (Luke, 2026-11-14: "more optimised"): the commonest choices in one press
@@ -340,6 +347,9 @@ export default function WebStream() {
   const params = useSearchParams();
   /** STREAM ART (SPEC-stream-art.md): the saved room canvases instead of the stream (`?art=1`). Any search leaves it. */
   const [art, setArt] = useState(() => params.get('art') === '1');
+  /** YOUR YOUTUBE's own view (Luke, 2026-11-14: "the youtube homepage as header options"), `?home=youtube`. Any search leaves it. */
+  const [home, setHome] = useState(() => params.get('home') === 'youtube');
+  const { user } = useAuth();
   // RECOMMENDED and DISCOVER (SPEC-discover.md): lists in their own right, blank until the pool is large enough.
   const [picked, setPicked] = useState<'recommended' | 'discover' | null>(() => {
     const list = params.get('list');
@@ -530,6 +540,7 @@ export default function WebStream() {
   const start = useCallback(
     (next: Shown, box: string | null) => {
       setArt(false);
+      setHome(false);
       generation.current += 1;
       const asked = generation.current;
       setShown(next);
@@ -625,6 +636,8 @@ export default function WebStream() {
   const pickFilter = (key: FilterKey, value: string) => {
     const next = withFilter(draft, key, value);
     setDraft(next);
+    // On RECOMMENDED or DISCOVER the list filters itself from the box: nothing is asked.
+    if (picked !== null) return;
     if (!alreadyShowing(next)) restart(next);
   };
 
@@ -731,6 +744,7 @@ export default function WebStream() {
   /** A box the panel made (a creator dropped): written in and searched, as a filter key does. */
   const applyBox = (next: string) => {
     setDraft(next);
+    if (picked !== null) return;
     if (!alreadyShowing(next)) restart(next);
   };
 
@@ -742,15 +756,44 @@ export default function WebStream() {
   /** RESET FILTERS: every filter back to its start, the words kept. STREAM ART is a source, so it goes too. */
   const resetFilters = () => {
     const next = withoutFilters(draft);
-    if (picked === null) {
-      applyBox(next);
+    setDraft(next);
+    // PICKS is a filter too (Luke, 2026-11-14): RESET goes back to ALL.
+    if (picked !== null) setPicked(null);
+    if (art || JSON.stringify(requestFor(next)) !== JSON.stringify(shown)) restart(next);
+    else window.history.replaceState(window.history.state, '', searchAddress(parseWebSearch(next)));
+  };
+
+  /** PICKS (Luke, 2026-11-14: "the reccomended and discover need to also be filters"): ALL, RECOMMENDED or DISCOVER. */
+  const choosePicks = (next: 'recommended' | 'discover' | null) => {
+    if (next === picked && !art && !home) return;
+    setPicked(next);
+    setArt(false);
+    setHome(false);
+    if (next !== null) {
+      window.history.replaceState(window.history.state, '', `?list=${next}`);
       return;
     }
-    // On RECOMMENDED or DISCOVER: the list stays (it reads the box's order itself), and the search under it is asked
-    // again without its filters, so leaving the list later shows what the line says. The address keeps `?list=`.
+    // Back to ALL: the search under the list is asked again only if the box has changed since it was.
+    if (JSON.stringify(requestFor(draft)) !== JSON.stringify(shown)) restart(draft);
+    else window.history.replaceState(window.history.state, '', searchAddress(parseWebSearch(draft)));
+  };
+
+  /** [ KINO ] at the top: films and shows, the KINO source, out of any other view. */
+  const openKino = () => {
+    const next = withFilter(draft, 'in', 'kino');
     setDraft(next);
-    setTried(new Set());
-    start(requestFor(next), null);
+    const leaving = art || home || picked !== null;
+    setPicked(null);
+    if (leaving || JSON.stringify(requestFor(next)) !== JSON.stringify(shown)) restart(next);
+  };
+
+  /** [ YOUR YOUTUBE ] at the top: the reader's YouTube in a view of its own; pressed again, back to the list. */
+  const toggleHome = () => {
+    const next = !home;
+    setHome(next);
+    setArt(false);
+    setPicked(null);
+    window.history.replaceState(window.history.state, '', next ? '?home=youtube' : searchAddress(parseWebSearch(draft)));
   };
 
   /** Which filter sections are open: shut on the server's draw, then what this browser kept. */
@@ -823,10 +866,61 @@ export default function WebStream() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nextSeed]);
 
-  const mineRows = useMemo(() => {
-    if (browsed === null) return [];
-    return mine.filter((item) => matchesFilters(item, browsed, false)).map((item): WebStreamItem => ({ ...item, alsoOn: [] }));
-  }, [mine, browsed]);
+  const mineRows = useMemo(() => mine.map((item): WebStreamItem => ({ ...item, alsoOn: [] })), [mine]);
+  const kinoOn = !art && !home && picked === null && boxFilters.source === 'kino';
+
+  /**
+   * YOUR YOUTUBE's view (Luke, 2026-11-14): the reader's YouTube, laid out by VIEW (GRID by choice). Google gives no real
+   * home page, so it is the closest honest thing: new videos from the channels they subscribe to, and their likes.
+   */
+  const youtubeHome = () => (
+    <section aria-label="Your YouTube" className="flex flex-col gap-2" data-youtube-home>
+      <p className="text-key text-ink">NEW VIDEOS FROM THE CHANNELS YOU SUBSCRIBE TO, AND YOUR LIKES. READ ONLY: NOTHING IS POSTED OR KEPT ON THE SERVER.</p>
+      {user === null ? (
+        <p className="text-key text-ink">
+          <Link href="/account" className={PLATE}>
+            [ LOG IN ]
+          </Link>{' '}
+          TO LINK YOUR YOUTUBE
+        </p>
+      ) : (
+        <div className="flex flex-wrap items-center gap-1">
+          {mine.length === 0 || mineNeedsLink ? (
+            <button type="button" onClick={() => void linkYouTube()} className={FILTER_KEY} data-youtube-link>
+              [ LINK YOUTUBE ]
+            </button>
+          ) : (
+            <>
+              {/* Google's permission lasts about an hour; after that the kept copy shows, and this asks again. */}
+              <button type="button" onClick={() => void linkYouTube()} className={FILTER_KEY} data-youtube-refresh>
+                [ REFRESH ]
+              </button>
+              <button type="button" onClick={unlinkYouTube} className={FILTER_KEY}>
+                [ UNLINK ]
+              </button>
+            </>
+          )}
+          {linkProblem !== null ? (
+            <span role="alert" className="w-fit bg-bubble-pale px-1 text-label text-ink-bar">
+              {linkProblem}
+            </span>
+          ) : null}
+        </div>
+      )}
+      {mineRows.length > 0 ? (
+        <ul aria-label="From your YouTube" className={viewListClass(view)}>
+          {mineRows.slice(0, mineShown).map(renderRow)}
+        </ul>
+      ) : null}
+      {mineRows.length > mineShown ? (
+        <div>
+          <button type="button" onClick={() => setMineShown((shownNow) => shownNow + MINE_STEP)} className={FILTER_KEY} data-youtube-more>
+            [ MORE ]
+          </button>
+        </div>
+      ) : null}
+    </section>
+  );
 
   const emptyWords = (): string | null => {
     if (nextSeed !== null || (browsing && busy)) return 'READING MEDIA...';
@@ -918,31 +1012,20 @@ export default function WebStream() {
 
       {/* The filters, as keys. Each writes its filter into the box above, which stays the one truth. */}
       <div className="mb-2 space-y-1">
-        {/* Luke, 2026-11-04: a way into films and shows above the choices, centred. It is the KINO source, so its
-            titles and details are TMDB's; the title says so, since the key's word is IMDB's. */}
-        <div className="flex flex-wrap justify-center gap-1">
-          {(['recommended', 'discover'] as const).map((list) => (
-            <button
-              key={list}
-              type="button"
-              aria-pressed={picked === list}
-              onClick={() => {
-                const next = picked === list ? null : list;
-                setPicked(next);
-                setArt(false);
-                window.history.replaceState(window.history.state, '', next === null ? window.location.pathname : `?list=${next}`);
-              }}
-              className={picked === list ? PLATE_PRESSED : PLATE}
-              data-list-key={list}
-            >
-              {picked === list ? list.toUpperCase() : `[ ${list.toUpperCase()} ]`}
+        {/* The top row (Luke, 2026-11-14): three big keys, each its own view. RECOMMENDED and DISCOVER are PICKS in FILTERS. */}
+        <div className="flex flex-wrap justify-center gap-2" data-top-row>
+          <button type="button" onClick={openKino} aria-pressed={kinoOn} aria-label="KINO: films and shows, and where to watch them" className={kinoOn ? FILTER_KEY_ON : FILTER_KEY} data-kino-key>
+            {kinoOn ? 'KINO' : '[ KINO ]'}
+          </button>
+          {YOUTUBE_LINK_ON ? (
+            <button type="button" onClick={toggleHome} aria-pressed={home} aria-label="Your YouTube: new videos from your channels, and your likes" className={home ? FILTER_KEY_ON : FILTER_KEY} data-youtube-home-key>
+              {home ? 'YOUR YOUTUBE' : '[ YOUR YOUTUBE ]'}
             </button>
-          ))}
-          {/* No IMDB key any more (Luke, 2026-11-14: "Remove both"): films and shows are KINO under WHERE FROM. */}
+          ) : null}
           {/* Luke, 2026-11-11: your own PDF or EPUB in the site's reader, opened in the browser, never uploaded. */}
           {/* A key to the site's own page: nothing to prefetch for a page that only opens a file picker. */}
-          <button type="button" onClick={() => window.location.assign('/read')} className={PLATE} data-own-book-key>
-            [ READ YOUR OWN ]
+          <button type="button" onClick={() => window.location.assign('/read')} className={FILTER_KEY} data-own-book-key>
+            [ READ YOUR OWN BOOK ]
           </button>
         </div>
         {/* The filter panel (Luke, 2026-11-13: "expandable, organised and much clearer"): one plain line of what is
@@ -963,10 +1046,11 @@ export default function WebStream() {
           </button>
           <p className="text-key text-ink wrap-anywhere">
             <span className="text-accent-ink">SHOWING: </span>
-            {filtersInWords(boxFilters, art)}
+            {home ? 'YOUR YOUTUBE' : filtersInWords(boxFilters, art)}
+            {picked !== null && !home ? ` · ${picked.toUpperCase()}` : ''}
             {` · ${viewLabel(view)} VIEW`}
           </p>
-          {hasFilters(boxFilters) || art ? (
+          {hasFilters(boxFilters) || art || picked !== null ? (
             <button type="button" onClick={resetFilters} className={FILTER_KEY} data-reset-filters>
               [ RESET FILTERS ]
             </button>
@@ -983,6 +1067,21 @@ export default function WebStream() {
               );
             })}
           </div>
+          {/* PICKS (Luke, 2026-11-14): ALL is the plain search; RECOMMENDED and DISCOVER order the site's picks for you, and
+              the other filters narrow them without asking anything again. */}
+          <WebFilterFold id="media-filter-picks" heading="PICKS" now={picked === null ? 'ALL' : picked.toUpperCase()} open={folds.has('media-filter-picks')} onToggle={() => toggleFold('media-filter-picks')}>
+            <div className="flex flex-wrap items-center gap-1">
+              {PICKS.map((choice) => {
+                const on = !art && !home && picked === choice.value;
+                return (
+                  <button key={choice.label} type="button" onClick={() => choosePicks(choice.value)} aria-pressed={on} aria-label={`Picks: ${choice.label}. ${choice.line}`} className={on ? FILTER_KEY_ON : FILTER_KEY} data-picks={choice.label}>
+                    {on ? choice.label : `[ ${choice.label} ]`}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-key text-ink-quiet">{PICKS.find((choice) => choice.value === picked)?.line}</p>
+          </WebFilterFold>
           <WebFilterFold id="media-filter-source" heading="WHERE FROM" now={art ? 'STREAM ART' : sourceInWords(boxFilters.source)} open={folds.has('media-filter-source')} onToggle={() => toggleFold('media-filter-source')}>
             <div className="flex flex-wrap items-center gap-1">{sourceKey(SOURCE_OPTIONS[0])}</div>
             {sourceGroups().map((group) => (
@@ -1072,7 +1171,7 @@ export default function WebStream() {
         </div>
       </div>
 
-      {picked !== null && !art ? <WebPickedList list={picked} sort={pickSortOf(boxFilters)} renderRow={(item) => renderRow({ ...item, alsoOn: [] } as WebStreamItem)} /> : art ? <StreamArtShelf /> : <>
+      {home ? youtubeHome() : picked !== null && !art ? <WebPickedList list={picked} sort={pickSortOf(boxFilters)} filters={boxFilters} renderRow={(item) => renderRow({ ...item, alsoOn: [] } as WebStreamItem)} /> : art ? <StreamArtShelf /> : <>
       {/* DEBASER.SITE first: the site's own files the search finds. Keyed by the search, so ALL n FILES starts shut. */}
       {shown.kind === 'search' ? <WebSiteFiles key={searchAddress({ ...shown.filters, text: shown.query })} matches={siteFiles} /> : null}
 
@@ -1141,39 +1240,6 @@ export default function WebStream() {
         </div>
       ) : null}
 
-      {YOUTUBE_LINK_ON && browsing ? (
-        <div className="mb-2 flex flex-wrap items-center gap-1 text-label font-bold text-ink-quiet">
-          <span>YOUR YOUTUBE:</span>
-          {mine.length === 0 || mineNeedsLink ? (
-            <button type="button" onClick={() => void linkYouTube()} className={PLATE} data-youtube-link>
-              [ LINK YOUTUBE ]
-            </button>
-          ) : (
-            <>
-              {/* Google's permission lasts about an hour; after that the kept copy shows, and this asks again. */}
-              <button type="button" onClick={() => void linkYouTube()} className={PLATE} data-youtube-refresh>
-                [ REFRESH ]
-              </button>
-              <button type="button" onClick={unlinkYouTube} className={PLATE}>
-                [ UNLINK ]
-              </button>
-            </>
-          )}
-          {linkProblem !== null ? <span role="alert">{linkProblem}</span> : null}
-        </div>
-      ) : null}
-      {YOUTUBE_LINK_ON && browsing && browsed !== null && mineRows.length > 0 ? (
-        <ul aria-label="From your YouTube" className={`mb-2 ${viewListClass(view)}`}>
-          {mineRows.slice(0, mineShown).map(renderRow)}
-        </ul>
-      ) : null}
-      {YOUTUBE_LINK_ON && browsing && mineRows.length > mineShown && mineShown < MINE_MOST ? (
-        <div className="mb-2">
-          <button type="button" onClick={() => setMineShown((shownNow) => shownNow + MINE_STEP)} className={PLATE} data-youtube-more>
-            [ MORE FROM YOUR YOUTUBE ]
-          </button>
-        </div>
-      ) : null}
       {browsing && list.shown.length > 0 ? <p className="text-label font-bold text-ink-quiet">PICKED FOR YOU</p> : null}
       {list.shown.length === 0 ? null : (
         <ul className={viewListClass(view)} aria-label={picksOrdered ? 'Items picked for you' : shown.kind === 'stream' ? 'Items, newest first' : `Results, ${list.order.kind === 'turns' ? 'each site in turn' : list.order.dir === 'asc' ? 'oldest first' : 'newest first'}`}>

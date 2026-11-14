@@ -130,7 +130,11 @@ const google = (over = {}) => {
   assert.match(auth, /queryParams\.login_hint = google\.identity_data\.email/, "a Google account is offered its own address, so Google picks the same one");
   assert.match(fs.readFileSync('app/lib/auth/mock-auth.ts', 'utf8'), /linkYouTube/, 'the mock answers too');
   const page = fs.readFileSync('app/components/WebStream.tsx', 'utf8');
-  assert.match(page, /YOUTUBE_LINK_ON && browsing \? \(/, 'the key shows only with the switch on');
+  // Updated on purpose 2026-11-14 (Luke: "the youtube homepage as header options"): YOUR YOUTUBE is a top-row key opening a
+  // view of its own, which holds LINK, REFRESH, UNLINK and MORE; the key shows only with the switch on.
+  assert.match(page, /\{YOUTUBE_LINK_ON \? \(\n?\s*<button type="button" onClick=\{toggleHome\}/, 'the key shows only with the switch on');
+  assert.match(page, /\{home \? youtubeHome\(\) :/, '... and opens the YOUR YOUTUBE view');
+  assert.match(page, /user === null \? \(/, '... which asks a visitor to log in first');
   // Updated on purpose 2026-11-13 (SPEC-recommender.md step 3): the taste YouTube adds to is now this browser's and the FOR YOU history's.
   assert.match(page, /withYouTube\(tasteFromHistory\([^)]*savedTaste\), mineSignals\)/, "the page's order learns from the YouTube signals");
   assert.match(page, /sortOf\(what\.filters\)\.sort === 'best' \? subscribedFirst\(ownRows, subscribed\.current\) : ownRows/, 'subscribed rows lead only under BEST MATCH');

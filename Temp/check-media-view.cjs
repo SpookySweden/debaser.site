@@ -22,7 +22,8 @@ assert.match(store, /grid grid-cols-4 [^']*max-sm:grid-cols-1/, 'GRID is about 4
 for (const line of store.match(/preview: \[[^\]]*\]/g)) assert.doesNotMatch(line, /<svg|<img|url\(/, 'previews are text characters, never drawn art');
 
 const stream = fs.readFileSync('app/components/WebStream.tsx', 'utf8');
-for (const list of ['aria-label="From your YouTube" className={`mb-2 ${viewListClass(view)}`}', '<ul className={viewListClass(view)} aria-label={picksOrdered', 'className={viewListClass(view)}>{list.shown.map(renderRow)}']) {
+// Updated on purpose 2026-11-14: YOUR YOUTUBE is a view of its own now, its list laid out by VIEW like the others.
+for (const list of ['aria-label="From your YouTube" className={viewListClass(view)}','<ul className={viewListClass(view)} aria-label={picksOrdered', 'className={viewListClass(view)}>{list.shown.map(renderRow)}']) {
   assert.ok(stream.includes(list), `a result list follows the view: ${list.slice(0, 40)}`);
 }
 assert.match(stream, /<span className=\{`block \$\{THUMB_BOX\[view\]\} shrink-0 overflow-hidden border border-ink-plate bg-paper`\}>/, 'the picture box is fixed per view, so a slow picture never moves the row');

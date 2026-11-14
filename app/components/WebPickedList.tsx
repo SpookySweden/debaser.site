@@ -22,6 +22,7 @@ import ProfileName from './ProfileName';
 import { STATION_KEY } from './TagStationParts';
 import { FindInMedia } from './TagStationParts';
 import { useMediaView, viewListClass } from '../lib/web/media-view';
+import { matchesFilters, type WebSearch } from '../lib/web/web-filters';
 
 const STEP = 25;
 
@@ -70,7 +71,11 @@ export function NoPlayerRow({ item }: { item: StationItem }) {
  * MEDIA's RECOMMENDED and DISCOVER filters (SPEC-discover.md). Each stays blank, with a line showing how far along the pool is, until 10,000 items are
  * tagged: never a fake list. Words and scores only order the list and are never shown here.
  */
-export default function WebPickedList({ list, sort, renderRow }: { list: 'recommended' | 'discover'; sort: PickSort; renderRow: (item: WebItem) => ReactNode }) {
+/**
+ * `filters` (Luke, 2026-11-14: PICKS is a filter): WHERE FROM, WHAT KIND and CREATOR narrow the picks here, in the browser,
+ * so a filter press on RECOMMENDED or DISCOVER asks nothing again.
+ */
+export default function WebPickedList({ list, sort, filters, renderRow }: { list: 'recommended' | 'discover'; sort: PickSort; filters?: Pick<WebSearch, 'source' | 'type' | 'authors'>; renderRow: (item: WebItem) => ReactNode }) {
   const view = useMediaView();
   const [loaded, setIndex] = useState<StationIndex | null>(null);
   const [fault, setFault] = useState<string | null>(null);
@@ -114,11 +119,15 @@ export default function WebPickedList({ list, sort, renderRow }: { list: 'recomm
   const digging = useMoreItems(loaded, ask);
   const { index } = digging;
 
+  const filterKey = filters === undefined ? '' : JSON.stringify([filters.source, filters.type, filters.authors ?? []]);
   const computed = useMemo(() => {
     if (index === null || !poolReady(index) || taste === null) return [];
     const all = list === 'recommended' ? recommendedList(index, picks, taste, sort, now) : discoverList(index, recipe, taste, sort, now).map((item) => ({ item, people: [] as { id: string; name: string }[] }));
-    return all.filter((row) => !notForMe.has(keyOf('media', row.item.id)));
-  }, [index, list, picks, recipe, taste, sort, now, notForMe]);
+    const narrowed = filters === undefined ? all : all.filter((row) => matchesFilters({ ...row.item, media: undefined }, filters, false));
+    return narrowed.filter((row) => !notForMe.has(keyOf('media', row.item.id)));
+    // The filters by their words, so a new object with the same choices does not start the list again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, list, picks, recipe, taste, sort, now, notForMe, filterKey]);
   // What's on the screen stays put when more arrives. A new list or SORT starts again.
   const order = `${list}|${sort}`;
   const [pinned, setPinned] = useState<{ order: string; ids: readonly string[] }>({ order, ids: [] });

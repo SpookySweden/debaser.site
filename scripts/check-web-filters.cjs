@@ -181,8 +181,15 @@ ok(/heading="ORDER"/.test(page) && /ORDER_KEYS\.map/.test(page) && /const on = b
 // WHERE FROM, as before. The stream room's own IMDB key is another screen (check-queue-filters).
 ok(page.indexOf('data-imdb-key') === -1, 'no IMDB key on MEDIA');
 ok(/\{ value: 'all', label: 'ALL' \},\n  \{ value: 'kino', label: PLATFORM_LABELS\.kino \}/.test(require('node:fs').readFileSync(join(ROOT, 'app/lib/web/web-filters.ts'), 'utf8').replace(/\r\n/g, '\n')), '... KINO is still a WHERE FROM choice');
-// RECOMMENDED and DISCOVER keep their centred row (SPEC-discover.md); the IMDB key that sat beside them is gone (above).
-ok(/flex flex-wrap justify-center gap-1">/.test(page) && /data-list-key=\{list\}/.test(page), 'RECOMMENDED and DISCOVER on their centred row');
+// Updated on purpose 2026-11-14 (Luke: "the reccomended and discover need to also be filters, rather than header options,
+// add kino and the youtube homepage as header options"): the top row is KINO, YOUR YOUTUBE and READ YOUR OWN BOOK.
+ok(/data-top-row/.test(page) && /data-kino-key/.test(page) && /data-youtube-home-key/.test(page) && /\[ READ YOUR OWN BOOK \]/.test(page) && !/data-list-key/.test(page), 'the top row: KINO, YOUR YOUTUBE, READ YOUR OWN BOOK');
+ok(/const next = withFilter\(draft, 'in', 'kino'\);/.test(page), '... KINO is the KINO source');
+ok(/heading="PICKS"/.test(page) && /\{ value: null, label: 'ALL'/.test(page) && /value: 'recommended', label: 'RECOMMENDED'/.test(page) && /value: 'discover', label: 'DISCOVER'/.test(page), 'RECOMMENDED and DISCOVER are PICKS in FILTERS, ALL the default');
+ok(/filters=\{boxFilters\}/.test(page) && /if \(picked !== null\) return;\n?\r?\n?\s*if \(!alreadyShowing\(next\)\) restart\(next\);/.test(page), '... the other filters narrow the picks without asking anything again');
+ok(/if \(next === picked && !art && !home\) return;/.test(page), '... and choosing the PICKS already on asks nothing');
+ok(/picked !== null && !home \? ` · \$\{picked\.toUpperCase\(\)\}` : ''/.test(page), '... and the SHOWING line says them');
+ok(/hasFilters\(boxFilters\) \|\| art \|\| picked !== null/.test(page), '... and RESET goes back to ALL');
 ok(!/\[ CLEAR \]/.test(page) && !/const clear = /.test(page), 'no CLEAR key on MEDIA (Luke, 2026-11-14): RESET FILTERS is the one way back');
 ok(
   require('node:fs').readFileSync('next.config.ts', 'utf8').includes("{ source: '/cytube', destination: '/stream', permanent: true }"),
