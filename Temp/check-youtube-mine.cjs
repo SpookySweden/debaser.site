@@ -3,16 +3,23 @@
  * token stays out of everything kept.
  *   npx tsc app/lib/web/youtube-mine.ts app/lib/web/recommend.ts --rootDir app/lib --outDir Temp/youtube-mine-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop
  *
+ * Widened on purpose 2026-11-14 (Luke: "many users are subscribed to many channels they no longer watch, and most often
+ * watch videos from channels they are not subscribed to"): the likes are read with the day of each (the person's own
+ * liked list), the videos in their playlists with the day each was added, and new uploads are read for the channels that
+ * stand by that, subscribed or not.
  * Widened on purpose 2026-11-13 (Luke: "takes into account what would be shown on your youtube homepage"): 50 channels,
  * 50 likes, the person's playlist names and the topics YouTube files their channels under, which teach the page's order.
  */
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const { GOOGLE_TOKEN, YouTubeTokenError, readYouTubeMine, topicWord } = require('./youtube-mine-out/web/youtube-mine.js');
+const { GOOGLE_TOKEN, YouTubeTokenError, readYouTubeMine, topicWord, preferredChannels } = require('./youtube-mine-out/web/youtube-mine.js');
 const { withYouTube, subscribedFirst, channelNames, pickSeed, NO_TASTE } = require('./youtube-mine-out/web/recommend.js');
 
 const TOKEN = 'ya29.a0AfB_byC-example-token-value';
 const CHANNEL = `UC${'a'.repeat(22)}`;
+const STRANGER = `UC${'b'.repeat(22)}`;
+const SAVED = `UC${'c'.repeat(22)}`;
+const PLAYLIST = 'PLexampleplaylist01';
 const answer = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
 const google = (over = {}) => {
@@ -21,8 +28,21 @@ const google = (over = {}) => {
     asked.push({ url: new URL(url), auth: new Headers(init?.headers).get('authorization') });
     const path = new URL(url).pathname;
     if (over.refuse) return answer({ error: {} }, 401);
+    const list = new URL(url).searchParams.get('playlistId');
+    // The person's own liked list: each entry says when it was liked, whose video it is, and the video's own date.
+    if (list === 'LL') {
+      if (over.noLikedList) return answer({}, 404);
+      return answer({
+        items: [
+          { snippet: { title: 'Liked', publishedAt: '2026-10-30T00:00:00Z', videoOwnerChannelId: STRANGER, videoOwnerChannelTitle: 'Ada', resourceId: { videoId: 'liked111111' } }, contentDetails: { videoPublishedAt: '2026-01-01T00:00:00Z' } },
+          { snippet: { title: 'Bad', publishedAt: '2026-10-30T00:00:00Z', resourceId: { videoId: 'not valid id!' } } },
+        ],
+      });
+    }
+    // One of the person's playlists: whose videos are in it, and when each was added.
+    if (list === PLAYLIST) return answer({ items: [{ snippet: { title: 'Saved', publishedAt: '2026-10-01T00:00:00Z', videoOwnerChannelId: SAVED, videoOwnerChannelTitle: 'Cy', resourceId: { videoId: 'saved111111' } } }] });
     if (path.endsWith('/videos')) {
-      return answer({ items: [{ id: 'liked111111', snippet: { title: 'Liked', channelTitle: 'Ada', publishedAt: '2026-01-01T00:00:00Z' } }, { id: 'not valid id!', snippet: { title: 'Bad' } }] });
+      return answer({ items: [{ id: 'liked111111', snippet: { title: 'Liked', channelId: STRANGER, channelTitle: 'Ada', publishedAt: '2026-01-01T00:00:00Z' } }, { id: 'not valid id!', snippet: { title: 'Bad' } }] });
     }
     if (path.endsWith('/subscriptions')) {
       return answer({ items: [{ snippet: { title: 'Bob Films', resourceId: { channelId: CHANNEL } } }, { snippet: { title: 'Nobody', resourceId: { channelId: 'nonsense' } } }] });
@@ -33,7 +53,7 @@ const google = (over = {}) => {
     }
     if (path.endsWith('/playlists')) {
       if (over.extrasFail) return answer({}, 500);
-      return answer({ items: [{ snippet: { title: '  Rainy   day jazz ' } }, { snippet: { title: 'Rainy day jazz' } }] });
+      return answer({ items: [{ id: PLAYLIST, snippet: { title: '  Rainy   day jazz ' } }, { id: 'bad id!', snippet: { title: 'Rainy day jazz' } }] });
     }
     if (path.endsWith('/channels')) {
       if (over.extrasFail) return answer({}, 500);
@@ -73,24 +93,49 @@ const google = (over = {}) => {
   // 2. What Google is asked: read only, metadata only, Google only, and the uploads of real channels.
   for (const { url, auth } of asked) {
     assert.equal(url.hostname, 'www.googleapis.com', 'only Google');
-    assert.ok(['snippet', 'topicDetails'].includes(url.searchParams.get('part')), 'titles, channels and topics: no statistics, so no counts');
+    assert.ok(['snippet', 'snippet,contentDetails', 'topicDetails'].includes(url.searchParams.get('part')), "titles, channels, a video's own date and topics: no statistics, so no counts");
     assert.ok(!/search$/.test(url.pathname), 'never search (100 units each)');
     assert.equal(auth, `Bearer ${TOKEN}`, 'with the token in a header');
     assert.ok(!url.href.includes(TOKEN), 'never in an address, where logs would keep it');
   }
   // Updated on purpose 2026-11-14 (Luke: no Shorts): the channel's long-form uploads list, which YouTube keeps without Shorts.
   assert.ok(asked.some(({ url }) => url.searchParams.get('playlistId') === `UULF${CHANNEL.slice(2)}`), "a channel's uploads list, without Shorts (UULF)");
-  assert.equal(asked.filter(({ url }) => url.pathname.endsWith('/playlistItems')).length, 1, 'a nonsense channel id asks nothing');
+  const lists = asked.filter(({ url }) => url.pathname.endsWith('/playlistItems')).map(({ url }) => url.searchParams.get('playlistId'));
+  assert.deepEqual(lists.filter((list) => list.startsWith('UU')).sort(), [`UULF${CHANNEL.slice(2)}`, `UULF${STRANGER.slice(2)}`, `UULF${SAVED.slice(2)}`].sort(), 'new uploads are read for the subscription and for the channels behind a like and a playlist; a nonsense id asks nothing');
+  assert.ok(lists.includes('LL') && lists.includes(PLAYLIST) && lists.length === 5, "and the liked list and the one real playlist, once each");
+  assert.ok(!asked.some(({ url }) => url.pathname.endsWith('/videos')), 'the plain list of likes is not asked when the liked list answers');
   assert.ok(!JSON.stringify(read).includes(TOKEN), 'and the token is in nothing that comes back');
 
   // 2b. What it says about the person: the real channels by name, the topics as plain words, the playlist names once.
   assert.deepEqual(read.channels, [{ id: CHANNEL, name: 'Bob Films' }], 'a nonsense channel id is dropped');
+
+  // 2a. What each channel has to show (2026-11-14): days only, the subscription first, then the strangers.
+  assert.deepEqual(read.evidence, [
+    { id: CHANNEL, name: 'Bob Films', subscribed: true, liked: [], saved: [] },
+    { id: STRANGER, name: 'Ada', subscribed: false, liked: ['2026-10-30T00:00:00.000Z'], saved: [] },
+    { id: SAVED, name: 'Cy', subscribed: false, liked: [], saved: ['2026-10-01T00:00:00.000Z'] },
+  ]);
+  assert.deepEqual(read.likedAt, { 'youtube:liked111111': '2026-10-30T00:00:00.000Z' }, 'when each like was made');
+  assert.deepEqual([read.uploads.map((item) => item.id), read.liked.map((item) => item.id)], [['youtube:newvideo111'], ['youtube:liked111111']], 'uploads and likes, apart');
+  assert.equal(read.liked[0].publishedAt, '2026-01-01T00:00:00.000Z', "a liked video keeps its own date, not the like's");
+  assert.equal(read.liked[0].creator, 'Ada');
+  // The fallback: no liked list, so the plain likes, newest first, each taken to be a few days older than the last.
+  const plain = google({ noLikedList: true });
+  const undated = await readYouTubeMine(TOKEN, plain.impl, new Date('2026-11-04T00:00:00Z'));
+  assert.ok(plain.asked.some(({ url }) => url.pathname.endsWith('/videos') && url.searchParams.get('myRating') === 'like'), 'the plain list of likes is asked instead');
+  assert.deepEqual(undated.evidence.find((one) => one.id === STRANGER).liked, ['2026-11-04T00:00:00.000Z'], 'the newest like counts as today');
+  assert.deepEqual(undated.liked.map((item) => item.id), ['youtube:liked111111']);
+  // The browser's hint of channels watched on this site: real ids only, read first.
+  const hinted = google();
+  await readYouTubeMine(TOKEN, hinted.impl, new Date('2026-11-04T00:00:00Z'), preferredChannels([`UC${'d'.repeat(22)}`, 'nonsense', 7]));
+  assert.ok(hinted.asked.some(({ url }) => url.searchParams.get('playlistId') === `UULF${'d'.repeat(22)}`), "a hinted channel's new videos are read");
+  assert.deepEqual(preferredChannels('no'), []);
   assert.deepEqual(read.topics, ['Film', 'Lifestyle'], "Wikipedia's topic pages as words; another host and markup are dropped");
   assert.deepEqual(read.playlists, ['Rainy day jazz'], 'playlist names, tidied, once each');
   assert.equal(topicWord('https://en.wikipedia.org/wiki/Video_game_culture'), 'Video game culture');
   assert.equal(topicWord('http://en.wikipedia.org/wiki/Film'), null, 'https only');
   const channelsAsked = asked.find(({ url }) => url.pathname.endsWith('/channels'));
-  assert.equal(channelsAsked.url.searchParams.get('id'), CHANNEL, 'topics asked for the subscribed channels, in one request');
+  assert.deepEqual(channelsAsked.url.searchParams.get('id').split(',').sort(), [CHANNEL, STRANGER, SAVED].sort(), 'topics asked for the channels that stand and the subscriptions, in one request');
   assert.equal(asked.find(({ url }) => url.pathname.endsWith('/subscriptions')).url.searchParams.get('maxResults'), '50');
   const extrasFail = await readYouTubeMine(TOKEN, google({ extrasFail: true }).impl);
   assert.deepEqual([extrasFail.topics, extrasFail.playlists, extrasFail.items.length], [[], [], 2], 'topics or playlists failing loses only those');

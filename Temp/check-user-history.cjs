@@ -9,12 +9,17 @@
  * - ERASE: the owner's delete empties their history
  * - the 90-day clean-up refuses anyone without the ingest lock
  * - from the files: the table holds no counts or token, and the hourly fetch runs the clean-up
+ * - widened on purpose 2026-11-14 (Luke's OK "A: Yes, add them", 20261114223034_history_presses.sql): a row may say
+ *   skipped, more or less; a press replaces anything and only a press replaces a press; SHOW LESS is a maker row and
+ *   nothing else is; the database and the browser (types.ts `actionAfter`) agree on which note wins
+ *   npx tsc app/lib/recommender/types.ts --rootDir app/lib --outDir Temp/user-history-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop
  *
  * It leaves nothing: A's rows and settings row are made and removed inside the run (A can only ever touch A's own).
  */
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const { loadEnv, testAccountClient } = require('../scripts/browser.cjs');
+const { actionAfter } = require('./user-history-out/recommender/types.js');
 
 (async () => {
   const migration = fs.readFileSync('supabase/migrations/20261113210656_user_history.sql', 'utf8');
@@ -47,6 +52,21 @@ const { loadEnv, testAccountClient } = require('../scripts/browser.cjs');
       { ref: 'check:1', action: 'finished', title: 'Check item' },
       { ref: 'check:2', action: 'not_for_me', title: 'Check item' },
     ], 'one row per thing; the stronger action stays; NOT FOR ME stays');
+
+    // The presses and the skip (2026-11-14). Each pair on a row of its own: what the database keeps is what the browser expects.
+    const pairs = [['played', 'skipped'], ['skipped', 'played'], ['skipped', 'finished'], ['finished', 'skipped'], ['finished', 'more'], ['more', 'played'], ['not_for_me', 'more'], ['more', 'not_for_me']];
+    await Promise.all(pairs.map(([before], n) => note(a, `check:pair${n}`, before)));
+    const second = await Promise.all(pairs.map(([, next], n) => note(a, `check:pair${n}`, next)));
+    assert.ok(second.every((answer) => answer.error === null), 'skipped and more are taken');
+    const kept = new Map((await mine()).map((one) => [one.ref, one.action]));
+    pairs.forEach(([before, next], n) => assert.equal(kept.get(`check:pair${n}`), actionAfter(before, next), `${before} then ${next}`));
+    const less = (kind, action) => a.client.rpc('history_note', { p_kind: kind, p_ref: 'check maker', p_title: 'Check maker', p_maker: 'Check maker', p_words: [], p_action: action });
+    assert.equal((await less('maker', 'less')).error, null, 'SHOW LESS is kept as a row about the maker');
+    assert.notEqual((await less('media', 'less')).error, null, '... and only about a maker');
+    assert.notEqual((await less('maker', 'played')).error, null, '... which says nothing else');
+    assert.notEqual((await note(a, 'check:bad', 'loved')).error, null, 'an action nobody OK’d is refused');
+    await a.client.from('user_history').delete().eq('person', a.id).like('ref', 'check:pair%');
+    await a.client.from('user_history').delete().eq('person', a.id).eq('kind', 'maker');
 
     assert.deepEqual((await b.client.from('user_history').select('ref').eq('person', a.id)).data ?? [], [], 'another account reads nothing');
     const seen = await visitor.from('user_history').select('ref').limit(1);

@@ -14,9 +14,17 @@ import type { HistoryAction, HistoryKind, HistoryRow } from './types';
 
 const DAY_MS = 86_400_000;
 const HALF_LIFE_DAYS = 30;
-const ACTION_WEIGHT: Record<Exclude<HistoryAction, 'not_for_me'>, number> = { opened: 1, played: 2, read: 2, finished: 3 };
-/** How hard NOT FOR ME pushes a thing's words and maker down. */
-const NOT_FOR_ME = 2;
+/**
+ * What each thing a person does says (Luke, 2026-11-14: "most often watch videos from channels they are not subscribed
+ * to", so what they do here counts most): finishing counts strongly, a quick skip counts a little against. These fade.
+ */
+const ACTION_WEIGHT: Record<'opened' | 'played' | 'read' | 'finished' | 'skipped', number> = { opened: 1, played: 2, read: 2, finished: 4, skipped: -1 };
+/** How hard NOT FOR ME pushes a thing's words and maker down. A press does not fade: it holds until it is forgotten. */
+const NOT_FOR_ME = 3;
+/** MORE LIKE THIS: as strong as finishing it, and it does not fade. */
+const MORE_LIKE_THIS = 4;
+/** SHOW LESS FROM THIS CHANNEL: its maker sinks below anything a few plays could lift. */
+export const LESS_FROM_MAKER = 8;
 /** Of each 10 picks, these places go to something new (7 familiar to 3 new, Luke 2026-11-13). */
 const NEW_PLACES = new Set([2, 5, 8]);
 /** Each earlier pick by the same maker costs a later one this much. */
@@ -34,11 +42,16 @@ export function tasteFromHistory(rows: readonly HistoryRow[], now: number, base:
   const tags: Record<string, number> = { ...base.tags };
   const creators: Record<string, number> = { ...base.creators };
   for (const row of rows) {
+    const maker = normal(row.maker);
+    // SHOW LESS FROM THIS CHANNEL is about the maker alone: its words are not held against anything else.
+    if (row.action === 'less') {
+      if (maker !== '') creators[maker] = (creators[maker] ?? 0) - LESS_FROM_MAKER;
+      continue;
+    }
     const age = Math.max(0, now - Date.parse(row.lastAt)) / DAY_MS;
     const fade = Number.isFinite(age) ? 0.5 ** (age / HALF_LIFE_DAYS) : 0;
-    const weight = row.action === 'not_for_me' ? -NOT_FOR_ME : ACTION_WEIGHT[row.action] * fade;
+    const weight = row.action === 'not_for_me' ? -NOT_FOR_ME : row.action === 'more' ? MORE_LIKE_THIS : ACTION_WEIGHT[row.action] * fade;
     for (const word of new Set(row.words.map(normal).filter(Boolean))) tags[word] = (tags[word] ?? 0) + weight;
-    const maker = normal(row.maker);
     if (maker !== '') creators[maker] = (creators[maker] ?? 0) + weight;
   }
   return { tags, creators, platforms: base.platforms };
@@ -47,6 +60,11 @@ export function tasteFromHistory(rows: readonly HistoryRow[], now: number, base:
 /** Things the person pressed NOT FOR ME on: never offered again. */
 export function hiddenKeys(rows: readonly HistoryRow[]): ReadonlySet<string> {
   return new Set(rows.filter((row) => row.action === 'not_for_me').map((row) => keyOf(row.kind, row.ref)));
+}
+
+/** Makers the person pressed SHOW LESS FROM THIS CHANNEL on, as `normal` writes a name. */
+export function lessMakers(rows: readonly HistoryRow[]): ReadonlySet<string> {
+  return new Set(rows.filter((row) => row.action === 'less' && row.maker.trim() !== '').map((row) => normal(row.maker)));
 }
 
 /** Everything already in the history: a lane offers things like them, not the same things again. */
@@ -100,21 +118,25 @@ const VERB: Record<HistoryKind, Partial<Record<HistoryAction, string>> & { defau
   letter: { default: 'OPENED' },
   lore: { default: 'READ' },
   person: { default: 'VISITED' },
+  maker: { default: 'OPENED' },
 };
 
 /** What was done, when the kind has no word of its own for it. */
-const ACTION_VERB: Partial<Record<HistoryAction, string>> = { played: 'PLAYED', read: 'READ', finished: 'FINISHED' };
+const ACTION_VERB: Partial<Record<HistoryAction, string>> = { played: 'PLAYED', read: 'READ', finished: 'FINISHED', more: 'WANTED MORE LIKE' };
+
+/** Rows that say nothing good about a thing: never the reason a pick is here. */
+const NO_REASON: readonly HistoryAction[] = ['not_for_me', 'less', 'skipped'];
 
 const shortTitle =(title: string) => (title.length > 60 ? `${title.slice(0, 57).trimEnd()}...` : title).toUpperCase();
 
 /** Why a familiar pick is here: the history row it shares most with, or its maker. */
-function familiarWhy(candidate: Candidate<unknown>, rows: readonly HistoryRow[], taste: Taste): string {
+export function familiarWhy(candidate: Pick<Candidate<unknown>, 'words' | 'maker'>, rows: readonly HistoryRow[], taste: Taste): string {
   const maker = candidate.maker ? normal(candidate.maker) : '';
   const words = new Set(candidate.words.map(normal));
   let best: HistoryRow | null = null;
   let bestShared = 0;
   for (const row of rows) {
-    if (row.action === 'not_for_me') continue;
+    if (NO_REASON.includes(row.action)) continue;
     const shared = row.words.filter((word) => words.has(normal(word))).length + (maker !== '' && normal(row.maker) === maker ? 2 : 0);
     if (shared > bestShared) {
       best = row;

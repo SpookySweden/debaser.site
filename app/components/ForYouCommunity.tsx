@@ -57,7 +57,7 @@ function PersonRow({ pick, onHide }: { pick: LanePick<{ id: string; name: string
       <ProfileAvatarLink author={{ id: pick.item.id, displayName: pick.item.name }} size={40} />
       <div className="min-w-0 flex-1">
         {status !== '' ? <p className="break-words px-1 text-label text-ink">{status}</p> : null}
-        <PickFoot why={pick.why} title={pick.item.name} onHide={() => onHide('person', pick.item.id, pick.item.name, '', pick.item.words)} />
+        <PickFoot why={pick.why} item={{ kind: 'person', ref: pick.item.id, title: pick.item.name, maker: '', words: pick.item.words }} onHide={() => onHide('person', pick.item.id, pick.item.name, '', pick.item.words)} />
       </div>
     </li>
   );
@@ -257,7 +257,7 @@ export default function ForYouCommunity({ context, hidden, onHide, close, loadin
                 {pick.item.title}
               </Link>
               <p className="break-words px-1 text-label text-ink">{pick.item.author.displayName}</p>
-              <PickFoot why={pick.why} title={pick.item.title} onHide={() => onHide('thread', pick.item.id, pick.item.title, pick.item.author.displayName, pick.item.tags.map((tag) => tag.label))} />
+              <PickFoot why={pick.why} item={{ kind: 'thread', ref: pick.item.id, title: pick.item.title, maker: pick.item.author.displayName, words: pick.item.tags.map((tag) => tag.label) }} onHide={() => onHide('thread', pick.item.id, pick.item.title, pick.item.author.displayName, pick.item.tags.map((tag) => tag.label))} />
             </li>
           )}
         />
@@ -278,7 +278,7 @@ export default function ForYouCommunity({ context, hidden, onHide, close, loadin
                   {room.originalHostLabel}
                   {current?.link?.title ? ` · ON NOW: ${current.link.title}` : ''}
                 </p>
-                <PickFoot why={pick.why} title={name} onHide={() => onHide('room', room.id, name, room.originalHostLabel, [])} />
+                <PickFoot why={pick.why} item={{ kind: 'room', ref: room.id, title: name, maker: room.originalHostLabel, words: [] }} onHide={() => onHide('room', room.id, name, room.originalHostLabel, [])} />
               </li>
             );
           }}
@@ -294,7 +294,7 @@ export default function ForYouCommunity({ context, hidden, onHide, close, loadin
                 {pick.item.title}
               </Link>
               {pick.item.summary ? <p className="break-words px-1 text-label text-ink">{pick.item.summary}</p> : null}
-              <PickFoot why={pick.why} title={pick.item.title} onHide={() => onHide('lore', pick.item.slug as string, pick.item.title, pick.item.createdByLabel, [])} />
+              <PickFoot why={pick.why} item={{ kind: 'lore', ref: pick.item.slug as string, title: pick.item.title, maker: pick.item.createdByLabel, words: [] }} onHide={() => onHide('lore', pick.item.slug as string, pick.item.title, pick.item.createdByLabel, [])} />
             </li>
           )}
         />
@@ -312,7 +312,7 @@ export default function ForYouCommunity({ context, hidden, onHide, close, loadin
                 {pick.item.letter.name}
               </button>
               {pick.item.letter.description ? <p className="break-words px-1 text-label text-ink">{pick.item.letter.description}</p> : null}
-              <PickFoot why={pick.why} title={pick.item.letter.name} onHide={() => onHide('letter', pick.item.letter.id, pick.item.letter.name, pick.item.name, [])} />
+              <PickFoot why={pick.why} item={{ kind: 'letter', ref: pick.item.letter.id, title: pick.item.letter.name, maker: pick.item.name, words: [] }} onHide={() => onHide('letter', pick.item.letter.id, pick.item.letter.name, pick.item.name, [])} />
             </li>
           )}
         />

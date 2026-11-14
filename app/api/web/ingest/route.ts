@@ -77,7 +77,11 @@ export async function POST(request: Request): Promise<Response> {
     // FOR YOU's history rows untouched for 90 days go (Luke's OK 2026-11-13, 20261113210656_user_history.sql), the same way.
     const old = await db.rpc('web_forget_old_history', { p_secret: lock });
     const historyForgotten = old.error === null && typeof old.data === 'number' ? old.data : null;
-    return json({ ...result, media, youtubeTasteForgotten, historyForgotten }, 200);
+    // An imported YouTube history's summary goes 12 months after its import (Luke's OK 2026-11-14,
+    // 20261114223035_watch_summary.sql), the same way.
+    const stale = await db.rpc('web_forget_old_watch_summary', { p_secret: lock });
+    const watchSummariesForgotten = stale.error === null && typeof stale.data === 'number' ? stale.data : null;
+    return json({ ...result, media, youtubeTasteForgotten, historyForgotten, watchSummariesForgotten }, 200);
   } catch (error) {
     if (error instanceof IngestLockError) return json({ error: 'Not allowed.' }, 401);
     return json({ error: 'The WEB sources could not be read.' }, 500);

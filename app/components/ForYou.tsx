@@ -119,8 +119,18 @@ export default function ForYou({ index, extraHosts, onPick }: { index: StationIn
 
   const history = useMemo(() => rows ?? [], [rows]);
   // The taste is read once a visit, so NOT FOR ME takes one pick out without reshuffling every lane (code review).
+  // MORE LIKE THIS and SHOW LESS FROM THIS CHANNEL are asked for on purpose, so they reshape the lanes at once
+  // (Luke, 2026-11-14: each press of the feedback key reshapes the picks).
   const [tasteRows, setTasteRows] = useState<HistoryRow[] | null>(null);
-  if (tasteRows === null && rows !== null) setTasteRows(rows);
+  const [pressesUsed, setPressesUsed] = useState('');
+  const presses = (rows ?? []).filter((row) => row.action === 'more' || row.action === 'less').map((row) => keyOf(row.kind, row.ref)).sort().join('|');
+  if (tasteRows === null && rows !== null) {
+    setTasteRows(rows);
+    setPressesUsed(presses);
+  } else if (rows !== null && presses !== pressesUsed) {
+    setTasteRows(rows);
+    setPressesUsed(presses);
+  }
   const taste = useMemo(() => tasteFromHistory(tasteRows ?? [], now, browserTaste), [tasteRows, now, browserTaste]);
   const explore = useMemo(
     () => exploreWords(taste, (word) => findTag(index, word)?.partners.filter((partner) => partner.close).map((partner) => partner.name) ?? []),
@@ -233,13 +243,13 @@ export default function ForYou({ index, extraHosts, onPick }: { index: StationIn
                       {sourceLabel(item.platform)} · {item.kind.toUpperCase()}
                       {item.creator ? ` · ${item.creator}` : ''}
                     </p>
-                    <PickFoot why={pick.why} title={item.title} onHide={() => hide('media', item.id, item.title, item.creator ?? '', words)} />
+                    <PickFoot why={pick.why} item={{ kind: 'media', ref: item.id, title: item.title, maker: item.creator ?? '', words }} onHide={() => hide('media', item.id, item.title, item.creator ?? '', words)} />
                   </div>
                 </li>
               );
             }}
           />
-          <YouTubeLane context={context} hidden={hidden} onHide={hideHere} extraHosts={extraHosts} />
+          <YouTubeLane hidden={hidden} onHide={hideHere} extraHosts={extraHosts} />
         </div>
         <div className="flex min-w-0 flex-1 basis-72 flex-col">
           <Lane
@@ -260,7 +270,7 @@ export default function ForYou({ index, extraHosts, onPick }: { index: StationIn
                     {`▶ ${track.title}`}
                   </button>
                   <p className="break-words px-1 text-label text-ink">{artist}</p>
-                  <PickFoot why={pick.why} title={track.title} onHide={() => hide('song', track.src, track.title, artist, track.kind ? [track.kind] : [])} />
+                  <PickFoot why={pick.why} item={{ kind: 'song', ref: track.src, title: track.title, maker: artist, words: track.kind ? [track.kind] : [] }} onHide={() => hide('song', track.src, track.title, artist, track.kind ? [track.kind] : [])} />
                 </li>
               );
             }}
@@ -280,7 +290,7 @@ export default function ForYou({ index, extraHosts, onPick }: { index: StationIn
                       {item.title}
                     </Link>
                     {item.creator ? <p className="break-words px-1 text-label text-ink">{item.creator}</p> : null}
-                    <PickFoot why={pick.why} title={item.title} onHide={() => hide('book', item.id, item.title, item.creator ?? '', item.tags ?? [])} />
+                    <PickFoot why={pick.why} item={{ kind: 'book', ref: item.id, title: item.title, maker: item.creator ?? '', words: item.tags ?? [] }} onHide={() => hide('book', item.id, item.title, item.creator ?? '', item.tags ?? [])} />
                   </div>
                 </li>
               );

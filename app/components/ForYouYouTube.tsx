@@ -1,14 +1,13 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { keyOf, pickLane, type Candidate } from '../lib/recommender/engine';
-import type { HistoryRow } from '../lib/recommender/types';
+import { keyOf, type LanePick } from '../lib/recommender/engine';
 import { findTag, type StationIndex } from '../lib/tag-station/query';
-import type { Taste } from '../lib/web/recommend';
 import { rowAddresses, type ExtraHosts } from '../lib/web/row-addresses';
 import type { WebItem } from '../lib/web/types';
-import { readMineOnce, YOUTUBE_LINK_ON, type YouTubeMine } from '../lib/web/youtube-link';
-import { Lane, PickFoot } from './ForYouParts';
+import { subscribeHistory } from '../lib/recommender/history';
+import { readMineOnce, reweighMine, YOUTUBE_LINK_ON, type YouTubeMine } from '../lib/web/youtube-link';
+import { Lane, MOST, PickFoot } from './ForYouParts';
 import { STATION_KEY, Thumb } from './TagStationParts';
 
 /**
@@ -19,8 +18,6 @@ import { STATION_KEY, Thumb } from './TagStationParts';
  * (`NEXT_PUBLIC_GOOGLE_VIDEOS_LINK`, docs/youtube-link-setup.md).
  */
 
-type Context = { taste: Taste; rows: readonly HistoryRow[]; explore: ReadonlyMap<string, string>; now: number; size: number };
-
 /** The reader's YouTube, once per page; null until read, and always null while the switch is off. */
 export function useYouTubeMine(): YouTubeMine | null {
   const [mine, setMine] = useState<YouTubeMine | null>(null);
@@ -28,27 +25,34 @@ export function useYouTubeMine(): YouTubeMine | null {
     if (!YOUTUBE_LINK_ON) return;
     let live = true;
     void readMineOnce().then((answer) => live && setMine(answer));
+    // A press of the feedback key (or a video finished) reshapes the shelf at once: the same read, weighed again.
+    const stop = subscribeHistory(() => {
+      void reweighMine().then((found) => live && found !== null && setMine((before) => (before === null ? before : { ...before, ...found })));
+    });
     return () => {
       live = false;
+      stop();
     };
   }, []);
   return mine;
 }
 
-/** FROM YOUR YOUTUBE: the reader's channels' newest videos and likes, ordered by the same engine. */
+/**
+ * FROM YOUR YOUTUBE: new videos from the channels the reader still watches (subscribed or not), about 3 in 10 from
+ * channels new to them, each saying why (Luke, 2026-11-14; `recommender/youtube-picks.ts` orders it, the same list as
+ * MEDIA's YOUR YOUTUBE). A subscription they no longer watch is not here.
+ */
 /** NOT FOR ME here (`onHide`) hides a video for this visit only: NOT FOR ME here never writes the YouTube list to the database. */
-export function YouTubeLane({ context, hidden, onHide, extraHosts }: { context: Context; hidden: ReadonlySet<string>; onHide: (key: string) => void; extraHosts: ExtraHosts }) {
+export function YouTubeLane({ hidden, onHide, extraHosts }: { hidden: ReadonlySet<string>; onHide: (key: string) => void; extraHosts: ExtraHosts }) {
   const mine = useYouTubeMine();
-  const picks = useMemo(() => {
-    const candidates: Candidate<WebItem>[] = (mine?.items ?? []).map((item) => ({
-      key: keyOf('media', item.id),
-      words: item.tags ?? [],
-      maker: item.creator,
-      item,
-      shared: { why: 'FROM YOUR YOUTUBE', weight: 1 },
-    }));
-    return pickLane(candidates, context).filter((pick) => !hidden.has(pick.key));
-  }, [mine, context, hidden]);
+  const picks = useMemo(
+    () =>
+      (mine?.picks ?? [])
+        .map((pick): LanePick<WebItem> => ({ key: keyOf('media', pick.item.id), item: pick.item, why: pick.why, fresh: pick.fresh }))
+        .filter((pick) => !hidden.has(pick.key))
+        .slice(0, MOST),
+    [mine, hidden],
+  );
   if (!YOUTUBE_LINK_ON) return null;
   return (
     <Lane
@@ -71,7 +75,7 @@ export function YouTubeLane({ context, hidden, onHide, extraHosts }: { context: 
                 <p className="break-words px-1 text-label text-ink">{item.title}</p>
               )}
               {item.creator ? <p className="break-words px-1 text-label text-ink">{item.creator}</p> : null}
-              <PickFoot why={pick.why} title={item.title} onHide={() => onHide(pick.key)} />
+              <PickFoot why={pick.why} item={{ kind: 'media', ref: item.id, title: item.title, maker: item.creator ?? '', words: item.tags ?? [] }} onHide={() => onHide(pick.key)} />
             </div>
           </li>
         );

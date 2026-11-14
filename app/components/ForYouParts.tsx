@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from 'react';
 import type { LanePick } from '../lib/recommender/engine';
+import FeedbackKey, { type FeedbackItem } from './FeedbackKey';
 import { STATION_KEY } from './TagStationParts';
 
 /** FOR YOU's lanes (SPEC-recommender.md): four picks first, four more each [ MORE ], at most this many. */
@@ -33,16 +34,18 @@ export function Lane<T>({ id, title, picks, loading, render }: { id: string; tit
   );
 }
 
-/** The why-line and NOT FOR ME, under every pick. */
-export function PickFoot({ why, onHide, title }: { why: string; onHide: () => void; title: string }) {
+/**
+ * The why-line and the one feedback key, under every pick (Luke, 2026-11-14: "a single expandable clear button"). The
+ * key's list holds NOT FOR ME, SHOW LESS FROM THIS CHANNEL, MORE LIKE THIS and WHY THIS (FeedbackKey.tsx). `onHide` is the
+ * lane's own NOT FOR ME, which also hides the pick for this visit when the history is paused.
+ */
+export function PickFoot({ why, onHide, item }: { why: string; onHide: () => void; item: FeedbackItem }) {
   return (
     <div className="flex flex-wrap items-center gap-x-2">
       <p className="min-w-0 break-words px-1 text-label text-ink-quiet" data-why>
         {why}
       </p>
-      <button type="button" onClick={onHide} aria-label={`Not for me: hide ${title}`} className={STATION_KEY}>
-        [ NOT FOR ME ]
-      </button>
+      <FeedbackKey item={item} why={why} onNotForMe={onHide} />
     </div>
   );
 }

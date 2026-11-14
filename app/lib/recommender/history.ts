@@ -1,7 +1,9 @@
 'use client';
 
 import { getSupabaseBrowserClient } from '../supabase/client';
-import { HISTORY_KINDS, MAX_MAKER, MAX_REF, MAX_TITLE, MAX_WORDS, type HistoryAction, type HistoryKind, type HistoryNote, type HistoryRow } from './types';
+import { removeSummary } from './watch-summary';
+import { watchPlayback } from './watch-signals';
+import { actionAfter, HISTORY_KINDS, makerRef, MAX_MAKER, MAX_REF, MAX_TITLE, MAX_WORDS, type HistoryAction, type HistoryKind, type HistoryNote, type HistoryRow } from './types';
 
 /**
  * The browser's half of FOR YOU's private history (`user_history`, `user_history_settings`; Luke's OK 2026-11-13).
@@ -11,6 +13,9 @@ import { HISTORY_KINDS, MAX_MAKER, MAX_REF, MAX_TITLE, MAX_WORDS, type HistoryAc
  * stops what the reader was doing. With no Supabase (the mock site) the same calls keep a copy in this browser.
  *
  * Metadata only: an address, a title and maker as the site shows them, and words. Never counts, never DM text.
+ *
+ * Since 2026-11-14 (Luke's OK, `20261114223034_history_presses.sql`) a row may also say SKIPPED (a video closed within
+ * 30 seconds), MORE LIKE THIS or SHOW LESS (the feedback key), and SHOW LESS is one row about a maker.
  */
 
 const MOCK_KEY = 'debaser.history.mock.v1';
@@ -25,6 +30,7 @@ const cleanWords = (words: readonly string[] | undefined) =>
   [...new Set((words ?? []).map((word) => clip(word, 60).toLowerCase()).filter(Boolean))].slice(0, MAX_WORDS);
 
 function changed(): void {
+  lastRead = null;
   listeners.forEach((listener) => listener());
 }
 
@@ -62,8 +68,6 @@ function keepMock(rows: HistoryRow[]): void {
   }
 }
 
-const RANK: Record<HistoryAction, number> = { opened: 1, played: 2, read: 2, finished: 3, not_for_me: 9 };
-
 function mockNote(kind: HistoryKind, ref: string, fields: Omit<HistoryRow, 'kind' | 'ref' | 'firstAt' | 'lastAt'>): void {
   if (mockPaused()) return;
   const now = new Date().toISOString();
@@ -75,7 +79,7 @@ function mockNote(kind: HistoryKind, ref: string, fields: Omit<HistoryRow, 'kind
     ref,
     ...fields,
     words: fields.words.length > 0 ? fields.words : (before?.words ?? []),
-    action: before !== null && RANK[before.action] >= RANK[fields.action] ? before.action : fields.action,
+    action: actionAfter(before?.action ?? null, fields.action),
     firstAt: before?.firstAt ?? now,
     lastAt: now,
   };
@@ -114,9 +118,28 @@ export function noteHistory(note: HistoryNote): void {
   const last = recent.get(key);
   if (last !== undefined && Date.now() - last < QUIET_MS) return;
   recent.set(key, Date.now());
+  // A video just started: its end (FINISHED) or a quick close (SKIPPED) is noted when it comes (watch-signals.ts).
+  if (note.kind === 'media' && note.action === 'played') watchPlayback({ ...note, ref }, noteHistory);
   void send(note.kind, ref, { title: clip(note.title, MAX_TITLE), maker: clip(note.maker, MAX_MAKER), words: cleanWords(note.words), action: note.action }).catch(() => {
     // History is a convenience: a failed write changes nothing the reader sees.
   });
+}
+
+/**
+ * The feedback key's other two presses (Luke, 2026-11-14). MORE LIKE THIS is about the thing: its words and maker count
+ * more. SHOW LESS FROM THIS CHANNEL is about the maker alone, kept as one row for that maker whatever was pressed on.
+ * True when it was kept.
+ */
+export async function pressHistory(note: Omit<HistoryNote, 'action'>, action: 'more' | 'less'): Promise<boolean> {
+  const maker = clip(note.maker, MAX_MAKER);
+  const about =
+    action === 'less'
+      ? { kind: 'maker' as const, ref: makerRef(maker), title: maker, maker, words: [] as string[] }
+      : { kind: note.kind, ref: clip(note.ref, MAX_REF), title: clip(note.title, MAX_TITLE), maker, words: cleanWords(note.words) };
+  if (about.ref === '') return false;
+  const kept = await send(about.kind, about.ref, { title: about.title, maker: about.maker, words: about.words, action }).catch(() => false);
+  if (kept) changed();
+  return kept;
 }
 
 /** `[ NOT FOR ME ]`: this thing is hidden from FOR YOU, and its words and maker count less. */
@@ -130,8 +153,19 @@ export async function notForMe(note: Omit<HistoryNote, 'action'>): Promise<boole
 
 /* --- reading and the controls ------------------------------------------------------------------- */
 
+/** A read asked for again within this long is the same read: several parts of a page ask as it loads. */
+const SAME_READ_MS = 3000;
+let lastRead: { limit: number; at: number; rows: Promise<HistoryRow[]> } | null = null;
+
 /** The person's own history, newest first (at most `limit` rows). Signed out: nothing. */
-export async function readHistory(limit = 3000): Promise<HistoryRow[]> {
+export function readHistory(limit = 3000): Promise<HistoryRow[]> {
+  if (lastRead !== null && lastRead.limit === limit && Date.now() - lastRead.at < SAME_READ_MS) return lastRead.rows;
+  const rows = readHistoryNow(limit);
+  lastRead = { limit, at: Date.now(), rows };
+  return rows;
+}
+
+async function readHistoryNow(limit: number): Promise<HistoryRow[]> {
   const db = getSupabaseBrowserClient();
   if (db === null) return mockRows().slice(0, limit);
   if (!(await signedIn())) return [];
@@ -181,9 +215,10 @@ export async function setPaused(paused: boolean): Promise<boolean> {
   return error === null;
 }
 
-/** ERASE MY HISTORY: every row of the person's, at once. */
+/** ERASE MY HISTORY: every row of the person's, at once, and an imported YouTube history's summary with them. */
 export async function eraseHistory(): Promise<boolean> {
   recent.clear();
+  void removeSummary();
   const db = getSupabaseBrowserClient();
   if (db === null) {
     keepMock([]);

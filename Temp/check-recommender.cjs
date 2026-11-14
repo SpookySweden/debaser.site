@@ -70,7 +70,10 @@ assert.deepEqual(sharedLane.map((pick) => pick.why), ['PLAYED BY PEOPLE YOU MESS
 // 5. From the files.
 const page = fs.readFileSync('app/components/ForYou.tsx', 'utf8');
 assert.doesNotMatch(page, /\.score\b|tasteScore|plays\b.*\}/, 'the page draws no score or count');
-assert.match(fs.readFileSync('app/components/ForYouParts.tsx', 'utf8'), /\[ NOT FOR ME \]/, 'every pick has NOT FOR ME (the shared foot, ForYouParts.tsx)');
+// Updated on purpose 2026-11-14 (Luke: "make sure the 'not for me etc' options are a single expandable clear button"):
+// NOT FOR ME is inside the one feedback key every pick's foot draws (FeedbackKey.tsx), with the lane's own hide behind it.
+assert.match(fs.readFileSync('app/components/ForYouParts.tsx', 'utf8'), /<FeedbackKey item=\{item\} why=\{why\} onNotForMe=\{onHide\} \/>/, 'every pick has the feedback key (the shared foot, ForYouParts.tsx)');
+assert.match(fs.readFileSync('app/components/FeedbackKey.tsx', 'utf8'), />\s*NOT FOR ME\s*</, '... which holds NOT FOR ME');
 for (const [file, kind] of [
   ['app/components/WebStream.tsx', "kind: 'media'"],
   ['app/components/TagStation.tsx', "kind: 'media'"],
@@ -119,7 +122,10 @@ assert.match(youtube, /onHide=\{\(\) => onHide\(pick\.key\)\}/, 'NOT FOR ME on a
 assert.match(page, /onHide=\{hideHere\}/, '... wired to the visit-only hide');
 assert.match(page, /readHistory\(3000\)/, 'every row the cap allows is read, so an old NOT FOR ME still holds');
 assert.match(fs.readFileSync('app/lib/recommender/use-history.ts', 'utf8'), /limit = 3000/);
-assert.match(page, /if \(tasteRows === null && rows !== null\) setTasteRows\(rows\);/, 'the taste is read once a visit, so NOT FOR ME does not reshuffle every lane');
+// Updated on purpose 2026-11-14 (Luke: each press of the feedback key reshapes the picks): NOT FOR ME still only takes its
+// pick out, while MORE LIKE THIS and SHOW LESS, asked for on purpose, re-read the taste.
+assert.match(page, /if \(tasteRows === null && rows !== null\) \{\s*setTasteRows\(rows\);/, 'the taste is read once a visit, so NOT FOR ME does not reshuffle every lane');
+assert.match(page, /row\.action === 'more' \|\| row\.action === 'less'/, '... and only MORE LIKE THIS or SHOW LESS re-reads it');
 assert.match(page, /if \(!saved\) setPausedHide\(true\);/, 'NOT FOR ME while paused says it lasts only this visit');
 
 console.log('ok: FOR YOU engine: taste, 7 to 3, hidden and seen left out, steady per day, why-lines in words');

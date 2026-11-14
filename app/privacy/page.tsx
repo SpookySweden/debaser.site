@@ -39,17 +39,19 @@ const SECTIONS: { heading: string; lines: string[] }[] = [
     lines: [
       'Whether you are online, so others can see a status lamp. You can hide it in your privacy settings.',
       'Where you are in a book, so you can carry on reading on another device.',
-      'Your private history: what you open, play and read, used only to suggest things for you (FOR YOU). Only you can see it. It deletes itself after 90 days, and you can pause it, forget single items or erase it all on your account PRIVACY tab.',
+      'Your private history: what you open, play and read, whether you finished a video or closed it within half a minute, and what you press on a result’s feedback key (NOT FOR ME, MORE LIKE THIS, SHOW LESS FROM THIS CHANNEL). It is used only to suggest things for you (FOR YOU). Only you can see it. It deletes itself after 90 days, and you can pause it, forget single items or erase it all on your account PRIVACY tab.',
       'Settings you choose, such as your theme and which pages are on your top bar.',
     ],
   },
   {
     heading: 'YOUR YOUTUBE (ONLY IF YOU LINK IT)',
     lines: [
-      'If you press LINK YOUTUBE and agree on Google’s screen, the site reads, read-only: the channels you subscribe to and their newest videos, your liked videos, your playlist names, and the topics YouTube files your channels under.',
+      'If you press LINK YOUTUBE and agree on Google’s screen, the site reads, read-only: the channels you subscribe to, your liked videos and the day you liked each, your playlist names and which channels the videos in your playlists are from and when you added them, the newest videos of the channels that shows you still watch, and the topics YouTube files those channels under.',
       'It is used only to suggest things to you on this site. It never posts, changes or deletes anything on YouTube, and it never reads or stores counts.',
-      'Google’s permission is never stored. Your channel list and topic words are kept on your account for at most 30 days, then deleted. Video lists stay in your own browser for a week. UNLINK deletes it at once.',
+      'Google’s permission is never stored. Up to 50 channels that matter to you (subscribed or not, each with whether you subscribe and the day of your latest like or playlist add) and your topic words are kept on your account for at most 30 days, then deleted. Video lists and the days of your likes stay in your own browser for a week. UNLINK deletes it at once.',
       'The site’s use of information received from Google APIs keeps to the Google API Services User Data Policy, including its Limited Use requirements.',
+      'To suggest videos from channels you do not subscribe to, the site asks YouTube what it shows next to a few videos you liked or played here. Only the video is asked about, from the site’s server: nothing about you or your account goes with it.',
+      'IMPORT YOUTUBE HISTORY (only if you choose to): you can bring your own watch history file from Google Takeout. The file is read in your browser and never uploaded. Only a summary is kept on your account: up to 200 channel names, each with how much you watch it (1 to 5) and the month you last did, and up to 60 topic words. No videos, titles or times. Only you can see it. It deletes itself 12 months after the import, and REMOVE IMPORT or ERASE MY HISTORY deletes it at once.',
     ],
   },
   {

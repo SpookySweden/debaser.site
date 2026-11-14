@@ -19,6 +19,7 @@ const KIND_WORD: Record<HistoryKind, string> = {
   letter: 'LETTER',
   lore: 'LORE',
   person: 'PERSON',
+  maker: 'CHANNEL',
 };
 
 const ACTION_WORD: Record<HistoryRow['action'], string> = {
@@ -27,6 +28,9 @@ const ACTION_WORD: Record<HistoryRow['action'], string> = {
   read: 'READ',
   finished: 'FINISHED',
   not_for_me: 'NOT FOR ME',
+  skipped: 'SKIPPED',
+  more: 'MORE LIKE THIS',
+  less: 'SHOW LESS',
 };
 
 /** How many rows the list shows at first, and adds each [ SHOW MORE ]. */
