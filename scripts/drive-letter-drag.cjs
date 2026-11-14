@@ -377,7 +377,14 @@ async function room() {
     check('B`s companion is on A`s screen, and says whose it is', true);
 
     console.log('A goes to its own profile, the room folded away');
-    await a.page.locator(`a[href="/profile/${A}"]`).first().click();
+    // Without a page load, so A stays in the room: the site's own router, or the side panel's link to your profile.
+    const pushed = await a.page.evaluate((to) => {
+      const router = window.next?.router;
+      if (!router || typeof router.push !== 'function') return false;
+      router.push(to);
+      return true;
+    }, `/profile/${A}`);
+    if (!pushed) await a.page.locator(`a[href="/profile/${A}"]`).first().click({ force: true });
     await a.page.waitForSelector('#profile-letters', { timeout: 60000 });
     await closeFirstLooks(a.page);
     const fold = a.page.locator('[data-dock-window="stream"]').getByRole('button', { name: /^Fold / });
