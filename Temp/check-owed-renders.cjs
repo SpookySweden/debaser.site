@@ -960,7 +960,7 @@ test('WatchInRoomKey: in no room, it reads WATCH IN ROOM, and a press only opens
 test('WatchInRoomKey: the menu names the video, with PRIVATE picked, and START passes the choices and where it had got to', async () => {
   auth = { status: 'signed-in', user: USER };
   watching = null;
-  const html = roomKey({ WatchInRoomKey: slots(true) });
+  const html = roomKey({ useRoomKey: slots(true) });
   assert.ok(html.includes('data-window="WATCH IN ROOM"'));
   assert.ok(visible(html).includes('A Train Film'));
   for (const word of ['ROOM NAME', 'TOPIC', 'WHO CAN ADD:', 'WHO CAN JOIN:', '[ START ]']) assert.ok(visible(html).includes(word), word);
@@ -1151,9 +1151,10 @@ test('WebMediaRow: a show picks season and episode; a server without that episod
 test('WebMediaRow: KinoRow, TMDB\'s details and its link, its real seasons only, and says no server has it', () => {
   const html = draw(el(KinoRow, { item: KINO, titleId: 'kino-title' }));
   const words = visible(html);
-  for (const word of ['A Film Nobody Holds', 'SHOW', 'DRAMA', 'S1: 8 EP', 'NO SERVER HAS THIS.', '[ ON TMDB ↗ ]', 'NOT ENDORSED, CERTIFIED, OR OTHERWISE APPROVED BY TMDB.']) assert.ok(words.includes(word), word);
+  // Updated on purpose 2026-11-14 (Luke's list M8): the TMDB link is the small ↗ in the poster's corner.
+  for (const word of ['A Film Nobody Holds', 'SHOW', 'DRAMA', 'S1: 8 EP', 'NO SERVER HAS THIS.', 'NOT ENDORSED, CERTIFIED, OR OTHERWISE APPROVED BY TMDB.']) assert.ok(words.includes(word), word);
   assert.ok(!words.includes('S0:'), 'the specials are not a season here');
-  assert.match(openingTag(html, '[ ON TMDB ↗ ]'), /href="https:\/\/www\.themoviedb\.org\/movie\/603"/);
+  assert.match(html, /<a href="https:\/\/www\.themoviedb\.org\/movie\/603"[^>]*aria-label="&quot;A Film Nobody Holds&quot; on TMDB \(opens a new tab\)"[^>]*data-thumb-open/);
   assert.equal(isKinoRow(KINO), true);
   assert.equal(isMediaRow(KINO), false);
   assert.equal(isMediaRow(FILM), true);
@@ -1305,8 +1306,11 @@ test('WebStream: a row names its source, its words as text, and links only where
   const also = { ...VIDEO, id: 'vimeo:123', platform: 'vimeo', externalId: '123', url: 'https://vimeo.com/123', title: 'A Train Film' };
   const html = draw(el(WebStream), arrived([{ ...VIDEO, alsoOn: [also] }]));
   const words = visible(html);
-  for (const word of ['A Train Film', 'Prelinger', 'VIDEO', '2026-10-01', 'YOUTUBE', '[ OPEN ↗ ]', '[ ▶ PLAY ]', '[ DISCUSS ]', '[ WATCH IN ROOM ]', 'ALSO ON', '[ VIMEO ↗ ]']) assert.ok(words.includes(word), word);
-  assert.match(openingTag(html, '[ OPEN ↗ ]'), new RegExp(`href="https://youtu\\.be/${YT_ID}"`));
+  // Updated on purpose 2026-11-14 (Luke's list M5-M11): OPEN is a small ↗ in the picture's corner, DISCUSS is the pen alone,
+  // PLAY is the first half of one key, and the other copies fold open under `[ ALSO ON ▾ ]` (drawn, hidden, while shut).
+  for (const word of ['A Train Film', 'Prelinger', 'YOUTUBE · VIDEO', '2026-10-01', '[ ▶ PLAY │ WATCH IN ROOM ]', '[ ✎ ]', '[ ALSO ON ▾ ]', '[ VIMEO ↗ ]']) assert.ok(words.includes(word), word);
+  assert.match(html, new RegExp(`<a href="https://youtu\\.be/${YT_ID}"[^>]*aria-label="Open &quot;A Train Film&quot; on YOUTUBE \\(new tab\\)"[^>]*data-thumb-open`), 'the corner key, and it says where it goes');
+  assert.match(html, /<div id="[^"]*-also" hidden=""/, 'the other copies are folded until asked for');
   assert.ok(html.includes(`src="https://i.ytimg.com/vi/${YT_ID}/hqdefault.jpg"`) && html.includes('referrerPolicy="no-referrer"'));
   assert.ok(html.includes('&lt;b&gt;not markup&lt;/b&gt;') && !html.includes('<b>not markup'));
   assert.ok(!html.includes('<iframe'), 'nothing from the platform loads until the reader asks');
@@ -1316,7 +1320,7 @@ test('WebStream: a hostile address is dropped: no link, no picture and no player
   const html = draw(el(WebStream), arrived([{ ...VIDEO, url: 'https://evil.invalid/x', thumbnailUrl: 'javascript:alert(1)', embedUrl: 'https://evil.invalid/embed/abcdefghijk' }]));
   assert.ok(visible(html).includes('A Train Film'));
   assert.ok(!html.includes('evil.invalid') && !html.includes('javascript:'));
-  assert.ok(!visible(html).includes('[ OPEN ↗ ]') && !visible(html).includes('[ ▶ PLAY ]'));
+  assert.ok(!html.includes('data-thumb-open') && !visible(html).includes('▶ PLAY'));
 });
 // Updated on purpose 2026-11-05 (SPEC-floating-player.md): the player is in the site's one layer, and YouTube is also asked
 // to say where it has got to (enablejsapi, origin). The sandbox, referrer and autoplay rules are unchanged.
@@ -1326,7 +1330,7 @@ test('WebStream: PLAY opens the platform\'s own sandboxed player; only YouTube i
     press(`Play "${VIDEO.title}" (loads the YOUTUBE player)`);
     let html = draw(el(WebStream), arrived([VIDEO]));
     assert.ok(!html.includes('<iframe'), 'the row draws a box, not a frame');
-    assert.ok(visible(html).includes('[ ■ CLOSE ]') && visible(html).includes('[ PIP ]'));
+    assert.ok(visible(html).includes('■ CLOSE') && visible(html).includes('[ PIP ]'));
     assert.ok(html.includes(`data-player-box="web:${VIDEO.id}"`));
     let frame = /<iframe[^>]*>/.exec(draw(el(FloatingPlayer)))?.[0];
     assert.ok(frame, 'the player frame');
@@ -1353,8 +1357,10 @@ test('WebStream: a book reads at /read, READ first where OPEN was', () => {
   const words = visible(html);
   assert.ok(html.includes('href="/read/internet_archive:book"'), 'READ goes to the reader');
   assert.ok(!words.includes('[ ▶ PLAY ]'), 'no player in the row');
-  assert.ok(words.indexOf('[ READ ]') < words.indexOf('[ OPEN ↗ ]'), 'READ stands before OPEN');
-  assert.ok(words.indexOf('[ READ ]') >= 0 && words.indexOf('[ OPEN ↗ ]') > words.indexOf('[ DISCUSS'), 'and OPEN has moved after the site`s own keys');
+  // Updated on purpose 2026-11-14 (Luke's list M8): the way out to the source is the ↗ in the picture's corner, so READ is
+  // the row's first key.
+  assert.ok(words.indexOf('[ READ ]') >= 0 && words.indexOf('[ READ ]') < words.indexOf('[ ✎'), 'READ is the first key');
+  assert.match(html, /<a href="https:\/\/archive\.org\/details\/book"[^>]*data-thumb-open/, 'OPEN is the corner key');
   assert.equal(floating.floatingState().entry, null, 'nothing floats');
 });
 test('FloatingPlayer: nothing until PLAY; then one player, its keys only while floating, POP OUT only for our own file', async () => {

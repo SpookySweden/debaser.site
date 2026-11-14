@@ -15,8 +15,12 @@ import { useForum } from './ForumProvider';
  * says whether a row gets it.
  */
 
-/** `onOpen`: told when the window opens (an EVERYWHERE result asks to be saved; save-opened.ts). */
-export function WebDiscussKey({ item, onOpen }: { item: WebItem; onOpen?: () => void }) {
+/**
+ * `onOpen`: told when the window opens (an EVERYWHERE result asks to be saved; save-opened.ts). `short` (Luke's list,
+ * 2026-11-14: "comment option smaller"): a MEDIA row's key is the pen alone, `[ ✎ ]`, with the count beside it when there
+ * are comments; its name for a screen reader and its tip still say DISCUSS.
+ */
+export function WebDiscussKey({ item, onOpen, short = false }: { item: WebItem; onOpen?: () => void; short?: boolean }) {
   const forum = useForum();
   const [open, setOpen] = useState(false);
   const anchor = webAnchor(item);
@@ -34,9 +38,11 @@ export function WebDiscussKey({ item, onOpen }: { item: WebItem; onOpen?: () => 
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={`Discuss "${item.title}" on the forum${count > 0 ? ` (${count} comments)` : ''}`}
+        title={short ? 'Discuss' : undefined}
         className={PLATE}
+        data-discuss-key
       >
-        [ DISCUSS{count > 0 ? ` (${count})` : ''} ]
+        {short ? `[ ✎${count > 0 ? ` ${count}` : ''} ]` : `[ DISCUSS${count > 0 ? ` (${count})` : ''} ]`}
       </button>
       {open ? <CommentWindow anchor={anchor} onClose={close} /> : null}
     </>

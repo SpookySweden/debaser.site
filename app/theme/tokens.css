@@ -132,6 +132,9 @@
   --font-display: var(--font-body);
   /* Fields, numbers and code: where the letters should line up. */
   --font-mono: var(--face-pixel), 'Courier New', monospace;
+  /* The one heavier weight (fonts.ts `--face-strong`, IBM Plex Mono 600; Luke, 2026-11-14): `font-strong` on what the
+     eye should find first, such as a MEDIA result's title. A family of its own, so `font-bold` stays inert elsewhere. */
+  --font-strong: var(--face-strong), var(--face-pixel), 'Courier New', monospace;
   /* RADI-OH's text faces (`loopFace` in app/lib/audio/loops.ts): an emoticon needs a true lowercase `d`
      and `b` and every character the same width. A typewriter face has both and is on every machine; the
      faces were drawn for it, so they keep it even now the site's own face is a monospace too. */

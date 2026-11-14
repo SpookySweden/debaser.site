@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { closeFloatingIfMine, floatingState, playCount, playFloating } from '../lib/ui/floating-player';
 import { artSlot } from '../lib/ui/art/slots';
-import { PLATE_LARGE, PLATE_LINK } from '../lib/ui/controls';
+import { PLATE_LARGE } from '../lib/ui/controls';
 import type { WebStreamItem } from '../lib/web/dedupe';
 import { mediaServer, playerSandbox, type MediaServerId } from '../lib/web/media-servers';
 import { seasonsLine } from '../lib/web/kino';
@@ -21,7 +21,7 @@ import PlayerBox, { PipKey, usePlayingHere } from './PlayerBox';
 import SpriteSlot from './SpriteSlot';
 import WatchInRoomKey from './WatchInRoomKey';
 import FindInRoomKey from './FindInRoomKey';
-import AddToLetterKey from './AddToLetterKey';
+import { LetterPlaylistKey, ThumbOpen } from './WebRowKeys';
 
 /**
  * One title from Luke's or a friend's media server (SPEC-media-servers.md), in the /web stream.
@@ -215,12 +215,12 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
         </span>
 
         <div className="min-w-0 flex-1">
-          <p id={titleId} tabIndex={-1} className="text-title font-bold text-ink wrap-anywhere">
+          <p id={titleId} tabIndex={-1} className="text-title font-strong text-ink wrap-anywhere">
             {item.title}
             <AudioSubsFlags audio={contentLanguage(item)} burnedIn={burnedInSubtitles(item.title)} className="ml-1.5" />
           </p>
-          {facts.length > 0 ? <p className="text-label font-bold text-ink-quiet wrap-anywhere">{facts.join(' · ')}</p> : null}
-          {item.creator ? <p className="text-label text-ink wrap-anywhere">{item.creator}</p> : null}
+          {item.creator ? <p className="text-label text-ink-quiet wrap-anywhere">{item.creator}</p> : null}
+          {facts.length > 0 ? <p className="text-label text-ink-quiet wrap-anywhere">{facts.join(' · ')}</p> : null}
           {part ? <p className="text-label font-bold text-ink wrap-anywhere">{`NOW PICKED: ${part.title}`}</p> : null}
           {description ? <p className="mt-0.5 line-clamp-3 text-prose text-ink wrap-anywhere">{description}</p> : null}
           {details ? (
@@ -248,6 +248,23 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
         audio={contentLanguage(item)}
         serverCount={media.copies.length}
         startOpen={kept !== undefined}
+        // Into a stream room: the pick on the chosen server, as a sandboxed embed (SPEC-media-servers.md; Luke 2026-11-07); ALL as
+        // one block. Then + LETTER. Both on the WATCH key's line (M7, M11).
+        beside={
+          <>
+            {roomAdd === null ? null : roomAdd.kind === 'one' ? (
+              <WatchInRoomKey source={{ link: roomAdd.link }} playId={playId} title={roomAdd.link.title} />
+            ) : (
+              <WatchInRoomKey
+                source={{ link: roomAdd.links[0] }}
+                series={{ title: roomAdd.title, links: roomAdd.links, note: allAddNote(roomAdd) }}
+                playId={playId}
+                title={`${roomAdd.title} · ${pickedLine(media, pick, server)}`}
+              />
+            )}
+            <LetterPlaylistKey letter={{ kind: 'media', ref: item.id, title: item.title, picture: rowAddresses(item).thumb ?? undefined }} playlist={null} />
+          </>
+        }
         notice={
           // Plain words for every state, large, in one fixed place under the key (Luke's eyesight).
           phase === 'asking' ? (
@@ -312,24 +329,6 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
         }
       />
 
-      {/* Into a stream room: the pick on the chosen server, as a sandboxed embed (SPEC-media-servers.md; Luke 2026-11-07); ALL as one block. */}
-      {roomAdd === null ? null : (
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          {roomAdd.kind === 'one' ? (
-            <WatchInRoomKey source={{ link: roomAdd.link }} playId={playId} title={roomAdd.link.title} />
-          ) : (
-            <WatchInRoomKey
-              source={{ link: roomAdd.links[0] }}
-              series={{ title: roomAdd.title, links: roomAdd.links, note: allAddNote(roomAdd) }}
-              playId={playId}
-              title={`${roomAdd.title} · ${pickedLine(media, pick, server)}`}
-            />
-          )}
-        </div>
-      )}
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        <AddToLetterKey thing={{ kind: 'media', ref: item.id, title: item.title, picture: rowAddresses(item).thumb ?? undefined }} />
-      </div>
     </li>
   );
 }
@@ -381,7 +380,7 @@ export function KinoRow({ item, titleId, action }: { item: WebItem & { media: Me
   return (
     <li className="rule-pixel col-span-full py-2">
       <div className="flex items-start gap-2">
-        <span className="block h-36 w-24 shrink-0 overflow-hidden border border-ink-plate bg-paper">
+        <span className="relative block h-36 w-24 shrink-0 overflow-hidden border border-ink-plate bg-paper">
           {thumb ? (
             // eslint-disable-next-line @next/next/no-img-element -- hotlinked from TMDB's image host, never proxied or copied
             <img
@@ -405,13 +404,15 @@ export function KinoRow({ item, titleId, action }: { item: WebItem & { media: Me
               fallback={<span aria-hidden="true" className="flex h-full w-full items-center justify-center text-label font-bold text-ink">NO IMAGE</span>}
             />
           )}
+          {/* OPEN, small in the poster's corner (M8): the title's page on TMDB. */}
+          {addresses.link ? <ThumbOpen href={addresses.link} label={`"${item.title}" on TMDB (opens a new tab)`} /> : null}
         </span>
         <div className="min-w-0 flex-1">
-          <p id={titleId} tabIndex={-1} className="text-title font-bold text-ink wrap-anywhere">
+          <p id={titleId} tabIndex={-1} className="text-title font-strong text-ink wrap-anywhere">
             {item.title}
             <AudioSubsFlags audio={contentLanguage(item)} burnedIn={burnedInSubtitles(item.title)} className="ml-1.5" />
           </p>
-          <p className="text-label font-bold text-ink-quiet wrap-anywhere">{facts.join(' · ')}</p>
+          <p className="text-label text-ink-quiet wrap-anywhere">{facts.join(' · ')}</p>
           {item.description ? <p className="mt-0.5 line-clamp-3 text-prose text-ink wrap-anywhere">{item.description}</p> : null}
           {seasons.length > 0 ? (
             <ul aria-label={`Seasons of "${item.title}"`} className="mt-0.5 flex flex-wrap gap-x-2 text-label text-ink">
@@ -423,18 +424,20 @@ export function KinoRow({ item, titleId, action }: { item: WebItem & { media: Me
           <TmdbCredit />
         </div>
       </div>
-      <WatchList sources={sources} title={item.title} audio={contentLanguage(item)} />
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        {action ?? (watchCount(sources) > 0 ? null : <p className="text-title font-bold text-ink">NO SERVER HAS THIS.</p>)}
-        {/* No server holds it: find a source for it in a room (SPEC-media-servers.md; Luke 2026-11-07). Media tab only. */}
-        {action === undefined ? <FindInRoomKey title={item.title} /> : null}
-        {action === undefined ? <AddToLetterKey thing={{ kind: 'kino', ref: item.id, title: item.title, picture: addresses.thumb ?? undefined }} /> : null}
-        {addresses.link ? (
-          <a href={addresses.link} target="_blank" rel="noopener noreferrer" className={`${PLATE_LINK} min-h-tap`} aria-label={`"${item.title}" on TMDB (opens a new tab)`}>
-            [ ON TMDB ↗ ]
-          </a>
-        ) : null}
-      </div>
+      {/* The row's keys on the WATCH key's line (M7, M11): the ways to watch first, then the rest. */}
+      <WatchList
+        sources={sources}
+        title={item.title}
+        audio={contentLanguage(item)}
+        beside={
+          <>
+            {action ?? (watchCount(sources) > 0 ? null : <p className="text-title font-bold text-ink">NO SERVER HAS THIS.</p>)}
+            {/* No server holds it: find a source for it in a room (SPEC-media-servers.md; Luke 2026-11-07). Media tab only. */}
+            {action === undefined ? <FindInRoomKey title={item.title} /> : null}
+            {action === undefined ? <LetterPlaylistKey letter={{ kind: 'kino', ref: item.id, title: item.title, picture: addresses.thumb ?? undefined }} playlist={null} /> : null}
+          </>
+        }
+      />
     </li>
   );
 }

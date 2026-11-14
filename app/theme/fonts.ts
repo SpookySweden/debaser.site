@@ -12,15 +12,18 @@
  * does nothing today only because one weight is loaded.
  *
  * IBM Plex Mono (SPEC-efficiency.md, 2026-10-23) replaced DotGothic16, a dotted pixel face whose capitals
- * smeared at 13-15px. It is a monospace with open, even letters, and it sets everything, titles too. Only
- * weight 400 is loaded, so `globals.css`'s `font-synthesis: none` keeps every `font-bold` inert and
- * emphasis still comes from colour or size. It is about 20% wider than DotGothic16 (0.6em a letter, not
- * 0.5em). The variable keeps its old name, `--face-pixel`: it means "the site's face".
+ * smeared at 13-15px. It is a monospace with open, even letters, and it sets everything, titles too. The
+ * site's family is weight 400 only, so `globals.css`'s `font-synthesis: none` keeps every `font-bold` inert and
+ * emphasis still comes from colour or size. One heavier weight, 600, is loaded as a family of its own
+ * (`--face-strong`, worn through `font-strong`), so only what asks for it is heavier. It is about 20% wider
+ * than DotGothic16 (0.6em a letter, not 0.5em). The variable keeps its old name, `--face-pixel`: it means
+ * "the site's face".
  *
  * For a face of your own, `next/font/local` loads a file: `localFont({ src: './my-face.woff2',
  * variable: '--face-pixel' })`.
  */
 import { IBM_Plex_Mono as PixelFace } from 'next/font/google';
+import localFont from 'next/font/local';
 
 const pixel = PixelFace({
   variable: '--face-pixel',
@@ -29,5 +32,22 @@ const pixel = PixelFace({
   display: 'swap',
 });
 
+/**
+ * The one heavier weight (Luke, 2026-11-14: "more separation between title, description, etc in the media tabs results
+ * ... done subtly with font/ boldness where necessary"): IBM Plex Mono at 600, worn only where `font-strong` asks for it.
+ *
+ * Why a file of our own and not a second Google load at weight 600: next/font names every load of a Google face by the
+ * face's own name, so a second load joins the family above, and every `font-bold` on the site (about 450) would turn 600
+ * at once (tried, 2026-11-14). Loaded from a file, it is a family of its own. The file is Google Fonts' own Latin subset of
+ * Plex Mono SemiBold, the one next/font served (`app/theme/faces/README.txt`: SIL Open Font Licence). A letter outside
+ * that subset falls back to the 400 face, through `--font-strong`'s stack in tokens.css.
+ */
+const strong = localFont({
+  src: './faces/ibm-plex-mono-600-latin.woff2',
+  variable: '--face-strong',
+  weight: '600',
+  display: 'swap',
+});
+
 /** Every loaded face's variable, as the class list `<html>` wears. */
-export const FACE_VARIABLES = [pixel.variable].join(' ');
+export const FACE_VARIABLES = [pixel.variable, strong.variable].join(' ');

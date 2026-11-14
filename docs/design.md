@@ -77,6 +77,10 @@ No Win95 bevels anywhere - not on windows, not on buttons, not on the scrollbar.
   - A key on a strip that is Black in both themes (the guest banner) is `PLATE_ON_BLACK`: Daffodil.
   - A key that sits straight on the desktop gets a window under it (the folded player is a framed tile).
   - Glyph keys in a row of glyphs (the nav glyphs ⌂ ≡ ☻ ✉ ⚿, the transport ◀ ▶) stay bare glyphs.
+  - **One key, two halves** (`SplitKey`, Luke 2026-11-14): `[ ▶ PLAY │ + QUEUE ]`, `[ + LETTER │ PLAYLIST ]`.
+    One pair of brackets round two presses, a `│` seam between them. Under the pointer each half fills its
+    own dye at once - the first Emerald (Lime on SHERBET), the second Brilliant Pink (Mint) - with Black
+    words. A key that has no second half is an ordinary key.
   - **Filled pills, the three exceptions:** the one main action on a screen (post, send, save, log in,
     + new post) is `PLATE_MAIN` - filled Daffodil, Black words, Emerald under the pointer, one per
     screen; a tab or switch that is on is a filled pill in the field ink (`PLATE_PRESSED`, `key-fill`);
@@ -103,10 +107,14 @@ No Win95 bevels anywhere - not on windows, not on buttons, not on the scrollbar.
   the window: that is 3.79:1 on Nigrosine and 4.14:1 on Flavine. `Temp/check-themes.cjs` holds it.
 
 ## Type
-- One face: **IBM Plex Mono**, for everything (titles too), **weight 400 only** (SPEC-efficiency.md,
+- One face: **IBM Plex Mono**, for everything (titles too), **weight 400** (SPEC-efficiency.md,
   2026-10-23; it replaced DotGothic16, whose dotted capitals smeared at 13-15px). `font-synthesis: none`
-  and no bold is loaded, so the `font-bold`s in class lists do nothing - emphasis comes from colour (the
-  accent ink) or size, never weight. Fallbacks: `'Courier New', monospace`.
+  and the site's family has no bold, so the `font-bold`s in class lists do nothing - emphasis comes from
+  colour (the accent ink) or size. Fallbacks: `'Courier New', monospace`.
+- **One heavier weight, on purpose** (Luke, 2026-11-14: "more separation between title, description, etc
+  in the media tabs results ... done subtly with font/ boldness"): Plex Mono 600, a family of its own,
+  worn only through `font-strong`. MEDIA's result titles wear it. Use it for the one thing the eye should
+  find first in a block, never for a whole line of labels; `font-bold` stays inert.
 - Sizes: the smallest label is **13px** (`text-label`); labels and buttons 13-14px (`text-key`); title
   lines **16px** (`text-title`); writing (posts, comments, comms, lore pages, bios, notes, and the fields
   they are typed in) **15px at line-height 1.5** (`text-prose`). Phone inputs stay 16px (stops the zoom).

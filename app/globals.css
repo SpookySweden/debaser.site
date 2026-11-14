@@ -1106,6 +1106,19 @@ img {
     color: var(--key-hover-ink, var(--color-paper));
   }
 
+  /* One key, two halves (SplitKey.tsx; Luke, 2026-11-14: "with dual buttons each half glows a different colour when
+     hovered"): under the pointer each half fills its own dye at once, with the plate ink on it - the first half the "go"
+     green (Emerald; Lime on SHERBET), the second Brilliant Pink (Mint on SHERBET). Black on each reads 5.7:1 or better in
+     every theme (Temp/check-media-list.cjs). Nothing moves; a half that is down keeps its pill. */
+  .key.split-first:not(.key-fill):hover:not(:disabled) {
+    background-color: var(--color-acid);
+    color: var(--color-ink-plate);
+  }
+  .key.split-second:not(.key-fill):hover:not(:disabled) {
+    background-color: var(--color-bubble);
+    color: var(--color-ink-plate);
+  }
+
   /* A module with a colour its person picked (app/lib/ui/modules.ts): on hover its word turns that colour on the bar, with no fill behind it. */
   .key.module-key:not(.key-fill):hover:not(:disabled),
   .key.module-key:not(.key-fill):focus-visible:not(:disabled) {

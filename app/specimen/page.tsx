@@ -72,6 +72,7 @@ const FACES = [
   ['font-mono', 'fields, numbers, code'],
   ['font-display', 'titles, once they get their own face (nothing wears it yet)'],
   ['font-emote', "RADI-OH's text faces"],
+  ['font-strong', 'the one heavier weight (600): what the eye finds first, such as a MEDIA title'],
 ] as const;
 
 const SPACING = ['w-0.5', 'w-1', 'w-2', 'w-3', 'w-4', 'w-6', 'w-8', 'w-12', 'w-16'] as const;

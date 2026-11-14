@@ -141,7 +141,11 @@ export function watchCount(sources: KinoSources | null): number {
  * hole in every row with the list shut. The key itself never moves. Shut, a playing video's box goes and it floats, whichever
  * kind of copy it is; back on the page with one playing, the list is open. `notice` shows open or shut: what a server just said.
  */
-export function WatchList({ sources, title, audio, servers, serverCount = 0, startOpen = false, notice }: { sources: KinoSources | null; title: string; audio: string | null; servers?: ReactNode; serverCount?: number; startOpen?: boolean; notice?: ReactNode }) {
+/**
+ * `beside` (Luke's list, 2026-11-14, M7 and M11): the row's other keys, on the WATCH key's own line after it, so the way to
+ * pick a source comes first and the card is a line shorter. With no ways to watch they still draw, on a line of their own.
+ */
+export function WatchList({ sources, title, audio, servers, serverCount = 0, startOpen = false, notice, beside }: { sources: KinoSources | null; title: string; audio: string | null; servers?: ReactNode; serverCount?: number; startOpen?: boolean; notice?: ReactNode; beside?: ReactNode }) {
   const [open, setOpen] = useState(startOpen);
   const copies = sources?.free ?? [];
   // Sources arrive after the row is drawn, so a free copy still playing from before is only known now. Looked at once, the moment
@@ -153,12 +157,15 @@ export function WatchList({ sources, title, audio, servers, serverCount = 0, sta
   }
   const services = offeredServices(sources?.watch);
   const total = serverCount + copies.length + services.length;
-  if (total === 0) return null;
+  if (total === 0) return beside ? <div className="mt-2 flex flex-wrap items-center gap-2">{beside}</div> : null;
   return (
     <div className="mt-2 flex flex-col items-start gap-2" data-watch>
-      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} aria-label={`Watch "${title}": ${total} ${total === 1 ? 'way' : 'ways'}`} className={`${PLATE_LARGE} order-first min-h-tap`}>
-        {`[ WATCH · ${total} ${open ? '▴' : '▾'} ]`}
-      </button>
+      <div className="order-first flex flex-wrap items-center gap-2">
+        <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} aria-label={`Watch "${title}": ${total} ${total === 1 ? 'way' : 'ways'}`} className={`${PLATE_LARGE} min-h-tap`}>
+          {`[ WATCH · ${total} ${open ? '▴' : '▾'} ]`}
+        </button>
+        {beside}
+      </div>
       {notice ? <div className="-order-3">{notice}</div> : null}
       {open ? servers : null}
       {copies.map((copy) => (

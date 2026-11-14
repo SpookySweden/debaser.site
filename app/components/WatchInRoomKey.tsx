@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { PLATE, PLATE_PRESSED } from '../lib/ui/controls';
 import type { RoomSource } from '../lib/ui/floating-player';
 import { useNow } from '../lib/ui/use-now';
@@ -30,7 +30,49 @@ type AddState = { kind: 'idle' } | { kind: 'busy' } | { kind: 'added'; roomId: s
 /** How long the key says it worked, before it can add the video again. */
 const ADDED_MS = 5000;
 
-export default function WatchInRoomKey({ source, series, playId, title, onPress }: { source: RoomSource; series?: RoomSeries; playId: string; title: string; onPress?: () => void }) {
+/**
+ * What the key reads and does, without drawing it: the same key as `WatchInRoomKey`, for a caller that draws it as half of
+ * a key of two halves (QueueHalf.tsx, MEDIA's PLAY / + QUEUE). `after` is what follows the key: the room's settings window,
+ * OPEN ROOM, a note or a refusal. Null for a visitor, or with no `source`.
+ */
+export type RoomKey = {
+  mode: 'start' | 'add';
+  /** The key's words, without brackets. */
+  words: string;
+  label: string;
+  press: () => void;
+  disabled: boolean;
+  /** The room's settings window is open (start only). */
+  open: boolean;
+  /** `data-watch-in-room`: start, add, queued or listed. */
+  data: string;
+  after: ReactNode;
+};
+
+export default function WatchInRoomKey(props: { source: RoomSource; series?: RoomSeries; playId: string; title: string; onPress?: () => void }) {
+  const key = useRoomKey(props);
+  if (key === null) return null;
+  if (key.mode === 'start') {
+    return (
+      <>
+        <button type="button" onClick={key.press} aria-haspopup="dialog" aria-expanded={key.open} aria-label={key.label} className={key.open ? PLATE_PRESSED : PLATE} data-watch-in-room={key.data}>
+          {`[ ${key.words} ]`}
+        </button>
+        {key.after}
+      </>
+    );
+  }
+  return (
+    <>
+      <button type="button" onClick={key.press} disabled={key.disabled} aria-label={key.label} className={PLATE} data-watch-in-room={key.data}>
+        {`[ ${key.words} ]`}
+      </button>
+      {key.after}
+    </>
+  );
+}
+
+export function useRoomKey({ source, series, playId, title, onPress }: { source: RoomSource | undefined; series?: RoomSeries; playId: string; title: string; onPress?: () => void }): RoomKey | null {
   const { user } = useAuth();
   const forum = useForum();
   const watching = useWatching(user?.id ?? null);
@@ -40,7 +82,8 @@ export default function WatchInRoomKey({ source, series, playId, title, onPress 
   const [asking, setAsking] = useState(false);
   const [state, setState] = useState<AddState>({ kind: 'idle' });
 
-  if (user === null) return null;
+  if (user === null || source === undefined) return null;
+  const known: RoomSource = source;
 
   /** A room's answer isn't here yet: the key waits rather than offering to start a second room. */
   const waiting = roomId !== null && read === undefined && error === null;
@@ -64,7 +107,7 @@ export default function WatchInRoomKey({ source, series, playId, title, onPress 
       const inQueue = rights.addsTo === 'queue';
       // ALL (server-picks.ts): every episode as one block, in one write, so nothing is ever half added.
       if (series !== undefined) await repository.addSeriesToQueue({ roomId, addedBy: user.id, position: nextQueuePosition(fresh.queue), inQueue, seriesTitle: series.title, links: series.links });
-      else await repository.addToQueue({ roomId, addedBy: user.id, position: nextQueuePosition(fresh.queue), inQueue, ...source });
+      else await repository.addToQueue({ roomId, addedBy: user.id, position: nextQueuePosition(fresh.queue), inQueue, ...known });
       applyLocalChange(roomId, { kind: 'refresh' });
       setState({ kind: 'added', roomId, listed: !inQueue, note: series?.note ?? null });
       // A short ALL (more episodes than fit at once) keeps saying so for longer.
@@ -75,43 +118,35 @@ export default function WatchInRoomKey({ source, series, playId, title, onPress 
   }
 
   if (!adds) {
-    return (
-      <>
-        <button
-          type="button"
-          onClick={() => {
-            onPress?.();
-            setAsking(true);
-          }}
-          aria-haspopup="dialog"
-          aria-expanded={asking}
-          aria-label={`Watch "${title}" in a room: opens the room's settings`}
-          className={asking ? PLATE_PRESSED : PLATE}
-          data-watch-in-room="start"
-        >
-          [ WATCH IN ROOM ]
-        </button>
-        {asking ? <GoLiveWindow user={user} createThread={forum.createThread} first={{ source, playId, title, ...(series === undefined ? {} : { series }) }} onClose={() => setAsking(false)} /> : null}
-      </>
-    );
+    return {
+      mode: 'start',
+      words: 'WATCH IN ROOM',
+      label: `Watch "${title}" in a room: opens the room's settings`,
+      press: () => {
+        onPress?.();
+        setAsking(true);
+      },
+      disabled: false,
+      open: asking,
+      data: 'start',
+      after: asking ? <GoLiveWindow user={user} createThread={forum.createThread} first={{ source, playId, title, ...(series === undefined ? {} : { series }) }} onClose={() => setAsking(false)} /> : null,
+    };
   }
 
   const added = state.kind === 'added' && state.roomId === roomId;
-  return (
+  return {
+    mode: 'add',
+    words: state.kind === 'busy' ? 'ADDING...' : added ? (state.listed ? 'ON YOUR LIST' : 'QUEUED') : 'ADD TO ROOM',
+    label: `Add "${title}" to the room you are in`,
+    press: () => {
+      onPress?.();
+      void add();
+    },
+    disabled: waiting || state.kind === 'busy' || added,
+    open: false,
+    data: added ? (state.listed ? 'listed' : 'queued') : 'add',
+    after: (
     <>
-      <button
-        type="button"
-        onClick={() => {
-          onPress?.();
-          void add();
-        }}
-        disabled={waiting || state.kind === 'busy' || added}
-        aria-label={`Add "${title}" to the room you are in`}
-        className={PLATE}
-        data-watch-in-room={added ? (state.listed ? 'listed' : 'queued') : 'add'}
-      >
-        {state.kind === 'busy' ? '[ ADDING... ]' : added ? (state.listed ? '[ ON YOUR LIST ]' : '[ QUEUED ]') : '[ ADD TO ROOM ]'}
-      </button>
       {added ? (
         <button type="button" onClick={() => openWatch({ kind: 'room', roomId: state.roomId })} className={PLATE}>
           [ OPEN ROOM ]
@@ -128,5 +163,6 @@ export default function WatchInRoomKey({ source, series, playId, title, onPress 
         </span>
       ) : null}
     </>
-  );
+    ),
+  };
 }

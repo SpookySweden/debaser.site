@@ -3,7 +3,7 @@
 import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { artSlot } from '../lib/ui/art/slots';
-import { FIELD_TIGHT, PLATE, PLATE_LINK, PLATE_MAIN, PLATE_PRESSED } from '../lib/ui/controls';
+import { FIELD_TIGHT, PLATE, PLATE_LINK, PLATE_MAIN } from '../lib/ui/controls';
 import { seriesMark } from '../lib/watch/series';
 import { useArchiveRowSubtitles, useSeriesCount } from '../lib/watch/series-client';
 import type { WebStreamItem } from '../lib/web/dedupe';
@@ -20,7 +20,9 @@ import { rowAddresses, startingEmbed, type ExtraHosts } from '../lib/web/row-add
 import { embedWithPlace, timeSourceOf } from '../lib/web/embed-time';
 import { closeFloatingIfMine, placeOf, playFloating } from '../lib/ui/floating-player';
 import PlayerBox, { PipKey, usePlayingHere } from './PlayerBox';
-import AddToLetterKey from './AddToLetterKey';
+import SplitKey, { type Half } from './SplitKey';
+import { useQueueHalf } from './QueueHalf';
+import { LetterPlaylistKey, ThumbOpen } from './WebRowKeys';
 import Link from 'next/link';
 import { isReadable } from '../lib/books/types';
 import { editionCount } from '../lib/books/editions';
@@ -64,7 +66,7 @@ import { useHistoryRows } from '../lib/recommender/use-history';
 import type { HistoryRow } from '../lib/recommender/types';
 import { contentLanguage } from '../lib/web/language';
 import { burnedInSubtitles } from '../lib/web/subtitles';
-import { isBarAudioPlatform, parseWebAudioSrc, playsInBar } from '../lib/web/web-audio';
+import { isBarAudioPlatform, parseWebAudioSrc, playsInBar, webAudioFilePath, webTrackId } from '../lib/web/web-audio';
 import { loadWebItem } from '../lib/web/web-track-lookup';
 import { useCatalogue } from '../lib/media/catalogue';
 import { siteFileMatches } from '../lib/web/site-server';
@@ -78,7 +80,6 @@ import WebSiteFiles from './WebSiteFiles';
 import StreamArtShelf from './StreamArtShelf';
 import { watchLinkForItem } from '../lib/web/bridges';
 import { canWatch, WebDiscussKey } from './WebBridgeKeys';
-import WatchInRoomKey from './WatchInRoomKey';
 
 /**
  * WEB: one stream of media from other platforms, newest first (SPEC-web.md).
@@ -1500,11 +1501,45 @@ export function WebRow({
     else setReaderOpen(false);
   };
 
+  // PLAY / + QUEUE, one key of two halves (Luke's list, 2026-11-14, M6 and his ROOMS answer 7A). PLAY is the bar's key for
+  // audio it plays, else the platform's own player; the second half is QueueHalf.tsx's to say.
+  const barPlay = useBarPlay(item, opened, embed ? startPlayer : null);
+  const barItem = inBar && isBarAudioPlatform(item.platform) ? { platform: item.platform, externalId: item.externalId } : null;
+  const queueHalf = useQueueHalf({ bar: barItem, room: roomSource, playId, title: item.title, onPress: opened });
+  const playHalf: Half | null = readable
+    ? null
+    : inBar && !playing
+      ? barPlay
+      : embed
+        ? {
+            words: playing ? '■ CLOSE' : '▶ PLAY',
+            // The visible word leads the name (PLAY / CLOSE), so a voice command for what is on screen works.
+            label: playing ? `Close the ${source} player for "${item.title}"` : `Play "${item.title}" (loads the ${source} player)`,
+            press: () => {
+              if (playing) {
+                stopPlayer();
+                return;
+              }
+              opened();
+              startPlayer();
+            },
+            expanded: playing,
+            on: playing,
+            data: 'play',
+          }
+        : null;
+  // A book's thing for a playlist: only what the bar plays can be held today (playlist-adding.ts), by its first file's id.
+  const playlistThing = barItem === null ? null : { title: item.title, link: { url: webAudioFilePath(barItem.platform, barItem.externalId, 0), kind: 'audio' as const, title: item.title }, trackId: webTrackId(barItem.platform, barItem.externalId, 0) };
+  // M7: the other copies fold open from a key that stands before PLAY.
+  const [alsoOpen, setAlsoOpen] = useState(false);
+  const alsoId = `${rowTitleId(item.id)}-also`;
+  const facts = [source, KIND_LABELS[item.kind]];
+
   return (
-    <li className={`rule-pixel py-2 ${view === 'grid' ? 'min-w-0' : ''}`} data-view={view}>
+    <li className={`rule-pixel ${full ? 'py-2' : 'py-1'} ${view === 'grid' ? 'min-w-0' : ''}`} data-view={view}>
       <div className={ROW_LAYOUT[view]}>
-        {/* A fixed box, so a slow or missing picture never moves the row. */}
-        <span className={`block ${THUMB_BOX[view]} shrink-0 overflow-hidden border border-ink-plate bg-paper`}>
+        {/* A fixed box, so a slow or missing picture never moves the row. OPEN sits in its top right corner (M8). */}
+        <span className={`relative block ${THUMB_BOX[view]} shrink-0 overflow-hidden border border-ink-plate bg-paper`}>
           {/* A hotlinked third-party thumbnail: a plain <img> sends no referrer and costs no Vercel image
               optimisation, where next/image would proxy (and count) every one. Hence the one lint exception. */}
           {thumb ? (
@@ -1530,10 +1565,13 @@ export function WebRow({
               fallback={<span aria-hidden="true" className="flex h-full w-full items-center justify-center text-label font-bold text-ink">NO IMAGE</span>}
             />
           )}
+          {link ? <ThumbOpen href={link} label={`Open "${item.title}" on ${source} (new tab)`} /> : null}
         </span>
 
-        <div className="min-w-0 flex-1">
-          <p id={rowTitleId(item.id)} tabIndex={-1} className={`${TITLE_CLASS[view]} font-bold text-ink wrap-anywhere`}>
+        {/* M5: the title in the one heavier weight; who made it and the small facts in the caption ink; the description in
+            plain ink between them. No words say which is which. COMPACT is one line: the title, then its keys. */}
+        <div className={full ? 'min-w-0 flex-1' : 'flex min-w-0 flex-1 items-center gap-2'}>
+          <p id={rowTitleId(item.id)} tabIndex={-1} className={`${TITLE_CLASS[view]} font-strong text-ink wrap-anywhere ${full ? '' : 'min-w-0 flex-1'}`}>
             {item.title}
             <AudioSubsFlags audio={contentLanguage(item)} subs={archiveSubtitles} burnedIn={burnedInSubtitles(item.description ? `${item.title}
 ${item.description}` : item.title)} className="ml-1.5" />
@@ -1545,114 +1583,82 @@ ${item.description}` : item.title)} className="ml-1.5" />
                 onClick={() => onCreator(item.creator ?? '')}
                 aria-label={`Search for more from ${item.creator}`}
                 title="More from this creator"
-                className="cursor-pointer text-left text-label text-ink wrap-anywhere hover:underline max-sm:min-h-tap"
+                className="cursor-pointer text-left text-label text-ink-quiet wrap-anywhere hover:underline max-sm:min-h-tap"
               >
                 {item.creator}
               </button>
             </p>
           ) : item.creator ? (
-            <p className="text-label text-ink wrap-anywhere">{item.creator}</p>
+            <p className="text-label text-ink-quiet wrap-anywhere">{item.creator}</p>
           ) : null}
           {item.description && full && view !== 'grid' ? (
-            <p className={`mt-0.5 ${view === 'large' ? 'line-clamp-6 text-key' : 'line-clamp-2 text-label'} text-ink wrap-anywhere`}>{item.description}</p>
+            <p className={`mt-1 ${view === 'large' ? 'line-clamp-6 text-key' : 'line-clamp-2 text-label'} text-ink wrap-anywhere`}>{item.description}</p>
           ) : null}
 
-          <div className={`mt-1 ${full ? 'flex' : 'hidden'} flex-wrap items-center gap-x-2 gap-y-1 text-label`}>
-            <span className="font-bold text-ink-quiet">{KIND_LABELS[item.kind]}</span>
-            {seriesCount === null ? null : (
-              <span className="bg-acid px-1 font-bold text-ink-plate" data-series-mark>
-                {seriesMark(seriesCount)}
-              </span>
-            )}
-            <time dateTime={item.publishedAt} className="text-ink">
-              {date}
-            </time>
-            {item.platform === 'books' && item.book && item.book.editions > 0 ? <span className="text-ink">{editionCount(item.book.editions)}</span> : null}
-            {licence ? (
-              <a
-                href={licence}
-                target="_blank"
-                rel="noopener noreferrer nofollow"
-                aria-label={`Licence for "${item.title}" (new tab)`}
-                className="inline-flex items-center text-ink hover:underline max-sm:min-h-tap"
-              >
-                LICENCE
-              </a>
+          {/* The small facts, then the keys on the same line (M11): fewer lines, so more results fit. */}
+          <div className={full ? 'mt-1 flex flex-wrap items-center gap-x-3 gap-y-1' : 'contents'}>
+            {full ? (
+              <p className="flex flex-wrap items-center gap-x-1.5 text-label text-ink-quiet" data-row-facts>
+                <span>{facts.join(' · ')}</span>
+                {seriesCount === null ? null : (
+                  <span className="bg-acid px-1 font-bold text-ink-plate" data-series-mark>
+                    {seriesMark(seriesCount)}
+                  </span>
+                )}
+                <span aria-hidden="true">·</span>
+                <time dateTime={item.publishedAt}>{date}</time>
+                {item.platform === 'books' && item.book && item.book.editions > 0 ? <span>{`· ${editionCount(item.book.editions)}`}</span> : null}
+                {licence ? (
+                  <a
+                    href={licence}
+                    target="_blank"
+                    rel="noopener noreferrer nofollow"
+                    aria-label={`Licence for "${item.title}" (new tab)`}
+                    className="inline-flex items-center hover:underline max-sm:min-h-tap"
+                  >
+                    · LICENCE
+                  </a>
+                ) : null}
+              </p>
             ) : null}
+
+            <div className={`flex flex-wrap items-center gap-1 ${view === 'list' || view === 'large' ? 'ml-auto' : ''}`} data-row-keys>
+              {/* M7: several copies of the work fold open from here, before PLAY. */}
+              {full && item.alsoOn.length > 0 ? (
+                <button type="button" onClick={() => setAlsoOpen(!alsoOpen)} aria-expanded={alsoOpen} aria-controls={alsoId} className={PLATE}>
+                  {`[ ALSO ON ${alsoOpen ? '▴' : '▾'} ]`}
+                </button>
+              ) : null}
+              {/* A book (SPEC-books.md, SPEC-reader.md) opens in the site's reader at /read (Luke, 2026-11-11), for a
+                  Gutenberg book and for an Internet Archive one (its EPUB in the reader, or the Archive's own viewer there). */}
+              {readable ? (
+                <Link href={`/read/${item.id}`} onClick={opened} className={PLATE}>
+                  [ READ ]
+                </Link>
+              ) : null}
+              {/* Audio the bar can play goes there (web-audio.ts); the platform's player is the fallback. */}
+              {playHalf !== null ? (
+                <SplitKey label={`Play or queue "${item.title}"`} first={playHalf} second={queueHalf} />
+              ) : queueHalf !== null && !readable ? (
+                <SplitKey label={`Queue "${item.title}"`} first={queueHalf} second={null} />
+              ) : null}
+              {floats && playing ? <PipKey id={playId} title={item.title} /> : null}
+              {full ? <LetterPlaylistKey letter={{ kind: 'web', ref: item.id, title: item.title, picture: addresses.thumb ?? undefined }} playlist={playlistThing} /> : null}
+              {/* The bridges (Phase 5): the item's forum thread, now a small pen (M6). */}
+              {full && (!found || SAVE_OPENED) ? <WebDiscussKey item={item} onOpen={opened} short /> : null}
+              {!full ? null : item.platform === 'books' ? (
+                <Link href={bookPage} aria-label={`Editions of "${item.title}": every one Open Library lists`} className={PLATE}>
+                  [ EDITIONS ]
+                </Link>
+              ) : item.platform === 'audiobooks' ? (
+                <Link href={`/media/book/${item.id}`} className={PLATE}>
+                  [ BOOK PAGE ]
+                </Link>
+              ) : null}
+            </div>
           </div>
 
-          <div className="mt-1 flex flex-wrap items-center gap-1">
-            <span className="bg-ice-pale px-1 text-label font-bold text-ink">{source}</span>
-            {/* A book (SPEC-books.md, SPEC-reader.md) opens in the site's reader at /read: READ stands first, where OPEN was
-                (Luke, 2026-11-11), for a Gutenberg book and for an Internet Archive one (its EPUB in the reader, or the
-                Archive's own viewer on that page). */}
-            {readable ? (
-              <Link href={`/read/${item.id}`} onClick={opened} className={PLATE}>
-                [ READ ]
-              </Link>
-            ) : null}
-            {link && !readable ? (
-              <a
-                href={link}
-                target="_blank"
-                rel="noopener noreferrer nofollow"
-                aria-label={`Open "${item.title}" on ${source} (new tab)`}
-                className={PLATE}
-              >
-                [ OPEN ↗ ]
-              </a>
-            ) : null}
-            {/* Audio the bar can play goes there (web-audio.ts); the platform's player is the fallback. A book reads at /read. */}
-            {readable ? null : inBar && !playing ? (
-              <WebBarPlayKey item={item} onOpen={opened} onFallback={embed ? startPlayer : null} />
-            ) : embed ? (
-              <button
-                type="button"
-                onClick={() => {
-                  if (playing) {
-                    stopPlayer();
-                    return;
-                  }
-                  opened();
-                  startPlayer();
-                }}
-                aria-expanded={playing}
-                // The visible word leads the name (PLAY / CLOSE), so a voice command for what is on screen works.
-                aria-label={playing ? `Close the ${source} player for "${item.title}"` : `Play "${item.title}" (loads the ${source} player)`}
-                className={playing ? PLATE_PRESSED : PLATE}
-              >
-                {playing ? '[ ■ CLOSE ]' : '[ ▶ PLAY ]'}
-              </button>
-            ) : null}
-            {floats && playing ? <PipKey id={playId} title={item.title} /> : null}
-            {/* The bridges (Phase 5): the item's forum thread, and the stream room the reader hosts. */}
-            {full && (!found || SAVE_OPENED) ? <WebDiscussKey item={item} onOpen={opened} /> : null}
-            {full && roomSource !== undefined ? <WatchInRoomKey source={roomSource} playId={playId} title={item.title} onPress={opened} /> : null}
-            {full ? <AddToLetterKey thing={{ kind: 'web', ref: item.id, title: item.title, picture: addresses.thumb ?? undefined }} /> : null}
-            {/* A book's way out to its source sits here, after the site's own keys, where READ was. */}
-            {full && link && readable ? (
-              <a
-                href={link}
-                target="_blank"
-                rel="noopener noreferrer nofollow"
-                aria-label={`Open "${item.title}" on ${source} (new tab)`}
-                className={PLATE}
-              >
-                [ OPEN ↗ ]
-              </a>
-            ) : null}
-            {!full ? null : item.platform === 'books' ? (
-              <Link href={bookPage} aria-label={`Editions of "${item.title}": every one Open Library lists`} className={PLATE}>
-                [ EDITIONS ]
-              </Link>
-            ) : item.platform === 'audiobooks' ? (
-              <Link href={`/media/book/${item.id}`} className={PLATE}>
-                [ BOOK PAGE ]
-              </Link>
-            ) : null}
-          </div>
-
-          {full && item.alsoOn.length > 0 ? <AlsoOn item={item} /> : null}
+          {full && item.alsoOn.length > 0 ? <AlsoOn item={item} id={alsoId} open={alsoOpen} /> : null}
         </div>
       </div>
 
@@ -1680,11 +1686,11 @@ ${item.description}` : item.title)} className="ml-1.5" />
  * The other copies of this work (dedupe.ts): each one's own source name and its own link, so every
  * source a row stands for is still one press away. A copy whose address fails its checks shows its name only.
  */
-function AlsoOn({ item }: { item: WebStreamItem }) {
+// Folded under its `[ ALSO ON ▾ ]` key (M7): drawn while shut too (`hidden`), so opening it moves nothing above it.
+function AlsoOn({ item, id, open }: { item: WebStreamItem; id: string; open: boolean }) {
   return (
-    <div className="mt-1 flex flex-wrap items-center gap-1">
-      <span className="text-label font-bold text-ink-quiet">ALSO ON</span>
-      <ul aria-label={`Other copies of "${item.title}"`} className="contents">
+    <div id={id} hidden={!open} className="mt-1">
+      <ul aria-label={`Other copies of "${item.title}"`} className="flex flex-wrap items-center gap-1">
         {item.alsoOn.map((copy) => {
           const source = PLATFORM_LABELS[copy.platform];
           const { link } = rowAddresses(copy);
@@ -1719,7 +1725,7 @@ const WEB_ORIGIN = { origin: 'shelf', href: '/media', where: 'MEDIA' } as const;
  * While this item is the one on the bar the key pauses and resumes it. When no file can be found, the
  * platform's own player opens instead (`onFallback`), or the row says so when there is none.
  */
-function WebBarPlayKey({ item, onOpen, onFallback }: { item: WebStreamItem; onOpen: () => void; onFallback: (() => void) | null }) {
+function useBarPlay(item: WebStreamItem, onOpen: () => void, onFallback: (() => void) | null): Half {
   const player = useMusicPlayer();
   const [state, setState] = useState<'idle' | 'finding' | 'none'>('idle');
   const onBar = player.track ? parseWebAudioSrc(player.track.src) : null;
@@ -1749,25 +1755,21 @@ function WebBarPlayKey({ item, onOpen, onFallback }: { item: WebStreamItem; onOp
     }
   };
 
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => void press()}
-        aria-pressed={sounding}
-        aria-busy={state === 'finding'}
-        // The visible word leads the name, so a voice command for what is on screen works.
-        aria-label={sounding ? `Pause "${item.title}" in the music player` : `Play "${item.title}" in the music player`}
-        className={sounding ? PLATE_PRESSED : PLATE}
-      >
-        {state === 'finding' ? '[ … FINDING ]' : sounding ? '[ ❚❚ PAUSE ]' : '[ ▶ PLAY ]'}
-      </button>
-      {state === 'none' ? (
+  return {
+    words: state === 'finding' ? '… FINDING' : sounding ? '❚❚ PAUSE' : '▶ PLAY',
+    // The visible word leads the name, so a voice command for what is on screen works.
+    label: sounding ? `Pause "${item.title}" in the music player` : `Play "${item.title}" in the music player`,
+    press: () => void press(),
+    pressed: sounding,
+    busy: state === 'finding',
+    on: sounding,
+    data: 'bar-play',
+    after:
+      state === 'none' ? (
         <span role="status" className="text-label font-bold text-ink">
           NO PLAYABLE FILE
         </span>
-      ) : null}
-    </>
-  );
+      ) : null,
+  };
 }
 

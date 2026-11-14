@@ -273,8 +273,11 @@ same(roomStart.roomStartFor({}, 'e3'), null, 'under a second is the top');
 roomStart.noteRoomStart('e4', null);
 same(roomStart.roomStartFor({}, 'e4'), null, 'a player that cannot tell starts from the top');
 const roomKey = read('app/components/WatchInRoomKey.tsx');
-ok(/\[ WATCH IN ROOM \]/.test(roomKey) && /\[ ADD TO ROOM \]/.test(roomKey), 'one key with both words');
-for (const path of ['app/components/WebStream.tsx', 'app/components/WebSiteFiles.tsx', 'app/components/MediaCatalogue.tsx', 'app/components/FloatingPlayer.tsx']) ok(/<WatchInRoomKey\b/.test(read(path)), `${path}: has the key`);
+// Updated on purpose 2026-11-14 (Luke's list M6): the key's words come from `useRoomKey`, which MEDIA's PLAY / + QUEUE key also
+// reads (QueueHalf.tsx), so WebStream's rows reach it through `useQueueHalf` rather than drawing `<WatchInRoomKey>`.
+ok(/words: 'WATCH IN ROOM'/.test(roomKey) && /'ADD TO ROOM'/.test(roomKey), 'one key with both words');
+for (const path of ['app/components/WebSiteFiles.tsx', 'app/components/MediaCatalogue.tsx', 'app/components/FloatingPlayer.tsx']) ok(/<WatchInRoomKey\b/.test(read(path)), `${path}: has the key`);
+ok(/useQueueHalf\(\{ bar: barItem, room: roomSource,/.test(read('app/components/WebStream.tsx')) && /useRoomKey\(\{ source: room,/.test(read('app/components/QueueHalf.tsx')), 'app/components/WebStream.tsx: has the key, as the second half of PLAY');
 // Updated on purpose 2026-11-08: since 644b121 (Luke, 2026-11-07: "pick a server... watch in the room") a media server's title plays in
 // a room, so its row has the key, with what its pickers chose (server-picks.ts `roomAddFor`). This line had failed since then.
 ok(/<WatchInRoomKey\b/.test(read('app/components/WebMediaRow.tsx')) && /roomAddFor\(server, media, item\.title, pick\)/.test(read('app/components/WebMediaRow.tsx')), 'a media server\'s title has the key, for the pick on the chosen server');

@@ -32,9 +32,13 @@ and motion, with the measured value beside each.
   Google font (`import { VT323 as PixelFace } from 'next/font/google'`). Every job follows. (The variable
   is still called `--face-pixel`, from when the face was a pixel face; it is the site's face, whatever it is.)
   - A face with several weights wants `weight` listed (or removed, for a variable font).
-  - **`font-bold` trap:** about 450 elements carry `font-bold`. It does nothing today because only weight
-    400 of IBM Plex Mono is loaded and `font-synthesis` is off. Loading a bold (`weight: ['400', '700']`)
-    turns all of them bold at once. Decide before doing that: remove the `font-bold`s, or accept them.
+  - **`font-bold` trap:** about 450 elements carry `font-bold`. It does nothing today because the site's
+    family is weight 400 of IBM Plex Mono only and `font-synthesis` is off. Adding a bold to that family
+    (`weight: ['400', '700']`) turns all of them bold at once. Decide before doing that: remove the
+    `font-bold`s, or accept them.
+  - **The one heavier weight** (Luke, 2026-11-14) dodges that trap: Plex Mono 600 is loaded as a second
+    family (`--face-strong` in fonts.ts), and only `font-strong` (`--font-strong` in tokens.css) wears it.
+    A swap of the site's face should swap this line too.
   - A wider or narrower face changes how much fits: Plex Mono is ~20% wider than DotGothic16 was. After
     a swap, screenshot the tight strips (player bar, side panel, title lines with extras) at 1440 and 390.
   - Add the new face's name to `FACES` in `scripts/check-tokens.cjs`, so naming it outside the registry

@@ -26,7 +26,8 @@ const stream = fs.readFileSync('app/components/WebStream.tsx', 'utf8');
 for (const list of ['aria-label="From your YouTube" className={viewListClass(view)}','<ul className={viewListClass(view)} aria-label={picksOrdered', 'className={viewListClass(view)}>{list.shown.map(renderRow)}']) {
   assert.ok(stream.includes(list), `a result list follows the view: ${list.slice(0, 40)}`);
 }
-assert.match(stream, /<span className=\{`block \$\{THUMB_BOX\[view\]\} shrink-0 overflow-hidden border border-ink-plate bg-paper`\}>/, 'the picture box is fixed per view, so a slow picture never moves the row');
+// Updated on purpose 2026-11-14 (Luke's list M8): the box is `relative`, for OPEN in its corner.
+assert.match(stream, /<span className=\{`relative block \$\{THUMB_BOX\[view\]\} shrink-0 overflow-hidden border border-ink-plate bg-paper`\}>/, 'the picture box is fixed per view, so a slow picture never moves the row');
 assert.match(stream, /grid: 'aspect-video w-full'/, 'GRID pictures are 16:9');
 assert.match(stream, /grid: 'text-sm line-clamp-2'/, 'GRID titles are two lines, then cut');
 assert.match(stream, /item\.description && full && view !== 'grid'/, 'GRID and COMPACT leave the description out; LARGE shows more of it');
