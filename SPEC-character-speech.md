@@ -1,7 +1,8 @@
 # SPEC: characters speak (Luke, 2026-11-14)
 
-**Answered by Luke on 2026-11-14 (his answers are quoted below). Not to be built until he has typed his OK on this
-finished spec, and picked the lettering (A, B or C in the picture sent to him).** Build it in a fresh session after reading
+**OK'd by Luke on 2026-11-14 (typed in the main session): "Yes, build it (Recommended)". Lettering: "A: Pixelify Sans
+(Rec.)". Stream rooms: "A: Yes, that (Rec.)" (each companion says its person's chat lines as they send them, in a
+bubble). Build the three phases in order, each live on its own.** Read first:
 CLAUDE.md, `.claude/rules/core.md`, `docs/design.md`, `docs/profile-characters.md`, `docs/companion.md`,
 `SPEC-profile-characters.md` and `SPEC-companion.md`.
 
@@ -93,7 +94,7 @@ Each character says only what its own person wrote, picked at random (his answer
 - Third-party text is plain text: no links inside it, no HTML, an `@name` shown as written.
 
 ## In a stream room (his answer 1, "Both at once")
-- **My reading, for him to confirm with his OK:** each person's companion says what that person types in the room's chat,
+- **Confirmed by Luke ("A: Yes, that"):** each person's companion says what that person types in the room's chat,
   as they send it: a bubble over that companion with the line appearing a letter at a time, in the same lettering, pages
   and voice. A new line from the same person replaces their old bubble. A line older than 15 seconds when it arrives is
   not spoken (the hop already works this way).
