@@ -1,12 +1,9 @@
 'use client';
 
-import Link from 'next/link';
 import { useState } from 'react';
 import { authorFromAccount } from '../lib/auth/author';
 import { resetMockAuth } from '../lib/auth/mock-auth';
 import { isSiteAccount } from '../lib/auth/builtin-account';
-import { threadDomId } from '../lib/forum/anchors';
-import { displayTitle } from '../lib/forum/site-author';
 import { profileNameColour } from '../lib/profile/name-colours';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { PLATE_LARGE } from '../lib/ui/controls';
@@ -14,6 +11,7 @@ import AccountProfilePanel from './AccountProfilePanel';
 import AccountSecurityPanel from './AccountSecurityPanel';
 import { useAuth } from './AuthProvider';
 import { useForum } from './ForumProvider';
+import ProfileBoardActivity from './ProfileBoardActivity';
 import ProfileName from './ProfileName';
 import TimeStamp from './TimeStamp';
 
@@ -38,12 +36,6 @@ export default function AccountDetails() {
 
   // Captured after the guard so the handlers below keep a non-null id.
   const accountId = user.id;
-
-  const myThreads = forum.threads.filter((thread) => thread.author.id === accountId);
-  const myReplies = forum.threads.reduce(
-    (total, thread) => total + thread.comments.filter((comment) => comment.author.id === accountId).length,
-    0,
-  );
 
   async function handleDelete() {
     if (!confirmDelete) {
@@ -103,33 +95,12 @@ export default function AccountDetails() {
         </div>
       </section>
 
-      <section
-        id="activity"
-      >
-        <div className="title-line text-accent-ink">
-          <span>BOARD ACTIVITY</span>
-        </div>
-
-        <div className="space-y-2 p-3 text-label font-bold text-ink">
-          <p>
-            THREADS: {myThreads.length} :: REPLIES: {myReplies}
-          </p>
-
-          {myThreads.length === 0 ? (
-            <p>NOTHING YET.</p>
-          ) : (
-            <ul className="space-y-1">
-              {myThreads.slice(0, 6).map((thread) => (
-                <li key={thread.id}>
-                  <Link href={`/forum#${threadDomId(thread.id)}`} className="underline hover:bg-ice">
-                    [<TimeStamp at={thread.createdAt} />] {displayTitle(thread)}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </section>
+      {/* The same list a profile carries (Luke, 2026-11-14): folded until its key is pressed, posts and replies, each
+          row leading straight to its place on the board. The THREADS / REPLIES counts that stood here went with the
+          old list: the fold is shut by default, so nothing was left to count over. */}
+      <div id="activity">
+        <ProfileBoardActivity userId={accountId} threads={forum.threads} />
+      </div>
 
       {/* Only the local backend can delete from here; on Supabase the section would hold nothing to press. */}
       {usingMockAuth ? (

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { commentDomId, threadDomId } from '../lib/forum/anchors';
+import { commentDomId, findBoardPost, readBoardAddress, threadDomId, type BoardAddress } from '../lib/forum/anchors';
 import { selectBoardThreads, type SortMode, type SourceFilter, type TagMatchMode } from '../lib/forum/board-query';
 import {
   BOARD_SORTS,
@@ -165,6 +165,11 @@ export default function ForumBoard() {
   const [resultsFolded, setResultsFolded] = useState(false);
   /** A result row that was pressed, waiting for the board to draw its thread before scrolling to it. */
   const [pendingJump, setPendingJump] = useState<{ threadId: string; commentId?: string } | null>(null);
+  /**
+   * A post or a reply named in the address (`#thread-`, `#comment-`: a row on a profile, the wire, a shared link),
+   * waiting for the board to hold it. The board's posts arrive after the page does, so the address is kept until then.
+   */
+  const [addressJump, setAddressJump] = useState<Exclude<BoardAddress, { kind: 'tag' }> | null>(null);
 
   const visibleThreads = useMemo(
     () =>
@@ -292,8 +297,9 @@ export default function ForumBoard() {
     const list = document.getElementById('forum-thread-list');
     if (!list || list.children.length === 0) return;
     perPageSettled.current = true;
-    // A link to one post has already picked its page at the old size: leave the size alone.
-    if (pendingJump !== null || window.location.hash.startsWith('#thread-')) return;
+    // A link to one post or reply has already picked its page at the old size: leave the size alone.
+    const named = readBoardAddress(window.location.hash);
+    if (pendingJump !== null || (named !== null && named.kind !== 'tag')) return;
     const heights = Array.from(list.children, (card) => (card as HTMLElement).offsetHeight).sort((a, b) => a - b);
     const cardHeight = heights[Math.floor(heights.length / 2)];
     if (cardHeight <= 0) return;
@@ -399,17 +405,16 @@ export default function ForumBoard() {
   );
 
   /**
-   * A result row pressed: open its thread on the board, scrolled to the post or the reply, which
-   * flashes. The thread has to be on the board to be opened there, so whatever hides it gives way:
-   * the gallery, the tag / source / music filters, and TOP's frame (HOT for now, shown in the
-   * address but not remembered, as after filing a post). The scroll waits for the effect below.
+   * One post, or one reply in it, opened on the board: scrolled to and flashed. The thread has to be on
+   * the board to be opened there, so whatever hides it gives way: the gallery, the tag / source / music
+   * filters, and TOP's frame (HOT for now, shown in the address but not remembered, as after filing a
+   * post). The scroll waits for the effect below. A search result and the address both come through here.
    */
-  const openResult = useCallback(
-    (hit: SearchHit) => {
-      setResultsFolded(true);
+  const jumpToPost = useCallback(
+    (thread: ForumThread, commentId?: string) => {
       setView('feed');
 
-      const shown = selectBoardThreads([hit.thread], {
+      const shown = selectBoardThreads([thread], {
         query: '',
         sourceFilter,
         tagKeys: tagFilters,
@@ -430,10 +435,40 @@ export default function ForumBoard() {
         }
       }
 
-      setPendingJump({ threadId: hit.thread.id, commentId: hit.comment?.id });
+      setPendingJump({ threadId: thread.id, ...(commentId === undefined ? {} : { commentId }) });
     },
     [sourceFilter, tagFilters, tagMatchMode, sortMode, topFrame, musicOnly, musicTagKeys],
   );
+
+  /** A result row pressed: on a phone the panel folds away to show the thread it opens. */
+  const openResult = useCallback(
+    (hit: SearchHit) => {
+      setResultsFolded(true);
+      jumpToPost(hit.thread, hit.comment?.id);
+    },
+    [jumpToPost],
+  );
+
+  // The address's post or reply, once the board holds it: the same jump a search result makes, so it lands
+  // on whatever page the post is on, open, in view and marked (Luke, 2026-11-14: a row on a profile "needs to
+  // bring you more directly to the corresponding thread"). Until then it waits: the posts arrive after the
+  // page, and a profile's comments (threads of their own here) by a second read. An address naming nothing
+  // this reader's board ever holds is let go quietly, so it cannot fire by itself much later.
+  useEffect(() => {
+    if (addressJump === null) return;
+    const found = findBoardPost(forum.threads, addressJump);
+
+    if (found === null) {
+      const timer = window.setTimeout(() => setAddressJump(null), forum.ready ? 5000 : 20000);
+      return () => window.clearTimeout(timer);
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      setAddressJump(null);
+      jumpToPost(found.thread, found.commentId);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [addressJump, forum.threads, forum.ready, jumpToPost]);
 
   // The jump itself, once the board has drawn the thread: its page, open, then (two frames on, as the
   // tag filter's [ OPEN REPLY ] waits) scrolled to and flashed. Started in a frame so nothing is set
@@ -534,29 +569,24 @@ export default function ForumBoard() {
     setPage(1);
   }, [clearLocalPosts]);
 
-  // Deep links: `#thread-<id>` opens a thread, `#tag-<key>` filters the board by
-  // a tag badge. Runs through requestAnimationFrame so the board never calls
-  // setState synchronously inside the effect body.
+  // Deep links: `#thread-<id>` opens a post and `#comment-<id>` a reply (both handed to the jump above,
+  // which waits for the board to hold them), `#tag-<key>` filters the board by a tag badge. Runs through
+  // requestAnimationFrame so the board never calls setState synchronously inside the effect body.
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     const applyHash = () => {
-      const hash = window.location.hash;
+      const address = readBoardAddress(window.location.hash);
+      if (address === null) return;
 
-      if (hash.startsWith('#tag-')) {
-        const key = decodeURIComponent(hash.slice('#tag-'.length));
-        setTagFilters((current) => (current.includes(key) ? current : [...current, key]));
+      if (address.kind === 'tag') {
+        setTagFilters((current) => (current.includes(address.key) ? current : [...current, address.key]));
         setPage(1);
         return;
       }
 
-      if (!hash.startsWith('#thread-')) return;
-
-      const id = hash.slice('#thread-'.length);
-      // A link that opens a post is a reader arriving at it, so it is read the same way a click is.
-      markThreadRead(id);
-      setOpenThreadIds((current) => (current.includes(id) ? current : [...current, id]));
-      document.getElementById(threadDomId(id))?.scrollIntoView({ block: 'center' });
+      // A new object each time, so pressing the same link twice jumps twice.
+      setAddressJump({ ...address });
     };
 
     const frame = window.requestAnimationFrame(applyHash);
@@ -566,7 +596,7 @@ export default function ForumBoard() {
       window.cancelAnimationFrame(frame);
       window.removeEventListener('hashchange', applyHash);
     };
-  }, [markThreadRead]);
+  }, []);
 
   return (
     <div className="space-y-3">

@@ -1,7 +1,7 @@
 import { MUSIC_HREF } from '../audio/music-window';
 import { CONCEPT_SHEETS } from '../concepts/sheets';
 import type { ProfileCommentKind } from '../profile/types';
-import type { ForumAnchor, ForumPreview } from './types';
+import type { ForumAnchor, ForumPreview, ForumThread } from './types';
 
 /**
  * Single source of truth for the items that can generate a forum thread.
@@ -183,6 +183,66 @@ export function profileAnchorTarget(anchor: ForumAnchor): Omit<ProfileAnchorTarg
  */
 export function commentDomId(commentId: string): string {
   return `comment-${commentId}`;
+}
+
+/** The board's address for one post: the board opens it, on whatever page it is, in view and marked. */
+export function boardThreadHref(threadId: string): string {
+  return `/forum#${threadDomId(threadId)}`;
+}
+
+/** The board's address for one reply: the board finds the post that holds it and opens it at that reply. */
+export function boardCommentHref(commentId: string): string {
+  return `/forum#${commentDomId(commentId)}`;
+}
+
+/** What the part of the board's address after `#` asks for (Luke, 2026-11-14: a profile's rows lead straight there). */
+export type BoardAddress =
+  | { kind: 'tag'; key: string }
+  | { kind: 'thread'; id: string }
+  | { kind: 'comment'; id: string };
+
+/** Reads `#tag-<key>`, `#thread-<id>` or `#comment-<id>`; null for anything else, an empty id included. */
+export function readBoardAddress(hash: string): BoardAddress | null {
+  const read = (prefix: string): string | null => {
+    if (!hash.startsWith(prefix)) return null;
+    const raw = hash.slice(prefix.length);
+    if (raw.length === 0) return null;
+    try {
+      return decodeURIComponent(raw);
+    } catch {
+      // A percent sign that is not an escape: the id as written is the only reading there is.
+      return raw;
+    }
+  };
+
+  const tag = read('#tag-');
+  if (tag !== null) return { kind: 'tag', key: tag };
+  const thread = read('#thread-');
+  if (thread !== null) return { kind: 'thread', id: thread };
+  const comment = read('#comment-');
+  if (comment !== null) return { kind: 'comment', id: comment };
+  return null;
+}
+
+/**
+ * The post an address names, on the board as it stands: the post itself, or the one holding the reply.
+ *
+ * Null while the board does not have it (not arrived yet, or gone, or not this reader's to see), which is
+ * what tells the board to wait rather than to guess.
+ */
+export function findBoardPost(
+  threads: ForumThread[],
+  address: BoardAddress,
+): { thread: ForumThread; commentId?: string } | null {
+  if (address.kind === 'tag') return null;
+
+  if (address.kind === 'thread') {
+    const thread = threads.find((one) => one.id === address.id);
+    return thread === undefined ? null : { thread };
+  }
+
+  const thread = threads.find((one) => one.comments.some((comment) => comment.id === address.id));
+  return thread === undefined ? null : { thread, commentId: address.id };
 }
 
 /**

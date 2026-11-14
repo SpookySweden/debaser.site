@@ -307,12 +307,7 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
 
       {/* Board activity first, then the comments on the profile itself: what the account
           has filed reads better before the discussion of it. */}
-      <ProfileBoardActivity
-        userId={userId}
-        displayName={displayName}
-        nameColour={nameColour}
-        threads={theirThreads}
-      />
+      <ProfileBoardActivity userId={userId} threads={forum.threads} />
 
       {/* Letters (SPEC-letters.md): all of the owner's for the owner, the public ones for anyone else. */}
       <ProfileLetters userId={userId} owner={owner} />
