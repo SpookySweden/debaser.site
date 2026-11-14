@@ -22,7 +22,7 @@
  * For a face of your own, `next/font/local` loads a file: `localFont({ src: './my-face.woff2',
  * variable: '--face-pixel' })`.
  */
-import { IBM_Plex_Mono as PixelFace } from 'next/font/google';
+import { IBM_Plex_Mono as PixelFace, Pixelify_Sans as SpeechFace } from 'next/font/google';
 import localFont from 'next/font/local';
 
 const pixel = PixelFace({
@@ -49,5 +49,18 @@ const strong = localFont({
   display: 'swap',
 });
 
+/**
+ * What characters speak in (SPEC-character-speech.md; Luke picked it from three, 2026-11-14: "A: Pixelify Sans"): a
+ * chunky pixel face for speech bubbles only, worn through `--font-speech`. Not preloaded: a page with nobody talking
+ * never fetches it.
+ */
+const speech = SpeechFace({
+  variable: '--face-speech',
+  subsets: ['latin'],
+  weight: '400',
+  display: 'swap',
+  preload: false,
+});
+
 /** Every loaded face's variable, as the class list `<html>` wears. */
-export const FACE_VARIABLES = [pixel.variable, strong.variable].join(' ');
+export const FACE_VARIABLES = [pixel.variable, strong.variable, speech.variable].join(' ');

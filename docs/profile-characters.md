@@ -43,6 +43,23 @@ Read this before touching the motions, the bake or the profile walker. The spec 
   version: the `profile_characters` table plus the `profile-characters` picture folder
   (`20261113022903_profile_characters.sql`).
 
+## Talking (SPEC-character-speech.md, Luke 2026-11-14)
+- **In a profile's ROOM** (`ProfileRoom.tsx`) up to three of the newest commenters' shown characters come to visit, and
+  every so often one character stops, faces the reader and says something in a bubble over its head
+  (`SpeechBubble.tsx`): a letter at a time, two lines a page, in the speech face (`font-speech`, Pixelify Sans, Luke's
+  pick). One speaker at a time; the first 2 to 4 seconds after the room is on screen, then 6 to 16 seconds apart
+  (`SPEECH_PACE`). Pressing a bubble goes to what was said.
+- **A character only says what its own person wrote**, out of what the page already holds: `app/lib/speech/script.ts`
+  (pure) decides it: their comments on this profile, and their replies to the owner anywhere on the board (a reply under
+  the owner's post, a reply to the owner's reply, an `@name`); the owner's character says the owner's remarks and replies
+  to the people in the room. Nothing is fetched for it but each guest's shown character, and nothing is stored.
+- **`RoomWalker` can be given something to say** (`speech`): it stands still in its idle frame while the bubble is up. A
+  one-off under way (a wave, a hop, a catch) is finished first.
+- **Reduced motion:** nothing speaks by itself. A press on a character shows its next line whole; a second press puts it away.
+- Checked by `Temp/check-character-speech.cjs` (the rules) and `scripts/drive-character-speech.cjs` (a real browser on
+  a local dev server with mock data: it seeds its own accounts, comments and characters and touches no database).
+- Still to come from that spec: the voice (an audio key and blips), and companions speaking the chat in stream rooms.
+
 ## Rules that came from the spec
 - **Motion isn't artwork** (core.md, Asset Rules). Code only turns the joints of shapes someone built by hand. It never
   adds a shape or changes a shape's size, colour or kind. `check-profile-character` holds that for every frame.

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from 'react';
 import type { ShownCharacter } from '../lib/character/profile-character-repository';
 import type { CharacterSheet, Mood } from '../lib/character/sheet';
 import { SPRITE_SLOT } from '../lib/ui/controls';
@@ -46,6 +46,11 @@ function subscribeReduced(change: () => void): () => void {
 }
 const reducedNow = () => window.matchMedia(REDUCED).matches;
 const reducedOnServer = () => true;
+
+/** Whether the reader has asked their system for less motion (true on the server, so nothing moves before a browser says it may). */
+export function useReducedMotion(): boolean {
+  return useSyncExternalStore(subscribeReduced, reducedNow, reducedOnServer);
+}
 
 /** Elements whose own box counts as something on the page, besides runs of text. */
 const SOLID = 'img, svg, canvas, video, iframe, audio, picture, input, textarea, select, button, a, label, [role="button"], [tabindex]';
@@ -120,7 +125,17 @@ export function roomFigureSize(look: RoomLook): { w: number; h: number } {
  * scale, cut at its feet. Under reduced motion it stands still in its idle frame and nothing ticks.
  *
  * `onSpot` hears where it stands on screen after every step (the companion climbs down from there when the page changes).
+ *
+ * **It can be given something to say** (`speech`; SPEC-character-speech.md, 2026-11-14): it then stops where it is, stands
+ * in its idle frame facing the reader, and the bubble is drawn over its head, until `speech` is taken away again. A
+ * one-off it is in the middle of (a wave, a hop, a catch) is finished first: speech never breaks a motion off, only a
+ * walk, a stand or a dance.
  */
+/** The motions something to say may break off: the loops. Anything else is a one-off, and is let finish. */
+function breaksOffFor(motion: MotionId): boolean {
+  return motion === 'walk' || motion === 'idle' || DANCES.includes(motion);
+}
+
 export function RoomWalker({
   look,
   mood,
@@ -132,6 +147,8 @@ export function RoomWalker({
   onSpot,
   hello = false,
   person,
+  speech,
+  onPress,
 }: {
   look: RoomLook;
   mood: Mood;
@@ -140,14 +157,18 @@ export function RoomWalker({
   width: number;
   /** Where its left edge starts; somewhere at random when not given. */
   startX?: number;
-  /** The owner's character, or your companion visiting. */
-  who: 'owner' | 'visitor';
+  /** The owner's character, your companion visiting, or the character of somebody who commented, come to visit. */
+  who: 'owner' | 'visitor' | 'guest';
   label: string;
   onSpot?: (figure: HTMLElement) => void;
   /** Somebody to say hello to has just arrived (a companion climbing into the room): it waves back, a moment later. */
   hello?: boolean;
   /** Whose character it is: written on the figure (`data-character-of`), and it catches what is handed to that person. */
   person?: string;
+  /** What it is saying: drawn over its head, handed its box in the room, once it is standing still. */
+  speech?: ((at: { x: number; w: number; h: number }) => ReactNode) | undefined;
+  /** It was pressed (besides its own wave or hop): under reduced motion this is how it is asked to speak. */
+  onPress?: () => void;
 }) {
   const reduced = useSyncExternalStore(subscribeReduced, reducedNow, reducedOnServer);
   const { w, h } = roomFigureSize(look);
@@ -174,11 +195,22 @@ export function RoomWalker({
 
   const ticksOf = useCallback((motion: MotionId) => (look === null ? 6 : look.sheet.motions[motion].ticks.length), [look]);
 
+  // Read by the loop below without restarting it: whether there is something to say just now.
+  const hasSpeech = useRef(false);
+  useEffect(() => {
+    hasSpeech.current = speech !== undefined;
+  });
+
   useEffect(() => {
     if (reduced || width === 0) return;
     const every = Math.round(1000 / (look?.sheet.fps ?? 10));
     const timer = setInterval(() => {
-      setState((current) => stepWalker(current, { mood, music, room, step: WALK_BLOCKS_PER_TICK * ROOM_SCALE, ticksOf, random: Math.random }));
+      setState((current) =>
+        // Talking: it stays where it stands. A one-off under way is stepped to its end first.
+        hasSpeech.current && breaksOffFor(current.motion)
+          ? current
+          : stepWalker(current, { mood, music, room, step: WALK_BLOCKS_PER_TICK * ROOM_SCALE, ticksOf, random: Math.random }),
+      );
     }, every);
     return () => clearInterval(timer);
   }, [reduced, width, look, mood, music, room, ticksOf]);
@@ -187,21 +219,25 @@ export function RoomWalker({
     if (onSpot !== undefined && figure.current !== null) onSpot(figure.current);
   });
 
-  const motion = reduced ? 'idle' : state.motion;
+  const talking = speech !== undefined && (reduced || breaksOffFor(state.motion));
+  const motion = reduced || talking ? 'idle' : state.motion;
   const dancing = !reduced && DANCES.includes(motion);
   const visitor = who === 'visitor';
+  const left = Math.min(Math.max(0, state.x), room);
   return (
-    <div className="absolute bottom-0" style={{ left: Math.min(Math.max(0, state.x), room), width: w, height: h }}>
+    <div className="absolute bottom-0" style={{ left, width: w, height: h }}>
       <NoteTrail active={dancing} />
+      {talking && speech !== undefined ? speech({ x: left, w, h }) : null}
       <button
         ref={figure}
         type="button"
-        {...(visitor ? { 'data-companion': 'visiting' } : { 'data-profile-character': '' })}
+        {...(visitor ? { 'data-companion': 'visiting' } : { 'data-profile-character': who })}
         data-character-of={person}
         data-motion={motion}
         aria-label={visitor ? 'YOUR COMPANION: PRESS TO SAY HELLO' : `${label}: PRESS TO SAY HELLO`}
-        title="SAY HELLO"
+        title={who === 'guest' ? label : 'SAY HELLO'}
         onClick={() => {
+          onPress?.();
           if (!reduced) setState((current) => react(current));
         }}
         className="block cursor-pointer overflow-hidden focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-acid"
@@ -211,7 +247,7 @@ export function RoomWalker({
           // No SHOWN character: the placeholder field, as the companion wears it. Code draws no figure.
           <span className={`${SPRITE_SLOT} block h-full w-full`} data-companion-figure="placeholder" />
         ) : (
-          <CharacterSprite stripUrl={look.stripUrl} sheet={look.sheet} motion={motion} tick={reduced ? 0 : state.tick} dir={state.dir} scale={ROOM_SCALE} />
+          <CharacterSprite stripUrl={look.stripUrl} sheet={look.sheet} motion={motion} tick={reduced || talking ? 0 : state.tick} dir={state.dir} scale={ROOM_SCALE} />
         )}
       </button>
     </div>

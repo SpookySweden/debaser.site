@@ -139,6 +139,9 @@
      and `b` and every character the same width. A typewriter face has both and is on every machine; the
      faces were drawn for it, so they keep it even now the site's own face is a monospace too. */
   --font-emote: 'Courier New', 'Lucida Console', ui-monospace, monospace;
+  /* What a character says, in its speech bubble (SPEC-character-speech.md): a chunky pixel face, worn nowhere else
+     and never below `text-heading` (18px), where it stays readable. The site's own face stands in until it loads. */
+  --font-speech: var(--face-speech), var(--face-pixel), 'Courier New', monospace;
   /* The page root's own stack (Tailwind puts it on <html>). Nothing reads it - body sets --font-body - but it
      follows the same face, so a swap reaches it too. */
   --default-font-family: var(--face-pixel), 'Courier New', monospace;

@@ -110,6 +110,8 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
   // ./ProfileCommentMenu), so these three options are what it offers.
   const [commentingOn, setCommentingOn] = useState<ProfileCommentKind | null>(null);
   const [customising, setCustomising] = useState(false);
+  // A comment asked for from elsewhere on the page (a character's speech bubble in the room): the comments open at it.
+  const [askedComment, setAskedComment] = useState<{ id: string; at: number } | null>(null);
   const comments = owner ? profileComments(profile) : visibleProfileComments(profile);
   // The feed carries the whole page rather than one list of it - the profile's own remarks, the
   // picture's and the track's - so it is read through its own selector: each kind gated by the
@@ -320,11 +322,19 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
         hiddenCount={owner ? hiddenProfileCommentCount(profile) : 0}
         userId={userId}
         repository={repository}
+        asked={askedComment}
       />
 
       {/* Last on the page: their room, where their shown character lives and your companion climbs up to visit
           (Luke, 2026-11-13). */}
-      <ProfileRoom userId={userId} displayName={displayName} music={trackPlaying} />
+      <ProfileRoom
+        userId={userId}
+        displayName={displayName}
+        music={trackPlaying}
+        comments={feedComments}
+        threads={forum.threads}
+        onOpenComment={(id) => setAskedComment({ id, at: Date.now() })}
+      />
     </div>
   );
 }
@@ -341,6 +351,8 @@ type CommentsSectionProps = {
   /** The account whose page this is, and the store the pin is taken on. */
   userId: string;
   repository: ReturnType<typeof getProfileRepository>;
+  /** A comment to open the list at, asked for from outside the section; a new object each time it is asked. */
+  asked?: { id: string; at: number } | null;
 };
 
 /**
@@ -370,6 +382,7 @@ function CommentsSection({
   hiddenCount,
   userId,
   repository,
+  asked = null,
 }: CommentsSectionProps) {
   const [open, setOpen] = useState(false);
   const list = useRef<HTMLUListElement | null>(null);
@@ -403,6 +416,13 @@ function CommentsSection({
     },
     [comments],
   );
+
+  // Asked for from outside (a speech bubble pressed in the room): a frame later, so nothing is set inside the effect.
+  useEffect(() => {
+    if (asked === null) return;
+    const frame = window.requestAnimationFrame(() => openAt(asked.id));
+    return () => window.cancelAnimationFrame(frame);
+  }, [asked, openAt]);
 
   // The section's own address opens it: on arrival, when the address changes, and when a link to it is pressed on
   // this same page (the page's wire rows; the router moves the address without telling anybody, so the press is heard).
