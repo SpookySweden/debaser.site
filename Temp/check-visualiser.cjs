@@ -223,6 +223,11 @@ assert.match(vis.hearingNote('own-rhythm', 'host', false), /HOST KEEPS ITS SOUND
 assert.match(vis.hearingNote('own-rhythm', null, false), /WAITING FOR A SONG/);
 assert.match(vis.hearingNote('listening', null, true), /A STILL PICTURE \(REDUCE MOTION IS ON\)/, 'under reduce motion it says the picture is still');
 assert.match(vis.hearingNote('own-rhythm', 'player', true), /A STILL PICTURE/);
+assert.equal(vis.pictureScale(1, 1920, 1440), 1, 'a computer draws at its own density');
+assert.equal(vis.pictureScale(3, 2560, 1440), 2, 'two at most');
+assert.ok(Math.abs(vis.pictureScale(3, 390, 1280) - 0.914) < 0.01, 'a phone, shown the desktop at a third of its size, draws only what it really shows');
+assert.equal(vis.pictureScale(1, 320, 1280), 0.5, 'never coarser than half');
+assert.equal(vis.pictureScale(undefined, 0, 0), 1, 'a browser that says nothing gets one');
 console.log('  ok    the sound as the picture is fed it, and what it says');
 
 /* 8. The picture is fed, not left to listen for itself; nothing leaves the page --------------------------- */

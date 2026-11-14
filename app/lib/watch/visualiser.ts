@@ -204,6 +204,18 @@ export function levelMeter(level: number): string {
   return '■'.repeat(lit) + '·'.repeat(8 - lit);
 }
 
+/**
+ * How many drawn pixels the picture gets for each pixel of its box. A computer: the screen's own density, two at most.
+ * A phone is shown the 1280px desktop fitted to its width (app/layout.tsx), so its box is drawn at a third of its size:
+ * the picture is then drawn only as large as the phone really shows it, which is several times less work for the same
+ * sharpness (found on 2026-11-14: at full size a phone-sized run drew about two frames a second).
+ */
+export function pictureScale(density: number, screenWidth: number, pageWidth: number): number {
+  const dense = Number.isFinite(density) && density > 0 ? density : 1;
+  const fitted = screenWidth > 0 && pageWidth > 0 ? Math.min(1, screenWidth / pageWidth) : 1;
+  return Math.min(2, Math.max(0.5, dense * fitted));
+}
+
 /** The line that says, honestly, what it is doing about the sound. */
 export function hearingNote(hearing: 'starting' | 'listening' | 'own-rhythm' | 'unsupported', deaf: 'player' | 'browser' | 'host' | null, still: boolean): string {
   if (hearing === 'unsupported') return "THIS BROWSER CAN'T DRAW THE VISUALISER";

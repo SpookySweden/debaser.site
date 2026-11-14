@@ -270,6 +270,8 @@ function brightness(a) {
     if (!flag('--before')) {
       const picture = await page.locator('[data-visualiser]').boundingBox();
       await page.mouse.move(picture.x + picture.width / 2, picture.y + picture.height / 3);
+      // A press on the picture brings the keys back: on a phone there is no pointer to move.
+      await page.mouse.click(picture.x + picture.width / 2, picture.y + picture.height / 3);
       const key = page.locator('[data-visualiser-sliders-key]');
       const keyBefore = await key.boundingBox();
       assert.equal(await key.getAttribute('aria-expanded'), 'false');

@@ -10,6 +10,7 @@ import {
   hearingNote,
   levelMeter,
   loudness,
+  pictureScale,
   presetNames,
   reactGain,
   readSettings,
@@ -160,7 +161,7 @@ function Visualiser({ element }: { element: HTMLMediaElement | null }) {
       ears.splitter.connect(ears.right, 1);
       earsRef.current = ears;
       const box = canvas.getBoundingClientRect();
-      const visualiser = butterchurn.createVisualizer(context, canvas, { width: Math.max(1, box.width), height: Math.max(1, box.height), pixelRatio: Math.min(window.devicePixelRatio || 1, 2) });
+      const visualiser = butterchurn.createVisualizer(context, canvas, { width: Math.max(1, box.width), height: Math.max(1, box.height), pixelRatio: pictureScale(window.devicePixelRatio, window.screen.width, window.innerWidth) });
       visualiserRef.current = visualiser;
       presetsRef.current = pack.getPresets();
       setNames(presetNames(Object.keys(presetsRef.current), false));
@@ -244,7 +245,7 @@ function Visualiser({ element }: { element: HTMLMediaElement | null }) {
     let frame = 0;
     let last = performance.now();
     let usual = 0;
-    let count = 0;
+    let told = 0;
     const draw = (now: number) => {
       frame = window.requestAnimationFrame(draw);
       const seconds = Math.min(0.1, Math.max(0.001, (now - last) / 1000));
@@ -272,9 +273,10 @@ function Visualiser({ element }: { element: HTMLMediaElement | null }) {
         fed.left.fill(128);
         fed.right.fill(128);
       }
-      count += 1;
-      if (count % 6 === 0) {
-        // What it hears, for the reader (the squares) and for a check (the numbers): a few times a second.
+      if (now - told >= 120) {
+        // What it hears, for the reader (the squares) and for a check (the numbers): a few times a second, by the
+        // clock and not by counting frames, so a slow device's squares are never seconds behind the song.
+        told = now;
         const box = boxRef.current;
         box?.setAttribute('data-visualiser-level', level.toFixed(3));
         box?.setAttribute('data-visualiser-fed', fedLevel.toFixed(3));
