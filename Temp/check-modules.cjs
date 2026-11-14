@@ -103,13 +103,14 @@ async function up() {
     assert.deepEqual(await keys(), ['FORUM', 'BEATBOX WIP', 'STREAM', 'MODULOS'], 'ticking moves the bar at once, and BEATBOX wears its tag');
     console.log('  ok    ticking BEATBOX on and MEDIA off changes the bar at once');
 
-    // A hover colour: the word turns it on the bar, with no fill.
-    const forumGroup = list.getByRole('group', { name: 'FORUM hover colour' });
+    // A hover colour: the word turns it on the bar, with no fill. (2026-11-14) On STREAM, not FORUM: this check stands on
+    // /forum, whose key is drawn as the page you're on, and PROJECTS is off the first-visit bar now.
+    const forumGroup = list.getByRole('group', { name: 'STREAM hover colour' });
     const first = forumGroup.locator('button[style]').first();
     const wanted = await first.evaluate((button) => getComputedStyle(button).backgroundColor);
     await first.click();
-    const coloured = nav.getByRole('link', { name: 'FORUM' });
-    const other = nav.getByRole('link', { name: 'STREAM' });
+    const coloured = nav.getByRole('link', { name: 'STREAM' });
+    const other = nav.getByRole('link', { name: 'BEATBOX' });
     await page.mouse.move(0, 0);
     await other.hover();
     await page.waitForTimeout(250);
@@ -119,7 +120,7 @@ async function up() {
     const hovered = await coloured.evaluate((link) => getComputedStyle(link).color);
     assert.equal(hovered, wanted, 'on hover the word wears the picked colour');
     assert.notEqual(hovered, plain, 'a module with no colour keeps the site hover');
-    console.log(`  ok    FORUM turns ${hovered} on hover`);
+    console.log(`  ok    STREAM turns ${hovered} on hover`);
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/modules-hover.png` });
 
     // MODULOS keeps its hover colour too: it steps back to an outline, and the word turns the colour against the bar.
