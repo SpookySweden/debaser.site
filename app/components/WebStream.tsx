@@ -53,8 +53,9 @@ import {
 } from '../lib/web/web-filters';
 import { PLATFORM_LABELS, type WebItem, type WebPlatform } from '../lib/web/types';
 import { canSort, ORDER_KEYS, orderLabel, searchOrder, type SortChoice } from '../lib/web/web-sort';
-import WebFilterFold, { FILTER_KEY, FILTER_KEY_ON, FOLD_KEY } from './WebFilterFold';
+import { FILTER_KEY, FILTER_KEY_ON, FilterRow, FOLD_KEY } from './WebFilterFold';
 import { noteHistory } from '../lib/recommender/history';
+import { isShort } from '../lib/web/shorts';
 import { useAuth } from './AuthProvider';
 import { useMediaView, viewLabel, viewListClass, type MediaView } from '../lib/web/media-view';
 import WebViewKey from './WebViewKey';
@@ -230,7 +231,7 @@ const PICKS: readonly { value: 'recommended' | 'discover' | null; label: string;
   { value: 'discover', label: 'DISCOVER', line: 'ODDER FINDS THAT FIT YOUR DISCOVER SETTINGS.' },
 ];
 
-const FOLD_IDS = ['media-filters', 'media-filter-picks', 'media-filter-source', 'media-filter-type', 'media-filter-order', 'media-filter-vibe', 'media-filter-creator', 'media-filter-view'];
+const FOLD_IDS = ['media-filters', 'media-view', 'media-filter-picks', 'media-filter-source', 'media-filter-type', 'media-filter-order', 'media-filter-vibe', 'media-filter-creator', 'media-filter-view'];
 
 /**
  * The quick picks at the top of the FILTERS panel (Luke, 2026-11-14: "more optimised"): the commonest choices in one press
@@ -485,7 +486,8 @@ export default function WebStream() {
         if (what.kind === 'search') setList((current) => arrive(current, [], end, { lane: source, more: false }));
         return;
       }
-      const items = what.kind === 'link' ? page.items : page.items.filter((item) => matchesFilters(item, what.filters, source === 'stream'));
+      // No YouTube Shorts (shorts.ts; Luke, 2026-11-14), older saved rows included. A pasted link shows what was pasted.
+      const items = what.kind === 'link' ? page.items : page.items.filter((item) => !isShort(item) && matchesFilters(item, what.filters, source === 'stream'));
       if (source !== 'stream') setLiveIds((current) => new Set([...current, ...items.map((item) => item.id)]));
       setList((current) => {
         let next: LiveList;
@@ -793,7 +795,15 @@ export default function WebStream() {
     setHome(next);
     setArt(false);
     setPicked(null);
-    window.history.replaceState(window.history.state, '', next ? '?home=youtube' : searchAddress(parseWebSearch(draft)));
+    // KINO is a view of its own too, so it never stays on behind YOUR YOUTUBE (Luke, 2026-11-14): going in takes it out of
+    // the box; coming back shows the list the box now says, searching only if that differs from what was shown.
+    const box = next && boxFilters.source === 'kino' ? withFilter(draft, 'in', 'all') : draft;
+    if (box !== draft) setDraft(box);
+    if (!next && JSON.stringify(requestFor(box)) !== JSON.stringify(shown)) {
+      restart(box);
+      return;
+    }
+    window.history.replaceState(window.history.state, '', next ? '?home=youtube' : searchAddress(parseWebSearch(box)));
   };
 
   /** Which filter sections are open: shut on the server's draw, then what this browser kept. */
@@ -821,7 +831,7 @@ export default function WebStream() {
       aria-label={`Source: ${option.label}`}
       className={!art && boxFilters.source === option.value ? FILTER_KEY_ON : FILTER_KEY}
     >
-      {`[ ${option.value === 'all' ? 'ALL SOURCES' : option.label} ]`}
+      {!art && boxFilters.source === option.value ? (option.value === 'all' ? 'ALL SOURCES' : option.label) : `[ ${option.value === 'all' ? 'ALL SOURCES' : option.label} ]`}
     </button>
   );
 
@@ -1044,17 +1054,24 @@ export default function WebStream() {
           >
             {`[ ${folds.has('media-filters') ? '−' : '+'} FILTERS ]`}
           </button>
+          {/* VIEW, its own key beside FILTERS (Luke, 2026-11-14: "separate the view button as a separate button next to the
+              filters"): it says the view, and folds the four choices open under this row. */}
+          <button type="button" onClick={() => toggleFold('media-view')} aria-expanded={folds.has('media-view')} aria-controls="media-view-panel" className={FOLD_KEY} data-view-toggle>
+            {`[ VIEW: ${viewLabel(view)} ]`}
+          </button>
           <p className="text-key text-ink wrap-anywhere">
             <span className="text-accent-ink">SHOWING: </span>
             {home ? 'YOUR YOUTUBE' : filtersInWords(boxFilters, art)}
             {picked !== null && !home ? ` · ${picked.toUpperCase()}` : ''}
-            {` · ${viewLabel(view)} VIEW`}
           </p>
           {hasFilters(boxFilters) || art || picked !== null ? (
             <button type="button" onClick={resetFilters} className={FILTER_KEY} data-reset-filters>
               [ RESET FILTERS ]
             </button>
           ) : null}
+        </div>
+        <div id="media-view-panel" hidden={!folds.has('media-view')} className="py-1">
+          <WebViewKey />
         </div>
         <div id="media-filters-panel" data-filter-panel hidden={!folds.has('media-filters')}>
           <div role="group" aria-label="Quick picks" className="flex flex-wrap items-center gap-1 py-1" data-quick-picks>
@@ -1067,106 +1084,89 @@ export default function WebStream() {
               );
             })}
           </div>
-          {/* PICKS (Luke, 2026-11-14): ALL is the plain search; RECOMMENDED and DISCOVER order the site's picks for you, and
-              the other filters narrow them without asking anything again. */}
-          <WebFilterFold id="media-filter-picks" heading="PICKS" now={picked === null ? 'ALL' : picked.toUpperCase()} open={folds.has('media-filter-picks')} onToggle={() => toggleFold('media-filter-picks')}>
-            <div className="flex flex-wrap items-center gap-1">
-              {PICKS.map((choice) => {
-                const on = !art && !home && picked === choice.value;
-                return (
-                  <button key={choice.label} type="button" onClick={() => choosePicks(choice.value)} aria-pressed={on} aria-label={`Picks: ${choice.label}. ${choice.line}`} className={on ? FILTER_KEY_ON : FILTER_KEY} data-picks={choice.label}>
-                    {on ? choice.label : `[ ${choice.label} ]`}
-                  </button>
-                );
-              })}
-            </div>
-            <p className="text-key text-ink-quiet">{PICKS.find((choice) => choice.value === picked)?.line}</p>
-          </WebFilterFold>
-          <WebFilterFold id="media-filter-source" heading="WHERE FROM" now={art ? 'STREAM ART' : sourceInWords(boxFilters.source)} open={folds.has('media-filter-source')} onToggle={() => toggleFold('media-filter-source')}>
-            <div className="flex flex-wrap items-center gap-1">{sourceKey(SOURCE_OPTIONS[0])}</div>
-            {sourceGroups().map((group) => (
-              <div key={group.heading} className="flex flex-wrap items-center gap-1">
-                <span className="text-key text-ink-quiet">{`${group.heading}:`}</span>
-                {group.options.map(sourceKey)}
-              </div>
-            ))}
-            <div className="flex flex-wrap items-center gap-1">
-              <span className="text-key text-ink-quiet">THIS SITE:</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setArt(true);
-                  setPicked(null);
-                  window.history.replaceState(window.history.state, '', '?art=1');
-                }}
-                aria-pressed={art}
-                aria-label="Source: stream art, the saved room canvases"
-                className={art ? FILTER_KEY_ON : FILTER_KEY}
-                data-stream-art-key
-              >
-                [ STREAM ART ]
-              </button>
-            </div>
-          </WebFilterFold>
-          <WebFilterFold id="media-filter-type" heading="WHAT KIND" now={typeInWords(boxFilters.type)} open={folds.has('media-filter-type')} onToggle={() => toggleFold('media-filter-type')}>
-            <div className="flex flex-wrap items-center gap-1">
-              {TYPE_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => pickFilter('type', option.value)}
-                  aria-pressed={boxFilters.type === option.value}
-                  aria-label={`Type: ${option.label}`}
-                  className={boxFilters.type === option.value ? FILTER_KEY_ON : FILTER_KEY}
-                >
-                  {`[ ${option.value === 'all' ? 'ALL KINDS' : option.label} ]`}
+          {/* Every choice at once, one labelled row each (Luke, 2026-11-14: "more space efficient, showing all the selectable
+              filters organised but not needing so many clicks"): one press opens FILTERS, one more picks anything. */}
+          <FilterRow label="PICKS">
+            {PICKS.map((choice) => {
+              const on = !art && !home && picked === choice.value;
+              return (
+                <button key={choice.label} type="button" onClick={() => choosePicks(choice.value)} aria-pressed={on} aria-label={`Picks: ${choice.label}. ${choice.line}`} title={choice.line} className={on ? FILTER_KEY_ON : FILTER_KEY} data-picks={choice.label}>
+                  {on ? choice.label : `[ ${choice.label} ]`}
                 </button>
-              ))}
-            </div>
-          </WebFilterFold>
+              );
+            })}
+          </FilterRow>
+          <FilterRow label="WHERE FROM">
+            {sourceKey(SOURCE_OPTIONS[0])}
+            {sourceGroups().map((group) => (
+              <span key={group.heading} className="contents">
+                <span className="text-label text-ink-quiet">{`${group.heading}:`}</span>
+                {group.options.map(sourceKey)}
+              </span>
+            ))}
+            <span className="text-label text-ink-quiet">THIS SITE:</span>
+            <button
+              type="button"
+              onClick={() => {
+                setArt(true);
+                setPicked(null);
+                setHome(false);
+                window.history.replaceState(window.history.state, '', '?art=1');
+              }}
+              aria-pressed={art}
+              aria-label="Source: stream art, the saved room canvases"
+              className={art ? FILTER_KEY_ON : FILTER_KEY}
+              data-stream-art-key
+            >
+              [ STREAM ART ]
+            </button>
+          </FilterRow>
+          <FilterRow label="WHAT KIND">
+            {TYPE_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => pickFilter('type', option.value)}
+                aria-pressed={boxFilters.type === option.value}
+                aria-label={`Type: ${option.label}`}
+                className={boxFilters.type === option.value ? FILTER_KEY_ON : FILTER_KEY}
+              >
+                {boxFilters.type === option.value ? (option.value === 'all' ? 'ALL KINDS' : option.label) : `[ ${option.value === 'all' ? 'ALL KINDS' : option.label} ]`}
+              </button>
+            ))}
+          </FilterRow>
           {/* ORDER (SPEC-web-sort.md): the order a search is shown in. DATE's two directions are two plain keys. */}
-          <WebFilterFold id="media-filter-order" heading="ORDER" now={orderLabel(boxSort)} open={folds.has('media-filter-order')} onToggle={() => toggleFold('media-filter-order')}>
-            <div className="flex flex-wrap items-center gap-1">
-              {ORDER_KEYS.map((key) => {
-                const on = boxSort.sort === key.choice.sort && boxSort.dir === key.choice.dir;
-                return (
-                  <button key={key.label} type="button" onClick={() => pickSort(key.choice)} aria-pressed={on} aria-label={`Order: ${key.label}`} className={on ? FILTER_KEY_ON : FILTER_KEY}>
-                    {`[ ${key.label} ]`}
-                  </button>
-                );
-              })}
-            </div>
-            <p className="text-key text-ink-quiet">{boxSort.sort === 'date' ? 'ONE DATE ORDER ACROSS EVERY SITE. SEARCHES ONLY.' : 'EACH SITE TAKES TURNS. SEARCHES ONLY.'}</p>
-          </WebFilterFold>
+          <FilterRow label="ORDER">
+            {ORDER_KEYS.map((key) => {
+              const on = boxSort.sort === key.choice.sort && boxSort.dir === key.choice.dir;
+              return (
+                <button key={key.label} type="button" onClick={() => pickSort(key.choice)} aria-pressed={on} aria-label={`Order: ${key.label}`} className={on ? FILTER_KEY_ON : FILTER_KEY}>
+                  {on ? key.label : `[ ${key.label} ]`}
+                </button>
+              );
+            })}
+          </FilterRow>
           {/* MOOD SEARCH (VIBE): mood and tag words ("cosy", "80s horror") instead of exact words (search-intent.ts). */}
-          <WebFilterFold id="media-filter-vibe" heading="MOOD SEARCH" now={boxFilters.vibe ? 'ON' : 'OFF'} open={folds.has('media-filter-vibe')} onToggle={() => toggleFold('media-filter-vibe')}>
-            <div className="flex flex-wrap items-center gap-1">
-              {(['off', 'on'] as const).map((value) => {
-                const on = (value === 'on') === (boxFilters.vibe === true);
-                return (
-                  <button key={value} type="button" onClick={() => pickFilter('vibe', value)} aria-pressed={on} aria-label={`Mood search: ${value}`} className={on ? FILTER_KEY_ON : FILTER_KEY}>
-                    {`[ ${value.toUpperCase()} ]`}
-                  </button>
-                );
-              })}
-            </div>
-            <p className="text-key text-ink-quiet">FINDS BY MOODS, TAGS, GENRES AND DECADES, NOT EXACT WORDS.</p>
-          </WebFilterFold>
-          {/* VIEW (media-view.ts): how the lists are laid out. Changing it asks no source for anything. */}
-          <WebFilterFold id="media-filter-view" heading="VIEW" now={viewLabel(view)} open={folds.has('media-filter-view')} onToggle={() => toggleFold('media-filter-view')}>
-            <WebViewKey />
-          </WebFilterFold>
+          <FilterRow label="MOOD SEARCH">
+            {(['off', 'on'] as const).map((value) => {
+              const on = (value === 'on') === (boxFilters.vibe === true);
+              return (
+                <button key={value} type="button" onClick={() => pickFilter('vibe', value)} aria-pressed={on} aria-label={`Mood search: ${value}`} className={on ? FILTER_KEY_ON : FILTER_KEY}>
+                  {on ? value.toUpperCase() : `[ ${value.toUpperCase()} ]`}
+                </button>
+              );
+            })}
+            <span className="text-label text-ink-quiet">MOODS, TAGS, GENRES AND DECADES, NOT EXACT WORDS</span>
+          </FilterRow>
           {/* CREATOR (`from:`): shown once one is chosen, by a creator's name on a row or typed. */}
           {authorsOf(boxFilters).length > 0 ? (
-            <WebFilterFold id="media-filter-creator" heading="CREATOR" now={authorsOf(boxFilters).join(' OR ').toUpperCase()} open={folds.has('media-filter-creator')} onToggle={() => toggleFold('media-filter-creator')}>
-              <div className="flex flex-wrap items-center gap-1">
-                {authorsOf(boxFilters).map((name) => (
-                  <button key={name} type="button" onClick={() => applyBox(withoutAuthor(draft, name))} aria-label={`Stop showing only ${name}`} className={FILTER_KEY}>
-                    {`[ × ${name.toUpperCase()} ]`}
-                  </button>
-                ))}
-              </div>
-            </WebFilterFold>
+            <FilterRow label="CREATOR">
+              {authorsOf(boxFilters).map((name) => (
+                <button key={name} type="button" onClick={() => applyBox(withoutAuthor(draft, name))} aria-label={`Stop showing only ${name}`} className={FILTER_KEY}>
+                  {`[ × ${name.toUpperCase()} ]`}
+                </button>
+              ))}
+            </FilterRow>
           ) : null}
         </div>
       </div>

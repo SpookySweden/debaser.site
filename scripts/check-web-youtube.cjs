@@ -61,7 +61,10 @@ function checkItemShape(item, where, markup = true) {
 /* ------------------------------------------------------------------ the real fixture */
 const fixture = readFileSync(join(__dirname, 'fixtures', 'web', 'youtube-blender.xml'), 'utf8');
 const real = yt.parseFeed(fixture, CHANNEL, NOW);
-same(real.map((item) => item.externalId), ['H5TGt-susIY', 'YsKxkP_kGbE', 'dVrELpmfcEQ', 'EycY6jDFK74', 'oMeecNng9TM'], 'all five fixture entries become items, in order');
+// Updated on purpose 2026-11-14 (Luke: "remove youtube shorts from results"): two of the five real entries are Shorts,
+// linked to their /shorts/ pages in the feed, and are left out (shorts.ts).
+same(real.map((item) => item.externalId), ['H5TGt-susIY', 'dVrELpmfcEQ', 'oMeecNng9TM'], 'the fixture entries become items, in order, without its two Shorts');
+ok(!real.some((item) => ['YsKxkP_kGbE', 'EycY6jDFK74'].includes(item.externalId)), 'a Short (its feed link is a /shorts/ page) is never an item');
 for (const item of real) checkItemShape(item, item.externalId);
 ok(real.every((item) => item.url === `https://youtu.be/${item.externalId}`), 'page URL is built from the id');
 ok(real.every((item) => item.thumbnailUrl === `https://i.ytimg.com/vi/${item.externalId}/hqdefault.jpg`), 'thumbnail URL is built from the id (the feed says i1.ytimg.com)');
@@ -146,7 +149,7 @@ const source = { id: 's', platform: 'youtube', ref: CHANNEL, label: 'x', enabled
     },
     now: () => new Date(NOW),
   });
-  same(fetched.length, 5, 'fetchItems returns the fixture through the fake fetch');
+  same(fetched.length, 3, 'fetchItems returns the fixture through the fake fetch, without its two Shorts (updated on purpose 2026-11-14)');
   same(requested.length, 1, 'one request, no retries');
   same(requested[0].input, `https://www.youtube.com/feeds/videos.xml?channel_id=${CHANNEL}`, 'the request is the channel feed');
 

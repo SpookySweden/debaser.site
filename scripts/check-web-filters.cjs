@@ -159,9 +159,12 @@ ok(/useState\(\(\) => boxFromAddress\(params\)\)/.test(page), 'the page opens on
 ok(/matchesFilters\(item, what\.filters, source === 'stream'\)/.test(page), 'arriving rows are kept only when they match');
 ok(!/transition|animate-/.test(page.slice(page.indexOf('data-filter-panel'), page.indexOf('emptyLine !== null'))), 'no transitions on the filter keys');
 {
+  // Updated on purpose 2026-11-14 (Luke: "more space efficient, showing all the selectable filters organised but not
+  // needing so many clicks"): no folds inside the panel; every filter is one labelled row, all shown once FILTERS opens.
   const fold = readFileSync(join(ROOT, 'app/components/WebFilterFold.tsx'), 'utf8');
-  ok(/aria-expanded=\{open\}/.test(fold) && /aria-controls=\{.\$\{id\}-panel.\}/.test(fold) && /hidden=\{!open\}/.test(fold), 'a section folds with a named key that says whether it is open; shut, its keys stay in the page');
-  ok(/role="group" aria-label=\{heading\}/.test(fold), '... and its keys are a named group');
+  ok(/role="group" aria-label=\{label\}/.test(fold) && /export function FilterRow/.test(fold), 'each filter is a named group of keys');
+  for (const row of ['PICKS', 'WHERE FROM', 'WHAT KIND', 'ORDER', 'MOOD SEARCH']) ok(page.includes(`<FilterRow label="${row}">`), `the ${row} row is always shown in the open panel`);
+  ok(!/WebFilterFold id=/.test(page), 'no fold inside the panel: one press opens FILTERS, one more picks anything');
   ok(/data-reset-filters/.test(page) && /withoutFilters\(draft\)/.test(page), 'RESET FILTERS keeps the words');
   ok(/filtersInWords\(boxFilters, art\)/.test(page), 'one plain line says what is chosen');
   // Luke, 2026-11-14: "more optimised and one initial expansion".
@@ -171,11 +174,12 @@ ok(!/transition|animate-/.test(page.slice(page.indexOf('data-filter-panel'), pag
   ok(/data-quick-picks/.test(page) && /label: 'VIDEO'[^\n]*type: 'video'/.test(page) && /label: 'BOOKS'[^\n]*source: 'books'/.test(page), 'quick picks at the top of the panel');
   ok(/applyBox\(formatWebSearch\(\{ \.\.\.parseWebSearch\(draft\), source: pick\.source, type: pick\.type \}\)\)/.test(page), '... each sets WHERE FROM and WHAT KIND together: one search, not two');
   ok(/if \(!alreadyShowing\(next\)\) restart\(next\);/.test(page) && (page.match(/if \(!alreadyShowing\(next\)\) restart\(next\);/g) ?? []).length === 2, 'a press that changes nothing asks no source again');
-  ok(/heading="VIEW"/.test(page), 'VIEW is a section of the panel, not a second control');
+  // Updated on purpose 2026-11-14 (Luke: "separate the view button as a separate button next to the filters").
+  ok(/data-view-toggle/.test(page) && page.indexOf('data-filters-key') < page.indexOf('data-view-toggle'), 'VIEW is its own key, beside FILTERS');
 }
 // Updated on purpose 2026-11-13: ORDER's four keys (DATE's two directions as NEWEST FIRST and OLDEST FIRST) replace
 // DATE and the flip key; the same three orders underneath.
-ok(/heading="ORDER"/.test(page) && /ORDER_KEYS\.map/.test(page) && /const on = boxSort\.sort === key\.choice\.sort && boxSort\.dir === key\.choice\.dir;/.test(page) && /aria-pressed=\{on\}/.test(page), 'the ORDER keys are drawn from the choices and say which is on');
+ok(page.includes('<FilterRow label="ORDER">') && /ORDER_KEYS\.map/.test(page) && /const on = boxSort\.sort === key\.choice\.sort && boxSort\.dir === key\.choice\.dir;/.test(page) && /aria-pressed=\{on\}/.test(page), 'the ORDER keys are drawn from the choices and say which is on');
 
 // The IMDB key (Luke, 2026-11-04) was taken off MEDIA on purpose on 2026-11-14 ("Remove both"): KINO is reached under
 // WHERE FROM, as before. The stream room's own IMDB key is another screen (check-queue-filters).
@@ -185,7 +189,7 @@ ok(/\{ value: 'all', label: 'ALL' \},\n  \{ value: 'kino', label: PLATFORM_LABEL
 // add kino and the youtube homepage as header options"): the top row is KINO, YOUR YOUTUBE and READ YOUR OWN BOOK.
 ok(/data-top-row/.test(page) && /data-kino-key/.test(page) && /data-youtube-home-key/.test(page) && /\[ READ YOUR OWN BOOK \]/.test(page) && !/data-list-key/.test(page), 'the top row: KINO, YOUR YOUTUBE, READ YOUR OWN BOOK');
 ok(/const next = withFilter\(draft, 'in', 'kino'\);/.test(page), '... KINO is the KINO source');
-ok(/heading="PICKS"/.test(page) && /\{ value: null, label: 'ALL'/.test(page) && /value: 'recommended', label: 'RECOMMENDED'/.test(page) && /value: 'discover', label: 'DISCOVER'/.test(page), 'RECOMMENDED and DISCOVER are PICKS in FILTERS, ALL the default');
+ok(page.includes('<FilterRow label="PICKS">') && /\{ value: null, label: 'ALL'/.test(page) && /value: 'recommended', label: 'RECOMMENDED'/.test(page) && /value: 'discover', label: 'DISCOVER'/.test(page), 'RECOMMENDED and DISCOVER are PICKS in FILTERS, ALL the default');
 ok(/filters=\{boxFilters\}/.test(page) && /if \(picked !== null\) return;\n?\r?\n?\s*if \(!alreadyShowing\(next\)\) restart\(next\);/.test(page), '... the other filters narrow the picks without asking anything again');
 ok(/if \(next === picked && !art && !home\) return;/.test(page), '... and choosing the PICKS already on asks nothing');
 ok(/picked !== null && !home \? ` · \$\{picked\.toUpperCase\(\)\}` : ''/.test(page), '... and the SHOWING line says them');

@@ -1219,9 +1219,11 @@ test('WebStream: the plain stream draws the search box and every filter, says it
   // Updated on purpose 2026-11-13 (Luke: "expandable, organised and much clearer"): the filters are folding sections
   // with plain headings and one line of what is chosen; shut, their keys are still drawn (hidden).
   for (const group of ['WHERE FROM', 'WHAT KIND', 'ORDER', 'MOOD SEARCH', 'SHOWING:', 'ALL SOURCES, ALL KINDS, BEST MATCH', 'READING MEDIA...', '[ YOUTUBE ]', '[ STREAM ART ]']) assert.ok(words.includes(group), group);
-  assert.match(openingTag(html, '[ OFF ]'), /aria-pressed="true"/, 'MOOD SEARCH starts OFF');
+  // Updated on purpose 2026-11-14 ("more space efficient"): every filter is a labelled row of keys, all shown once FILTERS
+  // opens; a key that is on reads without its brackets, as every pressed key on the site does.
+  assert.match(openingTag(html, 'OFF</button'), /aria-pressed="true"/, 'MOOD SEARCH starts OFF');
   assert.match(openingTag(html, '[ ON ]'), /aria-pressed="false"/);
-  assert.match(openingTag(html, '[ ALL SOURCES ]'), /aria-pressed="true"/, 'SOURCE starts on ALL');
+  assert.match(openingTag(html, 'ALL SOURCES</button'), /aria-pressed="true"/, 'SOURCE starts on ALL');
   assert.ok(!words.includes('[ RESET FILTERS ]'), 'nothing to reset yet');
   // Updated on purpose 2026-11-14 (Luke: "Remove both"): MEDIA has no CLEAR key; RESET FILTERS is the one way back.
   assert.ok(!words.includes('[ CLEAR ]'), 'no CLEAR key');
@@ -1255,7 +1257,8 @@ test('WebStream: a search in the address fills the box and asks the stream and e
 test('WebStream: SOURCE in the address presses that key and asks that source alone', async () => {
   address = 'q=trains&in=kino';
   const html = draw(el(WebStream));
-  assert.match(openingTag(html, '[ KINO ]'), /aria-pressed="true"/);
+  // Updated on purpose 2026-11-14: a key that is on reads without its brackets (the top row's KINO and WHERE FROM's KINO).
+  assert.match(openingTag(html, 'KINO</button'), /aria-pressed="true"/);
   assert.match(openingTag(html, '[ ALL SOURCES ]'), /aria-pressed="false"/);
   assert.ok(visible(html).includes('[ RESET FILTERS ]'), 'a filter set: RESET shows');
   await inBrowser(fakeBrowser(), async () => {

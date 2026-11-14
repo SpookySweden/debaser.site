@@ -13,14 +13,15 @@ import PopoutWindow from './PopoutWindow';
  * letters with + NEW LETTER at the top; a press adds the thing to that letter at a random spot. Signed-in people only
  * (a letter is saved to an account); a stream guest has no letters.
  */
-export default function AddToLetterKey({ thing, className = PLATE }: { thing: LetterThing; className?: string }) {
+/** `label` (the PLAYER session, 2026-11-14): the song menu reads ADD TO: [ PLAYLIST ] [ LETTER ]; every other caller keeps the default. */
+export default function AddToLetterKey({ thing, className = PLATE, label = '[ + LETTER ]' }: { thing: LetterThing; className?: string; label?: string }) {
   const { user, status } = useAuth();
   const [open, setOpen] = useState(false);
   if (user === null || status !== 'signed-in') return null;
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} className={className} aria-label={`Add "${thing.title}" to a letter`}>
-        [ + LETTER ]
+        {label}
       </button>
       {open ? <LetterPicker owner={user.id} thing={thing} onClose={() => setOpen(false)} /> : null}
     </>

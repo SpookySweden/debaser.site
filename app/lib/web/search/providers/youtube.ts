@@ -29,6 +29,7 @@
 import { SafeFetchError, safeFetchJson } from '../../safe-fetch';
 import { MAX_TEXT_LENGTH, plausibleIsoDate, sanitiseText } from '../../sanitise';
 import { buildUrl } from '../../urls';
+import { taggedShort } from '../../shorts';
 import type { WebItem } from '../../types';
 import { SearchProblemError, type ProviderPage, type SearchDeps, type SearchOrder, type SearchPage, type SearchProvider } from '../types';
 import { datedSearch, YT_DATED_CURSOR } from './youtube-dates';
@@ -126,6 +127,8 @@ export function toWebItem(doc: unknown, fetchedAt: string, idField: 'search' | '
   if (str(snippet.liveBroadcastContent) !== 'none') return null;
   const publishedAt = plausibleIsoDate(snippet.publishedAt, fetchedAt);
   if (!publishedAt) return null;
+  // No Shorts in MEDIA (shorts.ts): the Data API has no flag for one, so a #shorts tag is what is caught here.
+  if (taggedShort(str(snippet.title), str(snippet.description))) return null;
   return youtubeItem(id, { title: str(snippet.title), creator: str(snippet.channelTitle), description: str(snippet.description) }, publishedAt, fetchedAt);
 }
 

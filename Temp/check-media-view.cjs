@@ -30,15 +30,17 @@ assert.match(stream, /<span className=\{`block \$\{THUMB_BOX\[view\]\} shrink-0 
 assert.match(stream, /grid: 'aspect-video w-full'/, 'GRID pictures are 16:9');
 assert.match(stream, /grid: 'text-sm line-clamp-2'/, 'GRID titles are two lines, then cut');
 assert.match(stream, /item\.description && full && view !== 'grid'/, 'GRID and COMPACT leave the description out; LARGE shows more of it');
-assert.match(stream, /\{` · \$\{viewLabel\(view\)\} VIEW`\}/, 'the SHOWING line says the view');
+// Updated on purpose 2026-11-14 (Luke: "separate the view button as a separate button next to the filters"): VIEW is its
+// own key beside FILTERS, saying the view, and folding its four choices open under the row.
+assert.match(stream, /\{`\[ VIEW: \$\{viewLabel\(view\)\} \]`\}/, 'the VIEW key says the view');
+assert.match(stream, /aria-expanded=\{folds\.has\('media-view'\)\} aria-controls="media-view-panel"/, '... and says whether its choices are open');
 assert.equal((stream.match(/playFloating\(\{/g) ?? []).length, 1, 'a video still plays only through the floating player');
 assert.ok(fs.readFileSync('app/components/WebPickedList.tsx', 'utf8').includes("className={viewListClass(view)}"), 'RECOMMENDED and DISCOVER follow it');
 assert.ok(fs.readFileSync('app/components/WebCatalogueFinds.tsx', 'utf8').includes('<ul className={viewListClass(view)}>'), 'the tagged catalogue follows it');
 assert.equal((fs.readFileSync('app/components/WebMediaRow.tsx', 'utf8').match(/rule-pixel col-span-full py-2/g) ?? []).length, 2, 'KINO and media-server cards keep their whole-width card in a GRID');
 
 const key = fs.readFileSync('app/components/WebViewKey.tsx', 'utf8');
-// Updated on purpose 2026-11-14 ("one initial expansion"): VIEW is a section of the FILTERS panel, folded like the others.
-assert.match(stream, /<WebFilterFold id="media-filter-view" heading="VIEW" now=\{viewLabel\(view\)\}/, 'VIEW is a section of the FILTERS panel, saying which view is on');
+assert.match(stream, /<div id="media-view-panel" hidden=\{!folds\.has\('media-view'\)\}[^>]*>\s*<WebViewKey \/>/, 'the four choices fold open under the row, outside FILTERS');
 assert.match(key, /aria-pressed=\{on\}/, 'each choice says whether it is on');
 assert.match(key, /aria-hidden="true"[^>]*whitespace-pre/, 'the preview is decoration for screen readers; the label and line say it');
 

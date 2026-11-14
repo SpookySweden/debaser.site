@@ -19,6 +19,7 @@
  */
 import { safeFetchJson } from '../../safe-fetch';
 import { buildUrl } from '../../urls';
+import { isShortsAddress, taggedShort } from '../../shorts';
 import type { WebItem } from '../../types';
 import type { SearchPage } from '../types';
 import { YT_VIDEO_ID, youtubeItem } from './youtube';
@@ -96,6 +97,12 @@ export function toWebItem(renderer: unknown, fetchedAt: string): WebItem | null 
   if (!video) return null;
   const id = typeof video.videoId === 'string' ? video.videoId : undefined;
   if (!id || !YT_VIDEO_ID.test(id)) return null;
+  // No Shorts in MEDIA (shorts.ts; Luke, 2026-11-14): a Short opens YouTube's Shorts player, at its /shorts/ page.
+  const opens = record(video.navigationEndpoint);
+  if (opens?.reelWatchEndpoint !== undefined) return null;
+  const opensAt = record(record(opens?.commandMetadata)?.webCommandMetadata)?.url;
+  if (typeof opensAt === 'string' && isShortsAddress(opensAt)) return null;
+  if (taggedShort(text(video.title))) return null;
   // No age line means live now or upcoming: nothing to queue or play later.
   const publishedAt = relativeDate(text(video.publishedTimeText), fetchedAt);
   if (!publishedAt) return null;

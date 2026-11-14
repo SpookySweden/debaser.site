@@ -78,7 +78,8 @@ const google = (over = {}) => {
     assert.equal(auth, `Bearer ${TOKEN}`, 'with the token in a header');
     assert.ok(!url.href.includes(TOKEN), 'never in an address, where logs would keep it');
   }
-  assert.ok(asked.some(({ url }) => url.searchParams.get('playlistId') === `UU${CHANNEL.slice(2)}`), "a channel's uploads list");
+  // Updated on purpose 2026-11-14 (Luke: no Shorts): the channel's long-form uploads list, which YouTube keeps without Shorts.
+  assert.ok(asked.some(({ url }) => url.searchParams.get('playlistId') === `UULF${CHANNEL.slice(2)}`), "a channel's uploads list, without Shorts (UULF)");
   assert.equal(asked.filter(({ url }) => url.pathname.endsWith('/playlistItems')).length, 1, 'a nonsense channel id asks nothing');
   assert.ok(!JSON.stringify(read).includes(TOKEN), 'and the token is in nothing that comes back');
 

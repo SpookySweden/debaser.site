@@ -17,6 +17,7 @@
 import { PLATFORM_HOSTS } from '../hosts';
 import { safeFetchText } from '../safe-fetch';
 import { buildUrl, isSafeIdentifier } from '../urls';
+import { isShortsAddress, taggedShort } from '../shorts';
 import { MAX_TEXT_LENGTH, plausibleIsoDate, sanitiseText } from '../sanitise';
 import type { WebItem, WebSource } from '../types';
 import type { WebAdapter, WebAdapterDeps } from './types';
@@ -48,6 +49,8 @@ export function toWebItem(entry: XmlElement, channelId: string, fetchedAt: strin
 
   const publishedAt = plausibleIsoDate(childText(entry, 'published'), fetchedAt);
   if (!publishedAt) return null;
+  // A Short links to its own /shorts/ page in the feed: left out of MEDIA (shorts.ts; Luke, 2026-11-14).
+  if (children(entry, 'link').some((link) => isShortsAddress(link.attrs.href))) return null;
 
   // Only these two children of media:group are read; media:community (ratings, views) never is.
   const group = child(entry, 'media:group');
@@ -55,6 +58,7 @@ export function toWebItem(entry: XmlElement, channelId: string, fetchedAt: strin
   const title = sanitiseText(childText(entry, 'title') ?? childText(group, 'media:title'), 300) || id;
   const creator = sanitiseText(childText(child(entry, 'author'), 'name'), 200) || undefined;
   const description = sanitiseText(childText(group, 'media:description'), MAX_TEXT_LENGTH) || undefined;
+  if (taggedShort(title, description)) return null;
 
   return {
     id: `youtube:${id}`,

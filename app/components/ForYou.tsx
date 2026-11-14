@@ -18,6 +18,7 @@ import { rowAddresses, type ExtraHosts } from '../lib/web/row-addresses';
 import { readTaste } from '../lib/web/taste-store';
 import type { WebItem } from '../lib/web/types';
 import { useAuth } from './AuthProvider';
+import { isShort } from '../lib/web/shorts';
 import { useForum } from './ForumProvider';
 import HistoryPanel from './HistoryPanel';
 import { useMusicLibrary } from './MusicLibraryProvider';
@@ -140,7 +141,7 @@ export default function ForYou({ index, extraHosts, onPick }: { index: StationIn
   /* MEDIA: the map's own items that have an address (a search result nobody saved has none). */
   const media = useMemo(() => {
     const candidates: Candidate<StationItem>[] = index.graph.items
-      .filter((item) => !item.seenOnly)
+      .filter((item) => !item.seenOnly && !isShort(item))
       .map((item) => ({ key: keyOf('media', item.id), words: item.words.map((word) => word.word), maker: item.creator, item }));
     return pickLane(candidates, context);
   }, [index, context]);

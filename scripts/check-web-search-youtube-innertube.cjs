@@ -210,7 +210,11 @@ async function problemOf(work) {
 
   /* ---------------------------------------------------------------- the files */
   const source = readFileSync(join(ROOT, 'app/lib/web/search/providers/youtube-innertube.ts'), 'utf8');
-  ok(!/viewCount|shortViewCount|lengthText|badges|thumbnail\b|navigationEndpoint|url\b.*videoRenderer/.test(source.replace(/\/\*\*[\s\S]*?\*\/|\/\/.*$/gm, '')), 'the reader never touches views, lengths, badges, thumbnails or links');
+  // Updated on purpose 2026-11-14 (Luke: "remove youtube shorts from results"): the video's link is read in one place, only
+  // to leave a Short out (it opens the Shorts player at a /shorts/ page); nothing of it is copied into an item.
+  const code = source.replace(/\/\*\*[\s\S]*?\*\/|\/\/.*$/gm, '');
+  ok(!/viewCount|shortViewCount|lengthText|badges|thumbnail\b|url\b.*videoRenderer/.test(code), 'the reader never touches views, lengths, badges or thumbnails');
+  ok((code.match(/navigationEndpoint/g) ?? []).length === 1 && /const opens = record\(video\.navigationEndpoint\);/.test(code) && /if \(opens\?\.reelWatchEndpoint !== undefined\) return null;/.test(code), '... and reads the link only to leave a Short out');
   ok(!/invidious|piped/i.test(source + readFileSync(join(ROOT, 'app/lib/web/search/providers/youtube.ts'), 'utf8')), 'no Invidious or Piped');
 
   asserts.done();

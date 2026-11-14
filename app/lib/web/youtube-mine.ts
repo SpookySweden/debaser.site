@@ -1,5 +1,6 @@
 import { safeFetchJson, type FetchLike } from './safe-fetch';
 import { buildUrl } from './urls';
+import { taggedShort } from './shorts';
 import { youtubeItem } from './search/providers/youtube';
 import type { WebItem } from './types';
 
@@ -101,7 +102,11 @@ export async function readYouTubeMine(token: string, fetchImpl: FetchLike = fetc
   const [uploads, playlists, topicPage] = await Promise.all([
     Promise.all(
       channels.slice(0, UPLOAD_CHANNELS).map(({ id }) =>
-        read(api('playlistItems', { part: 'snippet', playlistId: `UU${id.slice(2)}`, maxResults: String(PER_CHANNEL) })).catch((): Page => ({})),
+        // UULF is the channel's uploads without Shorts (YouTube's own list; Luke, 2026-11-14: no Shorts). A channel with no
+        // such list falls back to all its uploads, with any Short tagged #shorts still left out below.
+        read(api('playlistItems', { part: 'snippet', playlistId: `UULF${id.slice(2)}`, maxResults: String(PER_CHANNEL) }))
+          .catch(() => read(api('playlistItems', { part: 'snippet', playlistId: `UU${id.slice(2)}`, maxResults: String(PER_CHANNEL) })))
+          .catch((): Page => ({})),
       ),
     ),
     read(api('playlists', { part: 'snippet', mine: 'true', maxResults: String(MAX_PLAYLISTS) })).catch((): Page => ({})),
@@ -128,6 +133,7 @@ export async function readYouTubeMine(token: string, fetchImpl: FetchLike = fetc
   const found = new Map<string, WebItem>();
   const add = (id: unknown, snippet: Snippet | undefined) => {
     if (typeof id !== 'string' || !VIDEO_ID.test(id) || snippet === undefined || found.has(id)) return;
+    if (taggedShort(snippet.title, snippet.description)) return;
     found.set(
       id,
       youtubeItem(
