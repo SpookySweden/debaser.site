@@ -2,6 +2,7 @@
 
 import type { CSSProperties, ReactNode } from 'react';
 import type { UserDirectoryRow as DirectoryRow } from '../lib/profile/directory';
+import { letterCatcherProps, useLetterCatcher } from '../lib/letters/letter-drag';
 import { inkOnNameColour, nameColourDark, profileNameColour } from '../lib/profile/name-colours';
 import { presenceLine } from '../lib/profile/presence';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
@@ -99,6 +100,12 @@ export default function UserDirectoryRow({
   // Until the lamps are read, the lamp's room is kept empty, so the row doesn't jump when the answer comes.
   const lampSlot = known ? <StatusDot status={row.status} record={row.record} /> : lamp ? <StatusDot status="private" className={lampPrivate ? undefined : 'invisible'} /> : null;
 
+  // A letter in the air (SPEC-letter-drag.md; Luke, 2026-11-14): everyone who can catch it wears a dotted outline, and the
+  // one under the pointer a solid one, because letting go there sends it at once. The outlines sit inside the row, so
+  // nothing moves. Your own row never lights up.
+  const caught = useLetterCatcher(row.account.id);
+  const catching = row.you || caught === 'none' ? '' : caught === 'over' ? 'outline outline-2 -outline-offset-2 outline-accent-ink' : 'outline outline-2 -outline-offset-2 outline-dotted outline-accent-ink';
+
   /**
    * The panel's row: one line, and only the parts a glance needs.
    *
@@ -112,8 +119,9 @@ export default function UserDirectoryRow({
   if (compact) {
     return (
       <li
-        className={`name-glow flex items-center gap-1 border-b border-ink px-2 py-1 text-label font-bold last:border-b-0 ${row.admin ? 'bg-sun-pale' : ''}`}
+        className={`name-glow flex items-center gap-1 border-b border-ink px-2 py-1 text-label font-bold last:border-b-0 ${row.admin ? 'bg-sun-pale' : ''} ${catching}`}
         style={glow}
+        {...letterCatcherProps(row.account.id, row.you)}
       >
         {lampSlot}
 
@@ -153,8 +161,9 @@ export default function UserDirectoryRow({
     <li
       className={`name-glow flex flex-wrap items-center gap-x-3 border-b border-ink p-1 text-label font-bold last:border-b-0 ${
         row.admin ? 'bg-sun-pale' : ''
-      }`}
+      } ${catching}`}
       style={glow}
+      {...letterCatcherProps(row.account.id, row.you)}
     >
       {/* The lamp and its age, as the side panel's rows draw them: `NOW` while the lamp is green, `AWAY` while it is yellow, else
           how long ago in one character (`3w`). A fixed narrow column, so the names still line up. */}

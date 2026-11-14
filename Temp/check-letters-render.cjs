@@ -24,6 +24,10 @@ stub(path.join(OUT, 'components/DockWindow.js'), { default: ({ title, children }
 stub(path.join(OUT, 'components/PopoutWindow.js'), { default: ({ title, children, actions }) => el('div', { 'data-popout': title }, children, actions) });
 stub(path.join(OUT, 'components/SpriteSlot.js'), { default: ({ src }) => el('span', { 'data-slot': src }) });
 stub(path.join(OUT, 'components/NameColourWindow.js'), { nameInkStyle: (hex) => ({ '--name-ink': hex }) });
+// (2026-11-14, SPEC-letter-drag.md) The letter's window and the profile's list now reach for the people (SEND TO, and the
+// layer that carries a letter): the names come from the comms provider, which is not what this check is about.
+stub(path.join(OUT, 'components/CommsProvider.js'), { useComms: () => ({ accounts: [], allAccounts: [] }) });
+stub(path.join(OUT, 'lib/companion/events.js'), { companionCatches: () => undefined });
 stub(path.join(OUT, 'components/WebStream.js'), { WebRow: ({ item }) => el('li', { 'data-web-row': item.id }) });
 stub(path.join(OUT, 'lib/web/use-web-item.js'), { useWebItem: () => undefined });
 let asked = '';
@@ -133,6 +137,17 @@ const AddToLetterKey = require('./letters-render-out/components/AddToLetterKey.j
   auth = { status: 'signed-in', user: { id: 'someone-else' } };
   const window2 = renderToStaticMarkup(el(LetterWindow));
   assert.doesNotMatch(window2, /⚙|PRIVATE|SHUFFLE|PASTE A LINK/, 'someone else gets none of the owner`s keys');
+  // (2026-11-14, SPEC-letter-drag.md, Luke's Q4: "SEND TO in letter") The way to recommend a whole letter without dragging it.
+  assert.match(window1, /\[ ⚙ \][\s\S]*?<button[^>]*aria-haspopup="dialog"[^>]*>\[ SEND TO \]<\/button>/, 'the owner has SEND TO, beside the cog');
+  assert.doesNotMatch(window1, /<button[^>]*disabled=""[^>]*>\[ SEND TO \]/, 'on, because the letter has things in it');
+  assert.match(window2, /\[ SEND TO \]/, 'someone signed in who can see a letter may pass it on');
+  auth = { status: 'anonymous', user: null };
+  assert.doesNotMatch(renderToStaticMarkup(el(LetterWindow)), /SEND TO/, 'a visitor has no SEND TO');
+  auth = { status: 'signed-in', user: { id: 'me' } };
+  const hollow = await store.createLetter('me', 'NOTHING IN IT');
+  openLetter(hollow.id);
+  assert.match(renderToStaticMarkup(el(LetterWindow)), /<button[^>]*disabled=""[^>]*title="EMPTY LETTER: NOTHING TO SEND"[^>]*>\[ SEND TO \]/, 'an empty letter`s SEND TO is off, and says why');
+  openLetter(mine.id);
   console.log('  ok    the letter window');
 
   /* 5. The pop-up: the key that fits, and a link that leaves safely -------------------------- */

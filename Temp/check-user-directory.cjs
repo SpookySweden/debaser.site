@@ -115,6 +115,11 @@ const youHtml = withProviders(
 assert.match(youHtml, /\[ YOU \]/);
 assert.match(youHtml, /background-color:#28c745/, 'your own lamp is emerald');
 assert.doesNotMatch(youHtml, /\[ MESSAGE \]/);
+// (2026-11-14, SPEC-letter-drag.md) A letter carried from a profile finds a person by their row: every row says whose it
+// is, except your own, which never catches your letter. At rest no row wears a catcher's outline.
+assert.match(adminHtml, /<li[^>]*data-letter-catcher="debaser-site"/, 'a row says whose it is, for a dropped letter');
+assert.doesNotMatch(youHtml, /data-letter-catcher/, 'your own row is not a catcher');
+assert.doesNotMatch(adminHtml, /outline-accent-ink/, 'and nobody is lit while no letter is in the air');
 
 // A signed-out visitor: no message buttons and nobody marked as them.
 const guestRows = directory(null);

@@ -253,7 +253,9 @@ function RecommendationRow({
           </button>
         ) : null}
       </p>
-      {rec.message && rec.itemCount > 1 && rec.message !== rec.title ? <p className="mt-1 break-words text-label text-ink">{rec.message}</p> : null}
+      {/* A letter's note always shows, even with one thing in it (SPEC-letter-drag.md): `FROM NAME'S LETTERS` is how a
+          passed-on letter says whose it is. */}
+      {rec.message && (rec.itemCount > 1 || rec.letter) && rec.message !== rec.title ? <p className="mt-1 break-words text-label text-ink">{rec.message}</p> : null}
       {fault ? <p role="status" className="text-label text-ink">{fault}</p> : null}
       {open ? <RecommendationQueue id={rec.id} me={me} /> : null}
       {letterOpen && rec.letter ? <RecommendedLetter rec={rec} letter={rec.letter} me={me} onClose={() => setLetterOpen(false)} /> : null}

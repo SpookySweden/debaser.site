@@ -1,10 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { letterDraggable } from '../lib/letters/letter-drag';
 import { openLetter } from '../lib/letters/letter-window';
 import { createLetter, useLettersOf } from '../lib/letters/store';
 import { LETTER_NAME_MAX } from '../lib/letters/types';
 import { FIELD_TIGHT, PLATE } from '../lib/ui/controls';
+import { useAuth } from './AuthProvider';
+import LetterDragLayer from './LetterDragLayer';
 import LetterStamp from './LetterStamp';
 import { nameInkStyle } from './NameColourWindow';
 
@@ -15,14 +18,26 @@ import { nameInkStyle } from './NameColourWindow';
  */
 export default function ProfileLetters({ userId, owner }: { userId: string; owner: boolean }) {
   const { value, loading, error } = useLettersOf(userId);
+  const { user } = useAuth();
+  /** What the last carried letter came to: SENT "MIXTAPE" TO NAME, or why not (SPEC-letter-drag.md). */
+  const [said, setSaid] = useState<string | null>(null);
   const letters = value ?? [];
   if (!owner && letters.length === 0) return null;
+  const me = user?.id ?? null;
 
   return (
     <section aria-labelledby="profile-letters" className="mt-4">
       <h2 id="profile-letters" className="title-line text-accent-ink">
         LETTERS
       </h2>
+      {/* Someone signed in can carry a letter to a person: the side panel's rows and the characters on screen light up, and
+          letting go on one sends it at once (Luke, 2026-11-14). The layer draws the carried envelope and does the sending. */}
+      {me !== null ? <LetterDragLayer me={me} onSaid={setSaid} /> : null}
+      {said ? (
+        <p role="status" className="px-2 pt-1 text-label text-ink">
+          {said}
+        </p>
+      ) : null}
       {loading && value === null ? <p className="p-2 text-label text-ink">READING...</p> : null}
       {error ? <p className="p-2 text-label text-ink">{error}</p> : null}
       {/* Slim (Luke, 2026-11-14: "far less bulky and more simplistic regarding the outline and text ans size of the letter
@@ -35,6 +50,7 @@ export default function ProfileLetters({ userId, owner }: { userId: string; owne
             <button
               type="button"
               onClick={() => openLetter(letter.id)}
+              {...letterDraggable(() => (me === null ? null : { letter, barred: [me, letter.owner] }))}
               title={letter.description || undefined}
               className="flex max-w-full cursor-pointer items-center gap-1.5 px-1 py-1 text-left hover:outline hover:outline-1 hover:outline-dotted hover:outline-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-ink max-sm:min-h-tap"
             >

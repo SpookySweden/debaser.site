@@ -59,7 +59,9 @@ Built on SPEC-letters.md and SPEC-recommendations.md.
   nothing lit under the pointer it says nothing, and letting go there sends nothing.
 - A drop only counts when the pointer is inside a lit target. Letting go anywhere else, or pressing Escape, puts the
   letter back.
-- A character stops walking while a letter is in the air, and its catch area is a little bigger than its picture.
+- A character's catch area is a little bigger than its picture, and its outline follows it as it walks. (Planned, not
+  built: holding a character still while a letter is in the air. That needs a hook on the companion's side, asked of
+  the COMPANION session on 2026-11-14.)
 
 ### What a drop does
 - **It sends at once** (Luke's Q2). The letter's copy goes to that one person, the same way the RECOMMENDATIONS page sends.
@@ -105,9 +107,8 @@ Built on SPEC-letters.md and SPEC-recommendations.md.
 | `ProfileLetters.tsx`, `LetterWindow.tsx` | LETTERS | pick-up on each letter; the `[ SEND TO ]` key |
 | `UserDirectoryRow.tsx` | LETTERS | each row says whose it is, so a drop can find it, and lights up |
 | `RecommendationComposer.tsx`, `RecommendationsPage.tsx` | LETTERS | the composer uses the shared helper; a letter's note always shows |
-| `app/globals.css` (the letters block) | LETTERS | the lit and under-the-pointer outlines |
 | `Companion.tsx`, `ProfileCharacter.tsx`, `app/lib/companion/**` | COMPANION | nothing: `data-companion-of`, `data-character-of` and `companionCatches` are live; they are read and called, not edited |
-| `Temp/check-letter-drag.cjs`, `Temp/drive-letter-drag.cjs` (new) | LETTERS | the checks and the drives |
+| `Temp/check-letter-drag.cjs`, `scripts/drive-letter-drag.cjs` (new) | LETTERS | the checks and the drives |
 
 ### Risks, said once
 - **Accidental sends.** Luke chose "sends at once", so a slip onto a lit person does send, and they are notified. What

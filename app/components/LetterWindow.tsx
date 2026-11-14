@@ -11,7 +11,9 @@ import DockWindow from './DockWindow';
 import LetterCanvas from './LetterCanvas';
 import LetterItemPopout from './LetterItemPopout';
 import LetterLinkForm from './LetterLinkForm';
+import LetterSendBox from './LetterSendBox';
 import LetterSettings from './LetterSettings';
+import { EMPTY_LETTER } from '../lib/recommendations/send-letter';
 import { nameInkStyle } from './NameColourWindow';
 import { noteHistory } from '../lib/recommender/history';
 
@@ -47,6 +49,8 @@ function LetterWindowBody({ letterId, onClose }: { letterId: string; onClose: ()
   const [opened, setOpened] = useState<LetterItem | null>(null);
   const [settings, setSettings] = useState(false);
   const [fault, setFault] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState<string | null>(null);
   const value = letter.value;
   const owner = value !== null && user !== null && user.id === value.owner;
   const held = items.value ?? [];
@@ -91,10 +95,19 @@ function LetterWindowBody({ letterId, onClose }: { letterId: string; onClose: ()
                 </span>
               </h2>
               {owner ? (
+                <button type="button" onClick={() => setSettings(true)} aria-label="Letter settings" title="SETTINGS" className={PLATE}>
+                  [ ⚙ ]
+                </button>
+              ) : null}
+              {/* SEND TO (SPEC-letter-drag.md): recommending the whole letter without dragging it, for anyone signed in who
+                  can see it: its owner, or a reader passing a public letter on. */}
+              {user !== null ? (
+                <button type="button" onClick={() => setSending(true)} aria-haspopup="dialog" className={PLATE} disabled={held.length === 0} title={held.length === 0 ? EMPTY_LETTER : undefined}>
+                  [ SEND TO ]
+                </button>
+              ) : null}
+              {owner ? (
                 <>
-                  <button type="button" onClick={() => setSettings(true)} aria-label="Letter settings" title="SETTINGS" className={PLATE}>
-                    [ ⚙ ]
-                  </button>
                   <button
                     type="button"
                     onClick={() => void flipLock()}
@@ -124,6 +137,23 @@ function LetterWindowBody({ letterId, onClose }: { letterId: string; onClose: ()
               <p role="status" className="bg-bubble-pale px-2 py-1 text-label text-ink-bar">
                 {fault}
               </p>
+            ) : null}
+            {sent ? (
+              <p role="status" className="text-label text-ink">
+                {sent}
+              </p>
+            ) : null}
+            {sending && user !== null ? (
+              <LetterSendBox
+                letter={value}
+                items={held}
+                me={user.id}
+                onClose={() => setSending(false)}
+                onSent={(said) => {
+                  setSending(false);
+                  setSent(said);
+                }}
+              />
             ) : null}
             {opened ? <LetterItemPopout item={opened} owner={owner} onClose={() => setOpened(null)} /> : null}
             {settings ? <LetterSettings letter={value} items={held} onClose={() => setSettings(false)} /> : null}

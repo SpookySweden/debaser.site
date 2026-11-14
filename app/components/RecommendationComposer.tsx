@@ -15,8 +15,8 @@ import { searchEverywhere } from '../lib/web/everywhere-client';
 import { rowAddresses } from '../lib/web/row-addresses';
 import { useComms } from './CommsProvider';
 import LetterStamp from './LetterStamp';
-import { placeCard } from '../lib/letters/placement';
 import type { Placement } from '../lib/letters/types';
+import { letterCopy as copyOfLetter, lookOf, placesByThing } from '../lib/recommendations/send-letter';
 import type { RecommendationLetter } from '../lib/recommendations/types';
 import { useMusicLibrary } from './MusicLibraryProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
@@ -110,9 +110,7 @@ export default function RecommendationComposer({ me, onSend }: { me: string; onS
     const letter: RecommendationLetter | null = letterCopy
       ? (() => {
           const { placeOf, ...look } = letterCopy;
-          const places: Placement[] = [];
-          for (const thing of queue) places.push(placeOf[`${thing.kind}:${thing.ref}`] ?? placeCard(places));
-          return { ...look, places };
+          return copyOfLetter(look, queue, placeOf);
         })()
       : null;
     try {
@@ -336,17 +334,7 @@ function FromLetters({
           onAddLetter(
             things,
             name,
-            chosen
-              ? {
-                  name: chosen.name,
-                  description: chosen.description,
-                  textColour: chosen.textColour,
-                  stampUrl: chosen.stampUrl,
-                  stampOpacity: chosen.stampOpacity,
-                  stampDensity: chosen.stampDensity,
-                  placeOf: Object.fromEntries((items.value ?? []).map((item) => [`${item.kind}:${item.ref}`, { x: item.x, y: item.y, turn: item.turn }])),
-                }
-              : undefined,
+            chosen ? { ...lookOf(chosen), placeOf: placesByThing(items.value ?? []) } : undefined,
           )
         }
       />
