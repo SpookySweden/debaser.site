@@ -676,7 +676,7 @@ function CatalogueRow({
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <button type="button" onClick={onToggle} className="min-w-0 cursor-pointer text-left text-sm font-bold text-ink hover:underline">
+            <button type="button" onClick={onToggle} aria-expanded={open} className="min-w-0 cursor-pointer text-left text-sm font-bold text-ink hover:underline">
               {open ? '[-]' : '[+]'} {number === undefined ? null : <span className="mr-1">{number}</span>} {barred ? <BarredTitle>{item.title}</BarredTitle> : item.title}
             </button>
             <span className="text-label font-bold text-ink-quiet">{KIND_LABELS[item.kind]}</span>

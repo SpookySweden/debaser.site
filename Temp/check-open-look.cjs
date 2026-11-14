@@ -63,6 +63,8 @@ assert.match(read('app/components/SiteNav.tsx'), /aria-expanded=\{listOpen\}/, '
 assert.doesNotMatch(read('app/components/SiteNav.tsx'), /listOpen \? wordClass\(true\)/, 'and no longer draws an open face of its own');
 assert.match(read('app/components/SidebarComms.tsx'), /aria-expanded=\{expanded\}[\s\S]*id="sidebar-comms-list" className="fold-body"/, "the side panel's COMMS key says it is open, and what it opens is tied to it");
 assert.match(read('app/components/SidebarProfile.tsx'), /aria-expanded=\{settingsOpen\}[\s\S]*className="fold-body /, 'and so is SETTINGS');
+// The files catalogue's rows fold open from their titles: each says so (it had a [+]/[-] mark and nothing a rule or a screen reader could read).
+assert.ok(read('app/components/MediaCatalogue.tsx').includes('onClick={onToggle} aria-expanded={open} className="min-w-0 cursor-pointer text-left'), "a files row's title says when it is open");
 assert.match(read('docs/design.md'), /THIS IS OPEN: one look for everything that folds open in place/, 'the rule is written down');
 
 console.log('open look: one rule lights open keys, rows and their areas; buttons and summaries only; colour only: OK');
