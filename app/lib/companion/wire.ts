@@ -62,7 +62,11 @@ const POSE_MOODS: Partial<Record<MotionId, readonly CompanionMood[]>> = {
   read: ['sit'],
   type: ['stand'],
 };
-export const COMPANION_POSES = Object.keys(POSE_MOODS) as MotionId[];
+/**
+ * The poses a room is told. Not `read` or `type`: those say what its owner is doing elsewhere on the site (reading a
+ * book, writing to somebody), which is nobody's business in a stream room. The room sees it sit, or stand.
+ */
+export const COMPANION_POSES: readonly MotionId[] = ['dance1', 'dance2', 'dance3', 'dance4', 'dance5', 'run', 'curl', 'watch'];
 
 /** The loop a mood plays on its own. `dance` is whichever dance the browser drawing it picked. */
 export function moodMotion(mood: CompanionMood, dance: MotionId): MotionId {
@@ -169,8 +173,45 @@ export const subscribeToRoomCompanions = roomSlot.subscribe;
 export const serverRoomCompanions = (): readonly RoomCompanion[] => EMPTY;
 const EMPTY: readonly RoomCompanion[] = [];
 
+/**
+ * How long a companion that has dropped out of the room's presence is kept on screen. A tab re-saying its presence can
+ * be missing from one sync and back in the next; without this its companion blinks out and jumps (seen 2026-11-14).
+ */
+export const LINGER_MS = 2_500;
+
+export type Lingering = ReadonlyMap<string, { companion: RoomCompanion; until: number }>;
+
+/**
+ * The companions to show after a sync: everyone present, and anyone who was shown a moment ago and is missing from this
+ * sync, kept until their time is up. Pure. An empty sync is the tab leaving the room (or the room emptying): nobody is kept.
+ */
+export function withLingering(
+  shown: readonly RoomCompanion[],
+  present: readonly RoomCompanion[],
+  held: Lingering,
+  now: number,
+): { list: RoomCompanion[]; held: Map<string, { companion: RoomCompanion; until: number }> } {
+  const next = new Map<string, { companion: RoomCompanion; until: number }>();
+  if (present.length === 0) return { list: [], held: next };
+  const here = new Set(present.map((one) => one.key));
+  for (const [key, kept] of held) if (!here.has(key) && kept.until > now) next.set(key, kept);
+  for (const one of shown) if (!here.has(one.key) && !held.has(one.key)) next.set(one.key, { companion: one, until: now + LINGER_MS });
+  return { list: [...present, ...[...next.values()].map((kept) => kept.companion)], held: next };
+}
+
+let lingering: Map<string, { companion: RoomCompanion; until: number }> = new Map();
+let lastPresent: readonly RoomCompanion[] = EMPTY;
+let lingerTimer: ReturnType<typeof setTimeout> | null = null;
+
 /** Written by the room's presence (the watch repositories) on every sync, and emptied when the tab leaves. */
-export function setRoomCompanions(next: readonly RoomCompanion[]): void {
+export function setRoomCompanions(present: readonly RoomCompanion[]): void {
+  lastPresent = present;
+  const merged = withLingering(roomSlot.state(), present, lingering, Date.now());
+  lingering = merged.held;
+  if (lingerTimer !== null) clearTimeout(lingerTimer);
+  // Looked at again when the first of those kept runs out of time, so it goes even if no sync comes.
+  lingerTimer = lingering.size === 0 ? null : setTimeout(() => setRoomCompanions(lastPresent), Math.max(50, Math.min(...[...lingering.values()].map((kept) => kept.until)) - Date.now() + 20));
+  const next = merged.list;
   const now = roomSlot.state();
   const same =
     now.length === next.length &&

@@ -28,6 +28,7 @@ import type {
 } from '../lib/forum/types';
 import { useAuth } from './AuthProvider';
 import { noteHistory } from '../lib/recommender/history';
+import { cheerCompanion } from '../lib/companion/events';
 
 export type CreateThreadRequest = {
   title: string;
@@ -325,7 +326,7 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
         userTags: canonicaliseUserTags(request.userTags),
         media: request.media,
         track: request.track,
-      });
+      }).then(cheerCompanion);
     },
     [author, canonicaliseUserTags],
   );
@@ -342,7 +343,7 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
         userTags: canonicaliseUserTags(request.userTags),
         media: request.media,
         track: request.track,
-      });
+      }).then(cheerCompanion);
     },
     [author, canonicaliseUserTags],
   );

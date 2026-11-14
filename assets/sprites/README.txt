@@ -20,6 +20,10 @@ The slots that exist today, and what belongs in each:
                    above the music bar after leaving a profile's room too fast to climb down
                    (app/components/Companion.tsx).
 
+  companion-book.gif
+                   24x24, still or looping. The open book on a companion's lap while it reads
+                   along with you at /read (app/components/Companion.tsx).
+
 Adding a slot: a component imports `SpriteSlot` and gives it a path in here, a size, and
 the words for what it is. A GIF may use any palette, but the sizes above are what the
 layout has been built around, so a replacement at another size will move things.

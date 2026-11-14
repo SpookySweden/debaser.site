@@ -64,6 +64,11 @@ type DockWindowProps = {
    * stream, and whose way back is on the tile. Its saved box is left as it is.
    */
   aboveBottomBar?: boolean;
+  /**
+   * Room to leave above the window, in CSS pixels (0 for none just now): the stream room, whose top edge companions
+   * stand on while it covers their strip (`../lib/companion/ledge.ts`). A window given this is marked `data-headroom`.
+   */
+  headroom?: number;
   children: ReactNode;
 };
 
@@ -132,6 +137,7 @@ export default function DockWindow({
   minimized = false,
   pictureOut = false,
   aboveBottomBar = false,
+  headroom,
   children,
 }: DockWindowProps) {
   const desktop = useSyncExternalStore(subscribeToDesktop, isDesktop, onServer);
@@ -186,12 +192,15 @@ export default function DockWindow({
 
   const titleHandlers = managed ? layoutHandlers : sheetDrag;
 
+  // Asked to leave room above itself, it is drawn that much lower when it would sit nearer the top of the screen than
+  // that, and shorter by the same, so its foot stays where it was. Its saved box is left as it is.
+  const drop = managed && headroom !== undefined ? Math.max(0, headroom - live.rect.y) : 0;
   const style = managed
     ? {
         left: live.rect.x,
-        top: live.rect.y,
+        top: live.rect.y + drop,
         width: live.rect.w,
-        height: aboveBottomBar ? `min(${live.rect.h}px, calc(100vh - var(--music-top, 0px) - ${live.rect.y}px - 0.25rem))` : live.rect.h,
+        height: aboveBottomBar ? `min(${live.rect.h - drop}px, calc(100vh - var(--music-top, 0px) - ${live.rect.y + drop}px - 0.25rem))` : live.rect.h - drop,
         zIndex: 90 + Math.min(live.z, 8),
       }
     : {
@@ -217,6 +226,7 @@ export default function DockWindow({
       data-dock-window={id}
       data-grouped={grouped ? 'true' : undefined}
       data-minimized={minimized ? 'true' : undefined}
+      data-headroom={headroom}
     >
       <div className={`frame bg-sun-pale flex ${managed ? 'h-full' : 'max-h-full'} flex-col`}>
         <div

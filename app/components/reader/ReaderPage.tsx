@@ -84,6 +84,8 @@ import HighlightBar, { type BarSpot } from './HighlightBar';
 import { BookmarkList, ContentsList, HighlightList, LookSettings, Panel, SearchBox, type PanelName, type SearchGroup } from './ReaderPanels';
 import ReadingShelf from './ReadingShelf';
 import { noteHistory } from '../../lib/recommender/history';
+import { pokeCompanion } from '../../lib/companion/events';
+import { useCompanionScene } from '../../lib/companion/use-companion-scene';
 import { MatchSearch, OWN_ACCEPT } from './OwnFileDrop';
 
 const LOOK_KEY = 'debaser-reader-look';
@@ -260,6 +262,7 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
   const pdfHits = useRef(new WeakMap<Document, { highlight: BookHighlight; range: Range }[]>());
 
   const [phase, setPhase] = useState<'choose' | 'reading-file' | 'opening' | 'ask' | 'ready' | 'viewer' | 'no-free-copy' | { fault: string }>(own ? 'choose' : 'reading-file');
+  useCompanionScene('read', phase === 'ready' || phase === 'viewer');
   // A work with no free copy anywhere (Luke, 2026-11-13): shown inside the reader with a link to Open Library, and, when
   // a lending-library Archive scan exists, a [ BORROW ON ARCHIVE ↗ ] key beside it.
   const [noFreeCopyUrl, setNoFreeCopyUrl] = useState<string | null>(null);
@@ -942,6 +945,7 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
           });
         });
         view.addEventListener('relocate', (event) => {
+          pokeCompanion('flick');
           const detail = (event as CustomEvent<Relocated>).detail;
           const cfi = isCfi(detail.cfi) ? detail.cfi : null;
           const fraction = storyFraction(typeof detail.fraction === 'number' ? detail.fraction : 0, storyEnd.current);
@@ -973,6 +977,7 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
             const finishedAt = finishedAfter(fraction, held?.finishedAt ?? null);
             if (finishedAt && !held?.finishedAt && !own && bookRef) {
               noteHistory({ kind: 'book', ref: bookRef, title: savedTitle.current, maker: historyMaker.current, words: [], action: 'finished' });
+              pokeCompanion('cheer');
             }
             const save: PlaceSave = {
               cfi,

@@ -100,6 +100,7 @@ import { useChatLineDrag } from '../lib/watch/use-chat-line-drag';
 import { askToSaveCanvas, closeRoomCanvas, type CanvasContext } from '../lib/watch/use-room-canvas';
 import SongCoverCard from './SongCoverCard';
 import { noteHistory } from '../lib/recommender/history';
+import { useCompanionScene } from '../lib/companion/use-companion-scene';
 
 /** One per tab: two tabs of one account are two members of a room. */
 function newTabKey(): string {
@@ -349,6 +350,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   const fileEnded = useEffectEvent(() => moveOn(false));
   /** Whether the room says the host is playing, read by the effects without depending on every write. */
   const roomPlaying = useEffectEvent(() => room.isPlaying);
+  useCompanionScene('watch', room.isPlaying);
   const roomNow = useEffectEvent(() => room);
 
   const currentId = useEffectEvent(() => room.currentEntryId);

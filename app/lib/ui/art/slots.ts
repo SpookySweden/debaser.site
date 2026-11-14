@@ -739,6 +739,17 @@ export const ART_SLOTS = [
     fallback: 'an empty sprite slot, which reads as "no drawing yet"',
     brief: 'The portal a companion pops back out of on its strip above the music bar, when the page changed before it could climb down from a profile\'s room (Luke, 2026-11-13). 48px, standing on the strip, open for just over a second; looping is fine.',
   },
+  {
+    id: 'sprite-companion-book',
+    label: 'SPRITE: COMPANION BOOK',
+    kind: 'sprite',
+    path: 'assets/sprites/companion-book.gif',
+    shown: [[24, 24]],
+    k: 1,
+    fit: 'contain',
+    fallback: 'an empty sprite slot, which reads as "no drawing yet"',
+    brief: 'The open book on a companion\'s lap while it reads along with you at /read (Luke, 2026-11-14). 24px, seen from the side the companion faces (it is mirrored when the companion faces left); still, or a page lifting now and then.',
+  },
 
   /* ------------------------------------------------------------------ the flags */
   {

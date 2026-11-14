@@ -20,9 +20,11 @@ import {
   tttStart,
   tttStatus,
   tttTurn,
+  tttWinner,
   type Board,
   type Mark,
 } from '../lib/games/tic-tac-toe';
+import { useCompanionMatch } from '../lib/companion/use-companion-scene';
 import type { GameId, GameInvite } from '../lib/games/types';
 import { PANEL, PLATE_MEDIUM, STATUS_BAR, TITLE_BAR } from '../lib/ui/controls';
 import PaddleDuelCourt from './PaddleDuelCourt';
@@ -99,6 +101,7 @@ export default function GameMatch({
 
   const myMark: Mark = host ? 'X' : 'O';
   const mySide: DuelSide = duelSides(host).mine;
+  useCompanionMatch(game === 'tic-tac-toe' ? tttWinner(board) : duelWinner(duel), game === 'tic-tac-toe' ? myMark : mySide);
 
   const send = useCallback((message: GameMessage) => {
     channel.current?.send(message);

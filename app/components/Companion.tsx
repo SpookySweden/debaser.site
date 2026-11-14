@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { DANCES, type MotionId } from '../lib/character/motion';
 import { cellAt, type CharacterSheet } from '../lib/character/sheet';
 import { useShownCharacter } from '../lib/character/use-shown-character';
-import { fallStep, spanFor, startBrain, think, throwOf, type BrainState, type Fall, type Span } from '../lib/companion/brain';
+import { fallStep, spanFor, startBrain, think, throwOf, type BrainScene, type BrainState, type Fall, type Span } from '../lib/companion/brain';
 import { companionOut } from '../lib/companion/choices';
 import {
   companionChoicesState,
@@ -13,7 +13,10 @@ import {
   subscribeToCompanionChoices,
 } from '../lib/companion/companion-slot';
 import { onCompanionPoke } from '../lib/companion/events';
-import { measureFloor, type Floor } from '../lib/companion/floor';
+import { LEDGE_SELECTOR, measureFloor, type Floor } from '../lib/companion/floor';
+import { holdLedgeHeight } from '../lib/companion/ledge';
+import { companionScene } from '../lib/companion/scene';
+import { floatingState } from '../lib/ui/floating-player';
 import { usePhone, useReducedMotion } from '../lib/companion/use-phone';
 import {
   boxOf,
@@ -101,10 +104,14 @@ const CHASE_SAY_MS = 2_000;
 const MARK_MS = 1_600;
 /** The placeholder's hop: how high it is on each frame, then back down. A character plays its own one-off motions. */
 const HOP = [-4, -8, -10, -8, -4, 0];
+/** A pointer that has not moved for this long is no longer chased. */
+const CHASE_FRESH_MS = 8_000;
 /** How far a press must move before it is a pick-up, not a poke. */
 const GRAB_SLOP = 5;
 /** A dance lasts this long before it changes to another (a new track changes it at once). */
 const DANCE_MS: readonly [number, number] = [20_000, 40_000];
+/** The book's box on its lap while it reads, in CSS pixels (its art slot, `sprite-companion-book`). */
+const BOOK_SIZE = 24;
 /** How long after the page settles a strip missing the newer motions is baked again. */
 const REBAKE_AFTER_MS = 6_000;
 /** What a press without a drag gets, in turn. */
@@ -135,18 +142,69 @@ function MusicWatch({ onChange }: { onChange: (playing: boolean, track: string |
 }
 
 /** The floor, measured at most once a second (and at once when the screen changes size), shared by figures of a size. */
-const floorCache = new Map<string, { at: number; w: number; h: number; floor: Floor }>();
+const floorCache = new Map<string, { at: number; w: number; h: number; ledge: string; floor: Floor }>();
+/** Where the stream room's window is just now (its top and two sides, or that it is folded away or not there). */
+function ledgeMark(): string {
+  const ledge = document.querySelector<HTMLElement>(LEDGE_SELECTOR);
+  if (ledge === null) return 'none';
+  if (ledge.dataset.minimized === 'true') return 'folded';
+  const box = ledge.getBoundingClientRect();
+  return `${Math.round(box.left)},${Math.round(box.top)},${Math.round(box.right)}`;
+}
 function floorNow(size: Size): Floor {
   const now = Date.now();
   const key = `${size.w}x${size.h}`;
   const held = floorCache.get(key);
-  if (held === undefined || now - held.at > 1_000 || held.w !== window.innerWidth || held.h !== window.innerHeight) {
+  // A stream room's window moving, folding or closing changes the floor at once: it is looked at every time (one box).
+  const ledge = ledgeMark();
+  if (held === undefined || now - held.at > 1_000 || held.w !== window.innerWidth || held.h !== window.innerHeight || held.ledge !== ledge) {
     const floor = measureFloor(size.w, size.h);
-    floorCache.set(key, { at: now, w: window.innerWidth, h: window.innerHeight, floor });
+    floorCache.set(key, { at: now, w: window.innerWidth, h: window.innerHeight, ledge: ledgeMark(), floor });
     return floor;
   }
   return held.floor;
 }
+
+/** Where on the floor a share of it is, and back: the whole screen on the strip, between a room window's two corners on top of one. */
+const floorRoom = (floor: Floor, size: Size): number => Math.max(1, floor.right - floor.left - size.w);
+
+/**
+ * The middle of what it is watching, across the screen, so it sits facing it: a room's picture, a floating video, the
+ * arcade. Null when there is nothing on screen to face. Read once a second at most.
+ */
+const FOCUS_SELECTOR = '[data-room-picture], [data-floating-player], [data-dock-window="arcade"]';
+let focusHeld: { at: number; x: number | null } = { at: 0, x: null };
+function focusNow(): number | null {
+  const now = Date.now();
+  if (now - focusHeld.at <= 1_000) return focusHeld.x;
+  let x: number | null = null;
+  for (const element of document.querySelectorAll(FOCUS_SELECTOR)) {
+    const box = element.getBoundingClientRect();
+    if (box.width === 0 || box.height === 0) continue;
+    x = box.left + box.width / 2;
+    break;
+  }
+  focusHeld = { at: now, x };
+  return x;
+}
+
+/**
+ * On top of a stream room's window the video is under its feet, not up in front of it: watching from there is a plain
+ * sit on the edge, not the looking-up it does from the floor.
+ */
+const onLedge = (loop: MotionId, floor: Floor): MotionId => (floor.ledge && loop === 'watch' ? 'sit' : loop);
+
+/** Which way to face to look at what it watches; as it was when there is nothing on screen to face. */
+function facingFocus(x: number, size: Size, facing: 1 | -1): 1 | -1 {
+  const focus = focusNow();
+  if (focus === null) return facing;
+  return focus >= x + size.w / 2 ? 1 : -1;
+}
+
+/** Where a key press was typed into: a text box, or a page being written (DOCS, the board, comms). */
+const WRITING = 'input:not([type]), input[type="text"], input[type="search"], input[type="email"], input[type="url"], textarea, [contenteditable="true"]';
+/** It types along for this long after the last key. */
+const TYPING_MS = 1_500;
 
 /** Places the figure and paints its body: a cell of the strip (mirrored when it faces left), or the placeholder. */
 function draw(
@@ -176,6 +234,9 @@ function draw(
     // Off its strip in the reader's hand, or falling back to it.
     const held = frame.held === true ? 'true' : 'false';
     if (place.dataset.held !== held) place.dataset.held = held;
+    // Up at the top of the screen (on a room's window) its name opens under it: over its head would be off the screen.
+    const tag = frame.floorY - size.h < 28 ? 'under' : 'over';
+    if (place.dataset.tag !== tag) place.dataset.tag = tag;
   }
   if (body === null) return;
   if (look === null) {
@@ -194,6 +255,29 @@ function draw(
 
 function hide(place: HTMLDivElement | null) {
   if (place !== null) place.style.visibility = 'hidden';
+}
+
+/** What a press is meant for when it lands on one: a key, a link, a field, a slider. */
+const KEYS = 'button, a[href], input, select, textarea, label, summary, [role="button"], [role="slider"], [role="link"], [contenteditable="true"]';
+
+/**
+ * A figure standing over a key lets presses through to it (Luke's first rule for it: it never blocks a click). Where its
+ * strip runs over a page's own keys (the reader's page keys and seek bar sit right along the foot of the screen), a press
+ * on the figure goes to the key under it instead of to the figure, for as long as it stands there; it can be picked up
+ * again once it has moved off. Looked at twice a second, at six spots across its box.
+ */
+function yieldToKeys(place: HTMLDivElement | null): void {
+  if (place === null || place.style.visibility !== 'visible') return;
+  const box = place.getBoundingClientRect();
+  let over = false;
+  for (const fx of [0.2, 0.5, 0.8]) {
+    for (const fy of [0.45, 0.85]) {
+      const under = document.elementsFromPoint(box.left + box.width * fx, box.top + box.height * fy).find((element) => element.closest('[data-companion-strip]') === null);
+      if (under !== undefined && under.closest(KEYS) !== null) over = true;
+    }
+  }
+  const want = over ? 'none' : '';
+  if (place.style.pointerEvents !== want) place.style.pointerEvents = want;
 }
 
 /** Opens the portal (an art slot, `sprite-portal`) with its foot on the strip, centred on `middle`. */
@@ -243,6 +327,8 @@ function Figure({ placeRef, bodyRef, markRef, label, own, look }: FigureProps) {
   const rows = look === null ? 0 : Math.ceil(look.sheet.cells / look.sheet.columns);
   // The `!` sits just over the head (`sheet.head`), not over the box's empty top.
   const markBottom = look === null ? undefined : size.h - look.sheet.head * SCALE + 2;
+  // A stream room's window leaves this much room above itself for the companions being drawn (`../lib/companion/ledge.ts`).
+  useEffect(() => holdLedgeHeight(size.h), [size.h]);
   return (
     <div
       ref={placeRef}
@@ -258,7 +344,7 @@ function Figure({ placeRef, bodyRef, markRef, label, own, look }: FigureProps) {
     >
       {/* Its owner's name, over its head on hover (not while it is being carried): absolutely placed, so it moves nothing. */}
       <span
-        className="invisible absolute bottom-full left-0 mb-1 whitespace-nowrap border border-ink bg-ink px-1 font-mono text-label text-paper group-hover:group-data-[held=false]:visible"
+        className="invisible absolute bottom-full left-0 mb-1 whitespace-nowrap border border-ink bg-ink px-1 font-mono text-label text-paper group-hover:group-data-[held=false]:visible group-data-[tag=under]:bottom-auto group-data-[tag=under]:top-full group-data-[tag=under]:mt-1 group-data-[tag=under]:mb-0"
         data-companion-name
       >
         {label}
@@ -274,6 +360,23 @@ function Figure({ placeRef, bodyRef, markRef, label, own, look }: FigureProps) {
         data-companion-mark
       >
         !
+      </span>
+      {/* Typing along (Luke, 2026-11-14): `...` over its head for as long as it plays `type`. Text, not art. */}
+      <span
+        className={`invisible absolute right-0 border border-ink bg-sun-pale px-1 font-mono text-label leading-none text-ink group-data-[motion=type]:visible ${look === null ? 'bottom-full mb-1' : ''}`}
+        style={markBottom === undefined ? undefined : { bottom: markBottom }}
+        data-companion-typing
+      >
+        ...
+      </span>
+      {/* The book it reads along from: Luke's to draw (an art slot), an empty dithered field on its lap until it is filed.
+          There only while it plays `read` or turns a page, on the side it faces. */}
+      <span
+        aria-hidden="true"
+        className="absolute bottom-1 hidden group-data-[motion=flick]:block group-data-[motion=read]:block group-data-[facing=left]:left-1 group-data-[facing=left]:-scale-x-100 group-data-[facing=right]:right-1"
+        data-companion-book
+      >
+        <SpriteSlot src="/assets/sprites/companion-book.gif" alt="" width={BOOK_SIZE} height={BOOK_SIZE} title="Its book appears here once assets/sprites/companion-book.gif is drawn" />
       </span>
       {look === null ? (
         // No SHOWN character: the placeholder field.
@@ -298,8 +401,7 @@ function Figure({ placeRef, bodyRef, markRef, label, own, look }: FigureProps) {
 
 /** A share of the strip's width, rounded so a pixel's wobble is not a new message. */
 function share(x: number, floor: Floor, size: Size): number {
-  const room = Math.max(1, floor.screen - size.w);
-  return Math.round(Math.min(1, Math.max(0, x / room)) * 1000) / 1000;
+  return Math.round(Math.min(1, Math.max(0, (x - floor.left) / floorRoom(floor, size))) * 1000) / 1000;
 }
 
 /**
@@ -338,7 +440,7 @@ function OwnCompanion({ label, musicPlaying, track, still, look, lookRef }: OwnP
     const now = Date.now();
     let brain: BrainState = startBrain(now);
     let lastActivity = now;
-    let pointer: { x: number; y: number } | null = null;
+    let pointer: { x: number; y: number; at: number } | null = null;
     let x: number | null = null;
     let facing: 1 | -1 = 1;
     let frame = 0;
@@ -350,14 +452,17 @@ function OwnCompanion({ label, musicPlaying, track, still, look, lookRef }: OwnP
     let danceTrack = music.current.track;
     let motion: MotionId = 'idle';
     let motionTick = 0;
-    /** The loop it is in, as the room hears it (`CompanionWire.p`). */
+    /** The loop it is in, and that loop as the room hears it (`CompanionWire.p`: not every pose is the room's business). */
+    let looping: MotionId = 'idle';
     let posing: MotionId | null = null;
     let pokes = 0;
+    /** It types along until then: a moment after the last key typed into a text box. */
+    let typingUntil = 0;
     /** A press on it, and the fall after it is let go. */
     let grab: Grab | null = null;
     let fall: Fall | null = null;
     let markTimer: ReturnType<typeof setTimeout> | null = null;
-    let lastSaid: { mood: CompanionMood; target: number | null; ref: string | null; pose: MotionId | null; at: number } | null = null;
+    let lastSaid: { mood: CompanionMood; target: number | null; ref: string | null; pose: MotionId | null; share: number; at: number } | null = null;
     // Visiting a profile's room.
     let phase: Phase = 'strip';
     /** Its feet while it climbs, from the top of the screen. */
@@ -385,11 +490,15 @@ function OwnCompanion({ label, musicPlaying, track, still, look, lookRef }: OwnP
     const say = (floor: Floor, size: Size, force: boolean) => {
       const target = brain.target ?? x ?? 0;
       const ref = wearing.current.ref;
-      const changed = lastSaid === null || lastSaid.mood !== brain.mood || lastSaid.target !== brain.target || lastSaid.ref !== ref || lastSaid.pose !== posing;
+      // Where along its floor, as the room hears it. Standing or sitting it has no target, and this only changes when it
+      // is put somewhere else (carried, or its floor changed under it: up onto a room's window), which the room is told once.
+      const at = share(target, floor, size);
+      const changed =
+        lastSaid === null || lastSaid.mood !== brain.mood || lastSaid.target !== brain.target || lastSaid.ref !== ref || lastSaid.pose !== posing || lastSaid.share !== at;
       if (!changed && !force) return;
       if (!force && brain.mood === 'chase' && lastSaid?.mood === 'chase' && lastSaid.ref === ref && Date.now() - lastSaid.at < CHASE_SAY_MS) return;
-      lastSaid = { mood: brain.mood, target: brain.target, ref, pose: posing, at: Date.now() };
-      sayCompanion({ x: share(target, floor, size), m: brain.mood, r: reactions, k: reactionKind, c: ref, p: posing });
+      lastSaid = { mood: brain.mood, target: brain.target, ref, pose: posing, share: at, at: Date.now() };
+      sayCompanion({ x: at, m: brain.mood, r: reactions, k: reactionKind, c: ref, p: posing });
     };
 
     /** The next frame of a loop: on from where it was, or from its start when it is a new one. */
@@ -415,7 +524,8 @@ function OwnCompanion({ label, musicPlaying, track, still, look, lookRef }: OwnP
       // In the reader's hand: it hangs where the pointer has it, swinging, never off the screen or under its own floor.
       if (phase === 'held' && grab !== null) {
         const nx = Math.round(Math.min(Math.max(0, floor.screen - size.w), Math.max(0, grab.px - grab.offX)));
-        const ny = Math.round(Math.min(floor.y, Math.max(size.h, grab.py + grab.offY)));
+        // (From on top of a room's window it can be carried anywhere down the screen; let go, it is back up on the window.)
+        const ny = Math.round(Math.min(floor.ledge ? window.innerHeight : floor.y, Math.max(size.h, grab.py + grab.offY)));
         grab.dx = x === null ? 0 : nx - x;
         x = nx;
         y = ny;
@@ -569,7 +679,8 @@ function OwnCompanion({ label, musicPlaying, track, still, look, lookRef }: OwnP
       if (x < span.left || x > span.right) x = Math.min(span.right, Math.max(span.left, x));
 
       // A profile's room on screen: up it goes.
-      if (!still && phase === 'strip' && room !== null && roomFloor(boxOf(room.stage), clipOf(room.stage), size, floor.y) !== null) {
+      // (Not from on top of a stream room's window: there is no way down from there but the window going.)
+      if (!still && phase === 'strip' && !floor.ledge && room !== null && roomFloor(boxOf(room.stage), clipOf(room.stage), size, floor.y) !== null) {
         phase = 'up';
         visiting = room;
         y = floor.y;
@@ -579,12 +690,20 @@ function OwnCompanion({ label, musicPlaying, track, still, look, lookRef }: OwnP
         brain = { mood: 'stand', target: null, until: Infinity, chaseUntil: 0, pose: null, act: null, laps: 0, home: 0 };
         posing = null;
         draw(place, bodyRef.current, look, { x, floorY: floor.y, facing, mood: 'stand', motion: 'idle', tick: 0, lift: 0 });
+        if (Math.floor(now / TICK_MS) % 5 === 0) yieldToKeys(place);
         say(floor, size, false);
         return;
       }
 
-      const near = pointer !== null && pointer.y >= floor.y - NEAR_PX ? pointer.x - size.w / 2 : null;
+      // The pointer near its strip is chased while it is moving about there. Left resting (or gone into a book's or a
+      // video's own frame, whose moves are not heard out here), it is let be after a while: it wanders off, or sits to read.
+      // (On top of a room's window "near" is a band about that edge: the whole window is below it, and is not near.)
+      const close = pointer !== null && pointer.y >= floor.y - NEAR_PX && (!floor.ledge || pointer.y <= floor.y + NEAR_PX / 2);
+      const near = pointer !== null && close && now - pointer.at < CHASE_FRESH_MS ? pointer.x - size.w / 2 : null;
       const was = brain;
+      // What you are doing that it can join in with: typing (it hears the keys itself), a game, a book, a video
+      // (`../lib/companion/scene.ts`; a video in the floating player counts as one being watched).
+      const scene: BrainScene | null = now < typingUntil ? 'type' : (companionScene() ?? (floatingState().entry !== null ? 'watch' : null));
       brain = think(brain, {
         now,
         lastActivity,
@@ -594,6 +713,7 @@ function OwnCompanion({ label, musicPlaying, track, still, look, lookRef }: OwnP
         span,
         random: Math.random,
         hour: new Date(now).getHours(),
+        scene,
       });
       if (was.mood === 'sleep' && brain.mood !== 'sleep') {
         // Awake: a stretch, and after a long sleep a wave for whoever came back.
@@ -625,8 +745,11 @@ function OwnCompanion({ label, musicPlaying, track, still, look, lookRef }: OwnP
 
       frame += 1;
       let lift = 0;
-      const loop = loopMotion(brain.mood === 'walk' && !walking ? 'stand' : brain.mood, brain.pose, dance);
+      const loop = onLedge(loopMotion(brain.mood === 'walk' && !walking ? 'stand' : brain.mood, brain.pose, dance), floor);
+      looping = loop;
       posing = COMPANION_POSES.includes(loop) ? loop : null;
+      // Watching, it sits facing what it watches.
+      if (loop === 'watch') facing = facingFocus(x, size, facing);
       if (act !== null) {
         motion = act.motion;
         motionTick = act.tick;
@@ -641,10 +764,19 @@ function OwnCompanion({ label, musicPlaying, track, still, look, lookRef }: OwnP
         }
       }
       draw(place, bodyRef.current, look, { x, floorY: floor.y, facing, mood: brain.mood, motion, tick: motionTick, lift });
+      if (frame % 5 === 0 && grab === null) yieldToKeys(place);
       say(floor, size, false);
     };
 
     const react = (kind: NonNullable<CompanionWire['k']>) => {
+      // A page turned is its head flicking across the book, while it reads along. Yours to see only: the room is never
+      // told when you turn a page.
+      if (kind === 'flick') {
+        // A page turned is you being here: a book's keys and taps are heard inside its own frame, not out on the page.
+        lastActivity = Date.now();
+        if (looping === 'read' && !still) act = { motion: 'flick', tick: 0 };
+        return;
+      }
       reactions += 1;
       reactionKind = kind;
       if (!still) act = { motion: reactionMotion(kind), tick: 0 };
@@ -656,13 +788,21 @@ function OwnCompanion({ label, musicPlaying, track, still, look, lookRef }: OwnP
     const active = () => {
       lastActivity = Date.now();
     };
+    // A key typed into a text box or a page being written: it types along for a moment after each.
+    const onKey = (event: KeyboardEvent) => {
+      active();
+      const into = event.target instanceof Element ? event.target.closest(WRITING) : null;
+      if (into !== null && (event.key.length === 1 || event.key === 'Backspace' || event.key === 'Enter') && !event.ctrlKey && !event.metaKey) typingUntil = Date.now() + TYPING_MS;
+    };
     const onMove = (event: PointerEvent) => {
       active();
       if (event.pointerType === 'touch') return;
-      pointer = { x: event.clientX, y: event.clientY };
+      pointer = { x: event.clientX, y: event.clientY, at: Date.now() };
     };
     const onOut = (event: PointerEvent) => {
-      if (event.relatedTarget === null) pointer = null;
+      // Off the page, or into a frame (a book's pages, a video): its moves in there are not heard out here, so it is
+      // gone as far as the companion can tell, rather than left where it was last seen for it to chase for good.
+      if (event.relatedTarget === null || event.relatedTarget instanceof HTMLIFrameElement) pointer = null;
     };
     const onBlur = () => {
       pointer = null;
@@ -746,7 +886,7 @@ function OwnCompanion({ label, musicPlaying, track, still, look, lookRef }: OwnP
     window.addEventListener('pointercancel', onDrop, { passive: true });
     window.addEventListener('pointermove', onMove, { passive: true });
     window.addEventListener('pointerdown', active, { passive: true });
-    window.addEventListener('keydown', active, { passive: true });
+    window.addEventListener('keydown', onKey, { passive: true });
     window.addEventListener('scroll', active, { passive: true, capture: true });
     window.addEventListener('wheel', active, { passive: true });
     document.addEventListener('pointerout', onOut, { passive: true });
@@ -764,7 +904,7 @@ function OwnCompanion({ label, musicPlaying, track, still, look, lookRef }: OwnP
       window.removeEventListener('pointercancel', onDrop);
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerdown', active);
-      window.removeEventListener('keydown', active);
+      window.removeEventListener('keydown', onKey);
       window.removeEventListener('scroll', active, { capture: true });
       window.removeEventListener('wheel', active);
       document.removeEventListener('pointerout', onOut);
@@ -836,7 +976,7 @@ function RoomFigure({ companion, still }: { companion: RoomCompanion; still: boo
       const size = sizeOf(lookNow);
       const floor = floorNow(size);
       const now = wire.current;
-      const target = now.x * Math.max(1, floor.screen - size.w);
+      const target = floor.left + now.x * floorRoom(floor, size);
       const span = spanFor(floor.spans, x ?? target);
       if (span === null) {
         hide(place);
@@ -878,15 +1018,17 @@ function RoomFigure({ companion, still }: { companion: RoomCompanion; still: boo
         act = act.tick + 1 < actLength(lookNow, act.motion) ? { motion: act.motion, tick: act.tick + 1 } : null;
       } else {
         // The loop its owner's browser says it is in (which dance, a run, a curled-up sleep), when that goes with its mood.
-        const next = loopMotion(mood, now.p, dance);
+        const next = onLedge(loopMotion(mood, now.p, dance), floor);
         motionTick = next === motion ? motionTick + 1 : 0;
         motion = next;
+        if (next === 'watch') facing = facingFocus(x, size, facing);
         if (lookNow === null && mood === 'dance') {
           lift = frame % 4 < 2 ? -2 : 0;
           if (frame % 5 === 0) facing = facing === 1 ? -1 : 1;
         }
       }
       draw(place, bodyRef.current, lookNow, { x, floorY: floor.y, facing, mood, motion, tick: motionTick, lift });
+      if (frame % 5 === 0) yieldToKeys(place);
     };
 
     tick();

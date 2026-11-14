@@ -55,8 +55,14 @@ each live on its own ("Yes, all three"), and the quiet re-bake ("Yes, quietly").
    gets a hop, a wave or a spin in turn. Asleep, `z`s drift up; after five minutes alone it curls right up, and stretches
    and waves when you come back. Bored, it stretches, spins or runs back and forth. It runs after the pointer. Five
    dances, a new one with each track. In the small hours of your clock it nods off sooner.
-2. **It takes part.** Reads along at `/read` (a book art slot beside it), watches the arcade and cheers or slumps, cheers a
-   post, types along, sits and watches a video; in a stream room everyone's companions sit as an audience.
+2. **It takes part.** Reads along at `/read` (a book art slot on its lap), watches the arcade and cheers or slumps, cheers
+   a post, types along, sits and watches a video; in a stream room everyone's companions sit while the video plays.
+   - **Stream room windows hid them** (Luke, the same day: "the way stream room windows currently are can obscure the
+     characters from view"). His pick of the ways round it: "Stand on the window's top edge". While a stream room's
+     window covers the strip, companions (yours and others') walk, sit and dance along that window's top edge, above its
+     title bar, covering none of its keys; folded or closed, they go back to the strip. Other windows over the strip
+     (the arcade, Preferences) are stepped around.
+   - A room is never told what you read or type: those poses, and a page turned, show on your own screen only.
 3. **Social touches.** Waves in a profile's ROOM and at a newcomer in a stream room, hops when its owner speaks in stream
    chat, a different text mark per kind of notification, a real climbing motion.
 - New motions are code turning the joints of the owner's own built character (Asset Rules): nothing is drawn.

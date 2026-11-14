@@ -1,6 +1,6 @@
 /*
  * The companion along the bottom of the site (SPEC-companion.md): its rules, without a browser.
- *   npx tsc app/lib/companion/brain.ts app/lib/companion/wire.ts app/lib/companion/choices.ts app/lib/watch/members-signature.ts --outDir Temp/companion-check --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strict
+ *   npx tsc app/lib/companion/brain.ts app/lib/companion/wire.ts app/lib/companion/choices.ts app/lib/companion/scene.ts app/lib/companion/ledge.ts app/lib/companion/floor.ts app/lib/watch/members-signature.ts --outDir Temp/companion-check --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strict
  *   node Temp/check-companion.cjs
  *
  * What it holds:
@@ -22,6 +22,9 @@ const OUT = path.join(__dirname, 'companion-check');
 const brain = require(path.join(OUT, 'companion', 'brain.js'));
 const wire = require(path.join(OUT, 'companion', 'wire.js'));
 const choices = require(path.join(OUT, 'companion', 'choices.js'));
+const scenes = require(path.join(OUT, 'companion', 'scene.js'));
+const ledge = require(path.join(OUT, 'companion', 'ledge.js'));
+const floors = require(path.join(OUT, 'companion', 'floor.js'));
 const { membersSignature } = require(path.join(OUT, 'watch', 'members-signature.js'));
 const read = (file) => fs.readFileSync(path.join(ROOT, file), 'utf8');
 
@@ -264,7 +267,7 @@ ok('picking it up: only yours, a drag not a press, nothing under reduced motion,
   assert.match(strip, /if \(event\.type === 'pointerup' && phase === 'strip'\) poke\(\);/, 'a poke only on its strip');
   assert.match(strip, /window\.addEventListener\('pointerup', onDrop/, 'a let-go is heard anywhere on the window');
   assert.match(strip, /window\.addEventListener\('pointercancel', onDrop/);
-  assert.match(strip, /Math\.min\(floor\.y, Math\.max\(size\.h, grab\.py \+ grab\.offY\)\)/, 'held, it stays on screen and above its own floor');
+  assert.match(strip, /Math\.min\(floor\.ledge \? window\.innerHeight : floor\.y, Math\.max\(size\.h, grab\.py \+ grab\.offY\)\)/, 'held, it stays on screen and above its own floor');
   assert.match(strip, /const slid = under === null \? next\.x : Math\.min\(under\.right, Math\.max\(under\.left, next\.x\)\)/, 'it lands on a stretch it can stand on');
   assert.match(read('app/components/NoteTrail.tsx'), /mood === 'sleep' \? 'snores'/, 'z z z while it sleeps');
   assert.match(read('app/components/NoteTrail.tsx'), /const trail: Trail \| null = reduced \? null/, 'and none under reduced motion');
@@ -339,6 +342,212 @@ ok('the wiring: the room presence carries it, no new channel, clicks pass throug
     assert.match(read(file), /data-companion-avoid/, `${file} marks what the companion steps around`);
   }
   assert.match(read('app/layout.tsx'), /<Companion \/>/);
+});
+
+/* --- it takes part in what you are doing (Luke, 2026-11-14, step 2) -------------------------------------------- */
+
+ok('typing, a game and a book come before the music; a video after it; the pointer still wins', () => {
+  const at = (over) => brain.think(brain.startBrain(0), base({ now: 100, lastActivity: 100, ...over }));
+  const typing = at({ scene: 'type' });
+  assert.deepEqual([typing.mood, typing.pose], ['stand', 'type']);
+  const game = at({ scene: 'game' });
+  assert.deepEqual([game.mood, game.pose], ['sit', 'watch']);
+  const book = at({ scene: 'read' });
+  assert.deepEqual([book.mood, book.pose], ['sit', 'read']);
+  const video = at({ scene: 'watch' });
+  assert.deepEqual([video.mood, video.pose], ['sit', 'watch']);
+  assert.equal(at({ scene: 'read', musicPlaying: true }).pose, 'read', 'a book is read through the music');
+  assert.equal(at({ scene: 'type', musicPlaying: true }).pose, 'type');
+  assert.equal(at({ scene: 'game', musicPlaying: true }).pose, 'watch');
+  assert.equal(at({ scene: 'watch', musicPlaying: true }).mood, 'dance', 'a video left up while music plays is not being watched');
+  assert.equal(at({ scene: 'read', pointerX: 300 }).mood, 'chase');
+  assert.equal(brain.think(book, base({ now: 200, lastActivity: 100, scene: 'read' })), book, 'settled: nothing re-decided, so nothing re-said');
+});
+
+ok('watching, nothing happening is what watching looks like; reading, it dozes off over the book after five quiet minutes', () => {
+  const long = brain.CURL_AFTER_MS * 3;
+  const watching = brain.think(brain.startBrain(0), base({ now: long, lastActivity: 0, scene: 'watch' }));
+  assert.deepEqual([watching.mood, watching.pose], ['sit', 'watch'], 'an hour into a film it is still watching');
+  const game = brain.think(brain.startBrain(0), base({ now: long, lastActivity: 0, scene: 'game' }));
+  assert.equal(game.pose, 'watch');
+  const reading = brain.think(brain.startBrain(0), base({ now: brain.SLEEP_AFTER_MS * 2, lastActivity: 0, scene: 'read' }));
+  assert.equal(reading.pose, 'read', 'a slow page is still reading: no nodding off after a minute');
+  const dozed = brain.think(reading, base({ now: brain.CURL_AFTER_MS, lastActivity: 0, scene: 'read' }));
+  assert.equal(dozed.mood, 'sleep');
+  const turned = brain.think(dozed, base({ now: brain.CURL_AFTER_MS + 500, lastActivity: brain.CURL_AFTER_MS + 400, scene: 'read' }));
+  assert.equal(turned.pose, 'read', 'a page turned: it is reading again');
+});
+
+ok('the scene ending, it is not left holding the pose', () => {
+  const book = brain.think(brain.startBrain(0), base({ now: 100, lastActivity: 100, scene: 'read' }));
+  const after = brain.think(book, base({ now: 200, lastActivity: 200 }));
+  assert.equal(after.pose === 'read', false);
+  // Even when nothing has happened for a while and it would sit anyway: a plain sit, not a reading one.
+  const idle = brain.think(book, base({ now: brain.SIT_AFTER_MS + 200, lastActivity: 100 }));
+  assert.deepEqual([idle.mood, idle.pose], ['sit', null]);
+  const watching = brain.think(brain.startBrain(0), base({ now: 100, lastActivity: 100, scene: 'watch' }));
+  const stopped = brain.think(watching, base({ now: brain.SLEEP_AFTER_MS + 200, lastActivity: 100 }));
+  assert.deepEqual([stopped.mood, stopped.pose], ['sleep', null]);
+});
+
+ok('scenes are held and let go; a game beats a book beats a video', () => {
+  assert.equal(scenes.companionScene(), null);
+  const video = scenes.holdCompanionScene('watch');
+  assert.equal(scenes.companionScene(), 'watch');
+  const book = scenes.holdCompanionScene('read');
+  assert.equal(scenes.companionScene(), 'read');
+  const game = scenes.holdCompanionScene('game');
+  const second = scenes.holdCompanionScene('game');
+  assert.equal(scenes.companionScene(), 'game');
+  game();
+  assert.equal(scenes.companionScene(), 'game', 'two games held: one let go leaves the other');
+  second();
+  book();
+  assert.equal(scenes.companionScene(), 'watch');
+  video();
+  video();
+  assert.equal(scenes.companionScene(), null);
+});
+
+ok("a room is never told what you read or type: those poses, and a page turned, stay on your own screen", () => {
+  for (const pose of ['read', 'type']) {
+    assert.equal(wire.COMPANION_POSES.includes(pose), false, `${pose} is not a pose the room hears`);
+    assert.equal(wire.parseCompanionWire({ x: 0.5, m: pose === 'read' ? 'sit' : 'stand', p: pose }).p, null);
+    assert.equal(wire.loopMotion(pose === 'read' ? 'sit' : 'stand', pose, 'dance1'), pose, 'but it is drawn on your own');
+  }
+  assert.ok(wire.COMPANION_POSES.includes('watch'), 'watching the room\'s video is the room\'s own business');
+  const strip = read('app/components/Companion.tsx');
+  assert.match(strip, /posing = COMPANION_POSES\.includes\(loop\) \? loop : null;/, 'only those poses are said');
+  assert.match(strip, /if \(kind === 'flick'\) \{[^}]*lastActivity = Date\.now\(\);\s*if \(looping === 'read' && !still\) act = \{ motion: 'flick', tick: 0 \};\s*return;\s*\}\s*reactions \+= 1;/, 'a page turned is played, counts as you being here, and is never counted for the room');
+  assert.match(strip, /input:not\(\[type\]\), input\[type="text"\]/, 'typing is heard in text boxes');
+  assert.doesNotMatch(strip.slice(strip.indexOf('const WRITING'), strip.indexOf('const TYPING_MS')), /password/, 'never a password box');
+  assert.doesNotMatch(strip, /event\.key(?!\.length| === 'Backspace'| === 'Enter')/, 'it hears that a key was typed, never which');
+});
+
+ok("on top of the room's window: the window leaves room above itself for the tallest companion, and none when nobody is out", () => {
+  assert.equal(ledge.ledgeHeadroomState(), 0);
+  const small = ledge.holdLedgeHeight(64);
+  const tall = ledge.holdLedgeHeight(76.4);
+  assert.equal(ledge.ledgeHeadroomState(), 0, 'companions out, but the window is not over their strip (a phone, a small window): it stays where it is');
+  ledge.setLedgeCovering(true);
+  assert.equal(ledge.ledgeHeadroomState(), 78, 'over the strip: room for the tallest, and a little air over its head');
+  ledge.setLedgeCovering(false);
+  assert.equal(ledge.ledgeHeadroomState(), 0);
+  ledge.setLedgeCovering(true);
+  tall();
+  assert.equal(ledge.ledgeHeadroomState(), 66);
+  small();
+  assert.equal(ledge.ledgeHeadroomState(), 0, 'nobody out: the window is where it always was');
+  ledge.setLedgeCovering(false);
+  assert.match(read('app/lib/companion/floor.ts'), /setLedgeCovering\(ledgeBox !== null && reachesStrip\(ledgeBox, stripY, COVER_REACH\)\);/, 'the floor says whether the window is over the strip, by one measure for every figure');
+  assert.equal(floors.reachesStrip({ left: 16, top: 8, right: 1432, bottom: 796 }, 806, 48), true, 'the filled room window, wherever its top is drawn');
+  assert.equal(floors.reachesStrip({ left: 16, top: 78, right: 1432, bottom: 796 }, 806, 48), true, 'moving its top does not change the answer');
+  assert.equal(floors.reachesStrip({ left: 16, top: 8, right: 1272, bottom: 892 }, 2671, 48), false, 'a phone: the window is at the top of a tall screen, nowhere near the strip');
+  const dock = read('app/components/DockWindow.tsx');
+  assert.match(dock, /const drop = managed && headroom !== undefined \? Math\.max\(0, headroom - live\.rect\.y\) : 0;/, 'only as much lower as it needs: a window already low enough is not moved');
+  assert.match(dock, /top: live\.rect\.y \+ drop,/);
+  assert.match(dock, /live\.rect\.h - drop\}px, calc\(100vh - var\(--music-top, 0px\) - \$\{live\.rect\.y \+ drop\}px - 0\.25rem\)\)` : live\.rect\.h - drop,/, 'shorter by the same, so its foot stays put');
+  assert.match(dock, /data-headroom=\{headroom\}/, 'and marked, so the companion knows which window to stand on');
+  assert.equal((read('app/components/WatchWindow.tsx').match(/headroom=\{headroom\}/g) ?? []).length, 2, "the stream room's window, live or not yet");
+  assert.doesNotMatch(read('app/components/ArcadeWindow.tsx'), /headroom/, 'no other window moves');
+  assert.match(read('app/components/Companion.tsx'), /useEffect\(\(\) => holdLedgeHeight\(size\.h\), \[size\.h\]\);/, 'each figure drawn says how tall it is');
+});
+
+ok("the floor: its strip, stepping around open windows; while the room's window covers the strip, that window's top edge", () => {
+  // On the strip (floor at 806, a 64 x 76 figure): Preferences open at the right reaches down into it; the arcade higher up does not.
+  const prefs = { left: 1048, top: 100, right: 1432, bottom: 820 };
+  const high = { left: 200, top: 100, right: 600, bottom: 700 };
+  const strip = floors.floorFrom(1440, 806, null, [prefs, high], 64, 76);
+  assert.equal(strip.y, 806);
+  assert.equal(strip.ledge, false);
+  assert.deepEqual([strip.left, strip.right], [0, 1440]);
+  assert.deepEqual(strip.spans, [{ left: 0, right: 1048 - 6 - 64 }], 'it stops short of the window that would hide it');
+
+  // The room's window, filling the screen from 80 down to the bar: it covers the strip, and has room above it.
+  const room = { left: 16, top: 80, right: 1432, bottom: 796 };
+  assert.equal(floors.ledgeCovers(room, 806, 76), true);
+  const top = floors.floorFrom(1440, 806, room, [], 64, 76);
+  assert.equal(top.ledge, true);
+  assert.equal(top.y, 80, 'feet on the top edge of the window: above its title bar, over none of its keys');
+  assert.deepEqual([top.left, top.right], [16, 1432]);
+  assert.deepEqual(top.spans, [{ left: 16, right: 1432 - 64 }], 'between its two corners, never off the end');
+  // Another window up there (Preferences, reaching the band it stands in) is stepped around; one lower down is not in the way.
+  assert.deepEqual(floors.floorFrom(1440, 806, room, [{ left: 1048, top: 40, right: 1432, bottom: 500 }], 64, 76).spans, [{ left: 16, right: 1048 - 6 - 64 }]);
+  assert.deepEqual(floors.floorFrom(1440, 806, room, [{ left: 1048, top: 200, right: 1432, bottom: 500 }], 64, 76).spans, [{ left: 16, right: 1432 - 64 }]);
+
+  // Before it has made room (its top at 8): nowhere above it to stand, so it is a window in the way like any other.
+  const tight = { left: 16, top: 8, right: 1432, bottom: 796 };
+  assert.equal(floors.ledgeCovers(tight, 806, 76), false);
+  const hidden = floors.floorFrom(1440, 806, tight, [], 64, 76);
+  assert.equal(hidden.ledge, false);
+  assert.deepEqual(hidden.spans, [], 'and it is not drawn behind it');
+  // Dragged small and up out of the way: it does not cover the strip, so the strip is the floor, the whole width.
+  const away = { left: 300, top: 100, right: 900, bottom: 500 };
+  assert.equal(floors.ledgeCovers(away, 806, 76), false);
+  const free = floors.floorFrom(1440, 806, away, [], 64, 76);
+  assert.deepEqual([free.y, free.ledge], [806, false]);
+  assert.deepEqual(free.spans, [{ left: 0, right: 1440 - 64 }]);
+  // Small but over part of the strip: they are up on it, between its corners.
+  const corner = { left: 900, top: 300, right: 1400, bottom: 800 };
+  const perched = floors.floorFrom(1440, 806, corner, [], 64, 76);
+  assert.deepEqual([perched.y, perched.ledge, perched.spans], [300, true, [{ left: 900, right: 1400 - 64 }]]);
+  // Narrower than the figure: no room on it.
+  assert.deepEqual(floors.floorFrom(1440, 806, { left: 500, top: 300, right: 550, bottom: 800 }, [], 64, 76).spans, []);
+
+  const source = read('app/lib/companion/floor.ts');
+  assert.match(source, /if \(element instanceof HTMLElement && element\.dataset\.minimized === 'true'\) return false;/, 'folded away, it is not there: back to the strip');
+  assert.match(source, /if \(element === ledge \|\| !shown\(element\)\) continue;/, 'the window it stands on is not in its own way');
+  const layer = read('app/components/Companion.tsx');
+  assert.doesNotMatch(layer, /style\.zIndex/, 'it stands above the window, not in front of it: the layer stays under every window');
+  assert.match(layer, /phase === 'strip' && !floor\.ledge && room !== null/, 'it does not climb into a profile room from up there');
+  assert.match(layer, /\(floor\.ledge && loop === 'watch' \? 'sit' : loop\)/, 'up there it watches the video by sitting on the edge');
+  assert.match(layer, /const tag = frame\.floorY - size\.h < 28 \? 'under' : 'over';/, 'and its name opens under it, not off the top of the screen');
+});
+
+ok('a companion missing from one sync of the room is kept a moment, not blinked out; an empty room keeps nobody', () => {
+  const one = (key) => ({ key, userId: `u-${key}`, name: key.toUpperCase(), joinedAt: 1, wire: { x: 0.5, m: 'stand', r: 0, k: null, c: null, p: null } });
+  const [a, b] = [one('a'), one('b')];
+  // b drops out of a sync while a re-says itself: b is still shown.
+  let step = wire.withLingering([a, b], [a], new Map(), 1000);
+  assert.deepEqual(step.list.map((c) => c.key), ['a', 'b']);
+  assert.equal(step.held.get('b').until, 1000 + wire.LINGER_MS);
+  // Still missing a second later: still shown, its time not pushed back.
+  step = wire.withLingering(step.list, [a], step.held, 2000);
+  assert.deepEqual(step.list.map((c) => c.key), ['a', 'b']);
+  assert.equal(step.held.get('b').until, 1000 + wire.LINGER_MS);
+  // Back in the next sync: shown once, no longer held.
+  const back = wire.withLingering(step.list, [a, b], step.held, 2100);
+  assert.deepEqual(back.list.map((c) => c.key), ['a', 'b']);
+  assert.equal(back.held.size, 0);
+  // Never back: gone once its time is up.
+  const gone = wire.withLingering(step.list, [a], step.held, 1000 + wire.LINGER_MS + 1);
+  assert.deepEqual(gone.list.map((c) => c.key), ['a']);
+  assert.equal(gone.held.size, 0, 'and not held again for having just been shown');
+  // The tab leaving the room (an empty sync): nobody lingers on the strip.
+  assert.deepEqual(wire.withLingering([a, b], [], step.held, 1500).list, []);
+  assert.ok(wire.LINGER_MS <= 3000, 'a moment, not a ghost');
+});
+
+ok('it never blocks a press: over a key it lets presses through, and a resting pointer is let be', () => {
+  const layer = read('app/components/Companion.tsx');
+  assert.match(layer, /const want = over \? 'none' : '';\s*if \(place\.style\.pointerEvents !== want\) place\.style\.pointerEvents = want;/, 'standing over a key, presses go to the key');
+  assert.match(layer, /if \(frame % 5 === 0 && grab === null\) yieldToKeys\(place\);/, 'looked at twice a second, not while it is being pressed');
+  assert.match(layer, /now - pointer\.at < CHASE_FRESH_MS/, 'a pointer that has stopped moving (or gone into a frame) is no longer chased');
+});
+
+ok('the one-line hook-ups: the reader, the arcade, the board and the stream room each tell it in a line', () => {
+  const reader = read('app/components/reader/ReaderPage.tsx');
+  assert.match(reader, /useCompanionScene\('read', phase === 'ready' \|\| phase === 'viewer'\);/, 'reading while a book is open');
+  assert.match(reader, /view\.addEventListener\('relocate', \(event\) => \{\s*pokeCompanion\('flick'\);/, 'a page turned');
+  assert.match(reader, /action: 'finished' \}\);\s*pokeCompanion\('cheer'\);/, 'a book finished');
+  assert.match(read('app/components/GameMatch.tsx'), /useCompanionMatch\(game === 'tic-tac-toe' \? tttWinner\(board\) : duelWinner\(duel\), game === 'tic-tac-toe' \? myMark : mySide\);/, 'a match, and how it ended');
+  assert.equal((read('app/components/ForumProvider.tsx').match(/\}\)\.then\(cheerCompanion\);/g) ?? []).length, 2, 'a thread filed and a reply filed');
+  assert.match(read('app/components/WatchRoom.tsx'), /useCompanionScene\('watch', room\.isPlaying\);/, "the room's video playing");
+  const hooks = read('app/lib/companion/use-companion-scene.ts');
+  assert.match(hooks, /if \(winner !== null && last\.current === null\) pokeCompanion\(winner === mine \? 'cheer' : 'slump'\);/, 'once, when the game ends');
+  const slots = read('app/lib/ui/art/slots.ts');
+  assert.match(slots, /id: 'sprite-companion-book'/, 'the book is an art slot');
+  assert.match(read('app/components/Companion.tsx'), /<SpriteSlot src="\/assets\/sprites\/companion-book\.gif"/, "drawn from Luke's file, never by code");
 });
 
 console.log(`\n${passed} passed`);

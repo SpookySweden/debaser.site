@@ -8,6 +8,8 @@ import type { CompanionMood } from './wire';
  * In order of who wins:
  *   1. the pointer near the bottom strip: it runs after it, and keeps after it a moment once it has gone;
  *   2. the music bar playing: it dances where it stands;
+ *      (2026-11-14: joining in comes either side of the music: typing along, watching your game and reading along
+ *      before it, watching a video after it);
  *   3. nothing happening for a while: it sits down, falls asleep, and after a long while curls right up (any move, key
  *      or scroll wakes it); in the small hours of your own clock it nods off sooner;
  *   4. otherwise it wanders: walks somewhere, stands about, sits a while, and now and then gets bored (Luke,
@@ -48,7 +50,12 @@ export type BrainInput = {
   random: () => number;
   /** The hour on the reader's own clock, 0 to 23. Missing: daytime. */
   hour?: number;
+  /** What the reader is doing that it can join in with (`scene.ts`, and typing, which it hears itself). Missing: nothing. */
+  scene?: BrainScene | null;
 };
+
+/** What it joins in with: typing along, watching a game, reading along, watching a video. */
+export type BrainScene = 'type' | 'game' | 'read' | 'watch';
 
 /** Nothing happening this long: it sits down. */
 export const SIT_AFTER_MS = 30_000;
@@ -94,17 +101,30 @@ export function think(state: BrainState, input: BrainInput): BrainState {
     return { ...state, target: state.target === null ? null : clamp(state.target, span) };
   }
 
+  const quiet = now - input.lastActivity;
+  // Joining in with what the reader is doing (Luke, 2026-11-14), where it stands. Typing, a game and a book come before
+  // the music; a video comes after it (a video left up while music plays is not being watched).
+  const settle = (mood: CompanionMood, pose: MotionId | null): BrainState =>
+    state.mood === mood && state.pose === pose ? state : { mood, target: null, until: now, chaseUntil: 0, ...REST, pose };
+  if (input.scene === 'type') return settle('stand', 'type');
+  if (input.scene === 'game') return settle('sit', 'watch');
+  // Reading along, until the page has not turned (nor anything else happened) for so long that it has dozed off over the book.
+  if (input.scene === 'read') return quiet >= CURL_AFTER_MS ? settle('sleep', null) : settle('sit', 'read');
+
   if (input.musicPlaying) {
     return state.mood === 'dance' ? state : { mood: 'dance', target: null, until: now, chaseUntil: 0, ...REST };
   }
 
-  const quiet = now - input.lastActivity;
+  // A video playing is watched to the end: nothing happening on the page is what watching looks like.
+  if (input.scene === 'watch') return settle('sit', 'watch');
+
   const share = isNight(input.hour) ? NIGHT_SHARE : 1;
   if (quiet >= CURL_AFTER_MS) {
     return state.mood === 'sleep' && state.pose === 'curl' ? state : { mood: 'sleep', target: null, until: now, chaseUntil: 0, ...REST, pose: 'curl' };
   }
   if (quiet >= SLEEP_AFTER_MS * share) return state.mood === 'sleep' ? state : { mood: 'sleep', target: null, until: now, chaseUntil: 0, ...REST };
-  if (quiet >= SIT_AFTER_MS * share) return state.mood === 'sit' ? state : { mood: 'sit', target: null, until: now, chaseUntil: 0, ...REST };
+  // A plain sit: one left over from reading or watching (its pose still on) is settled again.
+  if (quiet >= SIT_AFTER_MS * share) return state.mood === 'sit' && state.pose === null ? state : { mood: 'sit', target: null, until: now, chaseUntil: 0, ...REST };
 
   // Back from a dance, a chase or a nap: stand a moment before wandering again.
   if (state.mood === 'dance' || state.mood === 'chase' || state.mood === 'sleep') {

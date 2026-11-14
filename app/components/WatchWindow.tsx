@@ -29,6 +29,7 @@ import ArtMark from './ArtMark';
 import { useAuth } from './AuthProvider';
 import { useRoomIdentity } from './use-room-identity';
 import DockWindow from './DockWindow';
+import { useLedgeHeadroom } from '../lib/companion/use-ledge-headroom';
 import RoomDoor from './RoomDoor';
 import WatchRoom from './WatchRoom';
 import { askToSaveCanvas } from '../lib/watch/use-room-canvas';
@@ -105,9 +106,10 @@ function PreLiveWindow({ mediaItemId, onClose }: { mediaItemId: string; onClose:
   const catalogue = useCatalogue();
   const item = catalogue.items.find((candidate) => candidate.id === mediaItemId && candidate.kind === 'video');
   const name = user?.displayName ?? 'GUEST';
+  const headroom = useLedgeHeadroom();
 
   return (
-    <DockWindow id="stream" fill title={`STREAM :: ${name}`} badge="NOT LIVE" onClose={onClose} dock="top" defaultSize={ROOM_SIZE} minSize={ROOM_MIN}>
+    <DockWindow id="stream" fill headroom={headroom} title={`STREAM :: ${name}`} badge="NOT LIVE" onClose={onClose} dock="top" defaultSize={ROOM_SIZE} minSize={ROOM_MIN}>
       {catalogue.loading ? (
         <p className="text-label font-bold text-ink">READING THE CATALOGUE...</p>
       ) : item === undefined ? (
@@ -142,6 +144,7 @@ function PreLiveWindow({ mediaItemId, onClose }: { mediaItemId: string; onClose:
 /** A room: read once, followed while live. Folded away (`collapsed`) it plays on out of sight. */
 function RoomWindow({ roomId, collapsed, onCollapse, onLeft }: { roomId: string; collapsed: boolean; onCollapse: () => void; onLeft: () => void }) {
   const { read, error } = useWatchRoom(roomId);
+  const headroom = useLedgeHeadroom();
   const [closing, setClosing] = useState(false);
   const { profile } = usePublicProfile(read?.room.hostId ?? null);
   /** `[ PIP ]` on an embedded picture: the room folds, and its picture floats (SPEC-floating-player.md). */
@@ -194,6 +197,7 @@ function RoomWindow({ roomId, collapsed, onCollapse, onLeft }: { roomId: string;
         minimized={collapsed}
         pictureOut={pictureFloats}
         aboveBottomBar
+        headroom={headroom}
         dock="top"
         defaultSize={ROOM_SIZE}
         minSize={ROOM_MIN}
