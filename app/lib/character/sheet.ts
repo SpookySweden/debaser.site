@@ -5,7 +5,7 @@
  * Read back from the database, so everything is checked: a sheet that doesn't hold together is no sheet, and the page
  * shows no character rather than a broken one.
  */
-import { MOTION_IDS, type Facing, type MotionId } from './motion';
+import { MOTION_FALLBACK, MOTION_IDS, type ExtraMotionId, type Facing, type MotionId } from './motion';
 
 export type SheetMotion = { facing: Facing; loop: boolean; ticks: number[] };
 
@@ -33,6 +33,15 @@ const wholeIn = (value: unknown, low: number, high: number): value is number =>
   typeof value === 'number' && Number.isInteger(value) && value >= low && value <= high;
 
 export function readSheet(value: unknown): CharacterSheet | null {
+  return readSheetAndAge(value)?.sheet ?? null;
+}
+
+/**
+ * A sheet, and whether it was baked before the newer motions (`MOTION_FALLBACK`): `stale`. A stale sheet still plays
+ * everything, each missing motion as the older one beside its name, so no character ever goes blank for want of a
+ * motion; its owner's browser bakes it again when it next can (`rebake.ts`).
+ */
+export function readSheetAndAge(value: unknown): { sheet: CharacterSheet; stale: boolean } | null {
   if (typeof value !== 'object' || value === null) return null;
   const raw = value as Record<string, unknown>;
   const cell = raw.cell as Record<string, unknown> | undefined;
@@ -44,8 +53,16 @@ export function readSheet(value: unknown): CharacterSheet | null {
   const motionsRaw = raw.motions as Record<string, unknown> | undefined;
   if (typeof motionsRaw !== 'object' || motionsRaw === null) return null;
   const motions = {} as Record<MotionId, SheetMotion>;
+  let stale = false;
   for (const id of MOTION_IDS) {
     const motion = motionsRaw[id] as Record<string, unknown> | undefined;
+    if (motion === undefined && id in MOTION_FALLBACK) {
+      // Baked before this motion existed: the older one stands in (the first set comes first in the list, so it is read).
+      const older = motions[MOTION_FALLBACK[id as ExtraMotionId]];
+      motions[id] = { facing: older.facing, loop: older.loop, ticks: older.ticks };
+      stale = true;
+      continue;
+    }
     if (typeof motion !== 'object' || motion === null) return null;
     if (motion.facing !== 'side' && motion.facing !== 'front') return null;
     if (!Array.isArray(motion.ticks) || motion.ticks.length === 0 || motion.ticks.length > 200) return null;
@@ -53,14 +70,17 @@ export function readSheet(value: unknown): CharacterSheet | null {
     motions[id] = { facing: motion.facing, loop: motion.loop === true, ticks: motion.ticks as number[] };
   }
   return {
-    v: 1,
-    cell: { w: cell.w, h: cell.h },
-    columns: raw.columns,
-    cells,
-    fps: raw.fps,
-    floor: raw.floor,
-    head: raw.head,
-    motions,
+    sheet: {
+      v: 1,
+      cell: { w: cell.w, h: cell.h },
+      columns: raw.columns,
+      cells,
+      fps: raw.fps,
+      floor: raw.floor,
+      head: raw.head,
+      motions,
+    },
+    stale,
   };
 }
 

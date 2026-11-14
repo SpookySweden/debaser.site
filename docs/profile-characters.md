@@ -19,6 +19,9 @@ Read this before touching the motions, the bake or the profile walker. The spec 
   - BASE, GOBLIN and ROBOT have three joints, with the legs fixed to the hips as one piece, so they waddle (Luke OK'd
     this). GUY's arms swing and wave.
   - Frames are stepped, so a keyframe is a frame, and `hold` repeats one.
+  - The first set (`CORE_MOTION_IDS`) is in every strip ever baked. Motions added since (2026-11-14, for the companion:
+    `docs/companion.md`) go in `MOTION_FALLBACK`, each beside the older motion that plays in its place on a strip baked
+    before it. A seated motion needs its own GOBLIN and ROBOT version: they have no legs to fold.
   - `posedFigure` turns joints from the root outwards. A joint the motion doesn't name follows its parent.
   - `posedPlacements` then works out sag on the posed figure, and lifts any frame that would put a part below the floor
     the figure stands on as built.
@@ -29,7 +32,8 @@ Read this before touching the motions, the bake or the profile walker. The spec 
     same line.
   - Walking frames face three-quarters right (`SIDE_YAW`). The page mirrors them for left.
 - `app/lib/character/sheet.ts`: the sheet's shape (cell size, columns, fps, floor row, ticks per motion), checked by
-  `readSheet` whenever it is read back.
+  `readSheet` whenever it is read back. A sheet missing newer motions is still a sheet: each plays as its older stand-in
+  and the sheet is marked `stale`, for `rebake.ts` to bake again in its owner's browser.
 - `app/lib/character/walker.ts`: the walker's logic, kept pure.
   - `findLanes` finds the empty strips from measured boxes.
   - `stepWalker`, `nextActivity` and `react` decide what it does next.

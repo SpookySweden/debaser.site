@@ -94,6 +94,14 @@ export function readLibrary(): SavedCharacter[] {
   return readStored().filter(mine);
 }
 
+/**
+ * One saved figure of `person`'s that this browser holds, whoever the shelf is being drawn for just now: theirs, or one
+ * nobody has claimed yet. For baking a shown character again (`rebake.ts`) without opening the shelf.
+ */
+export function findSavedCharacter(id: string, person: string): SavedCharacter | null {
+  return readStored().find((character) => character.id === id && (character.owner === undefined || character.owner === person)) ?? null;
+}
+
 function readStored(): SavedCharacter[] {
   if (!hasStorage()) return [];
 

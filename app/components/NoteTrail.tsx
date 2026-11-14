@@ -8,16 +8,23 @@ import { useEffect, useState, useSyncExternalStore, type RefObject } from 'react
  * in stepped frames. Placed over the character's head by its parent; nothing here takes a click or moves anything.
  * Under reduced motion there are none.
  *
+ * And little `z`s while the companion sleeps (Luke, 2026-11-14): the same trail, slower, in one calm colour, starting
+ * lower down (`sleepAt`, from the figure's feet) because a sleeping figure's head has sunk.
+ *
  * `active` says it is dancing. A parent that doesn't re-render as it moves (the companion) passes `watch` instead: the
- * element whose `data-mood` reads `dance` while it dances.
+ * element whose `data-mood` reads `dance` while it dances and `sleep` while it sleeps.
  */
 
-const GLYPHS = ['♪', '♫', '♬'] as const;
-const COLOURS = ['text-mark-yellow', 'text-mark-pink', 'text-mark-green', 'text-mark-blue', 'text-mark-red'] as const;
-/** A new note this often while dancing, and how long each lives (the animation's own length). */
-const EVERY_MS = 380;
+const NOTES = ['♪', '♫', '♬'] as const;
+const NOTE_COLOURS = ['text-mark-yellow', 'text-mark-pink', 'text-mark-green', 'text-mark-blue', 'text-mark-red'] as const;
+const SNORES = ['z', 'z', 'Z'] as const;
+const SNORE_COLOURS = ['text-mark-blue'] as const;
+/** A new one this often, and how long each lives (the animation's own length). */
+const NOTE_EVERY_MS = 380;
+const SNORE_EVERY_MS = 1100;
 const LIFE_MS = 1600;
 
+type Trail = 'notes' | 'snores';
 type Note = { id: number; glyph: string; colour: string; side: 'left' | 'right' };
 
 const REDUCED = '(prefers-reduced-motion: reduce)';
@@ -29,8 +36,8 @@ function subscribeReduced(change: () => void): () => void {
 const reducedNow = () => window.matchMedia(REDUCED).matches;
 const reducedOnServer = () => true;
 
-/** Whether `watch`'s `data-mood` says it is dancing, followed as it changes. */
-function useDancingMood(watch: RefObject<HTMLElement | null> | undefined): boolean {
+/** What `watch`'s `data-mood` calls for, followed as it changes: notes for a dance, snores for a sleep, else nothing. */
+function useWatchedTrail(watch: RefObject<HTMLElement | null> | undefined): Trail | null {
   // A fresh subscription on each render of the trail, which is only when its notes change: cheap, and always on the element
   // the ref holds now.
   const subscribe = (change: () => void) => {
@@ -42,44 +49,59 @@ function useDancingMood(watch: RefObject<HTMLElement | null> | undefined): boole
   };
   return useSyncExternalStore(
     subscribe,
-    () => watch?.current?.dataset.mood === 'dance',
-    () => false,
+    () => {
+      const mood = watch?.current?.dataset.mood;
+      return mood === 'dance' ? 'notes' : mood === 'sleep' ? 'snores' : null;
+    },
+    () => null,
   );
 }
 
-export default function NoteTrail({ active, watch }: { active?: boolean; watch?: RefObject<HTMLElement | null> }) {
+export default function NoteTrail({ active, watch, sleepAt }: { active?: boolean; watch?: RefObject<HTMLElement | null>; sleepAt?: number }) {
   const reduced = useSyncExternalStore(subscribeReduced, reducedNow, reducedOnServer);
-  const watched = useDancingMood(watch);
-  const on = !reduced && (active ?? watched);
+  const watched = useWatchedTrail(watch);
+  const trail: Trail | null = reduced ? null : active === undefined ? watched : active ? 'notes' : null;
   const [notes, setNotes] = useState<Note[]>([]);
+  // Where the ones on screen rise from: kept while the last few fade out after the dance or the sleep has ended.
+  const [from, setFrom] = useState<Trail>('notes');
+  if (trail !== null && trail !== from) setFrom(trail);
 
   useEffect(() => {
-    if (!on) return;
+    if (trail === null) return;
+    const glyphs = trail === 'notes' ? NOTES : SNORES;
+    const colours = trail === 'notes' ? NOTE_COLOURS : SNORE_COLOURS;
     let next = 0;
     const add = () => {
       const id = next;
       next += 1;
       const note: Note = {
         id,
-        glyph: GLYPHS[Math.floor(Math.random() * GLYPHS.length)],
-        colour: COLOURS[Math.floor(Math.random() * COLOURS.length)],
-        side: id % 2 === 0 ? 'left' : 'right',
+        glyph: glyphs[Math.floor(Math.random() * glyphs.length)],
+        colour: colours[Math.floor(Math.random() * colours.length)],
+        // Snores all drift the one way, like a line of them; notes go off to either side.
+        side: trail === 'snores' || id % 2 === 1 ? 'right' : 'left',
       };
       setNotes((now) => [...now, note]);
-      // Each note goes once its animation ends, even after the dancing stops: the last few fade out on their own.
+      // Each one goes once its animation ends, even after the dancing stops: the last few fade out on their own.
       setTimeout(() => setNotes((now) => now.filter((kept) => kept.id !== id)), LIFE_MS);
     };
     const first = setTimeout(add, 0);
-    const every = setInterval(add, EVERY_MS);
+    const every = setInterval(add, trail === 'notes' ? NOTE_EVERY_MS : SNORE_EVERY_MS);
     return () => {
       clearTimeout(first);
       clearInterval(every);
     };
-  }, [on]);
+  }, [trail]);
 
   if (notes.length === 0) return null;
+  const low = from === 'snores' && sleepAt !== undefined;
   return (
-    <span aria-hidden="true" className="pointer-events-none absolute bottom-full left-1/2 block">
+    <span
+      aria-hidden="true"
+      className={`pointer-events-none absolute left-1/2 block ${low ? '' : 'bottom-full'}`}
+      style={low ? { bottom: sleepAt } : undefined}
+      data-note-trail={from}
+    >
       {notes.map((note) => (
         <span
           key={note.id}

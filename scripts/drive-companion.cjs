@@ -210,7 +210,7 @@ async function waitMood(page, wanted, ms) {
     }
     assert.ok(danced, `dances while playing (mood ${await mood(a.page)})`);
     const dancing = await a.page.evaluate(() => document.querySelector('[data-companion="own"]')?.dataset.motion);
-    assert.match(dancing ?? '', /^dance[123]$/, "plays one of the strip's dances");
+    assert.match(dancing ?? '', /^dance[1-5]$/, "plays one of the strip's dances");
     pass(`the music bar playing: it dances (the strip's ${dancing})`);
     // (2026-11-13) Colourful music notes trail up from it while it dances (Luke): text characters, inside its own box.
     const notes = await a.page

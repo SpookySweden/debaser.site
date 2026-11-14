@@ -1,5 +1,5 @@
 import type { ProfileCharacterRepository, ShownCharacter } from './profile-character-repository';
-import { isMood, readSheet } from './sheet';
+import { isMood, readSheetAndAge } from './sheet';
 
 /** The mock accounts' shown characters: one browser's storage, the strip kept as a data address. */
 const STORAGE_KEY = 'debaser.profile-character.v1';
@@ -20,8 +20,8 @@ function readAll(): Record<string, ShownCharacter> {
     const clean: Record<string, ShownCharacter> = {};
     for (const [person, entry] of Object.entries(parsed as Record<string, unknown>)) {
       const row = entry as Record<string, unknown> | null;
-      const sheet = readSheet(row?.sheet);
-      if (row === null || sheet === null || typeof row.characterId !== 'string' || !isMood(row.mood)) continue;
+      const read = readSheetAndAge(row?.sheet);
+      if (row === null || read === null ||typeof row.characterId !== 'string' || !isMood(row.mood)) continue;
       // A data address this browser made from the baked strip, never an address somebody typed in.
       if (typeof row.stripUrl !== 'string' || !isDataAddress(row.stripUrl)) continue;
       clean[person] = {
@@ -29,7 +29,8 @@ function readAll(): Record<string, ShownCharacter> {
         characterId: row.characterId,
         mood: row.mood,
         stripUrl: row.stripUrl,
-        sheet,
+        sheet: read.sheet,
+        stale: read.stale,
         bakedAt: typeof row.bakedAt === 'string' ? row.bakedAt : new Date(0).toISOString(),
       };
     }
@@ -67,6 +68,7 @@ export function createMockProfileCharacterRepository(): ProfileCharacterReposito
         mood: input.mood,
         stripUrl: await asDataUrl(input.strip),
         sheet: input.sheet,
+        stale: false,
         bakedAt: new Date().toISOString(),
       };
       writeAll({ ...readAll(), [person]: shown });

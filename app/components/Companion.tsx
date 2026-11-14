@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { DANCES, type MotionId } from '../lib/character/motion';
 import { cellAt, type CharacterSheet } from '../lib/character/sheet';
 import { useShownCharacter } from '../lib/character/use-shown-character';
-import { spanFor, startBrain, think, type BrainState, type Span } from '../lib/companion/brain';
+import { fallStep, spanFor, startBrain, think, throwOf, type BrainState, type Fall, type Span } from '../lib/companion/brain';
 import { companionOut } from '../lib/companion/choices';
 import {
   companionChoicesState,
@@ -35,7 +35,10 @@ import {
   type VisitRoom,
 } from '../lib/companion/visit';
 import {
+  COMPANION_POSES,
   companionsToDraw,
+  loopMotion,
+  reactionMotion,
   reactionShowsMark,
   roomCompanionsState,
   sayCompanion,
@@ -60,6 +63,11 @@ import SpriteSlot from './SpriteSlot';
  * minute, dances while the music bar plays, chases the pointer when it comes down to the strip, and hops (with a `!`
  * over its head for a reply, a message or someone coming online). In a stream or music room everyone's companions
  * share the strip, each with its owner's name on hover; outside rooms only you see yours.
+ *
+ * A life of its own (Luke, 2026-11-14): press and drag it and it dangles from the pointer, then drops back to its strip
+ * and lands; a press without a drag gets a hop, a wave or a spin in turn. Asleep, little `z`s drift up from it, and left
+ * alone for five minutes it curls right up; it stretches when you come back (and waves, after a long sleep). Bored, it
+ * stretches, spins or runs back and forth. It runs after the pointer, and changes its dance with the track.
  *
  * It wears its owner's SHOWN character (Luke, 2026-11-13: "Only the shown one"): the picture strip the owner's browser
  * baked from their own hand-built character (SPEC-profile-characters.md, `bake.ts`), played a cell at a time from the
@@ -91,8 +99,16 @@ const NEAR_PX = 120;
 const CHASE_SAY_MS = 2_000;
 /** How long the `!` stays up. */
 const MARK_MS = 1_600;
-/** The placeholder's hop: how high it is on each frame, then back down. A character plays its own `hop`. */
+/** The placeholder's hop: how high it is on each frame, then back down. A character plays its own one-off motions. */
 const HOP = [-4, -8, -10, -8, -4, 0];
+/** How far a press must move before it is a pick-up, not a poke. */
+const GRAB_SLOP = 5;
+/** A dance lasts this long before it changes to another (a new track changes it at once). */
+const DANCE_MS: readonly [number, number] = [20_000, 40_000];
+/** How long after the page settles a strip missing the newer motions is baked again. */
+const REBAKE_AFTER_MS = 6_000;
+/** What a press without a drag gets, in turn. */
+const POKES: readonly NonNullable<CompanionWire['k']>[] = ['poke', 'wave', 'spin'];
 
 /** What a figure wears: a SHOWN character's baked strip, or nothing (the placeholder field). */
 type Look = { stripUrl: string; sheet: CharacterSheet } | null;
@@ -104,29 +120,17 @@ function sizeOf(look: Look): Size {
   return look === null ? PLACEHOLDER : { w: look.sheet.cell.w * SCALE, h: look.sheet.floor * SCALE };
 }
 
-/** Which of the strip's motions a mood plays. */
-function motionFor(mood: CompanionMood, dance: MotionId): MotionId {
-  switch (mood) {
-    case 'walk':
-    case 'chase':
-      return 'walk';
-    case 'sit':
-      return 'sit';
-    case 'sleep':
-      return 'sleep';
-    case 'dance':
-      return dance;
-    default:
-      return 'idle';
-  }
+/** A dance at random, never the one it is doing now. */
+function pickDance(not?: MotionId): MotionId {
+  const others = DANCES.filter((dance) => dance !== not);
+  return others[Math.floor(Math.random() * others.length)] ?? 'dance1';
 }
 
-const pickDance = (): MotionId => DANCES[Math.floor(Math.random() * DANCES.length)] ?? 'dance1';
-
-/** Whether the music bar is playing, without re-rendering the strip on every tick of the track's clock. */
-function MusicWatch({ onChange }: { onChange: (playing: boolean) => void }) {
-  const { playing } = useMusicPlayer();
-  useEffect(() => onChange(playing), [playing, onChange]);
+/** Whether the music bar is playing, and which track, without re-rendering the strip on every tick of the track's clock. */
+function MusicWatch({ onChange }: { onChange: (playing: boolean, track: string | null) => void }) {
+  const { playing, track } = useMusicPlayer();
+  const id = track?.id ?? null;
+  useEffect(() => onChange(playing, id), [playing, id, onChange]);
   return null;
 }
 
@@ -149,7 +153,7 @@ function draw(
   place: HTMLDivElement | null,
   body: HTMLSpanElement | null,
   look: Look,
-  frame: { x: number; floorY: number; facing: 1 | -1; mood: CompanionMood; motion: MotionId; tick: number; lift: number },
+  frame: { x: number; floorY: number; facing: 1 | -1; mood: CompanionMood; motion: MotionId; tick: number; lift: number; held?: boolean },
 ) {
   const size = sizeOf(look);
   if (place !== null) {
@@ -169,6 +173,9 @@ function draw(
     if (place.dataset.motion !== frame.motion) place.dataset.motion = frame.motion;
     const face = frame.facing === 1 ? 'right' : 'left';
     if (place.dataset.facing !== face) place.dataset.facing = face;
+    // Off its strip in the reader's hand, or falling back to it.
+    const held = frame.held === true ? 'true' : 'false';
+    if (place.dataset.held !== held) place.dataset.held = held;
   }
   if (body === null) return;
   if (look === null) {
@@ -202,8 +209,14 @@ function closePortal(portal: HTMLDivElement | null) {
   portal.dataset.open = 'false';
 }
 
-/** Where it is: on its strip, climbing up into a profile's room, in it, climbing down, gone, or stepping out of the portal. */
-type Phase = VisitPhase | 'portal';
+/**
+ * Where it is: on its strip, climbing up into a profile's room, in it, climbing down, gone, stepping out of the portal,
+ * held up by the reader's pointer, or falling back to its strip.
+ */
+type Phase = VisitPhase | 'portal' | 'held' | 'fall';
+
+/** A press on the figure: a poke until it moves, then a pick-up. `off` is where on the figure it was taken hold of. */
+type Grab = { id: number; startX: number; startY: number; offX: number; offY: number; moved: boolean; px: number; py: number; dx: number };
 
 /** Puts the `!` up for a moment. */
 function showMark(mark: HTMLSpanElement | null, timer: ReturnType<typeof setTimeout> | null): ReturnType<typeof setTimeout> | null {
@@ -235,21 +248,24 @@ function Figure({ placeRef, bodyRef, markRef, label, own, look }: FigureProps) {
       ref={placeRef}
       role="img"
       aria-label={own ? 'Your companion' : `${label}'s companion`}
-      className="group pointer-events-auto invisible absolute left-0 top-0 overflow-visible"
+      // Yours can be picked up: a grabbing hand over it, and a touch drags it rather than scrolling the page.
+      className={`group pointer-events-auto invisible absolute left-0 top-0 overflow-visible ${own ? 'cursor-grab touch-none select-none' : ''}`}
       style={{ width: size.w, height: size.h }}
       data-companion={own ? 'own' : 'room'}
       data-mood="stand"
       data-facing="right"
+      data-held="false"
     >
-      {/* Its owner's name, over its head on hover: absolutely placed, so it moves nothing. */}
+      {/* Its owner's name, over its head on hover (not while it is being carried): absolutely placed, so it moves nothing. */}
       <span
-        className="invisible absolute bottom-full left-0 mb-1 whitespace-nowrap border border-ink bg-ink px-1 font-mono text-label text-paper group-hover:visible"
+        className="invisible absolute bottom-full left-0 mb-1 whitespace-nowrap border border-ink bg-ink px-1 font-mono text-label text-paper group-hover:group-data-[held=false]:visible"
         data-companion-name
       >
         {label}
       </span>
-      {/* Colourful music notes while it dances (Luke, 2026-11-13): text, not art, and none under reduced motion. */}
-      <NoteTrail watch={placeRef} />
+      {/* Colourful music notes while it dances (Luke, 2026-11-13) and little `z`s while it sleeps (2026-11-14), from
+          about where its sunk head is: text, not art, and none under reduced motion. */}
+      <NoteTrail watch={placeRef} sleepAt={look === null ? size.h : Math.round((size.h - look.sheet.head * SCALE) * 0.6)} />
       {/* The `!`: text, not art (SPEC-companion.md, decision 3). */}
       <span
         ref={markRef}
@@ -293,19 +309,24 @@ function share(x: number, floor: Floor, size: Size): number {
 let reactions = 0;
 let reactionKind: CompanionWire['k'] = null;
 
-/** The strip's own hop, in ticks, or the placeholder's. */
-const hopLength = (look: Look): number => (look === null ? HOP.length : look.sheet.motions.hop.ticks.length);
+/** How long a one-off motion plays, in ticks: the strip's own, or the placeholder's hop. */
+const actLength = (look: Look, motion: MotionId): number => (look === null ? HOP.length : look.sheet.motions[motion].ticks.length);
 
-function OwnCompanion({ label, musicPlaying, still, look, lookRef }: { label: string; musicPlaying: boolean; still: boolean; look: Look; lookRef: string | null }) {
+/** A one-off motion being played through once: which, and how far in. */
+type Act = { motion: MotionId; tick: number };
+
+type OwnProps = { label: string; musicPlaying: boolean; track: string | null; still: boolean; look: Look; lookRef: string | null };
+
+function OwnCompanion({ label, musicPlaying, track, still, look, lookRef }: OwnProps) {
   const placeRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLSpanElement>(null);
   const markRef = useRef<HTMLSpanElement>(null);
   const portalRef = useRef<HTMLDivElement>(null);
-  const music = useRef(musicPlaying);
+  const music = useRef({ playing: musicPlaying, track });
   const wearing = useRef<{ look: Look; ref: string | null }>({ look, ref: lookRef });
   useEffect(() => {
-    music.current = musicPlaying;
-  }, [musicPlaying]);
+    music.current = { playing: musicPlaying, track };
+  }, [musicPlaying, track]);
   useEffect(() => {
     wearing.current = { look, ref: lookRef };
   }, [look, lookRef]);
@@ -321,12 +342,22 @@ function OwnCompanion({ label, musicPlaying, still, look, lookRef }: { label: st
     let x: number | null = null;
     let facing: 1 | -1 = 1;
     let frame = 0;
-    let hop = -1;
+    /** The one-off it is playing through (a hop, a stretch, a cheer), and any waiting their turn after it. */
+    let act: Act | null = null;
+    const queue: MotionId[] = [];
     let dance = pickDance();
+    let danceUntil = 0;
+    let danceTrack = music.current.track;
     let motion: MotionId = 'idle';
     let motionTick = 0;
+    /** The loop it is in, as the room hears it (`CompanionWire.p`). */
+    let posing: MotionId | null = null;
+    let pokes = 0;
+    /** A press on it, and the fall after it is let go. */
+    let grab: Grab | null = null;
+    let fall: Fall | null = null;
     let markTimer: ReturnType<typeof setTimeout> | null = null;
-    let lastSaid: { mood: CompanionMood; target: number | null; ref: string | null; at: number } | null = null;
+    let lastSaid: { mood: CompanionMood; target: number | null; ref: string | null; pose: MotionId | null; at: number } | null = null;
     // Visiting a profile's room.
     let phase: Phase = 'strip';
     /** Its feet while it climbs, from the top of the screen. */
@@ -354,11 +385,17 @@ function OwnCompanion({ label, musicPlaying, still, look, lookRef }: { label: st
     const say = (floor: Floor, size: Size, force: boolean) => {
       const target = brain.target ?? x ?? 0;
       const ref = wearing.current.ref;
-      const changed = lastSaid === null || lastSaid.mood !== brain.mood || lastSaid.target !== brain.target || lastSaid.ref !== ref;
+      const changed = lastSaid === null || lastSaid.mood !== brain.mood || lastSaid.target !== brain.target || lastSaid.ref !== ref || lastSaid.pose !== posing;
       if (!changed && !force) return;
       if (!force && brain.mood === 'chase' && lastSaid?.mood === 'chase' && lastSaid.ref === ref && Date.now() - lastSaid.at < CHASE_SAY_MS) return;
-      lastSaid = { mood: brain.mood, target: brain.target, ref, at: Date.now() };
-      sayCompanion({ x: share(target, floor, size), m: brain.mood, r: reactions, k: reactionKind, c: ref });
+      lastSaid = { mood: brain.mood, target: brain.target, ref, pose: posing, at: Date.now() };
+      sayCompanion({ x: share(target, floor, size), m: brain.mood, r: reactions, k: reactionKind, c: ref, p: posing });
+    };
+
+    /** The next frame of a loop: on from where it was, or from its start when it is a new one. */
+    const play = (next: MotionId) => {
+      motionTick = next === motion ? motionTick + 1 : 0;
+      motion = next;
     };
 
     const tick = () => {
@@ -373,6 +410,40 @@ function OwnCompanion({ label, musicPlaying, still, look, lookRef }: { label: st
       if (portalUntil !== 0 && now >= portalUntil) {
         portalUntil = 0;
         closePortal(portal);
+      }
+
+      // In the reader's hand: it hangs where the pointer has it, swinging, never off the screen or under its own floor.
+      if (phase === 'held' && grab !== null) {
+        const nx = Math.round(Math.min(Math.max(0, floor.screen - size.w), Math.max(0, grab.px - grab.offX)));
+        const ny = Math.round(Math.min(floor.y, Math.max(size.h, grab.py + grab.offY)));
+        grab.dx = x === null ? 0 : nx - x;
+        x = nx;
+        y = ny;
+        play('dangle');
+        draw(place, bodyRef.current, look, { x, floorY: y, facing, mood: 'stand', motion, tick: motionTick, lift: 0, held: true });
+        return;
+      }
+      // Let go: down it comes, onto the nearest stretch of its strip it can stand on, and lands.
+      if (phase === 'held' || phase === 'fall') {
+        const from: Fall = fall ?? { x: x ?? 0, y, vx: 0, vy: 0, landed: false };
+        const next = fallStep(from, floor.y, floor.screen - size.w);
+        const under = spanFor(floor.spans, next.x);
+        // Over something it steps around (the folded player, a floating video): it slides off to the side as it falls.
+        const slid = under === null ? next.x : Math.min(under.right, Math.max(under.left, next.x));
+        x = next.landed ? slid : next.x + Math.sign(slid - next.x) * Math.min(16, Math.abs(slid - next.x));
+        y = next.y;
+        fall = { ...next, x };
+        if (!next.landed) {
+          phase = 'fall';
+          play('dangle');
+          draw(place, bodyRef.current, look, { x, floorY: y, facing, mood: 'stand', motion, tick: motionTick, lift: 0, held: true });
+          return;
+        }
+        fall = null;
+        phase = 'strip';
+        brain = startBrain(now);
+        lastActivity = now;
+        react('land');
       }
 
       if (still) {
@@ -444,7 +515,7 @@ function OwnCompanion({ label, musicPlaying, still, look, lookRef }: { label: st
           }
           phase = 'strip';
           brain = startBrain(now);
-          hop = 0;
+          act = { motion: 'hop', tick: 0 };
         }
         // Climbing, a step a frame with its own walk frames: up into the room (walking along its strip to under it
         // first), or back down to its strip.
@@ -505,20 +576,45 @@ function OwnCompanion({ label, musicPlaying, still, look, lookRef }: { label: st
       }
 
       if (still) {
-        brain = { mood: 'stand', target: null, until: Infinity, chaseUntil: 0 };
+        brain = { mood: 'stand', target: null, until: Infinity, chaseUntil: 0, pose: null, act: null, laps: 0, home: 0 };
+        posing = null;
         draw(place, bodyRef.current, look, { x, floorY: floor.y, facing, mood: 'stand', motion: 'idle', tick: 0, lift: 0 });
         say(floor, size, false);
         return;
       }
 
       const near = pointer !== null && pointer.y >= floor.y - NEAR_PX ? pointer.x - size.w / 2 : null;
-      const was = brain.mood;
-      brain = think(brain, { now: Date.now(), lastActivity, musicPlaying: music.current, pointerX: near, x, span, random: Math.random });
-      if (was === 'sleep' && brain.mood !== 'sleep') react('wake');
-      if (was !== 'dance' && brain.mood === 'dance') dance = pickDance();
+      const was = brain;
+      brain = think(brain, {
+        now,
+        lastActivity,
+        musicPlaying: music.current.playing,
+        pointerX: near,
+        x,
+        span,
+        random: Math.random,
+        hour: new Date(now).getHours(),
+      });
+      if (was.mood === 'sleep' && brain.mood !== 'sleep') {
+        // Awake: a stretch, and after a long sleep a wave for whoever came back.
+        react('wake');
+        if (was.pose === 'curl') queue.push('wave');
+      }
+      // Bored: the brain asks for a stretch or a spin, once.
+      if (brain.act !== null && act === null) act = { motion: brain.act, tick: 0 };
+      // A dance changes with the track, and after a while of the same one.
+      const trackNow = music.current.track;
+      if (brain.mood === 'dance' && (was.mood !== 'dance' || trackNow !== danceTrack || now >= danceUntil)) {
+        dance = pickDance(was.mood === 'dance' ? dance : undefined);
+        danceUntil = now + DANCE_MS[0] + Math.random() * (DANCE_MS[1] - DANCE_MS[0]);
+      }
+      danceTrack = trackNow;
 
-      if (brain.target !== null && (brain.mood === 'walk' || brain.mood === 'chase')) {
-        const step = brain.mood === 'chase' ? CHASE_STEP : WALK_STEP;
+      if (act === null && queue.length > 0) act = { motion: queue.shift() ?? 'hop', tick: 0 };
+      // A hop goes on walking; anything longer (a stretch, a cheer) is done standing where it is.
+      const held = act !== null && act.motion !== 'hop';
+      if (!held && brain.target !== null && (brain.mood === 'walk' || brain.mood === 'chase')) {
+        const step = brain.mood === 'chase' || brain.pose === 'run' ? CHASE_STEP : WALK_STEP;
         const gap = brain.target - x;
         if (Math.abs(gap) >= 1) {
           facing = gap > 0 ? 1 : -1;
@@ -529,21 +625,21 @@ function OwnCompanion({ label, musicPlaying, still, look, lookRef }: { label: st
 
       frame += 1;
       let lift = 0;
-      let next: MotionId;
-      if (hop >= 0) {
-        next = 'hop';
-        if (look === null) lift = HOP[hop] ?? 0;
-        hop = hop + 1 < hopLength(look) ? hop + 1 : -1;
+      const loop = loopMotion(brain.mood === 'walk' && !walking ? 'stand' : brain.mood, brain.pose, dance);
+      posing = COMPANION_POSES.includes(loop) ? loop : null;
+      if (act !== null) {
+        motion = act.motion;
+        motionTick = act.tick;
+        if (look === null) lift = HOP[act.tick] ?? 0;
+        act = act.tick + 1 < actLength(look, act.motion) ? { motion: act.motion, tick: act.tick + 1 } : null;
       } else {
-        next = motionFor(brain.mood === 'walk' && !walking ? 'stand' : brain.mood, dance);
+        play(loop);
         // The placeholder has no dance of its own: a stepped bob, turning every half second.
         if (look === null && brain.mood === 'dance') {
           lift = frame % 4 < 2 ? -2 : 0;
           if (frame % 5 === 0) facing = facing === 1 ? -1 : 1;
         }
       }
-      motionTick = next === motion ? motionTick + 1 : 0;
-      motion = next;
       draw(place, bodyRef.current, look, { x, floorY: floor.y, facing, mood: brain.mood, motion, tick: motionTick, lift });
       say(floor, size, false);
     };
@@ -551,7 +647,7 @@ function OwnCompanion({ label, musicPlaying, still, look, lookRef }: { label: st
     const react = (kind: NonNullable<CompanionWire['k']>) => {
       reactions += 1;
       reactionKind = kind;
-      if (!still) hop = 0;
+      if (!still) act = { motion: reactionMotion(kind), tick: 0 };
       if (reactionShowsMark(kind)) markTimer = showMark(mark, markTimer);
       const size = sizeOf(wearing.current.look);
       say(floorNow(size), size, true);
@@ -570,13 +666,84 @@ function OwnCompanion({ label, musicPlaying, still, look, lookRef }: { label: st
     };
     const onBlur = () => {
       pointer = null;
+      // The window lost the pointer mid-carry: it is let go where it hangs.
+      if (grab !== null && grab.moved) {
+        fall = { x: x ?? 0, y, vx: 0, vy: 0, landed: false };
+        phase = 'fall';
+      }
+      grab = null;
     };
+    /** A press without a drag: a hop, a wave, a spin, in turn. */
+    const poke = () => {
+      react(POKES[pokes % POKES.length]);
+      pokes += 1;
+    };
+    // A press on the figure: a poke if it is let go where it was pressed, a pick-up once it is dragged. Under reduced
+    // motion nothing is carried about: a press is a poke (its mark, with no hop).
+    /** It can be taken hold of on its strip, or on its way up to or down from a room: not in one, gone, or already held. */
+    const canGrab = () => phase === 'strip' || phase === 'up' || phase === 'down';
     const onFigure = (event: PointerEvent) => {
-      if (event.button === 0) react('poke');
+      if (event.button !== 0 || place === null || grab !== null) return;
+      if (still || !canGrab()) {
+        if (phase === 'strip') poke();
+        return;
+      }
+      const box = place.getBoundingClientRect();
+      grab = {
+        id: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        offX: event.clientX - box.left,
+        offY: box.bottom - event.clientY,
+        moved: false,
+        px: event.clientX,
+        py: event.clientY,
+        dx: 0,
+      };
+      // The figure keeps hearing the pointer wherever it goes, and the drag selects no text on the page.
+      event.preventDefault();
+      try {
+        place.setPointerCapture(event.pointerId);
+      } catch {
+        // No capture (the pointer went away already): the moves still reach the window's own listener.
+      }
+    };
+    const onDrag = (event: PointerEvent) => {
+      if (grab === null || event.pointerId !== grab.id) return;
+      grab.px = event.clientX;
+      grab.py = event.clientY;
+      if (grab.moved || Math.hypot(event.clientX - grab.startX, event.clientY - grab.startY) < GRAB_SLOP) return;
+      // Pressed while it climbed, and it has since gone into the room (or vanished): there is nothing here to pick up.
+      if (!canGrab()) {
+        grab = null;
+        return;
+      }
+      // Picked up: whatever it was doing (a hop, a climb up to a room) is dropped.
+      grab.moved = true;
+      phase = 'held';
+      leaveRoom();
+      act = null;
+      queue.length = 0;
+    };
+    const onDrop = (event: PointerEvent) => {
+      if (grab === null || event.pointerId !== grab.id) return;
+      const released = grab;
+      grab = null;
+      if (!released.moved) {
+        // A press let go where it was made is a poke, on its strip only: a climb has no frames to play one in.
+        if (event.type === 'pointerup' && phase === 'strip') poke();
+        return;
+      }
+      fall = { x: x ?? 0, y, vx: throwOf(released.dx), vy: 0, landed: false };
+      phase = 'fall';
     };
 
     const offPoke = onCompanionPoke(react);
     place?.addEventListener('pointerdown', onFigure);
+    // On the window, not the figure: a let-go is heard wherever it happens, so it can never be left hanging.
+    window.addEventListener('pointermove', onDrag, { passive: true });
+    window.addEventListener('pointerup', onDrop, { passive: true });
+    window.addEventListener('pointercancel', onDrop, { passive: true });
     window.addEventListener('pointermove', onMove, { passive: true });
     window.addEventListener('pointerdown', active, { passive: true });
     window.addEventListener('keydown', active, { passive: true });
@@ -592,6 +759,9 @@ function OwnCompanion({ label, musicPlaying, still, look, lookRef }: { label: st
       if (markTimer !== null) clearTimeout(markTimer);
       offPoke();
       place?.removeEventListener('pointerdown', onFigure);
+      window.removeEventListener('pointermove', onDrag);
+      window.removeEventListener('pointerup', onDrop);
+      window.removeEventListener('pointercancel', onDrop);
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerdown', active);
       window.removeEventListener('keydown', active);
@@ -654,7 +824,7 @@ function RoomFigure({ companion, still }: { companion: RoomCompanion; still: boo
     let x: number | null = null;
     let facing: 1 | -1 = 1;
     let frame = 0;
-    let hop = -1;
+    let act: Act | null = null;
     let dance = pickDance();
     let motion: MotionId = 'idle';
     let motionTick = 0;
@@ -679,7 +849,7 @@ function RoomFigure({ companion, still }: { companion: RoomCompanion; still: boo
       if (seen === null) seen = now.r;
       else if (now.r > seen) {
         seen = now.r;
-        if (!still) hop = 0;
+        if (!still) act = { motion: reactionMotion(now.k), tick: 0 };
         if (now.k !== null && reactionShowsMark(now.k)) markTimer = showMark(mark, markTimer);
       }
 
@@ -688,9 +858,11 @@ function RoomFigure({ companion, still }: { companion: RoomCompanion; still: boo
         return;
       }
 
-      const walking = Math.abs(goal - x) >= 1;
+      // As on its owner's screen: a hop goes on walking, anything longer is done standing where it is.
+      const busy = act !== null && act.motion !== 'hop';
+      const walking = !busy && Math.abs(goal - x) >= 1;
       if (walking) {
-        const step = now.m === 'chase' ? CHASE_STEP : WALK_STEP;
+        const step = now.m === 'chase' || now.p === 'run' ? CHASE_STEP : WALK_STEP;
         facing = goal > x ? 1 : -1;
         x += Math.sign(goal - x) * Math.min(step, Math.abs(goal - x));
       }
@@ -699,20 +871,21 @@ function RoomFigure({ companion, still }: { companion: RoomCompanion; still: boo
 
       frame += 1;
       let lift = 0;
-      let next: MotionId;
-      if (hop >= 0) {
-        next = 'hop';
-        if (lookNow === null) lift = HOP[hop] ?? 0;
-        hop = hop + 1 < hopLength(lookNow) ? hop + 1 : -1;
+      if (act !== null) {
+        motion = act.motion;
+        motionTick = act.tick;
+        if (lookNow === null) lift = HOP[act.tick] ?? 0;
+        act = act.tick + 1 < actLength(lookNow, act.motion) ? { motion: act.motion, tick: act.tick + 1 } : null;
       } else {
-        next = motionFor(mood, dance);
+        // The loop its owner's browser says it is in (which dance, a run, a curled-up sleep), when that goes with its mood.
+        const next = loopMotion(mood, now.p, dance);
+        motionTick = next === motion ? motionTick + 1 : 0;
+        motion = next;
         if (lookNow === null && mood === 'dance') {
           lift = frame % 4 < 2 ? -2 : 0;
           if (frame % 5 === 0) facing = facing === 1 ? -1 : 1;
         }
       }
-      motionTick = next === motion ? motionTick + 1 : 0;
-      motion = next;
       draw(place, bodyRef.current, lookNow, { x, floorY: floor.y, facing, mood, motion, tick: motionTick, lift });
     };
 
@@ -734,13 +907,27 @@ export default function Companion() {
   const others = useSyncExternalStore(subscribeToRoomCompanions, roomCompanionsState, serverRoomCompanions);
   const phone = usePhone();
   const still = useReducedMotion();
-  const [musicPlaying, setMusicPlaying] = useState(false);
+  const [music, setMusic] = useState<{ playing: boolean; track: string | null }>({ playing: false, track: null });
+  const onMusic = useCallback((playing: boolean, track: string | null) => {
+    setMusic((now) => (now.playing === playing && now.track === track ? now : { playing, track }));
+  }, []);
   // Your SHOWN character: what your companion wears, and whether it is out by default (undefined while it is read).
   const shown = useShownCharacter(userId);
 
   useEffect(() => {
     void setCompanionAccount(userId);
   }, [userId]);
+
+  // A strip baked before the newer motions is baked again here, once, quietly (Luke's OK, 2026-11-14): on a computer,
+  // a few seconds after the page has settled. The baking code is fetched only then.
+  const stale = shown !== null && shown !== undefined && shown.stale ? shown : null;
+  useEffect(() => {
+    if (stale === null || userId === null || phone !== false) return;
+    const timer = setTimeout(() => {
+      void import('../lib/character/rebake').then(({ rebakeShown }) => rebakeShown(userId, stale));
+    }, REBAKE_AFTER_MS);
+    return () => clearTimeout(timer);
+  }, [stale, userId, phone]);
 
   const ready = phone !== null && still !== null && shown !== undefined;
   const mine = ready && companionOut(choices, { signedIn: userId !== null, phone, hasShown: shown !== null });
@@ -762,10 +949,18 @@ export default function Companion() {
     <div className="pointer-events-none fixed inset-0 z-40 overflow-hidden" data-companion-strip>
       {mine ? (
         <>
-          <MusicWatch onChange={setMusicPlaying} />
+          <MusicWatch onChange={onMusic} />
           <CompanionReactions />
           {/* Re-made when the strip changes: a new character is a new box. */}
-          <OwnCompanion key={shown?.bakedAt ?? 'placeholder'} label={user?.displayName ?? 'YOU'} musicPlaying={musicPlaying} still={still} look={look} lookRef={shown?.bakedAt ?? null} />
+          <OwnCompanion
+            key={shown?.bakedAt ?? 'placeholder'}
+            label={user?.displayName ?? 'YOU'}
+            musicPlaying={music.playing}
+            track={music.track}
+            still={still}
+            look={look}
+            lookRef={shown?.bakedAt ?? null}
+          />
         </>
       ) : null}
       {drawn.map((companion) => (

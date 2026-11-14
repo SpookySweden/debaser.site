@@ -47,6 +47,23 @@ page.** A true desktop pet would be a separate installed program, and isn't part
 5. **Motion rules:** stepped frames as in the profile spec. Under reduced motion or MOTION OFF it sits still in one frame.
    A companion and the cat cursor can both be on; they don't interact.
 
+## Widened (Luke, 2026-11-14)
+"Look into more ways that the companion can interactive with the site and find more animations for it for all of its use
+cases or create more and make it an overall more fleshed out unique and creative and fun feature." Luke OK'd three steps,
+each live on its own ("Yes, all three"), and the quiet re-bake ("Yes, quietly"). How it is built: `docs/companion.md`.
+1. **A life of its own.** Pick it up with the pointer and it dangles, then drops back and lands. A press without a drag
+   gets a hop, a wave or a spin in turn. Asleep, `z`s drift up; after five minutes alone it curls right up, and stretches
+   and waves when you come back. Bored, it stretches, spins or runs back and forth. It runs after the pointer. Five
+   dances, a new one with each track. In the small hours of your clock it nods off sooner.
+2. **It takes part.** Reads along at `/read` (a book art slot beside it), watches the arcade and cheers or slumps, cheers a
+   post, types along, sits and watches a video; in a stream room everyone's companions sit as an audience.
+3. **Social touches.** Waves in a profile's ROOM and at a newcomer in a stream room, hops when its owner speaks in stream
+   chat, a different text mark per kind of notification, a real climbing motion.
+- New motions are code turning the joints of the owner's own built character (Asset Rules): nothing is drawn.
+- A strip baked before a motion existed plays an older one in its place, and its owner's browser bakes it again once,
+  quietly, on a computer: the same save SHOW does, to their own row and picture only.
+- Small text marks are allowed now (`z`, `...`, a heart, `VS`). Still no talking.
+
 ## Database changes (need Luke's typed OK)
 - The COMPANION switch and choice follow the account: one small row of settings. It could share a table with the review's
   "settings follow you" idea if that's built first.

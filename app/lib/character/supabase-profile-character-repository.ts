@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ProfileCharacterRepository, ShownCharacter } from './profile-character-repository';
-import { isMood, readSheet } from './sheet';
+import { isMood, readSheetAndAge } from './sheet';
 
 /**
  * `profile_characters` and the `profile-characters` picture folder (`20261113022903_profile_characters.sql`). Anyone reads
@@ -13,14 +13,15 @@ export function createSupabaseProfileCharacterRepository(client: SupabaseClient)
   const publicUrl = (path: string) => client.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
 
   function fromRow(row: Record<string, unknown>): ShownCharacter | null {
-    const sheet = readSheet(row.sheet);
-    if (sheet === null || typeof row.person !== 'string' || typeof row.character_id !== 'string' || typeof row.strip !== 'string') return null;
+    const read = readSheetAndAge(row.sheet);
+    if (read === null ||typeof row.person !== 'string' || typeof row.character_id !== 'string' || typeof row.strip !== 'string') return null;
     return {
       person: row.person,
       characterId: row.character_id,
       mood: isMood(row.mood) ? row.mood : 'calm',
       stripUrl: publicUrl(row.strip),
-      sheet,
+      sheet: read.sheet,
+      stale: read.stale,
       bakedAt: typeof row.baked_at === 'string' ? row.baked_at : new Date(0).toISOString(),
     };
   }

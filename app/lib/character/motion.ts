@@ -48,11 +48,40 @@ export type Facing = 'side' | 'front';
 
 export type Motion = { facing: Facing; loop: boolean; frames: readonly Keyframe[] };
 
-export const MOTION_IDS = ['stand', 'idle', 'walk', 'dance1', 'dance2', 'dance3', 'wave', 'hop', 'turn', 'sit', 'sleep'] as const;
-export type MotionId = (typeof MOTION_IDS)[number];
+/** The first set (2026-11-13): every strip ever baked holds these. */
+export const CORE_MOTION_IDS = ['stand', 'idle', 'walk', 'dance1', 'dance2', 'dance3', 'wave', 'hop', 'turn', 'sit', 'sleep'] as const;
+export type CoreMotionId = (typeof CORE_MOTION_IDS)[number];
 
-/** The three dances a PARTY character picks between. */
-export const DANCES: readonly MotionId[] = ['dance1', 'dance2', 'dance3'];
+/**
+ * The companion's wider life (Luke, 2026-11-14: "more animations for it for all of its use cases"): stretching, two more
+ * dances, running, cheering, slumping, being picked up and landing, a deep curled-up sleep, watching, reading and turning
+ * a page, typing along, and climbing. A strip baked before these has none of them: it plays the motion beside each name
+ * instead (`sheet.ts` fills them in on reading), until its owner's browser bakes it again (`rebake.ts`).
+ */
+export const MOTION_FALLBACK = {
+  stretch: 'idle',
+  dance4: 'dance2',
+  dance5: 'dance3',
+  run: 'walk',
+  cheer: 'hop',
+  slump: 'sit',
+  dangle: 'idle',
+  land: 'hop',
+  curl: 'sleep',
+  watch: 'sit',
+  read: 'sit',
+  flick: 'sit',
+  type: 'idle',
+  climb: 'walk',
+} as const satisfies Record<string, CoreMotionId>;
+export type ExtraMotionId = keyof typeof MOTION_FALLBACK;
+export const EXTRA_MOTION_IDS = Object.keys(MOTION_FALLBACK) as ExtraMotionId[];
+
+export type MotionId = CoreMotionId | ExtraMotionId;
+export const MOTION_IDS: readonly MotionId[] = [...CORE_MOTION_IDS, ...EXTRA_MOTION_IDS];
+
+/** The dances a PARTY character, or a companion hearing music, picks between. */
+export const DANCES: readonly MotionId[] = ['dance1', 'dance2', 'dance3', 'dance4', 'dance5'];
 
 /** Three-quarters round: enough to read as walking sideways and still show the figure's front. */
 export const SIDE_YAW = 50;
@@ -197,10 +226,230 @@ const BASE: Record<MotionId, Motion> = {
       { joints: { hips: { x: -70 }, body: { x: 98 }, head: { x: 28 } }, root: { y: -0.37 }, hold: 12 },
     ],
   },
+
+  // Waking up, or bored: leans back with its head thrown back, tips to each side, settles.
+  stretch: {
+    facing: 'front',
+    loop: false,
+    frames: [
+      { joints: { body: { x: -6 } }, root: { y: 0.02 }, hold: 2 },
+      { joints: { body: { x: -12 }, head: { x: -18 } }, root: { y: 0.05 }, hold: 5 },
+      { joints: { body: { x: -12, z: 9 }, head: { x: -18, z: 6 } }, root: { y: 0.05 }, hold: 3 },
+      { joints: { body: { x: -12, z: -9 }, head: { x: -18, z: -6 } }, root: { y: 0.05 }, hold: 3 },
+      { joints: { body: { x: 4 } }, hold: 2 },
+    ],
+  },
+
+  // Spin: right round on the spot, an eighth of a turn a frame, bobbing.
+  dance4: {
+    facing: 'front',
+    loop: true,
+    frames: [0, 1, 2, 3, 4, 5, 6, 7].map((index) => ({
+      yaw: index * 45,
+      joints: { hips: { z: index % 2 === 0 ? 5 : -5 }, head: { z: index % 2 === 0 ? -6 : 6 } },
+      root: { y: index % 2 === 0 ? 0 : 0.06 },
+    })),
+  },
+
+  // Headbang: the body throws the head down and back.
+  dance5: {
+    facing: 'front',
+    loop: true,
+    frames: [
+      { joints: { body: { x: 22 }, head: { x: 30 } }, root: { y: 0 } },
+      { joints: { body: { x: 8 }, head: { x: 5 } }, root: { y: 0.03 } },
+      { joints: { body: { x: -6 }, head: { x: -14 } }, root: { y: 0.06 } },
+      { joints: { body: { x: 8 }, head: { x: 5 } }, root: { y: 0.03 } },
+    ],
+  },
+
+  // A run: the waddle leaning hard into it, twice as quick, with a bigger bounce. For chasing the pointer.
+  run: {
+    facing: 'side',
+    loop: true,
+    frames: [
+      { joints: { hips: { z: 9 }, body: { x: 16, z: -5 } }, root: { y: 0 } },
+      { joints: { hips: { z: 0 }, body: { x: 18 } }, root: { y: 0.09 } },
+      { joints: { hips: { z: -9 }, body: { x: 16, z: 5 } }, root: { y: 0 } },
+      { joints: { hips: { z: 0 }, body: { x: 18 } }, root: { y: 0.09 } },
+    ],
+  },
+
+  // Two jumps for joy, head back. A win, a post filed, a book finished.
+  cheer: {
+    facing: 'front',
+    loop: false,
+    frames: [
+      { joints: { body: { x: 10 } } },
+      { joints: { body: { x: -8 }, head: { x: -14 } }, root: { y: 0.26 }, hold: 2 },
+      { joints: { body: { x: -4 } }, root: { y: 0.1 } },
+      { joints: { body: { x: 8 } } },
+      { joints: { body: { x: -8, z: 6 }, head: { x: -14 } }, root: { y: 0.3 }, hold: 2 },
+      { joints: { body: { x: -4 } }, root: { y: 0.1 } },
+      { joints: { head: { z: 8 } }, hold: 3 },
+    ],
+  },
+
+  // Droops, shakes its head slowly, picks itself up. A game lost.
+  slump: {
+    facing: 'side',
+    loop: false,
+    frames: [
+      { joints: { body: { x: 14 }, head: { x: 14 } }, hold: 2 },
+      { joints: { body: { x: 26 }, head: { x: 30 } }, hold: 8 },
+      { joints: { body: { x: 26 }, head: { x: 30, y: 14 } }, hold: 4 },
+      { joints: { body: { x: 26 }, head: { x: 30, y: -14 } }, hold: 4 },
+      { joints: { body: { x: 26 }, head: { x: 30 } }, hold: 6 },
+      { joints: { body: { x: 10 }, head: { x: 8 } }, hold: 2 },
+    ],
+  },
+
+  // Picked up by the pointer: it hangs, swinging from the hips.
+  dangle: {
+    facing: 'front',
+    loop: true,
+    frames: [
+      { joints: { hips: { z: 14 }, body: { z: -8 }, head: { z: -6 } }, hold: 2 },
+      { joints: { hips: { z: 0 } } },
+      { joints: { hips: { z: -14 }, body: { z: 8 }, head: { z: 6 } }, hold: 2 },
+      { joints: { hips: { z: 0 } } },
+    ],
+  },
+
+  // Dropped: lands bent right over, and straightens.
+  land: {
+    facing: 'side',
+    loop: false,
+    frames: [
+      { joints: { body: { x: 26 }, head: { x: 12 } }, hold: 2 },
+      { joints: { body: { x: 12 }, head: { x: -6 } }, hold: 2 },
+      { hold: 2 },
+    ],
+  },
+
+  // A deep sleep, after a long while alone: folded right over its own legs.
+  curl: {
+    facing: 'side',
+    loop: true,
+    frames: [
+      { joints: { hips: { x: -70 }, body: { x: 122 }, head: { x: 38 } }, root: { y: -0.36 }, hold: 14 },
+      { joints: { hips: { x: -70 }, body: { x: 125 }, head: { x: 40 } }, root: { y: -0.37 }, hold: 14 },
+    ],
+  },
+
+  // Sitting, leaning back a touch, looking up at a screen: a video, a game.
+  watch: {
+    facing: 'side',
+    loop: true,
+    frames: [
+      { joints: { hips: { x: -70 }, body: { x: 62 }, head: { x: -26 } }, root: { y: -0.36 }, hold: 24 },
+      { joints: { hips: { x: -70 }, body: { x: 62 }, head: { x: -26, z: 8 } }, root: { y: -0.36 }, hold: 10 },
+      { joints: { hips: { x: -70 }, body: { x: 64 }, head: { x: -22 } }, root: { y: -0.36 }, hold: 14 },
+    ],
+  },
+
+  // Sitting with its head down over a book (the book itself is Luke's to draw: an art slot beside it).
+  read: {
+    facing: 'side',
+    loop: true,
+    frames: [
+      { joints: { hips: { x: -70 }, body: { x: 80 }, head: { x: 30 } }, root: { y: -0.36 }, hold: 20 },
+      { joints: { hips: { x: -70 }, body: { x: 80 }, head: { x: 30, y: -10 } }, root: { y: -0.36 }, hold: 10 },
+      { joints: { hips: { x: -70 }, body: { x: 82 }, head: { x: 34 } }, root: { y: -0.36 }, hold: 12 },
+    ],
+  },
+
+  // A page turned: its head flicks across and back.
+  flick: {
+    facing: 'side',
+    loop: false,
+    frames: [
+      { joints: { hips: { x: -70 }, body: { x: 80 }, head: { x: 30, y: 24 } }, root: { y: -0.36 }, hold: 2 },
+      { joints: { hips: { x: -70 }, body: { x: 78 }, head: { x: 16, y: 24 } }, root: { y: -0.36 }, hold: 2 },
+      { joints: { hips: { x: -70 }, body: { x: 80 }, head: { x: 30 } }, root: { y: -0.36 }, hold: 2 },
+    ],
+  },
+
+  // Typing along with you: leaning in, its head bobbing at every key.
+  type: {
+    facing: 'side',
+    loop: true,
+    frames: [
+      { joints: { body: { x: 12 }, head: { x: 6 } } },
+      { joints: { body: { x: 12 }, head: { x: 16 } } },
+      { joints: { body: { x: 14 }, head: { x: 6 } } },
+      { joints: { body: { x: 12 }, head: { x: 16, y: 10 } } },
+    ],
+  },
+
+  // Climbing up into a profile's room: its back to you, rocking from one side to the other as it goes.
+  climb: {
+    facing: 'front',
+    loop: true,
+    frames: [
+      { yaw: 180, joints: { hips: { z: 8 }, body: { z: -4 } } },
+      { yaw: 180, root: { y: 0.05 } },
+      { yaw: 180, joints: { hips: { z: -8 }, body: { z: 4 } } },
+      { yaw: 180, root: { y: 0.05 } },
+    ],
+  },
 };
+
+/** A motion with GUY's arms added, frame by frame: each arm's turn, on top of what the frame already turns. */
+function withArms(motion: Motion, arms: (index: number) => { left?: JointTurn; right?: JointTurn }): Motion {
+  return {
+    ...motion,
+    frames: motion.frames.map((frame, index) => {
+      const { left, right } = arms(index);
+      return {
+        ...frame,
+        joints: { ...frame.joints, ...(left === undefined ? {} : { 'arm.left': left }), ...(right === undefined ? {} : { 'arm.right': right }) },
+      };
+    }),
+  };
+}
 
 /** GUY: the same, with arms. A walk swings them; a wave is a real wave with the right arm. */
 const GUY: Partial<Record<MotionId, Motion>> = {
+  // Arms up over its head, then down.
+  stretch: withArms(BASE.stretch, (index) => {
+    const up = [70, 165, 165, 165, 25][index];
+    return { left: { z: -up }, right: { z: up } };
+  }),
+  // Arms out as it spins.
+  dance4: withArms(BASE.dance4, (index) => ({ left: { z: index % 2 === 0 ? -80 : -100 }, right: { z: index % 2 === 0 ? 80 : 100 } })),
+  // A fist in the air.
+  dance5: withArms(BASE.dance5, (index) => ({ right: { z: [120, 150, 165, 150][index] } })),
+  run: withArms(BASE.run, (index) => {
+    const swing = [40, 0, -40, 0][index];
+    return { left: { x: swing }, right: { x: -swing } };
+  }),
+  // Both arms thrown up on each jump.
+  cheer: withArms(BASE.cheer, (index) => {
+    const up = [30, 160, 100, 30, 160, 100, 140][index];
+    return { left: { z: -up }, right: { z: up } };
+  }),
+  // Arms hanging straight down from drooped shoulders.
+  slump: withArms(BASE.slump, (index) => {
+    const hang = [-14, -26, -26, -26, -26, -10][index];
+    return { left: { x: hang }, right: { x: hang } };
+  }),
+  // Held up by its arms.
+  dangle: withArms(BASE.dangle, () => ({ left: { z: -155 }, right: { z: 155 } })),
+  // Arms out for balance.
+  land: withArms(BASE.land, (index) => {
+    const out = [70, 40, 0][index];
+    return { left: { z: -out }, right: { z: out } };
+  }),
+  curl: withArms(BASE.curl, () => ({ left: { x: -50 }, right: { x: -50 } })),
+  // Propped back on its hands.
+  watch: withArms(BASE.watch, () => ({ left: { x: 30 }, right: { x: 30 } })),
+  // Arms out in front, as if holding the book.
+  read: withArms(BASE.read, () => ({ left: { x: -70 }, right: { x: -70 } })),
+  flick: withArms(BASE.flick, (index) => ({ left: { x: -70 }, right: { x: [-95, -110, -70][index] } })),
+  type: withArms(BASE.type, (index) => ({ left: { x: index % 2 === 0 ? -70 : -55 }, right: { x: index % 2 === 0 ? -55 : -70 } })),
+  // Reaching up, one hand then the other.
+  climb: withArms(BASE.climb, (index) => ({ left: { z: [-165, -150, -135, -150][index] }, right: { z: [135, 150, 165, 150][index] } })),
   walk: {
     facing: 'side',
     loop: true,
@@ -288,6 +537,42 @@ const GOBLIN: Partial<Record<MotionId, Motion>> = {
       { joints: { body: { x: 22 }, head: { x: 22 } }, root: { y: -0.09 }, hold: 12 },
     ],
   },
+  // No legs to fold: its seated motions are its own settle, with the head doing the work.
+  curl: {
+    facing: 'side',
+    loop: true,
+    frames: [
+      { joints: { body: { x: 34 }, head: { x: 34, z: 12 } }, root: { y: -0.1 }, hold: 14 },
+      { joints: { body: { x: 36 }, head: { x: 36, z: 12 } }, root: { y: -0.11 }, hold: 14 },
+    ],
+  },
+  watch: {
+    facing: 'side',
+    loop: true,
+    frames: [
+      { joints: { body: { x: -6 }, head: { x: -22 } }, root: { y: -0.06 }, hold: 24 },
+      { joints: { body: { x: -6 }, head: { x: -22, z: 8 } }, root: { y: -0.06 }, hold: 10 },
+      { joints: { body: { x: -4 }, head: { x: -18 } }, root: { y: -0.06 }, hold: 14 },
+    ],
+  },
+  read: {
+    facing: 'side',
+    loop: true,
+    frames: [
+      { joints: { body: { x: 12 }, head: { x: 26 } }, root: { y: -0.06 }, hold: 20 },
+      { joints: { body: { x: 12 }, head: { x: 26, y: -10 } }, root: { y: -0.06 }, hold: 10 },
+      { joints: { body: { x: 14 }, head: { x: 30 } }, root: { y: -0.06 }, hold: 12 },
+    ],
+  },
+  flick: {
+    facing: 'side',
+    loop: false,
+    frames: [
+      { joints: { body: { x: 12 }, head: { x: 26, y: 24 } }, root: { y: -0.06 }, hold: 2 },
+      { joints: { body: { x: 10 }, head: { x: 12, y: 24 } }, root: { y: -0.06 }, hold: 2 },
+      { joints: { body: { x: 12 }, head: { x: 26 } }, root: { y: -0.06 }, hold: 2 },
+    ],
+  },
 };
 
 /** ROBOT: on tracks, so it glides rather than bobs; its binocular head scans. */
@@ -326,6 +611,50 @@ const ROBOT: Partial<Record<MotionId, Motion>> = {
     frames: [
       { joints: { body: { x: 10 }, head: { x: 35 } }, root: { y: -0.1 }, hold: 16 },
       { joints: { body: { x: 10 }, head: { x: 33 } }, root: { y: -0.1 }, hold: 16 },
+    ],
+  },
+  // Full speed on its tracks: leaning in, shuddering a little.
+  run: {
+    facing: 'side',
+    loop: true,
+    frames: [0, 1, 2, 3].map((index) => ({ joints: { body: { x: index % 2 === 0 ? 9 : 11 } }, root: { y: index % 2 === 0 ? 0 : 0.02 } })),
+  },
+  // Powered right down: the head hangs.
+  curl: {
+    facing: 'side',
+    loop: true,
+    frames: [
+      { joints: { body: { x: 16 }, head: { x: 52 } }, root: { y: -0.1 }, hold: 20 },
+      { joints: { body: { x: 16 }, head: { x: 50 } }, root: { y: -0.1 }, hold: 20 },
+    ],
+  },
+  // Binoculars up at the screen.
+  watch: {
+    facing: 'side',
+    loop: true,
+    frames: [
+      { joints: { body: { x: -4 }, head: { x: -28 } }, root: { y: -0.08 }, hold: 24 },
+      { joints: { body: { x: -4 }, head: { x: -28, y: 12 } }, root: { y: -0.08 }, hold: 10 },
+      { joints: { body: { x: -4 }, head: { x: -24 } }, root: { y: -0.08 }, hold: 14 },
+    ],
+  },
+  // Scanning the page, line by line.
+  read: {
+    facing: 'side',
+    loop: true,
+    frames: [
+      { joints: { body: { x: 8 }, head: { x: 30, y: 12 } }, root: { y: -0.08 }, hold: 14 },
+      { joints: { body: { x: 8 }, head: { x: 30 } }, root: { y: -0.08 }, hold: 14 },
+      { joints: { body: { x: 8 }, head: { x: 30, y: -12 } }, root: { y: -0.08 }, hold: 14 },
+    ],
+  },
+  flick: {
+    facing: 'side',
+    loop: false,
+    frames: [
+      { joints: { body: { x: 8 }, head: { x: 30, y: 28 } }, root: { y: -0.08 }, hold: 2 },
+      { joints: { body: { x: 6 }, head: { x: 14, y: 28 } }, root: { y: -0.08 }, hold: 2 },
+      { joints: { body: { x: 8 }, head: { x: 30 } }, root: { y: -0.08 }, hold: 2 },
     ],
   },
 };

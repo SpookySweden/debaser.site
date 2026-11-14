@@ -16,6 +16,8 @@ export type ShownCharacter = {
   stripUrl: string;
   sheet: CharacterSheet;
   bakedAt: string;
+  /** Baked before the newer motions: it plays older ones in their place until its owner's browser bakes it again. */
+  stale: boolean;
 };
 
 export type ProfileCharacterRepository = {

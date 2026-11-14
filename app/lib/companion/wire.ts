@@ -1,3 +1,4 @@
+import type { MotionId } from '../character/motion';
 import { createWindowSlot } from '../ui/window-slot';
 
 /**
@@ -14,14 +15,76 @@ export type CompanionMood = 'stand' | 'walk' | 'sit' | 'sleep' | 'dance' | 'chas
 
 export const COMPANION_MOODS: readonly CompanionMood[] = ['stand', 'walk', 'sit', 'sleep', 'dance', 'chase'];
 
-/** What sets off a hop: a reply, a message, someone coming online, waking up, or a press on it. */
-export type CompanionReaction = 'reply' | 'message' | 'online' | 'wake' | 'poke';
+/**
+ * What sets off a one-off motion: a reply, a message, someone coming online, waking up, a press on it, and (Luke,
+ * 2026-11-14) a wave, a spin, a cheer, a slump, landing after being dropped, and a page turned.
+ */
+export type CompanionReaction = 'reply' | 'message' | 'online' | 'wake' | 'poke' | 'wave' | 'spin' | 'cheer' | 'slump' | 'land' | 'flick';
 
-export const COMPANION_REACTIONS: readonly CompanionReaction[] = ['reply', 'message', 'online', 'wake', 'poke'];
+export const COMPANION_REACTIONS: readonly CompanionReaction[] = ['reply', 'message', 'online', 'wake', 'poke', 'wave', 'spin', 'cheer', 'slump', 'land', 'flick'];
 
-/** Reactions that put a `!` over its head; the others are a hop alone. */
+/** Reactions that put a `!` over its head; the others are a motion alone. */
 export function reactionShowsMark(kind: CompanionReaction): boolean {
   return kind === 'reply' || kind === 'message' || kind === 'online';
+}
+
+/**
+ * The one-off motion each reaction plays, once through. A browser on older code reads a kind it doesn't know as no kind
+ * and plays a hop, so nothing new here can break it.
+ */
+const REACTION_MOTIONS: Record<CompanionReaction, MotionId> = {
+  reply: 'hop',
+  message: 'hop',
+  online: 'hop',
+  poke: 'hop',
+  wake: 'stretch',
+  wave: 'wave',
+  spin: 'dance4',
+  cheer: 'cheer',
+  slump: 'slump',
+  land: 'land',
+  flick: 'flick',
+};
+export function reactionMotion(kind: CompanionReaction | null): MotionId {
+  return kind === null ? 'hop' : REACTION_MOTIONS[kind];
+}
+
+/** The loops a companion may say it is playing in place of its mood's own (`CompanionWire.p`), and the moods each goes with. */
+const POSE_MOODS: Partial<Record<MotionId, readonly CompanionMood[]>> = {
+  dance1: ['dance'],
+  dance2: ['dance'],
+  dance3: ['dance'],
+  dance4: ['dance'],
+  dance5: ['dance'],
+  run: ['walk', 'chase'],
+  curl: ['sleep'],
+  watch: ['sit'],
+  read: ['sit'],
+  type: ['stand'],
+};
+export const COMPANION_POSES = Object.keys(POSE_MOODS) as MotionId[];
+
+/** The loop a mood plays on its own. `dance` is whichever dance the browser drawing it picked. */
+export function moodMotion(mood: CompanionMood, dance: MotionId): MotionId {
+  switch (mood) {
+    case 'walk':
+      return 'walk';
+    case 'chase':
+      return 'run';
+    case 'sit':
+      return 'sit';
+    case 'sleep':
+      return 'sleep';
+    case 'dance':
+      return dance;
+    default:
+      return 'idle';
+  }
+}
+
+/** The loop to draw: the pose it says, when that goes with its mood (a curl is only ever a sleep), else the mood's own. */
+export function loopMotion(mood: CompanionMood, pose: MotionId | null, dance: MotionId): MotionId {
+  return pose !== null && (POSE_MOODS[pose] ?? []).includes(mood) ? pose : moodMotion(mood, dance);
 }
 
 export type CompanionWire = {
@@ -37,6 +100,11 @@ export type CompanionWire = {
    * reads it again when it changes. Null is the placeholder field (no SHOWN character).
    */
   c: string | null;
+  /**
+   * The loop it plays in place of its mood's own: which dance, a run, a deep sleep's curl. Null (or missing, from a
+   * browser on older code) is the mood's own. The moods stay the first six, so older code still draws it.
+   */
+  p: MotionId | null;
 };
 
 /** A companion seen in the room, with its owner's name for the hover. */
@@ -65,13 +133,14 @@ export function parseCompanionWire(value: unknown): CompanionWire | null {
   const r = typeof raw.r === 'number' && Number.isInteger(raw.r) && raw.r >= 0 ? raw.r : 0;
   const k = typeof raw.k === 'string' && (COMPANION_REACTIONS as readonly string[]).includes(raw.k) ? (raw.k as CompanionReaction) : null;
   const c = typeof raw.c === 'string' && raw.c.length > 0 && raw.c.length <= CHARACTER_REF_MAX ? raw.c : null;
-  return { x, m, r, k, c };
+  const p = typeof raw.p === 'string' && (COMPANION_POSES as readonly string[]).includes(raw.p) ? (raw.p as MotionId) : null;
+  return { x, m, r, k, c, p };
 }
 
 /** Two wires that would draw the same: nothing to re-say. */
 export function sameWire(a: CompanionWire | null, b: CompanionWire | null): boolean {
   if (a === null || b === null) return a === b;
-  return a.x === b.x && a.m === b.m && a.r === b.r && a.k === b.k && a.c === b.c;
+  return a.x === b.x && a.m === b.m && a.r === b.r && a.k === b.k && a.c === b.c && a.p === b.p;
 }
 
 /** The companions to draw, oldest in the room first, capped so yours (when it is out) always has a place. */

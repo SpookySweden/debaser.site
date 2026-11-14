@@ -128,10 +128,157 @@ ok('somebody else presence is read carefully: junk is no companion, the share st
   assert.equal(wire.parseCompanionWire(null), null);
   assert.equal(wire.parseCompanionWire({ x: 0.5, m: 'fly' }), null);
   assert.equal(wire.parseCompanionWire({ x: 'left', m: 'walk' }), null);
-  assert.deepEqual(wire.parseCompanionWire({ x: 7, m: 'walk', r: -3, k: 'boom', c: '' }), { x: 1, m: 'walk', r: 0, k: null, c: null });
-  assert.deepEqual(wire.parseCompanionWire({ x: 0.25, m: 'dance', r: 4, k: 'message', c: 'strip/1' }), { x: 0.25, m: 'dance', r: 4, k: 'message', c: 'strip/1' });
+  assert.deepEqual(wire.parseCompanionWire({ x: 7, m: 'walk', r: -3, k: 'boom', c: '', p: 'fly' }), { x: 1, m: 'walk', r: 0, k: null, c: null, p: null });
+  assert.deepEqual(wire.parseCompanionWire({ x: 0.25, m: 'dance', r: 4, k: 'message', c: 'strip/1' }), { x: 0.25, m: 'dance', r: 4, k: 'message', c: 'strip/1', p: null }, 'a browser on older code says no pose');
+  assert.deepEqual(wire.parseCompanionWire({ x: 0.25, m: 'sleep', r: 4, k: 'cheer', c: 'strip/1', p: 'curl' }), { x: 0.25, m: 'sleep', r: 4, k: 'cheer', c: 'strip/1', p: 'curl' });
+  assert.equal(wire.parseCompanionWire({ x: 0.5, m: 'stand', p: 'hop' }).p, null, 'a one-off is not a pose');
   assert.equal(wire.reactionShowsMark('reply'), true);
   assert.equal(wire.reactionShowsMark('wake'), false);
+});
+
+/* --- a life of its own (Luke, 2026-11-14) --------------------------------------------------------------------- */
+
+ok('left alone five minutes it curls right up; before that a sleep is a plain sleep; coming back wakes it', () => {
+  const asleep = brain.think(brain.startBrain(0), base({ now: brain.SLEEP_AFTER_MS }));
+  assert.equal(asleep.mood, 'sleep');
+  assert.equal(asleep.pose, null);
+  const curled = brain.think(asleep, base({ now: brain.CURL_AFTER_MS }));
+  assert.equal(curled.mood, 'sleep');
+  assert.equal(curled.pose, 'curl');
+  assert.equal(brain.think(curled, base({ now: brain.CURL_AFTER_MS + 100 })), curled, 'and stays curled, with nothing re-decided');
+  const woken = brain.think(curled, base({ now: brain.CURL_AFTER_MS + 200, lastActivity: brain.CURL_AFTER_MS + 150 }));
+  assert.equal(woken.mood, 'stand');
+  assert.equal(woken.pose, null);
+});
+
+ok('in the small hours of your own clock it nods off sooner; by day it does not', () => {
+  const early = brain.SLEEP_AFTER_MS * brain.NIGHT_SHARE;
+  assert.ok(early < brain.SLEEP_AFTER_MS);
+  assert.equal(brain.think(brain.startBrain(0), base({ now: early, hour: 2 })).mood, 'sleep');
+  assert.equal(brain.think(brain.startBrain(0), base({ now: early, hour: 14 })).mood, 'sit');
+  assert.equal(brain.think(brain.startBrain(0), base({ now: early })).mood, 'sit', 'no clock: daytime');
+  assert.equal(brain.think(brain.startBrain(0), base({ now: brain.SIT_AFTER_MS * brain.NIGHT_SHARE, hour: 0 })).mood, 'sit');
+  assert.equal(brain.isNight(brain.NIGHT_UNTIL_HOUR), false);
+  assert.equal(brain.isNight(23), false);
+});
+
+ok('it runs after the pointer', () => {
+  const state = brain.think(brain.startBrain(0), base({ pointerX: 300 }));
+  assert.equal(state.pose, 'run');
+  assert.equal(wire.loopMotion('chase', null, 'dance1'), 'run');
+});
+
+ok('bored, it stretches, spins and runs back and forth: each asked for once, all inside its stretch', () => {
+  const span = { left: 320, right: 1180 };
+  const random = dice(3);
+  let state = brain.startBrain(0);
+  let x = 700;
+  const acts = [];
+  let zooms = 0;
+  let zoomTargets = new Set();
+  for (let now = 0; now < 3_600_000; now += 100) {
+    const before = state;
+    state = brain.think(state, { now, lastActivity: now, musicPlaying: false, pointerX: null, x, span, random, hour: 14 });
+    if (state.act !== null) {
+      acts.push(state.act);
+      assert.equal(state.mood, 'stand', 'a stretch or a spin is done standing');
+      assert.equal(brain.think(state, { now: now + 100, lastActivity: now, musicPlaying: false, pointerX: null, x, span, random, hour: 14 }).act, null, 'asked for in one thought only');
+    }
+    if (state.mood === 'walk' && state.pose === 'run') {
+      // A new burst is one whose runs-left went back up (two can follow straight on from each other).
+      if (!(before.mood === 'walk' && before.pose === 'run') || state.laps > before.laps) {
+        zooms += 1;
+        zoomTargets = new Set();
+      }
+      zoomTargets.add(state.target);
+      assert.ok(zoomTargets.size <= 2, 'back and forth between two spots');
+      assert.ok(Math.abs(state.target - state.home) <= brain.ZOOM_REACH);
+    }
+    if (state.target !== null) {
+      assert.ok(state.target >= span.left && state.target <= span.right, `target ${state.target} outside its stretch`);
+      x += Math.sign(state.target - x) * Math.min(state.pose === 'run' ? 6 : 3, Math.abs(state.target - x));
+    }
+  }
+  assert.ok(acts.includes('stretch'), 'never stretched');
+  assert.ok(acts.includes('dance4'), 'never spun');
+  assert.ok(zooms >= 1, 'never ran about');
+  // A stretch too narrow to run about in: a spin instead, never a run.
+  let narrow = brain.startBrain(0);
+  const tight = { left: 100, right: 100 + brain.ZOOM_REACH };
+  for (let now = 0; now < 3_600_000; now += 100) {
+    narrow = brain.think(narrow, { now, lastActivity: now, musicPlaying: false, pointerX: null, x: 150, span: tight, random, hour: 14 });
+    assert.notEqual(narrow.pose, 'run');
+  }
+});
+
+ok('let go, it falls faster each frame, lands exactly on its floor and never leaves the screen; a throw carries and fades', () => {
+  let fall = { x: 400, y: 100, vx: 0, vy: 0, landed: false };
+  const drops = [];
+  for (let i = 0; i < 100 && !fall.landed; i += 1) {
+    const next = brain.fallStep(fall, 800, 1200);
+    drops.push(next.y - fall.y);
+    fall = next;
+  }
+  assert.equal(fall.landed, true);
+  assert.equal(fall.y, 800, 'on the floor, not through it');
+  assert.equal(fall.x, 400, 'dropped, not thrown: straight down');
+  assert.ok(drops[1] > drops[0] && drops[2] > drops[1], 'faster each frame');
+  assert.ok(Math.max(...drops) <= brain.FALL_MAX);
+  assert.ok(drops.every((d) => Number.isInteger(d)), 'whole pixels: stepped');
+  // Thrown hard to the right near the edge: it stops at the edge.
+  let thrown = { x: 1150, y: 100, vx: brain.throwOf(500), vy: 0, landed: false };
+  assert.equal(thrown.vx, brain.THROW_MAX);
+  const speeds = [];
+  while (!thrown.landed) {
+    thrown = brain.fallStep(thrown, 800, 1200);
+    speeds.push(thrown.vx);
+    assert.ok(thrown.x >= 0 && thrown.x <= 1200);
+  }
+  assert.ok(speeds[speeds.length - 1] < speeds[0], 'the throw fades');
+  assert.equal(brain.throwOf(-500), -brain.THROW_MAX);
+  assert.equal(brain.fallStep({ x: 5, y: 900, vx: 0, vy: 0, landed: false }, 800, 1200).y, 800, 'let go under a floor that rose: on it at once');
+});
+
+ok('a pose is only drawn with the mood it goes with, and every reaction has its one-off motion', () => {
+  assert.equal(wire.loopMotion('sleep', 'curl', 'dance1'), 'curl');
+  assert.equal(wire.loopMotion('stand', 'curl', 'dance1'), 'idle', 'a curl is only ever a sleep');
+  assert.equal(wire.loopMotion('dance', 'dance4', 'dance1'), 'dance4', 'the dance its owner sees');
+  assert.equal(wire.loopMotion('dance', null, 'dance2'), 'dance2');
+  assert.equal(wire.loopMotion('walk', 'run', 'dance1'), 'run');
+  assert.equal(wire.loopMotion('walk', null, 'dance1'), 'walk');
+  assert.equal(wire.loopMotion('sit', 'run', 'dance1'), 'sit');
+  for (const kind of wire.COMPANION_REACTIONS) assert.equal(typeof wire.reactionMotion(kind), 'string', kind);
+  assert.equal(wire.reactionMotion(null), 'hop', 'a kind this browser does not know is a hop');
+  assert.equal(wire.reactionMotion('wake'), 'stretch');
+  assert.equal(wire.reactionMotion('land'), 'land');
+  assert.equal(wire.reactionMotion('cheer'), 'cheer');
+  assert.deepEqual(wire.COMPANION_MOODS, ['stand', 'walk', 'sit', 'sleep', 'dance', 'chase'], 'the moods stay the first six, so older code still draws it');
+});
+
+ok('picking it up: only yours, a drag not a press, nothing under reduced motion, and never left hanging', () => {
+  const strip = read('app/components/Companion.tsx');
+  assert.match(strip, /own \? 'cursor-grab touch-none select-none' : ''/, 'only your own companion can be picked up');
+  assert.match(strip, /Math\.hypot\(event\.clientX - grab\.startX, event\.clientY - grab\.startY\) < GRAB_SLOP/, 'a press that has not moved is a poke');
+  assert.match(strip, /if \(still \|\| !canGrab\(\)\) \{/, 'nothing is carried under reduced motion, or out of a room it is in');
+  assert.match(strip, /if \(!canGrab\(\)\) \{\s*grab = null;\s*return;\s*\}/, 'a press held while it climbed into the room picks nothing up');
+  assert.match(strip, /if \(event\.type === 'pointerup' && phase === 'strip'\) poke\(\);/, 'a poke only on its strip');
+  assert.match(strip, /window\.addEventListener\('pointerup', onDrop/, 'a let-go is heard anywhere on the window');
+  assert.match(strip, /window\.addEventListener\('pointercancel', onDrop/);
+  assert.match(strip, /Math\.min\(floor\.y, Math\.max\(size\.h, grab\.py \+ grab\.offY\)\)/, 'held, it stays on screen and above its own floor');
+  assert.match(strip, /const slid = under === null \? next\.x : Math\.min\(under\.right, Math\.max\(under\.left, next\.x\)\)/, 'it lands on a stretch it can stand on');
+  assert.match(read('app/components/NoteTrail.tsx'), /mood === 'sleep' \? 'snores'/, 'z z z while it sleeps');
+  assert.match(read('app/components/NoteTrail.tsx'), /const trail: Trail \| null = reduced \? null/, 'and none under reduced motion');
+});
+
+ok('an old strip is baked again only by its owner, on a computer, once', () => {
+  const strip = read('app/components/Companion.tsx');
+  assert.match(strip, /if \(stale === null \|\| userId === null \|\| phone !== false\) return;/, 'only a stale strip, signed in, on a computer');
+  assert.match(strip, /import\('\.\.\/lib\/character\/rebake'\)/, 'the baking code is fetched only then');
+  const rebake = read('app/lib/character/rebake.ts');
+  assert.match(rebake, /if \(!shown\.stale \|\| shown\.person !== person\) return 'skipped';/, "never somebody else's");
+  assert.match(rebake, /if \(tried\.has\(strip\)\) return 'skipped';/, 'once a page load');
+  assert.match(rebake, /mood: shown\.mood/, 'the mood is kept');
+  assert.doesNotMatch(rebake, /\.delete\(|hide\(/, 'it never takes a character down');
 });
 
 ok('a full room draws at most 8 companions, oldest first, yours always among them', () => {

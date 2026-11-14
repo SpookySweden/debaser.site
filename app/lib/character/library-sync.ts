@@ -72,6 +72,26 @@ export async function ensureCharacterOnAccount(person: string, character: SavedC
   known.add(character.id);
 }
 
+/**
+ * One character as the account holds it, or null: for baking a shown character again (`rebake.ts`) in a browser whose own
+ * shelf doesn't have it. One row, read once. Nothing with the mock accounts (the browser is the only store).
+ */
+export async function accountCharacter(person: string, id: string): Promise<SavedCharacter | null> {
+  if (USING_MOCK_AUTH) return null;
+  const client = getSupabaseBrowserClient();
+  if (client === null) return null;
+  const { data, error } = await client
+    .from('user_characters')
+    .select('id, name, preset_id, figure, saved_at, deleted_at')
+    .eq('person', person)
+    .eq('id', id)
+    .maybeSingle();
+  if (error || data === null || data.deleted_at !== null) return null;
+  const figure = readFigure(data.figure);
+  if (figure === null) return null;
+  return { id: data.id as string, name: data.name as string, presetId: data.preset_id as string, figure, savedAt: data.saved_at as string };
+}
+
 /** Who is signed in, from the saved-characters window. Null: nobody, or a guest. */
 export async function syncCharacters(person: string | null): Promise<void> {
   if (person === account) return;

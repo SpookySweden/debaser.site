@@ -27,7 +27,7 @@ process.removeAllListeners('warning');
 const out = path.join(__dirname, 'profile-character-out');
 const motion = require(path.join(out, 'motion.js'));
 const walker = require(path.join(out, 'walker.js'));
-const { readSheet, cellAt, MOODS } = require(path.join(out, 'sheet.js'));
+const { readSheet, readSheetAndAge, cellAt, MOODS } = require(path.join(out, 'sheet.js'));
 const { buildDefaultFigure, RIG_PRESET_IDS, RIG_PRESETS, FLOOR_Y } = require(path.join(out, 'rig.js'));
 const { sagOf } = require(path.join(out, 'sag.js'));
 const { placementOf } = require(path.join(out, 'figure.js'));
@@ -200,13 +200,13 @@ test('feet stay on the floor walking, idling, dancing and waving; sitting sits o
     const motions = motion.motionsFor(preset);
     const floor = lowest(motion.posedPlacements(figure, {}, 0));
     near(floor, FLOOR_Y, 0.02, `${preset} stands on the floor`);
-    for (const id of ['walk', 'idle', 'dance1', 'dance2', 'dance3', 'wave', 'turn']) {
+    for (const id of ['walk', 'idle', 'dance1', 'dance2', 'dance3', 'wave', 'turn', 'stretch', 'dance4', 'dance5', 'run', 'cheer', 'slump', 'dangle', 'land', 'type', 'climb']) {
       for (const frame of motions[id].frames) {
         const low = lowest(motion.posedPlacements(figure, frame, motion.frameYaw(motions[id], frame)));
         assert.ok(low > floor - 0.08, `${preset} ${id} sinks to ${low.toFixed(3)} (floor ${floor.toFixed(3)})`);
       }
     }
-    for (const id of ['sit', 'sleep']) {
+    for (const id of ['sit', 'sleep', 'curl', 'watch', 'read', 'flick']) {
       for (const frame of motions[id].frames) {
         const low = lowest(motion.posedPlacements(figure, frame, motion.frameYaw(motions[id], frame)));
         assert.ok(Math.abs(low - floor) < 0.16, `${preset} ${id} lowest point ${low.toFixed(3)} is near the floor ${floor.toFixed(3)}`);
@@ -258,7 +258,7 @@ test('lanes are where nothing is: a box anywhere along one crosses nothing', () 
 
 test('the walker stays on its lane, dances to music, reacts in turn, and follows its mood', () => {
   const random = seeded(11);
-  const sheetTicks = { stand: 1, idle: 42, walk: 8, dance1: 6, dance2: 6, dance3: 6, wave: 11, hop: 9, turn: 13, sit: 32, sleep: 24 };
+  const sheetTicks = { stand: 1, idle: 42, walk: 8, dance1: 6, dance2: 6, dance3: 6, dance4: 8, dance5: 4, wave: 11, hop: 9, turn: 13, sit: 32, sleep: 24 };
   const ticksOf = (m) => sheetTicks[m];
   const room = 500;
   let state = walker.startWalker(room, random);
@@ -310,6 +310,40 @@ test('a sheet read back from the database is checked', () => {
   assert.equal(readSheet('{}'), null);
   assert.deepEqual(cellAt(good, 9), { x: 40, y: 38 });
   assert.deepEqual([...MOODS], ['calm', 'busy', 'party']);
+  assert.equal(readSheetAndAge(good).stale, false, 'a sheet with every motion is up to date');
+});
+
+test('a strip baked before the newer motions still plays everything, each missing motion as an older one (2026-11-14)', () => {
+  // The sheet exactly as the first set was baked: eleven motions, each on its own cells.
+  const first = Object.fromEntries(motion.CORE_MOTION_IDS.map((id, index) => [id, { facing: id === 'stand' ? 'front' : 'side', loop: id !== 'hop', ticks: [index, index + 1] }]));
+  const old = { v: 1, cell: { w: 40, h: 38 }, columns: 8, cells: 20, fps: 10, floor: 36, head: 4, motions: first };
+  const read = readSheetAndAge(old);
+  assert.notEqual(read, null, 'an old strip is not thrown away for want of a new motion');
+  assert.equal(read.stale, true, 'and is marked to be baked again');
+  for (const id of motion.MOTION_IDS) assert.ok(read.sheet.motions[id].ticks.length > 0, `${id} plays something`);
+  for (const [id, older] of Object.entries(motion.MOTION_FALLBACK)) {
+    assert.ok(motion.CORE_MOTION_IDS.includes(older), `${id} falls back to one of the first set`);
+    assert.deepEqual(read.sheet.motions[id], read.sheet.motions[older], `${id} plays as ${older}`);
+  }
+  assert.deepEqual(read.sheet.motions.cheer.ticks, first.hop.ticks, 'a cheer is a hop until it is baked');
+  assert.deepEqual(read.sheet.motions.read.ticks, first.sit.ticks, 'reading is sitting');
+  assert.deepEqual(read.sheet.motions.curl.ticks, first.sleep.ticks, 'a deep sleep is a sleep');
+  // One of the first set missing is still no sheet; a newer motion present but broken is no sheet either.
+  const lacking = { ...first };
+  delete lacking.walk;
+  assert.equal(readSheetAndAge({ ...old, motions: lacking }), null);
+  assert.equal(readSheetAndAge({ ...old, motions: { ...first, cheer: { facing: 'front', loop: false, ticks: [99] } } }), null, 'a tick past the last cell');
+  // Some newer motions baked and some not (a strip from between two releases): the baked ones are its own.
+  const part = readSheetAndAge({ ...old, motions: { ...first, cheer: { facing: 'front', loop: false, ticks: [7, 8, 9] } } });
+  assert.deepEqual(part.sheet.motions.cheer.ticks, [7, 8, 9]);
+  assert.equal(part.stale, true);
+  // Every preset's whole set fits a strip: under 200 cells, and each motion under the sheet's 200 ticks.
+  for (const preset of RIG_PRESET_IDS) {
+    const motions = motion.motionsFor(preset);
+    const cells = motion.MOTION_IDS.reduce((sum, id) => sum + motions[id].frames.length, 0);
+    assert.ok(cells <= 200, `${preset} bakes ${cells} cells`);
+  }
+  assert.ok(motion.DANCES.includes('dance4') && motion.DANCES.includes('dance5'), 'two more dances');
 });
 
 console.log(`\n${passed} checks passed`);
