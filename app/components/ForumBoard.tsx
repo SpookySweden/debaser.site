@@ -579,9 +579,17 @@ export default function ForumBoard() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const applyHash = () => {
-      const address = readBoardAddress(window.location.hash);
+    // The same address read twice in a moment (a press, then the `hashchange` it caused) is one request.
+    let lastHash = '';
+    let lastAt = 0;
+
+    const apply = (hash: string) => {
+      const address = readBoardAddress(hash);
       if (address === null) return;
+      const now = window.performance.now();
+      if (hash === lastHash && now - lastAt < 500) return;
+      lastHash = hash;
+      lastAt = now;
 
       if (address.kind === 'tag') {
         setTagFilters((current) => (current.includes(address.key) ? current : [...current, address.key]));
@@ -592,13 +600,29 @@ export default function ForumBoard() {
       // A new object each time, so pressing the same link twice jumps twice.
       setAddressJump({ ...address });
     };
+    const applyHash = () => apply(window.location.hash);
+
+    // A link to the board pressed while the board is already up (a NEWSWIRE row, a notification) moves the
+    // address through the router, which fires no `hashchange`: so the press itself is heard, and the link's own
+    // address is read rather than the page's, which may not have moved yet.
+    const onClick = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const link = target.closest<HTMLAnchorElement>('a[href*="#thread-"], a[href*="#comment-"], a[href*="#tag-"]');
+      if (link === null) return;
+      const url = new URL(link.href, window.location.href);
+      if (url.origin !== window.location.origin || url.pathname !== window.location.pathname) return;
+      window.requestAnimationFrame(() => apply(url.hash));
+    };
 
     const frame = window.requestAnimationFrame(applyHash);
     window.addEventListener('hashchange', applyHash);
+    document.addEventListener('click', onClick);
 
     return () => {
       window.cancelAnimationFrame(frame);
       window.removeEventListener('hashchange', applyHash);
+      document.removeEventListener('click', onClick);
     };
   }, []);
 

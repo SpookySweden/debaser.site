@@ -164,13 +164,13 @@ async function main() {
     assert.ok(starts.includes(d0), `a step lands exactly on a comment's start (${d0} in ${JSON.stringify(starts)})`);
     await sleep(1500);
     assert.equal(await lineAt(page), d0, 'and the line holds there with the pointer away');
-    pass(`[ ▸ ] steps to a comment's own start (${d0}px) at once, and the line holds there`);
+    pass(`[ ▶ ] steps to a comment's own start (${d0}px) at once, and the line holds there`);
     await next.click();
     const d1 = await lineAt(page);
     assert.equal(d1, starts[(starts.indexOf(d0) + 1) % starts.length], 'the next press is the next comment');
     await previous.click();
-    assert.equal(await lineAt(page), d0, 'and [ ◂ ] goes back one');
-    pass('[ ▸ ] again is the next comment, and [ ◂ ] goes back one');
+    assert.equal(await lineAt(page), d0, 'and [ ◀ ] goes back one');
+    pass('[ ▶ ] again is the next comment, and [ ◀ ] goes back one');
     await page.screenshot({ path: join(SHOTS, 'comments-desktop-stepped.png') });
 
     /* e. the keyboard */

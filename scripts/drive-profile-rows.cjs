@@ -9,6 +9,7 @@
  * `--person` is somebody with posts and replies on the board (never acted as: only their public page is read).
  *   1. the board opened cold at `/forum#thread-<id>` and at `/forum#comment-<id>` (the ids given, ideally old ones that
  *      are not on the board's first page): the post is on screen, open and marked; the reply is on screen and marked;
+ *   1b. the board already up, and a link to a post pressed on it (as the router moves the address, with no hashchange);
  *   2. the person's profile: BOARD ACTIVITY is shut (its key says so, no rows drawn); pressed, it is open with rows;
  *   3. the oldest post row pressed: the board shows that post, open, in view, marked, and says which page it is on;
  *   4. back on the profile, a reply row pressed: that reply is in view and marked.
@@ -122,6 +123,26 @@ async function main() {
       await page.goto(`${BASE}/forum#comment-${COMMENT}`, { waitUntil: 'domcontentloaded' });
       const seen = await landed(page, `comment-${COMMENT}`, 'cold reply address');
       if (seen.readout !== null && !seen.readout.startsWith('1-')) laterPage = true;
+    }
+    /* 1b. a link to the board pressed while the board is already up: the router moves the address with pushState,
+       which fires no hashchange, so this stands in for it with a link that does exactly that. */
+    if (THREAD.length > 0) {
+      await page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded' });
+      await page.waitForSelector('#forum-thread-list > article', { timeout: 180000 });
+      await sleep(1500);
+      await page.evaluate((id) => {
+        const link = document.createElement('a');
+        link.href = `/forum#thread-${id}`;
+        link.textContent = 'same-page link';
+        link.id = 'drive-same-page-link';
+        link.addEventListener('click', (event) => {
+          event.preventDefault();
+          window.history.pushState(window.history.state, '', link.href);
+        });
+        document.body.appendChild(link);
+        link.click();
+      }, THREAD);
+      await landed(page, `thread-${THREAD}`, 'same-page link');
     }
     if (args.includes('--address-only')) {
       console.log(`${passed} proofs passed (addresses only; a post beyond the first page: ${laterPage ? 'yes' : 'NO'})`);

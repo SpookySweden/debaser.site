@@ -388,7 +388,16 @@ function CommentsSection({
           if (!(row instanceof HTMLElement)) return;
           row.scrollIntoView({ block: 'center' });
           row.classList.add(...COMMENT_MARK);
-          window.setTimeout(() => row.classList.remove(...COMMENT_MARK), 1600);
+          // A redraw of the row inside that time (a pin taken, the comments read again) rewrites its classes and
+          // would wipe the mark, as it did on the board: it is put back for the whole time.
+          const keep = new MutationObserver(() => {
+            if (!row.classList.contains(COMMENT_MARK[0])) row.classList.add(...COMMENT_MARK);
+          });
+          keep.observe(row, { attributes: true, attributeFilter: ['class'] });
+          window.setTimeout(() => {
+            keep.disconnect();
+            row.classList.remove(...COMMENT_MARK);
+          }, 1600);
         }),
       );
     },
