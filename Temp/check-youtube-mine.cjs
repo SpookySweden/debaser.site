@@ -134,7 +134,8 @@ const google = (over = {}) => {
   // Updated on purpose 2026-11-13 (SPEC-recommender.md step 3): the taste YouTube adds to is now this browser's and the FOR YOU history's.
   assert.match(page, /withYouTube\(tasteFromHistory\([^)]*savedTaste\), mineSignals\)/, "the page's order learns from the YouTube signals");
   assert.match(page, /sortOf\(what\.filters\)\.sort === 'best' \? subscribedFirst\(ownRows, subscribed\.current\) : ownRows/, 'subscribed rows lead only under BEST MATCH');
-  assert.doesNotMatch(fs.readFileSync('.env.production', 'utf8'), /NEXT_PUBLIC_GOOGLE_VIDEOS_LINK=on/, 'and it is off in production until Google is set up');
+  // Updated on purpose 2026-11-14: Luke set up Google ("Yes, switch it on"), so it is on in production now.
+  assert.match(fs.readFileSync('.env.production', 'utf8'), /^NEXT_PUBLIC_GOOGLE_VIDEOS_LINK=on\r?$/m, 'on in production since Google was set up');
 
   console.log('ok: linking YouTube: what is asked, what comes back, and the token kept out');
 })().catch((error) => {
