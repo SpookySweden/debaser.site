@@ -1,4 +1,5 @@
 import { goSiteHistory } from './site-history';
+import { watchWindowSlots } from './window-slot';
 
 /**
  * The undo trail: what the top bar's `◄ ►` step through (Luke, 2026-11-14: "make the back button in the top left not only go back
@@ -171,6 +172,8 @@ export const undoTrailServerState = (): TrailState => EMPTY;
 
 /** Anything that folds open in place: the same things the one "this is open" look reads (globals.css). */
 const TOGGLES = 'button[aria-expanded], [role="button"][aria-expanded], summary';
+/** A key that is a switch: pressing it again undoes it (the side panel's shelf keys). */
+const SWITCHES = 'button[aria-pressed]';
 /** Tools that keep an undo of their own are left to it. */
 const OWN_UNDO = '.debaser-beatbox, [data-own-undo]';
 /** How long after a press its effects are still counted as that press's. */
@@ -178,10 +181,10 @@ const PRESS_WINDOW_MS = 400;
 /** How long a press is given to finish changing things before its step is written down. */
 const SETTLE_MS = 90;
 
-type Part = { undoWords: string; redoWords: string; undo: () => StepResult; redo: () => StepResult };
-type Gesture = { parts: Part[]; sent: boolean; places: [string, number][]; timer: ReturnType<typeof setTimeout> | null };
+type Part = { kind: 'fold' | 'window'; undoWords: string; redoWords: string; undo: () => StepResult; redo: () => StepResult };
+type Gesture = { parts: Part[]; sent: boolean; pending: number; places: [string, number][]; timer: ReturnType<typeof setTimeout> | null };
 
-let users = 0;
+let started = false;
 /** While the trail itself is pressing things, nothing is recorded. */
 let replaying = 0;
 let gesture: Gesture | null = null;
@@ -220,13 +223,16 @@ function whileReplaying(press: () => void): void {
 }
 
 /** A control found again later: the same element if it is still on the page, else the one that answers to the same description. */
-function finder(control: Element): () => Element | null {
-  const ref = new WeakRef(control);
+function finder(control: Element, among: string = TOGGLES): () => Element | null {
+  // Asked for by name on the global, not as the type, so this file needs nothing newer than the rest of the site to compile;
+  // a browser without WeakRef simply keeps hold of the element.
+  const Weak = (globalThis as { WeakRef?: new (target: Element) => { deref: () => Element | undefined } }).WeakRef;
+  const ref = Weak === undefined ? { deref: (): Element | undefined => control } : new Weak(control);
   const id = control.id;
   const controls = control.getAttribute('aria-controls') ?? '';
   const tag = control.tagName;
   const name = nameOf(control);
-  const alike = () => [...document.querySelectorAll(TOGGLES)].filter((other) => other.tagName === tag && nameOf(other) === name);
+  const alike = () => [...document.querySelectorAll(among)].filter((other) => other.tagName === tag && nameOf(other) === name);
   const nth = alike().indexOf(control);
   return () => {
     const same = ref.deref();
@@ -248,35 +254,51 @@ function togglePart(control: Element, wasOpen: boolean): Part {
     return 'done';
   };
   const [shut, opened] = [`CLOSE ${name}`, `OPEN ${name}`];
-  return { undoWords: wasOpen ? opened : shut, redoWords: wasOpen ? shut : opened, undo: () => set(wasOpen), redo: () => set(!wasOpen) };
+  return { kind: 'fold', undoWords: wasOpen ? opened : shut, redoWords: wasOpen ? shut : opened, undo: () => set(wasOpen), redo: () => set(!wasOpen) };
+}
+
+/** Writes a finished press down as one step. */
+function writeDown(mine: Gesture): void {
+  if (mine.sent) {
+    trail.record({ kind: 'sent', undoWords: SENT_NOTICE, redoWords: SENT_NOTICE, undo: () => 'gone', redo: () => 'gone' });
+    return;
+  }
+  // A press that folded something open and opened a window through it is undone by pressing the fold again: the window follows
+  // its own control, and is not also written back from here.
+  const folds = mine.parts.filter((part) => part.kind === 'fold');
+  const parts = folds.length > 0 ? folds : mine.parts;
+  if (parts.length === 0) return;
+  const each = (run: (part: Part) => StepResult, order: Part[]): StepResult => {
+    const results = order.map(run);
+    restorePlaces(mine.places);
+    return results.includes('done') ? 'done' : 'gone';
+  };
+  trail.record({
+    kind: 'view',
+    undoWords: parts[0].undoWords,
+    redoWords: parts[0].redoWords,
+    undo: () => each((part) => part.undo(), [...parts].reverse()),
+    redo: () => each((part) => part.redo(), parts),
+  });
+}
+
+function settle(mine: Gesture): void {
+  if (mine.timer !== null) clearTimeout(mine.timer);
+  mine.timer = setTimeout(() => {
+    // A fold pressed but not yet read back (a slow frame): the press is given longer, so it stays one step.
+    if (mine.pending > 0) {
+      settle(mine);
+      return;
+    }
+    if (gesture === mine) gesture = null;
+    writeDown(mine);
+  }, SETTLE_MS);
 }
 
 function gestureNow(): Gesture {
-  gesture ??= { parts: [], sent: false, places: placesNow(), timer: null };
-  const mine = gesture;
-  if (mine.timer !== null) clearTimeout(mine.timer);
-  mine.timer = setTimeout(() => {
-    if (gesture === mine) gesture = null;
-    if (mine.sent) {
-      trail.record({ kind: 'sent', undoWords: SENT_NOTICE, redoWords: SENT_NOTICE, undo: () => 'gone', redo: () => 'gone' });
-      return;
-    }
-    if (mine.parts.length === 0) return;
-    const parts = mine.parts;
-    const each = (run: (part: Part) => StepResult, order: Part[]): StepResult => {
-      const results = order.map(run);
-      restorePlaces(mine.places);
-      return results.includes('done') ? 'done' : 'gone';
-    };
-    trail.record({
-      kind: 'view',
-      undoWords: parts[0].undoWords,
-      redoWords: parts[0].redoWords,
-      undo: () => each((part) => part.undo(), [...parts].reverse()),
-      redo: () => each((part) => part.redo(), parts),
-    });
-  }, SETTLE_MS);
-  return mine;
+  gesture ??= { parts: [], sent: false, pending: 0, places: placesNow(), timer: null };
+  settle(gesture);
+  return gesture;
 }
 
 const pressed = (event: Event) => {
@@ -288,14 +310,19 @@ function onClick(event: MouseEvent): void {
   if (replaying > 0 || !(event.target instanceof Element)) return;
   const control = event.target.closest(TOGGLES);
   if (control === null || control.closest(OWN_UNDO) !== null || control.closest('[data-undo-arrow]') !== null) return;
+  // A key that sends is never pressed again by the trail, whatever else it folds.
+  if (control.matches('[type="submit"]')) return;
   const before = isOpen(control);
   const find = finder(control);
+  const mine = gestureNow();
+  mine.pending += 1;
   // Asked once the press has done its work: React has drawn, and a <details> has flipped.
   requestAnimationFrame(() =>
     setTimeout(() => {
+      mine.pending -= 1;
       const after = find();
       if (replaying > 0 || after === null || isOpen(after) === before) return;
-      gestureNow().parts.push(togglePart(after, before));
+      mine.parts.push(togglePart(after, before));
     }, 0),
   );
 }
@@ -334,31 +361,54 @@ function inRoom(state: unknown): boolean {
   return typeof focus === 'object' && focus !== null && 'roomId' in focus;
 }
 
+const openOf = (state: unknown): boolean | null => {
+  const open = (state as { open?: unknown } | null)?.open;
+  return typeof open === 'boolean' ? open : null;
+};
+
 /**
  * A window's store changed (`./window-slot.ts`). Counted only when it is the window opening or closing, and only as part of a press
  * just made: a window that an address opens belongs to that page change.
+ *
+ * Undoing goes through the window's own controls wherever it has them, so the window's own opening and closing run (an address
+ * spent, a question asked): the switch that was pressed is pressed again, or the window's own close key. Only bringing back a
+ * window that was closed by its own key writes the store, with the state it had as it closed. Whatever the store holds by then is
+ * looked at first: a window already the way the step would leave it, or one that has since become a stream room, is stepped past.
  */
-export function windowSlotChanged<State>(before: State, after: State, restore: (state: State) => void): void {
-  if (users === 0 || replaying > 0 || Date.now() - lastPress.at > PRESS_WINDOW_MS) return;
-  const wasOpen = (before as { open?: unknown } | null)?.open;
-  const nowOpen = (after as { open?: unknown } | null)?.open;
-  if (typeof wasOpen !== 'boolean' || typeof nowOpen !== 'boolean' || wasOpen === nowOpen) return;
+export function windowSlotChanged(before: unknown, after: unknown, current: () => unknown, restore: (state: unknown) => void): void {
+  if (!started || replaying > 0 || Date.now() - lastPress.at > PRESS_WINDOW_MS) return;
+  const [wasOpen, nowOpen] = [openOf(before), openOf(after)];
+  if (wasOpen === null || nowOpen === null || wasOpen === nowOpen) return;
   // A stream room's window is not a view: leaving it and coming back is seen by the other people in the room, so the arrows
   // leave it alone (the same line as anything sent: never put back behind the reader's back).
   if (inRoom(before) || inRoom(after)) return;
   const from = lastPress.target;
-  const frame = from?.closest('[data-dock-window]');
-  const name = trailWords(frame?.getAttribute('aria-label') ?? from?.closest('button, a')?.getAttribute('aria-label') ?? from?.closest('button, a')?.textContent ?? 'WINDOW');
-  const set = (state: State): StepResult => {
-    whileReplaying(() => restore(state));
+  const frame = from?.closest('[data-dock-window]') ?? null;
+  const frameId = frame?.getAttribute('data-dock-window') ?? null;
+  const key = from?.closest('button, a') ?? null;
+  const findSwitch = frame === null && key !== null && key.matches(SWITCHES) ? finder(key, SWITCHES) : null;
+  const name = trailWords(frame?.getAttribute('aria-label') ?? key?.getAttribute('aria-label') ?? key?.textContent ?? 'WINDOW');
+  const set = (target: unknown): StepResult => {
+    const now = current();
+    const wantOpen = openOf(target);
+    if (wantOpen === null || openOf(now) === null || openOf(now) === wantOpen || inRoom(now)) return 'gone';
+    const again = findSwitch?.() ?? null;
+    const close = wantOpen || frameId === null ? null : document.querySelector<HTMLElement>(`[data-dock-window="${CSS.escape(frameId)}"] button[aria-label^="Close"]`);
+    if (again instanceof HTMLElement) whileReplaying(() => again.click());
+    else if (close !== null) whileReplaying(() => close.click());
+    else whileReplaying(() => restore(target));
     return 'done';
   };
   const [shut, opened] = [`CLOSE ${name}`, `OPEN ${name}`];
-  gestureNow().parts.push({ undoWords: wasOpen ? opened : shut, redoWords: wasOpen ? shut : opened, undo: () => set(before), redo: () => set(after) });
+  gestureNow().parts.push({ kind: 'window', undoWords: wasOpen ? opened : shut, redoWords: wasOpen ? shut : opened, undo: () => set(before), redo: () => set(after) });
 }
 
 /* Pages: the site's own entries (`./site-history.ts`). A step forward is recorded; the trail's own trips are not. */
-type NavigationEntries = { currentEntry: { index: number } | null; addEventListener: (type: 'currententrychange', listener: () => void) => void; removeEventListener: (type: 'currententrychange', listener: () => void) => void };
+type NavigationEntries = {
+  currentEntry: { index: number } | null;
+  entries: () => unknown[];
+  addEventListener: (type: 'currententrychange', listener: () => void) => void;
+};
 const navigationNow = (): NavigationEntries | null => (window as unknown as { navigation?: NavigationEntries }).navigation ?? null;
 const pathNow = () => `${window.location.pathname}${window.location.search}`;
 let lastIndex = -1;
@@ -367,8 +417,11 @@ let ownTrip = false;
 
 function pageStep(from: string, to: string): TrailStep {
   const go = (step: -1 | 1): StepResult => {
+    const navigation = navigationNow();
+    // Nowhere to go that way (the entry has gone): stepped past, and nothing is waited for.
+    if (navigation === null || navigation.entries()[(navigation.currentEntry?.index ?? -1) + step] === undefined) return 'gone';
     ownTrip = true;
-    // If the trip never lands (refused, or nowhere to go), the next real change must still be seen.
+    // If the trip is refused all the same, the next real change must still be seen.
     setTimeout(() => {
       ownTrip = false;
     }, 1500);
@@ -411,25 +464,19 @@ export function redoStep(): boolean {
   return redid;
 }
 
-/** Starts the listening, once however many arrows are drawn; the returned function stops it when the last one goes. */
-export function startUndoTrail(): () => void {
-  users += 1;
-  if (users === 1) {
-    lastIndex = navigationNow()?.currentEntry?.index ?? -1;
-    lastPath = pathNow();
-    document.addEventListener('pointerdown', pressed, true);
-    document.addEventListener('click', onClick, true);
-    document.addEventListener('submit', onSubmit, true);
-    window.addEventListener('keydown', onKeyDown);
-    navigationNow()?.addEventListener('currententrychange', onEntryChange);
-  }
-  return () => {
-    users -= 1;
-    if (users > 0) return;
-    document.removeEventListener('pointerdown', pressed, true);
-    document.removeEventListener('click', onClick, true);
-    document.removeEventListener('submit', onSubmit, true);
-    window.removeEventListener('keydown', onKeyDown);
-    navigationNow()?.removeEventListener('currententrychange', onEntryChange);
-  };
+/**
+ * Starts the listening, once, for the life of the tab: the arrows are redrawn with every page, and a page change made while
+ * none is on screen is still a step.
+ */
+export function startUndoTrail(): void {
+  if (started || typeof window === 'undefined') return;
+  started = true;
+  lastIndex = navigationNow()?.currentEntry?.index ?? -1;
+  lastPath = pathNow();
+  document.addEventListener('pointerdown', pressed, true);
+  document.addEventListener('click', onClick, true);
+  document.addEventListener('submit', onSubmit, true);
+  window.addEventListener('keydown', onKeyDown);
+  navigationNow()?.addEventListener('currententrychange', onEntryChange);
+  watchWindowSlots(windowSlotChanged);
 }

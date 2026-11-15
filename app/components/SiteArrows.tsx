@@ -18,6 +18,20 @@ import { redoStep, startUndoTrail, subscribeToUndoTrail, undoStep, undoTrailServ
  */
 const ARROW = `${KEY_FOCUS} key cursor-pointer inline-flex h-7 min-w-0 items-center px-0.5 text-label font-bold leading-none active:translate-y-press active:bg-bubble active:text-ink-plate disabled:cursor-not-allowed max-md:min-h-tap pointer-coarse:min-h-tap pointer-coarse:min-w-tap`;
 
+/**
+ * A press of an arrow. The trail first; with nothing in it, or when every step left in it turned out to be gone (and nothing was
+ * said about a sent thing), the site's own history, so a press always does what the arrow can still do.
+ */
+function pressUndo(hasSteps: boolean): void {
+  if (hasSteps && (undoStep() || undoTrailState().notice !== null)) return;
+  goSiteHistory(-1);
+}
+
+function pressRedo(hasSteps: boolean): void {
+  if (hasSteps && redoStep()) return;
+  goSiteHistory(1);
+}
+
 /** `CLOSE FILTERS` as a screen reader should say it: `close filters`. */
 const spoken = (words: string) => words.toLowerCase();
 
@@ -39,10 +53,10 @@ export default function SiteArrows() {
   return (
     // `relative` so the one-line notice hangs under the arrows and takes no room in the bar.
     <span className="relative inline-flex items-center gap-1">
-      <button type="button" data-undo-arrow="undo" onClick={() => (undoes ? undoStep() : goSiteHistory(-1))} disabled={!undoes && !back} aria-label={undoName} title={undoTip} className={ARROW}>
+      <button type="button" data-undo-arrow="undo" onClick={() => pressUndo(undoes)} disabled={!undoes && !back} aria-label={undoName} title={undoTip} className={ARROW}>
         ◄
       </button>
-      <button type="button" data-undo-arrow="redo" onClick={() => (redoes ? redoStep() : goSiteHistory(1))} disabled={!redoes && !forward} aria-label={redoName} title={redoTip} className={ARROW}>
+      <button type="button" data-undo-arrow="redo" onClick={() => pressRedo(redoes)} disabled={!redoes && !forward} aria-label={redoName} title={redoTip} className={ARROW}>
         ►
       </button>
       {trail.notice === null ? null : (

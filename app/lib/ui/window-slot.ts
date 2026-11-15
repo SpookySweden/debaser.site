@@ -1,5 +1,3 @@
-import { windowSlotChanged } from './undo-trail';
-
 /**
  * One window's state, as a store outside React.
  *
@@ -23,6 +21,19 @@ export type WindowSlot<State> = {
   set: (next: State) => void;
 };
 
+/**
+ * Somebody who wants to hear of every write to every slot: the undo trail (`./undo-trail.ts`), which asks for this when it starts
+ * in a browser. Kept as a hook here, not an import of the trail, so this file stays the small plain store everything can load.
+ * `current` reads what the slot holds now; `restore` writes a state back without the watcher hearing of it again.
+ */
+export type SlotWatcher = (before: unknown, after: unknown, current: () => unknown, restore: (state: unknown) => void) => void;
+
+let watcher: SlotWatcher | null = null;
+
+export function watchWindowSlots(next: SlotWatcher | null): void {
+  watcher = next;
+}
+
 export function createWindowSlot<State>(initial: State): WindowSlot<State> {
   let state = initial;
   const listeners = new Set<() => void>();
@@ -40,10 +51,10 @@ export function createWindowSlot<State>(initial: State): WindowSlot<State> {
       const before = state;
       state = next;
       for (const listener of listeners) listener();
-      // A window opened or closed by a press is a step the top bar's arrows can undo (`./undo-trail.ts`). Undoing writes the old
-      // state straight back, without coming through here again.
-      windowSlotChanged(before, next, (restored) => {
-        state = restored;
+      // A window opened or closed by a press is a step the top bar's arrows can undo. Undoing writes the old state straight
+      // back, without coming through here again.
+      watcher?.(before, next, () => state, (restored) => {
+        state = restored as State;
         for (const listener of listeners) listener();
       });
     },

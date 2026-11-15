@@ -316,9 +316,10 @@ for (const theme of THEMES) {
   assert.equal(plain.word, theme.tokens.ink, 'with no colour picked the field ink needs no help on ' + theme.label);
   assert.ok(contrastRatio(theme.tokens.ink, plain.swipe) >= 4.5, 'and reads on the site stroke on ' + theme.label + ': ' + contrastRatio(theme.tokens.ink, plain.swipe).toFixed(2) + ':1');
 }
-const moduleCss = require('node:fs').readFileSync('app/globals.css', 'utf8');
+// Line endings made the same first: a checkout with Windows line endings counts more characters between the two (ROOMS saw this fail).
+const moduleCss = require('node:fs').readFileSync('app/globals.css', 'utf8').replace(/\r\n/g, '\n');
 assert.ok(moduleCss.includes('color-mix(in srgb, var(--color-accent-ink) ' + Math.round(SWIPE_SHARE * 100) + '%, var(--color-sun-pale))'), 'the stylesheet mixes the site stroke at the same share the arithmetic used');
-assert.match(moduleCss, /\.key\.module-on,[\s\S]{0,200}color: var\(--module-word, var\(--color-ink\)\)/, 'and draws the word in the worked-out colour');
+assert.match(moduleCss, /\.key\.module-on,[\s\S]{0,400}color: var\(--module-word, var\(--color-ink\)\)/, 'and draws the word in the worked-out colour');
 assert.doesNotMatch(moduleCss, /module-glow/, 'the halo is gone');
 console.log('  modules   : the selected word reads on the bar and on its stroke for every pick on every theme (tightest ' + tightest.toFixed(2) + ':1; ' + stepped + ' picks stepped towards white or black)');
 

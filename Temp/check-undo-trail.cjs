@@ -145,7 +145,7 @@ assert.equal(pageWords('/profile/abc?x=1'), 'PROFILE');
 const slot = createWindowSlot({ open: false });
 slot.set({ open: true });
 assert.deepEqual(slot.state(), { open: true }, 'the store still works as before');
-assert.doesNotThrow(() => windowSlotChanged({ open: false }, { open: true }, () => undefined));
+assert.doesNotThrow(() => windowSlotChanged({ open: false }, { open: true }, () => ({ open: true }), () => undefined));
 
 // 9. The rules the browser's side keeps, read from the source.
 const source = read('app/lib/ui/undo-trail.ts');
@@ -157,9 +157,32 @@ assert.match(source, /if \(inRoom\(before\) \|\| inRoom\(after\)\) return;/, "a 
 assert.match(source, /whileReplaying\(\(\) => found\.click\(\)\)/, 'undo presses the same control again, so a window that asks before closing still asks');
 const arrows = read('app/components/SiteArrows.tsx');
 assert.match(arrows, /useEffect\(\(\) => startUndoTrail\(\), \[\]\)/, 'the arrows start the listening');
-assert.match(arrows, /undoes \? undoStep\(\) : goSiteHistory\(-1\)/, "with nothing in the trail they are the site's back and forward, as before");
+assert.ok(arrows.includes('if (hasSteps && (undoStep() || undoTrailState().notice !== null)) return;') && arrows.includes('goSiteHistory(-1);'), "with nothing in the trail, or nothing left in it that can still be undone, they are the site's back and forward, as before");
 assert.match(arrows, /disabled=\{!undoes && !back\}/, 'and each goes quiet when it has nothing to do');
 assert.match(arrows, /role="status"/, 'the one-line notice is read out');
-assert.match(read('app/lib/ui/window-slot.ts'), /windowSlotChanged\(before, next,/, 'the window store tells the trail');
+const slotSource = read('app/lib/ui/window-slot.ts');
+assert.ok(slotSource.includes('watcher?.(before, next, () => state,'), 'the window store tells whoever is watching, and lets them see what the store holds now');
+// The store must stay loadable by everything: about seventy checks compile it for an older target, and an import of the trail
+// (which needs a browser's newer types) broke every one of them on the first build. The trail asks the store, never the reverse.
+assert.doesNotMatch(slotSource, /from '\.\/undo-trail'/, 'the window store does not import the trail');
+assert.ok(source.includes('watchWindowSlots(windowSlotChanged);'), 'the trail asks to watch the stores when it starts in a browser');
+assert.doesNotMatch(source, /new WeakRef\(|typeof WeakRef/, 'and names nothing newer than the rest of the site compiles with');
+// A watcher hears of a write, can read the store, and can write a state back without hearing of that write.
+const { watchWindowSlots } = require('./undo-trail-out/lib/ui/window-slot.js');
+const heard = [];
+const watched = createWindowSlot({ open: false });
+watchWindowSlots((was, now, current, restore) => { heard.push([was, now, current()]); if (heard.length === 1) restore({ open: false, put: 'back' }); });
+watched.set({ open: true });
+assert.deepEqual(heard, [[{ open: false }, { open: true }, { open: true }]], 'the watcher is told what was, what is, and can read the store');
+assert.deepEqual(watched.state(), { open: false, put: 'back' }, 'and what it writes back lands without it being told again');
+watchWindowSlots(null);
+// Found by a fresh-context review of the first build (2026-11-14), each held here so it cannot come back:
+assert.ok(source.includes("openOf(now) === wantOpen || inRoom(now)) return 'gone';"), 'a window already the way a step would leave it, or one that has since become a stream room, is stepped past and never written over');
+assert.ok(source.includes(`if (control.matches('[type="submit"]')) return;`), 'a key that sends is never pressed again by the trail');
+assert.ok(source.includes("if (started || typeof window === 'undefined') return;"), 'the listening starts once and stays for the life of the tab, so a page with no arrows on it loses no step');
+assert.ok(source.includes("+ step] === undefined) return 'gone';"), 'a page step with nowhere to go is stepped past, and nothing is waited for');
+assert.ok(source.includes("const folds = mine.parts.filter((part) => part.kind === 'fold');"), 'a press that folded something and opened a window through it is one step, undone through the fold');
+assert.ok(source.includes('if (mine.pending > 0) {'), 'and a slow frame does not split one press into two steps');
+assert.ok(source.includes('Weak === undefined ? { deref: (): Element | undefined => control }'), 'an old browser without WeakRef is not broken by a press');
 
 console.log('undo trail: newest first, redo in reverse, a new step clears redo, gone steps and sent things stepped past, 100 long: OK');
