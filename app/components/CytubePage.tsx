@@ -183,9 +183,20 @@ function About() {
         While you are in a room, the music bar along the foot of the screen becomes the stream&apos;s: what is on, what is next, and the
         room&apos;s keys. The TV key at its left turns it back into your music player, and back again.
       </AboutPart>
-      <AboutPart title="MUSIC ROOMS">
-        GO PUBLIC in the QUEUES window opens a room for your music. People who join hear what you play in their own music bar, add songs
-        and talk in its chat. A room&apos;s queue takes songs and videos alike. Switch it off and it is kept for next time.
+      <AboutPart title="YOUR OWN ROOM AND GO LIVE">
+        Whatever you play on the site plays in a room of your own, with only you in it. Its queue is the QUEUE key on the music bar: it
+        takes songs, videos and pictures, and it is kept on your account. GO LIVE on the bar starts a new room people can join, and takes
+        what you are playing and your queue with you. END STREAM brings back what was left. Your own room has a link too, in its
+        settings: somebody signed in who has it can listen, see your queue and add to it, until you remove them.
+      </AboutPart>
+      <AboutPart title="PLAYLISTS">
+        A playlist is a saved queue. SAVE AS PLAYLIST, LOAD A PLAYLIST and CLEAR are under every queue you can arrange, and the QUEUE
+        window&apos;s PLAYLISTS tab lists yours.
+      </AboutPart>
+      <AboutPart title="PICTURES">
+        A picture in a queue holds the screen until NEXT. In a room, the host or anybody with a crown presses it. A picture pasted from
+        outside the site is covered until you press SHOW, because loading it tells that server your browser asked. OUTSIDE PICTURES in
+        Preferences can make that ALWAYS or NEVER.
       </AboutPart>
       <AboutPart title="THE CANVAS">
         Every room has a shared drawing canvas. The canvas key on the screen switches your own screen to it, and back. Anybody in the room

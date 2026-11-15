@@ -3,7 +3,7 @@
  *
  * Steps (above the fold, because `run-checks.cjs` only reads the first 20 lines for these):
  *   npx tsc app/lib/audio/broadcast.ts app/lib/audio/track-context.ts app/lib/audio/follow.ts app/lib/audio/heartbeat.ts app/lib/audio/loops.ts app/lib/audio/queue-window.ts app/lib/audio/tracks.ts app/lib/audio/repository.ts app/lib/audio/library.ts app/lib/audio/tags.ts app/lib/audio/catalogue.ts app/lib/audio/archive-tree.ts app/lib/audio/mock-music-repository.ts --outDir Temp/queue-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strict
- *   npx tsc app/components/QueueWindow.tsx app/components/QueueBrowser.tsx app/components/RadioLoops.tsx app/components/LoopPopout.tsx app/components/QueueProfilePopout.tsx app/components/BroadcastHeartbeat.tsx app/components/QueueFollower.tsx --outDir Temp/queue-render --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
+ *   npx tsc app/components/QueueWindow.tsx app/components/RadioLoops.tsx app/components/LoopPopout.tsx app/components/QueueProfilePopout.tsx app/components/BroadcastHeartbeat.tsx app/components/QueueFollower.tsx --outDir Temp/queue-render --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
  *
  * What it holds, and why each one is worth holding:
  *
@@ -31,7 +31,6 @@ const fs = require('node:fs');
 
 const slot = require('./queue-out/audio/queue-window.js');
 const QueueWindow = require('./queue-render/components/QueueWindow.js').default;
-const QueueBrowser = require('./queue-render/components/QueueBrowser.js').default;
 const RadioLoops = require('./queue-render/components/RadioLoops.js').default;
 const LoopPopout = require('./queue-render/components/LoopPopout.js').default;
 const QueueProfilePopout = require('./queue-render/components/QueueProfilePopout.js').default;
@@ -39,7 +38,6 @@ const BroadcastHeartbeat = require('./queue-render/components/BroadcastHeartbeat
 const QueueFollower = require('./queue-render/components/QueueFollower.js').default;
 
 const windowText = fs.readFileSync('app/components/QueueWindow.tsx', 'utf8');
-const browserText = fs.readFileSync('app/components/QueueBrowser.tsx', 'utf8');
 const loopsText = fs.readFileSync('app/components/RadioLoops.tsx', 'utf8');
 const popoutText = fs.readFileSync('app/components/QueueProfilePopout.tsx', 'utf8');
 const slotText = fs.readFileSync('app/lib/audio/queue-window.ts', 'utf8');
@@ -50,7 +48,6 @@ const bar = fs.readFileSync('app/components/MusicPlayer.tsx', 'utf8');
 /* 1. Every new component renders, so the structure walk can reach it. */
 for (const [name, component] of [
   ['QueueWindow', QueueWindow],
-  ['QueueBrowser', QueueBrowser],
   ['RadioLoops', RadioLoops],
   ['LoopPopout', LoopPopout],
   ['QueueProfilePopout', QueueProfilePopout],
@@ -102,7 +99,12 @@ assert.match(windowText, /<QueueTabPlate label="UP NEXT"/, 'an UP NEXT tab');
 assert.doesNotMatch(windowText, /<QueueTabPlate label="QUEUES"/, 'and no QUEUES tab');
 assert.doesNotMatch(windowText, /QueueBrowser/, 'the list of live rooms is not drawn here any more');
 assert.match(windowText, /<StreamQueueWindow bare /, "UP NEXT is the same queue window a live room has, drawn for your own room");
-assert.doesNotMatch(browserText, /GO PUBLIC|setRoomPublic|openMusicRoom/, 'GO PUBLIC is gone: going live always makes a new room');
+// Changed on purpose 2026-11-15 (SPEC-rooms-queues.md phase 7; Luke: "Delete it"): the old QUEUES list of rooms is deleted,
+// and GO PUBLIC with it. Going live always makes a new room.
+assert.equal(fs.existsSync('app/components/QueueBrowser.tsx'), false, 'the old QUEUES browser is gone');
+// The window's own notes say GO PUBLIC is gone, so the words are allowed there; the code that did it is not.
+assert.doesNotMatch(windowText, /setRoomPublic|openMusicRoom|PublicSwitch/, 'GO PUBLIC is gone: going live always makes a new room');
+for (const repo of ['mock', 'supabase']) assert.doesNotMatch(fs.readFileSync(`app/lib/watch/${repo}-watch-repository.ts`, 'utf8'), /setRoomPublic|openMusicRoom\(/, `and the ${repo} store cannot switch a room public`);
 assert.doesNotMatch(windowText, /<QueueTabPlate label="MIXTAPES"/, 'and no tab for a screen that is not built');
 assert.match(windowText, /role="tablist"/, 'the strip is a tablist to a screen reader');
 assert.match(windowText, /role="tab"/, 'with real tabs in it');
@@ -597,17 +599,13 @@ assert.deepEqual(
   ['b', 'a'],
   'and live hosts come before paused ones',
 );
-// (2026-11-04, SPEC-music-queues.md) The row is `RoomRow`, and there is no followed branch: the list says nothing about
-// how far behind this player is. The bug stays closed by the row's lamp and clock reading only the room and the clock.
+// (2026-11-15, SPEC-rooms-queues.md phase 7) The QUEUES list of rooms is gone with its file (Luke: "Delete it"); the list of
+// live rooms is STREAM's ROOMS tab (CytubeLiveStreams.tsx), which names a person and never measures anybody against this player.
 {
-  const rowSource = browserText.slice(browserText.indexOf('function RoomRow('), browserText.indexOf('function QueuePeek('));
-  assert.ok(rowSource.length > 0, 'the list draws a row per room');
-  assert.doesNotMatch(rowSource, /BEHIND/, 'no row measures anybody against this player');
-  assert.doesNotMatch(rowSource, /useMusicPlayer|player\.elapsed/, 'and a row cannot, because it never reads the player');
-  assert.match(rowSource, /roomRowState\(live\.room, now\)/, 'the lamp is the room and the clock');
-  assert.match(rowSource, /hostPosition\(live\.room, now\)/, 'and so is the time shown');
-  assert.match(rowSource, /useQueueName\(live\.room\.hostId\)/, 'and a person is shown by name');
-  assert.doesNotMatch(browserText, /(userId|hostId)\.slice\(0, 8\)/, 'not by an id');
+  const rooms = fs.readFileSync('app/components/CytubeLiveStreams.tsx', 'utf8');
+  assert.doesNotMatch(rooms, /BEHIND/, 'no row measures anybody against this player');
+  assert.doesNotMatch(rooms, /useMusicPlayer|player\.elapsed/, 'and a row cannot, because it never reads the player');
+  assert.doesNotMatch(rooms, /(userId|hostId)\.slice\(0, 8\)/, 'a person is never shown by an id');
 }
 
 /* 7c. Following: what the follower does each second, as arithmetic. */
@@ -756,7 +754,7 @@ assert.match(heartbeatText, /useEffect\(\(\) => \{\s*clock\.current =/, 'and is 
   const roomHook = fs.readFileSync('app/lib/watch/use-music-room.ts', 'utf8');
   // (2026-11-14, SPEC-rooms-queues.md) The GO PUBLIC switch is gone, so only the list is left to hear a room change.
   assert.equal((roomHook.match(/repository\.subscribeLiveRooms\(read\)/g) ?? []).length, 1, 'the list hears a room change');
-  assert.match(browserText, /useLiveRooms\(\)/, 'and the browser draws from that list');
+  assert.match(fs.readFileSync('app/components/CytubeLiveStreams.tsx', 'utf8'), /useLiveRooms\(\)/, "and STREAM's ROOMS tab draws from that list");
   assert.doesNotMatch(roomHook, /useMusicRoomSwitch|switchMusicRoomOff/, 'and there is no switch any more');
   for (const repo of ['mock', 'supabase']) {
     assert.match(fs.readFileSync(`app/lib/watch/${repo}-watch-repository.ts`, 'utf8'), /subscribeLiveRooms\(listener: \(\) => void\)/, `the ${repo} repository can say so`);
