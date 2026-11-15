@@ -72,7 +72,6 @@ Tabs along the top of the page (the site's usual tab look):
 ## Out of scope
 - Free colour pickers, moving chat / queue / screen around, custom fonts, uploading backgrounds.
 - Anything about the canvas itself or music rooms (their own specs).
-- Downloading or re-hosting media: the archive rules in CLAUDE.md hold (embed, link, or the platform's own file).
 
 ## Data (needs Luke's typed OK before anything is run)
 In plain English - the building session writes the exact migration and asks first:

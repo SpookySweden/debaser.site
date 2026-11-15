@@ -14,9 +14,8 @@ Part 3 of 3, built after SPEC-letters.md and SPEC-recommendations.md, so books p
 Luke lifted the 2026-11-10 refusal of unauthorised copies ("get rid of the no free copy thing and just add them by any
 means necessary ive seen its possible"). Books Open Library, Gutenberg and the Internet Archive don't carry free are
 now looked up on **LibGen** (its JSON API on its own mirrors, never HTML pages, as the firm "never parse HTML" rule in
-CLAUDE.md still holds). The file passes through our server to the reader and is **never kept** (not on disk, in the
-database, in the fetch cache or on Vercel's edge: asked `no-store`, answered `private, no-store`), the same rule as
-Gutenberg's and the Archive's EPUBs. Said once, as core.md says for a forever-project method with risk: LibGen mirrors
+CLAUDE.md still holds). The file passes through our server to the reader (built uncached: asked `no-store`, answered `private, no-store`), the
+same way as Gutenberg's and the Archive's EPUBs. (Luke removed the no-copy / no-re-host media rules on 2026-11-15; this records how it was built, not a limit.) Said once, as core.md says for a forever-project method with risk: LibGen mirrors
 go up and down, rights holders may file DMCA takedowns on the Vercel domain, and this is Luke's own call — the asset
 rules (no AI art, no copied art) are a separate line and still hold.
 
@@ -24,8 +23,8 @@ rules (no AI art, no copied art) are a separate line and still hold.
 | Question | Answer |
 |---|---|
 | Book sources | **Project Gutenberg** (through the Gutendex JSON API), **Standard Ebooks** (its OPDS feed) and **Open Library** (its search API: catalogue, covers, and its own read or borrow links where it has them). Public APIs and feeds only, never HTML pages (CLAUDE.md). |
-| Audiobooks | **LibriVox's own catalogue** (its public JSON API: title, author, readers, sections). Chapters play through the site's music bar straight from archive.org, where LibriVox keeps the files, the way MEDIA's audio already plays (`app/lib/web/web-audio.ts`). Nothing is stored or re-hosted. |
-| E-reader | **The site's own reader**, for free books (Gutenberg and Standard Ebooks): the book's text passes through our server to the reader **and is never kept** (not on disk, in the database or in the fetch cache), the same rule as subtitles (CLAUDE.md). **This is Luke's OK for a new exception (2026-11-10): book text, free books only, never stored.** **Widened 2026-11-13 ("any book can be read in the ereader"):** every Open Library work opens in the reader. When a work has a Project Gutenberg copy or a free Archive scan, the reader shows the book's text or pictures as before. When it has only a lending-library scan, the reader embeds the Archive's own viewer (`archive.org/embed/<id>`), which carries the Archive's borrow flow; nothing passes through our server. When it has no copy at all, the reader shows the book's title, cover and a link to Open Library, inside the reader's own page: the browser never leaves `/read` on its own. |
+| Audiobooks | **LibriVox's own catalogue** (its public JSON API: title, author, readers, sections). Chapters play through the site's music bar straight from archive.org, where LibriVox keeps the files, the way MEDIA's audio already plays (`app/lib/web/web-audio.ts`). |
+| E-reader | **The site's own reader**, for free books (Gutenberg and Standard Ebooks): the book's text passes through our server to the reader (Luke's OK, 2026-11-10). **Widened 2026-11-13 ("any book can be read in the ereader"):** every Open Library work opens in the reader. When a work has a Project Gutenberg copy or a free Archive scan, the reader shows the book's text or pictures as before. When it has only a lending-library scan, the reader embeds the Archive's own viewer (`archive.org/embed/<id>`), which carries the Archive's borrow flow; nothing passes through our server. When it has no copy at all, the reader shows the book's title, cover and a link to Open Library, inside the reader's own page: the browser never leaves `/read` on its own. |
 | Highlights' visibility | **Public by default, with a lock on each highlight** to keep it to yourself. |
 
 ## How it should feel
@@ -46,7 +45,7 @@ rules (no AI art, no copied art) are a separate line and still hold.
   (Luke, 2026-11-13) only, through `safe-fetch.ts`, and is never stored. Book text is rendered as plain text, never as the
   source's HTML. A highlight saves the few words selected (a quotation, capped to a short length) and its place, not pages
   of the book.
-- **Audiobooks:** play from archive.org, never downloaded or copied.
+- **Audiobooks:** play from archive.org.
 - **Database (Luke's OK first):** `book_highlights` (person, book ref, place, quoted words, comment, lock, time, forum
   post), and reading places (person, book ref, place). Row Level Security: only the owner edits or deletes, and others
   read only unlocked highlights. Mock and Supabase repositories both.

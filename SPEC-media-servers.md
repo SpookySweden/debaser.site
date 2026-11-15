@@ -64,8 +64,7 @@ metadata. Each video plays straight from the friend's (later Luke's own) server.
 
 ## Rule edits to make as part of the build
 - `CLAUDE.md` WEB section and `SPEC-web.md`: Luke's own and his friends' media servers are allowed
-  sources (via their list files); the site still never stores, copies or transcodes video, and holds only
-  images and audio as media itself. /web was for signed-in people only; open to everyone since 2026-11-09 (decision 4).
+  sources (via their list files). /web was for signed-in people only; open to everyone since 2026-11-09 (decision 4).
 
 ## Accessibility (Luke's eyesight is poor; this is a main purpose of the site)
 - Large, high-contrast server buttons and pickers, at least 44px, from the theme tokens. Plain words
@@ -81,7 +80,6 @@ metadata. Each video plays straight from the friend's (later Luke's own) server.
 
 ## Out of scope
 - Reading friends' Jellyfin/Plex interfaces directly (needs keys that would reach the page).
-- Any upload, copy, download or transcode of video.
 - Ratings, views, likes, comments from anywhere.
 
 ## Proof

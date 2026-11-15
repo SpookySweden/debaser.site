@@ -14,7 +14,7 @@ ARCHIVE (/web -> /archive) by another session on 2026-11-03: build on whatever h
 | Question | Answer |
 |---|---|
 | Who picks subtitles in a stream room | **Each viewer for themselves.** The host's pick never changes anyone else's. Not synced, not stored in the room. |
-| Archive subtitle files (archive.org sends no CORS header, so a page can't load them) | **Our server passes the text through**: fetched from archive.org when a viewer switches them on, converted SRT -> VTT if needed, handed to the player, **never stored**. Subtitle text only: never video or audio. Add this to CLAUDE.md's WEB rules as Luke's OK. |
+| Archive subtitle files (archive.org sends no CORS header, so a page can't load them) | **Our server passes the text through**: fetched from archive.org when a viewer switches them on, converted SRT -> VTT if needed, handed to the player. Add this to CLAUDE.md's WEB rules as Luke's OK. |
 | What happens when a video starts | **English subtitles on when the audio isn't English and English subtitles exist** (human-made first, else AUTO). A viewer can change or switch off at any time. |
 | Subtitles burned into the picture | **`SUBS: [flag] IN PICTURE`, no arrow** (they can't be changed). Read from the title/description. |
 | Where AUDIO / SUBS show | **Rows and the player.** Archive/search rows and stream-queue rows show the audio flag and, when known, a SUBS flag; the arrow pop-up and the switching live in the stream room's player bar. |

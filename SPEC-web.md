@@ -37,7 +37,7 @@ video, image, text) collected automatically from many platforms.
 - Sorting a search (Luke, 2026-11-02, SPEC-web-sort.md): a platform's own popularity order may be asked for, and
   TMDB's rating may be used to order KINO titles. Counts and ratings stay on the server and decide order only: never
   shown, never saved, never sent to the browser.
-- We index metadata and link or embed. We never download, copy, transcode or re-host media files.
+- We index metadata and link or embed. (Luke removed the no-copy / no-re-host media rules on 2026-11-15; this records how it was built, not a limit.)
   Playback is the platform's official embed (unmodified but for `?autoplay=1` once the reader has
   pressed our PLAY), or an outbound link, or (Luke's OK 2026-10-31) for Internet Archive, podcast and
   Openverse audio, the site's own music bar: its `src` is our redirect route, and the listener's browser
@@ -47,8 +47,7 @@ video, image, text) collected automatically from many platforms.
 - Free and open-source in spirit. Keyless sources wherever possible. No paid services.
 - (Luke, 2026-11-01, SPEC-media-servers.md) /web is for signed-in people only (changed 2026-11-09: open to everyone, SPEC-media-servers.md decision 4). Luke's own and his friends'
   media servers are allowed sources, read from each server's list file; each video plays from the server's
-  own player page. The site still never stores, copies or transcodes video, and holds only images and audio
-  as media itself. TMDB details come from TMDB's official API, server-side, without ratings, votes or popularity.
+  own player page. TMDB details come from TMDB's official API, server-side, without ratings, votes or popularity.
 
 ## Phase 1 (foundation; no database changes, no migrations, no pushes)
 - Types (`app/lib/web/types.ts`): `WebPlatform` (initially `internet_archive`), `WebItemKind`

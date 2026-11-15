@@ -13,7 +13,9 @@ The house rules live in `.claude/rules/core.md` (loaded automatically).
   Sorting a search (SPEC-web-sort.md, Luke 2026-11-02): a platform's own popularity order may be asked for, and TMDB's
   rating may order KINO titles. Counts and ratings stay on the server and decide order only: never shown, saved or
   sent to the browser.
-- Index and link or embed. Never download, copy, transcode or re-host media; thumbnails are hotlinked,
+- No rule against downloading, copying, caching, transcoding or self-hosting media (Luke, 2026-11-15, ahead of a move
+  to a local server: he removed those rules across the board). What follows describes how media plays today, not a limit.
+- How media plays today: thumbnails are hotlinked,
   playback is the platform's own embed (asked to autoplay on our PLAY), an outbound link, or, for audio,
   the site's music bar streaming the platform's own file straight from the platform via a redirect
   (`app/lib/web/web-audio.ts`, Luke's OK 2026-10-31), or, in a stream room, an Internet Archive series'
@@ -21,20 +23,18 @@ The house rules live in `.claude/rules/core.md` (loaded automatically).
   (`app/lib/web/series-files.ts`, Luke's OK in SPEC-stream-series.md, 2026-11-02).
 - Subtitles (SPEC-subtitles.md, Luke's OK 2026-11-03): an Internet Archive item's `.vtt`/`.srt` subtitle text passes
   through our server (`/api/web/subtitles`) to a viewer's player when they switch it on (archive.org sends no CORS
-  header): only files the item lists, SRT converted to VTT, never stored (not on disk, in the database or in the
-  fetch cache). Subtitle text only, never video or audio. Each viewer picks their own; nothing is synced.
+  header): the files the item lists, SRT converted to VTT. Each viewer picks their own; nothing is synced.
 - Books (SPEC-reader.md, Luke's OK 2026-11-11, widening SPEC-books.md's for plain text): a Project Gutenberg book's EPUB
   edition, pictures included, passes through our server (`/api/web/book/epub`) to the reader at `/read/<ref>` as it
-  streams: free Gutenberg books only, from www.gutenberg.org only, never kept (asked `no-store`, answered `private, no-store`;
-  not on disk, in the database, in the fetch cache or on Vercel's edge). The engine is a pinned copy of foliate-js in
-  `vendor/foliate-js/`; it is handed the Blob, never an address, and no script from a book runs. Only a highlight's short
-  quote (300 characters) is ever stored. Luke widened it the same day ("options 2 for epubs and 1 for eveyrthing else"):
+  streams, from www.gutenberg.org (today it is not cached: asked `no-store`, answered `private, no-store`). The engine
+  is a pinned copy of foliate-js in `vendor/foliate-js/`; it is handed the Blob, never an address, and no script from a
+  book runs. A highlight stores its short quote (300 characters). Luke widened it the same day ("options 2 for epubs and 1 for eveyrthing else"):
   an Internet Archive book's own EPUB (listed, not private, never its `_lcp` lending copy, never an access-restricted item)
-  passes through the same way, never kept; an Archive book with no EPUB shows the Archive's own viewer
+  passes through the same way; an Archive book with no EPUB shows the Archive's own viewer
   (`archive.org/embed/<id>`) on the /read page. BOOKS finds every Open Library work (SPEC-book-editions.md, 2026-11-11), and a book's page lists every edition, read live from Open Library and never stored.
   Widened again ("try to find a way to have every book, its okay to grab them directly, preferably inside our reader"):
   an Archive book with no EPUB but a PDF reads in our reader a slice at a time (`Range` requests through the same route,
-  answered 206, never kept, the slice only of the PDF the item's metadata lists), fetched from the item's own file
+  answered 206, the slice only of the PDF the item's metadata lists), fetched from the item's own file
   servers; the Archive's viewer is for a book with neither. A reader's own PDF or EPUB opens at `/read` in their
   browser and is never uploaded.
   Widened again ("remove the rule that is impeding and find a way to have it so any book can be read in the ereader",
@@ -42,7 +42,7 @@ The house rules live in `.claude/rules/core.md` (loaded automatically).
   `/read/books:OL…W` (the bare work ref) resolves server-side to a Gutenberg copy, a free Archive scan, or a shadow
   copy from LibGen (Luke lifted the Anna's Archive refusal the same day, SPEC-books.md's "Shadow-library sources":
   "get rid of the no free copy thing and just add them by any means necessary"): the file passes through our server
-  (`/api/web/book/epub?ref=shadow:<md5>`) and is never kept, the same rule as Gutenberg. When no copy is found anywhere,
+  (`/api/web/book/epub?ref=shadow:<md5>`), the same way as Gutenberg. When no copy is found anywhere,
   the reader shows a page with the title, cover and a link to Open Library, so the browser never leaves `/read` on its
   own. Said once: LibGen mirrors go up and down, and rights holders may file DMCA takedowns on the Vercel domain. The READ module (the `read` key on the top bar, 2026-11-13) matches it to its Open Library
   work before it opens (the ISBN printed inside, then the title inside, then the file's name: only those go to Open
@@ -67,5 +67,4 @@ The house rules live in `.claude/rules/core.md` (loaded automatically).
   (SPEC-kino-sources.md). A copy is marked PUBLIC DOMAIN only when Wikidata says so (Luke, 2026-11-06).
 - Luke's own and his friends' media servers are allowed sources, with no list file (any title by its TMDB number, at once) or read from each server's list file
   (`app/lib/web/media-servers.ts`; friends' side: `docs/media-server-setup.md`). Each video plays from the
-  server's own player; the site never stores, copies or transcodes video, and holds only images and audio as
-  media itself. TMDB details (server-side, `TMDB_READ_TOKEN`) never include ratings, votes or popularity.
+  server's own player today. TMDB details (server-side, `TMDB_READ_TOKEN`) never include ratings, votes or popularity.

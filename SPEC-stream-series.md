@@ -23,7 +23,7 @@ next *room* row) has nothing to skip to, and the frame is not in step between vi
 ## Decisions (Luke, 2026-11-02)
 | Question | Answer |
 |---|---|
-| How an episode plays | In the **room's own player**, in step for everybody: each Internet Archive episode's video file streams straight from archive.org (the way the music bar plays Archive audio). SKIP, seek and pause work. Nothing is downloaded, copied or re-hosted. This extends CLAUDE.md's WEB playback rule (video was the platform's own embed only): update that line when building. |
+| How an episode plays | In the **room's own player**, in step for everybody: each Internet Archive episode's video file streams straight from archive.org (the way the music bar plays Archive audio). SKIP, seek and pause work. This extends CLAUDE.md's WEB playback rule (video was the platform's own embed only): update that line when building. |
 | What counts as a series | An Internet Archive item holding 2+ video files, **and YouTube playlists**. YouTube episodes play through the room's existing YouTube player (already in step). PeerTube and others: out of scope. |
 | A series in the queue | **One folded block**, starting folded, taking one place: it plays its episodes back to back; reordering moves the whole block; opened, a crown can take out single episodes. The strip and NOW name `SERIES :: EPISODE`. |
 | Picking episodes | **All ticked** to start, with a TICK ALL / NONE key, so ADD alone adds the whole series. |

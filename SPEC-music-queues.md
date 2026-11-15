@@ -70,8 +70,6 @@ In the interview that became: **a music broadcast is a stream room whose queue p
 ## Out of scope
 - The drawing canvas, GIF / message dragging, STREAM ART in the archive: SPEC-stream-art.md.
 - Changing RADI-OH, VANITY, PLAY FOR YOU itself, or the /archive page.
-- Recording or re-hosting anything: songs stay the site's own files or the platform's own stream; videos stay
-  the platforms' embeds (the CLAUDE.md archive rules hold).
 
 ## Data (needs Luke's typed OK before anything is run)
 In plain English - the building session writes the exact migration and asks first:

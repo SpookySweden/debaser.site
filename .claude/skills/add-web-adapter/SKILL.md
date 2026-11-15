@@ -15,12 +15,12 @@ of the others for anything unusual:
 Feeds are parsed with `adapters/xml.ts` (strict, bounded, no DTDs); do not add an XML dependency.
 
 ## Rules no adapter may bend
-- Official public APIs, RSS/Atom, oEmbed or open-data endpoints only. No HTML scraping, no
-  yt-dlp-style extraction, no paid or keyed service unless Luke says so.
+- Official public APIs, RSS/Atom, oEmbed or open-data endpoints only. No HTML scraping, no paid or
+  keyed service unless Luke says so.
 - Metadata only: the `WebItem` fields. Never request, store or pass on likes, views, downloads,
   ratings, follower counts or comments. Do not put engagement fields in the request's field list.
-- Never download, copy or re-host media. Thumbnails are hotlinked; playback is the platform's own
-  embed, unmodified, or an outbound link.
+- No rule against downloading, copying or self-hosting media (Luke, 2026-11-15). Today thumbnails
+  are hotlinked and playback is the platform's own embed or an outbound link.
 - Build every URL with `buildUrl` from fixed path parts plus identifiers that pass `isSafeIdentifier`
   (`^[A-Za-z0-9][A-Za-z0-9._-]*$`). Never fetch, link, frame or show an image from a URL found in
   remote data. A licence URL from the data is kept only when it passes `isAllowedUrl` against `linkHosts`.

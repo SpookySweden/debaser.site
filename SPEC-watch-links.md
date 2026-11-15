@@ -69,5 +69,4 @@ going quietly black.
 
 ## Out of scope
 - Unsynced "paste any embed code" (CyTube's custom embed): it lets arbitrary third-party pages into the site.
-- Proxying, downloading or re-hosting video.
 - Thumbnails for links.
