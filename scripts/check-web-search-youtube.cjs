@@ -184,6 +184,9 @@ async function problem(work) {
     'app/lib/web/series-files.ts',
     // Added on purpose 2026-11-06 (SPEC-kino-sources.md): checks a free copy's status and length; server only, never in an answer.
     'app/api/web/kino/sources/route.ts',
+    // Added on purpose 2026-11-14 (Luke: YouTube's "watch next"; lib/web/youtube-next.ts): when InnerTube fails, the route
+    // falls back to the provider's own search, which may need the key; server only, handed to the provider, never in an answer.
+    'app/api/web/youtube/related/route.ts',
   ]);
   const walk = (dir, out = []) => {
     for (const name of readdirSync(dir)) {

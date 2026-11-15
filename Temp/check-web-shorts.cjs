@@ -89,7 +89,10 @@ const video = (id, extra = {}) => ({ id: `youtube:${id}`, platform: 'youtube', e
   assert.match(read('app/api/web/search/route.ts'), /dropShorts: \(items: WebItem\[\]\) => dropShorts\(items\),/, '... the route hands the check in');
   assert.match(read('app/lib/web/ingest.ts'), /if \(source\.platform === 'youtube' && deps\.dropShorts !== undefined\) \{/, 'the hourly run saves no Shorts');
   assert.match(read('app/api/web/ingest/route.ts'), /\{ dropShorts: \(items\) => dropShorts\(items\) \}/);
-  assert.match(read('app/api/web/youtube/mine/route.ts'), /items: await dropShorts\(mine\.items\)/, 'YOUR YOUTUBE: a liked Short goes');
+  // Updated on purpose 2026-11-14 (YOUTUBE session: uploads and likes come back apart): the likes are asked about, and the
+  // one list of both keeps only what stays. The uploads list already has no Shorts.
+  assert.match(read('app/api/web/youtube/mine/route.ts'), /const liked = await dropShorts\(mine\.liked\)\.catch\(\(\) => mine\.liked\);/, 'YOUR YOUTUBE: a liked Short goes');
+  assert.match(read('app/api/web/youtube/mine/route.ts'), /liked, items: mine\.items\.filter\(\(item\) => stays\.has\(item\.id\)\)/, '... from the likes and from the list of both');
   const repo = read('app/lib/web/repository.ts');
   assert.match(repo, /return withoutShortsRepository\(WEB_DATA_SOURCE === 'supabase'/, 'the saved stream as read, mock and live alike');
   assert.doesNotMatch(repo, /getItem: async/, 'what the music bar or a queue reads back by id is never taken away');

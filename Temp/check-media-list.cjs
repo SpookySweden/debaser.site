@@ -30,7 +30,8 @@ assert.match(innertube, /isShortsAddress\(opensAt\)\) return null;/, "... or a /
 assert.match(read('app/lib/web/search/providers/youtube.ts'), /if \(taggedShort\(str\(snippet\.title\), str\(snippet\.description\)\)\) return null;/, 'the Data API fallback: the tag');
 const mine = read('app/lib/web/youtube-mine.ts');
 assert.match(mine, /playlistId: `UULF\$\{id\.slice\(2\)\}`/, "YOUR YOUTUBE reads each channel's uploads without Shorts");
-assert.match(mine, /if \(taggedShort\(snippet\.title, snippet\.description\)\) return;/, '... and drops a tagged Short among the likes');
+// Updated on purpose 2026-11-14 (YOUTUBE session: the read now hands back uploads and likes apart, so the helper answers null): same rule.
+assert.match(mine, /if \(taggedShort\(snippet\.title, snippet\.description\)\) return null;/, '... and drops a tagged Short among the likes');
 const stream = read('app/components/WebStream.tsx');
 assert.match(stream, /page\.items\.filter\(\(item\) => !isShort\(item\) && matchesFilters/, 'the page leaves out Shorts arriving from any source, older saved rows included');
 assert.match(read('app/components/ForYou.tsx'), /!item\.seenOnly && !isShort\(item\)/, "FOR YOU's MEDIA lane too");

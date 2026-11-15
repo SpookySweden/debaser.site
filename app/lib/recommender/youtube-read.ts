@@ -34,6 +34,8 @@ export type YouTubeFound<T extends ReadVideo = ReadVideo> = Omit<YouTubeRead<T>,
   standings: ChannelStanding[];
   /** The videos to ask YouTube's "watch next" about. */
   seeds: SeedVideo[];
+  /** The imported YouTube history's summary it was weighed with, if the person brought one. */
+  summary: WatchSummary | null;
 };
 
 export const NOTHING_READ: YouTubeRead<never> = { uploads: [], liked: [], likedAt: {}, channels: [], topics: [], playlists: [], evidence: [] };
@@ -97,6 +99,7 @@ export function weigh<T extends ReadVideo>(
     channels: standingNames(standings).map(({ name }) => ({ id: ids.get(lower(name)) ?? '', name })),
     standings,
     seeds: seedVideos({ liked, rows, limit: SEEDS }),
+    summary: more.summary ?? null,
   };
 }
 

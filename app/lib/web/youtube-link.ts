@@ -89,7 +89,7 @@ let lastShelf: { read: YouTubeRead<WebItem>; related: Awaited<ReturnType<typeof 
 
 /**
  * The same read weighed again with the person's history as it is now (after NOT FOR ME, SHOW LESS FROM THIS CHANNEL,
- * MORE LIKE THIS or a video finished). Nothing is asked of Google or YouTube. Null when nothing has been read yet.
+ * MORE LIKE THIS or an import). Nothing is asked of Google or YouTube. Null when nothing has been read yet.
  */
 export async function reweighMine(): Promise<YouTubeFound | null> {
   if (lastShelf === null) return null;

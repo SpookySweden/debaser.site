@@ -118,7 +118,9 @@ assert.doesNotMatch(youtube, /from '[^']*(seen-items|tagging|save-opened|youtube
 // 8. The code review's fixes (2026-11-13), held.
 assert.match(fs.readFileSync('app/components/WatchRoom.tsx', 'utf8'), /if \(user === null \|\| !roomOpen\) return;/, "a private room's name is never written down");
 assert.match(fs.readFileSync('app/components/LetterWindow.tsx', 'utf8'), /!owner && value\.isPublic;/, "a private letter's name is never written down");
-assert.match(youtube, /onHide=\{\(\) => onHide\(pick\.key\)\}/, 'NOT FOR ME on a YouTube video hides it for the visit and writes nothing');
+// Updated on purpose 2026-11-14 (Luke: NOT FOR ME on a surprise from a quiet subscription "quiets it further"; code review):
+// NOT FOR ME on a YouTube pick hides it at once and is kept, as that one video's row; the list itself is still never saved.
+assert.match(youtube, /onHide\(pick\.key\);\s*void notForMe\(\{ kind: 'media', ref: item\.id,/, 'NOT FOR ME on a YouTube video hides it at once and is kept like any other');
 assert.match(page, /onHide=\{hideHere\}/, '... wired to the visit-only hide');
 assert.match(page, /readHistory\(3000\)/, 'every row the cap allows is read, so an old NOT FOR ME still holds');
 assert.match(fs.readFileSync('app/lib/recommender/use-history.ts', 'utf8'), /limit = 3000/);

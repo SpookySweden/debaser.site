@@ -5,7 +5,7 @@ import { keyOf, type LanePick } from '../lib/recommender/engine';
 import { findTag, type StationIndex } from '../lib/tag-station/query';
 import { rowAddresses, type ExtraHosts } from '../lib/web/row-addresses';
 import type { WebItem } from '../lib/web/types';
-import { subscribeHistory } from '../lib/recommender/history';
+import { notForMe, subscribeHistory } from '../lib/recommender/history';
 import { readMineOnce, reweighMine, YOUTUBE_LINK_ON, type YouTubeMine } from '../lib/web/youtube-link';
 import { Lane, MOST, PickFoot } from './ForYouParts';
 import { STATION_KEY, Thumb } from './TagStationParts';
@@ -25,7 +25,8 @@ export function useYouTubeMine(): YouTubeMine | null {
     if (!YOUTUBE_LINK_ON) return;
     let live = true;
     void readMineOnce().then((answer) => live && setMine(answer));
-    // A press of the feedback key (or a video finished) reshapes the shelf at once: the same read, weighed again.
+    // A press of the feedback key reshapes the shelf at once: the same read, weighed again. (A video finished or skipped
+    // counts from the next visit, so a row never leaves from under the video playing in it.)
     const stop = subscribeHistory(() => {
       void reweighMine().then((found) => live && found !== null && setMine((before) => (before === null ? before : { ...before, ...found })));
     });
@@ -42,7 +43,11 @@ export function useYouTubeMine(): YouTubeMine | null {
  * channels new to them, each saying why (Luke, 2026-11-14; `recommender/youtube-picks.ts` orders it, the same list as
  * MEDIA's YOUR YOUTUBE). A subscription they no longer watch is not here.
  */
-/** NOT FOR ME here (`onHide`) hides a video for this visit only: NOT FOR ME here never writes the YouTube list to the database. */
+/**
+ * NOT FOR ME here hides the video at once (`onHide`, which also covers a paused history) and is kept like any other
+ * NOT FOR ME (Luke, 2026-11-14: on a surprise from a quiet subscription it "quiets it further"; code review the same day).
+ * Only that one video's title and channel are written, as when it is played; the YouTube list itself never is.
+ */
 export function YouTubeLane({ hidden, onHide, extraHosts }: { hidden: ReadonlySet<string>; onHide: (key: string) => void; extraHosts: ExtraHosts }) {
   const mine = useYouTubeMine();
   const picks = useMemo(
@@ -75,7 +80,11 @@ export function YouTubeLane({ hidden, onHide, extraHosts }: { hidden: ReadonlySe
                 <p className="break-words px-1 text-label text-ink">{item.title}</p>
               )}
               {item.creator ? <p className="break-words px-1 text-label text-ink">{item.creator}</p> : null}
-              <PickFoot why={pick.why} item={{ kind: 'media', ref: item.id, title: item.title, maker: item.creator ?? '', words: item.tags ?? [] }} onHide={() => onHide(pick.key)} />
+              <PickFoot why={pick.why} item={{ kind: 'media', ref: item.id, title: item.title, maker: item.creator ?? '', words: item.tags ?? [] }} onHide={() => {
+                  onHide(pick.key);
+                  void notForMe({ kind: 'media', ref: item.id, title: item.title, maker: item.creator ?? '', words: item.tags ?? [] });
+                }}
+              />
             </div>
           </li>
         );

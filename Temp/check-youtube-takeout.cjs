@@ -8,6 +8,7 @@
  * - often and lately count for more; what was watched over two years ago is left out
  * - a file that is not a watch history says so in plain words
  * - the file is read in the browser and nothing of it is sent anywhere; ERASE and REMOVE IMPORT delete the summary
+ * (the IMPORT key and its panel: Temp/check-youtube-home-render.cjs)
  */
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -118,13 +119,7 @@ assert.doesNotMatch(store, /fetch\(|FormData|XMLHttpRequest|\.storage\b|upload\(
 assert.match(store, /upsert\(\{ person, channels: summary\.channels, words: summary\.words, imported_at: summary\.importedAt \}\)/, 'only the summary is saved');
 assert.match(store, /from\('user_watch_summary'\)\.delete\(\)\.eq\('person', person\)/, 'REMOVE IMPORT deletes the row');
 assert.match(fs.readFileSync('app/lib/recommender/history.ts', 'utf8'), /export async function eraseHistory\(\): Promise<boolean> \{\s*recent\.clear\(\);\s*void removeSummary\(\);/, 'ERASE MY HISTORY removes it too');
-const key = fs.readFileSync('app/components/ImportYouTubeHistory.tsx', 'utf8');
-assert.match(key, /\[ IMPORT YOUTUBE HISTORY \]/);
-assert.match(key, /aria-expanded=\{open\}/, 'the key says when its panel is open');
-assert.match(key, /TAKEOUT\.GOOGLE\.COM/, 'it says where to get the file');
-assert.match(key, /SET HISTORY TO JSON/, '... and which format');
-assert.match(key, /READ IN YOUR BROWSER AND NEVER UPLOADED/, '... and what happens to it');
-assert.match(key, /\[ REMOVE IMPORT \]/);
+// The key itself and its panel are drawn and held by Temp/check-youtube-home-render.cjs.
 assert.match(fs.readFileSync('app/lib/web/youtube-link.ts', 'utf8'), /weigh\(read, rows, now, \{ related, summary \}\)/, 'the shelf is weighed with it');
 assert.match(fs.readFileSync('app/privacy/page.tsx', 'utf8'), /Google Takeout/, 'the privacy page says so');
 
