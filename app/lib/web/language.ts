@@ -104,6 +104,52 @@ function baseOf(tag: LanguageTag): string {
   return tag.split('-')[0];
 }
 
+/**
+ * A language asked for as a filter (Luke's list, 2026-11-14, M13: `lang:fr`, the LANGUAGE row in FILTERS): its two-letter
+ * code, a region dropped, or null. Takes what `normaliseLanguage` takes: `fr`, `fre`, `French`.
+ */
+export function filterLanguage(raw: unknown): string | null {
+  const tag = normaliseLanguage(raw);
+  return tag === null ? null : baseOf(tag);
+}
+
+/** The three-letter code the library catalogues write (Open Library, the Archive: MARC's, `fre`), or null. */
+export function libraryCode(language: string): string | null {
+  if (language === 'en') return 'eng';
+  return Object.keys(THREE_LETTER).find((three) => THREE_LETTER[three] === language) ?? null;
+}
+
+/** A language's English name, `fr` -> `French`. */
+export function languageName(language: string): string {
+  return LANGUAGE_NAMES.of(language) ?? language;
+}
+
+/**
+ * Whether a row is in the language asked for: its language is known (said by its platform or plain from its words) and is
+ * that one. English is the exception, as it is for the flags: a row whose language is not known counts as English, since
+ * most such rows are (no flag means the site's own language).
+ */
+export function inLanguage(item: Parameters<typeof contentLanguage>[0], language: string): boolean {
+  const tag = contentLanguage(item);
+  if (tag === null) return language === 'en';
+  return baseOf(tag) === language;
+}
+
+/**
+ * A book work's language (M12, "make sure books also show their language"). Open Library lists every language its
+ * editions are in, in no order. One: that one. Several: the one asked for (`asked`, a LANGUAGE filter), else the one the
+ * title plainly reads as, else English when listed (no flag), else the first. None: null.
+ */
+export function workLanguage(listed: readonly string[], title: string, asked?: string): LanguageTag | null {
+  const codes = [...new Set(listed.map((raw) => normaliseLanguage(raw)).filter((tag): tag is LanguageTag => tag !== null).map(baseOf))];
+  if (codes.length === 0) return null;
+  if (codes.length === 1) return codes[0];
+  if (asked !== undefined && codes.includes(asked)) return asked;
+  const read = detectLanguage(title);
+  if (read !== null && codes.includes(baseOf(read))) return baseOf(read);
+  return codes.includes('en') ? 'en' : codes[0];
+}
+
 /** What a row draws for a language: the country whose flag stands for it (or none), and its name. */
 export type LanguageFlag = { language: string; country: string | null; name: string };
 

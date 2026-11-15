@@ -163,7 +163,10 @@ ok(!/transition|animate-/.test(page.slice(page.indexOf('data-filter-panel'), pag
   // needing so many clicks"): no folds inside the panel; every filter is one labelled row, all shown once FILTERS opens.
   const fold = readFileSync(join(ROOT, 'app/components/WebFilterFold.tsx'), 'utf8');
   ok(/role="group" aria-label=\{label\}/.test(fold) && /export function FilterRow/.test(fold), 'each filter is a named group of keys');
-  for (const row of ['PICKS', 'WHERE FROM', 'WHAT KIND', 'ORDER', 'MOOD SEARCH']) ok(page.includes(`<FilterRow label="${row}">`), `the ${row} row is always shown in the open panel`);
+  // Updated on purpose 2026-11-14 (Luke: "make the order settings be a separate expandable button to the right of view and
+  // filters"): ORDER left the panel for its own key; LANGUAGE (M13) joined it.
+  for (const row of ['PICKS', 'WHERE FROM', 'WHAT KIND', 'LANGUAGE', 'MOOD SEARCH']) ok(page.includes(`<FilterRow label="${row}">`), `the ${row} row is always shown in the open panel`);
+  ok(!page.includes('<FilterRow label="ORDER">'), 'ORDER is not a row in the panel');
   ok(!/WebFilterFold id=/.test(page), 'no fold inside the panel: one press opens FILTERS, one more picks anything');
   ok(/data-reset-filters/.test(page) && /withoutFilters\(draft\)/.test(page), 'RESET FILTERS keeps the words');
   ok(/filtersInWords\(boxFilters, art\)/.test(page), 'one plain line says what is chosen');
@@ -179,7 +182,8 @@ ok(!/transition|animate-/.test(page.slice(page.indexOf('data-filter-panel'), pag
 }
 // Updated on purpose 2026-11-13: ORDER's four keys (DATE's two directions as NEWEST FIRST and OLDEST FIRST) replace
 // DATE and the flip key; the same three orders underneath.
-ok(page.includes('<FilterRow label="ORDER">') && /ORDER_KEYS\.map/.test(page) && /const on = boxSort\.sort === key\.choice\.sort && boxSort\.dir === key\.choice\.dir;/.test(page) && /aria-pressed=\{on\}/.test(page), 'the ORDER keys are drawn from the choices and say which is on');
+// Updated on purpose 2026-11-14: they now sit in ORDER's own fold (`media-order-panel`), one to a line, beside VIEW.
+ok(/<div id="media-order-panel" role="group" aria-label="Order" hidden=\{!folds\.has\('media-order'\)\}/.test(page) && /ORDER_KEYS\.map/.test(page) && /const on = boxSort\.sort === key\.choice\.sort && boxSort\.dir === key\.choice\.dir;/.test(page) && /aria-pressed=\{on\}/.test(page), 'the ORDER keys are drawn from the choices and say which is on');
 
 // The IMDB key (Luke, 2026-11-04) was taken off MEDIA on purpose on 2026-11-14 ("Remove both"): KINO is reached under
 // WHERE FROM, as before. The stream room's own IMDB key is another screen (check-queue-filters).

@@ -30,6 +30,12 @@ export type SearchDeps = {
    */
   dropShorts?: (items: WebItem[]) => Promise<WebItem[]>;
   /**
+   * A LANGUAGE filter (Luke's list, 2026-11-14, M13: "allow search by language among the filters"): a two-letter code. The
+   * providers whose platform can be asked by language do (the Archive, Open Library, PeerTube); the page keeps only rows in
+   * that language from every source (web-filters.ts `matchesFilters`).
+   */
+  lang?: string;
+  /**
    * The order asked for (SPEC-web-sort.md). Absent is the platform's own best match. A provider is only handed
    * an order it lists in `orders`; run.ts answers for the rest with "NO POPULARITY ORDER" or "CAN'T SORT BY DATE".
    */

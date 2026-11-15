@@ -1,6 +1,6 @@
 /*
  * MEDIA, Luke's list of 2026-11-14 (M1-M14), held:
- *   npx tsc app/lib/web/shorts.ts app/lib/ui/themes.ts --rootDir app/lib --outDir Temp/media-list-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop
+ *   npx tsc app/lib/web/shorts.ts app/lib/ui/themes.ts app/lib/web/web-filters.ts app/lib/web/search/providers/books.ts app/lib/web/search/providers/peertube.ts app/lib/web/media-keep.ts --rootDir app/lib --outDir Temp/media-list-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop
  *
  * M1 no YouTube Shorts: known by a /shorts/ address, the Shorts player in YouTube's search, a channel's long-form list,
  *    or a #shorts tag; left out of search, the hourly stream, YOUR YOUTUBE, FOR YOU and older saved rows.
@@ -41,7 +41,8 @@ assert.match(stream, /const box = next && boxFilters\.source === 'kino' \? withF
 assert.match(stream, /if \(!next && JSON\.stringify\(requestFor\(box\)\) !== JSON\.stringify\(shown\)\) \{\n\s*restart\(box\);/, '... and the list under it is the one the box says');
 
 // M3: the open FILTERS panel shows every filter at once, one labelled row each; no folds inside it.
-for (const row of ['PICKS', 'WHERE FROM', 'WHAT KIND', 'ORDER', 'MOOD SEARCH']) assert.ok(stream.includes(`<FilterRow label="${row}">`), `the ${row} row shows in the open panel`);
+// Updated on purpose 2026-11-14: ORDER is its own key now (Luke: "a separate expandable button to the right of view and filters").
+for (const row of ['PICKS', 'WHERE FROM', 'WHAT KIND', 'MOOD SEARCH']) assert.ok(stream.includes(`<FilterRow label="${row}">`), `the ${row} row shows in the open panel`);
 assert.ok(!/WebFilterFold id=/.test(stream), 'no fold inside the panel');
 // M4: VIEW is its own key beside FILTERS, saying the view; its choices fold open under the row, outside FILTERS.
 assert.ok(stream.indexOf('data-filters-key') < stream.indexOf('data-view-toggle'), 'VIEW beside FILTERS');
@@ -116,4 +117,78 @@ assert.match(mediaRow, /<ThumbOpen href=\{addresses\.link\}/, 'a KINO card too (
 assert.match(stream, /full \? 'mt-1 flex flex-wrap items-center gap-x-3 gap-y-1' : 'contents'/, 'facts and keys on one line');
 assert.match(stream, /full \? 'min-w-0 flex-1' : 'flex min-w-0 flex-1 items-center gap-2'/, 'COMPACT: the title and its keys on one line');
 
-console.log('ok: MEDIA list items held (M1 Shorts, M2 KINO and YOUR YOUTUBE, M3 one-press filters, M4 VIEW key, M5-M11 the rows)');
+// M12: a book shows its language, from the languages Open Library lists for its editions.
+const books = require('./media-list-out/web/search/providers/books.js');
+assert.ok(books.BOOKS_FIELDS.split(',').includes('language'), 'Open Library is asked for the languages');
+const doc = (language) => ({ key: '/works/OL1W', title: 'Dracula', first_publish_year: 1897, language });
+const NOW = '2026-11-14T00:00:00.000Z';
+assert.equal(books.toBookItem(doc(['fre']), NOW).language, 'fr', 'one language: that one');
+assert.equal(books.toBookItem(doc(['eng', 'fre', 'ger']), NOW).language, 'en', 'several, none plain from the title: English when listed (no flag)');
+assert.equal(books.toBookItem(doc(['eng', 'fre', 'ger']), NOW, 'de').language, 'de', '... the one a LANGUAGE filter asked for, when the work has it');
+assert.equal(books.toBookItem(doc(['spa', 'ita']), NOW).language, 'es', 'no English: the first listed');
+assert.equal(books.toBookItem(doc(undefined), NOW).language, undefined, 'none listed: none said');
+assert.match(books.booksSearchUrl('dracula', 1, '', 'relevance', 'fr'), /q=dracula\+language%3Afre&/, 'BOOKS asks Open Library for that language');
+assert.match(books.libraryScanQuery('dracula', '', 'fr'), / AND language:\(fre OR fr OR french\) AND collection:/, '... and the Archive scans');
+assert.match(require('./media-list-out/web/search/providers/peertube.js').sepiaSearchUrl('dracula', 0, 'relevance', 'fr'), /languageOneOf=fr/, 'PeerTube is asked too');
+
+// M13: LANGUAGE among the filters, typed `lang:` or pressed, with the others, in the address.
+const filters = require('./media-list-out/web/web-filters.js');
+const typed = filters.parseWebSearch('dracula lang:french in:youtube');
+assert.equal(typed.lang, 'fr', 'a name, a code or a library code');
+assert.equal(filters.parseWebSearch('x lang:fre').lang, 'fr');
+assert.equal(filters.formatWebSearch(typed), 'dracula in:youtube lang:fr', 'written back as a code');
+assert.equal(filters.parseWebSearch('x lang:fr lang:any').lang, undefined, 'any clears it');
+assert.equal(filters.parseWebSearch('x lang:nonsense').lang, undefined, 'an unknown word is no filter');
+assert.equal(filters.withFilter('dracula', 'lang', 'de'), 'dracula lang:de', 'a LANGUAGE key writes it into the box');
+assert.equal(filters.withFilter('dracula lang:de', 'lang', 'all'), 'dracula', '... and ANY takes it out');
+assert.equal(filters.searchAddress(typed), '/media?q=dracula&in=youtube&lang=fr', 'the address carries it');
+assert.equal(filters.boxFromAddress(new URLSearchParams('q=dracula&lang=fr')), 'dracula lang:fr', '... and is read back');
+assert.equal(filters.withoutFilters('dracula lang:fr'), 'dracula', 'RESET FILTERS clears it');
+assert.ok(filters.hasFilters(typed));
+assert.equal(filters.withAuthor('x lang:fr', 'Somebody'), 'from:Somebody lang:fr', 'a creator keeps the language');
+const row = (extra) => ({ platform: 'internet_archive', kind: 'video', title: 'A film', ...extra });
+const under = (lang, item) => filters.matchesFilters(item, { source: 'all', type: 'all', lang }, false);
+assert.ok(under('fr', row({ language: 'fre' })) && !under('de', row({ language: 'fre' })), 'a row its platform says is French');
+assert.ok(under('ja', row({ title: 'となりのトトロ' })), 'a row whose words are plainly Japanese');
+assert.ok(!under('fr', row({})) && under('en', row({})), 'a row that says nothing: not French, but English (no flag means the site language)');
+assert.ok(filters.suggestFilterValues('lang', 'fr').some((option) => option.word === 'fr'), 'typing lang: offers the languages');
+assert.match(stream, /<FilterRow label="LANGUAGE">/, 'the LANGUAGE row in FILTERS');
+assert.match(stream, /onClick=\{\(\) => pickFilter\('lang', option\.value\)\}/, '... its keys set it like the others');
+assert.match(stream, /OTHER SITES SHOW A ROW ONLY WHEN ITS LANGUAGE IS KNOWN/, '... and say plainly which sites can be asked');
+assert.match(stream, /\.\.\.\(what\.filters\.lang !== undefined \? \{ lang: what\.filters\.lang \} : \{\}\),/, 'the language goes to the sources');
+assert.match(stream, /<WebPickedList key=\{boxFilters\.lang \?\? 'any'\}/, 'PICKS follows it');
+assert.match(read('app/api/web/search/route.ts'), /const lang = filterLanguage\(params\.get\('lang'\) \?\? undefined\) \?\? undefined;/, 'the route reads only a real language');
+
+// ORDER (Luke, 2026-11-14: "make the order settings be a separate expandable button to the right of view and filters").
+assert.ok(stream.indexOf('data-filters-key') < stream.indexOf('data-view-toggle') && stream.indexOf('data-view-toggle') < stream.indexOf('data-order-toggle'), 'FILTERS, VIEW, then ORDER');
+assert.match(stream, /aria-expanded=\{folds\.has\('media-order'\)\} aria-controls="media-order-panel" className=\{FOLD_KEY\} data-order-toggle>\n\s*\{`\[ ORDER: \$\{orderLabel\(boxSort\)\} \]`\}/, 'it says the order and whether it is open');
+assert.match(stream, /className="flex flex-col items-start gap-1 py-1" data-order-panel>/, 'its choices one to a line');
+assert.ok(!stream.includes('<FilterRow label="ORDER">'), 'not in FILTERS any more');
+assert.match(stream, /const FOLD_IDS = \['media-filters', 'media-view', 'media-order',/, 'this browser remembers it open or shut');
+assert.match(stream, /orderLabel\(sortOf\(search\)\),/, 'the SHOWING line still says the order');
+
+// The feedback key (the YOUR YOUTUBE session's FeedbackKey, 2026-11-14), last on a row's key line, and on KINO and server cards.
+assert.ok(stream.indexOf('<WebDiscussKey item={item} onOpen={opened} short />') < stream.indexOf('<FeedbackKey item={{ kind: \'media\', ref: item.id'), 'a row: after + LETTER / PLAYLIST and the pen');
+assert.match(stream, /\{full \? <FeedbackKey item=\{\{ kind: 'media', ref: item\.id, title: item\.title, maker: item\.creator \?\? '', words:/, '... not in COMPACT, which keeps only the main keys');
+assert.equal((mediaRow.match(/<FeedbackKey item=\{\{ kind: 'media', ref: item\.id/g) ?? []).length, 2, 'KINO and server cards, after + LETTER');
+
+// M14: MEDIA keeps its place while the reader is in another module, for an hour, in this page's memory only.
+const keep = require('./media-list-out/web/media-keep.js');
+const T = 1_000_000;
+keep.keepMedia({ address: 'q=dracula', at: T, scroll: 900, state: { rows: 3 } });
+assert.deepEqual(keep.keptFor('q=dracula', T + 1000)?.state, { rows: 3 }, 'the same address: as it was');
+assert.equal(keep.keptFor('', T + 1000)?.address, 'q=dracula', 'plain /media (the MEDIA key): as it was, with its address');
+assert.equal(keep.keptFor('q=other', T + 1000), null, 'another address is a new search');
+assert.ok(keep.keptFor('q=dracula', T + 1000) !== null, 'taking it leaves it (a page drawn twice finds it both times)');
+assert.equal(keep.keptFor('q=dracula', T + keep.KEEP_MS + 1), null, 'older than an hour: searched again');
+assert.equal(keep.keptFor('q=dracula', T + 1000), null, '... and forgotten');
+assert.doesNotMatch(read('app/lib/web/media-keep.ts'), /localStorage|sessionStorage|indexedDB|fetch\(|supabase/, 'memory only: a reload starts fresh');
+assert.match(stream, /const \[restored\] = useState\(\(\) => \(typeof window === 'undefined' \? null : keptFor<KeptMedia>\(params\.toString\(\)\)\)\);/, 'read once, in the browser');
+assert.match(stream, /const \[asking, setAsking\] = useState<Source\[\]>\(\(\) => \(back !== undefined \? \[\] :/, 'back as it was: nothing is waited on');
+assert.match(stream, /if \(restored !== null\) \{\n[\s\S]{0,900}?return;\n    \}\n    for \(const source of sourcesFor\(shown\)\) ask\(/, '... and none of the sources is asked');
+assert.match(stream, /if \(restored\.state\.related === null\) askRelated\(generation\.current, restored\.state\.shown\);/, '... but RELATED is, when it had not answered before the page went (review, 2026-11-14)');
+assert.match(stream, /if \(last !== null && last\.asking === 0\) keepMedia<KeptMedia>/, 'kept when the page goes, unless a source was still being asked');
+assert.match(stream, /document\.addEventListener\('scroll', note, \{ capture: true, passive: true \}\);/, 'every scroll is heard, whichever box scrolls (the list is empty when the page opens; review, 2026-11-14)');
+assert.match(stream, /latest\.current\.scroll = scrollBox\(root\.current\)\.scrollTop;/, '... read from the box that scrolls now');
+
+console.log('ok: MEDIA list items held (M1 Shorts, M2 KINO and YOUR YOUTUBE, M3 one-press filters, M4 VIEW key, M5-M11 the rows, M12 book languages, M13 LANGUAGE filter, M14 MEDIA keeps its place)');

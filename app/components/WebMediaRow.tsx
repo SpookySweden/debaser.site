@@ -22,6 +22,7 @@ import SpriteSlot from './SpriteSlot';
 import WatchInRoomKey from './WatchInRoomKey';
 import FindInRoomKey from './FindInRoomKey';
 import { LetterPlaylistKey, ThumbOpen } from './WebRowKeys';
+import FeedbackKey from './FeedbackKey';
 
 /**
  * One title from Luke's or a friend's media server (SPEC-media-servers.md), in the /web stream.
@@ -263,6 +264,7 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
               />
             )}
             <LetterPlaylistKey letter={{ kind: 'media', ref: item.id, title: item.title, picture: rowAddresses(item).thumb ?? undefined }} playlist={null} />
+            <FeedbackKey item={{ kind: 'media', ref: item.id, title: item.title, maker: item.creator ?? '', words: [...(item.tags ?? [])] }} why={null} />
           </>
         }
         notice={
@@ -435,6 +437,7 @@ export function KinoRow({ item, titleId, action }: { item: WebItem & { media: Me
             {/* No server holds it: find a source for it in a room (SPEC-media-servers.md; Luke 2026-11-07). Media tab only. */}
             {action === undefined ? <FindInRoomKey title={item.title} /> : null}
             {action === undefined ? <LetterPlaylistKey letter={{ kind: 'kino', ref: item.id, title: item.title, picture: addresses.thumb ?? undefined }} playlist={null} /> : null}
+            {action === undefined ? <FeedbackKey item={{ kind: 'media', ref: item.id, title: item.title, maker: item.creator ?? '', words: [...(item.tags ?? [])] }} why={null} /> : null}
           </>
         }
       />

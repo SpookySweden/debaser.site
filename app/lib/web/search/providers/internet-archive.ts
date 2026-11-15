@@ -14,6 +14,7 @@
 import { IA_FIELDS, toWebItem } from '../../adapters/internet-archive';
 import { safeFetchJson } from '../../safe-fetch';
 import { splitYear } from '../../search-intent';
+import { languageName, libraryCode } from '../../language';
 import { buildUrl, isSafeIdentifier } from '../../urls';
 import type { WebItem } from '../../types';
 import type { ProviderPage, SearchDeps, SearchKind, SearchOrder, SearchPage, SearchProvider } from '../types';
@@ -38,7 +39,17 @@ const KIND_MEDIA: Record<SearchKind, string> = {
  * `words` and `author` are letters and digits only (`searchText`, `authorWords`), so nothing in them is
  * Lucene syntax. Either may be empty, not both.
  */
-export function iaSearchQuery(words: string, author = '', kind?: SearchKind, how: { vibe?: boolean; now?: Date } = {}): string {
+/**
+ * The Archive's `language` field for a LANGUAGE filter (M13): uploaders write the MARC code, the two letters or the English
+ * name, so any of the three.
+ */
+function iaLanguage(lang: string | undefined): string[] {
+  if (lang === undefined) return [];
+  const words = [libraryCode(lang), lang, languageName(lang).toLowerCase()].filter((word): word is string => word !== null && /^[a-z]+$/.test(word));
+  return words.length === 0 ? [] : [`language:(${[...new Set(words)].join(' OR ')})`];
+}
+
+export function iaSearchQuery(words: string, author = '', kind?: SearchKind, how: { vibe?: boolean; now?: Date; lang?: string } = {}): string {
   const all = (field: string, text: string) => (text === '' ? [] : [`${field}:(${text.split(' ').join(' AND ')})`]);
   const any = (text: string) => text.split(' ').join(' OR ');
   let match = all('title', words);
@@ -50,7 +61,7 @@ export function iaSearchQuery(words: string, author = '', kind?: SearchKind, how
     const { words: rest, year } = splitYear(words, how.now);
     if (year !== null) match = [`(${all('title', words)[0]} OR (${all('title', rest)[0]} AND year:${year}))`];
   }
-  return [...match, ...all('creator', author), kind === undefined ? MEDIA : KIND_MEDIA[kind]].join(' AND ');
+  return [...match, ...all('creator', author), kind === undefined ? MEDIA : KIND_MEDIA[kind], ...iaLanguage(how.lang)].join(' AND ');
 }
 
 /** The Archive's own sort for an order; best match sends none. */
@@ -93,7 +104,7 @@ export const internetArchiveSearch: SearchProvider = {
   byAuthor: true,
   async search(words: string, page: ProviderPage | null, deps: SearchDeps, author?: string, kind?: SearchKind): Promise<SearchPage> {
     const at = pageNumber(page);
-    const body = await safeFetchJson(iaSearchUrl(iaSearchQuery(words, author, kind, { vibe: deps.vibe, now: deps.now?.() }), at, deps.order), { allowedHosts: IA_SEARCH_HOSTS, fetchImpl: deps.fetch, timeoutMs: IA_SEARCH_TIMEOUT_MS });
+    const body = await safeFetchJson(iaSearchUrl(iaSearchQuery(words, author, kind, { vibe: deps.vibe, now: deps.now?.(), lang: deps.lang }), at, deps.order), { allowedHosts: IA_SEARCH_HOSTS, fetchImpl: deps.fetch, timeoutMs: IA_SEARCH_TIMEOUT_MS });
     return parseIaSearch(body, at, (deps.now?.() ?? new Date()).toISOString());
   },
   async fetchOne(externalId: string, deps: SearchDeps): Promise<WebItem | null> {

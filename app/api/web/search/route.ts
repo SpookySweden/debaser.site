@@ -1,4 +1,5 @@
 import { looksLikeLink } from '../../../lib/web/link-shape';
+import { filterLanguage } from '../../../lib/web/language';
 import { compareItems } from '../../../lib/web/paging';
 import { authorWords, searchText } from '../../../lib/web/search';
 import { cachedFetch } from '../../../lib/web/search/cached-fetch';
@@ -86,12 +87,15 @@ export async function GET(request: Request): Promise<Response> {
   const keywordParam = params.get('keyword');
   const keyword = keywordParam !== null && /^[1-9][0-9]{0,8}$/.test(keywordParam) ? Number(keywordParam) : undefined;
   const order = SEARCH_ORDERS.find((value) => value === params.get('order'));
+  // `lang=<code>` (M13, the LANGUAGE filter): a language the providers that can ask their platform by language pass on.
+  const lang = filterLanguage(params.get('lang') ?? undefined) ?? undefined;
   const deps = {
     fetch: cachedFetch,
     env: { YOUTUBE_API_KEY: process.env.YOUTUBE_API_KEY, TMDB_READ_TOKEN: process.env.TMDB_READ_TOKEN },
     // No YouTube Shorts in an answer (shorts-check.ts): asked of YouTube's own /shorts/ page, plain fetch (never the cache).
     dropShorts: (items: WebItem[]) => dropShorts(items),
     ...(vibe ? { vibe } : {}),
+    ...(lang !== undefined ? { lang } : {}),
     ...(keyword !== undefined && only === 'kino' ? { keyword } : {}),
     ...(order !== undefined ? { order } : {}),
   };

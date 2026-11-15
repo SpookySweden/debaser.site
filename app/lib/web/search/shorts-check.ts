@@ -11,6 +11,10 @@ import type { WebItem } from '../types';
  * YouTube's own page, not an API, so it may change one day (core.md, "forever project"): a HEAD only, no body read, through
  * safe-fetch, and any answer that is neither (a consent page, an error, a timeout) is UNSURE, and an unsure video stays.
  *
+ * One quirk (the YOUR YOUTUBE session's drive, 2026-11-14): the page answers 200 for an id YouTube doesn't know too, so a video
+ * that has been taken down reads as a Short and is left out. That only hides what could not play anyway; a check's made-up
+ * ids are hidden the same way.
+ *
  * What is asked: only YouTube rows whose length makes them a candidate (three minutes or less, or not known: shorts.ts
  * `shortCandidate`). Length alone never drops anything; nor does a tag drop music (shorts.ts `isMusicItem`). Answers are kept
  * in this server's memory for a day, so a video is asked about at most once a day per server, and at most `MAX_ASKS` new ones

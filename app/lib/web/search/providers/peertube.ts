@@ -36,7 +36,8 @@ const MAX_DURATION_SECONDS = 7 * 24 * 60 * 60;
 /** Sepia's own sort for an order; best match sends none. */
 const PT_SORTS: Record<SearchOrder, string | null> = { relevance: null, popular: '-views', newest: '-publishedAt', oldest: 'publishedAt' };
 
-export function sepiaSearchUrl(words: string, start: number, order: SearchOrder = 'relevance'): string {
+/** `lang` (M13, a LANGUAGE filter): Sepia's own `languageOneOf`, the language the uploader set. */
+export function sepiaSearchUrl(words: string, start: number, order: SearchOrder = 'relevance', lang?: string): string {
   const sort = PT_SORTS[order];
   return buildUrl(SEPIA, ['api', 'v1', 'search', 'videos'], [
     ['search', words],
@@ -44,6 +45,7 @@ export function sepiaSearchUrl(words: string, start: number, order: SearchOrder 
     ['count', String(PT_SEARCH_COUNT)],
     ['nsfw', 'false'],
     ...(sort === null ? [] : [['sort', sort] as const]),
+    ...(lang === undefined || !/^[a-z]{2,3}$/.test(lang) ? [] : [['languageOneOf', lang] as const]),
   ]);
 }
 
@@ -155,7 +157,7 @@ export const peertubeSearch: SearchProvider = {
   async search(words: string, page: ProviderPage | null, deps: SearchDeps): Promise<SearchPage> {
     const start = startOf(page);
     const [body, allowed] = await Promise.all([
-      safeFetchJson(sepiaSearchUrl(words, start, deps.order), { allowedHosts: PT_SEARCH_HOSTS, fetchImpl: deps.fetch }),
+      safeFetchJson(sepiaSearchUrl(words, start, deps.order, deps.lang), { allowedHosts: PT_SEARCH_HOSTS, fetchImpl: deps.fetch }),
       allowedHosts(deps),
     ]);
     return parseSepia(body, start, allowed, (deps.now?.() ?? new Date()).toISOString());

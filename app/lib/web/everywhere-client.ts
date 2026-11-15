@@ -50,7 +50,7 @@ export async function searchEverywhere(
   provider?: WebPlatform,
   from: string | null = null,
   type = 'all',
-  extra: { vibe?: boolean; keyword?: number; order?: 'relevance' | 'popular' | 'newest' | 'oldest' } = {},
+  extra: { vibe?: boolean; keyword?: number; order?: 'relevance' | 'popular' | 'newest' | 'oldest'; lang?: string } = {},
 ): Promise<EverywherePage> {
   const params = new URLSearchParams({ q: query });
   if (provider !== undefined) params.set('provider', provider);
@@ -58,6 +58,8 @@ export async function searchEverywhere(
   if (extra.order !== undefined) params.set('order', extra.order);
   // VIBE (search-intent.ts) and, for KINO, a related TMDB keyword (related.ts).
   if (extra.vibe) params.set('vibe', 'on');
+  // LANGUAGE (M13): the sites that can be asked by language are; the page keeps only that language's rows from all of them.
+  if (extra.lang !== undefined) params.set('lang', extra.lang);
   if (extra.keyword !== undefined && Number.isInteger(extra.keyword) && extra.keyword > 0) params.set('keyword', String(extra.keyword));
   if (from !== null) params.set('from', from);
   if (type !== 'all') params.set('type', type);

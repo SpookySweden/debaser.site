@@ -30,6 +30,7 @@ import { gatewayUrl, IPFS_GATEWAYS } from '../../../books/ipfs';
 import { safeFetchJson } from '../../safe-fetch';
 import { iaSearchQuery, iaSearchUrl, IA_SEARCH_HOSTS, IA_SEARCH_TIMEOUT_MS, parseIaSearch } from './internet-archive';
 import { sanitiseText } from '../../sanitise';
+import { libraryCode, workLanguage } from '../../language';
 import { buildUrl } from '../../urls';
 import type { WebItem } from '../../types';
 import { SearchProblemError, type ProviderPage, type SearchDeps, type SearchKind, type SearchPage, type SearchProvider } from '../types';
@@ -41,8 +42,8 @@ export const BOOKS_SEARCH_HOSTS = [API_HOST] as const;
 export const LIBRARY_COLLECTIONS = ['americana', 'toronto', 'cdl', 'library_of_congress', 'europeanlibraries', 'universallibrary'] as const;
 
 /** The Archive search for BOOKS: the words in the title, the author as creator, library-scanned texts only. */
-export function libraryScanQuery(words: string, author = ''): string {
-  return `${iaSearchQuery(words, author, 'text')} AND collection:(${LIBRARY_COLLECTIONS.join(' OR ')})`;
+export function libraryScanQuery(words: string, author = '', lang?: string): string {
+  return `${iaSearchQuery(words, author, 'text', { lang })} AND collection:(${LIBRARY_COLLECTIONS.join(' OR ')})`;
 }
 export const BOOKS_PAGE_SIZE = 20;
 const MAX_PAGE = 25;
@@ -51,7 +52,8 @@ const EDITION_PATH = /^\/books\/(OL[1-9][0-9]{0,11}M)$/;
 const PG_NUMBER = /^[1-9][0-9]{0,6}$/;
 const BOOK_ID = /^(OL[1-9][0-9]{0,11}W)(?:-pg([1-9][0-9]{0,6}))?$/;
 /** What a work's row asks of Open Library's search (and the book's page, for one work). */
-export const BOOKS_FIELDS = 'key,title,author_name,first_publish_year,cover_i,ebook_access,id_project_gutenberg,edition_count';
+// `language` (Luke's list, 2026-11-14, M12: "make sure books also show their language"): every language the work's editions are in.
+export const BOOKS_FIELDS = 'key,title,author_name,first_publish_year,cover_i,ebook_access,id_project_gutenberg,edition_count,language';
 const FIELDS = BOOKS_FIELDS;
 
 /** A BOOKS item's two halves: its Open Library work, and its Project Gutenberg number when there is one. */
@@ -60,9 +62,12 @@ export function bookParts(externalId: string): { work: string; gutenberg: string
   return match ? { work: match[1], gutenberg: match[2] ?? null } : null;
 }
 
-export function booksSearchUrl(words: string, page: number, author = '', order: 'relevance' | 'newest' | 'oldest' = 'relevance'): string {
+/** `lang` (M13, a LANGUAGE filter): only works with an edition in that language, by Open Library's own `language:` field. */
+export function booksSearchUrl(words: string, page: number, author = '', order: 'relevance' | 'newest' | 'oldest' = 'relevance', lang?: string): string {
+  const code = lang === undefined ? null : libraryCode(lang);
+  const q = [words, code === null ? '' : `language:${code}`].filter((part) => part.length > 0).join(' ');
   return buildUrl(API_HOST, ['search.json'], [
-    ...(words.length > 0 ? ([['q', words]] as const) : []),
+    ...(q.length > 0 ? ([['q', q]] as const) : []),
     ...(author.length > 0 ? ([['author', author]] as const) : []),
     ['fields', FIELDS],
     ['limit', String(BOOKS_PAGE_SIZE)],
@@ -76,7 +81,7 @@ function strings(value: unknown): string[] {
 }
 
 /** One Open Library search document as a MEDIA row, or null (no work key, no title, no usable year). */
-export function toBookItem(doc: unknown, fetchedAt: string): WebItem | null {
+export function toBookItem(doc: unknown, fetchedAt: string, asked?: string): WebItem | null {
   if (!doc || typeof doc !== 'object') return null;
   const record = doc as Record<string, unknown>;
   const work = typeof record.key === 'string' ? WORK_KEY.exec(record.key)?.[1] : undefined;
@@ -103,6 +108,11 @@ export function toBookItem(doc: unknown, fetchedAt: string): WebItem | null {
     thumbnailUrl: cover ? `https://${COVER_HOST}/b/id/${cover}-M.jpg` : undefined,
     publishedAt: new Date(Date.UTC(year, 0, 1)).toISOString(),
     fetchedAt,
+    // Its language (M12): one its editions are in, the one a LANGUAGE filter asked for when it has it (language.ts `workLanguage`).
+    ...(() => {
+      const language = workLanguage(strings(record.language), title, asked);
+      return language === null ? {} : { language };
+    })(),
     // How many editions, and whether one is a free scan (Open Library's `ebook_access: public`), for the row's keys.
     book: { editions, ...(record.ebook_access === 'public' ? { scan: true } : {}) },
   };
@@ -221,8 +231,8 @@ export const booksSearch: SearchProvider = {
     const namedWorks = at === 1 ? findNamedWorks(words, author).map((work) => toNamedWorkItem(work, fetchedAt)) : [];
     // Both sources at once: Open Library's works, and the Archive's library scans.
     const [gutenberg, scans] = await Promise.allSettled([
-      safeFetchJson(booksSearchUrl(words, at, author, order), { allowedHosts: BOOKS_SEARCH_HOSTS, fetchImpl: deps.fetch }),
-      safeFetchJson(iaSearchUrl(libraryScanQuery(words, author), at, order), { allowedHosts: IA_SEARCH_HOSTS, fetchImpl: deps.fetch, timeoutMs: IA_SEARCH_TIMEOUT_MS }),
+      safeFetchJson(booksSearchUrl(words, at, author, order, deps.lang), { allowedHosts: BOOKS_SEARCH_HOSTS, fetchImpl: deps.fetch }),
+      safeFetchJson(iaSearchUrl(libraryScanQuery(words, author, deps.lang), at, order), { allowedHosts: IA_SEARCH_HOSTS, fetchImpl: deps.fetch, timeoutMs: IA_SEARCH_TIMEOUT_MS }),
     ]);
     if (gutenberg.status === 'rejected' && scans.status === 'rejected' && fromIpfs.length === 0 && namedWorks.length === 0) throw new SearchProblemError('NO ANSWER');
     let works: WebItem[] = [];
@@ -233,7 +243,7 @@ export const booksSearch: SearchProvider = {
       const docs = Array.isArray(record.docs) ? record.docs : [];
       // Every work found, in Open Library's own order, with a title-match bump (so "dune" finds Dune the novel first).
       works = docs
-        .map((doc) => toBookItem(doc, fetchedAt))
+        .map((doc) => toBookItem(doc, fetchedAt, deps.lang))
         .filter((item): item is WebItem => item !== null)
         .map((item, index) => ({ item, index, score: titleMatchScore(item.title, words) }))
         .sort((a, b) => b.score - a.score || a.index - b.index)

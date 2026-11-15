@@ -2,6 +2,7 @@ import { authorList, authorWords, matchesAuthor, MAX_AUTHORS } from './search';
 import { isMediaServerId } from './media-servers';
 import { PLATFORM_LABELS, STREAM_PLATFORMS, type WebItem, type WebItemKind, type WebPlatform } from './types';
 import { readSort, type SortChoice } from './web-sort';
+import { filterLanguage, inLanguage, languageName } from './language';
 
 // A media server's titles are saved rows too (SPEC-media-servers.md): read with the stream, never asked live.
 const streamPlatform = (platform: string) => (STREAM_PLATFORMS as readonly string[]).includes(platform) || isMediaServerId(platform);
@@ -28,7 +29,7 @@ const streamPlatform = (platform: string) => (STREAM_PLATFORMS as readonly strin
  * `?sort=date` or `?sort=date&dir=asc`. web-sort.ts says what each order means.
  */
 
-export type FilterKey = 'in' | 'type' | 'from' | 'vibe' | 'sort';
+export type FilterKey = 'in' | 'type' | 'from' | 'vibe' | 'sort' | 'lang';
 
 /** A sort as typed after `sort:`; BEST MATCH, the default (Luke, 2026-11-03), has no word. */
 export type SortWord = 'popular' | 'newest' | 'oldest';
@@ -135,9 +136,42 @@ export type WebSearch = {
   vibe?: true;
   /** `sort:` (the SORT keys and the flip key). Absent: BEST MATCH. */
   sort?: SortWord;
+  /** `lang:` (the LANGUAGE row; Luke's list, 2026-11-14, M13): a two-letter language. Absent: any language. */
+  lang?: string;
 };
 
-const FILTER = /(^|\s)(in|type|from|vibe|sort):("[^"]*"?|\S*)/gi;
+const FILTER = /(^|\s)(in|type|from|vibe|sort|lang):("[^"]*"?|\S*)/gi;
+
+/**
+ * The LANGUAGE row's keys (M13), the languages most of MEDIA's sources carry. Any other is typed: `lang:` takes a code
+ * (`lang:fi`), a library code (`lang:fin`) or its English name (`lang:finnish`).
+ */
+export const LANGUAGE_OPTIONS: readonly { value: string; label: string }[] = [
+  { value: 'en', label: 'ENGLISH' },
+  { value: 'es', label: 'SPANISH' },
+  { value: 'fr', label: 'FRENCH' },
+  { value: 'de', label: 'GERMAN' },
+  { value: 'it', label: 'ITALIAN' },
+  { value: 'pt', label: 'PORTUGUESE' },
+  { value: 'nl', label: 'DUTCH' },
+  { value: 'ru', label: 'RUSSIAN' },
+  { value: 'ja', label: 'JAPANESE' },
+  { value: 'zh', label: 'CHINESE' },
+  { value: 'ko', label: 'KOREAN' },
+  { value: 'ar', label: 'ARABIC' },
+];
+
+/** `lang:` as typed: a language, `all`/`any` to clear it (`'all'`), or null for no change. */
+function readLang(word: string): string | 'all' | null {
+  const wanted = word.trim().toLowerCase();
+  if (wanted === 'all' || wanted === 'any') return 'all';
+  return filterLanguage(wanted);
+}
+
+/** A language's name for the page: the key's label, else its English name in capitals. */
+export function languageLabel(lang: string): string {
+  return LANGUAGE_OPTIONS.find((option) => option.value === lang)?.label ?? languageName(lang).toUpperCase();
+}
 
 /** Words people will type after `sort:`; the default's words (`best`, `match`) clear it. Anything else: no change. */
 const SORT_WORDS: Readonly<Record<string, SortWord | 'best'>> = {
@@ -195,12 +229,14 @@ export function parseWebSearch(box: string): WebSearch {
   let type: TypeValue = 'all';
   let vibe = false;
   let sort: SortWord | 'best' = 'best';
+  let lang: string | 'all' = 'all';
   const authors: string[] = [];
   const text = box
     .replace(FILTER, (_whole, space: string, key: string, raw: string) => {
       const value = raw.replace(/^"|"$/g, '');
       const filter = key.toLowerCase();
-      if (filter === 'in') source = readSource(value) ?? source;
+      if (filter === 'lang') lang = readLang(value) ?? lang;
+      else if (filter === 'in') source = readSource(value) ?? source;
       else if (filter === 'type') type = readType(value) ?? type;
       else if (filter === 'vibe') vibe = readVibe(value) ?? vibe;
       else if (filter === 'sort') sort = readSortWord(value) ?? sort;
@@ -213,6 +249,7 @@ export function parseWebSearch(box: string): WebSearch {
   const search: WebSearch = kept.length > 0 ? { text, source, type, authors: kept } : { text, source, type };
   if (vibe) search.vibe = true;
   if (sort !== 'best') search.sort = sort;
+  if (lang !== 'all') search.lang = lang;
   return search;
 }
 
@@ -244,6 +281,7 @@ export function formatWebSearch(search: WebSearch): string {
     ...authorsOf(search).map((name) => `from:${authorWord(name)}`),
     search.vibe ? 'vibe:on' : '',
     search.sort ? `sort:${search.sort}` : '',
+    search.lang ? `lang:${search.lang}` : '',
   ]
     .filter((part) => part.length > 0)
     .join(' ');
@@ -252,7 +290,7 @@ export function formatWebSearch(search: WebSearch): string {
 /** A creator's name pressed on a row: everything from them, under the same SOURCE and TYPE, words dropped. */
 export function withAuthor(box: string, name: string): string {
   const search = parseWebSearch(box);
-  return formatWebSearch({ source: search.source, type: search.type, text: '', authors: keptAuthors([name]), ...(search.vibe ? { vibe: true as const } : {}), ...(search.sort ? { sort: search.sort } : {}) });
+  return formatWebSearch({ source: search.source, type: search.type, text: '', authors: keptAuthors([name]), ...(search.vibe ? { vibe: true as const } : {}), ...(search.sort ? { sort: search.sort } : {}), ...(search.lang ? { lang: search.lang } : {}) });
 }
 
 /** `[ × NAME ]` on a chosen creator: the box without that `from:`, everything else untouched. */
@@ -271,7 +309,7 @@ export function withoutFilters(box: string): string {
 
 /** Whether a box sets any filter at all (RESET has nothing to do otherwise). */
 export function hasFilters(search: WebSearch): boolean {
-  return search.source !== 'all' || search.type !== 'all' || authorsOf(search).length > 0 || search.vibe === true || search.sort !== undefined;
+  return search.source !== 'all' || search.type !== 'all' || authorsOf(search).length > 0 || search.vibe === true || search.sort !== undefined || search.lang !== undefined;
 }
 
 /**
@@ -319,6 +357,10 @@ export function withFilter(box: string, key: FilterKey, value: string): string {
     const word = readSortWord(value);
     if (word === null || word === 'best') delete search.sort;
     else search.sort = word;
+  } else if (key === 'lang') {
+    const lang = readLang(value);
+    if (lang === null || lang === 'all') delete search.lang;
+    else search.lang = lang;
   } else search.type = readType(value) ?? 'all';
   return formatWebSearch(search);
 }
@@ -331,6 +373,7 @@ export function searchAddress(search: WebSearch): string {
   if (search.type !== 'all') params.set('type', search.type);
   for (const name of authorsOf(search)) params.append('from', name);
   if (search.vibe) params.set('vibe', 'on');
+  if (search.lang) params.set('lang', search.lang);
   const choice = sortOf(search);
   if (choice.sort === 'popular') params.set('sort', 'popular');
   else if (choice.sort === 'date') {
@@ -350,6 +393,10 @@ export function boxFromAddress(params: { get(name: string): string | null; getAl
     authors: keptAuthors((params.getAll?.('from') ?? []).map((name) => name.slice(0, 100))),
     ...(readVibe(params.get('vibe') ?? '') === true ? { vibe: true as const } : {}),
     ...withSortWord(readSort(params.get('sort'), params.get('dir'))),
+    ...(() => {
+      const lang = readLang(params.get('lang') ?? '');
+      return lang === null || lang === 'all' ? {} : { lang };
+    })(),
   });
 }
 
@@ -391,11 +438,13 @@ export function anchorsWildcard(only: string | null, hasFirstProvider: boolean):
 
 /** Whether a row belongs in the list under the filters. `fromStream`: it came from the stream, not a live search. */
 export function matchesFilters(
-  item: Pick<WebItem, 'platform' | 'kind' | 'creator' | 'media'>,
-  search: Pick<WebSearch, 'source' | 'type' | 'authors'>,
+  item: Pick<WebItem, 'platform' | 'kind' | 'creator' | 'media'> & Partial<Pick<WebItem, 'title' | 'description' | 'language'>>,
+  search: Pick<WebSearch, 'source' | 'type' | 'authors' | 'lang'>,
   fromStream: boolean,
 ): boolean {
   if (search.type !== 'all' && item.kind !== search.type) return false;
+  // LANGUAGE (M13): a row whose language is known and is the one asked; for English, also a row that says none (language.ts).
+  if (search.lang !== undefined && !inLanguage({ ...item, title: item.title ?? '' }, search.lang)) return false;
   const authors = authorList(authorsOf(search));
   if (authors !== null && !matchesAuthor(item, authors)) return false;
   if (search.source === 'all') return true;
@@ -440,6 +489,11 @@ export function suggestFilterValues(key: FilterKey, partial: string, creators: r
       { word: 'oldest', label: 'OLDEST FIRST' },
     ].filter((option) => wanted.length === 0 || option.word.startsWith(wanted));
   }
+  if (key === 'lang') {
+    return LANGUAGE_OPTIONS.map((option) => ({ word: option.value, label: option.label })).filter(
+      (option) => wanted.length === 0 || option.word.startsWith(wanted) || option.label.toLowerCase().startsWith(wanted),
+    );
+  }
   if (key === 'vibe') {
     return [
       { word: 'on', label: 'MOOD AND TAG WORDS' },
@@ -456,7 +510,7 @@ export function suggestFilterValues(key: FilterKey, partial: string, creators: r
 /** The filter whose value the caret is in (`in:you|`), with where that value sits, or null. */
 export function activeFilter(box: string, caret: number): { key: FilterKey; partial: string; start: number; end: number } | null {
   // A creator may be quoted with spaces in it (`from:"rick pre|`); the other values are one word.
-  const pattern = /(?:^|\s)(in|type|from|vibe|sort):("[^"]*"?|\S*)/gi;
+  const pattern = /(?:^|\s)(in|type|from|vibe|sort|lang):("[^"]*"?|\S*)/gi;
   for (let match = pattern.exec(box); match !== null; match = pattern.exec(box)) {
     const start = match.index + match[0].indexOf(':') + 1;
     const end = start + match[2].length;

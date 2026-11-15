@@ -23,6 +23,7 @@ import PlayerBox, { PipKey, usePlayingHere } from './PlayerBox';
 import SplitKey, { type Half } from './SplitKey';
 import { useQueueHalf } from './QueueHalf';
 import { LetterPlaylistKey, ThumbOpen } from './WebRowKeys';
+import FeedbackKey from './FeedbackKey';
 import Link from 'next/link';
 import { isReadable } from '../lib/books/types';
 import { editionCount } from '../lib/books/editions';
@@ -35,6 +36,8 @@ import {
   boxFromAddress,
   formatWebSearch,
   hasFilters,
+  LANGUAGE_OPTIONS,
+  languageLabel,
   matchesFilters,
   parseWebSearch,
   searchAddress,
@@ -61,6 +64,7 @@ import { isShort } from '../lib/web/shorts';
 import { useHiddenShort } from '../lib/web/use-hidden-short';
 import { useAuth } from './AuthProvider';
 import { useMediaView, viewLabel, viewListClass, type MediaView } from '../lib/web/media-view';
+import { forgetMedia, keepMedia, keptFor } from '../lib/web/media-keep';
 import WebViewKey from './WebViewKey';
 import { hiddenKeys, keyOf, tasteFromHistory } from '../lib/recommender/engine';
 import { useHistoryRows } from '../lib/recommender/use-history';
@@ -149,7 +153,7 @@ const TITLE_CLASS: Record<MediaView, string> = {
 const MISSING_THUMB_SRC = `/${artSlot('web-thumb-missing')?.path ?? 'assets/web/thumb-missing.png'}`;
 
 /** The SOURCE, TYPE, `from:`, VIBE and SORT filters a list is shown under (web-filters.ts). */
-type Filters = Pick<WebSearch, 'source' | 'type' | 'authors' | 'vibe' | 'sort'>;
+type Filters = Pick<WebSearch, 'source' | 'type' | 'authors' | 'vibe' | 'sort' | 'lang'>;
 
 /**
  * What the list shows: the stream (no words; filtered when filters are set), one search (the saved stream and
@@ -181,6 +185,7 @@ function requestFor(box: string): Shown {
     ...(parsed.authors ? { authors: parsed.authors } : {}),
     ...(parsed.vibe ? { vibe: true as const } : {}),
     ...(parsed.sort ? { sort: parsed.sort } : {}),
+    ...(parsed.lang ? { lang: parsed.lang } : {}),
   };
   const query = searchText(parsed.text);
   // A creator alone is a search too: every source is asked for their items.
@@ -215,6 +220,7 @@ function filtersInWords(search: WebSearch, art: boolean): string {
     typeInWords(search.type),
     ...(authors.length > 0 ? [`FROM ${authors.join(' OR ').toUpperCase()}`] : []),
     ...(search.vibe ? ['MOOD SEARCH ON'] : []),
+    ...(search.lang ? [`IN ${languageLabel(search.lang)}`] : []),
     orderLabel(sortOf(search)),
   ].join(', ');
 }
@@ -233,7 +239,7 @@ const PICKS: readonly { value: 'recommended' | 'discover' | null; label: string;
   { value: 'discover', label: 'DISCOVER', line: 'ODDER FINDS THAT FIT YOUR DISCOVER SETTINGS.' },
 ];
 
-const FOLD_IDS = ['media-filters', 'media-view', 'media-filter-picks', 'media-filter-source', 'media-filter-type', 'media-filter-order', 'media-filter-vibe', 'media-filter-creator', 'media-filter-view'];
+const FOLD_IDS = ['media-filters', 'media-view', 'media-order','media-filter-picks', 'media-filter-source', 'media-filter-type', 'media-filter-order', 'media-filter-vibe', 'media-filter-creator', 'media-filter-view'];
 
 /**
  * The quick picks at the top of the FILTERS panel (Luke, 2026-11-14: "more optimised"): the commonest choices in one press
@@ -327,7 +333,39 @@ function readSource(source: Source, what: Shown, after: string | null, keyword?:
     vibe: what.filters.vibe === true,
     ...(keyword !== undefined ? { keyword } : {}),
     ...(order !== undefined ? { order } : {}),
+    ...(what.filters.lang !== undefined ? { lang: what.filters.lang } : {}),
   });
+}
+
+/** What MEDIA leaves in media-keep.ts when it goes (M14): enough to draw it again as it was, with nothing asked. */
+type KeptMedia = {
+  art: boolean;
+  home: boolean;
+  picked: 'recommended' | 'discover' | null;
+  draft: string;
+  shown: Shown;
+  list: LiveList;
+  pulls: number;
+  toppedUp: boolean;
+  liveIds: ReadonlySet<string>;
+  cursors: Partial<Record<Source, string>>;
+  problems: ProviderLine[];
+  linkOutcome: LinkOutcome | null;
+  failed: boolean;
+  refusal: string | null;
+  related: Related | null;
+  firstRoundDone: boolean;
+  tried: ReadonlySet<string>;
+  mineShown: number;
+};
+
+/** The box the page scrolls in: the nearest parent that scrolls, else the page itself. */
+function scrollBox(from: HTMLElement | null): HTMLElement {
+  for (let node = from?.parentElement ?? null; node !== null; node = node.parentElement) {
+    const overflow = getComputedStyle(node).overflowY;
+    if ((overflow === 'auto' || overflow === 'scroll') && node.scrollHeight > node.clientHeight) return node;
+  }
+  return (document.scrollingElement as HTMLElement | null) ?? document.documentElement;
 }
 
 /** How many rows LOAD MORE adds by date before it stops asking (one page's worth). */
@@ -348,44 +386,49 @@ function pickSortOf(filters: Parameters<typeof sortOf>[0]): 'best' | 'newest' | 
 
 export default function WebStream() {
   const params = useSearchParams();
+  // M14 (Luke's list, 2026-11-14: "retains the way it was when you switch around tabs"): coming back to MEDIA at the address
+  // it left, or at plain /media, shows what it showed, at once, with nothing asked (media-keep.ts). Read once, in the browser.
+  const [restored] = useState(() => (typeof window === 'undefined' ? null : keptFor<KeptMedia>(params.toString())));
+  const back = restored?.state;
   /** STREAM ART (SPEC-stream-art.md): the saved room canvases instead of the stream (`?art=1`). Any search leaves it. */
-  const [art, setArt] = useState(() => params.get('art') === '1');
+  const [art, setArt] = useState(() => back?.art ?? params.get('art') === '1');
   /** YOUR YOUTUBE's own view (Luke, 2026-11-14: "the youtube homepage as header options"), `?home=youtube`. Any search leaves it. */
-  const [home, setHome] = useState(() => params.get('home') === 'youtube');
+  const [home, setHome] = useState(() => back?.home ?? params.get('home') === 'youtube');
   const { user } = useAuth();
   // RECOMMENDED and DISCOVER (SPEC-discover.md): lists in their own right, blank until the pool is large enough.
   const [picked, setPicked] = useState<'recommended' | 'discover' | null>(() => {
+    if (back !== undefined) return back.picked;
     const list = params.get('list');
     return list === 'recommended' || list === 'discover' ? list : null;
   });
   /** What is in the field (the one truth for the filters too), and what the list shows. */
-  const [draft, setDraft] = useState(() => boxFromAddress(params));
-  const [shown, setShown] = useState<Shown>(() => requestFor(boxFromAddress(params)));
+  const [draft, setDraft] = useState(() => back?.draft ?? boxFromAddress(params));
+  const [shown, setShown] = useState<Shown>(() => back?.shown ?? requestFor(boxFromAddress(params)));
   /** The rows, as they arrive from each source (live-merge.ts: once each, nothing moving under the reader). */
-  const [list, setList] = useState<LiveList>(() => emptyLive(orderFor(requestFor(boxFromAddress(params)))));
+  const [list, setList] = useState<LiveList>(() => back?.list ?? emptyLive(orderFor(requestFor(boxFromAddress(params)))));
   /** By date, LOAD MORE keeps asking the source holding rows back until this many rows show (null: not loading). */
   const [target, setTarget] = useState<number | null>(null);
   /** Pages asked by date for this search (`MAX_PULLS` per LOAD MORE); `null` once the first top-up is spent. */
-  const [pulls, setPulls] = useState(0);
-  const [toppedUp, setToppedUp] = useState(false);
+  const [pulls, setPulls] = useState(() => back?.pulls ?? 0);
+  const [toppedUp, setToppedUp] = useState(() => back?.toppedUp ?? false);
   /** The sources a by-date top-up has just asked (the effect below sends the requests). */
   const [pulled, setPulled] = useState<{ sources: Source[] } | null>(null);
   /** The pages being asked for are the reader's own LOAD MORE (focus moves to the first new row), not a top-up. */
   const readerAsked = useRef(false);
   /** Results found live rather than read from the stream: opening one asks for it to be saved. */
-  const [liveIds, setLiveIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [liveIds, setLiveIds] = useState<ReadonlySet<string>>(() => back?.liveIds ?? new Set());
   /** Bumped by every new search, so a slow answer to an old one is dropped rather than shown. */
   const generation = useRef(0);
   /** Each source's next page; a source with none has no more. */
-  const [cursors, setCursors] = useState<Partial<Record<Source, string>>>({});
+  const [cursors, setCursors] = useState<Partial<Record<Source, string>>>(() => back?.cursors ?? {});
   /** The sources still being asked, in the order they were asked. */
-  const [asking, setAsking] = useState<Source[]>(() => sourcesFor(requestFor(boxFromAddress(params))));
+  const [asking, setAsking] = useState<Source[]>(() => (back !== undefined ? [] : sourcesFor(requestFor(boxFromAddress(params)))));
   /** One plain line per live source that failed ("OPENVERSE: NO ANSWER"); a pasted link's outcome. */
-  const [problems, setProblems] = useState<ProviderLine[]>([]);
-  const [linkOutcome, setLinkOutcome] = useState<LinkOutcome | null>(null);
+  const [problems, setProblems] = useState<ProviderLine[]>(() => back?.problems ?? []);
+  const [linkOutcome, setLinkOutcome] = useState<LinkOutcome | null>(() => back?.linkOutcome ?? null);
   /** The stream itself could not be read; or the route's own refusal ("Too many searches..."). */
-  const [failed, setFailed] = useState(false);
-  const [refusal, setRefusal] = useState<string | null>(null);
+  const [failed, setFailed] = useState(() => back?.failed ?? false);
+  const [refusal, setRefusal] = useState<string | null>(() => back?.refusal ?? null);
   /** PeerTube instances from the public index, read once some row needs them (`rowAddresses`). */
   const [peertubeHosts, setPeertubeHosts] = useState<readonly string[]>([]);
   /** What a screen reader is told when more rows arrive; the visible list is the sighted reader's answer. */
@@ -397,9 +440,9 @@ export default function WebStream() {
   const [suggesting, setSuggesting] = useState(false);
   const [highlight, setHighlight] = useState(0);
   /** "Did you mean" and related topics for the search shown (related.ts), once they arrive. */
-  const [related, setRelated] = useState<Related | null>(null);
+  const [related, setRelated] = useState<Related | null>(() => back?.related ?? null);
   /** Every source has answered the search's first page once: only then may a related section load. */
-  const [firstRoundDone, setFirstRoundDone] = useState(false);
+  const [firstRoundDone, setFirstRoundDone] = useState(() => back?.firstRoundDone ?? false);
   /** What this reader has opened in this browser, read once so the list holds still while they look at it. */
   const [savedTaste] = useState(readTaste);
   /** A linked YouTube account's uploads and likes (youtube-link.ts), which also teach this visit's order. */
@@ -407,7 +450,7 @@ export default function WebStream() {
   /** Its subscribed channels, their topics and its playlists' names (youtube-mine.ts): they teach the order too. */
   const [mineSignals, setMineSignals] = useState<YouTubeSignals>(NO_SIGNALS);
   /** How many of its videos the YOUR YOUTUBE shelf shows: six, and six more each [ MORE ]. */
-  const [mineShown, setMineShown] = useState(MINE_STEP);
+  const [mineShown, setMineShown] = useState(() => back?.mineShown ?? MINE_STEP);
   const [mineNeedsLink, setMineNeedsLink] = useState(false);
   /** The channel names, for `subscribedFirst` while a search's rows arrive (read from a ref, so asking never restarts). */
   const subscribed = useRef<ReadonlySet<string>>(new Set());
@@ -454,13 +497,14 @@ export default function WebStream() {
   };
   const [openedAt] = useState(() => Date.now());
   /** The words already tried for this filter when the stream had nothing (recommend.ts `pickSeed`). */
-  const [tried, setTried] = useState<ReadonlySet<string>>(() => new Set());
+  const [tried, setTried] = useState<ReadonlySet<string>>(() => back?.tried ?? new Set());
   /** The site's own files the search finds (DEBASER.SITE), from the catalogue the whole site shares. */
   const catalogue = useCatalogue();
   // The tagged catalogue's rows for this search: their own request, so the outside sites are neither waited on nor slowed.
-  const finds = useCatalogueFinds(shown.kind === 'search' ? { query: shown.query, source: shown.filters.source, type: shown.filters.type, authors: authorsOf(shown.filters) } : null);
+  const finds = useCatalogueFinds(shown.kind === 'search' && (shown.filters.lang ?? 'en') === 'en' ? { query: shown.query, source: shown.filters.source, type: shown.filters.type, authors: authorsOf(shown.filters) } : null);
   const siteFiles = useMemo(
-    () => (shown.kind === 'search' ? siteFileMatches(catalogue.entries, { query: shown.query, filters: shown.filters }) : []),
+    // The site's own files say no language, so they count as English (language.ts `inLanguage`): another LANGUAGE hides them.
+    () => (shown.kind === 'search' && (shown.filters.lang ?? 'en') === 'en' ? siteFileMatches(catalogue.entries, { query: shown.query, filters: shown.filters }) : []),
     [catalogue.entries, shown],
   );
 
@@ -591,13 +635,57 @@ export default function WebStream() {
     [start],
   );
 
-  // The first answer: the address's search, or the stream. The state above already starts as "asking" them.
+  // The first answer: the address's search, or the stream. The state above already starts as "asking" them. Back on the page
+  // as it was left (M14): nothing is asked; plain /media takes back the address it left at, and the page its scroll.
+  const root = useRef<HTMLElement>(null);
   useEffect(() => {
+    if (restored !== null) {
+      if (params.toString() === '' && restored.address !== '') window.history.replaceState(window.history.state, '', `?${restored.address}`);
+      const box = scrollBox(root.current);
+      let tries = 0;
+      // The router may scroll to the top after the page is drawn: set the place again for a few frames until it holds.
+      const put = () => {
+        box.scrollTop = restored.scroll;
+        tries += 1;
+        if (tries < 10) window.requestAnimationFrame(put);
+      };
+      window.requestAnimationFrame(put);
+      // RELATED and DID YOU MEAN had not answered when the page went: asked for again (only they; askRelated skips a non-search).
+      if (restored.state.related === null) askRelated(generation.current, restored.state.shown);
+      return;
+    }
     for (const source of sourcesFor(shown)) ask(generation.current, source, shown, null, false);
     askRelated(generation.current, shown);
     // Once, for what the page opened with; later searches go through restart.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ask, askRelated]);
+
+  // M14: what the page shows, kept up to date, and left in media-keep.ts when the page goes (unless a source is still being
+  // asked: half a list is not "as it was"). The address and the scroll are read while the page is here.
+  const latest = useRef<{ state: KeptMedia; asking: number; address: string; scroll: number } | null>(null);
+  useEffect(() => {
+    const address = window.location.pathname === '/media' ? window.location.search.replace(/^\?/, '') : (latest.current?.address ?? '');
+    latest.current = {
+      state: { art, home, picked, draft, shown, list, pulls, toppedUp, liveIds, cursors, problems, linkOutcome, failed, refusal, related, firstRoundDone, tried, mineShown },
+      asking: asking.length,
+      address,
+      scroll: latest.current?.scroll ?? 0,
+    };
+  });
+  useEffect(() => {
+    // Any scroll on the page, read from whichever box scrolls now: on a fresh search the list is empty when this starts, so
+    // the box can only be known once there is something to scroll (scroll events don't bubble, but a capturing listener hears them).
+    const note = () => {
+      if (latest.current !== null) latest.current.scroll = scrollBox(root.current).scrollTop;
+    };
+    document.addEventListener('scroll', note, { capture: true, passive: true });
+    return () => {
+      document.removeEventListener('scroll', note, { capture: true });
+      const last = latest.current;
+      if (last !== null && last.asking === 0) keepMedia<KeptMedia>({ address: last.address, at: Date.now(), scroll: last.scroll, state: last.state });
+      else forgetMedia();
+    };
+  }, []);
 
   // Once the reader scrolls or presses anything in a list that has rows, later arrivals wait behind
   // "N MORE RESULTS" instead of slotting in above what they are looking at.
@@ -966,7 +1054,7 @@ export default function WebStream() {
   const yearWord = shown.kind === 'search' ? splitYear(shown.query).year : null;
 
   return (
-    <section aria-label="Media stream">
+    <section ref={root} aria-label="Media stream">
       <form role="search" aria-label="Search media" onSubmit={submit} className="mb-1 flex flex-wrap items-center gap-2">
         <label htmlFor="web-search" className="text-label font-bold text-ink">
           SEARCH:
@@ -1061,6 +1149,11 @@ export default function WebStream() {
           <button type="button" onClick={() => toggleFold('media-view')} aria-expanded={folds.has('media-view')} aria-controls="media-view-panel" className={FOLD_KEY} data-view-toggle>
             {`[ VIEW: ${viewLabel(view)} ]`}
           </button>
+          {/* ORDER, its own key to the right of VIEW (Luke, 2026-11-14: "make the order settings be a separate expandable button to
+              the right of view and filters"): it says the order, and folds its four choices open under this row. */}
+          <button type="button" onClick={() => toggleFold('media-order')} aria-expanded={folds.has('media-order')} aria-controls="media-order-panel" className={FOLD_KEY} data-order-toggle>
+            {`[ ORDER: ${orderLabel(boxSort)} ]`}
+          </button>
           <p className="text-key text-ink wrap-anywhere">
             <span className="text-accent-ink">SHOWING: </span>
             {home ? 'YOUR YOUTUBE' : filtersInWords(boxFilters, art)}
@@ -1074,6 +1167,17 @@ export default function WebStream() {
         </div>
         <div id="media-view-panel" hidden={!folds.has('media-view')} className="py-1">
           <WebViewKey />
+        </div>
+        {/* ORDER's choices, one to a line (SPEC-web-sort.md): a press on the order already chosen asks nothing (pickFilter). */}
+        <div id="media-order-panel" role="group" aria-label="Order" hidden={!folds.has('media-order')} className="flex flex-col items-start gap-1 py-1" data-order-panel>
+          {ORDER_KEYS.map((key) => {
+            const on = boxSort.sort === key.choice.sort && boxSort.dir === key.choice.dir;
+            return (
+              <button key={key.label} type="button" onClick={() => pickSort(key.choice)} aria-pressed={on} aria-label={`Order: ${key.label}`} className={on ? FILTER_KEY_ON : FILTER_KEY}>
+                {on ? key.label : `[ ${key.label} ]`}
+              </button>
+            );
+          })}
         </div>
         <div id="media-filters-panel" data-filter-panel hidden={!folds.has('media-filters')}>
           <div role="group" aria-label="Quick picks" className="flex flex-wrap items-center gap-1 py-1" data-quick-picks>
@@ -1137,17 +1241,24 @@ export default function WebStream() {
               </button>
             ))}
           </FilterRow>
-          {/* ORDER (SPEC-web-sort.md): the order a search is shown in. DATE's two directions are two plain keys. */}
-          <FilterRow label="ORDER">
-            {ORDER_KEYS.map((key) => {
-              const on = boxSort.sort === key.choice.sort && boxSort.dir === key.choice.dir;
+          {/* LANGUAGE (Luke's list, 2026-11-14, M13: "allow search by language among the filters"), typed `lang:fr` too. The
+              Archive, BOOKS and PeerTube are asked for it; every other source's rows show only when their language is known
+              (language.ts `inLanguage`), which the line under the keys says. */}
+          <FilterRow label="LANGUAGE">
+            {[{ value: 'all', label: 'ANY' }, ...LANGUAGE_OPTIONS].map((option) => {
+              const on = (boxFilters.lang ?? 'all') === option.value;
               return (
-                <button key={key.label} type="button" onClick={() => pickSort(key.choice)} aria-pressed={on} aria-label={`Order: ${key.label}`} className={on ? FILTER_KEY_ON : FILTER_KEY}>
-                  {on ? key.label : `[ ${key.label} ]`}
+                <button key={option.value} type="button" onClick={() => pickFilter('lang', option.value)} aria-pressed={on} aria-label={`Language: ${option.label}`} className={on ? FILTER_KEY_ON : FILTER_KEY} data-lang-key={option.value}>
+                  {on ? option.label : `[ ${option.label} ]`}
                 </button>
               );
             })}
+            {boxFilters.lang !== undefined && !LANGUAGE_OPTIONS.some((option) => option.value === boxFilters.lang) ? (
+              <span className={FILTER_KEY_ON}>{languageLabel(boxFilters.lang)}</span>
+            ) : null}
+            <span className="text-label text-ink-quiet">ARCHIVE, BOOKS AND PEERTUBE ARE ASKED; OTHER SITES SHOW A ROW ONLY WHEN ITS LANGUAGE IS KNOWN</span>
           </FilterRow>
+          {/* ORDER has its own key beside VIEW (Luke, 2026-11-14), so it is not a row here. */}
           {/* MOOD SEARCH (VIBE): mood and tag words ("cosy", "80s horror") instead of exact words (search-intent.ts). */}
           <FilterRow label="MOOD SEARCH">
             {(['off', 'on'] as const).map((value) => {
@@ -1173,7 +1284,7 @@ export default function WebStream() {
         </div>
       </div>
 
-      {home ? youtubeHome() : picked !== null && !art ? <WebPickedList list={picked} sort={pickSortOf(boxFilters)} filters={boxFilters} renderRow={(item) => renderRow({ ...item, alsoOn: [] } as WebStreamItem)} /> : art ? <StreamArtShelf /> : <>
+      {home ? youtubeHome() : picked !== null && !art ? <WebPickedList key={boxFilters.lang ?? 'any'} list={picked} sort={pickSortOf(boxFilters)} filters={boxFilters} renderRow={(item) => renderRow({ ...item, alsoOn: [] } as WebStreamItem)} /> : art ? <StreamArtShelf /> : <>
       {/* DEBASER.SITE first: the site's own files the search finds. Keyed by the search, so ALL n FILES starts shut. */}
       {shown.kind === 'search' ? <WebSiteFiles key={searchAddress({ ...shown.filters, text: shown.query })} matches={siteFiles} /> : null}
 
@@ -1651,6 +1762,9 @@ ${item.description}` : item.title)} className="ml-1.5" />
               {full ? <LetterPlaylistKey letter={{ kind: 'web', ref: item.id, title: item.title, picture: addresses.thumb ?? undefined }} playlist={playlistThing} /> : null}
               {/* The bridges (Phase 5): the item's forum thread, now a small pen (M6). */}
               {full && (!found || SAVE_OPENED) ? <WebDiscussKey item={item} onOpen={opened} short /> : null}
+              {/* NOT FOR ME, SHOW LESS FROM THIS CHANNEL, MORE LIKE THIS (the YOUR YOUTUBE session's key, Luke 2026-11-14:
+                  "a single expandable clear button"), last on the line; it draws nothing signed out. */}
+              {full ? <FeedbackKey item={{ kind: 'media', ref: item.id, title: item.title, maker: item.creator ?? '', words: [...(item.tags ?? []), ...(item.pickWords ?? [])] }} why={null} /> : null}
               {!full ? null : item.platform === 'books' ? (
                 <Link href={bookPage} aria-label={`Editions of "${item.title}": every one Open Library lists`} className={PLATE}>
                   [ EDITIONS ]

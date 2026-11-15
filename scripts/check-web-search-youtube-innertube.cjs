@@ -119,7 +119,10 @@ async function problemOf(work) {
   });
   ok(counts.length >= 12 && counts.some((count) => /views/.test(count)), `the fixture's view counts and lengths (${counts.slice(0, 3).join(' | ')} ...)`);
   for (const count of counts) ok(!out.includes(count), `... "${count}" reaches no item`);
-  ok(page.items.every((item) => Object.keys(item).sort().join() === ['canonicalUrl', 'creator', 'description', 'embedUrl', 'externalId', 'fetchedAt', 'id', 'kind', 'platform', 'publishedAt', 'thumbnailUrl', 'title', 'url'].filter((k) => k !== 'description' || item.description !== undefined).sort().join()), 'exactly the metadata fields');
+  // Updated on purpose 2026-11-14 (the Shorts check, shorts-check.ts): a video's length is kept when YouTube shows one, so only
+  // a video of three minutes or less is asked about. Duration is one of MEDIA's allowed fields (CLAUDE.md); still no counts.
+  ok(page.items.every((item) => Object.keys(item).sort().join() === ['canonicalUrl', 'creator', 'description', 'durationSeconds', 'embedUrl', 'externalId', 'fetchedAt', 'id', 'kind', 'platform', 'publishedAt', 'thumbnailUrl', 'title', 'url'].filter((k) => (k !== 'description' || item.description !== undefined) && (k !== 'durationSeconds' || item.durationSeconds !== undefined)).sort().join()), 'exactly the metadata fields');
+  ok(page.items.some((item) => Number.isInteger(item.durationSeconds) && item.durationSeconds > 0), "a video's length is read from its clock (4:05)");
   const first = page.items[0];
   same([first.title, first.creator, first.url, first.thumbnailUrl, first.embedUrl], ['The Night of the Living Dead Full Film 4K Remaster', 'Mortons Movie Reviews', 'https://youtu.be/YcixZ89-9Ac', 'https://i.ytimg.com/vi/YcixZ89-9Ac/hqdefault.jpg', 'https://www.youtube-nocookie.com/embed/YcixZ89-9Ac'], 'title, channel, and addresses built from the id (the nocookie player)');
   same(first.publishedAt, '2025-10-31T12:00:00.000Z', '"1 year ago": a year before it was read');
@@ -213,7 +216,10 @@ async function problemOf(work) {
   // Updated on purpose 2026-11-14 (Luke: "remove youtube shorts from results"): the video's link is read in one place, only
   // to leave a Short out (it opens the Shorts player at a /shorts/ page); nothing of it is copied into an item.
   const code = source.replace(/\/\*\*[\s\S]*?\*\/|\/\/.*$/gm, '');
-  ok(!/viewCount|shortViewCount|lengthText|badges|thumbnail\b|url\b.*videoRenderer/.test(code), 'the reader never touches views, lengths, badges or thumbnails');
+  // Updated on purpose 2026-11-14 (the Shorts check): the length is read in one place (`lengthText`), as `durationSeconds`, so only
+  // a video of three minutes or less is asked about as a possible Short. Duration is an allowed field; views and badges never are.
+  ok(!/viewCount|shortViewCount|badges|thumbnail\b|url\b.*videoRenderer/.test(code), 'the reader never touches views, badges or thumbnails');
+  ok((code.match(/lengthText/g) ?? []).length === 1 && /clockSeconds\(text\(video\.lengthText\)\)/.test(code), '... and reads the length in one place, as seconds');
   ok((code.match(/navigationEndpoint/g) ?? []).length === 1 && /const opens = record\(video\.navigationEndpoint\);/.test(code) && /if \(opens\?\.reelWatchEndpoint !== undefined\) return null;/.test(code), '... and reads the link only to leave a Short out');
   ok(!/invidious|piped/i.test(source + readFileSync(join(ROOT, 'app/lib/web/search/providers/youtube.ts'), 'utf8')), 'no Invidious or Piped');
 
