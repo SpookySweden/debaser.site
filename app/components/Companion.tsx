@@ -71,6 +71,10 @@ import { useAuth } from './AuthProvider';
 import CompanionReactions from './CompanionReactions';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import NoteTrail from './NoteTrail';
+import SpeechBubble from './SpeechBubble';
+import { blip } from '../lib/speech/blip';
+import { SPEECH_PACE } from '../lib/speech/script';
+import { voiceFor } from '../lib/speech/voice';
 import SpriteSlot from './SpriteSlot';
 
 /**
@@ -440,6 +444,46 @@ type FigureProps = {
   look: Look;
 };
 
+/**
+ * What a companion says: its owner's own line of a stream room's chat, in a bubble over its head that moves with it
+ * (SPEC-character-speech.md; Luke, 2026-11-14: "Both at once", and of stream rooms: "A: Yes, that"). The words come
+ * with `companionSpoke`, from the chat line this browser already has, so nothing is sent to anybody. A newer line from
+ * the same person takes the older one's place. With the audio key on, each letter blips in that character's own voice.
+ * Hidden from a screen reader: the chat itself is where the line is read.
+ */
+function CompanionSpeech({ ownerId, name, look }: { ownerId: string; name: string; look: Look }) {
+  const reduced = useReducedMotion();
+  const [said, setSaid] = useState<{ turn: number; text: string } | null>(null);
+  const turns = useRef(0);
+  useEffect(
+    () =>
+      onCompanionSpoke((who, words) => {
+        if (who !== ownerId || words === undefined || words.trim().length === 0) return;
+        turns.current += 1;
+        setSaid({ turn: turns.current, text: words });
+      }),
+    [ownerId],
+  );
+  if (said === null) return null;
+  const size = sizeOf(look);
+  return (
+    <SpeechBubble
+      key={said.turn}
+      line={{ id: `chat:${ownerId}:${said.turn}`, speakerId: ownerId, text: said.text, target: { kind: 'none' } }}
+      name={name}
+      at={{ x: 0, w: size.w, h: size.h }}
+      within={0}
+      free
+      // Until the browser has said whether it may move, it does not: the line is shown whole.
+      whole={reduced !== false}
+      wholeForMs={SPEECH_PACE.pageMs + said.text.length * SPEECH_PACE.letterMs}
+      onDone={() => setSaid(null)}
+      onOpenHere={() => undefined}
+      onLetter={(letter) => blip(voiceFor(ownerId, look === null ? null : look.sheet.floor), letter)}
+    />
+  );
+}
+
 /** One figure on the strip: the character (or the placeholder field), its name on hover, and the `!` over its head. */
 function Figure({ placeRef, bodyRef, markRef, label, own, ownerId, look }: FigureProps) {
   const size = sizeOf(look);
@@ -472,6 +516,8 @@ function Figure({ placeRef, bodyRef, markRef, label, own, ownerId, look }: Figur
       {/* Colourful music notes while it dances (Luke, 2026-11-13) and little `z`s while it sleeps (2026-11-14), from
           about where its sunk head is: text, not art, and none under reduced motion. */}
       <NoteTrail watch={placeRef} sleepAt={look === null ? size.h : Math.round((size.h - look.sheet.head * SCALE) * 0.6)} />
+      {/* What its owner has just said in a stream room's chat, when the chat hands the words over. */}
+      {ownerId === null ? null : <CompanionSpeech ownerId={ownerId} name={label} look={look} />}
       {/* The `!`: text, not art (SPEC-companion.md, decision 3). */}
       <span
         ref={markRef}

@@ -84,6 +84,21 @@ bake.
   (`data-companion-of` on the strip, `data-character-of` in a ROOM) so a drop can find whose character it landed on;
   use the element's box, not `elementFromPoint` (a companion over a key lets presses through).
 
+## Talking (SPEC-character-speech.md, Luke 2026-11-14)
+- **In a stream room a companion says its owner's chat lines**, as they are sent, in a speech bubble that moves with it
+  (`CompanionSpeech` in `Companion.tsx`, drawing `SpeechBubble.tsx`): a letter at a time, in the speech face, with a
+  blip a letter when the reader has the audio key on. A newer line takes the older one's place.
+- **Nothing is sent for it.** The words ride on `companionSpoke(userId, saidAt, words)` (`events.ts`), called from the
+  chat line every browser in the room already has (`app/lib/watch/use-watch-room.ts`). A line older than 15 seconds
+  when it arrives is nobody speaking.
+- **Over its head, or beside it.** On the strip the bubble sits over the companion's head. Along the top of the screen
+  (on a room window's top edge) there is no room up there, so the bubble sits beside it, with no name row and one line
+  at a time: it is then no taller than the companion, and the window under it cuts nothing off.
+- The bubble is a plain box hidden from a screen reader, and presses go through it: the chat is where the line is read.
+- The audio key for a room is `SpeechAudioKey` beside the chat (placed by the stream room's own code). One choice for
+  the whole site, remembered in the browser.
+- Proof: `scripts/drive-character-speech.cjs --room` on a local dev server with mock data (one person in a mock room).
+
 ## Rules
 - Code never draws it, a prop or an effect. Text characters (`! z ♪`) are fine. A prop that would be art is an art slot.
 - **Old strips must keep working.** A new motion goes in `MOTION_FALLBACK` (`motion.ts`) beside the older one that stands

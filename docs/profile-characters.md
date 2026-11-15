@@ -64,7 +64,8 @@ Read this before touching the motions, the bake or the profile walker. The spec 
   (`app/lib/speech/voice.ts`): taller is deeper, and the account gives it a quirk. No sound machinery exists before a
   press: the key's own, or, with ON remembered, the reader's first press anywhere. It follows the music bar's VOL at
   about half the music's level. Tuning by number: `voiceFor`, `blipGain`, `SPEECH_PACE`.
-- Still to come from that spec: companions speaking the chat in stream rooms.
+- **In a stream room** each person's companion says what that person types in the room's chat: `docs/companion.md`,
+  "Talking".
 
 ## Rules that came from the spec
 - **Motion isn't artwork** (core.md, Asset Rules). Code only turns the joints of shapes someone built by hand. It never

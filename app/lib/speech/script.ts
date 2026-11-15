@@ -14,8 +14,11 @@ import type { ProfileComment } from '../profile/types';
  * Pure on purpose (the dice are handed in), so `Temp/check-character-speech.cjs` can hold every rule in it.
  */
 
-/** Where a pressed bubble leads: a comment on this very profile (opened here), or a place on the board. */
-export type SpeechTarget = { kind: 'here'; commentId: string } | { kind: 'board'; href: string };
+/**
+ * Where a pressed bubble leads: a comment on this very profile (opened here), a place on the board, or nowhere (a line
+ * of a stream room's chat, which is read in the chat beside it).
+ */
+export type SpeechTarget = { kind: 'here'; commentId: string } | { kind: 'board'; href: string } | { kind: 'none' };
 
 export type SpeechLine = {
   /** Unique among one speaker's lines. */

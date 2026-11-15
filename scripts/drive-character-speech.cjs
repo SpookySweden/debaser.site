@@ -18,7 +18,11 @@
  *      and nothing is made again until the reader presses something;
  *   e. pressing a bubble opens COMMENTS on the page with that comment in view and marked;
  *   f. reduced motion: nothing speaks by itself; a press on a character shows its line whole; a second press puts it away;
- *   g. one quick look at phone width: no sideways scroll.
+ *   g. one quick look at phone width: no sideways scroll;
+ *   r. (`--room`, or `--only-room` for this step alone) a mock stream room, one person: your companion says what you
+ *      type in the chat, in a bubble that is wholly on the screen (beside the companion when it stands along the top
+ *      of the screen, one line at a time and no taller than it), a newer line replaces the older, it goes by itself.
+ *      Until the stream room's own code hands the chat's words over, this step needs that one line applied locally.
  * Screenshots in Temp/browse/profile/speech-*.png.
  */
 const assert = require('node:assert/strict');
@@ -51,12 +55,12 @@ const WORDS = {
 };
 
 /** Runs in the page before anything else: the mock stores, filled. */
-function seed({ owner, amy, reader, words }) {
+function seed({ owner, amy, reader, words, session }) {
   if (!/^localhost$|^127\.0\.0\.1$/.test(window.location.hostname)) return;
   const at = (minutesAgo) => new Date(Date.now() - minutesAgo * 60000).toISOString();
   const user = (person) => ({ id: person.id, email: `${person.id}@debaser.site`, displayName: person.name, createdAt: at(5000), salt: '', secretHash: '', hidden: true });
   window.localStorage.setItem('debaser.lost-account.never.v1', '1');
-  window.localStorage.setItem('debaser.auth.mock.v1', JSON.stringify({ users: [user(owner), user(amy), user(reader)], sessionUserId: reader.id, bannedIds: [] }));
+  window.localStorage.setItem('debaser.auth.mock.v1', JSON.stringify({ users: [user(owner), user(amy), user(reader)], sessionUserId: session, bannedIds: [] }));
 
   const author = (person) => ({ id: person.id, displayName: person.name });
   const comments = [
@@ -97,13 +101,13 @@ function seed({ owner, amy, reader, words }) {
   window.localStorage.setItem('debaser.profile-character.v1', JSON.stringify({ [owner.id]: shown('rgb(255,240,0)'), [amy.id]: shown('rgb(255,0,160)') }));
 }
 
-async function open(browser, options = {}) {
+async function open(browser, options = {}, { session = READER.id, stream = false } = {}) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, ...options });
-  await context.addInitScript(seed, { owner: OWNER, amy: AMY, reader: READER, words: WORDS });
+  await context.addInitScript(seed, { owner: OWNER, amy: AMY, reader: READER, words: WORDS, session });
   const page = await context.newPage();
   page.on('pageerror', (error) => console.log(`  page error: ${String(error).slice(0, 200)}`));
-  await page.goto(`${BASE}/profile/${OWNER.id}`, { waitUntil: 'domcontentloaded' });
-  await page.waitForSelector('[data-profile-room-stage]', { timeout: 120000 });
+  await page.goto(stream ? `${BASE}/stream` : `${BASE}/profile/${OWNER.id}`, { waitUntil: 'domcontentloaded' });
+  if (!stream) await page.waitForSelector('[data-profile-room-stage]', { timeout: 120000 });
   // A headless browser reports no mouse until it moves, and the site would take it for a phone.
   await page.mouse.move(600, 200);
   return page;
@@ -175,6 +179,8 @@ function holds(seen, what) {
 async function main() {
   const browser = await chromium.launch({ executablePath: findChrome(), headless: !args.includes('--headed'), args: ['--no-first-run'] });
   try {
+    // `--only-room` skips straight to the stream room.
+    if (!args.includes('--only-room')) {
     const page = await open(browser);
 
     /* a. who is in the room */
@@ -306,6 +312,80 @@ async function main() {
     assert.ok(wide.page <= wide.screen + 1, `no sideways scroll at phone width (${wide.page} in ${wide.screen})`);
     pass(`phone width, one look: no sideways scroll (${wide.page}px in ${wide.screen}px)`);
     await phone.context().close();
+    }
+
+    /* r. a stream room: your companion says what you type in the chat (needs the chat to hand the words over) */
+    if (args.includes('--room') || args.includes('--only-room')) {
+      const room = await open(browser, {}, { session: OWNER.id, stream: true });
+      await room.waitForSelector('[data-companion="own"]', { state: 'attached', timeout: 120000 });
+      await room.getByRole('button', { name: /GO LIVE|BACK TO YOUR ROOM/ }).first().click();
+      await sleep(500);
+      const startKey = room.locator('[data-go-live-start]');
+      if ((await startKey.count()) > 0) await startKey.click();
+      const chat = room.getByPlaceholder('Say something...');
+      await chat.waitFor({ timeout: 60000 });
+      const LINE = 'Hello room, this is my own line!';
+      assert.equal(await room.locator('[data-companion="own"] [data-speech-bubble]').count(), 0, 'nothing is said before anything is typed');
+      await chat.fill(LINE);
+      await chat.press('Enter');
+      const bubble = room.locator('[data-companion="own"] [data-speech-bubble]');
+      await bubble.waitFor({ state: 'attached', timeout: 8000 });
+      const typedNow = () => bubble.evaluate((el) => [...el.querySelectorAll('[data-speech-typed]')].map((part) => part.textContent).join(''));
+      const early = await typedNow();
+      await sleep(500);
+      const late = await typedNow();
+      assert.ok(late.length > early.length, `the words grow a letter at a time (${early.length} -> ${late.length})`);
+      const kind = await bubble.evaluate((el) => ({ tag: el.tagName, hidden: el.getAttribute('aria-hidden'), href: el.getAttribute('href') }));
+      assert.deepEqual(kind, { tag: 'SPAN', hidden: 'true', href: null }, 'a chat bubble leads nowhere and is not read out twice: the chat is where the line is read');
+      const where = await room.evaluate(() => {
+        const figure = document.querySelector('[data-companion="own"]').getBoundingClientRect();
+        const box = document.querySelector('[data-companion="own"] [data-speech-bubble]').getBoundingClientRect();
+        const r = (rect) => ({ left: Math.round(rect.left), right: Math.round(rect.right), top: Math.round(rect.top), bottom: Math.round(rect.bottom) });
+        return {
+          onScreen: box.top >= 0 && box.left >= 0 && box.right <= window.innerWidth && box.bottom <= window.innerHeight,
+          over: box.bottom <= figure.top + 2 && Math.abs((box.left + box.right) / 2 - (figure.left + figure.right) / 2) <= 3,
+          beside: (box.left >= figure.right || box.right <= figure.left) && Math.abs(box.top - figure.top) <= 2,
+          roomAbove: Math.round(figure.top),
+          figure: r(figure),
+          box: r(box),
+        };
+      });
+      assert.ok(where.onScreen, `the whole bubble is on the screen (${JSON.stringify(where)})`);
+      assert.ok(where.over || where.beside, `over the companion's head, or beside it when there is no room above (${JSON.stringify(where)})`);
+      console.log(`  --  the companion stood ${where.roomAbove}px from the top of the screen: the bubble sat ${where.over ? 'over its head' : 'beside it'}`);
+      if (where.beside) {
+        // Beside a companion at the top of the screen there is only its own height to be read in: one line at a time,
+        // so the room's window under it never cuts a line off.
+        const rows = await bubble.evaluate((el) => el.querySelectorAll('[data-speech-typed]').length);
+        assert.equal(rows, 1, 'beside its speaker a bubble shows one line at a time');
+        assert.ok(where.box.bottom <= where.figure.bottom + 2, `and it is no taller than the companion, so the window cuts none of it off (${JSON.stringify(where)})`);
+      }
+      await room.screenshot({ path: join(SHOTS, 'speech-room-desktop-dark.png') });
+      // Every page of it, read as it goes by: together they are the words that were typed, all of them.
+      const byPage = {};
+      for (let look = 0; look < 150; look += 1) {
+        const now = await room.evaluate(() => {
+          const el = document.querySelector('[data-companion="own"] [data-speech-bubble]');
+          return el === null ? null : { page: el.getAttribute('data-speech-page'), typed: [...el.querySelectorAll('[data-speech-typed]')].map((part) => part.textContent).join(' ') };
+        });
+        if (now === null) break;
+        if ((byPage[now.page] ?? '').length < now.typed.length) byPage[now.page] = now.typed;
+        await sleep(100);
+      }
+      const said = Object.keys(byPage).sort().map((key) => byPage[key]).join(' ');
+      assert.equal(said.replace(/ /g, ''), LINE.replace(/ /g, ''), `the pages together are the words that were typed, all of them (${JSON.stringify(byPage)})`);
+      assert.equal(await room.locator('[data-companion="own"] [data-speech-bubble]').count(), 0, 'and it goes by itself');
+      await chat.fill('First.');
+      await chat.press('Enter');
+      await sleep(300);
+      await chat.fill('Second line takes its place.');
+      await chat.press('Enter');
+      await sleep(1800);
+      assert.equal(await room.locator('[data-companion="own"] [data-speech-bubble]').count(), 1, 'a newer line takes the older one\'s place: never two bubbles');
+      assert.match(await typedNow(), /^Second/, 'and it is the newer line');
+      pass('a stream room: your companion said what you typed, a letter at a time, in a bubble on the screen beside or over it; every page of it was the typed words; a newer line replaced the older; the bubble went by itself');
+      await room.context().close();
+    }
 
     console.log(`${passed} proofs passed`);
   } finally {
