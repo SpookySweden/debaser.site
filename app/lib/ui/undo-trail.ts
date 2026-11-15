@@ -475,6 +475,12 @@ function inRoom(state: unknown): boolean {
   return typeof focus === 'object' && focus !== null && 'roomId' in focus;
 }
 
+/** The dock window a store says it belongs to (`dock` in its state), for a window that can be opened from inside another one. */
+const dockOf = (state: unknown): string | null => {
+  const dock = (state as { dock?: unknown } | null)?.dock;
+  return typeof dock === 'string' ? dock : null;
+};
+
 const openOf = (state: unknown): boolean | null => {
   const open = (state as { open?: unknown } | null)?.open;
   return typeof open === 'boolean' ? open : null;
@@ -497,8 +503,14 @@ export function windowSlotChanged(before: unknown, after: unknown, current: () =
   // leave it alone (the same line as anything sent: never put back behind the reader's back).
   if (inRoom(before) || inRoom(after)) return;
   const from = lastPress.target;
-  const frame = from?.closest('[data-dock-window]') ?? null;
-  const frameId = frame?.getAttribute('data-dock-window') ?? null;
+  // The press is usually inside the window that changed (its own close key). A window that names itself and was opened from
+  // inside another (PREFERENCES' key to the AQUARIUM window) is not the window the press was in: undoing must close it, by its
+  // own close key, and leave the window the key is in alone.
+  const own = dockOf(after) ?? dockOf(before);
+  const pressed = from?.closest('[data-dock-window]') ?? null;
+  const elsewhere = own !== null && pressed !== null && pressed.getAttribute('data-dock-window') !== own;
+  const frame = elsewhere ? null : pressed;
+  const frameId = elsewhere ? own : (frame?.getAttribute('data-dock-window') ?? null);
   const key = from?.closest('button, a') ?? null;
   const findSwitch = frame === null && key !== null && key.matches(SWITCHES) ? finder(key, SWITCHES) : null;
   const name = trailWords(frame?.getAttribute('aria-label') ?? key?.getAttribute('aria-label') ?? key?.textContent ?? 'WINDOW');

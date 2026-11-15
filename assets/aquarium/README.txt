@@ -32,7 +32,10 @@ fish-ray.png       6 frames of 120x62, facing left (stingray)
 fish-stripe.png    6 frames of 76x54, facing right (threadfin butterflyfish)
 bubble-big.png     7x7
 bubble-small.png   5x5
+pellet.png         3x3      the food FEED ON CLICK drops: a patch of the orange sponge, cut from
+                            coral-left.png at 15,187 (Temp/browse/cut-pellet.cjs), not drawn
 
-Every one is shown at 2x, pixel for pixel (app/components/Aquarium.tsx holds the sizes; change
-both together). These are not slots in app/lib/ui/art/slots.ts: nothing here is waiting to be
-drawn.
+Every one is shown at a whole-number zoom, pixel for pixel: 2x as it came, and whatever the
+AQUARIUM window's size knobs say (SPEC-aquarium-settings.md). app/lib/aquarium/sim.ts holds the
+fish sizes and app/components/Aquarium.tsx the coral's; change a file and its size together.
+These are not slots in app/lib/ui/art/slots.ts: nothing here is waiting to be drawn.

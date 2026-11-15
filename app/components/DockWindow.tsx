@@ -69,6 +69,13 @@ type DockWindowProps = {
    * stand on while it covers their strip (`../lib/companion/ledge.ts`). A window given this is marked `data-headroom`.
    */
   headroom?: number;
+  /**
+   * Keys of the window's own for its title line, drawn before the close key (the AQUARIUM window's `[ 50% ]`). Each stops its own
+   * pointer-down, as the keys here do, or pressing it would start a drag.
+   */
+  titleKeys?: ReactNode;
+  /** Half see-through, frame and all: for a window whose whole job is to change what is behind it (the AQUARIUM window). */
+  seeThrough?: boolean;
   children: ReactNode;
 };
 
@@ -138,6 +145,8 @@ export default function DockWindow({
   pictureOut = false,
   aboveBottomBar = false,
   headroom,
+  titleKeys,
+  seeThrough = false,
   children,
 }: DockWindowProps) {
   const desktop = useSyncExternalStore(subscribeToDesktop, isDesktop, onServer);
@@ -220,7 +229,7 @@ export default function DockWindow({
       style={style}
       // `invisible` rather than unmounted: taken out of the page, the video would stop and the room would be
       // left. Invisible keeps its box, its sound and its timers, and lets the pointer through to the board.
-      className={`${placement}${minimized ? ' invisible' : ''}`}
+      className={`${placement}${minimized ? ' invisible' : ''}${seeThrough ? ' opacity-50' : ''}`}
       inert={minimized && !pictureOut}
       onPointerDownCapture={managed ? () => bringToFront(id) : undefined}
       data-dock-window={id}
@@ -252,6 +261,7 @@ export default function DockWindow({
                 ⇲
               </button>
             ) : null}
+            {titleKeys}
             {onMinimize === undefined ? null : (
               <button
                 type="button"

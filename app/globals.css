@@ -58,7 +58,11 @@ body {
    While `<html>` carries `data-backdrop="aquarium"` - written by the boot script before the first paint - the desk lets go of its
    tile and the page's canvas is the sea's black, so the sea is there from the first frame and the coral and fish join it once
    the page's script runs. The layer sits under the page itself (`z-backdrop`, on the element), so the window, the bars and every docked
-   window stay over it and it never takes a click. Every picture is shown at a whole-number zoom, pixel for pixel. */
+   window stay over it and it never takes a click. Every picture is shown at a whole-number zoom, pixel for pixel.
+
+   Where each fish, bubble and piece of food is comes from the component's one loop (app/lib/aquarium/sim.ts), which writes a
+   `transform` to each; the stylesheet only steps a fish's strip through its frames, and holds the looks the AQUARIUM window's
+   knobs switch on (SPEC-aquarium-settings.md): the tint, the murk and the light are flat fields of colour over the pictures. */
 html[data-backdrop='aquarium'] body {
   background: var(--dye-black);
 }
@@ -75,6 +79,34 @@ html[data-backdrop='aquarium'] [data-site-window='desk'] {
   background-color: var(--dye-black);
 }
 
+/* The sea itself: the whole screen, or - TINY TANK - a small box in the corner, above the music bar. MIRROR and UPSIDE DOWN
+   turn this element over. */
+.aquarium-tank {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.aquarium-tank-tiny {
+  inset: auto auto calc(var(--bottom-bar, 3.5rem) + 0.5rem) 0.5rem;
+  width: 400px;
+  height: 300px;
+  outline: var(--border-width-line) solid var(--dye-white);
+}
+
+.aquarium-water {
+  position: absolute;
+  inset: 0;
+}
+
+/* TIDE: the whole sea a few pixels up and down, in steps. */
+.aquarium-tide {
+  animation-name: aquarium-tide;
+  animation-timing-function: steps(24);
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+}
+
 .aquarium img,
 .aquarium-sprite,
 .aquarium-bubble {
@@ -86,14 +118,20 @@ html[data-backdrop='aquarium'] [data-site-window='desk'] {
   bottom: 0;
 }
 
-/* A fish's crossing: one run from off one side to off the other, drifting up or down, then the component sends it again. */
-.aquarium-swim {
+/* A fish: put in place by the loop, out of sight until it has been. */
+.aquarium-fish {
   position: absolute;
+  top: 0;
   left: 0;
-  animation-name: aquarium-swim;
-  animation-iteration-count: 1;
-  animation-fill-mode: both;
-  transform: translate(var(--aquarium-from), 0);
+  visibility: hidden;
+  will-change: transform;
+}
+
+/* RAINBOW: each fish round the colours, in steps. */
+.aquarium-rainbow {
+  animation-name: aquarium-rainbow;
+  animation-timing-function: steps(18);
+  animation-iteration-count: infinite;
 }
 
 /* Its tail and fins: the strip's frames stepped through, over and over. */
@@ -105,25 +143,38 @@ html[data-backdrop='aquarium'] [data-site-window='desk'] {
   animation-iteration-count: infinite;
 }
 
+/* A bubble or a piece of food: placed and shown by the loop. */
 .aquarium-bubble {
   position: absolute;
+  top: 0;
+  left: 0;
   background-size: 100% 100%;
-  animation-name: aquarium-rise;
-  animation-iteration-count: infinite;
-  animation-fill-mode: both;
+  opacity: 0;
+}
+
+/* WATER TINT: one dye, turned round the colour wheel by the knob. */
+.aquarium-tint,
+.aquarium-murk-blur,
+.aquarium-murk-haze,
+.aquarium-dark {
+  position: absolute;
+  inset: 0;
+}
+
+.aquarium-tint {
+  background-color: var(--dye-royal-blue);
+}
+
+.aquarium-murk-haze {
+  background-color: var(--dye-ash);
+}
+
+.aquarium-dark {
+  background-color: var(--dye-black);
 }
 
 .aquarium[data-aquarium='paused'] * {
   animation-play-state: paused;
-}
-
-@keyframes aquarium-swim {
-  from {
-    transform: translate(var(--aquarium-from), 0);
-  }
-  to {
-    transform: translate(var(--aquarium-to), var(--aquarium-dy));
-  }
 }
 
 @keyframes aquarium-frames {
@@ -135,37 +186,66 @@ html[data-backdrop='aquarium'] [data-site-window='desk'] {
   }
 }
 
-@keyframes aquarium-rise {
-  0% {
-    transform: translate(0, 0);
-    opacity: 0;
+@keyframes aquarium-tide {
+  from {
+    transform: translateY(-6px);
   }
-  3% {
-    opacity: 1;
-  }
-  30% {
-    transform: translate(4px, -60px);
-  }
-  60% {
-    transform: translate(-3px, -120px);
-  }
-  90% {
-    transform: translate(2px, -180px);
-    opacity: 1;
-  }
-  100% {
-    transform: translate(0, -200px);
-    opacity: 0;
+  to {
+    transform: translateY(6px);
   }
 }
 
-/* Motion off: the coral stays, the fish and bubbles go. */
+@keyframes aquarium-rainbow {
+  from {
+    filter: hue-rotate(0deg);
+  }
+  to {
+    filter: hue-rotate(360deg);
+  }
+}
+
+/* Motion off: the coral, the tint and the light stay; the component draws no fish, bubbles or food, and nothing here moves. */
 @media (prefers-reduced-motion: reduce) {
-  .aquarium-swim,
+  .aquarium-fish,
   .aquarium-bubble {
     display: none;
   }
+
+  .aquarium-tide,
+  .aquarium-rainbow {
+    animation: none;
+  }
 }
+
+/* The key on the sea that opens the AQUARIUM window (AquariumSettingsWindow.tsx): in the top-left corner of the bare desk,
+   where there is always sea on a wide screen while the site window is its usual size. Not drawn where there is no sea to be on:
+   TILE, a narrow screen, or a site window that fills the screen (the reader's FILL WINDOW, or a page that fills by itself). */
+.aquarium-key {
+  position: fixed;
+  top: calc(var(--top-bar, 0px) + 0.375rem);
+  left: 0.5rem;
+}
+
+html:not([data-backdrop='aquarium']) .aquarium-key {
+  display: none;
+}
+
+/* The site window is 1280 pixels wide at the most, in the middle: from 96rem of screen up there is always a strip of bare sea
+   to its left wider than the key, whatever the screen's height and whichever strips are showing. Narrower than that the
+   window's corner is where the key would be, so it is not drawn (PREFERENCES still has its key). */
+@media (width < 96rem) {
+  .aquarium-key {
+    display: none;
+  }
+}
+
+@media (width >= theme(--breakpoint-md)) {
+  html[data-site-fill='on'] .aquarium-key,
+  html:has([data-page-fill]) .aquarium-key {
+    display: none;
+  }
+}
+
 
 /* FILL WINDOW, the reader's own choice (app/lib/ui/site-fill.ts): while `<html>` carries the mark, the site window runs edge to edge
    between the strips, its title line stands aside and the desk shows no margin, from `md` up as before. Laid out here, from the

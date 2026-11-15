@@ -123,6 +123,26 @@ layout (desktop first; it must not break at phone width).
   played on the desktop, start the priority watcher first (`Documents\game-first\game-first.ps1`, HANDOFF.md) and run heavy steps
   at low priority.
 
+## As built (2026-11-15)
+Where the build differs from the plan above, and why:
+- **The sea key is top-left, and only on screens 1536 pixels wide or more.** The site window is 1280 wide at the most, so from that
+  width up there is always bare sea to its left; narrower, the window's corner is where the key would be. PREFERENCES keeps its key.
+- **The BACKGROUND choice stays under its own browser key** (the boot script reads it before first paint) and rides only in the
+  account's copy.
+- **Account saving is behind `NEXT_PUBLIC_AQUARIUM_DATA_SOURCE=supabase`**, off until the `user_aquarium` table exists (Luke's OK
+  pending; the migration is drafted in the sessions' notes folder, `user_aquarium-migration-draft.sql`, and is not in the repo so
+  nobody's `db:push` can carry it). Until then a signed-in person's settings are kept in their browser, like a visitor's.
+- **41 knobs**: the list above, with SPECIES as four switches, CORAL as two, and WATER TINT as two sliders.
+- **GIANT MODE** shows eight fish at the most (forty at 8x is more picture than a screen holds); **TINY TANK** is a 400x300 box
+  in the bottom-left corner with everything at 1x.
+- **The window does not reopen by itself** on the next visit: it is opened on purpose, from one of its two keys.
+- **A current stronger than a fish** carries it across tail-first rather than turning it back at the edge.
+- **A second person signing in on the same browser**, with nothing saved, starts on the default sea, not the last person's.
+- The undo arrows close the AQUARIUM window when it was opened from PREFERENCES (`dock` in a window's state, `undo-trail.ts`).
+- Code: `app/lib/aquarium/` (`settings.ts` the knobs, `sim.ts` the simulation, `settings-slot.ts` the store),
+  `app/components/Aquarium.tsx`, `app/components/AquariumSettingsWindow.tsx`. Proof: `Temp/check-aquarium.cjs`, and the local
+  drive `Temp/browse/drive-aquarium.cjs` (on `Temp/browse/dev-mock-aquarium.cjs`; both stay untracked, as that folder is).
+
 ## Sources (research, 2026-11-15)
 Google WebGL Aquarium (fish count, views): https://experiments.withgoogle.com/webgl-aquarium ; boids with sliders:
 https://eater.net/boids ; Reynolds: https://www.red3d.com/cwr/boids/ ; boids pseudocode (wind, scatter, perching):

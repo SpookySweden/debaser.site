@@ -25,6 +25,7 @@ import {
   type ThemeId,
 } from '../lib/ui/theme-slot';
 import { resetLayout } from '../lib/ui/window-layout';
+import { openAquariumWindow } from '../lib/aquarium/settings-slot';
 import { BACKDROPS, backdropState, setBackdrop, subscribeToBackdrop } from '../lib/ui/backdrop-slot';
 import CompanionPreferences from './CompanionPreferences';
 import DockWindow from './DockWindow';
@@ -194,19 +195,36 @@ function BackdropChoice() {
 
       <div className="space-y-1 p-2" role="group" aria-label="Background" data-backdrop-choice={id}>
         {BACKDROPS.map((backdrop) => (
-          <button
-            key={backdrop.id}
-            type="button"
-            onClick={() => setBackdrop(backdrop.id)}
-            aria-pressed={backdrop.id === id}
-            title={backdrop.note}
-            data-backdrop-option={backdrop.id}
-            className={`flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-left text-label max-sm:min-h-tap max-sm:px-3 max-sm:text-sm ${
-              backdrop.id === id ? 'key key-fill [--key-fill:var(--color-ink)] text-paper' : 'key'
-            }`}
-          >
-            <span className="min-w-0 flex-1 truncate">[ {backdrop.label} ]</span>
-          </button>
+          <div key={backdrop.id} className="flex items-stretch gap-1">
+            <button
+              type="button"
+              onClick={() => setBackdrop(backdrop.id)}
+              aria-pressed={backdrop.id === id}
+              title={backdrop.note}
+              data-backdrop-option={backdrop.id}
+              className={`flex min-w-0 flex-1 cursor-pointer items-center gap-2 px-2 py-1 text-left text-label max-sm:min-h-tap max-sm:px-3 max-sm:text-sm ${
+                backdrop.id === id ? 'key key-fill [--key-fill:var(--color-ink)] text-paper' : 'key'
+              }`}
+            >
+              <span className="min-w-0 flex-1 truncate">[ {backdrop.label} ]</span>
+            </button>
+            {/* The aquarium's own knobs (SPEC-aquarium-settings.md): its window, with the sea put on if TILE was. */}
+            {backdrop.id === 'aquarium' ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setBackdrop('aquarium');
+                  openAquariumWindow();
+                }}
+                aria-haspopup="dialog"
+                title="FISH, SEA, PLAY, SILLY: EVERY KNOB OF THE AQUARIUM"
+                data-backdrop-settings=""
+                className={PLATE}
+              >
+                [ SETTINGS ]
+              </button>
+            ) : null}
+          </div>
         ))}
       </div>
     </section>

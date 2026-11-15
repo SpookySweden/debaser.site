@@ -30,6 +30,7 @@ import WindowLayoutHost from './components/WindowLayoutHost';
 import { cursorBootScript } from './lib/ui/cursor-slot';
 import { backdropBootScript } from './lib/ui/backdrop-slot';
 import Aquarium from './components/Aquarium';
+import AquariumSettingsWindow, { AquariumSeaKey } from './components/AquariumSettingsWindow';
 import { siteFillBootScript } from './lib/ui/site-fill';
 import { themeBootScript } from './lib/ui/theme-slot';
 import { FACE_VARIABLES } from './theme/fonts';
@@ -138,6 +139,11 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
                           make. It is not behind the Suspense boundary with the other two, because it
                           reads no address and has nothing to catch up on. */}
                       <PreferencesWindow />
+
+                      {/* The AQUARIUM window: every knob of the sea behind the site (SPEC-aquarium-settings.md), and the key
+                          on the sea that opens it. Beside PREFERENCES, which holds its other key. */}
+                      <AquariumSettingsWindow />
+                      <AquariumSeaKey />
 
                       {/* The MODULOS key's list: which modules appear on the bar, and their hover colours. */}
                       <ModulesWindow />

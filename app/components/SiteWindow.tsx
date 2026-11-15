@@ -74,7 +74,8 @@ export default function SiteWindow({ title, active, tip, fill = false, children 
     // and the window, `my-auto` between them, shrinks when the screen is short - so its title and its
     // taskbar are never behind either strip. With no strip drawn the spacers fall back to what the
     // padding used to keep: nothing at the top, 4rem at the foot (the folded player's key).
-    <main data-site-window="desk" className={`desktop-tile flex h-dvh flex-col items-center font-mono select-none ${fill ? 'p-2 sm:p-4 md:p-0' : 'p-2 sm:p-4'}`}>
+    // `data-page-fill` says this page fills the screen by itself, so the key on the AQUARIUM sea stands aside (globals.css).
+    <main data-site-window="desk" data-page-fill={fill ? '' : undefined} className={`desktop-tile flex h-dvh flex-col items-center font-mono select-none ${fill ? 'p-2 sm:p-4 md:p-0' : 'p-2 sm:p-4'}`}>
       <div aria-hidden="true" className="h-[var(--top-bar,0px)] shrink-0" />
       <div
         data-site-window="frame"
