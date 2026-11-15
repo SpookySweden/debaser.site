@@ -24,7 +24,6 @@ import type { AudioTrack } from '../lib/audio/tracks';
 import { frontPosition } from '../lib/watch/music-rooms';
 import { isSongLink, songLink, trackForSong } from '../lib/watch/songs';
 import { useWebTrack, webTrackNow } from '../lib/web/web-track-lookup';
-import { switchMusicRoomOff } from '../lib/watch/use-music-room';
 
 import { roomStartFor } from '../lib/watch/room-start';
 import { streamBarState, subscribeToStreamBar } from '../lib/watch/stream-bar';
@@ -652,21 +651,11 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     onLeft();
   }
 
-  // Anybody but a host with something to decide simply goes. A music room's host closing it switches it off: kept,
-  // and its songs are their up-next again.
-  const switchOff = useEffectEvent(() => switchMusicRoomOff(read, player));
-  const switching = useRef(false);
+  // Anybody but a host with something to decide simply goes. A person's own room has nothing to decide: it is kept,
+  // never ended, and closing its window only closes the window (SPEC-rooms-queues.md; GO PUBLIC's switch is gone).
   useEffect(() => {
     if (!closing) return;
-    if (music && amHost) {
-      if (switching.current) return;
-      switching.current = true;
-      void switchOff()
-        .catch(() => undefined)
-        .finally(onLeft);
-      return;
-    }
-    if (!(amHost && live && !myOtherTab)) onLeft();
+    if (music || !(amHost && live && !myOtherTab)) onLeft();
   }, [closing, amHost, live, myOtherTab, onLeft, music]);
 
   // A host whose tab closes with others in the room hands over on the way out; if the write is lost

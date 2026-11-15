@@ -82,7 +82,9 @@ for (const tool of walk('scripts', (name) => name.endsWith('.cjs'))) {
 
 // (2026-11-04) Left by the follower's retirement (f2613e8). Luke chose on 2026-11-04 to keep it for now, so it is named here;
 // anything else left unused still fails, and this entry fails once something uses it or it is gone.
-const AWAITING_LUKE = new Set(['app/components/BroadcastHeartbeat.tsx']);
+// (2026-11-14, SPEC-rooms-queues.md phase 1) QueueBrowser.tsx was the QUEUES tab's list of live rooms; the queue window shows
+// UP NEXT in its place and the list is on STREAM's ROOMS tab. Nothing draws it; Luke is asked whether the file goes.
+const AWAITING_LUKE = new Set(['app/components/BroadcastHeartbeat.tsx', 'app/components/QueueBrowser.tsx']);
 for (const file of AWAITING_LUKE) {
   if (!sources.has(file) || referenced.has(file) || toolReferenced.has(file)) fail(file, 'take it off AWAITING_LUKE');
 }

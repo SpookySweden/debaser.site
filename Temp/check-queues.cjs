@@ -80,9 +80,12 @@ assert.doesNotMatch(slotText, /useContext|createContext/, 'and not a context');
 assert.equal(slot.QUEUES_HREF, '/forum?queues=1', 'the window is addressed on the board');
 assert.equal(slot.queuesRequested('?queues=1'), true, 'that address asks for it');
 assert.equal(slot.queuesRequested('?music=1'), false, 'a query about anything else does not');
-assert.equal(slot.queueTabRequested('?queues=queues'), 'queues', 'queues names the list tab');
+// (2026-11-14, SPEC-rooms-queues.md, Luke's answer 8A: the SHELF key "opens your room's queue") The window opens on UP NEXT,
+// your own room's queue, which keeps the tab's old name inside the code (`queues`); RADI-OH is asked for by name.
+assert.equal(slot.queueTabRequested('?queues=queues'), 'queues', 'queues names the UP NEXT tab');
 assert.equal(slot.queueTabRequested('?queues=third'), 'third', 'third names the empty one');
-assert.equal(slot.queueTabRequested('?queues=1'), 'radio', 'and anything else is the default');
+assert.equal(slot.queueTabRequested('?queues=radio'), 'radio', 'radio names RADI-OH');
+assert.equal(slot.queueTabRequested('?queues=1'), 'queues', 'and anything else is the default: your queue');
 assert.equal(slot.queuesAddressSpentByClose('?queues=1'), true, 'shutting spends the address');
 assert.equal(slot.queuesAddressSpentByClose('?music=1'), false, 'and leaves other addresses alone');
 assert.match(windowText, /router\.replace\(pathname\)/, 'which the window really does');
@@ -91,7 +94,13 @@ assert.match(windowText, /router\.replace\(pathname\)/, 'which the window really
 // (2026-10-23, SPEC-efficiency.md) The MIXTAPES tab - a `NOT BUILT YET` placeholder - is cut until it is built; an
 // address that still asks for the third tab (`?queues=third`) lands on RADI-OH instead.
 assert.match(windowText, /<QueueTabPlate label="RADI-OH"/, 'the strip has a RADI-OH tab');
-assert.match(windowText, /<QueueTabPlate label="QUEUES"/, 'a QUEUES tab');
+// (2026-11-14, SPEC-rooms-queues.md, answer 9A) The second tab was QUEUES, a GO PUBLIC switch and the list of live rooms.
+// GO PUBLIC is gone and that list is on STREAM's ROOMS tab, where it already was; the tab is UP NEXT, your room's queue.
+assert.match(windowText, /<QueueTabPlate label="UP NEXT"/, 'an UP NEXT tab');
+assert.doesNotMatch(windowText, /<QueueTabPlate label="QUEUES"/, 'and no QUEUES tab');
+assert.doesNotMatch(windowText, /QueueBrowser/, 'the list of live rooms is not drawn here any more');
+assert.match(windowText, /<StreamQueueWindow bare /, "UP NEXT is the same queue window a live room has, drawn for your own room");
+assert.doesNotMatch(browserText, /GO PUBLIC|setRoomPublic|openMusicRoom/, 'GO PUBLIC is gone: going live always makes a new room');
 assert.doesNotMatch(windowText, /<QueueTabPlate label="MIXTAPES"/, 'and no tab for a screen that is not built');
 assert.match(windowText, /role="tablist"/, 'the strip is a tablist to a screen reader');
 assert.match(windowText, /role="tab"/, 'with real tabs in it');
@@ -138,7 +147,8 @@ assert.match(followerText, /return \(\) => setRate\(1\)/, 'and ending a follow p
 // follower retire": following somebody is joining their room, and the room window keeps it going. So the shell must not
 // draw the old follower beside the new room (two things would steer one player), and it draws the keeper that reopens yours.
 assert.doesNotMatch(layout0(), /<QueueFollower \/>/, 'the retired follower is not drawn alongside the rooms');
-assert.match(layout0(), /<MusicRoomKeeper \/>/, 'the shell draws the keeper, so a reload does not lose a public room');
+// (2026-11-14, SPEC-rooms-queues.md) The keeper keeps your own room now: it never goes public, and a reload does not lose its queue.
+assert.match(layout0(), /<MusicRoomKeeper \/>/, 'the shell draws the keeper, so a reload does not lose your room');
 
 function layout0() {
   return fs.readFileSync('app/layout.tsx', 'utf8');
@@ -742,9 +752,10 @@ assert.match(heartbeatText, /useEffect\(\(\) => \{\s*clock\.current =/, 'and is 
 // switch both subscribe to the room store, in both repositories, instead of one browser-tab event.
 {
   const roomHook = fs.readFileSync('app/lib/watch/use-music-room.ts', 'utf8');
-  assert.equal((roomHook.match(/repository\.subscribeLiveRooms\(read\)/g) ?? []).length, 2, 'the switch and the list both hear a room change');
+  // (2026-11-14, SPEC-rooms-queues.md) The GO PUBLIC switch is gone, so only the list is left to hear a room change.
+  assert.equal((roomHook.match(/repository\.subscribeLiveRooms\(read\)/g) ?? []).length, 1, 'the list hears a room change');
   assert.match(browserText, /useLiveRooms\(\)/, 'and the browser draws from that list');
-  assert.match(browserText, /useMusicRoomSwitch\(/, 'and that switch');
+  assert.doesNotMatch(roomHook, /useMusicRoomSwitch|switchMusicRoomOff/, 'and there is no switch any more');
   for (const repo of ['mock', 'supabase']) {
     assert.match(fs.readFileSync(`app/lib/watch/${repo}-watch-repository.ts`, 'utf8'), /subscribeLiveRooms\(listener: \(\) => void\)/, `the ${repo} repository can say so`);
   }

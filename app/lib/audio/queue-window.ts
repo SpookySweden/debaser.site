@@ -32,12 +32,20 @@ export type QueueWindowState = {
 export type QueueTab = 'radio' | 'queues' | 'third';
 
 /** Shut, on RADI-OH. One shared object, so React can compare it by identity. */
-const SHUT: QueueWindowState = { open: false, tab: 'radio' };
+const SHUT: QueueWindowState = { open: false, tab: 'queues' };
 
 const slot = createWindowSlot<QueueWindowState>(SHUT);
 
 /** The window as it is now, for `useSyncExternalStore`. */
 export const queueWindowState = slot.state;
+
+/**
+ * The window as the server drew it, and so as the browser must first draw it: shut. A window left open is opened
+ * again when the page loads (`WindowLayoutHost`), which can happen before this part of the page has been made
+ * live; reading the open state then drew a window the server's page did not have, and React threw the page's tree
+ * away and built it again ("hydration failed", found by scripts/drive-own-room.cjs, 2026-11-14).
+ */
+export const queueWindowServerState = (): QueueWindowState => SHUT;
 
 /** Draws from the window: the listener fires when it opens, closes or changes tab. */
 export const subscribeToQueueWindow = slot.subscribe;
@@ -62,7 +70,7 @@ export const QUEUES_LIST_HREF = '/forum?queues=queues';
  * between RADI-OH and QUEUES should not watch the frame close and reopen, which is what two openers
  * would give them.
  */
-export function openQueues(tab: QueueTab = 'radio'): void {
+export function openQueues(tab: QueueTab = 'queues'): void {
   slot.set({ open: true, tab });
 }
 
@@ -103,7 +111,7 @@ export function queuesRequested(search: string): boolean {
 export function queueTabRequested(search: string): QueueTab {
   const asked = new URLSearchParams(search).get('queues');
 
-  return asked === 'queues' || asked === 'third' ? asked : 'radio';
+  return asked === 'radio' || asked === 'third' ? asked : 'queues';
 }
 
 /**

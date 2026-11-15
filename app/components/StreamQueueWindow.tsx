@@ -14,7 +14,9 @@ import { fetchEmbedTitle, isEmbedKind } from '../lib/watch/embeds';
 import { LINK_TITLE_MAX, linkTitle, recognizeLink } from '../lib/watch/links';
 import { keepsKind, QUEUE_LOOKUP_SOURCE, QUEUE_SOURCES, QUEUE_STREAM_SOURCE, queueSearchPlan, roomListable } from '../lib/watch/blank-screen';
 import { getWebRepository } from '../lib/web/repository';
-import { getWatchRepository } from '../lib/watch/repository';
+import { repositoryFor } from '../lib/watch/repository';
+import { OWN_QUEUE_FULL, OWN_QUEUE_MAX } from '../lib/watch/own-room';
+import { soloRefusal } from '../lib/watch/own-screen';
 import {
   additionUnits,
   additionsPeople,
@@ -104,6 +106,8 @@ type StreamQueueWindowProps = {
   /** Opened from inside the room: the body goes Black and the frame and title wear the room's look. */
   inRoom?: boolean;
   look?: LookId | null;
+  /** Drawn inside another window (the QUEUE window's UP NEXT tab, for your own room): no frame of its own. */
+  bare?: boolean;
 };
 
 type Search =
@@ -192,8 +196,11 @@ function ourMatches(videos: MediaItem[], words: string, anyWord: boolean, author
  * An empty search lists the site's own videos. `[ + ADD ]` puts a video on your own list (ADDED); with a
  * crown a second key beside it, a plus under a crown, puts it straight into the queue (QUEUED).
  */
-export default function StreamQueueWindow({ read, itemsById, live, userId, members, nowLive, onClose, prefill, inRoom = false, look = null }: StreamQueueWindowProps) {
-  const repository = getWatchRepository();
+export default function StreamQueueWindow({ read, itemsById, live, userId, members, nowLive, onClose, prefill, inRoom = false, look = null, bare = false }: StreamQueueWindowProps) {
+  // A visitor's own room lives in their browser (SPEC-rooms-queues.md); every other room is the site's.
+  const repository = repositoryFor(read.room.id);
+  /** Somebody's own room, with only them in it: it holds 200 things at most, and only what can play without a live room. */
+  const ownRoom = read.room.origin === 'music';
   const catalogue = useCatalogue();
   const roomId = read.room.id;
   const rights = queueRights(read.room, read.crowns, userId, live);
@@ -230,7 +237,12 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
   /** One add: onto your own list, or (`straight`, a crown's key) into the queue. Drawn at once; null signed out. */
   async function put(what: { mediaItemId: string } | { link: WatchLink }, straight: boolean): Promise<AddedWords | null> {
     if (userId === null) return null;
-    const inQueue = straight && rights.arrange;
+    if (ownRoom) {
+      if (upcoming(read.queue).length >= OWN_QUEUE_MAX) throw new Error(OWN_QUEUE_FULL);
+      const refusal = 'link' in what ? soloRefusal(what.link) : null;
+      if (refusal !== null) throw new Error(refusal);
+    }
+    const inQueue = (straight || ownRoom) && rights.arrange;
     const entry = await repository.addToQueue({ roomId, addedBy: userId, position: nextQueuePosition(read.queue), inQueue, ...what });
     applyLocalChange(roomId, { kind: 'entry', entry });
     return inQueue ? 'QUEUED' : 'ADDED';
@@ -249,7 +261,12 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
   /** A series' ticked episodes as one block: onto your own list, or (`straight`) into the queue. Null signed out. */
   async function putSeries(title: string, links: WatchLink[], straight: boolean): Promise<AddedWords | null> {
     if (userId === null || links.length === 0) return null;
-    const inQueue = straight && rights.arrange;
+    if (ownRoom) {
+      if (upcoming(read.queue).length + links.length > OWN_QUEUE_MAX) throw new Error(OWN_QUEUE_FULL);
+      const refusal = links.map(soloRefusal).find((reason) => reason !== null) ?? null;
+      if (refusal !== null) throw new Error(refusal);
+    }
+    const inQueue = (straight || ownRoom) && rights.arrange;
     const entries = await repository.addSeriesToQueue({ roomId, addedBy: userId, position: nextQueuePosition(read.queue), inQueue, seriesTitle: title, links });
     for (const entry of entries) applyLocalChange(roomId, { kind: 'entry', entry });
     return inQueue ? 'QUEUED' : 'ADDED';
@@ -833,15 +850,24 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
     );
   };
 
-  return (
-    <PopoutWindow
-      title="QUEUE"
-      onClose={onClose}
-      maxWidth={rights.sees === 'nothing' ? 'max-w-3xl' : 'max-w-5xl'}
-      // Inside a room (SPEC-cytube.md): a Black body whatever the theme, the frame and title in the room's look.
-      windowClassName={inRoom ? `room-black ${lookClass(look)} [--frame-line:var(--room-lines)]` : undefined}
-      titleInk={inRoom ? 'text-room-title' : undefined}
-    >
+  const frame = (body: ReactNode) =>
+    bare ? (
+      <div data-own-queue>{body}</div>
+    ) : (
+      <PopoutWindow
+        title="QUEUE"
+        onClose={onClose}
+        maxWidth={rights.sees === 'nothing' ? 'max-w-3xl' : 'max-w-5xl'}
+        // Inside a room (SPEC-cytube.md): a Black body whatever the theme, the frame and title in the room's look.
+        windowClassName={inRoom ? `room-black ${lookClass(look)} [--frame-line:var(--room-lines)]` : undefined}
+        titleInk={inRoom ? 'text-room-title' : undefined}
+      >
+        {body}
+      </PopoutWindow>
+    );
+
+  return frame(
+    <>
       <div className="flex flex-col gap-2 p-2 text-label text-ink">
         {rights.add ? (
           // noValidate: the room says what is wrong with a link, not the browser's own bubble.
@@ -1032,7 +1058,8 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
               })}
             </ol>
             {waiting.length === 0 && played.length > 0 && !nowLive ? <p className="text-ink-quiet">LAST VIDEO LOOPS.</p> : null}
-            {read.room.origin === 'music' && userId !== null && read.room.hostId === userId && live ? (
+            {/* A saved list is an account's: a signed-out visitor's browser room has none to store into. */}
+            {read.room.origin === 'music' && userId !== null && read.room.hostId === userId && live && !userId.startsWith('visitor:') ? (
               <StoreKeys read={read} userId={userId} shelf={player.queue} />
             ) : null}
           </section>
@@ -1111,7 +1138,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
             document.body,
           )
         : null}
-    </PopoutWindow>
+    </>,
   );
 }
 
@@ -1123,7 +1150,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
  * the shared queue, in its order.
  */
 function StoreKeys({ read, userId, shelf }: { read: WatchRoomRead; userId: string; shelf: readonly AudioTrack[] }) {
-  const repository = getWatchRepository();
+  const repository = repositoryFor(read.room.id);
   const library = useMusicLibrary();
   const roomId = read.room.id;
   const [armed, setArmed] = useState(false);

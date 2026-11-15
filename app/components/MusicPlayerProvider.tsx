@@ -165,6 +165,28 @@ export type MusicPlayerValue = {
   cue: (track: AudioTrack, start?: PlayStart, play?: boolean) => void;
   /** The one audio element, for the room's sync to read, seek and listen to as it does a `<video>`. */
   audioElement: () => HTMLAudioElement | null;
+  /**
+   * Your own room (SPEC-rooms-queues.md), bound by its keeper (`MusicRoomKeeper.tsx`), or null. Unlike a live room it
+   * changes nothing about how the bar plays: the bar starts things at once, as it always did, and the room is told
+   * after. What it takes over is up-next, which is the room's queue, so it survives a reload and follows the account.
+   */
+  bindOwnRoom: (binding: OwnRoomBinding | null) => void;
+};
+
+/** Your own room, as the bar needs it (`bindOwnRoom`). */
+export type OwnRoomBinding = {
+  roomId: string;
+  /** The room's songs still to play: the bar's up-next. */
+  waiting: AudioTrack[];
+  /** ADD TO QUEUE / PLAY NEXT: into the room's queue. */
+  onEnqueue: (track: AudioTrack, where: 'end' | 'next') => void;
+  /**
+   * The next thing queued becomes what is on. A song comes back for the bar to play; `other` is something the bar
+   * cannot play (a video), which the room has started on its own screen, so the bar goes quiet; null, nothing waits.
+   */
+  takeNext: () => { track: AudioTrack } | 'other' | null;
+  /** The bar is playing this song, by somebody's press or by walking on: the room files it if it is new. */
+  onPlaying: (track: AudioTrack) => void;
 };
 
 /** A room bound to the player (`bindRoom`): whose it is, and what the bar's keys do inside it. */
@@ -389,6 +411,11 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
   /** The room bound now (`bindRoom`), as state for the render and as a ref for the handlers. */
   const [roomBinding, setRoomBinding] = useState<RoomBinding | null>(null);
   const roomRef = useRef<RoomBinding | null>(null);
+  /** Your own room (`bindOwnRoom`): its queue is up-next whenever you are not hosting a live room. */
+  const [ownBinding, setOwnBinding] = useState<OwnRoomBinding | null>(null);
+  const ownRef = useRef<OwnRoomBinding | null>(null);
+  /** The file that was last handed over (`assign`): `handedOver` outlives its song when the shelf walks on from it. */
+  const handedSrc = useRef<string | null>(null);
   const [allowedSrc, setAllowedSrc] = useState<string | null>(null);
   // In somebody else's room a barred song is muted in step, as in a followed broadcast.
   const gate = barrGate(track?.src, barred, allowedSrc, followingHost || (roomBinding !== null && !roomBinding.hosting));
@@ -685,12 +712,22 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
    * The song is found on the shelf by its file (or added to the end of it, like `play` does), so the
    * shelf's own order carries on from wherever that song sits once the hand-made queue runs out.
    */
-  const playUpNext = useCallback((): boolean => {
-    const [first, ...rest] = upNextRef.current;
-    if (first === undefined) return false;
-
-    upNextRef.current = rest;
-    setUpNext(rest);
+  const playUpNext = useCallback((): 'song' | 'other' | 'none' => {
+    let first: AudioTrack | undefined;
+    const own = ownRef.current;
+    if (own !== null) {
+      // Your room's queue: a video's turn is the room's to start, and the bar goes quiet for it.
+      const taken = own.takeNext();
+      if (taken === null) return 'none';
+      if (taken === 'other') return 'other';
+      first = taken.track;
+    } else {
+      const [head, ...rest] = upNextRef.current;
+      if (head === undefined) return 'none';
+      first = head;
+      upNextRef.current = rest;
+      setUpNext(rest);
+    }
     pendingStart.current = null;
     playedFrom.current = null;
     setHeardFrom(null);
@@ -715,7 +752,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       setIndex(found);
     }
 
-    return true;
+    return 'song';
   }, [index, queue]);
 
   const enqueue = useCallback((wanted: AudioTrack, where: 'end' | 'next') => {
@@ -723,6 +760,12 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
     const bound = roomRef.current;
     if (bound !== null && bound.hosting) {
       bound.onEnqueue(wanted, where);
+      return;
+    }
+    // Otherwise it is your own room's queue, kept on your account (in the browser for a visitor).
+    const own = ownRef.current;
+    if (own !== null) {
+      own.onEnqueue(wanted, where);
       return;
     }
     const nextList = enqueueTrack(upNextRef.current, wanted, where);
@@ -769,7 +812,13 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       // A song queued by hand goes first; otherwise the shelf walks on. Whatever the browser did with
       // `paused` on the way here, the next track plays.
       setAllowedSrc(null);
-      if (!playUpNext()) {
+      const took = playUpNext();
+      // A video's turn in your room: it plays on the room's screen, and the bar waits.
+      if (took === 'other') {
+        setPlaying(false);
+        return;
+      }
+      if (took === 'none') {
         // Nothing to walk on to (a lone WEB track, which never repeats itself, on a shelf that did not
         // load): stop, rather than show PAUSE over a track that has ended.
         if (queue.length <= 1) {
@@ -870,7 +919,9 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
     navigator.mediaSession.setActionHandler(
       'nexttrack',
       mine(() => {
-        if (!playUpNext()) setIndex((current) => nextIndex(current, queue.length));
+        const took = playUpNext();
+        if (took === 'none') setIndex((current) => nextIndex(current, queue.length));
+        else if (took === 'other') setPlaying(false);
       }),
     );
     navigator.mediaSession.setActionHandler(
@@ -884,6 +935,20 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
     roomRef.current = binding;
     setRoomBinding(binding);
   }, []);
+
+  const bindOwnRoom = useCallback((binding: OwnRoomBinding | null) => {
+    ownRef.current = binding;
+    setOwnBinding(binding);
+  }, []);
+
+  // Your own room is told what the bar is on, after the fact: playing never waits for it. Not inside a live room
+  // (that room has the bar), and never for a song that was handed over (a profile's own song starting by itself is
+  // nobody's press, and does not touch your queue).
+  useEffect(() => {
+    if (!playing || held || track === undefined) return;
+    if (roomRef.current !== null || (handedOver.current && handedSrc.current === track.src)) return;
+    ownRef.current?.onPlaying(track);
+  }, [playing, held, track, ownBinding, roomBinding]);
 
   /**
    * A follower in somebody's room took the controls: they leave the room, and the press then does what it
@@ -945,7 +1010,9 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
     pendingStart.current = null;
     stopFollowing('');
     setAllowedSrc(null);
-    if (!playUpNext()) setIndex((current) => nextIndex(current, queue.length));
+    const took = playUpNext();
+    if (took === 'none') setIndex((current) => nextIndex(current, queue.length));
+    else if (took === 'other') setPlaying(false);
   }, [hostingRoom, playUpNext, queue.length]);
 
   const previous = useCallback(() => {
@@ -1079,7 +1146,9 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
   const skipBarred = useCallback(() => {
     setAllowedSrc(null);
     pendingStart.current = null;
-    if (playUpNext()) return;
+    const took = playUpNext();
+    if (took === 'other') setPlaying(false);
+    if (took !== 'none') return;
 
     const target = skipIndex(index, queue.length);
     if (target === null) {
@@ -1138,6 +1207,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       playedFrom.current = options?.origin ?? null;
       setHeardFrom(options?.origin === undefined ? null : { src: wanted.src, origin: options.origin });
       handedOver.current = true;
+      handedSrc.current = wanted.src;
 
       // The track's own repeat, or null for "no opinion" - which leaves whatever is set alone. It is
       // deliberately *not* `setLoopState`: that is the shelf's switch, and it persists.
@@ -1232,8 +1302,8 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       setPlaybackRate,
       heardFrom: heardFrom !== null && heardFrom.src === track?.src ? heardFrom.origin : null,
       refresh,
-      // Hosting a room, up-next is the room's songs still to play.
-      upNext: roomBinding !== null && roomBinding.hosting ? roomBinding.waiting : upNext,
+      // Hosting a room, up-next is the room's songs still to play; otherwise your own room's.
+      upNext: roomBinding !== null && roomBinding.hosting ? roomBinding.waiting : ownBinding !== null ? ownBinding.waiting : upNext,
       enqueue,
       replaceUpNext,
       shelfSize,
@@ -1245,6 +1315,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       room: roomBinding,
       cue,
       audioElement,
+      bindOwnRoom,
     }),
     [
       queue,
@@ -1288,8 +1359,10 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       skipBarred,
       bindRoom,
       roomBinding,
+      ownBinding,
       cue,
       audioElement,
+      bindOwnRoom,
     ],
   );
 

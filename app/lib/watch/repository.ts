@@ -1,6 +1,7 @@
 import { isSupabaseConfigured } from '../supabase/client';
 import { getMockWatchRepository } from './mock-watch-repository';
 import { getSupabaseWatchRepository } from './supabase-watch-repository';
+import type { OwnRoomHost } from './own-room';
 import type { GuestNameAnswer, JoinAnswer, LiveRoom, PrivateLine, PrivateFold, PrivateRoomLine, QueueMove, RoomAddMode, RoomDoor, RoomGuest, RoomMemberRow, RoomOutline, RoomPrivacy, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
 /**
@@ -32,19 +33,8 @@ export type OpenRoomInput = {
   mediaItemId: string | null;
 };
 
-/**
- * GO PUBLIC (SPEC-music-queues.md): the host's music room, opened or reopened from what their player has on
- * (`playing`, where it is and whether it plays) and their up-next. See `goPublicPlan` for what is written.
- */
-export type OpenMusicRoomInput = {
-  /** Made by the caller; used only when the host has no music room yet. */
-  id: string;
-  host: { id: string; label: string };
-  playing: WatchLink | null;
-  positionSeconds: number;
-  isPlaying: boolean;
-  upNext: WatchLink[];
-};
+/** Your own room (SPEC-rooms-queues.md): `id` is made by the caller and used only when the person has no room yet. */
+export type OpenOwnRoomInput = { id: string; host: OwnRoomHost };
 
 /** The host plays something from outside the queue (SPEC-music-queues.md, off-queue plays): its row, as it is filed. */
 export type PlayNowInput = { roomId: string; by: string; link: WatchLink; position: number; playIndex: number };
@@ -137,12 +127,21 @@ export type WatchRepository = {
   subscribeRoomMembers(roomId: string, listener: (row: RoomMemberRow) => void): () => void;
   /** GO LIVE: the room, with its first file as play 0 on screen and playing, or empty. Throws with a sentence fit to show. */
   openRoom(input: OpenRoomInput): Promise<WatchRoomRead>;
-  /** The host's one music room, kept whether or not it is public; null when they never went public. */
+  /** A person's own room (the kind the database calls `music`), one each, kept for good; null when they have none yet. */
   findMusicRoom(hostId: string): Promise<WatchRoom | null>;
-  /** GO PUBLIC: opens (or reopens) the host's music room and switches it on. Throws with a sentence fit to show. */
-  openMusicRoom(input: OpenMusicRoomInput): Promise<WatchRoomRead>;
-  /** A music room's switch; nothing in it is cleared when it goes off. */
-  setRoomPublic(roomId: string, isPublic: boolean): Promise<void>;
+  /**
+   * Your own room (SPEC-rooms-queues.md): found, or made private. It is never public: the database refuses the switch.
+   * GO PUBLIC, which used to open one, is gone; going live always makes a new stream room.
+   */
+  openOwnRoom(input: OpenOwnRoomInput): Promise<WatchRoomRead>;
+  /**
+   * Rows written into your own room in one go, each under the id its browser made, so it could be drawn before the
+   * write landed (a row already there is left as it is). A row with `playedAt` is a play already begun.
+   * Throws `OwnRoomRefusal` when the store refuses for good, anything else when it could not be reached.
+   */
+  addOwnEntries(roomId: string, by: string, rows: WatchQueueEntry[]): Promise<void>;
+  /** Takes rows out of your own room, played or not: finished things are cleared, so rows never pile up. */
+  removeOwnEntries(roomId: string, by: string, ids: string[]): Promise<void>;
   /** The settings cog: the host's or a crown's. Throws with a sentence fit to show. */
   saveRoomSettings(input: RoomSettingsInput): Promise<void>;
   /**
@@ -212,6 +211,19 @@ export function getWatchRepository(): WatchRepository {
   }
 
   return repository;
+}
+
+/** Rooms kept in this browser only: a signed-out visitor's own room (SPEC-rooms-queues.md), by its id. */
+const browserRooms = new Map<string, WatchRepository>();
+
+/** A visitor's room says where it lives, so every window that reads or writes it asks this browser and nothing else. */
+export function registerBrowserRoom(roomId: string, store: WatchRepository): void {
+  browserRooms.set(roomId, store);
+}
+
+/** The store that holds this room: the browser's for a visitor's own room, the site's for every other. */
+export function repositoryFor(roomId: string): WatchRepository {
+  return browserRooms.get(roomId) ?? getWatchRepository();
 }
 
 export type { WatchRoom };

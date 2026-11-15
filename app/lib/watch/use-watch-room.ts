@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
-import { getWatchRepository, type RoomChange } from './repository';
+import { getWatchRepository, repositoryFor, type RoomChange } from './repository';
 import { companionSpoke } from '../companion/events';
 import { whenRoomClientChanges } from './room-client';
 import { STALE_CLOSE_SECONDS, calibrateWatchClock, roomAgeSeconds } from './rules';
@@ -56,13 +56,14 @@ function read(roomId: string): void {
   }
   entry.reading = true;
 
-  void getWatchRepository()
+  void repositoryFor(roomId)
     .readRoom(roomId)
     .then((fresh) => {
       publish(entry, { read: fresh, error: null });
       // A room everybody left without ending (every tab closed at once) is closed by whoever reads it
-      // once it has been quiet long enough; the database decides (`watch_close_stale`).
-      if (fresh !== null && fresh.room.endedAt === null && roomAgeSeconds(fresh.room, Date.now()) > STALE_CLOSE_SECONDS) {
+      // once it has been quiet long enough; the database decides (`watch_close_stale`). A person's own room is
+      // kept, never closed, so nobody asks for one.
+      if (fresh !== null && fresh.room.origin === 'stream' && fresh.room.endedAt === null && roomAgeSeconds(fresh.room, Date.now()) > STALE_CLOSE_SECONDS) {
         void getWatchRepository()
           .closeStale(roomId)
           .then((closed) => {
@@ -81,7 +82,7 @@ function read(roomId: string): void {
     });
 }
 
-function apply(roomId: string, change: RoomChange): void {
+function apply(roomId: string, change: RoomChange, stampedHere = false): void {
   const entry = entryFor(roomId);
   const current = entry.state.read;
   if (change.kind === 'refresh' || current === undefined || current === null) {
@@ -92,7 +93,8 @@ function apply(roomId: string, change: RoomChange): void {
   let next: WatchRoomRead = current;
   switch (change.kind) {
     case 'room':
-      calibrateWatchClock(change.room.updatedAt, Date.now());
+      // A stamp this browser made up says nothing about the database's clock.
+      if (!stampedHere) calibrateWatchClock(change.room.updatedAt, Date.now());
       next = { ...current, room: change.room };
       break;
     case 'entry':
@@ -155,6 +157,19 @@ whenRoomClientChanges(refollowRooms);
 /** Puts a write this tab just made into the shared copy at once, before its echo arrives. */
 export function applyLocalChange(roomId: string, change: RoomChange): void {
   apply(roomId, change);
+}
+
+/**
+ * Your own room's changes (own-room.ts): made in the browser first, with the browser's own time on them, and written
+ * to the database after. The same copy every window reads, so the queue window draws them at once.
+ */
+export function applyBrowserChange(roomId: string, change: RoomChange): void {
+  apply(roomId, change, true);
+}
+
+/** The copy of a room as it stands, without drawing from it; null when it has not been read or is not there. */
+export function peekRoom(roomId: string): WatchRoomRead | null {
+  return rooms.get(roomId)?.state.read ?? null;
 }
 
 export function useWatchRoom(roomId: string | null, { follow: wanted = true }: { follow?: boolean } = {}): WatchRoomState {

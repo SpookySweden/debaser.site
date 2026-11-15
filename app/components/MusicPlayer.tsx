@@ -13,10 +13,17 @@ import {
   toggleMusic,
 } from '../lib/audio/music-window';
 import {
+  openQueues,
+  queueWindowServerState,
   queueWindowState,
   queuesAddressSpentByClose,
+  subscribeToQueueWindow,
   toggleQueues,
 } from '../lib/audio/queue-window';
+import { floatingState, orderFloating, subscribeToFloating, takesOrders, type FloatingEntry } from '../lib/ui/floating-player';
+import { ownRoomState, subscribeToOwnRoom } from '../lib/watch/own-room-client';
+import { upcoming } from '../lib/watch/rules';
+import { useWatchRoom } from '../lib/watch/use-watch-room';
 import { SIDE_MUSIC, SIDE_QUEUES } from './SiteNav';
 import { ACCENT_COLOUR, PLATE, PLATE_HARDWARE, PLATE_PRESSED, PLATE_TAP } from '../lib/ui/controls';
 import { useCompactViewport } from '../lib/ui/use-compact-viewport';
@@ -365,6 +372,48 @@ function uploaderCaption(track: AudioTrack | undefined): string {
 }
 
 /**
+ * The video on your room's screen, named on the bar's display (SPEC-rooms-queues.md: the bar names what is on, a
+ * song or a video). The video itself plays in the platform's own player, in its row or floating; the bar only says
+ * its title. No clock: most players never tell us where they are.
+ */
+function ScreenNow({ entry, paused }: { entry: FloatingEntry; paused: boolean }) {
+  return (
+    <div className="flex h-[46px] min-w-0 items-center gap-2 overflow-hidden" data-bar-screen>
+      <div className="min-w-0 flex-1 leading-tight">
+        <p className="truncate text-label leading-readout font-bold text-ink-bar">YOUR ROOM :: {entry.shape === 'audio' ? 'PLAYER' : 'VIDEO'}</p>
+        <MarqueeText className="block text-key leading-readout font-bold text-acid" durationSeconds={22} text={entry.title} />
+      </div>
+      <span className={`shrink-0 text-label text-ink-bar ${paused ? '' : 'animate-blip'}`}>{paused ? '❚❚' : '▶'}</span>
+    </div>
+  );
+}
+
+/**
+ * `[ QUEUE ]` on the bar: your room's queue window, on UP NEXT, with how many things wait in it. The same window the
+ * SHELF's key opens (`queue-window.ts`), so the two cannot disagree about what QUEUE means.
+ */
+function BarQueueKey() {
+  const own = useSyncExternalStore(subscribeToOwnRoom, ownRoomState, ownRoomState);
+  const shown = useSyncExternalStore(subscribeToQueueWindow, queueWindowState, queueWindowServerState);
+  const { read } = useWatchRoom(own.roomId, { follow: false });
+  const waiting = read === undefined || read === null ? 0 : upcoming(read.queue).length;
+  const open = shown.open && shown.tab !== 'radio';
+
+  return (
+    <button
+      type="button"
+      onClick={() => (open ? toggleQueues() : openQueues('queues'))}
+      aria-expanded={open}
+      aria-label={`Your queue: ${waiting === 0 ? 'nothing waiting' : `${waiting} waiting`}`}
+      className={open ? PLATE_PRESSED : PLATE_HARDWARE}
+      data-bar-queue={waiting}
+    >
+      [ QUEUE{waiting > 0 ? ` ${waiting}` : ''} ]
+    </button>
+  );
+}
+
+/**
  * The wide window's bar.
  *
  * One line, left to right: the player's name and its fold, the LED display, the D-pad transport, the
@@ -522,6 +571,22 @@ function DockedBar({ roomId, onHide, onSettings }: BarControls) {
   const follow = useSyncExternalStore(subscribeToFollow, followState, followState);
   const progress = Number.isFinite(duration) && duration > 0 ? elapsed / duration : 0;
 
+  // A video on your room's screen while the bar's own song is quiet: the display names the video, and the middle
+  // key pauses and starts it where its player takes orders (our own files, YouTube, Vimeo). In a live room the bar
+  // is that room's, and none of this applies.
+  const screen = useSyncExternalStore(subscribeToFloating, floatingState, () => null)?.entry ?? null;
+  const videoOn = screen !== null && !playing && roomId === null;
+  const obeys = videoOn && takesOrders(screen);
+  /** What the bar last asked of the video. A press inside the player itself is not heard, so this can be a press behind. */
+  const [pausedPlay, setPausedPlay] = useState<number | null>(null);
+  const screenPlay = screen?.play ?? 0;
+  // Kept against the PLAY it was asked of, so a new video starts as playing without anything being reset.
+  const videoPaused = pausedPlay === screenPlay;
+  const pressVideo = useCallback(() => {
+    orderFloating(videoPaused ? 'play' : 'pause');
+    setPausedPlay(videoPaused ? null : screenPlay);
+  }, [videoPaused, screenPlay]);
+
   /**
    * The middle cell's press: on to the next state, walking playing -> paused -> looping -> playing.
    *
@@ -584,10 +649,14 @@ function DockedBar({ roomId, onHide, onSettings }: BarControls) {
           <span className="min-w-0 flex-1 frame bg-hardware px-2 py-1">
             {/* The song, in the same details format RADI-OH uses (`TrackDetails`): the uploader's picture,
                 what it is being heard as part of, the name, and where it is out of its length. */}
-            <NowPlaying
-              marquee
-              extra={<span className={`shrink-0 ${playing ? 'animate-blip' : ''}`}>{playing ? '▶' : '❚❚'}</span>}
-            />
+            {videoOn ? (
+              <ScreenNow entry={screen} paused={videoPaused} />
+            ) : (
+              <NowPlaying
+                marquee
+                extra={<span className={`shrink-0 ${playing ? 'animate-blip' : ''}`}>{playing ? '▶' : '❚❚'}</span>}
+              />
+            )}
             {/* The caption is on the black LED above, which is Black in *both* themes - so it takes the
                 bar ink. `ena-deep` was Nigrosine on Black (1.18:1) and went Black-on-Black in the dark
                 theme; the quiet ink is no better here, because Nigrosine on Black is the same 1.18:1.
@@ -596,10 +665,10 @@ function DockedBar({ roomId, onHide, onSettings }: BarControls) {
             <MarqueeText
               className="mt-1 block text-label leading-readout-tight text-ink-bar"
               durationSeconds={22}
-              text={`${followNote(follow)}${error ?? uploaderCaption(track)}`}
+              text={videoOn ? (obeys ? 'ON YOUR SCREEN' : "ON YOUR SCREEN :: USE THE PLAYER'S OWN KEYS TO PAUSE") : `${followNote(follow)}${error ?? uploaderCaption(track)}`}
             />
             <span className="mt-1 block h-1 w-full bg-ena-deep">
-              <span className="block h-1 bg-acid" style={{ width: `${Math.round(progress * 100)}%` }} />
+              <span className="block h-1 bg-acid" style={{ width: `${videoOn ? 0 : Math.round(progress * 100)}%` }} />
             </span>
           </span>
 
@@ -607,11 +676,11 @@ function DockedBar({ roomId, onHide, onSettings }: BarControls) {
               symbol showing which of the three states the player is in, and a press moves to the next -
               see `TransportPad` for the cycle and why the symbol reports rather than promises. */}
           <TransportPad
-            playing={playing}
-            loop={loop}
+            playing={obeys ? !videoPaused : playing}
+            loop={obeys ? false : loop}
             disabled={loading || player.queue.length === 0}
             onPrevious={player.previous}
-            onCycle={cycleState}
+            onCycle={obeys ? pressVideo : cycleState}
             onNext={player.next}
           />
 
@@ -631,6 +700,8 @@ function DockedBar({ roomId, onHide, onSettings }: BarControls) {
           </label>
 
           <PlayerSongKeys plate={PLATE_HARDWARE} side="right" />
+
+          <BarQueueKey />
 
           <button type="button" onClick={onSettings} className={PLATE_HARDWARE}>
             [ OPTIONS ]

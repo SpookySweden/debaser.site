@@ -195,6 +195,48 @@ export function placeOf(id: string): number | null {
 
 /** Kept up as a video plays; null when it finished, so playing it again starts it again. */
 export function notePlace(id: string, seconds: number | null): void {
-  if (seconds === null) places.delete(id);
-  else if (Number.isFinite(seconds) && seconds >= 0) places.set(id, seconds);
+  if (seconds === null) {
+    places.delete(id);
+    // Said once per PLAY (a player may say it has ended several times), and only for the video that is on: your room
+    // starts whatever is next (own-room.ts).
+    const on = slot.state().entry;
+    if (on !== null && on.id === id && on.play !== endedPlay) {
+      endedPlay = on.play;
+      for (const listener of endListeners) listener(id);
+    }
+  } else if (Number.isFinite(seconds) && seconds >= 0) places.set(id, seconds);
+}
+
+const endListeners = new Set<(id: string) => void>();
+/** The PLAY whose end was last said. */
+let endedPlay = 0;
+
+/** Hears the video on now reach its end, where its player tells us (our own files, YouTube, Vimeo). */
+export function onFloatingEnded(listener: (id: string) => void): () => void {
+  endListeners.add(listener);
+  return () => {
+    endListeners.delete(listener);
+  };
+}
+
+/** What the bar may ask of the video: only some players take orders (`takesOrders`). */
+export type FloatingOrder = 'pause' | 'play';
+
+const orderListeners = new Set<(order: FloatingOrder) => void>();
+
+/** The layer hears these and passes them to its player (`FloatingPlayer.tsx`). */
+export function onFloatingOrder(listener: (order: FloatingOrder) => void): () => void {
+  orderListeners.add(listener);
+  return () => {
+    orderListeners.delete(listener);
+  };
+}
+
+export function orderFloating(order: FloatingOrder): void {
+  for (const listener of orderListeners) listener(order);
+}
+
+/** Whether this video's player can be paused and started from outside: our own files, and the two that answer messages. */
+export function takesOrders(entry: Pick<FloatingEntry, 'player'>): boolean {
+  return entry.player.kind === 'file' || entry.player.timeFrom !== null;
 }

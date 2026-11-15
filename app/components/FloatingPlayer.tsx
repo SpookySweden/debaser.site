@@ -23,6 +23,7 @@ import {
   notePlace,
   noteFloating,
   notePlayerElement,
+  onFloatingOrder,
   placeOf,
   setFloatAsked,
   subscribeToFloating,
@@ -194,6 +195,32 @@ export default function FloatingPlayer() {
     notePlayerElement(frame.current ?? video.current);
     return () => notePlayerElement(null);
   }, [playKey]);
+
+  // The bar's pause and play for the video (SPEC-rooms-queues.md), where its player takes orders: our own file is a
+  // plain `<video>`; YouTube and Vimeo answer messages sent to their frame (the same ones their own scripts send; if
+  // they ever change, the key does nothing and the player's own controls still work). Any other player is left alone.
+  useEffect(
+    () =>
+      onFloatingOrder((order) => {
+        const file = video.current;
+        if (file !== null) {
+          if (order === 'pause') file.pause();
+          else void file.play().catch(() => undefined);
+          return;
+        }
+        const element = frame.current;
+        if (element === null || frameSource === null) return;
+        let origin: string;
+        try {
+          origin = new URL(element.src).origin;
+        } catch {
+          return;
+        }
+        const message = frameSource === 'youtube' ? { event: 'command', func: order === 'pause' ? 'pauseVideo' : 'playVideo', args: [] } : { method: order };
+        element.contentWindow?.postMessage(JSON.stringify(message), origin);
+      }),
+    [playKey, frameSource],
+  );
 
   // Signing out closes it: MEDIA is for signed-in people, and its rows have just gone.
   const { user } = useAuth();

@@ -1,10 +1,10 @@
-import type { AddSeriesInput, AddToQueueInput, OpenMusicRoomInput, OpenRoomInput, PlayNowInput, PlaybackPatch, RoomChange, RoomMembership, RoomSettingsInput, SendMessageInput, WatchRepository } from './repository';
+import type { AddSeriesInput, AddToQueueInput, OpenOwnRoomInput, OpenRoomInput, PlayNowInput, PlaybackPatch, RoomChange, RoomMembership, RoomSettingsInput, SendMessageInput, WatchRepository } from './repository';
 import { queueRefusal } from './links';
 import { getMockAuthRepository } from '../auth/mock-auth';
-import { goPublicPlan } from './music-rooms';
+import { OWN_QUEUE_FULL, OwnRoomRefusal } from './own-room';
 import { companionOutState, parseCompanionWire, setRoomCompanions, subscribeToCompanionOut, type CompanionWire, type RoomCompanion } from '../companion/wire';
 import { membersSignature } from './members-signature';
-import { NOT_ALLOWED, ROOM_NAME_MAX, ROOM_TOPIC_MAX, TAKE_OVER_QUIET_MS, cleanRoomWords, guestNameLooksRight, hasCrown, mayEditRoom, nextPlayIndex, nextQueuePosition } from './rules';
+import { NOT_ALLOWED, ROOM_NAME_MAX, ROOM_TOPIC_MAX, TAKE_OVER_QUIET_MS, cleanRoomWords, guestNameLooksRight, hasCrown, mayEditRoom } from './rules';
 import type { GuestNameAnswer, JoinAnswer, LiveRoom, PrivateLine, PrivateSize, PrivateFold, PrivateRoomLine, QueueMove, RoomDoor, RoomGuest, RoomMemberRow, RoomOutline, RoomPrivacy, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
 /**
@@ -215,11 +215,13 @@ function changeRoom(roomId: string, change: (room: WatchRoom) => WatchRoom | nul
 
   const changed = change(room);
   if (changed === null) return;
+  // As the database's `watch_rooms_own_room_private`: a person's own room is never switched public.
+  if (room.origin === 'music' && changed.isPublic) throw new OwnRoomRefusal('THAT DID NOT SAVE.');
   // As the database's `watch_rooms_guard`: a room keeps its origin; a music room keeps its host and is never
   // ended; a stream room is always public.
   const next: WatchRoom =
     room.origin === 'music'
-      ? { ...changed, origin: room.origin, hostId: room.hostId, endedAt: null }
+      ? { ...changed, origin: room.origin, hostId: room.hostId, endedAt: null, isPublic: false, privacy: 'private' }
       : { ...changed, origin: room.origin, isPublic: true };
   // A new host is crowned at once, as the database's `watch_rooms_crown_host` does it.
   const crowns = next.hostId === room.hostId ? tables.crowns : withCrown(tables.crowns, crownFor(roomId, next.hostId, room.hostId));
@@ -307,15 +309,31 @@ function wireWatching(): void {
 
 /* --- the store ----------------------------------------------------------------------------------- */
 
+/** The database's own cap on an own room (`watch_queue_own_room_cap`). */
+const OWN_ROOM_ROWS_MAX = 500;
+
 class MockWatchRepository implements WatchRepository {
+  /**
+   * Who is asking, as the database's `auth.uid()` would know. A visitor's browser room (`getBrowserWatchRepository`)
+   * answers with the visitor's own id instead: they have no account, and the room is theirs.
+   */
+  constructor(private readonly viewerOverride: string | null = null) {}
+
+  private async viewer(): Promise<string | null> {
+    return this.viewerOverride ?? (await viewerId());
+  }
+
   readonly source = 'mock' as const;
 
   async readDoor(roomId: string): Promise<RoomDoor> {
     const tables = load();
     const room = tables.rooms.find((candidate) => candidate.id === roomId);
-    if (room === undefined) return { found: false, live: false, privacy: null, title: null, member: false, removed: false, lockedUntil: null };
-    const me = await viewerId();
+    const none: RoomDoor = { found: false, live: false, privacy: null, title: null, member: false, removed: false, lockedUntil: null };
+    if (room === undefined) return none;
+    const me = await this.viewer();
     const mine = tables.members.find((row) => row.roomId === roomId && row.userId === me);
+    // As the database's `watch_room_door`: somebody else's own room is "no such room" (its members are let in by its link).
+    if (room.origin === 'music' && room.hostId !== me && !(mine !== undefined && mine.removedAt === null)) return none;
     const attempt = tables.attempts.find((row) => row.roomId === roomId && row.userId === me);
     const locked = attempt?.lockedUntil !== null && attempt?.lockedUntil !== undefined && Date.parse(attempt.lockedUntil) > Date.now();
     return {
@@ -337,6 +355,8 @@ class MockWatchRepository implements WatchRepository {
     const me = account === null ? (guest === null ? null : { id: guest.id, displayName: guest.label }) : { id: account.id, displayName: account.displayName };
     if (room === undefined || me === null) return 'refused';
     const mine = tables.members.find((row) => row.roomId === roomId && row.userId === me.id);
+    // As the database's `watch_join`: an own room is entered by its link, never by its address.
+    if (room.origin === 'music' && room.hostId !== me.id && mine === undefined) return 'refused';
     if (mine?.removedAt !== null && mine !== undefined) return 'removed';
     if (mine !== undefined) return 'joined';
     if (room.endedAt !== null || !room.isPublic) return 'ended';
@@ -424,7 +444,8 @@ class MockWatchRepository implements WatchRepository {
   async readRoomOutline(roomId: string): Promise<RoomOutline | null> {
     const tables = load();
     const room = tables.rooms.find((candidate) => candidate.id === roomId);
-    if (room === undefined || room.privacy === 'open') return null;
+    // An own room has no outline: there are no outsiders to draw one for (the database's `watch_room_outline`).
+    if (room === undefined || room.privacy === 'open' || room.origin === 'music') return null;
     return {
       live: room.endedAt === null,
       people: tables.members.filter((row) => row.roomId === roomId && row.removedAt === null).map((row) => anonTag(roomId, row.userId)),
@@ -485,7 +506,7 @@ class MockWatchRepository implements WatchRepository {
     const tables = load();
     const room = tables.rooms.find((candidate) => candidate.id === roomId);
     if (room === undefined) return null;
-    const me = await viewerId();
+    const me = await this.viewer();
     const member = tables.members.some((row) => row.roomId === roomId && row.userId === me && row.removedAt === null);
     // The database's rules: a room that is not open is its members', and so is whatever was made while it was not.
     if (room.privacy !== 'open' && !member && room.hostId !== me) return null;
@@ -551,17 +572,13 @@ class MockWatchRepository implements WatchRepository {
     return load().rooms.find((room) => room.origin === 'music' && room.originalHostId === hostId) ?? null;
   }
 
-  async openMusicRoom(input: OpenMusicRoomInput): Promise<WatchRoomRead> {
-    for (const link of [...(input.playing === null ? [] : [input.playing]), ...input.upNext]) {
-      const refusal = queueRefusal(link);
-      if (refusal !== null) throw new Error(refusal);
-    }
-    let tables = load();
-    let room = tables.rooms.find((candidate) => candidate.origin === 'music' && candidate.originalHostId === input.host.id);
-    let crowns = tables.crowns;
-    if (room === undefined) {
+  async openOwnRoom(input: OpenOwnRoomInput): Promise<WatchRoomRead> {
+    const tables = load();
+    // One per person, kept: found before it is ever made twice (the database's `watch_rooms_one_music_room`).
+    const held = tables.rooms.find((room) => room.origin === 'music' && room.originalHostId === input.host.id);
+    if (held === undefined) {
       const at = stamp();
-      room = {
+      const room: WatchRoom = {
         id: input.id,
         originalHostId: input.host.id,
         originalHostLabel: input.host.label,
@@ -574,48 +591,53 @@ class MockWatchRepository implements WatchRepository {
         updatedAt: at,
         endedAt: null,
         origin: 'music',
-        isPublic: true,
-        privacy: 'open',
+        // Never public, and its host's alone (the database's `watch_rooms_own_room_private`).
+        isPublic: false,
+        privacy: 'private',
         clearedAt: null,
         name: null,
         topic: null,
         addMode: 'anyone',
         guestsCanTalk: true,
       };
-      // The host is crowned as the room is written, as GO LIVE does it.
-      crowns = withCrown(crowns, crownFor(room.id, input.host.id, input.host.id));
-      tables = { ...tables, rooms: [...tables.rooms, room], crowns };
+      save(
+        {
+          ...tables,
+          rooms: [...tables.rooms, room],
+          crowns: withCrown(tables.crowns, crownFor(room.id, input.host.id, input.host.id)),
+          members: [...tables.members, { roomId: room.id, userId: input.host.id, label: input.host.label, removedAt: null }],
+        },
+        room.id,
+      );
     }
-    const roomId = room.id;
-    const queue = tables.queue.filter((entry) => entry.roomId === roomId);
-    const current = queue.find((entry) => entry.id === room?.currentEntryId);
-    const plan = goPublicPlan(queue, current, input.playing, input.upNext);
-    const crowned = hasCrown(crowns.filter((crown) => crown.roomId === roomId), input.host.id);
-    const added: WatchQueueEntry[] = [];
-    let currentEntryId = room.currentEntryId;
-    if (plan.slot !== null) {
-      const at = stamp();
-      const slotted = songRow(roomId, plan.slot, { position: nextQueuePosition(queue), addedBy: input.host.id, playedAt: at, playIndex: nextPlayIndex(queue) });
-      added.push(slotted);
-      currentEntryId = slotted.id;
-    }
-    let position = nextQueuePosition([...queue, ...added]);
-    // Without their own crown the host's up-next waits on their list, like anybody's.
-    for (const link of plan.append) added.push(songRow(roomId, link, { position: position++, addedBy: input.host.id, inQueue: crowned }));
-    const opened: WatchRoom = {
-      ...room,
-      currentEntryId,
-      positionSeconds: plan.slot !== null || input.playing !== null ? Math.max(0, input.positionSeconds) : room.positionSeconds,
-      isPlaying: input.isPlaying && currentEntryId !== null,
-      isPublic: true,
-      updatedAt: stamp(),
-    };
-    save({ ...tables, queue: [...tables.queue, ...added], rooms: tables.rooms.map((candidate) => (candidate.id === roomId ? opened : candidate)) }, roomId);
-    return (await this.readRoom(roomId)) as WatchRoomRead;
+    const read = await this.readRoom((held ?? { id: input.id }).id);
+    if (read === null) throw new OwnRoomRefusal('YOUR ROOM COULD NOT BE MADE.');
+    return read;
   }
 
-  async setRoomPublic(roomId: string, isPublic: boolean): Promise<void> {
-    changeRoom(roomId, (room) => (room.origin !== 'music' ? null : { ...room, isPublic, privacy: isPublic ? 'open' : 'private', isPlaying: isPublic && room.isPlaying }));
+  async addOwnEntries(roomId: string, by: string, rows: WatchQueueEntry[]): Promise<void> {
+    if (rows.length === 0) return;
+    const tables = load();
+    const room = tables.rooms.find((candidate) => candidate.id === roomId);
+    // Only its owner writes rows under their own ids, and only into their own room.
+    if (room === undefined || room.origin !== 'music' || room.hostId !== by) throw new OwnRoomRefusal(NOT_ALLOWED);
+    for (const row of rows) {
+      const refusal = row.link === null ? null : queueRefusal(row.link);
+      if (refusal !== null) throw new OwnRoomRefusal(refusal);
+    }
+    const known = new Set(tables.queue.map((entry) => entry.id));
+    const fresh = rows.filter((row) => !known.has(row.id)).map((row) => ({ ...row, roomId, inQueue: true, addedBy: by }));
+    if (tables.queue.filter((entry) => entry.roomId === roomId).length + fresh.length > OWN_ROOM_ROWS_MAX) throw new OwnRoomRefusal(OWN_QUEUE_FULL);
+    save({ ...tables, queue: [...tables.queue, ...fresh], privateRows: [...tables.privateRows, ...fresh.map((row) => row.id)] }, roomId);
+  }
+
+  async removeOwnEntries(roomId: string, by: string, ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    const tables = load();
+    const room = tables.rooms.find((candidate) => candidate.id === roomId);
+    if (room === undefined || room.origin !== 'music' || room.hostId !== by) throw new OwnRoomRefusal(NOT_ALLOWED);
+    const gone = new Set(ids);
+    save({ ...tables, queue: tables.queue.filter((entry) => !(entry.roomId === roomId && gone.has(entry.id))) }, roomId);
   }
 
   async saveRoomSettings(input: RoomSettingsInput): Promise<void> {
@@ -1027,6 +1049,21 @@ let mockWatchRepository: MockWatchRepository | null = null;
 export function getMockWatchRepository(): WatchRepository {
   if (mockWatchRepository === null) mockWatchRepository = new MockWatchRepository();
   return mockWatchRepository;
+}
+
+const browserRepositories = new Map<string, WatchRepository>();
+
+/**
+ * A signed-out visitor's room (SPEC-rooms-queues.md): the same store, kept in this browser only, read as the visitor.
+ * Nothing in it is sent anywhere. The live site uses it for exactly this and nothing else.
+ */
+export function getBrowserWatchRepository(visitorId: string): WatchRepository {
+  let repository = browserRepositories.get(visitorId);
+  if (repository === undefined) {
+    repository = new MockWatchRepository(visitorId);
+    browserRepositories.set(visitorId, repository);
+  }
+  return repository;
 }
 
 /** Test helper: forgets every room this browser (or process) holds. */

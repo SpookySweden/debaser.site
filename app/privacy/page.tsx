@@ -39,6 +39,7 @@ const SECTIONS: { heading: string; lines: string[] }[] = [
     lines: [
       'Whether you are online, so others can see a status lamp. You can hide it in your privacy settings.',
       'Where you are in a book, so you can carry on reading on another device.',
+      'Your room: what you are playing and your queue are saved to your account so they follow you between devices. Only you can read them; no other account can, the house account included.',
       'Your private history: what you open, play and read, whether you finished a video or closed it within half a minute, and what you press on a result’s feedback key (NOT FOR ME, MORE LIKE THIS, SHOW LESS FROM THIS CHANNEL). It is used only to suggest things for you (FOR YOU). Only you can see it. It deletes itself after 90 days, and you can pause it, forget single items or erase it all on your account PRIVACY tab.',
       'Settings you choose, such as your theme and which pages are on your top bar.',
     ],

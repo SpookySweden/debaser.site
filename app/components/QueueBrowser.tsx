@@ -1,16 +1,15 @@
 'use client';
 
-import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { formatClock } from '../lib/audio/format';
 import { saveLoop } from '../lib/audio/loops';
 import { useCatalogue } from '../lib/media/catalogue';
-import { PLATE, PLATE_LINK } from '../lib/ui/controls';
+import { PLATE } from '../lib/ui/controls';
 import { useNow } from '../lib/ui/use-now';
 import { listedRooms, roomRowState, type RoomRowState } from '../lib/watch/music-rooms';
 import { hostPosition, roomIsLive, withSeries } from '../lib/watch/rules';
 import type { LiveRoom, WatchQueueEntry } from '../lib/watch/types';
-import { enterRoom, useLiveRooms, useMusicRoomSwitch } from '../lib/watch/use-music-room';
+import { enterRoom, useLiveRooms } from '../lib/watch/use-music-room';
 import { useQueueName } from '../lib/audio/use-queue-name';
 import { useWatchRoom } from '../lib/watch/use-watch-room';
 import { useAuth } from './AuthProvider';
@@ -20,17 +19,18 @@ import StreamQueueWindow from './StreamQueueWindow';
 const STATE_WORDS: Record<RoomRowState, string> = { live: 'LIVE', paused: 'PAUSED', silent: 'SILENT' };
 
 /**
- * QUEUES (SPEC-music-queues.md): every live room, people's music rooms and video streams alike, and the switch
- * that opens yours.
+ * The old QUEUES tab: every live room as a row (SPEC-music-queues.md). **Not drawn any more** (SPEC-rooms-queues.md,
+ * 2026-11-14): the queue window's second tab is UP NEXT, your own room's queue, and the list of live rooms is on the
+ * STREAM page's ROOMS tab, where the same list already was. Its public switch went with it. The file is kept, unused,
+ * until Luke says whether it goes (Temp/check-structure.cjs names it as waiting on him).
  *
- * GO PUBLIC opens your music room - kept for good, built on the stream room - from what your player has on and
- * your up-next; switching it off leaves the room's songs as your up-next. Pressing a row joins that room: a music
- * room folded, with the bar playing its music (the TV key turns the bar to the room's screen, chat and queue); a
- * video stream as its `[ TV ]` key opens it. `[ QUEUE ]` on a row opens that room's queue window, to look before
- * you join. RADI-OH is unchanged: whatever your player had on is kept there as you join.
+ * Pressing a row joins that room: a music room folded, with the bar playing its music (the TV key turns the bar to
+ * the room's screen, chat and queue); a video stream as its `[ TV ]` key opens it. `[ QUEUE ]` on a row opens that
+ * room's queue window, to look before you join. RADI-OH is unchanged: whatever your player had on is kept there as
+ * you join.
  */
 export default function QueueBrowser() {
-  const { user, status } = useAuth();
+  const { user } = useAuth();
   const player = useMusicPlayer();
   const catalogue = useCatalogue();
   const now = useNow(1000);
@@ -38,7 +38,6 @@ export default function QueueBrowser() {
   const [peek, setPeek] = useState<string | null>(null);
   const titles = useMemo(() => new Map(catalogue.items.map((item) => [item.id, item.title])), [catalogue.items]);
 
-  const signedIn = status === 'signed-in' && user !== null;
   const shown = rooms === null ? null : listedRooms(rooms, now);
   const titleOf = (entry: WatchQueueEntry | null) =>
     entry === null ? 'NOTHING ON' : entry.link !== null ? withSeries(entry, entry.link.title) : (titles.get(entry.mediaItemId ?? '') ?? 'A FILE');
@@ -55,8 +54,6 @@ export default function QueueBrowser() {
   // No title line: the QUEUES tab pressed right above already names this screen (SPEC-efficiency.md).
   return (
     <section>
-      <PublicSwitch signedIn={signedIn} />
-
       {error === null ? null : <p className="border-b border-ink bg-bubble-pale px-2 py-1 text-label font-bold text-ink-bar">{error}</p>}
 
       {shown === null ? (
@@ -90,45 +87,6 @@ export default function QueueBrowser() {
  * The switch: whether your music room is open. A `button` with `aria-pressed`, the whole plate the control, as
  * the theme rows in `PreferencesWindow` are. Signed out, one `[ LOG IN ] TO BROADCAST` line instead.
  */
-function PublicSwitch({ signedIn }: { signedIn: boolean }) {
-  const { user } = useAuth();
-  const player = useMusicPlayer();
-  const room = useMusicRoomSwitch(user, player);
-
-  if (!signedIn) {
-    return (
-      <p className="border-b border-ink px-2 py-1 text-label text-ink">
-        <Link href="/account" className={PLATE_LINK}>
-          [ LOG IN ]
-        </Link>{' '}
-        TO BROADCAST
-      </p>
-    );
-  }
-
-  return (
-    <div className="border-b border-ink px-2 py-1">
-      <p className="flex flex-wrap items-center gap-2 text-label font-bold text-ink">
-        <button
-          type="button"
-          onClick={() => void (room.isPublic ? room.goPrivate() : room.goPublic())}
-          disabled={room.busy}
-          aria-pressed={room.isPublic}
-          title={room.isPublic ? 'Switch your room off: its songs stay as your up-next' : 'Open your music room from what you are playing and your up-next'}
-          className={`cursor-pointer px-2 py-0.5 text-label disabled:cursor-not-allowed max-sm:min-h-tap max-sm:px-3 ${
-            room.isPublic ? 'key key-fill [--key-fill:var(--color-acid)] text-ink-plate' : 'key'
-          }`}
-          data-go-public
-        >
-          {room.isPublic ? '[ PUBLIC ]' : '[ GO PUBLIC ]'}
-        </button>
-      </p>
-      {room.message === null ? null : <p className="mt-1 text-label font-bold text-ink">{room.message}</p>}
-    </div>
-  );
-}
-
-/** One room: whose, what is on, where they are in it, and whether they are playing; `[ QUEUE ]` to look in first. */
 function RoomRow({
   live,
   now,

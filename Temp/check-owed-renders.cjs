@@ -258,6 +258,13 @@ stub('./owed-render/components/MusicPlayerProvider.js', {
     play: (track, origin) => say('play', track.src, origin.href),
     playList: (tracks, origin) => say('playList', tracks.length, origin.href),
     toggle: () => say('toggle'),
+    // (2026-11-14, SPEC-rooms-queues.md) What your own room's keeper needs of the bar.
+    loading: false,
+    room: null,
+    bindOwnRoom: (binding) => say('bindOwnRoom', binding === null ? null : binding.roomId),
+    audioElement: () => null,
+    cue: (track) => say('cue', track.src),
+    steer: (playing) => say('steer', playing),
   }),
 });
 stub('./owed-render/components/PresenceProvider.js', { default: ({ children }) => children, usePresence: () => ({ ready: true, status: 'offline', record: undefined }) });
@@ -326,7 +333,7 @@ const webRepo = {
 
 override('./owed-render/lib/media/catalogue.js', { useCatalogue: () => catalogue });
 override('./owed-render/lib/ui/cursor-slot.js', { cursorState: () => ({ id: cursor }) });
-override('./owed-render/lib/watch/repository.js', { getWatchRepository: () => watchRepo });
+override('./owed-render/lib/watch/repository.js', { getWatchRepository: () => watchRepo, repositoryFor: () => watchRepo, registerBrowserRoom: (roomId) => say('registerBrowserRoom', roomId) });
 override('./owed-render/lib/watch/canvas-repository.js', { getCanvasRepository: () => canvasRepo });
 override('./owed-render/lib/watch/go-live.js', { goLiveEmpty: async (user, createThread, choice) => {
     lastChoice = choice;
@@ -674,47 +681,37 @@ async function keeperRuns({ stopFirst = false } = {}) {
   });
   await tick();
 }
-test('MusicRoomKeeper: draws nothing, and signed out asks for nothing', async () => {
-  auth = { status: 'signed-out', user: null };
+// (2026-11-14, SPEC-rooms-queues.md, phase 1) The keeper used to reopen a music room left public, folded, and switch
+// one off that had gone quiet. GO PUBLIC is gone: it keeps your own room now, which never opens a window by itself and is
+// never switched public. What the room does with plays and its queue is held by check-own-room and driven by
+// scripts/drive-own-room.cjs; here it is held that the keeper draws nothing, asks the right store, and opens nothing.
+const siteAsked = () => asked.filter(([what]) => what !== 'bindOwnRoom' && what !== 'registerBrowserRoom');
+test('MusicRoomKeeper: draws nothing, and signed out asks the site for nothing', async () => {
+  auth = { status: 'anonymous', user: null };
   await keeperRuns();
-  assert.deepEqual(asked, []);
+  assert.deepEqual(siteAsked(), [], "a visitor's room lives in their browser: the site's store is never asked");
 });
-test('MusicRoomKeeper: your public room opens again, folded as music', async () => {
-  musicRoom = room({ id: 'mine', origin: 'music', updatedAt: ago(60) });
-  await keeperRuns();
-  assert.deepEqual(asked, [
-    ['findMusicRoom', USER.id],
-    ['enterRoom', 'mine', 'music'],
-  ]);
-});
-test('MusicRoomKeeper: no room, or one switched off, stays shut', async () => {
-  for (const found of [null, room({ id: 'mine', origin: 'music', isPublic: false })]) {
+test('MusicRoomKeeper: signed in, it looks for your own room and opens no window', async () => {
+  for (const found of [null, room({ id: 'mine', origin: 'music', isPublic: false, updatedAt: ago(60) })]) {
     asked = [];
     musicRoom = found;
     await keeperRuns();
-    assert.deepEqual(asked, [['findMusicRoom', USER.id]]);
+    assert.deepEqual(siteAsked()[0], ['findMusicRoom', USER.id]);
+    assert.deepEqual(said('enterRoom'), [], 'your own room never opens a window by itself');
+    assert.deepEqual(said('openWatch'), []);
+    assert.deepEqual(said('setRoomPublic'), [], 'and nothing switches it public or off: there is no such switch');
   }
 });
-test('MusicRoomKeeper: past half an hour quiet it is switched off instead of opened', async () => {
-  musicRoom = room({ id: 'mine', origin: 'music', updatedAt: ago(31 * 60) });
+test('MusicRoomKeeper: no room yet writes nothing: the room is made with the first thing played', async () => {
+  musicRoom = null;
   await keeperRuns();
-  assert.deepEqual(asked, [
-    ['findMusicRoom', USER.id],
-    ['setRoomPublic', 'mine', false],
-  ]);
-  asked = [];
-  musicRoom = room({ id: 'mine', origin: 'music', updatedAt: ago(29 * 60) });
-  await keeperRuns();
-  assert.deepEqual(said('enterRoom'), [['enterRoom', 'mine', 'music']], 'twenty-nine minutes is still on');
+  assert.deepEqual(siteAsked(), [['findMusicRoom', USER.id]]);
 });
-test('MusicRoomKeeper: never over a room this page opened on, and not after the page has gone', async () => {
-  musicRoom = room({ id: 'mine', origin: 'music', updatedAt: ago(60) });
-  watchWindowOpen = true;
-  await keeperRuns();
-  assert.deepEqual(said('enterRoom'), []);
-  watchWindowOpen = false;
+test('MusicRoomKeeper: not after the page has gone', async () => {
+  musicRoom = room({ id: 'mine', origin: 'music', isPublic: false, updatedAt: ago(60) });
   await keeperRuns({ stopFirst: true });
   assert.deepEqual(said('enterRoom'), []);
+  assert.deepEqual(said('readRoom'), [], 'a session closed before its answer reads no further');
 });
 test('MusicRoomKeeper: an unreadable room is swallowed, with no failure left unhandled', async () => {
   const unhandled = [];
@@ -1308,7 +1305,7 @@ test('WebStream: a row names its source, its words as text, and links only where
   const words = visible(html);
   // Updated on purpose 2026-11-14 (Luke's list M5-M11): OPEN is a small ↗ in the picture's corner, DISCUSS is the pen alone,
   // PLAY is the first half of one key, and the other copies fold open under `[ ALSO ON ▾ ]` (drawn, hidden, while shut).
-  for (const word of ['A Train Film', 'Prelinger', 'YOUTUBE · VIDEO', '2026-10-01', '[ ▶ PLAY │ WATCH IN ROOM ]', '[ ✎ ]', '[ ALSO ON ▾ ]', '[ VIMEO ↗ ]']) assert.ok(words.includes(word), word);
+  for (const word of ['A Train Film', 'Prelinger', 'YOUTUBE · VIDEO', '2026-10-01', '[ ▶ PLAY │ + QUEUE ]', '[ ✎ ]', '[ ALSO ON ▾ ]', '[ VIMEO ↗ ]']) assert.ok(words.includes(word), word);
   assert.match(html, new RegExp(`<a href="https://youtu\\.be/${YT_ID}"[^>]*aria-label="Open &quot;A Train Film&quot; on YOUTUBE \\(new tab\\)"[^>]*data-thumb-open`), 'the corner key, and it says where it goes');
   assert.match(html, /<div id="[^"]*-also" hidden=""/, 'the other copies are folded until asked for');
   assert.ok(html.includes(`src="https://i.ytimg.com/vi/${YT_ID}/hqdefault.jpg"`) && html.includes('referrerPolicy="no-referrer"'));

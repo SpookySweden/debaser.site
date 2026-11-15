@@ -1,12 +1,13 @@
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
 import { getSupabaseBrowserClient } from '../supabase/client';
 import { guestClient, hasStoredGuest, roomClient } from './room-client';
-import type { AddSeriesInput, AddToQueueInput, OpenMusicRoomInput, OpenRoomInput, PlayNowInput, PlaybackPatch, RoomChange, RoomMembership, RoomSettingsInput, SendMessageInput, WatchRepository } from './repository';
+import type { AddSeriesInput, AddToQueueInput, OpenOwnRoomInput, OpenRoomInput, PlayNowInput, PlaybackPatch, RoomChange, RoomMembership, RoomSettingsInput, SendMessageInput, WatchRepository } from './repository';
 import { isLinkKind, queueRefusal } from './links';
-import { MUSIC_ROOM_GONE_SECONDS, goPublicPlan } from './music-rooms';
+import { MUSIC_ROOM_GONE_SECONDS } from './music-rooms';
+import { OWN_QUEUE_FULL, OwnRoomRefusal } from './own-room';
 import { companionOutState, parseCompanionWire, setRoomCompanions, subscribeToCompanionOut, type RoomCompanion } from '../companion/wire';
 import { membersSignature } from './members-signature';
-import { NOT_ALLOWED, hasCrown, nextPlayIndex, nextQueuePosition, watchClockSkewMs } from './rules';
+import { NOT_ALLOWED, watchClockSkewMs } from './rules';
 import type { GuestNameAnswer, JoinAnswer, LiveRoom, PrivateLine, PrivateSize, PrivateFold, PrivateRoomLine, QueueMove, RoomDoor, RoomGuest, RoomMemberRow, RoomOutline, RoomPrivacy, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
 /**
@@ -142,7 +143,7 @@ function toRoom(row: RoomRow): WatchRoom {
   };
 }
 
-/** A song or video row as GO PUBLIC writes it. */
+/** A song or video row as an off-queue play writes it. */
 function linkRow(roomId: string, link: WatchLink, addedBy: string, over: Record<string, unknown>): Record<string, unknown> {
   return { room_id: roomId, source_url: link.url, source_kind: link.kind, source_title: link.title, added_by: addedBy, ...over };
 }
@@ -186,10 +187,14 @@ function toMessage(row: MessageRow): WatchMessage {
   };
 }
 
-/** A refusal in plain words: no database message reaches the screen. */
+/**
+ * A refusal in plain words: no database message reaches the screen. One the database itself gave (it has a code) is
+ * a refusal for good, which your own room's queued writes let go of (`OwnRoomRefusal`, own-room.ts); a request that
+ * never arrived has none, and is tried again.
+ */
 function refused(error: { code?: string; message?: string } | null, fallback: string): Error {
-  if (error?.code === '42501' || /row-level security/i.test(error?.message ?? '')) return new Error(NOT_ALLOWED);
-  return new Error(fallback);
+  if (error?.code === '42501' || /row-level security/i.test(error?.message ?? '')) return new OwnRoomRefusal(NOT_ALLOWED);
+  return typeof error?.code === 'string' && error.code.length > 0 ? new OwnRoomRefusal(fallback) : new Error(fallback);
 }
 
 function requireClient(): SupabaseClient {
@@ -536,21 +541,17 @@ class SupabaseWatchRepository implements WatchRepository {
       .eq('original_host_id', hostId)
       .eq('origin', 'music')
       .maybeSingle<RoomRow>();
-    if (error) throw refused(error, 'YOUR MUSIC ROOM COULD NOT BE READ.');
+    if (error) throw refused(error, 'YOUR ROOM COULD NOT BE READ.');
     return data === null ? null : toRoom(data);
   }
 
-  async openMusicRoom(input: OpenMusicRoomInput): Promise<WatchRoomRead> {
-    for (const link of [...(input.playing === null ? [] : [input.playing]), ...input.upNext]) {
-      const refusal = queueRefusal(link);
-      if (refusal !== null) throw new Error(refusal);
-    }
+  async openOwnRoom(input: OpenOwnRoomInput): Promise<WatchRoomRead> {
     const client = requireClient();
-    const failed = 'YOUR MUSIC ROOM COULD NOT OPEN.';
+    const failed = 'YOUR ROOM COULD NOT BE MADE.';
 
     let room = await this.findMusicRoom(input.host.id);
     if (room === null) {
-      // The database crowns the host as the room is written (`watch_rooms_crown_host`).
+      // Private, and never public (`watch_rooms_own_room_private`). The database crowns its host and makes them its one member.
       const made = await client
         .from(ROOMS)
         .insert({
@@ -559,65 +560,61 @@ class SupabaseWatchRepository implements WatchRepository {
           original_host_label: input.host.label.slice(0, 80) || 'Unknown',
           host_id: input.host.id,
           origin: 'music',
-          is_public: true,
-          privacy: 'open',
+          is_public: false,
+          privacy: 'private',
           position_seconds: 0,
           is_playing: false,
         })
         .select(ROOM_COLUMNS)
         .single<RoomRow>();
-      if (made.error) throw refused(made.error, failed);
-      room = toRoom(made.data);
+      if (made.error === null) {
+        room = toRoom(made.data);
+      } else {
+        // One room per person: another of their devices made it a moment ago, and that one is the room.
+        if (made.error.code !== '23505') throw refused(made.error, failed);
+        room = await this.findMusicRoom(input.host.id);
+        if (room === null) throw new OwnRoomRefusal(failed);
+      }
     }
 
     const read = await this.readRoom(room.id);
     if (read === null) throw new Error(failed);
-    const current = read.queue.find((entry) => entry.id === read.room.currentEntryId);
-    const plan = goPublicPlan(read.queue, current, input.playing, input.upNext);
-    let currentEntryId = read.room.currentEntryId;
-
-    if (plan.slot !== null) {
-      // Already playing: only the host files a played row (`watch_queue_plays_by_host`).
-      const slotted = await client
-        .from(QUEUE)
-        .insert(linkRow(room.id, plan.slot, input.host.id, { position: nextQueuePosition(read.queue), played_at: new Date().toISOString(), play_index: nextPlayIndex(read.queue) }))
-        .select(QUEUE_COLUMNS)
-        .single<QueueRow>();
-      if (slotted.error) throw refused(slotted.error, failed);
-      currentEntryId = slotted.data.id;
-    }
-
-    if (plan.append.length > 0) {
-      // Without their own crown the host's up-next waits on their list, like anybody's.
-      const crowned = hasCrown(read.crowns, input.host.id);
-      const start = nextQueuePosition(read.queue) + (plan.slot === null ? 0 : 1);
-      const rows = plan.append.map((link, index) => linkRow(room.id, link, input.host.id, { position: start + index, in_queue: crowned }));
-      for (let at = 0; at < rows.length; at += QUEUE_PAGE) {
-        const { error } = await client.from(QUEUE).insert(rows.slice(at, at + QUEUE_PAGE));
-        if (error) throw refused(error, failed);
-      }
-    }
-
-    const opened = await client
-      .from(ROOMS)
-      .update({
-        current_entry_id: currentEntryId,
-        position_seconds: input.playing !== null ? Math.max(0, Math.round(input.positionSeconds * 1000) / 1000) : read.room.positionSeconds,
-        is_playing: input.isPlaying && currentEntryId !== null,
-        is_public: true,
-      })
-      .eq('id', room.id);
-    if (opened.error) throw refused(opened.error, failed);
-
-    const after = await this.readRoom(room.id);
-    if (after === null) throw new Error(failed);
-    return after;
+    return read;
   }
 
-  async setRoomPublic(roomId: string, isPublic: boolean): Promise<void> {
-    const patch = isPublic ? { is_public: true } : { is_public: false, is_playing: false };
-    const { error } = await requireClient().from(ROOMS).update(patch).eq('id', roomId).eq('origin', 'music');
-    if (error) throw refused(error, 'THAT DID NOT SAVE.');
+  async addOwnEntries(roomId: string, by: string, rows: WatchQueueEntry[]): Promise<void> {
+    if (rows.length === 0) return;
+    for (const row of rows) {
+      const refusal = row.link === null ? null : queueRefusal(row.link);
+      if (refusal !== null) throw new OwnRoomRefusal(refusal);
+    }
+    // `ignoreDuplicates`: a write that landed but whose answer was lost is sent again, and must not fail the second time.
+    const { error } = await requireClient()
+      .from(QUEUE)
+      .upsert(
+        rows.map((row) => ({
+          id: row.id,
+          room_id: roomId,
+          position: row.position,
+          in_queue: true,
+          media_item_id: row.mediaItemId,
+          source_url: row.link?.url ?? null,
+          source_kind: row.link?.kind ?? null,
+          source_title: row.link?.title ?? null,
+          added_by: by,
+          played_at: row.playedAt,
+          play_index: row.playIndex,
+        })),
+        { onConflict: 'id', ignoreDuplicates: true },
+      );
+    // 53400: the database's own cap on an own room (`watch_queue_own_room_cap`).
+    if (error) throw error.code === '53400' ? new OwnRoomRefusal(OWN_QUEUE_FULL) : refused(error, 'YOUR QUEUE COULD NOT BE SAVED.');
+  }
+
+  async removeOwnEntries(roomId: string, _by: string, ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    const { error } = await requireClient().from(QUEUE).delete().eq('room_id', roomId).in('id', ids);
+    if (error) throw refused(error, 'YOUR QUEUE COULD NOT BE SAVED.');
   }
 
   /** Through the database's own function, which checks the host or a crown and writes these three fields only. */

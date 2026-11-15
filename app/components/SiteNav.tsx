@@ -168,7 +168,7 @@ export const SIDE_MUSIC: NavItem = {
  */
 export const SIDE_QUEUES: NavItem = {
   key: 'queues',
-  label: 'QUEUES',
+  label: 'QUEUE',
   mark: ICON_LOOP,
   href: QUEUES_HREF,
 };

@@ -87,7 +87,11 @@ for (const theme of THEMES) {
   assert.notEqual(theme.tokens.acid, theme.tokens.bubble, `${theme.id}: the two halves differ`);
 }
 const queue = read('app/components/QueueHalf.tsx');
-assert.ok(queue.indexOf("roomKey.mode === 'add'") < queue.indexOf('if (bar !== null)') && queue.indexOf('if (bar !== null)') < queue.indexOf('if (roomKey !== null) {'), 'in a room: its queue; then the bar; then WATCH IN ROOM');
+// (2026-11-14, SPEC-rooms-queues.md phase 1) The third case was WATCH IN ROOM, because a video outside a room had no queue.
+// Everybody has a room of their own now, so it is + QUEUE too, through the one function that says what that means.
+assert.ok(queue.indexOf("roomKey.mode === 'add'") < queue.indexOf('if (bar !== null)') && queue.indexOf('if (bar !== null)') < queue.indexOf('if (room !== undefined) {'), 'in a room: its queue; then the bar; then your own room');
+assert.match(queue, /await addToMyQueue\(room\.link !== undefined \? \{ title, link: room\.link \} : \{ title, mediaItemId: room\.mediaItemId \}, userId\)/, "a video outside a room goes onto your own room's queue");
+assert.doesNotMatch(queue, /data: 'room-start'/, 'and the half never opens the GO LIVE menu any more');
 assert.match(queue, /for \(const track of tracks\) player\.enqueue\(track, 'end'\);/, "+ QUEUE puts the bar's audio on UP NEXT");
 assert.match(stream, /<SplitKey label=\{`Play or queue "\$\{item\.title\}"`\} first=\{playHalf\} second=\{queueHalf\} \/>/, 'the row draws PLAY / + QUEUE');
 assert.match(read('app/components/WebBridgeKeys.tsx'), /short \? `\[ ✎\$\{count > 0 \? ` \$\{count\}` : ''\} \]`/, 'DISCUSS is the short pen on a row');

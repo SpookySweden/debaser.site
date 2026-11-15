@@ -1,42 +1,51 @@
 'use client';
 
-import { useCallback, useEffect, useSyncExternalStore } from 'react';
+import Link from 'next/link';
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   closeQueues,
   openQueues,
   queueTabRequested,
   queuesRequested,
+  queueWindowServerState,
   queueWindowState,
   showQueueTab,
   subscribeToQueueWindow,
   type QueueTab,
 } from '../lib/audio/queue-window';
+import { useCatalogue } from '../lib/media/catalogue';
+import { PLATE_LINK } from '../lib/ui/controls';
+import { ownRoomState, subscribeToOwnRoom } from '../lib/watch/own-room-client';
+import { useWatchRoom } from '../lib/watch/use-watch-room';
 import DockWindow from './DockWindow';
 import RadioLoops from './RadioLoops';
-import QueueBrowser from './QueueBrowser';
+import StreamQueueWindow from './StreamQueueWindow';
 
 /**
- * The queue window: what you can listen along to, in two tabs.
+ * The queue window: your room's queue, and where you have been, in two tabs (SPEC-rooms-queues.md).
  *
  * Drawn once, in `layout.tsx`, outside the page - which is what makes it a window rather than a page:
- * opening it, switching a tab or following somebody's queue re-renders *this*, and the board behind it
- * is not touched at all. The archive and the arcade keep the same arrangement, and
- * `app/lib/audio/queue-window.ts` holds the state so no page has to know the window exists.
+ * opening it or switching a tab re-renders *this*, and the board behind it is not touched at all. The
+ * archive and the arcade keep the same arrangement, and `app/lib/audio/queue-window.ts` holds the state
+ * so no page has to know the window exists.
+ *
+ * UP NEXT is your own room's queue, the same queue window a live room has (`StreamQueueWindow`), drawn
+ * without a frame of its own: search, add, reorder, take out. It is kept on your account, or in this
+ * browser for a signed-out visitor. RADI-OH is the plates of what you played lately, as before. The list
+ * of live rooms that used to be the second tab is on the STREAM page's ROOMS tab, where the same list
+ * already was; GO PUBLIC is gone, and GO LIVE is how people are let in.
  *
  * **The tabs are the width of the window rather than of their labels.** A tab strip whose tabs are only
  * as wide as their words reads as a row of links; these are `flex-1`, so the strip is equal cells and
- * the window below is visibly one thing with two faces. It is also why the labels are short - `RADI-OH`
- * and `QUEUES` - because a long word in an equal cell is a word that truncates on a phone. (A third tab,
- * MIXTAPES, comes back when it is built; it was an empty placeholder until then.)
+ * the window below is visibly one thing with two faces.
  *
- * **Both screens stay mounted**, and the one that is not on is hidden, for the reason
- * `MusicWindow` gives: the browser keeps a search box, a filter and a scroll position, and unmounting to
- * switch would throw all of it away. Hiding costs nothing here - neither screen subscribes to the
- * other's state, and a hidden one reads nothing.
+ * **Both screens stay mounted**, and the one that is not on is hidden, for the reason `MusicWindow`
+ * gives: the browser keeps a search box, a filter and a scroll position, and unmounting to switch would
+ * throw all of it away.
  */
 export default function QueueWindow() {
-  const state = useSyncExternalStore(subscribeToQueueWindow, queueWindowState, queueWindowState);
+  const state = useSyncExternalStore(subscribeToQueueWindow, queueWindowState, queueWindowServerState);
   const search = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
@@ -69,39 +78,80 @@ export default function QueueWindow() {
   const show = useCallback(
     (tab: QueueTab) => {
       showQueueTab(tab);
-      router.replace(tab === 'radio' ? `${pathname}?queues=1` : `${pathname}?queues=${tab}`, { scroll: false });
+      router.replace(tab === 'queues' ? `${pathname}?queues=1` : `${pathname}?queues=${tab}`, { scroll: false });
     },
     [pathname, router],
   );
 
   if (!state.open) return null;
 
-  // The MIXTAPES tab is cut until it is built (SPEC-efficiency.md), but `?queues=third` can still be
-  // linked or stored, so that tab lands on RADI-OH rather than on a window with nothing shown in it.
-  const tab = state.tab === 'third' ? 'radio' : state.tab;
+  // The MIXTAPES tab was cut before it was built (SPEC-efficiency.md), but `?queues=third` can still be
+  // linked or stored, so that tab lands on UP NEXT rather than on a window with nothing shown in it.
+  const tab = state.tab === 'third' ? 'queues' : state.tab;
 
   return (
     <DockWindow
-      title="QUEUES"
+      title="QUEUE"
       onClose={close}
       id="queue"
       defaultSize={{ w: 736, h: 600 }}
       minSize={{ w: 420, h: 260 }}
-      status="LISTEN ALONG"
+      status="YOUR ROOM"
     >
       <div className="mb-2 flex items-stretch gap-1" role="tablist" aria-label="Queue screens">
+        <QueueTabPlate label="UP NEXT" selected={tab === 'queues'} onSelect={() => show('queues')} />
         <QueueTabPlate label="RADI-OH" selected={tab === 'radio'} onSelect={() => show('radio')} />
-        <QueueTabPlate label="QUEUES" selected={tab === 'queues'} onSelect={() => show('queues')} />
+      </div>
+
+      <div className={tab === 'queues' ? undefined : 'hidden'}>
+        <OwnQueue onClose={close} />
       </div>
 
       <div className={tab === 'radio' ? undefined : 'hidden'}>
         <RadioLoops />
       </div>
-
-      <div className={tab === 'queues' ? undefined : 'hidden'}>
-        <QueueBrowser />
-      </div>
     </DockWindow>
+  );
+}
+
+/**
+ * UP NEXT: your own room's queue. The room's keeper (`MusicRoomKeeper.tsx`) found or started the room; this reads the
+ * same copy the bar plays from, so a song queued anywhere on the site is here at once.
+ */
+function OwnQueue({ onClose }: { onClose: () => void }) {
+  const own = useSyncExternalStore(subscribeToOwnRoom, ownRoomState, ownRoomState);
+  const { read } = useWatchRoom(own.roomId, { follow: false });
+  const catalogue = useCatalogue();
+  const itemsById = useMemo(() => new Map(catalogue.items.map((item) => [item.id, item])), [catalogue.items]);
+
+  if (own.roomId === null || read === undefined || read === null) {
+    return <p className="p-3 text-label font-bold text-ink">READING YOUR QUEUE...</p>;
+  }
+
+  return (
+    <section aria-label="Up next" data-own-room={own.visitor ? 'browser' : 'account'}>
+      {own.visitor ? (
+        <p className="border-b border-ink px-2 py-1 text-label text-ink" data-own-room-note="visitor">
+          KEPT IN THIS BROWSER ONLY.{' '}
+          <Link href="/account" className={PLATE_LINK}>
+            [ LOG IN ]
+          </Link>{' '}
+          TO KEEP IT ON YOUR ACCOUNT.
+        </p>
+      ) : null}
+      {own.waiting ? (
+        <p role="status" className="border-b border-ink bg-bubble-pale px-2 py-1 text-label font-bold text-ink-bar" data-own-room-note="waiting">
+          NOT SAVED YET: THE DATABASE CAN&apos;T BE REACHED. IT CARRIES ON HERE AND SAVES WHEN IT CAN.
+        </p>
+      ) : null}
+      {own.note ? (
+        <p role="alert" className="border-b border-ink bg-bubble-pale px-2 py-1 text-label font-bold text-ink-bar" data-own-room-note="refused">
+          {own.note}
+        </p>
+      ) : null}
+      {/* Your own room is always open to you: nothing about it waits on a host being there. */}
+      <StreamQueueWindow bare read={read} itemsById={itemsById} live userId={own.hostId} members={[]} nowLive={false} onClose={onClose} />
+    </section>
   );
 }
 
