@@ -5,7 +5,7 @@
  *
  *   node "<notes>\heavy-step.cjs" PROFILE --live -- node scripts/drive-speech-room-live.cjs [--base <site>] [--headed]
  *
- * A goes live, B joins by the room's address, B says a line and then A does:
+ * A goes live (PRIVATE, as offered), B opens the room's address and presses JOIN at its door, B says a line and then A does:
  *   - on A's screen B's companion says B's words in a bubble that is wholly on the screen; on B's own screen too;
  *   - on B's screen A's companion says A's words;
  *   - the audio key is in the room, beside the chat, and off.
@@ -108,14 +108,12 @@ async function main() {
     await a.page.getByRole('button', { name: /GO LIVE|BACK TO YOUR ROOM/ }).first().click({ timeout: 60000 });
     await sleep(500);
     seen.length = 0;
-    // An OPEN room: on 2026-11-15 a second account could not get into a PRIVATE one by its address within 45 seconds
-    // (the first run of this check stopped there). Open for the minute this takes, by a hidden test account.
-    const open = a.page.locator('[data-room-privacy="open"]');
-    if ((await open.count()) > 0) await open.first().click();
+    // The room is left PRIVATE, as GO LIVE offers it: nobody else on the site sees more than that a room is on.
     const startKey = a.page.locator('[data-go-live-start]');
     if ((await startKey.count()) > 0) await startKey.click();
     started = true;
-    await a.page.waitForSelector('[data-room-picture]', { timeout: 45000 });
+    // The chat is what says the room has opened: an empty room draws no picture until something is queued.
+    await a.page.waitForSelector('[data-room-picture], [data-watch-tv-box], [placeholder="Say something..."]', { state: 'attached', timeout: 45000 });
     await unfold(a.page);
     await chatOf(a.page).waitFor({ timeout: 30000 });
     await sleep(1500);
@@ -126,8 +124,13 @@ async function main() {
     const b = await person(browser, 'B');
     await b.page.goto(`${BASE}/forum?watch=${roomId}`, { waitUntil: 'domcontentloaded' });
     await b.page.mouse.move(700, 300);
-    await b.page.waitForSelector('[data-room-picture], [data-watch-tv-box]', { state: 'attached', timeout: 45000 });
+    // Somebody who is not a member yet gets the room's door (`RoomDoor.tsx`): pressing JOIN is what lets them in. The
+    // first run of this check (2026-11-15) waited for the room itself here and stopped: it had never pressed JOIN.
+    await b.page.waitForSelector('[data-room-door-join], [data-room-picture], [data-watch-tv-box], [placeholder="Say something..."]', { state: 'attached', timeout: 45000 });
     await clearWindows(b.page);
+    const join = b.page.locator('[data-room-door-join]');
+    if ((await join.count()) > 0) await join.first().click();
+    await b.page.waitForSelector('[data-room-picture], [data-watch-tv-box], [placeholder="Say something..."]', { state: 'attached', timeout: 45000 });
     await unfold(b.page);
     await chatOf(b.page).waitFor({ timeout: 30000 });
     const bOnA = `[data-companion="room"][data-companion-of="${b.account.userId}"]`;
