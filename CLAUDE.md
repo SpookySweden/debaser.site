@@ -49,7 +49,9 @@ The house rules live in `.claude/rules/core.md` (loaded automatically).
   Library), and may keep it in that browser's own storage (IndexedDB, `app/lib/books/own-library.ts`), never anywhere else.
 - Public APIs, RSS/Atom, oEmbed and open-data endpoints; unofficial JSON APIs a platform's own site uses
   (YouTube's InnerTube) are fine too, with an official fallback where one exists (core.md, "forever project").
-  Never parse HTML pages.
+  Feeds and APIs come first. Reading a platform's ordinary web pages (scraping) is a last resort, only with Luke's OK
+  each time and a fallback (Luke, 2026-11-15): pages change shape without warning, and platforms block the address
+  that scrapes, which after the move to a local server is his home connection.
 - Remote fetches from the server go through `app/lib/web/safe-fetch.ts`. Browser code may fetch outside sites
   directly too (Luke lifted the server-only rule, 2026-11-11), but never imports the server's fetching code, which
   sits beside the keys (`scripts/check-web-types.cjs` holds that). Third-party text is

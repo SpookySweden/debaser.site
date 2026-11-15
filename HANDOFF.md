@@ -13,7 +13,8 @@ decision matters; don't read it all.
   (`AppData\Local\Claude-Data\claude_pzs8sxrjxfjjc\side-session-notes\local_27370d78-4644-44af-a1d7-9888cfb5e583\`).
 - **Rules removed (Luke, 2026-11-15, `3851ed2`):** no more rules against downloading, copying, caching, transcoding or
   self-hosting media, ahead of a move to a local server. Kept: privacy and security lines (no engagement counts shown,
-  third-party text as plain text, browser code never imports the server's fetching code, no HTML parsing).
+  third-party text as plain text, browser code never imports the server's fetching code). Scraping web pages was
+  softened the same day from never to a last resort with Luke's OK each time and a fallback.
 - **Test locally** (core.md, 2026-11-14): live checks are `deploy-status` and `npm run read`; live drives only for what
   can't be proved locally, one at a time through the notes folder's `heavy-step.cjs`.
 

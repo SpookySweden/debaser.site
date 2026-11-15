@@ -15,8 +15,8 @@ of the others for anything unusual:
 Feeds are parsed with `adapters/xml.ts` (strict, bounded, no DTDs); do not add an XML dependency.
 
 ## Rules no adapter may bend
-- Official public APIs, RSS/Atom, oEmbed or open-data endpoints only. No HTML scraping, no paid or
-  keyed service unless Luke says so.
+- Official public APIs, RSS/Atom, oEmbed or open-data endpoints first. HTML scraping only as a last resort,
+  with Luke's OK for that platform and a fallback (CLAUDE.md). No paid or keyed service unless Luke says so.
 - Metadata only: the `WebItem` fields. Never request, store or pass on likes, views, downloads,
   ratings, follower counts or comments. Do not put engagement fields in the request's field list.
 - No rule against downloading, copying or self-hosting media (Luke, 2026-11-15). Today thumbnails
