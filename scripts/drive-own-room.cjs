@@ -71,9 +71,15 @@ function writeTones() {
     header.writeUInt32LE(samples.length, 40);
     writeFileSync(join(DRIVE_AUDIO, `tone-${index + 1}.wav`), Buffer.concat([header, samples]));
   }
+  writeFileSync(join(DRIVE_AUDIO, 'picture.png'), Buffer.from(PICTURE_PNG, 'base64'));
 }
+/** An 8 by 8 one-colour PNG: the smallest picture a browser will draw. */
+const PICTURE_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAD0lEQVR4nGOoxwEYhpYEADfzX0Hh3xezAAAAAElFTkSuQmCC';
 const SEED = `(() => {
   try {
+    if (localStorage.getItem('debaser.media.items.v1') === null) {
+      localStorage.setItem('debaser.media.items.v1', JSON.stringify([{ id: 'drive-picture-1', kind: 'image', bucket: '', path: '', src: '/assets/audio/_drive/picture.png', sha256: 'd'.repeat(64), bytes: 75, mime: 'image/png', width: 8, height: 8, length: '', title: 'DRIVE PICTURE', credit: 'THE DRIVE', tags: [], source: 'upload', uploadedBy: null, uploadedByLabel: 'THE DRIVE', createdAt: new Date().toISOString() }]));
+    }
     if (localStorage.getItem('debaser.audio.mock.v1') !== null) return;
     const track = (n) => ({ id: 'drive-tone-' + n, title: 'DRIVE TONE ' + n, credit: 'THE DRIVE', kind: 'TEST', src: '/assets/audio/_drive/tone-' + n + '.wav', length: '0:45', tags: [], folderPath: null, shelf: 'bucket' });
     localStorage.setItem('debaser.audio.mock.v1', JSON.stringify({ tracks: [track(1), track(2), track(3)] }));
@@ -646,6 +652,103 @@ async function open(page, path) {
     await page.waitForSelector('[data-go-live-key]', { timeout: 10000 });
     pass('GO LIVE is back on the bar');
     await page.screenshot({ path: join(SHOTS, 'go-live-ended.png') });
+
+    console.log('A PICTURE TAKES ITS TURN: queued from FILES, held until NEXT, alone and live');
+    /** The room this account hosts live, with what it has on, as the store holds it. */
+    const liveNow = () =>
+      page.evaluate(() => {
+        const kept = JSON.parse(localStorage.getItem('debaser.watch.v1') ?? '{"rooms":[],"queue":[]}');
+        const room = kept.rooms.find((held) => held.origin === 'stream' && held.hostId === 'drive-user' && held.endedAt === null);
+        if (room === undefined) return null;
+        const on = kept.queue.find((entry) => entry.id === room.currentEntryId);
+        return { on: on ? (on.link ? on.link.kind : 'file') : null, updatedAt: room.updatedAt, waiting: kept.queue.filter((entry) => entry.roomId === room.id && entry.playedAt === null && entry.inQueue).length };
+      });
+    const queuePictureFromFiles = async () => {
+      await open(page, '/files?kind=image');
+      // The pictures are filed in folds: the test picture is under OTHER PICTURES.
+      await page.getByText('OTHER PICTURES', { exact: false }).first().click();
+      await page.waitForSelector('[data-queue-picture="idle"]', { timeout: 30000 });
+      // Pressed in the page: the QUEUE window, still open from the step before, sits over the row.
+      await page.evaluate(() => document.querySelector('[data-queue-picture="idle"]').click());
+      await page.waitForSelector('[data-queue-picture="queued"]', { timeout: 15000 });
+    };
+    // Start from an empty queue, so the order is known: the picture, then a song.
+    await open(page, '/forum');
+    await page.locator('[data-bar-queue]').click();
+    await page.waitForSelector('[data-playlist-keys]', { timeout: 15000 });
+    if ((await barQueue(page)) > 0) {
+      await page.locator('[data-clear-queue]').click();
+      await page.locator('[data-clear-queue]').click();
+      await page.waitForFunction(() => Number(document.querySelector('[data-bar-queue]')?.getAttribute('data-bar-queue')) === 0, null, { timeout: 15000 });
+    }
+    await queuePictureFromFiles();
+    assert.deepEqual((await mine()).waiting, ['DRIVE PICTURE'], '+ QUEUE on a FILES picture puts it on your queue');
+    pass('+ QUEUE on a FILES picture: it is on your own queue');
+    await pressUntil(page, false);
+    await songMenu(page, 'ADD TO QUEUE');
+    await page.waitForFunction(() => Number(document.querySelector('[data-bar-queue]')?.getAttribute('data-bar-queue')) === 2, null, { timeout: 10000 });
+    await pressNext(page);
+    await page.waitForSelector('[data-queued-picture="shown"]', { timeout: 15000 });
+    await page.waitForSelector('[data-bar-screen="picture"]', { timeout: 10000 });
+    assert.equal((await audio(page)).paused, true, 'the picture is a stop: the song is quiet');
+    assert.ok((await page.locator('[data-bar-screen="picture"]').innerText()).includes('HELD'), 'the bar says HELD where the time would be');
+    const drew = await page.evaluate(() => {
+      const image = document.querySelector('[data-queued-picture="shown"] img');
+      return image !== null && image.complete && image.naturalWidth > 0;
+    });
+    assert.ok(drew, 'the picture is drawn');
+    await sleep(7000);
+    assert.equal(await page.locator('[data-queued-picture="shown"]').count(), 1, 'seven seconds on, it is still there: no timer');
+    assert.equal((await audio(page)).paused, true, 'and nothing behind it has started');
+    pass('the picture took its turn on your screen and held it: the bar says PICTURE and HELD, nothing behind it played');
+    await page.screenshot({ path: join(SHOTS, 'own-picture-held.png') });
+    await page.locator('[data-bar-picture-next]').click();
+    await page.waitForFunction(() => document.querySelector('[data-queued-picture]') === null && !window.__audios[window.__audios.length - 1].paused, null, { timeout: 15000 });
+    pass('NEXT on the bar: the picture comes off and the song behind it starts');
+
+    // Live: the song goes in with you, the picture waits behind it; NEXT puts it on the room's stage, where it is held.
+    await queuePictureFromFiles();
+    await open(page, '/forum');
+    await pressUntil(page, false);
+    await page.locator('[data-go-live-key]').first().click();
+    await page.waitForSelector('[data-go-live-window]', { timeout: 10000 });
+    await page.locator('[data-go-live-window]').getByText('[ START ]', { exact: false }).click();
+    await page.waitForSelector('[data-dock-window="stream"]', { timeout: 30000 });
+    await page.waitForFunction(() => {
+      const kept = JSON.parse(localStorage.getItem('debaser.watch.v1') ?? '{"rooms":[],"queue":[]}');
+      const room = kept.rooms.find((held) => held.origin === 'stream' && held.hostId === 'drive-user' && held.endedAt === null);
+      return room !== undefined && kept.queue.some((entry) => entry.roomId === room.id && entry.playedAt === null && entry.link && entry.link.kind === 'picture');
+    }, null, { timeout: 20000 });
+    await sleep(1500);
+    await page.evaluate(() => document.querySelector('[data-stream-bar-swap="stream"]').click());
+    await page.waitForSelector('button[aria-label="Next track"]', { timeout: 10000 });
+    await pressNext(page);
+    await page.waitForSelector('[data-room-picture-held]', { timeout: 20000 });
+    await page.waitForSelector('[data-room-picture-held] [data-queued-picture="shown"]', { timeout: 10000 });
+    assert.ok(await page.locator('[data-room-picture-next]').count(), 'the host has NEXT under the picture');
+    const heldAt = await liveNow();
+    assert.equal(heldAt.on, 'picture', 'the room has the picture on');
+    assert.equal((await audio(page)).paused, true, 'and the song has stopped for it');
+    await sleep(8000);
+    const stillHeld = await liveNow();
+    assert.equal(stillHeld.on, 'picture', 'eight seconds on, the room is still on the picture');
+    assert.ok(Date.parse(stillHeld.updatedAt) > Date.parse(heldAt.updatedAt), "the host's beat kept the room live while it was held");
+    pass('live: the picture is on the stage, held, with NEXT for the host, and the room stays live on it');
+    await page.screenshot({ path: join(SHOTS, 'live-picture-held.png') });
+    await page.locator('[data-room-picture-next]').click();
+    await page.waitForFunction(() => {
+      const kept = JSON.parse(localStorage.getItem('debaser.watch.v1') ?? '{"rooms":[],"queue":[]}');
+      const room = kept.rooms.find((held) => held.origin === 'stream' && held.hostId === 'drive-user' && held.endedAt === null);
+      return room !== undefined && room.currentEntryId === null;
+    }, null, { timeout: 15000 });
+    assert.equal(await page.locator('[data-room-picture-held]').count(), 0, 'the picture is off the stage');
+    pass('NEXT with nothing behind it: the picture comes off and the screen goes back to black');
+    await page.locator('[data-dock-window="stream"]').getByText('[ END STREAM ]', { exact: false }).first().click();
+    await page.locator('[data-dock-window="stream"]').getByText('[ END FOR EVERYBODY ]', { exact: false }).first().click();
+    await page.waitForFunction(() => {
+      const kept = JSON.parse(localStorage.getItem('debaser.watch.v1') ?? '{"rooms":[],"queue":[]}');
+      return !kept.rooms.some((held) => held.origin === 'stream' && held.hostId === 'drive-user' && held.endedAt === null);
+    }, null, { timeout: 20000 });
 
     console.log('THE PRIVACY PAGE');
     await page.goto(`${BASE}/privacy`, { waitUntil: 'domcontentloaded' });

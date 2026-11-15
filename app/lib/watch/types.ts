@@ -108,8 +108,9 @@ export type LiveRoom = { room: WatchRoom; current: WatchQueueEntry | null };
  * Which player a link needs (SPEC-watch-links.md). `embed` is a WEB platform's own official player in a
  * sandboxed frame (app/lib/web/official-embed.ts): queued from /web only, never from a pasted address.
  * `audio` is a song, played by the music bar from its own address (lib/watch/songs.ts, SPEC-music-queues.md).
+ * `picture` is one still image, shown until somebody presses NEXT (lib/watch/pictures.ts, SPEC-rooms-queues.md).
  */
-export type WatchLinkKind = 'file' | 'hls' | 'dash' | 'youtube' | 'vimeo' | 'dailymotion' | 'twitch' | 'embed' | 'audio';
+export type WatchLinkKind = 'file' | 'hls' | 'dash' | 'youtube' | 'vimeo' | 'dailymotion' | 'twitch' | 'embed' | 'audio' | 'picture';
 
 /** A video link in the queue: only its address, its player and its title are kept, never the video. */
 export type WatchLink = {

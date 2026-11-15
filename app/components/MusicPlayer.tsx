@@ -20,7 +20,7 @@ import {
   subscribeToQueueWindow,
   toggleQueues,
 } from '../lib/audio/queue-window';
-import { floatingState, orderFloating, subscribeToFloating, takesOrders, type FloatingEntry } from '../lib/ui/floating-player';
+import { closeFloating, floatingState, orderFloating, subscribeToFloating, takesOrders, type FloatingEntry } from '../lib/ui/floating-player';
 import { ownRoomState, subscribeToOwnRoom } from '../lib/watch/own-room-client';
 import { upcoming } from '../lib/watch/rules';
 import { useWatchRoom } from '../lib/watch/use-watch-room';
@@ -379,14 +379,25 @@ function uploaderCaption(track: AudioTrack | undefined): string {
  * song or a video). The video itself plays in the platform's own player, in its row or floating; the bar only says
  * its title. No clock: most players never tell us where they are.
  */
-function ScreenNow({ entry, paused }: { entry: FloatingEntry; paused: boolean }) {
+function ScreenNow({ entry, paused, onNext }: { entry: FloatingEntry; paused: boolean; onNext: () => void }) {
+  // A picture has no clock: it is HELD until NEXT, and NEXT is the one key that matters, so it is here and large.
+  const picture = entry.shape === 'picture';
   return (
-    <div className="flex h-[46px] min-w-0 items-center gap-2 overflow-hidden" data-bar-screen>
+    <div className="flex h-[46px] min-w-0 items-center gap-2 overflow-hidden" data-bar-screen={entry.shape}>
       <div className="min-w-0 flex-1 leading-tight">
-        <p className="truncate text-label leading-readout font-bold text-ink-bar">YOUR ROOM :: {entry.shape === 'audio' ? 'PLAYER' : 'VIDEO'}</p>
+        <p className="truncate text-label leading-readout font-bold text-ink-bar">YOUR ROOM :: {picture ? 'PICTURE' : entry.shape === 'audio' ? 'PLAYER' : 'VIDEO'}</p>
         <MarqueeText className="block text-key leading-readout font-bold text-acid" durationSeconds={22} text={entry.title} />
       </div>
-      <span className={`shrink-0 text-label text-ink-bar ${paused ? '' : 'animate-blip'}`}>{paused ? '❚❚' : '▶'}</span>
+      {picture ? (
+        <>
+          <span className="shrink-0 text-label font-bold text-ink-bar">HELD</span>
+          <button type="button" onClick={onNext} aria-label="Next: take the picture off and start what is queued behind it" className={`${PLATE_TAP} shrink-0`} data-bar-picture-next>
+            [ NEXT ► ]
+          </button>
+        </>
+      ) : (
+        <span className={`shrink-0 text-label text-ink-bar ${paused ? '' : 'animate-blip'}`}>{paused ? '❚❚' : '▶'}</span>
+      )}
     </div>
   );
 }
@@ -591,6 +602,15 @@ function DockedBar({ roomId, onHide, onSettings }: BarControls) {
     orderFloating(videoPaused ? 'play' : 'pause');
     setPausedPlay(videoPaused ? null : screenPlay);
   }, [videoPaused, screenPlay]);
+  // NEXT while a picture holds the screen (SPEC-rooms-queues.md, section 6): what is queued behind it starts. With
+  // nothing behind it the picture simply comes off, and your room says nothing is on.
+  const playNext = player.next;
+  const nextFromPicture = useCallback(() => {
+    playNext();
+    if (floatingState().entry?.play !== screenPlay) return;
+    closeFloating();
+    ownRoomState().session?.stopped();
+  }, [playNext, screenPlay]);
 
   /**
    * The middle cell's press: on to the next state, walking playing -> paused -> looping -> playing.
@@ -655,7 +675,7 @@ function DockedBar({ roomId, onHide, onSettings }: BarControls) {
             {/* The song, in the same details format RADI-OH uses (`TrackDetails`): the uploader's picture,
                 what it is being heard as part of, the name, and where it is out of its length. */}
             {videoOn ? (
-              <ScreenNow entry={screen} paused={videoPaused} />
+              <ScreenNow entry={screen} paused={videoPaused} onNext={nextFromPicture} />
             ) : (
               <NowPlaying
                 marquee
@@ -670,7 +690,7 @@ function DockedBar({ roomId, onHide, onSettings }: BarControls) {
             <MarqueeText
               className="mt-1 block text-label leading-readout-tight text-ink-bar"
               durationSeconds={22}
-              text={videoOn ? (obeys ? 'ON YOUR SCREEN' : "ON YOUR SCREEN :: USE THE PLAYER'S OWN KEYS TO PAUSE") : `${followNote(follow)}${error ?? uploaderCaption(track)}`}
+              text={videoOn ? (screen.shape === 'picture' ? 'ON YOUR SCREEN :: HELD UNTIL NEXT' : obeys ? 'ON YOUR SCREEN' : "ON YOUR SCREEN :: USE THE PLAYER'S OWN KEYS TO PAUSE") : `${followNote(follow)}${error ?? uploaderCaption(track)}`}
             />
             <span className="mt-1 block h-1 w-full bg-ena-deep">
               <span className="block h-1 bg-acid" style={{ width: `${videoOn ? 0 : Math.round(progress * 100)}%` }} />

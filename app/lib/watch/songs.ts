@@ -28,10 +28,30 @@ export function isSongEntry(entry: Pick<WatchQueueEntry, 'link'> | null | undefi
   return isSongLink(entry?.link);
 }
 
-/** A site path a song may live at: one leading slash, never two (`//host` is another site). */
+/**
+ * A site path a song or a picture may live at: an address that a browser, on this site, resolves to this site.
+ *
+ * Decided the way a browser decides it, never by looking at the first characters (code review, 2026-11-15): a browser
+ * reads a backslash as a slash and drops tabs and line breaks, so `/\\host/x`, or a slash, a tab and `/host/x`, start
+ * with one slash and still load from another site. Any backslash, space or control character is refused outright,
+ * and what is left must resolve to the same origin it was resolved against.
+ */
 export function isSitePath(url: string): boolean {
-  return url.startsWith('/') && !url.startsWith('//');
+  if (typeof url !== 'string' || !url.startsWith('/')) return false;
+  for (let at = 0; at < url.length; at += 1) {
+    const code = url.charCodeAt(at);
+    // A backslash, a space, or any control character (tab, line break, delete).
+    if (code === 92 || code <= 32 || code === 127) return false;
+  }
+  try {
+    return new URL(url, SITE_STAND_IN).origin === SITE_STAND_IN;
+  } catch {
+    return false;
+  }
 }
+
+/** A stand-in for this site's own address, to resolve a path against: `.invalid` is never a real host. */
+const SITE_STAND_IN = 'https://site.invalid';
 
 /**
  * The track a song row plays: the shelf's own when it holds the file (its credit, length, folder), else

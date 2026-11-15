@@ -16,6 +16,7 @@ import PlayerBox, { PipKey, usePlayingHere } from './PlayerBox';
 import SheetImage from './SheetImage';
 import { SongMenuKey, SongMenuPanel } from './SongMenu';
 import SpriteSlot from './SpriteSlot';
+import QueuePictureKey from './QueuePictureKey';
 import WatchInRoomKey from './WatchInRoomKey';
 
 /**
@@ -146,6 +147,7 @@ function SiteFileRow({ entry, focusFirst }: { entry: CatalogueEntry; focusFirst:
             ) : null}
             {item.kind === 'video' && playing ? <PipKey id={playId} title={item.title} /> : null}
             {item.kind === 'video' && user !== null ? <WatchInRoomKey source={{ mediaItemId: item.id }} playId={playId} title={item.title} /> : null}
+            {item.kind === 'image' ? <QueuePictureKey url={item.src} title={item.title} /> : null}
             {item.kind === 'image' ? (
               <button
                 type="button"

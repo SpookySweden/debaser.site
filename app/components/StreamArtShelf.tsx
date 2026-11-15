@@ -17,6 +17,7 @@ import PopoutWindow from './PopoutWindow';
 import ProfileAvatar from './ProfileAvatar';
 import { isGuestLabel } from '../lib/watch/rules';
 import ProfileLink from './ProfileLink';
+import QueuePictureKey from './QueuePictureKey';
 import { usePresence } from './PresenceProvider';
 import StatusDot from './StatusDot';
 import TimeStamp from './TimeStamp';
@@ -241,6 +242,8 @@ function PieceWindow({ piece, onClose, onPeople }: { piece: StreamArtPiece; onCl
           <button type="button" className={replaying ? PLATE_PRESSED : PLATE} aria-pressed={replaying} disabled={inputs === null || inputs.length === 0} onClick={() => setReplaying(true)} data-stream-art-replay-key>
             [ TIMELINE ]
           </button>
+          {/* The final drawing takes a turn in a queue as a picture (SPEC-rooms-queues.md, phase 5); what was placed on top of it is not part of that picture. */}
+          {finalShot !== null && finalShot.imageUrl ? <QueuePictureKey url={finalShot.imageUrl} title="STREAM ART" maker={piece.canvas.hostLabel} /> : null}
           <span className="flex-1" />
           <button type="button" onClick={onPeople} className="inline-flex cursor-pointer items-center gap-1 text-label font-bold" title="Everybody who was there">
             <PersonPicture id={piece.canvas.hostId} label={piece.canvas.hostLabel} size={HOST_PICTURE} />

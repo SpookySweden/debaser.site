@@ -158,8 +158,12 @@ export default function MusicRoomKeeper() {
     if (session === null) return;
     const before = session.read()?.room.currentEntryId ?? null;
     const entry = session.started(songLink(track));
-    // A new song while a video is on the screen: the video is asked to pause, where its player takes orders.
-    if (entry !== null && entry.id !== before && floatingState().entry !== null) orderFloating('pause');
+    // A new song while a video is on the screen: the video is asked to pause, where its player takes orders. A
+    // picture is a stop, not a backdrop (SPEC-rooms-queues.md, section 6): the song starting means it has had its turn.
+    const screen = floatingState().entry;
+    if (entry === null || entry.id === before || screen === null) return;
+    if (screen.player.kind === 'picture') closeFloating();
+    else orderFloating('pause');
   });
 
   const { bindOwnRoom } = player;
@@ -183,6 +187,12 @@ export default function MusicRoomKeeper() {
     // The reader was quicker, or is in a live room: nothing is put over what they chose.
     if (now.current.playing || now.current.room !== null) return;
     const on = currentEntry(read);
+    // A picture was holding the screen: it is put back, held as before, so NEXT is there to take it off.
+    if (on !== undefined && on.link !== null && on.link.kind === 'picture' && floatingState().entry === null) {
+      const screen = floatingForLink(on.link, `own:${on.id}`, window.location.origin);
+      if (screen !== null) playFloating(screen);
+      return;
+    }
     if (on === undefined || !isSongLink(on.link)) return;
     const track = trackForSong(on.link, now.current.queue, webTrackNow(on.link.url));
     // With the song's own length where the shelf knows it: one left playing past its end starts from the top.

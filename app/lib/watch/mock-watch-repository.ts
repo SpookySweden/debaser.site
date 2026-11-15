@@ -740,6 +740,18 @@ class MockWatchRepository implements WatchRepository {
     changeRoom(roomId, (room) => ({ ...room, ...patch, positionSeconds: Math.max(0, patch.positionSeconds) }));
   }
 
+  /** As the database's `watch_picture_next`: a live stream room, the host or a crown, and a picture on. */
+  async pictureNext(roomId: string, by: string): Promise<boolean> {
+    const tables = load();
+    const room = tables.rooms.find((candidate) => candidate.id === roomId);
+    if (room === undefined || room.origin !== 'stream' || room.endedAt !== null) return false;
+    if (room.hostId !== by && !hasCrown(tables.crowns.filter((crown) => crown.roomId === roomId), by)) return false;
+    const on = tables.queue.find((entry) => entry.id === room.currentEntryId && entry.roomId === roomId);
+    if (on === undefined || on.link?.kind !== 'picture') return false;
+    changeRoom(roomId, (current) => ({ ...current, currentEntryId: null, positionSeconds: 0, isPlaying: false }));
+    return true;
+  }
+
   async startEntry(roomId: string, entryId: string, playIndex: number): Promise<void> {
     const tables = load();
     const at = stamp();

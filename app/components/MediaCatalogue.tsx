@@ -34,6 +34,7 @@ import { useMusicLibrary } from './MusicLibraryProvider';
 import { BarredTitle, SongMenuKey, SongMenuPanel } from './SongMenu';
 import StreamChatFolds from './StreamChatFolds';
 import TimeStamp from './TimeStamp';
+import QueuePictureKey from './QueuePictureKey';
 import WatchInRoomKey from './WatchInRoomKey';
 import AddToLetterKey from './AddToLetterKey';
 
@@ -709,6 +710,8 @@ function CatalogueRow({
         ) : null}
 
         <span className="flex shrink-0 items-center justify-end gap-1 max-sm:w-full max-sm:justify-start max-sm:pl-14">
+          {/* A picture takes a turn in a queue, and holds the screen until NEXT (SPEC-rooms-queues.md, phase 5). */}
+          {item.kind === 'image' ? <QueuePictureKey url={item.src} title={item.title} /> : null}
           <AddToLetterKey thing={{ kind: 'file', ref: item.id, title: item.title, picture: item.kind === 'image' ? item.src : undefined }} />
         </span>
 

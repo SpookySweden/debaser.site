@@ -266,7 +266,10 @@ ok(/embedWithPlace\(startingEmbed\(embed, item\.platform, contentLanguage\(item\
 const layer = read('app/components/FloatingPlayer.tsx');
 same((layer.match(/<iframe\s/g) ?? []).length, 1, 'the layer has one frame');
 same((layer.match(/<video\s/g) ?? []).length, 1, 'and one <video>');
-same((layer.match(/key=\{playKey\}/g) ?? []).length, 2, 'each under one key per PLAY, never a key that changes on floating');
+// Changed on purpose 2026-11-15 (SPEC-rooms-queues.md phase 5): the layer also draws a queued picture, under the same
+// key per PLAY as the frame and the video, so there are three now.
+same((layer.match(/key=\{playKey\}/g) ?? []).length, 3, 'each under one key per PLAY (the frame, the picture, the video), never a key that changes on floating');
+ok(/player\.kind === 'picture' \? \(\s*<QueuedPicture key=\{playKey\}/.test(layer), 'a queued picture is drawn by QueuedPicture, which decides in the browser whether it may load');
 ok(!/key=\{[^}]*floating/.test(layer), 'nothing about floating decides an element\'s identity');
 ok(!/\{floating \? <(iframe|video)/.test(layer) && !/createPortal/.test(layer), 'the player is never moved in the page');
 ok(/\[ BACK \]/.test(layer) && /\[ × \]/.test(layer) && /\[ POP OUT \]/.test(layer), 'the float\'s keys');

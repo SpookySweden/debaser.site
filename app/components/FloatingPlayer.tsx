@@ -35,6 +35,7 @@ import { footFloor, screenNow, useFloatFrame } from '../lib/ui/use-float-frame';
 import { listenForTime } from '../lib/web/embed-time';
 import { useAuth } from './AuthProvider';
 import { GRIPS } from './DockWindow';
+import QueuedPicture from './QueuedPicture';
 import WatchInRoomKey from './WatchInRoomKey';
 
 /**
@@ -342,6 +343,8 @@ export default function FloatingPlayer() {
             allowFullScreen={player.allowFullScreen}
             className="absolute inset-0 block h-full w-full border border-ink-plate bg-paper"
           />
+        ) : player.kind === 'picture' ? (
+          <QueuedPicture key={playKey} src={player.src} title={entry.title} className="absolute inset-0 h-full w-full border border-ink bg-ink-plate" />
         ) : (
           <video
             key={playKey}

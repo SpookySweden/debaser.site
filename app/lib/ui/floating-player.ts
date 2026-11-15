@@ -30,6 +30,12 @@ export type FramePlayer = {
 /** One of the site's own files, in a plain `<video>`: what was uploaded is what plays. */
 export type FilePlayer = { kind: 'file'; src: string };
 
+/**
+ * A still picture from a queue (SPEC-rooms-queues.md, section 6): it holds the screen until NEXT. It has no clock and
+ * never ends by itself. Whether it is drawn or only named is decided where it is drawn, from its address (pictures.ts).
+ */
+export type PicturePlayer = { kind: 'picture'; src: string };
+
 /** What a room would queue to play this video: a checked link, or one of the site's own files. */
 export type RoomSource = { link: WatchLink; mediaItemId?: undefined } | { mediaItemId: string; link?: undefined };
 
@@ -38,10 +44,10 @@ export type FloatingEntry = {
   id: string;
   /** Bumped by every PLAY, so the same row played again gets a new element and anything else keeps the old one. */
   play: number;
-  player: FramePlayer | FilePlayer;
+  player: FramePlayer | FilePlayer | PicturePlayer;
   title: string;
-  /** An audio player's frame is one strip high (`h-[44px]`), so its float is too. */
-  shape: 'video' | 'audio';
+  /** An audio player's frame is one strip high (`h-[44px]`), so its float is too. A picture takes a video's room. */
+  shape: 'video' | 'audio' | 'picture';
   /** The address it was started on: the float's `[ BACK ]` goes there. */
   home: string;
   /** How it can play in a room; left out for a video that can't, which then has no key for it. */
@@ -258,5 +264,6 @@ export function orderFloating(order: FloatingOrder): void {
 
 /** Whether this video's player can be paused and started from outside: our own files, and the two that answer messages. */
 export function takesOrders(entry: Pick<FloatingEntry, 'player'>): boolean {
+  if (entry.player.kind === 'picture') return false;
   return entry.player.kind === 'file' || entry.player.timeFrom !== null;
 }

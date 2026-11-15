@@ -80,6 +80,9 @@ export function floatingForLink(link: WatchLink, id: string, origin: string): Om
 
   if (link.kind === 'file' && link.url.startsWith('https://')) return entry({ kind: 'file', src: link.url });
 
+  // A picture holds the same screen until NEXT (pictures.ts): no player, only the picture.
+  if (link.kind === 'picture') return { id, title: link.title, shape: 'picture' as const, room: { link }, player: { kind: 'picture' as const, src: link.url } };
+
   return null;
 }
 

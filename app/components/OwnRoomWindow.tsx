@@ -116,7 +116,7 @@ export default function OwnRoomWindow({ roomId, collapsed, onCollapse, onClose }
                   </div>
                 )}
                 <p className="mt-1 flex flex-wrap items-baseline gap-x-2 text-label text-ink">
-                  <span className="font-bold">{title === null ? 'NOTHING ON' : `${videoOn ? 'VIDEO' : 'SONG'} :: ${title}`}</span>
+                  <span className="font-bold">{title === null ? 'NOTHING ON' : `${videoOn ? (screen.shape === 'picture' ? 'PICTURE (HELD UNTIL NEXT)' : 'VIDEO') : 'SONG'} :: ${title}`}</span>
                   <span className="text-ink-quiet">{waiting === 0 ? 'NOTHING QUEUED' : `${waiting} QUEUED`}</span>
                 </p>
               </section>

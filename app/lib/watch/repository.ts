@@ -174,6 +174,12 @@ export type WatchRepository = {
   attachThread(roomId: string, threadId: string): Promise<void>;
   /** The host's write: what is on, where, playing or not. Also the heartbeat. */
   writePlayback(roomId: string, patch: PlaybackPatch): Promise<void>;
+  /**
+   * NEXT off a picture, for the host or a crown of a live room (the database's `watch_picture_next`): the room's
+   * pointer is cleared, and the host's tab starts whatever is queued behind. False when nothing was done (not a
+   * picture on, not a live room, or the caller is neither).
+   */
+  pictureNext(roomId: string, by: string): Promise<boolean>;
   /** The host moves on to an entry: marks it played (`playIndex`) and puts it on screen from the start. */
   startEntry(roomId: string, entryId: string, playIndex: number): Promise<void>;
   /** The host hands the transport to another account in the room. */

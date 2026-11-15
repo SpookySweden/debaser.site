@@ -718,6 +718,12 @@ class SupabaseWatchRepository implements WatchRepository {
     if (error) throw refused(error, 'THE STREAM COULD NOT BE UPDATED.');
   }
 
+  async pictureNext(roomId: string): Promise<boolean> {
+    const { data, error } = await requireClient().rpc('watch_picture_next', { room: roomId });
+    if (error) throw refused(error, 'THE PICTURE COULD NOT BE TAKEN OFF.');
+    return data === true;
+  }
+
   async startEntry(roomId: string, entryId: string, playIndex: number): Promise<void> {
     const client = requireClient();
     const marked = await client

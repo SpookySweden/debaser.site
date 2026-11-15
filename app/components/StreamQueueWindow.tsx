@@ -215,7 +215,9 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
     entry.link !== null
       ? entry.link.kind === 'audio'
         ? `♪ ${entry.link.title}`
-        : entry.link.title
+        : entry.link.kind === 'picture'
+          ? `▣ ${entry.link.title}`
+          : entry.link.title
       : entry.mediaItemId
         ? (itemsById.get(entry.mediaItemId)?.title ?? 'A FILE NOT HELD')
         : 'A FILE NO LONGER HELD';
@@ -1059,7 +1061,8 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
                 );
               })}
             </ol>
-            {waiting.length === 0 && played.length > 0 && !nowLive ? <p className="text-ink-quiet">LAST VIDEO LOOPS.</p> : null}
+            {/* A stream room loops its last file when nothing is queued; your own room simply stops. */}
+            {waiting.length === 0 && played.length > 0 && !nowLive && !ownRoom ? <p className="text-ink-quiet">LAST VIDEO LOOPS.</p> : null}
             {/* Every queue you may arrange. A playlist is an account's: a signed-out visitor's browser room has none to save into. */}
             {rights.arrange && userId !== null && live && !userId.startsWith('visitor:') ? <PlaylistKeys read={read} userId={userId} shelf={player.queue} waiting={waiting} /> : null}
           </section>

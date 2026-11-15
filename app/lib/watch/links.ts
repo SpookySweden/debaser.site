@@ -1,5 +1,7 @@
 import { MEDIA_SERVERS, mediaServerForUrl, type MediaServer } from '../web/media-servers';
 import { officialEmbedUrl } from '../web/official-embed';
+import { LINK_TITLE_MAX, LINK_URL_MAX } from './link-limits';
+import { pictureRefusal } from './pictures';
 import { isSitePath } from './songs';
 import type { WatchLink, WatchLinkKind } from './types';
 
@@ -11,11 +13,9 @@ import type { WatchLink, WatchLinkKind } from './types';
  * reader, pretends to be the site it came from, or gets round a site's locks on its streams (decided).
  */
 
-export const LINK_KINDS: readonly WatchLinkKind[] = ['file', 'hls', 'dash', 'youtube', 'vimeo', 'dailymotion', 'twitch', 'embed', 'audio'];
+export const LINK_KINDS: readonly WatchLinkKind[] = ['file', 'hls', 'dash', 'youtube', 'vimeo', 'dailymotion', 'twitch', 'embed', 'audio', 'picture'];
 
-/** The database holds these limits too (supabase/migrations/20261030181430_watch_queue_links.sql). */
-export const LINK_URL_MAX = 2048;
-export const LINK_TITLE_MAX = 200;
+export { LINK_TITLE_MAX, LINK_URL_MAX };
 
 /** Video files a `<video>` plays from their address. */
 const FILE_EXTENSIONS = ['mp4', 'webm', 'ogg', 'ogv', 'mov'];
@@ -47,10 +47,13 @@ export function isLinkKind(value: string | null | undefined): value is WatchLink
  */
 export function queueRefusal(link: WatchLink, servers: readonly MediaServer[] = MEDIA_SERVERS): string | null {
   if (!isLinkKind(link.kind)) return LINK_REFUSALS.notVideo;
-  // A song (`audio`, songs.ts) may be one of the site's own paths, which the music bar plays as it is.
-  const sitePath = link.kind === 'audio' && typeof link.url === 'string' && isSitePath(link.url);
+  // A song (`audio`, songs.ts) may be one of the site's own paths, which the music bar plays as it is; so may a
+  // picture (one of the site's own FILES pictures).
+  const sitePath = (link.kind === 'audio' || link.kind === 'picture') && typeof link.url === 'string' && isSitePath(link.url);
   if (typeof link.url !== 'string' || (!link.url.startsWith('https://') && !sitePath)) return LINK_REFUSALS.notHttps;
   if (link.url.length > LINK_URL_MAX) return LINK_REFUSALS.tooLong;
+  // A picture is the site's own or from a source it already trusts (pictures.ts); an outside one is not queued yet.
+  if (link.kind === 'picture') return pictureRefusal(link);
   if (link.kind === 'embed' && officialEmbedUrl(link.url) === null && mediaServerForUrl(link.url, servers) === undefined) return LINK_REFUSALS.notEmbeddable;
   return null;
 }

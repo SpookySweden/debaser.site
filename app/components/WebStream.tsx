@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { artSlot } from '../lib/ui/art/slots';
 import { FIELD_TIGHT, PLATE, PLATE_LINK, PLATE_MAIN } from '../lib/ui/controls';
+import { pictureLink } from '../lib/watch/pictures';
 import { seriesMark } from '../lib/watch/series';
 import { useArchiveRowSubtitles, useSeriesCount } from '../lib/watch/series-client';
 import type { WebStreamItem } from '../lib/web/dedupe';
@@ -1514,8 +1515,13 @@ export function WebRow({
   const seriesCount = useSeriesCount(item);
   const archiveSubtitles = useArchiveRowSubtitles(item);
 
-  /** How this row can play in a room: it has the key only if it can. */
-  const roomLink = canWatch(item) ? watchLinkForItem(item) : null;
+  /**
+   * How this row can play in a room: it has the key only if it can. A picture result takes its turn as a picture
+   * (SPEC-rooms-queues.md, phase 5): the same hotlinked picture the row shows, from the platform's own picture host,
+   * held on the screen until NEXT.
+   */
+  const pictureAddress = item.kind === 'image' ? addresses.thumb : null;
+  const roomLink = canWatch(item) ? watchLinkForItem(item) : pictureAddress !== null && pictureAddress !== undefined ? pictureLink(pictureAddress, item.title, item.creator) : null;
   const roomSource = roomLink === null ? undefined : { link: roomLink };
 
   /** Starts the platform's own player: the reader has just pressed PLAY, and only then does anything of theirs load. */

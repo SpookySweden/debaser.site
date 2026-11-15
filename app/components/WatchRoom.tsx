@@ -24,6 +24,8 @@ import type { AudioTrack } from '../lib/audio/tracks';
 import { frontPosition } from '../lib/watch/music-rooms';
 import { isSongLink, songLink, trackForSong } from '../lib/watch/songs';
 import { comeHome, forgetCarried, isCarriedSong, wasCarried } from '../lib/watch/go-live-carry';
+import { isPictureLink } from '../lib/watch/pictures';
+import QueuedPicture from './QueuedPicture';
 import { useWebTrack, webTrackNow } from '../lib/web/web-track-lookup';
 
 import { roomStartFor } from '../lib/watch/room-start';
@@ -181,6 +183,11 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
    * reads and steers the bar's one audio element as it does the stage's `<video>`.
    */
   const song = isSongLink(link) ? link : null;
+  /**
+   * A picture row (SPEC-rooms-queues.md, section 6): it holds the stage until NEXT. There is no player and no clock:
+   * the host's beat keeps the room on it, and the host or a crown takes it off.
+   */
+  const pictureOn = isPictureLink(link);
   // FOR YOU's private history (SPEC-recommender.md): a room this person is in, by its name and topic. Signed in only.
   const roomName = room.name ?? '';
   const roomTopic = room.topic ?? '';
@@ -319,7 +326,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
 
     // The queue ran out: back to the black screen with its three keys (SPEC-cytube.md), not a loop of the last file.
     if (after.kind === 'black') {
-      if (skip) return;
+      // A skip with nothing behind does nothing, except off a picture: NEXT is the only way a picture ever leaves.
+      if (skip && !pictureOn) return;
       hostEntry.current = null;
       goingBlack.current = true;
       video?.pause();
@@ -336,7 +344,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     // and a different file is loaded by its new `src` and started by `autoPlay`. The music bar's element
     // still holds the song that ended: the next row puts its own file on (`cue`, below).
     hostEntry.current = next.id;
-    if (video !== null && song === null) {
+    // Not when a picture is next: nothing plays behind a picture, so the file that just ended is not started again.
+    if (video !== null && song === null && next.link?.kind !== 'picture') {
       video.currentTime = 0;
       void video.play().catch(refusedPlay);
     }
@@ -773,11 +782,39 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       .writePlayback(roomId, { currentEntryId: room.currentEntryId, positionSeconds, isPlaying: true })
       .catch((failure: unknown) => setFault(failure instanceof Error ? failure.message : 'THE STREAM COULD NOT BE UPDATED.'));
   });
+  // A picture has no transport either: the same beat keeps the room live and on it until NEXT.
   useEffect(() => {
-    if (!officialOn || !amHost || !live) return;
+    if (!(officialOn || pictureOn) || !amHost || !live) return;
     officialBeat();
     return steadyInterval(() => officialBeat(), WATCH_HEARTBEAT_MS);
-  }, [officialOn, amHost, live, entryId]);
+  }, [officialOn, pictureOn, amHost, live, entryId]);
+  // A crown's NEXT takes the picture off by clearing the room's pointer (`watch_picture_next`). This host was on that
+  // picture, not ahead of the room: its black-screen beat may speak again, and whatever is queued behind starts.
+  const shownPicture = useRef<string | null>(null);
+  useEffect(() => {
+    if (pictureOn) {
+      shownPicture.current = entryId;
+      return;
+    }
+    if (room.currentEntryId === null && shownPicture.current !== null && hostEntry.current === shownPicture.current) hostEntry.current = null;
+    shownPicture.current = null;
+  }, [pictureOn, entryId, room.currentEntryId]);
+  /** NEXT off a picture: the host moves the room on; a crown asks the database to take it off, and the host's tab starts what is next. */
+  const crownedHere = user !== null && hasCrown(read.crowns, user.id);
+  const mayNextPicture = pictureOn && live && (amHost || crownedHere);
+  function nextFromPicture() {
+    if (amHost) {
+      moveOn(true);
+      return;
+    }
+    if (user === null) return;
+    void repository
+      .pictureNext(roomId, user.id)
+      .then(() => applyLocalChange(roomId, { kind: 'refresh' }))
+      .catch((failure: unknown) => setFault(failure instanceof Error ? failure.message : 'THE PICTURE COULD NOT BE TAKEN OFF.'));
+  }
+  /** Any viewer can hide a picture for themselves; it comes back with the next one. */
+  const [hiddenPicture, setHiddenPicture] = useState<string | null>(null);
   // Everybody's server player is made again when the room's position goes back on the same play: the host's PLAY. Counted from the
   // room's own rows, the host's tab included, so every player restarts on the same write.
   const [serverSeen, setServerSeen] = useState<{ mark: ServerMark; restarts: number }>({ mark: { entryId: null, position: 0 }, restarts: 0 });
@@ -985,7 +1022,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
 
   const ended = !live;
   /** A WEB platform's own player carries its own transport; the bar then holds only the host's keys. */
-  const hasTransport = src !== undefined && !officialOn;
+  // A picture has nothing to play, pause or seek: it is held until NEXT.
+  const hasTransport = src !== undefined && !officialOn && !pictureOn;
   const hostKeys = amHost && live;
   const duration = Number.isFinite(clock.duration) ? clock.duration : 0;
   const progress = duration > 0 ? Math.min(100, (clock.seconds / duration) * 100) : 0;
@@ -1048,7 +1086,11 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       <span className="block h-full bg-sun" style={{ width: `${progress}%` }} />
     </span>
   );
-  const timeMark = stageLive ? (
+  const timeMark = pictureOn ? (
+    <span className="shrink-0 font-bold" data-watch-clock="held">
+      HELD
+    </span>
+  ) : stageLive ? (
     <span className="shrink-0 bg-acid px-1 font-bold text-ink-plate" data-watch-clock={clock.seconds.toFixed(1)}>
       LIVE
     </span>
@@ -1061,9 +1103,9 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     <button
       type="button"
       className={`${PLATE_ON_BLACK} shrink-0`}
-      disabled={waiting.length === 0}
+      disabled={waiting.length === 0 && !pictureOn}
       aria-label="Skip to the next video"
-      title={waiting.length === 0 ? 'Nothing queued' : 'Skip'}
+      title={waiting.length === 0 && !pictureOn ? 'Nothing queued' : 'Skip'}
       onClick={() => moveOn(true)}
     >
       [ ▶▶ ]
@@ -1200,6 +1242,27 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
         ) : src === undefined ? (
           <div className={`flex items-center justify-center text-label font-bold text-ink-bar ${pictureFit}`}>
             {catalogue.loading ? 'READING THE CATALOGUE...' : 'THIS FILE IS NOT IN THE CATALOGUE.'}
+          </div>
+        ) : pictureOn && link !== null ? (
+          <div className={`flex flex-col ${pictureFit}`} data-room-picture-held={entryId}>
+            {hiddenPicture === entryId ? (
+              <p className="flex min-h-0 flex-1 items-center justify-center text-label font-bold text-ink-bar">YOU HID THIS PICTURE.</p>
+            ) : (
+              <QueuedPicture key={entryId} src={link.url} title={link.title} className="min-h-0 flex-1" />
+            )}
+            <div className="flex shrink-0 flex-wrap items-center gap-2 bg-ink-plate px-2 py-1 text-label text-ink-bar">
+              <span className="font-bold">PICTURE :: HELD</span>
+              {mayNextPicture ? (
+                <button type="button" className={PLATE_ON_BLACK} onClick={nextFromPicture} aria-label="Next: take the picture off and start what is queued behind it" data-room-picture-next>
+                  [ NEXT ► ]
+                </button>
+              ) : live ? (
+                <span data-room-picture-waiting>WAITING FOR THE HOST</span>
+              ) : null}
+              <button type="button" className={PLATE_ON_BLACK} onClick={() => setHiddenPicture(hiddenPicture === entryId ? null : entryId)} aria-pressed={hiddenPicture === entryId}>
+                {hiddenPicture === entryId ? '[ SHOW IT ]' : '[ HIDE ]'}
+              </button>
+            </div>
           </div>
         ) : songTrack !== null ? (
           <SongCoverCard track={songTrack} fit={pictureFit} />

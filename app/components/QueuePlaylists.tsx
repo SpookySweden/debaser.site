@@ -61,7 +61,7 @@ export default function QueuePlaylists() {
 
   /** A song is marked with a note, as the queue marks it; a file by its title in FILES. */
   const titleOf = (item: PlaylistItem): string => {
-    if (item.link !== undefined) return item.link.kind === 'audio' ? `♪ ${item.link.title}` : item.link.title;
+    if (item.link !== undefined) return item.link.kind === 'audio' ? `♪ ${item.link.title}` : item.link.kind === 'picture' ? `▣ ${item.link.title}` : item.link.title;
     if (item.trackId.startsWith(FILE_ITEM)) return fileTitles.get(item.trackId.slice(FILE_ITEM.length)) ?? 'A FILE NO LONGER HELD';
     const track = trackById(item.trackId);
     return track === undefined ? 'A SONG NO LONGER HELD' : `♪ ${track.title}`;

@@ -2,7 +2,7 @@
  * Your own room (SPEC-rooms-queues.md, phase 1), held where it can fail.
  *
  * Steps (above the fold, because `run-checks.cjs` only reads the first 20 lines for these):
- *   npx tsc app/lib/watch/own-room.ts app/lib/watch/mock-watch-repository.ts app/lib/watch/rules.ts app/lib/watch/go-live-carry.ts app/lib/watch/go-live.ts app/lib/watch/music-rooms.ts app/lib/audio/playlist-adding.ts --rootDir app/lib --outDir Temp/own-room-out --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
+ *   npx tsc app/lib/watch/own-room.ts app/lib/watch/mock-watch-repository.ts app/lib/watch/rules.ts app/lib/watch/go-live-carry.ts app/lib/watch/go-live.ts app/lib/watch/music-rooms.ts app/lib/audio/playlist-adding.ts app/lib/watch/pictures.ts app/lib/watch/links.ts app/lib/watch/own-screen.ts --rootDir app/lib --outDir Temp/own-room-out --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
  *
  * What it holds, each against the module and a store that counts what is written (never a string in a template):
  *   1. Playing never waits for the database: the browser's copy changes at once, and the write follows.
@@ -678,6 +678,103 @@ const names = (counted) => counted.writes().map((call) => call.name);
     await assert.rejects(() => guest.removeOwnEntries('room-c', 'account-guest', [next.id]), OwnRoomRefusal, 'somebody without a crown clears nothing');
     await host.removeOwnEntries('room-c', 'account-host', [played.id, next.id]);
     assert.deepEqual((await host.readRoom('room-c')).queue.map((entry) => entry.id), [played.id], 'the crown clears what waits; the play stays');
+  }
+
+  /* 12. Pictures in a queue (phase 5): from the site or a source it trusts, held until NEXT. */
+  {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://example-project.supabase.co';
+    const pictures = require('./own-room-out/watch/pictures.js');
+    const links = require('./own-room-out/watch/links.js');
+    const screens = require('./own-room-out/watch/own-screen.js');
+    const filesPicture = 'https://example-project.supabase.co/storage/v1/object/public/media/images/cat.png';
+    const commons = 'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/Cat.jpg/640px-Cat.jpg';
+    const outside = 'https://pictures.example.net/cat.jpg';
+
+    assert.equal(pictures.isSitePicture('/assets/files/cat.png'), true, "one of the site's own paths");
+    assert.equal(pictures.isSitePicture('//evil.example/cat.png'), false, 'never `//`, which is another host');
+    // Code review, 2026-11-15: decided the way a browser reads the address, never by its first characters. A browser
+    // reads a backslash as a slash and drops tabs and line breaks, so each of these would load from another site.
+    const songs = require('./own-room-out/watch/songs.js');
+    for (const [trick, why] of [
+      ['/\\evil.example/cat.png', 'a backslash is a slash to a browser'],
+      ['\\/evil.example/cat.png', 'a leading backslash'],
+      ['/\t/evil.example/cat.png', 'a tab is dropped by a browser'],
+      ['/\n/evil.example/cat.png', 'so is a line break'],
+      ['/ /evil.example/cat.png', 'a space'],
+      ['/assets/\\..\\..\\evil', 'backslashes further in'],
+    ]) {
+      assert.equal(pictures.isSitePicture(trick), false, `not the site's own picture: ${why}`);
+      assert.equal(songs.isSitePath(trick), false, `not a site path: ${why}`);
+      assert.notEqual(links.queueRefusal({ url: trick, kind: 'picture', title: 'X' }), null, `and it cannot be queued: ${why}`);
+      assert.notEqual(links.queueRefusal({ url: trick, kind: 'audio', title: 'X' }), null, `as a song either: ${why}`);
+    }
+    assert.equal(songs.isSitePath('/assets/audio/song-1.mp3'), true, 'a plain site path is still a site path');
+    // A picture's address is only ever a file: nothing that walks elsewhere, and no route that does work when asked.
+    assert.equal(pictures.isSitePicture('/assets/files/../../api/web/fetch'), false, 'no walking up out of the files');
+    assert.equal(pictures.isSitePicture('/assets/files/%2e%2e/secret.png'), false, 'nor the same written as an escape');
+    assert.equal(pictures.isSitePicture('/api/web/subtitles?x=1'), false, "one of the site's working routes is not a picture");
+    assert.equal(pictures.isSitePicture('/_next/image?url=https%3A%2F%2Fevil.example%2Fx.png'), false, 'least of all the image optimiser');
+    assert.equal(pictures.isSitePicture('/assets/files/cat.png?size=2'), false, 'a file has no question after it');
+    assert.equal(pictures.isSitePicture('https://example-project.supabase.co/storage/v1/object/public/../../../auth/v1/user'), false, "walking out of the site's own storage");
+    assert.equal(pictures.isSitePicture('https://example-project.supabase.co/storage/v1/object/public/media/%2e%2e/%2e%2e/x'), false);
+    assert.equal(pictures.isSitePicture(filesPicture), true, "a file in the site's own storage");
+    assert.equal(pictures.isSitePicture('https://other-project.supabase.co/storage/v1/object/public/media/cat.png'), false, "somebody else's storage is not the site's");
+    assert.equal(pictures.isTrustedPicture(commons), true, "a MEDIA platform's own picture, on its allow-listed picture host");
+    assert.equal(pictures.isTrustedPicture('https://thumb.wikimedia.org/anything/else.jpg'), false, 'the right host with the wrong path is not');
+    assert.equal(pictures.isTrustedPicture(outside), false, 'anything else is an outside picture');
+    assert.equal(pictures.isTrustedPicture('http://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/Cat.jpg/640px-Cat.jpg'), false, 'never plain http');
+
+    const made = pictures.pictureLink(commons, '  A Cat  ', 'Somebody');
+    assert.deepEqual(made, { url: commons, kind: 'picture', title: 'A Cat · Somebody' }, 'a picture is its address, its kind and its title, with who made it');
+    assert.equal(pictures.pictureLink(commons, 'x'.repeat(400)).title.length, 200, 'the title is kept to what a queue row holds');
+    assert.equal(links.queueRefusal(made), null, 'a trusted picture can be queued');
+    assert.equal(links.queueRefusal(pictures.pictureLink('/assets/files/cat.png', 'CAT')), null, "so can one of the site's own paths");
+    assert.equal(links.queueRefusal(pictures.pictureLink(filesPicture, 'CAT')), null);
+    assert.equal(links.queueRefusal(pictures.pictureLink(outside, 'CAT')), pictures.PICTURE_REFUSALS.outside, 'an outside picture is not queued yet');
+    assert.equal(links.queueRefusal(pictures.pictureLink('https://pictures.example.net/x.svg', 'X')), pictures.PICTURE_REFUSALS.svg, 'an SVG is refused by its name');
+    assert.equal(pictures.looksLikeSvg('https://a.example/x.SVGZ?size=2#top'), true);
+    assert.equal(links.queueRefusal(pictures.pictureLink('http://pictures.example.net/cat.jpg', 'CAT')), links.LINK_REFUSALS.notHttps);
+    assert.equal(links.queueRefusal({ url: '/assets/files/film.mp4', kind: 'file', title: 'FILM' }), links.LINK_REFUSALS.notHttps, 'a site path is still only for a song or a picture');
+
+    // Alone: a picture has a screen of its own (no player), so it can be queued without a live room.
+    const screen = screens.floatingForLink(made, 'own:p1', 'https://debaser.site');
+    assert.deepEqual(screen.player, { kind: 'picture', src: commons }, 'on your own screen it is the picture, nothing else');
+    assert.equal(screen.shape, 'picture');
+    assert.equal(screens.soloRefusal(made), null, 'so your own room takes it');
+    const floatingRules = require('./own-room-out/ui/floating-player.js');
+    assert.equal(floatingRules.takesOrders(screen), false, 'a picture cannot be paused or played: it is held');
+
+    // Its turn comes like anything else's, and it is saved in a playlist whole.
+    const own = session();
+    await own.made.load();
+    own.made.enqueueThings([{ link: song(1) }, { link: made }, { link: song(2) }]);
+    assert.equal(own.made.takeNext().link.title, 'SONG 1');
+    const turn = own.made.takeNext();
+    assert.equal(turn.link.kind, 'picture', 'the picture takes its turn between the two songs');
+    assert.equal(currentEntry(own.store.get(own.made.id())).id, turn.id, 'and is what the room has on');
+    const lists = require('./own-room-out/watch/music-rooms.js');
+    const saved = lists.storedListItems(own.store.get(own.made.id()), () => null, 'x');
+    assert.equal(saved[0].link.kind, 'picture', 'a playlist holds a picture, whole');
+    assert.equal(lists.listThings(saved, () => undefined)[0].link.url, commons);
+
+    // In a live room: the host or a crown takes it off; nobody else does; and only a picture.
+    mock.resetMockWatch();
+    const host = mock.getBrowserWatchRepository('account-host');
+    await host.openRoom({ id: 'room-p', host: { id: 'account-host', label: 'HOST' }, mediaItemId: null, privacy: 'open' });
+    const first = await host.playNow({ roomId: 'room-p', by: 'account-host', link: song(1), position: 0, playIndex: 0 });
+    assert.equal(await host.pictureNext('room-p', 'account-host'), false, 'NEXT-off-a-picture does nothing to a song');
+    assert.equal((await host.readRoom('room-p')).room.currentEntryId, first.id);
+    const picture = await host.addToQueue({ roomId: 'room-p', addedBy: 'account-host', position: 1, inQueue: true, link: made });
+    await assert.rejects(() => host.addToQueue({ roomId: 'room-p', addedBy: 'account-host', position: 2, inQueue: true, link: pictures.pictureLink(outside, 'CAT') }), 'the store refuses an outside picture, as the key does');
+    await host.startEntry('room-p', picture.id, 1);
+    assert.equal(await host.pictureNext('room-p', 'account-guest'), false, 'somebody with no crown cannot take the picture off');
+    assert.equal((await host.readRoom('room-p')).room.currentEntryId, picture.id, 'it is still on');
+    await host.setCrown('room-p', 'account-guest', true, 'account-host');
+    assert.equal(await host.pictureNext('room-p', 'account-guest'), true, 'a crown can');
+    const after = (await host.readRoom('room-p')).room;
+    assert.equal(after.currentEntryId, null, "the room's pointer is cleared, for the host's tab to start what is next");
+    assert.equal(after.isPlaying, false);
+    assert.equal(await host.pictureNext('room-p', 'account-host'), false, 'and with nothing on there is nothing to take off');
   }
 
   console.log('check-own-room: every assertion passed');
