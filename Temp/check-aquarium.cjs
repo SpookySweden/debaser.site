@@ -476,6 +476,34 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
   const slotSource = fs.readFileSync('app/lib/aquarium/settings-slot.ts', 'utf8');
   assert.match(slotSource, /process\.env\.NEXT_PUBLIC_AQUARIUM_DATA_SOURCE === 'supabase' \? SUPABASE_STORE : null/, 'accounts are only asked of the database once its table is switched on');
   assert.match(slotSource, /from\('user_aquarium'\)/, 'in the table the SPEC names');
+  // The table (Luke's OK 2026-11-15, "Yes, add it"): owner only, nothing for a visitor, and switched on for the deployed site.
+  const migration = fs.readFileSync('supabase/migrations/20261115235034_user_aquarium.sql', 'utf8').replace(/--.*$/gm, '');
+  assert.match(
+    migration,
+    /create table if not exists public\.user_aquarium \(\s*person uuid primary key references auth\.users \(id\) on delete cascade,\s*settings jsonb not null default '\{\}'::jsonb\s*\);/,
+    'one row a person, gone with their account',
+  );
+  assert.match(migration, /alter table public\.user_aquarium enable row level security;/, 'row level security is on');
+  const policies = [...migration.matchAll(/create policy "([^"]+)" on public\.user_aquarium\s+for (\w+) to (\w+)([^;]*);/g)].map((m) => ({
+    name: m[1],
+    does: m[2],
+    who: m[3],
+    rule: m[4].replace(/\s+/g, ' ').trim(),
+  }));
+  assert.deepEqual(policies.map((p) => p.does).sort(), ['insert', 'select', 'update'], 'a person may read, add and change their row: nothing deletes');
+  for (const policy of policies) {
+    assert.equal(policy.who, 'authenticated', `${policy.name}: signed-in people only`);
+    const own = policy.rule.split('person = auth.uid()').length - 1;
+    assert.ok(own === (policy.does === 'update' ? 2 : 1) && !/ or |true/.test(policy.rule), `${policy.name}: their own row and no other (${policy.rule})`);
+  }
+  assert.match(
+    migration,
+    /revoke all on public\.user_aquarium from public, anon, authenticated;\s*grant select, insert, update on public\.user_aquarium to authenticated;/,
+    'a visitor is granted nothing',
+  );
+  assert.doesNotMatch(migration, /to anon|to public/, 'and no rule names a visitor');
+  assert.match(migration, /pg_column_size\(settings\) < 4096/, 'a save is held to 4 KB');
+  assert.match(fs.readFileSync('.env.production', 'utf8'), /^NEXT_PUBLIC_AQUARIUM_DATA_SOURCE=supabase\r?$/m, 'the deployed site saves to accounts');
   stored.clear();
   delete global.window;
 

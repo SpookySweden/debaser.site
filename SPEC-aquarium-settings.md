@@ -129,9 +129,9 @@ Where the build differs from the plan above, and why:
   width up there is always bare sea to its left; narrower, the window's corner is where the key would be. PREFERENCES keeps its key.
 - **The BACKGROUND choice stays under its own browser key** (the boot script reads it before first paint) and rides only in the
   account's copy.
-- **Account saving is behind `NEXT_PUBLIC_AQUARIUM_DATA_SOURCE=supabase`**, off until the `user_aquarium` table exists (Luke's OK
-  pending; the migration is drafted in the sessions' notes folder, `user_aquarium-migration-draft.sql`, and is not in the repo so
-  nobody's `db:push` can carry it). Until then a signed-in person's settings are kept in their browser, like a visitor's.
+- **Account saving is behind `NEXT_PUBLIC_AQUARIUM_DATA_SOURCE=supabase`**, and on: Luke OK'd the `user_aquarium` table the same
+  evening ("Yes, add it"), `20261115235034_user_aquarium.sql` was pushed, and the switch is set in `.env.production`. Without the
+  switch (a local copy whose `.env.local` lacks the line) a signed-in person's settings are kept in their browser, like a visitor's.
 - **41 knobs**: the list above, with SPECIES as four switches, CORAL as two, and WATER TINT as two sliders.
 - **GIANT MODE** shows eight fish at the most (forty at 8x is more picture than a screen holds); **TINY TANK** is a 400x300 box
   in the bottom-left corner with everything at 1x.
