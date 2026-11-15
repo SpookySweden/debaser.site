@@ -1248,7 +1248,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
             {hiddenPicture === entryId ? (
               <p className="flex min-h-0 flex-1 items-center justify-center text-label font-bold text-ink-bar">YOU HID THIS PICTURE.</p>
             ) : (
-              <QueuedPicture key={entryId} src={link.url} title={link.title} className="min-h-0 flex-1" />
+              <QueuedPicture key={entryId} src={link.url} title={link.title} className="min-h-0 flex-1" roomId={roomId} guest={user === null} />
             )}
             <div className="flex shrink-0 flex-wrap items-center gap-2 bg-ink-plate px-2 py-1 text-label text-ink-bar">
               <span className="font-bold">PICTURE :: HELD</span>

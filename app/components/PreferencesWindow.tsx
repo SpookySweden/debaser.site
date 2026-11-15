@@ -1,7 +1,8 @@
 'use client';
 
 import { useSyncExternalStore, type ReactNode } from 'react';
-import { PLATE, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
+import { PLATE, PLATE_PRESSED, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
+import { OUTSIDE_MODES, outsidePicturesServerState, outsidePicturesState, setOutsideMode, subscribeToOutsidePictures } from '../lib/watch/outside-pictures';
 import {
   CURSORS,
   cursorState,
@@ -161,6 +162,26 @@ function CursorRow({ cursor, active }: { cursor: Cursor; active: boolean }) {
  * (`../lib/ui/preferences-window.ts`), so opening it does not re-render the board underneath - the
  * same arrangement the arcade and the archive keep.
  */
+/** ASK (the start), ALWAYS SHOW or NEVER: one of three, the chosen one pressed in. */
+function OutsidePicturesChoice() {
+  const { mode } = useSyncExternalStore(subscribeToOutsidePictures, outsidePicturesState, outsidePicturesServerState);
+  return (
+    <section className="mt-2">
+      <div className={TITLE_BAR_INACTIVE} title="A picture somebody queued from outside the site is loaded from wherever it lives, and that server sees your browser ask for it">
+        <span>OUTSIDE PICTURES</span>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-1 p-2" role="group" aria-label="Outside pictures" data-outside-pictures={mode}>
+        {OUTSIDE_MODES.map((option) => (
+          <button key={option.value} type="button" aria-pressed={mode === option.value} title={option.tip} onClick={() => setOutsideMode(option.value)} className={mode === option.value ? PLATE_PRESSED : PLATE} data-outside-mode={option.value}>
+            [ {option.label} ]
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function PreferencesWindow() {
   // Subscribed rather than read once, so the filled row moves the moment a theme is pressed.
   const { id } = useSyncExternalStore(subscribeToTheme, themeState, themeState);
@@ -215,6 +236,10 @@ export default function PreferencesWindow() {
 
       {/* Your companion along the bottom of the site (SPEC-companion.md): on phones too, where it has its own switch. */}
       <CompanionPreferences />
+
+      {/* Pictures from outside the site in a queue (SPEC-rooms-queues.md, section 6): loading one tells its server
+          that this browser asked, so each viewer says whether theirs may. Kept in this browser only. */}
+      <OutsidePicturesChoice />
 
       {/* Window layout: a desktop thing only, so a phone - which has bottom sheets, not windows - does
           not see it at all. */}

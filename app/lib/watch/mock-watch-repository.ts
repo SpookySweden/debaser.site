@@ -2,6 +2,7 @@ import type { AddSeriesInput, AddToQueueInput, OpenOwnRoomInput, OpenRoomInput, 
 import { queueRefusal } from './links';
 import { getMockAuthRepository } from '../auth/mock-auth';
 import { OWN_QUEUE_FULL, OwnRoomRefusal } from './own-room';
+import { mayTakeOutPicture } from './pictures';
 import { companionOutState, parseCompanionWire, setRoomCompanions, subscribeToCompanionOut, type CompanionWire, type RoomCompanion } from '../companion/wire';
 import { membersSignature } from './members-signature';
 import { NOT_ALLOWED, ROOM_NAME_MAX, ROOM_TOPIC_MAX, TAKE_OVER_QUIET_MS, cleanRoomWords, guestNameLooksRight, hasCrown, mayEditRoom } from './rules';
@@ -880,9 +881,10 @@ class MockWatchRepository implements WatchRepository {
     const tables = load();
     const entry = tables.queue.find((candidate) => candidate.id === entryId);
     if (entry === undefined || entry.playedAt !== null) return;
-    // A crown takes out what has not played; anybody else only their own addition, until it is pulled in.
-    const { crowns } = liveRoom(tables, entry.roomId);
-    if (!hasCrown(crowns, by) && !(entry.addedBy === by && !entry.inQueue)) throw new Error(NOT_ALLOWED);
+    // A crown takes out what has not played; anybody else only their own addition, until it is pulled in. A picture
+    // not yet shown may also go by whoever added it and by the room's host (the database's delete rule, change 4b).
+    const { room, crowns } = liveRoom(tables, entry.roomId);
+    if (!hasCrown(crowns, by) && !(entry.addedBy === by && !entry.inQueue) && !mayTakeOutPicture(entry, room.hostId, by)) throw new Error(NOT_ALLOWED);
     save({ ...tables, queue: tables.queue.filter((candidate) => candidate.id !== entryId) }, entry.roomId);
   }
 

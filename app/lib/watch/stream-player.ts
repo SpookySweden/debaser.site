@@ -1,4 +1,5 @@
 import { LINK_PROBE_MS, LINK_REFUSALS, probeVideoLink } from './links';
+import { isTrustedPicture, probePicture } from './pictures';
 import { AUTO_QUALITY, heightLabel, type QualityChoice, type QualityControl } from './playable';
 import type { WatchLink } from './types';
 
@@ -227,6 +228,8 @@ export function probeStream(link: WatchLink, timeoutMs: number): Promise<boolean
 
 /** The check a link gets in the adder's browser before it is queued: null when it plays, else the refusal. */
 export async function checkLink(link: WatchLink): Promise<string | null> {
+  // A picture is checked by drawing it, here in the adder's browser (pictures.ts); one of the site's own needs no check.
+  if (link.kind === 'picture') return isTrustedPicture(link.url) ? null : probePicture(link.url);
   if (link.kind === 'file') return probeVideoLink(link.url);
   if (link.kind === 'youtube' || link.kind === 'vimeo' || link.kind === 'twitch') {
     const { probeEmbed } = await import('./embeds');

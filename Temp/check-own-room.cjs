@@ -2,7 +2,7 @@
  * Your own room (SPEC-rooms-queues.md, phase 1), held where it can fail.
  *
  * Steps (above the fold, because `run-checks.cjs` only reads the first 20 lines for these):
- *   npx tsc app/lib/watch/own-room.ts app/lib/watch/mock-watch-repository.ts app/lib/watch/rules.ts app/lib/watch/go-live-carry.ts app/lib/watch/go-live.ts app/lib/watch/music-rooms.ts app/lib/audio/playlist-adding.ts app/lib/watch/pictures.ts app/lib/watch/links.ts app/lib/watch/own-screen.ts --rootDir app/lib --outDir Temp/own-room-out --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
+ *   npx tsc app/lib/watch/own-room.ts app/lib/watch/mock-watch-repository.ts app/lib/watch/rules.ts app/lib/watch/go-live-carry.ts app/lib/watch/go-live.ts app/lib/watch/music-rooms.ts app/lib/audio/playlist-adding.ts app/lib/watch/pictures.ts app/lib/watch/links.ts app/lib/watch/own-screen.ts app/lib/watch/outside-pictures.ts --rootDir app/lib --outDir Temp/own-room-out --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
  *
  * What it holds, each against the module and a store that counts what is written (never a string in a template):
  *   1. Playing never waits for the database: the browser's copy changes at once, and the write follows.
@@ -730,7 +730,9 @@ const names = (counted) => counted.writes().map((call) => call.name);
     assert.equal(links.queueRefusal(made), null, 'a trusted picture can be queued');
     assert.equal(links.queueRefusal(pictures.pictureLink('/assets/files/cat.png', 'CAT')), null, "so can one of the site's own paths");
     assert.equal(links.queueRefusal(pictures.pictureLink(filesPicture, 'CAT')), null);
-    assert.equal(links.queueRefusal(pictures.pictureLink(outside, 'CAT')), pictures.PICTURE_REFUSALS.outside, 'an outside picture is not queued yet');
+    // Changed on purpose in phase 6: an outside picture at a public address can be queued (it is covered for everybody else).
+    assert.equal(links.queueRefusal(pictures.pictureLink(outside, 'CAT')), null, 'an outside picture at a public address can be queued');
+    assert.equal(pictures.isTrustedPicture(outside), false, 'but it is never one the site draws by itself');
     assert.equal(links.queueRefusal(pictures.pictureLink('https://pictures.example.net/x.svg', 'X')), pictures.PICTURE_REFUSALS.svg, 'an SVG is refused by its name');
     assert.equal(pictures.looksLikeSvg('https://a.example/x.SVGZ?size=2#top'), true);
     assert.equal(links.queueRefusal(pictures.pictureLink('http://pictures.example.net/cat.jpg', 'CAT')), links.LINK_REFUSALS.notHttps);
@@ -765,7 +767,7 @@ const names = (counted) => counted.writes().map((call) => call.name);
     assert.equal(await host.pictureNext('room-p', 'account-host'), false, 'NEXT-off-a-picture does nothing to a song');
     assert.equal((await host.readRoom('room-p')).room.currentEntryId, first.id);
     const picture = await host.addToQueue({ roomId: 'room-p', addedBy: 'account-host', position: 1, inQueue: true, link: made });
-    await assert.rejects(() => host.addToQueue({ roomId: 'room-p', addedBy: 'account-host', position: 2, inQueue: true, link: pictures.pictureLink(outside, 'CAT') }), 'the store refuses an outside picture, as the key does');
+    await assert.rejects(() => host.addToQueue({ roomId: 'room-p', addedBy: 'account-host', position: 2, inQueue: true, link: pictures.pictureLink('https://192.168.1.10/cat.jpg', 'CAT') }), 'the store refuses a picture at a private address, as the key does');
     await host.startEntry('room-p', picture.id, 1);
     assert.equal(await host.pictureNext('room-p', 'account-guest'), false, 'somebody with no crown cannot take the picture off');
     assert.equal((await host.readRoom('room-p')).room.currentEntryId, picture.id, 'it is still on');
@@ -775,6 +777,112 @@ const names = (counted) => counted.writes().map((call) => call.name);
     assert.equal(after.currentEntryId, null, "the room's pointer is cleared, for the host's tab to start what is next");
     assert.equal(after.isPlaying, false);
     assert.equal(await host.pictureNext('room-p', 'account-host'), false, 'and with nothing on there is nothing to take off');
+  }
+
+  /* 13. Outside pictures (phase 6): any pasted https image link, with every guard, covered until each viewer says SHOW. */
+  {
+    const pictures = require('./own-room-out/watch/pictures.js');
+    const links = require('./own-room-out/watch/links.js');
+    const choice = require('./own-room-out/watch/outside-pictures.js');
+    const good = 'https://pictures.example.net/cats/cat.jpg';
+
+    assert.equal(pictures.outsideAddressRefusal(good), null, 'a public https address is taken');
+    assert.equal(pictures.outsideAddressRefusal('https://cdn.example.co.uk/a/b?format=jpg&name=large'), null, 'with or without a picture file name');
+    // Each refused kind of address, by the SPEC's table: this is what stops a link aimed at a device on the viewer's own network.
+    for (const [url, reason, why] of [
+      ['http://pictures.example.net/cat.jpg', pictures.PICTURE_REFUSALS.notHttps, 'plain http'],
+      ['ftp://pictures.example.net/cat.jpg', pictures.PICTURE_REFUSALS.notHttps, 'another kind of address'],
+      ['https://user:pass@pictures.example.net/cat.jpg', pictures.PICTURE_REFUSALS.notPublic, 'a name and password in it'],
+      ['https://user@pictures.example.net/cat.jpg', pictures.PICTURE_REFUSALS.notPublic, 'a name in it'],
+      ['https://pictures.example.net:8443/cat.jpg', pictures.PICTURE_REFUSALS.notPublic, 'a port'],
+      ['https://192.168.1.10/cat.jpg', pictures.PICTURE_REFUSALS.notPublic, 'a number address on a home network'],
+      ['https://127.0.0.1/cat.jpg', pictures.PICTURE_REFUSALS.notPublic, 'this very computer, by number'],
+      ['https://2130706433/cat.jpg', pictures.PICTURE_REFUSALS.notPublic, 'the same number written as one number'],
+      ['https://0x7f.1/cat.jpg', pictures.PICTURE_REFUSALS.notPublic, 'or in sixteens'],
+      ['https://[::1]/cat.jpg', pictures.PICTURE_REFUSALS.notPublic, 'a number address of the newer kind'],
+      ['https://localhost/cat.jpg', pictures.PICTURE_REFUSALS.notPublic, 'localhost'],
+      ['https://router/cat.jpg', pictures.PICTURE_REFUSALS.notPublic, 'a one-word host'],
+      ['https://printer.local/cat.jpg', pictures.PICTURE_REFUSALS.notPublic, 'a .local host'],
+      ['https://files.corp.internal/cat.jpg', pictures.PICTURE_REFUSALS.notPublic, 'a .internal host'],
+      ['https://app.localhost/cat.jpg', pictures.PICTURE_REFUSALS.notPublic, 'a .localhost host'],
+      ['https://pictures.example.net\\@192.168.1.10/cat.jpg', pictures.PICTURE_REFUSALS.notPublic, 'a backslash, which a browser reads as a slash'],
+      ['https://pictures.example.net/cat.jpg\n', pictures.PICTURE_REFUSALS.notPublic, 'a line break in it'],
+      ['https://pictures.example.net/logo.svg', pictures.PICTURE_REFUSALS.svg, 'an SVG, by its name'],
+      ['https://pictures.example.net/logo.SVGZ?x=1', pictures.PICTURE_REFUSALS.svg, 'a packed SVG'],
+      ['not an address', pictures.PICTURE_REFUSALS.notPublic, 'words'],
+      ['cat.jpg', pictures.PICTURE_REFUSALS.notPicture, 'a bare file name'],
+    ]) {
+      assert.equal(pictures.outsideAddressRefusal(url), reason, `refused: ${why}`);
+      assert.notEqual(links.queueRefusal({ url, kind: 'picture', title: 'X' }), null, `and it cannot be written to a queue: ${why}`);
+    }
+    assert.equal(links.queueRefusal(pictures.pictureLink(good, 'CAT')), null, 'an outside picture with a public address can be queued now');
+
+    // The size on screen, always; the megabytes and the type, where the outside server says.
+    assert.equal(pictures.dimensionsRefusal(4096, 3000), null, '4,096 a side is the most');
+    assert.equal(pictures.dimensionsRefusal(4097, 10), pictures.PICTURE_REFUSALS.tooLarge, 'one pixel wider is refused');
+    assert.equal(pictures.dimensionsRefusal(10, 4097), pictures.PICTURE_REFUSALS.tooLarge);
+    assert.equal(pictures.dimensionsRefusal(4096, 4096), pictures.PICTURE_REFUSALS.tooLarge, '16 million pixels in all is the most');
+    assert.equal(pictures.dimensionsRefusal(4000, 4000), null);
+    assert.equal(pictures.dimensionsRefusal(0, 0), pictures.PICTURE_REFUSALS.wouldNotLoad, 'nothing drawn is not a picture');
+    assert.equal(pictures.headRefusal('image/png', 1000), null);
+    assert.equal(pictures.headRefusal(null, null), null, 'a server that says nothing decides nothing: the drawing test does');
+    assert.equal(pictures.headRefusal('image/jpeg', 10 * 1024 * 1024 + 1), pictures.PICTURE_REFUSALS.tooBig, 'over 10 MB, where the server says so');
+    assert.equal(pictures.headRefusal('image/svg+xml; charset=utf-8', 10), pictures.PICTURE_REFUSALS.svg, 'an SVG by its type, whatever its name');
+    assert.equal(pictures.headRefusal('text/html', 10), pictures.PICTURE_REFUSALS.notPicture, 'a page is not a picture');
+    assert.equal(pictures.PICTURE_LOAD_MS, 8000, 'eight seconds to load and draw');
+
+    // A pasted address: a picture by its file name, with its address rules; an SVG says why.
+    const pasted = links.recognizeLink(good);
+    assert.deepEqual(pasted, { ok: true, link: { url: good, kind: 'picture', title: 'cat.jpg' } }, 'a pasted picture link is a picture, titled by its file name');
+    assert.deepEqual(links.recognizeLink('https://pictures.example.net/logo.svg'), { ok: false, reason: pictures.PICTURE_REFUSALS.svg });
+    assert.equal(links.recognizeLink('https://192.168.1.10/cat.png').ok, false, 'a picture on a number address is refused as it is typed');
+    assert.equal(links.recognizeLink('https://pictures.example.net/film.mp4').link.kind, 'file', 'a video link is still a video');
+    assert.equal(pictures.recognizePicture('https://cdn.example.co.uk/media/abc?format=jpg').ok, true, 'a link with no picture file name may still be tried as one');
+    assert.equal(pictures.recognizePicture('https://printer.local/abc').ok, false, 'but never one at a private address');
+
+    // The per-viewer switch: covered unless this viewer has said otherwise.
+    const ask = { mode: 'ask', rooms: [], added: [] };
+    // "Yours" is what this browser remembers pasting, never whose name is on the queue row (code review, 2026-11-15):
+    // a playlist saved from somebody's room and loaded again files every row under the loader's own name.
+    assert.equal(choice.addedHere({ mode: 'ask', rooms: [], added: [good] }, good), true, 'an address this browser pasted is yours');
+    assert.equal(choice.addedHere({ mode: 'ask', rooms: [], added: [good] }, `${good}?other`), false, 'that address and no other');
+    assert.equal(choice.outsideAnswer(ask, { mine: choice.addedHere(ask, good), roomId: 'r1', guest: false }), 'ask', "a picture you never pasted is covered, even on a row filed under your own name");
+    assert.equal(choice.outsideAnswer(ask, { mine: true, roomId: 'r1', guest: true }), 'ask', 'and a guest is asked even then');
+    assert.equal(choice.outsideAnswer(ask, { mine: false, roomId: 'r1', guest: false }), 'ask', "somebody else's outside picture arrives covered");
+    assert.equal(choice.outsideAnswer(ask, { mine: true, roomId: 'r1', guest: false }), 'show', 'one you added shows for you at once');
+    assert.equal(choice.outsideAnswer({ mode: 'ask', rooms: ['r1'] }, { mine: false, roomId: 'r1', guest: false }), 'show', 'ALWAYS SHOW IN THIS ROOM, in that room');
+    assert.equal(choice.outsideAnswer({ mode: 'ask', rooms: ['r1'] }, { mine: false, roomId: 'r2', guest: false }), 'ask', 'and in no other');
+    assert.equal(choice.outsideAnswer({ mode: 'always', rooms: [] }, { mine: false, roomId: null, guest: false }), 'show', 'ALWAYS SHOW in Preferences');
+    assert.equal(choice.outsideAnswer({ mode: 'never', rooms: ['r1'] }, { mine: false, roomId: 'r1', guest: false }), 'never', 'NEVER in Preferences wins over a room');
+    assert.equal(choice.outsideAnswer({ mode: 'always', rooms: ['r1'] }, { mine: false, roomId: 'r1', guest: true }), 'ask', 'a guest is always asked, whatever the browser has kept');
+    assert.deepEqual(choice.parseOutsidePictures(null), { mode: 'ask', rooms: [], added: [] }, 'it starts on ASK, with nothing of yours');
+    assert.deepEqual(choice.parseOutsidePictures('{"mode":"sometimes","rooms":"x","added":7}'), { mode: 'ask', rooms: [], added: [] }, 'anything unreadable is ASK: covered');
+    assert.deepEqual(choice.parseOutsidePictures('not json'), { mode: 'ask', rooms: [], added: [] });
+    assert.deepEqual(choice.parseOutsidePictures(JSON.stringify({ mode: 'ask', rooms: [], added: [good, 5, 'x'.repeat(3000)] })).added, [good], 'only addresses are kept as yours');
+    assert.equal(choice.parseOutsidePictures('{"mode":"never","rooms":["a"]}').mode, 'never');
+
+    // Taking one out before it shows: a crown, whoever added it, and the room's host; nobody else.
+    const row = (over) => ({ link: pictures.pictureLink(good, 'CAT'), addedBy: 'adder', playedAt: null, ...over });
+    assert.equal(pictures.mayTakeOutPicture(row({}), 'host', 'adder'), true, 'whoever added it');
+    assert.equal(pictures.mayTakeOutPicture(row({}), 'host', 'host'), true, "the room's host");
+    assert.equal(pictures.mayTakeOutPicture(row({}), 'host', 'somebody'), false, 'not somebody else');
+    assert.equal(pictures.mayTakeOutPicture(row({}), 'host', null), false);
+    assert.equal(pictures.mayTakeOutPicture(row({ playedAt: 'x' }), 'host', 'adder'), false, 'not once it has shown');
+    assert.equal(pictures.mayTakeOutPicture(row({ link: song(1) }), 'host', 'host'), false, 'and this way is only for a picture');
+    mock.resetMockWatch();
+    const host = mock.getBrowserWatchRepository('account-host');
+    await host.openRoom({ id: 'room-o', host: { id: 'account-host', label: 'HOST' }, mediaItemId: null, privacy: 'open' });
+    const add = (by, position) => mock.getBrowserWatchRepository(by).addToQueue({ roomId: 'room-o', addedBy: by, position, inQueue: by === 'account-host', link: pictures.pictureLink(`${good}?n=${position}`, 'CAT') });
+    await mock.getBrowserWatchRepository('account-adder').enterRoom('room-o', null);
+    const theirs = await add('account-adder', 1);
+    await host.reorderQueue([{ id: theirs.id, position: 1, pull: true }], 'account-host');
+    await assert.rejects(() => mock.getBrowserWatchRepository('account-other').removeFromQueue(theirs.id, 'account-other'), 'somebody else cannot take the picture out');
+    await mock.getBrowserWatchRepository('account-adder').removeFromQueue(theirs.id, 'account-adder');
+    assert.equal((await host.readRoom('room-o')).queue.length, 0, 'whoever added a picture takes it out, even after a crown pulled it into the queue');
+    const second = await add('account-adder', 2);
+    await host.setCrown('room-o', 'account-host', false, 'account-host');
+    await host.removeFromQueue(second.id, 'account-host');
+    assert.equal((await host.readRoom('room-o')).queue.length, 0, 'and so does the host, with no crown');
   }
 
   console.log('check-own-room: every assertion passed');

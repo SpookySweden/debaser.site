@@ -17,6 +17,7 @@ import { FIELD, PANEL, PLATE, PLATE_LINK, TITLE_BAR } from '../lib/ui/controls';
 import { useWebTracks, webLookupsPending } from '../lib/web/web-track-lookup';
 import { FILE_ITEM } from '../lib/watch/music-rooms';
 import { addToMyQueue } from '../lib/watch/my-queue';
+import { isTrustedPicture } from '../lib/watch/pictures';
 import { useAuth } from './AuthProvider';
 import Link from 'next/link';
 import { useMusicPlayer } from './MusicPlayerProvider';
@@ -134,7 +135,9 @@ export default function PersonalLibrary() {
     () => (current === null ? [] : current.items.filter((item) => (item.link !== undefined && item.link.kind !== 'audio') || item.trackId.startsWith(FILE_ITEM))),
     [current],
   );
-  const otherTitle = (item: PlaylistItem) => item.link?.title ?? 'A FILE FROM THE SITE';
+  // Listed by title only, never as a thumbnail that loads by itself; an outside picture is marked as one.
+  const otherTitle = (item: PlaylistItem) =>
+    item.link === undefined ? 'A FILE FROM THE SITE' : item.link.kind === 'picture' && !isTrustedPicture(item.link.url) ? `OUTSIDE PICTURE :: ${item.link.title}` : item.link.title;
   async function queueOther(item: PlaylistItem) {
     try {
       await addToMyQueue(item.link !== undefined ? { title: item.link.title, link: item.link } : { title: '', mediaItemId: item.trackId.slice(FILE_ITEM.length) }, user?.id ?? null);

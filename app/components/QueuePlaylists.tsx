@@ -10,6 +10,7 @@ import { FILE_ITEM, listThings } from '../lib/watch/music-rooms';
 import { NO_ROOM_YET, addToMyQueue } from '../lib/watch/my-queue';
 import { ownRoomState, subscribeToOwnRoom } from '../lib/watch/own-room-client';
 import { soloRefusal } from '../lib/watch/own-screen';
+import { isTrustedPicture } from '../lib/watch/pictures';
 import { upcoming } from '../lib/watch/rules';
 import { useWatchRoom } from '../lib/watch/use-watch-room';
 import { useAuth } from './AuthProvider';
@@ -61,7 +62,7 @@ export default function QueuePlaylists() {
 
   /** A song is marked with a note, as the queue marks it; a file by its title in FILES. */
   const titleOf = (item: PlaylistItem): string => {
-    if (item.link !== undefined) return item.link.kind === 'audio' ? `♪ ${item.link.title}` : item.link.kind === 'picture' ? `▣ ${item.link.title}` : item.link.title;
+    if (item.link !== undefined) return item.link.kind === 'audio' ? `♪ ${item.link.title}` : item.link.kind === 'picture' ? `▣ ${isTrustedPicture(item.link.url) ? '' : 'OUTSIDE :: '}${item.link.title}` : item.link.title;
     if (item.trackId.startsWith(FILE_ITEM)) return fileTitles.get(item.trackId.slice(FILE_ITEM.length)) ?? 'A FILE NO LONGER HELD';
     const track = trackById(item.trackId);
     return track === undefined ? 'A SONG NO LONGER HELD' : `♪ ${track.title}`;

@@ -1,7 +1,7 @@
 import { MEDIA_SERVERS, mediaServerForUrl, type MediaServer } from '../web/media-servers';
 import { officialEmbedUrl } from '../web/official-embed';
 import { LINK_TITLE_MAX, LINK_URL_MAX } from './link-limits';
-import { pictureRefusal } from './pictures';
+import { PICTURE_EXTENSIONS, pictureRefusal, recognizePicture } from './pictures';
 import { isSitePath } from './songs';
 import type { WatchLink, WatchLinkKind } from './types';
 
@@ -91,6 +91,10 @@ export function recognizeLink(text: string): LinkVerdict {
   if (FILE_EXTENSIONS.includes(extension)) return { ok: true, link: { url: raw, kind: 'file', title: clampTitle(name) || url.hostname } };
   const stream = STREAM_EXTENSIONS[extension];
   if (stream !== undefined) return { ok: true, link: { url: raw, kind: stream, title: clampTitle(name) || url.hostname } };
+
+  // A picture by its file name (SPEC-rooms-queues.md, section 6): its address rules now, the drawing test at ADD.
+  // An SVG is named as what it is, so the refusal says why. A picture link with no such name is tried at ADD.
+  if (PICTURE_EXTENSIONS.includes(extension) || extension === 'svg' || extension === 'svgz') return recognizePicture(raw);
 
   return { ok: false, reason: LINK_REFUSALS.notVideo };
 }

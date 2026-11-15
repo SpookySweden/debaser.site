@@ -73,6 +73,38 @@ function writeTones() {
   }
   writeFileSync(join(DRIVE_AUDIO, 'picture.png'), Buffer.from(PICTURE_PNG, 'base64'));
 }
+/** A plain one-colour PNG of any size, made here: the drive's outside pictures (a good one, and one too wide to show). */
+function pngOf(width, height) {
+  const zlib = require('node:zlib');
+  const table = [];
+  for (let n = 0; n < 256; n += 1) {
+    let c = n;
+    for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    table[n] = c >>> 0;
+  }
+  const crc = (bytes) => {
+    let r = 0xffffffff;
+    for (const byte of bytes) r = table[(r ^ byte) & 255] ^ (r >>> 8);
+    return (r ^ 0xffffffff) >>> 0;
+  };
+  const chunk = (type, data) => {
+    const length = Buffer.alloc(4);
+    length.writeUInt32BE(data.length);
+    const body = Buffer.concat([Buffer.from(type), data]);
+    const sum = Buffer.alloc(4);
+    sum.writeUInt32BE(crc(body));
+    return Buffer.concat([length, body, sum]);
+  };
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header[8] = 8;
+  header[9] = 2;
+  const row = Buffer.concat([Buffer.from([0]), Buffer.alloc(width * 3, 0x7f)]);
+  const rows = Buffer.concat(Array.from({ length: height }, () => row));
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', header), chunk('IDAT', zlib.deflateSync(rows)), chunk('IEND', Buffer.alloc(0))]);
+}
+
 /** An 8 by 8 one-colour PNG: the smallest picture a browser will draw. */
 const PICTURE_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAD0lEQVR4nGOoxwEYhpYEADfzX0Hh3xezAAAAAElFTkSuQmCC';
 const SEED = `(() => {
@@ -750,10 +782,130 @@ async function open(page, path) {
       return !kept.rooms.some((held) => held.origin === 'stream' && held.hostId === 'drive-user' && held.endedAt === null);
     }, null, { timeout: 20000 });
 
+    console.log('OUTSIDE PICTURES: every guard at ADD, covered for anybody else until SHOW, and our server never asked');
+    // A made-up public host, answered here by the drive: nothing leaves this machine, and every request to it is counted.
+    const OUTSIDE = 'https://pictures.drive-test.example';
+    const outsideAsked = [];
+    const ourServerAsked = [];
+    context.on('request', (request) => {
+      const url = request.url();
+      if (url.startsWith(OUTSIDE)) outsideAsked.push(`${request.method()} ${url.slice(OUTSIDE.length)}`);
+      else if (url.startsWith(BASE) && url.includes('drive-test')) ourServerAsked.push(url);
+    });
+    const open8 = { 'access-control-allow-origin': '*', 'content-type': 'image/png' };
+    await context.route(`${OUTSIDE}/**`, async (route) => {
+      const request = route.request();
+      const name = new URL(request.url()).pathname;
+      if (name === '/heavy.png' && request.method() === 'HEAD') return route.fulfill({ status: 200, headers: { ...open8, 'content-length': String(20 * 1024 * 1024) } });
+      if (request.method() === 'HEAD') return route.fulfill({ status: 200, headers: open8 });
+      if (name === '/wide.png') return route.fulfill({ status: 200, headers: open8, body: pngOf(5000, 2) });
+      if (name === '/slow.png') {
+        await sleep(11000);
+        return route.fulfill({ status: 200, headers: open8, body: pngOf(8, 8) }).catch(() => undefined);
+      }
+      if (name === '/page') return route.fulfill({ status: 200, headers: { 'content-type': 'text/html' }, body: '<p>not a picture</p>' });
+      return route.fulfill({ status: 200, headers: open8, body: pngOf(8, 8) });
+    });
+    const paste = async (address) => {
+      await page.fill('#stream-queue-search', address);
+      await page.keyboard.press('Enter');
+    };
+    const refusedWith = async (words, timeout = 15000) => {
+      await page.waitForFunction((wanted) => (document.querySelector('[data-watch-link-state="refused"]')?.textContent ?? '').includes(wanted), words, { timeout });
+    };
+
+    await open(page, '/forum');
+    // The QUEUE window may still be open from the steps before: its key is a switch.
+    await sleep(800);
+    if ((await page.locator('[data-playlist-keys]').count()) === 0) await page.locator('[data-bar-queue]').click();
+    await page.waitForSelector('[data-playlist-keys]', { timeout: 15000 });
+    if ((await barQueue(page)) > 0) {
+      await page.locator('[data-clear-queue]').click();
+      await page.locator('[data-clear-queue]').click();
+      await page.waitForFunction(() => Number(document.querySelector('[data-bar-queue]')?.getAttribute('data-bar-queue')) === 0, null, { timeout: 15000 });
+    }
+    await paste(`${OUTSIDE}/logo.svg`);
+    await refusedWith('SVG');
+    await paste('https://192.168.1.10/cat.png');
+    await refusedWith('PUBLIC WEB ADDRESS');
+    assert.deepEqual(outsideAsked, [], 'an SVG and a private address are refused by the address alone: nothing was asked of any server');
+    pass('an SVG link and a private-network address are refused as typed, with no request made');
+    await paste(`${OUTSIDE}/heavy.png`);
+    await refusedWith('TOO BIG');
+    pass('a picture its server says is 20 MB is refused: 10 MB AT MOST');
+    await paste(`${OUTSIDE}/wide.png`);
+    await refusedWith('TOO LARGE');
+    pass('a picture 5,000 pixels wide is refused: 4096 A SIDE AT MOST');
+    await paste(`${OUTSIDE}/slow.png`);
+    await refusedWith("WOULDN'T LOAD", 25000);
+    pass("a picture that takes longer than 8 seconds is refused: WOULDN'T LOAD");
+    await paste(`${OUTSIDE}/page`);
+    await refusedWith('NOT A VIDEO OR PICTURE LINK');
+    pass('a page that is no picture is refused');
+    assert.equal(await barQueue(page), 0, 'none of them reached the queue');
+
+    await paste(`${OUTSIDE}/good.png`);
+    await page.waitForFunction(() => Number(document.querySelector('[data-bar-queue]')?.getAttribute('data-bar-queue')) === 1, null, { timeout: 20000 });
+    assert.ok((await page.locator('[data-own-room]').innerText()).includes('OUTSIDE :: good.png'), 'it is marked OUTSIDE in the queue');
+    pass('a good outside picture is queued, and marked OUTSIDE in the queue');
+    // Taken out again by its adder (here the owner, who holds the crown), then queued again for its turn.
+    await page.locator('[data-own-room] button[aria-label^="Take ▣ OUTSIDE :: good.png out"]').first().click();
+    await page.waitForFunction(() => Number(document.querySelector('[data-bar-queue]')?.getAttribute('data-bar-queue')) === 0, null, { timeout: 10000 });
+    pass('it can be taken out again before it shows');
+    await paste(`${OUTSIDE}/good.png`);
+    await page.waitForFunction(() => Number(document.querySelector('[data-bar-queue]')?.getAttribute('data-bar-queue')) === 1, null, { timeout: 20000 });
+    await pressNext(page);
+    await page.waitForSelector('[data-queued-picture="outside-shown"]', { timeout: 20000 });
+    assert.ok((await page.locator('[data-outside-mark]').innerText()).includes('FROM OUTSIDE THE SITE :: PICTURES.DRIVE-TEST.EXAMPLE'), 'on the screen it is marked as from outside, with its host');
+    assert.equal(await page.locator('[data-queued-picture="outside-shown"] img').getAttribute('referrerpolicy'), 'no-referrer', 'shown with no referrer');
+    pass('for whoever added it, it shows at once, marked FROM OUTSIDE THE SITE with its host, with no referrer');
+    assert.deepEqual(ourServerAsked, [], 'our own server was never asked about the picture');
+    pass('our own server made no request for the picture: no optimiser, no proxy');
+    await page.screenshot({ path: join(SHOTS, 'outside-picture-shown.png') });
+
+    // Somebody else: joins by the owner's link, and gets it covered. Their browser asks the outside host nothing until SHOW.
+    const linkNow = await secretOf();
+    assert.ok(typeof linkNow === 'string', "the owner's link from before");
+    await asAccount('drive-viewer', 'TEST VIEWER');
+    // Somebody else is in another browser: this one forgets what the owner pasted, as theirs never knew it.
+    await page.evaluate(() => localStorage.removeItem('debaser.outside-pictures.v1'));
+    const askedBefore = outsideAsked.length;
+    await open(page, `/forum?join=${linkNow}`);
+    await page.waitForSelector('[data-dock-window="stream"]', { timeout: 20000 });
+    await page.waitForSelector('[data-queued-picture="outside-covered"]', { timeout: 20000 });
+    await sleep(3000);
+    assert.equal(outsideAsked.length, askedBefore, `covered: the viewer's browser asked the outside host nothing (${outsideAsked.slice(askedBefore).join(', ')})`);
+    assert.ok((await page.locator('[data-queued-picture="outside-covered"]').innerText()).includes('PICTURE FROM PICTURES.DRIVE-TEST.EXAMPLE'), 'the cover names the host');
+    assert.ok(await page.locator('[data-outside-always]').count(), 'with ALWAYS SHOW IN THIS ROOM beside SHOW');
+    assert.ok(await page.locator('[data-room-picture-waiting]').count(), 'and WAITING FOR THE HOST, not NEXT');
+    pass("for somebody else it arrives covered, naming its host, and their browser asked that host nothing");
+    await page.screenshot({ path: join(SHOTS, 'outside-picture-covered.png') });
+    await page.locator('[data-outside-show]').click();
+    await page.waitForSelector('[data-queued-picture="outside-shown"]', { timeout: 20000 });
+    assert.ok(outsideAsked.length > askedBefore, 'SHOW is what makes the request');
+    assert.ok(outsideAsked.slice(askedBefore).every((asked) => asked === 'GET /good.png'), `and only for the picture itself (${outsideAsked.slice(askedBefore).join(', ')})`);
+    pass('SHOW loads it: the first request their browser makes to that host');
+    assert.deepEqual(ourServerAsked, [], 'our own server was still never asked');
+
+    // Preferences: NEVER means it is not loaded at all, and there is no key to load it.
+    await page.evaluate(() => localStorage.setItem('debaser.outside-pictures.v1', JSON.stringify({ mode: 'never', rooms: [] })));
+    const beforeNever = outsideAsked.length;
+    await open(page, `/forum?watch=${ownerRoom}`);
+    await page.waitForSelector('[data-queued-picture="outside-off"]', { timeout: 20000 });
+    assert.equal(await page.locator('[data-outside-show]').count(), 0, 'NEVER: no SHOW key');
+    await sleep(1500);
+    assert.equal(outsideAsked.length, beforeNever, 'and nothing asked');
+    pass('OUTSIDE PICTURES: NEVER in Preferences: named, not loaded, no key');
+    await page.evaluate(() => localStorage.removeItem('debaser.outside-pictures.v1'));
+    await asAccount('drive-user', 'TEST DRIVE');
+    await context.unroute(`${OUTSIDE}/**`);
+
     console.log('THE PRIVACY PAGE');
     await page.goto(`${BASE}/privacy`, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => document.body.innerText.includes('Your room: what you are playing and your queue are saved to your account'), null, { timeout: 30000 });
     pass('the privacy page has the room line');
+    assert.ok((await page.evaluate(() => document.body.innerText)).includes('A picture added from outside the site is loaded from wherever it lives, only after you press SHOW'), 'and the line about outside pictures');
+    pass('the privacy page has the outside-picture line');
 
     console.log('PHONE WIDTH: nothing scrolls sideways');
     await page.setViewportSize({ width: 390, height: 844 });

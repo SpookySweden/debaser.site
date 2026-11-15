@@ -11,7 +11,9 @@ import { useWatchingIn } from '../lib/watch/use-watching';
 import { artSlot } from '../lib/ui/art/slots';
 import { FIELD_TIGHT, PLATE, PLATE_PRESSED, TITLE_BAR } from '../lib/ui/controls';
 import { fetchEmbedTitle, isEmbedKind } from '../lib/watch/embeds';
-import { LINK_TITLE_MAX, linkTitle, recognizeLink } from '../lib/watch/links';
+import { LINK_REFUSALS, LINK_TITLE_MAX, linkTitle, recognizeLink } from '../lib/watch/links';
+import { noteAddedHere } from '../lib/watch/outside-pictures';
+import { PICTURE_REFUSALS, isTrustedPicture, mayTakeOutPicture, recognizePicture } from '../lib/watch/pictures';
 import { keepsKind, QUEUE_LOOKUP_SOURCE, QUEUE_SOURCES, QUEUE_STREAM_SOURCE, queueSearchPlan, roomListable } from '../lib/watch/blank-screen';
 import { getWebRepository } from '../lib/web/repository';
 import { repositoryFor } from '../lib/watch/repository';
@@ -216,7 +218,8 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
       ? entry.link.kind === 'audio'
         ? `♪ ${entry.link.title}`
         : entry.link.kind === 'picture'
-          ? `▣ ${entry.link.title}`
+          ? // An outside picture is marked in the queue, before it ever shows (SPEC-rooms-queues.md, section 6).
+            `▣ ${isTrustedPicture(entry.link.url) ? '' : 'OUTSIDE :: '}${entry.link.title}`
           : entry.link.title
       : entry.mediaItemId
         ? (itemsById.get(entry.mediaItemId)?.title ?? 'A FILE NOT HELD')
@@ -488,16 +491,38 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
 
   async function addLink(straight: boolean) {
     if (userId === null || verdict === null || linkState.kind === 'checking') return;
-    if (!verdict.ok) {
-      setLinkState({ kind: 'refused', reason: verdict.reason });
+    // Not a video by its address: it may still be a picture whose address does not end in a picture's file name.
+    // Its address rules decide whether it is tried at all, and the drawing test (in this browser) whether it is one.
+    const guessed = !verdict.ok && verdict.reason === LINK_REFUSALS.notVideo ? recognizePicture(text) : null;
+    // The picture rules' own refusal is the one to show (ONLY A PUBLIC WEB ADDRESS), not NOT A VIDEO LINK.
+    const found = guessed ?? verdict;
+    if (!found.ok) {
+      setLinkState({ kind: 'refused', reason: found.reason });
       return;
     }
     setLinkState({ kind: 'checking' });
-    const reason = await checkLink(verdict.link);
+    const reason = await checkLink(found.link);
     if (reason !== null) {
-      setLinkState({ kind: 'refused', reason });
+      setLinkState({ kind: 'refused', reason: guessed !== null && reason === PICTURE_REFUSALS.wouldNotLoad ? PICTURE_REFUSALS.notEither : reason });
       return;
     }
+    // Pasted here, checked here: this browser remembers the address as this viewer's own, so it shows for them
+    // uncovered. Nothing else ever makes an outside picture "yours" (outside-pictures.ts).
+    if (found.link.kind === 'picture' && !isTrustedPicture(found.link.url)) noteAddedHere(found.link.url);
+    if (guessed !== null) {
+      try {
+        const words = await put({ link: { ...found.link, title: linkTitle(linkName, found.link.title) } }, straight);
+        if (words === null) return;
+        setText('');
+        setLinkName('');
+        setNameTyped(false);
+        setLinkState({ kind: 'added', words });
+      } catch (failure) {
+        setLinkState({ kind: 'refused', reason: failure instanceof Error ? failure.message : 'THE LINK COULD NOT BE ADDED.' });
+      }
+      return;
+    }
+    if (!verdict.ok) return;
     // ADD pressed before the site's title came back: ask once more rather than keep the placeholder.
     const named = !nameTyped && isEmbedKind(verdict.link.kind) && linkName === verdict.link.title ? ((await fetchEmbedTitle(verdict.link)) ?? linkName) : linkName;
     const link: WatchLink = { ...verdict.link, title: linkTitle(named, verdict.link.title) };
@@ -887,7 +912,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
           >
             <div className="flex items-center gap-1">
               <label htmlFor="stream-queue-search" className="sr-only">
-                Search media or paste a video link
+                Search media or paste a video or picture link
               </label>
               <input
                 ref={searchBar}
@@ -895,7 +920,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
                 type="search"
                 value={text}
                 onChange={(event) => type(event.target.value)}
-                placeholder="SEARCH MEDIA OR PASTE A VIDEO LINK"
+                placeholder="SEARCH MEDIA OR PASTE A VIDEO OR PICTURE LINK"
                 autoComplete="off"
                 spellCheck={false}
                 autoFocus
@@ -1000,6 +1025,11 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
                         [ × ]
                       </button>
                     </span>
+                  ) : queued && block.series === null && mayTakeOutPicture(first, read.room.hostId, userId) ? (
+                    // A picture not yet shown: whoever added it, and the room's host, may take it out without a crown.
+                    <button type="button" className={PLATE} aria-label={`Take ${name} out`} onClick={() => takeOut(first, 'THE PICTURE COULD NOT BE TAKEN OUT.')} data-picture-out>
+                      [ × ]
+                    </button>
                   ) : null;
                 const said = now ? 'Now playing: ' : queued ? `Next ${unitIndex + 1}: ` : 'Played: ';
 
