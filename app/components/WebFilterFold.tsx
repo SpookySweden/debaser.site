@@ -21,7 +21,8 @@ export const FILTER_KEY_ON = `key key-fill key-on [--key-fill:var(--color-ink)] 
 /** One filter: its name on the left, every choice beside it, wrapping as the page narrows. */
 export function FilterRow({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div role="group" aria-label={label} className="rule-pixel flex flex-wrap items-center gap-x-2 gap-y-1 py-1" data-filter-row={label}>
+    // `data-undo-picks`: a pick in this row only changes what is shown, so the top bar's arrows may undo it (app/lib/ui/undo-trail.ts).
+    <div role="group" aria-label={label} className="rule-pixel flex flex-wrap items-center gap-x-2 gap-y-1 py-1" data-filter-row={label} data-undo-picks={label}>
       <span className="w-36 shrink-0 text-key text-ink-quiet max-sm:w-full">{label}</span>
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">{children}</div>
     </div>

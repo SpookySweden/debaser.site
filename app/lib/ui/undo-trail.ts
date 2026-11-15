@@ -11,9 +11,11 @@ import { watchWindowSlots } from './window-slot';
  *   - anything that folds open or shut in place: every key that carries `aria-expanded` and every `<details>`, in any component,
  *     seen by one listener on the document, so no component records anything itself;
  *   - a window opening or closing, through the one store the windows are built on (`./window-slot.ts`).
+   - a pick among a panel's choices, where the panel's owner has marked the group (`data-undo-picks`, the second step, Luke
+ *     2026-11-15): MEDIA's FILTERS rows, its VIEW and its ORDER. Only a group whose choices change what is shown may carry the mark.
  * Not recorded: anything that was sent or saved (a post, a message, a reply, a log-in). A form that sends leaves a marker instead,
  * and undoing onto it says CAN'T UNDO: SENT and steps past to the thing before. Typing is the text box's own business (the browser's
- * Ctrl+Z); settings and a panel's own picks are not in the trail (Luke, same day: "Not for now", "Second step").
+ * Ctrl+Z); settings are not in the trail (Luke, 2026-11-14: "Not for now").
  *
  * Undo presses the same control again, so a window that asks before it closes still asks, and nothing is set behind a component's
  * back. A control that is no longer on the page, or is already the way undo would leave it, is stepped past, not guessed at. The
@@ -174,6 +176,13 @@ export const undoTrailServerState = (): TrailState => EMPTY;
 const TOGGLES = 'button[aria-expanded], [role="button"][aria-expanded], summary';
 /** A key that is a switch: pressing it again undoes it (the side panel's shelf keys). */
 const SWITCHES = 'button[aria-pressed]';
+/**
+ * A group of choices its owner has marked as the arrows' business: `data-undo-picks="NAME"` on the element round a set of
+ * `button[aria-pressed]` keys. The promise the mark makes: pressing any key in the group only changes what is shown (a filter, a
+ * view, an order), never sends or saves anything for other people. A like, a follow or a recommend key must never be inside one.
+ */
+const PICK_GROUPS = '[data-undo-picks]';
+const PICK_KEYS = 'button[aria-pressed]';
 /** Tools that keep an undo of their own are left to it. */
 const OWN_UNDO = '.debaser-beatbox, [data-own-undo]';
 /** How long after a press its effects are still counted as that press's. */
@@ -181,7 +190,9 @@ const PRESS_WINDOW_MS = 400;
 /** How long a press is given to finish changing things before its step is written down. */
 const SETTLE_MS = 90;
 
-type Part = { kind: 'fold' | 'window'; undoWords: string; redoWords: string; undo: () => StepResult; redo: () => StepResult };
+type Part = { kind: 'fold' | 'window' | 'pick'; undoWords: string; redoWords: string; undo: () => StepResult; redo: () => StepResult };
+/** Which keys are pressed in each marked group on the page, by the group's name and each key's own. */
+export type Picks = Map<string, string[]>;
 type Gesture = { parts: Part[]; sent: boolean; pending: number; places: [string, number][]; timer: ReturnType<typeof setTimeout> | null };
 
 let started = false;
@@ -257,6 +268,101 @@ function togglePart(control: Element, wasOpen: boolean): Part {
   return { kind: 'fold', undoWords: wasOpen ? opened : shut, redoWords: wasOpen ? shut : opened, undo: () => set(wasOpen), redo: () => set(!wasOpen) };
 }
 
+/** A pick's name: its label up to the first full stop (`View: LIST. A PICTURE...` is VIEW LIST). */
+const pickName = (key: Element): string => trailWords((key.getAttribute('aria-label') ?? key.textContent ?? '').split('.')[0]);
+
+function picksNow(): Picks {
+  const picks: Picks = new Map();
+  for (const group of document.querySelectorAll(PICK_GROUPS)) {
+    if (group.closest(OWN_UNDO) !== null) continue;
+    const pressed = [...group.querySelectorAll(PICK_KEYS)].filter((key) => key.getAttribute('aria-pressed') === 'true').map(pickName);
+    picks.set(group.getAttribute('data-undo-picks') ?? '', pressed.sort());
+  }
+  return picks;
+}
+
+/** Whether any marked group that is on the page in both readings has different keys pressed. A group that came or went is not a pick. */
+export const picksMoved = (a: Picks, b: Picks): boolean => [...a].some(([group, pressed]) => b.has(group) && (b.get(group) ?? []).join('|') !== pressed.join('|'));
+
+/** What putting `to` back would press first, in words: PICK what is to be pressed again, or UNPICK what is to be let go. */
+export function pickWords(from: Picks, to: Picks): string {
+  for (const [group, wanted] of to) {
+    const now = from.get(group);
+    if (now === undefined) continue;
+    const again = wanted.find((name) => !now.includes(name));
+    if (again !== undefined) return `PICK ${again}`;
+    const letGo = now.find((name) => !wanted.includes(name));
+    if (letGo !== undefined) return `UNPICK ${letGo}`;
+  }
+  return 'PICK';
+}
+
+/** A key to press: its group's name and its own, found again at the moment of the press. */
+type Press = [group: string, key: string];
+/** Long enough for the page to have drawn one press before the next: a component may work each press out from what it last drew. */
+const PICK_GAP_MS = 60;
+
+/**
+ * The presses that would take the marked groups to `want`, read from the page as it stands. In a group that differs: the keys
+ * that should be pressed and are not (pressing one in a one-of-many row lets the others go by itself); only when there are none
+ * of those, the keys that are pressed and should not be (a switch being let go). `lettingGo` false leaves those out.
+ */
+function pressesToward(want: Picks, lettingGo: boolean): Press[] {
+  const presses: Press[] = [];
+  for (const group of document.querySelectorAll(PICK_GROUPS)) {
+    const groupName = group.getAttribute('data-undo-picks') ?? '';
+    const wanted = want.get(groupName);
+    if (wanted === undefined || group.closest(OWN_UNDO) !== null) continue;
+    const keys = [...group.querySelectorAll(PICK_KEYS)];
+    const isOn = (key: Element) => key.getAttribute('aria-pressed') === 'true';
+    const missing = keys.filter((key) => !isOn(key) && wanted.includes(pickName(key)));
+    const extra = missing.length > 0 || !lettingGo ? [] : keys.filter((key) => isOn(key) && !wanted.includes(pickName(key)));
+    for (const key of [...missing, ...extra]) presses.push([groupName, pickName(key)]);
+  }
+  return presses;
+}
+
+function pressPick([groupName, keyName]: Press): void {
+  for (const group of document.querySelectorAll(PICK_GROUPS)) {
+    if (group.getAttribute('data-undo-picks') !== groupName) continue;
+    const key = [...group.querySelectorAll<HTMLElement>(PICK_KEYS)].find((each) => pickName(each) === keyName);
+    if (key !== undefined) key.click();
+  }
+}
+
+/**
+ * Presses the marked groups back to how they were, one press at a time with a moment between, so the page has drawn each before
+ * the next (two presses in one breath would each start from the same old picture, and the second would wipe out the first). Once
+ * they are all made the page is read again, since one pick can move another group; what is still missing is pressed, a few times
+ * at most. Nothing is recorded while it works.
+ */
+function putPicksBack(want: Picks): StepResult {
+  const first = pressesToward(want, true);
+  if (first.length === 0) return 'gone';
+  replaying += 1;
+  const go = (presses: Press[], pass: number): void => {
+    const next = presses.shift();
+    if (next !== undefined) {
+      pressPick(next);
+      setTimeout(() => go(presses, pass), PICK_GAP_MS);
+      return;
+    }
+    // A second look only ever presses what is missing: a switch is never pressed twice on the strength of a page still drawing.
+    const more = pass < 3 ? pressesToward(want, false) : [];
+    if (more.length > 0) go(more, pass + 1);
+    else
+      setTimeout(() => {
+        replaying -= 1;
+      }, PRESS_WINDOW_MS);
+  };
+  go(first, 0);
+  return 'done';
+}
+
+function pickPart(before: Picks, after: Picks): Part {
+  return { kind: 'pick', undoWords: pickWords(after, before), redoWords: pickWords(before, after), undo: () => putPicksBack(before), redo: () => putPicksBack(after) };
+}
+
 /** Writes a finished press down as one step. */
 function writeDown(mine: Gesture): void {
   if (mine.sent) {
@@ -265,8 +371,8 @@ function writeDown(mine: Gesture): void {
   }
   // A press that folded something open and opened a window through it is undone by pressing the fold again: the window follows
   // its own control, and is not also written back from here.
-  const folds = mine.parts.filter((part) => part.kind === 'fold');
-  const parts = folds.length > 0 ? folds : mine.parts;
+  const folded = mine.parts.some((part) => part.kind === 'fold');
+  const parts = folded ? mine.parts.filter((part) => part.kind !== 'window') : mine.parts;
   if (parts.length === 0) return;
   const each = (run: (part: Part) => StepResult, order: Part[]): StepResult => {
     const results = order.map(run);
@@ -308,21 +414,29 @@ const pressed = (event: Event) => {
 function onClick(event: MouseEvent): void {
   pressed(event);
   if (replaying > 0 || !(event.target instanceof Element)) return;
-  const control = event.target.closest(TOGGLES);
-  if (control === null || control.closest(OWN_UNDO) !== null || control.closest('[data-undo-arrow]') !== null) return;
-  // A key that sends is never pressed again by the trail, whatever else it folds.
-  if (control.matches('[type="submit"]')) return;
-  const before = isOpen(control);
-  const find = finder(control);
+  if (event.target.closest('[data-undo-arrow]') !== null) return;
+  // Two things a press may have done, each read before it and again once it has done its work (React has drawn, a <details> has
+  // flipped). A fold: the control pressed. A pick: any marked group on the page, wherever the press landed, since a quick pick or
+  // a reset key sets rows it does not sit in.
+  const found = event.target.closest(TOGGLES);
+  // A key that sends is never pressed again by the trail, whatever else it folds; a tool with its own undo is left to it.
+  const control = found === null || found.closest(OWN_UNDO) !== null || found.matches('[type="submit"]') ? null : found;
+  const picksBefore = document.querySelector(PICK_GROUPS) === null || event.target.closest(OWN_UNDO) !== null ? null : picksNow();
+  if (control === null && picksBefore === null) return;
+  const wasOpen = control === null ? false : isOpen(control);
+  const find = control === null ? null : finder(control);
   const mine = gestureNow();
   mine.pending += 1;
-  // Asked once the press has done its work: React has drawn, and a <details> has flipped.
   requestAnimationFrame(() =>
     setTimeout(() => {
       mine.pending -= 1;
-      const after = find();
-      if (replaying > 0 || after === null || isOpen(after) === before) return;
-      mine.parts.push(togglePart(after, before));
+      if (replaying > 0) return;
+      const after = find?.() ?? null;
+      if (after !== null && isOpen(after) !== wasOpen) mine.parts.push(togglePart(after, wasOpen));
+      if (picksBefore !== null) {
+        const picksAfter = picksNow();
+        if (picksMoved(picksBefore, picksAfter)) mine.parts.push(pickPart(picksBefore, picksAfter));
+      }
     }, 0),
   );
 }

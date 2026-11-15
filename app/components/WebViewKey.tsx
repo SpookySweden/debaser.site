@@ -11,7 +11,8 @@ import { FILTER_KEY, FILTER_KEY_ON } from './WebFilterFold';
 export default function WebViewKey() {
   const view = useMediaView();
   return (
-    <div className="flex flex-wrap items-stretch gap-2" data-view-key>
+    // `data-undo-picks`: the top bar's arrows may undo a change of view (app/lib/ui/undo-trail.ts).
+    <div className="flex flex-wrap items-stretch gap-2" data-view-key data-undo-picks="VIEW">
       {MEDIA_VIEWS.map((choice) => {
         const on = choice.value === view;
         return (

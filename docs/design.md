@@ -172,8 +172,16 @@ No Win95 bevels anywhere - not on windows, not on buttons, not on the scrollbar.
     window store). One press is one step, whatever it changed.
   - Not recorded: anything sent or saved. A form that sends leaves a marker, and undoing onto it shows one line
     under the arrows, `CAN'T UNDO: SENT` (a Rose chip), and steps past to the thing before. A stream room's
-    window is left alone (other people see you leave). Typing keeps the browser's own Ctrl+Z. Settings, and a
-    panel's own picks that are not in the address, are not in the trail yet.
+    window is left alone (other people see you leave). Typing keeps the browser's own Ctrl+Z. Settings are not
+    in the trail.
+  - **A panel's picks** (the second step, Luke 2026-11-15): a choice among keys that is not in the address (a
+    filter, a view, an order) is a step where the panel's owner has marked the group: `data-undo-picks="NAME"`
+    on the element round a set of `button[aria-pressed]` keys. The trail reads every marked group before and
+    after any press, so a key outside the group that sets it (a quick pick, RESET FILTERS) is undone too, and
+    undo presses the old choice again (`UNDO: PICK TYPE ALL`). The mark is a promise: every key in the group
+    only changes what is shown. Never mark a group holding a key that sends or saves for other people (a like,
+    a follow, a recommend), because undo and redo press those keys. Marked so far: MEDIA's FILTERS rows (in
+    `FilterRow`, so a new row is marked already), its VIEW and its ORDER.
   - Each arrow's hover tip says what a press will do (`UNDO: CLOSE FILTERS`, `REDO: FORWARD TO FORUM`), a screen
     reader hears the same, and an arrow with nothing to do goes quiet. A page step keeps the plain names Back and
     Forward. Ctrl+Z and Ctrl+Y (or Ctrl+Shift+Z) do the same when not typing in a box, unless a tool on the page

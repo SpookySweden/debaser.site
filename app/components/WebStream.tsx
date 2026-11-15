@@ -1104,7 +1104,7 @@ export default function WebStream() {
           <WebViewKey />
         </div>
         {/* ORDER's choices, one to a line (SPEC-web-sort.md): a press on the order already chosen asks nothing (pickFilter). */}
-        <div id="media-order-panel" role="group" aria-label="Order" hidden={!folds.has('media-order')} className="flex flex-col items-start gap-1 py-1" data-order-panel>
+        <div id="media-order-panel" role="group" aria-label="Order" hidden={!folds.has('media-order')} data-undo-picks="ORDER" className="flex flex-col items-start gap-1 py-1" data-order-panel>
           {ORDER_KEYS.map((key) => {
             const on = boxSort.sort === key.choice.sort && boxSort.dir === key.choice.dir;
             return (

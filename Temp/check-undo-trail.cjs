@@ -178,11 +178,43 @@ assert.deepEqual(watched.state(), { open: false, put: 'back' }, 'and what it wri
 watchWindowSlots(null);
 // Found by a fresh-context review of the first build (2026-11-14), each held here so it cannot come back:
 assert.ok(source.includes("openOf(now) === wantOpen || inRoom(now)) return 'gone';"), 'a window already the way a step would leave it, or one that has since become a stream room, is stepped past and never written over');
-assert.ok(source.includes(`if (control.matches('[type="submit"]')) return;`), 'a key that sends is never pressed again by the trail');
+assert.ok(source.includes(`found.closest(OWN_UNDO) !== null || found.matches('[type="submit"]') ? null : found;`), 'a key that sends is never pressed again by the trail');
 assert.ok(source.includes("if (started || typeof window === 'undefined') return;"), 'the listening starts once and stays for the life of the tab, so a page with no arrows on it loses no step');
 assert.ok(source.includes("+ step] === undefined) return 'gone';"), 'a page step with nowhere to go is stepped past, and nothing is waited for');
-assert.ok(source.includes("const folds = mine.parts.filter((part) => part.kind === 'fold');"), 'a press that folded something and opened a window through it is one step, undone through the fold');
+assert.ok(source.includes("const parts = folded ? mine.parts.filter((part) => part.kind !== 'window') : mine.parts;"), 'a press that folded something and opened a window through it is one step, undone through the fold');
 assert.ok(source.includes('if (mine.pending > 0) {'), 'and a slow frame does not split one press into two steps');
 assert.ok(source.includes('Weak === undefined ? { deref: (): Element | undefined => control }'), 'an old browser without WeakRef is not broken by a press');
+
+// 10. The second step (Luke, 2026-11-15): a pick among a panel's choices, where the panel's owner has marked the group.
+const { picksMoved, pickWords } = require('./undo-trail-out/lib/ui/undo-trail.js');
+const picks = (entries) => new Map(entries);
+const start = picks([['WHERE FROM', ['SOURCE ALL']], ['WHAT KIND', ['TYPE ALL']], ['VIEW', ['VIEW LIST']]]);
+const video = picks([['WHERE FROM', ['SOURCE ALL']], ['WHAT KIND', ['TYPE VIDEO']], ['VIEW', ['VIEW LIST']]]);
+assert.equal(picksMoved(start, picks([...start])), false, 'the same picks have not moved');
+assert.equal(picksMoved(start, video), true, 'one row picked differently is a change');
+assert.equal(picksMoved(start, picks([...start].slice(0, 2))), false, 'a group that has gone from the page (a page change) is not a pick');
+assert.equal(picksMoved(picks([]), start), false, 'nor is one that has just arrived');
+assert.equal(pickWords(video, start), 'PICK TYPE ALL', 'undoing a pick says which choice comes back');
+assert.equal(pickWords(start, video), 'PICK TYPE VIDEO', 'and redoing says which is picked again');
+// A quick pick moves two rows with one press: it is one step, named for the first row it puts back.
+const quick = picks([['WHERE FROM', ['SOURCE YOUTUBE']], ['WHAT KIND', ['TYPE VIDEO']], ['VIEW', ['VIEW LIST']]]);
+assert.equal(pickWords(quick, start), 'PICK SOURCE ALL');
+// A switch in a group (on, then nothing on) is let go again.
+assert.equal(pickWords(picks([['MOOD', ['MOOD ON']]]), picks([['MOOD', []]])), 'UNPICK MOOD ON');
+assert.ok(source.includes("const PICK_GROUPS = '[data-undo-picks]';") && source.includes("const PICK_KEYS = 'button[aria-pressed]';"), 'only keys inside a group its owner marked are ever pressed by the trail: an unmarked like or follow key never is');
+// Found by the first local drive: presses made in one breath each started from the same old picture, so the second wiped out the
+// first, and a row still drawing its old state was pressed back again. Presses are spaced, and a second look never lets go.
+assert.ok(source.includes('setTimeout(() => go(presses, pass), PICK_GAP_MS);'), 'picks are put back one press at a time, with a moment for the page to draw between');
+assert.ok(source.includes('const extra = missing.length > 0 || !lettingGo ? [] :'), 'in a one-of-many row only the choice that should be on is pressed, never the one that should be off');
+assert.ok(source.includes('const more = pass < 3 ? pressesToward(want, false) : [];'), 'a second look only presses what is still missing, a few times at most');
+assert.ok(source.includes("const picksBefore = document.querySelector(PICK_GROUPS) === null || event.target.closest(OWN_UNDO) !== null ? null : picksNow();"), 'the marked groups are read on any press, since a quick pick or a reset key sets rows it does not sit in');
+// MEDIA's marks: every FILTERS row (one place), VIEW's four choices, ORDER's four.
+assert.ok(read('app/components/WebFilterFold.tsx').includes('data-filter-row={label} data-undo-picks={label}'), "every FILTERS row is marked, in the row's own component");
+assert.ok(read('app/components/WebViewKey.tsx').includes('data-view-key data-undo-picks="VIEW"'), "VIEW's choices are marked");
+assert.ok(read('app/components/WebStream.tsx').includes('data-undo-picks="ORDER" className="flex flex-col items-start gap-1 py-1" data-order-panel>'), "ORDER's choices are marked");
+// Not marked, on purpose: the quick picks and the top row's KINO only set the rows above, which are; marking them too would have two
+// groups answering for one choice.
+const stream = read('app/components/WebStream.tsx');
+assert.doesNotMatch(stream, /data-quick-picks data-undo-picks|data-top-row data-undo-picks/, 'the quick picks and the top row are not marked themselves');
 
 console.log('undo trail: newest first, redo in reverse, a new step clears redo, gone steps and sent things stepped past, 100 long: OK');
