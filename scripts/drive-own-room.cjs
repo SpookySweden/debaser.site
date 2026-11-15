@@ -248,7 +248,11 @@ async function open(page, path) {
     await page.locator('[data-bar-queue]').click();
     await page.waitForSelector('[data-own-room="browser"]', { timeout: 15000 });
     const tabs = await page.evaluate(() => [...document.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent.trim()));
-    assert.deepEqual(tabs, ['[ UP NEXT ]', '[ RADI-OH ]'], 'the queue window has UP NEXT and RADI-OH');
+    assert.deepEqual(tabs, ['[ UP NEXT ]', '[ PLAYLISTS ]', '[ RADI-OH ]'], 'the queue window has UP NEXT, PLAYLISTS and RADI-OH (answer 9A)');
+    // Signed out, PLAYLISTS says to log in: a playlist is an account's.
+    await page.getByRole('tab', { name: /PLAYLISTS/ }).click();
+    await page.waitForSelector('[data-queue-playlists="signed-out"]', { timeout: 10000 });
+    await page.getByRole('tab', { name: /UP NEXT/ }).click();
     assert.ok(await page.locator('[data-own-room-note="visitor"]').count(), 'and tells a visitor it is kept in this browser');
     const states = await page.evaluate(() => [...document.querySelectorAll('[data-own-queue] [data-queue-state]')].map((row) => row.getAttribute('data-queue-state')));
     assert.ok(states.includes('now') && states.includes('queued'), `the queue shows what is on and what waits (${states.join(',')})`);
@@ -381,8 +385,48 @@ async function open(page, path) {
     await page.locator('[data-bar-queue]').click();
     await page.waitForSelector('[data-own-room="account"]', { timeout: 15000 });
     assert.equal(await page.locator('[data-own-room-note="visitor"]').count(), 0, 'no "kept in this browser" line for an account');
-    assert.ok(await page.getByText('STORE', { exact: false }).count(), 'an account can store its queue as a list');
-    pass('the queue window for an account: no browser-only line, and the store keys');
+    assert.ok(await page.locator('[data-playlist-keys]').count(), 'an account can save its queue as a playlist');
+    pass('the queue window for an account: no browser-only line, and SAVE AS PLAYLIST, LOAD A PLAYLIST, CLEAR');
+
+    console.log('A PLAYLIST IS A SAVED QUEUE: save a mixed queue, clear it, load it back whole');
+    const queueTitles = async () => (await tables(page)).find((room) => room.hostId === 'drive-user').waiting;
+    // A video beside the song(s) already waiting, so the queue is mixed.
+    const beforePaste = await barQueue(page);
+    await page.fill('#stream-queue-search', VIDEO);
+    await page.keyboard.press('Enter');
+    const pasted = await page.waitForFunction((was) => Number(document.querySelector('[data-bar-queue]')?.getAttribute('data-bar-queue')) === was + 1, beforePaste, { timeout: 30000 }).then(() => true, () => false);
+    if (!pasted) note('the test video did not join the queue in this run (already waiting, or no network to its host): the save and load below may hold songs only');
+    const mixed = await queueTitles();
+    assert.ok(mixed.length > 0, 'something is waiting to be saved');
+    await page.locator('[data-save-playlist]').click();
+    await page.locator('[data-save-playlist-name]').fill('DRIVE MIX');
+    await page.locator('[data-save-playlist-go]').click();
+    await page.waitForFunction(() => /SAVED AS DRIVE MIX/.test(document.querySelector('[data-playlist-said]')?.textContent ?? ''), null, { timeout: 15000 });
+    assert.deepEqual(await queueTitles(), mixed, 'saving leaves the queue as it was');
+    pass(`SAVE AS PLAYLIST: saved as DRIVE MIX, and the queue is as it was (${mixed.length} waiting)`);
+    await page.locator('[data-clear-queue]').click();
+    assert.deepEqual(await queueTitles(), mixed, 'one press of CLEAR clears nothing');
+    await page.locator('[data-clear-queue]').click();
+    await page.waitForFunction(() => Number(document.querySelector('[data-bar-queue]')?.getAttribute('data-bar-queue')) === 0, null, { timeout: 15000 });
+    assert.deepEqual(await queueTitles(), [], 'the second press empties what waits');
+    pass('CLEAR: two presses, and nothing is waiting');
+    await page.locator('[data-load-playlist]').click();
+    await page.locator('[data-load-pick="DRIVE MIX"]').click();
+    await page.waitForFunction((count) => Number(document.querySelector('[data-bar-queue]')?.getAttribute('data-bar-queue')) >= count, mixed.length, { timeout: 15000 });
+    const loaded = await queueTitles();
+    assert.deepEqual(loaded.slice(-mixed.length), mixed, 'the playlist comes back whole, in order');
+    pass(`LOAD A PLAYLIST: the queue is back (${loaded.length} waiting, the saved ${mixed.length} in order)`);
+    // The PLAYLISTS tab lists it, with every item.
+    await page.getByRole('tab', { name: /PLAYLISTS/ }).click();
+    await page.waitForSelector('[data-playlist="DRIVE MIX"]', { timeout: 15000 });
+    await page.locator('[data-playlist="DRIVE MIX"] [data-playlist-open]').click();
+    const listed = await page.locator('[data-playlist="DRIVE MIX"] [data-playlist-item]').count();
+    assert.ok(listed >= mixed.length, `the PLAYLISTS tab lists what was saved (${listed} items)`);
+    assert.ok(await page.locator('[data-playlist="DRIVE MIX"] [data-playlist-play]').count(), 'with PLAY');
+    assert.ok(await page.locator('[data-playlist="DRIVE MIX"] [data-playlist-queue]').count(), 'and + QUEUE');
+    pass(`the PLAYLISTS tab lists DRIVE MIX with its ${listed} items, PLAY and + QUEUE`);
+    await page.screenshot({ path: join(SHOTS, 'queue-playlists.png') });
+    await page.getByRole('tab', { name: /UP NEXT/ }).click();
     await page.screenshot({ path: join(SHOTS, 'own-queue-account.png') });
 
     // Signed in, the room window's JUST YOU HERE panel has GO LIVE: one press opens the menu, and nothing starts.

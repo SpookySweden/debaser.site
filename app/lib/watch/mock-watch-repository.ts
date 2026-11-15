@@ -646,9 +646,13 @@ class MockWatchRepository implements WatchRepository {
     if (ids.length === 0) return;
     const tables = load();
     const room = tables.rooms.find((candidate) => candidate.id === roomId);
-    if (room === undefined || room.origin !== 'music' || room.hostId !== by) throw new OwnRoomRefusal(NOT_ALLOWED);
+    // As the database's delete rule: your own room gives up any row, played or not; in a live room a crown takes out
+    // what has not played yet (CLEAR, SPEC-rooms-queues.md phase 4), and nobody else takes out anything this way.
+    const own = room !== undefined && room.origin === 'music' && room.hostId === by;
+    const crowned = room !== undefined && room.endedAt === null && hasCrown(tables.crowns.filter((crown) => crown.roomId === roomId), by);
+    if (!own && !crowned) throw new OwnRoomRefusal(NOT_ALLOWED);
     const gone = new Set(ids);
-    save({ ...tables, queue: tables.queue.filter((entry) => !(entry.roomId === roomId && gone.has(entry.id))) }, roomId);
+    save({ ...tables, queue: tables.queue.filter((entry) => !(entry.roomId === roomId && gone.has(entry.id) && (own || entry.playedAt === null))) }, roomId);
   }
 
   /** As the database's `watch_own_link`: the caller's own room only; a refresh changes the secret and puts nobody out. */

@@ -56,8 +56,10 @@ import { heldEpisodes, type MediaInfo } from '../lib/web/media-titles';
 import { searchOrder } from '../lib/web/web-sort';
 import type { AudioTrack } from '../lib/audio/tracks';
 import { songLink, songMatches, trackForSong } from '../lib/watch/songs';
-import { listLinks, playedSinceCleared, storedListItems, storedListName } from '../lib/watch/music-rooms';
-import type { Playlist } from '../lib/audio/library';
+import { listThings, playedSinceCleared, storedListItems, storedListName } from '../lib/watch/music-rooms';
+import { NO_ROOM_YET } from '../lib/watch/my-queue';
+import { ownRoomState } from '../lib/watch/own-room-client';
+import { MAX_PLAYLIST_NAME, playlistId, type Playlist } from '../lib/audio/library';
 import { isBarAudioPlatform, playsInBar } from '../lib/web/web-audio';
 import { loadWebItem, webTrackNow } from '../lib/web/web-track-lookup';
 import { KinoRow } from './WebMediaRow';
@@ -1058,10 +1060,8 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
               })}
             </ol>
             {waiting.length === 0 && played.length > 0 && !nowLive ? <p className="text-ink-quiet">LAST VIDEO LOOPS.</p> : null}
-            {/* A saved list is an account's: a signed-out visitor's browser room has none to store into. */}
-            {read.room.origin === 'music' && userId !== null && read.room.hostId === userId && live && !userId.startsWith('visitor:') ? (
-              <StoreKeys read={read} userId={userId} shelf={player.queue} />
-            ) : null}
+            {/* Every queue you may arrange. A playlist is an account's: a signed-out visitor's browser room has none to save into. */}
+            {rights.arrange && userId !== null && live && !userId.startsWith('visitor:') ? <PlaylistKeys read={read} userId={userId} shelf={player.queue} waiting={waiting} /> : null}
           </section>
 
           {/* The additions (or a search's answer in their place); a narrow window puts a search's answer first. */}
@@ -1144,26 +1144,28 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
 
 /** The line in the queue where a dragged addition would land: drawn over the row's edge, so no row moves. */
 /**
- * The host's two keys under a music room's queue (SPEC-music-queues.md). STORE AND START BLANK (two presses) saves the
- * shared queue as one of their saved lists, named with the day and time, every song and video kept whole, and starts
- * an empty queue; what is on plays on and people's additions stay. LOAD A LIST puts one of their saved lists back as
- * the shared queue, in its order.
+ * The three keys under every queue you may arrange (SPEC-rooms-queues.md, phase 4: "a playlist is a saved queue"):
+ * your own, or one you hold a crown in. They replaced the music room's STORE + START BLANK and LOAD A LIST.
+ *
+ * - SAVE AS PLAYLIST asks a name and saves what is on and what waits, in order, each thing kept whole (a song, a
+ *   video, one of the site's own files). The queue is left as it is. A name already in use says so before the press.
+ * - LOAD A PLAYLIST adds one of your playlists to the end of the queue. Nothing is taken out: CLEAR first to swap.
+ * - CLEAR (two presses) empties what waits. What is on plays on, and people's own additions stay on their lists.
  */
-function StoreKeys({ read, userId, shelf }: { read: WatchRoomRead; userId: string; shelf: readonly AudioTrack[] }) {
+function PlaylistKeys({ read, userId, shelf, waiting }: { read: WatchRoomRead; userId: string; shelf: readonly AudioTrack[]; waiting: readonly WatchQueueEntry[] }) {
   const repository = repositoryFor(read.room.id);
   const library = useMusicLibrary();
   const roomId = read.room.id;
-  const [armed, setArmed] = useState(false);
-  const [picking, setPicking] = useState(false);
+  /** Your own room: its session writes (the browser first, the database after), and it holds only what plays alone. */
+  const mine = read.room.origin === 'music' && read.room.hostId === userId;
+  const [mode, setMode] = useState<'idle' | 'naming' | 'picking' | 'clearing'>('idle');
+  const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [said, setSaid] = useState<string | null>(null);
+  const wanted = name.trim();
+  const taken = wanted.length > 0 && library.playlists.some((list) => list.id === playlistId(userId, wanted));
 
-  async function storeAndBlank() {
-    if (!armed) {
-      setArmed(true);
-      return;
-    }
-    setArmed(false);
+  async function save() {
     setBusy(true);
     setSaid(null);
     try {
@@ -1172,65 +1174,133 @@ function StoreKeys({ read, userId, shelf }: { read: WatchRoomRead; userId: strin
         const track = trackForSong(link, shelf, webTrackNow(link.url));
         return track.id === link.url ? null : track.id;
       };
-      const list = await library.savePlaylist(storedListName(at), storedListItems(read, trackIdOf, at.toISOString()));
-      await repository.clearRoomQueue(roomId, userId);
-      applyLocalChange(roomId, { kind: 'refresh' });
-      setSaid(`STORED AS ${list.name}. THE QUEUE STARTS BLANK.`);
+      const items = storedListItems(read, trackIdOf, at.toISOString());
+      if (items.length === 0) {
+        setSaid('NOTHING IN THE QUEUE TO SAVE.');
+        return;
+      }
+      const list = await library.savePlaylist(wanted, items);
+      setMode('idle');
+      setSaid(`SAVED AS ${list.name}: ${items.length} ${items.length === 1 ? 'THING' : 'THINGS'}. THE QUEUE IS AS IT WAS.`);
     } catch (failure) {
-      setSaid(failure instanceof Error ? failure.message : 'THE QUEUE COULD NOT BE STORED.');
+      setSaid(failure instanceof Error ? failure.message : 'THE QUEUE COULD NOT BE SAVED.');
     } finally {
       setBusy(false);
     }
   }
 
   async function load(list: Playlist) {
-    setPicking(false);
+    setMode('idle');
     setBusy(true);
     setSaid(null);
     try {
       const byId = new Map(shelf.map((track) => [track.id, track]));
-      const links = listLinks(list.items, (id) => byId.get(id) ?? webTrackNow(id) ?? undefined);
-      if (links.length === 0) {
-        setSaid('NOTHING IN THAT LIST PLAYS HERE.');
+      const things = listThings(list.items, (id) => byId.get(id) ?? webTrackNow(id) ?? undefined);
+      if (things.length === 0) {
+        setSaid('NOTHING IN THAT PLAYLIST PLAYS HERE.');
         return;
       }
-      // The list becomes the shared queue: what was queued goes, the list goes in, in its order.
-      await repository.clearRoomQueue(roomId, userId);
+      if (mine) {
+        const session = ownRoomState().session;
+        if (session === null) throw new Error(NO_ROOM_YET);
+        const plays = things.filter((thing) => thing.link === undefined || soloRefusal(thing.link) === null);
+        const added = session.enqueueThings(plays);
+        const liveOnly = things.length - plays.length;
+        setSaid(
+          `${added} ADDED FROM ${list.name}.${added < plays.length ? ' THE REST WERE ALREADY WAITING, OR THE QUEUE IS FULL.' : ''}${liveOnly > 0 ? ` ${liveOnly} PLAY IN A LIVE ROOM ONLY.` : ''}`,
+        );
+        return;
+      }
       const crowned = hasCrown(read.crowns, userId);
       let position = nextQueuePosition(read.queue);
-      for (const link of links) await repository.addToQueue({ roomId, addedBy: userId, position: position++, inQueue: crowned, link });
+      for (const thing of things) await repository.addToQueue({ roomId, addedBy: userId, position: position++, inQueue: crowned, ...thing });
       applyLocalChange(roomId, { kind: 'refresh' });
-      setSaid(`${list.name} IS THE QUEUE NOW.`);
+      setSaid(`${things.length} ADDED FROM ${list.name}.`);
     } catch (failure) {
-      setSaid(failure instanceof Error ? failure.message : 'THE LIST COULD NOT BE LOADED.');
+      applyLocalChange(roomId, { kind: 'refresh' });
+      setSaid(failure instanceof Error ? failure.message : 'THE PLAYLIST COULD NOT BE LOADED.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function clear() {
+    setMode('idle');
+    setBusy(true);
+    setSaid(null);
+    try {
+      if (mine) {
+        const session = ownRoomState().session;
+        if (session === null) throw new Error(NO_ROOM_YET);
+        session.replaceWaiting([]);
+      } else {
+        await repository.removeOwnEntries(roomId, userId, waiting.map((entry) => entry.id));
+        applyLocalChange(roomId, { kind: 'refresh' });
+      }
+      setSaid('THE QUEUE IS EMPTY. WHAT IS ON PLAYS ON.');
+    } catch (failure) {
+      setSaid(failure instanceof Error ? failure.message : 'THE QUEUE COULD NOT BE CLEARED.');
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="mt-2 flex flex-col gap-1" data-store-keys>
+    <div className="mt-2 flex flex-col gap-1" data-playlist-keys>
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
-          className={armed ? PLATE_PRESSED : PLATE}
+          className={mode === 'naming' ? PLATE_PRESSED : PLATE}
           disabled={busy}
-          onClick={() => void storeAndBlank()}
-          onBlur={() => setArmed(false)}
-          title="Save this queue as one of your lists, then start an empty one"
-          data-store-blank
+          aria-expanded={mode === 'naming'}
+          onClick={() => {
+            if (name.length === 0) setName(storedListName(new Date()));
+            setMode((was) => (was === 'naming' ? 'idle' : 'naming'));
+          }}
+          title="Save what is on and what waits as one of your playlists. The queue stays as it is."
+          data-save-playlist
         >
-          {armed ? '[ STORE IT AND CLEAR? ]' : '[ STORE + START BLANK ]'}
+          [ SAVE AS PLAYLIST ]
         </button>
-        <button type="button" className={picking ? PLATE_PRESSED : PLATE} disabled={busy} aria-expanded={picking} onClick={() => setPicking((was) => !was)} data-load-list>
-          [ LOAD A LIST ]
+        <button type="button" className={mode === 'picking' ? PLATE_PRESSED : PLATE} disabled={busy} aria-expanded={mode === 'picking'} onClick={() => setMode((was) => (was === 'picking' ? 'idle' : 'picking'))} data-load-playlist>
+          [ LOAD A PLAYLIST ]
+        </button>
+        <button
+          type="button"
+          className={mode === 'clearing' ? PLATE_PRESSED : PLATE}
+          disabled={busy || waiting.length === 0}
+          onClick={() => (mode === 'clearing' ? void clear() : setMode('clearing'))}
+          onBlur={() => setMode((was) => (was === 'clearing' ? 'idle' : was))}
+          title="Empty what waits. What is on plays on."
+          data-clear-queue
+        >
+          {mode === 'clearing' ? '[ CLEAR THE QUEUE? ]' : '[ CLEAR ]'}
         </button>
       </div>
-      {picking ? (
+      {mode === 'naming' ? (
+        <form
+          className="flex flex-wrap items-center gap-1"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!busy && wanted.length > 0) void save();
+          }}
+        >
+          <input value={name} maxLength={MAX_PLAYLIST_NAME} autoComplete="off" aria-label="Playlist name" onChange={(event) => setName(event.target.value)} className={`${FIELD_TIGHT} min-w-0 flex-1`} data-save-playlist-name />
+          <button type="submit" className={PLATE} disabled={busy || wanted.length === 0} data-save-playlist-go>
+            {taken ? '[ REPLACE IT ]' : '[ SAVE ]'}
+          </button>
+          {taken ? (
+            <p className="w-full font-bold" role="status" data-save-playlist-taken>
+              YOU HAVE A PLAYLIST BY THAT NAME: SAVING REPLACES WHAT IS IN IT.
+            </p>
+          ) : null}
+        </form>
+      ) : null}
+      {mode === 'picking' ? (
         library.playlists.length === 0 ? (
-          <p className="text-ink-quiet">NO SAVED LISTS YET.</p>
+          <p className="text-ink-quiet">NO PLAYLISTS YET.</p>
         ) : (
-          <ul aria-label="Your saved lists" className="flex flex-col gap-0.5">
+          <ul aria-label="Your playlists" className="flex flex-col gap-0.5">
             {library.playlists.map((list) => (
               <li key={list.id}>
                 <button type="button" className="cursor-pointer truncate text-left font-bold hover:underline max-sm:min-h-tap" onClick={() => void load(list)} data-load-pick={list.name}>
@@ -1242,7 +1312,7 @@ function StoreKeys({ read, userId, shelf }: { read: WatchRoomRead; userId: strin
         )
       ) : null}
       {said === null ? null : (
-        <p className="font-bold" role="status">
+        <p className="font-bold" role="status" data-playlist-said>
           {said}
         </p>
       )}

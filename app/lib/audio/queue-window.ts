@@ -111,6 +111,8 @@ export function queuesRequested(search: string): boolean {
 export function queueTabRequested(search: string): QueueTab {
   const asked = new URLSearchParams(search).get('queues');
 
+  // `third` is the middle tab, PLAYLISTS (SPEC-rooms-queues.md, phase 4); its address says `playlists`.
+  if (asked === 'playlists') return 'third';
   return asked === 'radio' || asked === 'third' ? asked : 'queues';
 }
 

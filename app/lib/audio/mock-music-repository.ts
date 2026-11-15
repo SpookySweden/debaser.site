@@ -3,6 +3,7 @@ import { cleanNote, pictureRefusal, songOwner, type SaveSongNoteInput, type Song
 import type { BroadcastQueue } from './broadcast';
 import { validateTrackFile } from './catalogue';
 import { playlistId, validatePlaylistName, type LikedTrack, type Playlist, type PlaylistItem } from './library';
+import type { WatchLink } from '../watch/types';
 import type { CreateFolderInput, LibraryRead, MusicFolder, MusicRepository, OwnQueue, PublishQueueInput, UploadTrackInput } from './repository';
 import { normaliseAudioTags } from './tags';
 import type { AudioTrack } from './tracks';
@@ -669,7 +670,7 @@ class MockMusicRepository implements MusicRepository {
     return playlist;
   }
 
-  async togglePlaylistTrack(input: { ownerId: string; playlistId: string; trackId: string }): Promise<Playlist> {
+  async togglePlaylistTrack(input: { ownerId: string; playlistId: string; trackId: string; link?: WatchLink }): Promise<Playlist> {
     const record = recordFor(input.ownerId);
     const list = record.playlists.find((entry) => entry.id === input.playlistId);
 
@@ -679,7 +680,7 @@ class MockMusicRepository implements MusicRepository {
 
     const items = already
       ? list.items.filter((item) => item.trackId !== input.trackId)
-      : [...list.items, { trackId: input.trackId, addedAt: new Date().toISOString() }];
+      : [...list.items, { trackId: input.trackId, addedAt: new Date().toISOString(), ...(input.link === undefined ? {} : { link: input.link }) }];
 
     const next: Playlist = { ...list, items };
     writeRecord(input.ownerId, {

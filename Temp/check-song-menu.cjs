@@ -158,15 +158,21 @@ async function test(name, run) {
     assert.deepEqual(said, []);
   });
 
-  await test('a thing with no site song behind it (a video, a picture) is refused for now, not half-saved', async () => {
+  // Changed on purpose 2026-11-15 (SPEC-rooms-queues.md phase 4, Luke's answer 3A: "a playlist is a saved queue: songs,
+  // videos and pictures"): a thing with no site song behind it used to be refused; it is now held whole, by its link.
+  await test('a thing with no site song behind it (a video) is held whole, by its link', async () => {
     library = freshLibrary();
     said.length = 0;
     const video = { title: 'A FILM', link: { url: 'https://archive.org/x.mp4', kind: 'file', title: 'A FILM' } };
-    assert.equal(adding.holdable(video), false);
+    assert.equal(adding.holdable(video), true);
     assert.ok(adding.playlistChoices(library, video).every((choice) => choice.holds === false));
-    await assert.rejects(adding.toggleInPlaylist(library, video, { id: 'p2', name: 'ROAD', holds: false }), /SITE SONGS ONLY/);
-    await assert.rejects(adding.addToNewPlaylist(library, video, 'x'), /SITE SONGS ONLY/);
-    assert.deepEqual(said, [], 'nothing was written, and no empty list was made');
+    assert.equal(await adding.toggleInPlaylist(library, video, { id: 'p2', name: 'ROAD', holds: false }), 'added');
+    assert.equal(said.length, 1, 'one write');
+    assert.deepEqual(said[0].slice(0, 3), ['toggle', 'p2', 'link:https://archive.org/x.mp4'], 'filed under its address');
+    assert.equal(adding.holdable({ title: 'NOTHING', link: { url: '', kind: 'file', title: 'NOTHING' } }), false, 'a thing with no address and no id cannot be kept');
+    said.length = 0;
+    await assert.rejects(adding.toggleInPlaylist(library, { title: 'NOTHING', link: { url: '', kind: 'file', title: 'NOTHING' } }, { id: 'p2', name: 'ROAD', holds: false }), /NO ADDRESS TO KEEP/);
+    assert.deepEqual(said, [], 'and nothing was written for it');
   });
 
   if (failed > 0) {

@@ -1575,8 +1575,14 @@ export function WebRow({
             data: 'play',
           }
         : null;
-  // A book's thing for a playlist: only what the bar plays can be held today (playlist-adding.ts), by its first file's id.
-  const playlistThing = barItem === null ? null : { title: item.title, link: { url: webAudioFilePath(barItem.platform, barItem.externalId, 0), kind: 'audio' as const, title: item.title }, trackId: webTrackId(barItem.platform, barItem.externalId, 0) };
+  // The row's thing for a playlist (playlist-adding.ts): what the bar plays, by its first file's id; otherwise a video,
+  // kept whole by the same link a room would queue (SPEC-rooms-queues.md, phase 4: ADD TO PLAYLIST takes a video).
+  const playlistThing =
+    barItem !== null
+      ? { title: item.title, link: { url: webAudioFilePath(barItem.platform, barItem.externalId, 0), kind: 'audio' as const, title: item.title }, trackId: webTrackId(barItem.platform, barItem.externalId, 0) }
+      : roomLink !== null
+        ? { title: item.title, link: roomLink }
+        : null;
   // M7: the other copies fold open from a key that stands before PLAY.
   const [alsoOpen, setAlsoOpen] = useState(false);
   const alsoId = `${rowTitleId(item.id)}-also`;

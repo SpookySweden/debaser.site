@@ -93,31 +93,53 @@ export function playedSinceCleared(read: Pick<WatchRoomRead, 'room' | 'queue'>):
   );
 }
 
-/** The saved list's name: the day and time it was stored, as a list name is short (40 characters). */
+/** The name SAVE AS PLAYLIST offers: the day and time, as a list name is short (40 characters). */
 export function storedListName(at: Date): string {
   const two = (value: number) => String(value).padStart(2, '0');
-  return `ROOM ${at.getFullYear()}-${two(at.getMonth() + 1)}-${two(at.getDate())} ${two(at.getHours())}:${two(at.getMinutes())}`;
+  return `QUEUE ${at.getFullYear()}-${two(at.getMonth() + 1)}-${two(at.getDate())} ${two(at.getHours())}:${two(at.getMinutes())}`;
 }
+
+/** One of the site's own files in a playlist: held by the file, never by a copy of its address. */
+export const FILE_ITEM = 'file:';
+
+/** Something a queue holds, as a playlist gives it back: a link, or one of the site's own files. */
+export type ListedThing = { link: WatchLink; mediaItemId?: undefined } | { mediaItemId: string; link?: undefined };
 
 /**
- * The shared queue as a saved list: what played since it was last cleared, what is on, then what is still to play,
- * each kept whole (`link`), so a song the shelf no longer holds and a video both come back. `trackIdOf` names a
- * song by the id a playlist keys it on (the shelf's), where the shelf holds it.
+ * A queue as a playlist (SPEC-rooms-queues.md, phase 4: "a playlist is a saved queue"): what is on, then what is
+ * still to play, in order, each kept whole (`link`), so a song the shelf no longer holds and a video both come
+ * back. `trackIdOf` names a song by the id a playlist keys it on (the shelf's), where the shelf holds it. One of
+ * the site's own files is held as `file:<id>`. A thing is in the list once.
  */
 export function storedListItems(read: Pick<WatchRoomRead, 'room' | 'queue'>, trackIdOf: (link: WatchLink) => string | null, at: string): PlaylistItem[] {
-  const rows = [...playedSinceCleared(read), ...upcoming([...read.queue])];
-  return rows.flatMap((entry) => {
-    if (entry.link === null) return [];
+  const on = read.queue.find((entry) => entry.id === read.room.currentEntryId);
+  const rows = [...(on === undefined ? [] : [on]), ...upcoming([...read.queue]).filter((entry) => entry.id !== on?.id)];
+  const seen = new Set<string>();
+  return rows.flatMap((entry): PlaylistItem[] => {
     const link = entry.link;
-    return [{ trackId: (isSongLink(link) ? trackIdOf(link) : null) ?? `link:${link.url}`, addedAt: at, link }];
+    const item: PlaylistItem | null =
+      link !== null
+        ? { trackId: (isSongLink(link) ? trackIdOf(link) : null) ?? `link:${link.url}`, addedAt: at, link }
+        : entry.mediaItemId !== null
+          ? { trackId: `${FILE_ITEM}${entry.mediaItemId}`, addedAt: at }
+          : null;
+    if (item === null || seen.has(item.trackId)) return [];
+    seen.add(item.trackId);
+    return [item];
   });
 }
 
-/** A saved list loaded back as the shared queue: each item's own link, or its song from the shelf by id. */
-export function listLinks(items: readonly PlaylistItem[], trackById: (id: string) => { src: string; title: string } | undefined): WatchLink[] {
-  return items.flatMap((item) => {
-    if (item.link !== undefined) return [item.link];
+/** A playlist as things a queue holds, in its order: each item's own link, its file, or its song from the shelf by id. */
+export function listThings(items: readonly PlaylistItem[], trackById: (id: string) => { src: string; title: string } | undefined): ListedThing[] {
+  return items.flatMap((item): ListedThing[] => {
+    if (item.link !== undefined) return [{ link: item.link }];
+    if (item.trackId.startsWith(FILE_ITEM)) return [{ mediaItemId: item.trackId.slice(FILE_ITEM.length) }];
     const track = trackById(item.trackId);
-    return track === undefined ? [] : [songLink(track)];
+    return track === undefined ? [] : [{ link: songLink(track) }];
   });
+}
+
+/** The links alone (a caller that cannot hold a file). */
+export function listLinks(items: readonly PlaylistItem[], trackById: (id: string) => { src: string; title: string } | undefined): WatchLink[] {
+  return listThings(items, trackById).flatMap((thing) => (thing.link === undefined ? [] : [thing.link]));
 }

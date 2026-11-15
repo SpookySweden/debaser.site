@@ -98,7 +98,10 @@ assert.match(stream, /<SplitKey label=\{`Play or queue "\$\{item\.title\}"`\} fi
 assert.match(read('app/components/WebBridgeKeys.tsx'), /short \? `\[ ✎\$\{count > 0 \? ` \$\{count\}` : ''\} \]`/, 'DISCUSS is the short pen on a row');
 const rowKeys = read('app/components/WebRowKeys.tsx');
 assert.match(rowKeys, /second=\{second === null \? null : \{ words: 'PLAYLIST', draw: \(className, text\) => <AddToPlaylistKey thing=\{second\}/, '+ LETTER / PLAYLIST, through the shared playlist key');
-assert.match(stream, /trackId: webTrackId\(barItem\.platform, barItem\.externalId, 0\)/, 'PLAYLIST only for what the bar plays, by its first file');
+assert.match(stream, /trackId: webTrackId\(barItem\.platform, barItem\.externalId, 0\)/, 'PLAYLIST for what the bar plays, by its first file');
+// Added on purpose 2026-11-15 (SPEC-rooms-queues.md phase 4: "ADD TO PLAYLIST takes a video"): a row the bar cannot play
+// hands the playlist key the same link a room would queue, so a video is kept whole.
+assert.match(stream, /: roomLink !== null\s*\? \{ title: item\.title, link: roomLink \}\s*: null;/, 'and for a video, by the link a room would queue');
 assert.ok(!/AddToLetterKey/.test(stream) && !/<AddToLetterKey/.test(mediaRow), 'no row draws a lone + LETTER any more');
 
 // M7: the sources come before PLAY: ALSO ON on a row, WATCH on a KINO or server card with the other keys after it.

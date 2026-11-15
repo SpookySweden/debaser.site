@@ -22,12 +22,13 @@ import { roomIsLive } from '../lib/watch/rules';
 import { useWatchRoom } from '../lib/watch/use-watch-room';
 import { useAuth } from './AuthProvider';
 import DockWindow from './DockWindow';
+import QueuePlaylists from './QueuePlaylists';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import RadioLoops from './RadioLoops';
 import StreamQueueWindow from './StreamQueueWindow';
 
 /**
- * The queue window: your room's queue, and where you have been, in two tabs (SPEC-rooms-queues.md).
+ * The queue window: your room's queue, your playlists, and where you have been, in three tabs (SPEC-rooms-queues.md).
  *
  * Drawn once, in `layout.tsx`, outside the page - which is what makes it a window rather than a page:
  * opening it or switching a tab re-renders *this*, and the board behind it is not touched at all. The
@@ -36,7 +37,7 @@ import StreamQueueWindow from './StreamQueueWindow';
  *
  * UP NEXT is your own room's queue, the same queue window a live room has (`StreamQueueWindow`), drawn
  * without a frame of its own: search, add, reorder, take out. It is kept on your account, or in this
- * browser for a signed-out visitor. RADI-OH is the plates of what you played lately, as before. The list
+ * browser for a signed-out visitor. PLAYLISTS is your saved queues (`QueuePlaylists.tsx`). RADI-OH is the plates of what you played lately, as before. The list
  * of live rooms that used to be the second tab is on the STREAM page's ROOMS tab, where the same list
  * already was; GO PUBLIC is gone, and GO LIVE is how people are let in.
  *
@@ -82,16 +83,15 @@ export default function QueueWindow() {
   const show = useCallback(
     (tab: QueueTab) => {
       showQueueTab(tab);
-      router.replace(tab === 'queues' ? `${pathname}?queues=1` : `${pathname}?queues=${tab}`, { scroll: false });
+      router.replace(tab === 'queues' ? `${pathname}?queues=1` : `${pathname}?queues=${tab === 'third' ? 'playlists' : tab}`, { scroll: false });
     },
     [pathname, router],
   );
 
   if (!state.open) return null;
 
-  // The MIXTAPES tab was cut before it was built (SPEC-efficiency.md), but `?queues=third` can still be
-  // linked or stored, so that tab lands on UP NEXT rather than on a window with nothing shown in it.
-  const tab = state.tab === 'third' ? 'queues' : state.tab;
+  // The middle tab (`third` in the store, `?queues=playlists` in the address) is PLAYLISTS: your saved queues.
+  const tab = state.tab;
 
   return (
     <DockWindow
@@ -104,12 +104,16 @@ export default function QueueWindow() {
     >
       <div className="mb-2 flex items-stretch gap-1" role="tablist" aria-label="Queue screens">
         <QueueTabPlate label="UP NEXT" selected={tab === 'queues'} onSelect={() => show('queues')} />
+        <QueueTabPlate label="PLAYLISTS" selected={tab === 'third'} onSelect={() => show('third')} />
         <QueueTabPlate label="RADI-OH" selected={tab === 'radio'} onSelect={() => show('radio')} />
       </div>
 
       <div className={tab === 'queues' ? undefined : 'hidden'}>
         <OwnQueue onClose={close} />
       </div>
+
+      {/* Drawn only while it is the tab on: it reads the library and the FILES catalogue, which the other tabs do not need. */}
+      {tab === 'third' ? <QueuePlaylists /> : null}
 
       <div className={tab === 'radio' ? undefined : 'hidden'}>
         <RadioLoops />

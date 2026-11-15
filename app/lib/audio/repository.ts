@@ -4,6 +4,7 @@ import type { BroadcastQueue } from './broadcast';
 import type { CloseRow } from './for-you';
 import type { MirrorRow } from './mirror';
 import type { LikedTrack, Playlist, PlaylistItem } from './library';
+import type { WatchLink } from '../watch/types';
 import type { SaveSongNoteInput, SongNote } from './song-notes';
 import { getMockMusicRepository } from './mock-music-repository';
 import { getSupabaseMusicRepository } from './supabase-music-repository';
@@ -145,7 +146,8 @@ export type MusicRepository = {
    */
   savePlaylist(input: { ownerId: string; name: string; items?: PlaylistItem[] }): Promise<Playlist>;
   /** Adds a track to a list, or removes it if it is already there. Hands back the list as it stands. */
-  togglePlaylistTrack(input: { ownerId: string; playlistId: string; trackId: string }): Promise<Playlist>;
+  /** `link`: kept with an item that is no site song (a video, a song no shelf holds), so it comes back whole. */
+  togglePlaylistTrack(input: { ownerId: string; playlistId: string; trackId: string; link?: WatchLink }): Promise<Playlist>;
   /** Takes a list away. Only its owner may, which the policy enforces rather than this code. */
   removePlaylist(ownerId: string, playlistId: string): Promise<void>;
   /**

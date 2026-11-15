@@ -428,18 +428,28 @@ export class OwnRoomSession {
 
   /** Several things onto the end, in order, in one write (a visitor's browser queue after they log in). */
   enqueueAll(links: readonly WatchLink[]): number {
+    return this.enqueueThings(links.map((link) => ({ link })));
+  }
+
+  /**
+   * The same for links and the site's own files together (LOAD A PLAYLIST): onto the end, in order, in one write.
+   * A thing already waiting is not added twice, and the queue never holds more than its 200.
+   */
+  enqueueThings(things: readonly ({ link: WatchLink; mediaItemId?: undefined } | { mediaItemId: string; link?: undefined })[]): number {
+    if (this.closed || this.roomId === null) return 0;
     const read = this.mine();
     const waiting = upcoming([...read.queue]);
-    const known = new Set(waiting.flatMap((entry) => (entry.link === null ? [] : [entry.link.url])));
+    const keyOf = (thing: { link?: WatchLink | null; mediaItemId?: string | null }) => (thing.link ? thing.link.url : `file:${thing.mediaItemId}`);
+    const known = new Set(waiting.map(keyOf));
     const room = Math.max(0, OWN_QUEUE_MAX - waiting.length);
     const fresh: WatchQueueEntry[] = [];
     let position = nextQueuePosition([...read.queue]);
     const at = this.stamp();
-    for (const link of links) {
+    for (const thing of things) {
       if (fresh.length >= room) break;
-      if (known.has(link.url)) continue;
-      known.add(link.url);
-      fresh.push({ id: this.deps.newId(), roomId: read.room.id, position: position++, inQueue: true, mediaItemId: null, link, series: null, addedBy: this.deps.host.id, addedAt: at, playedAt: null, playIndex: null });
+      if (known.has(keyOf(thing))) continue;
+      known.add(keyOf(thing));
+      fresh.push({ id: this.deps.newId(), roomId: read.room.id, position: position++, inQueue: true, mediaItemId: thing.mediaItemId ?? null, link: thing.link ?? null, series: null, addedBy: this.deps.host.id, addedAt: at, playedAt: null, playIndex: null });
     }
     if (fresh.length === 0) return 0;
     for (const entry of fresh) this.deps.store.apply(read.room.id, { kind: 'entry', entry });

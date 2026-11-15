@@ -5,6 +5,7 @@ import type { CloseRow, Reason } from './for-you';
 import type { MirrorRow } from './mirror';
 import { MUSIC_BUCKET, extensionForTrack, trackStoragePath, validateTrackFile } from './catalogue';
 import { playlistId, validatePlaylistName, type LikedTrack, type Playlist, type PlaylistItem } from './library';
+import type { WatchLink } from '../watch/types';
 import type { CreateFolderInput, LibraryRead, MusicFolder, MusicRepository, OwnQueue, PublishQueueInput, UploadTrackInput } from './repository';
 import { normaliseAudioTags } from './tags';
 import type { AudioTrack, DescribedAudio, StoredAudio } from './tracks';
@@ -686,7 +687,7 @@ class SupabaseMusicRepository implements MusicRepository {
     return toPlaylist(data as PlaylistRow);
   }
 
-  async togglePlaylistTrack(input: { ownerId: string; playlistId: string; trackId: string }): Promise<Playlist> {
+  async togglePlaylistTrack(input: { ownerId: string; playlistId: string; trackId: string; link?: WatchLink }): Promise<Playlist> {
     const lists = (await this.listPlaylists(input.ownerId)).items;
     const list = lists.find((entry) => entry.id === input.playlistId);
 
@@ -695,7 +696,7 @@ class SupabaseMusicRepository implements MusicRepository {
     const already = list.items.some((item) => item.trackId === input.trackId);
     const items = already
       ? list.items.filter((item) => item.trackId !== input.trackId)
-      : [...list.items, { trackId: input.trackId, addedAt: new Date().toISOString() }];
+      : [...list.items, { trackId: input.trackId, addedAt: new Date().toISOString(), ...(input.link === undefined ? {} : { link: input.link }) }];
 
     // Asked to hand the row back, so a write the policy refused is told rather than shown as done -
     // the same pattern `banAccount` uses: row-level security refuses by touching nothing, which is

@@ -8,12 +8,15 @@ import {
   resolvePlaylistItems,
   validatePlaylistName,
   type Playlist,
+  type PlaylistItem,
 } from '../lib/audio/library';
 import { getMusicRepository } from '../lib/audio/repository';
 import { formatClock } from '../lib/audio/format';
 import type { AudioTrack } from '../lib/audio/tracks';
 import { FIELD, PANEL, PLATE, PLATE_LINK, TITLE_BAR } from '../lib/ui/controls';
 import { useWebTracks, webLookupsPending } from '../lib/web/web-track-lookup';
+import { FILE_ITEM } from '../lib/watch/music-rooms';
+import { addToMyQueue } from '../lib/watch/my-queue';
 import { useAuth } from './AuthProvider';
 import Link from 'next/link';
 import { useMusicPlayer } from './MusicPlayerProvider';
@@ -125,6 +128,21 @@ export default function PersonalLibrary() {
   );
 
   const rows = shown.rows;
+
+  /** What the open playlist holds that is no song: a video, or one of the site's own files (a saved queue keeps both). */
+  const others = useMemo(
+    () => (current === null ? [] : current.items.filter((item) => (item.link !== undefined && item.link.kind !== 'audio') || item.trackId.startsWith(FILE_ITEM))),
+    [current],
+  );
+  const otherTitle = (item: PlaylistItem) => item.link?.title ?? 'A FILE FROM THE SITE';
+  async function queueOther(item: PlaylistItem) {
+    try {
+      await addToMyQueue(item.link !== undefined ? { title: item.link.title, link: item.link } : { title: '', mediaItemId: item.trackId.slice(FILE_ITEM.length) }, user?.id ?? null);
+      setNotice(`${otherTitle(item)} IS ON YOUR QUEUE.`);
+    } catch (caught) {
+      setNotice(caught instanceof Error ? caught.message : 'IT COULD NOT BE QUEUED.');
+    }
+  }
 
   /** A web song still being looked up is on its way, not unavailable: it is not counted as missing. */
   const missing = useMemo(() => {
@@ -312,7 +330,7 @@ export default function PersonalLibrary() {
 
         {!ready ? (
           <p className="p-3 text-label font-bold text-ink">READING THE LIBRARY...</p>
-        ) : rows.length === 0 ? (
+        ) : rows.length === 0 && others.length === 0 ? (
           <p className="p-3 text-label font-bold text-ink">
             {current === null ? 'NOTHING LIKED YET.' : 'EMPTY.'}
           </p>
@@ -342,6 +360,26 @@ export default function PersonalLibrary() {
                       })
                 }
               />
+            ))}
+          </ul>
+        )}
+
+        {/* What a saved queue holds besides songs (SPEC-rooms-queues.md, phase 4): videos and the site's own files. They
+            play from a queue, so each has + QUEUE; PLAY for the whole list is on the queue window's PLAYLISTS tab. */}
+        {current === null || others.length === 0 ? null : (
+          <ul className="border-t border-ink" aria-label="Videos and files in this playlist" data-library-others>
+            {others.map((item) => (
+              <li key={item.trackId} className="flex items-center gap-2 px-2 py-1 text-label text-ink">
+                <span className="min-w-0 flex-1 truncate font-bold" title={otherTitle(item)}>
+                  ▶ {otherTitle(item)}
+                </span>
+                <button type="button" className={PLATE} aria-label={`Add ${otherTitle(item)} to your queue`} onClick={() => void queueOther(item)}>
+                  [ + QUEUE ]
+                </button>
+                <button type="button" className={PLATE} aria-label={`Take ${otherTitle(item)} out of ${current.name}`} onClick={() => void library.togglePlaylistTrack(current.id, item.trackId).catch(() => setNotice('THE LIBRARY DID NOT ANSWER.'))}>
+                  [ × ]
+                </button>
+              </li>
             ))}
           </ul>
         )}

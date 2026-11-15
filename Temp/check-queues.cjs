@@ -83,7 +83,9 @@ assert.equal(slot.queuesRequested('?music=1'), false, 'a query about anything el
 // (2026-11-14, SPEC-rooms-queues.md, Luke's answer 8A: the SHELF key "opens your room's queue") The window opens on UP NEXT,
 // your own room's queue, which keeps the tab's old name inside the code (`queues`); RADI-OH is asked for by name.
 assert.equal(slot.queueTabRequested('?queues=queues'), 'queues', 'queues names the UP NEXT tab');
-assert.equal(slot.queueTabRequested('?queues=third'), 'third', 'third names the empty one');
+// Changed on purpose 2026-11-15 (SPEC-rooms-queues.md phase 4): the middle tab is PLAYLISTS now, not empty.
+assert.equal(slot.queueTabRequested('?queues=third'), 'third', 'third names the middle tab, PLAYLISTS');
+assert.equal(slot.queueTabRequested('?queues=playlists'), 'third', 'and its address says playlists');
 assert.equal(slot.queueTabRequested('?queues=radio'), 'radio', 'radio names RADI-OH');
 assert.equal(slot.queueTabRequested('?queues=1'), 'queues', 'and anything else is the default: your queue');
 assert.equal(slot.queuesAddressSpentByClose('?queues=1'), true, 'shutting spends the address');

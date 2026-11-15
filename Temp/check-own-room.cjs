@@ -2,7 +2,7 @@
  * Your own room (SPEC-rooms-queues.md, phase 1), held where it can fail.
  *
  * Steps (above the fold, because `run-checks.cjs` only reads the first 20 lines for these):
- *   npx tsc app/lib/watch/own-room.ts app/lib/watch/mock-watch-repository.ts app/lib/watch/rules.ts app/lib/watch/go-live-carry.ts app/lib/watch/go-live.ts --rootDir app/lib --outDir Temp/own-room-out --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
+ *   npx tsc app/lib/watch/own-room.ts app/lib/watch/mock-watch-repository.ts app/lib/watch/rules.ts app/lib/watch/go-live-carry.ts app/lib/watch/go-live.ts app/lib/watch/music-rooms.ts app/lib/audio/playlist-adding.ts --rootDir app/lib --outDir Temp/own-room-out --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
  *
  * What it holds, each against the module and a store that counts what is written (never a string in a template):
  *   1. Playing never waits for the database: the browser's copy changes at once, and the write follows.
@@ -611,6 +611,73 @@ const names = (counted) => counted.writes().map((call) => call.name);
     assert.equal(carry.wasCarried(half), true);
     await asStarter.endRoom(half);
     delete global.window;
+  }
+
+  /* 11. A playlist is a saved queue (phase 4): save a mixed queue, clear it, load it back whole. */
+  {
+    const lists = require('./own-room-out/watch/music-rooms.js');
+    const adding = require('./own-room-out/audio/playlist-adding.js');
+    const made = session();
+    await made.made.load();
+    made.made.started(song(1));
+    made.made.enqueueThings([{ link: video(2) }, { mediaItemId: 'file-3' }, { link: song(4) }]);
+    await settle();
+    const read = made.store.get(made.made.id());
+    // Song 1 is on the shelf under an id; song 4 is on no shelf, so it is kept by its address.
+    const shelfId = (link) => (link.url === song(1).url ? 'shelf-1' : null);
+    const items = lists.storedListItems(read, shelfId, '2026-11-15T12:00:00.000Z');
+    assert.deepEqual(items.map((item) => item.trackId), ['shelf-1', `link:${video(2).url}`, 'file:file-3', `link:${song(4).url}`], 'what is on, then what waits, in order: a song by its shelf id, a video and an unshelved song by their address, a file by the file');
+    assert.equal(items[1].link.kind, 'youtube', 'a video is kept whole, as a link');
+    assert.equal(items[2].link, undefined, "one of the site's own files is kept by the file, never by a copied address");
+    assert.equal(lists.storedListItems({ ...read, queue: [...read.queue, { ...read.queue[1], id: 'twin' }] }, shelfId, 'x').length, 4, 'a thing is in the list once');
+    assert.match(lists.storedListName(new Date(2026, 10, 15, 9, 5)), /^QUEUE 2026-11-15 09:05$/, 'the name SAVE AS PLAYLIST offers');
+
+    // CLEAR: what waits goes, what is on plays on.
+    const base = made.counted.writes().length;
+    made.made.replaceWaiting([]);
+    await settle();
+    assert.deepEqual(upcoming(made.store.get(made.made.id()).queue), [], 'CLEAR empties what waits');
+    assert.equal(currentEntry(made.store.get(made.made.id())).link.url, song(1).url, 'what is on plays on');
+    assert.deepEqual(names(made.counted).slice(base), ['removeOwnEntries'], 'in one write');
+
+    // LOAD: the list comes back whole, behind what is on; the song that is on is not what "waiting" means, so it queues too.
+    const things = lists.listThings(items, (id) => (id === 'shelf-1' ? { src: song(1).url, title: 'SONG 1' } : undefined));
+    assert.deepEqual(things.map((thing) => thing.link?.title ?? thing.mediaItemId), ['SONG 1', 'VIDEO 2', 'file-3', 'SONG 4'], 'every item becomes a thing a queue holds');
+    assert.equal(made.made.enqueueThings(things), 4);
+    assert.deepEqual(upcoming(made.store.get(made.made.id()).queue).map((entry) => entry.link?.title ?? entry.mediaItemId), ['SONG 1', 'VIDEO 2', 'file-3', 'SONG 4'], 'loaded back whole, in order');
+    assert.equal(made.made.enqueueThings(things), 0, 'loaded twice, nothing is in the queue twice (links and files alike)');
+    assert.deepEqual(lists.listThings([{ trackId: 'gone', addedAt: 'x' }], () => undefined), [], 'a song no shelf holds any more, kept only by id, is passed over');
+    assert.deepEqual(lists.listLinks(items, () => undefined).map((link) => link.title), ['SONG 1', 'VIDEO 2', 'SONG 4'], 'the links alone, for a caller that cannot hold a file: each kept whole, so no shelf is needed to bring one back');
+
+    // ADD TO PLAYLIST takes a video: held whole by its link, found again by its address, never half-saved.
+    const said = [];
+    const film = { title: 'A FILM', link: { url: 'https://archive.org/download/x/x.mp4', kind: 'file', title: 'A FILM' } };
+    const library = { canWrite: true, playlists: [{ id: 'p1', ownerId: 'u', name: 'ROAD', createdAt: '', items: [] }], togglePlaylistTrack: async (...args) => void said.push(args), savePlaylist: async (name) => ({ id: 'p9', ownerId: 'u', name: name.toUpperCase(), createdAt: '', items: [] }) };
+    assert.equal(adding.holdable(film), true, 'a video can be held');
+    assert.equal(adding.playlistKey(film), `link:${film.link.url}`);
+    assert.equal(await adding.toggleInPlaylist(library, film, { id: 'p1', name: 'ROAD', holds: false }), 'added');
+    assert.deepEqual(said, [['p1', `link:${film.link.url}`, film.link]], 'filed under its address, with the link kept');
+    library.playlists[0].items = [{ trackId: 'web:archive:x:0', addedAt: '', link: film.link }];
+    assert.equal(adding.playlistChoices(library, film)[0].holds, true, 'a list that already holds that address says so, whatever id it was filed under');
+    said.length = 0;
+    await adding.toggleInPlaylist(library, film, { id: 'p1', name: 'ROAD', holds: true });
+    assert.deepEqual(said[0].slice(0, 2), ['p1', 'web:archive:x:0'], 'and taking it out takes out the row that is there');
+    const siteSong = { title: 'S', link: song(1), trackId: 'shelf-1' };
+    said.length = 0;
+    await adding.addToNewPlaylist(library, siteSong, 'night');
+    assert.deepEqual(said, [['p9', 'shelf-1', undefined]], 'a site song is still held by its id alone');
+  }
+  {
+    // CLEAR in a live room is a crown's: what has not played goes in one write, what played stays as the room's record.
+    mock.resetMockWatch();
+    const host = mock.getBrowserWatchRepository('account-host');
+    const guest = mock.getBrowserWatchRepository('account-guest');
+    await host.openRoom({ id: 'room-c', host: { id: 'account-host', label: 'HOST' }, mediaItemId: null, privacy: 'open' });
+    const played = await host.playNow({ roomId: 'room-c', by: 'account-host', link: song(1), position: 0, playIndex: 0 });
+    const next = await host.addToQueue({ roomId: 'room-c', addedBy: 'account-host', position: 1, inQueue: true, link: song(2) });
+    await assert.rejects(() => guest.removeOwnEntries('room-c', 'account-guest', [next.id]), OwnRoomRefusal, 'somebody without a crown clears nothing');
+    await host.removeOwnEntries('room-c', 'account-host', [played.id, next.id]);
+    assert.deepEqual((await host.readRoom('room-c')).queue.map((entry) => entry.id), [played.id], 'the crown clears what waits; the play stays');
   }
 
   console.log('check-own-room: every assertion passed');

@@ -141,7 +141,10 @@ export type WatchRepository = {
    * Throws `OwnRoomRefusal` when the store refuses for good, anything else when it could not be reached.
    */
   addOwnEntries(roomId: string, by: string, rows: WatchQueueEntry[]): Promise<void>;
-  /** Takes rows out of your own room, played or not: finished things are cleared, so rows never pile up. */
+  /**
+   * Takes rows out in one go. Your own room gives up any row, played or not: finished things are cleared, so rows
+   * never pile up. In a live room a crown takes out rows that have not played (CLEAR); played ones stay, as its record.
+   */
   removeOwnEntries(roomId: string, by: string, ids: string[]): Promise<void>;
   /**
    * COPY LINK and REFRESH LINK (Luke, 2026-11-14: "if you have someones link you can still join, with the ability to

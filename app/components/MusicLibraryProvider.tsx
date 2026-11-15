@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { LikedTrack, Playlist, PlaylistItem } from '../lib/audio/library';
+import type { WatchLink } from '../lib/watch/types';
 import { setBarredSrcs } from '../lib/audio/barrs';
 import { getMusicRepository } from '../lib/audio/repository';
 import { useAuth } from './AuthProvider';
@@ -42,7 +43,7 @@ type MusicLibraryValue = {
   /** Hearts or un-hearts. Throws with a sentence fit to show if it could not be written. */
   toggleLike: (trackId: string) => Promise<{ liked: boolean }>;
   /** Puts a track into a list, or takes it out if it is already there. */
-  togglePlaylistTrack: (playlistId: string, trackId: string) => Promise<void>;
+  togglePlaylistTrack: (playlistId: string, trackId: string, link?: WatchLink) => Promise<void>;
   /**
    * Makes a list, or edits the one with the same derived id. `items` (VANITY's SAVE AS PLAYLIST) sets
    * what is in it; without it an existing list keeps its songs.
@@ -163,10 +164,10 @@ export default function MusicLibraryProvider({ children }: { children: ReactNode
   );
 
   const togglePlaylistTrack = useCallback(
-    async (playlistId: string, trackId: string) => {
+    async (playlistId: string, trackId: string, link?: WatchLink) => {
       if (userId === null) throw new Error(NO_ACCOUNT);
 
-      await repository.togglePlaylistTrack({ ownerId: userId, playlistId, trackId });
+      await repository.togglePlaylistTrack({ ownerId: userId, playlistId, trackId, ...(link === undefined ? {} : { link }) });
       reload();
     },
     [reload, repository, userId],
