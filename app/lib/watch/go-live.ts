@@ -1,9 +1,10 @@
 'use client';
 
 import { closeFloating, type RoomSource } from '../ui/floating-player';
+import { noteCarried, noteCarriedSong, type Carry } from './go-live-carry';
 import { getWatchRepository } from './repository';
 import { noteRoomStart } from './room-start';
-import { ROOM_NAME_MAX, ROOM_TOPIC_MAX, cleanRoomWords, streamAnchor, streamThreadTitle } from './rules';
+import { ROOM_NAME_MAX, ROOM_TOPIC_MAX, cleanRoomWords, nextPlayIndex, nextQueuePosition, streamAnchor, streamThreadTitle } from './rules';
 import { primeRoom } from './use-watch-room';
 import { openWatch } from './watch-window';
 import type { ForumAnchor } from '../forum/types';
@@ -34,12 +35,15 @@ export type RoomStart = {
  * viewer was watching stops here: the room's player is a new one, and it starts from where that one had got to. Words or a
  * video that fail to file leave an ordinary room, as a thread that fails to file does.
  *
+ * With `carry` (SPEC-rooms-queues.md, phase 3; go-live-carry.ts) what you were playing and your own queue go in too:
+ * every GO LIVE key passes it, so the room you start always holds your queue, and END STREAM can bring back what is left.
+ *
  * Returns the room's id. Throws with a sentence fit to show.
  */
 export async function goLiveEmpty(
   host: { id: string; displayName: string },
   createThread: (input: { title: string; body: string; anchor: ForumAnchor }) => Promise<{ id: string }>,
-  choice: { privacy: RoomPrivacy; password?: string; start?: RoomStart },
+  choice: { privacy: RoomPrivacy; password?: string; start?: RoomStart; carry?: Carry },
 ): Promise<string> {
   const id = crypto.randomUUID();
   const repository = getWatchRepository();
@@ -82,6 +86,57 @@ export async function goLiveEmpty(
       // A black screen with its three keys, as any new room.
     }
     closeFloating();
+    primeRoom({ ...read, room, queue });
+  }
+
+  // What you were playing and your queue come with you (SPEC-rooms-queues.md, phase 3; go-live-carry.ts). A failure
+  // here never stops the room: it opens with whatever got in, and the rest is still on your own queue. Each part is
+  // tried by itself, and only a queue that really went in is ever brought home again at END STREAM (`noteCarried`):
+  // a write that failed here must not be how a queue is lost.
+  const carry = choice.carry;
+  if (carry !== undefined) {
+    try {
+      if (carry.song !== null) {
+        // Filed as already playing, then pointed at where the bar has got to: the bar's one player plays on with no gap.
+        const entry = await repository.playNow({ roomId: id, by: host.id, link: carry.song.link, position: nextQueuePosition(queue), playIndex: nextPlayIndex(queue) });
+        queue.push(entry);
+        noteCarriedSong(entry.id);
+        room = { ...room, currentEntryId: entry.id, positionSeconds: 0, isPlaying: true, updatedAt: new Date().toISOString() };
+        await repository.writePlayback(id, { currentEntryId: entry.id, positionSeconds: carry.song.place, isPlaying: carry.song.playing });
+        room = { ...room, positionSeconds: carry.song.place, isPlaying: carry.song.playing, updatedAt: new Date().toISOString() };
+      } else if (carry.video !== null) {
+        const entry = await repository.addToQueue({ roomId: id, addedBy: host.id, position: nextQueuePosition(queue), inQueue: true, ...carry.video.source });
+        noteRoomStart(entry.id, carry.video.place);
+        queue.push(entry);
+        closeFloating();
+      }
+    } catch {
+      // The room opens without it; whatever was on plays on outside the room, or is started again by hand.
+    }
+    try {
+      if (carry.waiting.length > 0) {
+        const at = new Date().toISOString();
+        let position = nextQueuePosition(queue);
+        const rows: WatchQueueEntry[] = carry.waiting.map((thing) => ({
+          id: crypto.randomUUID(),
+          roomId: id,
+          position: position++,
+          inQueue: true,
+          mediaItemId: thing.mediaItemId ?? null,
+          link: thing.link ?? null,
+          series: null,
+          addedBy: host.id,
+          addedAt: at,
+          playedAt: null,
+          playIndex: null,
+        }));
+        await repository.addOwnEntries(id, host.id, rows);
+        queue.push(...rows);
+      }
+      noteCarried(id);
+    } catch {
+      // The room opens with an empty queue, and your own queue is where it was: END STREAM will not touch it.
+    }
     primeRoom({ ...read, room, queue });
   }
 

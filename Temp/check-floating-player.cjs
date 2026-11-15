@@ -321,6 +321,10 @@ ok(/useQueueHalf\(\{ bar: barItem, room: roomSource,/.test(read('app/components/
 // a room, so its row has the key, with what its pickers chose (server-picks.ts `roomAddFor`). This line had failed since then.
 ok(/<WatchInRoomKey\b/.test(read('app/components/WebMediaRow.tsx')) && /roomAddFor\(server, media, item\.title, pick\)/.test(read('app/components/WebMediaRow.tsx')), 'a media server\'s title has the key, for the pick on the chosen server');
 ok(/entry\.room === undefined \? null : <WatchInRoomKey/.test(layer), 'the float has it only for what can play in a room');
+// Added on purpose 2026-11-15 (SPEC-rooms-queues.md, phase 3): outside a room the float's key is GO LIVE, the same key as
+// the bar's, which carries the video on the screen and your queue into the room; in a room it is still ADD TO ROOM.
+ok(/<WatchInRoomKey key=\{entry\.play\}[^>]* live \/>/.test(layer) && /key\.mode === 'start' && props\.live === true\) return <GoLiveKey screenFirst \/>/.test(roomKey), 'outside a room the float\'s key is GO LIVE');
+ok(/const mine = whatToCarry\(player, screenFirst\);/.test(read('app/components/GoLiveWindow.tsx')), 'every START carries what is on and your queue');
 ok(/useState<RoomPrivacy>\('private'\)/.test(read('app/components/GoLiveWindow.tsx')), 'PRIVATE already picked');
 ok(/const place = roomStartFor\(videoElement, entryId\);/.test(read('app/components/WatchRoom.tsx')), 'the host\'s room starts from the place');
 

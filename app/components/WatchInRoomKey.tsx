@@ -12,6 +12,7 @@ import { useWatching } from '../lib/watch/use-watching';
 import { openWatch } from '../lib/watch/watch-window';
 import { useAuth } from './AuthProvider';
 import { useForum } from './ForumProvider';
+import GoLiveKey from './GoLiveKey';
 import GoLiveWindow from './GoLiveWindow';
 
 /**
@@ -23,6 +24,9 @@ import GoLiveWindow from './GoLiveWindow';
  * - In one you can add to: `[ ADD TO ROOM ]`. One press puts it at the back: of the queue with a crown, or of your own list without.
  *
  * Accounts only. The caller draws it only for a video that can play in a room, so there is never a dead key.
+ *
+ * On the floating player (`live`) the first reading is `[ GO LIVE ]` instead (SPEC-rooms-queues.md, phase 3): the same
+ * key as the bar's, which takes the video on the screen and your queue into the room it starts.
  */
 
 type AddState = { kind: 'idle' } | { kind: 'busy' } | { kind: 'added'; roomId: string; listed: boolean; note: string | null } | { kind: 'refused'; roomId: string; reason: string };
@@ -49,9 +53,11 @@ export type RoomKey = {
   after: ReactNode;
 };
 
-export default function WatchInRoomKey(props: { source: RoomSource; series?: RoomSeries; playId: string; title: string; onPress?: () => void }) {
+export default function WatchInRoomKey(props: { source: RoomSource; series?: RoomSeries; playId: string; title: string; onPress?: () => void; live?: boolean }) {
   const key = useRoomKey(props);
   if (key === null) return null;
+  // The floating player's key (`live`): outside a room it is GO LIVE, which carries this video in as what is on.
+  if (key.mode === 'start' && props.live === true) return <GoLiveKey screenFirst />;
   if (key.mode === 'start') {
     return (
       <>

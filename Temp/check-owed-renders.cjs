@@ -969,7 +969,9 @@ test('WatchInRoomKey: the menu names the video, with PRIVATE picked, and START p
   await tick();
   floating.notePlace('web:v', null);
   assert.deepEqual(said('goLiveEmpty'), [['goLiveEmpty', USER.id, true]]);
-  assert.deepEqual(lastChoice, { privacy: 'private', start: { name: '', topic: '', addMode: 'anyone', first: source(), place: 42 } });
+  // Updated on purpose 2026-11-15 (SPEC-rooms-queues.md, phase 3): every START carries your own queue in behind the
+  // video it names (nothing is queued here), so END STREAM can bring back what is left.
+  assert.deepEqual(lastChoice, { privacy: 'private', start: { name: '', topic: '', addMode: 'anyone', first: source(), place: 42 }, carry: { song: null, video: null, waiting: [] } });
 });
 test('WatchInRoomKey: holding a crown, it reads ADD TO ROOM, and one press goes to the back of the queue', async () => {
   auth = { status: 'signed-in', user: USER };

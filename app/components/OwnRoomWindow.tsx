@@ -177,14 +177,9 @@ export default function OwnRoomWindow({ roomId, collapsed, onCollapse, onClose }
       {/* The room's settings, as a live room's cog opens them: COPY LINK with REFRESH LINK beside it, and who joined, with REMOVE. */}
       {settingsOpen && readable && user !== null && account !== null ? <RoomSettingsWindow room={read.room} userId={account} look={null} onClose={() => setSettingsOpen(false)} /> : null}
 
-      {/* The same menu GO LIVE opens everywhere (WHO CAN JOIN, PRIVATE picked); a video on the screen goes in from the same spot. */}
+      {/* The same menu GO LIVE opens everywhere (WHO CAN JOIN, PRIVATE picked); what is on goes in from the same spot, with your queue. */}
       {goingLive && user !== null ? (
-        <GoLiveWindow
-          user={user}
-          createThread={forum.createThread}
-          first={videoOn && screen.room !== undefined ? { source: screen.room, playId: screen.id, title: screen.title } : undefined}
-          onClose={() => setGoingLive(false)}
-        />
+        <GoLiveWindow user={user} createThread={forum.createThread} onClose={() => setGoingLive(false)} />
       ) : null}
     </>
   );

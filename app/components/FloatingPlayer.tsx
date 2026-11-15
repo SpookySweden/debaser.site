@@ -316,7 +316,7 @@ export default function FloatingPlayer() {
                 [ POP OUT ]
               </button>
             ) : null}
-            {entry.room === undefined ? null : <WatchInRoomKey key={entry.play} source={entry.room} playId={entry.id} title={entry.title} />}
+            {entry.room === undefined ? null : <WatchInRoomKey key={entry.play} source={entry.room} playId={entry.id} title={entry.title} live />}
           </div>
         </div>
       ) : null}

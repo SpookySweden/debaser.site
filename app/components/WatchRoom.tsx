@@ -23,6 +23,7 @@ import { getWatchRepository } from '../lib/watch/repository';
 import type { AudioTrack } from '../lib/audio/tracks';
 import { frontPosition } from '../lib/watch/music-rooms';
 import { isSongLink, songLink, trackForSong } from '../lib/watch/songs';
+import { comeHome, forgetCarried, isCarriedSong, wasCarried } from '../lib/watch/go-live-carry';
 import { useWebTrack, webTrackNow } from '../lib/web/web-track-lookup';
 
 import { roomStartFor } from '../lib/watch/room-start';
@@ -273,12 +274,15 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   const steer = player.steer;
   const playing = player.playing;
   const stoppedMusic = useRef(false);
+  /** The bar is already on the song this room has on. */
+  const carriedIn = songTrack !== null && player.track?.src === songTrack.src;
   useEffect(() => {
     if (stoppedMusic.current) return;
     stoppedMusic.current = true;
     stopFollowing('');
-    if (playing) steer(false);
-  }, [playing, steer]);
+    // Not the song GO LIVE carried in (go-live.ts): the room has that very song on, and it plays on with no gap.
+    if (playing && !carriedIn) steer(false);
+  }, [playing, steer, carriedIn]);
 
   /* --- hosting --------------------------------------------------------------------------------- */
 
@@ -462,10 +466,16 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     };
   }, [amHost, live, src, videoElement, refusedPlay]);
 
-  // A room that ended stops the picture where it is.
+  // A room that ended stops the picture where it is. Not the song of the person who started it and is ending it:
+  // that carries on for them alone, on the bar (SPEC-rooms-queues.md, phase 3).
+  const goingHome = useRef(false);
+  const cameHome = useRef(false);
+  const barAudio = player.audioElement;
   useEffect(() => {
-    if (!live) videoRef.current?.pause();
-  }, [live]);
+    if (live) return;
+    const stage = videoRef.current;
+    if (stage !== null && !(goingHome.current && stage === barAudio())) stage.pause();
+  }, [live, barAudio]);
 
   /* --- songs: the music bar plays them -------------------------------------------------------------- */
 
@@ -546,7 +556,13 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   // Cued once per song row: `cue` changes whenever the player's own list does (a song it did not hold joins it as it
   // is cued, or the shelf is read again), and following that would put the song on again, from the top for an
   // off-queue play (code review, 2026-11-03).
-  const cueSong = useEffectEvent((track: AudioTrack) => cue(track, { at: songStart() }, songPlays()));
+  const cueSong = useEffectEvent((track: AudioTrack) => {
+    const at = songStart();
+    // The host's bar is already on this song (GO LIVE carried it in a moment ago): it is not moved, so nothing skips.
+    // Known by the row GO LIVE filed, never by comparing clocks: this device's and the database's can disagree.
+    const inPlace = amHost && player.track?.src === track.src && isCarriedSong(entryId);
+    cue(track, inPlace ? {} : { at }, songPlays());
+  });
   useEffect(() => {
     if (songSrc === null || !live) return;
     const track = songToCue();
@@ -638,8 +654,31 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   const [leaving, setLeaving] = useState(false);
   const [confirmEnd, setConfirmEnd] = useState(false);
 
+  /**
+   * END STREAM, or leaving the room to a new host, for the person whose queue GO LIVE carried into it
+   * (go-live-carry.ts): their own queue becomes what was still waiting here, and what was on carries on for them
+   * alone. In two steps, so a room that failed to end takes nothing: `setOut` reads the room as it stands, before the
+   * end is written (and keeps their song from being stopped with the room); the function it returns brings it home,
+   * once, when the room has ended or they have left. A host who took the room over, or whose queue never got in,
+   * keeps their own queue as it is.
+   */
+  function setOut(): (() => void) | null {
+    if (cameHome.current || music || user === null || !amHost || !live || !wasCarried(roomId)) return null;
+    goingHome.current = true;
+    const leaving = read;
+    const songWasOn = songOn;
+    return () => {
+      if (cameHome.current) return;
+      cameHome.current = true;
+      forgetCarried(roomId);
+      const audio = audioElement();
+      comeHome(leaving, { now: Date.now(), origin: window.location.origin, song: songWasOn && audio !== null ? { place: audio.currentTime, playing: !audio.paused } : null });
+    };
+  }
+
   async function leave(choice: 'handover' | 'end') {
     setLeaving(true);
+    const home = setOut();
     try {
       // The canvas was asked about when the window's close key was pressed; ending the stream closes it too.
       if (choice === 'end') {
@@ -650,6 +689,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     } catch {
       // Leaving is not stopped by a failed write: the room hands itself over once this tab is gone.
     }
+    // Leaving either way, so the queue comes with them either way.
+    home?.();
     onLeft();
   }
 
@@ -1067,10 +1108,22 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
           return;
         }
         // A changed canvas nobody saved asks "save this canvas?" first (SPEC-stream-art.md).
+        let home: (() => void) | null = null;
         void askToSaveCanvas(roomId, { ending: true })
-          .then(() => repository.endRoom(roomId))
-          .then(() => applyLocalChange(roomId, { kind: 'refresh' }))
-          .catch((failure: unknown) => setFault(failure instanceof Error ? failure.message : 'THE STREAM COULD NOT BE ENDED.'));
+          .then(() => {
+            home = setOut();
+            return repository.endRoom(roomId);
+          })
+          .then(() => {
+            // Only now that the room has really ended.
+            home?.();
+            applyLocalChange(roomId, { kind: 'refresh' });
+          })
+          .catch((failure: unknown) => {
+            // Still live: nothing came home, and the song is the room's to stop again.
+            goingHome.current = false;
+            setFault(failure instanceof Error ? failure.message : 'THE STREAM COULD NOT BE ENDED.');
+          });
       }}
       onBlur={() => setConfirmEnd(false)}
     >

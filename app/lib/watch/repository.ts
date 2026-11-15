@@ -136,7 +136,8 @@ export type WatchRepository = {
   openOwnRoom(input: OpenOwnRoomInput): Promise<WatchRoomRead>;
   /**
    * Rows written into your own room in one go, each under the id its browser made, so it could be drawn before the
-   * write landed (a row already there is left as it is). A row with `playedAt` is a play already begun.
+   * write landed (a row already there is left as it is). A row with `playedAt` is a play already begun. GO LIVE uses
+   * the same write to carry your queue into the room it has just started (its host holds a crown there).
    * Throws `OwnRoomRefusal` when the store refuses for good, anything else when it could not be reached.
    */
   addOwnEntries(roomId: string, by: string, rows: WatchQueueEntry[]): Promise<void>;

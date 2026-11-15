@@ -6,9 +6,11 @@ import type { ForumAnchor } from '../lib/forum/types';
 import { FIELD_TIGHT, PLATE, PLATE_MAIN, PLATE_PRESSED } from '../lib/ui/controls';
 import { placeOf, type RoomSource } from '../lib/ui/floating-player';
 import { goLiveEmpty, type RoomSeries } from '../lib/watch/go-live';
+import { whatToCarry } from '../lib/watch/go-live-carry';
 import { noteFindInRoom } from '../lib/watch/find-in-room';
 import { ROOM_NAME_MAX, ROOM_TOPIC_MAX } from '../lib/watch/rules';
 import type { RoomAddMode, RoomPrivacy } from '../lib/watch/types';
+import { useMusicPlayer } from './MusicPlayerProvider';
 import PopoutWindow from './PopoutWindow';
 import RoomPrivacyPicker from './RoomPrivacyPicker';
 
@@ -23,12 +25,15 @@ const ADD_MODES: readonly { value: RoomAddMode; label: string }[] = [
  *
  * With `first` it is `[ WATCH IN ROOM ]`'s menu (SPEC-floating-player.md, part 3): it names the video and also asks the room's
  * name, topic and who can add, and the room starts with that video.
+ *
+ * Every START carries what you are playing and your own queue into the room (SPEC-rooms-queues.md, phase 3).
  */
 export default function GoLiveWindow({
   user,
   createThread,
   first,
   findToPlay,
+  screenFirst = false,
   onClose,
 }: {
   user: AccountUser;
@@ -37,8 +42,11 @@ export default function GoLiveWindow({
   first?: { source: RoomSource; playId: string; title: string; series?: RoomSeries };
   /** A TMDB title no server holds (find-in-room.ts): the room opens its queue searching for it (FIND TO PLAY). */
   findToPlay?: string;
+  /** The floating player's own key: the video on the screen is what goes in, even with a song on the bar beside it. */
+  screenFirst?: boolean;
   onClose: () => void;
 }) {
+  const player = useMusicPlayer();
   const [privacy, setPrivacy] = useState<RoomPrivacy>('private');
   const [name, setName] = useState('');
   const [topic, setTopic] = useState('');
@@ -54,7 +62,11 @@ export default function GoLiveWindow({
     try {
       // The place is read now: the video has been playing on behind this window.
       const opening = first === undefined ? {} : { start: { name, topic, addMode, first: first.source, ...(first.series === undefined ? {} : { series: first.series }), place: placeOf(first.playId) } };
-      const roomId = await goLiveEmpty(user, createThread, { privacy, ...(privacy === 'password' ? { password } : {}), ...opening });
+      // One key, one meaning (SPEC-rooms-queues.md, phase 3): what is on and your queue come with you, read now. With a
+      // video named here that video is what is on, and your queue goes in behind it.
+      const mine = whatToCarry(player, screenFirst);
+      const carry = first === undefined ? mine : { song: null, video: null, waiting: mine.waiting };
+      const roomId = await goLiveEmpty(user, createThread, { privacy, ...(privacy === 'password' ? { password } : {}), ...opening, carry });
       // An empty room started to find a title a source: open its queue searching for it as it comes up.
       if (first === undefined && findToPlay !== undefined) noteFindInRoom(roomId, findToPlay);
       onClose();

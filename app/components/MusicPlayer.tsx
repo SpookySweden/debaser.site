@@ -31,6 +31,7 @@ import { useEdgeReserve } from '../lib/ui/use-edge-reserve';
 import { setStreamBarTarget, showMusicOnBar, showsStream, showStreamOnBar, streamBarState, subscribeToStreamBar } from '../lib/watch/stream-bar';
 import { subscribeToWatchWindow, watchWindowServerState, watchWindowState } from '../lib/watch/watch-window';
 import ArtMark from './ArtMark';
+import GoLiveKey from './GoLiveKey';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import AboveAnchor from './AboveAnchor';
 import MarqueeText from './MarqueeText';
@@ -397,7 +398,9 @@ function ScreenNow({ entry, paused }: { entry: FloatingEntry; paused: boolean })
 function BarQueueKey() {
   const own = useSyncExternalStore(subscribeToOwnRoom, ownRoomState, ownRoomState);
   const shown = useSyncExternalStore(subscribeToQueueWindow, queueWindowState, queueWindowServerState);
-  const { read } = useWatchRoom(own.roomId, { follow: false });
+  // In a live room the bar is that room's, and so is the queue it counts (the room's window keeps the copy fresh).
+  const liveId = useMusicPlayer().room?.roomId ?? null;
+  const { read } = useWatchRoom(liveId ?? own.roomId, { follow: false });
   const waiting = read === undefined || read === null ? 0 : upcoming(read.queue).length;
   const open = shown.open && shown.tab !== 'radio';
 
@@ -406,7 +409,7 @@ function BarQueueKey() {
       type="button"
       onClick={() => (open ? toggleQueues() : openQueues('queues'))}
       aria-expanded={open}
-      aria-label={`Your queue: ${waiting === 0 ? 'nothing waiting' : `${waiting} waiting`}`}
+      aria-label={`${liveId === null ? 'Your queue' : "The live room's queue"}: ${waiting === 0 ? 'nothing waiting' : `${waiting} waiting`}`}
       className={open ? PLATE_PRESSED : PLATE_HARDWARE}
       data-bar-queue={waiting}
     >
@@ -704,6 +707,9 @@ function DockedBar({ roomId, onHide, onSettings }: BarControls) {
           <PlayerSongKeys plate={PLATE_HARDWARE} side="right" />
 
           <BarQueueKey />
+
+          {/* Not while a live room has the bar (yours or one you are in): that room's own window ends or leaves it. */}
+          {player.room === null ? <GoLiveKey plate={PLATE_HARDWARE} /> : null}
 
           <button type="button" onClick={onSettings} className={PLATE_HARDWARE}>
             [ OPTIONS ]

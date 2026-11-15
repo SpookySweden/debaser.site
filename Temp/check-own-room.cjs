@@ -2,7 +2,7 @@
  * Your own room (SPEC-rooms-queues.md, phase 1), held where it can fail.
  *
  * Steps (above the fold, because `run-checks.cjs` only reads the first 20 lines for these):
- *   npx tsc app/lib/watch/own-room.ts app/lib/watch/mock-watch-repository.ts app/lib/watch/rules.ts --rootDir app/lib --outDir Temp/own-room-out --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
+ *   npx tsc app/lib/watch/own-room.ts app/lib/watch/mock-watch-repository.ts app/lib/watch/rules.ts app/lib/watch/go-live-carry.ts app/lib/watch/go-live.ts --rootDir app/lib --outDir Temp/own-room-out --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
  *
  * What it holds, each against the module and a store that counts what is written (never a string in a template):
  *   1. Playing never waits for the database: the browser's copy changes at once, and the write follows.
@@ -458,6 +458,159 @@ const names = (counted) => counted.writes().map((call) => call.name);
     assert.equal((await friend.readDoor('room-o')).removed, true, 'and the door tells them so');
     assert.equal(await friend.joinByLink(fresh), null, 'even the new link does not let a removed person back');
     assert.equal(await friend.ownRoomLink(false), null, "a joiner asking for a link gets their own room's (none here), never the owner's");
+  }
+
+  /* 10. GO LIVE carries what is on and your queue into tonight's room; END STREAM brings back what is left (phase 3). */
+  {
+    // `replaceWaiting`: what waits is swapped in two writes, and what is on is not touched.
+    const made = session();
+    await made.made.load();
+    const on = made.made.started(song(3));
+    made.made.enqueueAll([song(1), song(2)]);
+    await settle();
+    const base = made.counted.writes().length;
+    assert.equal(made.made.replaceWaiting([{ link: song(5) }, { link: video(6) }, { mediaItemId: 'file-7' }]), 3);
+    const after = made.store.get(made.made.id());
+    assert.deepEqual(upcoming(after.queue).map((entry) => entry.link?.title ?? entry.mediaItemId), ['SONG 5', 'VIDEO 6', 'file-7'], 'your queue is what was left, in order');
+    assert.equal(currentEntry(after).id, on.id, 'what is on stays on');
+    await settle();
+    assert.deepEqual(names(made.counted).slice(base), ['removeOwnEntries', 'addOwnEntries'], 'one write out, one write in (the SPEC: at most 200 out, 200 in)');
+    assert.equal(made.counted.writes()[base].detail.ids.length, 2, 'both old rows go in the one write');
+    made.made.replaceWaiting([]);
+    assert.deepEqual(upcoming(made.store.get(made.made.id()).queue), [], 'nothing left in the live queue: an empty queue at home');
+    assert.equal(made.made.replaceWaiting(Array.from({ length: 250 }, (_, n) => ({ link: song(100 + n) }))), OWN_QUEUE_MAX, 'never more than the queue holds');
+  }
+  {
+    const carry = require('./own-room-out/watch/go-live-carry.js');
+    const client = require('./own-room-out/watch/own-room-client.js');
+    const floating = require('./own-room-out/ui/floating-player.js');
+    mock.resetMockWatch();
+    const host = mock.getBrowserWatchRepository('account-host');
+    const friend = mock.getBrowserWatchRepository('account-friend');
+    const stranger = mock.getBrowserWatchRepository('account-stranger');
+
+    // Alone: a song on, two things waiting.
+    const store = memoryStore();
+    let ids = 0;
+    const own = new OwnRoomSession({ repository: host, host: { id: 'account-host', label: 'HOST' }, store, newId: () => `own-${(ids += 1)}`, now: () => Date.now() });
+    await own.load();
+    const bar = { track: { src: song(1).url, title: 'SONG 1' }, playing: true, audioElement: () => ({ currentTime: 42.5 }) };
+    own.started(song(1));
+    own.enqueueAll([song(2), video(3)]);
+    await settle();
+    client.setOwnRoom({ session: own, roomId: own.id(), hostId: 'account-host', visitor: false, waiting: false });
+
+    const taken = carry.whatToCarry(bar);
+    assert.equal(taken.song.link.url, song(1).url, 'the song on the bar is what is on');
+    assert.equal(taken.song.place, 42.5, 'from where it has got to');
+    assert.equal(taken.song.playing, true);
+    assert.equal(taken.video, null);
+    assert.deepEqual(taken.waiting.map((thing) => thing.link.title), ['SONG 2', 'VIDEO 3'], 'the queue comes too, in order');
+    assert.equal(carry.whatToCarry({ ...bar, playing: false, track: { src: '/assets/audio/another.mp3', title: 'X' } }).song, null, 'a song merely left on the bar, not playing and not what your room has on, is not carried');
+    assert.equal(carry.whatToCarry({ ...bar, playing: false }).song.playing, false, 'a paused song your room has on is carried paused');
+    floating.playFloating({ id: 'row-9', title: 'VIDEO 9', shape: 'video', room: { link: video(9) }, player: { kind: 'file', src: 'https://example.org/v.mp4' } });
+    floating.notePlace('row-9', 77);
+    const withVideo = carry.whatToCarry({ ...bar, playing: false });
+    assert.equal(withVideo.song, null, 'a video on the screen while the bar is quiet: the video is what is on');
+    assert.equal(withVideo.video.source.link.title, 'VIDEO 9');
+    assert.equal(withVideo.video.place, 77, 'from where it has got to');
+    assert.notEqual(carry.whatToCarry(bar).song, null, 'while the bar plays, the song is what is on');
+    floating.closeFloating();
+
+    // START: the room is filed as `goLiveEmpty` files it.
+    const live = await host.openRoom({ id: 'room-live', host: { id: 'account-host', label: 'HOST' }, mediaItemId: null, privacy: 'private' });
+    assert.equal(live.room.origin, 'stream', 'going live always makes a new room');
+    const first = await host.playNow({ roomId: 'room-live', by: 'account-host', link: taken.song.link, position: 0, playIndex: 0 });
+    await host.writePlayback('room-live', { currentEntryId: first.id, positionSeconds: taken.song.place, isPlaying: true });
+    const rows = taken.waiting.map((thing, n) => ({ id: `carried-${n}`, roomId: 'room-live', position: n + 1, inQueue: true, mediaItemId: thing.mediaItemId ?? null, link: thing.link ?? null, series: null, addedBy: 'account-host', addedAt: 'x', playedAt: null, playIndex: null }));
+    await host.addOwnEntries('room-live', 'account-host', rows);
+    const opened = await host.readRoom('room-live');
+    assert.equal(currentEntry(opened).link.url, song(1).url, 'what was on is the first play');
+    assert.equal(opened.room.positionSeconds, 42.5, 'from the same spot');
+    assert.deepEqual(upcoming(opened.queue).map((entry) => entry.link.title), ['SONG 2', 'VIDEO 3'], 'the queue is behind it, in order');
+    assert.equal(await stranger.readRoom('room-live'), null, 'a private live room is read by nobody outside it, carried queue and all');
+    await assert.rejects(() => stranger.addOwnEntries('room-live', 'account-stranger', [{ ...rows[0], id: 'sneak' }]), OwnRoomRefusal, 'only the host writes rows in one go');
+    assert.deepEqual(upcoming((await host.readRoom(own.id())).queue).map((entry) => entry.link.title), ['SONG 2', 'VIDEO 3'], 'your own room is left untouched while you are live');
+
+    // Live: one more is added, and the room moves on to the next.
+    const extra = await host.addToQueue({ roomId: 'room-live', addedBy: 'account-host', position: 9, inQueue: true, link: song(4) });
+    await host.startEntry('room-live', 'carried-0', 1);
+    await host.writePlayback('room-live', { currentEntryId: 'carried-0', positionSeconds: 12, isPlaying: true });
+    const ending = await host.readRoom('room-live');
+    assert.deepEqual(carry.leftWaiting(ending.queue).map((thing) => thing.link.title), ['VIDEO 3', 'SONG 4'], 'what is still waiting, in order');
+    assert.ok(extra.id);
+
+    // END STREAM: your own queue becomes what was left, and the song that was on is on in your own room, where it had got to.
+    carry.comeHome(ending, { now: Date.now(), origin: 'https://debaser.site', song: { place: 15, playing: true } });
+    await settle();
+    await host.endRoom('room-live');
+    const home = store.get(own.id());
+    assert.deepEqual(upcoming(home.queue).map((entry) => entry.link.title), ['VIDEO 3', 'SONG 4'], 'your own queue is what was left');
+    assert.equal(currentEntry(home).link.url, song(2).url, 'what was on carries on for you alone');
+    assert.equal(home.room.positionSeconds, 15, 'from the same spot');
+    assert.equal(home.room.isPlaying, true);
+    const kept = await host.readRoom(own.id());
+    assert.deepEqual(upcoming(kept.queue).map((entry) => entry.link.title), ['VIDEO 3', 'SONG 4'], 'and it is saved, not only drawn');
+    assert.notEqual((await host.readRoom('room-live')).room.endedAt, null, 'the live room has ended; its record of what played stays');
+    assert.ok(friend);
+
+    // The floating player's own key: the video on the screen goes in, even with a song playing on the bar beside it.
+    floating.playFloating({ id: 'row-9', title: 'VIDEO 9', shape: 'video', room: { link: video(9) }, player: { kind: 'file', src: 'https://example.org/v.mp4' } });
+    assert.equal(carry.whatToCarry(bar, true).video.source.link.title, 'VIDEO 9', "the float's own GO LIVE takes the video it is drawn under");
+    assert.equal(carry.whatToCarry(bar, true).song, null);
+    floating.closeFloating();
+    client.clearOwnRoom(own);
+
+    // The song GO LIVE filed is known by its row, for a minute, never by comparing clocks.
+    carry.noteCarriedSong('row-a', 1000);
+    assert.equal(carry.isCarriedSong('row-a', 2000), true, 'the row GO LIVE filed from the bar is not moved when the room first cues it');
+    assert.equal(carry.isCarriedSong('row-b', 2000), false, 'any other row is cued where the room says');
+    assert.equal(carry.isCarriedSong('row-a', 1000 + 5 * 60 * 1000), false, 'and not for ever');
+
+    // A queue only comes home from a room it really went into (code review, 2026-11-15): with no storage, never.
+    assert.equal(carry.wasCarried('room-live'), false, 'a browser with its storage shut brings nothing home, so nothing is lost');
+    const tabStore = new Map();
+    global.window = { sessionStorage: { getItem: (key) => tabStore.get(key) ?? null, setItem: (key, value) => tabStore.set(key, value), removeItem: (key) => tabStore.delete(key) } };
+    const goLive = require('./own-room-out/watch/go-live.js');
+    const site = require('./own-room-out/watch/repository.js').getWatchRepository();
+    const starter = { id: 'account-starter', displayName: 'STARTER' };
+    const asStarter = mock.getBrowserWatchRepository('account-starter');
+    const thread = async () => ({ id: 'thread-1' });
+    const taking = { song: { link: song(1), place: 12, playing: true }, video: null, waiting: [{ link: song(2) }, { link: video(3) }] };
+
+    const good = await goLive.goLiveEmpty(starter, thread, { privacy: 'private', carry: taking });
+    const filled = await asStarter.readRoom(good);
+    assert.deepEqual(upcoming(filled.queue).map((entry) => entry.link.title), ['SONG 2', 'VIDEO 3'], 'START writes the queue into the new room');
+    assert.equal(filled.room.positionSeconds, 12, 'and what was on, where it had got to');
+    assert.equal(carry.isCarriedSong(filled.room.currentEntryId), true, 'the song it filed is the one the bar is left alone for');
+    assert.equal(carry.wasCarried(good), true, 'a queue that went in is one END STREAM may bring home');
+    carry.forgetCarried(good);
+    assert.equal(carry.wasCarried(good), false, 'once home, the note is spent');
+    await asStarter.endRoom(good);
+
+    const real = site.addOwnEntries;
+    site.addOwnEntries = async () => {
+      throw new Error('offline');
+    };
+    const bad = await goLive.goLiveEmpty(starter, thread, { privacy: 'private', carry: taking });
+    site.addOwnEntries = real;
+    const unfilled = await asStarter.readRoom(bad);
+    assert.notEqual(unfilled, null, 'a queue that could not be written does not stop the room');
+    assert.equal(currentEntry(unfilled).link.url, song(1).url, 'what was on still went in');
+    assert.deepEqual(upcoming(unfilled.queue), [], 'the queue did not');
+    assert.equal(carry.wasCarried(bad), false, 'so END STREAM will not put that empty queue over your own');
+    await asStarter.endRoom(bad);
+
+    const realPlay = site.playNow;
+    site.playNow = async () => {
+      throw new Error('offline');
+    };
+    const half = await goLive.goLiveEmpty(starter, thread, { privacy: 'private', carry: taking });
+    site.playNow = realPlay;
+    assert.deepEqual(upcoming((await asStarter.readRoom(half)).queue).map((entry) => entry.link.title), ['SONG 2', 'VIDEO 3'], 'a song that could not be filed does not stop the queue going in');
+    assert.equal(carry.wasCarried(half), true);
+    await asStarter.endRoom(half);
+    delete global.window;
   }
 
   console.log('check-own-room: every assertion passed');

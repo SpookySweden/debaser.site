@@ -627,16 +627,19 @@ class MockWatchRepository implements WatchRepository {
     if (rows.length === 0) return;
     const tables = load();
     const room = tables.rooms.find((candidate) => candidate.id === roomId);
-    // Only its owner writes rows under their own ids, and only into their own room.
-    if (room === undefined || room.origin !== 'music' || room.hostId !== by) throw new OwnRoomRefusal(NOT_ALLOWED);
+    // Only a room's host writes rows under their own ids: into their own room, or (GO LIVE carrying the queue in) into
+    // the room they have just started, where the host holds a crown. The database's adding rule says the same.
+    if (room === undefined || room.endedAt !== null || room.hostId !== by) throw new OwnRoomRefusal(NOT_ALLOWED);
+    if (room.origin !== 'music' && !hasCrown(tables.crowns.filter((crown) => crown.roomId === roomId), by)) throw new OwnRoomRefusal(NOT_ALLOWED);
     for (const row of rows) {
       const refusal = row.link === null ? null : queueRefusal(row.link);
       if (refusal !== null) throw new OwnRoomRefusal(refusal);
     }
     const known = new Set(tables.queue.map((entry) => entry.id));
     const fresh = rows.filter((row) => !known.has(row.id)).map((row) => ({ ...row, roomId, inQueue: true, addedBy: by }));
-    if (tables.queue.filter((entry) => entry.roomId === roomId).length + fresh.length > OWN_ROOM_ROWS_MAX) throw new OwnRoomRefusal(OWN_QUEUE_FULL);
-    save({ ...tables, queue: [...tables.queue, ...fresh], privateRows: [...tables.privateRows, ...fresh.map((row) => row.id)] }, roomId);
+    if (room.origin === 'music' && tables.queue.filter((entry) => entry.roomId === roomId).length + fresh.length > OWN_ROOM_ROWS_MAX) throw new OwnRoomRefusal(OWN_QUEUE_FULL);
+    // Stamped private or open by the room's setting as it is written, like any row (the database's `watch_stamp_privacy`).
+    save({ ...tables, queue: [...tables.queue, ...fresh], privateRows: room.privacy === 'open' ? tables.privateRows : [...tables.privateRows, ...fresh.map((row) => row.id)] }, roomId);
   }
 
   async removeOwnEntries(roomId: string, by: string, ids: string[]): Promise<void> {

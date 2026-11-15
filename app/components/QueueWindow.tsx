@@ -16,9 +16,13 @@ import {
 } from '../lib/audio/queue-window';
 import { useCatalogue } from '../lib/media/catalogue';
 import { PLATE_LINK } from '../lib/ui/controls';
+import { useNow } from '../lib/ui/use-now';
 import { ownRoomState, subscribeToOwnRoom } from '../lib/watch/own-room-client';
+import { roomIsLive } from '../lib/watch/rules';
 import { useWatchRoom } from '../lib/watch/use-watch-room';
+import { useAuth } from './AuthProvider';
 import DockWindow from './DockWindow';
+import { useMusicPlayer } from './MusicPlayerProvider';
 import RadioLoops from './RadioLoops';
 import StreamQueueWindow from './StreamQueueWindow';
 
@@ -123,6 +127,23 @@ function OwnQueue({ onClose }: { onClose: () => void }) {
   const { read } = useWatchRoom(own.roomId, { follow: false });
   const catalogue = useCatalogue();
   const itemsById = useMemo(() => new Map(catalogue.items.map((item) => [item.id, item])), [catalogue.items]);
+  // In a live room the bar, the screen and this window are that room's (SPEC-rooms-queues.md, phase 3): the same
+  // queue its own window shows, by the same rules (a crown adds straight in). The room's window keeps the copy fresh.
+  const { user } = useAuth();
+  const liveId = useMusicPlayer().room?.roomId ?? null;
+  const liveRoom = useWatchRoom(liveId, { follow: false }).read;
+  const now = useNow(5000);
+
+  if (liveId !== null && user !== null && liveRoom !== undefined && liveRoom !== null && roomIsLive(liveRoom.room, now)) {
+    return (
+      <section aria-label="Up next" data-own-room="live">
+        <p className="border-b border-ink px-2 py-1 text-label font-bold text-ink" data-own-room-note="live">
+          THE LIVE ROOM&apos;S QUEUE. YOUR OWN QUEUE WAITS FOR YOU UNTIL YOU LEAVE.
+        </p>
+        <StreamQueueWindow bare read={liveRoom} itemsById={itemsById} live userId={user.id} members={[]} nowLive onClose={onClose} />
+      </section>
+    );
+  }
 
   if (own.roomId === null || read === undefined || read === null) {
     return <p className="p-3 text-label font-bold text-ink">READING YOUR QUEUE...</p>;

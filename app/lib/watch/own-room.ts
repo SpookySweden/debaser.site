@@ -451,6 +451,44 @@ export class OwnRoomSession {
     return fresh.length;
   }
 
+  /**
+   * END STREAM (SPEC-rooms-queues.md, phase 3): your own queue becomes what was still waiting in the live room's, in
+   * its order. What waited here before goes (it went into the live room when you went live); the plays kept stay.
+   * Two writes at most: one delete, one insert.
+   */
+  replaceWaiting(things: readonly ({ link: WatchLink; mediaItemId?: undefined } | { mediaItemId: string; link?: undefined })[]): number {
+    if (this.closed || this.roomId === null) return 0;
+    const read = this.mine();
+    const { repository, host } = this.deps;
+    const old = upcoming([...read.queue]).map((entry) => entry.id);
+    for (const id of old) this.deps.store.apply(read.room.id, { kind: 'removed', table: 'queue', id });
+    if (old.length > 0) this.push('other', () => repository.removeOwnEntries(this.mine().room.id, host.id, old));
+
+    const at = this.stamp();
+    let position = nextQueuePosition([...this.mine().queue]);
+    const fresh: WatchQueueEntry[] = things.slice(0, OWN_QUEUE_MAX).map((thing) => ({
+      id: this.deps.newId(),
+      roomId: read.room.id,
+      position: position++,
+      inQueue: true,
+      mediaItemId: thing.mediaItemId ?? null,
+      link: thing.link ?? null,
+      series: null,
+      addedBy: host.id,
+      addedAt: at,
+      playedAt: null,
+      playIndex: null,
+    }));
+    for (const entry of fresh) this.deps.store.apply(read.room.id, { kind: 'entry', entry });
+    if (fresh.length > 0) {
+      this.push('other', () => {
+        const roomId = this.mine().room.id;
+        return repository.addOwnEntries(roomId, host.id, fresh.map((entry) => ({ ...entry, roomId })));
+      });
+    }
+    return fresh.length;
+  }
+
   /** Paused, resumed, or a seek that has settled: where the thing on now is, as of this press. Never called on a clock. */
   playback(positionSeconds: number, isPlaying: boolean): void {
     if (this.closed || this.roomId === null) return;

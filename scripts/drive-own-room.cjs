@@ -478,6 +478,131 @@ async function open(page, path) {
     pass('after the refresh the old link is dead for somebody new');
     await asAccount('drive-user', 'TEST DRIVE');
 
+    console.log("GO LIVE: what is on and the queue go into tonight's room; END STREAM brings back what is left");
+    /** The live rooms this account hosts, as the store holds them. */
+    const streams = () =>
+      page.evaluate(() => {
+        const kept = JSON.parse(localStorage.getItem('debaser.watch.v1') ?? '{"rooms":[],"queue":[]}');
+        return kept.rooms
+          .filter((room) => room.origin === 'stream' && room.hostId === 'drive-user')
+          .map((room) => {
+            const rows = kept.queue.filter((entry) => entry.roomId === room.id);
+            const on = rows.find((entry) => entry.id === room.currentEntryId);
+            return {
+              id: room.id,
+              privacy: room.privacy,
+              endedAt: room.endedAt,
+              position: room.positionSeconds,
+              isPlaying: room.isPlaying,
+              on: on ? (on.link ? on.link.url : on.mediaItemId) : null,
+              waiting: rows.filter((entry) => entry.playedAt === null && entry.inQueue).sort((a, b) => a.position - b.position).map((entry) => (entry.link ? entry.link.title : entry.mediaItemId)),
+            };
+          });
+      });
+    const mine = async () => (await tables(page)).find((room) => room.hostId === 'drive-user');
+    /** Counts every time the bar's player is moved or stopped, from now. */
+    const watchBar = () =>
+      page.evaluate(() => {
+        const element = window.__audios[window.__audios.length - 1];
+        window.__jolts = { seeks: 0, pauses: 0 };
+        if (window.__joltsOn === element) return;
+        window.__joltsOn = element;
+        element.addEventListener('seeking', () => (window.__jolts.seeks += 1));
+        element.addEventListener('pause', () => (window.__jolts.pauses += 1));
+      });
+    const jolts = () => page.evaluate(() => window.__jolts);
+
+    await open(page, '/forum');
+    await pressUntil(page, false);
+    if ((await mine()).waiting.length === 0) await songMenu(page, 'ADD TO QUEUE');
+    await page.waitForFunction(() => Number(document.querySelector('[data-bar-queue]')?.getAttribute('data-bar-queue')) > 0, null, { timeout: 10000 });
+    const alone = await mine();
+    assert.equal((await streams()).filter((room) => room.endedAt === null).length, 0, 'not live yet');
+    assert.ok(await page.locator('[data-go-live-key]').count(), 'GO LIVE is on the bar');
+    await page.locator('[data-go-live-key]').first().click();
+    await page.waitForSelector('[data-go-live-window]', { timeout: 10000 });
+    assert.equal((await streams()).filter((room) => room.endedAt === null).length, 0, 'the key opens the menu and starts nothing');
+    pass('GO LIVE on the bar opens the WHO CAN JOIN menu, and starts nothing by itself');
+    await sleep(1200);
+    await watchBar();
+    const atStart = await audio(page);
+    assert.ok(atStart !== null && !atStart.paused, 'the song plays on behind the menu');
+    await page.locator('[data-go-live-window]').getByText('[ START ]', { exact: false }).click();
+    await page.waitForSelector('[data-dock-window="stream"]', { timeout: 30000 });
+    await sleep(2500);
+    let live = (await streams()).filter((room) => room.endedAt === null);
+    assert.equal(live.length, 1, 'START makes one new room');
+    assert.equal(live[0].privacy, 'private', 'PRIVATE, as the menu had picked');
+    assert.equal(live[0].on, atStart.src, 'what was on is the first play');
+    assert.deepEqual(live[0].waiting, alone.waiting, 'the queue is behind it, in order');
+    pass(`START: a new private room with the song on and the queue behind it (${alone.waiting.length} waiting)`);
+    const carried = await audio(page);
+    const jolted = await jolts();
+    assert.ok(!carried.paused && carried.src === atStart.src, 'the same song is still playing');
+    assert.ok(carried.time > atStart.time, `it carried on (${atStart.time.toFixed(1)}s -> ${carried.time.toFixed(1)}s)`);
+    assert.deepEqual(jolted, { seeks: 0, pauses: 0 }, `the bar's player was never moved or stopped (${JSON.stringify(jolted)})`);
+    pass(`the song carried across with no gap (${atStart.time.toFixed(1)}s -> ${carried.time.toFixed(1)}s, never moved, never stopped)`);
+    assert.deepEqual((await mine()).waiting, alone.waiting, 'your own room is left untouched while you are live');
+    // In a live room the bar is the stream's own strip; its TV key turns it back to the music player's face.
+    assert.ok(await page.locator('[data-stream-bar]').count(), "the bar is the stream's");
+    // Pressed in the page: the dev server's own corner badge sits over the bar's left end.
+    await page.evaluate(() => document.querySelector('[data-stream-bar-swap="stream"]').click());
+    await page.waitForSelector('[data-bar-queue]', { timeout: 10000 });
+    assert.equal(await barQueue(page), live[0].waiting.length, "the bar's count is the live room's queue");
+    assert.equal(await page.locator('[data-go-live-key]').count(), 0, 'no GO LIVE key while you are live');
+    await page.locator('[data-bar-queue]').click();
+    await page.waitForSelector('[data-own-room="live"]', { timeout: 15000 });
+    pass("live: your own room is untouched, and the bar's count and the QUEUE window are the live room's");
+    await page.screenshot({ path: join(SHOTS, 'go-live-carried.png') });
+    await page.locator('button[aria-label^="Close QUEUE"]').click();
+
+    // The room moves on to the next thing, so what is left differs from what went in.
+    await pressNext(page);
+    await page.waitForFunction(
+      (was) => {
+        const kept = JSON.parse(localStorage.getItem('debaser.watch.v1') ?? '{"rooms":[],"queue":[]}');
+        const room = kept.rooms.find((held) => held.origin === 'stream' && held.hostId === 'drive-user' && held.endedAt === null);
+        return room !== undefined && kept.queue.filter((entry) => entry.roomId === room.id && entry.playedAt === null && entry.inQueue).length === was - 1;
+      },
+      live[0].waiting.length,
+      { timeout: 15000 },
+    );
+    await sleep(2500);
+    live = (await streams()).filter((room) => room.endedAt === null);
+    const songOn = typeof live[0].on === 'string' && live[0].on.startsWith('/assets/audio/');
+    note(`at END STREAM the live room had ${songOn ? 'a song' : 'a video'} on and ${live[0].waiting.length} waiting`);
+    await watchBar();
+    const atEnd = await audio(page);
+    await page.locator('[data-dock-window="stream"]').getByText('[ END STREAM ]', { exact: false }).first().click();
+    await page.locator('[data-dock-window="stream"]').getByText('[ END FOR EVERYBODY ]', { exact: false }).first().click();
+    await page.waitForFunction(
+      () => {
+        const kept = JSON.parse(localStorage.getItem('debaser.watch.v1') ?? '{"rooms":[],"queue":[]}');
+        return !kept.rooms.some((held) => held.origin === 'stream' && held.hostId === 'drive-user' && held.endedAt === null);
+      },
+      null,
+      { timeout: 20000 },
+    );
+    await sleep(2500);
+    const home = await mine();
+    assert.deepEqual(home.waiting, live[0].waiting, 'your own queue is what was still waiting in the live room');
+    assert.equal(home.on, live[0].on, 'what was on is on in your own room');
+    pass(`END STREAM: your own queue is what was left (${home.waiting.length} waiting), and what was on is on in your room`);
+    if (songOn) {
+      const after = await audio(page);
+      const endJolts = await jolts();
+      assert.ok(!after.paused && after.src === atEnd.src && after.time > atEnd.time, `the song carries on for you alone (${atEnd.time.toFixed(1)}s -> ${after.time.toFixed(1)}s)`);
+      assert.deepEqual(endJolts, { seeks: 0, pauses: 0 }, `and was never moved or stopped (${JSON.stringify(endJolts)})`);
+      assert.ok(home.isPlaying && Math.abs(home.position - atEnd.time) < 8, `your room says where it has got to (${home.position}s)`);
+      pass(`the song carried on with no gap after END STREAM (${atEnd.time.toFixed(1)}s -> ${after.time.toFixed(1)}s)`);
+    } else {
+      await page.waitForSelector('[data-floating-player]', { timeout: 15000 });
+      pass('the video carried on in the floating player after END STREAM');
+    }
+    await page.waitForSelector('[data-go-live-key]', { timeout: 10000 });
+    pass('GO LIVE is back on the bar');
+    await page.screenshot({ path: join(SHOTS, 'go-live-ended.png') });
+
     console.log('THE PRIVACY PAGE');
     await page.goto(`${BASE}/privacy`, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => document.body.innerText.includes('Your room: what you are playing and your queue are saved to your account'), null, { timeout: 30000 });
