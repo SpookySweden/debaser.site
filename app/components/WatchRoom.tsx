@@ -98,6 +98,7 @@ import { useScreenView } from '../lib/watch/canvas-view';
 import { useChatLineDrag } from '../lib/watch/use-chat-line-drag';
 import { askToSaveCanvas, closeRoomCanvas, type CanvasContext } from '../lib/watch/use-room-canvas';
 import SongCoverCard from './SongCoverCard';
+import SpeechAudioKey from './SpeechAudioKey';
 import { noteHistory } from '../lib/recommender/history';
 import { useCompanionScene } from '../lib/companion/use-companion-scene';
 
@@ -1578,6 +1579,12 @@ function ChatPanel({
             <label htmlFor="watch-chat" className="sr-only">
               Message
             </label>
+            {/* Character voices (SPEC-character-speech.md, PROFILE's key): each person's companion says what they type
+                here. The key is made for a strip that is Black in both themes, and this row is the window's own colour,
+                so it sits in a black recess of its own, as the bar's keys do. */}
+            <span className="flex shrink-0 items-center frame bg-hardware px-0.5 py-0.5">
+              <SpeechAudioKey />
+            </span>
             {/* The shelf key and send sit at the end of the box, inside its edge (Luke, 2026-11-02): GIF opens
                 the shelf, emotes included as its first tab, and the arrow sends - Enter still does too. */}
             <span className="relative flex min-w-0 flex-1 items-stretch">

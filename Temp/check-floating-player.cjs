@@ -129,6 +129,42 @@ const newer = store.registerBox('web:a', fakeBox());
 old();
 ok(store.boxOf('web:a') !== undefined, 'a stale row going away does not take a newer box with it');
 newer();
+
+// (2026-11-15, SPEC-rooms-queues.md phases 1 and 2) Your own room: its window's screen takes the video over from its row
+// and gives it back; the room hears a video end once, so the next thing queued starts; the bar's key orders the player.
+const rowBox = fakeBox();
+const roomScreen = fakeBox();
+const leaveRow = store.registerBox('web:b', rowBox);
+const leaveRoom = store.registerBox('web:b', roomScreen);
+same(store.boxOf('web:b'), roomScreen, "the room window's screen takes the video over from its row");
+same(store.floatingState().entry.id, 'web:b', 'and it is the same play: nothing is started again');
+leaveRoom();
+same(store.boxOf('web:b'), rowBox, 'the window shut: the row has the video again, rather than it floating off');
+const goneRow = { ...fakeBox(), isConnected: false };
+const leaveGone = store.registerBox('web:b', goneRow);
+const leaveRoomAgain = store.registerBox('web:b', roomScreen);
+leaveRow();
+leaveRoomAgain();
+same(store.boxOf('web:b'), undefined, 'a row that has left the page meanwhile is nothing to go back to');
+leaveGone();
+let ends = 0;
+const stopHearing = store.onFloatingEnded(() => (ends += 1));
+store.notePlace('web:b', null);
+store.notePlace('web:b', null);
+same(ends, 1, 'a player that says it has ended twice is heard once');
+store.notePlace('web:a', null);
+same(ends, 1, "another row's video is not the one that is on");
+stopHearing();
+const orders = [];
+const stopOrders = store.onFloatingOrder((order) => orders.push(order));
+store.orderFloating('pause');
+stopOrders();
+store.orderFloating('play');
+same(orders, ['pause'], "the bar's order reaches the layer while it listens, and not after");
+same(store.takesOrders({ player: frameOf('https://a.test/') }), false, 'a player that cannot be asked takes no orders');
+same(store.takesOrders({ player: { ...frameOf('https://a.test/'), timeFrom: 'youtube' } }), true, 'one that answers messages does');
+same(store.takesOrders({ player: { kind: 'file', src: '/x.mp4' } }), true, 'and so does one of our own files');
+
 store.closeFloatingIfMine('web:b');
 same(store.floatingState().entry, null, 'its own row closes it');
 

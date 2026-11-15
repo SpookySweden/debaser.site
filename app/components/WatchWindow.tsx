@@ -30,8 +30,11 @@ import { useAuth } from './AuthProvider';
 import { useRoomIdentity } from './use-room-identity';
 import DockWindow from './DockWindow';
 import { useLedgeHeadroom } from '../lib/companion/use-ledge-headroom';
+import OwnRoomWindow from './OwnRoomWindow';
 import RoomDoor from './RoomDoor';
 import WatchRoom from './WatchRoom';
+import { floatingState, subscribeToFloating } from '../lib/ui/floating-player';
+import { ownRoomState, subscribeToOwnRoom } from '../lib/watch/own-room-client';
 import { askToSaveCanvas } from '../lib/watch/use-room-canvas';
 
 /** Large, over the board, like the arcade but bigger: the video is the point (decision 1). */
@@ -57,6 +60,7 @@ export default function WatchWindow() {
   const asked = search.toString();
   const { user: account } = useAuth();
   const accountId = account?.id ?? null;
+  const ownRoomId = useSyncExternalStore(subscribeToOwnRoom, ownRoomIdNow, noOwnRoom);
 
   // Back from logging in at the guest window: the room opens again, and the connection a guest was on gives way to the account's (SPEC-guests.md).
   const accountWas = useRef(accountId);
@@ -88,12 +92,59 @@ export default function WatchWindow() {
     if (watchFocusFromSearch(asked.length === 0 ? '' : `?${asked}`) !== null) router.replace(pathname);
   }, [asked, pathname, router]);
 
-  if (!state.open || state.focus === null) return null;
+  // No room window open: your own room's door, whenever it has something on (SPEC-rooms-queues.md, phase 2).
+  if (!state.open || state.focus === null) return <OwnRoomDoor />;
 
-  return state.focus.kind === 'prelive' ? (
-    <PreLiveWindow mediaItemId={state.focus.mediaItemId} onClose={close} />
-  ) : (
-    <RoomWindow key={state.focus.roomId} roomId={state.focus.roomId} collapsed={state.collapsed} onCollapse={collapse} onLeft={close} />
+  if (state.focus.kind === 'prelive') return <PreLiveWindow mediaItemId={state.focus.mediaItemId} onClose={close} />;
+
+  // Your own room has a window of its own: nobody else is in it, so none of a live room's machinery runs.
+  if (state.focus.roomId === ownRoomId) {
+    return (
+      <>
+        <OwnRoomWindow key={state.focus.roomId} roomId={state.focus.roomId} collapsed={state.collapsed} onCollapse={collapse} onClose={close} />
+        {state.collapsed ? <OwnRoomDoor folded /> : null}
+      </>
+    );
+  }
+
+  return <RoomWindow key={state.focus.roomId} roomId={state.focus.roomId} collapsed={state.collapsed} onCollapse={collapse} onLeft={close} />;
+}
+
+const noOwnRoom = () => null;
+const ownRoomIdNow = () => ownRoomState().roomId;
+const screenOn = () => floatingState().entry !== null;
+const noScreenOn = () => false;
+
+/**
+ * The pop-up above the music bar (Luke's P2: "at any time you can click the pop up above the music player to open the
+ * room window like usual"). It is there whenever your own room has something on, a song or a video, and it says what
+ * it is in words: `[ ▲ ROOM ]`. Pressing it opens the room window: the screen, the queue, who is here.
+ * `folded`: the window is open but put away, and the same key brings it back.
+ */
+function OwnRoomDoor({ folded = false }: { folded?: boolean }) {
+  const roomId = useSyncExternalStore(subscribeToOwnRoom, ownRoomIdNow, noOwnRoom);
+  const { read } = useWatchRoom(roomId, { follow: false });
+  const video = useSyncExternalStore(subscribeToFloating, screenOn, noScreenOn);
+  // The page window's foot keeps clear of it (`--stream-box`, ./SiteWindow.tsx), as it does of a folded live room.
+  const box = useRef<HTMLSpanElement>(null);
+  const on = roomId !== null && (video || (read !== undefined && read !== null && read.room.currentEntryId !== null));
+  useEdgeReserve(box, '--stream-box', on);
+
+  if (!on || roomId === null) return null;
+  const tip = 'YOUR ROOM: THE SCREEN, THE QUEUE AND WHO IS HERE';
+
+  return (
+    <span
+      ref={box}
+      className="fixed z-50 frame bg-sun-pale p-0.5"
+      style={{ bottom: 'calc(var(--music-top, 0px) + 0.5rem)', left: 'var(--music-key-left, 0.5rem)' }}
+      data-own-room-door={folded ? 'folded' : 'shut'}
+      data-companion-avoid
+    >
+      <button type="button" onClick={() => (folded ? expandWatch() : openWatch({ kind: 'room', roomId }))} className={PLATE} aria-label={tip} title={tip}>
+        [ ▲ ROOM ]
+      </button>
+    </span>
   );
 }
 
@@ -264,8 +315,10 @@ function UpBox({ live, hostName }: { live: boolean; hostName: string }) {
       data-watch-tv-box={live ? 'live' : 'ended'}
       data-companion-avoid
     >
-      <button type="button" onClick={expandWatch} className={PLATE} aria-label={tip} title={tip}>
+      {/* It says what it is in words too (SPEC-rooms-queues.md): the mark alone was a puzzle. */}
+      <button type="button" onClick={expandWatch} className={`${PLATE} inline-flex items-center gap-1`} aria-label={tip} title={tip}>
         <ArtMark src={UP_MARK_SRC} size={UP_MARK_HEIGHT} width={UP_MARK_WIDTH} fallback="[ ▲ ]" />
+        <span>{live ? 'ROOM :: LIVE' : 'ROOM :: ENDED'}</span>
       </button>
     </span>
   );

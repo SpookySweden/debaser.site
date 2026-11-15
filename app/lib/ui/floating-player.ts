@@ -67,6 +67,11 @@ export const subscribeToFloating = slot.subscribe;
 let plays = 0;
 /** Each row's box. A row that is not on the page has none, and its video floats. */
 const boxes = new Map<string, HTMLElement>();
+/**
+ * Boxes a newer one has taken over from, newest last: your room's window puts its screen over the video's own row
+ * (SPEC-rooms-queues.md, phase 2), and when that window shuts the row's box has the video again.
+ */
+const covered = new Map<string, HTMLElement[]>();
 /** Show the box when it next arrives: just pressed PLAY, or `[ BACK ]` from another page. */
 let revealWanted = false;
 /** The video was in its box when its row left the page, so it goes back there in view. */
@@ -152,6 +157,8 @@ export function wantBoxShown(): void {
  */
 export function registerBox(id: string, element: HTMLElement): () => void {
   const arrived = Date.now();
+  const before = boxes.get(id);
+  if (before !== undefined && before !== element) covered.set(id, [...(covered.get(id) ?? []), before]);
   boxes.set(id, element);
   if (slot.state().entry?.id === id) {
     setFloatAsked(false);
@@ -164,7 +171,20 @@ export function registerBox(id: string, element: HTMLElement): () => void {
     leftInBox = false;
   }
   return () => {
-    if (boxes.get(id) !== element) return;
+    const under = covered.get(id) ?? [];
+    if (boxes.get(id) !== element) {
+      // A box that was covered has gone while covered: it is no longer anything to come back to.
+      if (under.includes(element)) covered.set(id, under.filter((held) => held !== element));
+      return;
+    }
+    // The box underneath, if it is still on the page, has the video again; nothing floats and nothing reloads.
+    const back = [...under].reverse().find((held) => held.isConnected);
+    covered.delete(id);
+    if (back !== undefined) {
+      boxes.set(id, back);
+      if (kept === element) kept = null;
+      return;
+    }
     boxes.delete(id);
     const wasKept = kept === element;
     if (wasKept) kept = null;

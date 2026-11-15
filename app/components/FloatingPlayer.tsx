@@ -118,7 +118,9 @@ export default function FloatingPlayer() {
       let share = 0;
       let boxRect: ClipRect | null = null;
       let clips: ClipRect[] = [];
-      if (box !== undefined && box.isConnected) {
+      // A box in a window that has been folded away is still laid out, only unseen: the video floats rather than
+      // sit over nothing.
+      if (box !== undefined && box.isConnected && box.closest('[data-minimized="true"]') === null) {
         if (panes === null || panes.box !== box) panes = { box, list: clippingPanes(box) };
         boxRect = rectOf(box);
         clips = [...panes.list.map(rectOf), { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight }];
@@ -136,7 +138,11 @@ export default function FloatingPlayer() {
         style.width = `${rect.w}px`;
         style.height = `${rect.h}px`;
         style.clipPath = 'none';
+        style.zIndex = '';
       } else {
+        // A box inside a window (your room's screen, OwnRoomWindow.tsx) is over the page's windows, so the video is
+        // lifted over them too; in a page's own row it stays down in the page.
+        style.zIndex = box !== undefined && box.closest('[data-dock-window]') !== null ? 'var(--z-index-float)' : '';
         const part = visiblePart(boxRect, clips);
         style.left = `${boxRect.left}px`;
         style.top = `${boxRect.top}px`;

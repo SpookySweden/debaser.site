@@ -220,6 +220,31 @@ async function open(page, path) {
     assert.equal(rooms[0].waiting.length, 1);
     pass('ADD TO QUEUE: one thing waiting, on the bar key and in the room');
 
+    console.log('THE POP-UP AND THE ROOM WINDOW (a song on)');
+    await page.waitForSelector('[data-own-room-door="shut"]', { timeout: 10000 });
+    assert.equal((await page.locator('[data-own-room-door] button').innerText()).trim(), '[ ▲ ROOM ]', 'the pop-up says what it is in words');
+    pass('with something on, [ ▲ ROOM ] is above the bar');
+    await page.locator('[data-own-room-door] button').click();
+    await page.waitForSelector('[data-own-room-window="browser"]', { timeout: 15000 });
+    assert.equal(await page.locator('[data-own-room-screen]').getAttribute('data-own-room-screen'), 'song', 'a song on: the screen is its cover card');
+    assert.ok(await page.locator('[data-own-room-screen] [data-cover-card]').count(), 'the cover card is drawn');
+    assert.ok((await page.locator('[data-own-room-alone]').innerText()).includes('JUST YOU HERE'), 'where a live room has its chat, it says JUST YOU HERE');
+    assert.ok((await page.locator('[data-own-room-alone]').innerText()).includes('LOG IN'), 'a visitor is told to log in to go live');
+    assert.ok(await page.locator('[data-own-room-window] [data-own-queue]').count(), 'the queue is in the room window');
+    assert.equal(await page.locator('[data-stream-bar]').count(), 0, 'the bar stays the music bar: your own room is not a stream');
+    assert.equal((await audio(page)).paused, false, 'and the song plays on');
+    pass('the pop-up opens the room window: the cover card, the queue, JUST YOU HERE; the song plays on');
+    await page.screenshot({ path: join(SHOTS, 'own-room-window-song.png') });
+    await page.locator('button[aria-label="Fold YOUR ROOM away"]').click();
+    await page.waitForSelector('[data-own-room-door="folded"]', { timeout: 10000 });
+    pass('folded away, the same key brings it back');
+    await page.locator('[data-own-room-door] button').click();
+    await page.waitForFunction(() => document.querySelector('[data-dock-window="own-room"]')?.getAttribute('data-minimized') !== 'true', null, { timeout: 10000 });
+    await page.locator('button[aria-label="Close YOUR ROOM"]').click();
+    await page.waitForSelector('[data-own-room-door="shut"]', { timeout: 10000 });
+    assert.equal((await audio(page)).paused, false, 'closing the window stops nothing');
+    pass('closing the window leaves the room playing, with its pop-up back');
+
     await page.locator('[data-bar-queue]').click();
     await page.waitForSelector('[data-own-room="browser"]', { timeout: 15000 });
     const tabs = await page.evaluate(() => [...document.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent.trim()));
@@ -253,6 +278,57 @@ async function open(page, path) {
         assert.equal(rooms[0].on, VIDEO, 'the room has the video on');
         pass('NEXT: the song, then the video on the screen, named on the bar, the song quiet');
         await page.screenshot({ path: join(SHOTS, 'own-video-on.png') });
+
+        // P2: the pop-up opens the room window, and the same video is its screen without starting again.
+        await page.locator('button[aria-label^="Close QUEUE"]').click().catch(() => undefined);
+        await sleep(1500);
+        const mark = await page.evaluate(() => {
+          const video = document.querySelector('[data-floating-player] video');
+          video.loop = true;
+          window.__sameVideo = video;
+          return { time: video.currentTime, state: document.querySelector('[data-floating-player]').getAttribute('data-floating-player') };
+        });
+        assert.equal(mark.state, 'floating', 'with no row of its own on this page the video floats');
+        await page.locator('[data-own-room-door] button').click();
+        await page.waitForSelector('[data-own-room-screen="video"]', { timeout: 15000 });
+        await sleep(1200);
+        const inRoom = await page.evaluate(() => {
+          const layer = document.querySelector('[data-floating-player]');
+          const video = layer.querySelector('video');
+          const box = document.querySelector('[data-own-room-screen] [data-player-box]').getBoundingClientRect();
+          const at = layer.getBoundingClientRect();
+          const top = document.elementFromPoint(at.left + at.width / 2, at.top + at.height / 2);
+          return {
+            state: layer.getAttribute('data-floating-player'),
+            same: video === window.__sameVideo,
+            time: video.currentTime,
+            paused: video.paused,
+            over: Math.abs(at.left - box.left) < 3 && Math.abs(at.top - box.top) < 3 && Math.abs(at.width - box.width) < 3,
+            seen: top !== null && layer.contains(top),
+          };
+        });
+        assert.equal(inRoom.state, 'in-box', "the video sits in the room window's screen");
+        assert.ok(inRoom.over, 'exactly over its box');
+        assert.ok(inRoom.seen, 'and is drawn over the window, not under it');
+        assert.ok(inRoom.same, 'it is the same player element: nothing was loaded again');
+        assert.ok(!inRoom.paused, 'still playing');
+        pass("the pop-up opens the room window and the same video is its screen: not restarted, drawn over the window");
+        await page.screenshot({ path: join(SHOTS, 'own-room-window-video.png') });
+        await page.locator('button[aria-label="Fold YOUR ROOM away"]').click();
+        await sleep(1000);
+        const folded = await page.evaluate(() => ({ state: document.querySelector('[data-floating-player]').getAttribute('data-floating-player'), same: document.querySelector('[data-floating-player] video') === window.__sameVideo }));
+        assert.equal(folded.state, 'floating', 'the window folded away: the video floats again');
+        assert.ok(folded.same, 'still the same element');
+        await page.locator('[data-own-room-door] button').click();
+        await page.waitForFunction(() => document.querySelector('[data-floating-player]')?.getAttribute('data-floating-player') === 'in-box', null, { timeout: 10000 });
+        await page.locator('button[aria-label="Close YOUR ROOM"]').click();
+        await sleep(800);
+        const shut = await page.evaluate(() => ({ state: document.querySelector('[data-floating-player]')?.getAttribute('data-floating-player'), same: document.querySelector('[data-floating-player] video') === window.__sameVideo }));
+        assert.ok(shut.state === 'floating' && shut.same, 'the window shut: the video floats, the same element still');
+        pass('folding and closing the room window never reloads the video');
+        await page.evaluate(() => {
+          window.__sameVideo.loop = false;
+        });
 
         // Something behind the video: when the video ends, it starts by itself.
         await page.evaluate(() => document.querySelector('[data-floating-player] video')?.pause());
@@ -308,6 +384,19 @@ async function open(page, path) {
     assert.ok(await page.getByText('STORE', { exact: false }).count(), 'an account can store its queue as a list');
     pass('the queue window for an account: no browser-only line, and the store keys');
     await page.screenshot({ path: join(SHOTS, 'own-queue-account.png') });
+
+    // Signed in, the room window's JUST YOU HERE panel has GO LIVE: one press opens the menu, and nothing starts.
+    await page.locator('button[aria-label^="Close QUEUE"]').click();
+    await pressUntil(page, false);
+    await page.waitForSelector('[data-own-room-door="shut"]', { timeout: 10000 });
+    await page.locator('[data-own-room-door] button').click();
+    await page.waitForSelector('[data-own-room-window="account"]', { timeout: 15000 });
+    await page.locator('[data-own-room-go-live]').click();
+    await page.waitForFunction(() => document.body.innerText.includes('WHO CAN JOIN'), null, { timeout: 10000 });
+    assert.equal((await tables(page)).filter((room) => room.hostId === 'drive-user').length, 1, 'opening the menu starts no room');
+    pass('signed in: GO LIVE in the room window opens the WHO CAN JOIN menu, and starts nothing by itself');
+    await page.keyboard.press('Escape');
+    await page.locator('button[aria-label="Close YOUR ROOM"]').click().catch(() => undefined);
 
     console.log('THE PRIVACY PAGE');
     await page.goto(`${BASE}/privacy`, { waitUntil: 'domcontentloaded' });

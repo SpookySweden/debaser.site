@@ -101,8 +101,10 @@ function apply(roomId: string, change: RoomChange, stampedHere = false): void {
       next = { ...current, queue: [...current.queue.filter((item) => item.id !== change.entry.id), change.entry] };
       break;
     case 'message':
+      // A new line hops its writer's companion, and hands it the words to say in a bubble (SPEC-character-speech.md):
+      // every browser in the room already has the line, and nothing is sent anywhere.
       if (current.messages.some((message) => message.id === change.message.id)) return;
-      companionSpoke(change.message.authorId, change.message.createdAt);
+      companionSpoke(change.message.authorId, change.message.createdAt, change.message.body);
       next = { ...current, messages: [...current.messages, change.message].sort((a, b) => a.createdAt.localeCompare(b.createdAt)) };
       break;
     case 'removed':
