@@ -60,6 +60,19 @@ export default function SpeechBubble({ line, name, at, within, whole = false, wh
   const [count, setCount] = useState(0);
   const box = useRef<HTMLElement | null>(null);
   const [width, setWidth] = useState(0);
+  /** How far a free bubble over a head is moved sideways to stay on the screen. */
+  const [nudge, setNudge] = useState(0);
+  /** The pointer is on it, or the keyboard is: it stays up for as long as that lasts, so it can be read and pressed. */
+  const [held, setHeld] = useState(false);
+
+  // The pages are cut differently beside a speaker than over its head: a change of place starts the line again, so no
+  // word is said twice or skipped. (State that follows state, set while drawing, as React recommends.)
+  const [cutFor, setCutFor] = useState(beside);
+  if (cutFor !== beside) {
+    setCutFor(beside);
+    setPage(0);
+    setCount(0);
+  }
 
   const rows = pages[Math.min(page, pages.length - 1)] ?? [];
   const letters = rows.join('');
@@ -85,6 +98,9 @@ export default function SpeechBubble({ line, name, at, within, whole = false, wh
       return () => window.clearTimeout(timer);
     }
 
+    // A page that is being pointed at, or that the keyboard is on, waits: its time starts again when it is let go.
+    if (held) return;
+
     const timer = window.setTimeout(() => {
       if (page + 1 < pages.length) {
         setPage(page + 1);
@@ -94,7 +110,7 @@ export default function SpeechBubble({ line, name, at, within, whole = false, wh
       }
     }, SPEECH_PACE.pageMs);
     return () => window.clearTimeout(timer);
-  }, [whole, count, letters, page, pages.length]);
+  }, [whole, count, letters, page, pages.length, held]);
 
   // Shown whole for a while only (chat under reduced motion): it goes by itself.
   useEffect(() => {
@@ -127,6 +143,10 @@ export default function SpeechBubble({ line, name, at, within, whole = false, wh
         if (speaker.top - needed >= 2) return 'over';
         return speaker.right + SIDE_GAP + drawn.offsetWidth + 2 <= window.innerWidth ? 'right' : 'left';
       });
+      // Over a head near an edge of the screen, it is moved in just far enough to be read whole.
+      const wanted = speaker.left + speaker.width / 2 - drawn.offsetWidth / 2;
+      const kept = Math.max(2, Math.min(wanted, window.innerWidth - drawn.offsetWidth - 2));
+      setNudge(Math.round(kept - wanted));
     };
     measure();
     const sizes = new ResizeObserver(measure);
@@ -136,7 +156,7 @@ export default function SpeechBubble({ line, name, at, within, whole = false, wh
 
   // Centred over the speaker, and kept inside the room.
   const centre = at.x + at.w / 2;
-  const left = free ? centre - width / 2 : Math.max(2, Math.min(centre - width / 2, within - width - 2));
+  const left = free ? centre - width / 2 + nudge : Math.max(2, Math.min(centre - width / 2, within - width - 2));
 
   const here = line.target.kind === 'here' ? line.target.commentId : null;
   const href = line.target.kind === 'board' ? line.target.href : `#${PROFILE_COMMENTS_ANCHOR}`;
@@ -210,6 +230,10 @@ export default function SpeechBubble({ line, name, at, within, whole = false, wh
       }}
       aria-label={`${name.toUpperCase()} SAID: ${line.text}`}
       title="GO TO WHAT WAS SAID"
+      onMouseEnter={() => setHeld(true)}
+      onMouseLeave={() => setHeld(false)}
+      onFocus={() => setHeld(true)}
+      onBlur={() => setHeld(false)}
       data-speech-bubble={line.id}
       data-speech-page={pageOf}
       className={`${look} hover:border-acid focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-acid`}

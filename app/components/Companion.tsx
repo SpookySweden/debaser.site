@@ -464,7 +464,9 @@ function CompanionSpeech({ ownerId, name, look }: { ownerId: string; name: strin
       }),
     [ownerId],
   );
-  if (said === null) return null;
+  // Nothing is drawn until the browser has said whether it may move: a bubble shown whole for a moment and then typed
+  // would sound a stray blip.
+  if (said === null || reduced === null) return null;
   const size = sizeOf(look);
   return (
     <SpeechBubble
@@ -474,8 +476,7 @@ function CompanionSpeech({ ownerId, name, look }: { ownerId: string; name: strin
       at={{ x: 0, w: size.w, h: size.h }}
       within={0}
       free
-      // Until the browser has said whether it may move, it does not: the line is shown whole.
-      whole={reduced !== false}
+      whole={reduced}
       wholeForMs={SPEECH_PACE.pageMs + said.text.length * SPEECH_PACE.letterMs}
       onDone={() => setSaid(null)}
       onOpenHere={() => undefined}

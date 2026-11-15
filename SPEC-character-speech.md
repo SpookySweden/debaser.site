@@ -132,7 +132,9 @@ Each character says only what its own person wrote, picked at random (his answer
 
 ## Data
 - **Reads:** the profile's comments (already on the page), the board (already in the browser), and one read of
-  `profile_characters` per guest (public), at most 3. In a stream room, the chat lines the browser already has.
+  `profile_characters` (public) for each of the newest commenters looked up, at most 6, to find the 3 who have a
+  character to show (as built, 2026-11-14: looking up only 3 would leave the room empty whenever the newest
+  commenters have none). In a stream room, the chat lines the browser already has.
 - **Stored:** the mute choice, in that browser only (`localStorage`). Nothing else.
 - **No database change, no new table, no new realtime channel, in any phase.**
 

@@ -328,6 +328,8 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
       {/* Last on the page: their room, where their shown character lives and your companion climbs up to visit
           (Luke, 2026-11-13). */}
       <ProfileRoom
+        // A room of its own for each profile: nothing said, looked up or waited for on one page carries to the next.
+        key={userId}
         userId={userId}
         displayName={displayName}
         music={trackPlaying}

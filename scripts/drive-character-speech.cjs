@@ -262,6 +262,20 @@ async function main() {
     assert.ok(current !== null, 'a bubble to press');
     const wanted = current.seen.bubble.label.split(' SAID: ')[1];
     const address = page.url();
+    // Pressing the one who is speaking leaves it be: no wave takes the bubble away and starts the line again.
+    const before = await page.evaluate(look);
+    await page.locator(`[data-character-of="${before.speaker.of}"]`).first().evaluate((figure) => figure.click());
+    await sleep(400);
+    const after = await page.evaluate(look);
+    assert.ok(after.bubble !== null && after.bubble.id === before.bubble.id, 'a press on the speaker does not take its bubble away');
+    assert.ok(after.bubble.page !== before.bubble.page || after.bubble.typed.length >= before.bubble.typed.length, 'nor start its line again');
+    assert.equal(after.speaker.motion, 'idle', 'and it goes on standing still');
+    // Pointed at, a bubble waits: it can be read and pressed for as long as the pointer is on it.
+    await page.mouse.move((after.bubble.box.left + after.bubble.box.right) / 2, (after.bubble.box.top + after.bubble.box.bottom) / 2);
+    await sleep(9000);
+    const heldUp = await page.evaluate(look);
+    assert.ok(heldUp.bubble !== null && heldUp.bubble.id === before.bubble.id, 'a bubble under the pointer stays up past its time');
+    pass('a press on the speaking character leaves its bubble be, and a bubble under the pointer waits to be read');
     await page.locator('[data-speech-bubble]').click();
     await page.waitForFunction(() => document.querySelector('#profile-comments ul li.outline-dotted') !== null, null, { timeout: 8000, polling: 50 });
     const opened = await page.evaluate(() => {

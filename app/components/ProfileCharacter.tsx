@@ -238,7 +238,8 @@ export function RoomWalker({
         title={who === 'guest' ? label : 'SAY HELLO'}
         onClick={() => {
           onPress?.();
-          if (!reduced) setState((current) => react(current));
+          // While it is talking a press leaves it be: a wave would take its bubble away and start the line again.
+          if (!reduced && speech === undefined) setState((current) => react(current));
         }}
         className="block cursor-pointer overflow-hidden focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-acid"
         style={{ width: w, height: h }}
