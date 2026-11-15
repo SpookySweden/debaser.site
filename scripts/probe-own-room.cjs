@@ -8,7 +8,10 @@
  *
  * Signs in as the kept test accounts A and B (and C if it exists), and asks as a signed-out visitor too. Never signs
  * anybody up. What it leaves: TEST ACCOUNT A's own room itself (one row of `watch_rooms`, kept on purpose: a person's
- * own room is never deleted), with an empty queue.
+ * own room is never deleted), with an empty queue. Once the link migration is in it also probes the link (COPY, JOIN,
+ * REFRESH, REMOVE) and leaves: A's room with a link (refreshed at the end, so no secret a run saw still works), TEST
+ * ACCOUNT B marked REMOVED from A's room (one row of `watch_members`), and B's own room's link refreshed if B has a room.
+ * A second run says B is already removed and skips the join steps.
  */
 const assert = require('node:assert/strict');
 const { randomUUID } = require('node:crypto');
@@ -109,7 +112,86 @@ const pass = (what) => {
   assert.deepEqual((stillOnlyA.data ?? []).map((row) => row.user_id), [a.id], 'after all that, A is still the only member');
   pass("A is still the room's only member");
 
+  /* The link (20261114152339_own_room_links.sql). Skipped, and said so, until that migration is in. */
+  const linked = await a.client.rpc('watch_own_link', { refresh: false });
+  let addition = null;
+  if (linked.error !== null) {
+    console.log(`  NOTE the link functions are not in the database yet (${linked.error.message}): the link was not probed`);
+  } else {
+    console.log('The link: COPY, JOIN, REFRESH, REMOVE');
+    const secret = linked.data;
+    assert.ok(typeof secret === 'string' && /^[0-9a-f]{64}$/.test(secret), 'COPY LINK gives the owner a 64-character secret');
+    assert.equal((await a.client.rpc('watch_own_link', { refresh: false })).data, secret, 'asked again, the same one');
+    for (const [who, client] of outsiders) {
+      const table = await client.from('watch_room_links').select('room_id, token').limit(5);
+      assert.ok(table.error !== null || (table.data ?? []).length === 0, `${who} cannot read the table of secrets`);
+      const wrong = await client.rpc('watch_join_link', { link: 'f'.repeat(64) });
+      assert.ok(wrong.error !== null || wrong.data === null, `${who}: a wrong secret gets nothing`);
+      const stillOut = await client.from('watch_rooms').select('id').eq('id', roomId);
+      assert.deepEqual(stillOut.data ?? [], [], `${who}: a link existing lets nobody in by the address`);
+    }
+    const asVisitor = await visitor.rpc('watch_join_link', { link: secret });
+    assert.ok(asVisitor.error !== null || asVisitor.data === null, 'a signed-out visitor cannot join even with the link');
+    const ownerOnly = await a.client.from('watch_room_links').select('token').limit(1);
+    assert.ok(ownerOnly.error !== null || (ownerOnly.data ?? []).length === 0, 'even the owner cannot read the table: only the function hands the secret over');
+    pass('the secret: only its owner is handed it; nobody reads the table; a wrong one, the address alone, and a visitor with the right one all get nothing');
+
+    const bWas = await b.client.from('watch_members').select('removed_at').eq('room_id', roomId).eq('user_id', b.id);
+    if ((bWas.data ?? []).some((row) => row.removed_at !== null)) {
+      console.log("  NOTE TEST ACCOUNT B was REMOVED from A's room by an earlier run, so joining, adding, REFRESH and REMOVE were not probed again");
+    } else {
+      const joined = await b.client.rpc('watch_join_link', { link: secret });
+      assert.equal(joined.error, null);
+      assert.equal(joined.data, roomId, 'B, signed in with the current link, joins');
+      const bRoom = await b.client.from('watch_rooms').select('id, current_entry_id, position_seconds, is_playing').eq('id', roomId);
+      assert.equal((bRoom.data ?? []).length, 1, 'B reads the room: what is on and where');
+      const bQueue = await b.client.from('watch_queue').select('id').eq('room_id', roomId);
+      assert.equal((bQueue.data ?? []).length, 3, "B reads the owner's queue");
+      const bDoor = await b.client.rpc('watch_room_door', { room: roomId });
+      assert.equal(bDoor.data?.[0]?.found, true, 'the door knows B now');
+      const add = await b.client.from('watch_queue').insert({ room_id: roomId, position: 9100, in_queue: false, source_url: '/assets/audio/probe-friend.mp3', source_kind: 'audio', source_title: 'PROBE FRIEND', added_by: b.id }).select('id, in_queue').single();
+      assert.equal(add.error, null, `B adds to the queue (${add.error?.message})`);
+      addition = add.data.id;
+      assert.equal(add.data.in_queue, false, "B's addition waits on B's own list");
+      const straight = await b.client.from('watch_queue').insert({ room_id: roomId, position: 9101, in_queue: true, source_url: '/assets/audio/probe-friend-2.mp3', source_kind: 'audio', source_title: 'PROBE FRIEND 2', added_by: b.id });
+      assert.ok(straight.error !== null, 'B cannot put a thing straight into the queue: that takes the crown');
+      const chat = await b.client.from('watch_messages').insert({ room_id: roomId, author_id: b.id, author_label: b.displayName, body: 'hello', media_seconds: 0 });
+      assert.ok(chat.error !== null, 'B cannot chat in an own room');
+      const takeOver = await b.client.from('watch_rooms').update({ is_playing: false }).eq('id', roomId).select('id');
+      assert.deepEqual(takeOver.data ?? [], [], "B cannot write the owner's room");
+      const theirs = await b.client.rpc('watch_own_link', { refresh: true });
+      assert.ok(theirs.data !== secret, "B asking for a link is handed B's own room's (or none), never A's");
+      assert.equal((await a.client.rpc('watch_own_link', { refresh: false })).data, secret, "and B's asking did not change A's");
+      const pulled = await a.client.from('watch_queue').update({ in_queue: true, position: 9100 }).eq('id', addition).select('id');
+      assert.equal((pulled.data ?? []).length, 1, "the owner pulls B's addition into the queue");
+      pass('B with the link: joins, reads the room and the queue, adds to their own list, cannot queue straight, chat or write the room; the owner pulls the addition in');
+
+      const fresh = (await a.client.rpc('watch_own_link', { refresh: true })).data;
+      assert.ok(typeof fresh === 'string' && fresh !== secret, 'REFRESH LINK makes a new secret');
+      if (c !== null) {
+        const late = await c.client.rpc('watch_join_link', { link: secret });
+        assert.ok(late.error !== null || late.data === null, 'the old link lets nobody new in');
+        assert.deepEqual((await c.client.from('watch_rooms').select('id').eq('id', roomId)).data ?? [], [], 'C is still outside');
+      }
+      assert.equal(((await b.client.from('watch_rooms').select('id').eq('id', roomId)).data ?? []).length, 1, 'B, already in, stays in after the refresh');
+      pass('REFRESH LINK: a new secret, the old one dead for somebody new, and nobody put out');
+
+      const removed = await a.client.rpc('watch_remove_member', { room: roomId, person: b.id });
+      assert.equal(removed.error, null, `the owner REMOVEs B (${removed.error?.message})`);
+      assert.deepEqual((await b.client.from('watch_rooms').select('id').eq('id', roomId)).data ?? [], [], 'B reads nothing any more');
+      assert.deepEqual((await b.client.from('watch_queue').select('id').eq('room_id', roomId)).data ?? [], [], 'not the queue either');
+      const after = await b.client.rpc('watch_room_door', { room: roomId });
+      assert.equal(after.data?.[0]?.removed, true, 'the door tells B they were removed');
+      const back = await b.client.rpc('watch_join_link', { link: fresh });
+      assert.ok(back.error !== null || back.data === null, 'and the new link does not let a removed person back in');
+      pass('REMOVE: B reads nothing, is told "removed", and cannot come back by the new link');
+    }
+    // The link is left refreshed, so no secret this run saw can still open the room.
+    await a.client.rpc('watch_own_link', { refresh: true });
+  }
+
   console.log('Clearing up: the owner takes out played rows (rule 4a)');
+  if (addition !== null) await a.client.from('watch_queue').delete().eq('room_id', roomId).eq('id', addition);
   const cleared = await a.client.from('watch_queue').delete().eq('room_id', roomId).in('id', ids).select('id');
   assert.equal(cleared.error, null);
   assert.equal((cleared.data ?? []).length, 3, 'the owner deletes rows that have played, so they never pile up');

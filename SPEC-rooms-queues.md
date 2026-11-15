@@ -586,8 +586,14 @@ to: **nobody can join without your room's current link.**
     already in stay until the owner uses REMOVE (in the room's settings, where everybody who joined is listed).
   - The migration: "Yes, add it".
   - A person who was REMOVED is told so at the door ("removed"), not "no such room".
-- Cost: a room nobody has joined costs what section 5 says. Only while somebody else is in the room does the owner's
-  tab write a light "still here" beat, so they stay in step.
+- Cost: a room costs what section 5 says whether or not anybody has joined. As built there is NO "still here" beat
+  (an earlier note here said there would be a light one): a joiner works out where the song is from the owner's last
+  write (a thing starting, pause, resume, a settled seek), and the owner's tab holds no connection for it. The price
+  is that a joiner's place can drift a little inside one song if the owner's sound stalls; it is right again at the
+  next write.
+- As built, and not yet answered: the owner's own-room window is the light one (no canvas), so the owner does not
+  see what a joiner draws there. Making the owner's window the full room while people are in it is the way to close
+  that; it is not built.
 - Its database change is a second migration (`own_room_links`): one new table for the link's secret that nobody can
   read from the site, two new functions (the owner's link, joining by link), one condition added to the door and to
   the way in, and one condition added to the queue's adding rule. It is pushed with its own phase (after phase 2,

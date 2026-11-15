@@ -617,6 +617,19 @@ class SupabaseWatchRepository implements WatchRepository {
     if (error) throw refused(error, 'YOUR QUEUE COULD NOT BE SAVED.');
   }
 
+  /** The secret is kept where no request from the site can read it; only the database's own function hands it to its owner. */
+  async ownRoomLink(refresh: boolean): Promise<string | null> {
+    const { data, error } = await requireClient().rpc('watch_own_link', { refresh });
+    if (error) throw refused(error, "YOUR ROOM'S LINK COULD NOT BE MADE.");
+    return typeof data === 'string' ? data : null;
+  }
+
+  async joinByLink(secret: string): Promise<string | null> {
+    const { data, error } = await requireClient().rpc('watch_join_link', { link: secret });
+    if (error) return null;
+    return typeof data === 'string' ? data : null;
+  }
+
   /** Through the database's own function, which checks the host or a crown and writes these three fields only. */
   async saveRoomSettings(input: RoomSettingsInput): Promise<void> {
     const { error } = await requireClient().rpc('watch_room_settings', { room: input.roomId, new_name: input.name, new_topic: input.topic, new_add_mode: input.addMode });

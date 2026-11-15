@@ -36,6 +36,8 @@ type Tables = {
   attempts: Attempt[];
   /** Ids of messages and queue rows made while their room was not open: the mock's `privacy_at_write`. */
   privateRows: string[];
+  /** Each own room's link secret, by room: the mock's `watch_room_links`, which nothing reads but the two link functions. */
+  links?: Record<string, string>;
 };
 
 let memory: Tables = { rooms: [], queue: [], messages: [], crowns: [], members: [], passwords: {}, attempts: [], privateRows: [] };
@@ -69,6 +71,7 @@ function load(): Tables {
       passwords: parsed.passwords ?? {},
       attempts: Array.isArray(parsed.attempts) ? parsed.attempts : [],
       privateRows: Array.isArray(parsed.privateRows) ? parsed.privateRows : [],
+      links: parsed.links ?? {},
     };
   } catch {
     return memory;
@@ -244,9 +247,13 @@ function liveRoom(tables: Tables, roomId: string): { room: WatchRoom; crowns: Wa
   return { room, crowns: tables.crowns.filter((crown) => crown.roomId === roomId) };
 }
 
-/** A music room switched off is its host's alone: nobody else adds to it or talks in it (the database's rule too). */
-function refuseIfShut(room: WatchRoom, userId: string): void {
-  if (!room.isPublic && room.hostId !== userId) throw new Error(NOT_ALLOWED);
+/**
+ * A room that is not public is its host's alone to TALK in (the database's rule): an own room is never public, so
+ * nobody chats there. Adding is let through for an own room's members by `refuseOutsider`, as the database's
+ * adding rule lets a member of an own room add (`own`).
+ */
+function refuseIfShut(room: WatchRoom, userId: string, own = false): void {
+  if (!room.isPublic && room.hostId !== userId && !(own && room.origin === 'music')) throw new Error(NOT_ALLOWED);
 }
 
 /** WHO CAN ADD on CROWNS ONLY: nobody else adds (the database's rule too). Chat stays open. */
@@ -332,8 +339,9 @@ class MockWatchRepository implements WatchRepository {
     if (room === undefined) return none;
     const me = await this.viewer();
     const mine = tables.members.find((row) => row.roomId === roomId && row.userId === me);
-    // As the database's `watch_room_door`: somebody else's own room is "no such room" (its members are let in by its link).
-    if (room.origin === 'music' && room.hostId !== me && !(mine !== undefined && mine.removedAt === null)) return none;
+    // As the database's `watch_room_door`: somebody else's own room is "no such room", except to whoever joined it by
+    // its link (somebody REMOVED is told so).
+    if (room.origin === 'music' && room.hostId !== me && mine === undefined) return none;
     const attempt = tables.attempts.find((row) => row.roomId === roomId && row.userId === me);
     const locked = attempt?.lockedUntil !== null && attempt?.lockedUntil !== undefined && Date.parse(attempt.lockedUntil) > Date.now();
     return {
@@ -429,7 +437,7 @@ class MockWatchRepository implements WatchRepository {
   async removeFromRoom(roomId: string, userId: string): Promise<void> {
     const tables = load();
     const room = tables.rooms.find((candidate) => candidate.id === roomId);
-    const me = await viewerId();
+    const me = await this.viewer();
     const allowed = room !== undefined && room.endedAt === null && room.hostId !== userId && (room.hostId === me || tables.crowns.some((crown) => crown.roomId === roomId && crown.userId === me));
     if (!allowed) throw new Error('ONLY THE HOST OR A CROWN CAN REMOVE SOMEBODY.');
     const at = stamp();
@@ -640,6 +648,36 @@ class MockWatchRepository implements WatchRepository {
     save({ ...tables, queue: tables.queue.filter((entry) => !(entry.roomId === roomId && gone.has(entry.id))) }, roomId);
   }
 
+  /** As the database's `watch_own_link`: the caller's own room only; a refresh changes the secret and puts nobody out. */
+  async ownRoomLink(refresh: boolean): Promise<string | null> {
+    const me = await this.viewer();
+    if (me === null) throw new Error(NOT_ALLOWED);
+    const tables = load();
+    const room = tables.rooms.find((candidate) => candidate.origin === 'music' && candidate.hostId === me);
+    if (room === undefined) return null;
+    const held = tables.links?.[room.id];
+    if (held !== undefined && !refresh) return held;
+    const secret = `${newId()}${newId()}`.replace(/-/g, '');
+    save({ ...tables, links: { ...(tables.links ?? {}), [room.id]: secret } }, null);
+    return secret;
+  }
+
+  /** As the database's `watch_join_link`: an account holding the current secret becomes a member; anything else is null. */
+  async joinByLink(secret: string): Promise<string | null> {
+    // An account only: a signed-out visitor (whose browser room reads as `visitor:...`) and a room's guest are told to log in.
+    const signedIn = await currentAccountOrNull();
+    const account = signedIn !== null ? { id: signedIn.id, displayName: signedIn.displayName } : this.viewerOverride !== null && !this.viewerOverride.startsWith('visitor:') ? { id: this.viewerOverride, displayName: 'SOMEBODY' } : null;
+    if (account === null || secret.length < 32 || secret.length > 64) return null;
+    const tables = load();
+    const roomId = Object.entries(tables.links ?? {}).find(([, held]) => held === secret)?.[0];
+    const room = tables.rooms.find((candidate) => candidate.id === roomId && candidate.origin === 'music' && candidate.endedAt === null);
+    if (room === undefined) return null;
+    const mine = tables.members.find((row) => row.roomId === room.id && row.userId === account.id);
+    if (mine !== undefined && mine.removedAt !== null) return null;
+    if (mine === undefined) save({ ...tables, members: [...tables.members, { roomId: room.id, userId: account.id, label: account.displayName, removedAt: null }] }, room.id);
+    return room.id;
+  }
+
   async saveRoomSettings(input: RoomSettingsInput): Promise<void> {
     const { room, crowns } = liveRoom(load(), input.roomId);
     if (!mayEditRoom(room, crowns, input.by, true)) throw new Error(NOT_ALLOWED);
@@ -746,7 +784,7 @@ class MockWatchRepository implements WatchRepository {
   async addToQueue(input: AddToQueueInput): Promise<WatchQueueEntry> {
     const tables = load();
     const { room, crowns } = liveRoom(tables, input.roomId);
-    refuseIfShut(room, input.addedBy);
+    refuseIfShut(room, input.addedBy, true);
     refuseIfCrownsOnly(room, crowns, input.addedBy);
     // The database's link checks, and the allow-list for an `embed` link, as the Supabase store asks them.
     const refusal = input.link === undefined ? null : queueRefusal(input.link);
@@ -776,7 +814,7 @@ class MockWatchRepository implements WatchRepository {
   async addSeriesToQueue(input: AddSeriesInput): Promise<WatchQueueEntry[]> {
     const tables = load();
     const { room, crowns } = liveRoom(tables, input.roomId);
-    refuseIfShut(room, input.addedBy);
+    refuseIfShut(room, input.addedBy, true);
     refuseIfCrownsOnly(room, crowns, input.addedBy);
     refuseOutsider(tables, room, input.addedBy);
     for (const link of input.links) {

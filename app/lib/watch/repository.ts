@@ -142,6 +142,15 @@ export type WatchRepository = {
   addOwnEntries(roomId: string, by: string, rows: WatchQueueEntry[]): Promise<void>;
   /** Takes rows out of your own room, played or not: finished things are cleared, so rows never pile up. */
   removeOwnEntries(roomId: string, by: string, ids: string[]): Promise<void>;
+  /**
+   * COPY LINK and REFRESH LINK (Luke, 2026-11-14: "if you have someones link you can still join, with the ability to
+   * refresh the link"): your own room's link secret, made the first time it is asked for; `refresh` makes a new one, so
+   * the old link lets nobody new in (whoever already joined stays until REMOVE). Null when you have no room yet.
+   * Throws with a sentence fit to show.
+   */
+  ownRoomLink(refresh: boolean): Promise<string | null>;
+  /** Joining somebody's own room by its link: the room's id, or null for a secret that is not current, or for anybody not signed in. */
+  joinByLink(secret: string): Promise<string | null>;
   /** The settings cog: the host's or a crown's. Throws with a sentence fit to show. */
   saveRoomSettings(input: RoomSettingsInput): Promise<void>;
   /**

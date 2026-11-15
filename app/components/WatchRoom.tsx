@@ -622,12 +622,13 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   const hostName = hostMember?.name ?? room.originalHostLabel;
   const title = entryTitle ?? '';
   useEffect(() => {
-    if (user === null || !live) {
+    // Somebody's own room is on no list and lights no lamp or TV key, whoever is in it (SPEC-rooms-queues.md).
+    if (user === null || !live || music) {
       repository.setWatching(null);
       return;
     }
     repository.setWatching({ userId: user.id, roomId, hostName, title, hosting: amHost, unlisted: !myProfile.visibility.showOnline || room.privacy !== 'open' });
-  }, [repository, user, live, roomId, hostName, title, amHost, myProfile.visibility.showOnline, room.privacy]);
+  }, [repository, user, live, music, roomId, hostName, title, amHost, myProfile.visibility.showOnline, room.privacy]);
   useEffect(() => () => repository.setWatching(null), [repository]);
 
   /* --- leaving --------------------------------------------------------------------------------- */
@@ -1272,9 +1273,9 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
           <>
             <span className={`min-w-0 flex-1 frame bg-hardware px-2 py-1 text-label ${lookLines}`} data-stream-bar-screen>
               <span className="flex min-w-0 items-center gap-2 font-bold text-ink-bar">
-                <span className={`shrink-0 px-1 ${live ? 'bg-acid text-ink-plate' : 'bg-bubble-pale text-ink-bar'}`}>{live ? 'LIVE' : music ? 'OFF' : 'ENDED'}</span>
+                <span className={`shrink-0 px-1 ${live ? 'bg-acid text-ink-plate' : 'bg-bubble-pale text-ink-bar'}`}>{music ? (live ? 'BY LINK' : 'CLOSED') : live ? 'LIVE' : 'ENDED'}</span>
                 <span className="truncate">
-                  {music ? 'MUSIC' : 'STREAM'} :: {amHost ? 'YOU ARE HOSTING' : `HOSTED BY ${hostName.toUpperCase()}`}
+                  {music ? 'ROOM' : 'STREAM'} :: {amHost ? 'YOU ARE HOSTING' : music ? `${hostName.toUpperCase()} IS PLAYING` : `HOSTED BY ${hostName.toUpperCase()}`}
                 </span>
               </span>
               <MarqueeText className={`block text-key font-bold ${look === null ? 'text-acid' : 'text-room-readout'}`} text={blank ? 'NOTHING ON' : (entryTitle ?? '...')} />
@@ -1361,7 +1362,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       {musicBarPart}
       {ended ? (
         <p className="text-label font-bold text-ink" role="status">
-          {music ? (room.isPublic ? 'THIS ROOM WENT QUIET.' : 'THIS ROOM IS OFF.') : room.endedAt === null ? 'THIS STREAM WENT QUIET.' : 'STREAM ENDED.'}{' '}
+          {music ? 'THIS ROOM IS CLOSED.' : room.endedAt === null ? 'THIS STREAM WENT QUIET.' : 'STREAM ENDED.'}{' '}
           {room.forumThreadId === null ? null : (
             <Link href={`/forum#${threadDomId(room.forumThreadId)}`} className="key px-1 py-1 text-label">
               [ READ THE RECORD ]
@@ -1541,7 +1542,13 @@ function ChatPanel({
           }}
         />
       ) : null}
-      {!live ? null : identity?.kind !== 'account' && read.room.guestsCanTalk === false ? (
+      {!live ? null : read.room.origin === 'music' ? (
+        // Somebody's own room, joined by its link (SPEC-rooms-queues.md): you listen along, see the queue and add to it.
+        // There is no chat here; the database refuses a line from anybody but its owner, who has nobody to answer.
+        <p className="text-label font-bold text-ink" data-watch-no-chat>
+          NO CHAT IN THIS ROOM. ITS OWNER CAN GO LIVE FOR CHAT.
+        </p>
+      ) : identity?.kind !== 'account' && read.room.guestsCanTalk === false ? (
         <p className="text-label font-bold text-ink" data-watch-guests-quiet>
           <Link href="/account" className="key px-1 py-1 text-label">
             [ LOG IN ]

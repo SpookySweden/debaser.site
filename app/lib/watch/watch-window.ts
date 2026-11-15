@@ -91,3 +91,18 @@ export function watchFocusFromSearch(search: string): WatchFocus | null {
 
   return { kind: 'room', roomId: watch };
 }
+
+/**
+ * The link to somebody's own room (SPEC-rooms-queues.md; Luke, 2026-11-14: "if you have someones link you can still
+ * join"). It carries the room's link secret, never the room's own address: the address alone opens nothing, and the
+ * secret stops letting new people in when its owner presses REFRESH LINK.
+ */
+export function joinHref(secret: string): string {
+  return `/forum?join=${encodeURIComponent(secret)}`;
+}
+
+/** The secret a `?join=` address carries, or null: only letters and digits of the length the database makes. */
+export function joinSecretFromSearch(search: string): string | null {
+  const asked = new URLSearchParams(search).get('join');
+  return asked !== null && /^[0-9a-zA-Z]{32,64}$/.test(asked) ? asked : null;
+}

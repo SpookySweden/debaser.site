@@ -8,7 +8,7 @@ import { getWatchRepository } from '../lib/watch/repository';
 import { ROOM_NAME_MAX, ROOM_TOPIC_MAX, cleanRoomWords, roomPrivacyLabel } from '../lib/watch/rules';
 import type { RoomAddMode, RoomMemberRow, RoomPrivacy, WatchRoom } from '../lib/watch/types';
 import { applyLocalChange } from '../lib/watch/use-watch-room';
-import { watchHref } from '../lib/watch/watch-window';
+import { joinHref, watchHref } from '../lib/watch/watch-window';
 import PopoutWindow from './PopoutWindow';
 import RoomPrivacyPicker from './RoomPrivacyPicker';
 
@@ -124,12 +124,42 @@ export default function RoomSettingsWindow({ room, userId, look, onClose }: { ro
     }
   }
 
+  /**
+   * Somebody's own room (SPEC-rooms-queues.md): its link holds a secret, not the room's address, and only its owner
+   * can ask for it. There is none until the first COPY LINK, and until then nobody can join.
+   */
+  const own = room.origin === 'music';
+  const [refresh, setRefresh] = useState<{ kind: 'idle' | 'asking' | 'working' | 'done' } | { kind: 'refused'; reason: string }>({ kind: 'idle' });
+
   async function copyLink() {
     try {
-      await navigator.clipboard.writeText(new URL(watchHref({ kind: 'room', roomId: room.id }), window.location.origin).href);
+      let address = new URL(watchHref({ kind: 'room', roomId: room.id }), window.location.origin).href;
+      if (own) {
+        const secret = await getWatchRepository().ownRoomLink(false);
+        if (secret === null) throw new Error('no room');
+        address = new URL(joinHref(secret), window.location.origin).href;
+      }
+      await navigator.clipboard.writeText(address);
       setCopied('copied');
     } catch {
       setCopied('failed');
+    }
+  }
+
+  /** REFRESH LINK: a new secret. The old link lets nobody new in; whoever already joined stays until REMOVE. */
+  async function refreshLink() {
+    setRefresh({ kind: 'working' });
+    try {
+      const secret = await getWatchRepository().ownRoomLink(true);
+      if (secret === null) throw new Error("YOUR ROOM'S LINK COULD NOT BE MADE.");
+      // The new one is copied at once where the browser allows it; COPY LINK copies it again otherwise.
+      await navigator.clipboard.writeText(new URL(joinHref(secret), window.location.origin).href).then(
+        () => setCopied('copied'),
+        () => setCopied('idle'),
+      );
+      setRefresh({ kind: 'done' });
+    } catch (failure) {
+      setRefresh({ kind: 'refused', reason: failure instanceof Error ? failure.message : 'THAT DID NOT WORK.' });
     }
   }
 
@@ -254,11 +284,16 @@ export default function RoomSettingsWindow({ room, userId, look, onClose }: { ro
               </span>
             </div>
           </form>
+        ) : own ? (
+          <p className="font-bold" data-room-own-join>
+            WHO CAN JOIN: ONLY SOMEBODY SIGNED IN WHO HAS YOUR ROOM&apos;S LINK. UNTIL YOU COPY IT, NOBODY. THEY HEAR AND SEE WHAT YOU PLAY, SEE YOUR QUEUE, AND CAN ADD TO IT AND DRAW.
+          </p>
         ) : (
           <p className="font-bold">WHO CAN JOIN: {roomPrivacyLabel(room.privacy)}</p>
         )}
 
-        <div className="flex flex-wrap items-center gap-2" data-room-guests-talk={room.guestsCanTalk === false ? 'off' : 'on'}>
+        {/* No chat in an own room, so nothing for a guest to be let talk in. */}
+        <div className={own ? 'hidden' : 'flex flex-wrap items-center gap-2'} data-room-guests-talk={room.guestsCanTalk === false ? 'off' : 'on'}>
           <span className="font-bold">GUESTS CAN TALK:</span>
           <button type="button" className={room.guestsCanTalk === false ? PLATE : PLATE_PRESSED} aria-pressed={room.guestsCanTalk !== false} onClick={() => void setGuestsCanTalk(true)}>
             [ YES ]
@@ -292,12 +327,37 @@ export default function RoomSettingsWindow({ room, userId, look, onClose }: { ro
           </div>
         )}
 
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Somebody else's own room: its link is its owner's to hand out, so a joiner has no key for it here. */}
+        <div className={own && !isHost ? 'hidden' : 'flex flex-wrap items-center gap-2'}>
           <span className="font-bold">ROOM LINK:</span>
           <button type="button" className={PLATE} onClick={() => void copyLink()} data-room-copy-link>
             {copied === 'copied' ? '[ COPIED ]' : copied === 'failed' ? '[ COULD NOT COPY ]' : '[ COPY LINK ]'}
           </button>
+          {/* Beside COPY LINK (Luke, 2026-11-14): its owner's alone, and one more press with the consequence said first. */}
+          {own && isHost ? (
+            refresh.kind === 'asking' || refresh.kind === 'working' ? (
+              <>
+                <button type="button" className={PLATE} disabled={refresh.kind === 'working'} onClick={() => void refreshLink()} data-room-refresh-link="confirm">
+                  {refresh.kind === 'working' ? '[ REFRESHING... ]' : '[ YES, REFRESH ]'}
+                </button>
+                <button type="button" className={PLATE} disabled={refresh.kind === 'working'} onClick={() => setRefresh({ kind: 'idle' })}>
+                  [ NO ]
+                </button>
+              </>
+            ) : (
+              <button type="button" className={PLATE} onClick={() => setRefresh({ kind: 'asking' })} aria-expanded={false} data-room-refresh-link="ask">
+                [ REFRESH LINK ]
+              </button>
+            )
+          ) : null}
         </div>
+        {own && isHost ? (
+          <p className="font-bold" role="status" data-room-refresh-state={refresh.kind}>
+            {refresh.kind === 'asking' || refresh.kind === 'working' ? 'THE OLD LINK WILL LET NOBODY NEW IN. PEOPLE ALREADY IN STAY: USE REMOVE FOR ANYONE WHO SHOULD NOT.' : null}
+            {refresh.kind === 'done' ? 'NEW LINK MADE. THE OLD ONE LETS NOBODY NEW IN.' : null}
+            {refresh.kind === 'refused' ? <span className="bg-bubble-pale px-1 text-ink-bar">{refresh.reason}</span> : null}
+          </p>
+        ) : null}
 
         <div role="radiogroup" aria-label="Your look" className="flex flex-wrap items-center gap-1">
           <span className="font-bold">YOUR LOOK:</span>

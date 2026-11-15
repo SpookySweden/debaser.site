@@ -415,6 +415,51 @@ const names = (counted) => counted.writes().map((call) => call.name);
     assert.equal(currentEntry(kept).link.title, 'VIDEO 8', 'and so is what is on');
   }
 
+  /* 9. Joining by link (Luke, 2026-11-14: "if you have someones link you can still join, with the ability to refresh the link"). */
+  {
+    mock.resetMockWatch();
+    const owner = mock.getBrowserWatchRepository('account-owner');
+    const friend = mock.getBrowserWatchRepository('account-friend');
+    const stranger = mock.getBrowserWatchRepository('account-stranger');
+    const visitor = mock.getBrowserWatchRepository('visitor:00000000-0000-4000-8000-000000000009');
+    assert.equal(await owner.ownRoomLink(false), null, 'no room yet: no link');
+    await owner.openOwnRoom({ id: 'room-o', host: { id: 'account-owner', label: 'OWNER' } });
+    await owner.addOwnEntries('room-o', 'account-owner', [{ id: 'q1', roomId: 'room-o', position: 0, inQueue: true, mediaItemId: null, link: song(1), series: null, addedBy: 'account-owner', addedAt: 'x', playedAt: null, playIndex: null }]);
+    assert.equal(await friend.readRoom('room-o'), null, 'before any link: nobody else reads the room');
+
+    const secret = await owner.ownRoomLink(false);
+    assert.ok(typeof secret === 'string' && secret.length >= 32 && secret.length <= 64 && /^[0-9a-zA-Z]+$/.test(secret), 'COPY LINK makes a long secret');
+    assert.ok(!secret.includes('room-o'), "the link carries a secret, not the room's address");
+    assert.equal(await owner.ownRoomLink(false), secret, 'asked again, it is the same link');
+    assert.equal(await stranger.readRoom('room-o'), null, 'a link existing lets nobody in by the address');
+    assert.equal(await stranger.enterRoom('room-o', null), 'refused', 'nor by the ordinary way in');
+    assert.equal(await stranger.joinByLink('x'.repeat(40)), null, 'a wrong secret gets nothing');
+    assert.equal(await visitor.joinByLink(secret), null, 'a signed-out visitor cannot join, even with the link');
+
+    assert.equal(await friend.joinByLink(secret), 'room-o', 'somebody signed in with the current link joins');
+    const seen = await friend.readRoom('room-o');
+    assert.deepEqual(seen.queue.map((entry) => entry.link.title), ['SONG 1'], 'and sees the queue');
+    assert.equal((await friend.readDoor('room-o')).found, true, 'the door knows them now');
+    const added = await friend.addToQueue({ roomId: 'room-o', addedBy: 'account-friend', position: 5, inQueue: false, link: song(2) });
+    assert.equal(added.inQueue, false, 'what they add waits on their own list');
+    await assert.rejects(() => friend.addToQueue({ roomId: 'room-o', addedBy: 'account-friend', position: 5, inQueue: true, link: song(3) }), 'only a crown puts a thing straight into the queue');
+    await assert.rejects(() => friend.sendMessage({ roomId: 'room-o', queueEntryId: null, mediaItemId: null, author: { id: 'account-friend', label: 'FRIEND' }, body: 'hello', mediaSeconds: 0 }), 'there is no chat in an own room');
+    await owner.reorderQueue([{ id: added.id, position: 1, pull: true }], 'account-owner');
+    assert.equal((await owner.readRoom('room-o')).queue.find((entry) => entry.id === added.id).inQueue, true, 'the owner pulls it in');
+
+    const fresh = await owner.ownRoomLink(true);
+    assert.notEqual(fresh, secret, 'REFRESH LINK makes a new secret');
+    assert.equal(await stranger.joinByLink(secret), null, 'the old link lets nobody new in');
+    assert.notEqual(await friend.readRoom('room-o'), null, 'whoever already joined stays in (Luke: "Only stops new people")');
+    assert.equal(await stranger.joinByLink(fresh), 'room-o', 'the new link works');
+
+    await owner.removeFromRoom('room-o', 'account-friend');
+    assert.equal(await friend.readRoom('room-o'), null, 'REMOVE puts them out');
+    assert.equal((await friend.readDoor('room-o')).removed, true, 'and the door tells them so');
+    assert.equal(await friend.joinByLink(fresh), null, 'even the new link does not let a removed person back');
+    assert.equal(await friend.ownRoomLink(false), null, "a joiner asking for a link gets their own room's (none here), never the owner's");
+  }
+
   console.log('check-own-room: every assertion passed');
   // The browser store keeps a BroadcastChannel open, which would hold this process up for ever.
   process.exit(0);

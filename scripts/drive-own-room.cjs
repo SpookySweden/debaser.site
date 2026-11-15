@@ -159,7 +159,7 @@ async function open(page, path) {
 
 (async () => {
   const browser = await chromium.launch({ executablePath: findChrome(), headless: true, args: ['--autoplay-policy=no-user-gesture-required', '--no-first-run'] });
-  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, permissions: ['clipboard-read', 'clipboard-write'] });
   await context.addInitScript(HOOK);
   await context.addInitScript(SEED);
   writeTones();
@@ -397,6 +397,86 @@ async function open(page, path) {
     pass('signed in: GO LIVE in the room window opens the WHO CAN JOIN menu, and starts nothing by itself');
     await page.keyboard.press('Escape');
     await page.locator('button[aria-label="Close YOUR ROOM"]').click().catch(() => undefined);
+
+    console.log('THE LINK: COPY, JOIN, REFRESH, REMOVE (one browser, the mock accounts taking turns)');
+    const asAccount = async (id, name) => {
+      await page.evaluate(
+        ([userId, displayName]) => {
+          const kept = JSON.parse(localStorage.getItem('debaser.auth.mock.v1') ?? '{"users":[],"bannedIds":[]}');
+          const user = { id: userId, email: `${userId}@debaser.site`, displayName, createdAt: new Date().toISOString(), salt: '', secretHash: '', hidden: true };
+          localStorage.setItem('debaser.auth.mock.v1', JSON.stringify({ ...kept, users: [...(kept.users ?? []).filter((held) => held.id !== userId), user], sessionUserId: userId }));
+        },
+        [id, name],
+      );
+    };
+    const secretOf = () => page.evaluate(() => Object.values(JSON.parse(localStorage.getItem('debaser.watch.v1') ?? '{}').links ?? {})[0] ?? null);
+    const memberRows = (roomId) => page.evaluate((id) => (JSON.parse(localStorage.getItem('debaser.watch.v1') ?? '{}').members ?? []).filter((row) => row.roomId === id), roomId);
+    await open(page, '/forum');
+    await pressUntil(page, false);
+    await page.locator('[data-own-room-door] button').click();
+    await page.waitForSelector('[data-own-room-window="account"]', { timeout: 15000 });
+    assert.equal(await page.locator('[data-own-room-alone]').getAttribute('data-own-room-alone'), 'alone', 'nobody has joined yet');
+    assert.equal(await secretOf(), null, 'and there is no link until its owner asks for one');
+    await page.locator('[data-own-room-settings]').click();
+    await page.waitForSelector('[data-room-own-join]', { timeout: 10000 });
+    await page.locator('[data-room-copy-link]').click();
+    await page.waitForFunction(() => /COPIED|COULD NOT COPY/.test(document.querySelector('[data-room-copy-link]')?.textContent ?? ''), null, { timeout: 10000 });
+    const secret = await secretOf();
+    assert.ok(typeof secret === 'string' && secret.length >= 32, 'COPY LINK makes the link');
+    assert.ok(await page.locator('[data-room-refresh-link="ask"]').count(), 'REFRESH LINK sits beside COPY LINK');
+    const ownerRoom = (await tables(page)).find((room) => room.hostId === 'drive-user').id;
+    pass('the owner: settings in the room window, COPY LINK makes a secret link, REFRESH LINK beside it');
+    await page.screenshot({ path: join(SHOTS, 'own-room-settings-link.png') });
+
+    await asAccount('drive-friend', 'TEST FRIEND');
+    await open(page, `/forum?join=${'x'.repeat(40)}`);
+    await page.waitForSelector('[data-join-by-link="dead"]', { timeout: 15000 });
+    pass('a wrong link: THAT LINK DOES NOT WORK ANY MORE');
+    await open(page, `/forum?join=${secret}`);
+    await page.waitForSelector('[data-dock-window="stream"]', { timeout: 20000 });
+    await page.waitForSelector('[data-watch-no-chat]', { timeout: 20000 });
+    assert.ok(!(await page.url()).includes('join='), 'the secret does not stay in the address');
+    assert.ok((await memberRows(ownerRoom)).some((row) => row.userId === 'drive-friend' && row.removedAt === null), 'the friend is a member now');
+    const joinedTitle = await page.locator('[data-dock-window="stream"]').getAttribute('aria-label');
+    // The mock site has no profile for a made-up account, so the name reads ANONYMOUS there; on the real site it is the owner's.
+    assert.ok(/'S ROOM$/.test(joinedTitle ?? '') && !/STREAM|MUSIC/.test(joinedTitle ?? ''), `the window is named as the owner's room (${joinedTitle})`);
+    pass("somebody signed in with the link joins: the owner's room opens, with no chat box");
+    await page.screenshot({ path: join(SHOTS, 'own-room-joined-by-link.png') });
+
+    await page.evaluate(() => {
+      const kept = JSON.parse(localStorage.getItem('debaser.auth.mock.v1'));
+      localStorage.setItem('debaser.auth.mock.v1', JSON.stringify({ ...kept, sessionUserId: null }));
+    });
+    await open(page, `/forum?join=${secret}`);
+    await page.waitForSelector('[data-join-by-link="signed-out"]', { timeout: 15000 });
+    pass('signed out, the link asks you to log in and lets nobody in');
+
+    await asAccount('drive-user', 'TEST DRIVE');
+    await open(page, '/forum');
+    await pressUntil(page, false);
+    await page.locator('[data-own-room-door] button').click();
+    await page.waitForSelector('[data-own-room-alone="joined"]', { timeout: 15000 });
+    assert.ok((await page.locator('[data-own-room-joined]').innerText()).includes('TEST FRIEND'), 'the owner sees who is in by their link');
+    await page.locator('[data-own-room-settings]').click();
+    await page.locator('[data-room-refresh-link="ask"]').click();
+    assert.ok((await page.locator('[data-room-refresh-state]').innerText()).includes('PEOPLE ALREADY IN STAY'), 'the consequence is said before the refresh');
+    await page.locator('[data-room-refresh-link="confirm"]').click();
+    await page.waitForSelector('[data-room-refresh-state="done"]', { timeout: 10000 });
+    const fresh = await secretOf();
+    assert.ok(fresh !== secret && typeof fresh === 'string', 'REFRESH LINK makes a new secret');
+    assert.ok((await memberRows(ownerRoom)).some((row) => row.userId === 'drive-friend' && row.removedAt === null), 'and puts nobody out');
+    pass('the owner sees TEST FRIEND is in; REFRESH LINK makes a new link and puts nobody out');
+    await page.locator('[data-room-remove="drive-friend"]').click();
+    await page.waitForFunction(() => document.querySelector('[data-room-remove="drive-friend"]') === null, null, { timeout: 10000 });
+    assert.ok((await memberRows(ownerRoom)).some((row) => row.userId === 'drive-friend' && row.removedAt !== null), 'REMOVE takes them out');
+    pass('REMOVE in the settings takes the friend out');
+
+    await asAccount('drive-stranger', 'TEST STRANGER');
+    await open(page, `/forum?join=${secret}`);
+    await page.waitForSelector('[data-join-by-link="dead"]', { timeout: 15000 });
+    assert.ok(!(await memberRows(ownerRoom)).some((row) => row.userId === 'drive-stranger'), 'the old link let nobody new in');
+    pass('after the refresh the old link is dead for somebody new');
+    await asAccount('drive-user', 'TEST DRIVE');
 
     console.log('THE PRIVACY PAGE');
     await page.goto(`${BASE}/privacy`, { waitUntil: 'domcontentloaded' });

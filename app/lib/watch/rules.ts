@@ -89,8 +89,11 @@ export function roomAgeSeconds(room: Pick<WatchRoom, 'updatedAt'>, now: number):
 }
 
 /** Live: not ended, and the host has written recently. */
-export function roomIsLive(room: Pick<WatchRoom, 'endedAt' | 'updatedAt'> & { isPublic?: boolean }, now: number): boolean {
-  // A music room switched off is kept, not live (SPEC-music-queues.md).
+export function roomIsLive(room: Pick<WatchRoom, 'endedAt' | 'updatedAt'> & { isPublic?: boolean; origin?: WatchRoom['origin'] }, now: number): boolean {
+  // A person's own room (SPEC-rooms-queues.md) is kept, never ended and never public, and its owner writes only when
+  // something changes: no heartbeat says "still here". Whoever joined it by its link follows it from the last write,
+  // so it counts as live for as long as it exists.
+  if (room.origin === 'music') return room.endedAt === null;
   return room.endedAt === null && room.isPublic !== false && roomAgeSeconds(room, now) <= ROOM_QUIET_SECONDS;
 }
 

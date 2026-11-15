@@ -22,9 +22,11 @@ import {
   openWatch,
   subscribeToWatchWindow,
   watchWindowServerState,
+  joinSecretFromSearch,
   watchFocusFromSearch,
   watchWindowState,
 } from '../lib/watch/watch-window';
+import PopoutWindow from './PopoutWindow';
 import ArtMark from './ArtMark';
 import { useAuth } from './AuthProvider';
 import { useRoomIdentity } from './use-room-identity';
@@ -92,6 +94,10 @@ export default function WatchWindow() {
     if (watchFocusFromSearch(asked.length === 0 ? '' : `?${asked}`) !== null) router.replace(pathname);
   }, [asked, pathname, router]);
 
+  // A link to somebody's own room (`?join=<secret>`): the way in is asked before any window opens.
+  const joining = joinSecretFromSearch(asked.length === 0 ? '' : `?${asked}`);
+  if (joining !== null) return <JoinByLink key={joining} secret={joining} signedIn={accountId !== null} onDone={() => router.replace(pathname)} />;
+
   // No room window open: your own room's door, whenever it has something on (SPEC-rooms-queues.md, phase 2).
   if (!state.open || state.focus === null) return <OwnRoomDoor />;
 
@@ -108,6 +114,66 @@ export default function WatchWindow() {
   }
 
   return <RoomWindow key={state.focus.roomId} roomId={state.focus.roomId} collapsed={state.collapsed} onCollapse={collapse} onLeft={close} />;
+}
+
+/**
+ * Joining somebody's own room by its link (Luke, 2026-11-14: "if you have someones link you can still join"). The
+ * secret in the address is handed to the database, which answers the room only if it is that room's current link and
+ * the person is signed in; the room's window then opens as for any room they belong to. A link that has been
+ * refreshed, or was never one, is told so plainly. Either way the address is spent, so the secret does not sit in it.
+ */
+function JoinByLink({ secret, signedIn, onDone }: { secret: string; signedIn: boolean; onDone: () => void }) {
+  const [answer, setAnswer] = useState<'asking' | 'dead'>('asking');
+
+  useEffect(() => {
+    if (!signedIn) return;
+    let alive = true;
+    void getWatchRepository()
+      .joinByLink(secret)
+      .then(
+        (roomId) => roomId,
+        () => null,
+      )
+      .then((roomId) => {
+        if (!alive) return;
+        if (roomId === null) {
+          setAnswer('dead');
+          return;
+        }
+        openWatch({ kind: 'room', roomId });
+        onDone();
+      });
+    return () => {
+      alive = false;
+    };
+    // `onDone` is a new function each render; the join is asked once per secret and sign-in.
+  }, [secret, signedIn]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <PopoutWindow title="JOIN A ROOM" onClose={onDone}>
+      <div className="flex flex-col gap-2 p-2 text-label font-bold text-ink" data-join-by-link={signedIn ? answer : 'signed-out'}>
+        {!signedIn ? (
+          <p>
+            <Link href="/account" className="key px-1 py-1 text-label">
+              [ LOG IN ]
+            </Link>{' '}
+            TO JOIN THIS ROOM. THEN OPEN THE LINK AGAIN.
+          </p>
+        ) : answer === 'asking' ? (
+          <p role="status">ASKING THE ROOM...</p>
+        ) : (
+          <>
+            <p role="alert">THAT LINK DOES NOT WORK ANY MORE. ASK FOR A NEW ONE.</p>
+            <p>
+              <button type="button" onClick={onDone} className={PLATE}>
+                [ OK ]
+              </button>
+            </p>
+          </>
+        )}
+      </div>
+    </PopoutWindow>
+  );
 }
 
 const noOwnRoom = () => null;
@@ -233,8 +299,9 @@ function RoomWindow({ roomId, collapsed, onCollapse, onLeft }: { roomId: string;
         // Was "watch" before the room filled the screen; a new id so a size saved for the old room does not stick.
         id="stream"
         fill
-        title={read ? `${read.room.origin === 'music' ? 'MUSIC' : 'STREAM'} :: ${roomShownName(read.room, hostName).toUpperCase()}${read.room.privacy === 'open' ? '' : ` :: ${roomPrivacyLabel(read.room.privacy)}`}` : 'STREAM'}
-        badge={read ? (live ? 'LIVE' : read.room.origin === 'music' ? 'OFF' : 'ENDED') : undefined}
+        // Somebody's own room, joined by its link, is named as theirs: it is not a stream and has no privacy to pick.
+        title={read ? (read.room.origin === 'music' ? `${hostName.toUpperCase()}'S ROOM` : `STREAM :: ${roomShownName(read.room, hostName).toUpperCase()}${read.room.privacy === 'open' ? '' : ` :: ${roomPrivacyLabel(read.room.privacy)}`}`) : 'STREAM'}
+        badge={read ? (read.room.origin === 'music' ? 'BY LINK' : live ? 'LIVE' : 'ENDED') : undefined}
         // Leaving with a changed canvas nobody saved asks "save this canvas?" first (SPEC-stream-art.md).
         onClose={() => (removed ? onLeft() : void askToSaveCanvas(roomId).then(() => (read && live ? setClosing(true) : onLeft())))}
         onMinimize={
