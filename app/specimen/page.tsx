@@ -79,6 +79,7 @@ const FACES = [
 const SPACING = ['w-0.5', 'w-1', 'w-2', 'w-3', 'w-4', 'w-6', 'w-8', 'w-12', 'w-16'] as const;
 
 const LAYERS = [
+  ['z-backdrop', 'the AQUARIUM background, under the page itself'],
   ['z-menu', 'the start menu'],
   ['z-dock', 'a docked window'],
   ['z-banner', "the guest's alarm banner"],
@@ -314,7 +315,8 @@ export default function SpecimenPage() {
       <Section title="LAYERS">
         <ul className="isolate text-label">
           {LAYERS.map(([token, job]) => (
-            <li key={token} className="rule-pixel py-1">
+            // `isolate`: each row is its own layer, so the one below zero (z-backdrop) still shows over the page behind it.
+            <li key={token} className="rule-pixel isolate py-1">
               <SpecimenValue property="z-index" className={`relative ${token}`}>
                 {token} :: {job}
               </SpecimenValue>

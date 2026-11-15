@@ -54,6 +54,119 @@ body {
   background-size: 4px 4px;
 }
 
+/* The AQUARIUM background (app/components/Aquarium.tsx, chosen in PREFERENCES; the default since 2026-11-15) ------------------
+   While `<html>` carries `data-backdrop="aquarium"` - written by the boot script before the first paint - the desk lets go of its
+   tile and the page's canvas is the sea's black, so the sea is there from the first frame and the coral and fish join it once
+   the page's script runs. The layer sits under the page itself (`z-backdrop`, on the element), so the window, the bars and every docked
+   window stay over it and it never takes a click. Every picture is shown at a whole-number zoom, pixel for pixel. */
+html[data-backdrop='aquarium'] body {
+  background: var(--dye-black);
+}
+
+html[data-backdrop='aquarium'] [data-site-window='desk'] {
+  background: none;
+}
+
+.aquarium {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background-color: var(--dye-black);
+}
+
+.aquarium img,
+.aquarium-sprite,
+.aquarium-bubble {
+  image-rendering: pixelated;
+}
+
+.aquarium-still {
+  position: absolute;
+  bottom: 0;
+}
+
+/* A fish's crossing: one run from off one side to off the other, drifting up or down, then the component sends it again. */
+.aquarium-swim {
+  position: absolute;
+  left: 0;
+  animation-name: aquarium-swim;
+  animation-iteration-count: 1;
+  animation-fill-mode: both;
+  transform: translate(var(--aquarium-from), 0);
+}
+
+/* Its tail and fins: the strip's frames stepped through, over and over. */
+.aquarium-sprite {
+  width: 100%;
+  height: 100%;
+  background-repeat: no-repeat;
+  animation-name: aquarium-frames;
+  animation-iteration-count: infinite;
+}
+
+.aquarium-bubble {
+  position: absolute;
+  background-size: 100% 100%;
+  animation-name: aquarium-rise;
+  animation-iteration-count: infinite;
+  animation-fill-mode: both;
+}
+
+.aquarium[data-aquarium='paused'] * {
+  animation-play-state: paused;
+}
+
+@keyframes aquarium-swim {
+  from {
+    transform: translate(var(--aquarium-from), 0);
+  }
+  to {
+    transform: translate(var(--aquarium-to), var(--aquarium-dy));
+  }
+}
+
+@keyframes aquarium-frames {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: var(--aquarium-strip) 0;
+  }
+}
+
+@keyframes aquarium-rise {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  3% {
+    opacity: 1;
+  }
+  30% {
+    transform: translate(4px, -60px);
+  }
+  60% {
+    transform: translate(-3px, -120px);
+  }
+  90% {
+    transform: translate(2px, -180px);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(0, -200px);
+    opacity: 0;
+  }
+}
+
+/* Motion off: the coral stays, the fish and bubbles go. */
+@media (prefers-reduced-motion: reduce) {
+  .aquarium-swim,
+  .aquarium-bubble {
+    display: none;
+  }
+}
+
 /* FILL WINDOW, the reader's own choice (app/lib/ui/site-fill.ts): while `<html>` carries the mark, the site window runs edge to edge
    between the strips, its title line stands aside and the desk shows no margin, from `md` up as before. Laid out here, from the
    mark, rather than from classes React swaps in: the mark is written before the first paint, so a reload never draws the normal

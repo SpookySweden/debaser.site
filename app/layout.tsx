@@ -28,6 +28,8 @@ import WatchWindow from './components/WatchWindow';
 import LetterWindow from './components/LetterWindow';
 import WindowLayoutHost from './components/WindowLayoutHost';
 import { cursorBootScript } from './lib/ui/cursor-slot';
+import { backdropBootScript } from './lib/ui/backdrop-slot';
+import Aquarium from './components/Aquarium';
 import { siteFillBootScript } from './lib/ui/site-fill';
 import { themeBootScript } from './lib/ui/theme-slot';
 import { FACE_VARIABLES } from './theme/fonts';
@@ -69,7 +71,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
           later - and it exists because those writes land in a React effect, which is one painted frame
           too late: a reader who chose the dark theme saw a white flash first. */}
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeBootScript() + cursorBootScript() + siteFillBootScript() }} />
+        <script dangerouslySetInnerHTML={{ __html: themeBootScript() + cursorBootScript() + backdropBootScript() + siteFillBootScript() }} />
       </head>
       <body className="min-h-full flex flex-col">
         {/* The reader's theme, written onto <html> before anything else the client does. It draws
@@ -77,6 +79,9 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
         <ThemeHost />
         {/* The CAT cursor, when it is the one chosen: draws nothing otherwise. */}
         <CatCursor />
+        {/* The AQUARIUM background, fixed under everything while it is the chosen one (PREFERENCES, BACKGROUND). Outside the
+            providers on purpose: nothing it shows depends on who is signed in, and nothing above it may make a layer of its own. */}
+        <Aquarium />
 
         <AuthProvider>
           <PresenceProvider>

@@ -25,6 +25,7 @@ import {
   type ThemeId,
 } from '../lib/ui/theme-slot';
 import { resetLayout } from '../lib/ui/window-layout';
+import { BACKDROPS, backdropState, setBackdrop, subscribeToBackdrop } from '../lib/ui/backdrop-slot';
 import CompanionPreferences from './CompanionPreferences';
 import DockWindow from './DockWindow';
 
@@ -182,6 +183,36 @@ function OutsidePicturesChoice() {
   );
 }
 
+/** AQUARIUM or TILE: one row each, the theme row's key, the chosen one filled. Kept in this browser only, like the cursor. */
+function BackdropChoice() {
+  const { id } = useSyncExternalStore(subscribeToBackdrop, backdropState, backdropState);
+  return (
+    <section className="mt-2">
+      <div className={TITLE_BAR_INACTIVE}>
+        <span>BACKGROUND</span>
+      </div>
+
+      <div className="space-y-1 p-2" role="group" aria-label="Background" data-backdrop-choice={id}>
+        {BACKDROPS.map((backdrop) => (
+          <button
+            key={backdrop.id}
+            type="button"
+            onClick={() => setBackdrop(backdrop.id)}
+            aria-pressed={backdrop.id === id}
+            title={backdrop.note}
+            data-backdrop-option={backdrop.id}
+            className={`flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-left text-label max-sm:min-h-tap max-sm:px-3 max-sm:text-sm ${
+              backdrop.id === id ? 'key key-fill [--key-fill:var(--color-ink)] text-paper' : 'key'
+            }`}
+          >
+            <span className="min-w-0 flex-1 truncate">[ {backdrop.label} ]</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function PreferencesWindow() {
   // Subscribed rather than read once, so the filled row moves the moment a theme is pressed.
   const { id } = useSyncExternalStore(subscribeToTheme, themeState, themeState);
@@ -220,6 +251,9 @@ export default function PreferencesWindow() {
           <ThemeList id={id as ThemeId} />
         </div>
       </section>
+
+      {/* What is behind the window: the Windows 98 aquarium (the default since 2026-11-15) or the theme's own tile. */}
+      <BackdropChoice />
 
       {/* The pointer: a desktop thing too, since a phone has no cursor to change. */}
       <section className="mt-2 hidden sm:block">

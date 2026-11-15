@@ -220,6 +220,8 @@
      LAYERS: which floating thing sits over which. Small local stacking inside one component keeps
      Tailwind's `z-10`..`z-50`; anything that floats over the whole site is named here, in order.
      ----------------------------------------------------------------------------------------------------- */
+  /* The AQUARIUM background: under the page itself, over nothing but the canvas. */
+  --z-index-backdrop: -1;
   --z-index-menu: 70;
   --z-index-dock: 90;
   --z-index-banner: 95;
