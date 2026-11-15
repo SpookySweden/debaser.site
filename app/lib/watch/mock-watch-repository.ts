@@ -738,7 +738,7 @@ class MockWatchRepository implements WatchRepository {
   }
 
   async writePlayback(roomId: string, patch: PlaybackPatch): Promise<void> {
-    changeRoom(roomId, (room) => ({ ...room, ...patch, positionSeconds: Math.max(0, patch.positionSeconds) }));
+    changeRoom(roomId, (room) => (pictureStaysOff(room, patch.currentEntryId) ? room : { ...room, ...patch, positionSeconds: Math.max(0, patch.positionSeconds) }));
   }
 
   /** As the database's `watch_picture_next`: a live stream room, the host or a crown, and a picture on. */
@@ -749,6 +749,7 @@ class MockWatchRepository implements WatchRepository {
     if (room.hostId !== by && !hasCrown(tables.crowns.filter((crown) => crown.roomId === roomId), by)) return false;
     const on = tables.queue.find((entry) => entry.id === room.currentEntryId && entry.roomId === roomId);
     if (on === undefined || on.link?.kind !== 'picture') return false;
+    picturesOff.set(roomId, { entryId: on.id, at: Date.now() });
     changeRoom(roomId, (current) => ({ ...current, currentEntryId: null, positionSeconds: 0, isPlaying: false }));
     return true;
   }
@@ -760,7 +761,7 @@ class MockWatchRepository implements WatchRepository {
       entry.id === entryId && entry.roomId === roomId ? { ...entry, playedAt: entry.playedAt ?? at, playIndex: entry.playIndex ?? playIndex } : entry,
     );
     save({ ...tables, queue }, roomId);
-    changeRoom(roomId, (room) => ({ ...room, currentEntryId: entryId, positionSeconds: 0, isPlaying: true }));
+    changeRoom(roomId, (room) => (pictureStaysOff(room, entryId) ? room : { ...room, currentEntryId: entryId, positionSeconds: 0, isPlaying: true }));
   }
 
   async handOver(roomId: string, toUserId: string): Promise<void> {
@@ -1126,7 +1127,21 @@ export function getBrowserWatchRepository(visitorId: string): WatchRepository {
 }
 
 /** Test helper: forgets every room this browser (or process) holds. */
+/**
+ * As the database's `watch_rooms_picture_stays_off` (20261115170354_rooms_tightening.sql): which picture NEXT last took
+ * off in a room, and when. For 15 seconds a write that would put that very picture back is a heartbeat that had not
+ * heard yet, and leaves what is on as it is. In memory only: a stale heartbeat is a matter of seconds.
+ */
+const PICTURE_OFF_MS = 15000;
+const picturesOff = new Map<string, { entryId: string; at: number }>();
+
+function pictureStaysOff(room: WatchRoom, entryId: string | null): boolean {
+  const off = picturesOff.get(room.id);
+  return off !== undefined && entryId !== null && entryId === off.entryId && room.currentEntryId !== entryId && Date.now() - off.at < PICTURE_OFF_MS;
+}
+
 export function resetMockWatch(): void {
+  picturesOff.clear();
   memory = { rooms: [], queue: [], messages: [], crowns: [], members: [], passwords: {}, attempts: [], privateRows: [] };
   if (hasStorage()) window.localStorage.removeItem(KEY);
 }

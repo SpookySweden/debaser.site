@@ -50,15 +50,6 @@ const open = ask(`
   from pg_class c join pg_namespace n on n.oid = c.relnamespace
   where n.nspname = 'public' and c.relkind in ('r', 'p')
     and not exists (select 1 from pg_policy p where p.polrelid = c.oid and p.polname = 'guests stay out' and not p.polpermissive and p.polcmd = 'r')
-    -- Changed on purpose 2026-11-15 (the own-room link table, 20261114152339_own_room_links.sql): a table with row
-    -- security on, no rule of any kind and no read right for a signed-in role is shut to everybody, a guest included,
-    -- so it needs no "guests stay out" rule of its own. Only the database's own functions ever read it.
-    and not (
-      c.relrowsecurity
-      and not exists (select 1 from pg_policy p where p.polrelid = c.oid)
-      and not has_table_privilege('authenticated', c.oid, 'select')
-      and not has_table_privilege('anon', c.oid, 'select')
-    )
   order by 1
 `).map((row) => row.name);
 assert.deepEqual(open, ROOM_TABLES, `a table a guest can read that isn't the room's own needs a "guests stay out" rule in a migration: ${open.filter((name) => !ROOM_TABLES.includes(name)).join(', ')}`);

@@ -777,6 +777,22 @@ const names = (counted) => counted.writes().map((call) => call.name);
     assert.equal(after.currentEntryId, null, "the room's pointer is cleared, for the host's tab to start what is next");
     assert.equal(after.isPlaying, false);
     assert.equal(await host.pictureNext('room-p', 'account-host'), false, 'and with nothing on there is nothing to take off');
+
+    // The database's guard, kept by the store too (20261115170354_rooms_tightening.sql): a heartbeat sent before the
+    // host's tab heard about NEXT cannot put the picture back; whatever is next still goes on; and later the same
+    // picture can be put on again on purpose.
+    await host.writePlayback('room-p', { currentEntryId: picture.id, positionSeconds: 0, isPlaying: true });
+    assert.equal((await host.readRoom('room-p')).room.currentEntryId, null, 'a stale heartbeat does not put the picture back');
+    assert.equal((await host.readRoom('room-p')).room.isPlaying, false, 'nor set the room playing');
+    await host.startEntry('room-p', picture.id, 2);
+    assert.equal((await host.readRoom('room-p')).room.currentEntryId, null, 'not by a start either, within those seconds');
+    await host.writePlayback('room-p', { currentEntryId: first.id, positionSeconds: 3, isPlaying: true });
+    assert.equal((await host.readRoom('room-p')).room.currentEntryId, first.id, 'something else goes on as usual');
+    const realNow = Date.now;
+    Date.now = () => realNow() + 20000;
+    await host.writePlayback('room-p', { currentEntryId: picture.id, positionSeconds: 0, isPlaying: true });
+    Date.now = realNow;
+    assert.equal((await host.readRoom('room-p')).room.currentEntryId, picture.id, 'and after 15 seconds the same picture can be put on again');
   }
 
   /* 13. Outside pictures (phase 6): any pasted https image link, with every guard, covered until each viewer says SHOW. */
