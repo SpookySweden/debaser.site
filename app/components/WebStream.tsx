@@ -8,10 +8,11 @@ import { seriesMark } from '../lib/watch/series';
 import { useArchiveRowSubtitles, useSeriesCount } from '../lib/watch/series-client';
 import type { WebStreamItem } from '../lib/web/dedupe';
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '../lib/web/paging';
-import { channelNames, pickSeed, recommendOrder, subscribedFirst, withOpened, withYouTube, type YouTubeSignals } from '../lib/web/recommend';
+import { pickSeed, recommendOrder, subscribedFirst } from '../lib/web/recommend';
 import { noteOpened, readTaste } from '../lib/web/taste-store';
-import { forgetYouTube, readMine, rememberLinker, YOUTUBE_LINK_ON } from '../lib/web/youtube-link';
-import { getAuthRepository } from '../lib/auth/auth-repository';
+import { useYourYouTube } from '../lib/web/use-your-youtube';
+import { YOUTUBE_LINK_ON } from '../lib/web/youtube-link';
+import WebYouTubeHome from './WebYouTubeHome';
 import { EverywhereError, loadPeertubeHosts, loadRelated, needsPeertubeHosts, searchEverywhere, type LinkOutcome, type ProviderLine, type Related } from '../lib/web/everywhere-client';
 import { looksLikeLink, MAX_LINK_LENGTH } from '../lib/web/link-shape';
 import { arrive, compareIn, EMPTY_LIVE, emptyLive, freeze, heldBack, lanesToAsk, release, type ListOrder, type LiveList } from '../lib/web/live-merge';
@@ -225,8 +226,6 @@ function filtersInWords(search: WebSearch, art: boolean): string {
   ].join(', ');
 }
 
-/** No linked YouTube: nothing it says about the reader. */
-const NO_SIGNALS: YouTubeSignals = { channels: [], topics: [], playlists: [] };
 /** YOUR YOUTUBE's view: twelve at a time, [ MORE ] for twelve more. */
 const MINE_STEP = 12;
 
@@ -445,16 +444,15 @@ export default function WebStream() {
   const [firstRoundDone, setFirstRoundDone] = useState(() => back?.firstRoundDone ?? false);
   /** What this reader has opened in this browser, read once so the list holds still while they look at it. */
   const [savedTaste] = useState(readTaste);
-  /** A linked YouTube account's uploads and likes (youtube-link.ts), which also teach this visit's order. */
-  const [mine, setMine] = useState<readonly WebItem[]>([]);
-  /** Its subscribed channels, their topics and its playlists' names (youtube-mine.ts): they teach the order too. */
-  const [mineSignals, setMineSignals] = useState<YouTubeSignals>(NO_SIGNALS);
-  /** How many of its videos the YOUR YOUTUBE shelf shows: six, and six more each [ MORE ]. */
+  /**
+   * YOUR YOUTUBE (use-your-youtube.ts; Luke, 2026-11-14): the shelf in order (channels the reader still watches, a few new
+   * ones, now and then a subscription gone quiet), what it teaches this page's own lists, and the LINK keys' work.
+   */
+  const youtube = useYourYouTube();
+  /** How many of its videos the YOUR YOUTUBE shelf shows: twelve, and twelve more each [ MORE ]. */
   const [mineShown, setMineShown] = useState(() => back?.mineShown ?? MINE_STEP);
-  const [mineNeedsLink, setMineNeedsLink] = useState(false);
-  /** The channel names, for `subscribedFirst` while a search's rows arrive (read from a ref, so asking never restarts). */
-  const subscribed = useRef<ReadonlySet<string>>(new Set());
-  const [linkProblem, setLinkProblem] = useState<string | null>(null);
+  /** The names of the channels that stand, for `subscribedFirst` while a search's rows arrive (read from a ref, so asking never restarts). */
+  const subscribed = youtube.standing;
   // The reader's own FOR YOU history too (SPEC-recommender.md step 3): what they opened, played and read anywhere on the site.
   const history = useHistoryRows();
   const [historyNow] = useState(() => Date.now());
@@ -463,38 +461,11 @@ export default function WebStream() {
   // moves when it comes (NOT FOR ME still takes a row out at once).
   const [historyUsed, setHistoryUsed] = useState<readonly HistoryRow[] | null>(null);
   if (historyUsed === null && (history !== null || list.shown.length > 0)) setHistoryUsed(history ?? []);
-  const taste = useMemo(
-    () => mine.reduce((sum, item) => withOpened(sum, item), withYouTube(tasteFromHistory(historyUsed ?? [], historyNow, savedTaste), mineSignals)),
-    [mine, mineSignals, savedTaste, historyUsed, historyNow],
-  );
-  useEffect(() => {
-    if (!YOUTUBE_LINK_ON) return;
-    let live = true;
-    void readMine().then((answer) => {
-      if (!live) return;
-      setMine(answer.items);
-      setMineSignals({ channels: answer.channels, topics: answer.topics, playlists: answer.playlists });
-      subscribed.current = channelNames(answer.channels);
-      setMineNeedsLink(answer.needsLink);
-      if (answer.wrongAccount) setLinkProblem('THAT GOOGLE ACCOUNT BELONGS TO ANOTHER ACCOUNT HERE, AND YOU ARE NOW SIGNED IN AS IT.');
-    });
-    return () => {
-      live = false;
-    };
-  }, []);
-  const linkYouTube = async () => {
-    setLinkProblem(null);
-    await rememberLinker();
-    const result = await getAuthRepository().linkYouTube?.();
-    if (result !== undefined && !result.ok) setLinkProblem(result.error);
-  };
-  const unlinkYouTube = () => {
-    forgetYouTube();
-    setMine([]);
-    setMineSignals(NO_SIGNALS);
-    subscribed.current = new Set();
-    setMineNeedsLink(true);
-  };
+  // What their YouTube teaches is where each channel stands (a subscription they no longer watch teaches nothing, a channel
+  // they like but never subscribed to counts in full), their topics, and an imported history's words. It is taken once a
+  // visit, so a press of the feedback key reshapes the YOUR YOUTUBE shelf but never moves this page's rows.
+  const teach = youtube.teach;
+  const taste = useMemo(() => teach(tasteFromHistory(historyUsed ?? [], historyNow, savedTaste)), [teach, savedTaste, historyUsed, historyNow]);
   const [openedAt] = useState(() => Date.now());
   /** The words already tried for this filter when the stream had nothing (recommend.ts `pickSeed`). */
   const [tried, setTried] = useState<ReadonlySet<string>>(() => back?.tried ?? new Set());
@@ -565,7 +536,8 @@ export default function WebStream() {
       if (page.link !== undefined) setLinkOutcome(page.link);
       if (end) setAnnouncement(`${items.length} MORE FROM ${sourceLabel(source)}.`);
     },
-    [],
+    // `subscribed` is a ref the YouTube hook keeps for the whole visit: it never changes, so asking never restarts.
+    [subscribed],
   );
 
   /** Asks one source (a page of it), and settles it whatever happens. */
@@ -966,60 +938,23 @@ export default function WebStream() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nextSeed]);
 
-  const mineRows = useMemo(() => mine.map((item): WebStreamItem => ({ ...item, alsoOn: [] })), [mine]);
   const kinoOn = !art && !home && picked === null && boxFilters.source === 'kino';
 
   /**
-   * YOUR YOUTUBE's view (Luke, 2026-11-14): the reader's YouTube, laid out by VIEW (GRID by choice). Google gives no real
-   * home page, so it is the closest honest thing: new videos from the channels they subscribe to, and their likes.
+   * YOUR YOUTUBE's view (Luke, 2026-11-14; WebYouTubeHome.tsx): the reader's YouTube, laid out by VIEW (GRID by choice),
+   * with its LINK and IMPORT YOUTUBE HISTORY keys. The rows are this page's own, so each plays, queues and takes the
+   * feedback key as it does anywhere; how many show stays here, so MEDIA keeps its place (media-keep.ts).
    */
   const youtubeHome = () => (
-    <section aria-label="Your YouTube" className="flex flex-col gap-2" data-youtube-home>
-      <p className="text-key text-ink">NEW VIDEOS FROM THE CHANNELS YOU SUBSCRIBE TO, AND YOUR LIKES. READ ONLY: NOTHING IS POSTED OR KEPT ON THE SERVER.</p>
-      {user === null ? (
-        <p className="text-key text-ink">
-          <Link href="/account" className={PLATE}>
-            [ LOG IN ]
-          </Link>{' '}
-          TO LINK YOUR YOUTUBE
-        </p>
-      ) : (
-        <div className="flex flex-wrap items-center gap-1">
-          {mine.length === 0 || mineNeedsLink ? (
-            <button type="button" onClick={() => void linkYouTube()} className={FILTER_KEY} data-youtube-link>
-              [ LINK YOUTUBE ]
-            </button>
-          ) : (
-            <>
-              {/* Google's permission lasts about an hour; after that the kept copy shows, and this asks again. */}
-              <button type="button" onClick={() => void linkYouTube()} className={FILTER_KEY} data-youtube-refresh>
-                [ REFRESH ]
-              </button>
-              <button type="button" onClick={unlinkYouTube} className={FILTER_KEY}>
-                [ UNLINK ]
-              </button>
-            </>
-          )}
-          {linkProblem !== null ? (
-            <span role="alert" className="w-fit bg-bubble-pale px-1 text-label text-ink-bar">
-              {linkProblem}
-            </span>
-          ) : null}
-        </div>
-      )}
-      {mineRows.length > 0 ? (
-        <ul aria-label="From your YouTube" className={viewListClass(view)}>
-          {mineRows.slice(0, mineShown).map(renderRow)}
-        </ul>
-      ) : null}
-      {mineRows.length > mineShown ? (
-        <div>
-          <button type="button" onClick={() => setMineShown((shownNow) => shownNow + MINE_STEP)} className={FILTER_KEY} data-youtube-more>
-            [ MORE ]
-          </button>
-        </div>
-      ) : null}
-    </section>
+    <WebYouTubeHome
+      youtube={youtube}
+      signedIn={user !== null}
+      shown={mineShown}
+      onMore={() => setMineShown((shownNow) => shownNow + MINE_STEP)}
+      renderRow={(item) => renderRow({ ...item, alsoOn: [] } as WebStreamItem)}
+      listClass={viewListClass(view)}
+      keyClass={FILTER_KEY}
+    />
   );
 
   const emptyWords = (): string | null => {

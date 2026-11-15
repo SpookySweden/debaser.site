@@ -52,8 +52,10 @@ function keep(user: string, what: YouTubeRead<WebItem>): void {
   }
 }
 
-/** UNLINK: this browser's copy and the account's copy (youtube-taste.ts) both go. */
+/** UNLINK: this browser's copy and the account's copy (youtube-taste.ts) both go, and the page load's own read with them. */
 export function forgetYouTube(): void {
+  readOnce = null;
+  lastShelf = null;
   try {
     window.localStorage.removeItem(KEY);
   } catch {

@@ -23,9 +23,12 @@ for (const line of store.match(/preview: \[[^\]]*\]/g)) assert.doesNotMatch(line
 
 const stream = fs.readFileSync('app/components/WebStream.tsx', 'utf8');
 // Updated on purpose 2026-11-14: YOUR YOUTUBE is a view of its own now, its list laid out by VIEW like the others.
-for (const list of ['aria-label="From your YouTube" className={viewListClass(view)}','<ul className={viewListClass(view)} aria-label={picksOrdered', 'className={viewListClass(view)}>{list.shown.map(renderRow)}']) {
+// Updated on purpose 2026-11-15 (YOUTUBE session; Luke: the IMPORT YOUTUBE HISTORY key beside LINK YOUTUBE): YOUR YOUTUBE's
+// view is its own component now (WebYouTubeHome.tsx). The page still hands it the VIEW's list layout, and it draws its list with it.
+for (const list of ['listClass={viewListClass(view)}','<ul className={viewListClass(view)} aria-label={picksOrdered', 'className={viewListClass(view)}>{list.shown.map(renderRow)}']) {
   assert.ok(stream.includes(list), `a result list follows the view: ${list.slice(0, 40)}`);
 }
+assert.ok(fs.readFileSync('app/components/WebYouTubeHome.tsx', 'utf8').includes('<ul aria-label="From your YouTube" className={listClass}>'), "YOUR YOUTUBE's list follows the view");
 // Updated on purpose 2026-11-14 (Luke's list M8): the box is `relative`, for OPEN in its corner.
 assert.match(stream, /<span className=\{`relative block \$\{THUMB_BOX\[view\]\} shrink-0 overflow-hidden border border-ink-plate bg-paper`\}>/, 'the picture box is fixed per view, so a slow picture never moves the row');
 assert.match(stream, /grid: 'aspect-video w-full'/, 'GRID pictures are 16:9');

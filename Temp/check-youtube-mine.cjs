@@ -180,9 +180,15 @@ const google = (over = {}) => {
   // view of its own, which holds LINK, REFRESH, UNLINK and MORE; the key shows only with the switch on.
   assert.match(page, /\{YOUTUBE_LINK_ON \? \(\n?\s*<button type="button" onClick=\{toggleHome\}/, 'the key shows only with the switch on');
   assert.match(page, /\{home \? youtubeHome\(\) :/, '... and opens the YOUR YOUTUBE view');
-  assert.match(page, /user === null \? \(/, '... which asks a visitor to log in first');
+  // Updated on purpose 2026-11-15 (Luke: the IMPORT YOUTUBE HISTORY key beside LINK YOUTUBE): the view is its own component
+  // now (WebYouTubeHome.tsx, drawn and held by Temp/check-youtube-home-render.cjs), handed whether anyone is signed in.
+  assert.match(page, /<WebYouTubeHome\s+youtube=\{youtube\}\s+signedIn=\{user !== null\}/, '... which asks a visitor to log in first');
+  assert.match(fs.readFileSync('app/components/WebYouTubeHome.tsx', 'utf8'), /\{!signedIn \? \(/);
   // Updated on purpose 2026-11-13 (SPEC-recommender.md step 3): the taste YouTube adds to is now this browser's and the FOR YOU history's.
-  assert.match(page, /withYouTube\(tasteFromHistory\([^)]*savedTaste\), mineSignals\)/, "the page's order learns from the YouTube signals");
+  // Updated on purpose 2026-11-15 (Luke, 2026-11-14: dead subscriptions teach nothing, watched strangers count): the taste
+  // is taught by where each channel stands (use-your-youtube.ts `teach`, recommender/youtube-picks.ts), not by every subscription.
+  assert.match(page, /teach\(tasteFromHistory\([^)]*savedTaste\)\)/, "the page's order learns from the YouTube signals");
+  assert.match(fs.readFileSync('app/lib/web/use-your-youtube.ts', 'utf8'), /youTubeTaste\(taste, \{ standings: taught\.standings, topics: taught\.topics, playlists: taught\.playlists, summary: taught\.summary \}\)/, '... by where each channel stands, taken once a visit');
   assert.match(page, /sortOf\(what\.filters\)\.sort === 'best' \? subscribedFirst\(ownRows, subscribed\.current\) : ownRows/, 'subscribed rows lead only under BEST MATCH');
   // Updated on purpose 2026-11-14: Luke set up Google ("Yes, switch it on"), so it is on in production now.
   assert.match(fs.readFileSync('.env.production', 'utf8'), /^NEXT_PUBLIC_GOOGLE_VIDEOS_LINK=on\r?$/m, 'on in production since Google was set up');
