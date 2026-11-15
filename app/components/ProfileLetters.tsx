@@ -1,15 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { letterDraggable } from '../lib/letters/letter-drag';
 import { openLetter } from '../lib/letters/letter-window';
+import { closeNewLetter, newLetterWindowOpen, openNewLetter, subscribeToNewLetterWindow } from '../lib/letters/new-letter-window';
 import { createLetter, useLettersOf } from '../lib/letters/store';
 import { LETTER_NAME_MAX } from '../lib/letters/types';
-import { FIELD_TIGHT, PLATE } from '../lib/ui/controls';
+import { FIELD_TIGHT, PLATE, PLATE_MAIN } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import LetterDragLayer from './LetterDragLayer';
 import LetterStamp from './LetterStamp';
 import { nameInkStyle } from './NameColourWindow';
+import PopoutWindow from './PopoutWindow';
 
 /**
  * LETTERS on a profile (SPEC-letters.md): each letter as a small envelope with its round stamp picture, and beside it
@@ -27,9 +29,12 @@ export default function ProfileLetters({ userId, owner }: { userId: string; owne
 
   return (
     <section aria-labelledby="profile-letters" className="mt-4">
-      <h2 id="profile-letters" className="title-line text-accent-ink">
-        LETTERS
-      </h2>
+      {/* The owner's way to a new letter is one small key at the end of the title line, which opens a window
+          (Luke, 2026-11-15); the field that stood open under the list is gone. */}
+      <div className="title-line text-accent-ink">
+        <h2 id="profile-letters">LETTERS</h2>
+        {owner ? <NewLetterKey owner={userId} /> : null}
+      </div>
       {/* Someone signed in can carry a letter to a person: the side panel's rows and the characters on screen light up, and
           letting go on one sends it at once (Luke, 2026-11-14). The layer draws the carried envelope and does the sending. */}
       {me !== null ? <LetterDragLayer me={me} onSaid={setSaid} /> : null}
@@ -71,54 +76,96 @@ export default function ProfileLetters({ userId, owner }: { userId: string; owne
           </li>
         ))}
       </ul>
-      {owner ? <NewLetterForm owner={userId} /> : null}
     </section>
   );
 }
 
-function NewLetterForm({ owner }: { owner: string }) {
+const closedOnServer = () => false;
+
+/**
+ * `[ + NEW LETTER ]`: the one key that starts a letter, and the window it opens (Luke, 2026-11-15: "turn the part
+ * where you make a new leetter on the profile page into a simple expandable add button which then opens a window").
+ *
+ * The key says a window is what it opens and whether that window is open (`aria-haspopup`, `aria-expanded`: the site's
+ * one "this is open" look, and what the top bar's undo arrows step). The window's state is in its own small store, so
+ * opening it redraws this key and the window and nothing else on the profile. Leaving the page shuts it.
+ */
+function NewLetterKey({ owner }: { owner: string }) {
+  const open = useSyncExternalStore(subscribeToNewLetterWindow, newLetterWindowOpen, closedOnServer);
+  useEffect(() => closeNewLetter, []);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => (open ? closeNewLetter() : openNewLetter())}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        className={PLATE}
+        data-new-letter-key
+      >
+        [ + NEW LETTER ]
+      </button>
+      {open ? <NewLetterWindow owner={owner} /> : null}
+    </>
+  );
+}
+
+/**
+ * The NEW LETTER window: a name, and one key that makes the letter and opens it, exactly as the field on the page did.
+ * What a letter is and how it is saved are untouched (`createLetter`). ESC, the `×` and a press outside it put it away
+ * with nothing made.
+ */
+function NewLetterWindow({ owner }: { owner: string }) {
   const [name, setName] = useState('');
   const [fault, setFault] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   return (
-    <form
-      className="flex flex-wrap items-center gap-1 px-2"
-      onSubmit={(event) => {
-        event.preventDefault();
-        const named = name.trim();
-        if (named.length === 0) return;
-        setBusy(true);
-        setFault(null);
-        createLetter(owner, named).then(
-          (letter) => {
-            setName('');
-            setBusy(false);
-            openLetter(letter.id);
-          },
-          (failure: unknown) => {
-            setFault(failure instanceof Error ? failure.message : 'The letter could not be made.');
-            setBusy(false);
-          },
-        );
-      }}
-    >
-      <input
-        type="text"
-        value={name}
-        onChange={(event) => setName(event.target.value)}
-        maxLength={LETTER_NAME_MAX}
-        placeholder="NEW LETTER'S NAME"
-        aria-label="New letter's name"
-        className={`${FIELD_TIGHT} min-w-0 max-w-xs flex-1 basis-40`}
-      />
-      <button type="submit" className={PLATE} disabled={busy || name.trim().length === 0}>
-        [ + NEW LETTER ]
-      </button>
-      {fault ? (
-        <span role="status" className="w-full text-label text-ink">
-          {fault}
-        </span>
-      ) : null}
-    </form>
+    <PopoutWindow title="NEW LETTER" onClose={closeNewLetter} maxWidth="max-w-md" centred>
+      <form
+        className="flex flex-col gap-2 text-ink"
+        data-new-letter-window
+        onSubmit={(event) => {
+          event.preventDefault();
+          const named = name.trim();
+          if (named.length === 0 || busy) return;
+          setBusy(true);
+          setFault(null);
+          createLetter(owner, named).then(
+            (letter) => {
+              closeNewLetter();
+              openLetter(letter.id);
+            },
+            (failure: unknown) => {
+              setFault(failure instanceof Error ? failure.message : 'The letter could not be made.');
+              setBusy(false);
+            },
+          );
+        }}
+      >
+        <label htmlFor="new-letter-name" className="text-label font-bold">
+          NAME
+        </label>
+        <input
+          id="new-letter-name"
+          type="text"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          maxLength={LETTER_NAME_MAX}
+          autoComplete="off"
+          autoFocus
+          className={`${FIELD_TIGHT} w-full min-w-0`}
+        />
+        {fault ? (
+          <p role="status" className="w-fit bg-bubble-pale px-1 text-label text-ink-bar">
+            {fault}
+          </p>
+        ) : null}
+        <div className="flex justify-end">
+          <button type="submit" className={PLATE_MAIN} disabled={busy || name.trim().length === 0}>
+            MAKE LETTER
+          </button>
+        </div>
+      </form>
+    </PopoutWindow>
   );
 }

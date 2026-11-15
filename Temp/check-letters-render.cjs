@@ -178,6 +178,13 @@ const AddToLetterKey = require('./letters-render-out/components/AddToLetterKey.j
   assert.match(renderToStaticMarkup(el(AddToLetterKey, { thing: { kind: 'lore', ref: 'x', title: 'X' } })), /\[ \+ LETTER \]/, 'signed in, there is');
   assert.equal(renderToStaticMarkup(el(ProfileLetters, { userId: 'nobody', owner: false })), '', 'a profile with no letters to show shows nothing to a visitor');
   assert.match(renderToStaticMarkup(el(ProfileLetters, { userId: 'me', owner: true })), /\[ \+ NEW LETTER \]/, 'its owner can start one');
+  // (2026-11-15, Luke: "turn the part where you make a new leetter on the profile page into a simple expandable add
+  // button which then opens a window") The owner's page carries one key and no open field: the name is asked for in the
+  // window the key opens (`scripts/drive-new-letter.cjs` presses it in a real browser).
+  const ownersPage = renderToStaticMarkup(el(ProfileLetters, { userId: 'me', owner: true }));
+  assert.match(ownersPage, /<button[^>]*aria-haspopup="dialog"[^>]*aria-expanded="false"[^>]*>\[ \+ NEW LETTER \]<\/button>/, 'one key, which says a window is what it opens and that it is shut');
+  assert.doesNotMatch(ownersPage, /<input|<form|NEW LETTER&#x27;S NAME|new-letter-name/, 'and no field stands open on the page');
+  assert.match(ownersPage, /<h2 id="profile-letters">LETTERS<\/h2>/, 'the section is still headed LETTERS, and named by that alone');
   // (2026-11-14, the slim letter) What one letter draws on a profile: the small envelope and its name, and nothing else.
   const readLetters = store.useLettersOf;
   store.useLettersOf = () => ({ value: [letter, { ...letter, id: 'L2', name: 'OPEN ONE', isPublic: true }], loading: false, error: null });
