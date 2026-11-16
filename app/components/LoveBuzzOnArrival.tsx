@@ -30,6 +30,15 @@ function session(): Storage | null {
   }
 }
 
+/**
+ * Whether the press just made counts as the reader touching the page, so sound may start. Read inside the press's own
+ * listener: the browser has already decided by then. A browser that cannot say (an old Safari) is taken at its word.
+ */
+function pressCounts(): boolean {
+  const activation = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation;
+  return activation === undefined || activation.hasBeenActive;
+}
+
 function busyNow(player: MusicPlayerValue): Busy {
   return {
     playing: player.playing,
@@ -71,6 +80,9 @@ export default function LoveBuzzOnArrival() {
   useEffect(() => {
     if (!armed) return;
     const press = () => {
+      // A press the browser does not count as the reader touching the page (Shift, Ctrl and the other modifier keys on
+      // their own) would be refused sound: it is not spent on that, and the next real press is waited for.
+      if (!pressCounts()) return;
       window.removeEventListener('pointerdown', press, true);
       window.removeEventListener('keydown', press, true);
       // Not cleared if the press itself changes the bar (a song pressed): the decision still runs, sees it, and lets go.

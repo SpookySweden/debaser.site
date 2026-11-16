@@ -54,7 +54,8 @@ const route = require('./sound-graph-out/api/audio/relay/[id]/route.js');
   }
   const forty = graph.bandEdges(40, 128);
   assert.ok(forty[0][1] - forty[0][0] < forty[39][1] - forty[39][0], 'the lows get narrow bands, the highs wide ones');
-  assert.equal(graph.barCount(700), Math.floor((700 + graph.GAP) / (graph.BAR + graph.GAP)));
+  assert.equal(graph.barCount(400), Math.floor((400 + graph.GAP) / (graph.BAR + graph.GAP)));
+  assert.equal(graph.barCount(2000), 96, 'at most 96 bars, however wide');
   assert.equal(graph.bandLevel([0, 255, 10], 0, 3), 1);
   assert.equal(graph.settle(0.2, 0.9), 0.9, 'a bar jumps up at once');
   assert.ok(Math.abs(graph.settle(0.9, 0.2) - 0.84) < 1e-9, 'and settles slowly');

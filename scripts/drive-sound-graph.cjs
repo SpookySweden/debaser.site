@@ -82,6 +82,7 @@ async function newPage(browser, { theme, reducedMotion } = {}) {
   // Cut off from the live database, whatever the server was started with.
   await context.route(/supabase\.co/, (route) => route.abort());
   await context.addInitScript(SEED(theme));
+  await context.addInitScript(KEEP_AUDIO);
   const page = await context.newPage();
   page.on('pageerror', (error) => note(`page error: ${error.message}`));
   return { context, page };
@@ -90,8 +91,8 @@ async function newPage(browser, { theme, reducedMotion } = {}) {
 /** The bar's one audio element, read from the page (the one carrying the tone). */
 const songState = (page) =>
   page.evaluate(() => {
-    const audios = [...document.querySelectorAll('audio')];
-    const found = window.__barAudio ?? audios.find((a) => a.currentSrc.includes('love-buzz'));
+    // The dev server's strict mode makes the bar's element twice and drops the first: the one carrying the file is it.
+    const found = (window.__audios ?? []).filter((a) => a.src.includes('love-buzz')).pop();
     return found ? { src: found.currentSrc, paused: found.paused, volume: found.volume, time: found.currentTime } : null;
   });
 
@@ -99,10 +100,42 @@ const songState = (page) =>
 const KEEP_AUDIO = `
   (() => {
     const Orig = window.Audio;
-    window.Audio = function (...a) { const made = new Orig(...a); if (!window.__barAudio) window.__barAudio = made; return made; };
+    window.__audios = [];
+    window.Audio = function (...a) { const made = new Orig(...a); window.__audios.push(made); return made; };
     window.Audio.prototype = Orig.prototype;
   })();
 `;
+
+/** Waits for the arrival step (LOVE BUZZ loaded and armed for the first press). */
+async function arrived(page) {
+  await page.waitForFunction(() => sessionStorage.getItem('debaser.audio.love-buzz.v1') === 'loaded', null, { timeout: 30000 });
+  await sleep(500);
+}
+
+/** The bar's middle key, whatever state it shows. */
+const middleKey = (page) => page.getByRole('button', { name: /^(Playing|Looping|Paused)$/ }).first();
+
+/** Presses the middle key until the bar is paused (it walks playing -> paused -> looping -> playing). */
+async function pauseBar(page) {
+  for (let i = 0; i < 4; i += 1) {
+    const s = await songState(page);
+    if (s && s.paused) return;
+    await middleKey(page).click();
+    await sleep(400);
+  }
+  throw new Error('the bar would not pause');
+}
+
+/** Presses the middle key until the bar plays. */
+async function playBar(page) {
+  for (let i = 0; i < 4; i += 1) {
+    const s = await songState(page);
+    if (s && !s.paused) return;
+    await middleKey(page).click();
+    await sleep(400);
+  }
+  throw new Error('the bar would not play');
+}
 
 const graphState = (page) =>
   page.evaluate(() => {
@@ -134,8 +167,18 @@ const MEASURE_CONTRAST = () => {
   const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
   const base = parse(getComputedStyle(led).backgroundColor);
   const inks = new Set();
+  // Words on a box of their own (the uploader picture's square) cover the graph: only words straight on the display count.
+  const ownBox = (el) => {
+    for (let at = el; at && at !== led; at = at.parentElement) {
+      const style = getComputedStyle(at);
+      const alpha = (style.backgroundColor.match(/[\d.]+/g) || [0, 0, 0, 0])[3];
+      if ((alpha === undefined || Number(alpha) > 0) && style.backgroundColor !== 'transparent') return true;
+      if (style.backgroundImage !== 'none') return true;
+    }
+    return false;
+  };
   for (const el of led.querySelectorAll('*')) {
-    if (el === canvas || el.closest('button')) continue;
+    if (el === canvas || el.closest('button') || ownBox(el)) continue;
     if ([...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim() !== '')) inks.add(getComputedStyle(el).color);
   }
   let painted = 0;
@@ -152,17 +195,16 @@ const MEASURE_CONTRAST = () => {
     const mixed = [0, 1, 2].map((k) => data[i + k] * a + base[k] * (1 - a));
     for (const ink of inks) worst = Math.min(worst, ratio(parse(ink), mixed));
   }
-  return { painted, worst, inks: [...inks], colours: seen.size };
+  return { painted, worst, inks: [...inks], colours: seen.size, base: base.join(",") };
 };
 
 async function buzz(browser) {
   console.log('LOVE BUZZ on arrival');
   const { context, page } = await newPage(browser);
-  await page.addInitScript(KEEP_AUDIO);
   await page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => /LOVE BUZZ/.test(document.querySelector('[data-bar-led]')?.innerText ?? ''), null, { timeout: 60000 });
   pass('arrival: the bar shows LOVE BUZZ');
-  let song = await until('the bar loads it', () => songState(page), (s) => s !== null && s.src.includes('love-buzz'));
+  let song = await until('the bar loads it, quiet', () => songState(page), (s) => s !== null && s.src.includes('love-buzz') && s.volume <= 0.25 + 1e-6, 10000);
   assert.ok(song.volume <= 0.25 + 1e-6, `quiet (${song.volume})`);
   assert.equal(await page.evaluate(() => Number(document.querySelector('input[aria-label="Volume"]').value)), Math.round(song.volume * 100), 'the slider shows the quiet volume');
   pass(`quiet: volume ${song.volume}`);
@@ -171,7 +213,18 @@ async function buzz(browser) {
   assert.equal(song.paused, true, 'no sound before the reader touches the page');
   assert.equal(await page.evaluate(() => sessionStorage.getItem('debaser.audio.love-buzz.v1')), 'loaded');
   pass('silent until the first press');
-  await page.keyboard.press('Shift');
+  // A lone Shift is no touch to the browser (sound would be refused): it must not spend the one start. Only judged where
+  // the page starts untouched (a driven browser sometimes counts itself as touched already).
+  if (!(await page.evaluate(() => navigator.userActivation?.hasBeenActive ?? true))) {
+    await page.keyboard.press('Shift');
+    await sleep(1000);
+    assert.equal((await songState(page)).paused, true);
+    assert.equal(await page.evaluate(() => sessionStorage.getItem('debaser.audio.love-buzz.v1')), 'loaded', 'still waiting after a lone Shift');
+    pass('a lone Shift does not spend it');
+  } else {
+    note('this browser counted the page as touched before any press: the lone-Shift step is not judged here');
+  }
+  await page.keyboard.press('KeyA');
   song = await until('it starts after the press', () => songState(page), (s) => s && !s.paused, 5000);
   pass('the first key press starts it');
   await sleep(2600);
@@ -181,10 +234,10 @@ async function buzz(browser) {
   assert.equal(await page.evaluate(() => sessionStorage.getItem('debaser.audio.love-buzz.v1')), 'started');
   pass('looping');
   // The reader pauses it, then reloads: it is not started again.
-  await page.getByRole('button', { name: /^(Playing|Looping|Paused)$/ }).first().click();
+  await pauseBar(page);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => /LOVE BUZZ/.test(document.querySelector('[data-bar-led]')?.innerText ?? ''), null, { timeout: 60000 });
-  await page.keyboard.press('Shift');
+  await page.keyboard.press('KeyA');
   await sleep(1500);
   song = await songState(page);
   assert.ok(song === null || song.paused, 'the next page of the visit does not start it again');
@@ -193,15 +246,22 @@ async function buzz(browser) {
 
   // A new visit whose first press is the bar's own PLAY: playing, not toggled back off.
   const second = await newPage(browser);
-  await second.page.addInitScript(KEEP_AUDIO);
   await second.page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded' });
   await second.page.waitForFunction(() => /LOVE BUZZ/.test(document.querySelector('[data-bar-led]')?.innerText ?? ''), null, { timeout: 60000 });
-  await until('loaded', () => songState(second.page), (s) => s !== null);
-  await second.page.getByRole('button', { name: 'Paused', exact: true }).click();
-  await sleep(1500);
+  await until('loaded', () => songState(second.page), (s) => s !== null && s.volume <= 0.25 + 1e-6);
+  // A fresh browser's middle key reads Looping while paused (the shelf's repeat starts on): one press on it.
+  // (That press turns the shelf's repeat off, the bar's own rule, so the two-second tone ends after one go: read inside it.)
+  await second.page.evaluate(() => {
+    const el = window.__audios.filter((a) => a.src.includes('love-buzz')).pop();
+    window.__pauses = 0;
+    el.addEventListener('pause', () => (window.__pauses += 1));
+  });
+  await middleKey(second.page).click();
+  await sleep(1200);
   song = await songState(second.page);
-  assert.equal(song.paused, false, 'the press on PLAY plays it, and the arrival does not undo it');
-  pass('first press on the bar\'s PLAY: playing, once');
+  assert.equal(song.paused, false, 'playing after the press on the middle key');
+  assert.equal(await second.page.evaluate(() => window.__pauses), 0, 'never started and stopped again by two hands');
+  pass('first press on the bar\'s own middle key: playing, once, no pause between');
   await second.context.close();
 }
 
@@ -209,27 +269,25 @@ async function graph(browser) {
   console.log('the sound graph');
   for (const theme of ['dark', 'default']) {
     const { context, page } = await newPage(browser, { theme });
-    await page.addInitScript(KEEP_AUDIO);
     await page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => /LOVE BUZZ/.test(document.querySelector('[data-bar-led]')?.innerText ?? ''), null, { timeout: 60000 });
+    await arrived(page);
     let state = await graphState(page);
     assert.equal(state.source, 'off', 'nothing plays: nothing drawn');
-    await page.keyboard.press('Shift');
+    await page.keyboard.press('KeyA');
     state = await until('the graph hears the song', () => graphState(page), (s) => s && s.source === 'bar' && s.level > 0.05, 10000);
     pass(`${theme}: the graph hears the bar's song (level ${state.level}, ${state.fps} frames a second, ${state.ms} ms a frame)`);
     const contrast = await page.evaluate(MEASURE_CONTRAST);
     assert.ok(contrast.painted > 200, `it drew something (${contrast.painted} pixels)`);
-    assert.ok(contrast.worst >= 4.5, `${theme}: every word 4.5:1 over what was drawn (worst ${contrast.worst.toFixed(2)})`);
+    assert.ok(contrast.worst >= 4.5, `${theme}: every word 4.5:1 over what was drawn (worst ${contrast.worst.toFixed(2)}, words in ${contrast.inks.join(" / ")}, display ${contrast.base})`);
     pass(`${theme}: worst contrast over the drawn pixels ${contrast.worst.toFixed(2)}:1 (${contrast.colours} colours, words in ${contrast.inks.join(' / ')})`);
     await page.locator('[data-bar-led]').screenshot({ path: join(OUT, `led-${theme}.png`) });
     if (theme === 'dark') {
       // Paused: the graph stops.
-      await page.getByRole('button', { name: /^(Playing|Looping)$/ }).first().click();
-      const shape = await page.getByRole('button', { name: /^(Playing|Looping|Paused)$/ }).first().getAttribute('title');
-      if (shape === 'Looping') await page.getByRole('button', { name: 'Looping' }).click();
+      await pauseBar(page);
       state = await until('paused: the graph stops', () => graphState(page), (s) => s && s.source === 'off', 5000);
       pass('paused: the graph stops');
-      await page.getByRole('button', { name: 'Paused', exact: true }).click();
+      await playBar(page);
       await until('playing again', () => graphState(page), (s) => s && s.source === 'bar' && s.level > 0.05, 8000);
       // A hidden tab: the loop stops.
       await page.evaluate(() => {
@@ -244,7 +302,8 @@ async function graph(browser) {
   const still = await newPage(browser, { reducedMotion: true });
   await still.page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded' });
   await still.page.waitForFunction(() => /LOVE BUZZ/.test(document.querySelector('[data-bar-led]')?.innerText ?? ''), null, { timeout: 60000 });
-  await still.page.keyboard.press('Shift');
+  await arrived(still.page);
+  await still.page.keyboard.press('KeyA');
   await sleep(3000);
   const state = await graphState(still.page);
   assert.equal(state.source, 'off', 'reduced motion: nothing drawn while it plays');
@@ -276,9 +335,12 @@ async function tab(browserPath) {
       return;
     }
     pass('allowed: the key is gone');
-    await page.getByRole('button', { name: 'Paused', exact: true }).click();
-    const state = await until('the graph hears the tab', () => graphState(page), (s) => s && s.source === 'tab', 10000);
-    pass(`the graph listens to the tab (level ${state.level})`);
+    await playBar(page);
+    await until('the graph listens to the tab', () => graphState(page), (s) => s && s.source === 'tab', 10000);
+    pass('the graph listens to the tab');
+    const loud = await until('the tab carries sound', () => graphState(page), (s) => s && s.source === 'tab' && s.level > 0.02, 8000).catch(() => null);
+    if (loud) pass(`the tab's sound moves the graph (level ${loud.level})`);
+    else note('the tab was shared but carried no sound in this headless browser: the level was not proved here');
   } finally {
     await browser.close();
   }
