@@ -3,12 +3,14 @@
 import { useEffect, useRef } from 'react';
 import { followState } from '../lib/audio/follow';
 import {
+  RESTORE_KEY,
   START_DELAY_MS,
   arrivalStep,
   arrivalVolume,
   findLoveBuzz,
   readArrival,
   startOnPress,
+  volumeStep,
   writeArrival,
   type Busy,
 } from '../lib/audio/love-buzz';
@@ -45,7 +47,36 @@ function busyNow(player: MusicPlayerValue): Busy {
     screen: floatingState().entry !== null,
     room: player.room !== null || watchWindowState().open,
     following: followState().hostId !== null,
+    // A page handed the bar its own song with where it came from (a profile's song, waiting for a press): theirs.
+    // (`heardFrom` is only ever about the song on the bar now.)
+    handedOver: player.track !== undefined && player.heardFrom !== null,
   };
+}
+
+function local(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+function readWaitingVolume(): number | null {
+  try {
+    const raw = local()?.getItem(RESTORE_KEY) ?? null;
+    return raw === null ? null : Number(raw);
+  } catch {
+    return null;
+  }
+}
+
+function setWaitingVolume(value: number | null): void {
+  try {
+    if (value === null) local()?.removeItem(RESTORE_KEY);
+    else local()?.setItem(RESTORE_KEY, String(value));
+  } catch {
+    // Storage blocked: the volume comes back only by the reader's hand.
+  }
 }
 
 export default function LoveBuzzOnArrival() {
@@ -56,6 +87,7 @@ export default function LoveBuzzOnArrival() {
   }, [player]);
 
   const { loading, queue, track, assign, setVolume, volume } = player;
+  // (The volume it plays at is set at the press, below, never on arrival: a reader who never touches the page keeps theirs.)
   const found = findLoveBuzz(queue);
 
   // Arrival: once the shelf has been read, once a visit.
@@ -67,13 +99,21 @@ export default function LoveBuzzOnArrival() {
       writeArrival(storage, 'skipped');
       return;
     }
-    // Its own repeat (the track's, not the shelf's switch, which is the reader's and is kept as it was).
-    assign(found, { loop: true });
-    setVolume(arrivalVolume(volume));
+    // Its own repeat (the track's, not the shelf's switch, which is the reader's and is kept as it was). Filed as the
+    // shelf's when it is heard, not as somebody's profile song.
+    assign(found, { loop: true, origin: { origin: 'shelf', where: 'ARRIVING ON THE SITE' } });
     writeArrival(storage, 'loaded');
-    // `volume` is read once, at this moment: the reader moving the slider later is theirs.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, found, assign, setVolume]);
+  }, [loading, found, assign]);
+
+  // The reader's own volume, given back once LOVE BUZZ is no longer the song this visit started (or on a new visit after
+  // a tab closed mid-song), unless they moved the slider themself.
+  const loveBuzzOn = track !== undefined && track.src === found?.src;
+  useEffect(() => {
+    const started = readArrival(session()) === 'started';
+    const step = volumeStep(readWaitingVolume(), loveBuzzOn && started, volume);
+    if (step === 'restore') setVolume(readWaitingVolume() ?? volume);
+    if (step === 'restore' || step === 'drop') setWaitingVolume(null);
+  }, [loveBuzzOn, volume, setVolume]);
 
   // The first click or key press, anywhere: a moment later, LOVE BUZZ starts if nothing else did.
   const armed = readArrival(typeof window === 'undefined' ? null : session()) === 'loaded' && track !== undefined && track.src === found?.src;
@@ -90,8 +130,15 @@ export default function LoveBuzzOnArrival() {
         const now = latest.current;
         const storage = session();
         const holds = now.track !== undefined && now.track.src === findLoveBuzz(now.queue)?.src && now.barrAsk === null;
-        if (startOnPress(readArrival(storage), holds, busyNow(now))) {
+        // LOVE BUZZ was handed over by this very component: that is not somebody else's song holding the bar.
+        if (startOnPress(readArrival(storage), holds, { ...busyNow(now), handedOver: false })) {
           writeArrival(storage, 'started');
+          // Quietly: the reader's own volume waits and comes back with the next song.
+          const quiet = arrivalVolume(now.volume);
+          if (quiet < now.volume) {
+            setWaitingVolume(now.volume);
+            now.setVolume(quiet);
+          }
           now.toggle();
         } else {
           writeArrival(storage, 'skipped');

@@ -204,10 +204,11 @@ async function buzz(browser) {
   await page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => /LOVE BUZZ/.test(document.querySelector('[data-bar-led]')?.innerText ?? ''), null, { timeout: 60000 });
   pass('arrival: the bar shows LOVE BUZZ');
-  let song = await until('the bar loads it, quiet', () => songState(page), (s) => s !== null && s.src.includes('love-buzz') && s.volume <= 0.25 + 1e-6, 10000);
-  assert.ok(song.volume <= 0.25 + 1e-6, `quiet (${song.volume})`);
-  assert.equal(await page.evaluate(() => Number(document.querySelector('input[aria-label="Volume"]').value)), Math.round(song.volume * 100), 'the slider shows the quiet volume');
-  pass(`quiet: volume ${song.volume}`);
+  await arrived(page);
+  let song = await until('the bar loads it', () => songState(page), (s) => s !== null && s.src.includes('love-buzz'), 10000);
+  const ownVolume = song.volume;
+  assert.ok(ownVolume > 0.25, `the reader's own volume is untouched on arrival (${ownVolume})`);
+  pass(`arriving leaves the reader's volume alone (${ownVolume})`);
   await sleep(2000);
   song = await songState(page);
   assert.equal(song.paused, true, 'no sound before the reader touches the page');
@@ -227,13 +228,22 @@ async function buzz(browser) {
   await page.keyboard.press('KeyA');
   song = await until('it starts after the press', () => songState(page), (s) => s && !s.paused, 5000);
   pass('the first key press starts it');
+  song = await until('quiet', () => songState(page), (s) => s && s.volume <= 0.25 + 1e-6, 3000);
+  assert.equal(await page.evaluate(() => Number(document.querySelector('input[aria-label="Volume"]').value)), Math.round(song.volume * 100), 'the slider shows the quiet volume');
+  pass(`quietly: volume ${song.volume}`);
   await sleep(2600);
   song = await songState(page);
   assert.equal(song.paused, false, 'still playing past its two-second end');
   assert.ok(song.time < 2, `it went round again (at ${song.time.toFixed(2)}s)`);
   assert.equal(await page.evaluate(() => sessionStorage.getItem('debaser.audio.love-buzz.v1')), 'started');
   pass('looping');
-  // The reader pauses it, then reloads: it is not started again.
+  // The next song gets the reader's own volume back.
+  await page.getByRole('button', { name: 'Next track' }).click();
+  await until('the reader\'s volume back', () => page.evaluate(() => Number(document.querySelector('input[aria-label="Volume"]').value)), (v) => v === Math.round(ownVolume * 100), 5000);
+  pass(`the next song: the reader's volume back (${ownVolume})`);
+  // Back to LOVE BUZZ for the rest: the reader pauses it, then reloads: it is not started again.
+  await page.getByRole('button', { name: 'Previous track' }).click();
+  await sleep(800);
   await pauseBar(page);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => /LOVE BUZZ/.test(document.querySelector('[data-bar-led]')?.innerText ?? ''), null, { timeout: 60000 });
@@ -248,7 +258,8 @@ async function buzz(browser) {
   const second = await newPage(browser);
   await second.page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded' });
   await second.page.waitForFunction(() => /LOVE BUZZ/.test(document.querySelector('[data-bar-led]')?.innerText ?? ''), null, { timeout: 60000 });
-  await until('loaded', () => songState(second.page), (s) => s !== null && s.volume <= 0.25 + 1e-6);
+  await arrived(second.page);
+  await until('loaded', () => songState(second.page), (s) => s !== null);
   // A fresh browser's middle key reads Looping while paused (the shelf's repeat starts on): one press on it.
   // (That press turns the shelf's repeat off, the bar's own rule, so the two-second tone ends after one go: read inside it.)
   await second.page.evaluate(() => {

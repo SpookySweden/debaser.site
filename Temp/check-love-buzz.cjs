@@ -30,6 +30,7 @@ assert.equal(buzz.arrivalStep(null, true, true, quiet), 'load', 'a first page wi
 for (const mark of ['loaded', 'started', 'skipped']) assert.equal(buzz.arrivalStep(mark, true, true, quiet), 'none', `the visit already ${mark} it: never again`);
 for (const busy of ['playing', 'screen', 'room', 'following']) assert.equal(buzz.arrivalStep(null, true, true, { ...quiet, [busy]: true }), 'skip', `${busy}: let go`);
 assert.equal(buzz.arrivalStep(null, true, false, quiet), 'skip', 'not on the shelf: let go');
+assert.equal(buzz.arrivalStep(null, true, true, { ...quiet, handedOver: true }), 'skip', "a profile's own song waiting for a press: left alone");
 console.log('  ok    once a visit, never over something else');
 
 /* 3. The first press starts it only if it is still waiting and nothing started ----------------------------------- */
@@ -47,7 +48,12 @@ assert.equal(buzz.arrivalVolume(0.8), buzz.QUIET_VOLUME, 'a loud saved volume is
 assert.equal(buzz.arrivalVolume(0.1), 0.1, 'a quieter one is kept');
 assert.equal(buzz.arrivalVolume(Number.NaN), buzz.QUIET_VOLUME);
 assert.ok(buzz.QUIET_VOLUME <= 0.3);
-console.log('  ok    quiet');
+// The reader's own volume comes back with the next song, unless they moved the slider themself.
+assert.equal(buzz.volumeStep(null, false, 0.25), 'none');
+assert.equal(buzz.volumeStep(0.8, true, buzz.QUIET_VOLUME), 'keep', 'while LOVE BUZZ plays, quiet');
+assert.equal(buzz.volumeStep(0.8, false, buzz.QUIET_VOLUME), 'restore', 'the next song: their volume back');
+assert.equal(buzz.volumeStep(0.8, false, 0.6), 'drop', 'they moved the slider: their move stands');
+console.log('  ok    quiet, and the reader\'s volume comes back');
 
 /* 5. The visit's mark ------------------------------------------------------------------------------------------- */
 const bag = new Map();
@@ -63,7 +69,10 @@ assert.equal(buzz.readArrival(null), null);
 /* 6. The component keeps to it: per tab (sessionStorage), looping by the track's own repeat, mounted with the bar ---- */
 const component = fs.readFileSync(path.join(__dirname, '..', 'app', 'components', 'LoveBuzzOnArrival.tsx'), 'utf8');
 assert.match(component, /window\.sessionStorage/, 'once a visit is per tab');
-assert.match(component, /assign\(found, \{ loop: true \}\)/, "looping by the track's own repeat, not the reader's switch");
+assert.match(component, /assign\(found, \{ loop: true, origin: \{ origin: 'shelf'/, "looping by the track's own repeat, filed as the shelf's");
+const arrival = component.slice(component.indexOf('// Arrival:'), component.indexOf('// The reader\'s own volume'));
+assert.ok(arrival.length > 100 && !/setVolume/.test(arrival), 'arriving never touches the volume: a reader who never presses keeps theirs');
+assert.ok(component.indexOf('setWaitingVolume(now.volume)') < component.indexOf('now.setVolume(quiet)'), 'the reader\'s volume is kept before it is lowered');
 assert.doesNotMatch(component, /autoplay: true/, "never the provider's start-on-any-press: it would start over a video");
 const bar = fs.readFileSync(path.join(__dirname, '..', 'app', 'components', 'MusicPlayer.tsx'), 'utf8');
 assert.equal((bar.match(/<LoveBuzzOnArrival \/>/g) ?? []).length, 2, 'mounted whichever shape the player is in');

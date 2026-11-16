@@ -151,6 +151,8 @@ export async function relaySlice(videoId: string, range: string | null, fetchImp
     try {
       const opened = await safeFetchStream(file.url, {
         allowedHosts: [file.host],
+        // A file server may hand the slice on to another of YouTube's numbered file servers; nowhere else.
+        redirectHosts: FILE_SERVER,
         fetchImpl,
         timeoutMs: 20_000,
         maxBytes: SLICE_BYTES + 1,

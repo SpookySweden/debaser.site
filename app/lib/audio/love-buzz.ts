@@ -7,7 +7,8 @@ import type { AudioTrack } from './tracks';
  * - It is in the site's music already: the shelf holds the same file twice (both uploaded by sweden on 2026-09-25), one
  *   titled "LOVE BUZZ - UPLOAD TEST", the other retitled "KIVE - WU TANG". The one whose title says LOVE BUZZ is chosen;
  *   failing that, a file named love-buzz.
- * - **Once a visit** (this browser tab, `sessionStorage`): the first page of a visit loads it, looping, at a quiet volume.
+ * - **Once a visit** (this browser tab, `sessionStorage`): the first page of a visit loads it, looping; it plays at a
+ *   quiet volume, and the next song gets the reader's own volume back (`volumeStep`).
  *   A reload or the next page in the same tab never loads it again, so a reader who stopped it is not started again.
  * - Browsers refuse sound before the reader touches the page, so it starts on the first click or key press, a moment
  *   after it, and only if by then nothing else is playing: not the bar (the reader pressed PLAY on it, or on another
@@ -61,10 +62,12 @@ export type Busy = {
   room: boolean;
   /** The reader is following somebody's queue. */
   following: boolean;
+  /** The bar holds a song a page handed over (a profile's own song, waiting for a press to start). */
+  handedOver?: boolean;
 };
 
 function busy(state: Busy): boolean {
-  return state.playing || state.screen || state.room || state.following;
+  return state.playing || state.screen || state.room || state.following || state.handedOver === true;
 }
 
 /**
@@ -84,7 +87,25 @@ export function startOnPress(mark: ArrivalMark | null, holdsLoveBuzz: boolean, s
   return mark === 'loaded' && holdsLoveBuzz && !busy(state);
 }
 
-/** The volume it arrives at: the reader's own when it is already quiet, else `QUIET_VOLUME`. */
+/** The volume it plays at: the reader's own when it is already quiet, else `QUIET_VOLUME`. */
 export function arrivalVolume(saved: number): number {
   return Number.isFinite(saved) ? Math.min(saved, QUIET_VOLUME) : QUIET_VOLUME;
+}
+
+/**
+ * Where the reader's own volume waits while LOVE BUZZ plays quietly (the browser's own storage, so a tab closed mid-song
+ * still gets it back next visit). The bar keeps one volume for everything, so "quietly" lowers it only when LOVE BUZZ
+ * starts, and the next song gets the reader's volume back.
+ */
+export const RESTORE_KEY = 'debaser.audio.love-buzz.restore.v1';
+
+/**
+ * What to do with a waiting volume now: `keep` waiting while LOVE BUZZ is the song this visit started; `restore` it once
+ * another song (or a new visit) has the bar and the slider still sits where LOVE BUZZ put it; `drop` it when the reader
+ * moved the slider themself (their move stands); `none` when nothing waits.
+ */
+export function volumeStep(waiting: number | null, playingLoveBuzz: boolean, volume: number): 'keep' | 'restore' | 'drop' | 'none' {
+  if (waiting === null || !Number.isFinite(waiting)) return 'none';
+  if (playingLoveBuzz) return 'keep';
+  return Math.abs(volume - QUIET_VOLUME) < 0.005 ? 'restore' : 'drop';
 }

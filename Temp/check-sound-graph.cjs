@@ -175,6 +175,15 @@ const route = require('./sound-graph-out/api/audio/relay/[id]/route.js');
   const refusedNew = await relay.relaySlice('aaaaaaaaaaa', 'bytes=0-', fakeFetch('refused'));
   assert.equal(refusedNew.status, 502, 'YouTube refused: 502, and the graph moves gently');
   assert.equal((await relay.relaySlice('../../etc/p', null, fakeFetch('ok'))).status, 404, 'a malformed id is never asked about');
+  // A file server handing the slice on: to another YouTube file server, followed; anywhere else, refused.
+  const hop = (to) => async (url, init) => {
+    if (url.includes('/youtubei/v1/player')) return new Response(JSON.stringify(answerWith([{ mimeType: 'audio/mp4', bitrate: 1, contentLength: '3000000', url: FILE }])), { status: 200 });
+    if (url === FILE) return new Response(null, { status: 302, headers: { location: to } });
+    assert.ok(new URL(url).hostname.endsWith('.googlevideo.com'), `never fetched: ${url}`);
+    return new Response(new Uint8Array(10), { status: 206, headers: { 'content-length': '10' } });
+  };
+  assert.equal((await relay.relaySlice('bbbbbbbbbbb', 'bytes=0-9', hop('https://rr7---sn-abcd1234.googlevideo.com/videoplayback?x=1'))).status, 206, 'handed to another YouTube file server: followed');
+  assert.equal((await relay.relaySlice('ccccccccccc', 'bytes=0-9', hop('https://evil.example/videoplayback'))).status, 502, 'handed anywhere else: refused');
   // The route: another site's page asking through a visitor's browser is refused before anything is fetched.
   const crossSite = await route.GET(new Request('http://localhost/api/audio/relay/jNQXAC9IVRw', { headers: { 'sec-fetch-site': 'cross-site' } }), { params: Promise.resolve({ id: 'jNQXAC9IVRw' }) });
   assert.equal(crossSite.status, 403, 'another site cannot use the relay');
@@ -189,6 +198,9 @@ const route = require('./sound-graph-out/api/audio/relay/[id]/route.js');
   assert.match(component, /if \(!active\)/, 'it stops when nothing plays, the tab is hidden or motion is reduced');
   assert.match(component, /prefers-reduced-motion: reduce/);
   assert.match(component, /document\.hidden/);
+  const unmount = component.slice(component.indexOf('// The bar folded away'), component.indexOf('// Keeping the relay in step'));
+  assert.match(unmount, /relay\.removeAttribute\('src'\)/, 'folding the bar stops the relay fetching');
+  assert.match(unmount, /context\.close\(\)/, 'and closes the audio context');
   console.log('  ok    the graph only measures: nothing reaches the speakers');
 })().catch((error) => {
   console.error(error);

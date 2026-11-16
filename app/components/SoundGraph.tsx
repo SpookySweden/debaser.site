@@ -109,6 +109,24 @@ export default function SoundGraph() {
     relayFailed: string | null;
   } | null>(null);
 
+  // The bar folded away, or a stream room's strip took its place: the ears go with it, so the relay stops fetching and the
+  // audio context is closed (a remount makes new ones).
+  useEffect(
+    () => () => {
+      const kept = ears.current;
+      if (kept === null) return;
+      kept.node?.disconnect();
+      if (kept.relay !== null) {
+        kept.relay.pause();
+        kept.relay.removeAttribute('src');
+        kept.relay.load();
+      }
+      void kept.context.close().catch(() => undefined);
+      ears.current = null;
+    },
+    [],
+  );
+
   // Keeping the relay in step with YouTube's own player: where it is, and paused when it is.
   useEffect(() => {
     const kept = ears.current;
@@ -118,6 +136,8 @@ export default function SoundGraph() {
       relay.pause();
       return;
     }
+    // A media element's position, not React state: moving it is the point.
+    // eslint-disable-next-line react-hooks/immutability
     if (Math.abs(relay.currentTime - clock.seconds) > RELAY_DRIFT_SECONDS) relay.currentTime = clock.seconds;
   }, [clock, youtubeId]);
 
