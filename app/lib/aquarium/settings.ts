@@ -158,7 +158,7 @@ export type Knob = RangeKnob | SwitchKnob | ChoiceKnob;
 /** Every knob, in the order the window lists them. */
 export const KNOBS: readonly Knob[] = [
   // FISH
-  { kind: 'range', key: 'size', tab: 'fish', label: 'FISH SIZE', tip: 'HOW BIG EVERY FISH IS', min: 1, max: 4, step: 1, unit: 'x', party: [1, 3] },
+  { kind: 'range', key: 'size', tab: 'fish', label: 'FISH SIZE', tip: 'HOW BIG EVERY FISH IS. PAST 4x THE SEA HOLDS FEWER OF THEM: TEN AT 8x, FOUR AT 12x', min: 1, max: 12, step: 1, unit: 'x', party: [1, 4] },
   { kind: 'range', key: 'count', tab: 'fish', label: 'FISH COUNT', tip: 'HOW MANY FISH, SHARED BETWEEN THE KINDS THAT ARE ON', min: 0, max: 40, step: 1, unit: '', party: [3, 26] },
   { kind: 'switch', key: 'butterfly', tab: 'fish', label: 'BUTTERFLY', tip: 'THE YELLOW BUTTERFLYFISH', party: 0 },
   { kind: 'switch', key: 'trigger', tab: 'fish', label: 'TRIGGER', tip: 'THE BLUE TRIGGERFISH', party: 0 },

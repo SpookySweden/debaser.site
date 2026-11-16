@@ -108,7 +108,7 @@ for (const tab of S.TABS) assert.ok(S.KNOBS.some((k) => k.tab === tab.id), `${ta
 assert.ok(S.KNOBS.length >= 38, `the window has the SPEC's knobs (${S.KNOBS.length})`);
 
 const wild = S.parseAquariumSettings({ size: 99, count: -5, speed: 2.37, light: 0, flap: 'fast', butterfly: 'yes', pointer: 'bite', tintHue: Infinity, time: NaN, extra: 1 });
-assert.equal(wild.size, 4, 'too big is held to the top of the range');
+assert.equal(wild.size, 12, 'too big is held to the top of the range');
 assert.equal(wild.count, 0, 'too small to the bottom');
 assert.equal(wild.speed, 2.25, 'and a value between steps is snapped to one');
 assert.equal(wild.light, 20, 'the sea can never be set darker than it allows');
@@ -224,12 +224,22 @@ assert.equal(M.fishPlan(set({ count: 0 })).length, 0, 'none is none');
 assert.equal(M.fishPlan(set({ butterfly: false, trigger: false, ray: false, stripe: false })).length, 0, 'no kinds on: no fish');
 assert.deepEqual([...new Set(M.fishPlan(set({ count: 9, ray: false, trigger: false })).map((f) => f.species.id))], ['butterfly', 'stripe'], 'only the kinds that are on');
 assert.ok(M.fishPlan(set({ size: 4 })).every((f) => f.scale === 4), 'FISH SIZE sizes every fish');
+// Bigger fish (Luke, 2026-11-15): up to 12x, and the sea holds fewer of them the bigger they are.
+assert.equal(S.KNOBS.find((k) => k.key === 'size').max, 12, 'FISH SIZE goes up to 12x');
+assert.equal(M.fishPlan(set({ size: 4, count: 40 })).length, 40, 'at 4x the sea still holds all forty, as it did');
+assert.equal(M.fishPlan(set({ size: 8, count: 40 })).length, 10, 'at 8x, ten');
+const huge = M.fishPlan(set({ size: 12, count: 40 }));
+assert.ok(huge.length === 4 && huge.every((f) => f.scale === 12), 'at 12x, four, each twelve times its picture');
+assert.equal(M.fishPlan(set({ size: 12, count: 1 })).length, 1, 'and one fish is one fish at any size');
+const bigMix = M.fishPlan(set({ size: 12, mixed: true, count: 40 }));
+assert.ok(bigMix.length >= 1 && bigMix.reduce((sum, f) => sum + f.scale * f.scale, 0) <= M.FISH_ROOM, 'MIXED SIZES up to 12x fills the sea and no more');
 const mixed = M.fishPlan(set({ size: 4, mixed: true, count: 40 }));
 assert.ok(mixed.every((f) => Number.isInteger(f.scale) && f.scale >= 1 && f.scale <= 4), 'MIXED SIZES stays between 1 and FISH SIZE, in whole sizes');
 assert.ok(new Set(mixed.map((f) => f.scale)).size > 1, 'and really mixes');
 assert.deepEqual(mixed.map((f) => f.scale), M.fishPlan(set({ size: 4, mixed: true, count: 40 })).map((f) => f.scale), 'the same fish keeps its size from one change to the next');
 const giant = M.fishPlan(set({ count: 40 }), true);
-assert.ok(giant.length === M.GIANT_MOST && giant.every((f) => f.scale === M.GIANT_SCALE), 'GIANT MODE: eight times the size, eight fish at the most');
+assert.ok(giant.length === M.GIANT_MOST && giant.every((f) => f.scale === M.GIANT_SCALE), 'GIANT MODE: sixteen times the size, and only as many fish as that leaves room for');
+assert.ok(M.GIANT_SCALE === 16 && M.GIANT_MOST === 2, 'which is two');
 assert.ok(M.fishPlan(set({ tiny: true, size: 4 })).every((f) => f.scale === 1), 'TINY TANK: everything at its own size');
 const shoals = M.fishPlan(set({ count: 40, schoolSize: 5 }));
 const byShoal = new Map();
@@ -400,7 +410,7 @@ for (const settings of [S.PRESETS[3].settings, set({ ...S.PRESETS[3].settings, p
       assert.ok(state.bubbles.length <= M.MOST_BUBBLES && state.pellets.length <= M.MOST_PELLETS, 'and the loose bubbles and food are capped');
     },
   });
-  const margin = 3 * 120 * 8;
+  const margin = 3 * 120 * 16;
   assert.ok(chaos.fish.every((f) => f.x > -margin && f.x < env.w + margin && f.y > -margin && f.y < env.h + margin), 'no fish has swum off for good');
 }
 

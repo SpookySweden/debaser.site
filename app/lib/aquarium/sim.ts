@@ -31,9 +31,16 @@ export const SPECIES: readonly Species[] = [
   { id: 'stripe', file: 'fish-stripe.png', w: 76, h: 54, frames: 6, faces: 1, speed: 25 },
 ];
 
-/** GIANT MODE's size, and the most fish it shows: forty fish at eight times their size is more picture than a screen holds. */
-export const GIANT_SCALE = 8;
-export const GIANT_MOST = 8;
+/**
+ * How much fish the sea holds, as sizes squared and summed: forty fish at 4x, which is what it held before FISH SIZE went past
+ * 4x (Luke, 2026-11-15: "make it so that the fish can get bigger"). Bigger fish take more of it each, so there are fewer of
+ * them: ten at 8x, four at 12x. Forty fish at twelve times their size is more picture than a screen can move.
+ */
+export const FISH_ROOM = 640;
+
+/** GIANT MODE's size, and the most fish that leaves room for. */
+export const GIANT_SCALE = 16;
+export const GIANT_MOST = Math.floor(FISH_ROOM / (GIANT_SCALE * GIANT_SCALE));
 
 /** The TINY TANK's box, and the size everything in it is shown at. */
 export const TINY_TANK = { w: 400, h: 300 } as const;
@@ -51,16 +58,18 @@ function steadyNumber(n: number): number {
 
 /**
  * Which fish there are: the count shared round the kinds that are on, each with its size and its shoal. Shoals are of one kind,
- * `schoolSize` fish at the most.
+ * `schoolSize` fish at the most. The list stops when the sea is full (`FISH_ROOM`), though there is always room for one.
  */
 export function fishPlan(settings: AquariumSettings, giant = false): FishPlan[] {
   const kinds = SPECIES.filter((species) => settings[species.id]);
   if (kinds.length === 0) return [];
-  const count = giant ? Math.min(settings.count, GIANT_MOST) : settings.count;
   const plan: FishPlan[] = [];
-  for (let n = 0; n < count; n += 1) {
+  let room = FISH_ROOM;
+  for (let n = 0; n < settings.count; n += 1) {
     const kind = n % kinds.length;
     const scale = settings.tiny ? 1 : giant ? GIANT_SCALE : settings.mixed ? 1 + (steadyNumber(n) % settings.size) : settings.size;
+    if (n > 0 && scale * scale > room) break;
+    room -= scale * scale;
     plan.push({ species: kinds[kind], scale, school: kind * 100 + Math.floor(Math.floor(n / kinds.length) / settings.schoolSize) });
   }
   return plan;

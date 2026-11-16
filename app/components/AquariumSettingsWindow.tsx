@@ -36,7 +36,7 @@ import {
   toggleAquariumWindow,
   toggleGiant,
 } from '../lib/aquarium/settings-slot';
-import { GIANT_MOST } from '../lib/aquarium/sim';
+import { GIANT_MOST, GIANT_SCALE } from '../lib/aquarium/sim';
 import { backdropState, setBackdrop, subscribeToBackdrop } from '../lib/ui/backdrop-slot';
 import { PLATE, PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED, PLATE_PRESSED, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
@@ -189,7 +189,7 @@ export function AquariumKnobs() {
             <button
               type="button"
               aria-pressed={giant}
-              title={`FOR 20 SECONDS THE FISH ARE EIGHT TIMES THEIR SIZE (${GIANT_MOST} FISH AT THE MOST). PRESS AGAIN TO STOP`}
+              title={`FOR 20 SECONDS THE FISH ARE ${GIANT_SCALE} TIMES THEIR SIZE (${GIANT_MOST} FISH AT THE MOST). PRESS AGAIN TO STOP`}
               onClick={toggleGiant}
               className={giant ? PLATE_PRESSED : PLATE}
               data-aquarium-knob="giant"
