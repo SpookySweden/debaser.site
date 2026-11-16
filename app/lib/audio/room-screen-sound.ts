@@ -53,6 +53,19 @@ function youtubeIdOf(link: WatchLink | null): string | null {
 const EVENTS = ['play', 'playing', 'pause', 'ended', 'emptied'] as const;
 
 /**
+ * One thing plays at a time (Luke, list 4, item 5: "Two things played at once. I started an Internet Archive audio item,
+ * then a YouTube video, and the audio kept running underneath the video."): the bar's song and your room's video, the
+ * one that started last wins. `room` when the room's video should pause (the bar just started), `bar` when the bar should
+ * (the video just started), `none` otherwise. A song row in a room plays on the bar and is never the room's video here.
+ */
+export function whoGivesWay(before: { bar: boolean; room: boolean }, now: { bar: boolean; room: boolean }): 'room' | 'bar' | 'none' {
+  if (!now.bar || !now.room) return 'none';
+  if (!before.bar) return 'room';
+  if (!before.room) return 'bar';
+  return 'none';
+}
+
+/**
  * Called by the room's stage with its player and what is on; returns the way to take it back (the stage gone or changed).
  * A null player is a site's embed that cannot say whether it plays (PeerTube, a friend's server): it counts as playing
  * while it is on, as the floating player's did, and the graph moves gently.

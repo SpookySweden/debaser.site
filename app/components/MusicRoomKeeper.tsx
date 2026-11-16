@@ -9,6 +9,7 @@ import { closeFloating, floatingState, onFloatingEnded, orderFloating, playFloat
 import { getBrowserWatchRepository } from '../lib/watch/mock-watch-repository';
 import { playInMainRoom } from '../lib/watch/main-room-play';
 import { takeUnhandledPlay } from '../lib/watch/row-handoff';
+import { roomScreenSound, subscribeToRoomScreenSound, whoGivesWay } from '../lib/audio/room-screen-sound';
 import { collapseWatch, openWatch, watchWindowState } from '../lib/watch/watch-window';
 import { OwnRoomSession, ownRoomPlace } from '../lib/watch/own-room';
 import { clearOwnRoom, ownRoomState, patchOwnRoom, setOwnRoom, sharedRoomStore, storedVisitorRoomId, subscribeToOwnRoom, visitorRoomId } from '../lib/watch/own-room-client';
@@ -327,6 +328,24 @@ export default function MusicRoomKeeper() {
       offEnd();
     };
   }, [session, roomId]);
+
+  /* --- one thing at a time (list 4, item 5: "the audio kept running underneath the video") ------------- */
+
+  // The bar's song and your room's video: the one that started last plays. The room's player is paused where it takes
+  // orders (YouTube, Vimeo, Twitch, our own files); a site's embed with no player to ask (PeerTube, a friend's server)
+  // cannot be. The bar is made quiet with `steer`, which never presses a room's keys it may be bound to.
+  const screen = useSyncExternalStore(subscribeToRoomScreenSound, roomScreenSound, () => null);
+  const barSounding = player.playing;
+  // A site's embed with no player to ask only counts as on (`playing` null-player rule, for the graph): it never
+  // silences the bar, since its appearing is not its starting (code review, list 4).
+  const roomSounding = screen !== null && screen.element !== null && screen.playing;
+  const sounding = useRef({ bar: false, room: false });
+  useEffect(() => {
+    const step = whoGivesWay(sounding.current, { bar: barSounding, room: roomSounding });
+    sounding.current = { bar: barSounding, room: roomSounding };
+    if (step === 'room') roomScreenSound()?.element?.pause();
+    else if (step === 'bar') now.current.steer(false);
+  }, [barSounding, roomSounding]);
 
   /* --- back on this tab, or back online --------------------------------------------------------------- */
 

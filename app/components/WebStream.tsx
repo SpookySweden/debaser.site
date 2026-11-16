@@ -1695,8 +1695,9 @@ export function WebRow({
   };
 
   // PLAY / + QUEUE, one key of two halves (Luke's list, 2026-11-14, M6 and his ROOMS answer 7A). PLAY is the bar's key for
-  // audio it plays, else the platform's own player; the second half is QueueHalf.tsx's to say.
-  const barPlay = useBarPlay(item, opened, embed ? startPlayer : null);
+  // audio it plays, else the platform's own player; the second half is QueueHalf.tsx's to say. Audio the bar plays never
+  // falls back to the platform's player in the row (list 4): with no file it says so and offers the platform's own page.
+  const barPlay = useBarPlay(item, opened, link === null ? null : { href: link, source });
   const barItem = inBar && isBarAudioPlatform(item.platform) ? { platform: item.platform, externalId: item.externalId } : null;
   const queueHalf = useQueueHalf({ bar: barItem, room: roomSource, playId, title: item.title, onPress: opened });
   const playHalf: Half | null = readable
@@ -1951,10 +1952,14 @@ const WEB_ORIGIN = { origin: 'shelf', href: '/media', where: 'MEDIA' } as const;
 /**
  * PLAY for audio the site's music bar can play (web-audio.ts): asks our route for the item's files, then
  * hands them to the bar - one file, or a book's chapters in order - where every feature of the bar applies.
- * While this item is the one on the bar the key pauses and resumes it. When no file can be found, the
- * platform's own player opens instead (`onFallback`), or the row says so when there is none.
+ * While this item is the one on the bar the key pauses and resumes it. When no file can be found (an item the
+ * platform only lends, or one it would not answer for), the row says so and offers the platform's own page in a new
+ * tab (`elsewhere`). It used to open the platform's player in the row, under a key that said "in the music player",
+ * while the bar kept the old track (list 4, item 6).
  */
-function useBarPlay(item: WebStreamItem, onOpen: () => void, onFallback: (() => void) | null): Half {
+function useBarPlay(item: WebStreamItem, onOpen: () => void, elsewhere: { href: string; source: string } | null): Half {
+  /** The row's own checked address (rowAddresses), the only kind an outbound link here may use. */
+  const link = elsewhere?.href ?? null;
   const player = useMusicPlayer();
   const [state, setState] = useState<'idle' | 'finding' | 'none'>('idle');
   const onBar = player.track ? parseWebAudioSrc(player.track.src) : null;
@@ -1976,12 +1981,7 @@ function useBarPlay(item: WebStreamItem, onOpen: () => void, onFallback: (() => 
       player.playList(tracks, WEB_ORIGIN);
       return;
     }
-    if (onFallback) {
-      setState('idle');
-      onFallback();
-    } else {
-      setState('none');
-    }
+    setState('none');
   };
 
   return {
@@ -1995,9 +1995,23 @@ function useBarPlay(item: WebStreamItem, onOpen: () => void, onFallback: (() => 
     data: 'bar-play',
     after:
       state === 'none' ? (
-        <span role="status" className="text-label font-bold text-ink">
-          NO PLAYABLE FILE
-        </span>
+        <>
+          <span role="status" className="text-label font-bold text-ink">
+            NO PLAYABLE FILE
+          </span>
+          {elsewhere !== null && link !== null ? (
+            <a
+              href={link}
+              target="_blank"
+              rel="noopener noreferrer nofollow"
+              aria-label={`Open "${item.title}" on ${elsewhere.source} (new tab)`}
+              className={PLATE_LINK}
+              data-bar-play-elsewhere
+            >
+              {`[ OPEN ON ${elsewhere.source} ↗ ]`}
+            </a>
+          ) : null}
+        </>
       ) : null,
   };
 }
