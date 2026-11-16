@@ -79,6 +79,7 @@ import { UP_NEXT_EVERY_MS, notInStepId, notInStepNote, upNextRepeats, type RoomN
 import { attachStream, playsDirectly, type StreamHandle } from '../lib/watch/stream-player';
 import { applyLocalChange } from '../lib/watch/use-watch-room';
 import { officialEmbedUrl, WEB_EMBED_SANDBOX } from '../lib/web/official-embed';
+import { useArchiveRoomFile } from '../lib/watch/archive-room-file';
 import { mediaServerForUrl, playerSandbox } from '../lib/web/media-servers';
 import { subscribeFindInRoom, takeFindInRoom } from '../lib/watch/find-in-room';
 import { withEnglishSubtitles } from '../lib/web/row-addresses';
@@ -208,7 +209,9 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   /** Nothing on: the black screen with its three keys (SPEC-cytube.md). */
   const blank = screenIsBlank(room, read.queue);
   const item = entry?.mediaItemId ? itemsById.get(entry.mediaItemId) : undefined;
-  const link = entry?.link ?? null;
+  // An Internet Archive video plays as its own file in the room's player, not in the Archive's (list 4, `archive-room-file.ts`).
+  const archiveRead = useArchiveRoomFile(entry?.link ?? null);
+  const link = archiveRead.link;
   /**
    * A song row (SPEC-music-queues.md): the music bar plays it, from its own address, and the room's sync
    * reads and steers the bar's one audio element as it does the stage's `<video>`.
@@ -1427,6 +1430,10 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
           </div>
         ) : songTrack !== null ? (
           <SongCoverCard track={songTrack} fit={pictureFit} />
+        ) : archiveRead.waiting ? (
+          <div className={`flex items-center justify-center text-label font-bold text-ink-bar ${pictureFit}`} data-room-archive="reading">
+            READING THE ARCHIVE...
+          </div>
         ) : link !== null && link.kind === 'embed' ? (
           // A server's player is made again on each of the host's PLAYs (`restarts`), so everybody's starts from the top together.
           <OfficialEmbedStage key={`official-${entryId}-${serverOn ? serverSeen.restarts : 0}`} link={link} fit={videoFit} shaped={dressed} />

@@ -271,7 +271,10 @@ Then the house loop once per batch (League mode: one heavy step at a time, low p
   title, warning or logo (its play bar stays). Your own room, open or folded when the page went away, comes back folded
   after a reload with its key and its bar, paused, from its place (`OwnRoomComesBack`, a note in this browser); the folded
   key says PRIVATE / BY LINK / LIVE as the badge does. The host's player starts by itself only while the room says it
-  plays, and the same file named again starts. Proof: `scripts/drive-roomui.cjs` on a mock server.
+  plays, and the same file named again starts. An Internet Archive video (filed as the Archive's embed) plays as the
+  item's first video file in the room's own player, read through our series route (`archive-room-file.ts`): the room's
+  keys, SUBS, and fullscreen with the background round it; an item that cannot be read keeps the Archive's player.
+  Proof: `scripts/drive-roomui.cjs` on a mock server.
 - **Not done, said here:** `<NAME> IS AWAY` for joiners of an away host is not drawn; the 3-minute close of a handed-on room and the
   45-second take-over are proved on the mock store and in the migration, not live (the migration waits for Luke's
   typed OK).

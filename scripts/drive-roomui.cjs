@@ -7,9 +7,13 @@
  *   2. The embedded players' own controls: a Vimeo video is made with `controls: false` (Vimeo's script is answered here by a
  *      stand-in that records what it is asked, so no Vimeo account or network is needed), and the room's own keys drive it;
  *      a PeerTube player is asked for no title, warning or PeerTube link.
- *   4. Folding the room ([ _ ]): what stands in for it above and on the music bar.
+ *   4. Folding the room ([ _ ]): its key above the player says PRIVATE and the bar is the room's; after a reload it comes
+ *      back folded with both, paused; after END ROOM a reload brings nothing back.
+ *   5. An Internet Archive video (filed as the Archive's embed) plays as its own file in the room's player with the room's
+ *      keys, and fullscreen keeps the background; an item whose listing cannot be read keeps the Archive's player. The
+ *      site's own series route and the file are answered here, so the Archive is never asked.
  *
- *   node scripts/drive-roomui.cjs --base http://localhost:3317 [--only 1,3,2,4]
+ *   node scripts/drive-roomui.cjs --base http://localhost:3317 [--only 1,3,2,4,5]
  *
  * Start the server with Temp/browse/dev-mock-rooms.cjs (every data source on mock, Supabase empty): nothing reaches the
  * live database, and the "account" is a made-up one in the browser's mock store. From the network it asks only a
@@ -33,6 +37,10 @@ const VIDEO = 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flo
 const VIMEO = 'https://vimeo.com/76979871';
 const PEERTUBE = 'https://framatube.org/videos/embed/9c9de5e8-0a1e-484a-b099-e80766180a6d';
 const ROOM = '[data-dock-window="stream"]';
+/** Item 5: an Archive embed whose listing the drive answers with one test file, and one whose listing fails. */
+const ARCHIVE_EMBED = 'https://archive.org/embed/debaser-drive-ia';
+const ARCHIVE_FILE = 'https://archive.org/download/debaser-drive-ia/clip.webm';
+const ARCHIVE_UNREADABLE = 'https://archive.org/embed/debaser-drive-unreadable';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 let passed = 0;
@@ -147,6 +155,18 @@ async function queueLink(page, url) {
   await context.route(/https:\/\/vimeo\.com\/api\/oembed\.json/, (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ title: 'DRIVE VIMEO', width: 640, height: 360 }) }),
   );
+  // Item 5: our own series route answered here for the two test items, and the test file served at its Archive address.
+  await context.route(/\/api\/web\/series\?ia=debaser-drive-/, (route) => {
+    const unreadable = route.request().url().includes('unreadable');
+    return route.fulfill(
+      unreadable
+        ? { status: 404, contentType: 'application/json', body: JSON.stringify({ error: 'NOTHING HERE PLAYS IN A ROOM.' }) }
+        : { status: 200, contentType: 'application/json', body: JSON.stringify({ title: 'DRIVE ARCHIVE', episodes: [{ title: 'clip', url: ARCHIVE_FILE, kind: 'file', seconds: 5 }], partial: false }) },
+    );
+  });
+  const clip = Buffer.from(await (await fetch(VIDEO)).arrayBuffer());
+  await context.route(ARCHIVE_FILE, (route) => route.fulfill({ status: 200, contentType: 'video/webm', headers: { 'access-control-allow-origin': '*' }, body: clip }));
+  await context.route(/https:\/\/archive\.org\/embed\//, (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>stand-in</title><body style="background:#533"></body>' }));
   await context.route(/https:\/\/framatube\.org\//, (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>stand-in</title><body style="background:#353"></body>' }));
   const page = await context.newPage();
   const errors = [];
@@ -322,6 +342,74 @@ async function queueLink(page, url) {
       assert.equal(await page.locator(ROOM).count(), 0, 'after END ROOM and a reload, no room window comes back');
       assert.equal(await page.locator('[data-stream-bar]').count(), 0, 'and the bar is the music player');
       pass('after END ROOM a reload brings no room back');
+    }
+
+    if (wants(5)) {
+      console.log('5. AN INTERNET ARCHIVE VIDEO PLAYS IN THE ROOM\'S OWN PLAYER, AND FULLSCREEN KEEPS THE BACKGROUND');
+      // The room's current row becomes an Archive embed, as a MEDIA row files one, and the page is loaded again.
+      const putOn = async (embed) => {
+        await page.evaluate((url) => {
+          const store = JSON.parse(localStorage.getItem('debaser.watch.v1'));
+          const room = store.rooms.find((held) => held.origin === 'music' && held.endedAt === null && held.originalHostId === 'drive-user');
+          const row = store.queue.find((entry) => entry.id === room.currentEntryId);
+          row.link = { url, kind: 'embed', title: 'DRIVE ARCHIVE VIDEO' };
+          row.mediaItemId = null;
+          localStorage.setItem('debaser.watch.v1', JSON.stringify(store));
+        }, embed);
+        await open(page, '/forum');
+        const back = page.locator('[data-room-shelf-key] button, [data-own-room-door] button');
+        await back.first().waitFor({ timeout: 30000 });
+        await back.first().click();
+        await page.waitForFunction(() => document.querySelector('[data-dock-window="stream"]')?.getAttribute('data-minimized') !== 'true', null, { timeout: 10000 });
+      };
+      if ((await page.locator('[data-main-room-live]').count()) === 0) {
+        await open(page, '/files?kind=video');
+        await pressPlay(page);
+        await page.waitForSelector('[data-main-room-live]', { timeout: 30000 });
+      }
+      await putOn(ARCHIVE_EMBED);
+      await page.waitForSelector(`${ROOM} video[data-watch-video]`, { timeout: 30000 });
+      const shown = await page.evaluate((room) => ({
+        src: document.querySelector(`${room} video[data-watch-video]`).currentSrc || document.querySelector(`${room} video[data-watch-video]`).src,
+        frames: document.querySelectorAll(`${room} iframe[data-watch-embed]`).length,
+      }), ROOM);
+      assert.deepEqual(shown, { src: ARCHIVE_FILE, frames: 0 }, 'the Archive video is its own file in the room\'s <video>, with no Archive player frame');
+      assert.match(await page.locator('[data-stream-bar]').innerText(), /DRIVE ARCHIVE VIDEO/, 'the bar names the row as it was filed');
+      // The room's own keys drive it.
+      await page.locator('[data-stream-bar] button[aria-label="Play"]').click();
+      await page.waitForFunction((room) => {
+        const video = document.querySelector(`${room} video[data-watch-video]`);
+        return !video.paused && video.currentTime > 0.3;
+      }, ROOM, { timeout: 15000 });
+      await page.locator('[data-stream-bar] button[aria-label="Pause"]').click();
+      await page.waitForFunction((room) => document.querySelector(`${room} video[data-watch-video]`).paused, ROOM, { timeout: 10000 });
+      await page.locator('[data-stream-bar] button[aria-label="Play"]').click();
+      pass('an Internet Archive video plays as its own file in the room\'s player, PLAY and PAUSE on the room\'s bar driving it; no Archive player');
+
+      await page.evaluate(() => document.querySelector('[data-stream-bar] button[aria-label="Fullscreen"]').click());
+      await page.waitForFunction(() => document.fullscreenElement !== null, null, { timeout: 8000 });
+      await page.waitForSelector('[data-room-picture][data-backdrop-press]', { timeout: 8000 });
+      const full = await page.evaluate(() => {
+        const video = document.querySelector('[data-dock-window="stream"] video[data-watch-video]');
+        const box = video.getBoundingClientRect();
+        return {
+          backdrop: document.querySelector('[data-room-picture] [data-stage-backdrop], [data-room-picture] canvas') !== null,
+          solid: video.hasAttribute('data-backdrop-solid'),
+          bkg: document.fullscreenElement.querySelector('button')?.innerText.includes('BKG') ?? false,
+          size: `${Math.round(box.width)}x${Math.round(box.height)}`,
+        };
+      });
+      assert.ok(full.solid, `fullscreen: the picture is its own shape on the chosen background (${JSON.stringify(full)})`);
+      await page.screenshot({ path: join(SHOTS, '5-archive-fullscreen.png') });
+      await page.evaluate(() => document.exitFullscreen());
+      await page.waitForFunction(() => document.fullscreenElement === null, null, { timeout: 8000 });
+      pass(`fullscreen on the Archive video: the picture its own shape (${full.size}) with the background round it, as YouTube's`);
+
+      // An item whose listing cannot be read keeps the Archive's own player.
+      await putOn(ARCHIVE_UNREADABLE);
+      await page.waitForSelector(`${ROOM} iframe[data-watch-embed="embed"]`, { timeout: 30000 });
+      assert.equal(await page.locator(`${ROOM} iframe[data-watch-embed="embed"]`).getAttribute('src'), ARCHIVE_UNREADABLE, 'an item that cannot be read: the Archive\'s own player, as before');
+      pass('an Archive item that cannot be read still plays, in the Archive\'s own player');
     }
 
     assert.deepEqual(errors, [], `no page errors (${errors.join(' | ')})`);
