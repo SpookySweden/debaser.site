@@ -207,14 +207,31 @@ export type PointerNow = { x: number; y: number; ghost: boolean };
 
 let pointer: { x: number; y: number; at: number } | null = null;
 let pointerWatchers = 0;
+/**
+ * Every place the pointer was seen since a background last asked (list 4): a background steps thirty times a second, and a
+ * fast stroke passes many places between two steps. The browser's in-between moves (coalesced events) count too.
+ */
+let trail: { x: number; y: number }[] = [];
+const TRAIL_MOST = 96;
 
 const onPointerMove = (event: PointerEvent) => {
+  const between = typeof event.getCoalescedEvents === 'function' ? event.getCoalescedEvents() : [];
+  for (const each of between.length > 0 ? between : [event]) trail.push({ x: each.clientX, y: each.clientY });
+  if (trail.length > TRAIL_MOST) trail = trail.slice(-TRAIL_MOST);
   pointer = { x: event.clientX, y: event.clientY, at: performance.now() };
   if (ghostSlot.state() === 'recording') recordGhost();
 };
 const onPointerLeave = () => {
   pointer = null;
+  trail = [];
 };
+
+/** The places the real pointer passed since the last call, oldest first, and a fresh start. Empty while its ghost plays. */
+export function takePointerTrail(): { x: number; y: number }[] {
+  const taken = trail;
+  trail = [];
+  return taken;
+}
 
 /** A background saying it wants the pointer. Returns the way to stop; the pointer is only listened for while somebody wants it. */
 export function watchPointer(): () => void {
@@ -229,6 +246,7 @@ export function watchPointer(): () => void {
     window.removeEventListener('pointermove', onPointerMove);
     document.documentElement.removeEventListener('pointerleave', onPointerLeave);
     pointer = null;
+    trail = [];
   };
 }
 

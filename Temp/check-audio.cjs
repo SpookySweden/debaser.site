@@ -401,7 +401,8 @@ assert.doesNotMatch(
 
 // The bar's symbol is handed what will happen, not which switch decided it: a clip repeats itself with
 // the shelf's switch off, and a `↻` beside a file that is about to stop would be the bar lying.
-assert.match(providerText, /loop: ownLoop \?\? loop/, 'the bar is told the effective repeat');
+// (ROOMSYNC, 2026-11-16: "the loop button to loop it") Hosting a room, the effective repeat is that room's loop. Updated on purpose.
+assert.match(providerText, /loop: roomBinding !== null && roomBinding\.hosting \? roomLoop : \(ownLoop \?\? loop\)/, 'the bar is told the effective repeat');
 
 console.log('audio checks passed');
 console.log('  clocks     : 61s reads', formatClock(61), ':: an unknown length reads', formatClock(Number.NaN));

@@ -145,7 +145,8 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
     assert.equal(registry.backdropDef(def.id), def, `${def.label} is found by its id`);
     assert.deepEqual(K.parseValues(def, def.defaults), def.defaults, `${def.label}: its defaults read back as themselves`);
     assert.equal(new Set(def.knobs.map((knob) => knob.key)).size, def.knobs.length, `${def.label}: no knob twice`);
-    for (const knob of def.knobs) assert.ok(knob.key in def.defaults && def.tabs.some((tab) => tab.id === knob.tab), `${def.label}: ${knob.key} has a default and a tab`);
+    // [ THEME ] (Luke, 2026-11-16) is the one knob in no tab: the window draws it above the tabs (Temp/check-backdrop-theme.cjs).
+    for (const knob of def.knobs) assert.ok(knob.key in def.defaults && (def.tabs.some((tab) => tab.id === knob.tab) || (knob.key === 'theme' && knob.tab === '')), `${def.label}: ${knob.key} has a default and a tab`);
     for (const widget of def.widgets) for (const key of widget.kind === 'pad' ? [widget.x, widget.y] : [widget.low, widget.high]) assert.ok(def.knobs.some((knob) => knob.key === key && knob.kind === 'range'), `${def.label}: ${widget.label} is made of sliders that exist`);
     for (const look of def.looks) assert.deepEqual(K.parseValues(def, look.values), look.values, `${def.label}: the ${look.label} look is in range`);
     assert.ok(def.looks.length === 0 || K.sameValues(def, def.looks[0].values, def.defaults), `${def.label}: its first look is the background as it comes`);

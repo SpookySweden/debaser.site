@@ -60,7 +60,9 @@ import {
   toggleBackdropSeeThrough,
   toggleBackdropWindow,
 } from '../lib/backdrops/store';
+import { THEME_KEY, currentThemeId, subscribeToTheme, themeNudges, themeSet, themedValues } from '../lib/backdrops/theme';
 import { BACKDROPS, DEFAULT_BACKDROP, backdropState, setBackdrop, subscribeToBackdrop } from '../lib/ui/backdrop-slot';
+import { themeById } from '../lib/ui/themes';
 import { PLATE, PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED, PLATE_PRESSED, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import { BandStrip, MINI, MINI_ON, Sparkline, XYPad } from './backdrops/BackdropControls';
@@ -88,7 +90,13 @@ type Panel = {
   locks: readonly string[];
   sway: Readonly<Record<string, readonly [number, number]>>;
   still: boolean;
+  /** While `[ THEME ]` is on: the knobs the theme sets outright (drawn as the theme's, not to be moved)... */
+  themed: Values;
+  /** ...and the settings as the background is drawn, the theme's nudges included, for the `35% → 50%` beside a nudged slider. */
+  drawn: Values;
 };
+
+const SET_BY_THEME = 'SET BY THE THEME WHILE [ THEME ] IS ON. SWITCH IT OFF TO SET THIS YOURSELF';
 
 const change = (panel: Panel, key: string, value: number | boolean | string) => setBackdropValues(panel.def.id, withValue(panel.def, panel.values, key, value));
 
@@ -148,14 +156,18 @@ function RowKeys({ panel, knobs, name }: { panel: Panel; knobs: readonly Knob[];
 /** A slider: its name and its value written out above it, the arrow keys working on it when it has focus. */
 function RangeRow({ knob, panel }: { knob: RangeKnob; panel: Panel }) {
   const marks = panel.sway[knob.key];
-  const value = panel.live[knob.key] as number;
+  const byTheme = knob.key in panel.themed;
+  const value = (byTheme ? panel.themed[knob.key] : panel.live[knob.key]) as number;
   const shown = shownValue(knob, value);
+  // A knob the theme nudges: the reader's own value, and where the theme has it drawn.
+  const drawn = panel.drawn[knob.key];
+  const nudged = !byTheme && typeof drawn === 'number' && drawn !== value ? shownValue(knob, drawn) : null;
   return (
-    <div className="flex flex-col gap-0.5 py-1 text-label text-ink" title={knob.tip}>
+    <div className="flex flex-col gap-0.5 py-1 text-label text-ink" title={byTheme ? SET_BY_THEME : nudged === null ? knob.tip : `${knob.tip}. THE THEME NUDGES IT TO ${nudged}`}>
       <span className="flex items-center justify-between gap-2">
         <span className="min-w-0 flex-1 truncate">{knob.label}</span>
-        <span data-backdrop-value={knob.key}>{shown}</span>
-        <RowKeys panel={panel} knobs={[knob]} name={knob.label} />
+        <span data-backdrop-value={knob.key}>{byTheme ? `THEME ${shown}` : nudged === null ? shown : `${shown} → ${nudged}`}</span>
+        {byTheme ? null : <RowKeys panel={panel} knobs={[knob]} name={knob.label} />}
       </span>
       <input
         type="range"
@@ -164,14 +176,14 @@ function RangeRow({ knob, panel }: { knob: RangeKnob; panel: Panel }) {
         step={knob.step}
         value={value}
         // While it sways, the slider shows where the value has got to and the strip under it sets the two marks.
-        disabled={marks !== undefined && !panel.still}
+        disabled={byTheme || (marks !== undefined && !panel.still)}
         aria-label={knob.label}
         aria-valuetext={shown}
         onChange={(event) => change(panel, knob.key, Number(event.target.value))}
         className="h-5 w-full cursor-pointer accent-bubble"
         data-backdrop-knob={knob.key}
       />
-      {marks === undefined ? null : (
+      {marks === undefined || byTheme ? null : (
         <BandStrip
           id={`sway-${knob.key}`}
           low={knob}
@@ -198,24 +210,53 @@ function SwitchKey({ knob, panel }: { knob: SwitchKnob; panel: Panel }) {
 
 /** One of a few: the chosen one filled. */
 function ChoiceRow({ knob, panel }: { knob: ChoiceKnob; panel: Panel }) {
+  // Set by the theme (COLOURS, while THEME is on): the reader's own choice is kept and waits; the keys rest.
+  const byTheme = knob.key in panel.themed;
   return (
-    <div className="flex flex-wrap items-center gap-1 py-1 text-label text-ink" role="group" aria-label={knob.label} title={knob.tip}>
+    <div className="flex flex-wrap items-center gap-1 py-1 text-label text-ink" role="group" aria-label={knob.label} title={byTheme ? SET_BY_THEME : knob.tip}>
       <span className="pr-1">{knob.label}</span>
+      {byTheme ? <span data-backdrop-value={knob.key}>THE THEME&apos;S</span> : null}
       {knob.options.map((option) => (
         <button
           key={option.value}
           type="button"
-          aria-pressed={panel.values[knob.key] === option.value}
-          title={option.tip}
+          aria-pressed={!byTheme && panel.values[knob.key] === option.value}
+          title={byTheme ? SET_BY_THEME : option.tip}
+          disabled={byTheme}
           onClick={() => change(panel, knob.key, option.value)}
-          className={panel.values[knob.key] === option.value ? PLATE_PRESSED : PLATE}
+          className={!byTheme && panel.values[knob.key] === option.value ? PLATE_PRESSED : PLATE}
           data-backdrop-knob={`${knob.key}-${option.value}`}
         >
           [ {option.label} ]
         </button>
       ))}
-      <span className="ml-auto">
-        <RowKeys panel={panel} knobs={[knob]} name={knob.label} />
+      {byTheme ? null : (
+        <span className="ml-auto">
+          <RowKeys panel={panel} knobs={[knob]} name={knob.label} />
+        </span>
+      )}
+    </div>
+  );
+}
+
+const THEME_TIP = "THE BACKGROUND MATCHED TO THE SITE'S THEME: ITS COLOURS, LIGHT AND MOOD, FOLLOWING THE THEME WHEN IT CHANGES. OFF: YOUR OWN SETTINGS";
+
+/**
+ * `[ THEME ]` (Luke, 2026-11-16): at the top of every background's window, on as it comes. While it is on the background wears the
+ * site theme (`../lib/backdrops/theme.ts`); the line beside it says which theme, and which knobs the theme sets.
+ */
+function ThemeRow({ panel, theme }: { panel: Panel; theme: string }) {
+  const on = panel.values[THEME_KEY] === true;
+  const shown = themeById(theme);
+  const name = shown.family === undefined ? shown.label : `${shown.family.label} ${shown.label}`;
+  const sets = panel.def.knobs.filter((knob) => knob.key in panel.themed).map((knob) => knob.label);
+  return (
+    <div className="flex flex-wrap items-center gap-2 pb-1 text-label text-ink" data-backdrop-theme={on ? 'on' : 'off'}>
+      <button type="button" aria-pressed={on} title={THEME_TIP} onClick={() => change(panel, THEME_KEY, !on)} className={on ? PLATE_PRESSED : PLATE} data-backdrop-knob={THEME_KEY}>
+        [ THEME ]
+      </button>
+      <span className="min-w-0 flex-1">
+        {on ? `MATCHED TO ${name}: ITS COLOURS, LIGHT AND MOOD.${sets.length > 0 ? ` IT SETS ${sets.join(', ')}.` : ''}` : 'OFF: YOUR OWN COLOURS AND SETTINGS.'}
       </span>
     </div>
   );
@@ -404,7 +445,8 @@ function Morph({ panel }: { panel: Panel }) {
         onChange={(event) => {
           const from = run?.from ?? panel.values;
           const part = Number(event.target.value) / 100;
-          const next = keepingLocks(def, morphValues(def, from, look.values, part), panel.values, panel.locks);
+          // `[ THEME ]` stays as the reader has it through a morph, as through a look.
+          const next = keepingLocks(def, morphValues(def, from, look.values, part), panel.values, [...panel.locks, THEME_KEY]);
           // The same settings again (a morph between two equal looks) changes nothing, and `last` must still match what is stored.
           if (sameValues(def, next, panel.values)) setHeld({ from, last: panel.values, t: part });
           else {
@@ -450,6 +492,7 @@ export function BackdropKnobs({ id }: { id: string }) {
   const active = useSyncExternalStore(subscribeToActiveActions, activeActions, activeActions);
   const { id: backdrop } = useSyncExternalStore(subscribeToBackdrop, backdropState, backdropState);
   const still = useSyncExternalStore(subscribeToReducedMotion, reducedMotion, () => false);
+  const theme = useSyncExternalStore(subscribeToTheme, currentThemeId, currentThemeId);
   const [tab, setTab] = useState(def?.tabs[0]?.id ?? '');
   useEffect(() => watchLiveValues(id), [id]);
   // A bounce doesn't outlive the window that shows it: shut the window (or change background) and every puck is caught, its
@@ -457,9 +500,13 @@ export function BackdropKnobs({ id }: { id: string }) {
   useEffect(() => () => backdropDef(id)?.widgets.forEach((widget) => (widget.kind === 'pad' ? stopBounce(id, widget.id) : undefined)), [id]);
 
   if (def === null || live === null || values === null) return null;
-  const panel: Panel = { def, values, live, locks: extras.locks, sway: extras.sway, still };
+  const themeOn = values[THEME_KEY] === true;
+  const panel: Panel = { def, values, live, locks: extras.locks, sway: extras.sway, still, themed: themeOn ? themeSet(theme, id) : {}, drawn: themeOn ? themedValues(def, live, theme) : live };
   const shownTab = def.tabs.some((each) => each.id === tab) ? tab : def.tabs[0].id;
-  const put = (next: Values) => setBackdropValues(id, keepingLocks(def, next, panel.values, panel.locks));
+  // PARTY, the looks and MORPH leave `[ THEME ]` as the reader has it, as if it were locked; RESET puts it back on, as it came.
+  const kept = [...panel.locks, THEME_KEY];
+  const put = (next: Values) => setBackdropValues(id, keepingLocks(def, next, panel.values, kept));
+  const isLook = (look: Values) => sameValues(def, { ...panel.values, [THEME_KEY]: look[THEME_KEY] }, look);
 
   return (
     <div className="flex min-h-full flex-col" data-backdrop-window={id}>
@@ -479,6 +526,9 @@ export function BackdropKnobs({ id }: { id: string }) {
       {still ? <p className={`${NOTE} mb-1`}>YOUR COMPUTER ASKS FOR LESS MOTION, SO WHAT MOVES IS RESTING. THE KNOBS THAT DON&apos;T MOVE ANYTHING STILL WORK.</p> : null}
 
       <Meters />
+
+      <ThemeRow panel={panel} theme={theme} />
+      {themeOn && Object.keys(themeNudges(theme, id)).length > 0 ? <p className="pb-1 text-label text-ink">AN ARROW BESIDE A VALUE: WHERE THE THEME NUDGES IT FROM YOURS.</p> : null}
 
       <div className="flex flex-wrap items-center gap-1 pb-1" role="group" aria-label="Kinds of setting">
         {def.tabs.map((each) => (
@@ -517,20 +567,20 @@ export function BackdropKnobs({ id }: { id: string }) {
           <span>LOOKS</span>
         </div>
         <div className="flex flex-wrap items-center gap-1 pt-1" role="group" aria-label="Looks">
-          <button type="button" title={`BACK TO THE ${def.label} AS IT CAME`} onClick={() => put(def.defaults)} className={PLATE} data-backdrop-look="reset">
+          <button type="button" title={`BACK TO THE ${def.label} AS IT CAME`} onClick={() => setBackdropValues(id, keepingLocks(def, def.defaults, panel.values, panel.locks))} className={PLATE} data-backdrop-look="reset">
             [ RESET ]
           </button>
-          <button type="button" title="EVERY KNOB SOMEWHERE AT RANDOM" onClick={() => setBackdropValues(id, partyValues(def, Math.random, panel.values, panel.locks))} className={PLATE} data-backdrop-look="party">
+          <button type="button" title="EVERY KNOB SOMEWHERE AT RANDOM" onClick={() => setBackdropValues(id, partyValues(def, Math.random, panel.values, kept))} className={PLATE} data-backdrop-look="party">
             [ PARTY ]
           </button>
           {def.looks.map((look) => (
             <button
               key={look.id}
               type="button"
-              aria-pressed={sameValues(def, panel.values, look.values)}
+              aria-pressed={isLook(look.values)}
               title={look.tip}
               onClick={() => put(look.values)}
-              className={sameValues(def, panel.values, look.values) ? PLATE_PRESSED : PLATE}
+              className={isLook(look.values) ? PLATE_PRESSED : PLATE}
               data-backdrop-look={look.id}
             >
               [ {look.label} ]

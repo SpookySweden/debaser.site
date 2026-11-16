@@ -611,7 +611,9 @@ ok('a line of chat hops the companion of whoever said it, worked out in each bro
   off();
   events.companionSpoke('u4', new Date().toISOString());
   assert.deepEqual(heard, ['u1']);
-  assert.match(read('app/lib/watch/use-watch-room.ts'), /if \(current\.messages\.some\(\(message\) => message\.id === change\.message\.id\)\) return;\s*companionSpoke\(change\.message\.authorId, change\.message\.createdAt, change\.message\.body\);/, 'one line, after a line already held is dropped; with its words, for the bubble (2026-11-15, SPEC-character-speech.md phase 3, asked for by PROFILE)');
+  // (ROOMSYNC, 2026-11-16) A line that is a picture is held up instead of said ("have the companion raise it rather than
+  // sending the text of the url"): the words still go to the bubble for every other line. Updated on purpose.
+  assert.match(read('app/lib/watch/use-watch-room.ts'), /if \(current\.messages\.some\(\(message\) => message\.id === change\.message\.id\)\) return;\s*\{[^}]*const picture = chatPicture\(change\.message\.body, isGuestLabel\(change\.message\.authorLabel\)\);\s*if \(picture !== null\) companionHolds\(change\.message\.authorId, change\.message\.createdAt, picture\);\s*else companionSpoke\(change\.message\.authorId, change\.message\.createdAt, change\.message\.body\);/, 'one line, after a line already held is dropped; with its words, for the bubble (2026-11-15, SPEC-character-speech.md phase 3, asked for by PROFILE), unless it is a picture, which is held up');
   const strip = read('app/components/Companion.tsx');
   assert.match(strip, /if \(who === company\.current\.userId\) react\('spoke'\);/, 'yours hops when you speak');
   assert.match(strip, /if \(who !== owner\.current\) return;\s*if \(!still\) act = \{ motion: 'hop', tick: 0 \};\s*markTimer = showMark\(mark, markTimer, '\.\.\.'\);/, "and theirs when they do, with nothing sent");

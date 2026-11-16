@@ -59,7 +59,10 @@ export class VimeoPlayable extends EmbedPlayer implements QualityControl, Subtit
     loadScript(SDK, () => Boolean(window.Vimeo?.Player)).then(
       () => {
         if (this.destroyed || !window.Vimeo) return;
-        const player = new window.Vimeo.Player(mount, { url: vimeoUrl(video), autoplay: autoPlay, playsinline: true, dnt: true, responsive: true, title: false, byline: false, portrait: false, fullscreen: !siteFullscreenWorks() });
+        // `controls: false`: no play bar or buttons of Vimeo's over the room's picture; the room's own keys drive it (Luke,
+        // 2026-11-16: "i need the embedded players ui to not be shown inside the room viewport"). Vimeo honours it only for
+        // a video whose owner pays for Vimeo (Creator and up); anyone else's still shows Vimeo's bar.
+        const player = new window.Vimeo.Player(mount, { url: vimeoUrl(video), autoplay: autoPlay, playsinline: true, dnt: true, responsive: true, title: false, byline: false, portrait: false, controls: false, fullscreen: !siteFullscreenWorks() });
         this.player = player;
         player.on('timeupdate', (data) => {
           this.time = data.seconds ?? this.time;

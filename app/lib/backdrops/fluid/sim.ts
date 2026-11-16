@@ -44,6 +44,12 @@ export type FluidState = {
   flowNow: number;
   /** How many steps have been worked out in full (a resting step is not one). */
   solved: number;
+  /** When (in the fluid's time) what is solid last changed, to tell how fast a window moved. */
+  solidAt: number;
+  /** The windows that are moving just now, each with its speed in cells a second: they shove the water as they go. */
+  movers: { box: Box; vx: number; vy: number }[];
+  /** Until when (the fluid's time) the movers count: a window that stops sends no word, so the push runs out by itself. */
+  moversUntil: number;
 };
 
 const num = (values: Values, key: string): number => values[key] as number;
@@ -54,6 +60,7 @@ export function newFluid(w: number, h: number): FluidState {
   return {
     w, h, u: field(), v: field(), u0: field(), v0: field(), p: field(), div: field(), ink: [field(), field(), field()], ink0: field(),
     solid: new Uint8Array(size), solidsOf: null, solidOn: false, t: 0, was: null, nextSplat: 0.5, turn: 0, inkNow: 0, flowNow: 0, solved: 0,
+    solidAt: 0, movers: [], moversUntil: 0,
   };
 }
 
@@ -92,8 +99,12 @@ function edges(state: FluidState, field: Float32Array, kind: 0 | 1 | 2): void {
   }
 }
 
-/** Where the page is solid the water doesn't move and holds no ink. */
-function holdSolids(state: FluidState): void {
+/**
+ * Where the page is solid the water doesn't move and holds no ink. `moving`: a window being dragged moves at its own speed
+ * instead, so the pressure step makes the water in front of it give way and the water behind it follow (list 4, Luke: "push
+ * the fluid in a fun way rather than ever deleting the fluid under it").
+ */
+function holdSolids(state: FluidState, moving = false): void {
   if (!state.solidOn) return;
   const { solid, u, v, ink } = state;
   for (let n = 0; n < solid.length; n += 1) {
@@ -103,6 +114,17 @@ function holdSolids(state: FluidState): void {
     ink[0][n] = 0;
     ink[1][n] = 0;
     ink[2][n] = 0;
+  }
+  if (!moving || state.movers.length === 0 || state.t > state.moversUntil) return;
+  const row = state.w + 2;
+  for (const { box, vx, vy } of state.movers) {
+    for (let y = Math.max(0, box.y0); y < Math.min(state.h, box.y1); y += 1) {
+      for (let x = Math.max(0, box.x0); x < Math.min(state.w, box.x1); x += 1) {
+        const n = x + 1 + row * (y + 1);
+        u[n] = vx;
+        v[n] = vy;
+      }
+    }
   }
 }
 
@@ -181,6 +203,207 @@ function markSolids(state: FluidState, boxes: readonly Box[], on: boolean): void
   }
 }
 
+/** The fastest a window shoves the water, in cells a second: a flung window is a big push, not a blast that tears it apart. */
+export const MOVER_TOP_SPEED = 60;
+
+/**
+ * What is solid changed while the walls were on (list 4): a window moved, opened, closed or changed size. Nothing is deleted:
+ *
+ * - ink a window comes down on is shoved out past its nearest edge (the edge it is heading for, when it moves), so a window
+ *   dragged through ink ploughs it along instead of wiping it;
+ * - a window that moved is remembered with its speed for a moment, and `holdSolids` lets it push the water (the movers);
+ * - where a window stood and no longer does, the ink round it runs in: each freed cell takes the ink of the nearest open
+ *   water outside, fading with how deep in it is, so there is never a hard black hole;
+ * - a window that is gone altogether (closed or put away, nothing of it left) makes the water there churn as it goes:
+ *   a few counter-turning curls the size of the window, which carry the ink in from its edges and fold it through the
+ *   middle, so the space fills with swirling colour instead of sitting as a black square (Luke: "creativeley disperses").
+ */
+function moveSolids(state: FluidState, boxes: readonly Box[], values: Values, env: EngineEnv, dt: number): void {
+  const { w, h, solid, ink, u, v } = state;
+  const row = w + 2;
+  const before = solid.slice();
+  const old = state.solidsOf ?? [];
+  markSolids(state, boxes, true);
+  const elapsed = Math.min(4 * dt, Math.max(dt, state.t - state.solidAt));
+  state.solidAt = state.t;
+
+  // Which window is which: the same size, nearest to where it was. A window that changed size is not a mover.
+  const used = new Set<number>();
+  const movers: FluidState['movers'] = [];
+  const motion = new Map<Box, { vx: number; vy: number }>();
+  for (const box of boxes) {
+    let best = -1;
+    let bestFar = Infinity;
+    old.forEach((was, n) => {
+      if (used.has(n) || was.x1 - was.x0 !== box.x1 - box.x0 || was.y1 - was.y0 !== box.y1 - box.y0) return;
+      const far = Math.abs(was.x0 - box.x0) + Math.abs(was.y0 - box.y0);
+      if (far < bestFar) [best, bestFar] = [n, far];
+    });
+    if (best < 0) continue;
+    used.add(best);
+    if (bestFar === 0) continue;
+    const top = (speed: number) => Math.max(-MOVER_TOP_SPEED, Math.min(MOVER_TOP_SPEED, speed));
+    const speed = { vx: top((box.x0 - old[best].x0) / elapsed), vy: top((box.y0 - old[best].y0) / elapsed) };
+    motion.set(box, speed);
+    movers.push({ box, ...speed });
+  }
+  state.movers = movers;
+  state.moversUntil = state.t + 3 * dt;
+
+  // Ink a window has come down on goes out past its edge.
+  for (const box of boxes) {
+    const speed = motion.get(box) ?? { vx: 0, vy: 0 };
+    const going = Math.hypot(speed.vx, speed.vy);
+    for (let y = Math.max(0, box.y0); y < Math.min(h, box.y1); y += 1) {
+      for (let x = Math.max(0, box.x0); x < Math.min(w, box.x1); x += 1) {
+        const n = x + 1 + row * (y + 1);
+        if (before[n] === 1) continue;
+        const a = ink[0][n] + ink[1][n] + ink[2][n];
+        if (a <= 0) continue;
+        // Out each way, nearest first; the way the window is heading counts as much nearer. The ink is folded out as far
+        // past the edge as it was in from it, so a window landing on a pool spreads it round itself instead of piling it
+        // all into one line (nearer, if that far out is not open water).
+        const ways = [
+          { ex: box.x1 - 1, ey: y, far: box.x1 - x, dx: 1, dy: 0 },
+          { ex: box.x0, ey: y, far: x - box.x0 + 1, dx: -1, dy: 0 },
+          { ex: x, ey: box.y1 - 1, far: box.y1 - y, dx: 0, dy: 1 },
+          { ex: x, ey: box.y0, far: y - box.y0 + 1, dx: 0, dy: -1 },
+        ].sort((p, q) => {
+          const lean = (way: { dx: number; dy: number }) => (going > 0 ? 1 + 4 * Math.max(0, (way.dx * speed.vx + way.dy * speed.vy) / going) : 1);
+          return p.far / lean(p) - q.far / lean(q);
+        });
+        let to = -1;
+        for (const way of ways) {
+          for (let out = way.far; out >= 1 && to < 0; out -= 1) {
+            const [tx, ty] = [way.ex + way.dx * out, way.ey + way.dy * out];
+            if (tx < 0 || tx >= w || ty < 0 || ty >= h) continue;
+            const at = tx + 1 + row * (ty + 1);
+            if (solid[at] === 0) to = at;
+          }
+          if (to >= 0) break;
+        }
+        if (to >= 0) for (const one of ink) one[to] = Math.min(2, one[to] + one[n]);
+        ink[0][n] = 0;
+        ink[1][n] = 0;
+        ink[2][n] = 0;
+      }
+    }
+  }
+
+  // Where a window was: the ink round it runs in. Gone altogether, it churns as well.
+  for (const was of old) {
+    const gone = !boxes.some((box) => box.x0 < was.x1 && was.x0 < box.x1 && box.y0 < was.y1 && was.y0 < box.y1);
+    const [bw, bh] = [Math.min(w, was.x1) - Math.max(0, was.x0), Math.min(h, was.y1) - Math.max(0, was.y0)];
+    if (bw <= 0 || bh <= 0) continue;
+    // How deep the ink reaches in before it has faded: further for a window that went altogether.
+    const reach = gone ? Math.max(4, Math.min(bw, bh) / 5) : 3;
+    for (let y = Math.max(0, was.y0); y < Math.min(h, was.y1); y += 1) {
+      for (let x = Math.max(0, was.x0); x < Math.min(w, was.x1); x += 1) {
+        const n = x + 1 + row * (y + 1);
+        if (before[n] === 0 || solid[n] === 1) continue;
+        // The nearest open water outside the window, straight out each way: the nearest with ink in it, a little further
+        // out if the edge itself is clear (ink is often held a cell or two off a window's side).
+        let from = -1;
+        let far = Infinity;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          let open = -1;
+          for (let step = 1; step < far && step <= Math.max(bw, bh) + 1 + reach; step += 1) {
+            const [sx, sy] = [x + dx * step, y + dy * step];
+            if (sx < 0 || sx >= w || sy < 0 || sy >= h) break;
+            const at = sx + 1 + row * (sy + 1);
+            if (before[at] === 1 || solid[at] === 1) {
+              if (open >= 0) break;
+              continue;
+            }
+            if (open < 0) open = step;
+            if (ink[0][at] + ink[1][at] + ink[2][at] > 0.05 || step - open >= reach) {
+              [from, far] = [at, step];
+              break;
+            }
+          }
+        }
+        if (from < 0) continue;
+        const part = Math.exp(-(far - 1) / reach);
+        for (const one of ink) one[n] = one[from] * part;
+      }
+    }
+    if (!gone || bw * bh < 24) continue;
+    // The churn: a stream function of counter-turning curls (sin a sin b) laid over the space and a margin round it, whose
+    // water runs in from round the window and through the middle. It neither piles up nor thins out, so the pressure step
+    // keeps it whole. Which way the curls turn is a coin toss, so no two closings look the same.
+    const margin = Math.round(Math.min(bw, bh) * 0.2);
+    const [cx0, cy0] = [Math.max(0, was.x0 - margin), Math.max(0, was.y0 - margin)];
+    const [cw, ch] = [Math.min(w, was.x1 + margin) - cx0, Math.min(h, was.y1 + margin) - cy0];
+    const across = Math.max(2, Math.min(4, Math.round((2 * cw) / ch)));
+    const down = Math.max(2, Math.min(4, Math.round((2 * ch) / cw)));
+    const [a, b] = [(across * Math.PI) / cw, (down * Math.PI) / ch];
+    const push = num(values, 'push') / 100;
+    const speed = Math.min(MOVER_TOP_SPEED, 0.5 * Math.min(cw, ch) + 12) * (0.4 + push) * (env.random() < 0.5 ? -1 : 1);
+    const strength = speed / Math.max(a, b);
+    for (let y = cy0; y < cy0 + ch; y += 1) {
+      for (let x = cx0; x < cx0 + cw; x += 1) {
+        const n = x + 1 + row * (y + 1);
+        if (solid[n] === 1) continue;
+        const [px, py] = [x - cx0 + 0.5, y - cy0 + 0.5];
+        u[n] += strength * b * Math.sin(a * px) * Math.cos(b * py);
+        v[n] -= strength * a * Math.cos(a * px) * Math.sin(b * py);
+      }
+    }
+    state.flowNow = Math.max(state.flowNow, 1);
+  }
+  state.inkNow = Math.max(state.inkNow, 0.001);
+}
+
+/**
+ * The pointer's way since the last step, laid down as ink and push (list 4, Luke: "make the fluid respond better to higher
+ * mouse movement speeds"). A short move is one splat where the pointer is, exactly as it always was. A long one - a fast
+ * stroke - is splats all along the way it went (through every place the pointer was seen, so a curve stays a curve), a
+ * little under half a splat apart so they join into one line, each pushing the way the stroke went at that point. The
+ * line is as dark as a slow stroke's blot and pushes as hard along its whole length as the old one splat did at its end:
+ * a fast stroke carries water and ink the whole way instead of leaving a gap and one blot. A jump across half the
+ * screen (the pointer back from another window) is not a stroke. True when anything was laid down.
+ */
+function stroke(state: FluidState, was: { x: number; y: number }, trail: readonly { x: number; y: number }[], now: { x: number; y: number }, size: number, push: number): boolean {
+  const { w, h } = state;
+  const points = [was, ...trail, now];
+  let length = 0;
+  for (let n = 1; n < points.length; n += 1) {
+    const far = Math.hypot(points[n].x - points[n - 1].x, points[n].y - points[n - 1].y);
+    if (far >= Math.max(w, h) / 2) return false;
+    length += far;
+  }
+  if (length <= 0.05) return false;
+  const drag = Math.min(6, 30 * push * 0.9 + 4);
+  const spacing = Math.max(1, size * 0.45);
+  const count = Math.min(64, Math.ceil(length / spacing));
+  if (count <= 1) {
+    const [dx, dy] = [now.x - was.x, now.y - was.y];
+    splat(state, now.x, now.y, dx * drag, dy * drag, size, Math.min(0.5, 0.08 + Math.hypot(dx, dy) * 0.04), state.turn);
+    return true;
+  }
+  // Neighbouring splats overlap: about this many lie over any one cell of the line.
+  // (Never under one: splats further apart than that each get their own share, not more.)
+  const overlap = Math.max(1, Math.min(count, (Math.sqrt(Math.PI) * size) / (length / count)));
+  const force = (length * drag) / overlap;
+  const amount = Math.min(0.5, 0.08 + length * 0.04) / overlap;
+  let segment = 1;
+  let walked = 0;
+  for (let n = 1; n <= count; n += 1) {
+    const at = (length * n) / count;
+    // Along the way to the segment this point lies on.
+    while (segment < points.length - 1 && walked + Math.hypot(points[segment].x - points[segment - 1].x, points[segment].y - points[segment - 1].y) < at) {
+      walked += Math.hypot(points[segment].x - points[segment - 1].x, points[segment].y - points[segment - 1].y);
+      segment += 1;
+    }
+    const [a, b] = [points[segment - 1], points[segment]];
+    const piece = Math.hypot(b.x - a.x, b.y - a.y);
+    if (piece <= 0) continue;
+    const part = Math.min(1, (at - walked) / piece);
+    splat(state, a.x + (b.x - a.x) * part, a.y + (b.y - a.y) * part, ((b.x - a.x) / piece) * force, ((b.y - a.y) / piece) * force, size, amount, state.turn);
+  }
+  return true;
+}
+
 /** One step of the fluid. The step is as long as the rate says, stretched by TIME. */
 export function stepFluid(state: FluidState, values: Values, env: EngineEnv): void {
   const { w, h, u, v, u0, v0, ink, ink0 } = state;
@@ -188,23 +411,21 @@ export function stepFluid(state: FluidState, values: Values, env: EngineEnv): vo
   const dt = (1 / 30) * num(values, 'time');
   state.t += dt;
   const walls = values.walls === true;
-  if (state.solidsOf !== env.solids || state.solidOn !== walls) markSolids(state, env.solids, walls);
+  let touched = false;
+  if (state.solidsOf !== env.solids || state.solidOn !== walls) {
+    // A window moved, opened or closed while the walls were on: the water is shoved and runs in, never wiped (list 4).
+    if (walls && state.solidOn && state.solidsOf !== null) {
+      moveSolids(state, env.solids, values, env, dt);
+      touched = true;
+    } else markSolids(state, env.solids, walls);
+  }
 
   const size = num(values, 'splat');
   const push = num(values, 'push') / 100;
-  let touched = false;
 
   // The pointer drags the water the way it moves and leaves ink where it goes.
   const pointer = values.pointer === 'stir' ? env.pointer : null;
-  if (pointer !== null && state.was !== null) {
-    const [dx, dy] = [pointer.x - state.was.x, pointer.y - state.was.y];
-    const far = Math.hypot(dx, dy);
-    if (far > 0.05 && far < Math.max(w, h) / 2) {
-      const drag = Math.min(6, 30 * push * 0.9 + 4);
-      splat(state, pointer.x, pointer.y, dx * drag, dy * drag, size, Math.min(0.5, 0.08 + far * 0.04), state.turn);
-      touched = true;
-    }
-  }
+  if (pointer !== null && state.was !== null && stroke(state, state.was, env.trail ?? [], pointer, size, push)) touched = true;
   state.was = pointer === null ? null : { x: pointer.x, y: pointer.y };
 
   // Splats by themselves, so the water is alive when nobody touches it.
@@ -262,7 +483,7 @@ export function stepFluid(state: FluidState, values: Values, env: EngineEnv): vo
     u[n] *= slow;
     v[n] *= slow;
   }
-  holdSolids(state);
+  holdSolids(state, true);
   project(state);
   u0.set(u);
   v0.set(v);
@@ -270,7 +491,7 @@ export function stepFluid(state: FluidState, values: Values, env: EngineEnv): vo
   carry(state, v, v0, dt);
   edges(state, u, 1);
   edges(state, v, 2);
-  holdSolids(state);
+  holdSolids(state, true);
   project(state);
   let inkSum = 0;
   for (const one of ink) {
