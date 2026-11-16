@@ -21,6 +21,11 @@ The house rules live in `.claude/rules/core.md` (loaded automatically).
   (`app/lib/web/web-audio.ts`, Luke's OK 2026-10-31), or, in a stream room, an Internet Archive series'
   episodes as their https video files played straight from archive.org in the room's own player, in step
   (`app/lib/web/series-files.ts`, Luke's OK in SPEC-stream-series.md, 2026-11-02).
+- The sound graph behind the music bar (Luke, 2026-11-16, "both"): a YouTube video's smallest audio file passes through
+  our server a 1 MB slice at a time (`/api/audio/relay/<id>`, `app/lib/audio/youtube-relay.ts`, InnerTube's player answer)
+  to a hidden player in the page that only an analyser hears; or the reader lets the page hear its own tab (`[ HEAR ]`,
+  `app/lib/audio/tab-listen.ts`). Nothing is stored or played aloud. YouTube often refuses data-centre servers; then the
+  graph moves gently.
 - Subtitles (SPEC-subtitles.md, Luke's OK 2026-11-03): an Internet Archive item's `.vtt`/`.srt` subtitle text passes
   through our server (`/api/web/subtitles`) to a viewer's player when they switch it on (archive.org sends no CORS
   header): the files the item lists, SRT converted to VTT. Each viewer picks their own; nothing is synced.
