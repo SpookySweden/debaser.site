@@ -1,4 +1,5 @@
 import { EmbedPlayer, loadScript } from './embed-player';
+import { siteFullscreenWorks } from '../ui/floating-player';
 import { vimeoUrl, type VimeoVideo } from './links';
 import { normaliseLanguage } from '../web/language';
 import type { SubtitleTrack } from '../web/subtitles';
@@ -58,7 +59,7 @@ export class VimeoPlayable extends EmbedPlayer implements QualityControl, Subtit
     loadScript(SDK, () => Boolean(window.Vimeo?.Player)).then(
       () => {
         if (this.destroyed || !window.Vimeo) return;
-        const player = new window.Vimeo.Player(mount, { url: vimeoUrl(video), autoplay: autoPlay, playsinline: true, dnt: true, responsive: true, title: false, byline: false, portrait: false });
+        const player = new window.Vimeo.Player(mount, { url: vimeoUrl(video), autoplay: autoPlay, playsinline: true, dnt: true, responsive: true, title: false, byline: false, portrait: false, fullscreen: !siteFullscreenWorks() });
         this.player = player;
         player.on('timeupdate', (data) => {
           this.time = data.seconds ?? this.time;

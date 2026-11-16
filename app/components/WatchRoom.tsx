@@ -32,6 +32,7 @@ import { useWebTrack, webTrackNow } from '../lib/web/web-track-lookup';
 
 import { ROOM_BAR, ROOM_BAR_PLACE, ROOM_COG, ROOM_COLUMNS, ROOM_PICTURE_BOX, ROOM_PICTURE_FIT, ROOM_ROOT, ROOM_SCREEN, ROOM_SIDE, ROOM_SIDE_BODY, ROOM_STAGE } from '../lib/watch/room-frame';
 import { shapeFrom, stageStyle, videoShape, WIDE } from '../lib/watch/video-shape';
+import { siteFullscreenWorks, withoutFullscreen } from '../lib/ui/floating-player';
 import { StageBackdrop } from './backdrops/Backdrops';
 import { roomStartFor } from '../lib/watch/room-start';
 import { streamBarState, subscribeToStreamBar } from '../lib/watch/stream-bar';
@@ -2035,6 +2036,9 @@ function OfficialEmbedStage({ link, fit, shaped }: { link: WatchLink; fit: strin
     );
   }
 
+  // A server's player may start by itself when the host's PLAY makes it again, as on the MEDIA page.
+  const allowed = server !== undefined ? 'autoplay; fullscreen' : 'fullscreen';
+
   // What this player does and doesn't share is said once in the chat (`notInStepNote`), never over or under the picture (Luke, 2026-11-08).
   return (
     <div className={`flex flex-col ${fit}`} style={shaped ? (stageStyle(WIDE) as CSSProperties) : undefined} data-backdrop-solid={shaped ? '' : undefined}>
@@ -2043,8 +2047,8 @@ function OfficialEmbedStage({ link, fit, shaped }: { link: WatchLink; fit: strin
         title={`Player: ${link.title}`}
         referrerPolicy="no-referrer"
         sandbox={server !== undefined ? playerSandbox(server) : WEB_EMBED_SANDBOX}
-        // A server's player may start by itself when the host's PLAY makes it again, as on the MEDIA page.
-        allow={server !== undefined ? 'autoplay; fullscreen' : 'fullscreen'}
+        // No fullscreen of the player's own where the room's FULL works (`withoutFullscreen`): that one shows the background.
+        allow={siteFullscreenWorks() ? withoutFullscreen(allowed) : allowed}
         className="min-h-0 w-full flex-1 bg-paper"
         data-watch-embed={server !== undefined ? 'server' : 'embed'}
       />

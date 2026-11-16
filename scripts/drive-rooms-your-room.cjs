@@ -643,6 +643,15 @@ const floorOf = (page) =>
         });
         await page.locator('li').filter({ hasText: 'YOUTUBE · VIDEO' }).first().locator('button[aria-label^="Play "]').first().click();
         await page.waitForSelector('[data-floating-player] iframe', { timeout: 20000 });
+        // YouTube's own fullscreen key is switched off (Luke, 2026-11-16): the browser is told the frame may not go fullscreen
+        // by itself, so `[ FULL ]` and a double press are the way, and those show the background (part 3).
+        const may = await page.evaluate(() => {
+          const frame = document.querySelector('[data-floating-player] iframe');
+          return { allow: frame.getAttribute('allow') ?? '', attribute: frame.hasAttribute('allowfullscreen'), policy: typeof frame.featurePolicy?.allowsFeature === 'function' ? frame.featurePolicy.allowsFeature('fullscreen') : null };
+        });
+        assert.ok(!/fullscreen/i.test(may.allow) && !may.attribute, `YouTube's frame is not allowed its own fullscreen (allow="${may.allow}")`);
+        if (may.policy !== null) assert.equal(may.policy, false, 'and the browser agrees: fullscreen is not permitted from inside the frame');
+        pass(`YouTube's own fullscreen key is off: its frame has no permission for it (allow="${may.allow}")`);
         await page.evaluate(() => {
           window.__frame = document.querySelector('[data-floating-player] iframe');
           window.__loads = 0;
