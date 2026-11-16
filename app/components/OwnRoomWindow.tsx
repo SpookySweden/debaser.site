@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react';
 import { useLedgeHeadroom } from '../lib/companion/use-ledge-headroom';
 import { useCatalogue } from '../lib/media/catalogue';
 import { PLATE_LINK, PLATE_MAIN, PLATE_ON_BLACK, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
@@ -9,7 +9,8 @@ import { closeFloating, floatingClock, floatingState, orderFloating, subscribeTo
 import { blankPrefill, type BlankKey } from '../lib/watch/blank-screen';
 import { ownRoomState, subscribeToOwnRoom } from '../lib/watch/own-room-client';
 import { getWatchRepository } from '../lib/watch/repository';
-import { ROOM_BAR, ROOM_BAR_PLACE, ROOM_COG, ROOM_COLUMNS, ROOM_PICTURE_BOX, ROOM_PICTURE_FIT, ROOM_ROOT, ROOM_SCREEN, ROOM_SIDE, ROOM_SIDE_BODY, ROOM_STAGE } from '../lib/watch/room-frame';
+import { ROOM_BAR, ROOM_BAR_PLACE, ROOM_COG, ROOM_COLUMNS, ROOM_PICTURE_BOX, ROOM_PICTURE_FIT, ROOM_ROOT, ROOM_SCREEN, ROOM_SIDE_BODY, ROOM_STAGE, roomSide } from '../lib/watch/room-frame';
+import { useRoomSideWidth } from '../lib/watch/room-side-width';
 import type { RoomMemberRow } from '../lib/watch/types';
 import { currentEntry, formatMediaTime, upcoming } from '../lib/watch/rules';
 import { isSongLink, trackForSong } from '../lib/watch/songs';
@@ -22,6 +23,7 @@ import { useForum } from './ForumProvider';
 import GoLiveWindow from './GoLiveWindow';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import PlayerBox from './PlayerBox';
+import RoomSideGrip from './RoomSideGrip';
 import RoomSettingsWindow from './RoomSettingsWindow';
 import SongCoverCard from './SongCoverCard';
 import { SpeakerKey } from './StreamBarKeys';
@@ -53,7 +55,20 @@ const noClock = () => null;
  * it can do something: PLAY, the seek line, sound and FULL for a player that takes orders (our own files, YouTube,
  * Vimeo), `[ PIP ]` for any video, next when something is waiting. Nothing is drawn disabled, and there is no END.
  */
-export default function OwnRoomWindow({ roomId, collapsed, onCollapse, onClose }: { roomId: string; collapsed: boolean; onCollapse: () => void; onClose: () => void }) {
+export default function OwnRoomWindow({
+  roomId,
+  collapsed,
+  pip,
+  onCollapse,
+  onClose,
+}: {
+  roomId: string;
+  collapsed: boolean;
+  /** Folded by `[ PIP ]`: the video floats. Folded by `[ _ ]` it does not. */
+  pip: boolean;
+  onCollapse: (pip?: boolean) => void;
+  onClose: () => void;
+}) {
   const own = useSyncExternalStore(subscribeToOwnRoom, ownRoomState, ownRoomState);
   const { read } = useWatchRoom(roomId, { follow: false });
   const screen = useSyncExternalStore(subscribeToFloating, screenNow, noScreen);
@@ -64,6 +79,8 @@ export default function OwnRoomWindow({ roomId, collapsed, onCollapse, onClose }
   const catalogue = useCatalogue();
   const itemsById = useMemo(() => new Map(catalogue.items.map((item) => [item.id, item])), [catalogue.items]);
   const headroom = useLedgeHeadroom();
+  /** The side column's width: the frame's own, or where the reader dragged its edge (`RoomSideGrip`), as in a live room. */
+  const sideFrame = roomSide(useRoomSideWidth());
   const [goingLive, setGoingLive] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
@@ -100,12 +117,9 @@ export default function OwnRoomWindow({ roomId, collapsed, onCollapse, onClose }
   const title = videoOn ? screen.title : (song?.title ?? null);
   const waiting = readable ? upcoming(read.queue).length : 0;
 
-  // Folded (`[ _ ]`, `[ PIP ]`), the window tucks away and the video floats, with `[ BACK ]` on it: that picture is the
-  // only way back. Only a video can float, so the key is there only then; and when the floating video goes (it ended
-  // into a song, a song was started, it was closed), the window shuts and `[ ▲ ROOM ]` above the bar is its door again.
-  useEffect(() => {
-    if (collapsed && !videoOn) onClose();
-  }, [collapsed, videoOn, onClose]);
+  // Folded (`[ _ ]`), the window tucks away and whatever is on plays on out of sight; `[ ▲ ROOM ]` above the player
+  // brings it back (Luke, 2026-11-16: "goes to a small button above the player like before, not PIP"). `[ PIP ]` folds
+  // it the same way with the video floating too. A folded room keeps its key whatever happens to what is playing.
 
   /* --- the keys under the picture: the live room's bar, driving the floating player and the bar's song --- */
 
@@ -138,6 +152,17 @@ export default function OwnRoomWindow({ roomId, collapsed, onCollapse, onClose }
   // NEXT off a picture, as the bar's own key does it (`MusicPlayer.tsx`): what is queued behind it starts; with
   // nothing behind it the picture simply comes off, and your room says nothing is on.
   const playNext = player.next;
+  // Something added while the screen is blank (the three keys) starts at once, as a live room's does (Luke, 2026-11-16: no
+  // skip needed first). Only an add: a queue that was already waiting when the window opened on a blank screen stays put.
+  const blankNow = readable && !videoOn && song === null;
+  /** How many waited when last looked, counted from the room's first read (its arrival is not an add). */
+  const waitingSeen = useRef<number | null>(null);
+  useEffect(() => {
+    if (!readable) return;
+    const grew = waitingSeen.current !== null && waiting > waitingSeen.current;
+    waitingSeen.current = waiting;
+    if (grew && blankNow) playNext();
+  }, [readable, waiting, blankNow, playNext]);
   const nextFromPicture = useCallback(() => {
     playNext();
     if (floatingState().entry?.play !== screenPlay) return;
@@ -191,10 +216,10 @@ export default function OwnRoomWindow({ roomId, collapsed, onCollapse, onClose }
         [ ▶▶ ]
       </button>
     ) : null;
-  // `[ PIP ]` is the window's `[ _ ]`: the window tucks away and the video floats (SPEC-rooms-your-room.md, part 2).
+  // `[ PIP ]`: the window folds to its key above the player and the video floats. The only way the picture floats.
   const floatKey =
     videoOn && !pictureOn ? (
-      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Picture in picture: floats over the site" title="Floats over the site" onClick={onCollapse} data-own-room-pip>
+      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Picture in picture: floats over the site" title="Floats over the site" onClick={() => onCollapse(true)} data-own-room-pip>
         [ PIP ]
       </button>
     ) : null;
@@ -245,10 +270,11 @@ export default function OwnRoomWindow({ roomId, collapsed, onCollapse, onClose }
         title="YOUR ROOM"
         badge={own.visitor ? 'IN THIS BROWSER' : 'JUST YOU'}
         onClose={onClose}
-        // A held picture has no `[ PIP ]`, so it has no `[ _ ]` either: only a video floats.
-        onMinimize={readable && videoOn && !pictureOn ? onCollapse : undefined}
-        minimizeTip="Picture in picture: the window tucks away and the video floats"
+        // Folding floats nothing, so anything on (a song, a picture, nothing) can be folded away to its key.
+        onMinimize={readable ? () => onCollapse(false) : undefined}
+        minimizeTip="Fold away to a key above the player (keeps playing)"
         minimized={collapsed}
+        pictureOut={pip}
         aboveBottomBar
         headroom={headroom}
         dock="top"
@@ -258,7 +284,8 @@ export default function OwnRoomWindow({ roomId, collapsed, onCollapse, onClose }
         {!readable ? (
           <p className="text-label font-bold text-ink">READING YOUR ROOM...</p>
         ) : (
-          <div className={ROOM_ROOT} data-own-room-window={own.visitor ? 'browser' : 'account'}>
+          // `data-room-picture-out`: folded by `[ PIP ]`, so the site's player floats rather than playing on out of sight (FloatingPlayer.tsx).
+          <div className={ROOM_ROOT} data-own-room-window={own.visitor ? 'browser' : 'account'} data-room-picture-out={pip ? '' : undefined}>
             <div className={ROOM_COLUMNS}>
               <div className={ROOM_STAGE}>
                 {/* The picture with its bar under it, as in a live room. */}
@@ -278,7 +305,9 @@ export default function OwnRoomWindow({ roomId, collapsed, onCollapse, onClose }
                 </section>
               </div>
 
-              <div className={ROOM_SIDE} data-own-room-side>
+              <div className={sideFrame.className} style={sideFrame.style as CSSProperties | undefined} data-own-room-side>
+                {/* The edge between the picture and this column, dragged as in a live room (Luke, 2026-11-16). */}
+                <RoomSideGrip />
                 {/* One key for the queue window, where everything is added and seen, and the cog beside it: as in a live room. */}
                 <div className={TITLE_BAR}>
                   <button type="button" className={`${TITLE_BAR_BUTTON} max-sm:min-h-tap`} aria-haspopup="dialog" onClick={() => openQueue()} data-own-room-queue-key>

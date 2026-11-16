@@ -50,7 +50,8 @@ async function up() {
     assert.deepEqual(await keys(), ['FORUM', 'MEDIA', 'STREAM', 'MODULOS'], 'the keys a first visit shows');
     console.log('  ok    first visit: FORUM MEDIA STREAM MODULOS, no PROJECTS, READ, DOCS, DISCOVER, BEATBOX or ANIMATE');
 
-    // MODULOS is a solid block: neither a bare word nor the dark block of the page you're on, and its word reads.
+    // MODULOS is a word like the others (changed on purpose 2026-11-16, Luke: "a word like the others", same ink and hover swipe, last on the
+    // bar, no solid block; it was a solid Emerald block from 2026-11-06 to then).
     const modulosKey = nav.getByRole('button', { name: 'MODULOS', exact: true });
     const face = (key) => key.evaluate((node) => { const style = getComputedStyle(node); return { fill: style.backgroundColor, ink: style.color }; });
     const channels = (colour) => colour.match(/[\d.]+/g).slice(0, 3).map(Number);
@@ -61,11 +62,26 @@ async function up() {
     const standing = await face(nav.getByRole('link', { name: 'FORUM' }));
     const bare = await face(nav.getByRole('link', { name: 'MEDIA' }));
     assert.equal(bare.fill, 'rgba(0, 0, 0, 0)', 'the other keys are bare words');
-    assert.notEqual(modulosFace.fill, 'rgba(0, 0, 0, 0)', 'MODULOS is filled');
-    assert.notEqual(modulosFace.fill, standing.fill, 'MODULOS does not look like the page you are on');
-    assert.ok(ratio(modulosFace.ink, modulosFace.fill) >= 4.5, `MODULOS reads at ${ratio(modulosFace.ink, modulosFace.fill)}`);
+    assert.equal(modulosFace.fill, 'rgba(0, 0, 0, 0)', 'MODULOS is a bare word too, no solid block');
+    assert.equal(modulosFace.ink, bare.ink, 'in the same ink as the other words');
+    assert.equal(await modulosKey.evaluate((node) => node.classList.contains('key-fill')), false, 'and is not a filled key');
+    assert.ok(ratio(modulosFace.ink, await nav.evaluate((node) => getComputedStyle(node).backgroundColor)) >= 4.5, 'its word reads on the bar');
     const [lastLink, modulosBox] = await Promise.all([nav.getByRole('link', { name: 'STREAM' }).boundingBox(), modulosKey.boundingBox()]);
-    console.log(`  ok    MODULOS is a solid ${modulosFace.fill} block, ${ratio(modulosFace.ink, modulosFace.fill).toFixed(1)}:1, ${Math.round(modulosBox.x - lastLink.x - lastLink.width)} px from STREAM`);
+    assert.ok(modulosBox.x > lastLink.x + lastLink.width - 1, 'MODULOS is last on the bar');
+    console.log(`  ok    MODULOS is a bare word in ${modulosFace.ink} like the others, last on the bar, ${Math.round(modulosBox.x - lastLink.x - lastLink.width)} px from STREAM`);
+    // Every key's hover is its word turning a colour, with no fill: the module with no colour of its own (DOCS used to light "a big yellow bar") too.
+    const hoverFace = async (key) => { await page.mouse.move(0, 0); await key.hover(); await page.waitForTimeout(150); return face(key); };
+    for (const key of [nav.getByRole('link', { name: 'MEDIA' }), nav.getByRole('link', { name: 'STREAM' }), modulosKey]) {
+      const over = await hoverFace(key);
+      assert.equal(over.fill, 'rgba(0, 0, 0, 0)', 'hover fills nothing');
+      assert.notEqual(over.ink, bare.ink, 'the word turns a colour on hover');
+    }
+    console.log('  ok    MEDIA, STREAM and MODULOS: hover turns the word a colour, no fill');
+    // The default hover colours are the ones the account "Good morning" chose (Luke, 2026-11-16): emerald, teal, rose.
+    const hoverInks = {};
+    for (const [name, key] of [['MEDIA', nav.getByRole('link', { name: 'MEDIA' })], ['STREAM', nav.getByRole('link', { name: 'STREAM' })]]) hoverInks[name] = (await hoverFace(key)).ink;
+    assert.notEqual(hoverInks.MEDIA, hoverInks.STREAM, 'MEDIA (teal) and STREAM (rose) turn different colours');
+    await page.mouse.move(0, 0);
 
     // Changed on purpose 2026-11-14 (Luke: "remove the 'modules' text in the top left"): the band has no title, so the first module
     // stands straight after the arrows. MODULOS, the key at the end, stays.
@@ -121,11 +137,12 @@ async function up() {
     await page.waitForTimeout(250);
     const hovered = await coloured.evaluate((link) => getComputedStyle(link).color);
     assert.equal(hovered, wanted, 'on hover the word wears the picked colour');
-    assert.notEqual(hovered, plain, 'a module with no colour keeps the site hover');
+    assert.notEqual(hovered, plain, 'a module with no colour of its own turns the fallback colour, not this one');
+    assert.equal(await other.evaluate((link) => getComputedStyle(link).backgroundColor), 'rgba(0, 0, 0, 0)', 'and fills nothing (changed on purpose 2026-11-16: it was a solid block)');
     console.log(`  ok    STREAM turns ${hovered} on hover`);
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/modules-hover.png` });
 
-    // MODULOS keeps its hover colour too: it steps back to an outline, and the word turns the colour against the bar.
+    // MODULOS keeps its hover colour too: the word turns the colour against the bar, with no fill (a word like the others, 2026-11-16).
     const modulosGroup = list.getByRole('group', { name: 'MODULOS colour' });
     const modulosSwatch = modulosGroup.locator('button[style]').first();
     const modulosWanted = await modulosSwatch.evaluate((button) => getComputedStyle(button).backgroundColor);
@@ -134,12 +151,12 @@ async function up() {
     await list.waitFor({ state: 'hidden', timeout: 5000 });
     await page.mouse.move(0, 0);
     await page.waitForTimeout(250);
-    assert.notEqual((await face(modulosKey)).fill, 'rgba(0, 0, 0, 0)', 'with a colour picked, MODULOS is still solid at rest');
+    assert.equal((await face(modulosKey)).fill, 'rgba(0, 0, 0, 0)', 'with a colour picked, MODULOS is still a bare word at rest');
     await modulosKey.hover();
     await page.waitForTimeout(250);
     const modulosHovered = await face(modulosKey);
     assert.equal(modulosHovered.ink, modulosWanted, 'on hover MODULOS wears the picked colour');
-    assert.equal(modulosHovered.fill, 'rgba(0, 0, 0, 0)', 'and steps back from its fill, so the colour reads against the bar');
+    assert.equal(modulosHovered.fill, 'rgba(0, 0, 0, 0)', 'with no fill, so the colour reads against the bar');
     console.log(`  ok    MODULOS turns ${modulosHovered.ink} on hover`);
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/modules-modulos-hover.png` });
 
@@ -179,6 +196,11 @@ async function up() {
     assert.notEqual(strokeOf(unpicked.stroke), barFill, 'the stroke is not the bar colour');
     assert.equal((await look(nav.getByRole('link', { name: 'STREAM' }))).stroke, 'none', 'a module you are not on has no stroke');
     assert.equal(unpicked.pulse, 'module-swipe', 'the stroke wiggles');
+    // Under the pointer the page you are on keeps its own word colour (found in review 2026-11-16: the hover rule once read an unset colour).
+    await standingKey.hover();
+    await page.waitForTimeout(150);
+    assert.equal((await look(standingKey)).ink, unpicked.ink, 'hovering the page you are on does not change its word colour');
+    await page.mouse.move(0, 0);
     // The wiggle moves the stroke only: the key's own box is the same at every sample across a whole turn of it.
     const boxes = new Set([unpicked.at]);
     for (let sample = 0; sample < 12; sample += 1) {

@@ -2,6 +2,7 @@
 
 import { artSlot } from '../lib/ui/art/slots';
 import { PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED } from '../lib/ui/controls';
+import { chooseScreen, useScreenView } from '../lib/watch/canvas-view';
 import { setVisualiserOn, useVisualiserOn } from '../lib/watch/visualiser';
 import ArtMark from './ArtMark';
 
@@ -12,8 +13,9 @@ const MARK_SRC = `/${artSlot('mark-visualiser')?.path ?? 'assets/icons/visualise
  * The visualiser key (Luke, 2026-11-11), beside the canvas key in a room's screen corner: this viewer's own music
  * visualiser on or off over the screen. Nothing is synced: each person sees their own.
  */
-export default function VisualiserToggle({ roomId }: { roomId: string }) {
+export default function VisualiserToggle({ roomId, audio }: { roomId: string; /** As the canvas key's: a song plays, so the canvas is the default. */ audio: boolean }) {
   const showing = useVisualiserOn(roomId);
+  const onCanvas = useScreenView(roomId, audio) === 'canvas';
   return (
     <button
       type="button"
@@ -21,7 +23,11 @@ export default function VisualiserToggle({ roomId }: { roomId: string }) {
       aria-pressed={showing}
       aria-label={showing ? 'Hide the visualiser' : 'Show the music visualiser'}
       title="Visualiser"
-      onClick={() => setVisualiserOn(roomId, !showing)}
+      onClick={() => {
+        // Over the canvas the visualiser would only cover it: switched on from there, the screen goes back to the picture.
+        if (!showing && onCanvas) chooseScreen(roomId, 'picture', audio);
+        setVisualiserOn(roomId, !showing);
+      }}
       data-visualiser-toggle={showing ? 'on' : 'off'}
     >
       <ArtMark src={MARK_SRC} size={16} fallback={<span>[ VIS ]</span>} />

@@ -308,7 +308,7 @@ async function closeFirstLooks(page) {
 }
 
 async function unfoldRoom(page) {
-  const up = page.locator('[data-room-float] button[aria-label="Back to the room"]');
+  const up = page.locator('[data-room-shelf-key] button');
   if ((await up.count()) > 0 && (await up.first().isVisible().catch(() => false))) await up.first().click();
 }
 
@@ -370,7 +370,7 @@ async function room() {
 
     await b.page.goto(`${BASE}/forum?watch=${roomId}`, { waitUntil: 'domcontentloaded' });
     await b.page.mouse.move(700, 300);
-    await b.page.waitForSelector('[data-room-picture], [data-watch-tv-box]', { state: 'attached', timeout: 60000 });
+    await b.page.waitForSelector('[data-room-picture], [data-room-shelf-key]', { state: 'attached', timeout: 60000 });
     await closeFirstLooks(b.page);
     await unfoldRoom(b.page);
     await a.page.waitForSelector(`[data-companion="room"][data-companion-of="${B}"]`, { state: 'attached', timeout: 45000 });

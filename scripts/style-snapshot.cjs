@@ -147,7 +147,7 @@ async function record() {
     for (const theme of THEMES) {
       await page.addInitScript((id) => {
         try {
-          window.localStorage.setItem('debaser.site.theme.v1', id);
+          window.localStorage.setItem('debaser.site.theme.v2', id);
         } catch {}
       }, theme);
 

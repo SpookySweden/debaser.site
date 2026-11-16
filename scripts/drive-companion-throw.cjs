@@ -87,8 +87,10 @@ function readOwn() {
   const mark = own.querySelector('[data-companion-mark]');
   return {
     shown: own.style.visibility === 'visible',
-    x: Math.round(box.left),
-    feet: Math.round(box.bottom),
+    // Where the rules have it this frame (written on the figure): since 2026-11-16 it is also drawn between frames in the
+    // air (the glide toward the next frame), so its box can be part of the way to the next one.
+    x: own.dataset.x === undefined ? Math.round(box.left) : Number(own.dataset.x),
+    feet: own.dataset.feet === undefined ? Math.round(box.bottom) : Number(own.dataset.feet),
     w: Math.round(box.width),
     h: Math.round(box.height),
     floor: Math.round(window.innerHeight - bar),

@@ -24,15 +24,18 @@ import type {
 /**
  * Profile privacy defaults and the selectors that enforce them.
  *
- * Everything is off for a new account until its owner switches it on (SPEC-privacy-phase-1.md, Luke's privacy plan), and
- * the database's column defaults say the same. Accounts from before that keep what they had.
+ * Everything was off for a new account until its owner switched it on (SPEC-privacy-phase-1.md, Luke's privacy plan); since 2026-11-16
+ * PROFILE COMMENTS and MY LISTENING start on too (SPEC-privacy-decisions.md), and the database's column defaults are to say the same (a
+ * migration drafted, waiting for Luke's typed OK). The rest are still off.
  */
 export const DEFAULT_VISIBILITY: ProfileVisibility = {
   showTags: false,
-  showProfileComments: false,
+  // On since 2026-11-16, Luke's choice ("looser on the privacy ... regarding the comments"): a new profile takes comments.
+  showProfileComments: true,
   showAvatarComments: false,
   showSongComments: false,
-  showListening: false,
+  // On since 2026-11-16, Luke's choice, with the comments above.
+  showListening: true,
   // On since 2026-11-07, Luke's choice: the site is for seeing who's about. The other switches stay off.
   showOnline: true,
   // On by default, Luke's choice (2026-11-16, SPEC-room-chat-discuss.md): room chat shows on the DISCUSS page of what played.

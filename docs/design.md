@@ -141,6 +141,12 @@ No Win95 bevels anywhere - not on windows, not on buttons, not on the scrollbar.
 - **The press** is the one movement left: a 1px drop and the Brilliant Pink flash, no easing.
 - RADI-OH's faces may hop - they are text art, not labels. Motion stops under `prefers-reduced-motion`.
 - Pixel-art accents. No soft drop shadows.
+- **The defaults** (Luke, 2026-11-16, list 2): a visitor who has chosen nothing gets the FLUID background, the NIGROSINE theme (`dark`) and the PINK cursor,
+  and a top bar of FORUM, MEDIA and STREAM with the hover colours the account "Good morning" chose (emerald, teal, rose). "Reset everyone" is the
+  browsers' storage keys going to `.v2` (`debaser.site.theme.v2`, `.cursor.v2`, `.backdrop.v2`, `debaser-modules-v2`), so each browser lands on these once and
+  can choose again; what an account keeps (`user_modules`, `user_aquarium`) is reset by a drafted database update that waits for Luke's OK.
+  Every key on the top bar, MODULOS too (a word like the others, no solid block), turns its word a colour on hover with no fill; a module with no colour of its
+  own turns rose (`moduleHoverInk`). Profile comments and listening start on for a new account (SPEC-privacy-decisions.md).
 - **The module you are on** (Luke, 2026-11-14). On the top bar the key of the page you are on is not a block:
   its word wears the colour its person picked for it in MODULOS, the whole time it is the page (the field ink
   when none is picked), and a highlighter stroke lies behind the lower half of the word, a pale tint of the same

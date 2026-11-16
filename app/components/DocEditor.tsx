@@ -28,9 +28,8 @@ import { DocsSizeKeys } from './DocsScale';
 const CARET_ROOM = 12;
 
 /**
- * Keeps the typing spot in view under the bar. The bar sticks to the top of the scrolling pane and covers
- * the first lines there, which the editor's own scrolling does not know: it would leave the caret behind
- * the toolbar. Answers false (the editor's own scrolling) when there is no pane to scroll.
+ * Keeps the typing spot a little way inside the scrolling pane's edges (the editor's own scrolling leaves it
+ * right on the edge). The bar scrolls away with the page and covers nothing (Luke, 2026-11-16). Answers false (the editor's own scrolling) when there is no pane to scroll.
  */
 function keepCaretInView(view: Editor['view']): boolean {
   try {
@@ -40,9 +39,7 @@ function keepCaretInView(view: Editor['view']): boolean {
 
     const caret = view.coordsAtPos(view.state.selection.head);
     const box = pane.getBoundingClientRect();
-    const bar = view.dom.closest('section')?.querySelector<HTMLElement>('.docs-bar') ?? null;
-    const stuck = bar !== null && window.getComputedStyle(bar).position === 'sticky';
-    const topEdge = Math.max(box.top, stuck ? bar.getBoundingClientRect().bottom : box.top) + CARET_ROOM;
+    const topEdge = box.top + CARET_ROOM;
     const bottomEdge = box.bottom - CARET_ROOM;
 
     if (caret.top < topEdge) pane.scrollTop -= topEdge - caret.top;
@@ -94,8 +91,8 @@ type DocEditorProps = {
  * A document's editor: Tiptap over the shared Yjs document, with everyone's carets (picture and name),
  * everyone's pointers, pictures, checklists and margin comments.
  *
- * Laid out for someone who does not use computers much (Luke, 2026-11-13): one bar that stays at the top
- * while the page scrolls, holding the saved state in plain words (ALL CHANGES SAVED), who is here, and one
+ * Laid out for someone who does not use computers much (Luke, 2026-11-13): one bar at the top of the
+ * document (it scrolls away with the page and is back on the way up; Luke, 2026-11-16), holding the saved state in plain words (ALL CHANGES SAVED), who is here, and one
  * toolbar of big labelled keys; under it one large framed page; comments in a side panel that opens and
  * shuts. Nothing appears on hover.
  *
@@ -264,7 +261,7 @@ export default function DocEditor({
 
   return (
     <section>
-      <div className="docs-bar sticky top-0 z-10 border-b-line border-ink bg-paper">
+      <div className="docs-bar border-b-line border-ink bg-paper">
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1 py-2">
           <span className="docs-key inline-flex flex-wrap items-center gap-2 text-ink" role="status" aria-live="polite" data-doc-saved={!editing ? 'reading' : pending || saving ? 'saving' : saveError !== null ? 'failed' : 'saved'}>
             {!editing ? (

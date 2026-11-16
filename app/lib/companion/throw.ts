@@ -325,6 +325,42 @@ export function throwLook(now: Thrown, box: ThrowBox): ThrowLook {
   return { ...stretchAlong(now.vx, now.vy, stretchFor(speed)), dx: 0, dy: 0, ghosts };
 }
 
+/** Being dragged: how far its feet lean back per pixel a frame the pointer moves sideways, and the most they lean. */
+export const DRAG_LEAN = 0.006;
+export const DRAG_LEAN_MAX = 0.6;
+/** Dragged this fast or faster (pixels a frame), copies of itself trail behind it, as in the air. */
+export const DRAG_SMEAR_SPEED = 30;
+
+/**
+ * Being dragged (Luke, 2026-11-16, on smears: "be leniant with the rules where necessary for the sake of creativity and
+ * fun"): hanging from where it was taken hold of, its own frame leans back against the way it is dragged (its feet trail,
+ * a shear), is drawn out along the drag (the flight's own stretch), and dragged fast, two copies of the frame it is
+ * showing trail back along the pointer's path. `vx`, `vy` are the pointer's speed in pixels a frame (`releaseVelocity`).
+ * Its own baked frame sheared, stretched and copied with a plain 2D transform: nothing drawn, nothing blurred. At rest it
+ * is itself.
+ */
+export function dragLook(vx: number, vy: number): ThrowLook {
+  const speed = Math.hypot(vx, vy);
+  if (speed < 1) return NO_LOOK;
+  const s = stretchAlong(vx, vy, stretchFor(speed));
+  // The feet trail the way it came: a shear about the middle of its box, the lower half pushed back against the drag.
+  const lean = -clamp(vx * DRAG_LEAN, -DRAG_LEAN_MAX, DRAG_LEAN_MAX);
+  const round = (value: number) => Math.round(value * 1000) / 1000;
+  const ghosts = speed >= DRAG_SMEAR_SPEED ? [1 / 4, 1 / 2].map((back) => ({ dx: whole(-vx * back), dy: whole(-vy * back) })) : [];
+  return { a: round(s.a), b: round(s.b), c: round(s.a * lean + s.c), d: round(s.b * lean + s.d), dx: 0, dy: 0, ghosts };
+}
+
+/**
+ * Where it is drawn between two frames of a throw or a fall (Luke, 2026-11-16: "better framerate and visual tracking"):
+ * the rules still step ten times a second, and in between it is drawn on the line from this frame's place to the next
+ * frame's, `along` of the way (0 to 1). The next frame is the rules' own, worked out a frame early, so at every step the
+ * place drawn is exactly the rules' and nothing overshoots a wall or the floor. Whole pixels.
+ */
+export function glideAt(from: { x: number; y: number }, to: { x: number; y: number }, along: number): { x: number; y: number } {
+  const t = clamp(along, 0, 1);
+  return { x: Math.round(from.x + (to.x - from.x) * t), y: Math.round(from.y + (to.y - from.y) * t) };
+}
+
 /**
  * Settling after it lands (follow-through): the squash of the landing, a spring back up past its shape, a smaller dip,
  * and it is itself again. Each is how tall it is drawn, feet on the floor; its width goes the other way (`acrossFor`).

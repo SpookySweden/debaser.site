@@ -22,6 +22,9 @@ bake.
 - `app/lib/companion/scene.ts` and `use-companion-scene.ts`: what you are doing that it joins in with, and the one-line
   hooks the reader, the arcade and the stream room call.
 - `app/lib/companion/visit.ts`: climbing into a profile's ROOM and back.
+- `app/lib/companion/loose.ts` and `app/components/LooseCharacter.tsx`: a profile ROOM's character taken out of its
+  window by whoever is looking, carried, thrown, and walking and climbing back in (`RoomWalker` in `ProfileCharacter.tsx`
+  starts it).
 - `app/components/NoteTrail.tsx`: the text that drifts up from it: music notes for a dance, `z`s for a sleep.
 - `app/lib/character/rebake.ts`: bakes an old strip again, once, in its owner's browser.
 
@@ -66,7 +69,23 @@ bake.
   the throw's own. In the air a window bats it again (a squash up there swats it down), but the same window waits
   `SHOVE_COOLDOWN` frames. The first look at the page only learns where the windows are. Not in the hand, not climbing to
   a room, not under reduced motion. The knobs are the constants at the top of `shove.ts`.
-- **Stepped, always.** Ten frames a second in whole pixels, a carry, a fall and a throw included. No `requestAnimationFrame`.
+- **Stepped, but smooth in the hand and the air** (Luke, 2026-11-16: "better framerate and visual tracking when picking
+  up, dragging and throwing"). The loop, its walking, its climbing and which cell of its strip it shows stay ten a second
+  in whole pixels. In the hand it is placed on every move of the pointer (`followHand`), so it never lags a frame behind.
+  Thrown or falling, it is drawn every display frame on the straight line from this frame's place to the next frame's, the
+  next worked out a frame early by the same rules (`glide`, `glideAt` in `throw.ts`): exact at every frame, never past a
+  wall or the floor. That glide is the one `requestAnimationFrame`, and it runs only while it is in the air. A frame's own
+  place is written on the figure (`data-x`, `data-feet`) for the drives.
+- **Dragged, it leans** (`dragLook`): its own frame sheared so its feet trail the drag, drawn out along it (the flight's
+  stretch), and dragged fast, two fainter copies of the frame trail back along the pointer's path. Luke on smears,
+  2026-11-16: "be leniant with the rules where necessary for the sake of creativity and fun": code may stretch, shear and
+  ghost his hand-built character's baked frames along its travel; never a new character or shape from nothing.
+- **Climbing in, never floating** (Luke's list, 2026-11-16). On its first frame on a page it climbs up over the edge of its
+  floor from behind it (the music bar, or the foot of the window). A floor that rises under it (a stream room's window
+  opening over the strip, the bar unfolding) is climbed up to from just behind its edge, and one that drops away (that
+  window folded or closed) is fallen from. Let go below its floor (carried down the front of a stream room's window it
+  stands on), it climbs back up instead of being pulled up in one frame. Somebody else's companion in a room does the
+  same. Under reduced motion it is simply there.
 - **Joining in.** A scene (`type`, `game`, `read`, `watch`) settles it where it stands in a pose. Typing, a game and a book
   come before the music; a video after it. It hears typing itself (a key into a text box, never which key, never a
   password box). The rest of the site tells it in one line each: `useCompanionScene`, `useCompanionMatch`,
@@ -88,6 +107,13 @@ bake.
 - **Chat.** A line of stream chat hops the companion of whoever said it. Every browser has the line already, so each
   works it out for itself from `companionSpoke` (one line in `use-watch-room.ts`); nothing is sent.
 - It climbs to and from a profile's ROOM on its `climb` frames, and walks along the strip to get under it.
+- **A ROOM's characters can be taken out** (Luke, 2026-11-16: "anyone can grab one out of its window; let go, it walks and
+  climbs back in by itself"). Whoever is looking at a profile, signed in or not, can press the owner's or a visiting
+  commenter's character and drag it out of the ROOM: it hangs from the pointer with the companion's lean, is thrown with
+  the companion's own throw, and once down on the site's floor walks to under the ROOM and climbs back in, waving as it
+  steps in. Pressed on the way it is picked up again; a press without a drag is still a hello. With the ROOM out of sight
+  it waits on the floor and pops back in after six seconds. Not your own companion visiting (pick it up off its strip),
+  not under reduced motion. Nothing is sent or saved: it is that reader's screen only.
 - **A catch.** `companionCatches(userId)` (`events.ts`) makes that person's character play `catch` once wherever it is
   drawn on this screen: their companion on the strip (yours, or theirs in a room you share) and their character in a
   profile's ROOM. Nothing is sent: whoever calls it still delivers the thing. Figures carry their owner's id
@@ -133,6 +159,11 @@ bake.
   every frame of an arc, three splats, a soft bounce, a put-down and a catch against the rules run in Node from the same
   let-go; close-ups go to `Temp/browse/throw/`. Leaves nothing. The same trick (mock storage seeded, `page.clock`) is the
   cheapest way to drive anything else the companion does without the live database.
+- `scripts/drive-companion-grab.cjs`: Luke's second list in a real browser against a LOCAL mock dev server (supabase
+  blocked, the plain figure and a stand-in strip, no bake): climbing in on arrival, under the pointer on every move with
+  its lean (measures the gap to the pointer and how often it moves), drawn every display frame when thrown (measures frame
+  times), a profile ROOM's character dragged out signed out, thrown, climbing back in and waving, the voice key's symbol,
+  reduced motion, phone width. `--measure-only` prints the numbers without judging (for a before-and-after).
 - `scripts/drive-companion-shove.cjs`: shoved by windows in a real browser against a LOCAL mock dev server (the plain
   figure, no bake): PREFERENCES dragged hard across it throws it (and splats it on the edge), PREFERENCES opened on top of
   it pops it away from the window's middle, and under reduced motion nothing moves. Leaves nothing.

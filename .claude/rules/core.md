@@ -77,6 +77,7 @@ These are firm, unlike most of the design notes.
 - Code never draws a character, icon or illustration (no CSS or SVG art). Repeating tile patterns, dithers and dotted lines are fine.
 - A simulated background isn't artwork (Luke, 2026-11-16, for the backgrounds in `SPEC-backgrounds.md`): what a physics simulation produces behind the site (grains of sand, ink in water, stars, bouncing lines, fields of colour) may be drawn by code ("allow yourself liberty for the sake of quality and style"). It still never depicts a character, an icon or a scene: anything that does is my drawing or a named exception.
 - Code-made motion isn't artwork (Luke, 2026-11-13): code may turn the joints of a character built by hand on the workbench and bake those frames to pictures (`app/lib/character/motion.ts`), but it never draws, adds shapes or makes new art.
+- Smears on hand-built characters (Luke, 2026-11-16: "be leniant with the rules where necessary for the sake of creativity and fun"): code may stretch, shear and ghost (copy, fainter) the baked frames of his hand-built characters along their travel, as the companion does when it is dragged and thrown (`app/lib/companion/throw.ts`). Still never a new character or shape drawn from nothing.
 - When something needs artwork, point at a placeholder file through a slot (`SpriteSlot`, the registry in `app/lib/ui/art/`) and stop. Don't make a stand-in.
 
 ## Hard-won lessons

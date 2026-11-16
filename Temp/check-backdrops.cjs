@@ -170,7 +170,7 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
 
   await store.setBackdropAccount('person-a');
   const row = JSON.parse(stored.get('debaser.aquarium.mock.v1'))['person-a'];
-  assert.deepEqual([row._locks, row._sway, row.backdrop, row.count], [['count'], { speed: [0.5, 2] }, 'aquarium', undefined], 'signing in carries the locks and sways to the account (a knob that is as it comes is left out of the row)');
+  assert.deepEqual([row._locks, row._sway, row.backdrop, row.count], [['count'], { speed: [0.5, 2] }, 'fluid', undefined], 'signing in carries the locks and sways to the account (a knob that is as it comes is left out of the row; the background saved is the one on, FLUID by default since 2026-11-16)');
   store.setBackdropSway('aquarium', 'speed', null);
   store.setBackdropLock('aquarium', 'size', true);
   store.flushBackdropSave();

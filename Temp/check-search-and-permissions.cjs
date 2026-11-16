@@ -138,7 +138,9 @@ assert.equal(canCommentOnPicture(false, open), true, 'visitors can while picture
 assert.equal(canCommentOnPicture(false, closed), false, 'and get no button when they are switched off');
 
 // The defaults a profile starts with (changed on purpose, 2026-11-05, SPEC-privacy-phase-1.md): everything closed until its owner opens it.
-assert.equal(withVisibilityDefaults(undefined).showProfileComments, false, 'comments start closed');
+// Updated on purpose 2026-11-16 (Luke: "I want the new defaults for the site to be looser on the privacy where necessary for my intentions regarding the
+// comments"; SPEC-privacy-decisions.md): profile comments start open. The picture's, the track's and tags stay closed.
+assert.equal(withVisibilityDefaults(undefined).showProfileComments, true, 'profile comments start open');
 assert.equal(withVisibilityDefaults(undefined).showAvatarComments, false, 'on the drawing too');
 assert.equal(withVisibilityDefaults(undefined).showSongComments, false, 'and on the track');
 assert.equal(withVisibilityDefaults(undefined).showTags, false, 'and tags');

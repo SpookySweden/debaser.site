@@ -14,7 +14,7 @@ import { fetchEmbedTitle, isEmbedKind } from '../lib/watch/embeds';
 import { LINK_REFUSALS, LINK_TITLE_MAX, linkTitle, recognizeLink } from '../lib/watch/links';
 import { noteAddedHere } from '../lib/watch/outside-pictures';
 import { PICTURE_REFUSALS, isTrustedPicture, mayTakeOutPicture, recognizePicture } from '../lib/watch/pictures';
-import { keepsKind, QUEUE_LOOKUP_SOURCE, QUEUE_SOURCES, QUEUE_STREAM_SOURCE, queueSearchPlan, roomListable } from '../lib/watch/blank-screen';
+import { keepsKind, QUEUE_LOOKUP_SOURCE, QUEUE_SOURCES, QUEUE_STREAM_SOURCE, queueSearchPlan, roomListable, screenIsBlank } from '../lib/watch/blank-screen';
 import { getWebRepository } from '../lib/web/repository';
 import { repositoryFor } from '../lib/watch/repository';
 import { OWN_QUEUE_FULL, OWN_QUEUE_MAX } from '../lib/watch/own-room';
@@ -249,7 +249,9 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
       const refusal = 'link' in what ? soloRefusal(what.link) : null;
       if (refusal !== null) throw new Error(refusal);
     }
-    const inQueue = (straight || ownRoom) && rights.arrange;
+    // A blank screen (the three keys) takes what is added straight into the queue, so it starts at once (Luke, 2026-11-16:
+    // "it plays, no skip needed first"). Only for somebody who may arrange the queue: anybody else's still waits for a crown.
+    const inQueue = (straight || ownRoom || screenIsBlank(read.room, read.queue)) && rights.arrange;
     const entry = await repository.addToQueue({ roomId, addedBy: userId, position: nextQueuePosition(read.queue), inQueue, ...what });
     applyLocalChange(roomId, { kind: 'entry', entry });
     return inQueue ? 'QUEUED' : 'ADDED';
@@ -273,7 +275,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
       const refusal = links.map(soloRefusal).find((reason) => reason !== null) ?? null;
       if (refusal !== null) throw new Error(refusal);
     }
-    const inQueue = (straight || ownRoom) && rights.arrange;
+    const inQueue = (straight || ownRoom || screenIsBlank(read.room, read.queue)) && rights.arrange;
     const entries = await repository.addSeriesToQueue({ roomId, addedBy: userId, position: nextQueuePosition(read.queue), inQueue, seriesTitle: title, links });
     for (const entry of entries) applyLocalChange(roomId, { kind: 'entry', entry });
     return inQueue ? 'QUEUED' : 'ADDED';

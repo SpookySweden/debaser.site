@@ -42,6 +42,8 @@ import TrackDetails from './TrackDetails';
 import { lengthSeconds, queueContext, trackContext } from '../lib/audio/track-context';
 import MusicOptionsPrompt from './MusicOptionsPrompt';
 import PopoutWindow from './PopoutWindow';
+import SoundGraph, { TabListenKey } from './SoundGraph';
+import LoveBuzzOnArrival from './LoveBuzzOnArrival';
 
 /**
  * The station: the site's player, pinned to the bottom of every page.
@@ -220,11 +222,13 @@ export default function MusicPlayer() {
 
   if (!open) {
     return (
-
-      // Folded, the player is a window put away: a small framed tile on the desktop, its one key inside.
-      // A bare bracket key would sit straight on the desktop, and Royal Blue on the bright theme's pink
-      // desktop is under 3:1.
-      // In a room it says STREAM with the TV mark and wiggles, as the bar's own TV key does.
+      <>
+      {/* LOVE BUZZ on arrival (Luke, 2026-11-16), whichever shape the player is in. */}
+      <LoveBuzzOnArrival />
+      {/* Folded, the player is a window put away: a small framed tile on the desktop, its one key inside.
+          A bare bracket key would sit straight on the desktop, and Royal Blue on the bright theme's pink
+          desktop is under 3:1.
+          In a room it says STREAM with the TV mark and wiggles, as the bar's own TV key does. */}
       <span ref={tile} className={`fixed bottom-2 left-2 z-50 frame bg-sun-pale p-0.5 ${roomId !== null ? 'animate-wiggle hover:animate-none' : ''}`} data-companion-avoid>
         <BarrNotice anchor={tile} />
         <button type="button" onClick={() => setBarOpen(true)} className={`${PLATE} inline-flex items-center gap-1`}>
@@ -237,11 +241,13 @@ export default function MusicPlayer() {
           )}
         </button>
       </span>
+      </>
     );
   }
 
   return (
     <>
+      <LoveBuzzOnArrival />
       {roomId !== null && streamOn ? (
         <StreamStrip roomId={roomId} onHide={() => setBarOpen(false)} />
       ) : compact ? (
@@ -680,8 +686,12 @@ function DockedBar({ roomId, onHide, onSettings }: BarControls) {
             </button>
           </span>
 
-          {/* The LED: a black inset panel, the way a shelf stereo reads out. */}
-          <span className="min-w-0 flex-1 frame bg-hardware px-2 py-1">
+          {/* The LED: a black inset panel, the way a shelf stereo reads out. Behind its words, the sound graph (Luke,
+              2026-11-16), see-through enough that every word stays 4.5:1 (./SoundGraph.tsx); at its right, `[ HEAR ]`
+              while the graph may not yet hear the tab. */}
+          <span className="relative flex min-w-0 flex-1 items-start gap-2 frame bg-hardware px-2 py-1" data-bar-led>
+            <SoundGraph />
+            <span className="relative min-w-0 flex-1">
             {/* The song, in the same details format RADI-OH uses (`TrackDetails`): the uploader's picture,
                 what it is being heard as part of, the name, and where it is out of its length. */}
             {videoOn ? (
@@ -705,6 +715,8 @@ function DockedBar({ roomId, onHide, onSettings }: BarControls) {
             <span className="mt-1 block h-1 w-full bg-ena-deep">
               <span className="block h-1 bg-acid" style={{ width: `${videoOn ? 0 : Math.round(progress * 100)}%` }} />
             </span>
+            </span>
+            <TabListenKey />
           </span>
 
           {/* The transport, in a recess: the D-pad. Left and right step the queue; the middle is one

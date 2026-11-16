@@ -781,22 +781,8 @@ html[data-site-fill='on'] .fill-key-off {
   font-size: var(--docs-meta);
 }
 
-/* The bar (saved state, people, the toolbar) stays at the top while the page scrolls. At the two biggest
-   steps it is several rows tall, so it only stays put where the screen is tall enough to spare them
-   (a phone's zoomed-out desktop is; a laptop is not). */
-@media (height < 1400px) {
-  .docs-ui[data-docs-size='5'] .docs-bar,
-  .docs-ui[data-docs-size='6'] .docs-bar {
-    position: static;
-  }
-}
-
-/* The narrow layout: the keys wrap to half a dozen rows there, more than a small screen can give up. */
-@media (width < 640px) {
-  .docs-ui .docs-bar {
-    position: static;
-  }
-}
+/* The bar (saved state, people, the toolbar) sits at the top of the document and scrolls away with the page
+   (Luke, 2026-11-16: it is not pinned). `.docs-bar` stays as the name for it. */
 
 /* Retro OS primitives -------------------------------------------------------
    Collapsible forum threads use native <details>/<summary>; the stock marker
@@ -1424,28 +1410,11 @@ img {
     color: var(--color-ink-plate);
   }
 
-  /* A module with a colour its person picked (app/lib/ui/modules.ts): on hover its word turns that colour on the bar, with no fill behind it. */
+  /* Every key on the top bar, MODULOS included (app/lib/ui/modules.ts `moduleHoverInk`): on hover its word turns its colour on the bar, with no fill
+     behind it. A module with no colour of its own turns the fallback one, so DOCS no longer lights a big yellow block while the others only turn their
+     word (Luke, 2026-11-16). MODULOS was a solid Emerald block among these words until then (2026-11-06); it is a word like the others now. */
   .key.module-key:not(.key-fill):hover:not(:disabled),
   .key.module-key:not(.key-fill):focus-visible:not(:disabled) {
-    background-color: transparent;
-    color: var(--module-ink);
-  }
-
-  /* MODULOS (Luke, 2026-11-06): the tab holding the rest of the modules, a solid Emerald block among the bar's bare words. The page you're on is the dark block, so the two
-     never read alike. With a hover colour picked, it steps back to an outline with that colour's word, read against the bar like every other module's. */
-  .key.key-fill.modulos-key {
-    --key-fill: var(--color-acid);
-    --frame-line: var(--color-ink-plate);
-    color: var(--color-ink-plate);
-  }
-
-  .key.key-fill.modulos-key:hover:not(:disabled) {
-    --key-fill: var(--color-sun);
-  }
-
-  .key.key-fill.modulos-key.module-key:hover:not(:disabled),
-  .key.key-fill.modulos-key.module-key:focus-visible:not(:disabled) {
-    --frame-line: var(--module-ink);
     background-color: transparent;
     color: var(--module-ink);
   }

@@ -48,7 +48,7 @@ async function open(browser, account) {
   );
   await context.addInitScript((bright) => {
     window.localStorage.setItem('debaser.lost-account.never.v1', '1');
-    if (bright) window.localStorage.setItem('debaser.site.theme.v1', 'default');
+    if (bright) window.localStorage.setItem('debaser.site.theme.v2', 'default');
   }, BRIGHT);
   const page = await context.newPage();
   page.on('pageerror', (error) => console.log(`  page error: ${String(error).slice(0, 200)}`));

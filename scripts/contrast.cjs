@@ -39,7 +39,7 @@ const { close, flags, goto, open } = require('./browser.cjs');
 
 const PORT = 3210;
 const BASE = `http://127.0.0.1:${PORT}`;
-const STORAGE_KEY = 'debaser.site.theme.v1';
+const STORAGE_KEY = 'debaser.site.theme.v2';
 const THEME_IDS = ['default', 'dark', 'sherbet-pink', 'sherbet-night', 'sherbet-mint'];
 
 const argv = flags();

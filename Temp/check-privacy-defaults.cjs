@@ -28,7 +28,10 @@ const { DEFAULT_VISIBILITY } = require(path.join(OUT, 'lib', 'profile', 'visibil
 // Updated on purpose 2026-11-07 (Luke): the online lamp alone is on for a new account.
 // Updated on purpose 2026-11-16 (Luke, SPEC-room-chat-discuss.md: "change the privacy promise and defaults to accommodate this"):
 // room chat on DISCUSS pages is on too.
-const ON_FOR_NEW = ['showOnline', 'roomChatOnDiscuss'];
+// Updated on purpose 2026-11-16 (Luke: "I want the new defaults for the site to be looser on the privacy where necessary for my intentions regarding
+// the comments"; interview: profile comments and listening on for new accounts): the code and mock defaults. The column defaults and the existing rows are a
+// drafted migration awaiting his typed OK, so the migration assertions below still describe what is live.
+const ON_FOR_NEW = ['showOnline', 'roomChatOnDiscuss', 'showProfileComments', 'showListening'];
 for (const [key, value] of Object.entries(DEFAULT_VISIBILITY)) assert.equal(value, ON_FOR_NEW.includes(key), `${key} is ${ON_FOR_NEW.includes(key) ? 'on' : 'off'} for a new account`);
 assert.ok('showOnline' in DEFAULT_VISIBILITY, 'the lamp is one of the switches');
 
@@ -93,7 +96,8 @@ function windowDrawn() {
   const { DEFAULT_VISIBILITY: defaults } = require(path.join(OUT, 'lib', 'profile', 'visibility.js'));
   // Updated on purpose 2026-11-07 (Luke): a new account shares its lamp, so all-off is a choice now, and the window says what they have.
   // Updated on purpose 2026-11-16 (SPEC-room-chat-discuss.md): room chat on DISCUSS pages is a seventh switch, on by default.
-  const off = { ...defaults, showOnline: false, roomChatOnDiscuss: false };
+  // Updated on purpose 2026-11-16 (Luke): profile comments and listening start on too, so all-off now turns four switches off.
+  const off = { ...defaults, showOnline: false, roomChatOnDiscuss: false, showProfileComments: false, showListening: false };
   let profile = { visibility: { ...off }, privacySeen: false };
 
   const stub = (file, exports) => {
@@ -116,7 +120,7 @@ function windowDrawn() {
   assert.doesNotMatch(sharing, /KEEP IT PRIVATE/, 'an account sharing something is not told it is private');
   assert.match(sharing, /\[ KEEP THESE SETTINGS \]/, 'it keeps what it has');
   assert.match(sharing, /\[ TURN EVERYTHING OFF \]/, 'or turns it off');
-  assert.equal((sharing.match(/\[ ON \]/g) ?? []).length, 2, 'and the switches that are on (the lamp, room chat on DISCUSS) say so');
+  assert.equal((sharing.match(/\[ ON \]/g) ?? []).length, 4, 'and the switches that are on (the lamp, room chat on DISCUSS, profile comments, listening) say so');
 
   profile = { visibility: { ...off }, privacySeen: true };
   assert.equal(draw(), '', 'seen once is seen');

@@ -468,7 +468,9 @@ const member = (key, userId, joinedAt, name = key) => ({ key, userId, name, join
       assert.doesNotMatch(own, /END STREAM|aria-label="Send"|data-watch-queue-key|aria-label="Mute"|\[ PIP \]/, 'no END, no chat, and no key a song has no use for');
       // The side column: [ QUEUE ] and the cog on the title line, then what is on, then JUST YOU HERE with GO LIVE.
       const side = own.slice(own.indexOf('data-own-room-side'));
-      assert.match(side, /^[^<]*>\s*<div class="title-line[^"]*"><button[^>]*data-own-room-queue-key="true"[^>]*>\[ QUEUE \]<\/button><button[^>]*aria-label="Room link and settings"[^>]*>\[ ⚙︎ \]<\/button><\/div>/);
+      // Updated on purpose 2026-11-16 (Luke's ROOMFIX list, item 1): the edge that drags the column comes first, laid in the gap
+      // beside it (absolute, so nothing moves); then the title line as before.
+      assert.match(side, /^[^<]*>\s*<div role="separator"[^>]*data-room-side-grip="usual"[^>]*>(?:<span[^>]*><\/span>)?<\/div><div class="title-line[^"]*"><button[^>]*data-own-room-queue-key="true"[^>]*>\[ QUEUE \]<\/button><button[^>]*aria-label="Room link and settings"[^>]*>\[ ⚙︎ \]<\/button><\/div>/);
       assert.match(live, /data-watch-queue-key="true"[^>]*>\[ QUEUE \]<\/button><button[^>]*aria-label="Room settings"[^>]*>\[ ⚙︎ \]/, 'the live room: the same two keys, the same cog');
       assert.match(side, /SONG :: TEST TONE[\s\S]*1 QUEUED[\s\S]*JUST YOU HERE[\s\S]*data-own-room-go-live="true"[^>]*>\[ GO LIVE \]/);
       assert.doesNotMatch(own, /data-own-queue/, 'the queue is not stacked in the window: it opens from [ QUEUE ], as in a live room');
