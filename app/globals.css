@@ -143,6 +143,28 @@ html[data-backdrop]:not([data-backdrop='tile']) [data-site-window='desk'] {
   background-color: var(--dye-black);
 }
 
+/* The surround of a fullscreen picture (SPEC-rooms-your-room.md, part 3): the box that holds the picture and, under it, the
+   chosen background. Its own stacking context, so the background sits under everything in it and over the box's own black. */
+.stage-surround {
+  container-type: size;
+  isolation: isolate;
+}
+
+.stage-surround > .backdrop-stage,
+.stage-surround > .backdrop-stage-tile {
+  z-index: var(--z-index-backdrop);
+}
+
+/* The picture in it: the video's own shape (`--stage-ratio`, wide for tall, set on the element), as large as fits. Another
+   site's player the shape of its video draws no bars of its own, so what is round the picture is the background. */
+.stage-fit {
+  position: relative;
+  flex: none;
+  width: min(100cqw, calc(100cqh * var(--stage-ratio)));
+  height: auto;
+  aspect-ratio: var(--stage-ratio);
+}
+
 /* A fish: put in place by the loop, out of sight until it has been. */
 .aquarium-fish {
   position: absolute;

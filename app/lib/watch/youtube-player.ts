@@ -2,6 +2,7 @@ import { LINK_PROBE_MS, LINK_REFUSALS, youtubeWatchUrl } from './links';
 import { normaliseLanguage } from '../web/language';
 import type { SubtitleTrack } from '../web/subtitles';
 import { AUTO_QUALITY, type EmbedPlayable, type QualityChoice, type QualityControl, type SubtitleControl } from './playable';
+import { fitShape, WIDE } from './video-shape';
 
 /**
  * YouTube videos in the stream room (SPEC-watch-links.md step 3), through YouTube's own embed player
@@ -156,6 +157,8 @@ export class YouTubePlayable extends EventTarget implements EmbedPlayable, Quali
   private readonly cover: HTMLDivElement;
   private readonly resizing: ResizeObserver;
   private qualityNow: string = AUTO_QUALITY;
+  /** How wide the video is for how tall: 16:9 until its true shape is told (`setShape`). */
+  private shape = WIDE;
   /** YouTube's caption tracks once its captions module has listed them, as the SUBS key's list, and the one showing. */
   private captionTracks: { track: SubtitleTrack; raw: YTCaptionTrack }[] = [];
   private captionNow: string | null = null;
@@ -179,6 +182,8 @@ export class YouTubePlayable extends EventTarget implements EmbedPlayable, Quali
     if (window.getComputedStyle(container).position === 'static') container.style.position = 'relative';
     this.frame = document.createElement('div');
     this.frame.style.cssText = 'position:absolute;overflow:hidden;';
+    // The picture itself, for a background drawn round it in fullscreen (sand rests on it, ink goes round it).
+    this.frame.setAttribute('data-backdrop-solid', '');
     const mount = document.createElement('div');
     this.frame.appendChild(mount);
     this.cover = document.createElement('div');
@@ -216,7 +221,18 @@ export class YouTubePlayable extends EventTarget implements EmbedPlayable, Quali
   }
 
   /**
-   * Fits the picture's box to the stage (16:9, as large as fits, in the middle) and YouTube's player into it:
+   * The video's true shape (SPEC-rooms-your-room.md, part 3). YouTube draws black bars inside its player when the player
+   * is not the video's shape, and nothing outside can recolour them; a player of the video's own shape has none, so what
+   * is round the picture is the room's.
+   */
+  setShape(shape: number) {
+    if (this.destroyed || !Number.isFinite(shape) || shape <= 0 || shape === this.shape) return;
+    this.shape = shape;
+    this.layout();
+  }
+
+  /**
+   * Fits the picture's box to the stage (the video's shape, as large as fits, in the middle) and YouTube's player into it:
    * the size YouTube is told (the box's own, or the one a chosen quality asks for), taller by the margins its
    * strips sit in, scaled so the picture lands exactly on the box.
    */
@@ -224,15 +240,14 @@ export class YouTubePlayable extends EventTarget implements EmbedPlayable, Quali
     const width = this.container.clientWidth;
     const height = this.container.clientHeight;
     if (width === 0 || height === 0) return;
-    const w = Math.min(width, (height * 16) / 9);
-    const h = (w * 9) / 16;
-    Object.assign(this.frame.style, { left: `${(width - w) / 2}px`, top: `${(height - h) / 2}px`, width: `${w}px`, height: `${h}px` });
+    const { left, top, w, h } = fitShape(width, height, this.shape);
+    Object.assign(this.frame.style, { left: `${left}px`, top: `${top}px`, width: `${w}px`, height: `${h}px` });
 
     const iframe = this.frame.querySelector('iframe');
     if (iframe === null) return;
     const asked = YOUTUBE_QUALITIES.find((choice) => choice.id === this.qualityNow)?.height ?? 0;
     const shownHeight = asked > 0 ? asked / (window.devicePixelRatio || 1) : h;
-    const shownWidth = (shownHeight * 16) / 9;
+    const shownWidth = shownHeight * this.shape;
     const scale = w / shownWidth;
     const bleed = Math.max(BLEED_FLOOR, shownHeight * BLEED_SHARE);
     Object.assign(iframe.style, {
