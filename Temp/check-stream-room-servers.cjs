@@ -108,7 +108,9 @@ ok(/fixed visible frame bg-ink-plate pt-10 max-sm:pt-14 fullscreen:pt-0/.test(ro
 // taken out of them where the room's FULL works (SPEC-rooms-your-room.md, part 3). A server's player still has autoplay.
 ok(/const allowed = server !== undefined \? 'autoplay; fullscreen' : 'fullscreen';/.test(room), 'a server\'s player may start by itself when it is made again');
 ok(/allow=\{siteFullscreenWorks\(\) \? withoutFullscreen\(allowed\) : allowed\}/.test(room), 'and has no fullscreen of its own where the room\'s works (an iPhone keeps it)');
-ok(/notInStep=\{live && officialOn && entryId !== null \? \{ entryId, text: notInStepNote\(serverOn\) \} : null\}/.test(room), 'the chat is told about a play the room can\'t keep in step');
+// Updated on purpose (list 4, ROOMUI): not while an Internet Archive item is being read, since it then plays in the room's own
+// player, in step (archive-room-file.ts); the note would be wrong and is never taken back.
+ok(/notInStep=\{live && officialOn && !archiveRead\.waiting && entryId !== null \? \{ entryId, text: notInStepNote\(serverOn\) \} : null\}/.test(room), 'the chat is told about a play the room can\'t keep in step');
 
 /* --- the chat's own lines -------------------------------------------------------------------------------- */
 ok(notes.UP_NEXT_EVERY_MS === 120000, 'UP NEXT every two minutes, not every minute');
