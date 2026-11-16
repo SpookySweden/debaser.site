@@ -1059,10 +1059,11 @@ export default function WebStream() {
             </button>
           ) : null}
           {/* Luke, 2026-11-11: your own PDF or EPUB in the site's reader, opened in the browser, never uploaded. */}
-          {/* A key to the site's own page: nothing to prefetch for a page that only opens a file picker. */}
-          <button type="button" onClick={() => window.location.assign('/read')} className={FILTER_KEY} data-own-book-key>
+          {/* A link within the site, never a fresh page load: that took a room and what was playing down with it (Luke,
+              2026-11-16). Nothing to prefetch for a page that only opens a file picker. */}
+          <Link href="/read" prefetch={false} className={FILTER_KEY} data-own-book-key>
             [ READ YOUR OWN BOOK ]
-          </button>
+          </Link>
         </div>
         {/* The filter panel (Luke, 2026-11-13: "expandable, organised and much clearer"): one plain line of what is
             chosen, RESET, and a section for each filter that folds open and shut. Every key still only writes its

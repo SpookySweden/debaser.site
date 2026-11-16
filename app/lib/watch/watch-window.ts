@@ -12,10 +12,12 @@ import { createWindowSlot } from '../ui/window-slot';
  * Going live swaps the first purpose for the second in the store; the address is spent on close.
  *
  * A room can also be folded away (`collapsed`): still drawn, still in the room and still playing, its window out
- * of sight and its picture floating over the site, with `[ BACK ]` on the picture to bring the window back
- * (SPEC-rooms-your-room.md, part 2: folding is PIP; the TV box above the music player is gone). A room always opens
- * as its window, never folded. Folding spends the address too, so any link to the room (a `[ TV ]` key, the board's
- * record, WEB's OPEN ROOM) is a new address again, and opening the room it names unfolds it.
+ * of sight and a key on the corner shelf above the player to bring it back. Folded by `[ _ ]`, that is all: nothing
+ * floats. Folded by `[ PIP ]` (`pip`), its picture floats over the site as well, and the same key above the player is
+ * the way back (Luke, 2026-11-16: "collapsing the room goes to a small button above the player like before, not PIP";
+ * this undoes SPEC-rooms-your-room.md part 2's "`[ _ ]` is PIP"). A room always opens as its window, never folded.
+ * Folding spends the address too, so any link to the room (a `[ TV ]` key, the board's record, WEB's OPEN ROOM) is a
+ * new address again, and opening the room it names unfolds it.
  */
 
 export type WatchFocus = { kind: 'prelive'; mediaItemId: string } | { kind: 'room'; roomId: string };
@@ -23,11 +25,13 @@ export type WatchFocus = { kind: 'prelive'; mediaItemId: string } | { kind: 'roo
 export type WatchWindowState = {
   open: boolean;
   focus: WatchFocus | null;
-  /** Folded away: the room plays on, its window out of sight and its picture floating. */
+  /** Folded away: the room plays on, its window out of sight, a key above the player to bring it back. */
   collapsed: boolean;
+  /** Folded by `[ PIP ]`: its picture floats over the site too. Only ever true while `collapsed`. */
+  pip: boolean;
 };
 
-const CLOSED: WatchWindowState = { open: false, focus: null, collapsed: false };
+const CLOSED: WatchWindowState = { open: false, focus: null, collapsed: false, pip: false };
 
 const slot = createWindowSlot<WatchWindowState>(CLOSED);
 
@@ -43,27 +47,27 @@ export const subscribeToWatchWindow = slot.subscribe;
 export function openWatch(focus: WatchFocus): void {
   const current = slot.state();
   if (current.open && current.focus !== null && sameFocus(current.focus, focus)) {
-    if (current.collapsed) slot.set({ ...current, collapsed: false });
+    if (current.collapsed) slot.set({ ...current, collapsed: false, pip: false });
     return;
   }
 
-  slot.set({ open: true, focus, collapsed: false });
+  slot.set({ open: true, focus, collapsed: false, pip: false });
 }
 
 export function closeWatch(): void {
   if (slot.state().open) slot.set(CLOSED);
 }
 
-/** Folds an open room away, its picture floating; it keeps playing. */
-export function collapseWatch(): void {
+/** Folds an open room away to its key above the player; it keeps playing. `pip`: its picture floats as well (`[ PIP ]`). */
+export function collapseWatch(pip = false): void {
   const current = slot.state();
-  if (current.open && current.focus?.kind === 'room' && !current.collapsed) slot.set({ ...current, collapsed: true });
+  if (current.open && current.focus?.kind === 'room' && (!current.collapsed || current.pip !== pip)) slot.set({ ...current, collapsed: true, pip });
 }
 
 /** Brings a folded room back. */
 export function expandWatch(): void {
   const current = slot.state();
-  if (current.open && current.collapsed) slot.set({ ...current, collapsed: false });
+  if (current.open && current.collapsed) slot.set({ ...current, collapsed: false, pip: false });
 }
 
 function sameFocus(a: WatchFocus, b: WatchFocus): boolean {

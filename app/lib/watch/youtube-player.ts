@@ -32,6 +32,11 @@ import { fitTrimmed, WIDE } from './video-shape';
  * captions module (`loadModule('captions')`, `getOption('captions', 'tracklist')`, `setOption('captions', 'track')`).
  * That module is not in YouTube's documented API and may change without notice: when its list never arrives the
  * key is simply not drawn, and the video plays as before. Auto-translated languages are never listed.
+ * YouTube draws its captions near the foot of its own player, not of the picture, so with the margins above they
+ * landed in the clipped-off strip under the picture: English was switched on and nothing showed (Luke, 2026-11-16;
+ * measured by scripts/drive-roomfix.cjs, captions 90px under the picture's foot). So while a subtitle is on, the
+ * player is the picture's own size, with no margins: the captions sit on the picture, and YouTube's own title line
+ * may show along its top when it starts or pauses. Off again, the margins come back.
  */
 
 /** How far YouTube's player reaches past the picture, above and below, as a share of the picture's height. */
@@ -258,7 +263,8 @@ export class YouTubePlayable extends EventTarget implements EmbedPlayable, Quali
     const shownHeight = asked > 0 ? asked / (window.devicePixelRatio || 1) : h;
     const shownWidth = shownHeight * this.shape;
     const scale = w / shownWidth;
-    const bleed = Math.max(BLEED_FLOOR, shownHeight * BLEED_SHARE);
+    // No margins while a subtitle is on: YouTube draws captions at the foot of its player, which would be clipped off.
+    const bleed = this.captionNow !== null ? 0 : Math.max(BLEED_FLOOR, shownHeight * BLEED_SHARE);
     Object.assign(iframe.style, {
       position: 'absolute',
       left: `${whole.left}px`,
@@ -382,6 +388,8 @@ export class YouTubePlayable extends EventTarget implements EmbedPlayable, Quali
     if (this.captionNow === null && showing && typeof showing.languageCode === 'string') {
       const match = tracks.find(({ raw }) => raw.languageCode === showing.languageCode && (raw.kind === 'asr') === (showing.kind === 'asr'));
       this.captionNow = match?.track.id ?? null;
+      // YouTube came up showing one: its captions need the player's foot in view.
+      if (this.captionNow !== null) this.layout();
     }
     this.emit('subtitles');
   }
@@ -406,6 +414,8 @@ export class YouTubePlayable extends EventTarget implements EmbedPlayable, Quali
       return;
     }
     this.captionNow = id;
+    // On, the player loses its margins so YouTube's captions show; off, they come back.
+    this.layout();
     this.emit('subtitles');
   }
 

@@ -278,10 +278,14 @@ async function open(page, path) {
     assert.equal((await audio(page)).paused, false, 'and the song plays on');
     pass('the pop-up opens the room window: the cover card with its keys, [ QUEUE ], JUST YOU HERE; the song plays on');
     await page.screenshot({ path: join(SHOTS, 'own-room-window-song.png') });
-    // Updated on purpose 2026-11-16 (part 2): folding is PIP, and the folded [ ▲ ROOM ] tile is gone. A song has no picture
-    // to put out, so its window has no [ _ ]; [ × ] shuts the window and stops nothing.
-    assert.equal(await page.locator('button[aria-label="Fold YOUR ROOM away"]').count(), 0, 'no [ _ ] with a song on');
-    pass('a song on: no [ _ ], because there is no picture to put out');
+    // Updated on purpose 2026-11-16 (Luke's ROOMFIX list, item 7): [ _ ] folds the window to [ ▲ ROOM ] above the player and
+    // floats nothing, so a song on has it too; [ × ] shuts the window and stops nothing.
+    await page.locator('button[aria-label="Fold YOUR ROOM away"]').click();
+    await page.waitForSelector('[data-own-room-door="folded"]', { timeout: 10000 });
+    assert.equal((await audio(page)).paused, false, 'folded, the song plays on');
+    await page.locator('[data-own-room-door="folded"] button').click();
+    await page.waitForFunction(() => document.querySelector('[data-dock-window="stream"]')?.getAttribute('data-minimized') !== 'true', null, { timeout: 10000 });
+    pass('a song on: [ _ ] folds the window to [ ▲ ROOM ] above the player, the song plays on, and the key brings it back');
     await page.locator('button[aria-label="Close YOUR ROOM"]').click();
     await page.waitForSelector('[data-own-room-door="shut"]', { timeout: 10000 });
     assert.equal((await audio(page)).paused, false, 'closing the window stops nothing');
@@ -362,14 +366,13 @@ async function open(page, path) {
         await page.screenshot({ path: join(SHOTS, 'own-room-window-video.png') });
         await page.locator('button[aria-label="Fold YOUR ROOM away"]').click();
         await sleep(1000);
-        const folded = await page.evaluate(() => ({ state: document.querySelector('[data-floating-player]').getAttribute('data-floating-player'), same: document.querySelector('[data-floating-player] video') === window.__sameVideo }));
-        assert.equal(folded.state, 'floating', 'the window folded away: the video floats again');
-        assert.ok(folded.same, 'still the same element');
-        // Updated on purpose 2026-11-16 (SPEC-rooms-your-room.md, part 2): the way back is on the floating picture, not a
-        // tile above the bar.
-        assert.equal(await page.locator('[data-own-room-door]').count(), 0, 'no folded tile above the bar');
-        await page.locator('[data-floating-player]').getByRole('button', { name: /^Back to where/ }).click();
-        await page.waitForFunction(() => document.querySelector('[data-floating-player]')?.getAttribute('data-floating-player') === 'in-box', null, { timeout: 10000 });
+        const folded = await page.evaluate(() => ({ tucked: document.querySelector('[data-floating-player]').getAttribute('data-floating-tucked'), same: document.querySelector('[data-floating-player] video') === window.__sameVideo, playing: !window.__sameVideo.paused }));
+        // Updated on purpose 2026-11-16 (Luke's ROOMFIX list, item 7: "not PIP"): folded by [ _ ], the video plays on out of
+        // sight with the window, and [ ▲ ROOM ] above the player brings both back. Only [ PIP ] floats it.
+        assert.equal(folded.tucked, 'true', 'the window folded away: the video plays on out of sight, not floating');
+        assert.ok(folded.same && folded.playing, 'still the same element, still playing');
+        await page.locator('[data-own-room-door="folded"] button').click();
+        await page.waitForFunction(() => document.querySelector('[data-floating-player]')?.getAttribute('data-floating-player') === 'in-box' && document.querySelector('[data-floating-player]')?.getAttribute('data-floating-tucked') === 'false', null, { timeout: 10000 });
         await page.locator('button[aria-label="Close YOUR ROOM"]').click();
         await sleep(800);
         const shut = await page.evaluate(() => ({ state: document.querySelector('[data-floating-player]')?.getAttribute('data-floating-player'), same: document.querySelector('[data-floating-player] video') === window.__sameVideo }));

@@ -230,7 +230,9 @@ same(time.readYouTubeState(JSON.stringify({ event: 'infoDelivery', info: { playe
 for (const nonsense of ['', 'not json', '{"event":"other","info":{"playerState":2}}', '{"event":"infoDelivery","info":{"playerState":"2"}}', 'null', 5, null]) same(time.readYouTubeState(nonsense), null, `nonsense reads as nothing: ${String(nonsense)}`);
 ok(!/className="[^"]*inset-0[^"]*" onDoubleClick/.test(read('app/components/FloatingPlayer.tsx')), 'nothing is laid over a player to catch presses: its own controls keep working');
 ok(/onDoubleClick=\{togglePlayerFullscreen\}/.test(read('app/components/FloatingPlayer.tsx')), 'a double press on the float\'s title line');
-ok(/\[ FULL \]/.test(read('app/components/FloatingPlayer.tsx')) && /\[ FULL \]/.test(read('app/components/PlayerBox.tsx')), 'a [ FULL ] key on the float and beside every row\'s [ PIP ]');
+// Updated on purpose 2026-11-16 (Luke's ROOMFIX list, item 8: "BACK, FULL and GO LIVE come off the PIP window"): the float has
+// no [ FULL ] any more; its title line's double press is its fullscreen, and every row's [ FULL ] stays beside its [ PIP ].
+ok(!/\[ FULL \]/.test(read('app/components/FloatingPlayer.tsx')) && /\[ FULL \]/.test(read('app/components/PlayerBox.tsx')), 'no [ FULL ] on the float; a [ FULL ] beside every row\'s [ PIP ]');
 ok(/onDoubleClick=\{fullOnDoublePress\}/.test(read('app/components/WatchRoom.tsx')), 'in a room, a double press on the picture is the FULL key');
 
 /* ---------------------------------------------------------------- the arrows */
@@ -318,15 +320,16 @@ const roomKey = read('app/components/WatchInRoomKey.tsx');
 // Updated on purpose 2026-11-14 (Luke's list M6): the key's words come from `useRoomKey`, which MEDIA's PLAY / + QUEUE key also
 // reads (QueueHalf.tsx), so WebStream's rows reach it through `useQueueHalf` rather than drawing `<WatchInRoomKey>`.
 ok(/words: 'WATCH IN ROOM'/.test(roomKey) && /'ADD TO ROOM'/.test(roomKey), 'one key with both words');
-for (const path of ['app/components/WebSiteFiles.tsx', 'app/components/MediaCatalogue.tsx', 'app/components/FloatingPlayer.tsx']) ok(/<WatchInRoomKey\b/.test(read(path)), `${path}: has the key`);
+// Updated on purpose 2026-11-16 (ROOMFIX item 8): the floating player lost its room key (GO LIVE); the rows keep theirs.
+for (const path of ['app/components/WebSiteFiles.tsx', 'app/components/MediaCatalogue.tsx']) ok(/<WatchInRoomKey\b/.test(read(path)), `${path}: has the key`);
+ok(!/<WatchInRoomKey\b/.test(read('app/components/FloatingPlayer.tsx')), 'the floating picture has no room key: GO LIVE came off it');
 ok(/useQueueHalf\(\{ bar: barItem, room: roomSource,/.test(read('app/components/WebStream.tsx')) && /useRoomKey\(\{ source: room,/.test(read('app/components/QueueHalf.tsx')), 'app/components/WebStream.tsx: has the key, as the second half of PLAY');
 // Updated on purpose 2026-11-08: since 644b121 (Luke, 2026-11-07: "pick a server... watch in the room") a media server's title plays in
 // a room, so its row has the key, with what its pickers chose (server-picks.ts `roomAddFor`). This line had failed since then.
 ok(/<WatchInRoomKey\b/.test(read('app/components/WebMediaRow.tsx')) && /roomAddFor\(server, media, item\.title, pick\)/.test(read('app/components/WebMediaRow.tsx')), 'a media server\'s title has the key, for the pick on the chosen server');
-ok(/entry\.room === undefined \? null : <WatchInRoomKey/.test(layer), 'the float has it only for what can play in a room');
-// Added on purpose 2026-11-15 (SPEC-rooms-queues.md, phase 3): outside a room the float's key is GO LIVE, the same key as
-// the bar's, which carries the video on the screen and your queue into the room; in a room it is still ADD TO ROOM.
-ok(/<WatchInRoomKey key=\{entry\.play\}[^>]* live \/>/.test(layer) && /key\.mode === 'start' && props\.live === true\) return <GoLiveKey screenFirst \/>/.test(roomKey), 'outside a room the float\'s key is GO LIVE');
+// Added on purpose 2026-11-15 (SPEC-rooms-queues.md, phase 3): the key's `live` reading is GO LIVE, the same key as the bar's.
+// Since 2026-11-16 (ROOMFIX item 8) nothing draws it on the float; the reading stays for any caller that asks for it.
+ok(/key\.mode === 'start' && props\.live === true\) return <GoLiveKey screenFirst \/>/.test(roomKey), 'the key\'s live reading is GO LIVE');
 ok(/const mine = whatToCarry\(player, screenFirst\);/.test(read('app/components/GoLiveWindow.tsx')), 'every START carries what is on and your queue');
 ok(/useState<RoomPrivacy>\('private'\)/.test(read('app/components/GoLiveWindow.tsx')), 'PRIVATE already picked');
 ok(/const place = roomStartFor\(videoElement, entryId\);/.test(read('app/components/WatchRoom.tsx')), 'the host\'s room starts from the place');
@@ -470,13 +473,27 @@ ok(/FLOAT_GRIPS\.map/.test(layer) && /FLOAT_GRIPS\.map/.test(floatChrome), "the 
 ok(/\{\.\.\.\(pictureFloats \? floatDrag\.picture : \{\}\)\}/.test(read('app/components/WatchRoom.tsx')), "a room's floating picture is a handle itself");
 ok(!/inset-0/.test(floatChrome), 'and still nothing is laid over the picture to catch presses');
 
-// Folding a room is PIP: the folded tile above the bar is gone, so the picture has the way back and no key to put it away.
+// Rewritten on purpose 2026-11-16 (Luke's ROOMFIX list, items 7 and 8: "collapsing the room ([ _ ]) goes to a small button
+// above the player like before, not PIP. PIP stays its own key", and "BACK, FULL and GO LIVE come off the PIP window"). Until
+// then folding a room was PIP and the floating picture's BACK was the way back. Now: [ _ ] folds to a key on the corner shelf
+// and floats nothing; [ PIP ] folds with the picture floating; the shelf key is the way back from both. The browser proof is
+// scripts/drive-roomfix.cjs.
 const roomWindow = read('app/components/WatchWindow.tsx');
-ok(!/data-watch-tv-box|function UpBox|<OwnRoomDoor folded/.test(roomWindow), 'no folded tile above the bar, for a live room or for yours');
-ok(/pictureFloats=\{collapsed\}/.test(roomWindow) && /onMinimize=\{drawn \? onCollapse : undefined\}/.test(roomWindow), "a room's [ _ ] puts its picture out");
-ok(/if \(collapsed && !drawn\) expandWatch\(\);/.test(roomWindow), 'a folded room with no picture left to float comes back as its window: it is never left with no way back');
-ok(/Back to the room/.test(floatChrome) && !/Hide the picture/.test(floatChrome), 'the floating picture has BACK and no key that would leave a playing room with no way back');
-ok(/box\.closest\('\[data-minimized="true"\]'\) !== null\) expandWatch\(\);/.test(layer), "BACK on the site's float brings back your room's folded window");
+const ownWindow = read('app/components/OwnRoomWindow.tsx');
+const watchStore = read('app/lib/watch/watch-window.ts');
+ok(/function FoldedRoomKey/.test(roomWindow) && /\{collapsed && drawn && read \? \(\s*<FoldedRoomKey/.test(roomWindow), 'a folded live room has its key above the player');
+ok(/createPortal\([\s\S]*?data-room-shelf-key[\s\S]*?shelf,\s*\)/.test(roomWindow), 'on the corner shelf');
+ok(/\{state\.collapsed \? <OwnRoomDoor folded \/> : null\}/.test(roomWindow) && /folded \? expandWatch\(\) : openWatch/.test(roomWindow), 'and so has your own room: [ ▲ ROOM ] brings it back');
+ok(/onMinimize=\{drawn \? \(\) => onCollapse\(false\) : undefined\}/.test(roomWindow) && /pictureOut=\{pip && drawn\}/.test(roomWindow) && /pictureFloats=\{pip\}/.test(roomWindow), "a live room's [ _ ] folds it without putting its picture out");
+ok(/onFloatPicture=\{\(\) => onCollapse\(true\)\}/.test(roomWindow), 'its [ PIP ] folds it with the picture out');
+ok(/onMinimize=\{readable \? \(\) => onCollapse\(false\) : undefined\}/.test(ownWindow) && /onClick=\{\(\) => onCollapse\(true\)\} data-own-room-pip/.test(ownWindow), "your room's [ _ ] folds it, and its [ PIP ] floats the video");
+ok(!/if \(collapsed && !videoOn\) onClose\(\);/.test(ownWindow), 'a folded room of yours keeps its key whatever happens to what is playing');
+ok(/data-room-picture-out=\{pip \? '' : undefined\}/.test(ownWindow), 'your room marks its picture as out only for [ PIP ]');
+ok(/const tucked = folded !== null && box\?\.closest\('\[data-room-picture-out\]'\) == null && !asked;/.test(layer) && /element\.style\.visibility = tucked \? 'hidden' : '';/.test(layer), "the site's player, its box folded away by [ _ ], plays on out of sight instead of floating");
+ok(/export function collapseWatch\(pip = false\)/.test(watchStore) && /expandWatch[\s\S]*?collapsed: false, pip: false/.test(watchStore), 'the store keeps the two folds apart, and unfolding ends PIP');
+ok(/if \(collapsed && !drawn\) expandWatch\(\);/.test(roomWindow), 'a folded room with nothing left playing comes back as its window');
+ok(!/Back to the room|\[ BACK \]|<button/.test(floatChrome), "a room's floating picture has no keys at all");
+ok(!/\[ BACK \]|Back to where/.test(layer), "the site's floating picture has no BACK");
 ok(!/collapseWatch/.test(read('app/lib/watch/use-music-room.ts')), 'joining a room opens it as a window: nothing folds it by itself');
 
 // Another site's own fullscreen key is switched off where the site's own FULL works (Luke, 2026-11-16: "Switch it off"): theirs

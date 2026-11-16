@@ -213,18 +213,42 @@ assert.equal(L.liveWindow('b').group, null, 'a moved away, so b does not rejoin'
   L.endMove();
   assert.deepEqual(rect('room'), { ...onBar, y: onBar.y - 150 }, 'dragged up, it lifts off the bar as one piece');
 
-  // The glued case itself: a box taller than what is drawn (saved that way, or the bar has grown since).
+  // Updated on purpose 2026-11-16 (Luke's ROOMFIX list, item 5: "dragging the room window against the panel at the bottom
+  // must not shrink it"). A foot under the bar used to be cut off there, so the window was drawn, and then picked up,
+  // shorter. Now it is lifted to the bar whole: the window moves up and keeps its height. The bar growing under a window
+  // resting on it (a stream's strip arriving on the music bar) is the everyday case.
+  L.beginMove('room', rect('room').x + 10, rect('room').y + 5, FLOOR);
+  L.moveTo(rect('room').x + 10, 5000);
+  L.endMove();
+  const resting = rect('room');
+  assert.equal(resting.y + resting.h, FLOOR, 'resting on the bar');
+  const GROWN = FLOOR - 40;
+  L.beginMove('room', resting.x + 10, resting.y + 5, GROWN);
+  L.moveTo(resting.x + 10, resting.y + 5 - 10);
+  L.endMove();
+  assert.equal(rect('room').h, resting.h, 'the bar grew under it: picked up, it has kept its height');
+  assert.equal(rect('room').y, resting.y - 40 - 10, 'it was lifted by what the bar grew, then moved by the drag');
+  L.beginMove('room', rect('room').x + 10, rect('room').y + 5, GROWN);
+  L.moveTo(rect('room').x + 10, 5000);
+  L.endMove();
+  assert.equal(rect('room').y + rect('room').h, GROWN, 'dragged down against the grown bar, its foot stops there');
+  assert.equal(rect('room').h, resting.h, 'and it is still not squashed');
+
+  // A box taller than all the room above the bar (saved that way): drawn, and picked up, from the top down to the bar.
+  L.beginResize('room', { top: true }, 700, rect('room').y);
+  L.resizeTo(700, -500);
+  L.endResize();
   L.beginResize('room', { bottom: true }, 700, rect('room').y + rect('room').h);
   L.resizeTo(700, 5000);
   L.endResize();
   const tall = rect('room');
-  assert.ok(tall.y + tall.h > FLOOR, 'a box that reaches under the bar again');
+  assert.ok(tall.h > FLOOR, 'a box taller than the room above the bar');
   L.beginMove('room', tall.x + 10, tall.y + 5, FLOOR);
-  L.moveTo(tall.x + 10, tall.y + 5 - 30);
+  L.moveTo(tall.x + 10, tall.y + 5 + 30);
   L.endMove();
-  assert.equal(rect('room').h, FLOOR - tall.y, 'picked up, it is the height it was drawn at');
-  assert.equal(rect('room').y, tall.y - 30, 'and it moves up by the drag');
-  assert.equal(rect('room').y + rect('room').h, FLOOR - 30, 'so its foot leaves the bar instead of the window growing');
+  assert.equal(rect('room').y, 0, 'picked up, its top is at the top: it was lifted as far as it goes');
+  assert.equal(rect('room').h, FLOOR, 'only then shortened, to the room there is');
+  assert.equal(rect('room').y + rect('room').h, FLOOR, 'its foot on the bar, where it was drawn');
 
   // The same floor means nothing to a window that is not kept above the bar.
   L.windowOpened('a');
@@ -237,9 +261,13 @@ assert.equal(L.liveWindow('b').group, null, 'a moved away, so b does not rejoin'
   assert.equal(rect('a').h, plain.h);
 
   // The sums by themselves.
-  assert.deepEqual(L.rectAboveBar({ x: 0, y: 100, w: 800, h: 900 }, 820, ROOM.min), { x: 0, y: 100, w: 800, h: 720 }, 'no taller than the room above the bar');
+  // Updated on purpose 2026-11-16 (item 5): lifted whole before anything is cut off.
+  assert.deepEqual(L.rectAboveBar({ x: 0, y: 300, w: 800, h: 600 }, 820, ROOM.min), { x: 0, y: 220, w: 800, h: 600 }, 'a foot under the bar is lifted to it, the height kept');
+  assert.deepEqual(L.rectAboveBar({ x: 0, y: 100, w: 800, h: 900 }, 820, ROOM.min), { x: 0, y: 0, w: 800, h: 820 }, 'taller than the room: from the top down to the bar');
+  assert.deepEqual(L.rectAboveBar({ x: 0, y: 100, w: 800, h: 900 }, 820, ROOM.min, 60), { x: 0, y: 60, w: 800, h: 760 }, 'never above the top it is given');
   assert.deepEqual(L.rectAboveBar({ x: 0, y: 100, w: 800, h: 500 }, 820, ROOM.min), { x: 0, y: 100, w: 800, h: 500 }, 'one that fits is left alone');
-  assert.equal(L.rectAboveBar({ x: 0, y: 700, w: 800, h: 600 }, 820, ROOM.min).h, 420, 'never under its own least height');
+  assert.equal(L.rectAboveBar({ x: 0, y: 0, w: 800, h: 600 }, 400, ROOM.min).h, 420, 'never under its own least height');
+  assert.match(fs.readFileSync('app/components/DockWindow.tsx', 'utf8'), /top: aboveBottomBar \? `max\(\$\{highest\}px, min\(\$\{live\.rect\.y \+ drop\}px, \$\{foot\} - \$\{live\.rect\.h - drop\}px\)\)\)`/, 'the window is drawn by the same sum: moved up to the bar before it is shortened');
   assert.deepEqual(L.clampOffset([{ x: 0, y: 100, w: 800, h: 500 }], 0, 999, { w: 1440, h: 900 }, 0, [820]), { dx: 0, dy: 220 }, 'the foot stops at the floor');
   assert.match(fs.readFileSync('app/components/DockWindow.tsx', 'utf8'), /aboveBar: aboveBottomBar/, 'the window frame tells the store which windows these are');
 }

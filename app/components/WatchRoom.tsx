@@ -30,7 +30,9 @@ import { isPictureLink } from '../lib/watch/pictures';
 import QueuedPicture from './QueuedPicture';
 import { useWebTrack, webTrackNow } from '../lib/web/web-track-lookup';
 
-import { ROOM_BAR, ROOM_BAR_PLACE, ROOM_COG, ROOM_COLUMNS, ROOM_PICTURE_BOX, ROOM_PICTURE_FIT, ROOM_ROOT, ROOM_SCREEN, ROOM_SIDE, ROOM_SIDE_BODY, ROOM_STAGE } from '../lib/watch/room-frame';
+import { ROOM_BAR, ROOM_BAR_PLACE, ROOM_COG, ROOM_COLUMNS, ROOM_PICTURE_BOX, ROOM_PICTURE_FIT, ROOM_ROOT, ROOM_SCREEN, ROOM_SIDE_BODY, ROOM_STAGE, roomSide } from '../lib/watch/room-frame';
+import { useRoomSideWidth } from '../lib/watch/room-side-width';
+import RoomSideGrip from './RoomSideGrip';
 import { stillBars, watchVideoBars, type FrameBars } from '../lib/watch/bar-watch';
 import { hasTrim, NO_TRIM, trimmedShape, type Trim } from '../lib/watch/video-bars';
 import { pictureStyle, shapeFrom, stageStyle, videoShape, WIDE } from '../lib/watch/video-shape';
@@ -40,6 +42,7 @@ import { StageBackdrop } from './backdrops/Backdrops';
 import StageKey from './StageKey';
 import { roomStartFor } from '../lib/watch/room-start';
 import { streamBarState, subscribeToStreamBar } from '../lib/watch/stream-bar';
+import { expandWatch } from '../lib/watch/watch-window';
 import {
   MESSAGE_MAX_LENGTH,
   TAKE_OVER_RETRY_MS,
@@ -146,14 +149,12 @@ type WatchRoomProps = {
   onStay: () => void;
   onLeft: () => void;
   /**
-   * The room's window is folded, which is its picture floating (SPEC-floating-player.md; SPEC-rooms-your-room.md,
-   * part 2: folding is PIP, and the folded tile above the bar is gone).
+   * The room's window is folded by `[ PIP ]`, so its picture floats (SPEC-floating-player.md). Folded by `[ _ ]` it does
+   * not: the window plays on out of sight (Luke, 2026-11-16). Either way the key above the player is the way back.
    */
   pictureFloats: boolean;
-  /** Folds the room with its picture floating: `[ PIP ]`, the same as the window's `[ _ ]`. */
+  /** `[ PIP ]`: folds the room with its picture floating. */
   onFloatPicture: () => void;
-  /** Back to the room's window, from the floating picture. */
-  onBackFromFloat: () => void;
 };
 
 /**
@@ -169,7 +170,7 @@ type WatchRoomProps = {
  * and jumps (off by more than two seconds) or nudges its speed (a little off). A browser that refuses to
  * start the sound gets one key, `[ ▶ JOIN PLAYBACK ]`, rather than playing on silently out of step.
  */
-export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats, onFloatPicture, onBackFromFloat }: WatchRoomProps) {
+export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats, onFloatPicture }: WatchRoomProps) {
   const { user } = useAuth();
   const catalogue = useCatalogue();
   const player = useMusicPlayer();
@@ -1145,7 +1146,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   ) : null;
   const floatKey =
     link !== null && (officialOn || isEmbedKind(link.kind)) && song === null ? (
-      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Picture in picture: floats over the site" title="Floats over the site" onClick={pictureFloats ? onBackFromFloat : onFloatPicture}>
+      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Picture in picture: floats over the site" title="Floats over the site" onClick={pictureFloats ? expandWatch : onFloatPicture}>
         [ PIP ]
       </button>
     ) : null;
@@ -1250,6 +1251,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   const canvasAudio = song !== null;
   const screen = useScreenView(roomId, canvasAudio);
   const visualiserOn = useVisualiserOn(roomId);
+  /** The side column's width: the frame's own, or where the reader dragged its edge (`RoomSideGrip`). */
+  const sideFrame = roomSide(useRoomSideWidth());
   const crownedIds = new Set(read.crowns.map((crown) => crown.userId));
   const canvasContext: CanvasContext = {
     me: user !== null ? { id: user.id, label: user.displayName } : roomGuest !== null && roomGuest.named && room.guestsCanTalk !== false ? { id: roomGuest.id, label: roomGuest.label } : null,
@@ -1395,10 +1398,10 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
         ) : null}
         <RoomCanvas roomId={roomId} context={canvasContext} visible={screen === 'canvas'} />
         <div className="absolute right-1 top-1 z-30 flex gap-1">
-          <VisualiserToggle roomId={roomId} />
+          <VisualiserToggle roomId={roomId} audio={canvasAudio} />
           <CanvasToggle roomId={roomId} audio={canvasAudio} />
         </div>
-        {pictureFloats ? <RoomFloatChrome host={pictureBox} drag={floatDrag} title={entryTitle ?? (music ? 'ROOM' : 'STREAM')} onBack={onBackFromFloat} /> : null}
+        {pictureFloats ? <RoomFloatChrome host={pictureBox} drag={floatDrag} title={entryTitle ?? (music ? 'ROOM' : 'STREAM')} /> : null}
         {/* Fullscreen: the chosen background, live, under everything in this box. Last in the box, so nothing before it is moved. */}
         {dressed ? <StageBackdrop /> : null}
         {/* `[ BKG ]`, in the corner of whatever is fullscreen: on or off, it is the way to the other. */}
@@ -1474,7 +1477,9 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   // Top to bottom (Luke, 2026-11-02): the QUEUE line, which opens the queue as its own window; the strip of
   // who is watching with what is on and what is next, newswire-style, the width of the chat; then the chat.
   const side = (
-    <div className={ROOM_SIDE}>
+    <div className={sideFrame.className} style={sideFrame.style as CSSProperties | undefined}>
+      {/* The edge between the picture and this column: dragged, the chat is wider or narrower (Luke, 2026-11-16). */}
+      <RoomSideGrip />
       {/* One key for the queue window, where everything is added and seen (Luke, 2026-11-02). */}
       <div className={TITLE_BAR}>
         <button type="button" className={`${TITLE_BAR_BUTTON} max-sm:min-h-tap`} aria-haspopup="dialog" onClick={() => openQueue()} data-watch-queue-key>

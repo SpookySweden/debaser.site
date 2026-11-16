@@ -155,7 +155,7 @@ function describe(read) {
       a = await person(browser, 'A');
       await a.page.goto(`${BASE}/forum?watch=${END}`, { waitUntil: 'domcontentloaded' });
       await a.page.mouse.move(700, 300);
-      await a.page.waitForSelector('[data-room-picture], [data-watch-tv-box]', { state: 'attached', timeout: 45000 });
+      await a.page.waitForSelector('[data-room-picture], [data-room-shelf-key]', { state: 'attached', timeout: 45000 });
       live = END;
       return;
     }
@@ -196,7 +196,7 @@ function describe(read) {
     live = roomId;
     left.push(`stream room ${roomId} (ended at the close; its record and board thread stay)`);
     // The site remembers a folded room: unfold it if it came up folded.
-    const up = a.page.locator('[data-room-float] button[aria-label="Back to the room"]');
+    const up = a.page.locator('[data-room-shelf-key] button');
     if ((await up.count()) > 0 && (await up.first().isVisible().catch(() => false))) await up.first().click();
     await sleep(1500);
 
@@ -206,9 +206,9 @@ function describe(read) {
     const greeting = BEFORE ? Promise.resolve(null) : until(a.page, 'own', (seen) => seen.motion === 'wave', 75000);
     await b.page.goto(`${BASE}/forum?watch=${roomId}`, { waitUntil: 'domcontentloaded' });
     await b.page.mouse.move(700, 300);
-    await b.page.waitForSelector('[data-room-picture], [data-watch-tv-box]', { state: 'attached', timeout: 45000 });
+    await b.page.waitForSelector('[data-room-picture], [data-room-shelf-key]', { state: 'attached', timeout: 45000 });
     await clearPrivacyWindow(b.page);
-    const upB = b.page.locator('[data-room-float] button[aria-label="Back to the room"]');
+    const upB = b.page.locator('[data-room-shelf-key] button');
     if ((await upB.count()) > 0 && (await upB.first().isVisible().catch(() => false))) await upB.first().click();
     await b.page.waitForSelector('[data-companion="room"]', { state: 'attached', timeout: 30000 });
     await a.page.waitForSelector('[data-companion="room"]', { state: 'attached', timeout: 30000 });
@@ -299,7 +299,7 @@ function describe(read) {
       for (const c of down.companions) assert.deepEqual(c.covers, [], `on the strip: ${c.who} covers a key`);
       await a.page.screenshot({ path: join(SHOTS, 'companion-room-folded-a.png') });
       pass(`the window folded away: both are back on the strip above the music bar (feet at ${down.strip})`);
-      await a.page.locator('[data-room-float] button[aria-label="Back to the room"]').first().click();
+      await a.page.locator('[data-room-shelf-key] button').first().click();
       let up = null;
       for (let i = 0; i < 20 && up === null; i += 1) {
         await sleep(400);
@@ -313,9 +313,9 @@ function describe(read) {
     console.log('Phone width (A, its phone switch on)');
     const phone = await person(browser, 'A', { phone: true });
     await phone.page.goto(`${BASE}/forum?watch=${roomId}`, { waitUntil: 'domcontentloaded' });
-    await phone.page.waitForSelector('[data-room-picture], [data-watch-tv-box]', { state: 'attached', timeout: 45000 });
+    await phone.page.waitForSelector('[data-room-picture], [data-room-shelf-key]', { state: 'attached', timeout: 45000 });
     await clearPrivacyWindow(phone.page);
-    const upP = phone.page.locator('[data-room-float] button[aria-label="Back to the room"]');
+    const upP = phone.page.locator('[data-room-shelf-key] button');
     if ((await upP.count()) > 0 && (await upP.first().isVisible().catch(() => false))) await upP.first().click();
     await sleep(5000);
     const onPhone = await phone.page.evaluate(readCompanions);
@@ -347,7 +347,7 @@ function describe(read) {
     if (a !== null && live !== null) {
       try {
         if (live === 'started') console.log('  (the room id was never seen: ending whatever room is on screen)');
-        const up = a.page.locator('[data-room-float] button[aria-label="Back to the room"]');
+        const up = a.page.locator('[data-room-shelf-key] button');
         if ((await up.count()) > 0 && (await up.first().isVisible().catch(() => false))) await up.first().click();
         await a.page.getByRole('button', { name: '[ END STREAM ]' }).last().click({ timeout: 10000 });
         await a.page.getByRole('button', { name: '[ END FOR EVERYBODY ]' }).last().click({ timeout: 10000 });

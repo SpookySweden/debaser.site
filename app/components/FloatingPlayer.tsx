@@ -1,7 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react';
 import { PLATE, WINDOW_TITLE_BAR } from '../lib/ui/controls';
 import {
   clampFloat,
@@ -26,12 +25,10 @@ import {
   notePlayerElement,
   onFloatingOrder,
   placeOf,
-  setFloatAsked,
   siteFullscreenWorks,
   subscribeToFloating,
   takesOrders,
   togglePlayerFullscreen,
-  wantBoxShown,
   withoutFullscreen,
   withoutFullscreenKey,
   type FloatingEntry,
@@ -42,11 +39,9 @@ import { analysableSrc } from '../lib/watch/audio-tap';
 import { stillBars, watchVideoBars } from '../lib/watch/bar-watch';
 import { hasTrim, NO_TRIM, type Trim } from '../lib/watch/video-bars';
 import { pictureStyle, shapeFrom, stageStyle, videoShape, WIDE } from '../lib/watch/video-shape';
-import { expandWatch } from '../lib/watch/watch-window';
 import { DOUBLE_PRESS_MS, listenForTime } from '../lib/web/embed-time';
 import { useAuth } from './AuthProvider';
 import QueuedPicture from './QueuedPicture';
-import WatchInRoomKey from './WatchInRoomKey';
 import { StageBackdrop } from './backdrops/Backdrops';
 import FloatingStageBar from './FloatingStageBar';
 import StageKey from './StageKey';
@@ -125,7 +120,6 @@ export default function FloatingPlayer() {
   /** Where the room was last seen, so only what really moved is handed on. */
   const roomSeen = useRef(ROOM_MIDDLE);
   const roomRest = useRef(0);
-  const router = useRouter();
   const playKey = entry === null ? null : `${entry.id}:${entry.play}`;
   /** When the site last told a frame's player to pause or play (`onFloatingOrder`), so that is not read as a double press on it. */
   const orderedAt = useRef(0);
@@ -143,9 +137,18 @@ export default function FloatingPlayer() {
       let share = 0;
       let boxRect: ClipRect | null = null;
       let clips: ClipRect[] = [];
-      // A box in a window that has been folded away is still laid out, only unseen: the video floats rather than
-      // sit over nothing.
-      if (box !== undefined && box.isConnected && box.closest('[data-minimized="true"]') === null) {
+      // A box in a window that has been folded away is still laid out, only unseen. Folded by `[ PIP ]` (the window
+      // marks its picture as out), the video floats; folded by `[ _ ]`, it plays on out of sight with the window, and
+      // the room's key above the player brings both back (Luke, 2026-11-16: "not PIP").
+      const folded = box !== undefined && box.isConnected ? box.closest('[data-minimized="true"]') : null;
+      const tucked = folded !== null && box?.closest('[data-room-picture-out]') == null && !asked;
+      element.style.visibility = tucked ? 'hidden' : '';
+      element.dataset.floatingTucked = tucked ? 'true' : 'false';
+      if (tucked) {
+        noteFloating(false);
+        return;
+      }
+      if (box !== undefined && box.isConnected && folded === null) {
         if (panes === null || panes.box !== box) panes = { box, list: clippingPanes(box) };
         boxRect = rectOf(box);
         clips = [...panes.list.map(rectOf), { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight }];
@@ -357,20 +360,6 @@ export default function FloatingPlayer() {
     if (pane !== undefined && pane !== null) pane.scrollTop += moved;
   };
 
-  const goBack = useCallback(() => {
-    if (entry === null) return;
-    const box = boxOf(entry.id);
-    setFloatAsked(false);
-    if (box !== undefined) {
-      // Its box is in a room window that was folded away (your room, `[ _ ]`): the way back is the window itself.
-      if (box.closest('[data-minimized="true"]') !== null) expandWatch();
-      else box.scrollIntoView({ block: 'center' });
-      return;
-    }
-    wantBoxShown();
-    router.push(entry.home);
-  }, [entry, router]);
-
   if (entry === null) return null;
   const { player } = entry;
   /** Our own file's clock, for the keys under your room's screen (`noteClock`). */
@@ -410,15 +399,10 @@ export default function FloatingPlayer() {
               [ × ]
             </button>
           </div>
-          {/* The key's window is drawn through it, so what happens in the window must not reach the bar's drag either. */}
-          <div className="flex flex-wrap items-center gap-1 px-2 pb-1" onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()}>
-            <button type="button" onClick={goBack} aria-label={`Back to where "${entry.title}" came from`} className={PLATE}>
-              [ BACK ]
-            </button>
-            <button type="button" onClick={togglePlayerFullscreen} aria-label={`Fullscreen: "${entry.title}"`} className={PLATE}>
-              [ FULL ]
-            </button>
-            {canPopOut ? (
+          {/* BACK, FULL and GO LIVE came off the floating picture (Luke, 2026-11-16). A room's video comes back by its key
+              above the player; any other by going back to its page; a double press on the picture is still fullscreen. */}
+          {canPopOut ? (
+            <div className="flex flex-wrap items-center gap-1 px-2 pb-1" onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()}>
               <button
                 type="button"
                 onClick={() => void video.current?.requestPictureInPicture().catch(() => undefined)}
@@ -428,9 +412,8 @@ export default function FloatingPlayer() {
               >
                 [ POP OUT ]
               </button>
-            ) : null}
-            {entry.room === undefined ? null : <WatchInRoomKey key={entry.play} source={entry.room} playId={entry.id} title={entry.title} live />}
-          </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
