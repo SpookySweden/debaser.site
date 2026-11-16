@@ -413,7 +413,7 @@ export default function WebStream() {
   const [art, setArt] = useState(() => back?.art ?? params.get('art') === '1');
   /** YOUR YOUTUBE's own view (Luke, 2026-11-14: "the youtube homepage as header options"), `?home=youtube`. Any search leaves it. */
   const [home, setHome] = useState(() => back?.home ?? params.get('home') === 'youtube');
-  const { user } = useAuth();
+  const { user, status: authStatus } = useAuth();
   // RECOMMENDED and DISCOVER (SPEC-discover.md): lists in their own right, blank until the pool is large enough.
   const [picked, setPicked] = useState<'recommended' | 'discover' | null>(() => {
     if (back !== undefined) return back.picked;
@@ -944,9 +944,17 @@ export default function WebStream() {
   const mixOn = picksOrdered && shown.kind === 'stream' && plainFilters(shown.filters);
   const briefRows = useBrief(mixOn);
   const feedLanes = useFeedLanes(mixOn, historyUsed === null ? null : taste, openedAt);
-  /** The first block waits for the reading, or 2.5 seconds, whichever comes first. */
+  /**
+   * The first block waits for the reading, the reader's history and whether they are signed in, or 2.5 seconds,
+   * whichever comes first. What it was drawn with (the history, signed in or not) is then held for the visit, so a late
+   * answer never reshuffles rows already on screen.
+   */
   const [mixGate, setMixGate] = useState(false);
-  if (mixOn && !mixGate && briefRows !== null) setMixGate(true);
+  if (mixOn && !mixGate && briefRows !== null && history !== null && authStatus !== 'loading') setMixGate(true);
+  const [mixHistory, setMixHistory] = useState<readonly HistoryRow[] | null>(null);
+  if (mixGate && mixHistory === null) setMixHistory(history ?? []);
+  const [mixVisitor, setMixVisitor] = useState<boolean | null>(null);
+  if (mixGate && mixVisitor === null) setMixVisitor(authStatus !== 'signed-in');
   useEffect(() => {
     if (!mixOn || mixGate) return;
     const timer = window.setTimeout(() => setMixGate(true), 2500);
@@ -954,9 +962,9 @@ export default function WebStream() {
   }, [mixOn, mixGate]);
   const [mixLanes, setMixLanes] = useState<MixLanes>({});
   const [resting] = useState(() => readResting(Date.now()));
-  const openedIds = useMemo(() => openedLately(historyUsed ?? [], historyNow), [historyUsed, historyNow]);
-  const kindOpens = useMemo(() => readingOpens(historyUsed ?? [], historyNow), [historyUsed, historyNow]);
-  const visitor = user === null;
+  const openedIds = useMemo(() => openedLately(mixHistory ?? [], historyNow), [mixHistory, historyNow]);
+  const kindOpens = useMemo(() => readingOpens(mixHistory ?? [], historyNow), [mixHistory, historyNow]);
+  const visitor = mixVisitor ?? true;
   const streamEnded = Object.keys(cursors).length === 0 && !busy;
   const mixed = useMemo(() => {
     if (!mixOn) return null;

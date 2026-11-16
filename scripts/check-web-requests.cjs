@@ -157,7 +157,9 @@ const sqlCode = (text) => text.replace(/--.*$/gm, '').toLowerCase();
   const stream = read('app/components/WebStream.tsx');
   // Updated on purpose 2026-11-14 (VIEW, media-view.ts): COMPACT shows the main keys only, so DISCUSS also waits on `full`.
   // Updated on purpose 2026-11-14 (Luke's list M6, "comment option smaller"): the row's key is the short pen.
-  ok(/\{full && \(!found \|\| SAVE_OPENED\) \? <WebDiscussKey item=\{item\} onOpen=\{opened\} short \/> : null\}/.test(stream), 'DISCUSS is offered on EVERYWHERE rows only while saving is on');
+  // Updated on purpose 2026-11-16 (SPEC-media-feed.md): a reading row (paper, news, long read, tech link) is never saved
+  // into the stream, so it has no DISCUSS at all: the key also waits on `!reading`.
+  ok(/\{full && !reading && \(!found \|\| SAVE_OPENED\) \? <WebDiscussKey item=\{item\} onOpen=\{opened\} short \/> : null\}/.test(stream), 'DISCUSS is offered on EVERYWHERE rows only while saving is on, and never on a reading row');
   ok(/if \(found\) void recordOpened\(item\);/.test(stream), 'only EVERYWHERE rows ask to be saved');
 
   asserts.done();
