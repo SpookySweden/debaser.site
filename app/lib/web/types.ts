@@ -12,7 +12,7 @@ import { MEDIA_SERVERS, type MediaServerId } from './media-servers';
 import type { MediaInfo } from './media-titles';
 
 /** Every platform WEB can read. Each has exactly one adapter in `app/lib/web/adapters/`, but the media servers. */
-export type WebPlatform = StreamPlatform | SearchOnlyPlatform | MediaServerId;
+export type WebPlatform = StreamPlatform | SearchOnlyPlatform | ReadingPlatform | MediaServerId;
 
 /**
  * Luke's own and his friends' media servers (SPEC-media-servers.md): each one listed in `media-servers.ts` is a
@@ -35,6 +35,13 @@ void STREAM_PLATFORMS_COMPLETE;
  * stream source reads them, but an opened one can be saved into the stream like any other item.
  */
 export type SearchOnlyPlatform = 'wikimedia_commons' | 'vimeo' | 'kino' | 'books' | 'audiobooks' | 'ipfs' | 'anna';
+
+/**
+ * The reading mixed into MEDIA's default feed (SPEC-media-feed.md, Luke 2026-11-16): papers, news, long reads and tech
+ * links, one platform per kind. Read live by `/api/web/brief` from the feeds in `brief/feeds.ts`, never stored, never
+ * a stream source, never searched by the live sources.
+ */
+export type ReadingPlatform = 'paper' | 'news' | 'longread' | 'tech';
 
 export type WebItemKind = 'audio' | 'video' | 'image' | 'text' | 'other';
 
@@ -77,6 +84,11 @@ export type WebItem = {
    * Absent on every other item. Catalogue facts, not counts of people.
    */
   book?: { editions: number; scan?: boolean; edition?: string };
+  /**
+   * A reading row only (SPEC-media-feed.md): the outlet it came from, as its link key and facts show it (BBC NEWS,
+   * ARXIV, HACKER NEWS). Absent on every other item.
+   */
+  outlet?: string;
   /** ISO 8601. The stream is ordered by this, newest first, then by `id`. */
   publishedAt: string;
   /** ISO 8601: when WEB last read it. */
@@ -121,5 +133,10 @@ export const PLATFORM_LABELS: Record<WebPlatform, string> = {
   // reach is blocked by Vercel's DNS for the real mirrors; this label is the option the reader picks when the Vercel
   // block is worked around (an outside proxy, or client-side fetching).
   anna: "ANNA'S ARCHIVE",
+  // The reading in MEDIA's default feed (SPEC-media-feed.md): each row shows its kind here and its outlet beside it.
+  paper: 'PAPER',
+  news: 'NEWS',
+  longread: 'LONG READ',
+  tech: 'TECH',
   ...(Object.fromEntries(MEDIA_SERVERS.map((server) => [server.id, server.label])) as Record<MediaServerId, string>),
 };

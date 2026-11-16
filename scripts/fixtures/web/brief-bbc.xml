@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?><rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
+    <channel>
+        <title><![CDATA[BBC News]]></title>
+        <description><![CDATA[BBC News - World]]></description>
+        <link>https://www.bbc.co.uk/news/world</link>
+        <image>
+            <url>https://news.bbcimg.co.uk/nol/shared/img/bbc_news_120x60.gif</url>
+            <title>BBC News</title>
+            <link>https://www.bbc.co.uk/news/world</link>
+        </image>
+        <generator>RSS for Node</generator>
+        <lastBuildDate>Mon, 16 Nov 2026 15:55:52 GMT</lastBuildDate>
+        <atom:link href="https://feeds.bbci.co.uk/news/world/rss.xml" rel="self" type="application/rss+xml"/>
+        <copyright><![CDATA[Copyright: (C) British Broadcasting Corporation, see https://www.bbc.co.uk/usingthebbc/terms-of-use/#15metadataandrssfeeds for terms and conditions of reuse.]]></copyright>
+        <language><![CDATA[en-gb]]></language>
+        <ttl>15</ttl>
+        <item>
+            <title><![CDATA[Yemeni forces retreat to defend port city from Houthis]]></title>
+            <description><![CDATA[Saudi-backed forces say they are moving troops from the Bab al-Mandab Strait to protect the interim capital, Aden.]]></description>
+            <link>https://www.bbc.co.uk/news/articles/cqvg2xgyvnjpo?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/news/articles/cqvg2xgyvnjpo#0</guid>
+            <pubDate>Mon, 16 Nov 2026 11:09:38 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/e0bf/live/84ae2db0-e165-11f1-9e72-69608c7a1547.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Trump says he wouldn't mind seeing Huang return to Nvidia]]></title>
+            <description><![CDATA[A number of tech figures want the board of the AI chip giant to give Jensen Huang his job back.]]></description>
+            <link>https://www.bbc.co.uk/news/articles/cry49plv8v3go?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/news/articles/cry49plv8v3go#0</guid>
+            <pubDate>Mon, 16 Nov 2026 15:31:20 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/78e4/live/4bc24280-e1d2-11f1-b8c8-67fa35f5afdb.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Five EU countries expected to announce migrant deportation centre in Rwanda]]></title>
+            <description><![CDATA[Germany, Denmark, Austria, Greece and the Netherlands are expected to announce a "return hub" for failed asylum seekers.]]></description>
+            <link>https://www.bbc.co.uk/news/articles/cw987343352go?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/news/articles/cw987343352go#0</guid>
+            <pubDate>Mon, 16 Nov 2026 12:54:44 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/f790/live/14731cc0-bfcb-11f0-8456-eff94716b162.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Man sentenced over 'horrific' attempted murder of three children]]></title>
+            <description><![CDATA[Riad Bouchaker was sentenced after the attempted murder of three children in November 2023.]]></description>
+            <link>https://www.bbc.co.uk/news/articles/cr0qj0nzwj34o?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/news/articles/cr0qj0nzwj34o#0</guid>
+            <pubDate>Mon, 16 Nov 2026 12:27:15 GMT</pubDate>
+            <media:thumbnail width="240" height="134" url="https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/2c5a/live/9c3bd7d0-e1af-11f1-9a3f-99aca912798e.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Raye, Rosalia and Dolly Parton recognised in Grammy nominations]]></title>
+            <description><![CDATA[British singer Raye lands 11 nominations while Dolly Parton is recognised two months after her death.]]></description>
+            <link>https://www.bbc.co.uk/news/articles/cq9vwkggpx73o?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/news/articles/cq9vwkggpx73o#0</guid>
+            <pubDate>Mon, 16 Nov 2026 14:48:55 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/ee22/live/2a20af90-e1c8-11f1-99a1-253766e7ad8b.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Landmark Crimea bridge hit as Russia reports biggest Ukrainian drone attack of war]]></title>
+            <description><![CDATA[Russia said Ukraine had launched over 2,000 drones over the course of a day, while Kyiv came under a record 17 air raid alerts.]]></description>
+            <link>https://www.bbc.co.uk/news/articles/ckx27v6dpjz0o?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.co.uk/news/articles/ckx27v6dpjz0o#0</guid>
+            <pubDate>Mon, 16 Nov 2026 14:58:12 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/f174/live/bc6fa8f0-e1c4-11f1-a094-5fdc692f3e33.jpg"/>
+        </item>
+        
+    </channel>
+</rss>

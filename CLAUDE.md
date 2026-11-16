@@ -57,6 +57,10 @@ The house rules live in `.claude/rules/core.md` (loaded automatically).
   Feeds and APIs come first. Reading a platform's ordinary web pages (scraping) is a last resort, only with Luke's OK
   each time and a fallback (Luke, 2026-11-15): pages change shape without warning, and platforms block the address
   that scrapes, which after the move to a local server is his home connection.
+- The default feed (SPEC-media-feed.md, Luke's yes 2026-11-16): /media with nothing searched mixes the stream, YOUR YOUTUBE,
+  DISCOVER, people's picks and reading in blocks of 12 (`app/lib/web/feed-mix.ts`). The reading (papers, news, long reads,
+  tech links) is read live by `/api/web/brief` from the feeds listed in `app/lib/web/brief/feeds.ts`, never stored;
+  Hacker News and Lobsters rows link to the story's own site (his decision 2A, the one open-link exception).
 - Remote fetches from the server go through `app/lib/web/safe-fetch.ts`. Browser code may fetch outside sites
   directly too (Luke lifted the server-only rule, 2026-11-11), but never imports the server's fetching code, which
   sits beside the keys (`scripts/check-web-types.cjs` holds that). Third-party text is
