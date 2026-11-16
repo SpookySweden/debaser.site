@@ -12,6 +12,11 @@ import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '../lib/web/paging';
 import { pickSeed, recommendOrder, subscribedFirst } from '../lib/web/recommend';
 import { noteOpened, readTaste } from '../lib/web/taste-store';
 import { useYourYouTube } from '../lib/web/use-your-youtube';
+import { useBrief } from '../lib/web/use-brief';
+import { useFeedLanes } from '../lib/web/use-feed-lanes';
+import { BLOCK_SIZE, mixFeed, openedLately, readingOpens, type Lane, type MixLane, type ReadingRow } from '../lib/web/feed-mix';
+import { noteFirstBlock, noteOpenedRow, readResting } from '../lib/web/passed-over';
+import { isReadingKind, openLinkSite } from '../lib/web/brief/feeds';
 import { YOUTUBE_LINK_ON } from '../lib/web/youtube-link';
 import WebYouTubeHome from './WebYouTubeHome';
 import { EverywhereError, loadPeertubeHosts, loadRelated, needsPeertubeHosts, searchEverywhere, type LinkOutcome, type ProviderLine, type Related } from '../lib/web/everywhere-client';
@@ -156,6 +161,19 @@ const MISSING_THUMB_SRC = `/${artSlot('web-thumb-missing')?.path ?? 'assets/web/
 
 /** The SOURCE, TYPE, `from:`, VIBE and SORT filters a list is shown under (web-filters.ts). */
 type Filters = Pick<WebSearch, 'source' | 'type' | 'authors' | 'vibe' | 'sort' | 'lang'>;
+
+/** No filter at all: the only view MEDIA's default feed mixes (SPEC-media-feed.md). */
+function plainFilters(filters: Filters): boolean {
+  return filters.source === 'all' && filters.type === 'all' && authorsOf(filters).length === 0 && filters.vibe !== true && filters.sort === undefined && filters.lang === undefined;
+}
+
+/** The default feed's sources other than the stream, each taken once a visit (feed-mix.ts). */
+type MixLanes = {
+  reading?: Lane<ReadingRow<WebStreamItem>>;
+  youtube?: Lane<WebStreamItem>;
+  discover?: Lane<WebStreamItem>;
+  people?: Lane<WebStreamItem>;
+};
 
 /**
  * What the list shows: the stream (no words; filtered when filters are set), one search (the saved stream and
@@ -919,6 +937,61 @@ export default function WebStream() {
     const words = new Map(list.shown.map((item) => [item.id, item.pickWords ?? []]));
     return [...pages.values()].flatMap((page) => recommendOrder(page, taste, (id) => words.get(id) ?? [], openedAt)).filter((item) => !notForMe.has(keyOf('media', item.id)));
   }, [picksOrdered, list.shown, taste, openedAt, notForMe]);
+
+  // MEDIA's default feed (SPEC-media-feed.md; Luke, 2026-11-16): with nothing searched and no filter, the stream in this
+  // reader's order is mixed with their YouTube, the DISCOVER catalogue, people's picks and the reading, in blocks of 12
+  // (feed-mix.ts). Every source is taken once a visit, and one that arrives late joins from the next block not yet drawn.
+  const mixOn = picksOrdered && shown.kind === 'stream' && plainFilters(shown.filters);
+  const briefRows = useBrief(mixOn);
+  const feedLanes = useFeedLanes(mixOn, historyUsed === null ? null : taste, openedAt);
+  /** The first block waits for the reading, or 2.5 seconds, whichever comes first. */
+  const [mixGate, setMixGate] = useState(false);
+  if (mixOn && !mixGate && briefRows !== null) setMixGate(true);
+  useEffect(() => {
+    if (!mixOn || mixGate) return;
+    const timer = window.setTimeout(() => setMixGate(true), 2500);
+    return () => window.clearTimeout(timer);
+  }, [mixOn, mixGate]);
+  const [mixLanes, setMixLanes] = useState<MixLanes>({});
+  const [resting] = useState(() => readResting(Date.now()));
+  const openedIds = useMemo(() => openedLately(historyUsed ?? [], historyNow), [historyUsed, historyNow]);
+  const kindOpens = useMemo(() => readingOpens(historyUsed ?? [], historyNow), [historyUsed, historyNow]);
+  const visitor = user === null;
+  const streamEnded = Object.keys(cursors).length === 0 && !busy;
+  const mixed = useMemo(() => {
+    if (!mixOn) return null;
+    if (!mixGate) return [];
+    return mixFeed<WebStreamItem>({
+      forYou: drawn,
+      forYouEnded: streamEnded,
+      youtube: mixLanes.youtube ?? null,
+      reading: mixLanes.reading ?? null,
+      discover: mixLanes.discover ?? null,
+      people: mixLanes.people ?? null,
+      visitor,
+      readingOpens: kindOpens,
+      taste,
+      dropped: (item) => notForMe.has(keyOf('media', item.id)) || openedIds.has(item.id) || resting.has(item.id),
+      now: openedAt,
+    });
+  }, [mixOn, mixGate, drawn, streamEnded, mixLanes, visitor, kindOpens, taste, notForMe, openedIds, resting, openedAt]);
+  // A source that has just answered: taken once, from the block after the last one drawn (0 before the first is drawn).
+  if (mixOn) {
+    const from = mixGate && mixed !== null ? Math.ceil(mixed.length / BLOCK_SIZE) : 0;
+    const arrivals: MixLanes = {};
+    if (mixLanes.reading === undefined && briefRows !== null) arrivals.reading = { rows: briefRows.map(({ kind, item }) => ({ kind, item: { ...item, alsoOn: [] } })), fromBlock: from };
+    if (mixLanes.youtube === undefined && !visitor && youtube.items.length > 0) arrivals.youtube = { rows: youtube.items.map((item) => ({ ...item, alsoOn: [] })), fromBlock: from };
+    if (mixLanes.discover === undefined && feedLanes.discover !== null) arrivals.discover = { rows: feedLanes.discover.map((item) => ({ ...item, alsoOn: [] })), fromBlock: from };
+    if (mixLanes.people === undefined && feedLanes.people !== null) arrivals.people = { rows: feedLanes.people.map((item) => ({ ...item, alsoOn: [] })), fromBlock: from };
+    if (Object.keys(arrivals).length > 0) setMixLanes({ ...mixLanes, ...arrivals });
+  }
+  // Today's first block, noted once a visit in this browser: three days of being passed over rests a row for a week.
+  const notedFirstBlock = useRef(false);
+  useEffect(() => {
+    if (mixed === null || notedFirstBlock.current || mixed.length < BLOCK_SIZE) return;
+    notedFirstBlock.current = true;
+    noteFirstBlock(mixed.slice(0, BLOCK_SIZE).map(({ item }) => item.id), Date.now());
+  }, [mixed]);
   const empty = list.shown.length === 0 && list.held.length === 0;
   // By date, only once the first top-up has been decided, so the related sections start below a settled list.
   if (!busy && !firstRoundDone && (!sortedByDate || toppedUp)) setFirstRoundDone(true);
@@ -971,14 +1044,14 @@ export default function WebStream() {
   const resultIds = new Set(list.shown.map((item) => item.id));
 
   /** One row, drawn by the component for its kind: a media server's title, a KINO title, or anything else. */
-  const renderRow = (item: WebStreamItem) =>
+  const renderRow = (item: WebStreamItem, lane?: MixLane) =>
     isMediaRow(item) ? (
       // A title from a media server (SPEC-media-servers.md): its SERVER buttons, pickers and player.
       <WebMediaRow key={item.id} item={item} titleId={rowTitleId(item.id)} />
     ) : isKinoRow(item) ? (
       <KinoRow key={item.id} item={item} titleId={rowTitleId(item.id)} />
     ) : (
-      <WebRow key={item.id} item={item} extraHosts={extraHosts} found={liveIds.has(item.id)} onCreator={searchCreator} />
+      <WebRow key={item.id} item={item} extraHosts={extraHosts} found={liveIds.has(item.id)} onCreator={searchCreator} feedLane={lane} />
     );
 
   /** DID YOU MEAN pressed: the suggested words in the box, the filters kept, and the search runs. */
@@ -1291,10 +1364,10 @@ export default function WebStream() {
         </div>
       ) : null}
 
-      {browsing && list.shown.length > 0 ? <p className="text-label font-bold text-ink-quiet">PICKED FOR YOU</p> : null}
+      {browsing && list.shown.length > 0 && (mixed === null || mixed.length > 0) ? <p className="text-label font-bold text-ink-quiet">PICKED FOR YOU</p> : null}
       {list.shown.length === 0 ? null : (
         <ul className={viewListClass(view)} aria-label={picksOrdered ? 'Items picked for you' : shown.kind === 'stream' ? 'Items, newest first' : `Results, ${list.order.kind === 'turns' ? 'each site in turn' : list.order.dir === 'asc' ? 'oldest first' : 'newest first'}`}>
-          {drawn.map(renderRow)}
+          {mixed !== null ? mixed.map(({ item, lane }) => renderRow(item, lane)) : drawn.map((item) => renderRow(item))}
         </ul>
       )}
 
@@ -1462,6 +1535,17 @@ function embedReferrer(platform: WebItem['platform']): 'strict-origin' | 'no-ref
  */
 const EMBED_SANDBOX = 'allow-scripts allow-same-origin';
 
+/**
+ * A reading row's key out (SPEC-media-feed.md): the site the link goes to. A paper names arXiv or Europe PMC, where it
+ * opens (decision 3A); a Hacker News or Lobsters story names the story's own site (decision 2A); anything else its outlet.
+ */
+function readingKeyLabel(item: WebItem, link: string): string {
+  const host = new URL(link).hostname;
+  if (item.platform === 'paper') return host === 'arxiv.org' ? 'ARXIV' : 'EUROPE PMC';
+  if (item.platform === 'tech' && (item.outlet === 'HACKER NEWS' || item.outlet === 'LOBSTERS')) return openLinkSite(link);
+  return item.outlet ?? openLinkSite(link);
+}
+
 /** The id of a row's title, which takes focus after LOAD MORE. Item ids are `platform:identifier`. */
 function rowTitleId(itemId: string): string {
   return `web-row-${itemId.replace(/[^A-Za-z0-9_-]/g, '-')}`;
@@ -1477,10 +1561,13 @@ export function WebRow({
   extraHosts,
   found,
   onCreator,
+  feedLane,
 }: {
   item: WebStreamItem;
   extraHosts: ExtraHosts;
   found: boolean;
+  /** In MEDIA's default feed: which of its sources placed this row (feed-mix.ts), as a data attribute only. */
+  feedLane?: MixLane;
   /** The creator's name is a key: everything from them (`from:`), like a name on the forum. */
   onCreator: (name: string) => void;
 }) {
@@ -1496,6 +1583,7 @@ export function WebRow({
     // FOR YOU's private history (SPEC-recommender.md): kept on the account, owner only, 90 days.
     noteHistory({ kind: 'media', ref: item.id, title: item.title, maker: item.creator ?? '', words: [...(item.tags ?? []), ...(item.pickWords ?? [])], action: floats ? 'played' : 'opened' });
     if (found) void recordOpened(item);
+    noteOpenedRow(item.id);
   };
 
   const source = PLATFORM_LABELS[item.platform];
@@ -1595,14 +1683,18 @@ export function WebRow({
   // M7: the other copies fold open from a key that stands before PLAY.
   const [alsoOpen, setAlsoOpen] = useState(false);
   const alsoId = `${rowTitleId(item.id)}-also`;
-  const facts = [source, KIND_LABELS[item.kind]];
+  // A paper, news story, long read or tech link (SPEC-media-feed.md): its kind and outlet in the facts, and a key out to
+  // the outlet in a new tab. Never saved into the stream, so no thread, letter or playlist hangs off it.
+  const reading = isReadingKind(item.platform);
+  const facts = reading ? [source, item.outlet ?? ''].filter(Boolean) : [source, KIND_LABELS[item.kind]];
+  const outletKey = !reading || link === null ? null : readingKeyLabel(item, link);
   // No YouTube Shorts anywhere in MEDIA (shorts-client.ts; Luke, 2026-11-14): the last net for rows from the picks, the tagged
   // catalogue and YOUR YOUTUBE. A marked Short never draws; one YouTube confirms goes; an unsure one (and music) stays.
   const hiddenShort = useHiddenShort(item);
   if (hiddenShort) return null;
 
   return (
-    <li className={`rule-pixel ${full ? 'py-2' : 'py-1'} ${view === 'grid' ? 'min-w-0' : ''}`} data-view={view}>
+    <li className={`rule-pixel ${full ? 'py-2' : 'py-1'} ${view === 'grid' ? 'min-w-0' : ''}`} data-view={view} data-feed-lane={feedLane} data-reading={reading ? item.platform : undefined}>
       <div className={ROW_LAYOUT[view]}>
         {/* A fixed box, so a slow or missing picture never moves the row. OPEN sits in its top right corner (M8). */}
         <span className={`relative block ${THUMB_BOX[view]} shrink-0 overflow-hidden border border-ink-plate bg-paper`}>
@@ -1696,6 +1788,19 @@ ${item.description}` : item.title)} className="ml-1.5" />
                   [ READ ]
                 </Link>
               ) : null}
+              {outletKey !== null && link !== null ? (
+                <a
+                  href={link}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  onClick={opened}
+                  aria-label={`Read "${item.title}" on ${outletKey} (new tab)`}
+                  className={PLATE_LINK}
+                  data-outlet-key
+                >
+                  {`[ ${outletKey} ↗ ]`}
+                </a>
+              ) : null}
               {/* Audio the bar can play goes there (web-audio.ts); the platform's player is the fallback. */}
               {playHalf !== null ? (
                 <SplitKey label={`Play or queue "${item.title}"`} first={playHalf} second={queueHalf} />
@@ -1713,9 +1818,9 @@ ${item.description}` : item.title)} className="ml-1.5" />
                       {`[ ALSO ON ${alsoOpen ? '▴' : '▾'} ]`}
                     </button>
                   ) : null}
-                  {full ? <LetterPlaylistKey letter={{ kind: 'web', ref: item.id, title: item.title, picture: addresses.thumb ?? undefined }} playlist={playlistThing} /> : null}
+                  {full && !reading ? <LetterPlaylistKey letter={{ kind: 'web', ref: item.id, title: item.title, picture: addresses.thumb ?? undefined }} playlist={playlistThing} /> : null}
                   {/* The bridges (Phase 5): the item's forum thread, now a small pen (M6). */}
-                  {full && (!found || SAVE_OPENED) ? <WebDiscussKey item={item} onOpen={opened} short /> : null}
+                  {full && !reading && (!found || SAVE_OPENED) ? <WebDiscussKey item={item} onOpen={opened} short /> : null}
                   {/* NOT FOR ME, SHOW LESS FROM THIS CHANNEL, MORE LIKE THIS (the YOUR YOUTUBE session's key, Luke 2026-11-14:
                       "a single expandable clear button"), last on the line; it draws nothing signed out. */}
                   {full ? <FeedbackKey item={{ kind: 'media', ref: item.id, title: item.title, maker: item.creator ?? '', words: [...(item.tags ?? []), ...(item.pickWords ?? [])] }} why={null} /> : null}

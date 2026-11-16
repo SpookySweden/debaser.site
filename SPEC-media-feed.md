@@ -1,6 +1,6 @@
 # SPEC: MEDIA's default feed (Luke's second list, 2026-11-16)
 
-Status: **Luke said yes, 2026-11-16 ("Yes, build it", relayed by the list-2 coordinator): Phase B, building.**
+Status: **Luke said yes, 2026-11-16 ("Yes, build it", relayed by the list-2 coordinator): Phase B built (see "What Phase B built" below).**
 Group FEED. His decisions, the same day: **1 = A** (reading read live from the feeds, kept 30 minutes on the server,
 no database), **2 = A** (Hacker News and Lobsters links go to the story's own site in a new tab, the one-off exception
 as written), **3 = A** (papers open on arXiv or Europe PMC in a new tab). No database change is approved or needed.
@@ -306,6 +306,20 @@ About 21 requests every 30 minutes in all.
    - **A (recommended for now):** open on arXiv or Europe PMC in a new tab.
    - **B:** read the PDF inside /read like an Archive book. That is a reader change, better as its own follow-up after
      this ships.
+
+## What Phase B built, and what it left (2026-11-16)
+- **Built as written:** the 12-place mix with its fill order and visitor rules (`app/lib/web/feed-mix.ts`); reading's
+  turns by history, outlet rules and Hacker News's order; the drops (repeats, the same work twice, opened in 30 days,
+  NOT FOR ME, passed over on 3 days: `app/lib/web/passed-over.ts`); shelf lives; the route and every listed source; the
+  late-source and LOAD MORE rules that keep the list still. Reading rows: `[ OUTLET ↗ ]` in a new tab, no DISCUSS.
+- **Changed from the plan:** Europe PMC is asked for preprints with abstracts, not OPEN_ACCESS:y (that flag lags weeks on
+  preprints); the Archive's lecture query is narrowed to English. The four adapter checks are one,
+  `scripts/check-web-brief.cjs`; the mock reading is `app/lib/web/brief/mock-brief.ts` rather than inside
+  `mock-web-repository.ts`. The letter and playlist key is off reading rows too: like DISCUSS, it files things under a
+  stream item, and reading rows are never saved into the stream.
+- **DISCUSS:** left off reading rows (no database change made or drafted): a thread is filed under a saved stream item.
+- **Not built: WHERE FROM's READING group.** Searches are unchanged and show no reading rows. Adding it means a new kind
+  of source in the search machinery; a follow-up if Luke wants it.
 
 ## Out of scope
 - New stream sources (database rows), RECOMMEND on reading rows, and why-lines on MEDIA.
