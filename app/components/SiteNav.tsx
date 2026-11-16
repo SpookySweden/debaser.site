@@ -14,7 +14,7 @@ import {
   subscribeToModulesWindow,
   toggleModulesWindow,
 } from '../lib/ui/modules-slot';
-import { subscribeToTheme, themeState } from '../lib/ui/theme-slot';
+import { subscribeToTheme, themeState, THEMES } from '../lib/ui/theme-slot';
 import {
   ICON_ACCOUNT,
   ICON_ARCADE,
@@ -202,12 +202,35 @@ function wordClass(isActive: boolean): string {
     : `${base} key active:translate-y-press active:bg-bubble active:text-ink-plate`;
 }
 
+/**
+ * The page you're on, drawn right on every theme from the first paint (Luke, 2026-11-16: "Yes, fix it"). The server cannot know the
+ * reader's theme, so a colour worked out here for one bar was the dark theme's on every theme until the scripts arrived: bright green
+ * on the yellow, pink and orange bars. Instead the word's look is worked out for every theme's own bar at once (`moduleMark`, the same
+ * arithmetic) and sent as one rule per look, keyed on the theme the boot script has already put on <html> (`data-theme`), so the
+ * browser picks the right one before any script runs, and a new theme is covered without a change here. With no theme on <html> no
+ * rule matches and the stylesheet's own pair stands, which reads on the fallback theme. Checked by Temp/check-topbar-word.cjs.
+ */
+function pageWordRules(key: string, colourId: string): string {
+  const byLook = new Map<string, string[]>();
+  for (const theme of THEMES) {
+    const mark = moduleMark(colourId, theme.tokens['sun-pale']);
+    if (mark === null) return '';
+    const look = `--module-ink:${mark.word};--module-word:${mark.word};--module-swipe:${mark.swipe}`;
+    byLook.set(look, [...(byLook.get(look) ?? []), `:root[data-theme="${theme.id}"] .module-on[data-module="${key}"]`]);
+  }
+  return [...byLook].map(([look, selectors]) => `${selectors.join(',')}{${look}}`).join('');
+}
+
 // No profile key (Luke, 2026-11-03): the reader's own profile is reached from the side panel.
 export default function SiteNav({ active, endKey }: { active?: NavKey; /** A key for the far end of the band, when this is the top of the window. */ endKey?: ReactNode }) {
   const choices = useSyncExternalStore(subscribeToModules, modulesState, serverModules);
   const listOpen = useSyncExternalStore(subscribeToModulesWindow, modulesWindowOpen, serverModulesWindowOpen);
   const { id: themeId } = useSyncExternalStore(subscribeToTheme, themeState, themeState);
   const bar = moduleBarColour(themeId);
+  // Selected: the word's colour and its stroke, worked out for every theme's bar so the word reads on both (`pageWordRules`). With no
+  // colour picked (or no page of the bar's) there are no rules and the stylesheet's own pair stands.
+  const current = MODULES.find((module) => module.key === active && module.href !== null && moduleIsOn(module, choices));
+  const wordRules = current === undefined ? '' : pageWordRules(current.key, moduleColour(current, choices) ?? '');
 
   return (
     <nav
@@ -215,6 +238,7 @@ export default function SiteNav({ active, endKey }: { active?: NavKey; /** A key
       // `hidden` below `md`: the profile picture in the title bar is the only door on a phone.
       className="hidden min-w-0 flex-wrap items-center gap-1 border-b-line border-ink bg-sun-pale px-2 py-0.75 md:flex"
     >
+      {wordRules === '' ? null : <style dangerouslySetInnerHTML={{ __html: wordRules }} />}
       <SiteArrows />
       {MODULES.filter((module) => moduleIsOn(module, choices)).map((module) => {
         // Every key's hover is its word turning a colour (`moduleHoverInk`): its own, or the fallback for a module with none. No solid block.
@@ -228,13 +252,8 @@ export default function SiteNav({ active, endKey }: { active?: NavKey; /** A key
           );
         }
         const isActive = module.key === active;
-        // Selected: the word's colour and its stroke, worked out so the word reads on both (`moduleMark`). With no colour picked the
-        // stylesheet's own pair stands.
-        const mark = isActive ? moduleMark(moduleColour(module, choices), bar) : null;
-        // The page you are on keeps its word's colour under the pointer too (`--module-ink` is what the hover rule reads).
-        const look = !isActive
-          ? hover
-          : { style: { '--module-ink': mark === null ? 'var(--color-ink)' : mark.word, ...(mark === null ? {} : { '--module-word': mark.word, '--module-swipe': mark.swipe }) } as CSSProperties };
+        // The page you are on keeps its word's colour under the pointer too (`--module-ink` is what the hover rule reads; the rules set it).
+        const look = !isActive ? hover : wordRules === '' ? { style: { '--module-ink': 'var(--color-ink)' } as CSSProperties } : { 'data-module': module.key };
         return (
           <Link key={module.key} href={module.href} aria-current={isActive ? 'page' : undefined} className={`${wordClass(isActive)} module-key`} {...look}>
             {module.label}
