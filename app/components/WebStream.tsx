@@ -24,7 +24,7 @@ import { closeFloatingIfMine, placeOf, playFloating } from '../lib/ui/floating-p
 import PlayerBox, { PipKey, usePlayingHere } from './PlayerBox';
 import SplitKey, { type Half } from './SplitKey';
 import { useQueueHalf } from './QueueHalf';
-import { LetterPlaylistKey, ThumbOpen } from './WebRowKeys';
+import { LetterPlaylistKey, MoreKeys, ThumbOpen } from './WebRowKeys';
 import FeedbackKey from './FeedbackKey';
 import Link from 'next/link';
 import { isReadable } from '../lib/books/types';
@@ -1686,12 +1686,6 @@ ${item.description}` : item.title)} className="ml-1.5" />
             ) : null}
 
             <div className={`flex flex-wrap items-center gap-1 ${view === 'list' || view === 'large' ? 'ml-auto' : ''}`} data-row-keys>
-              {/* M7: several copies of the work fold open from here, before PLAY. */}
-              {full && item.alsoOn.length > 0 ? (
-                <button type="button" onClick={() => setAlsoOpen(!alsoOpen)} aria-expanded={alsoOpen} aria-controls={alsoId} className={PLATE}>
-                  {`[ ALSO ON ${alsoOpen ? '▴' : '▾'} ]`}
-                </button>
-              ) : null}
               {/* A book (SPEC-books.md, SPEC-reader.md) opens in the site's reader at /read (Luke, 2026-11-11), for a
                   Gutenberg book and for an Internet Archive one (its EPUB in the reader, or the Archive's own viewer there). */}
               {readable ? (
@@ -1706,20 +1700,32 @@ ${item.description}` : item.title)} className="ml-1.5" />
                 <SplitKey label={`Queue "${item.title}"`} first={queueHalf} second={null} />
               ) : null}
               {floats && playing ? <PipKey id={playId} title={item.title} /> : null}
-              {full ? <LetterPlaylistKey letter={{ kind: 'web', ref: item.id, title: item.title, picture: addresses.thumb ?? undefined }} playlist={playlistThing} /> : null}
-              {/* The bridges (Phase 5): the item's forum thread, now a small pen (M6). */}
-              {full && (!found || SAVE_OPENED) ? <WebDiscussKey item={item} onOpen={opened} short /> : null}
-              {/* NOT FOR ME, SHOW LESS FROM THIS CHANNEL, MORE LIKE THIS (the YOUR YOUTUBE session's key, Luke 2026-11-14:
-                  "a single expandable clear button"), last on the line; it draws nothing signed out. */}
-              {full ? <FeedbackKey item={{ kind: 'media', ref: item.id, title: item.title, maker: item.creator ?? '', words: [...(item.tags ?? []), ...(item.pickWords ?? [])] }} why={null} /> : null}
-              {!full ? null : item.platform === 'books' ? (
-                <Link href={bookPage} aria-label={`Editions of "${item.title}": every one Open Library lists`} className={PLATE}>
-                  [ EDITIONS ]
-                </Link>
-              ) : item.platform === 'audiobooks' ? (
-                <Link href={`/media/book/${item.id}`} className={PLATE}>
-                  [ BOOK PAGE ]
-                </Link>
+              {/* The rest behind one arrow on the same line (Luke, 2026-11-16: "only play and queue, with an arrow on the same
+                  row beside them that reveals the rest of the options"). COMPACT keeps to the main keys, as it always has. */}
+              {full ? (
+                <MoreKeys title={item.title} unfold={view === 'list' || view === 'large' ? 'left' : 'right'}>
+                  {/* M7: several copies of the work fold open from here. */}
+                  {full && item.alsoOn.length > 0 ? (
+                    <button type="button" onClick={() => setAlsoOpen(!alsoOpen)} aria-expanded={alsoOpen} aria-controls={alsoId} className={PLATE}>
+                      {`[ ALSO ON ${alsoOpen ? '▴' : '▾'} ]`}
+                    </button>
+                  ) : null}
+                  {full ? <LetterPlaylistKey letter={{ kind: 'web', ref: item.id, title: item.title, picture: addresses.thumb ?? undefined }} playlist={playlistThing} /> : null}
+                  {/* The bridges (Phase 5): the item's forum thread, now a small pen (M6). */}
+                  {full && (!found || SAVE_OPENED) ? <WebDiscussKey item={item} onOpen={opened} short /> : null}
+                  {/* NOT FOR ME, SHOW LESS FROM THIS CHANNEL, MORE LIKE THIS (the YOUR YOUTUBE session's key, Luke 2026-11-14:
+                      "a single expandable clear button"), last on the line; it draws nothing signed out. */}
+                  {full ? <FeedbackKey item={{ kind: 'media', ref: item.id, title: item.title, maker: item.creator ?? '', words: [...(item.tags ?? []), ...(item.pickWords ?? [])] }} why={null} /> : null}
+                  {!full ? null : item.platform === 'books' ? (
+                    <Link href={bookPage} aria-label={`Editions of "${item.title}": every one Open Library lists`} className={PLATE}>
+                      [ EDITIONS ]
+                    </Link>
+                  ) : item.platform === 'audiobooks' ? (
+                    <Link href={`/media/book/${item.id}`} className={PLATE}>
+                      [ BOOK PAGE ]
+                    </Link>
+                  ) : null}
+                </MoreKeys>
               ) : null}
             </div>
           </div>

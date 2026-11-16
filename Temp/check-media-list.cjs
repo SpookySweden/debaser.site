@@ -104,8 +104,18 @@ assert.match(stream, /trackId: webTrackId\(barItem\.platform, barItem\.externalI
 assert.match(stream, /: roomLink !== null\s*\? \{ title: item\.title, link: roomLink \}\s*: null;/, 'and for a video, by the link a room would queue');
 assert.ok(!/AddToLetterKey/.test(stream) && !/<AddToLetterKey/.test(mediaRow), 'no row draws a lone + LETTER any more');
 
-// M7: the sources come before PLAY: ALSO ON on a row, WATCH on a KINO or server card with the other keys after it.
-assert.ok(stream.indexOf('[ ALSO ON ') < stream.indexOf('<SplitKey label={`Play or queue'), 'ALSO ON stands before PLAY');
+// M7: the sources: ALSO ON on a row, WATCH on a KINO or server card with the other keys after it.
+// Updated on purpose 2026-11-16 (Luke: "only play and queue, with an arrow on the same row beside them that reveals the rest of
+// the options"): ALSO ON stood before PLAY; now it waits behind the arrow after PLAY, with the rest.
+const moreAt = stream.indexOf('<MoreKeys title={item.title}');
+assert.ok(stream.indexOf('<SplitKey label={`Play or queue') < moreAt && moreAt < stream.indexOf('[ ALSO ON ') && stream.indexOf('[ ALSO ON ') < stream.indexOf('</MoreKeys>'), 'ALSO ON waits behind the arrow after PLAY');
+for (const key of ["<LetterPlaylistKey letter={{ kind: 'web'", '<WebDiscussKey item={item}', "<FeedbackKey item={{ kind: 'media', ref: item.id", '[ EDITIONS ]']) {
+  const at = stream.indexOf(key);
+  assert.ok(at > moreAt && at < stream.indexOf('</MoreKeys>'), key + ' waits behind the arrow');
+}
+assert.equal(mediaRow.split('<MoreKeys title={item.title}>').length - 1, 2, 'KINO and server cards have the arrow too');
+assert.match(rowKeys, /\{open && unfold === 'left' \? children : null\}\s*\{arrow\}\s*\{open && unfold === 'right' \? children : null\}/, 'the arrow stays put: the rest unfolds on its far side');
+assert.ok(rowKeys.includes('const [open, setOpen] = useState(false);'), 'each row starts folded');
 assert.match(stream, /aria-expanded=\{alsoOpen\} aria-controls=\{alsoId\}/, '... and says whether it is open');
 assert.match(read('app/components/KinoSources.tsx'), /\[ WATCH · \$\{total\} \$\{open \? '▴' : '▾'\} \]`\}\n        <\/button>\n        \{beside\}/, 'a card\'s other keys come after WATCH');
 

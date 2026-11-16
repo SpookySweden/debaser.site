@@ -1,6 +1,8 @@
 'use client';
 
+import { useState, type ReactNode } from 'react';
 import type { PlaylistThing } from '../lib/audio/playlist-adding';
+import { PLATE } from '../lib/ui/controls';
 import type { LetterThing } from '../lib/letters/types';
 import AddToLetterKey from './AddToLetterKey';
 import AddToPlaylistKey from './AddToPlaylistKey';
@@ -53,5 +55,38 @@ export function LetterPlaylistKey({ letter, playlist }: { letter: LetterThing; p
       first={{ words: '+ LETTER', draw: (className, text) => <AddToLetterKey thing={letter} className={className} label={text} /> }}
       second={second === null ? null : { words: 'PLAYLIST', draw: (className, text) => <AddToPlaylistKey thing={second} className={className} label={text} /> }}
     />
+  );
+}
+
+/**
+ * The arrow that keeps a MEDIA row to its main keys (Luke, 2026-11-16: "only play and queue, with an arrow on the same row
+ * beside them that reveals the rest of the options"). Every result has it: a MEDIA row after PLAY / + QUEUE, a KINO or
+ * friend's-server card after its WATCH keys. A press unfolds the rest on the same line; each row starts folded.
+ *
+ * The arrow stays under the pointer when pressed: in a row whose keys hug the right edge (`unfold="left"`) the rest
+ * unfolds before it, otherwise after it. It points the way they come out, and back once they have.
+ */
+export function MoreKeys({ title, unfold = 'right', children }: { title: string; unfold?: 'left' | 'right'; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const glyph = (unfold === 'right') === open ? '◂' : '▸';
+  const arrow = (
+    <button
+      type="button"
+      onClick={() => setOpen(!open)}
+      aria-expanded={open}
+      aria-label={open ? `Fewer options for "${title}"` : `More options for "${title}"`}
+      title={open ? 'Fewer options' : 'More options'}
+      className={PLATE}
+      data-more-keys={open ? 'open' : 'shut'}
+    >
+      {`[ ${glyph} ]`}
+    </button>
+  );
+  return (
+    <>
+      {open && unfold === 'left' ? children : null}
+      {arrow}
+      {open && unfold === 'right' ? children : null}
+    </>
   );
 }

@@ -21,7 +21,7 @@ import PlayerBox, { PipKey, usePlayingHere } from './PlayerBox';
 import SpriteSlot from './SpriteSlot';
 import WatchInRoomKey from './WatchInRoomKey';
 import FindInRoomKey from './FindInRoomKey';
-import { LetterPlaylistKey, ThumbOpen } from './WebRowKeys';
+import { LetterPlaylistKey, MoreKeys, ThumbOpen } from './WebRowKeys';
 import FeedbackKey from './FeedbackKey';
 
 /**
@@ -263,8 +263,11 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
                 title={`${roomAdd.title} · ${pickedLine(media, pick, server)}`}
               />
             )}
-            <LetterPlaylistKey letter={{ kind: 'media', ref: item.id, title: item.title, picture: rowAddresses(item).thumb ?? undefined }} playlist={null} />
-            <FeedbackKey item={{ kind: 'media', ref: item.id, title: item.title, maker: item.creator ?? '', words: [...(item.tags ?? [])] }} why={null} />
+            {/* The rest behind the arrow, as on every MEDIA result (Luke, 2026-11-16). */}
+            <MoreKeys title={item.title}>
+              <LetterPlaylistKey letter={{ kind: 'media', ref: item.id, title: item.title, picture: rowAddresses(item).thumb ?? undefined }} playlist={null} />
+              <FeedbackKey item={{ kind: 'media', ref: item.id, title: item.title, maker: item.creator ?? '', words: [...(item.tags ?? [])] }} why={null} />
+            </MoreKeys>
           </>
         }
         notice={
@@ -434,10 +437,15 @@ export function KinoRow({ item, titleId, action }: { item: WebItem & { media: Me
         beside={
           <>
             {action ?? (watchCount(sources) > 0 ? null : <p className="text-title font-bold text-ink">NO SERVER HAS THIS.</p>)}
-            {/* No server holds it: find a source for it in a room (SPEC-media-servers.md; Luke 2026-11-07). Media tab only. */}
-            {action === undefined ? <FindInRoomKey title={item.title} /> : null}
-            {action === undefined ? <LetterPlaylistKey letter={{ kind: 'kino', ref: item.id, title: item.title, picture: addresses.thumb ?? undefined }} playlist={null} /> : null}
-            {action === undefined ? <FeedbackKey item={{ kind: 'media', ref: item.id, title: item.title, maker: item.creator ?? '', words: [...(item.tags ?? [])] }} why={null} /> : null}
+            {/* The rest behind the arrow, as on every MEDIA result (Luke, 2026-11-16). No server holds it: find a source for it
+                in a room (SPEC-media-servers.md; Luke 2026-11-07). Media tab only. */}
+            {action === undefined ? (
+              <MoreKeys title={item.title}>
+                <FindInRoomKey title={item.title} />
+                <LetterPlaylistKey letter={{ kind: 'kino', ref: item.id, title: item.title, picture: addresses.thumb ?? undefined }} playlist={null} />
+                <FeedbackKey item={{ kind: 'media', ref: item.id, title: item.title, maker: item.creator ?? '', words: [...(item.tags ?? [])] }} why={null} />
+              </MoreKeys>
+            ) : null}
           </>
         }
       />
