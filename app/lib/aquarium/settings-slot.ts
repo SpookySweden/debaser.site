@@ -1,5 +1,6 @@
 import { createWindowSlot } from '../ui/window-slot';
-import { liveValues, onBackdropAction, setActionActive, subscribeToLiveValues } from '../backdrops/runtime';
+import { onBackdropAction, setActionActive } from '../backdrops/runtime';
+import { drawnValues, subscribeToDrawnValues } from '../backdrops/theme';
 import {
   backdropSaveFailed,
   backdropValues,
@@ -33,9 +34,12 @@ export const subscribeToAquariumSettings = subscribeToBackdropScenes;
 /** What the sea is drawn with where the browser's copy can't be read (the server, a check). */
 export const serverAquariumSettings = (): AquariumSettings => DEFAULT_SETTINGS;
 
-/** The sea's settings this instant: the stored ones, with any swaying or bouncing knob where it has got to. The sea draws from these. */
-export const liveAquariumSettings = (): AquariumSettings => typed(liveValues('aquarium'));
-export const subscribeToLiveAquariumSettings = subscribeToLiveValues;
+/**
+ * The sea's settings this instant: the stored ones, with any swaying or bouncing knob where it has got to, and while its
+ * `[ THEME ]` is on the site theme's water, light and mood laid over them (`../backdrops/theme.ts`). The sea draws from these.
+ */
+export const liveAquariumSettings = (): AquariumSettings => typed(drawnValues('aquarium'));
+export const subscribeToLiveAquariumSettings = subscribeToDrawnValues;
 
 export function setAquariumSettings(next: AquariumSettings): void {
   setBackdropValues('aquarium', next as unknown as Values);

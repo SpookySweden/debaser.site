@@ -27,6 +27,16 @@ import {
 type DockWindowProps = {
   /** Which window this is, for the layout store and the saved layout. Stable, and unique per window. */
   id: string;
+  /**
+   * The layout store's name for it, when that differs from `id` (which stays its `data-dock-window`): a window whose
+   * starting size changed takes a new one, so a box saved at the old size does not stick (the room, list 4).
+   */
+  layoutId?: string;
+  /**
+   * Draws a `[ □ ]` key between `[ _ ]` and `[ × ]` (a desktop only): it fills the page and, pressed again, goes back to
+   * its size and place, as a double press on the title line does (Luke, 2026-11-16, the room window).
+   */
+  maximisable?: boolean;
   title: string;
   /** Right-hand title bar text: a count or a state the title does not already say. */
   badge?: string;
@@ -146,7 +156,9 @@ function barFloor(): number {
  * than a `[ CLOSE ]` that says what it closes.
  */
 export default function DockWindow({
-  id,
+  id: domId,
+  layoutId,
+  maximisable = false,
   title,
   badge,
   onClose,
@@ -165,6 +177,8 @@ export default function DockWindow({
   seeThrough = false,
   children,
 }: DockWindowProps) {
+  // Everything below speaks to the layout store by this name; the page knows the window by `domId`.
+  const id = layoutId ?? domId;
   const desktop = useSyncExternalStore(subscribeToDesktop, isDesktop, onServer);
   const getLive = useCallback(() => liveWindow(id), [id]);
   const live = useSyncExternalStore(subscribeToWindowLayout, getLive, () => undefined);
@@ -253,7 +267,7 @@ export default function DockWindow({
       className={`${placement}${minimized ? ' invisible' : ''}${seeThrough ? ' opacity-50' : ''}`}
       inert={minimized && !pictureOut}
       onPointerDownCapture={managed ? () => bringToFront(id) : undefined}
-      data-dock-window={id}
+      data-dock-window={domId}
       data-grouped={grouped ? 'true' : undefined}
       data-minimized={minimized ? 'true' : undefined}
       data-headroom={headroom}
@@ -296,6 +310,21 @@ export default function DockWindow({
                 [ _ ]
               </button>
             )}
+            {maximisable && managed ? (
+              <button
+                type="button"
+                onPointerDown={(event) => event.stopPropagation()}
+                onDoubleClick={(event) => event.stopPropagation()}
+                onClick={() => toggleMaximise(id)}
+                aria-label={live.restore === null ? `Fill the page with ${title}` : `${title} back to its size`}
+                aria-pressed={live.restore !== null}
+                title={live.restore === null ? 'Fill the page' : 'Back to its size'}
+                className="cursor-pointer key px-1 py-0.75 text-label font-bold leading-none"
+                data-window-maximise={live.restore === null ? 'off' : 'on'}
+              >
+                {live.restore === null ? '[ □ ]' : '[ ❐ ]'}
+              </button>
+            ) : null}
             <button
               type="button"
               onPointerDown={(event) => event.stopPropagation()}

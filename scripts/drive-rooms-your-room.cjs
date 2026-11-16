@@ -499,8 +499,13 @@ const floorOf = (page) =>
 
     console.log('THE ROOM WINDOW LIFTS OFF THE MUSIC BAR');
     const floor = await floorOf(page);
+    // List 4 (Luke, 2026-11-16: "start the your room more smaller"): it opens clear of the bar, and is dragged onto it here.
+    const opened = await rectOf(page, ROOM);
+    assert.ok(opened.bottom < floor - 10, `opened smaller, its foot clear of the music bar (${opened.bottom} vs ${floor})`);
+    const start = await titlePoint(page);
+    await dragBy(page, start.x, start.y, 0, 700);
     const filled = await rectOf(page, ROOM);
-    assert.ok(near(filled.bottom, floor, 3), `opened, its foot rests on the music bar (${filled.bottom} vs ${floor})`);
+    assert.ok(near(filled.bottom, floor, 3) && near(filled.height, opened.height), `dragged down, its foot rests on the music bar, not squashed (${filled.bottom} vs ${floor})`);
     await dragBy(page, filled.left + filled.width / 2, filled.bottom - 1, 0, -200);
     const short = await rectOf(page, ROOM);
     assert.ok(near(short.bottom, filled.bottom - 200, 3) && near(short.top, filled.top), `the foot came up by the pull (${filled.bottom} -> ${short.bottom})`);

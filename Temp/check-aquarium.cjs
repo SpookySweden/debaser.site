@@ -420,17 +420,20 @@ process.env.NEXT_PUBLIC_SUPABASE_URL = '';
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = '';
 process.env.NEXT_PUBLIC_AUTH_BACKEND = 'mock';
 const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+// The sea as the site holds it carries the [ THEME ] switch every background has, on as it comes (Luke, 2026-11-16;
+// Temp/check-backdrop-theme.cjs): the sea's own list (D) does not, so the store's default is D with the switch on.
+const HELD = { ...D, theme: true };
 (async () => {
   global.window = browser();
   let store = fresh('lib/aquarium/settings-slot.js');
-  assert.deepEqual(store.aquariumSettings(), D, 'a browser with nothing stored draws the default sea');
+  assert.deepEqual(store.aquariumSettings(), HELD, 'a browser with nothing stored draws the default sea');
   store.setAquariumSettings(S.withSetting(D, 'count', 17));
   assert.equal(JSON.parse(stored.get('debaser.site.aquarium.v1')).count, 17, 'a change is kept in this browser at once');
   assert.equal(stored.has('debaser.aquarium.mock.v1'), false, 'and goes nowhere else while nobody is signed in');
   store = fresh('lib/aquarium/settings-slot.js');
   assert.equal(store.aquariumSettings().count, 17, 'a reload reads it back');
   stored.set('debaser.site.aquarium.v1', '{not json');
-  assert.deepEqual(fresh('lib/aquarium/settings-slot.js').aquariumSettings(), D, 'a damaged copy reads as the default');
+  assert.deepEqual(fresh('lib/aquarium/settings-slot.js').aquariumSettings(), HELD, 'a damaged copy reads as the default');
 
   // Signed in (the mock account): what the browser holds goes to an account that has nothing; later changes follow.
   stored.clear();
@@ -454,7 +457,7 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
   stored.clear();
   stored.set('debaser.aquarium.mock.v1', account);
   store = fresh('lib/aquarium/settings-slot.js');
-  assert.deepEqual(store.aquariumSettings(), D, 'a fresh browser starts on the default');
+  assert.deepEqual(store.aquariumSettings(), HELD, 'a fresh browser starts on the default');
   await store.setAquariumAccount('person-a');
   assert.equal(store.aquariumSettings().size, 3, 'signing in brings the account`s sea');
   assert.equal(store.aquariumSettings().rainbow, true, 'all of it');
@@ -465,7 +468,7 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
   assert.equal(writes.get('debaser.aquarium.mock.v1') ?? 0, before, 'putting the account`s copy on is not a change to save back');
   await store.setAquariumAccount('person-b');
   assert.equal(JSON.parse(stored.get('debaser.aquarium.mock.v1'))['person-a'].size, 3, 'somebody else signing in here leaves the first account`s copy alone');
-  assert.deepEqual(store.aquariumSettings(), D, 'and, having saved nothing, starts on the default sea rather than the first person`s');
+  assert.deepEqual(store.aquariumSettings(), HELD, 'and, having saved nothing, starts on the default sea rather than the first person`s');
   assert.equal(require(path.join(OUT, backdropFile)).backdropState().id, 'fluid', 'and the default background (FLUID since 2026-11-16, Luke; it was the aquarium)');
   assert.equal(JSON.parse(stored.get('debaser.aquarium.mock.v1'))['person-b'], undefined, 'nothing of the first person`s is saved as theirs');
   await store.setAquariumAccount(null);

@@ -10,7 +10,7 @@ import { useNow } from '../lib/ui/use-now';
 import { PLATE, PLATE_MAIN } from '../lib/ui/controls';
 import { cornerSlot, noCornerSlot, subscribeToCornerSlot } from '../lib/ui/corner-shelf';
 import { getWatchRepository } from '../lib/watch/repository';
-import { nextQueuePosition, roomIsLive, roomPrivacyLabel, roomShownName } from '../lib/watch/rules';
+import { hostPosition, nextQueuePosition, roomIsLive, roomPrivacyLabel, roomShownName } from '../lib/watch/rules';
 import { streamBarState, subscribeToStreamBar } from '../lib/watch/stream-bar';
 import { guestReturnRoom } from '../lib/watch/guest-return';
 import { announceRoomClientChange, hasStoredGuest } from '../lib/watch/room-client';
@@ -38,12 +38,20 @@ import WatchRoom from './WatchRoom';
 import { closeFloating, floatingState, subscribeToFloating } from '../lib/ui/floating-player';
 import { answerPlayAsk, playAskState, playInMainRoomLeaving, subscribeToPlayAsk } from '../lib/watch/main-room-play';
 import { ownRoomState, subscribeToOwnRoom } from '../lib/watch/own-room-client';
+import { noteRoomStart } from '../lib/watch/room-start';
 import { askToSaveCanvas } from '../lib/watch/use-room-canvas';
 
 /** Large, over the board, like the arcade but bigger: the video is the point (decision 1). */
 /** Wide enough to take the screen: the room opens filling it (`fill`), as the video wants all the room it can get. */
 const ROOM_SIZE = { w: 2560, h: 1440 };
 const ROOM_MIN = { w: 560, h: 420 };
+/**
+ * A room's window starts smaller than the page, in the upper corner, and `[ □ ]` fills the page with it (Luke, 2026-11-16:
+ * "start the your room more smaller not covering the whole web page", "add a third button ... that allows you to resize it
+ * to cover the whole page again"). Its layout key is new (`room`, it was `stream`), so a box saved while it filled the
+ * screen does not stick.
+ */
+const ROOM_START = { w: 1040, h: 680 };
 /** The `[ _ ]` key's tip on a room's window: folded to its key above the player, nothing floats (Luke, 2026-11-16). */
 const FOLD_TIP = 'Fold away to a key above the player (keeps playing)';
 /** The folded room's hand-drawn mark (`mark-up-wide` in app/lib/ui/art/slots.ts), shown at 40x16; `[ ▲ ]` until it is drawn. */
@@ -110,6 +118,7 @@ export default function WatchWindow() {
     <>
       <WatchWindowBody state={state} ownRoomId={ownRoomId} asked={asked} accountId={accountId} close={close} collapse={collapse} onJoined={() => router.replace(pathname)} />
       <PlayAskWindow />
+      <OwnRoomComesBack state={state} ownRoomId={ownRoomId} />
     </>
   );
 }
@@ -157,6 +166,67 @@ function WatchWindowBody({
       onLeft={close}
     />
   );
+}
+
+/** This browser's note that your own room's window was open or folded, by the room's id (never sent anywhere). */
+const ROOM_SHOWN_KEY = 'debaser.site.own-room-shown.v1';
+function readShown(): string | null {
+  try {
+    return window.localStorage.getItem(ROOM_SHOWN_KEY);
+  } catch {
+    return null;
+  }
+}
+function writeShown(roomId: string | null): void {
+  try {
+    if (roomId === null) window.localStorage.removeItem(ROOM_SHOWN_KEY);
+    else window.localStorage.setItem(ROOM_SHOWN_KEY, roomId);
+  } catch {
+    // Storage refused (a private window): the room simply does not come back by itself.
+  }
+}
+
+/**
+ * Your own room comes back after a reload as you left it (Luke, 2026-11-16: "the old replacement for the music bar that showed
+ * when you collapsed the stream room is gone, i still need that to exist and function same as it did"). Its window open or
+ * folded when the page went away: it comes back folded, with its key above the player and its bar along the foot of the
+ * screen. Paused: nothing starts playing out of sight, and the bar's PLAY or the room's own keys start it again. A live room
+ * already comes back folded by itself (`MusicRoomKeeper.tsx`, so its beat carries on) and is left to that.
+ */
+function OwnRoomComesBack({ state, ownRoomId }: { state: ReturnType<typeof watchWindowState>; ownRoomId: string | null }) {
+  const { read } = useWatchRoom(ownRoomId, { follow: false });
+  const shownNow = ownRoomId !== null && state.open && state.focus?.kind === 'room' && state.focus.roomId === ownRoomId;
+  /** Whether this page has seen your room's window open: only shutting it after that forgets the note. */
+  const seen = useRef(false);
+  const tried = useRef<string | null>(null);
+
+  // Remember while it is shown; forget when it is shut after being seen (END ROOM, LEAVE). A reload shuts nothing.
+  useEffect(() => {
+    if (shownNow) {
+      seen.current = true;
+      writeShown(ownRoomId);
+    } else if (seen.current && !state.open) {
+      seen.current = false;
+      writeShown(null);
+    }
+  }, [shownNow, ownRoomId, state.open]);
+
+  // Once a page: your room read, nothing else open, and the note says it was shown: back, folded, paused.
+  useEffect(() => {
+    if (ownRoomId === null || read === undefined || read === null || tried.current === ownRoomId) return;
+    tried.current = ownRoomId;
+    const held = read.room;
+    if (readShown() !== ownRoomId || held.id !== ownRoomId || held.endedAt !== null || held.isPublic) return;
+    if (watchWindowState().open) return;
+    const place = hostPosition(held, Date.now());
+    if (held.isPlaying) ownRoomState().session?.playback(place, false);
+    // The room's new player starts the video where it had got to, not from the top.
+    if (held.currentEntryId !== null) noteRoomStart(held.currentEntryId, place);
+    openWatch({ kind: 'room', roomId: ownRoomId });
+    collapseWatch();
+  }, [ownRoomId, read]);
+
+  return null;
 }
 
 const ownRoomVisitorNow = () => ownRoomState().visitor;
@@ -332,7 +402,7 @@ function OwnRoomDoor({ folded = false }: { folded?: boolean }) {
  * before 2026-11-16 (Luke: "collapsing the room goes to a small button above the player like before, not PIP"). It says
  * what it is in words, and pressing it brings the room's window back where it was. The room plays on meanwhile.
  */
-function FoldedRoomKey({ live, label }: { live: boolean; label: string }) {
+function FoldedRoomKey({ live, label, state }: { live: boolean; label: string; /** What the room is, as its window's badge says: LIVE, PRIVATE, BY LINK. */ state: string }) {
   const shelf = useSyncExternalStore(subscribeToCornerSlot, cornerSlot, noCornerSlot);
   if (shelf === null) return null;
   const tip = live ? `BACK TO THE ROOM: ${label}` : `BACK TO THE ROOM (ENDED): ${label}`;
@@ -340,7 +410,8 @@ function FoldedRoomKey({ live, label }: { live: boolean; label: string }) {
     <span className="frame bg-sun-pale p-0.5" data-room-shelf-key={live ? 'live' : 'ended'} data-companion-avoid>
       <button type="button" onClick={expandWatch} className={`${PLATE} inline-flex items-center gap-1`} aria-label={tip} title={tip}>
         <ArtMark src={UP_MARK_SRC} size={UP_MARK_HEIGHT} width={UP_MARK_WIDTH} fallback="[ ▲ ]" />
-        <span>{live ? 'ROOM :: LIVE' : 'ROOM :: ENDED'}</span>
+        {/* It said LIVE for a private room too; it says what the window's badge says. */}
+        <span>{live ? `ROOM :: ${state}` : 'ROOM :: ENDED'}</span>
       </button>
     </span>,
     shelf,
@@ -464,7 +535,8 @@ function RoomWindow({
       <DockWindow
         // Was "watch" before the room filled the screen; a new id so a size saved for the old room does not stick.
         id="stream"
-        fill
+        layoutId="room"
+        maximisable
         // Somebody's own room, joined by its link, is named as theirs: it is not a stream and has no privacy to pick.
         title={read ? (read.room.origin === 'music' ? roomOwnerTitle : `STREAM :: ${roomShownName(read.room, hostName).toUpperCase()}${read.room.privacy === 'open' ? '' : ` :: ${roomPrivacyLabel(read.room.privacy)}`}`) : 'STREAM'}
         badge={read ? (read.room.origin === 'music' ? (read.room.isPublic ? 'LIVE' : mainRoom ? 'PRIVATE' : 'BY LINK') : live ? 'LIVE' : 'ENDED') : undefined}
@@ -484,7 +556,7 @@ function RoomWindow({
         aboveBottomBar
         headroom={headroom}
         dock="top"
-        defaultSize={ROOM_SIZE}
+        defaultSize={ROOM_START}
         minSize={ROOM_MIN}
       >
         {read === undefined ? (
@@ -511,7 +583,11 @@ function RoomWindow({
         )}
       </DockWindow>
       {collapsed && drawn && read ? (
-        <FoldedRoomKey live={read.room.origin === 'music' || live} label={read.room.origin === 'music' ? roomOwnerTitle : roomShownName(read.room, hostName).toUpperCase()} />
+        <FoldedRoomKey
+          live={read.room.origin === 'music' || live}
+          state={read.room.origin === 'music' ? (read.room.isPublic ? 'LIVE' : mainRoom ? 'PRIVATE' : 'BY LINK') : 'LIVE'}
+          label={read.room.origin === 'music' ? roomOwnerTitle : roomShownName(read.room, hostName).toUpperCase()}
+        />
       ) : null}
       {read === undefined || read === null ? <BarWaiting text={read === null ? 'STREAM' : (error ?? 'READING THE STREAM...')} /> : null}
     </>
