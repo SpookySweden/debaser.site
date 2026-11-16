@@ -47,6 +47,32 @@ export function onCompanionSpoke(listener: (userId: string, words?: string) => v
   };
 }
 
+/* --- somebody holding up a picture they sent in a stream room's chat ------------------------------------------------- */
+
+/** The picture a chat line is (`../watch/chat-picture.ts`): its address, and whether it lives outside the site. */
+export type HeldPicture = { url: string; outside: boolean };
+
+const holders = new Set<(userId: string, picture: HeldPicture) => void>();
+
+/**
+ * A line of chat that is a picture arrived in the stream room this tab is in (ROOMSYNC, Luke 2026-11-16: "when a user sends
+ * a gif or image, have the companion raise it rather than sending the text of the url"): the companion of whoever sent it
+ * holds the picture up over its head for a moment, instead of saying the address in a bubble. Every browser in the room has
+ * the line already, so each works it out for itself and nothing extra is sent. An old line read back in holds nothing up.
+ */
+export function companionHolds(userId: string, saidAt: string, picture: HeldPicture): void {
+  const at = Date.parse(saidAt);
+  if (!Number.isFinite(at) || Math.abs(Date.now() - at) > SPOKE_FRESH_MS) return;
+  for (const listener of holders) listener(userId, picture);
+}
+
+export function onCompanionHolds(listener: (userId: string, picture: HeldPicture) => void): () => void {
+  holders.add(listener);
+  return () => {
+    holders.delete(listener);
+  };
+}
+
 /* --- somebody's character catching something handed to it --------------------------------------------------------- */
 
 const catchers = new Set<(userId: string) => void>();

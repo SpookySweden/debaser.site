@@ -27,7 +27,9 @@ import type { AudioTrack } from '../lib/audio/tracks';
 import { frontPosition } from '../lib/watch/music-rooms';
 import { isSongLink, songLink, trackForSong } from '../lib/watch/songs';
 import { comeHome, forgetCarried, isCarriedSong, wasCarried } from '../lib/watch/go-live-carry';
-import { isPictureLink } from '../lib/watch/pictures';
+import { isPictureLink, pictureHost } from '../lib/watch/pictures';
+import { chatPicture } from '../lib/watch/chat-picture';
+import { noteAddedHere } from '../lib/watch/outside-pictures';
 import QueuedPicture from './QueuedPicture';
 import { useWebTrack, webTrackNow } from '../lib/web/web-track-lookup';
 
@@ -43,7 +45,7 @@ import { StageBackdrop } from './backdrops/Backdrops';
 import StageKey from './StageKey';
 import { noteRoomStart, roomStartFor } from '../lib/watch/room-start';
 import { streamBarState, subscribeToStreamBar } from '../lib/watch/stream-bar';
-import { expandWatch } from '../lib/watch/watch-window';
+import { expandWatch, subscribeToWatchWindow, watchWindowState } from '../lib/watch/watch-window';
 import {
   MESSAGE_MAX_LENGTH,
   TAKE_OVER_RETRY_MS,
@@ -73,7 +75,8 @@ import {
   withSeries,
   isGuestLabel,
 } from '../lib/watch/rules';
-import type { WatchLink, WatchMember, WatchMessage, WatchRoomRead } from '../lib/watch/types';
+import type { WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoomRead } from '../lib/watch/types';
+import { previousPlay, registerRoomReplay } from '../lib/watch/room-transport';
 import { steadyInterval } from '../lib/watch/steady-timer';
 import { UP_NEXT_EVERY_MS, notInStepId, notInStepNote, upNextRepeats, type RoomNote } from '../lib/watch/room-notes';
 import { attachStream, playsDirectly, type StreamHandle } from '../lib/watch/stream-player';
@@ -114,6 +117,11 @@ import RoomVisualiser from './RoomVisualiser';
 import VisualiserToggle from './VisualiserToggle';
 import { useVisualiserOn } from '../lib/watch/visualiser';
 import { analysableSrc } from '../lib/watch/audio-tap';
+import { shareRoomScreen } from '../lib/audio/room-screen-sound';
+import dynamic from 'next/dynamic';
+
+/** Loaded on its own, in the browser only: the room's code keeps clear of the floating player's (a9b6af9). */
+const SoundGraph = dynamic(() => import('./SoundGraph'), { ssr: false });
 import RoomCanvas, { CanvasSaveAsk } from './RoomCanvas';
 import { canvasDraggable, useCanvasOpen } from '../lib/watch/canvas-drag';
 import { useScreenView } from '../lib/watch/canvas-view';
@@ -263,6 +271,12 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     videoRef.current = element;
     setVideoElement(element);
   }, []);
+  // The music bar's sound graph hears what the stage plays (list 4: ../lib/audio/room-screen-sound.ts).
+  useEffect(() => {
+    // A site's own embed with no player to ask (PeerTube, a friend's server) counts as playing while it is on.
+    if (song !== null || (videoElement === null && link?.kind !== 'embed')) return;
+    return shareRoomScreen(videoElement, link);
+  }, [videoElement, song, link]);
   const [clock, setClock] = useState({ seconds: 0, duration: Number.NaN, paused: true });
   const [volume, setVolume] = useState(1);
   const [muted, setMuted] = useState(false);
@@ -400,6 +414,11 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
 
   /** The host moves on: the next file in the queue (inside a series, its next episode), or the same one again from the top. */
   function moveOn(skip: boolean) {
+    // The room's loop (ROOMSYNC, "the loop button to loop it"): at its end, what is on starts again. A skip still skips.
+    if (!skip && player.roomLoop && entry !== undefined && !pictureOn) {
+      fromTheTop();
+      return;
+    }
     const after = afterFile(read.queue);
     const video = videoRef.current;
 
@@ -416,7 +435,12 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
         .catch((failure: unknown) => setFault(failure instanceof Error ? failure.message : 'THE STREAM COULD NOT BE UPDATED.'));
       return;
     }
-    const next = after.entry;
+    startRow(after.entry);
+  }
+
+  /** The host starts a row: the next one, or (ROOMSYNC) one that played before, which keeps its place in the list. */
+  function startRow(next: WatchQueueEntry) {
+    const video = videoRef.current;
     goingBlack.current = false;
 
     // From the top, at once: the next play may be the same file (nothing for the element to reload),
@@ -440,6 +464,65 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       });
   }
   const fileEnded = useEffectEvent(() => moveOn(false));
+
+  /** What is on starts again from the top, for everybody: the room's loop, or the back arrow with nothing before it. */
+  function fromTheTop() {
+    const playing = songOn ? audioElement() : videoRef.current;
+    if (playing !== null) {
+      playing.currentTime = 0;
+      void playing.play().catch(refusedPlay);
+    }
+    void repository
+      .writePlayback(roomId, { currentEntryId: room.currentEntryId, positionSeconds: 0, isPlaying: true })
+      .catch((failure: unknown) => setFault(failure instanceof Error ? failure.message : 'THE STREAM COULD NOT BE UPDATED.'));
+  }
+
+  /** The host's back arrow (ROOMSYNC): what played before what is on now, or what is on from the top. */
+  function goBack() {
+    const before = previousPlay(read);
+    if (before === null) {
+      if (entry !== undefined && !pictureOn) fromTheTop();
+      return;
+    }
+    startRow(before);
+  }
+  const backFromBar = useEffectEvent(() => goBack());
+
+  // A press on a row that played, in the queue window (ROOMSYNC: "click on a previous thing in the queue to play it again").
+  const replayRow = useEffectEvent((entryId: string) => {
+    const row = read.queue.find((candidate) => candidate.id === entryId);
+    if (row === undefined || row.playedAt === null || row.id === room.currentEntryId) return;
+    startRow(row);
+  });
+  const hostKeysOn = amHost && live;
+  useEffect(() => {
+    if (!hostKeysOn) return;
+    return registerRoomReplay(roomId, (entryId) => replayRow(entryId));
+  }, [hostKeysOn, roomId]);
+
+  /**
+   * Going from your own room into somebody else's (ROOMSYNC, Luke 2026-11-16: "make sure the room you had before is waiting
+   * for you"): your room holds where you were, paused, so it is there as you left it when you come back (`leaveRoom` brings
+   * you back to it). Not a live room with other people in it: they watch on, and it is handed on as when you leave it.
+   * Heard as the window is told to change, while this room and its player are still on the page.
+   */
+  const holdForReturn = useEffectEvent(() => {
+    if (!music || !amHost || room.endedAt !== null) return;
+    if (room.isPublic && accounts.some((member) => member.userId !== me?.id)) return;
+    const playingNow = songOn ? audioElement() : videoRef.current;
+    const at = playingNow !== null && Number.isFinite(playingNow.currentTime) ? playingNow.currentTime : hostPosition(room, Date.now());
+    if (songOn && player.playing) player.toggle();
+    else playingNow?.pause();
+    void repository.writePlayback(roomId, { currentEntryId: room.currentEntryId, positionSeconds: at, isPlaying: false }).catch(() => undefined);
+  });
+  useEffect(
+    () =>
+      subscribeToWatchWindow(() => {
+        const shown = watchWindowState();
+        if (shown.open && shown.focus?.kind === 'room' && shown.focus.roomId !== roomId) holdForReturn();
+      }),
+    [roomId],
+  );
 
   /**
    * PLAY on a video in MEDIA or FILES while your main room's window is drawn (SPEC-rooms-perpetual.md): it is filed in the
@@ -489,6 +572,17 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     if (!amHost || !live || videoElement === null || entryId === null) return;
     const place = roomStartFor(videoElement, entryId);
     if (place !== null) videoElement.currentTime = place;
+  }, [amHost, live, videoElement, entryId]);
+
+  // A paused room opened again by its host (ROOMSYNC: your room waits, paused, where you left it): its picture is put where
+  // the room stands, once per play, rather than at the start. A playing room carries on as it always did.
+  const resumedEntry = useRef<string | null>(null);
+  const pausedAt = useEffectEvent(() => (!room.isPlaying && room.currentEntryId === entryId ? room.positionSeconds : null));
+  useEffect(() => {
+    if (!amHost || !live || videoElement === null || entryId === null || resumedEntry.current === entryId) return;
+    resumedEntry.current = entryId;
+    const at = pausedAt();
+    if (at !== null && at > 0 && videoElement.currentTime < 0.5) videoElement.currentTime = at;
   }, [amHost, live, videoElement, entryId]);
 
   useEffect(() => {
@@ -665,6 +759,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       roomId,
       hosting: amHost,
       onNext: () => skipFromBar(),
+      onPrevious: () => backFromBar(),
       onLeave: () => leaveFromBar(),
       onPlay: (tracks) => playFromOutside(tracks),
       onEnqueue: (track, where) => enqueueFromOutside(track, where),
@@ -1250,17 +1345,44 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       {formatMediaTime(clock.seconds)} / {duration > 0 ? formatMediaTime(duration) : '--:--'}
     </span>
   );
+  // Back, skip and loop (ROOMSYNC adds back and loop beside the skip: "the back arrow ... to go back to it and the loop
+  // button to loop it"). The loop is the bar's own loop key while you host (`roomLoop`), so the two always agree.
+  const nothingBefore = previousPlay(read) === null && (entry === undefined || pictureOn);
   const skipKey = hostKeys ? (
-    <button
-      type="button"
-      className={`${PLATE_ON_BLACK} shrink-0`}
-      disabled={waiting.length === 0 && !pictureOn}
-      aria-label="Skip to the next video"
-      title={waiting.length === 0 && !pictureOn ? 'Nothing queued' : 'Skip'}
-      onClick={() => moveOn(true)}
-    >
-      [ ▶▶ ]
-    </button>
+    <>
+      <button
+        type="button"
+        className={`${PLATE_ON_BLACK} shrink-0`}
+        disabled={nothingBefore}
+        aria-label="Back to what played before"
+        title={nothingBefore ? 'Nothing played before' : 'Back'}
+        onClick={goBack}
+        data-room-back
+      >
+        [ ◀◀ ]
+      </button>
+      <button
+        type="button"
+        className={`${PLATE_ON_BLACK} shrink-0`}
+        disabled={waiting.length === 0 && !pictureOn}
+        aria-label="Skip to the next video"
+        title={waiting.length === 0 && !pictureOn ? 'Nothing queued' : 'Skip'}
+        onClick={() => moveOn(true)}
+      >
+        [ ▶▶ ]
+      </button>
+      <button
+        type="button"
+        className={`${player.roomLoop ? PLATE_ON_BLACK_PRESSED : PLATE_ON_BLACK} shrink-0`}
+        aria-pressed={player.roomLoop}
+        aria-label="Loop what is on"
+        title={player.roomLoop ? 'Looping: starts again when it ends' : 'Loop what is on'}
+        onClick={() => player.setRoomLoop(!player.roomLoop)}
+        data-room-loop={player.roomLoop ? 'on' : 'off'}
+      >
+        [ ↻ ]
+      </button>
+    </>
   ) : null;
   const floatKey =
     link !== null && !archiveRead.waiting && (officialOn || isEmbedKind(link.kind)) && song === null ? (
@@ -1607,7 +1729,11 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     keysOnMusicBar && barTarget !== null
       ? createPortal(
           <>
-            <span className={`min-w-0 flex-1 frame bg-hardware px-2 py-1 text-label ${lookLines}`} data-stream-bar-screen>
+            <span className={`relative min-w-0 flex-1 frame bg-hardware px-2 py-1 text-label ${lookLines}`} data-stream-bar-screen data-bar-led>
+              {/* The music bar's sound graph behind these words too (list 4: "not always appearing in the black in the bottom
+                  player bar"); its colours keep the site theme's words 4.5:1, so not under a room's own look. */}
+              {look === null ? <SoundGraph /> : null}
+              <span className="relative block min-w-0">
               <span className="flex min-w-0 items-center gap-2 font-bold text-ink-bar">
                 <span className={`shrink-0 px-1 ${live ? 'bg-acid text-ink-plate' : 'bg-bubble-pale text-ink-bar'}`}>{music ? (!live ? 'CLOSED' : room.isPublic ? 'LIVE' : amHost ? 'PRIVATE' : 'BY LINK') : live ? 'LIVE' : 'ENDED'}</span>
                 <span className="truncate">
@@ -1626,6 +1752,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
                   <ServerClock room={room} />
                 </span>
               ) : null}
+              </span>
             </span>
             {/* `relative`: QUALITY and SUBS open their lists over their keys, above the bar. */}
             <span className={`relative flex shrink-0 flex-wrap items-center gap-1 frame bg-hardware px-1 py-0.5 text-label text-sun ${lookLines} ${lookKeys}`} data-watch-bar="music">
@@ -1865,6 +1992,9 @@ function ChatPanel({
         body,
         mediaSeconds: videoRef.current?.currentTime ?? 0,
       });
+      // An outside picture you sent shows for you at once, as one you pasted into a queue does (`outside-pictures.ts`).
+      const picture = chatPicture(body, false);
+      if (picture !== null && picture.outside) noteAddedHere(picture.url);
       applyLocalChange(read.room.id, { kind: 'message', message });
       fileDiscussThread(speaker.id);
       return true;
@@ -1882,7 +2012,7 @@ function ChatPanel({
         {count === 0 ? <li className="text-label text-ink-quiet">NOTHING SAID YET.</li> : null}
         {lines.map((line) =>
           line.message !== null ? (
-            <ChatLine key={line.message.id} message={line.message} />
+            <ChatLine key={line.message.id} message={line.message} roomId={read.room.id} viewerGuest={identity?.kind !== 'account'} />
           ) : (
             line.note.kind === 'step' ? (
               <li key={line.note.id} className="rule-pixel py-1 text-label font-bold text-ink" data-watch-not-in-step>
@@ -2160,13 +2290,22 @@ function messageAuthor(message: WatchMessage) {
   return { id: isGuestLabel(message.authorLabel) ? null : message.authorId, displayName: message.authorLabel };
 }
 
-/** What a chat line says: its words, or the one GIPHY / Commons picture it links to, hotlinked from there. */
-function MessageBody({ message }: { message: WatchMessage }) {
+/**
+ * What a chat line says: its words, or the one GIPHY / Commons picture it links to, hotlinked from there. In the room's own
+ * chat (`roomId`), any other picture address is drawn as a picture too (ROOMSYNC: "rather than sending the text of the
+ * url"), by the queue's own rules for an outside picture: covered with SHOW unless this viewer said otherwise.
+ */
+function MessageBody({ message, roomId = null, viewerGuest = true }: { message: WatchMessage; roomId?: string | null; viewerGuest?: boolean }) {
   const body = message.body;
   // Pictures are for accounts (SPEC-guests.md). The database writes a guest's name, so a guest's line always says so, however it is spelled.
-  const picture = isGuestLabel(message.authorLabel) ? null : chatImageUrl(body);
+  const guest = isGuestLabel(message.authorLabel);
+  const picture = guest ? null : chatImageUrl(body);
   // A picture the host has taken down reads as its link rather than a blank.
   const [gone, setGone] = useState(false);
+  if (picture === null && roomId !== null) {
+    const other = chatPicture(body, guest);
+    if (other !== null) return <QueuedPicture src={other.url} title={pictureHost(other.url).toUpperCase() || 'A PICTURE'} className="mt-0.5 max-h-48" roomId={roomId} guest={viewerGuest} />;
+  }
   if (picture === null || gone) return <>{body}</>;
   return (
     // eslint-disable-next-line @next/next/no-img-element -- hotlinked from GIPHY or Commons, never proxied or copied
@@ -2178,7 +2317,7 @@ function MessageBody({ message }: { message: WatchMessage }) {
  * One line of the room's chat, laid out like a chat: the person's picture, their name in its colour, when, what.
  * No delete key (Luke, 2026-11-02): what is said in a stream stays said.
  */
-function ChatLine({ message }: { message: WatchMessage }) {
+function ChatLine({ message, roomId, viewerGuest }: { message: WatchMessage; roomId: string; /** Not an account: an outside picture is always asked first (`outside-pictures.ts`). */ viewerGuest: boolean }) {
   const author = messageAuthor(message);
   // While the canvas is on screen, a line can be dragged onto it (SPEC-stream-art.md).
   const drag = useChatLineDrag(message);
@@ -2192,7 +2331,7 @@ function ChatLine({ message }: { message: WatchMessage }) {
           </span>
           <span className="shrink-0 text-label text-ink-quiet">{formatMediaTime(message.mediaSeconds)}</span>
         </span>
-        <MessageBody message={message} />
+        <MessageBody message={message} roomId={roomId} viewerGuest={viewerGuest} />
       </span>
     </li>
   );

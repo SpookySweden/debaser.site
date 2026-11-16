@@ -40,10 +40,17 @@ export const PRESENCE_ONLINE_WINDOW_MS = 2 * 60 * 1000;
 export const PRESENCE_HEARTBEAT_MS = 60 * 1000;
 /** How often the dots recheck the clock, so "12 MINUTES AGO" keeps up and the fallback ages out. */
 export const PRESENCE_TICK_MS = 30 * 1000;
-/** A tab in the background this long is away (a quick look at another tab is not). */
-export const PRESENCE_AWAY_HIDDEN_MS = 30 * 1000;
-/** A tab in front with no mouse, key or touch for this long is away. */
-export const PRESENCE_AWAY_IDLE_MS = 5 * 60 * 1000;
+/**
+ * A tab unused this long is away (List 4, 2026-11-16, Luke: "make the yellow "away" signal, take 40 minutes to kick in,
+ * unless the site is closed completely"): no mouse, key or touch, in front or in the background alike. It was 30 seconds
+ * in the background and 5 minutes untouched in front. A closed site leaves the live room and is red at once, as before.
+ */
+export const PRESENCE_AWAY_MS = 40 * 60 * 1000;
+
+/** A tab's state from how long it has gone unused (touched, or brought to the front or sent behind, resets it). */
+export function tabState(unusedMs: number): LiveState {
+  return unusedMs >= PRESENCE_AWAY_MS ? 'away' : 'active';
+}
 
 /**
  * Folds every tab in the room into one state per account: any tab in use makes the account active.

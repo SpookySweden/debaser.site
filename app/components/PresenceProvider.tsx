@@ -2,11 +2,10 @@
 
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  PRESENCE_AWAY_HIDDEN_MS,
-  PRESENCE_AWAY_IDLE_MS,
   PRESENCE_HEARTBEAT_MS,
   PRESENCE_TICK_MS,
   presenceStatus,
+  tabState,
   type LivePresence,
   type LiveState,
   type PresenceRecord,
@@ -46,9 +45,9 @@ const INPUT_EVENTS = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchst
  * no lamp (`ready` stays false). A signed-in tab listens to the live room
  * (`subscribeLive`), which is what the lamps are judged on, and this provider also:
  *
- *   - while the account's lamp switch is on (SPEC-privacy-phase-1.md), tells the room whether this tab is in use: active, or away once it has sat
- *     in the background for PRESENCE_AWAY_HIDDEN_MS or gone untouched for
- *     PRESENCE_AWAY_IDLE_MS, and active again on the first touch or look back;
+ *   - while the account's lamp switch is on (SPEC-privacy-phase-1.md), tells the room whether this tab is in use: active, or away once it has
+ *     gone unused for PRESENCE_AWAY_MS (40 minutes, in front or in the background alike), and active again on the
+ *     first touch or look back;
  *   - writes "seen" as soon as they sign in, every minute after that, and every
  *     time the tab comes back to the front, which dates "LAST ONLINE ...";
  *   - writes "gone" and leaves the room when they sign out (closing the tab
@@ -169,9 +168,9 @@ export default function PresenceProvider({ children }: { children: React.ReactNo
     };
 
     // What this tab last told the room, and when somebody last touched it.
+    // (List 4: away only after 40 minutes unused, in front or behind; a tab opened in the background starts in use.)
     let state: LiveState | null = null;
-    let lastInput = Date.now();
-    let hiddenTimer: number | undefined;
+    let lastUse = Date.now();
     const say = (next: LiveState) => {
       if (next === state) return;
       state = next;
@@ -182,25 +181,21 @@ export default function PresenceProvider({ children }: { children: React.ReactNo
     const visible = () => document.visibilityState === 'visible';
 
     beat();
-    say(visible() ? 'active' : 'away');
+    say('active');
 
     const timer = window.setInterval(beat, PRESENCE_HEARTBEAT_MS);
     const idleTimer = window.setInterval(() => {
-      if (visible() && Date.now() - lastInput >= PRESENCE_AWAY_IDLE_MS) say('away');
+      say(tabState(Date.now() - lastUse));
     }, IDLE_CHECK_MS);
     const onInput = () => {
-      lastInput = Date.now();
+      lastUse = Date.now();
       if (visible()) say('active');
     };
     const onVisibility = () => {
-      window.clearTimeout(hiddenTimer);
-      if (visible()) {
-        lastInput = Date.now();
-        say('active');
-        beat();
-      } else {
-        hiddenTimer = window.setTimeout(() => say('away'), PRESENCE_AWAY_HIDDEN_MS);
-      }
+      // Sent behind or brought back: the reader was here a moment ago either way.
+      lastUse = Date.now();
+      say('active');
+      if (visible()) beat();
     };
     const goodbye = () => {
       void repository.markOffline(accountId).catch(() => undefined);
@@ -209,8 +204,8 @@ export default function PresenceProvider({ children }: { children: React.ReactNo
     const onPageShow = (event: PageTransitionEvent) => {
       if (!event.persisted) return;
       state = null;
-      lastInput = Date.now();
-      say(visible() ? 'active' : 'away');
+      lastUse = Date.now();
+      say('active');
       beat();
     };
 
@@ -223,7 +218,6 @@ export default function PresenceProvider({ children }: { children: React.ReactNo
     return () => {
       window.clearInterval(timer);
       window.clearInterval(idleTimer);
-      window.clearTimeout(hiddenTimer);
       for (const event of INPUT_EVENTS) window.removeEventListener(event, onInput, inputOptions);
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('pagehide', goodbye);

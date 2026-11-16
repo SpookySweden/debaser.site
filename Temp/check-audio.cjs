@@ -306,7 +306,9 @@ assert.equal(repeatOnEnd(true, true), 'repeat', 'when both agree, either reading
 // arithmetic is the part that can silently go wrong - and it did, once, while this was being written:
 // with `playing` taking precedence over `loop`, `↻` could never be shown, because a repeating track is
 // also playing. The rule is `loop` first, and the cycle is what proves it.
-const cellState = (playing, loop) => (loop ? 'looping' : playing ? 'playing' : 'paused');
+// (List 4, 2026-11-16, changed on purpose: silent is paused even with the repeat switch on, so the first press of a
+// visit, when nothing plays by itself any more, starts the music instead of only turning the repeat off.)
+const cellState = (playing, loop) => (!playing ? 'paused' : loop ? 'looping' : 'playing');
 
 // What a press does to the two switches, per state - the same three branches the handler has.
 const press = (state) => {
@@ -331,6 +333,11 @@ assert.deepEqual(
 
 // Leaving looping must not silence the music: the symbol promised the next state, not silence.
 assert.equal(press('looping').playing, true, 'leaving looping leaves the audio running');
+
+// List 4: a silent bar with the repeat switch on (a fresh browser's) is paused, and its first press plays.
+assert.equal((playerSource.match(/!playing \? 'paused' : loop \? 'looping' : 'playing'/g) ?? []).length, 2, 'the cell and its press both read the state this way');
+assert.equal(cellState(false, true), 'paused', 'silent with the repeat switch on: paused, still');
+assert.deepEqual(press(cellState(false, true)), { playing: true, loop: true }, 'and one press plays it, looping');
 
 // 11. A short file behaves like a GIF.
 //
@@ -394,7 +401,8 @@ assert.doesNotMatch(
 
 // The bar's symbol is handed what will happen, not which switch decided it: a clip repeats itself with
 // the shelf's switch off, and a `↻` beside a file that is about to stop would be the bar lying.
-assert.match(providerText, /loop: ownLoop \?\? loop/, 'the bar is told the effective repeat');
+// (ROOMSYNC, 2026-11-16: "the loop button to loop it") Hosting a room, the effective repeat is that room's loop. Updated on purpose.
+assert.match(providerText, /loop: roomBinding !== null && roomBinding\.hosting \? roomLoop : \(ownLoop \?\? loop\)/, 'the bar is told the effective repeat');
 
 console.log('audio checks passed');
 console.log('  clocks     : 61s reads', formatClock(61), ':: an unknown length reads', formatClock(Number.NaN));

@@ -10,9 +10,8 @@ import type { AudioTrack } from './tracks';
  * - **Once a visit** (this browser tab, `sessionStorage`): the first page of a visit loads it, looping; it plays at a
  *   quiet volume, and the next song gets the reader's own volume back (`volumeStep`).
  *   A reload or the next page in the same tab never loads it again, so a reader who stopped it is not started again.
- * - Browsers refuse sound before the reader touches the page, so it starts on the first click or key press, a moment
- *   after it, and only if by then nothing else is playing: not the bar (the reader pressed PLAY on it, or on another
- *   song), not a video, not a room, and the bar still holds LOVE BUZZ.
+ * - It never starts by itself (list 4: "make it so music no longer plays on site start"): it waits on the bar, and the
+ *   reader's own PLAY starts it (`onBarPlaying`).
  */
 
 /** Where the visit remembers that it has already been greeted. */
@@ -20,9 +19,6 @@ export const LOVE_BUZZ_KEY = 'debaser.audio.love-buzz.v1';
 
 /** The quiet volume it arrives at, 0 to 1. A louder saved volume is lowered to this; a quieter one is kept. */
 export const QUIET_VOLUME = 0.25;
-
-/** How long after the first click or key press it waits, so whatever that press started is seen first. */
-export const START_DELAY_MS = 400;
 
 /** LOVE BUZZ on the shelf, or undefined when the shelf does not hold it. */
 export function findLoveBuzz(queue: readonly AudioTrack[]): AudioTrack | undefined {
@@ -82,9 +78,15 @@ export function arrivalStep(mark: ArrivalMark | null, shelfRead: boolean, found:
   return 'load';
 }
 
-/** At the first press (a moment after it): start it only if it was loaded, the bar still holds it, and nothing else plays. */
-export function startOnPress(mark: ArrivalMark | null, holdsLoveBuzz: boolean, state: Busy): boolean {
-  return mark === 'loaded' && holdsLoveBuzz && !busy(state);
+/**
+ * Nothing plays on site start (Luke, list 4, 2026-11-16: "make it so music no longer plays on site start"): it waits on
+ * the bar, and only the reader's own PLAY starts it (it used to start on the first click or key press anywhere). When
+ * the bar plays, the visit settles: `started` when it is LOVE BUZZ (then made quiet), `skipped` when the reader played
+ * another song; `null` while it still waits, or once settled.
+ */
+export function onBarPlaying(mark: ArrivalMark | null, holdsLoveBuzz: boolean, playing: boolean): 'started' | 'skipped' | null {
+  if (mark !== 'loaded' || !playing) return null;
+  return holdsLoveBuzz ? 'started' : 'skipped';
 }
 
 /** The volume it plays at: the reader's own when it is already quiet, else `QUIET_VOLUME`. */

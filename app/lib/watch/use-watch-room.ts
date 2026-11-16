@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { getWatchRepository, repositoryFor, type RoomChange } from './repository';
-import { companionSpoke } from '../companion/events';
+import { companionHolds, companionSpoke } from '../companion/events';
+import { chatPicture } from './chat-picture';
 import { whenRoomClientChanges } from './room-client';
-import { STALE_CLOSE_SECONDS, calibrateWatchClock, roomAgeSeconds } from './rules';
+import { STALE_CLOSE_SECONDS, calibrateWatchClock, isGuestLabel, roomAgeSeconds } from './rules';
 import type { WatchRoomRead } from './types';
 
 /**
@@ -104,7 +105,12 @@ function apply(roomId: string, change: RoomChange, stampedHere = false): void {
       // A new line hops its writer's companion, and hands it the words to say in a bubble (SPEC-character-speech.md):
       // every browser in the room already has the line, and nothing is sent anywhere.
       if (current.messages.some((message) => message.id === change.message.id)) return;
-      companionSpoke(change.message.authorId, change.message.createdAt, change.message.body);
+      {
+        // A line that is a picture is held up by its sender's companion instead (ROOMSYNC): never said as an address.
+        const picture = chatPicture(change.message.body, isGuestLabel(change.message.authorLabel));
+        if (picture !== null) companionHolds(change.message.authorId, change.message.createdAt, picture);
+        else companionSpoke(change.message.authorId, change.message.createdAt, change.message.body);
+      }
       next = { ...current, messages: [...current.messages, change.message].sort((a, b) => a.createdAt.localeCompare(b.createdAt)) };
       break;
     case 'removed':

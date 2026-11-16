@@ -59,6 +59,7 @@ import { searchOrder } from '../lib/web/web-sort';
 import type { AudioTrack } from '../lib/audio/tracks';
 import { songLink, songMatches, trackForSong } from '../lib/watch/songs';
 import { listThings, playedSinceCleared, storedListItems, storedListName } from '../lib/watch/music-rooms';
+import { replayInRoom } from '../lib/watch/room-transport';
 import { NO_ROOM_YET } from '../lib/watch/my-queue';
 import { ownRoomState } from '../lib/watch/own-room-client';
 import { MAX_PLAYLIST_NAME, playlistId, type Playlist } from '../lib/audio/library';
@@ -223,6 +224,9 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
   // Since the last STORE AND START BLANK (SPEC-music-queues.md); a room never cleared shows every play.
   const played = playedSinceCleared(read);
   const waiting = upcoming(read.queue);
+  // The host drives what plays (ROOMSYNC, Luke 2026-11-16: "click on a previous thing in the queue to play it again"): a
+  // row that played is a press that plays it again in the room, where it stands in the list.
+  const mayReplay = userId !== null && read.room.hostId === userId && live;
   // A song (SPEC-music-queues.md) is marked with a note, the way the music bar names what it plays.
   const titleOf = (entry: WatchQueueEntry) =>
     entry.link !== null
@@ -1052,10 +1056,23 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
                   return (
                     <li key={block.key} className="rule-pixel relative flex items-center gap-2 py-1" data-queue-state={state}>
                       <EntryLanguageFlags entry={first} title={name} className="shrink-0" />
+                      {state === 'played' && mayReplay ? (
+                        <button
+                          type="button"
+                          onClick={() => replayInRoom(roomId, first.id)}
+                          title={`Play ${name} again`}
+                          className={`min-w-0 flex-1 cursor-pointer truncate text-left hover:underline max-sm:min-h-tap ${QUEUE_INK[state]}`}
+                          data-queue-replay={first.id}
+                        >
+                          <span className="sr-only">{`${said}play again: `}</span>
+                          {name}
+                        </button>
+                      ) : (
                       <span className={`min-w-0 flex-1 truncate ${QUEUE_INK[state]}`} title={name}>
                         <span className="sr-only">{said}</span>
                         {name}
                       </span>
+                      )}
                       {keys}
                       {line(block.key)}
                     </li>
@@ -1087,9 +1104,22 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
                           return (
                             <li key={entry.id} className="flex items-center gap-2 py-0.5" data-episode={entry.id} data-episode-state={episodeState}>
                               <EpisodeLanguageFlag entry={entry} title={titleOf(entry)} blockAudio={blockAudio} className="shrink-0" />
+                              {episodeState === 'played' && mayReplay ? (
+                                <button
+                                  type="button"
+                                  onClick={() => replayInRoom(roomId, entry.id)}
+                                  title={`Play ${titleOf(entry)} again`}
+                                  className={`min-w-0 flex-1 cursor-pointer truncate text-left hover:underline max-sm:min-h-tap ${QUEUE_INK[episodeState]}`}
+                                  data-queue-replay={entry.id}
+                                >
+                                  <span className="sr-only">Played, play again: </span>
+                                  {titleOf(entry)}
+                                </button>
+                              ) : (
                               <span className={`min-w-0 flex-1 truncate ${QUEUE_INK[episodeState]}`} title={titleOf(entry)}>
                                 {titleOf(entry)}
                               </span>
+                              )}
                               {rights.arrange && episodeState === 'queued' ? (
                                 <button type="button" className={PLATE} aria-label={`Take ${titleOf(entry)} out`} onClick={() => takeOut(entry, 'THE EPISODE COULD NOT BE TAKEN OUT.')}>
                                   [ × ]

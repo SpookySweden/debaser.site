@@ -4,7 +4,7 @@
  * tab is heard only as sound (the picture stopped at once); the YouTube relay hands out a slice at a time from YouTube's
  * own file servers only, and never to another site's page.
  * Run from the root:
- *   npx tsc app/lib/audio/sound-graph.ts app/lib/audio/tab-listen.ts app/lib/audio/youtube-relay.ts app/lib/ui/themes.ts app/api/audio/relay/[id]/route.ts --rootDir app --outDir Temp/sound-graph-out --module commonjs --target es2020 --lib es2021,dom --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
+ *   npx tsc app/lib/audio/sound-graph.ts app/lib/audio/room-screen-sound.ts app/lib/audio/tab-listen.ts app/lib/audio/youtube-relay.ts app/lib/ui/themes.ts app/api/audio/relay/[id]/route.ts --rootDir app --outDir Temp/sound-graph-out --module commonjs --target es2020 --lib es2021,dom --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
  *   node Temp/check-sound-graph.cjs
  */
 const assert = require('node:assert/strict');
@@ -81,6 +81,58 @@ const route = require('./sound-graph-out/api/audio/relay/[id]/route.js');
   assert.equal(graph.pickSource({ ...base0, videoPlaying: true, relayable: true }), 'relay', 'YouTube without the tab: the relay');
   assert.equal(graph.pickSource({ ...base0, videoPlaying: true, relayable: true, relayFailed: true }), 'gentle', 'the relay refused: gentle');
   assert.equal(graph.pickSource({ ...base0, videoPlaying: true }), 'gentle', 'Vimeo or Twitch without the tab: gentle');
+  // List 4 (Luke: "look into the colourful audio monitor not always appearing"): a video playing in your room's own
+  // player counts as playing, and a file whose sound may be copied (an Internet Archive video) is heard itself.
+  assert.equal(graph.pickSource({ ...base0, videoPlaying: true, videoHeard: true, relayable: false }), 'video', "the room's own file: heard");
+  assert.equal(graph.pickSource({ ...base0, barPlaying: true, barHeard: true, videoPlaying: true, videoHeard: true }), 'bar', 'the bar still first');
+  assert.equal(graph.pickSource({ ...base0, tab: true, videoPlaying: true, videoHeard: true }), 'tab', 'the tab still first');
+
+  /* 4b. Your room's screen tells the graph what it plays (it plays MEDIA's videos since list 3) -------------------- */
+  const screen = require('./sound-graph-out/lib/audio/room-screen-sound.js');
+  class FakePlayer extends EventTarget {
+    constructor() {
+      super();
+      this.paused = true;
+      this.ended = false;
+      this.currentTime = 0;
+    }
+    play() {
+      this.paused = false;
+      this.dispatchEvent(new Event('play'));
+    }
+    pause() {
+      this.paused = true;
+      this.dispatchEvent(new Event('pause'));
+    }
+  }
+  const told = [];
+  const off = screen.subscribeToRoomScreenSound(() => told.push(screen.roomScreenSound()));
+  assert.equal(screen.roomScreenSound(), null, 'no room open: nothing');
+  const stage = new FakePlayer();
+  const unshare = screen.shareRoomScreen(stage, { url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', kind: 'youtube', title: 'x' });
+  assert.deepEqual({ ...screen.roomScreenSound(), element: undefined }, { element: undefined, playing: false, youtubeId: 'dQw4w9WgXcQ' }, 'shared, paused, with its YouTube id');
+  stage.play();
+  assert.equal(screen.roomScreenSound().playing, true, 'it plays: the graph is told');
+  stage.pause();
+  assert.equal(screen.roomScreenSound().playing, false, 'paused: told');
+  assert.equal(screen.shareRoomScreen(new FakePlayer(), { url: 'https://archive.org/download/x/x.mp4', kind: 'file', title: 'x' })(), undefined);
+  assert.equal(screen.roomScreenSound(), null, 'another player taken back leaves nothing behind');
+  const again = screen.shareRoomScreen(stage, { url: 'https://vimeo.com/1', kind: 'vimeo', title: 'x' });
+  assert.equal(screen.roomScreenSound().youtubeId, null, 'not YouTube: no relay');
+  again();
+  unshare();
+  assert.equal(screen.roomScreenSound(), null, 'the room closed: nothing');
+  assert.ok(told.length >= 4, 'every change reached the graph');
+  off();
+  const room = fs.readFileSync(path.join(__dirname, '..', 'app', 'components', 'WatchRoom.tsx'), 'utf8');
+  assert.match(room, /shareRoomScreen\(videoElement, link\)/, "the room's stage shares its player");
+  // While your room is open the bottom bar is the room's strip, whose black display had no graph at all.
+  const strip = room.slice(room.indexOf('data-stream-bar-screen'), room.indexOf('data-watch-bar="music"'));
+  assert.match(strip, /<SoundGraph \/>/, "the room strip's black display carries the graph too");
+  assert.match(room, /dynamic\(\(\) => import\('\.\/SoundGraph'\), \{ ssr: false \}\)/, "loaded on its own, so the room's code keeps clear of the floating player's");
+  const graphComponent = fs.readFileSync(path.join(__dirname, '..', 'app', 'components', 'SoundGraph.tsx'), 'utf8');
+  assert.match(graphComponent, /useSyncExternalStore\(subscribeToRoomScreenSound, roomScreenSound/, 'and the graph listens to it');
+  console.log("  ok    a video in your room's own player moves the graph");
   assert.equal(graph.youtubeIdFromPlayer('https://www.youtube-nocookie.com/embed/jNQXAC9IVRw?autoplay=1&enablejsapi=1'), 'jNQXAC9IVRw');
   assert.equal(graph.youtubeIdFromPlayer('https://player.vimeo.com/video/76979871'), null);
   assert.equal(graph.youtubeIdFromPlayer('https://evil.example/embed/jNQXAC9IVRw'), null);

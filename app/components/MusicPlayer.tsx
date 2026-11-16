@@ -645,7 +645,8 @@ function DockedBar({ roomId, onHide, onSettings }: BarControls) {
    * and a press that silenced it would do the opposite of what the symbol promised.
    */
   const cycleState = useCallback(() => {
-    const state = loop ? 'looping' : playing ? 'playing' : 'paused';
+    // Silent is paused whatever the repeat switch says (list 4: nothing plays until pressed, so the first press must play).
+    const state = !playing ? 'paused' : loop ? 'looping' : 'playing';
 
     if (state === 'playing') {
       // -> paused: silence. Repeat is already off.
@@ -725,7 +726,8 @@ function DockedBar({ roomId, onHide, onSettings }: BarControls) {
           <TransportPad
             playing={obeys ? !videoPaused : playing}
             loop={obeys ? false : loop}
-            disabled={loading || player.queue.length === 0}
+            // Hosting a room, back, loop and next are the room's (ROOMSYNC), so an empty shelf does not grey them out.
+            disabled={loading || (player.queue.length === 0 && player.room?.hosting !== true)}
             onPrevious={player.previous}
             onCycle={obeys ? pressVideo : cycleState}
             onNext={player.next}
@@ -808,9 +810,11 @@ function TransportPad({
    * `loop` wins over `playing` when both are set, and the order is the whole reason this is written
    * down: with a repeating track the audio *is* running, so "playing" would be true as well - and if
    * `playing` took precedence the `↻` symbol could never appear at all. Looping is the more specific
-   * statement, so it is the one the cell reports.
+   * statement, so it is the one the cell reports. But only while it sounds: a silent bar with the repeat switch on is
+   * paused (list 4, 2026-11-16). It used to wobble `↻` in silence, and its first press only turned the repeat off, so
+   * a reader's first PLAY of a visit did nothing.
    */
-  const state: 'playing' | 'paused' | 'looping' = loop ? 'looping' : playing ? 'playing' : 'paused';
+  const state: 'playing' | 'paused' | 'looping' = !playing ? 'paused' : loop ? 'looping' : 'playing';
 
   const MARK = { playing: '▶', paused: '❚❚', looping: '↻' } as const;
   const WORD = { playing: 'Playing', paused: 'Paused', looping: 'Looping' } as const;

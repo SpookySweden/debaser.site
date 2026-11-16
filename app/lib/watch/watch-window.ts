@@ -41,6 +41,13 @@ export const watchWindowServerState = (): WatchWindowState => CLOSED;
 export const subscribeToWatchWindow = slot.subscribe;
 
 /**
+ * The rooms the window showed before the one on screen, newest last, and whether each was folded then (`leaveRoom`): a few,
+ * so a hop through somebody's room into another's still finds the way back to your own.
+ */
+let trail: { roomId: string; collapsed: boolean }[] = [];
+const TRAIL_KEPT = 8;
+
+/**
  * Opens the window. A second open for the same purpose is no change, so nothing re-renders for it, unless
  * the room was folded away: asked for again, it comes back.
  */
@@ -51,11 +58,35 @@ export function openWatch(focus: WatchFocus): void {
     return;
   }
 
+  // Going from one room into another: the one you were in is remembered, folded or open, so leaving can put you back
+  // (`leaveRoom`). A room you go back into yourself comes off the trail: you are in it.
+  if (focus.kind === 'room') {
+    const from = current.open && current.focus?.kind === 'room' ? { roomId: current.focus.roomId, collapsed: current.collapsed } : null;
+    trail = trail.filter((kept) => kept.roomId !== focus.roomId && kept.roomId !== from?.roomId);
+    if (from !== null) trail = [...trail, from].slice(-TRAIL_KEPT);
+  }
   slot.set({ open: true, focus, collapsed: false, pip: false });
 }
 
 export function closeWatch(): void {
+  trail = [];
   if (slot.state().open) slot.set(CLOSED);
+}
+
+/**
+ * Leaving the room on screen (ROOMSYNC, Luke 2026-11-16: "when joining someone elses room, when leasving make sure the room
+ * you had before is waiting for you"). When the room you came from is `home` (your own main room), you are put back in
+ * it, open or folded as you left it; otherwise the window simply closes, as it always did.
+ */
+export function leaveRoom(home: string | null): void {
+  const back = trail.find((kept) => kept.roomId === home) ?? null;
+  trail = [];
+  const current = slot.state();
+  if (back !== null && home !== null && current.focus?.kind === 'room' && current.focus.roomId !== home) {
+    slot.set({ open: true, focus: { kind: 'room', roomId: home }, collapsed: back.collapsed, pip: false });
+    return;
+  }
+  if (current.open) slot.set(CLOSED);
 }
 
 /** Folds an open room away to its key above the player; it keeps playing. `pip`: its picture floats as well (`[ PIP ]`). */

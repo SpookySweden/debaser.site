@@ -8,6 +8,7 @@ import type { MediaItem } from '../lib/media/types';
 import { closeFloating, floatingState, onFloatingEnded, orderFloating, playFloating, subscribeToFloating } from '../lib/ui/floating-player';
 import { getBrowserWatchRepository } from '../lib/watch/mock-watch-repository';
 import { playInMainRoom } from '../lib/watch/main-room-play';
+import { takeUnhandledPlay } from '../lib/watch/row-handoff';
 import { collapseWatch, openWatch, watchWindowState } from '../lib/watch/watch-window';
 import { OwnRoomSession, ownRoomPlace } from '../lib/watch/own-room';
 import { clearOwnRoom, ownRoomState, patchOwnRoom, setOwnRoom, sharedRoomStore, storedVisitorRoomId, subscribeToOwnRoom, visitorRoomId } from '../lib/watch/own-room-client';
@@ -288,11 +289,10 @@ export default function MusicRoomKeeper() {
 
   useEffect(() => {
     if (session === null || roomId === null) return;
-    let lastPlay = floatingState().entry?.play ?? 0;
-    const offStart = subscribeToFloating(() => {
-      const entry = floatingState().entry;
-      if (entry === null || entry.play === lastPlay) return;
-      lastPlay = entry.play;
+    const onStart = () => {
+      // Each PLAY once, including one pressed while your room was still being read (list 4, ./lib/watch/row-handoff.ts).
+      const entry = takeUnhandledPlay(floatingState().entry);
+      if (entry === null) return;
       // PLAY on a row's video opens your main room's window with it on screen, not the floating player
       // (SPEC-rooms-perpetual.md, Luke 2026-11-16), a signed-out visitor's too (list 3). Not a video this keeper put on
       // from the queue (`own:`). In somebody else's room you are asked first (Luke, Q2 A).
@@ -312,7 +312,10 @@ export default function MusicRoomKeeper() {
       else if (entry.room?.mediaItemId !== undefined) session.startedFile(entry.room.mediaItemId);
       // One thing is on in your room: the song gives way to the video.
       if (now.current.playing) now.current.steer(false);
-    });
+    };
+    const offStart = subscribeToFloating(onStart);
+    // A PLAY pressed before your room was read (a moment on the live site) is handed over now it is.
+    onStart();
     const offEnd = onFloatingEnded(() => {
       if (now.current.room !== null || now.current.playing) return;
       const next = takeNext();
