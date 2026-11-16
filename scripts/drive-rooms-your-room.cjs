@@ -839,7 +839,11 @@ const floorOf = (page) =>
           assert.ok(tubeNow.bar !== null, "the site's own keys are along the foot: YouTube's are cut off with its bars");
           await page.screenshot({ path: join(SHOTS, `full-youtube-${chosen}.png`) });
 
-          // The site's keys in fullscreen drive YouTube's player, and show what it says back.
+          // The site's keys in fullscreen drive YouTube's player, and show what it says back. YouTube is still catching up
+          // from the seek above some of the time (it did once here, and a pause sent then was never answered): wait for it to
+          // be playing by its own word before pressing anything.
+          await page.waitForFunction(() => document.querySelector('[data-stage-play]')?.getAttribute('data-stage-play') === 'playing', null, { timeout: 45000 });
+          await sleep(1500);
           await page.evaluate(() => {
             window.__said = [];
           });
