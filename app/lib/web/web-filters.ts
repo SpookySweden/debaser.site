@@ -1,11 +1,23 @@
 import { authorList, authorWords, matchesAuthor, MAX_AUTHORS } from './search';
 import { isMediaServerId } from './media-servers';
-import { PLATFORM_LABELS, STREAM_PLATFORMS, type WebItem, type WebItemKind, type WebPlatform } from './types';
+import { PLATFORM_LABELS, STREAM_PLATFORMS, type ReadingPlatform, type WebItem, type WebItemKind, type WebPlatform } from './types';
 import { readSort, type SortChoice } from './web-sort';
 import { filterLanguage, inLanguage, languageName } from './language';
 
 // A media server's titles are saved rows too (SPEC-media-servers.md): read with the stream, never asked live.
 const streamPlatform = (platform: string) => (STREAM_PLATFORMS as readonly string[]).includes(platform) || isMediaServerId(platform);
+
+/**
+ * WHERE FROM's READING group (SPEC-media-feed.md, list 3): the four kinds of reading `/api/web/brief` serves. Each is a
+ * SOURCE of its own, `in:news`; neither the stream nor a live source is asked for it, the page reads the brief instead
+ * (WebStream.tsx), and an ALL search never shows reading. The keys say the kinds in the plural, as the spec wrote them.
+ */
+export const READING_SOURCES = ['paper', 'news', 'longread', 'tech'] as const satisfies readonly ReadingPlatform[];
+const READING_LABELS: Readonly<Record<ReadingPlatform, string>> = { paper: 'PAPERS', news: 'NEWS', longread: 'LONG READS', tech: 'TECH' };
+
+export function isReadingSource(source: unknown): source is ReadingPlatform {
+  return typeof source === 'string' && (READING_SOURCES as readonly string[]).includes(source);
+}
 
 /**
  * The /web search's two filters (Luke, 2026-10-31: "a search filter that allows you to sort by all of the
@@ -81,6 +93,7 @@ export const SOURCE_OPTIONS: readonly { value: SourceValue; label: string }[] = 
   ...(Object.keys(PLATFORM_LABELS) as WebPlatform[])
     .filter((platform) => platform !== 'kino' && !isMediaServerId(platform) && (platform in LIVE_SOURCE_KINDS || streamPlatform(platform)))
     .map((platform) => ({ value: platform, label: PLATFORM_LABELS[platform] })),
+  ...READING_SOURCES.map((platform) => ({ value: platform, label: READING_LABELS[platform] })),
 ];
 
 // Luke, 2026-11-13 ("two book buttons in the media filter"): the TEXT kind is back under WHAT KIND and the BOOKS group
@@ -103,6 +116,11 @@ const SOURCE_ALIASES: Readonly<Record<string, SourceValue>> = {
   tmdb: 'kino',
   annas: 'anna',
   annas_archive: 'anna',
+  papers: 'paper',
+  long_read: 'longread',
+  long_reads: 'longread',
+  longreads: 'longread',
+  reads: 'longread',
 };
 
 export function readSource(word: unknown): SourceValue | null {
@@ -330,8 +348,12 @@ const SOURCE_GROUP_OF: Readonly<Partial<Record<WebPlatform, string>>> = {
   books: 'BOOKS',
   ipfs: 'BOOKS',
   anna: 'BOOKS',
+  paper: 'READING',
+  news: 'READING',
+  longread: 'READING',
+  tech: 'READING',
 };
-const SOURCE_GROUP_ORDER = ['FILMS AND VIDEO', 'SOUND', 'PICTURES', 'BOOKS', 'ARCHIVES (EVERY KIND)', 'OTHER'];
+const SOURCE_GROUP_ORDER = ['FILMS AND VIDEO', 'SOUND', 'PICTURES', 'BOOKS', 'READING', 'ARCHIVES (EVERY KIND)', 'OTHER'];
 
 export function sourceGroups(): { heading: string; options: { value: SourceValue; label: string }[] }[] {
   const groups = new Map<string, { value: SourceValue; label: string }[]>();
@@ -458,6 +480,8 @@ export function matchesFilters(
   if (search.source === 'books' && !fromStream && item.platform === 'internet_archive' && item.kind === 'text') return true;
   // And the books on IPFS named in the site's own list (ipfs-catalogue.ts, Luke 2026-11-11), as IPFS rows.
   if (search.source === 'books' && !fromStream && item.platform === 'ipfs') return true;
+  // READING keeps its own rows here (`news` for `in:news`); the brief's news videos and lectures served under a kind are
+  // let through by the page itself, which knows they came from the brief (WebStream.tsx `settle`).
   // A media-server title is one row for every server holding it: `in:server-2` keeps it when server 2 has a copy.
   return item.platform === search.source || (item.media?.copies.some((copy) => copy.server === search.source) ?? false);
 }

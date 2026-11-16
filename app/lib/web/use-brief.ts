@@ -12,7 +12,8 @@ import { WEB_DATA_SOURCE } from './repository';
  */
 let once: Promise<BriefRow[]> | null = null;
 
-function askBrief(): Promise<BriefRow[]> {
+/** The same one answer, for WHERE FROM's READING group too (WebStream.tsx), so a reading search asks nothing new. */
+export function askBrief(): Promise<BriefRow[]> {
   if (WEB_DATA_SOURCE === 'mock') return Promise.resolve(mockBrief(Date.now()));
   once ??= fetch('/api/web/brief')
     .then((response) => (response.ok ? response.json() : { rows: [] }))

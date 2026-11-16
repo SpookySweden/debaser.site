@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent } from 'react';
 import { artSlot } from '../lib/ui/art/slots';
 import { FIELD_TIGHT, PLATE, PLATE_LINK, PLATE_MAIN } from '../lib/ui/controls';
 import { pictureLink } from '../lib/watch/pictures';
@@ -12,7 +12,8 @@ import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '../lib/web/paging';
 import { pickSeed, recommendOrder, subscribedFirst } from '../lib/web/recommend';
 import { noteOpened, readTaste } from '../lib/web/taste-store';
 import { useYourYouTube } from '../lib/web/use-your-youtube';
-import { useBrief } from '../lib/web/use-brief';
+import { askBrief, useBrief } from '../lib/web/use-brief';
+import { readingPage } from '../lib/web/brief/reading-search';
 import { useFeedLanes } from '../lib/web/use-feed-lanes';
 import { BLOCK_SIZE, mixFeed, openedLately, readingOpens, type Lane, type MixLane, type ReadingRow } from '../lib/web/feed-mix';
 import { noteFirstBlock, noteOpenedRow, readResting } from '../lib/web/passed-over';
@@ -44,6 +45,7 @@ import {
   boxFromAddress,
   formatWebSearch,
   hasFilters,
+  isReadingSource,
   LANGUAGE_OPTIONS,
   languageLabel,
   matchesFilters,
@@ -69,7 +71,8 @@ import { canSort, ORDER_KEYS, orderLabel, searchOrder, type SortChoice } from '.
 import { FILTER_KEY, FILTER_KEY_ON, FilterRow, FOLD_KEY } from './WebFilterFold';
 import { noteHistory } from '../lib/recommender/history';
 import { isShort } from '../lib/web/shorts';
-import { useHiddenShort } from '../lib/web/use-hidden-short';
+import { hiddenShortNow, useHiddenShort } from '../lib/web/use-hidden-short';
+import { shortsVersion, subscribeShorts } from '../lib/web/shorts-client';
 import { useAuth } from './AuthProvider';
 import { useMediaView, viewLabel, viewListClass, type MediaView } from '../lib/web/media-view';
 import { forgetMedia, keepMedia, keptFor } from '../lib/web/media-keep';
@@ -289,9 +292,19 @@ function keepFolds(folds: ReadonlySet<string>): void {
   }
 }
 
+/**
+ * The filters a source's rows are held to. A READING kind's rows came from the brief under that kind, so its news videos
+ * (YOUTUBE rows) and lectures (ARCHIVE rows) count as the kind: only WHAT KIND, CREATOR and LANGUAGE apply to them.
+ */
+function readingAware<F extends { source: SourceValue }>(source: Source, filters: F): F {
+  return isReadingSource(source) ? { ...filters, source: 'all' } : filters;
+}
+
 /** The sources a request asks: a link is one live answer; otherwise whatever the filters allow, in the order chosen. */
 function sourcesFor(shown: Shown): Source[] {
   if (shown.kind === 'link') return ['youtube'];
+  // READING (WHERE FROM's group, SPEC-media-feed.md): the brief alone, words or none; not under POPULAR (no counts).
+  if (isReadingSource(shown.filters.source)) return canSort(shown.filters.source, sortOf(shown.filters)) ? [shown.filters.source] : [];
   const plan = sourcesToAsk(shown.filters);
   const stream: Source[] = plan.stream ? ['stream'] : [];
   // Live sources need words to search for; with none, the list is the stream alone.
@@ -301,6 +314,8 @@ function sourcesFor(shown: Shown): Source[] {
 
 /** The sources a search leaves out because they have no such order: one plain line each (SPEC-web-sort.md). */
 function unsortedFor(shown: Shown): Source[] {
+  if (shown.kind === 'link') return [];
+  if (isReadingSource(shown.filters.source)) return canSort(shown.filters.source, sortOf(shown.filters)) ? [] : [shown.filters.source];
   if (shown.kind !== 'search') return [];
   const plan = sourcesToAsk(shown.filters);
   return [...(plan.stream ? (['stream'] as Source[]) : []), ...plan.live].filter((source) => !canSort(source, sortOf(shown.filters)) && !swapsOnly(source, shown));
@@ -316,7 +331,8 @@ function swapsOnly(source: Source, shown: Shown): boolean {
 
 /** The order a list is in: a search's SORT; the plain stream and a link, newest first. */
 function orderFor(shown: Shown): ListOrder {
-  const choice: SortChoice = shown.kind === 'search' ? sortOf(shown.filters) : { sort: 'date', dir: 'desc' };
+  // A READING kind takes its SORT with no words too: the brief is in the page, so every order is free.
+  const choice: SortChoice = shown.kind === 'search' || (shown.kind === 'stream' && isReadingSource(shown.filters.source)) ? sortOf(shown.filters) : { sort: 'date', dir: 'desc' };
   return choice.sort === 'date' ? { kind: 'date', dir: choice.dir } : { kind: 'turns' };
 }
 
@@ -329,6 +345,22 @@ type SourcePage = { items: WebStreamItem[]; nextCursor: string | null; problems?
 function readSource(source: Source, what: Shown, after: string | null, keyword?: number, sorted = false): Promise<SourcePage> {
   const repository = getWebRepository();
   const order = sorted && what.kind === 'search' ? searchOrder(sortOf(what.filters)) : undefined;
+  if (isReadingSource(source) && what.kind !== 'link') {
+    // READING: one kind of the brief the page already holds (use-brief.ts), searched and paged here; nothing new is asked.
+    const asked = searchOrder(sortOf(what.filters));
+    return askBrief().then((rows) => {
+      const page = readingPage(rows, source, {
+        query: what.kind === 'search' ? what.query : '',
+        from: authorsOf(what.filters),
+        anyWord: what.filters.vibe === true,
+        order: asked === 'popular' ? 'relevance' : asked,
+        cursor: after,
+        limit: DEFAULT_PAGE_SIZE,
+      });
+      // `pickPage`: with no words the list is ordered for the reader a page at a time, so LOAD MORE never moves a row.
+      return { items: page.items.map((item) => ({ ...item, alsoOn: [], pickPage: after ?? '' })), nextCursor: page.nextCursor };
+    });
+  }
   if (source === 'stream') {
     return what.kind === 'search'
       ? repository.searchItems({
@@ -525,7 +557,7 @@ export default function WebStream() {
         return;
       }
       // No YouTube Shorts (shorts.ts; Luke, 2026-11-14), older saved rows included. A pasted link shows what was pasted.
-      const items = what.kind === 'link' ? page.items : page.items.filter((item) => !isShort(item) && matchesFilters(item, what.filters, source === 'stream'));
+      const items = what.kind === 'link' ? page.items : page.items.filter((item) => !isShort(item) && matchesFilters(item, readingAware(source, what.filters), source === 'stream'));
       if (source !== 'stream') setLiveIds((current) => new Set([...current, ...items.map((item) => item.id)]));
       setList((current) => {
         let next: LiveList;
@@ -533,11 +565,13 @@ export default function WebStream() {
         else {
           // The media servers' titles that come with the first live answer (wildcard-search.ts) are a source of their
           // own, with no more pages, so they never stand in for that platform's place by date.
-          const ownRows = items.filter((item) => source === 'stream' || item.platform === source);
+          // A READING kind's rows are all its own, the news videos (YOUTUBE rows) and lectures (ARCHIVE rows) included.
+          const ownLane = (item: WebItem) => source === 'stream' || item.platform === source || isReadingSource(source);
+          const ownRows = items.filter(ownLane);
           // Under BEST MATCH, rows by channels the reader subscribes to lead their site's page (recommend.ts).
           const own = sortOf(what.filters).sort === 'best' ? subscribedFirst(ownRows, subscribed.current) : ownRows;
-          const servers = items.filter((item) => source !== 'stream' && item.platform !== source);
-          const sent = page.items.filter((item) => source === 'stream' || item.platform === source);
+          const servers = items.filter((item) => !ownLane(item));
+          const sent = page.items.filter(ownLane);
           next = arrive(current, own, end, { lane: source, more: page.nextCursor !== null, swapOnly: swapsOnly(source, what), page: sent });
           if (servers.length > 0) next = arrive(next, servers, end, { lane: 'servers', more: false });
         }
@@ -966,6 +1000,7 @@ export default function WebStream() {
   const openedIds = useMemo(() => openedLately(mixHistory ?? [], historyNow), [mixHistory, historyNow]);
   const kindOpens = useMemo(() => readingOpens(mixHistory ?? [], historyNow), [mixHistory, historyNow]);
   const visitor = mixVisitor ?? true;
+  const shortsSeen = useSyncExternalStore(subscribeShorts, shortsVersion, () => 0);
   const streamEnded = Object.keys(cursors).length === 0 && !busy;
   const mixed = useMemo(() => {
     if (!mixOn) return null;
@@ -980,10 +1015,13 @@ export default function WebStream() {
       visitor,
       readingOpens: kindOpens,
       taste,
-      dropped: (item) => notForMe.has(keyOf('media', item.id)) || openedIds.has(item.id) || resting.has(item.id),
+      // A Short YouTube has confirmed is dropped here, so its place is filled rather than left a hole (WebRow hides it).
+      dropped: (item) => notForMe.has(keyOf('media', item.id)) || openedIds.has(item.id) || resting.has(item.id) || hiddenShortNow(item),
       now: openedAt,
     });
-  }, [mixOn, mixGate, drawn, streamEnded, mixLanes, visitor, kindOpens, taste, notForMe, openedIds, resting, openedAt]);
+    // shortsSeen: re-mixed when YouTube answers about a Short, so the dropped rule above reads the answer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mixOn, mixGate, drawn, streamEnded, mixLanes, visitor, kindOpens, taste, notForMe, openedIds, resting, openedAt, shortsSeen]);
   // A source that has just answered: taken once, from the block after the last one drawn (0 before the first is drawn).
   if (mixOn) {
     const from = mixGate && mixed !== null ? Math.ceil(mixed.length / BLOCK_SIZE) : 0;
@@ -1010,7 +1048,8 @@ export default function WebStream() {
   const browsing = !art && (shown.kind === 'stream' || (shown.kind === 'search' && shown.picked === true));
   const browsed = shown.kind === 'link' ? null : shown.filters;
   const nextSeed =
-    browsing && browsed !== null && empty && !busy && !failed
+    // A READING kind with nothing in it searches nowhere else for a word: it just says so.
+    browsing && browsed !== null && empty && !busy && !failed && !isReadingSource(browsed.source)
       ? pickSeed({ kino: browsed.source === 'kino', kind: browsed.type }, taste, tried, openedAt)
       : null;
   useEffect(() => {
@@ -1344,7 +1383,7 @@ export default function WebStream() {
           {busy ? `ASKING: ${asking.map(sourceLabel).join(', ')}...` : 'EVERY SOURCE HAS ANSWERED.'}
         </p>
       ) : null}
-      {shown.kind === 'stream' && boxFilters.sort !== undefined && boxFilters.text === '' ? (
+      {shown.kind === 'stream' && boxFilters.sort !== undefined && boxFilters.text === '' && !isReadingSource(boxFilters.source) ? (
         <p className="text-label text-ink-quiet wrap-anywhere">SORT IS FOR SEARCHES: THE STREAM STAYS NEWEST FIRST.</p>
       ) : null}
       {problems.length > 0 || unsorted.length > 0 ? (
@@ -1461,7 +1500,7 @@ function RelatedSection({
         void readSource(source, what, from?.[source] ?? null, topic.keyword)
           .then((page) => {
             if (!alive.current) return;
-            const items = page.items.filter((item) => !exclude.has(item.id) && matchesFilters(item, filters, source === 'stream'));
+            const items = page.items.filter((item) => !exclude.has(item.id) && matchesFilters(item, readingAware(source, filters), source === 'stream'));
             setList((current) => arrive(current, items, true));
             setCursors((current) => {
               const next = { ...current };

@@ -53,9 +53,11 @@ export type SortSource = 'stream' | WebPlatform;
 
 /**
  * The sources that cannot give POPULAR (Luke: Commons and Openverse have no such order; the saved stream keeps no
- * counts). Kept equal to the providers' own `orders` by `scripts/check-web-sort.cjs`. Every source can give DATE.
+ * counts). Kept equal to the providers' own `orders` by `scripts/check-web-sort.cjs`. Every source can give DATE but
+ * Anna's Archive, which has no order at all (the server says CAN'T SORT BY DATE for it). The reading kinds (READING in
+ * WHERE FROM, SPEC-media-feed.md) keep no counts either: no POPULAR.
  */
-export const NO_POPULAR: readonly SortSource[] = ['wikimedia_commons', 'openverse', 'books', 'audiobooks', 'stream'];
+export const NO_POPULAR: readonly SortSource[] = ['wikimedia_commons', 'openverse', 'books', 'audiobooks', 'anna', 'stream', 'paper', 'news', 'longread', 'tech'];
 
 /** Whether a source is asked under a sort; one that is not shows one plain line instead. */
 export function canSort(source: SortSource, choice: SortChoice): boolean {

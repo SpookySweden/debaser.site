@@ -162,6 +162,9 @@ export function gutenbergEpubUrls(number: string): string[] {
 export async function openBookEpub(
   ref: string,
   epubFetch: FetchLike,
+  // Only a check passes this (its fake web): the site leaves it out, so a shadow copy goes through shadow-books.ts's own
+  // insecure-TLS agent, which epubFetch is not.
+  shadowFetch?: FetchLike,
 ): Promise<
   | { body: ReadableStream<Uint8Array>; length: number | null; shadow?: { extension: ShadowExtension } }
   | { pdf: { size: number } }
@@ -175,7 +178,7 @@ export async function openBookEpub(
   if (ref.startsWith('shadow:')) {
     // Luke, 2026-11-13 (SPEC-books.md's "Shadow-library sources"): a shadow copy by its md5, passed through from LibGen's
     // mirrors and never kept. shadow-books.ts uses its own insecure-TLS agent, so epubFetch is left out here.
-    const opened = await openShadowBook(ref.slice('shadow:'.length));
+    const opened = await openShadowBook(ref.slice('shadow:'.length), shadowFetch);
     return opened ? { body: opened.body, length: opened.length, shadow: { extension: opened.extension } } : null;
   }
   if (!ref.startsWith('books:')) return null;
@@ -189,7 +192,7 @@ export async function openBookEpub(
     const resolved = await resolveWorkCopy(parts.work, epubFetch).catch(() => null);
     if (resolved && 'ref' in resolved) return { redirect: resolved.ref };
     if (resolved && 'shadow' in resolved) {
-      const opened = await openShadowBook(resolved.shadow.md5).catch(() => null);
+      const opened = await openShadowBook(resolved.shadow.md5, shadowFetch).catch(() => null);
       if (opened) return { body: opened.body, length: opened.length, shadow: { extension: opened.extension } };
     }
     const borrow = resolved && 'borrowOnArchive' in resolved ? `https://archive.org/details/${resolved.borrowOnArchive}` : null;

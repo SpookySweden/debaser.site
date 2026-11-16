@@ -2,9 +2,8 @@
  * BOOKS (SPEC-books.md, Luke 2026-11-10): Open Library's search API (openlibrary.org/search.json, keyless, JSON), asked only
  * when BOOKS is the SOURCE. Every book in Open Library's catalogue is found (SPEC-book-editions.md, Luke 2026-11-11: "each
  * copy of every book appears"), not only the ones the site's reader opens, as it was earlier that day: one row per work,
- * its editions on the book's page (`[ EDITIONS ]`). The works the reader opens come first in what BOOKS answers: those
- * with a Project Gutenberg copy (READ opens it at /read), then the Archive's library scans, then works with a free scan of
- * an edition (READ opens the book's page at the editions it can read). Asked for: key, title, author names, first
+ * its editions on the book's page (`[ EDITIONS ]`). The works keep Open Library's own order, with a title-match bump (Luke,
+ * 2026-11-13), and the Archive's library scans come after them. Asked for: key, title, author names, first
  * publication year, cover number, ebook access, Gutenberg numbers and how many editions the work has; no counts of people
  * or ratings exist in the request. An ISBN typed as the search finds that one edition's book (`/isbn/{isbn}.json`).
  *

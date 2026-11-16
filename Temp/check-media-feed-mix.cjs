@@ -175,5 +175,18 @@ ok(Object.keys(big).length === passed.PASSED_MAX, 'at most 500 rows are kept');
 for (const row of reading) ok(readingRowAddresses(row.item).link === row.item.url, `mock reading: ${row.item.id} passes the page's address check`);
 ok(new Set(reading.map((row) => row.kind)).size === 4, 'mock reading has all four kinds');
 
+/* ------------------------------------------------------------------ the page drops a confirmed Short before mixing (list 3) */
+// Found in the list-3 mock drive: a row YouTube confirmed as a Short drew nothing (WebRow), so every later place moved up one
+// (reading in places 3 and 9). The mix must drop it itself, and mix again when YouTube's answer arrives.
+{
+  const page = require('node:fs').readFileSync(join(__dirname, '..', 'app', 'components', 'WebStream.tsx'), 'utf8');
+  const call = page.match(/mixFeed<WebStreamItem>\(\{[\s\S]*?\r?\n {4}\}\);[\s\S]{0,400}?\r?\n {2}\}, \[([^\]]*)\]\);/);
+  ok(call && /dropped: \(item\) => [^\n]*\|\| hiddenShortNow\(item\)/.test(call[0]), 'the mix drops a Short YouTube has confirmed (hiddenShortNow)');
+  ok(call && /\bshortsSeen\b/.test(call[1]) && /const shortsSeen = useSyncExternalStore\(subscribeShorts, shortsVersion/.test(page), 'and mixes again when YouTube answers (shortsSeen)');
+  const hole = FOR_YOU[4];
+  const mixed = mix.mixFeed(input({ youtube: null, discover: null, people: null, visitor: true, forYouEnded: true, dropped: (row) => row.id === hole.id }));
+  ok(!mixed.some((row) => row.item.id === hole.id) && mixed[3].lane === 'reading' && mixed[9].lane === 'reading' && mixed[15].lane === 'reading', 'a dropped row`s place is filled: reading stays in places 4 and 10');
+}
+
 console.log(`check-media-feed-mix: ${count} passed`);
 process.exitCode = 0;

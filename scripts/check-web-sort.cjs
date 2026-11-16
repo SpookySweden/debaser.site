@@ -72,8 +72,13 @@ const day = (n) => new Date(Date.UTC(2026, 0, n)).toISOString();
 
   // The client's list of sources with no popularity order is the providers' own.
   const noPopular = SEARCH_PROVIDERS.filter((provider) => !(provider.orders ?? []).includes('popular')).map((provider) => provider.platform).sort();
-  same([...sort.NO_POPULAR].filter((source) => source !== 'stream').sort(), noPopular, 'NO_POPULAR names exactly the providers without a popularity order');
-  ok(SEARCH_PROVIDERS.every((provider) => ['newest', 'oldest'].every((order) => (provider.orders ?? []).includes(order))), 'every provider can give DATE both ways');
+  // Updated on purpose 2026-11-16 (list 3): the saved stream and the four reading kinds (READING in WHERE FROM, read from
+  // /api/web/brief, never a search provider) are the client's own sources, not providers. Anna's Archive (2026-11-13) has
+  // no orders at all; NO_POPULAR had missed it, so POPULAR asked it anyway.
+  const notProviders = ['stream', 'paper', 'news', 'longread', 'tech'];
+  same([...sort.NO_POPULAR].filter((source) => !notProviders.includes(source)).sort(), noPopular, 'NO_POPULAR names exactly the providers without a popularity order');
+  // Anna's Archive is the one source with no date order (its search proxy has none): run.ts answers CAN'T SORT BY DATE.
+  ok(SEARCH_PROVIDERS.filter((provider) => provider.platform !== 'anna').every((provider) => ['newest', 'oldest'].every((order) => (provider.orders ?? []).includes(order))), 'every provider but Anna`s Archive can give DATE both ways');
 
   /* ---------------------------------------------------------------- run.ts: not asked, and says so; mixing */
   const asked = [];

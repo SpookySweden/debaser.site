@@ -12,6 +12,7 @@
  * Luke's ISP blocks these hosts at DNS/TLS; Vercel's serverless runtime reaches them. Expect intermittent failures (mirrors
  * go up and down, and rights holders may file DMCA takedowns on the Vercel domain), handled as a null answer upstream.
  */
+import type { LookupFunction } from 'node:net';
 import { Agent, fetch as undiciFetch } from 'undici';
 import { safeFetchJson, safeFetchStream, safeFetchText, SafeFetchError, type FetchLike } from './safe-fetch';
 import { buildUrl } from './urls';
@@ -54,8 +55,8 @@ async function dohResolve(hostname: string): Promise<string | null> {
 /** Hostnames whose DNS Vercel refuses — undici resolves them via DoH instead. Others take Node's default DNS. */
 const DNS_BYPASS_HOSTS = new Set<string>(['annas-archive.org', 'annas-archive.se', 'annas-archive.li', 'libgen.is', 'libgen.rs', 'libgen.st', 'libgen.li', 'libgen.lc', 'library.lol']);
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function customLookup(hostname: string, _options: unknown, callback: (err: Error | null, address?: any, family?: number) => void): void {
+// Typed as Node's own lookup (the shape undici's `connect.lookup` takes), so no `any` is needed (check-structure).
+const customLookup: LookupFunction = (hostname, _options, callback) => {
   if (!DNS_BYPASS_HOSTS.has(hostname)) {
     // Fall through to Node's default behaviour for everything else.
     // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
@@ -65,9 +66,9 @@ function customLookup(hostname: string, _options: unknown, callback: (err: Error
   }
   void dohResolve(hostname).then((address) => {
     if (address) callback(null, address, 4);
-    else callback(new Error(`DoH could not resolve ${hostname}`));
+    else callback(new Error(`DoH could not resolve ${hostname}`), '');
   });
-}
+};
 
 const shadowAgent = new Agent({
   connect: {

@@ -26,9 +26,24 @@ same(
   // Updated on purpose 2026-11-02 (Luke): KINO (TMDB alone) after ALL, and no media server is a choice any more
   // ("remove the 'server 1 server 2' search parameters"). 2026-11-03 (Luke): SAVED is no choice any more.
   // 2026-11-10 (Luke, SPEC-books.md): BOOKS and AUDIOBOOKS, each asked only when chosen, as KINO is.
-  ['ALL', 'KINO', 'INTERNET ARCHIVE', 'PEERTUBE', 'OPENVERSE', 'PODCAST', 'YOUTUBE', 'WIKIMEDIA COMMONS', 'BOOKS', 'AUDIOBOOKS'],
-  'SOURCE: ALL, KINO, every platform the stream reads or a search asks (Vimeo, link-only, is not one); no media server, no SAVED',
+  // 2026-11-16 (list 3): ANNA'S ARCHIVE (Luke, 2026-11-13, 45a0e9f; this list was never updated for it), and the four READING
+  // kinds of SPEC-media-feed.md's WHERE FROM group, read from /api/web/brief.
+  ['ALL', 'KINO', 'INTERNET ARCHIVE', 'PEERTUBE', 'OPENVERSE', 'PODCAST', 'YOUTUBE', 'WIKIMEDIA COMMONS', 'BOOKS', 'AUDIOBOOKS', "ANNA'S ARCHIVE", 'PAPERS', 'NEWS', 'LONG READS', 'TECH'],
+  'SOURCE: ALL, KINO, every platform the stream reads or a search asks (Vimeo, link-only, is not one), then READING; no media server, no SAVED',
 );
+/* ---------------------------------------------------------------- READING (SPEC-media-feed.md, list 3) */
+same(f.sourceGroups().find((group) => group.heading === 'READING')?.options.map((option) => option.label), ['PAPERS', 'NEWS', 'LONG READS', 'TECH'], 'WHERE FROM has a READING group: PAPERS, NEWS, LONG READS, TECH');
+same(f.sourceGroups().map((group) => group.heading).indexOf('READING'), f.sourceGroups().map((group) => group.heading).indexOf('BOOKS') + 1, '... right after BOOKS');
+same(['in:news', 'in:papers', 'in:long-read', 'in:longreads', 'in:tech'].map((box) => f.parseWebSearch(`x ${box}`).source), ['news', 'paper', 'longread', 'longread', 'tech'], 'in:news, in:papers, in:long-read and in:tech are typed READING filters');
+same(f.withFilter('rain', 'in', 'news'), 'rain in:news', 'the NEWS key writes in:news');
+same(f.searchAddress(f.parseWebSearch('rain in:longread')), '/media?q=rain&in=longread', 'the address carries a READING kind');
+same(f.sourcesToAsk({ source: 'news', type: 'all' }), { stream: false, live: [] }, 'a READING kind asks neither the stream nor a live source (the page reads the brief)');
+ok(!f.sourcesToAsk({ source: 'all', type: 'all' }).live.some((source) => f.isReadingSource(source)), 'an ALL search never asks for reading');
+ok(f.matchesFilters({ platform: 'news', kind: 'text' }, { source: 'news', type: 'all' }, false), 'NEWS keeps its own rows');
+ok(!f.matchesFilters({ platform: 'news', kind: 'text' }, { source: 'tech', type: 'all' }, false), 'and TECH does not keep them');
+ok(!f.matchesFilters({ platform: 'youtube', kind: 'video' }, { source: 'news', type: 'all' }, false), 'a READING kind keeps no other platform here (RECOMMENDED and DISCOVER show none under it; the page lets the brief`s own videos through)');
+ok(!f.matchesFilters({ platform: 'paper', kind: 'text' }, { source: 'paper', type: 'video' }, false), 'WHAT KIND still applies');
+ok(f.suggestFilterValues('in', 'ne').some((option) => option.word === 'news'), 'the suggestion list offers in:news');
 same(f.TYPE_OPTIONS.map((option) => option.label), ['ALL', 'VIDEO', 'AUDIO', 'IMAGE', 'TEXT'], 'TYPE choices');
 
 /* ---------------------------------------------------------------- reading the box */
@@ -155,8 +170,12 @@ const route = readFileSync(join(ROOT, 'app/api/web/search/route.ts'), 'utf8');
 ok(/SEARCH_KINDS\.find\(\(value\) => value === type\)/.test(route) && /author, kind\);/.test(route), '... and the route hands only a known type on');
 ok(/anchorsWildcard\(only, providers\.includes\(SEARCH_PROVIDERS\[0\]\)\)/.test(route), 'the route gates the wildcard lookup through anchorsWildcard, so a KINO search runs it (media servers show in KINO)');
 ok(/window\.history\.replaceState\(/.test(page) && /searchAddress\(/.test(page), 'the search is put in the address');
-ok(/useState\(\(\) => boxFromAddress\(params\)\)/.test(page), 'the page opens on the address search');
-ok(/matchesFilters\(item, what\.filters, source === 'stream'\)/.test(page), 'arriving rows are kept only when they match');
+// Updated on purpose 2026-11-16 (list 3): since bda7fbd (Luke's list M14, "retains the way it was when you switch around
+// tabs") a kept MEDIA comes back as it was; otherwise the box is still the address's search.
+ok(/useState\(\(\) => (?:back\?\.draft \?\? )?boxFromAddress\(params\)\)/.test(page), 'the page opens on the address search');
+// Updated on purpose 2026-11-16 (list 3): a READING kind's rows are held to the filters through `readingAware` (its news
+// videos and lectures count as the kind); every other source's rows to the filters as they are.
+ok(/matchesFilters\(item, readingAware\(source, what\.filters\), source === 'stream'\)/.test(page), 'arriving rows are kept only when they match');
 ok(!/transition|animate-/.test(page.slice(page.indexOf('data-filter-panel'), page.indexOf('emptyLine !== null'))), 'no transitions on the filter keys');
 {
   // Updated on purpose 2026-11-14 (Luke: "more space efficient, showing all the selectable filters organised but not

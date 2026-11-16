@@ -77,7 +77,9 @@ assert.deepEqual(Object.keys(trimCounts({ a: 1, b: 3, c: 2 }, 2)), ['b', 'c'], '
 // 8. The page: it orders the stream, asks a word when there is nothing, and says so only at the end. The box is untouched.
 const page = fs.readFileSync('app/components/WebStream.tsx', 'utf8');
 assert.match(page, /recommendOrder\(page, taste,/, 'the page orders its rows with this');
-assert.match(page, /drawn\.map\(renderRow\)/, 'and draws that order');
+// Updated on purpose 2026-11-16 (list 3, MEDIA): since fccc05e (SPEC-media-feed.md) the default feed mixes these rows with
+// other places (mixed.map), and every other list still draws this order as it is.
+assert.match(page, /drawn\.map\(\(item\) => renderRow\(item\)\)/, 'and draws that order');
 assert.match(page, /pickPage: after \?\? ''/, 'each row remembers the page it came in');
 assert.match(page, /item\.pickPage \?\? ''/, 'and only reorders within it, so LOAD MORE moves nothing: a filter can leave a page with any number of rows');
 assert.doesNotMatch(page, /at \+= MAX_PAGE_SIZE/, 'not by counting rows');
