@@ -1,6 +1,9 @@
 # SPEC: MEDIA's default feed (Luke's second list, 2026-11-16)
 
-Status: **Phase A, waiting for Luke's yes or no.** Nothing here is built yet. Group FEED.
+Status: **Luke said yes, 2026-11-16 ("Yes, build it", relayed by the list-2 coordinator): Phase B, building.**
+Group FEED. His decisions, the same day: **1 = A** (reading read live from the feeds, kept 30 minutes on the server,
+no database), **2 = A** (Hacker News and Lobsters links go to the story's own site in a new tab, the one-off exception
+as written), **3 = A** (papers open on arXiv or Europe PMC in a new tab). No database change is approved or needed.
 
 ## What Luke asked for
 "make the default feed you are presented in media an informed combination of all available sources of reccomendations
@@ -156,7 +159,7 @@ Every endpoint below answered 200 when tried on 2026-11-16, with no key needed.
 | Kind | Source | Exact endpoint | Kept |
 |---|---|---|---|
 | PAPER | arXiv | `https://export.arxiv.org/api/query?search_query=cat:cs.AI+OR+cat:cs.CY+OR+cat:q-bio.NC+OR+cat:astro-ph.EP+OR+cat:physics.pop-ph+OR+cat:econ.GN&sortBy=submittedDate&sortOrder=descending&max_results=60` (Atom, one request) | title, authors (first 3, then ET AL.), abstract (1000 characters), subject as words, date, abs page link |
-| PAPER | Europe PMC: PubMed, plus bioRxiv and medRxiv preprints | `https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=SRC:PPR%20AND%20OPEN_ACCESS:y%20AND%20HAS_ABSTRACT:y&sort=P_PDATE_D%20desc&format=json&pageSize=40&resultType=core` | title, authors, journal or server, abstract (open-access only), keywords as words, date, Europe PMC page link |
+| PAPER | Europe PMC: PubMed, plus bioRxiv and medRxiv preprints | `https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=SRC:PPR%20AND%20HAS_ABSTRACT:y&sort=P_PDATE_D%20desc&format=json&pageSize=40&resultType=core` (Phase B: OPEN_ACCESS:y dropped, Europe PMC sets it on preprints weeks late) | title, authors, journal or server, abstract (a preprint's always: its server posts it openly; anything else open-access only), keywords as words, date, Europe PMC page link |
 | NEWS | Wikipedia "In the news" | `https://en.wikipedia.org/api/rest_v1/feed/featured/YYYY/MM/DD` (the `news` part; the `mostread` part has view counts and is never read) | the story's sentence as title, its first linked article's page and summary |
 | NEWS | BBC News World | `https://feeds.bbci.co.uk/news/world/rss.xml` | headline, the feed's own summary, date, link; a picture where a strict path rule on its picture host passes |
 | NEWS | NPR News | `https://feeds.npr.org/1001/rss.xml` | same |

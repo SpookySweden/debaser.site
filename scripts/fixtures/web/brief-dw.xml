@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns="http://purl.org/rss/1.0/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:sy="http://purl.org/rss/modules/syndication/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dwsyn="http://rss.dw.com/syndication/dwsyn/">
+ <channel rdf:about="https://rss.dw.com/syndication/feeds/rss-en-all.1573.rdf">
+  <description>Deutsche Welle</description>
+  <link>https://www.dw.com/english/?maca=en-rss-en-all-1573-rdf</link>
+  <title>Deutsche Welle</title>
+  <sy:updatePeriod>hourly</sy:updatePeriod>
+  <sy:updateFequency>4</sy:updateFequency>
+  <sy:updateBase>2002-05-01T00:00:00Z</sy:updateBase>
+  <dc:date>2026-11-16T15:54:45Z</dc:date>
+  <image rdf:resource="https://rss.dw.com/images/DW-L-RGB_whitebg.png"/>
+  <items>
+   <rdf:Seq>
+    <rdf:li rdf:resource="https://www.dw.com/en/british-actor-robert-pattinson-confirmed-as-new-james-bond/a-79961789?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/guinea-s-gold-rush-arrests-deportations-spark-outcry/a-79922842?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/cop31-draft-deal-calls-for-immediate-shift-away-from-fossil-fuels/a-79960705?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/china-says-xi-trump-putin-to-discuss-world-peace/a-79959570?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/germany-eu-states-open-talks-on-rwanda-deportation-scheme/a-79959158?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/klopp-wants-infantino-out-as-fifa-candidate-deadline-looms/a-79958229?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/south-africa-17-killed-in-separate-mass-shooting-incidents/a-79956966?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/polish-police-arrest-3-teens-over-suspected-neo-nazi-terror-plot/a-79957798?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/jordan-bans-telegram-app-over-radicalisation-claims/a-79956706?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/germany-news-merz-söder-aim-to-revisit-electricity-tax-cut/live-79954869?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/can-a-coalition-of-the-willing-create-momentum-for-a-fossil-fuel-phaseout/a-79926748?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/ai-in-german-classrooms-fighting-the-great-dumbing-down/a-79949229?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/mozambique-s-justice-under-scrutiny-as-venancio-mondlane-faces-trial/a-79949795?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/india-news-modi-heads-to-asean-meet-in-manila/live-79954596?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/mexican-drug-lord-felix-gallardo-dies-at-80/a-79954351?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/rocket-from-boeing-lockheed-firm-fails-mid-flight-destroys-payload-of-amazon-satellites/a-79953931?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/yemen-anti-houthi-forces-pull-back-as-rebels-advance/a-79953692?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/goodbye-overtourism-sustainable-travel-gains-ground/a-79934295?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/zelenskyy-urges-removal-of-starshield-limits-on-ukraine/a-79953300?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/czechia-thousands-protest-against-public-media-reform/a-79953057?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/german-economy-returns-to-growth-so-why-is-the-country-still-worried/a-79932220?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/despite-restrictive-abortion-laws-poland-s-abortomat-a-locker-that-dispenses-abortion-pills-helps-women-who-want-to-end-a-pregnancy/a-79943914?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/germany-news-germany-holds-national-day-of-remembrance/live-79947500?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/how-ai-is-likely-to-change-germany-s-job-market/a-79941597?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/germany-s-2027-budget-a-record-€561-billion-and-a-mountain-of-debt/a-79943216?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/werner-holzer-prize-awarded-to-katja-gloger-and-dw-s-jaafar-abdul-karim/a-79946916?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/ukraine-zelenskyy-says-security-deal-could-go-to-referendum/a-79947535?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/wolf-biermann-at-90-the-singer-who-defied-east-germany/a-79915297?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/turkey-uses-espionage-accusations-to-pressure-government-critics/a-79943768?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/gen-z-protests-do-baby-boomers-really-have-it-better-than-young-people/a-79918854?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/the-dangers-of-revising-europe-s-security-architecture/a-79943049?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/what-s-going-on-with-the-polar-vortex/a-79943105?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/ice-hockey-impasse-as-russia-threatens-sanctions-on-canada-germany/a-79942676?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/germany-gives-sweeping-powers-to-police-intelligence-services/a-79941507?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/is-the-ai-bubble-bursting-just-as-anthropic-goes-public/a-79896537?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/germany-s-nmecha-won-t-repeat-controversial-goal-celebration/a-79937994?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/germany-news-parliament-agrees-on-debt-laden-2027-budget/live-79936897?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/czechia-braces-for-massive-protest-against-public-media-reform-plans/a-79933533?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/could-lack-of-money-sink-tfff-rainforest-fund-before-it-even-launches/a-79878673?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/iranian-activist-and-nobel-peace-prize-winner-narges-mohammadi-shares-her-story-in-memoir/a-79868167?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/eu-leaders-tussle-over-whom-to-send-to-ukraine-russia-peace-talks/a-79935468?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/can-the-eu-make-it-harder-to-trick-consumers-online/a-79933447?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/what-have-the-talks-with-russia-and-the-us-in-abu-dhabi-achieved-for-ukraine/a-79930613?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/hungary-eases-abortion-restrictions-in-women-s-rights-overhaul/a-79931614?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/uk-court-convicts-2-iranian-men-of-spying-on-journalists/a-79931583?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/jensen-huang-spy-row-affairs-leave-nvidia-without-its-rockstar-ceo/a-79926972?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/what-are-fossil-fuels/a-67970540?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/germany-news-police-raid-chapters-of-gremium-mc-biker-gang/live-79926275?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/bundeswehr-study-exposes-widespread-sexual-harassment-in-german-military/a-79926359?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/intelligent-women-get-less-help-at-work-study-finds/a-79910881?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/fears-of-rising-antisemitism-in-europe/a-79921783?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/why-the-integration-of-immigrants-in-germany-remains-a-challenge/a-79923241?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/democracy-study-one-quarter-of-germans-want-a-right-wing-authoritarian-dictatorship/a-79922718?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/is-aiib-s-complaint-mechanism-failing-affected-communities/a-79919917?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/wael-mohya-could-make-german-football-history-at-17/a-79919787?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/can-global-leaders-put-their-money-where-their-mouth-is-on-climate/a-79918744?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/dw-science-explainer-on-the-default-mode-network-what-your-brain-does-when-you-aren-t-focusing-on-anything-and-why-it-s-important/a-79908787?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/germany-slips-in-climate-protection-rankings-as-other-countries-make-gains/a-79913635?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/british-counterterrorism-police-arrest-us-soldier-accused-of-spying-on-behalf-of-russia/a-79913240?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/uk-privy-council-overrules-trinidad-and-tobago-gay-sex-law/a-79912163?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/victims-of-nazi-war-in-poland-call-on-germany-for-support/a-79909311?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/iran-denies-role-in-fridge-hack-france-summons-ambassador/a-79910206?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/controversial-kinship-from-colonial-rule-to-the-holocaust/a-79902228?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/neuer-injury-gives-urbig-chance-to-shape-bayern-and-germany-future/a-79910042?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/megaspeed-and-the-battle-to-go-high-end-nvidia-chips-into-china/a-79909129?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/bulgaria-highway-pileup-kills-12-dozens-injured-pm/a-79907978?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/borussia-dortmund-s-felix-nmecha-and-the-question-of-religion/a-79900432?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/fact-check-online-disinformation-rife-after-krakow-mass-shooting/a-79900620?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/why-electrification-is-the-climate-game-changer-we-need/a-79615979?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/will-australia-push-for-fossil-fuel-exit-at-un-talks/a-79782066?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/us-russia-ukraine-wrap-up-talks-with-prisoner-exchange-agreement/live-79906232?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/why-malnutrition-can-go-unnoticed-and-what-that-means-for-our-health/a-79871016?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/iran-war-oil-shock-drives-dip-in-global-emissions-study-shows/a-79905937?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/new-trilateral-talks-on-ukraine-war-in-abu-dhabi-what-to-expect/a-79905734?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/russia-independent-novaya-gazeta-shuts-its-moscow-newsroom/a-79899827?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/norway-s-ice-hockey-team-says-russia-replacing-it-at-world-juniors/a-79901844?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/37-years-after-fall-of-berlin-wall-how-divided-are-germans/a-79877461?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/germany-cdu-names-ilse-aigner-as-candidate-for-president/a-79898143?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/why-nvidia-ceo-s-affair-with-alleged-chinese-spy-matters-for-ai-race/a-79898338?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/who-is-ilse-aigner-leading-candidate-for-germany-s-next-president/a-79898848?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/germany-news-germany-marks-fateful-date-of-november-9/live-79895613?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/germany-chancellor-merz-to-nominate-aigner-for-president/live-79883533?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/never-again-holocaust-remembrance-under-pressure/a-79840894?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/as-cop31-antalya-kicks-off-can-world-move-beyond-big-promises/a-79661366?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/germany-hopes-to-host-world-ice-hockey-championship-without-russia/a-79879536?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/amid-protests-france-s-rising-debt-costs-threaten-stability/a-79865654?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/ilse-aigner-tipped-by-party-allies-as-next-german-president/a-79880594?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/tesla-to-wind-down-production-of-flop-cybertruck/a-79877759?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/preparing-for-45c-how-germany-tests-its-crisis-response/a-79865768?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/what-to-know-about-the-iihf-women-s-ice-hockey-world-championship/a-79876148?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/exercise-coaching-boosts-colon-cancer-survival/a-79856133?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/european-shares-join-a-global-sell-off-as-ai-spending-fears-rattle-wall-street-and-asian-markets/a-79871504?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/russia-is-back-in-world-sport-but-who-is-drug-testing-its-athletes/a-79862467?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/cristiano-ronaldo-announces-retirement-from-international-football/a-79864361?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/what-the-democrats-midterms-win-means-for-the-us-economy-and-trump/a-79853716?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/gold-for-the-west-bank-meet-palestinian-karate-champ-mariam-bsharat/a-79851806?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/harry-potter-films-turns-25-ahead-of-new-tv-series-release/a-79856130?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/leading-ice-hockey-nations-sponsors-oppose-russia-s-return/a-79853742?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/bmw-reports-lower-q3-earnings-as-china-woes-mount/a-79850847?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/germany-s-celebrated-children-s-author-janosch-has-died/a-79851600?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/could-ai-give-nfts-a-second-chance/a-79840593?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/from-rotten-food-to-political-opponents-researchers-explore-how-disgust-relates-to-our-beliefs-and-why-the-connection-is-complicated/a-79734659?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/how-berlin-s-arab-queers-are-building-their-community/a-79833143?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/football-spanish-player-dies-on-after-cardiac-arrest-on-the-pitch/a-79839398?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/asian-cup-postponed-due-to-middle-east-conflict/a-79837334?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/could-the-ai-boom-make-borrowing-more-expensive-in-europe/a-79511985?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/ice-hockey-officials-considering-options-after-cas-order-to-reinstate-russia/a-79831451?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/la-communities-kick-out-big-oil/a-79830843?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/kimi-antonelli-makes-history-as-youngest-f1-champion/a-79825130?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/embarrassing-name-how-we-live-with-names-we-don-t-like/a-79724068?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/germany-news-merz-hopes-for-korean-reunification-at-dmz/live-79803462?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/bayern-munich-s-kenya-friendly-highlights-africa-s-growing-pull-for-global-sport/a-79796753?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/iihf-ordered-to-allow-russia-back-into-world-championships/a-79805650?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/the-dachshund-a-humorous-icon-with-political-symbolism/a-79640191?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/germany-s-alexander-zverev-clinches-tennis-no-1-ranking/a-79803048?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/star-trek-star-patrick-stewart-dies-age-86/a-79803071?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/india-increases-growth-forecast-for-fiscal-year/a-79798971?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/volkswagen-logs-q3-operating-loss-of-€5-86-billion-on-porsche-writedown/a-79793796?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/russia-shadow-fleet-sanctions-can-the-eu-act-without-us/a-79787035?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/bayern-munich-head-coach-vincent-kompany-s-health-scare-highlights-the-need-for-better-support-for-elite-coaches/a-79764661?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/can-we-regrow-damaged-seagrass-meadows/a-79617925?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/eu-s-made-in-europe-push-unnerves-global-auto-suppliers/a-79732579?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/africa-s-first-youth-olympics-open-in-senegal-amid-hope-and-scrutiny/a-79760478?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/what-germany-thinks-of-carmaker-audi-s-4-billion-deal-with-trump/a-79760479?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/eu-moves-to-loosen-rules-on-pesticide-use-as-experts-sound-the-alarm/a-79646422?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/can-germany-revive-its-economy-before-the-far-right-afd-gains-ground/a-79696102?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/us-sanctions-target-iran-s-rail-sector-as-tehran-shifts-cargo-from-sea-routes-to-overland-corridors/a-79681413?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/rising-emissions-and-temperatures-the-cost-of-trump-s-climate-retreat-is-now-clear/a-79714915?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/brutal-revolutionary-empire-builder-genghis-khan-s-legacy/a-79697112?maca=en-rss-en-all-1573-rdf"/>
+    <rdf:li rdf:resource="https://www.dw.com/en/the-homeless-man-living-in-front-of-a-london-mega-mansion/a-79400925?maca=en-rss-en-all-1573-rdf"/>
+   </rdf:Seq>
+  </items>
+ </channel>
+ <image rdf:about="https://rss.dw.com/images/DW-L-RGB_whitebg.png">
+  <url>https://rss.dw.com/images/DW-L-RGB_whitebg.png</url>
+  <link>https://www.dw.com/english/?maca=en-rss-en-all-1573-rdf</link>
+  <title>DW</title>
+  <description>News, Analysis and Service from Germany and Europe - in 30 Languages</description>
+ </image>
+ <item rdf:about="https://www.dw.com/en/british-actor-robert-pattinson-confirmed-as-new-james-bond/a-79961789?maca=en-rss-en-all-1573-rdf">
+  <title>British actor Robert Pattinson confirmed as new James Bond</title>
+  <link>https://www.dw.com/en/british-actor-robert-pattinson-confirmed-as-new-james-bond/a-79961789?maca=en-rss-en-all-1573-rdf</link>
+  <description>James Bond 007 ranks among the longest-running and highest-grossing movie franchises in Hollywood&apos;s ​history.</description>
+  <dc:date>2026-11-16T15:41:00Z</dc:date>
+  <dc:subject>News</dc:subject>
+  <dc:language>en</dc:language>
+  <dwsyn:contentID>79961789</dwsyn:contentID>
+ </item>
+ <item rdf:about="https://www.dw.com/en/guinea-s-gold-rush-arrests-deportations-spark-outcry/a-79922842?maca=en-rss-en-all-1573-rdf">
+  <title>Guinea&apos;s gold rush: Arrests, deportations spark outcry</title>
+  <link>https://www.dw.com/en/guinea-s-gold-rush-arrests-deportations-spark-outcry/a-79922842?maca=en-rss-en-all-1573-rdf</link>
+  <description>Guinea has banned illegal gold mining, citing environmental concerns. It has further charged hundreds of suspected local and foreign illegal miners amid reports of rights abuses and deportations.</description>
+  <dc:date>2026-11-16T14:38:00Z</dc:date>
+  <dc:subject>World</dc:subject>
+  <dc:language>en</dc:language>
+  <dwsyn:contentID>79922842</dwsyn:contentID>
+ </item>
+ <item rdf:about="https://www.dw.com/en/cop31-draft-deal-calls-for-immediate-shift-away-from-fossil-fuels/a-79960705?maca=en-rss-en-all-1573-rdf">
+  <title>COP31 draft deal calls for &apos;immediate&apos; shift away from fossil fuels</title>
+  <link>https://www.dw.com/en/cop31-draft-deal-calls-for-immediate-shift-away-from-fossil-fuels/a-79960705?maca=en-rss-en-all-1573-rdf</link>
+  <description>The preliminary agreement at UN climate talks in Turkey calls for a rapid reduction of planet-warming emissions and at least $120 billion to help countries adapt to climate change.</description>
+  <dc:date>2026-11-16T14:05:00Z</dc:date>
+  <dc:subject>Environment</dc:subject>
+  <dc:language>en</dc:language>
+  <dwsyn:contentID>79960705</dwsyn:contentID>
+ </item>
+ <item rdf:about="https://www.dw.com/en/china-says-xi-trump-putin-to-discuss-world-peace/a-79959570?maca=en-rss-en-all-1573-rdf">
+  <title>China says Xi, Trump, Putin to discuss &apos;world peace&apos;</title>
+  <link>https://www.dw.com/en/china-says-xi-trump-putin-to-discuss-world-peace/a-79959570?maca=en-rss-en-all-1573-rdf</link>
+  <description>China says presidents Xi, Trump and Putin are going to have &quot;in-depth discussions on global peace.&quot; Ukraine, Iran and denuclearization could also feature in the talks.</description>
+  <dc:date>2026-11-16T12:48:00Z</dc:date>
+  <dc:subject>News</dc:subject>
+  <dc:language>en</dc:language>
+  <dwsyn:contentID>79959570</dwsyn:contentID>
+ </item>
+ <item rdf:about="https://www.dw.com/en/germany-eu-states-open-talks-on-rwanda-deportation-scheme/a-79959158?maca=en-rss-en-all-1573-rdf">
+  <title>Germany, EU states open talks on Rwanda deportation scheme</title>
+  <link>https://www.dw.com/en/germany-eu-states-open-talks-on-rwanda-deportation-scheme/a-79959158?maca=en-rss-en-all-1573-rdf</link>
+  <description>The move follows approval of EU regulations that ease deportations and allow hubs to be set up outside the bloc. A similar scheme by the UK government fell apart over legal issues.</description>
+  <dc:date>2026-11-16T12:10:00Z</dc:date>
+  <dc:subject>News</dc:subject>
+  <dc:language>en</dc:language>
+  <dwsyn:contentID>79959158</dwsyn:contentID>
+ </item>
+ <item rdf:about="https://www.dw.com/en/klopp-wants-infantino-out-as-fifa-candidate-deadline-looms/a-79958229?maca=en-rss-en-all-1573-rdf">
+  <title>Klopp wants Infantino out as FIFA candidate deadline looms</title>
+  <link>https://www.dw.com/en/klopp-wants-infantino-out-as-fifa-candidate-deadline-looms/a-79958229?maca=en-rss-en-all-1573-rdf</link>
+  <description>Germany coach Jürgen Klopp has joined the chorus of football figures critical of FIFA President Gianni Infantino. But with time running out, there are few who seem willing to run against him.</description>
+  <dc:date>2026-11-16T11:59:00Z</dc:date>
+  <dc:subject>Sports</dc:subject>
+  <dc:language>en</dc:language>
+  <dwsyn:contentID>79958229</dwsyn:contentID>
+ </item>
+ 
+</rdf:RDF>

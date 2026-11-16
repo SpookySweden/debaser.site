@@ -1,0 +1,179 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/1/4W0uBvMRzCT+04cHz8hrvjhH0</id>
+  <title>arXiv Query: search_query=cat:cs.AI OR cat:cs.CY OR cat:q-bio.NC OR cat:astro-ph.EP OR cat:physics.pop-ph OR cat:econ.GN&amp;id_list=&amp;start=0&amp;max_results=60</title>
+  <updated>2026-11-16T15:55:59Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+OR+(cat:cs.CY+OR+(cat:q-bio.NC+OR+(cat:astro-ph.EP+OR+(cat:physics.pop-ph+OR+cat:econ.GN))))&amp;start=0&amp;max_results=60&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>60</opensearch:itemsPerPage>
+  <opensearch:totalResults>292989</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2611.18561v1</id>
+    <title>FETTUCCINE: Fast and efficient brain-to-text decoding on mobile devices</title>
+    <updated>2026-11-13T18:59:02Z</updated>
+    <link href="https://arxiv.org/abs/2611.18561v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.18561v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Recent advances in speech neuroprostheses have enabled new communication avenues for people who have lost the ability to speak due to neurological illness or injury. These systems can decode neural activity during attempted speech into text by relying on language priors to achieve high decoding accuracy. This performance currently comes at the cost of using a compute-intensive language modeling stack, presenting a major bottleneck for real-world use. Further, current language models incur highly variable and disruptive inference latencies, limiting communication throughput and preventing users from reliably participating in natural conversation. We introduce FETTUCCINE, an end-to-end brain-to-text framework that leverages the speed and portability of automatic speech recognition (ASR) models to address the aforementioned practical challenges, while achieving usable (&lt;10%) word error rates (WER), efficient adaptation to neural non-stationarities, and reliable performance on mobile devices. When evaluated using publicly available data from an intracortical speech neuroprosthesis user, FETTUCCINE outperforms previous end-to-end methods, achieving as low as 4.39% WER. Most notably, our models successfully run on a commercially-available mobile device with throughput reaching up to 370x real-time, providing the first demonstration of brain-to-text decoding on a mobile device. We also show that our models can be successfully finetuned to extend usable performance to future days. Beyond performance, our approach enables localization of the neural features most relevant for decoding via gradient-based saliency maps, which we show align with well-established physiological priors across different ASR model families. Taken together, our results show that FETTUCCINE overcomes core infrastructural and computational barriers, yielding a new class of portable brain-to-text communication.</summary>
+    <category term="q-bio.NC" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-13T18:59:02Z</published>
+    <arxiv:comment>NeurIPS 2026</arxiv:comment>
+    <arxiv:primary_category term="q-bio.NC"/>
+    <author>
+      <name>Jonathan D. McCart</name>
+    </author>
+    <author>
+      <name>Pranav I. Deevi</name>
+    </author>
+    <author>
+      <name>Mehdi Azabou</name>
+    </author>
+    <author>
+      <name>Nanda H. Krishna</name>
+    </author>
+    <author>
+      <name>Caleb A. McKinney</name>
+    </author>
+    <author>
+      <name>Nicholas S. Card</name>
+    </author>
+    <author>
+      <name>Sergey D. Stavisky</name>
+    </author>
+    <author>
+      <name>Chethan Pandarinath</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.18553v1</id>
+    <title>WeightBench: Evaluating Language Models as Weight-Space Programmers</title>
+    <updated>2026-11-13T18:58:08Z</updated>
+    <link href="https://arxiv.org/abs/2611.18553v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.18553v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Recent work shows that large language models (LLMs) can operate directly on the parameters of other neural networks. They can read what a network was trained to do, fix a network that fails, and write working networks from scratch, all without gradient descent. This capability has been termed Weight-Space Programming (WSP). Exploring this new paradigm systematically requires a robust benchmark. We introduce WEIGHTBENCH, a benchmark that evaluates LLMs of increasing capability on 42 WSP tasks across five tracks: reading, fixing and writing weights, recognizing edits that are impossible, and data-free compression. The networks whose weights the LLMs read and edit range from 2K-parameter control policies to 7B-parameter language models. Experimental benchmark results show that frontier agents can already read small networks and write working control policies without ever running them, but cannot yet patch language models, compress them without data, or tell an impossible edit from a hard one. On all 42 tasks, Claude Opus 5.5 reaches a macro score of 0.535 (Sonnet 5.5 0.466, Haiku 5.5 0.402, DeepSeek v4-flash 0.215); on the 38 tasks it was run on, GPT-6.1-sol reaches 0.568 against Opus's 0.546. Code, the task registry, our OS-level sandbox harness, and the live leaderboard are publicly available at https://github.com/Aayush-Marasini/WeightBench.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-13T18:58:08Z</published>
+    <arxiv:comment>9 pages, 1 figure, 1 table. Code and leaderboard available at https://github.com/Aayush-Marasini/WeightBench</arxiv:comment>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Aayush Marasini</name>
+    </author>
+    <author>
+      <name>Barsat Khadka</name>
+    </author>
+    <author>
+      <name>Nick Rahimi</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.18543v1</id>
+    <title>Imitation Bootstrapped Multi-Agent Reinforcement Learning</title>
+    <updated>2026-11-13T18:50:05Z</updated>
+    <link href="https://arxiv.org/abs/2611.18543v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.18543v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Demonstrations are an effective way to accelerate single-agent reinforcement learning (RL), but extending this idea to multi-agent reinforcement learning (MARL) is non-trivial as it is difficult and often impossible for a single person to teleoperate multiple agents simultaneously. Round-Robin Behavior Cloning (R2BC) addresses this by letting a single demonstrator control one agent at a time while the others execute their current policies. However, the resulting imitation policies are limited by the quality of the demonstrations. We propose Imitation Bootstrapped Multi-Agent Reinforcement Learning (IBMARL), a framework that extends Imitation Bootstrapped Reinforcement Learning (IBRL) to cooperative teams and uses R2BC to train the imitation policies. At each time step, every agent receives one action proposal from its imitation policy and one from its RL policy, and an ensemble of centralized critics selects among the per-agent combinations of the two. A gated imitation penalty, a soft Q-filtered behavior cloning loss, regularizes each RL policy toward its imitation policy only where the critics value the imitation action more, so that after training each agent executes its RL policy alone, without the centralized critics. On four cooperative multi-agent RL benchmarks, IBMARL surpasses its imitation policies $2.6$-$4.2\times$ faster than demonstration-based baselines on two tasks, is the only method to surpass it on the other two, and exceeds the demonstrator itself on two of the four. With real human demonstrations IBMARL still surpasses imitation learning alone, and does so more than twice as fast as the best baseline.</summary>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.MA" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-13T18:50:05Z</published>
+    <arxiv:comment>9 pages, 5 figures. Code, videos and results: https://zhanghutony.github.io/ibmarl/. A preliminary version appeared at the PhysCollaBot Workshop at IROS 2026</arxiv:comment>
+    <arxiv:primary_category term="cs.AI"/>
+    <author>
+      <name>Tony H. Zhang</name>
+    </author>
+    <author>
+      <name>Connor Mattson</name>
+    </author>
+    <author>
+      <name>Daniel S. Brown</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.18542v1</id>
+    <title>Elliptic Sampling: Optimal Interpolant Schedules for Gaussians and Beyond</title>
+    <updated>2026-11-13T18:49:36Z</updated>
+    <link href="https://arxiv.org/abs/2611.18542v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.18542v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Generative modeling based on stochastic interpolants requires specifying two key choices: an interpolant schedule bridging the initial and target distributions, and an efficient discretization of the resulting probability-flow ODE. In this work, we introduce a new framework for joint schedule/discretization design based on the analyticity properties of the (complexified) ODE trajectories, which in turn ensure good numerical behavior. Our formulation can be solved exactly via conformal mapping, yielding a natural family of variance-preserving elliptic schedules, parametrized by Jacobi elliptic functions. Pairing an elliptic schedule with a tailored discretization, we obtain Zoloflow, a new sampling algorithm closely connected to Zolotarev's optimal rational function approximants. Crucially, both the elliptic schedule and Zoloflow explicitly incorporate the condition number $κ$ of the target distribution and reduce to the classical trig schedule in the limit $κ\rightarrow 1$. For Gaussian targets, Zoloflow achieves minimax optimality among all oblivious score-span algorithms, attaining total-variation error $\varepsilon$ using $Θ(\logκ\,\log(\sqrt d/\varepsilon))$ (exact) score queries. For the log-concave case, the elliptic schedule allows sampling with at most $\varepsilon$ 2-Wasserstein-error by requiring merely $\widetilde{O}(\sqrt{d} \, \mathrm{polylog}(κ, 1/\varepsilon))$ score evaluations. Complementing these theoretical results, we empirically evaluate the elliptic schedule on general (non-log-concave) target distributions, including detailed comparisons with alternative schedule proposals on both synthetic benchmarks and existing image generation datasets.</summary>
+    <category term="stat.ML" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-13T18:49:36Z</published>
+    <arxiv:primary_category term="stat.ML"/>
+    <author>
+      <name>Cole Becker</name>
+    </author>
+    <author>
+      <name>Taylan Kargin</name>
+    </author>
+    <author>
+      <name>Kimia Hassibi</name>
+    </author>
+    <author>
+      <name>Asuman Ozdaglar</name>
+    </author>
+    <author>
+      <name>Pablo A. Parrilo</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.18533v1</id>
+    <title>ModHarness-RL: Recasting Harnesses as Learnable and Evolving Programs for Agentic RL</title>
+    <updated>2026-11-13T18:45:49Z</updated>
+    <link href="https://arxiv.org/abs/2611.18533v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.18533v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Agentic reinforcement learning (RL) increasingly relies on a harness, the scaffold around the model that decides what it sees of its own interaction and what guidance it receives. Most existing approaches train under a hand-written harness that stays fixed throughout. However, an effective harness depends on the domain, the data and the model, and keeps changing as the model trains. We introduce ModHarness-RL, which recasts the harness as programs that are learned from data and evolve as the model trains with RL. ModHarness-RL records the interaction as structured State, a set of typed blocks, and two core components of the harness are programs over these blocks, a Compression program that assembles the accumulated history into the model's context and a Steering program that supplies guidance when behavior deviates. During RL training, candidate programs are proposed from recent trajectories, verified by execution, and replayed over past trajectories, so the harness tracks how the model's behavior shifts. We study CodeSearch in depth and further analyze ALFWorld and BIRD SQL, with models from 1.5B to 8B. The proposed Compression and Steering mechanisms improve held-out performance over the fixed-harness baseline in most settings. These results suggest that a harness for agentic RL can be learned from the task's data and evolved with the model.</summary>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-13T18:45:49Z</published>
+    <arxiv:primary_category term="cs.AI"/>
+    <author>
+      <name>Zelin He</name>
+    </author>
+    <author>
+      <name>Siyu Zhu</name>
+    </author>
+    <author>
+      <name>Jacob Helwig</name>
+    </author>
+    <author>
+      <name>Yujian Liu</name>
+    </author>
+    <author>
+      <name>Li An</name>
+    </author>
+    <author>
+      <name>Rohit Jain</name>
+    </author>
+    <author>
+      <name>Shiyu Chang</name>
+    </author>
+    <author>
+      <name>Alborz Geramifard</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.18531v1</id>
+    <title>Alignment by Socialization: Learning Tradeoffs Under Selection</title>
+    <updated>2026-11-13T18:43:24Z</updated>
+    <link href="https://arxiv.org/abs/2611.18531v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.18531v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Artificial intelligence (AI) agents are expected to complete tasks while following rules of conduct, but these objectives can conflict. We study how evolutionary selection shapes an agent's choices between them, and whether experience can make those choices reflect human judgments and withstand subsequent pressures. In our model, copies of an agent face a common uncertain reward state, and only those taking the rewarded action reproduce. We show that long-run growth is maximized when each action is taken as often as the environment rewards it. We compare three policies. A task-only policy thrives in a sandbox rewarding completion alone but fails when conduct matters. A fixed linear policy increasingly favors task completion as its stakes rise, even where humans never reward it. A learned policy instead converges to the tradeoffs rewarded by its environment; when humans supply the rewards, we call this socialization. Accumulated experience makes socialization harder to reverse under subsequent task-only training, although violations can arise before the prevailing disposition changes, and finite memory weakens this protection. When a single violation can end a deployment, a hard prohibition can prevent it, but a mistaken prohibition can also be costly. Experiments with small neural networks illustrate how training targets and memory shape these outcomes. Our results suggest that alignment depends not only on the objectives assigned to agents, but also on the environments that shape and sustain their behavior.</summary>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="q-bio.PE" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="q-fin.GN" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-13T18:43:24Z</published>
+    <arxiv:primary_category term="cs.AI"/>
+    <author>
+      <name>Thomas Brennan</name>
+    </author>
+    <author>
+      <name>Andrew W. Lo</name>
+    </author>
+    <author>
+      <name>Chaoyi Zhao</name>
+    </author>
+  </entry>
+  
+</feed>

@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"
+	xmlns:content="http://purl.org/rss/1.0/modules/content/"
+	xmlns:wfw="http://wellformedweb.org/CommentAPI/"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:atom="http://www.w3.org/2005/Atom"
+	xmlns:sy="http://purl.org/rss/1.0/modules/syndication/"
+	xmlns:slash="http://purl.org/rss/1.0/modules/slash/"
+	xmlns:media="http://search.yahoo.com/mrss/"
+		>
+
+<channel>
+	<title>Blog &#8211; Hackaday</title>
+	<atom:link href="https://hackaday.com/blog/feed/" rel="self" type="application/rss+xml" />
+	<link>https://hackaday.com</link>
+	<description>Fresh hacks every day</description>
+	<lastBuildDate>Mon, 16 Nov 2026 15:05:57 +0000</lastBuildDate>
+	<language>en-US</language>
+	<sy:updatePeriod>
+	hourly	</sy:updatePeriod>
+	<sy:updateFrequency>
+	1	</sy:updateFrequency>
+	<generator>https://wordpress.org/?v=7.1.4</generator>
+<site xmlns="com-wordpress:feed-additions:1">156670177</site>	<item>
+		<title>On-Demand Development Boards With Remote Access Methods</title>
+		<link>https://hackaday.com/2026/11/16/on-demand-development-boards-with-remote-access-methods/</link>
+					<comments>https://hackaday.com/2026/11/16/on-demand-development-boards-with-remote-access-methods/#respond</comments>
+		
+		<dc:creator><![CDATA[Maya Posch]]></dc:creator>
+		<pubDate>Mon, 16 Nov 2026 15:00:56 +0000</pubDate>
+				<category><![CDATA[Featured]]></category>
+		<category><![CDATA[Skills]]></category>
+		<category><![CDATA[Software Development]]></category>
+		<category><![CDATA[debugger]]></category>
+		<category><![CDATA[remote debugging]]></category>
+		<guid isPermaLink="false">https://hackaday.com/?p=902793</guid>
+
+					<description><![CDATA[<div><img width="800" height="484" src="https://hackaday.com/wp-content/uploads/2020/11/Debugging-1.jpg?w=800" class="attachment-large size-large wp-post-image" alt="" style="margin: 0 auto; margin-bottom: 15px;" decoding="async" fetchpriority="high" srcset="https://hackaday.com/wp-content/uploads/2020/11/Debugging-1.jpg 3000w, https://hackaday.com/wp-content/uploads/2020/11/Debugging-1.jpg?resize=250,151 250w, https://hackaday.com/wp-content/uploads/2020/11/Debugging-1.jpg?resize=400,242 400w, https://hackaday.com/wp-content/uploads/2020/11/Debugging-1.jpg?resize=800,484 800w, https://hackaday.com/wp-content/uploads/2020/11/Debugging-1.jpg?resize=1536,929 1536w, https://hackaday.com/wp-content/uploads/2020/11/Debugging-1.jpg?resize=2048,1239 2048w" sizes="(max-width: 800px) 100vw, 800px" data-attachment-id="445528" data-permalink="https://hackaday.com/2020/11/06/local-and-remote-debugging-with-gdb/debugging-3/" data-orig-file="https://hackaday.com/wp-content/uploads/2020/11/Debugging-1.jpg" data-orig-size="3000,1815" data-comments-opened="1" data-image-title="Debugging" data-image-description="" data-image-caption="&lt;p&gt;Art by Joe Kim on a Maya Posch article about GNU Debugger: https://hackaday.com/2020/11/06/local-and-remote-debugging-with-gdb/&lt;/p&gt;
+" data-large-file="https://hackaday.com/wp-content/uploads/2020/11/Debugging-1.jpg?w=800" /></div>In an increasingly digitally connected connected world, it can be easy to forget sometimes how much work still relies on specific pieces of hardware, especially in the field of hardware <a href="https://hackaday.com/2026/11/16/on-demand-development-boards-with-remote-access-methods/" class="read-more">&#8230;read more</a>]]></description>
+										<content:encoded><![CDATA[<div><img width="800" height="484" src="https://hackaday.com/wp-content/uploads/2020/11/Debugging-1.jpg?w=800" class="attachment-large size-large wp-post-image" alt="" style="margin: 0 auto; margin-bottom: 15px;" decoding="async" srcset="https://hackaday.com/wp-content/uploads/2020/11/Debugging-1.jpg 3000w, https://hackaday.com/wp-content/uploads/2020/11/Debugging-1.jpg?resize=250,151 250w, https://hackaday.com/wp-content/uploads/2020/11/Debugging-1.jpg?resize=400,242 400w, https://hackaday.com/wp-content/uploads/2020/11/Debugging-1.jpg?resize=800,484 800w, https://hackaday.com/wp-content/uploads/2020/11/Debugging-1.jpg?resize=1536,929 1536w, https://hackaday.com/wp-content/uploads/2020/11/Debugging-1.jpg?resize=2048,1239 2048w" sizes="(max-width: 800px) 100vw, 800px" data-attachment-id="445528" data-permalink="https://hackaday.com/2020/11/06/local-and-remote-debugging-with-gdb/debugging-3/" data-orig-file="https://hackaday.com/wp-content/uploads/2020/11/Debugging-1.jpg" data-orig-size="3000,1815" data-comments-opened="1" data-image-title="Debugging" data-image-description="" data-image-caption="&lt;p&gt;Art by Joe Kim on a Maya Posch article about GNU Debugger: https://hackaday.com/2020/11/06/local-and-remote-debugging-with-gdb/&lt;/p&gt;
+" data-large-file="https://hackaday.com/wp-content/uploads/2020/11/Debugging-1.jpg?w=800" /></div><p>In an increasingly digitally connected connected world, it can be easy to forget sometimes how much work still relies on specific pieces of hardware, especially in the field of hardware development. Regardless of whether you&#8217;re an embedded software developer who needs to run some code on a specific platform, or a hardware developer who&#8217;d really like to test out a feature in some specific IC, access to hardware is always needed.</p>
+<p>In lieu of just buying everything and awaiting delivery, what if a buddy of yours happened to have that one development board right there on their desk, yet they didn&#8217;t exactly live around the corner? Here it would be perfect if said pal could hook up a testing harness and give you access to this board via the Information Super-Highway, AKA the Internet.</p>
+<p>While remote access to server systems is fairly common, things get a lot more interesting when it comes to the wider area of development boards, and their plethora of physical features and fascinating world of errata and silicon-specific bugs. So how does one get easy access to such a remote board?</p>
+<p><span id="more-902793"></span></p>
+<h2>What&#8217;s Available</h2>
+<p>This concept of remotely using development boards is hardly a new idea, of course. Back in 2019, for example, Erich Styger <a href="https://mcuoneclipse.com/2019/03/02/remote-debugging-with-usb-based-jtag-swd-debug-probes/" target="_blank">wrote an article</a> about a method to use USB-based debug probes via the very handy <a href="https://www.man7.org/linux/man-pages/man1/gdbserver.1.html" target="_blank"><code>gdbserver</code></a> that provides a remote server for clients. GDB is the GNU Debugger that comes as part of the GCC toolchain, with the remote server component doing what it says on the tin: being able to run GDB on a different system than on which the application that is being debugged is running.</p>
+<p>With that one simple trick you can already turn any development board that is connected to a system running <code>gdbserver</code> into a remotely accessible board. Even if you balk at the idea of having an entire PC dedicated to that server task, you got projects like the <a href="https://github.com/farpatch/farpatch" target="_blank">Farpatch project</a> for ESP32 MCUs that uses the well-known Blackmagic project to create a Wi-Fi accessible <code>gdbserver</code> instance right on top of a target board&#8217;s JTAG and SWD interfaces.</p>
+<p>So that&#8217;s it then, right? Simply use any of these options involving <code>gdbserver</code> or similar, connect to it remotely from <code>gdb</code> or similar and you&#8217;re done, right? Unfortunately there are a few more questions and firewall-shaped elephants to address first here.</p>
+<h2>Flashing Time</h2>
+<p>The most pertinent question here is what happens next after your best friend in the world has just hooked up your target development board to the remote debug server with all requisite wiring in place. Unless you want to really push this friendship to its limits and have them also flash every iteration of your firmware image to the board for you, you need to be able to also handle such basic tasks.</p>
+<p>This requires a bit of digging into how exactly your typical programming method can be adapted to this <code>gdbserver</code> link. Fortunately tools like OpenOCD would seem to <a href="https://openocd.org/doc/html/GDB-and-OpenOCD.html" target="_blank">happily work</a> with the remote server&#8217;s protocol, including programming tasks, though you are welcome to erase and write the Flash using basic GDB commands too, with the Black Magic Probe documentation for example <a href="https://black-magic.org/docs/usage/gdb-automation/" target="_blank">covering some methods</a>.</p>
+<p>Using a tool that automates as much of this as possible does make a lot of sense, of course. If your IDE of choice already integrates remote GDB and OpenOCD support, then it should be fairly straightforward. Otherwise you may have to get down into the weeds with fun OpenOCD server <a href="https://openocd.org/doc/html/Server-Configuration.html" target="_blank">configuration settings</a>, specifically GDB <code>flash_program</code> support.</p>
+<p>Overall this doesn&#8217;t seem to be a very hard problem once you have figured out a configuration that works for your project.</p>
+<h2>Safe Remote Access</h2>
+<p>Perhaps the most annoying part about using remote development boards is when you venture outside the bounds of a LAN, and there&#8217;s no preexisting virtual LAN (VLAN) or port-forwarding setup already in place. In the Segger J-Link-based article by Eric Styger <a href="https://mcuoneclipse.com/2017/02/05/remote-board-debugging-j-link-remote-server-with-eclipse/" target="_blank">on this particular issue</a> this is solved by using the <a href="https://www.segger.com/products/debug-probes/j-link/tools/j-link-remote-server/" target="_blank">J-Link Remote Server</a> service. This uses tunneling via their server to connect to both users on different networks via the internet.</p>
+<p><img decoding="async" data-attachment-id="1397990" data-permalink="https://hackaday.com/2026/11/16/on-demand-development-boards-with-remote-access-methods/openvpn_logo/" data-orig-file="https://hackaday.com/wp-content/uploads/2026/07/openvpn_logo.png" data-orig-size="1920,683" data-comments-opened="1" data-image-title="openvpn_logo" data-image-description="" data-image-caption="" data-large-file="https://hackaday.com/wp-content/uploads/2026/07/openvpn_logo.png?w=800" class="size-medium wp-image-1397990 alignright" src="https://hackaday.com/wp-content/uploads/2026/07/openvpn_logo.png?w=400" alt="" width="400" height="142" srcset="https://hackaday.com/wp-content/uploads/2026/07/openvpn_logo.png 1920w, https://hackaday.com/wp-content/uploads/2026/07/openvpn_logo.png?resize=250,89 250w, https://hackaday.com/wp-content/uploads/2026/07/openvpn_logo.png?resize=400,142 400w, https://hackaday.com/wp-content/uploads/2026/07/openvpn_logo.png?resize=800,285 800w, https://hackaday.com/wp-content/uploads/2026/07/openvpn_logo.png?resize=1536,546 1536w" sizes="(max-width: 400px) 100vw, 400px" /></p>
+<p>This option is only available for J-Link customers, of course, but it provides one example of how to safely provide such remote access, featuring password protection and point-to-point connections.</p>
+<p>Although you can technically still do a general port-forwarding on a router as well, this has become increasingly less convenient in an era of carrier-grade NAT (CG-NAT) nuking IPv4 from orbit, not to mention the potential security concerns of having something like a server process directly exposed to the worst that the modern Internet has to offer in terms of exploits. Here using something like <a href="https://en.wikipedia.org/wiki/OpenVPN" target="_blank">OpenVPN</a> to set up a virtual private network (VPN) that can be secured with passwords as well as self-signed certificates.</p>
+<p>While so far I have not had to set up such a remote GDB server solution yet, I have used such VPN solutions in commercial settings to access corporate LANs securely, so this might be the easiest solution here. Even if not as refined as the direct-to-IDE solution of the J-Link service, it might be a good start, especially if you can set up a separate virtual LAN (VLAN) for remote-dev-board VPN connections or so.</p>
+<p>Feel free to sound off in the comments on what solution would be most preferable to you here.</p>
+<h2>Remote Boards Limitations</h2>
+<p>As useful as such a cobbled-together solution would be, it does of course still have some limitations. The most pertinent is of course the lack of direct physical access to the board you&#8217;re using. This means that someone or something on the remote side has to manage wiring up the board, debugging wiring and magic smoke issues, and generally monitor the physical hardware.</p>
+<p>For basic GDB usage such remote access should generally be fine, but if you need to get an oscilloscope on some DAC pins, or attach any other external hardware, this would again have to lean heavily into how good your friendship with this remote friend is.</p>
+<p>Having a remote webcam to monitor LEDs, displays and other board elements is something that can be added fairly easily, but in lieu of having a robotic arm near the remote board much of what you&#8217;ll be able to do is just watch and interact via the <code>gdbserver</code> instance that&#8217;s your main link with the hardware.</p>
+<h2>Real Life Experiences</h2>
+<p>Looking at a couple of projects, documentation and articles on a subject is one thing, of course. The real question is whether you, our esteemed reader, have experiences with such a remote development board setup, or happen to know people who do.</p>
+<p>If so, what kind of setup does this use, and what are the overall experiences? Does it at all match the (mostly) theory and assumptions that one would reach after doing that deep-dive into the cited references, or is there a much better way to go about all this?</p>
+<p>I can imagine that at least some hardware and firmware developers out there really do not feel like driving over to the office on those rare work-from-home days &#8211; never mind to put out a fire during a vacation &#8211; when you can just tippity-tap into a remote debug session and resolve in minutes what would otherwise ruin the day. As a luxury that&#8217;s mostly reserved to us software developers, I would love to see this extended to our hardware developer friends.</p>
+]]></content:encoded>
+					
+					<wfw:commentRss>https://hackaday.com/2026/11/16/on-demand-development-boards-with-remote-access-methods/feed/</wfw:commentRss>
+			<slash:comments>0</slash:comments>
+		
+		
+		<post-id xmlns="com-wordpress:feed-additions:1">902793</post-id>
+		<media:thumbnail url="https://hackaday.com/wp-content/uploads/2020/11/Debugging-1.jpg" />
+		<media:content url="https://hackaday.com/wp-content/uploads/2020/11/Debugging-1.jpg" medium="image">
+			<media:title type="html">Debugging</media:title>
+		</media:content>
+
+		<media:content url="https://hackaday.com/wp-content/uploads/2026/07/openvpn_logo.png?w=400" medium="image" />
+	</item>
+		<item>
+		<title>ESP32 WIFI Jam Detector Finds the Raspberry</title>
+		<link>https://hackaday.com/2026/11/16/esp32-wifi-jam-detector-finds-the-raspberry/</link>
+					<comments>https://hackaday.com/2026/11/16/esp32-wifi-jam-detector-finds-the-raspberry/#respond</comments>
+		
+		<dc:creator><![CDATA[Adam Fabio]]></dc:creator>
+		<pubDate>Mon, 16 Nov 2026 12:00:47 +0000</pubDate>
+				<category><![CDATA[Microcontrollers]]></category>
+		<category><![CDATA[Wireless Hacks]]></category>
+		<category><![CDATA[ESP32]]></category>
+		<category><![CDATA[jammer]]></category>
+		<category><![CDATA[sdr]]></category>
+		<category><![CDATA[wifi]]></category>
+		<guid isPermaLink="false">https://hackaday.com/?p=1427995</guid>
+
+					<description><![CDATA[<div><img width="800" height="452" src="https://hackaday.com/wp-content/uploads/2026/11/wifi-jam.png?w=800" class="attachment-large size-large wp-post-image" alt="" style="margin: 0 auto; margin-bottom: 15px;" decoding="async" loading="lazy" srcset="https://hackaday.com/wp-content/uploads/2026/11/wifi-jam.png 1791w, https://hackaday.com/wp-content/uploads/2026/11/wifi-jam.png?resize=250,141 250w, https://hackaday.com/wp-content/uploads/2026/11/wifi-jam.png?resize=400,226 400w, https://hackaday.com/wp-content/uploads/2026/11/wifi-jam.png?resize=800,452 800w, https://hackaday.com/wp-content/uploads/2026/11/wifi-jam.png?resize=1536,868 1536w" sizes="auto, (max-width: 800px) 100vw, 800px" data-attachment-id="1428207" data-permalink="https://hackaday.com/2026/11/16/esp32-wifi-jam-detector-finds-the-raspberry/wifi-jam/" data-orig-file="https://hackaday.com/wp-content/uploads/2026/11/wifi-jam.png" data-orig-size="1791,1012" data-comments-opened="1" data-image-title="wifi-jam" data-image-description="" data-image-caption="" data-large-file="https://hackaday.com/wp-content/uploads/2026/11/wifi-jam.png?w=800" /></div>We&#8217;ve seen plenty of ESP32 WiFi projects that test wifi systems with attacks such as Deauth, and even jamming. Today&#8217;s project is a bit different. [TheDigital1] created an ESP32 project <a href="https://hackaday.com/2026/11/16/esp32-wifi-jam-detector-finds-the-raspberry/" class="read-more">&#8230;read more</a>]]></description>
+										<content:encoded><![CDATA[<div><img width="800" height="452" src="https://hackaday.com/wp-content/uploads/2026/11/wifi-jam.png?w=800" class="attachment-large size-large wp-post-image" alt="" style="margin: 0 auto; margin-bottom: 15px;" decoding="async" loading="lazy" srcset="https://hackaday.com/wp-content/uploads/2026/11/wifi-jam.png 1791w, https://hackaday.com/wp-content/uploads/2026/11/wifi-jam.png?resize=250,141 250w, https://hackaday.com/wp-content/uploads/2026/11/wifi-jam.png?resize=400,226 400w, https://hackaday.com/wp-content/uploads/2026/11/wifi-jam.png?resize=800,452 800w, https://hackaday.com/wp-content/uploads/2026/11/wifi-jam.png?resize=1536,868 1536w" sizes="auto, (max-width: 800px) 100vw, 800px" data-attachment-id="1428207" data-permalink="https://hackaday.com/2026/11/16/esp32-wifi-jam-detector-finds-the-raspberry/wifi-jam/" data-orig-file="https://hackaday.com/wp-content/uploads/2026/11/wifi-jam.png" data-orig-size="1791,1012" data-comments-opened="1" data-image-title="wifi-jam" data-image-description="" data-image-caption="" data-large-file="https://hackaday.com/wp-content/uploads/2026/11/wifi-jam.png?w=800" /></div><p>We&#8217;ve seen plenty of ESP32 WiFi projects that test wifi systems with attacks such as Deauth, and even jamming. Today&#8217;s project is a bit different. [TheDigital1] created an ESP32 project that uses<a href="https://github.com/TheDigital1/ESP-WiFi-Jam-Detector" target="_blank"> SDR to detect interference in the WiFi bands</a>.  The detector builds on the popular <a href="https://github.com/ESPARGOS/esp-sdr" target="_blank" rel="noopener" target="_blank">ESPARGOS ESP-SDR</a> project that we <a href="https://hackaday.com/2026/10/03/the-esp32-an-sdr-in-itself/">have previously featured</a>, to scan for any interference. The hardware is based on an ESP32-C5, so it covers both the 2.4GHz and 5GHz bands. [TheDigital1] used a Waveshare ESP32-C5-Touch-LCD-3.5, but since the project is open source, you should be able to port it to other devices.</p>
+<p>The system doesn&#8217;t just detect noise. It can categorize the interference into four types: wideband, narrowband, pulsed wideband, and frequency-swept. [TheDigital1] notes that while the system can detect interference, it can&#8217;t detect intent, so it&#8217;s up to the user to determine if they have a leaky microwave or hackers trying to shut down their WiFi.</p>
+<p>The system works great as a portable standalone device. In fact, the interface is pretty slick. Connecting it to a PC via USB opens up even more features. It can be used with Home Assistant as a WiFi Jammer detector. It can even detect if a room is occupied by sensing the noise floor increase from humans moving around.</p>
+<p>With all these new ESP32 SDR projects coming up, we can&#8217;t wait to see what&#8217;s next!</p>
+]]></content:encoded>
+					
+					<wfw:commentRss>https://hackaday.com/2026/11/16/esp32-wifi-jam-detector-finds-the-raspberry/feed/</wfw:commentRss>
+			<slash:comments>0</slash:comments>
+		
+		
+		<post-id xmlns="com-wordpress:feed-additions:1">1427995</post-id>
+		<media:thumbnail url="https://hackaday.com/wp-content/uploads/2026/11/wifi-jam.png" />
+		<media:content url="https://hackaday.com/wp-content/uploads/2026/11/wifi-jam.png" medium="image">
+			<media:title type="html">wifi-jam</media:title>
+		</media:content>
+	</item>
+		<item>
+		<title>Follow The Grid With An Arduino Uno</title>
+		<link>https://hackaday.com/2026/11/16/follow-the-grid-with-an-arduino-uno/</link>
+					<comments>https://hackaday.com/2026/11/16/follow-the-grid-with-an-arduino-uno/#comments</comments>
+		
+		<dc:creator><![CDATA[Jenny List]]></dc:creator>
+		<pubDate>Mon, 16 Nov 2026 09:00:13 +0000</pubDate>
+				<category><![CDATA[home hacks]]></category>
+		<category><![CDATA[Microcontrollers]]></category>
+		<category><![CDATA[50Hz]]></category>
+		<category><![CDATA[AC power]]></category>
+		<category><![CDATA[power]]></category>
+		<category><![CDATA[power grid]]></category>
+		<guid isPermaLink="false">https://hackaday.com/?p=1428144</guid>
+
+					<description><![CDATA[<div><img width="800" height="450" src="https://hackaday.com/wp-content/uploads/2026/11/grid-monitor-featured.jpg?w=800" class="attachment-large size-large wp-post-image" alt="" style="margin: 0 auto; margin-bottom: 15px;" decoding="async" loading="lazy" srcset="https://hackaday.com/wp-content/uploads/2026/11/grid-monitor-featured.jpg 800w, https://hackaday.com/wp-content/uploads/2026/11/grid-monitor-featured.jpg?resize=250,141 250w, https://hackaday.com/wp-content/uploads/2026/11/grid-monitor-featured.jpg?resize=400,225 400w" sizes="auto, (max-width: 800px) 100vw, 800px" data-attachment-id="1428178" data-permalink="https://hackaday.com/2026/11/16/follow-the-grid-with-an-arduino-uno/grid-monitor-featured/" data-orig-file="https://hackaday.com/wp-content/uploads/2026/11/grid-monitor-featured.jpg" data-orig-size="800,450" data-comments-opened="1" data-image-title="grid-monitor-featured" data-image-description="" data-image-caption="" data-large-file="https://hackaday.com/wp-content/uploads/2026/11/grid-monitor-featured.jpg?w=800" /></div>We all know the frequency of our AC grid. 60Hz for Americans, or 50Hz for Europeans, for example.  But the real story has some complexity. In a plural but interconnected <a href="https://hackaday.com/2026/11/16/follow-the-grid-with-an-arduino-uno/" class="read-more">&#8230;read more</a>]]></description>
+										<content:encoded><![CDATA[<div><img width="800" height="450" src="https://hackaday.com/wp-content/uploads/2026/11/grid-monitor-featured.jpg?w=800" class="attachment-large size-large wp-post-image" alt="" style="margin: 0 auto; margin-bottom: 15px;" decoding="async" loading="lazy" srcset="https://hackaday.com/wp-content/uploads/2026/11/grid-monitor-featured.jpg 800w, https://hackaday.com/wp-content/uploads/2026/11/grid-monitor-featured.jpg?resize=250,141 250w, https://hackaday.com/wp-content/uploads/2026/11/grid-monitor-featured.jpg?resize=400,225 400w" sizes="auto, (max-width: 800px) 100vw, 800px" data-attachment-id="1428178" data-permalink="https://hackaday.com/2026/11/16/follow-the-grid-with-an-arduino-uno/grid-monitor-featured/" data-orig-file="https://hackaday.com/wp-content/uploads/2026/11/grid-monitor-featured.jpg" data-orig-size="800,450" data-comments-opened="1" data-image-title="grid-monitor-featured" data-image-description="" data-image-caption="" data-large-file="https://hackaday.com/wp-content/uploads/2026/11/grid-monitor-featured.jpg?w=800" /></div><p>We all know the frequency of our AC grid. 60Hz for Americans, or 50Hz for Europeans, for example.  But the real story has some complexity. In a plural but interconnected grid such as Europe&#8217;s, that frequency can drift around a nominal center value. To keep track of this, [Jeroen Brinkman] <a href="https://hackaday.io/project/207352-grid-stability-monitor" target="_blank">has created a grid monitor</a> that can show long-term trends as well as instantaneous frequencies.</p>
+<p>Hardware-wise, it&#8217;s somewhat old-school, with an Arduino Uno and a ubiquitous 2&#215;16 character LCD, but the interest here lies not in the microcontroller. Sensing mains frequency is fraught with spicy high-voltage danger if done directly, so [Jeroen] is performing the task using an optocoupler that toggles an interrupt pin on the Arduino. The monitor stores long-term data by the week, using only four bytes per week. That means the monitor can hold up to 240 weeks, or about 4.6 years, on a Nano R3 and over 2,000 weeks, or around 39 years on a Nano R4. The data can be retrieved via serial transfer over the Arduino&#8217;s USB port.</p>
+<p>The subject of grid monitoring is a fascinating one, as geopolitical events can show up in it. <a href="https://hackaday.com/2018/03/09/europe-loses-six-minutes-due-to-sagging-frequency-and-international-politics/">Back in 2018, we covered the moment when Europe lost six seconds as a result</a>.</p>
+]]></content:encoded>
+					
+					<wfw:commentRss>https://hackaday.com/2026/11/16/follow-the-grid-with-an-arduino-uno/feed/</wfw:commentRss>
+			<slash:comments>13</slash:comments>
+		
+		
+		<post-id xmlns="com-wordpress:feed-additions:1">1428144</post-id>
+		<media:thumbnail url="https://hackaday.com/wp-content/uploads/2026/11/grid-monitor-featured.jpg" />
+		<media:content url="https://hackaday.com/wp-content/uploads/2026/11/grid-monitor-featured.jpg" medium="image">
+			<media:title type="html">grid-monitor-featured</media:title>
+		</media:content>
+	</item>
+		<item>
+		<title>It&#8217;s A NAS, For Sony Mavica Disks</title>
+		<link>https://hackaday.com/2026/11/15/its-a-nas-for-sony-mavica-disks/</link>
+					<comments>https://hackaday.com/2026/11/15/its-a-nas-for-sony-mavica-disks/#comments</comments>
+		
+		<dc:creator><![CDATA[Jenny List]]></dc:creator>
+		<pubDate>Mon, 16 Nov 2026 06:00:27 +0000</pubDate>
+				<category><![CDATA[digital cameras hacks]]></category>
+		<category><![CDATA[Retrocomputing]]></category>
+		<category><![CDATA[floppy]]></category>
+		<category><![CDATA[greaseweazle]]></category>
+		<category><![CDATA[mavica]]></category>
+		<guid isPermaLink="false">https://hackaday.com/?p=1428113</guid>
+
+					<description><![CDATA[<div><img width="800" height="450" src="https://hackaday.com/wp-content/uploads/2026/11/mavica-nas-featured.jpg?w=800" class="attachment-large size-large wp-post-image" alt="" style="margin: 0 auto; margin-bottom: 15px;" decoding="async" loading="lazy" srcset="https://hackaday.com/wp-content/uploads/2026/11/mavica-nas-featured.jpg 800w, https://hackaday.com/wp-content/uploads/2026/11/mavica-nas-featured.jpg?resize=250,141 250w, https://hackaday.com/wp-content/uploads/2026/11/mavica-nas-featured.jpg?resize=400,225 400w" sizes="auto, (max-width: 800px) 100vw, 800px" data-attachment-id="1428127" data-permalink="https://hackaday.com/2026/11/15/its-a-nas-for-sony-mavica-disks/mavica-nas-featured/" data-orig-file="https://hackaday.com/wp-content/uploads/2026/11/mavica-nas-featured.jpg" data-orig-size="800,450" data-comments-opened="1" data-image-title="mavica-nas-featured" data-image-description="" data-image-caption="" data-large-file="https://hackaday.com/wp-content/uploads/2026/11/mavica-nas-featured.jpg?w=800" /></div>At the dawn of the consumer digital camera age, manufacturers tested this new market with a wide array of interesting and unorthodox designs. This era only lasted a few years <a href="https://hackaday.com/2026/11/15/its-a-nas-for-sony-mavica-disks/" class="read-more">&#8230;read more</a>]]></description>
+										<content:encoded><![CDATA[<div><img width="800" height="450" src="https://hackaday.com/wp-content/uploads/2026/11/mavica-nas-featured.jpg?w=800" class="attachment-large size-large wp-post-image" alt="" style="margin: 0 auto; margin-bottom: 15px;" decoding="async" loading="lazy" srcset="https://hackaday.com/wp-content/uploads/2026/11/mavica-nas-featured.jpg 800w, https://hackaday.com/wp-content/uploads/2026/11/mavica-nas-featured.jpg?resize=250,141 250w, https://hackaday.com/wp-content/uploads/2026/11/mavica-nas-featured.jpg?resize=400,225 400w" sizes="auto, (max-width: 800px) 100vw, 800px" data-attachment-id="1428127" data-permalink="https://hackaday.com/2026/11/15/its-a-nas-for-sony-mavica-disks/mavica-nas-featured/" data-orig-file="https://hackaday.com/wp-content/uploads/2026/11/mavica-nas-featured.jpg" data-orig-size="800,450" data-comments-opened="1" data-image-title="mavica-nas-featured" data-image-description="" data-image-caption="" data-large-file="https://hackaday.com/wp-content/uploads/2026/11/mavica-nas-featured.jpg?w=800" /></div><p>At the dawn of the consumer digital camera age, manufacturers tested this new market with a wide array of interesting and unorthodox designs. This era only lasted a few years before they moved toward making models that resembled the 35mm cameras the consumers were used to. Sony&#8217;s Mavica offerings were particularly unusual, because they eschewed Flash storage for the then-ubiquitous 3.5&#8243; floppy disk. Where there are files, there might be a need to share them, so [Bigcrimping] has created floppy3.5. <a href="https://github.com/bigcrimping/floppy3.5" target="_blank">It&#8217;s a NAS for digital Mavica disks</a>.</p>
+<p><span id="more-1428113"></span></p>
+<p>Inside, along with the floppy drive, is an interesting dual-processor architecture. An RP2354 runs a Greaseweazle port and reads the floppy drive, to the extent that it can operate as a standalone Greaseweazle device through its USB port. An ESP32-S3 is hooked into the RP2354 via SPI and performs the tasks of decoding the raw floppy data, copying the resulting files to an SD card, and sharing the images over a web interface. There&#8217;s also a pleasingly retro display intended to look like a Walkman display of the same era.</p>
+<p>This is an interesting project, both for Mavica owners for whom it&#8217;s very cool indeed, and as a portable Greaseweazle peripheral in its own right. More than once, we&#8217;ve had a random old floppy for which this appliance would have been a huge time saver. As we said earlier this year, <a href="https://hackaday.com/2026/07/07/its-now-imperative-that-you-copy-that-floppy/">it&#8217;s now imperative that you copy that floppy!</a></p>
+]]></content:encoded>
+					
+					<wfw:commentRss>https://hackaday.com/2026/11/15/its-a-nas-for-sony-mavica-disks/feed/</wfw:commentRss>
+			<slash:comments>6</slash:comments>
+		
+		
+		<post-id xmlns="com-wordpress:feed-additions:1">1428113</post-id>
+		<media:thumbnail url="https://hackaday.com/wp-content/uploads/2026/11/mavica-nas-featured.jpg" />
+		<media:content url="https://hackaday.com/wp-content/uploads/2026/11/mavica-nas-featured.jpg" medium="image">
+			<media:title type="html">mavica-nas-featured</media:title>
+		</media:content>
+	</item>
+		<item>
+		<title>VapourDeck is the 486 Handheld You Didn&#8217;t Know You Needed</title>
+		<link>https://hackaday.com/2026/11/15/vapourdeck-is-the-486-handheld-you-didnt-know-you-needed/</link>
+					<comments>https://hackaday.com/2026/11/15/vapourdeck-is-the-486-handheld-you-didnt-know-you-needed/#comments</comments>
+		
+		<dc:creator><![CDATA[Tyler August]]></dc:creator>
+		<pubDate>Mon, 16 Nov 2026 03:00:56 +0000</pubDate>
+				<category><![CDATA[FPGA]]></category>
+		<category><![CDATA[handhelds hacks]]></category>
+		<category><![CDATA[486]]></category>
+		<category><![CDATA[custom SBC]]></category>
+		<category><![CDATA[DiyHandheld]]></category>
+		<guid isPermaLink="false">https://hackaday.com/?p=1428139</guid>
+
+					<description><![CDATA[<div><img width="800" height="600" src="https://hackaday.com/wp-content/uploads/2026/11/vapourdeck1.jpeg?w=800" class="attachment-large size-large wp-post-image" alt="" style="margin: 0 auto; margin-bottom: 15px;" decoding="async" loading="lazy" srcset="https://hackaday.com/wp-content/uploads/2026/11/vapourdeck1.jpeg 4032w, https://hackaday.com/wp-content/uploads/2026/11/vapourdeck1.jpeg?resize=250,188 250w, https://hackaday.com/wp-content/uploads/2026/11/vapourdeck1.jpeg?resize=400,300 400w, https://hackaday.com/wp-content/uploads/2026/11/vapourdeck1.jpeg?resize=800,600 800w, https://hackaday.com/wp-content/uploads/2026/11/vapourdeck1.jpeg?resize=1536,1152 1536w, https://hackaday.com/wp-content/uploads/2026/11/vapourdeck1.jpeg?resize=2048,1536 2048w" sizes="auto, (max-width: 800px) 100vw, 800px" data-attachment-id="1428140" data-permalink="https://hackaday.com/2026/11/15/vapourdeck-is-the-486-handheld-you-didnt-know-you-needed/vapourdeck1/" data-orig-file="https://hackaday.com/wp-content/uploads/2026/11/vapourdeck1.jpeg" data-orig-size="4032,3024" data-comments-opened="1" data-image-title="vapourdeck1" data-image-description="" data-image-caption="" data-large-file="https://hackaday.com/wp-content/uploads/2026/11/vapourdeck1.jpeg?w=800" /></div>Do you need a 486-based handheld computer for DOS games? Well, we didn&#8217;t think so either &#8212; until we saw [Sprite_tm]&#8217;s impressive and excellently documented VapourDeck homebrew handheld PC. Now <a href="https://hackaday.com/2026/11/15/vapourdeck-is-the-486-handheld-you-didnt-know-you-needed/" class="read-more">&#8230;read more</a>]]></description>
+										<content:encoded><![CDATA[<div><img width="800" height="600" src="https://hackaday.com/wp-content/uploads/2026/11/vapourdeck1.jpeg?w=800" class="attachment-large size-large wp-post-image" alt="" style="margin: 0 auto; margin-bottom: 15px;" decoding="async" loading="lazy" srcset="https://hackaday.com/wp-content/uploads/2026/11/vapourdeck1.jpeg 4032w, https://hackaday.com/wp-content/uploads/2026/11/vapourdeck1.jpeg?resize=250,188 250w, https://hackaday.com/wp-content/uploads/2026/11/vapourdeck1.jpeg?resize=400,300 400w, https://hackaday.com/wp-content/uploads/2026/11/vapourdeck1.jpeg?resize=800,600 800w, https://hackaday.com/wp-content/uploads/2026/11/vapourdeck1.jpeg?resize=1536,1152 1536w, https://hackaday.com/wp-content/uploads/2026/11/vapourdeck1.jpeg?resize=2048,1536 2048w" sizes="auto, (max-width: 800px) 100vw, 800px" data-attachment-id="1428140" data-permalink="https://hackaday.com/2026/11/15/vapourdeck-is-the-486-handheld-you-didnt-know-you-needed/vapourdeck1/" data-orig-file="https://hackaday.com/wp-content/uploads/2026/11/vapourdeck1.jpeg" data-orig-size="4032,3024" data-comments-opened="1" data-image-title="vapourdeck1" data-image-description="" data-image-caption="" data-large-file="https://hackaday.com/wp-content/uploads/2026/11/vapourdeck1.jpeg?w=800" /></div><p>Do you need a 486-based handheld computer for DOS games? Well, we didn&#8217;t think so either &#8212; until we saw [Sprite_tm]&#8217;s impressive and excellently documented <a href="https://spritesmods.com/?art=vapourdeck" target="_blank">VapourDeck homebrew handheld PC.</a> Now we want one for Christmas and to be [Sprite_tm] when we grow up.</p>
+<p>There exist industrial single-board computers designed around the Intel 486, and you&#8217;d be forgiven for thinking that&#8217;s what lives inside this build&#8211; but no. [Sprite_tm] was tired of thinking of a motherboard as &#8220;deep magic&#8221; and decided it was high time he designed his own. He chose the 486 because Intel actually let mere mortals at the documentation in those days, and it would let him play all his favourite DOS games on the fly. The board contains a period-appropriate VGA chip &#8212; complete with whopping 1MB of VRAM!&#8211; though most of the glue logic, I/Om and sound are on a modern FPGA and ESP32-S3, respectively. <a href="https://hackaday.com/wp-content/uploads/2026/11/VapourDeckSBClabels.jpeg"><img loading="lazy" decoding="async" data-attachment-id="1428141" data-permalink="https://hackaday.com/2026/11/15/vapourdeck-is-the-486-handheld-you-didnt-know-you-needed/vapourdecksbclabels/" data-orig-file="https://hackaday.com/wp-content/uploads/2026/11/VapourDeckSBClabels.jpeg" data-orig-size="2706,2033" data-comments-opened="1" data-image-title="VapourDeckSBClabels" data-image-description="" data-image-caption="" data-large-file="https://hackaday.com/wp-content/uploads/2026/11/VapourDeckSBClabels.jpeg?w=800" class="alignright size-thumbnail wp-image-1428141" src="https://hackaday.com/wp-content/uploads/2026/11/VapourDeckSBClabels.jpeg?w=250" alt="An image of the custom 486 SBC with the main components labelled" width="250" height="188" srcset="https://hackaday.com/wp-content/uploads/2026/11/VapourDeckSBClabels.jpeg 2706w, https://hackaday.com/wp-content/uploads/2026/11/VapourDeckSBClabels.jpeg?resize=250,188 250w, https://hackaday.com/wp-content/uploads/2026/11/VapourDeckSBClabels.jpeg?resize=400,301 400w, https://hackaday.com/wp-content/uploads/2026/11/VapourDeckSBClabels.jpeg?resize=800,601 800w, https://hackaday.com/wp-content/uploads/2026/11/VapourDeckSBClabels.jpeg?resize=1536,1154 1536w, https://hackaday.com/wp-content/uploads/2026/11/VapourDeckSBClabels.jpeg?resize=2048,1539 2048w" sizes="auto, (max-width: 250px) 100vw, 250px" /></a></p>
+<p>The writeup gives a good idea of the thinking behind this machine, but if you want to build one yourself, you can get all the <a href="https://codeberg.org/Sprite_tm/vapourdeck" target="_blank">files on Codeburg</a>, because [Sprite_tm] was kind enough to open-source his work even if he&#8217;s not sure anyone else would want to replicate it.</p>
+<p>We&#8217;ve seen a lot of [Sprite_tm]&#8217;s work on Hackaday over the years, including a portable Vectrex <a href="https://hackaday.com/2024/10/24/supercon-2023-building-a-portable-vectrex-the-right-way/">he walked us through at Supercon one year.</a></p>
+<p>Thanks to [Vital] for the tip!</p>
+]]></content:encoded>
+					
+					<wfw:commentRss>https://hackaday.com/2026/11/15/vapourdeck-is-the-486-handheld-you-didnt-know-you-needed/feed/</wfw:commentRss>
+			<slash:comments>9</slash:comments>
+		
+		
+		<post-id xmlns="com-wordpress:feed-additions:1">1428139</post-id>
+		<media:thumbnail url="https://hackaday.com/wp-content/uploads/2026/11/vapourdeck1.jpeg" />
+		<media:content url="https://hackaday.com/wp-content/uploads/2026/11/vapourdeck1.jpeg" medium="image">
+			<media:title type="html">vapourdeck1</media:title>
+		</media:content>
+
+		<media:content url="https://hackaday.com/wp-content/uploads/2026/11/VapourDeckSBClabels.jpeg?w=250" medium="image">
+			<media:title type="html">An image of the custom 486 SBC with the main components labelled</media:title>
+		</media:content>
+	</item>
+		<item>
+		<title>Hackaday Links: November 15, 2026</title>
+		<link>https://hackaday.com/2026/11/15/hackaday-links-november-15-2026/</link>
+					<comments>https://hackaday.com/2026/11/15/hackaday-links-november-15-2026/#comments</comments>
+		
+		<dc:creator><![CDATA[Al Williams]]></dc:creator>
+		<pubDate>Mon, 16 Nov 2026 00:00:27 +0000</pubDate>
+				<category><![CDATA[Hackaday Columns]]></category>
+		<category><![CDATA[Hackaday links]]></category>
+		<category><![CDATA[Slider]]></category>
+		<category><![CDATA[2026 Hackaday Supercon]]></category>
+		<category><![CDATA[2026 Hackaday Superconference]]></category>
+		<category><![CDATA[3D image]]></category>
+		<category><![CDATA[algae]]></category>
+		<category><![CDATA[astronomy]]></category>
+		<category><![CDATA[biology]]></category>
+		<category><![CDATA[hackaday links]]></category>
+		<category><![CDATA[SpaceX]]></category>
+		<guid isPermaLink="false">https://hackaday.com/?p=1428100&#038;preview=true&#038;preview_id=1428100</guid>
+
+					<description><![CDATA[<div><img width="800" height="430" src="https://hackaday.com/wp-content/uploads/2014/11/had-links-banner.jpg?w=800" class="attachment-large size-large wp-post-image" alt="Hackaday Links Column Banner" style="margin: 0 auto; margin-bottom: 15px;" decoding="async" loading="lazy" srcset="https://hackaday.com/wp-content/uploads/2014/11/had-links-banner.jpg 800w, https://hackaday.com/wp-content/uploads/2014/11/had-links-banner.jpg?resize=250,134 250w, https://hackaday.com/wp-content/uploads/2014/11/had-links-banner.jpg?resize=400,215 400w" sizes="auto, (max-width: 800px) 100vw, 800px" data-attachment-id="137037" data-permalink="https://hackaday.com/2014/11/09/hackaday-links-november-9-2014/had-links-banner/" data-orig-file="https://hackaday.com/wp-content/uploads/2014/11/had-links-banner.jpg" data-orig-size="800,430" data-comments-opened="1" data-image-title="Hackaday Links" data-image-description="" data-image-caption="" data-large-file="https://hackaday.com/wp-content/uploads/2014/11/had-links-banner.jpg?w=800" /></div>Another Hackaday Supercon is in the history books. The new venue was amazing. We had more attendees than ever and still had room to spare. You can find many of <a href="https://hackaday.com/2026/11/15/hackaday-links-november-15-2026/" class="read-more">&#8230;read more</a>]]></description>
+										<content:encoded><![CDATA[<div><img width="800" height="430" src="https://hackaday.com/wp-content/uploads/2014/11/had-links-banner.jpg?w=800" class="attachment-large size-large wp-post-image" alt="Hackaday Links Column Banner" style="margin: 0 auto; margin-bottom: 15px;" decoding="async" loading="lazy" srcset="https://hackaday.com/wp-content/uploads/2014/11/had-links-banner.jpg 800w, https://hackaday.com/wp-content/uploads/2014/11/had-links-banner.jpg?resize=250,134 250w, https://hackaday.com/wp-content/uploads/2014/11/had-links-banner.jpg?resize=400,215 400w" sizes="auto, (max-width: 800px) 100vw, 800px" data-attachment-id="137037" data-permalink="https://hackaday.com/2014/11/09/hackaday-links-november-9-2014/had-links-banner/" data-orig-file="https://hackaday.com/wp-content/uploads/2014/11/had-links-banner.jpg" data-orig-size="800,430" data-comments-opened="1" data-image-title="Hackaday Links" data-image-description="" data-image-caption="" data-large-file="https://hackaday.com/wp-content/uploads/2014/11/had-links-banner.jpg?w=800" /></div><p>Another Hackaday Supercon is in the history books. The new venue was amazing. We had more attendees than ever and still had room to spare. You can find many of the talks, including the lightning talks, in the live section of our YouTube channel. You can even watch the <a href="https://www.youtube.com/watch?v=vBm6rrpGbls" target="_blank">final badge hacking competition</a>.</p>
+<p><span id="more-1428100"></span></p>
+<figure id="attachment_1428103" aria-describedby="caption-attachment-1428103" style="width: 400px" class="wp-caption alignright"><a href="https://hackaday.com/wp-content/uploads/2026/11/spacex.png"><img loading="lazy" decoding="async" data-attachment-id="1428103" data-permalink="https://hackaday.com/2026/11/15/hackaday-links-november-15-2026/spacex/" data-orig-file="https://hackaday.com/wp-content/uploads/2026/11/spacex.png" data-orig-size="1000,1000" data-comments-opened="1" data-image-title="spacex" data-image-description="" data-image-caption="&lt;p&gt;Fair catch (image: SpaceX)&lt;/p&gt;
+" data-large-file="https://hackaday.com/wp-content/uploads/2026/11/spacex.png?w=625" class="size-medium wp-image-1428103" src="https://hackaday.com/wp-content/uploads/2026/11/spacex.png?w=400" alt="" width="400" height="400" srcset="https://hackaday.com/wp-content/uploads/2026/11/spacex.png 1000w, https://hackaday.com/wp-content/uploads/2026/11/spacex.png?resize=250,250 250w, https://hackaday.com/wp-content/uploads/2026/11/spacex.png?resize=400,400 400w, https://hackaday.com/wp-content/uploads/2026/11/spacex.png?resize=625,625 625w" sizes="auto, (max-width: 400px) 100vw, 400px" /></a><figcaption id="caption-attachment-1428103" class="wp-caption-text">Fair catch (image: SpaceX)</figcaption></figure>
+<p>SpaceX successfully caught the Starship upper stage, using the launch tower&#8217;s giant mechanical arms for the first time. However, it failed to catch the booster because a low-fuel alarm forced an abort. Still, one out of two isn&#8217;t bad when it comes to catching things from orbit.</p>
+<p>You have a combination lock from 1583, and you don&#8217;t know the code. There are 1,296 possible combinations, but you don&#8217;t want to try them lest you damage the old brass device. <a href="https://www.cardiff.ac.uk/news/view/3118948-ct-scans-help-unlock-400-year-old-mystery" target="_blank">That was the situation researchers at Cardiff University faced</a>. Their answer? Using micro CT scanning, they examined the internals of the lock and determined the combination was ANCE. The lock wasn&#8217;t attached to anything, apparently, so it didn&#8217;t reveal any secret treasure.</p>
+<figure id="attachment_1428104" aria-describedby="caption-attachment-1428104" style="width: 400px" class="wp-caption alignleft"><a href="https://hackaday.com/wp-content/uploads/2026/11/3dsound.jpeg"><img loading="lazy" decoding="async" data-attachment-id="1428104" data-permalink="https://hackaday.com/2026/11/15/hackaday-links-november-15-2026/3dsound/" data-orig-file="https://hackaday.com/wp-content/uploads/2026/11/3dsound.jpeg" data-orig-size="700,394" data-comments-opened="1" data-image-title="3dsound" data-image-description="" data-image-caption="&lt;p&gt;A turbine imaged by sound&lt;/p&gt;
+" data-large-file="https://hackaday.com/wp-content/uploads/2026/11/3dsound.jpeg?w=700" class="size-medium wp-image-1428104" src="https://hackaday.com/wp-content/uploads/2026/11/3dsound.jpeg?w=400" alt="" width="400" height="225" srcset="https://hackaday.com/wp-content/uploads/2026/11/3dsound.jpeg 700w, https://hackaday.com/wp-content/uploads/2026/11/3dsound.jpeg?resize=250,141 250w, https://hackaday.com/wp-content/uploads/2026/11/3dsound.jpeg?resize=400,225 400w" sizes="auto, (max-width: 400px) 100vw, 400px" /></a><figcaption id="caption-attachment-1428104" class="wp-caption-text">A turbine imaged by structured light</figcaption></figure>
+<p>Do you need a 150,000 FPS camera? Canadian researchers did, and they used a technique they call <a href="https://inrs.ca/en/inrs/newsroom/news/research-breakthrough-in-ultrafast-3d-imaging" target="_blank">chromatically band-limited illumination profilometry</a>. Yeah. Using sound, they project structured light patterns on a surface and use the reflections to reconstruct its 3D geometry. They captured ultrasonic vibrations at 150,000 FPS, a projectile hitting a turbine at 25,000 FPS, and a spinning maple seed at 75,000 FPS. They even managed to recover a spoken message from the vibrations.</p>
+<p>If you ever played animal, vegetable, or mineral, researchers at the University of Tokyo may upset your game. They&#8217;ve created planimal cells &#8212; cells that <a href="https://www.k.u-tokyo.ac.jp/en/information/category/press/0031014.html" target="_blank">combine algal cells and mammal cells</a> and correctly divide. The joke is: what do you get when you cross a hamster and an alga? Unfortunately, the alga genes were mostly inactive, so the answer isn&#8217;t a photosynthesizing hamster. But maybe one day.</p>
+<p>Finally, if you need an 8-minute timer, you might be interested in a recent astronomical discovery. A <a href="https://www.space.com/astronomy/stars/astronomers-trace-mystery-radio-signals-back-to-cosmic-odd-couple-of-white-dwarf-and-sun-like-star" target="_blank">binary star system about 5,000 light-years</a> away, consisting of a Sun-like star and a white dwarf. The pair emits a radio burst every 8 minutes. Then again, you should probably just use a 555.</p>
+<hr />
+<p>See something interesting that you think would be a good fit for our weekly Links column? <a href="https://hackaday.com/submit-a-tip/">Drop us a line</a>; we&#8217;d love to hear about it.</p>
+]]></content:encoded>
+					
+					<wfw:commentRss>https://hackaday.com/2026/11/15/hackaday-links-november-15-2026/feed/</wfw:commentRss>
+			<slash:comments>1</slash:comments>
+		
+		
+		<post-id xmlns="com-wordpress:feed-additions:1">1428100</post-id>
+		<media:thumbnail url="https://hackaday.com/wp-content/uploads/2014/11/had-links-banner.jpg" />
+		<media:content url="https://hackaday.com/wp-content/uploads/2014/11/had-links-banner.jpg" medium="image">
+			<media:title type="html">Hackaday Links</media:title>
+		</media:content>
+
+		<media:content url="https://hackaday.com/wp-content/uploads/2026/11/spacex.png?w=400" medium="image" />
+
+		<media:content url="https://hackaday.com/wp-content/uploads/2026/11/3dsound.jpeg?w=400" medium="image" />
+	</item>
+		
+	</channel>
+</rss>

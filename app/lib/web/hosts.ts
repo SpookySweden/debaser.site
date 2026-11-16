@@ -2,6 +2,19 @@ import { MEDIA_SERVERS, serverHost, type MediaServerId } from './media-servers';
 import { KINO_PAGE_HOST, KINO_PAGE_PATH } from './kino';
 import { TMDB_IMAGE_HOST } from './media-titles';
 import type { WebPlatform } from './types';
+import {
+  ARXIV_API_HOST,
+  ARXIV_PAGE_HOST,
+  ARXIV_PAGE_PATH,
+  articleHosts,
+  articlePaths,
+  EUROPE_PMC_API_HOST,
+  EUROPE_PMC_PAGE_HOST,
+  EUROPE_PMC_PAGE_PATH,
+  OPEN_LINK_PREFIXES,
+  WIKIPEDIA_HOST,
+  WIKIPEDIA_PAGE_PATH,
+} from './brief/feeds';
 
 /** A media title's picture: TMDB's poster at the stream's size, or a plain path on the server (no `..`). */
 const MEDIA_PICTURE_PATH = /^(?:\/t\/p\/w342\/[A-Za-z0-9]{8,64}\.(?:jpg|jpeg|png|webp)|\/(?!.*\.\.)[A-Za-z0-9._~/-]{1,300})$/;
@@ -93,7 +106,28 @@ export type PlatformAddresses = {
    * player, must have no query at all.
    */
   embedQuery?: string;
+  /**
+   * Item-id prefixes whose page link may be any public https address (`brief/feeds.ts` `openLink`): Hacker News and
+   * Lobsters stories, Luke's decision 2A (2026-11-16). Only the link: their pictures and players stay on the lists.
+   */
+  openPagePrefixes?: readonly string[];
 };
+
+/** A reading kind's addresses from its article feeds (brief/feeds.ts), plus any fixed page host it also links to. */
+function readingAddresses(kind: 'news' | 'longread' | 'tech', morePages: readonly string[] = [], morePath?: RegExp): PlatformAddresses {
+  const hosts = articleHosts(kind);
+  const pages = articlePaths(kind, 'link');
+  return {
+    hosts: unique([...hosts.fetch, ...hosts.pages, ...hosts.thumbs, ...morePages]),
+    linkHosts: [],
+    pagePath: morePath ? new RegExp(`${pages.source}|${morePath.source}`) : pages,
+    thumbPath: articlePaths(kind, 'thumb'),
+    embedPath: NEVER,
+    pageHosts: unique([...hosts.pages, ...morePages]),
+    thumbHosts: hosts.thumbs,
+    embedHosts: [],
+  };
+}
 
 /**
  * Each platform's allow-lists, in a file the page may import (no fetching here).
@@ -215,6 +249,25 @@ export const PLATFORM_HOSTS: Record<WebPlatform, PlatformAddresses> = {
     thumbHosts: ['4everland.io'],
     embedHosts: [],
   },
+  // The reading in MEDIA's default feed (SPEC-media-feed.md, brief/feeds.ts): a link out and, for a few feeds, a picture;
+  // never a player. Papers: arXiv's abstract page and Europe PMC's article page.
+  paper: {
+    hosts: [ARXIV_API_HOST, ARXIV_PAGE_HOST, EUROPE_PMC_API_HOST, EUROPE_PMC_PAGE_HOST],
+    linkHosts: [],
+    pagePath: new RegExp(`${ARXIV_PAGE_PATH.source}|${EUROPE_PMC_PAGE_PATH.source}`),
+    thumbPath: NEVER,
+    embedPath: NEVER,
+    pageHosts: [ARXIV_PAGE_HOST, EUROPE_PMC_PAGE_HOST],
+    thumbHosts: [],
+    embedHosts: [],
+  },
+  // News: the listed outlets' article pages (their query dropped), and Wikipedia's "In the news" articles.
+  news: readingAddresses('news', [WIKIPEDIA_HOST], WIKIPEDIA_PAGE_PATH),
+  // Long reads: the listed magazines, and Wikipedia's article of the day.
+  longread: readingAddresses('longread', [WIKIPEDIA_HOST], WIKIPEDIA_PAGE_PATH),
+  // Tech: Hackaday and Make:'s pages. Hacker News and Lobsters rows link to the story's own site (decision 2A), which
+  // `rowAddresses` allows only for their id prefixes and only through `openLink`.
+  tech: { ...readingAddresses('tech'), openPagePrefixes: OPEN_LINK_PREFIXES },
   // The media servers (SPEC-media-servers.md), one entry each from media-servers.ts. A title's row has no link
   // and no embed of its own here: its player is built per server by `mediaPlayUrl` (media-titles.ts), on that
   // server's host. Its picture is TMDB's poster on TMDB's image host, or a picture from the server's list on the

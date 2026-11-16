@@ -1,3 +1,4 @@
+import { openLink } from './brief/feeds';
 import { PLATFORM_HOSTS } from './hosts';
 import type { WebItem, WebPlatform } from './types';
 import { isAllowedUrl } from './urls';
@@ -73,8 +74,10 @@ export function rowAddresses(item: WebItem, extra: ExtraHosts = {}): RowAddresse
   if (!allow) return { link: null, thumb: null, embed: null, licence: null };
   const more = extra[item.platform] ?? [];
   const hosts = (narrow: readonly string[] | undefined) => (more.length === 0 ? (narrow ?? allow.hosts) : [...(narrow ?? allow.hosts), ...more]);
+  // A Hacker News or Lobsters story goes to its own site (SPEC-media-feed.md, decision 2A): the link only, held by `openLink`.
+  const open = allow.openPagePrefixes?.some((prefix) => item.id.startsWith(prefix)) === true;
   return {
-    link: shaped(item.url, hosts(allow.pageHosts), allow.pagePath),
+    link: open ? openLink(item.url) : shaped(item.url, hosts(allow.pageHosts), allow.pagePath),
     thumb: shaped(item.thumbnailUrl, hosts(allow.thumbHosts), allow.thumbPath),
     embed: shaped(item.embedUrl, hosts(allow.embedHosts), allow.embedPath, allow.embedQuery ?? ''),
     licence: isAllowedUrl(item.licenseUrl, allow.linkHosts) ? item.licenseUrl : null,
