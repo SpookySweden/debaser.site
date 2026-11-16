@@ -112,6 +112,11 @@ import RoomVisualiser from './RoomVisualiser';
 import VisualiserToggle from './VisualiserToggle';
 import { useVisualiserOn } from '../lib/watch/visualiser';
 import { analysableSrc } from '../lib/watch/audio-tap';
+import { shareRoomScreen } from '../lib/audio/room-screen-sound';
+import dynamic from 'next/dynamic';
+
+/** Loaded on its own, in the browser only: the room's code keeps clear of the floating player's (a9b6af9). */
+const SoundGraph = dynamic(() => import('./SoundGraph'), { ssr: false });
 import RoomCanvas, { CanvasSaveAsk } from './RoomCanvas';
 import { canvasDraggable, useCanvasOpen } from '../lib/watch/canvas-drag';
 import { useScreenView } from '../lib/watch/canvas-view';
@@ -259,6 +264,12 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     videoRef.current = element;
     setVideoElement(element);
   }, []);
+  // The music bar's sound graph hears what the stage plays (list 4: ../lib/audio/room-screen-sound.ts).
+  useEffect(() => {
+    // A site's own embed with no player to ask (PeerTube, a friend's server) counts as playing while it is on.
+    if (song !== null || (videoElement === null && link?.kind !== 'embed')) return;
+    return shareRoomScreen(videoElement, link);
+  }, [videoElement, song, link]);
   const [clock, setClock] = useState({ seconds: 0, duration: Number.NaN, paused: true });
   const [volume, setVolume] = useState(1);
   const [muted, setMuted] = useState(false);
@@ -1541,7 +1552,11 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     keysOnMusicBar && barTarget !== null
       ? createPortal(
           <>
-            <span className={`min-w-0 flex-1 frame bg-hardware px-2 py-1 text-label ${lookLines}`} data-stream-bar-screen>
+            <span className={`relative min-w-0 flex-1 frame bg-hardware px-2 py-1 text-label ${lookLines}`} data-stream-bar-screen data-bar-led>
+              {/* The music bar's sound graph behind these words too (list 4: "not always appearing in the black in the bottom
+                  player bar"); its colours keep the site theme's words 4.5:1, so not under a room's own look. */}
+              {look === null ? <SoundGraph /> : null}
+              <span className="relative block min-w-0">
               <span className="flex min-w-0 items-center gap-2 font-bold text-ink-bar">
                 <span className={`shrink-0 px-1 ${live ? 'bg-acid text-ink-plate' : 'bg-bubble-pale text-ink-bar'}`}>{music ? (!live ? 'CLOSED' : room.isPublic ? 'LIVE' : amHost ? 'PRIVATE' : 'BY LINK') : live ? 'LIVE' : 'ENDED'}</span>
                 <span className="truncate">
@@ -1560,6 +1575,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
                   <ServerClock room={room} />
                 </span>
               ) : null}
+              </span>
             </span>
             {/* `relative`: QUALITY and SUBS open their lists over their keys, above the bar. */}
             <span className={`relative flex shrink-0 flex-wrap items-center gap-1 frame bg-hardware px-1 py-0.5 text-label text-sun ${lookLines} ${lookKeys}`} data-watch-bar="music">

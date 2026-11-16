@@ -217,8 +217,11 @@ export function relayPath(videoId: string): string {
 /** How far the relay may drift from YouTube's own player before it is moved to where YouTube says it is. */
 export const RELAY_DRIFT_SECONDS = 1.5;
 
-/** What the graph is listening to: the whole tab, the bar's song, the relay, nothing it can hear (gentle), or nothing at all. */
-export type GraphSource = 'tab' | 'bar' | 'relay' | 'gentle' | 'off';
+/**
+ * What the graph is listening to: the whole tab, the bar's song, your room's own video file (list 4), the relay, nothing it
+ * can hear (gentle), or nothing at all.
+ */
+export type GraphSource = 'tab' | 'bar' | 'video' | 'relay' | 'gentle' | 'off';
 
 /**
  * Which of those to use, in order: the tab (it hears everything) when the reader allowed it; the bar's own song when it is
@@ -230,12 +233,15 @@ export function pickSource(state: {
   barPlaying: boolean;
   barHeard: boolean;
   videoPlaying: boolean;
+  /** The video is your room's own file and its sound can be copied (list 4). */
+  videoHeard?: boolean;
   relayable: boolean;
   relayFailed: boolean;
 }): GraphSource {
   if (!state.barPlaying && !state.videoPlaying) return 'off';
   if (state.tab) return 'tab';
   if (state.barPlaying && state.barHeard) return 'bar';
+  if (!state.barPlaying && state.videoPlaying && state.videoHeard === true) return 'video';
   if (!state.barPlaying && state.videoPlaying && state.relayable && !state.relayFailed) return 'relay';
   return 'gentle';
 }

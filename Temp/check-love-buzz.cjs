@@ -33,15 +33,17 @@ assert.equal(buzz.arrivalStep(null, true, false, quiet), 'skip', 'not on the she
 assert.equal(buzz.arrivalStep(null, true, true, { ...quiet, handedOver: true }), 'skip', "a profile's own song waiting for a press: left alone");
 console.log('  ok    once a visit, never over something else');
 
-/* 3. The first press starts it only if it is still waiting and nothing started ----------------------------------- */
-assert.equal(buzz.startOnPress('loaded', true, quiet), true);
-assert.equal(buzz.startOnPress('loaded', true, { ...quiet, playing: true }), false, 'the press was PLAY (it, or another song): left alone');
-assert.equal(buzz.startOnPress('loaded', true, { ...quiet, screen: true }), false, 'the press started a video');
-assert.equal(buzz.startOnPress('loaded', true, { ...quiet, room: true }), false, 'the press opened a room');
-assert.equal(buzz.startOnPress('loaded', false, quiet), false, 'the bar holds another song now');
-assert.equal(buzz.startOnPress('skipped', true, quiet), false);
-assert.equal(buzz.startOnPress(null, true, quiet), false);
-console.log('  ok    the first press starts it only when nothing else did');
+/* 3. Nothing plays on site start (Luke, list 4, 2026-11-16: "make it so music no longer plays on site start"): it waits
+ *    on the bar and only the reader's own PLAY starts it. Once the bar plays, the visit settles: LOVE BUZZ (quietly) or
+ *    another song (let go). */
+assert.equal(buzz.startOnPress, undefined, 'no start on the first click or key press anywhere');
+assert.equal(buzz.onBarPlaying('loaded', true, false), null, 'loaded and not playing: it just waits');
+assert.equal(buzz.onBarPlaying('loaded', true, true), 'started', 'the reader pressed PLAY on it: quietly');
+assert.equal(buzz.onBarPlaying('loaded', false, true), 'skipped', 'the reader played another song: let go');
+assert.equal(buzz.onBarPlaying('skipped', true, true), null);
+assert.equal(buzz.onBarPlaying('started', true, true), null);
+assert.equal(buzz.onBarPlaying(null, true, true), null);
+console.log('  ok    nothing plays until the reader presses PLAY');
 
 /* 4. Quiet --------------------------------------------------------------------------------------------------------- */
 assert.equal(buzz.arrivalVolume(0.8), buzz.QUIET_VOLUME, 'a loud saved volume is lowered');
@@ -74,6 +76,8 @@ const arrival = component.slice(component.indexOf('// Arrival:'), component.inde
 assert.ok(arrival.length > 100 && !/setVolume/.test(arrival), 'arriving never touches the volume: a reader who never presses keeps theirs');
 assert.ok(component.indexOf('setWaitingVolume(now.volume)') < component.indexOf('now.setVolume(quiet)'), 'the reader\'s volume is kept before it is lowered');
 assert.doesNotMatch(component, /autoplay: true/, "never the provider's start-on-any-press: it would start over a video");
+assert.doesNotMatch(component, /addEventListener\(\s*'(?:pointerdown|keydown|click)'/, 'no listener on the page that could start it');
+assert.doesNotMatch(component, /\.toggle\(\)/, 'it never presses PLAY for the reader');
 const bar = fs.readFileSync(path.join(__dirname, '..', 'app', 'components', 'MusicPlayer.tsx'), 'utf8');
 assert.equal((bar.match(/<LoveBuzzOnArrival \/>/g) ?? []).length, 2, 'mounted whichever shape the player is in');
 console.log('  ok    the visit remembers, and the bar carries it');

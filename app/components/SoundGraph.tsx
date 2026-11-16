@@ -26,6 +26,7 @@ import { askToHearTab, subscribeToTabListen, tabListenServerState, tabListenStat
 import { PLATE_ON_BLACK } from '../lib/ui/controls';
 import { floatingClock, floatingState, subscribeToFloating, subscribeToFloatingClock } from '../lib/ui/floating-player';
 import { soundTrack, tapSound } from '../lib/watch/audio-tap';
+import { roomScreenSound, subscribeToRoomScreenSound } from '../lib/audio/room-screen-sound';
 import { useMusicPlayer } from './MusicPlayerProvider';
 
 /**
@@ -34,7 +35,9 @@ import { useMusicPlayer } from './MusicPlayerProvider';
  * `app/lib/audio/sound-graph.ts`; this is the listening and the drawing.
  *
  * It hears, in order: the whole tab when the reader allowed it (`[ HEAR ]`, `app/lib/audio/tab-listen.ts`); the bar's own
- * song through the copy the visualiser already uses (`app/lib/watch/audio-tap.ts`); a YouTube video through the site's
+ * song through the copy the visualiser already uses (`app/lib/watch/audio-tap.ts`); a video in your room's own player
+ * (list 4: MEDIA's videos play there, `app/lib/audio/room-screen-sound.ts`), its file heard the same way where its host
+ * allows; a YouTube video, floating or in your room, through the site's
  * relay of its sound (`app/lib/audio/youtube-relay.ts`), kept in step with YouTube's own player and never played aloud;
  * otherwise a slow even swell while something plays, which is not the sound and does not look like it. Nothing plays,
  * the tab is hidden, or the reader asked for less motion: nothing is drawn and the loop stops.
@@ -84,16 +87,28 @@ export default function SoundGraph() {
   const reduced = useReducedMotion();
   const hidden = usePageHidden();
 
+  // A video in your room's own player (list 4): MEDIA's PLAY puts it there, not in the floating player.
+  const screen = useSyncExternalStore(subscribeToRoomScreenSound, roomScreenSound, () => null);
+
   const barPlaying = player.playing && !player.barrMuted;
-  const videoPlaying = entry !== null && entry.shape !== 'picture' && !(clock?.paused ?? false);
-  const youtubeId = entry !== null && entry.player.kind === 'frame' && entry.player.timeFrom === 'youtube' ? youtubeIdFromPlayer(entry.player.src) : null;
+  const floatPlaying = entry !== null && entry.shape !== 'picture' && !(clock?.paused ?? false);
+  const roomPlaying = entry === null && screen !== null && screen.playing;
+  const videoPlaying = floatPlaying || roomPlaying;
+  const youtubeId =
+    entry !== null
+      ? entry.player.kind === 'frame' && entry.player.timeFrom === 'youtube'
+        ? youtubeIdFromPlayer(entry.player.src)
+        : null
+      : (screen?.youtubeId ?? null);
+  /** The room's own `<video>`, whose sound may be copied where its host allows (an Internet Archive file). */
+  const roomElement = roomPlaying && typeof HTMLMediaElement !== 'undefined' && screen.element instanceof HTMLMediaElement ? screen.element : null;
   const active = (barPlaying || videoPlaying) && !reduced && !hidden;
 
   // What the loop reads each frame, without being restarted by every change.
-  const live = useRef({ barPlaying, videoPlaying, youtubeId, tab, element: player.audioElement });
+  const live = useRef({ barPlaying, videoPlaying, youtubeId, tab, element: player.audioElement, roomElement });
   useEffect(() => {
-    live.current = { barPlaying, videoPlaying, youtubeId, tab, element: player.audioElement };
-  }, [barPlaying, videoPlaying, youtubeId, tab, player.audioElement]);
+    live.current = { barPlaying, videoPlaying, youtubeId, tab, element: player.audioElement, roomElement };
+  }, [barPlaying, videoPlaying, youtubeId, tab, player.audioElement, roomElement]);
 
   // The ears, made once on first need and kept for the visit: an audio context, an analyser, the relay's hidden player.
   const ears = useRef<{
@@ -213,10 +228,26 @@ export default function SoundGraph() {
       if (kept.relayId !== id) {
         kept.relayId = id;
         kept.relay.src = relayPath(id);
-        const at = floatingClock();
+        const at = videoAt();
         if (at !== null) kept.relay.currentTime = at.seconds;
       }
       return kept.relay;
+    };
+
+    /** Where the video is: the floating player's clock, or your room's player read directly (list 4). */
+    const videoAt = (): { seconds: number; paused: boolean } | null => {
+      if (floatingState().entry !== null) return floatingClock();
+      const room = roomScreenSound();
+      return room === null || room.element === null ? null : { seconds: room.element.currentTime, paused: !room.playing };
+    };
+
+    /** The relay kept in step with your room's YouTube player, asked twice a second (the floating one has its own effect). */
+    const stepWithRoom = (relay: HTMLAudioElement) => {
+      if (floatingState().entry !== null) return;
+      const at = videoAt();
+      if (at === null) return;
+      if (at.paused) relay.pause();
+      else if (Math.abs(relay.currentTime - at.seconds) > RELAY_DRIFT_SECONDS) relay.currentTime = at.seconds;
     };
 
     const stopRelay = (kept: NonNullable<typeof ears.current> | null) => {
@@ -233,12 +264,14 @@ export default function SoundGraph() {
       const now = live.current;
       const element = now.element();
       const barTrack = soundTrack(tapSound(element));
+      const roomTrack = soundTrack(tapSound(now.roomElement));
       const tabStream = tabSound();
       const source = pickSource({
         tab: tabStream !== null,
         barPlaying: now.barPlaying,
         barHeard: barTrack !== null,
         videoPlaying: now.videoPlaying,
+        videoHeard: roomTrack !== null,
         relayable: now.youtubeId !== null,
         relayFailed: now.youtubeId !== null && ears.current?.relayFailed === now.youtubeId,
       });
@@ -253,9 +286,12 @@ export default function SoundGraph() {
         if (kept.heard !== `tab:${track.id}`) listenTo(kept, kept.context.createMediaStreamSource(new MediaStream([track])), `tab:${track.id}`);
       } else if (source === 'bar' && barTrack !== null) {
         if (kept.heard !== `bar:${barTrack.id}`) listenTo(kept, kept.context.createMediaStreamSource(new MediaStream([barTrack])), `bar:${barTrack.id}`);
+      } else if (source === 'video' && roomTrack !== null) {
+        if (kept.heard !== `video:${roomTrack.id}`) listenTo(kept, kept.context.createMediaStreamSource(new MediaStream([roomTrack])), `video:${roomTrack.id}`);
       } else if (source === 'relay' && now.youtubeId !== null) {
         const relay = relayFor(kept, now.youtubeId);
-        if (relay.paused && !(floatingClock()?.paused ?? false)) void relay.play().catch(() => undefined);
+        if (relay.paused && !(videoAt()?.paused ?? false)) void relay.play().catch(() => undefined);
+        stepWithRoom(relay);
         listenTo(kept, kept.relayNode, 'relay');
       }
       return source;

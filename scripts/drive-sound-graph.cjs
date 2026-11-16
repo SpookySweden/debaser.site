@@ -2,15 +2,16 @@
  * Drives the music bar's sound graph and LOVE BUZZ on arrival in a real browser (PLAYERBAR, Luke's second list,
  * 2026-11-16), on a LOCAL mock dev server (core.md, "Test locally"): no sign-in, no database.
  *
- *   node scripts/drive-sound-graph.cjs --base http://localhost:<port> [--out Temp/browse/playerbar] [--only buzz,graph,tab,relay,youtube]
+ *   node scripts/drive-sound-graph.cjs --base http://localhost:<port> [--out Temp/browse/playerbar] [--only buzz,graph,room,tab,relay,youtube]
  *
  * The mock shelf is the browser's own (`debaser.audio.mock.v1`): the drive puts one track there titled "LOVE BUZZ - UPLOAD
  * TEST", whose file is a two-second tone made here and served by the drive itself at a same-site address (so the page may
  * measure it, as it measures the real file on the site's storage). Nothing is recorded: the page's own copy is measured.
  *
  * Sections:
- *   buzz    on arrival LOVE BUZZ is loaded, quiet, silent until the first key press, then playing and looping; a reload
- *           does not start it again; a first press on the bar's own PLAY leaves it playing (not toggled twice).
+ *   buzz    on arrival LOVE BUZZ is loaded and silent; a key press or a click on the page starts nothing (list 4: "make it
+ *           so music no longer plays on site start"); the bar's own PLAY starts it, quietly; a reload does not start it
+ *           again; a first press on the bar's own PLAY leaves it playing (not toggled twice).
  *   graph   the graph hears the bar's song (its level follows playing and paused), every word stays 4.5:1 over the pixels
  *           it actually drew (dark and bright themes), the frame cost, nothing drawn under reduced motion or a hidden tab.
  *   tab     [ HEAR ] with Chrome's test switch that accepts "share this tab" by itself: the key goes, the graph hears the tab.
@@ -30,7 +31,7 @@ const args = process.argv.slice(2);
 const opt = (name, fallback) => (args.includes(name) ? args[args.indexOf(name) + 1] : fallback);
 const BASE = opt('--base', 'http://localhost:3317');
 const OUT = opt('--out', join('Temp', 'browse', 'playerbar'));
-const ONLY = opt('--only', 'buzz,graph,tab,relay,youtube').split(',');
+const ONLY = opt('--only', 'buzz,graph,room,tab,relay,youtube').split(',');
 mkdirSync(OUT, { recursive: true });
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 let passed = 0;
@@ -218,30 +219,22 @@ async function buzz(browser) {
   song = await songState(page);
   assert.equal(song.paused, true, 'no sound before the reader touches the page');
   assert.equal(await page.evaluate(() => sessionStorage.getItem('debaser.audio.love-buzz.v1')), 'loaded');
-  pass('silent until the first press');
-  // A lone Shift is no touch to the browser (sound would be refused): it must not spend the one start. Only judged where
-  // the page starts untouched (a driven browser sometimes counts itself as touched already).
-  if (!(await page.evaluate(() => navigator.userActivation?.hasBeenActive ?? true))) {
-    await page.keyboard.press('Shift');
-    await sleep(1000);
-    assert.equal((await songState(page)).paused, true);
-    assert.equal(await page.evaluate(() => sessionStorage.getItem('debaser.audio.love-buzz.v1')), 'loaded', 'still waiting after a lone Shift');
-    pass('a lone Shift does not spend it');
-  } else {
-    note('this browser counted the page as touched before any press: the lone-Shift step is not judged here');
-  }
+  pass('silent on arrival');
+  // List 4 (Luke: "make it so music no longer plays on site start"): a key press and a click on the desktop are not PLAY.
   await page.keyboard.press('KeyA');
-  song = await until('it starts after the press', () => songState(page), (s) => s && !s.paused, 5000);
-  pass('the first key press starts it');
-  song = await until('quiet', () => songState(page), (s) => s && s.volume <= 0.25 + 1e-6, 3000);
-  assert.equal(await page.evaluate(() => Number(document.querySelector('input[aria-label="Volume"]').value)), Math.round(song.volume * 100), 'the slider shows the quiet volume');
-  pass(`quietly: volume ${song.volume}`);
-  await sleep(2600);
+  await page.mouse.click(720, 120);
+  await sleep(1500);
   song = await songState(page);
-  assert.equal(song.paused, false, 'still playing past its two-second end');
-  assert.ok(song.time < 2, `it went round again (at ${song.time.toFixed(2)}s)`);
+  assert.equal(song.paused, true, 'a key press and a click on the page start nothing');
+  assert.equal(await page.evaluate(() => sessionStorage.getItem('debaser.audio.love-buzz.v1')), 'loaded', 'still waiting on the bar');
+  assert.equal(await page.evaluate(() => (window.__audios ?? []).filter((a) => !a.paused).length), 0, 'nothing anywhere plays');
+  pass('a key press and a click on the page start nothing');
+  // The bar's own PLAY starts it, quietly.
+  await playBar(page);
+  song = await until('quiet', () => songState(page), (s) => s && !s.paused && s.volume <= 0.25 + 1e-6, 3000);
+  assert.equal(await page.evaluate(() => Number(document.querySelector('input[aria-label="Volume"]').value)), Math.round(song.volume * 100), 'the slider shows the quiet volume');
   assert.equal(await page.evaluate(() => sessionStorage.getItem('debaser.audio.love-buzz.v1')), 'started');
-  pass('looping');
+  pass(`the bar's own PLAY starts it, quietly: volume ${song.volume}`);
   // The reader pauses it and moves to the next song: their own volume comes back. (Paused first: on the mock server a
   // song filed into your own room sends its keeper round in a loop, an existing fault outside this work, 2026-11-16.)
   await pauseBar(page);
@@ -290,7 +283,7 @@ async function graph(browser) {
     await arrived(page);
     let state = await graphState(page);
     assert.equal(state.source, 'off', 'nothing plays: nothing drawn');
-    await page.keyboard.press('KeyA');
+    await playBar(page);
     state = await until('the graph hears the song', () => graphState(page), (s) => s && s.source === 'bar' && s.level > 0.05, 10000);
     pass(`${theme}: the graph hears the bar's song (level ${state.level}, ${state.fps} frames a second, ${state.ms} ms a frame)`);
     const contrast = await page.evaluate(MEASURE_CONTRAST);
@@ -319,12 +312,45 @@ async function graph(browser) {
   await still.page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded' });
   await still.page.waitForFunction(() => /LOVE BUZZ/.test(document.querySelector('[data-bar-led]')?.innerText ?? ''), null, { timeout: 60000 });
   await arrived(still.page);
-  await still.page.keyboard.press('KeyA');
+  await playBar(still.page);
   await sleep(3000);
   const state = await graphState(still.page);
   assert.equal(state.source, 'off', 'reduced motion: nothing drawn while it plays');
   pass('reduced motion: the graph draws nothing');
   await still.context.close();
+}
+
+/**
+ * List 4 (Luke: "look into the colourful audio monitor not always appearing in the black in the bottom player bar"): a
+ * MEDIA video now plays in your room, whose strip takes the bar's place. The graph must draw in that strip's black display
+ * too, moving to the room's player, and every word there stays 4.5:1 over it.
+ */
+async function room(browser) {
+  console.log("your room's strip");
+  const { context, page } = await newPage(browser, { theme: 'dark' });
+  await page.goto(`${BASE}/media`, { waitUntil: 'domcontentloaded' });
+  const row = page.locator('li').filter({ hasText: '▶ PLAY' }).filter({ hasText: 'VIDEO' }).first();
+  await row.waitFor({ timeout: 90000 });
+  await sleep(1500);
+  await row.getByRole('button', { name: /^Play "/ }).click();
+  await page.waitForSelector('[data-stream-bar-screen]', { timeout: 30000 });
+  pass('PLAY on a MEDIA video: your room opens, its strip on the bar');
+  const state = await until(
+    'the graph draws in the strip',
+    () => page.evaluate(() => {
+      const canvas = document.querySelector('[data-stream-bar-screen] canvas');
+      return canvas ? { source: canvas.dataset.soundGraph, level: Number(canvas.dataset.soundGraphLevel ?? 0) } : null;
+    }),
+    (s) => s !== null && s.source !== 'off' && s.level > 0.02,
+    20000,
+  );
+  pass(`the graph draws behind the strip's words (${state.source}, level ${state.level})`);
+  const contrast = await page.evaluate(MEASURE_CONTRAST);
+  assert.ok(contrast.painted > 200, `it drew something (${contrast.painted} pixels)`);
+  assert.ok(contrast.worst >= 4.5, `every word 4.5:1 over what was drawn (worst ${contrast.worst.toFixed(2)}, words in ${contrast.inks.join(' / ')})`);
+  pass(`worst contrast over the drawn pixels ${contrast.worst.toFixed(2)}:1 (words in ${contrast.inks.join(' / ')})`);
+  await page.locator('[data-stream-bar-screen]').screenshot({ path: join(OUT, 'room-strip.png') });
+  await context.close();
 }
 
 async function tab(browserPath) {
@@ -493,6 +519,15 @@ async function limit(browserPath) {
     if (ONLY.includes('graph')) await graph(browser);
   } finally {
     await browser.close();
+  }
+  if (ONLY.includes('room')) {
+    // The room's player starts by itself for its host; a fake sound output keeps a headless media clock running.
+    const roomBrowser = await chromium.launch({ executablePath: browserPath, headless: true, args: ['--autoplay-policy=no-user-gesture-required', '--disable-audio-output', '--no-first-run'] });
+    try {
+      await room(roomBrowser);
+    } finally {
+      await roomBrowser.close();
+    }
   }
   if (ONLY.includes('tab')) await tab(browserPath);
   if (ONLY.includes('relay')) await relay(browserPath);
