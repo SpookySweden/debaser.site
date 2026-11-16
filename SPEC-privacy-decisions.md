@@ -33,6 +33,10 @@ included, while a thing is on the room's screen shows on that thing's DISCUSS pa
 (`CHAT ON DISCUSSION`) and a person's switch (`MY ROOM CHAT ON DISCUSSION PAGES`), both on by default, take it back,
 past lines included. A private room's queue, canvas and stream record stay its members'.
 
+## Changed 2026-11-16: profile comments and listening start on (list 2, group DEFAULTS)
+Luke: "I want the new defaults for the site to be looser on the privacy where necessary for my intentions regarding the comments". Interview the same day: **profile comments ON and "listening" shown ON, for new accounts and for existing ones too**; room chat on DISCUSS pages stays as it is (already on). Decision 4 above ("listening and comments off") is superseded for those two switches; the avatar and song comments, tags and the rest stay off for a new account.
+Code and mock defaults are changed (`DEFAULT_VISIBILITY`); the column defaults and the update of existing accounts are a drafted migration waiting for Luke's typed OK, not yet run (`defaults-privacy-and-resets-draft.sql` in the notes folder).
+
 ## Other standing answers
 - `[ WATCH IN ROOM ]` waits for private streams (`SPEC-floating-player.md`, part 3).
 - Questions from sessions go to the main session, not to Luke directly, and are answered from the spec where it settles them.

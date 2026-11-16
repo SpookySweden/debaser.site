@@ -34,9 +34,10 @@ const fresh = (file) => {
 /* ------------------------------------------------------------------ 1. the background choice */
 const backdropFile = 'lib/ui/backdrop-slot.js';
 const slot = fresh(backdropFile);
-assert.equal(slot.DEFAULT_BACKDROP, 'aquarium', 'a browser with nothing stored gets the aquarium');
+// Updated on purpose 2026-11-16 (Luke: "new defaults ... FLUID background", reset for everyone by the new .v2 key).
+assert.equal(slot.DEFAULT_BACKDROP, 'fluid', 'a browser with nothing stored gets FLUID');
 assert.deepEqual([slot.BACKDROPS[0].id, slot.BACKDROPS[slot.BACKDROPS.length - 1].id], ['aquarium', 'tile'], 'AQUARIUM first, TILE last, the simulated backgrounds between');
-assert.equal(slot.backdropState().id, 'aquarium', 'the store starts on the default');
+assert.equal(slot.backdropState().id, 'fluid', 'the store starts on the default');
 
 // A browser: storage that keeps what it is given, and the document the choice is written onto.
 const stored = new Map();
@@ -57,14 +58,14 @@ const browser = () => ({
 global.window = browser();
 const root = { dataset: {} };
 const stop = slot.initBackdrop(root);
-assert.equal(root.dataset.backdrop, 'aquarium', 'nothing stored: the aquarium goes on the document');
+assert.equal(root.dataset.backdrop, 'fluid', 'nothing stored: FLUID goes on the document');
 slot.setBackdrop('tile');
 assert.equal(root.dataset.backdrop, 'tile', 'pressing TILE puts the tile on at once');
-assert.equal(stored.get('debaser.site.backdrop.v1'), 'tile', 'and remembers it');
+assert.equal(stored.get('debaser.site.backdrop.v2'), 'tile', 'and remembers it');
 stop();
 assert.equal(fresh(backdropFile).backdropState().id, 'tile', 'a reload starts on the stored choice');
-stored.set('debaser.site.backdrop.v1', 'nonsense');
-assert.equal(fresh(backdropFile).backdropState().id, 'aquarium', 'a stored id that is no longer offered falls back to the default');
+stored.set('debaser.site.backdrop.v2', 'nonsense');
+assert.equal(fresh(backdropFile).backdropState().id, 'fluid', 'a stored id that is no longer offered falls back to the default');
 stored.clear();
 delete global.window;
 
@@ -82,10 +83,10 @@ function boot(storedValue, storageThrows = false) {
   vm.runInNewContext(slot.backdropBootScript(), sandbox);
   return attrs['data-backdrop'];
 }
-assert.equal(boot(null), 'aquarium', 'boot: nothing stored writes the aquarium');
+assert.equal(boot(null), 'fluid', 'boot: nothing stored writes FLUID');
 assert.equal(boot('tile'), 'tile', 'boot: TILE stored writes the tile');
-assert.equal(boot('fishbowl'), 'aquarium', 'boot: junk writes the default');
-assert.equal(boot(null, true), 'aquarium', 'boot: storage that throws still writes the default');
+assert.equal(boot('fishbowl'), 'fluid', 'boot: junk writes the default');
+assert.equal(boot(null, true), 'fluid', 'boot: storage that throws still writes the default');
 const layout = fs.readFileSync('app/layout.tsx', 'utf8');
 assert.match(layout, /backdropBootScript\(\)/, 'the boot script is in the page head');
 assert.match(layout, /<Aquarium \/>/, 'the shell draws the aquarium once');

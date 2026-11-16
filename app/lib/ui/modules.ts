@@ -21,6 +21,8 @@ export type ModuleDef = {
   wip?: boolean;
   /** Can't be unticked: the way back to this list. */
   always?: boolean;
+  /** The colour its word turns on hover until somebody picks another (a `NAME_COLOURS` id). */
+  defaultColour?: string;
 };
 
 /** In the order the bar draws them, MODULOS last. Luke's choice: BEATBOX, ANIMATE and DISCOVER start off and are tagged WIP, and CREATIVE holds BEATBOX, STREAM and ANIMATE. */
@@ -28,8 +30,11 @@ export const MODULES: readonly ModuleDef[] = [
   // (2026-11-14) A first visit's bar is FORUM, MEDIA and STREAM only (Luke: "only on modules by default being now, forum, media,
   // steam"); PROJECTS, READ and DOCS start off, still a tick away in MODULOS.
   { key: 'home', label: 'PROJECTS', href: '/projects', group: 'site', startsOn: false },
-  { key: 'forum', label: 'FORUM', href: '/forum', group: 'site', startsOn: true },
-  { key: 'web', label: 'MEDIA', href: '/media', group: 'site', startsOn: true },
+  // (2026-11-16) The three hover colours are the ones the account "Good morning" chose (read from its saved choices; Luke: "the hover
+  // colours the account 'good morning' chose": green, light blue, reddish pink), so a first visit has them and "reset everyone"
+  // (modules-slot.ts's new storage key) gives everyone the same.
+  { key: 'forum', label: 'FORUM', href: '/forum', group: 'site', startsOn: true, defaultColour: 'emerald' },
+  { key: 'web', label: 'MEDIA', href: '/media', group: 'site', startsOn: true, defaultColour: 'teal' },
   // The reader (Luke, 2026-11-13: "a new module for reading"): your books, and your own PDFs and EPUBs matched to their book.
   // (2026-11-14) Off by default: READ lives on the side panel's shelf under ARCADE instead (DesktopSidebar's ReadKey).
   { key: 'read', label: 'READ', href: '/read', group: 'site', startsOn: false },
@@ -41,7 +46,7 @@ export const MODULES: readonly ModuleDef[] = [
   { key: 'docs', label: 'DOCS', href: '/docs', group: 'site', startsOn: false },
   // The music maker (app/features/beatbox).
   { key: 'beatbox', label: 'BEATBOX', href: '/beatbox', group: 'creative', startsOn: false, wip: true },
-  { key: 'cytube', label: 'STREAM', href: '/stream', group: 'creative', startsOn: true },
+  { key: 'cytube', label: 'STREAM', href: '/stream', group: 'creative', startsOn: true, defaultColour: 'rose' },
   // The frame-by-frame animator (SPEC-animator.md).
   { key: 'animate', label: 'ANIMATE', href: '/animate', group: 'creative', startsOn: false, wip: true },
   // MODULOS is the tab holding the rest of the modules, Luke's name for it (2026-11-06). The bar's own MODULES: title went on 2026-11-14.
@@ -73,6 +78,17 @@ export function parseModuleChoices(stored: unknown): ModuleChoices {
   }
   return result;
 }
+
+/** The colour a module's word turns on hover: the one picked, else its own default; undefined for a module with neither. */
+export function moduleColour(module: ModuleDef, choices: ModuleChoices): string | undefined {
+  return choices.colours[module.key] ?? module.defaultColour;
+}
+
+/**
+ * Every module with no colour of its own hovers like one that has (Luke, 2026-11-16: the DOCS key's hover was "a big yellow bar" while the
+ * others only turn their word a colour): this is the colour it turns. Rose, the reddish pink, is the one the stream key has.
+ */
+export const FALLBACK_HOVER_COLOUR = 'rose';
 
 export function moduleIsOn(module: ModuleDef, choices: ModuleChoices): boolean {
   return module.always === true || (choices.on[module.key] ?? module.startsOn);
@@ -158,6 +174,16 @@ export function moduleMark(colourId: string | undefined, bar: string): ModuleMar
   if (swatch === undefined) return null;
   const ink = moduleInk(colourId, bar) ?? (contrastRatio(swatch.hex, bar) >= contrastRatio(swatch.dark, bar) ? swatch.hex : swatch.dark);
   return moduleMarkFrom(ink, ink, bar);
+}
+
+/**
+ * What a key's word turns on hover, for every key on the bar: the module's own colour (picked, else its default), or the fallback one for a
+ * module with neither, read against the bar. A colour that cannot read as it is is stepped as the selected look's is (`moduleMark`), so the
+ * hover is always a coloured word and never the old solid block.
+ */
+export function moduleHoverInk(module: ModuleDef, choices: ModuleChoices, bar: string): string {
+  const id = moduleColour(module, choices) ?? FALLBACK_HOVER_COLOUR;
+  return moduleInk(id, bar) ?? moduleMark(id, bar)?.word ?? DYES.black;
 }
 
 /** The swatches worth offering on this bar: those that read, one for each colour they'd actually draw. The one already picked always stays, so it can be seen. */

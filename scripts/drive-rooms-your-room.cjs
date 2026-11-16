@@ -309,7 +309,7 @@ const floorOf = (page) =>
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   await context.addInitScript(HOOK);
   await context.addInitScript(SEED);
-  if (BACKDROP !== null) await context.addInitScript(`try { localStorage.setItem('debaser.site.backdrop.v1', ${JSON.stringify(BACKDROP)}); } catch (error) {}`);
+  if (BACKDROP !== null) await context.addInitScript(`try { localStorage.setItem('debaser.site.backdrop.v2', ${JSON.stringify(BACKDROP)}); } catch (error) {}`);
   // YouTube says its video is 4:3, whatever it is: the frame must take the shape it is told (part 3).
   const pictures = await makeTestPictures(context);
   assert.ok(pictures.clip.length > 20000, `the letterboxed test clip was made (${pictures.clip.length} bytes)`);
