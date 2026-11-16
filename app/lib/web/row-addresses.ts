@@ -1,4 +1,4 @@
-import { PLATFORM_HOSTS, READING_HOSTS } from './hosts';
+import { PLATFORM_HOSTS, readingHosts } from './hosts';
 import type { WebItem, WebPlatform } from './types';
 import { isAllowedUrl, openLink } from './urls';
 
@@ -69,8 +69,9 @@ const ENGLISH_SUBTITLES: Partial<Record<WebPlatform, readonly [string, string][]
  * `scripts/check-web-internet-archive.cjs` holds it against hostile items.
  */
 export function rowAddresses(item: WebItem, extra: ExtraHosts = {}): RowAddresses {
-  // A reading row's lists are apart from the platforms' (hosts.ts READING_HOSTS).
-  const allow = (READING_HOSTS as Partial<Record<string, (typeof PLATFORM_HOSTS)[WebPlatform]>>)[item.platform] ?? PLATFORM_HOSTS[item.platform];
+  // A reading row's lists are apart from the platforms' (hosts.ts `readingHosts`), built the first time one is drawn.
+  const reading = item.platform === 'paper' || item.platform === 'news' || item.platform === 'longread' || item.platform === 'tech';
+  const allow = reading ? readingHosts()[item.platform as keyof ReturnType<typeof readingHosts>] : PLATFORM_HOSTS[item.platform];
   if (!allow) return { link: null, thumb: null, embed: null, licence: null };
   const more = extra[item.platform] ?? [];
   const hosts = (narrow: readonly string[] | undefined) => (more.length === 0 ? (narrow ?? allow.hosts) : [...(narrow ?? allow.hosts), ...more]);

@@ -471,25 +471,33 @@ export const PLATFORM_HOSTS: Record<WebPlatform, PlatformAddresses> = {
  * The reading in MEDIA's default feed (SPEC-media-feed.md): its allow-lists, apart from PLATFORM_HOSTS on purpose. The
  * room and the floating player walk every PLATFORM_HOSTS entry to recognise a player or a picture (official-embed.ts,
  * own-screen.ts, watch/pictures.ts), and a reading address is neither; with these entries in that list the production
- * prerender of the layout broke (2026-11-16). Only `rowAddresses` reads them.
+ * prerender of the layout broke (2026-11-16). Only `rowAddresses` reads them, through `readingHosts`, which builds them on
+ * first use: building them while this file loads broke that prerender too, even outside PLATFORM_HOSTS (bisected).
  */
-export const READING_HOSTS: Readonly<Record<'paper' | 'news' | 'longread' | 'tech', PlatformAddresses>> = {
-  // Papers: arXiv's abstract page and Europe PMC's article page.
-  paper: {
-    hosts: [ARXIV_API_HOST, ARXIV_PAGE_HOST, EUROPE_PMC_API_HOST, EUROPE_PMC_PAGE_HOST],
-    linkHosts: [],
-    pagePath: new RegExp(`${ARXIV_PAGE_PATH.source}|${EUROPE_PMC_PAGE_PATH.source}`),
-    thumbPath: NEVER,
-    embedPath: NEVER,
-    pageHosts: [ARXIV_PAGE_HOST, EUROPE_PMC_PAGE_HOST],
-    thumbHosts: [],
-    embedHosts: [],
-  },
-  // News: the listed outlets' article pages (their query dropped), and Wikipedia's "In the news" articles.
-  news: readingAddresses('news', [WIKIPEDIA_HOST], WIKIPEDIA_PAGE_PATH),
-  // Long reads: the listed magazines, and Wikipedia's article of the day.
-  longread: readingAddresses('longread', [WIKIPEDIA_HOST], WIKIPEDIA_PAGE_PATH),
-  // Tech: Hackaday and Make:'s pages. Hacker News and Lobsters rows link to the story's own site (decision 2A), which
-  // `rowAddresses` allows only for their id prefixes and only through `openLink`.
-  tech: { ...readingAddresses('tech'), openPagePrefixes: OPEN_LINK_PREFIXES },
-};
+export type ReadingHosts = Readonly<Record<'paper' | 'news' | 'longread' | 'tech', PlatformAddresses>>;
+
+let readingHostsBuilt: ReadingHosts | null = null;
+
+export function readingHosts(): ReadingHosts {
+  readingHostsBuilt ??= {
+    // Papers: arXiv's abstract page and Europe PMC's article page.
+    paper: {
+      hosts: [ARXIV_API_HOST, ARXIV_PAGE_HOST, EUROPE_PMC_API_HOST, EUROPE_PMC_PAGE_HOST],
+      linkHosts: [],
+      pagePath: new RegExp(`${ARXIV_PAGE_PATH.source}|${EUROPE_PMC_PAGE_PATH.source}`),
+      thumbPath: NEVER,
+      embedPath: NEVER,
+      pageHosts: [ARXIV_PAGE_HOST, EUROPE_PMC_PAGE_HOST],
+      thumbHosts: [],
+      embedHosts: [],
+    },
+    // News: the listed outlets' article pages (their query dropped), and Wikipedia's "In the news" articles.
+    news: readingAddresses('news', [WIKIPEDIA_HOST], WIKIPEDIA_PAGE_PATH),
+    // Long reads: the listed magazines, and Wikipedia's article of the day.
+    longread: readingAddresses('longread', [WIKIPEDIA_HOST], WIKIPEDIA_PAGE_PATH),
+    // Tech: Hackaday and Make:'s pages. Hacker News and Lobsters rows link to the story's own site (decision 2A), which
+    // `rowAddresses` allows only for their id prefixes and only through `openLink`.
+    tech: { ...readingAddresses('tech'), openPagePrefixes: OPEN_LINK_PREFIXES },
+  };
+  return readingHostsBuilt;
+}
