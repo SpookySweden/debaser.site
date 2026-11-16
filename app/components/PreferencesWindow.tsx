@@ -218,11 +218,13 @@ function BackdropChoice() {
                   openBackdropWindow();
                 }}
                 aria-haspopup="dialog"
-                title={`EVERY KNOB OF THE ${backdrop.label}`}
+                // A cog, not the word (Luke, 2026-11-16). `︎` asks for the plain text glyph, never a colour emoji.
+                aria-label={`${backdrop.label} settings`}
+                title="SETTINGS"
                 data-backdrop-settings={backdrop.id}
                 className={PLATE}
               >
-                [ SETTINGS ]
+                [ {'⚙︎'} ]
               </button>
             ) : null}
           </div>
