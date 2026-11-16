@@ -104,7 +104,10 @@ ok(/serverRestarted\(serverSeen\.mark, room\)/.test(room), 'counted from the roo
 ok(/onClick=\{playServerForAll\}/.test(room) && /positionSeconds: 0, isPlaying: true/.test(room.slice(room.indexOf('function playServerForAll'), room.indexOf('function playServerForAll') + 600)), 'the host\'s PLAY FOR ALL writes 0, playing');
 ok(!/NOT IN STEP: EVERYONE PRESSES PLAY ON THIS ONE\.<\/p>/.test(room), 'no line under the player any more (it never covers the picture)');
 ok(/fixed visible frame bg-ink-plate pt-10 max-sm:pt-14 fullscreen:pt-0/.test(room), 'floating, the picture keeps clear of its title strip, deeper on a phone where its keys are the tap size (measured: it covered the picture\'s top)');
-ok(/allow=\{server !== undefined \? 'autoplay; fullscreen' : 'fullscreen'\}/.test(room), 'a server\'s player may start by itself when it is made again');
+// Updated on purpose (Luke, 2026-11-16, "Switch it off"): the permissions are said once, and the player's own fullscreen is
+// taken out of them where the room's FULL works (SPEC-rooms-your-room.md, part 3). A server's player still has autoplay.
+ok(/const allowed = server !== undefined \? 'autoplay; fullscreen' : 'fullscreen';/.test(room), 'a server\'s player may start by itself when it is made again');
+ok(/allow=\{siteFullscreenWorks\(\) \? withoutFullscreen\(allowed\) : allowed\}/.test(room), 'and has no fullscreen of its own where the room\'s works (an iPhone keeps it)');
 ok(/notInStep=\{live && officialOn && entryId !== null \? \{ entryId, text: notInStepNote\(serverOn\) \} : null\}/.test(room), 'the chat is told about a play the room can\'t keep in step');
 
 /* --- the chat's own lines -------------------------------------------------------------------------------- */

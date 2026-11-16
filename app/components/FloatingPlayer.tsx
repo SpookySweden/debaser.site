@@ -27,9 +27,12 @@ import {
   onFloatingOrder,
   placeOf,
   setFloatAsked,
+  siteFullscreenWorks,
   subscribeToFloating,
   togglePlayerFullscreen,
   wantBoxShown,
+  withoutFullscreen,
+  withoutFullscreenKey,
   type FloatingEntry,
 } from '../lib/ui/floating-player';
 import { FLOAT_GRIPS, footFloor, screenNow, useFloatFrame } from '../lib/ui/use-float-frame';
@@ -345,6 +348,8 @@ export default function FloatingPlayer() {
   // Our own file can use the browser's pop-out, the one that stays above other apps. An outside player can't be lifted
   // out. `floating` is never true on the server, where there is no document to ask.
   const canPopOut = floating && player.kind === 'file' && document.pictureInPictureEnabled === true;
+  /** Another site's player has no fullscreen of its own where the site's works: `[ FULL ]` and a double press are the way (`withoutFullscreen`). */
+  const ownFull = siteFullscreenWorks();
   /** Fullscreen, a video is its own shape with the background round it. A strip of sound and a held picture fill the box as before. */
   const shaped = staged && entry.shape === 'video';
   const ratio = shaped ? (stageStyle(shape !== null && shape.play === playKey ? shape.shape : WIDE) as CSSProperties) : undefined;
@@ -415,12 +420,12 @@ export default function FloatingPlayer() {
           <iframe
             key={playKey}
             ref={frame}
-            src={player.src}
+            src={ownFull ? withoutFullscreenKey(player.src, player.timeFrom) : player.src}
             title={player.frameTitle}
             referrerPolicy={player.referrerPolicy}
             sandbox={player.sandbox}
-            allow={player.allow}
-            allowFullScreen={player.allowFullScreen}
+            allow={ownFull ? withoutFullscreen(player.allow) : player.allow}
+            allowFullScreen={ownFull ? false : player.allowFullScreen}
             className={`block border border-ink-plate bg-paper ${shaped ? 'stage-fit' : 'absolute inset-0 h-full w-full'}`}
             style={ratio}
             data-backdrop-solid={shaped ? '' : undefined}

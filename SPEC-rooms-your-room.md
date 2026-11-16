@@ -96,9 +96,11 @@ Part 3:
   YouTube's frame that shape, in the window too.
 - The site's own files lose the browser's own fullscreen key and double press in Chrome and Edge (`controlsList`), because
   those show the bare video with black bars; `[ FULL ]` and a double press on the picture do the site's instead.
-- Not done, Luke's call: the fullscreen key inside another site's own player (YouTube's, Vimeo's) still gives that site's
-  fullscreen, bars and all. It can be switched off so only the site's `[ FULL ]` exists, but phones (which can only fullscreen
-  a video the browser's way) would lose fullscreen for those until the phone pass.
+- Another site's own fullscreen key is switched off (Luke, 2026-11-16: "Switch it off"): every outside player's frame is
+  given no permission to go fullscreen by itself (the floating player's frames, and a room's Vimeo, Twitch and server players;
+  the room's YouTube never had one), and YouTube and Vimeo are asked not to draw the key. `[ FULL ]` and a double press are the
+  way, and those show the background. Any other player may still draw a key that does nothing. A browser that cannot
+  fullscreen a box (an iPhone) keeps the other site's key: it is the only fullscreen that works there.
 - Bars burnt into a video's own pixels stay. A video whose site answers the wrong shape has bars inside its frame, as before.
 - Proof: `Temp/check-video-shape.cjs` (13 deliberate breaks, all caught) and `scripts/drive-rooms-your-room.cjs`, run with
   AQUARIUM, STARFIELD, SAND and TILE chosen (`--backdrop`). Not proved: Vimeo and Twitch in a browser, a real 4:3 YouTube

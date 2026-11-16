@@ -1,4 +1,5 @@
 import { EmbedPlayer, loadScript } from './embed-player';
+import { siteFullscreenWorks } from '../ui/floating-player';
 import type { TwitchTarget } from './links';
 import { AUTO_QUALITY, type QualityChoice, type QualityControl } from './playable';
 
@@ -75,7 +76,7 @@ export class TwitchPlayable extends EmbedPlayer implements QualityControl {
         const Player = window.Twitch?.Player;
         if (this.destroyed || !Player) return;
         const where: Record<string, string> = target.channel !== undefined ? { channel: target.channel } : { video: target.video };
-        const player = new Player(this.mount.id, { width: '100%', height: '100%', ...where, parent: [window.location.hostname], autoplay: autoPlay, muted });
+        const player = new Player(this.mount.id, { width: '100%', height: '100%', ...where, parent: [window.location.hostname], autoplay: autoPlay, muted, allowfullscreen: !siteFullscreenWorks() });
         this.player = player;
         this.silence = window.setTimeout(() => {
           if (!this.ready) this.refused('missing');

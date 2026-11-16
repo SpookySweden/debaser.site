@@ -479,4 +479,34 @@ ok(/Back to the room/.test(floatChrome) && !/Hide the picture/.test(floatChrome)
 ok(/box\.closest\('\[data-minimized="true"\]'\) !== null\) expandWatch\(\);/.test(layer), "BACK on the site's float brings back your room's folded window");
 ok(!/collapseWatch/.test(read('app/lib/watch/use-music-room.ts')), 'joining a room opens it as a window: nothing folds it by itself');
 
+// Another site's own fullscreen key is switched off where the site's own FULL works (Luke, 2026-11-16: "Switch it off"): theirs
+// shows the bare player with black bars, ours the box with the chosen background (SPEC-rooms-your-room.md, part 3).
+ok(store.withoutFullscreen('autoplay; fullscreen') === 'autoplay', 'fullscreen is taken out of a frame\'s permissions, the rest kept');
+ok(store.withoutFullscreen('fullscreen') === '', 'a frame allowed only fullscreen is allowed nothing');
+ok(store.withoutFullscreen('autoplay; Fullscreen *; encrypted-media; picture-in-picture') === 'autoplay; encrypted-media; picture-in-picture', 'however it is written, and nothing else goes with it');
+ok(store.withoutFullscreen('autoplay') === 'autoplay' && store.withoutFullscreen('') === '', 'a frame that never had it is left as it was');
+{
+  const had = globalThis.document;
+  try {
+    delete globalThis.document;
+    ok(store.siteFullscreenWorks() === false, 'with no document (the server) the site\'s fullscreen is not counted on');
+    globalThis.document = { fullscreenEnabled: false };
+    ok(store.siteFullscreenWorks() === false, 'a browser that cannot fullscreen a box (an iPhone) keeps the other site\'s own key: the only one that works there');
+    globalThis.document = { fullscreenEnabled: true };
+    ok(store.siteFullscreenWorks() === true, 'a browser that can is given the site\'s');
+  } finally {
+    if (had === undefined) delete globalThis.document;
+    else globalThis.document = had;
+  }
+}
+ok(/allow=\{ownFull \? withoutFullscreen\(player\.allow\) : player\.allow\}/.test(layer) && /allowFullScreen=\{ownFull \? false : player\.allowFullScreen\}/.test(layer), 'the layer\'s frame is given no fullscreen of its own where the site\'s works');
+ok(/fullscreen: !siteFullscreenWorks\(\)/.test(read('app/lib/watch/vimeo-player.ts')) && /allowfullscreen: !siteFullscreenWorks\(\)/.test(read('app/lib/watch/twitch-player.ts')), 'nor Vimeo\'s and Twitch\'s players in a room');
+ok(/fs: 0/.test(read('app/lib/watch/youtube-player.ts')), 'nor YouTube\'s (it never had one there)');
+// A key with no permission behind it would be drawn and do nothing: the two players that have a word for "no key" are told it.
+ok(new URL(store.withoutFullscreenKey('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1&enablejsapi=1', 'youtube')).searchParams.get('fs') === '0', 'YouTube is asked for no fullscreen key');
+ok(new URL(store.withoutFullscreenKey('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1&fs=1', 'youtube')).search === '?autoplay=1&fs=0', 'over whatever its address said, the rest of the address kept');
+ok(new URL(store.withoutFullscreenKey('https://player.vimeo.com/video/76979871?h=8272103f6e', 'vimeo')).search === '?h=8272103f6e&fullscreen=0', 'Vimeo too, in its own word');
+ok(store.withoutFullscreenKey('https://archive.org/embed/some_film', null) === 'https://archive.org/embed/some_film' && store.withoutFullscreenKey('not an address', 'youtube') === 'not an address', 'any other player\'s address, and nonsense, is left exactly as it is');
+ok(/src=\{ownFull \? withoutFullscreenKey\(player\.src, player\.timeFrom\) : player\.src\}/.test(layer), 'the layer\'s frame asks it, where the site\'s fullscreen works');
+
 console.log(`ok: ${count} assertions (floating player, site arrows)`);

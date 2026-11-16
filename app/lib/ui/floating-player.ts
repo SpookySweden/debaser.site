@@ -27,6 +27,43 @@ export type FramePlayer = {
   timeFrom: 'youtube' | 'vimeo' | null;
 };
 
+/**
+ * Whether the site's own fullscreen can work in this browser: one that can fullscreen any box. An iPhone's cannot (it only
+ * fullscreens a video, its own way), so there another site's player keeps its own fullscreen key: it is the only one that works.
+ */
+export function siteFullscreenWorks(): boolean {
+  return typeof document !== 'undefined' && document.fullscreenEnabled === true;
+}
+
+/**
+ * A frame's permissions with fullscreen taken out (Luke, 2026-11-16: "Switch it off"). Another site's own fullscreen key shows
+ * the bare player, black bars and all; without the permission its key is gone or dead, and `[ FULL ]` and a double press are
+ * the way: the site's box, the video its own shape, the chosen background round it (SPEC-rooms-your-room.md, part 3).
+ */
+export function withoutFullscreen(allow: string): string {
+  return allow
+    .split(';')
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0 && part.split(/\s+/)[0].toLowerCase() !== 'fullscreen')
+    .join('; ');
+}
+
+/**
+ * A player's address asking it not to draw its fullscreen key, where the player has a word for that: YouTube (`fs=0`) and
+ * Vimeo (`fullscreen=0`). Without it the key is still drawn and does nothing, since the frame has no permission
+ * (`withoutFullscreen`). Any other player's address is left as it is.
+ */
+export function withoutFullscreenKey(src: string, site: FramePlayer['timeFrom']): string {
+  if (site === null) return src;
+  try {
+    const url = new URL(src);
+    url.searchParams.set(site === 'youtube' ? 'fs' : 'fullscreen', '0');
+    return url.toString();
+  } catch {
+    return src;
+  }
+}
+
 /** One of the site's own files, in a plain `<video>`: what was uploaded is what plays. */
 export type FilePlayer = { kind: 'file'; src: string };
 
