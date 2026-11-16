@@ -17,7 +17,8 @@ import { watchWindowState } from './watch-window';
  */
 
 /** Something that can be queued: a checked link (`watchLinkForItem`, `songLink`), or one of the site's own files. */
-export type QueueThing = { title: string; link: WatchLink; mediaItemId?: undefined } | { title: string; mediaItemId: string; link?: undefined };
+/** `webRef`: the MEDIA or KINO result it came from, kept on a room's queue item for its DISCUSS page (SPEC-room-chat-discuss.md). */
+export type QueueThing = { title: string; link: WatchLink; mediaItemId?: undefined; webRef?: string } | { title: string; mediaItemId: string; link?: undefined; webRef?: undefined };
 
 /** Where it went: `queued` into a queue, `listed` onto your own list in somebody's room (a crown pulls it in). */
 export type QueuedAs = { as: 'queued' | 'listed'; where: 'own' | 'room'; roomId: string };
@@ -44,7 +45,7 @@ async function roomToAddTo(userId: string | null): Promise<{ roomId: string; inQ
 export async function addToMyQueue(thing: QueueThing, userId: string | null): Promise<QueuedAs> {
   const room = await roomToAddTo(userId).catch(() => null);
   if (room !== null && userId !== null) {
-    const what = thing.link !== undefined ? { link: thing.link } : { mediaItemId: thing.mediaItemId };
+    const what = thing.link !== undefined ? { link: thing.link, ...(thing.webRef === undefined ? {} : { webRef: thing.webRef }) } : { mediaItemId: thing.mediaItemId };
     const entry = await getWatchRepository().addToQueue({ roomId: room.roomId, addedBy: userId, position: room.position, inQueue: room.inQueue, ...what });
     applyLocalChange(room.roomId, { kind: 'entry', entry });
     return { as: room.inQueue ? 'queued' : 'listed', where: 'room', roomId: room.roomId };

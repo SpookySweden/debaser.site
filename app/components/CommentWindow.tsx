@@ -7,6 +7,7 @@ import { countReplies } from '../lib/forum/format';
 import { mentionsIn } from '../lib/forum/mentions';
 import { deriveTags, displayTags } from '../lib/forum/tags';
 import type { ForumAnchor, ForumTrack } from '../lib/forum/types';
+import type { DiscussQuery } from '../lib/watch/types';
 import { useCatalogue } from '../lib/media/catalogue';
 import { previewFor, recordUses, replyUse } from '../lib/media/uses';
 import AnchorLink from './AnchorLink';
@@ -16,12 +17,15 @@ import { useComms } from './CommsProvider';
 import { useForum } from './ForumProvider';
 import { useNotifications } from './NotificationsProvider';
 import PopoutWindow from './PopoutWindow';
+import { RoomChatLine, useDiscussChat } from './RoomChatLines';
 import TagStrip from './TagStrip';
 import TimeStamp from './TimeStamp';
 
 type CommentWindowProps = {
   anchor: ForumAnchor;
   onClose: () => void;
+  /** The room chat said over this thing, drawn among the comments (SPEC-room-chat-discuss.md): what to look it up by. */
+  roomChat?: DiscussQuery;
 };
 
 /**
@@ -31,12 +35,14 @@ type CommentWindowProps = {
  * the desktop behind it closes, and the composer files a comment against the
  * item's anchor - opening the thread on the board the first time.
  */
-export default function CommentWindow({ anchor, onClose }: CommentWindowProps) {
+export default function CommentWindow({ anchor, onClose, roomChat }: CommentWindowProps) {
   const forum = useForum();
   const { accounts } = useComms();
   const notifications = useNotifications();
   const thread = forum.threadForAnchor(anchor);
   const catalogue = useCatalogue();
+  const chatLines = useDiscussChat(roomChat);
+  const chatItems = useMemo(() => chatLines.map((line) => ({ at: line.saidAt, key: `room-${line.id}`, node: <RoomChatLine key={`room-${line.id}`} line={line} /> })), [chatLines]);
 
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
@@ -162,9 +168,17 @@ export default function CommentWindow({ anchor, onClose }: CommentWindowProps) {
                 thread={thread}
                 avatarSize={44}
                 emptyLabel="NO COMMENTS YET."
+                extras={chatItems}
               />
             </>
           )}
+
+          {/* No thread yet, but said in a room: the lines alone, until the first comment files the thread. */}
+          {thread === undefined && chatItems.length > 0 ? (
+            <ul className="mt-2 space-y-2" data-room-chat-only>
+              {chatItems.map((item) => item.node)}
+            </ul>
+          ) : null}
 
           <CommentComposer
             id={composerId}

@@ -42,6 +42,11 @@ export type ProfileVisibility = {
   showListening: boolean;
   /** Your lamp, your last-seen time and your `[ TV ]` key, to other accounts. */
   showOnline: boolean;
+  /**
+   * MY ROOM CHAT ON DISCUSSION PAGES (SPEC-room-chat-discuss.md, Luke 2026-11-16): what you say in a room while something
+   * plays shows on that thing's DISCUSS page. On by default; off takes your past lines away too.
+   */
+  roomChatOnDiscuss: boolean;
 };
 
 /**

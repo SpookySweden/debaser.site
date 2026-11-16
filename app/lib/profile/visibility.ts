@@ -35,6 +35,8 @@ export const DEFAULT_VISIBILITY: ProfileVisibility = {
   showListening: false,
   // On since 2026-11-07, Luke's choice: the site is for seeing who's about. The other switches stay off.
   showOnline: true,
+  // On by default, Luke's choice (2026-11-16, SPEC-room-chat-discuss.md): room chat shows on the DISCUSS page of what played.
+  roomChatOnDiscuss: true,
 };
 
 export function withVisibilityDefaults(visibility: Partial<ProfileVisibility> | undefined): ProfileVisibility {

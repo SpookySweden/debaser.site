@@ -6,7 +6,7 @@ import { mayTakeOutPicture } from './pictures';
 import { companionOutState, parseCompanionWire, setRoomCompanions, subscribeToCompanionOut, type CompanionWire, type RoomCompanion } from '../companion/wire';
 import { membersSignature } from './members-signature';
 import { NOT_ALLOWED, ROOM_NAME_MAX, ROOM_TOPIC_MAX, TAKE_OVER_QUIET_MS, cleanRoomWords, guestNameLooksRight, hasCrown, mayEditRoom } from './rules';
-import type { GuestNameAnswer, JoinAnswer, LiveRoom, PrivateLine, PrivateSize, PrivateFold, PrivateRoomLine, QueueMove, RoomDoor, RoomGuest, RoomMemberRow, RoomOutline, RoomPrivacy, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
+import type { GuestNameAnswer, JoinAnswer, LiveRoom, PrivateLine, PrivateSize, PrivateFold, PrivateRoomLine, QueueMove, RoomDoor, RoomGuest, RoomMemberRow, RoomOutline, RoomPrivacy, StreamFold, DiscussLine, DiscussQuery, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
 /**
  * Stream rooms in this browser only, like the other mocks: the three tables as one localStorage record,
@@ -686,6 +686,44 @@ class MockWatchRepository implements WatchRepository {
     return room.id;
   }
 
+  async setChatOnDiscuss(roomId: string, on: boolean): Promise<void> {
+    // As `watch_room_chat_on_discuss`: the room's host (or the host who started it), live or ended.
+    const me = await viewerId();
+    const tables = load();
+    const room = tables.rooms.find((candidate) => candidate.id === roomId);
+    if (room === undefined) throw new Error('NO SUCH STREAM.');
+    if (me === null || (room.hostId !== me && room.originalHostId !== me)) throw new Error(NOT_ALLOWED);
+    save({ ...tables, rooms: tables.rooms.map((candidate) => (candidate.id === roomId ? { ...candidate, chatOnDiscuss: on } : candidate)) }, roomId);
+  }
+
+  async discussChat(query: DiscussQuery): Promise<DiscussLine[]> {
+    // As `discuss_room_chat`: the lines said over one thing, from rooms and people whose switches are on. Unlike the
+    // database it keeps the hidden test person (the mock's only signed-in person) and has no ANON names (one browser).
+    const tables = load();
+    const entries = new Map(tables.queue.map((entry) => [entry.id, entry]));
+    const rooms = new Map(tables.rooms.map((room) => [room.id, room]));
+    const said = tables.messages.filter((message) => {
+      const entry = message.queueEntryId === null ? undefined : entries.get(message.queueEntryId);
+      const room = rooms.get(message.roomId);
+      if (entry === undefined || room === undefined || room.chatOnDiscuss === false) return false;
+      return (
+        (query.webRef !== null && entry.webRef === query.webRef) ||
+        (query.mediaItemId !== null && entry.mediaItemId === query.mediaItemId) ||
+        (entry.link !== null && query.urls.includes(entry.link.url))
+      );
+    });
+    const { getProfileRepository } = await import('../profile/repository');
+    const profiles = getProfileRepository();
+    const lines: DiscussLine[] = [];
+    for (const message of said.sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt)).slice(0, 500)) {
+      const guest = message.authorLabel.endsWith(' [GUEST]');
+      const profile = guest ? null : await profiles.getProfile(message.authorId).catch(() => null);
+      if (profile !== null && profile.visibility.roomChatOnDiscuss === false) continue;
+      lines.push({ id: message.id, saidAt: message.createdAt, authorId: message.authorId, authorLabel: message.authorLabel, body: message.body, mediaSeconds: message.mediaSeconds, guest });
+    }
+    return lines;
+  }
+
   async saveRoomSettings(input: RoomSettingsInput): Promise<void> {
     const { room, crowns } = liveRoom(load(), input.roomId);
     if (!mayEditRoom(room, crowns, input.by, true)) throw new Error(NOT_ALLOWED);
@@ -822,6 +860,7 @@ class MockWatchRepository implements WatchRepository {
       mediaItemId: input.mediaItemId ?? null,
       link: input.link ?? null,
       series: null,
+      ...(input.link !== undefined && typeof input.webRef === 'string' ? { webRef: input.webRef } : {}),
       addedBy: input.addedBy,
       addedAt: stamp(),
       playedAt: null,

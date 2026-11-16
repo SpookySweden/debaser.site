@@ -1522,7 +1522,8 @@ export function WebRow({
    */
   const pictureAddress = item.kind === 'image' ? addresses.thumb : null;
   const roomLink = canWatch(item) ? watchLinkForItem(item) : pictureAddress !== null && pictureAddress !== undefined ? pictureLink(pictureAddress, item.title, item.creator) : null;
-  const roomSource = roomLink === null ? undefined : { link: roomLink };
+  // `webRef`: the queue item keeps which result it is, so this row's DISCUSS page finds the room chat said over it.
+  const roomSource = roomLink === null ? undefined : { link: roomLink, webRef: item.id };
 
   /** Starts the platform's own player: the reader has just pressed PLAY, and only then does anything of theirs load. */
   const startPlayer = () => {

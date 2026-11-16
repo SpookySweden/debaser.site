@@ -34,6 +34,11 @@ type CommentThreadListProps = {
    * window on an asset is in anyway.
    */
   seenByThread?: ReadMarks;
+  /**
+   * Things drawn among the top-level comments by time (room chat on a DISCUSS page, SPEC-room-chat-discuss.md): each its own
+   * `<li>`, placed where its moment falls between the comments.
+   */
+  extras?: { at: string; key: string; node: ReactNode }[];
 };
 
 /**
@@ -55,6 +60,7 @@ export default function CommentThreadList({
   emptyLabel = 'NO REPLIES YET.',
   matchedIds = [],
   seenByThread = {},
+  extras = [],
 }: CommentThreadListProps) {
   const forum = useForum();
   const { accounts } = useComms();
@@ -162,9 +168,13 @@ export default function CommentThreadList({
     );
   }
 
-  if (thread.comments.length === 0) {
+  if (thread.comments.length === 0 && extras.length === 0) {
     return <p className="mt-2 text-label font-bold text-ink">{emptyLabel}</p>;
   }
 
-  return <ul className="mt-2 space-y-2">{nodes.map((node, index) => renderNode(node, index))}</ul>;
+  // The comments and the extras, one list in time order (the comments keep their own order among themselves).
+  const items: { at: number; key: string; node: ReactNode }[] = nodes.map((node, index) => ({ at: Date.parse(node.comment.createdAt), key: node.comment.id, node: renderNode(node, index) }));
+  for (const extra of extras) items.push({ at: Date.parse(extra.at), key: extra.key, node: extra.node });
+  items.sort((a, b) => a.at - b.at);
+  return <ul className="mt-2 space-y-2">{items.map((item) => item.node)}</ul>;
 }

@@ -37,7 +37,8 @@ export type FilePlayer = { kind: 'file'; src: string };
 export type PicturePlayer = { kind: 'picture'; src: string };
 
 /** What a room would queue to play this video: a checked link, or one of the site's own files. */
-export type RoomSource = { link: WatchLink; mediaItemId?: undefined } | { mediaItemId: string; link?: undefined };
+/** `webRef`: the MEDIA or KINO result it came from, kept on the queue item so its DISCUSS page finds the room chat said over it. */
+export type RoomSource = { link: WatchLink; mediaItemId?: undefined; webRef?: string } | { mediaItemId: string; link?: undefined; webRef?: undefined };
 
 export type FloatingEntry = {
   /** Which row it belongs to: the same id finds its box again when the row comes back. */

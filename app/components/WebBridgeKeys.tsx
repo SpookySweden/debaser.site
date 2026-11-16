@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { PLATE } from '../lib/ui/controls';
 import { isQueueableWebLink, watchLinkForItem, webAnchor } from '../lib/web/bridges';
 import type { WebItem } from '../lib/web/types';
+import type { DiscussQuery } from '../lib/watch/types';
 import CommentWindow from './CommentWindow';
 import { useForum } from './ForumProvider';
 
@@ -41,12 +42,22 @@ export function WebDiscussKey({ item, onOpen, short = false }: { item: WebItem; 
         title={short ? 'Discuss' : undefined}
         className={PLATE}
         data-discuss-key
+        data-discuss-ref={item.id}
       >
         {short ? `[ ✎${count > 0 ? ` ${count}` : ''} ]` : `[ DISCUSS${count > 0 ? ` (${count})` : ''} ]`}
       </button>
-      {open ? <CommentWindow anchor={anchor} onClose={close} /> : null}
+      {open ? <CommentWindow anchor={anchor} onClose={close} roomChat={discussQuery(item)} /> : null}
     </>
   );
+}
+
+/**
+ * What its DISCUSS page looks room chat up by (SPEC-room-chat-discuss.md): the result's own id, which a queue item added from
+ * a row keeps, and the address a room would play, for items queued before that (or into your own room, which keeps only it).
+ */
+export function discussQuery(item: WebItem): DiscussQuery {
+  const link = watchLinkForItem(item);
+  return { webRef: item.id, mediaItemId: null, urls: link === null ? [] : [link.url] };
 }
 
 /** Whether a row offers a room at all: video or audio, on a platform with a fitting player. */

@@ -2,7 +2,7 @@ import { isSupabaseConfigured } from '../supabase/client';
 import { getMockWatchRepository } from './mock-watch-repository';
 import { getSupabaseWatchRepository } from './supabase-watch-repository';
 import type { OwnRoomHost } from './own-room';
-import type { GuestNameAnswer, JoinAnswer, LiveRoom, PrivateLine, PrivateFold, PrivateRoomLine, QueueMove, RoomAddMode, RoomDoor, RoomGuest, RoomMemberRow, RoomOutline, RoomPrivacy, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
+import type { GuestNameAnswer, JoinAnswer, LiveRoom, PrivateLine, PrivateFold, PrivateRoomLine, QueueMove, RoomAddMode, RoomDoor, RoomGuest, RoomMemberRow, RoomOutline, RoomPrivacy, StreamFold, DiscussLine, DiscussQuery, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
 /**
  * Where stream rooms live (SPEC-watch-together.md).
@@ -68,7 +68,7 @@ export type SendMessageInput = {
  */
 export type AddToQueueInput = { roomId: string; addedBy: string; position: number; inQueue: boolean } & (
   | { mediaItemId: string; link?: undefined }
-  | { link: WatchLink; mediaItemId?: undefined }
+  | { link: WatchLink; mediaItemId?: undefined; webRef?: string }
 );
 
 /**
@@ -157,6 +157,10 @@ export type WatchRepository = {
   joinByLink(secret: string): Promise<string | null>;
   /** The settings cog: the host's or a crown's. Throws with a sentence fit to show. */
   saveRoomSettings(input: RoomSettingsInput): Promise<void>;
+  /** CHAT ON DISCUSSION: the host's switch, live room or ended (SPEC-room-chat-discuss.md). Throws with a sentence fit to show. */
+  setChatOnDiscuss(roomId: string, on: boolean): Promise<void>;
+  /** The chat lines said over one thing, from rooms and people whose switches are on, oldest first (at most 500). */
+  discussChat(query: DiscussQuery): Promise<DiscussLine[]>;
   /**
    * An off-queue play: the host played a song from a post, a profile or PLAY FOR YOU, and it slots into the queue at
    * the current spot as playing (a played row, on screen from the start), so the queue never lies.

@@ -22,6 +22,7 @@ import SpriteSlot from './SpriteSlot';
 import WatchInRoomKey from './WatchInRoomKey';
 import FindInRoomKey from './FindInRoomKey';
 import { LetterPlaylistKey, MoreKeys, ThumbOpen } from './WebRowKeys';
+import { WebDiscussKey } from './WebBridgeKeys';
 import FeedbackKey from './FeedbackKey';
 
 /**
@@ -254,10 +255,10 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
         beside={
           <>
             {roomAdd === null ? null : roomAdd.kind === 'one' ? (
-              <WatchInRoomKey source={{ link: roomAdd.link }} playId={playId} title={roomAdd.link.title} />
+              <WatchInRoomKey source={{ link: roomAdd.link, webRef: item.id }} playId={playId} title={roomAdd.link.title} />
             ) : (
               <WatchInRoomKey
-                source={{ link: roomAdd.links[0] }}
+                source={{ link: roomAdd.links[0], webRef: item.id }}
                 series={{ title: roomAdd.title, links: roomAdd.links, note: allAddNote(roomAdd) }}
                 playId={playId}
                 title={`${roomAdd.title} · ${pickedLine(media, pick, server)}`}
@@ -265,6 +266,7 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
             )}
             {/* The rest behind the arrow, as on every MEDIA result (Luke, 2026-11-16). */}
             <MoreKeys title={item.title}>
+              <WebDiscussKey item={item} short />
               <LetterPlaylistKey letter={{ kind: 'media', ref: item.id, title: item.title, picture: rowAddresses(item).thumb ?? undefined }} playlist={null} />
               <FeedbackKey item={{ kind: 'media', ref: item.id, title: item.title, maker: item.creator ?? '', words: [...(item.tags ?? [])] }} why={null} />
             </MoreKeys>
@@ -442,6 +444,7 @@ export function KinoRow({ item, titleId, action }: { item: WebItem & { media: Me
             {action === undefined ? (
               <MoreKeys title={item.title}>
                 <FindInRoomKey title={item.title} />
+                <WebDiscussKey item={item} short />
                 <LetterPlaylistKey letter={{ kind: 'kino', ref: item.id, title: item.title, picture: addresses.thumb ?? undefined }} playlist={null} />
                 <FeedbackKey item={{ kind: 'media', ref: item.id, title: item.title, maker: item.creator ?? '', words: [...(item.tags ?? [])] }} why={null} />
               </MoreKeys>

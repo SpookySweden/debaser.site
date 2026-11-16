@@ -111,7 +111,7 @@ export function useQueueHalf({
       setState('busy');
       setRefused(null);
       try {
-        await addToMyQueue(room.link !== undefined ? { title, link: room.link } : { title, mediaItemId: room.mediaItemId }, userId);
+        await addToMyQueue(room.link !== undefined ? { title, link: room.link, ...(room.webRef === undefined ? {} : { webRef: room.webRef }) } : { title, mediaItemId: room.mediaItemId }, userId);
         setState('queued');
         if (timer.current !== null) window.clearTimeout(timer.current);
         timer.current = window.setTimeout(() => setState('idle'), QUEUED_MS);

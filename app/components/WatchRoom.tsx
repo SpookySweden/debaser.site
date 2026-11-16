@@ -4,7 +4,9 @@ import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, useS
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { stopFollowing } from '../lib/audio/follow';
-import { threadDomId } from '../lib/forum/anchors';
+import { AUTO_FILED_BODY, autoThreadTitle, threadDomId } from '../lib/forum/anchors';
+import { webAnchor } from '../lib/web/bridges';
+import { useForum } from './ForumProvider';
 import { useCatalogue } from '../lib/media/catalogue';
 import type { MediaItem } from '../lib/media/types';
 import { ASCII_EMOTICONS } from '../lib/comms/ascii-emoticons';
@@ -1543,6 +1545,7 @@ function ChatPanel({
 }) {
   const identity = useRoomIdentity();
   const repository = getWatchRepository();
+  const forum = useForum();
   const [draft, setDraft] = useState(() => guestReturnDraft(read.room.id));
   /** The window that asks who is speaking (SPEC-guests.md). What was typed stays in the box behind it. */
   const [asking, setAsking] = useState(false);
@@ -1598,6 +1601,21 @@ function ChatPanel({
     if (list !== null) list.scrollTop = list.scrollHeight;
   }, [count]);
 
+  /**
+   * Room chat on DISCUSS (SPEC-room-chat-discuss.md): said over a MEDIA or KINO result, the line shows on that result's DISCUSS
+   * page, and the first one files its forum thread when nobody has commented yet, so it is on the board (credited to the site,
+   * as every thread an item files). An account's line only: a guest can't start a board thread. A thread somebody else filed
+   * a moment before is not an error.
+   */
+  function fileDiscussThread(speakerId: string) {
+    const entry = read.queue.find((candidate) => candidate.id === read.room.currentEntryId);
+    if (identity?.kind !== 'account' || identity.id !== speakerId || read.room.chatOnDiscuss === false) return;
+    if (entry === undefined || typeof entry.webRef !== 'string' || entry.webRef.length === 0) return;
+    const anchor = webAnchor({ id: entry.webRef, title: entry.link?.title ?? entry.webRef });
+    if (forum.threadForAnchor(anchor) !== undefined) return;
+    void forum.createThread({ title: autoThreadTitle(anchor), body: AUTO_FILED_BODY, anchor }).catch(() => undefined);
+  }
+
   async function send(body: string, speaker: { id: string; label: string; named: boolean } | null = identity) {
     if (body.trim().length === 0) return false;
     if (speaker === null || !speaker.named) {
@@ -1617,6 +1635,7 @@ function ChatPanel({
         mediaSeconds: videoRef.current?.currentTime ?? 0,
       });
       applyLocalChange(read.room.id, { kind: 'message', message });
+      fileDiscussThread(speaker.id);
       return true;
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'THE MESSAGE WAS NOT SENT.');

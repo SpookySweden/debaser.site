@@ -94,6 +94,17 @@ export default function RoomSettingsWindow({ room, userId, look, onClose }: { ro
     }
   }
 
+  const [discussFault, setDiscussFault] = useState<string | null>(null);
+  async function setChatOnDiscuss(on: boolean) {
+    setDiscussFault(null);
+    try {
+      await getWatchRepository().setChatOnDiscuss(room.id, on);
+      applyLocalChange(room.id, { kind: 'refresh' });
+    } catch (failure) {
+      setDiscussFault(failure instanceof Error ? failure.message : 'THAT DID NOT WORK.');
+    }
+  }
+
   async function removePerson(person: RoomMemberRow) {
     setPeopleFault(null);
     try {
@@ -302,6 +313,19 @@ export default function RoomSettingsWindow({ room, userId, look, onClose }: { ro
             [ NO, THEY WATCH ]
           </button>
           {guestsFault === null ? null : <span className="w-fit bg-bubble-pale px-1 font-bold text-ink-bar" role="alert">{guestsFault}</span>}
+        </div>
+
+        {/* CHAT ON DISCUSSION (SPEC-room-chat-discuss.md, Luke 2026-11-16): the host's, on by default. Off, this room's lines
+            leave the DISCUSS pages of what played, past ones too. Not in an own room, which has no chat. */}
+        <div className={own || !isHost ? 'hidden' : 'flex flex-wrap items-center gap-2'} data-room-chat-on-discuss={room.chatOnDiscuss === false ? 'off' : 'on'}>
+          <span className="font-bold">CHAT ON DISCUSSION:</span>
+          <button type="button" className={room.chatOnDiscuss === false ? PLATE : PLATE_PRESSED} aria-pressed={room.chatOnDiscuss !== false} onClick={() => void setChatOnDiscuss(true)}>
+            [ ON ]
+          </button>
+          <button type="button" className={room.chatOnDiscuss === false ? PLATE_PRESSED : PLATE} aria-pressed={room.chatOnDiscuss === false} onClick={() => void setChatOnDiscuss(false)}>
+            [ OFF ]
+          </button>
+          {discussFault === null ? null : <span className="w-fit bg-bubble-pale px-1 font-bold text-ink-bar" role="alert">{discussFault}</span>}
         </div>
 
         {people.length === 0 ? null : (

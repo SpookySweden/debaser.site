@@ -14,6 +14,8 @@ export const PRIVACY_SWITCHES: { key: keyof ProfileVisibility; label: string; no
   { key: 'showAvatarComments', label: 'PICTURE COMMENTS', note: 'PEOPLE CAN READ AND WRITE COMMENTS ON YOUR PICTURE.' },
   { key: 'showSongComments', label: 'TRACK COMMENTS', note: 'PEOPLE CAN READ AND WRITE COMMENTS ON YOUR TRACK.' },
   { key: 'showTags', label: 'TAGS', note: 'TAGS PEOPLE GAVE YOU SHOW ON YOUR PROFILE. EACH TAG ALSO HAS ITS OWN SWITCH.' },
+  // SPEC-room-chat-discuss.md (Luke, 2026-11-16): on by default.
+  { key: 'roomChatOnDiscuss', label: 'MY ROOM CHAT ON DISCUSSION PAGES', note: 'WHAT YOU SAY IN A ROOM WHILE SOMETHING PLAYS SHOWS ON ITS DISCUSS PAGE. OFF TAKES YOUR PAST LINES AWAY TOO.' },
 ];
 
 /**

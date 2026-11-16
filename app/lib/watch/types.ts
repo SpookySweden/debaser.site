@@ -95,6 +95,8 @@ export type WatchRoom = {
   addMode: RoomAddMode;
   /** GUESTS CAN TALK in the room's cog (SPEC-guests.md). Off: a guest watches and reads, and only accounts speak. */
   guestsCanTalk: boolean;
+  /** CHAT ON DISCUSSION (SPEC-room-chat-discuss.md): its chat shows on the DISCUSS page of what played. Missing means on. */
+  chatOnDiscuss?: boolean;
 };
 
 export type RoomOrigin = 'stream' | 'music';
@@ -155,7 +157,18 @@ export type WatchQueueEntry = {
   playedAt: string | null;
   /** The order it actually played in (0, 1, 2...); null until it plays. */
   playIndex: number | null;
+  /** The MEDIA or KINO result it was added from (its id), so its DISCUSS page finds the chat said over it. */
+  webRef?: string | null;
 };
+
+/**
+ * One chat line said in a room over a thing, as that thing's DISCUSS page shows it (SPEC-room-chat-discuss.md): no room,
+ * no queue, nothing else. `authorId` is null when the name is ANON to a signed-out visitor.
+ */
+export type DiscussLine = { id: string; saidAt: string; authorId: string | null; authorLabel: string; body: string; mediaSeconds: number; guest: boolean };
+
+/** Which thing's lines: its MEDIA/KINO id, a catalogue file, and the addresses an older queue item may have kept. */
+export type DiscussQuery = { webRef: string | null; mediaItemId: string | null; urls: string[] };
 
 export type WatchMessage = {
   id: string;

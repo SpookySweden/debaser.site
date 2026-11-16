@@ -72,7 +72,7 @@ const PRESENCE_TABLE = 'profile_presence';
  */
 const PROFILE_COLUMNS_FOR_ANYONE =
   'id, display_name, name_colour, bio, status, show_tags, show_profile_comments, show_avatar_comments, show_song_comments, hide_listening, current_version_id, avatar_crop, avatar_crop_x, avatar_crop_y, current_song_version_id';
-const PROFILE_COLUMNS_WITH_A_SESSION = 'country_code, updated_at, show_online, privacy_seen';
+const PROFILE_COLUMNS_WITH_A_SESSION = 'country_code, updated_at, show_online, privacy_seen, room_chat_on_discuss';
 const PROFILE_CHILDREN = `${VERSIONS_TABLE}(*), ${SONGS_TABLE}(*), ${TAGS_TABLE}(*), ${COMMENTS_TABLE}(*)`;
 
 const PRESENCE_COLUMNS = 'user_id, last_seen_at, is_online';
@@ -153,6 +153,7 @@ type ProfileRow = {
   hide_listening?: boolean | null;
   /** Only with a session, like `country_code`. A visitor's read leaves them out, and gets no lamp anyway. */
   show_online?: boolean | null;
+  room_chat_on_discuss?: boolean | null;
   privacy_seen?: boolean | null;
   current_version_id: string | null;
   /**
@@ -240,6 +241,8 @@ function toProfile(row: ProfileRow): PublicProfile {
       showSongComments: row.show_song_comments,
       showListening: row.hide_listening !== true,
       showOnline: row.show_online === true,
+      // Only a signed-in read is granted it; anybody else reads the default.
+      roomChatOnDiscuss: row.room_chat_on_discuss !== false,
     }),
     tags: (row.profile_tags ?? []).map(toTag).sort((a, b) => Date.parse(a.givenAt) - Date.parse(b.givenAt)),
     comments: (row.profile_comments ?? [])
@@ -370,6 +373,7 @@ class SupabaseProfileRepository implements ProfileRepository {
       update.show_song_comments = visibility.showSongComments;
       update.hide_listening = !visibility.showListening;
       update.show_online = visibility.showOnline;
+      update.room_chat_on_discuss = visibility.roomChatOnDiscuss;
     }
 
     if (patch.privacySeen !== undefined) update.privacy_seen = patch.privacySeen;

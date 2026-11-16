@@ -1310,6 +1310,10 @@ alter table public.profiles alter column show_name_to_visitors set default false
 alter table public.profiles add column if not exists credit_me_in_art boolean not null default true;
 alter table public.profiles add column if not exists privacy_seen boolean not null default false;
 alter table public.profiles alter column hide_listening set default true;
+
+-- Room chat on DISCUSS pages (20261116060106_room_chat_on_discuss.sql, SPEC-room-chat-discuss.md): on for everybody.
+alter table public.profiles add column if not exists room_chat_on_discuss boolean not null default true;
+grant select (room_chat_on_discuss) on public.profiles to authenticated;
 alter table public.profiles alter column show_profile_comments set default false;
 alter table public.profiles alter column show_avatar_comments set default false;
 alter table public.profiles alter column show_song_comments set default false;

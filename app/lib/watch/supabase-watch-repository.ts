@@ -8,7 +8,7 @@ import { OWN_QUEUE_FULL, OwnRoomRefusal } from './own-room';
 import { companionOutState, parseCompanionWire, setRoomCompanions, subscribeToCompanionOut, type RoomCompanion } from '../companion/wire';
 import { membersSignature } from './members-signature';
 import { NOT_ALLOWED, watchClockSkewMs } from './rules';
-import type { GuestNameAnswer, JoinAnswer, LiveRoom, PrivateLine, PrivateSize, PrivateFold, PrivateRoomLine, QueueMove, RoomDoor, RoomGuest, RoomMemberRow, RoomOutline, RoomPrivacy, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
+import type { GuestNameAnswer, JoinAnswer, LiveRoom, PrivateLine, PrivateSize, PrivateFold, PrivateRoomLine, QueueMove, RoomDoor, RoomGuest, RoomMemberRow, RoomOutline, RoomPrivacy, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap, DiscussLine, DiscussQuery } from './types';
 
 /**
  * Stream rooms on Supabase (supabase/migrations/20261027120000_watch_rooms.sql; additions and crowns,
@@ -31,9 +31,9 @@ const MESSAGES = 'watch_messages';
 const CROWNS = 'watch_crowns';
 
 const ROOM_COLUMNS =
-  'id, original_host_id, original_host_label, host_id, forum_thread_id, current_entry_id, position_seconds, is_playing, started_at, updated_at, ended_at, origin, is_public, cleared_at, name, topic, add_mode, privacy, guests_can_talk';
+  'id, original_host_id, original_host_label, host_id, forum_thread_id, current_entry_id, position_seconds, is_playing, started_at, updated_at, ended_at, origin, is_public, cleared_at, name, topic, add_mode, privacy, guests_can_talk, chat_on_discuss';
 const QUEUE_COLUMNS =
-  'id, room_id, position, in_queue, media_item_id, source_url, source_kind, source_title, series_id, series_title, series_episode, added_by, added_at, played_at, play_index';
+  'id, room_id, position, in_queue, media_item_id, source_url, source_kind, source_title, series_id, series_title, series_episode, added_by, added_at, played_at, play_index, web_ref';
 const MESSAGE_COLUMNS = 'id, room_id, queue_entry_id, media_item_id, author_id, author_label, body, media_seconds, created_at';
 const CROWN_COLUMNS = 'room_id, user_id, given_by, given_at';
 
@@ -74,6 +74,7 @@ type RoomRow = {
   topic?: string | null;
   add_mode?: string | null;
   guests_can_talk?: boolean | null;
+  chat_on_discuss?: boolean | null;
 };
 
 type QueueRow = {
@@ -92,6 +93,7 @@ type QueueRow = {
   added_at: string;
   played_at: string | null;
   play_index: number | null;
+  web_ref?: string | null;
 };
 
 type CrownRow = {
@@ -140,6 +142,7 @@ function toRoom(row: RoomRow): WatchRoom {
     topic: row.topic ?? null,
     addMode: row.add_mode === 'crowns' ? 'crowns' : 'anyone',
     guestsCanTalk: row.guests_can_talk !== false,
+    chatOnDiscuss: row.chat_on_discuss !== false,
   };
 }
 
@@ -166,6 +169,7 @@ function toEntry(row: QueueRow): WatchQueueEntry {
     addedAt: row.added_at,
     playedAt: row.played_at,
     playIndex: row.play_index,
+    webRef: row.web_ref ?? null,
   };
 }
 
@@ -631,6 +635,28 @@ class SupabaseWatchRepository implements WatchRepository {
   }
 
   /** Through the database's own function, which checks the host or a crown and writes these three fields only. */
+  async setChatOnDiscuss(roomId: string, on: boolean): Promise<void> {
+    const { error } = await requireClient().rpc('watch_room_chat_on_discuss', { room: roomId, chat_on: on });
+    if (error) throw refused(error, 'THE SWITCH DID NOT SAVE.');
+  }
+
+  async discussChat(query: DiscussQuery): Promise<DiscussLine[]> {
+    const urls = query.urls.filter((url) => url.length > 0);
+    if (query.webRef === null && query.mediaItemId === null && urls.length === 0) return [];
+    const { data, error } = await requireClient().rpc('discuss_room_chat', { p_media_item_id: query.mediaItemId, p_web_ref: query.webRef, p_urls: urls.length === 0 ? null : urls });
+    if (error) throw refused(error, 'THE ROOM CHAT COULD NOT BE READ.');
+    type Row = { id: string; said_at: string; author_id: string | null; author_label: string; body: string; media_seconds: number | string; guest: boolean };
+    return ((data ?? []) as Row[]).map((row) => ({
+      id: row.id,
+      saidAt: row.said_at,
+      authorId: row.author_id,
+      authorLabel: row.author_label,
+      body: row.body,
+      mediaSeconds: Number(row.media_seconds) || 0,
+      guest: row.guest === true,
+    }));
+  }
+
   async saveRoomSettings(input: RoomSettingsInput): Promise<void> {
     const { error } = await requireClient().rpc('watch_room_settings', { room: input.roomId, new_name: input.name, new_topic: input.topic, new_add_mode: input.addMode });
     if (error) throw refused(error, 'THE SETTINGS DID NOT SAVE.');
@@ -771,6 +797,8 @@ class SupabaseWatchRepository implements WatchRepository {
         added_by: input.addedBy,
         position: input.position,
         in_queue: input.inQueue === true,
+        // The MEDIA or KINO result it came from, for its DISCUSS page (SPEC-room-chat-discuss.md).
+        web_ref: input.link !== undefined && typeof input.webRef === 'string' ? input.webRef.slice(0, 300) : null,
       })
       .select(QUEUE_COLUMNS)
       .single<QueueRow>();
