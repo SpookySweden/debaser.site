@@ -194,10 +194,9 @@ async function endRoom(page) {
       assert.equal(row.in_queue, true, 'in the queue, not on a list');
       pass(`it goes to the back of the queue (place ${row.position}, after place ${firstRow.position})`);
     }
-    // Updated on purpose 2026-11-16 (SPEC-rooms-your-room.md, part 2): a folded room's way back is [ BACK ] on its floating
-    // picture; the tile above the bar is gone.
-    assert.equal(await a.locator('[data-watch-tv-box]').count(), 0, 'no folded tile above the bar');
-    await a.locator('[data-room-float]').getByRole('button', { name: 'Back to the room' }).click();
+    // Updated on purpose 2026-11-16 (Luke's ROOMFIX list, item 7): a folded room's way back is its key above the player
+    // (ROOM :: LIVE on the corner shelf); its floating picture has no keys.
+    await a.locator('[data-room-shelf-key] button').click();
     await sleep(800);
     await endRoom(a);
     pass('the room ended');
@@ -205,7 +204,8 @@ async function endRoom(page) {
     if (!MOCK) {
       console.log('Somebody else\'s room, no crown: on your own list');
       await openMedia(a);
-      await startFromRow(a, { privacy: 'open', viaFloat: true });
+      // Updated on purpose 2026-11-16 (Luke's ROOMFIX list, item 8): the float has no room key any more; the row's is the way.
+      await startFromRow(a, { privacy: 'open' });
       const openId = rooms.at(-1);
       console.log(`  room: ${openId}`);
       const b = await person(browser, 'B');

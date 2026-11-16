@@ -1,7 +1,7 @@
 'use client';
 
 import { useLayoutEffect, type RefObject } from 'react';
-import { PLATE, WINDOW_TITLE_BAR } from '../lib/ui/controls';
+import { WINDOW_TITLE_BAR } from '../lib/ui/controls';
 import { clampFloat, defaultFloat, FLOAT_ROOM_SIZE, type FloatRect } from '../lib/ui/float-geometry';
 import { FLOAT_GRIPS, footFloor, screenNow, useFloatFrame } from '../lib/ui/use-float-frame';
 
@@ -11,9 +11,9 @@ import { FLOAT_GRIPS, footFloor, screenNow, useFloatFrame } from '../lib/ui/use-
  * notices. This draws the box's title line and grips, and writes where the box goes. The room's own keys stay on the
  * music bar. It starts bottom-left, so it does not sit on the MEDIA float in the other corner.
  *
- * Folding a room is this and nothing else (SPEC-rooms-your-room.md, part 2: the folded tile above the bar is gone), so
- * `[ BACK ]` here is the way back to the room's window, and there is no key to put the picture away: a room playing on
- * with neither window nor picture would have no way back at all.
+ * It floats only by `[ PIP ]`. It has no keys of its own (Luke, 2026-11-16: BACK, FULL and GO LIVE came off it): the way
+ * back to the room's window is the room's key on the corner shelf above the player (`FoldedRoomKey`, ./WatchWindow.tsx),
+ * or `[ PIP ]` on the bar again; a double press on the picture is still fullscreen.
  */
 
 /** Where the reader last left it, for this visit. */
@@ -43,12 +43,10 @@ export default function RoomFloatChrome({
   host,
   drag,
   title,
-  onBack,
 }: {
   host: RefObject<HTMLDivElement | null>;
   drag: ReturnType<typeof useRoomFloatDrag>;
   title: string;
-  onBack: () => void;
 }) {
   useLayoutEffect(() => {
     const element = host.current;
@@ -73,11 +71,6 @@ export default function RoomFloatChrome({
     <>
       <div {...drag.bar} className={`${WINDOW_TITLE_BAR} absolute inset-x-0 top-0 z-40 cursor-move touch-none select-none bg-sun-pale [:fullscreen_&]:hidden`} title="Drag by this line or by the picture. Pull an edge to resize. Double press for fullscreen." data-room-float>
         <span className="truncate">{title}</span>
-        <span className="flex shrink-0 items-center gap-1">
-          <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={onBack} aria-label="Back to the room" title="Back to the room's window" className={PLATE}>
-            [ BACK ]
-          </button>
-        </span>
       </div>
       {FLOAT_GRIPS.map((grip) => (
         <div key={grip.className} aria-hidden="true" className={`absolute z-40 touch-none [:fullscreen_&]:hidden ${grip.className}`} {...drag.grip(grip.edges)} data-float-grip />

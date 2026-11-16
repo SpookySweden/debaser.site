@@ -24,8 +24,15 @@ export const ROOM_PICTURE_FIT = 'aspect-video w-full sm:aspect-auto sm:h-full';
 export const ROOM_BAR = 'relative flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 bg-ink-plate px-2 py-1 text-label text-sun max-sm:gap-x-1';
 /** Where it is and the time, on the bar: a row of its own on a phone, so the keys fit on the one under it. */
 export const ROOM_BAR_PLACE = 'flex min-w-12 flex-1 items-center gap-2 max-sm:order-first max-sm:basis-full';
-/** The right column: the QUEUE line with the cog, then whoever is here. */
-export const ROOM_SIDE = 'flex flex-col gap-1 sm:min-h-0 sm:w-80 sm:shrink-0 lg:w-96';
+/** The right column: the QUEUE line with the cog, then whoever is here. `relative`: the edge to drag it by sits on its left. */
+export const ROOM_SIDE = 'flex flex-col gap-1 sm:relative sm:min-h-0 sm:w-80 sm:shrink-0 lg:w-96';
+/** The same, at the width the reader dragged it to (`room-side-width.ts`), given as `--room-side-w`. */
+const ROOM_SIDE_SIZED = 'flex flex-col gap-1 sm:relative sm:min-h-0 sm:w-(--room-side-w) sm:shrink-0';
+
+/** The right column's classes and style: the frame's own width, or the one the reader dragged it to (Luke, 2026-11-16). */
+export function roomSide(width: number | null): { className: string; style: Record<string, string> | undefined } {
+  return width === null ? { className: ROOM_SIDE, style: undefined } : { className: ROOM_SIDE_SIZED, style: { '--room-side-w': `${width}px` } };
+}
 /** What fills the rest of the side column: a live room's chat, your room's JUST YOU HERE. */
 export const ROOM_SIDE_BODY = 'flex flex-col gap-1 sm:min-h-0 sm:flex-1';
 /** The settings key's mark: the cog, asked for as a symbol rather than a coloured emoji. */

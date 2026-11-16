@@ -375,7 +375,9 @@ const floorOf = (page) =>
     assert.deepEqual(frame.keys, ['Pause', 'Seek', 'Skip to the next in your queue'], 'a song: PLAY, the seek line and next, as a live room\'s bar has for a song');
     assert.equal(frame.disabled, 0, 'nothing is drawn disabled');
     assert.equal(frame.queueInWindow, 0, 'the queue is not stacked in the window any more: it is behind [ QUEUE ]');
-    assert.equal(await page.locator(`${ROOM} button[aria-label^="Fold "]`).count(), 0, 'a song has no picture to put out, so no [ _ ]');
+    // Updated on purpose 2026-11-16 (Luke's ROOMFIX list, item 7): [ _ ] folds to a key above the player and floats nothing,
+    // so a song on has it too (scripts/drive-roomfix.cjs drives it).
+    assert.equal(await page.locator(`${ROOM} button[aria-label^="Fold "]`).count(), 1, 'a song on: YOUR ROOM can be folded away');
     assert.equal(await page.locator('[data-stream-bar]').count(), 0, 'the bar stays the music bar: your own room is not a stream');
     pass('YOUR ROOM: the picture with the bar of keys under it, the side column with [ QUEUE ] and the cog, JUST YOU HERE and GO LIVE where chat would be');
     await page.screenshot({ path: join(SHOTS, 'your-room-frame-song.png') });
@@ -591,27 +593,29 @@ const floorOf = (page) =>
     await page.screenshot({ path: join(SHOTS, 'your-room-lifted.png') });
 
     if (videoQueued) {
-      console.log('[ _ ] IS PIP: the video floats, and the way back is on it');
+      // Updated on purpose 2026-11-16 (Luke's ROOMFIX list, items 7 and 8): [ _ ] folds the window to [ ▲ ROOM ] above the
+      // player and the video plays on out of sight; [ PIP ] floats it; the floating picture has no BACK; the key brings it back.
+      console.log('[ _ ] FOLDS TO [ ▲ ROOM ]; [ PIP ] FLOATS THE VIDEO; THE KEY ABOVE THE PLAYER IS THE WAY BACK');
       await page.locator(`${ROOM} button[aria-label="Fold YOUR ROOM away"]`).click();
-      await page.waitForFunction(() => document.querySelector('[data-floating-player]')?.getAttribute('data-floating-player') === 'floating', null, { timeout: 10000 });
+      await page.waitForSelector('[data-own-room-door="folded"]', { timeout: 10000 });
       assert.equal(await page.locator(ROOM).getAttribute('data-minimized'), 'true', 'the window is tucked away');
+      assert.equal(await page.locator('[data-floating-player]').getAttribute('data-floating-tucked'), 'true', 'the video does not float: it plays on out of sight');
       assert.ok(await page.evaluate(() => document.querySelector('[data-floating-player] video') === window.__sameVideo && !window.__sameVideo.paused), 'the same video, still playing');
-      assert.equal(await page.locator('[data-own-room-door]').count(), 0, 'no [ ▲ ROOM ] tile for a folded room');
-      assert.equal(await page.locator('[data-watch-tv-box]').count(), 0, 'and no folded tile above the bar');
+      await page.locator('[data-own-room-door="folded"] button').click();
+      await page.waitForFunction(() => document.querySelector('[data-dock-window="stream"]')?.getAttribute('data-minimized') !== 'true' && document.querySelector('[data-floating-player]')?.getAttribute('data-floating-tucked') === 'false', null, { timeout: 10000 });
+      await page.locator('[data-own-room-pip]').click();
+      await page.waitForFunction(() => document.querySelector('[data-floating-player]')?.getAttribute('data-floating-player') === 'floating', null, { timeout: 10000 });
+      assert.equal(await page.locator('[data-floating-player]').getByRole('button', { name: /^Back to where/ }).count(), 0, 'the floating picture has no BACK');
       const grips = await page.evaluate(() => [...document.querySelectorAll('[data-floating-player] [data-float-grip]')].map((grip) => Math.round(grip.getBoundingClientRect().width) + 'x' + Math.round(grip.getBoundingClientRect().height)));
       assert.equal(grips.length, 8, 'the floating picture has its eight grips');
       assert.equal(grips.filter((size) => size === '20x20').length, 4, `its four corner grips are 20px squares, where a window's are 12px (${grips.join(' ')})`);
       await page.screenshot({ path: join(SHOTS, 'your-room-pip.png') });
-      await page.locator('[data-floating-player]').getByRole('button', { name: /^Back to where/ }).click();
+      await page.locator('[data-own-room-door="folded"] button').click();
       await page.waitForFunction(() => document.querySelector('[data-dock-window="stream"]')?.getAttribute('data-minimized') !== 'true' && document.querySelector('[data-floating-player]')?.getAttribute('data-floating-player') === 'in-box', null, { timeout: 10000 });
       const back = await rectOf(page, ROOM);
-      assert.ok(near(back.top, lifted.top) && near(back.left, lifted.left) && near(back.height, lifted.height), 'BACK on the floating picture brings the window back where it was');
-      await page.locator('[data-own-room-pip]').click();
-      await page.waitForFunction(() => document.querySelector('[data-floating-player]')?.getAttribute('data-floating-player') === 'floating' && document.querySelector('[data-dock-window="stream"]')?.getAttribute('data-minimized') === 'true', null, { timeout: 10000 });
-      await page.locator('[data-floating-player]').getByRole('button', { name: /^Back to where/ }).click();
-      await page.waitForFunction(() => document.querySelector('[data-dock-window="stream"]')?.getAttribute('data-minimized') !== 'true', null, { timeout: 10000 });
+      assert.ok(near(back.top, lifted.top) && near(back.left, lifted.left) && near(back.height, lifted.height), '[ ▲ ROOM ] brings the window back where it was');
       assert.ok(await page.evaluate(() => document.querySelector('[data-floating-player] video') === window.__sameVideo), 'never reloaded');
-      pass('[ _ ] and [ PIP ] tuck the window away and float the video; BACK on the picture is the way back; no folded tile');
+      pass('[ _ ] folds the window to [ ▲ ROOM ], the video out of sight; [ PIP ] floats it with no BACK; the key brings both back');
     }
 
     console.log('GO LIVE: the same window becomes the live room, where it stands');
@@ -687,14 +691,18 @@ const floorOf = (page) =>
       pass(`FULL in the live room: ${roomFull}, the bar under it; back as it was`);
     }
 
-    console.log('THE LIVE ROOM: [ _ ] IS PIP, THE PICTURE IS A HANDLE, THE TILE IS GONE');
+    // Updated on purpose 2026-11-16 (Luke's ROOMFIX list, item 7): [ _ ] folds the live room to ROOM :: LIVE above the player
+    // and floats nothing. A file of our own in a live room floats only by the browser's own picture-in-picture, so the room's
+    // floating picture (dragged by the picture, its grips, no keys) is driven with YouTube in scripts/drive-floating-player.cjs
+    // and scripts/drive-roomfix.cjs; what follows the fold here is kept for a room whose picture does float.
+    console.log('THE LIVE ROOM: [ _ ] FOLDS IT TO ROOM :: LIVE ABOVE THE PLAYER');
     await page.locator(`${ROOM} button[aria-label^="Fold "]`).click();
-    await page.waitForSelector('[data-room-picture="floating"]', { timeout: 10000 });
+    await page.waitForSelector('[data-room-shelf-key="live"]', { timeout: 10000 });
     assert.equal(await page.locator(ROOM).getAttribute('data-minimized'), 'true');
-    assert.equal(await page.locator('[data-watch-tv-box]').count(), 0, 'no folded tile above the bar');
+    assert.equal(await page.locator('[data-room-picture="floating"]').count(), 0, 'nothing floats');
     assert.equal(await page.locator('[data-own-room-door]').count(), 0);
-    assert.equal(await page.locator('[data-room-float] button').count(), 1, 'the picture has one key');
-    assert.equal(await page.locator('[data-room-float]').getByRole('button', { name: 'Back to the room' }).count(), 1, 'and it is the way back');
+    pass('the live room folded: ROOM :: LIVE above the player, nothing floats');
+    if (await page.locator('[data-room-picture="floating"]').count()) {
     const roomGrips = await page.evaluate(() => [...document.querySelectorAll('[data-room-picture] [data-float-grip]')].map((grip) => Math.round(grip.getBoundingClientRect().width) + 'x' + Math.round(grip.getBoundingClientRect().height)));
     assert.equal(roomGrips.filter((size) => size === '20x20').length, 4, `four 20px corner grips (${roomGrips.join(' ')})`);
     await page.evaluate(() => {
@@ -721,14 +729,15 @@ const floorOf = (page) =>
     const bigger = await rectOf(page, '[data-room-picture]');
     assert.ok(near(bigger.width, byLine.width + 60, 3) && near(bigger.height, byLine.height + 40, 3), `a corner grip resizes it (${Math.round(byLine.width)}x${Math.round(byLine.height)} -> ${Math.round(bigger.width)}x${Math.round(bigger.height)})`);
     assert.ok(await page.evaluate(() => window.__roomPlayer === null || window.__roomPlayer === document.querySelector('[data-room-picture] video, [data-room-picture] iframe')), 'the room\'s player was never rebuilt');
-    pass('the live room folded: its picture floats, drags by the picture and by its title line, resizes by a bigger corner grip; BACK is its one key; no tile');
-    await page.screenshot({ path: join(SHOTS, 'live-room-pip.png') });
-    await page.locator('[data-room-float]').getByRole('button', { name: 'Back to the room' }).click();
+    pass('the live room\'s floating picture drags by the picture and by its title line, resizes by a bigger corner grip');
+    }
+    await page.screenshot({ path: join(SHOTS, 'live-room-folded.png') });
+    await page.locator('[data-room-shelf-key] button').click();
     await page.waitForSelector('[data-room-picture="in-room"]', { timeout: 10000 });
-    assert.notEqual(await page.locator(ROOM).getAttribute('data-minimized'), 'true', 'BACK brings the room\'s window back');
+    assert.notEqual(await page.locator(ROOM).getAttribute('data-minimized'), 'true', 'the key brings the room\'s window back');
     const home = await rectOf(page, ROOM);
     for (const side of ['left', 'top', 'width', 'height']) assert.ok(near(home[side], after.window[side]), `where it was (${side})`);
-    pass('BACK on the floating picture brings the room\'s window back where it was');
+    pass('ROOM :: LIVE above the player brings the room\'s window back where it was');
 
     // The stream's own strip is on the bar now, taller or shorter than the music bar: the window still lifts.
     grab = await titlePoint(page);
