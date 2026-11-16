@@ -10,11 +10,11 @@ import { useNow } from '../lib/ui/use-now';
 import { PLATE, PLATE_MAIN } from '../lib/ui/controls';
 import { cornerSlot, noCornerSlot, subscribeToCornerSlot } from '../lib/ui/corner-shelf';
 import { getWatchRepository } from '../lib/watch/repository';
-import { roomIsLive, roomPrivacyLabel, roomShownName } from '../lib/watch/rules';
+import { nextQueuePosition, roomIsLive, roomPrivacyLabel, roomShownName } from '../lib/watch/rules';
 import { streamBarState, subscribeToStreamBar } from '../lib/watch/stream-bar';
 import { guestReturnRoom } from '../lib/watch/guest-return';
 import { announceRoomClientChange, hasStoredGuest } from '../lib/watch/room-client';
-import { applyLocalChange, useWatchRoom } from '../lib/watch/use-watch-room';
+import { applyLocalChange, peekRoom, useWatchRoom } from '../lib/watch/use-watch-room';
 import {
   closeWatch,
   collapseWatch,
@@ -36,7 +36,8 @@ import { useLedgeHeadroom } from '../lib/companion/use-ledge-headroom';
 import OwnRoomWindow from './OwnRoomWindow';
 import RoomDoor from './RoomDoor';
 import WatchRoom from './WatchRoom';
-import { floatingState, subscribeToFloating } from '../lib/ui/floating-player';
+import { closeFloating, floatingState, subscribeToFloating } from '../lib/ui/floating-player';
+import { answerPlayAsk, playAskState, playInMainRoomLeaving, subscribeToPlayAsk } from '../lib/watch/main-room-play';
 import { ownRoomState, subscribeToOwnRoom } from '../lib/watch/own-room-client';
 import { askToSaveCanvas } from '../lib/watch/use-room-canvas';
 
@@ -103,18 +104,44 @@ export default function WatchWindow() {
     [asked, pathname, router],
   );
 
+  return (
+    <>
+      <WatchWindowBody state={state} ownRoomId={ownRoomId} asked={asked} accountId={accountId} close={close} collapse={collapse} onJoined={() => router.replace(pathname)} />
+      <PlayAskWindow />
+    </>
+  );
+}
+
+function WatchWindowBody({
+  state,
+  ownRoomId,
+  asked,
+  accountId,
+  close,
+  collapse,
+  onJoined,
+}: {
+  state: ReturnType<typeof watchWindowState>;
+  ownRoomId: string | null;
+  asked: string;
+  accountId: string | null;
+  close: () => void;
+  collapse: (pip?: boolean) => void;
+  onJoined: () => void;
+}) {
+  const ownVisitor = useSyncExternalStore(subscribeToOwnRoom, ownRoomVisitorNow, noOwnRoomVisitor);
   // A link to somebody's own room (`?join=<secret>`): the way in is asked before any window opens.
   const joining = joinSecretFromSearch(asked.length === 0 ? '' : `?${asked}`);
-  if (joining !== null) return <JoinByLink key={joining} secret={joining} signedIn={accountId !== null} onDone={() => router.replace(pathname)} />;
+  if (joining !== null) return <JoinByLink key={joining} secret={joining} signedIn={accountId !== null} onDone={onJoined} />;
 
   // No room window open: your own room's door, whenever it has something on (SPEC-rooms-queues.md, phase 2).
   if (!state.open || state.focus === null) return <OwnRoomDoor />;
 
   if (state.focus.kind === 'prelive') return <PreLiveWindow mediaItemId={state.focus.mediaItemId} onClose={close} />;
 
-  // Your own room has a window of its own: nobody else is in it, so none of a live room's machinery runs. Folded, its
-  // `[ ▲ ROOM ]` above the player brings it back, whether or not its video floats (Luke, 2026-11-16).
-  if (state.focus.roomId === ownRoomId) {
+  // A signed-out visitor's room lives in their browser and keeps its own window (no link, no chat, nobody else). Folded,
+  // its `[ ▲ ROOM ]` above the player brings it back (Luke, 2026-11-16).
+  if (state.focus.roomId === ownRoomId && ownVisitor) {
     return (
       <>
         <OwnRoomWindow key={state.focus.roomId} roomId={state.focus.roomId} collapsed={state.collapsed} pip={state.collapsed && state.pip} onCollapse={collapse} onClose={close} />
@@ -123,8 +150,82 @@ export default function WatchWindow() {
     );
   }
 
-  return <RoomWindow key={state.focus.roomId} roomId={state.focus.roomId} collapsed={state.collapsed} pip={state.collapsed && state.pip} onCollapse={collapse} onLeft={close} />;
+  // Every other room, your main room included (SPEC-rooms-perpetual.md): the live room's own window, switched by state.
+  return <RoomWindow key={state.focus.roomId} roomId={state.focus.roomId} mainRoom={state.focus.roomId === ownRoomId} collapsed={state.collapsed} pip={state.collapsed && state.pip} onCollapse={collapse} onLeft={close} />;
 }
+
+const ownRoomVisitorNow = () => ownRoomState().visitor;
+const noOwnRoomVisitor = () => false;
+
+/**
+ * You are in somebody else's room and pressed PLAY on a video (SPEC-rooms-perpetual.md, Luke's Q2 A): play it in your
+ * own room (you leave theirs), add it to their queue, or cancel.
+ */
+function PlayAskWindow() {
+  const ask = useSyncExternalStore(subscribeToPlayAsk, playAskState, noPlayAsk);
+  const { user } = useAuth();
+  const [fault, setFault] = useState<string | null>(null);
+  if (ask === null) return null;
+
+  const addToTheirs = () => {
+    if (user === null) return;
+    const theirs = peekRoom(ask.theirRoomId);
+    const position = theirs === null ? 0 : nextQueuePosition(theirs.queue);
+    // Their room's rules decide where it goes: straight in with a crown, otherwise on your own list there until a crown pulls it in.
+    const crowned = theirs !== null && (theirs.room.hostId === user.id || theirs.crowns.some((crown) => crown.userId === user.id));
+    const base = { roomId: ask.theirRoomId, addedBy: user.id, position, inQueue: crowned };
+    const added = ask.source.link !== undefined ? getWatchRepository().addToQueue({ ...base, link: ask.source.link }) : getWatchRepository().addToQueue({ ...base, mediaItemId: ask.source.mediaItemId });
+    void added.then(
+      () => {
+        applyLocalChange(ask.theirRoomId, { kind: 'refresh' });
+        setFault(null);
+        answerPlayAsk();
+      },
+      (failure: unknown) => setFault(failure instanceof Error ? failure.message : 'IT COULD NOT BE ADDED.'),
+    );
+  };
+
+  return (
+    <PopoutWindow
+      title="YOU ARE IN SOMEBODY ELSE'S ROOM"
+      onClose={() => {
+        setFault(null);
+        answerPlayAsk();
+      }}
+      maxWidth="max-w-md"
+    >
+      <div className="flex flex-col gap-2 p-2 text-label font-bold text-ink" data-play-ask>
+        <p>{ask.title.toUpperCase()}</p>
+        {fault !== null ? (
+          <p className="w-fit bg-bubble-pale px-1 text-ink-bar" role="alert">
+            {fault}
+          </p>
+        ) : null}
+        <p className="flex flex-wrap gap-2">
+          <button type="button" className={PLATE_MAIN} data-play-ask-mine onClick={() => playInMainRoomLeaving(ask.source)}>
+            [ PLAY IN YOUR ROOM ]
+          </button>
+          <button type="button" className={PLATE} data-play-ask-theirs onClick={addToTheirs}>
+            [ ADD TO THEIR QUEUE ]
+          </button>
+          <button
+            type="button"
+            className={PLATE}
+            data-play-ask-cancel
+            onClick={() => {
+              setFault(null);
+              answerPlayAsk();
+            }}
+          >
+            [ CANCEL ]
+          </button>
+        </p>
+        <p>PLAY IN YOUR ROOM LEAVES THEIRS.</p>
+      </div>
+    </PopoutWindow>
+  );
+}
+const noPlayAsk = () => null;
 
 /**
  * Joining somebody's own room by its link (Luke, 2026-11-14: "if you have someones link you can still join"). The
@@ -290,8 +391,12 @@ function PreLiveWindow({ mediaItemId, onClose }: { mediaItemId: string; onClose:
  * and nothing more; `[ PIP ]` (`pip`) folds it with its picture floating over the site, and the same key is the way
  * back (Luke, 2026-11-16: "collapsing the room goes to a small button above the player like before, not PIP").
  */
-function RoomWindow({ roomId, collapsed, pip, onCollapse, onLeft }: { roomId: string; collapsed: boolean; pip: boolean; onCollapse: (pip?: boolean) => void; onLeft: () => void }) {
+function RoomWindow({ roomId, mainRoom, collapsed, pip, onCollapse, onLeft }: { roomId: string; mainRoom: boolean; collapsed: boolean; pip: boolean; onCollapse: (pip?: boolean) => void; onLeft: () => void }) {
   const { read, error } = useWatchRoom(roomId);
+  // Your main room's window plays the room itself: whatever the floating player had on gives way, so nothing plays twice.
+  useEffect(() => {
+    if (mainRoom) closeFloating();
+  }, [mainRoom]);
   const headroom = useLedgeHeadroom();
   const [closing, setClosing] = useState(false);
   const { profile } = usePublicProfile(read?.room.hostId ?? null);
@@ -333,9 +438,16 @@ function RoomWindow({ roomId, collapsed, pip, onCollapse, onLeft }: { roomId: st
         fill
         // Somebody's own room, joined by its link, is named as theirs: it is not a stream and has no privacy to pick.
         title={read ? (read.room.origin === 'music' ? `${hostName.toUpperCase()}'S ROOM` : `STREAM :: ${roomShownName(read.room, hostName).toUpperCase()}${read.room.privacy === 'open' ? '' : ` :: ${roomPrivacyLabel(read.room.privacy)}`}`) : 'STREAM'}
-        badge={read ? (read.room.origin === 'music' ? 'BY LINK' : live ? 'LIVE' : 'ENDED') : undefined}
-        // Leaving with a changed canvas nobody saved asks "save this canvas?" first (SPEC-stream-art.md).
-        onClose={() => (removed ? onLeft() : void askToSaveCanvas(roomId).then(() => (read && live ? setClosing(true) : onLeft())))}
+        badge={read ? (read.room.origin === 'music' ? (read.room.isPublic ? 'LIVE' : mainRoom ? 'PRIVATE' : 'BY LINK') : live ? 'LIVE' : 'ENDED') : undefined}
+        // Your main room's X folds it away and it plays on (SPEC-rooms-perpetual.md): you never leave it by closing the
+        // window, only by LEAVE or END ROOM. Anybody else leaving with a changed canvas nobody saved is asked first.
+        onClose={() =>
+          mainRoom && drawn && read !== undefined && read !== null && read.room.endedAt === null && read.room.hostId === userId
+            ? onCollapse(false)
+            : removed
+              ? onLeft()
+              : void askToSaveCanvas(roomId).then(() => (read && live ? setClosing(true) : onLeft()))
+        }
         onMinimize={drawn ? () => onCollapse(false) : undefined}
         minimizeTip={FOLD_TIP}
         minimized={collapsed && drawn}

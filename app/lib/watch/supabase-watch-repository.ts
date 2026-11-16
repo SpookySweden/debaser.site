@@ -544,6 +544,8 @@ class SupabaseWatchRepository implements WatchRepository {
       .select(ROOM_COLUMNS)
       .eq('original_host_id', hostId)
       .eq('origin', 'music')
+      // The OPEN one (SPEC-rooms-perpetual.md): an ended main room stays in the table, and there is at most one open.
+      .is('ended_at', null)
       .maybeSingle<RoomRow>();
     if (error) throw refused(error, 'YOUR ROOM COULD NOT BE READ.');
     return data === null ? null : toRoom(data);
@@ -766,6 +768,16 @@ class SupabaseWatchRepository implements WatchRepository {
   async handOver(roomId: string, toUserId: string): Promise<void> {
     const { error } = await requireClient().from(ROOMS).update({ host_id: toUserId }).eq('id', roomId);
     if (error) throw refused(error, 'THE STREAM COULD NOT BE HANDED OVER.');
+  }
+
+  async announceRoom(roomId: string, on: boolean, privacy: RoomPrivacy, password: string | null): Promise<void> {
+    const { error } = await requireClient().rpc('watch_room_announce', { room: roomId, turn_on: on, new_privacy: privacy, new_password: password });
+    if (error) throw new Error(error.code === '22023' ? 'THAT NEEDS A PASSWORD.' : 'ONLY THE HOST CAN CHANGE THAT.');
+  }
+
+  async passOn(roomId: string, heirId: string): Promise<boolean> {
+    const { data, error } = await requireClient().rpc('watch_room_pass_on', { room: roomId, heir: heirId });
+    return error === null && data === true;
   }
 
   async takeOver(roomId: string, goneHostId: string): Promise<boolean> {

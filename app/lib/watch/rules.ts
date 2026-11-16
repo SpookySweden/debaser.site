@@ -23,6 +23,16 @@ export const STALE_CLOSE_SECONDS = 3 * 60 + 5;
 
 /** The database refuses a take-over until the host has been quiet this long (`watch_take_over`). */
 export const TAKE_OVER_QUIET_MS = 8000;
+/** A live main room waits longer before its people take it (SPEC-rooms-perpetual.md, Luke's Q3 A): a reload never loses it. */
+export const MAIN_ROOM_TAKE_OVER_MS = 45_000;
+
+/**
+ * Whether a room is announced (SPEC-rooms-perpetual.md): a stream room always is; somebody's main room once they press
+ * GO LIVE. An announced room keeps the host's beat, can be taken over or handed on, and lights the lists and lamps.
+ */
+export function roomAnnounced(room: Pick<WatchRoom, 'origin' | 'isPublic'>): boolean {
+  return room.origin !== 'music' || room.isPublic;
+}
 
 /** How often the longest-present watcher asks to take over while the host is missing from the room. */
 export const TAKE_OVER_RETRY_MS = 2000;

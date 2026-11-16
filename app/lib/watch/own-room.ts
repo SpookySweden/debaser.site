@@ -174,6 +174,25 @@ export class OwnRoomSession {
     this.adopt(blankRoom(this.deps.newId(), host, new Date(this.deps.now()).toISOString()));
   }
 
+  /** True once the database holds the room (found, or the write that makes it has been sent). */
+  isMade(): boolean {
+    return this.made;
+  }
+
+  /**
+   * The room stopped being your main room (SPEC-rooms-perpetual.md): you ended it, or it was handed on and is somebody
+   * else's now. A new blank room takes its place in the browser, written with the next thing you play; its queue starts
+   * empty (Luke, Q1 A). Writes still waiting for the old room are let go of. Asked about a room this session no longer
+   * holds, it does nothing, so the same news arriving twice makes one new room.
+   */
+  renew(from: string): void {
+    if (this.closed || this.roomId !== from) return;
+    this.writes = [];
+    this.made = false;
+    this.changes += 1;
+    this.adopt(blankRoom(this.deps.newId(), this.deps.host, new Date(this.deps.now()).toISOString()));
+  }
+
   /**
    * Reads the room again (a second device may have changed it). Nothing is read while writes are waiting: this
    * browser's copy is the newer one then, and they go first.

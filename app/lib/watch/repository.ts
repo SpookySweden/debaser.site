@@ -188,6 +188,16 @@ export type WatchRepository = {
   startEntry(roomId: string, entryId: string, playIndex: number): Promise<void>;
   /** The host hands the transport to another account in the room. */
   handOver(roomId: string, toUserId: string): Promise<void>;
+  /**
+   * GO LIVE (`on`) and GO PRIVATE on your own main room (SPEC-rooms-perpetual.md): the same room is announced with WHO CAN
+   * JOIN, or taken off every list. A null password keeps the one already set. Throws with a sentence fit to show.
+   */
+  announceRoom(roomId: string, on: boolean, privacy: RoomPrivacy, password: string | null): Promise<void>;
+  /**
+   * The host leaves a live room with people in it: it becomes the heir's, and a main room becomes nobody's main room (a
+   * stream room). True when it was handed on (`watch_room_pass_on`).
+   */
+  passOn(roomId: string, heirId: string): Promise<boolean>;
   /** A watcher takes over from a host who vanished. True when this call won (`watch_take_over`). */
   takeOver(roomId: string, goneHostId: string, callerId: string): Promise<boolean>;
   endRoom(roomId: string): Promise<void>;

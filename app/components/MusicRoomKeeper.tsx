@@ -7,6 +7,7 @@ import { useCatalogue } from '../lib/media/catalogue';
 import type { MediaItem } from '../lib/media/types';
 import { closeFloating, floatingState, onFloatingEnded, orderFloating, playFloating, subscribeToFloating } from '../lib/ui/floating-player';
 import { getBrowserWatchRepository } from '../lib/watch/mock-watch-repository';
+import { playInMainRoom } from '../lib/watch/main-room-play';
 import { OwnRoomSession, ownRoomPlace } from '../lib/watch/own-room';
 import { clearOwnRoom, ownRoomState, patchOwnRoom, setOwnRoom, sharedRoomStore, storedVisitorRoomId, subscribeToOwnRoom, visitorRoomId } from '../lib/watch/own-room-client';
 import { floatingForLink } from '../lib/watch/own-screen';
@@ -177,6 +178,17 @@ export default function MusicRoomKeeper() {
   }, [bindOwnRoom, session, roomId, waiting]);
   useEffect(() => () => bindOwnRoom(null), [bindOwnRoom]);
 
+  /* --- the room stopped being your main room: you ended it, or it was handed on (SPEC-rooms-perpetual.md) --- */
+
+  const ownHost = own.hostId;
+  const visitorRoom = own.visitor;
+  useEffect(() => {
+    if (session === null || visitorRoom || read === undefined || read === null) return;
+    const held = read.room;
+    if (held.id !== session.id()) return;
+    if (held.endedAt !== null || held.origin !== 'music' || held.hostId !== ownHost) session.renew(held.id);
+  }, [session, read, ownHost, visitorRoom]);
+
   /* --- after a reload: the room is back, paused ------------------------------------------------------ */
 
   const restored = useRef<OwnRoomSession | null>(null);
@@ -260,6 +272,17 @@ export default function MusicRoomKeeper() {
       const entry = floatingState().entry;
       if (entry === null || entry.play === lastPlay) return;
       lastPlay = entry.play;
+      // PLAY on a row's video opens your main room's window with it on screen, not the floating player
+      // (SPEC-rooms-perpetual.md, Luke 2026-11-16). Not a video this keeper put on from the queue (`own:`), and not
+      // for a visitor, whose room keeps its own window. In somebody else's room you are asked first (Luke, Q2 A).
+      if (entry.shape === 'video' && entry.room !== undefined && !entry.id.startsWith('own:') && !ownRoomState().visitor) {
+        const went = playInMainRoom(entry.room.link !== undefined ? { link: entry.room.link } : { mediaItemId: entry.room.mediaItemId }, entry.title);
+        if (went !== 'none') {
+          closeFloating();
+          if (now.current.playing && now.current.room === null) now.current.steer(false);
+          return;
+        }
+      }
       // In a live room the bar and the queue are that room's; a video played beside it is its own business.
       if (now.current.room !== null) return;
       if (entry.room?.link !== undefined) session.started(entry.room.link);

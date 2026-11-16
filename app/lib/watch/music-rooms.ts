@@ -34,7 +34,8 @@ export function listedRooms(rooms: readonly LiveRoom[], now: number): LiveRoom[]
       room.endedAt !== null
         ? false
         : room.origin === 'music'
-          ? room.isPublic && roomAgeSeconds(room, now) <= MUSIC_ROOM_GONE_SECONDS
+          ? // A live main room (SPEC-rooms-perpetual.md) keeps the host's beat: off the lists after 90 quiet seconds, as a stream.
+            room.isPublic && roomAgeSeconds(room, now) <= ROOM_QUIET_SECONDS
           : roomIsLive(room, now),
     )
     .sort(

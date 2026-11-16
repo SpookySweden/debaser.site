@@ -5,7 +5,7 @@ import { OWN_QUEUE_FULL, OwnRoomRefusal } from './own-room';
 import { mayTakeOutPicture } from './pictures';
 import { companionOutState, parseCompanionWire, setRoomCompanions, subscribeToCompanionOut, type CompanionWire, type RoomCompanion } from '../companion/wire';
 import { membersSignature } from './members-signature';
-import { NOT_ALLOWED, ROOM_NAME_MAX, ROOM_TOPIC_MAX, TAKE_OVER_QUIET_MS, cleanRoomWords, guestNameLooksRight, hasCrown, mayEditRoom } from './rules';
+import { MAIN_ROOM_TAKE_OVER_MS, NOT_ALLOWED, ROOM_NAME_MAX, ROOM_TOPIC_MAX, TAKE_OVER_QUIET_MS, cleanRoomWords, guestNameLooksRight, hasCrown, mayEditRoom } from './rules';
 import type { GuestNameAnswer, JoinAnswer, LiveRoom, PrivateLine, PrivateSize, PrivateFold, PrivateRoomLine, QueueMove, RoomDoor, RoomGuest, RoomMemberRow, RoomOutline, RoomPrivacy, StreamFold, DiscussLine, DiscussQuery, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
 /**
@@ -342,7 +342,8 @@ class MockWatchRepository implements WatchRepository {
     const mine = tables.members.find((row) => row.roomId === roomId && row.userId === me);
     // As the database's `watch_room_door`: somebody else's own room is "no such room", except to whoever joined it by
     // its link (somebody REMOVED is told so).
-    if (room.origin === 'music' && room.hostId !== me && mine === undefined) return none;
+    // A live main room with OPEN or PASSWORD answers as a stream room (SPEC-rooms-perpetual.md); a private one stays link-only.
+    if (room.origin === 'music' && !(room.isPublic && room.privacy !== 'private') && room.hostId !== me && mine === undefined) return none;
     const attempt = tables.attempts.find((row) => row.roomId === roomId && row.userId === me);
     const locked = attempt?.lockedUntil !== null && attempt?.lockedUntil !== undefined && Date.parse(attempt.lockedUntil) > Date.now();
     return {
@@ -365,7 +366,7 @@ class MockWatchRepository implements WatchRepository {
     if (room === undefined || me === null) return 'refused';
     const mine = tables.members.find((row) => row.roomId === roomId && row.userId === me.id);
     // As the database's `watch_join`: an own room is entered by its link, never by its address.
-    if (room.origin === 'music' && room.hostId !== me.id && mine === undefined) return 'refused';
+    if (room.origin === 'music' && !(room.isPublic && room.privacy !== 'private') && room.hostId !== me.id && mine === undefined) return 'refused';
     if (mine?.removedAt !== null && mine !== undefined) return 'removed';
     if (mine !== undefined) return 'joined';
     if (room.endedAt !== null || !room.isPublic) return 'ended';
@@ -578,13 +579,14 @@ class MockWatchRepository implements WatchRepository {
   }
 
   async findMusicRoom(hostId: string): Promise<WatchRoom | null> {
-    return load().rooms.find((room) => room.origin === 'music' && room.originalHostId === hostId) ?? null;
+    // The OPEN one (SPEC-rooms-perpetual.md): an ended or handed-on room is no longer anybody's main room.
+    return load().rooms.find((room) => room.origin === 'music' && room.originalHostId === hostId && room.endedAt === null) ?? null;
   }
 
   async openOwnRoom(input: OpenOwnRoomInput): Promise<WatchRoomRead> {
     const tables = load();
     // One per person, kept: found before it is ever made twice (the database's `watch_rooms_one_music_room`).
-    const held = tables.rooms.find((room) => room.origin === 'music' && room.originalHostId === input.host.id);
+    const held = tables.rooms.find((room) => room.origin === 'music' && room.originalHostId === input.host.id && room.endedAt === null);
     if (held === undefined) {
       const at = stamp();
       const room: WatchRoom = {
@@ -661,7 +663,7 @@ class MockWatchRepository implements WatchRepository {
     const me = await this.viewer();
     if (me === null) throw new Error(NOT_ALLOWED);
     const tables = load();
-    const room = tables.rooms.find((candidate) => candidate.origin === 'music' && candidate.hostId === me);
+    const room = tables.rooms.find((candidate) => candidate.origin === 'music' && candidate.hostId === me && candidate.endedAt === null);
     if (room === undefined) return null;
     const held = tables.links?.[room.id];
     if (held !== undefined && !refresh) return held;
@@ -805,15 +807,47 @@ class MockWatchRepository implements WatchRepository {
   async handOver(roomId: string, toUserId: string): Promise<void> {
     const tables = load();
     if (tables.members.some((row) => row.roomId === roomId && row.userId === toUserId && row.removedAt !== null)) return;
+    // A main room changes hands only through passOn (the database's guard freezes its host).
+    if (tables.rooms.some((room) => room.id === roomId && room.origin === 'music')) return;
     addMember(tables, roomId, toUserId);
     changeRoom(roomId, (room) => ({ ...room, hostId: toUserId }));
   }
 
+  /** As the database's `watch_room_announce`: GO LIVE / GO PRIVATE on the caller's own main room. */
+  async announceRoom(roomId: string, on: boolean, privacy: RoomPrivacy, password: string | null): Promise<void> {
+    const tables = load();
+    const room = tables.rooms.find((candidate) => candidate.id === roomId);
+    const me = await this.viewer();
+    if (me === null || room === undefined || room.hostId !== me || room.endedAt !== null || room.origin !== 'music') throw new Error('ONLY THE HOST CAN CHANGE THAT.');
+    const chosen: RoomPrivacy = on ? privacy : 'private';
+    const passwords = { ...tables.passwords };
+    if (chosen === 'password') {
+      if (password !== null && password.length > 0) passwords[roomId] = password;
+      else if (passwords[roomId] === undefined) throw new Error('THAT NEEDS A PASSWORD.');
+    } else {
+      delete passwords[roomId];
+    }
+    save({ ...tables, passwords, attempts: tables.attempts.filter((row) => row.roomId !== roomId) }, null);
+    changeRoom(roomId, (current) => ({ ...current, isPublic: on, privacy: chosen }));
+  }
+
+  /** As the database's `watch_room_pass_on`: a live room handed to a member; a main room becomes a stream room. */
+  async passOn(roomId: string, heirId: string): Promise<boolean> {
+    const tables = load();
+    const room = tables.rooms.find((candidate) => candidate.id === roomId);
+    const me = await this.viewer();
+    if (me === null || heirId === me || room === undefined || room.hostId !== me || room.endedAt !== null) return false;
+    if (!(room.origin === 'stream' || (room.origin === 'music' && room.isPublic))) return false;
+    if (!tables.members.some((row) => row.roomId === roomId && row.userId === heirId && row.removedAt === null)) return false;
+    changeRoom(roomId, (current) => ({ ...current, hostId: heirId, origin: 'stream', isPublic: true }));
+    return true;
+  }
+
   async takeOver(roomId: string, goneHostId: string, callerId: string): Promise<boolean> {
     const room = load().rooms.find((candidate) => candidate.id === roomId);
-    // A music room is its owner's: never taken over.
-    if (room === undefined || room.origin === 'music' || room.endedAt !== null || room.hostId !== goneHostId || room.hostId === callerId) return false;
-    if (Date.now() - Date.parse(room.updatedAt) < TAKE_OVER_QUIET_MS) return false;
+    // A private main room is its owner's: never taken over. A live one, after 45 quiet seconds (SPEC-rooms-perpetual.md).
+    if (room === undefined || (room.origin === 'music' && !room.isPublic) || room.endedAt !== null || room.hostId !== goneHostId || room.hostId === callerId) return false;
+    if (Date.now() - Date.parse(room.updatedAt) < (room.origin === 'music' ? MAIN_ROOM_TAKE_OVER_MS : TAKE_OVER_QUIET_MS)) return false;
     const tables = load();
     try {
       refuseOutsider(tables, room, callerId);
@@ -822,7 +856,7 @@ class MockWatchRepository implements WatchRepository {
     }
     addMember(tables, roomId, callerId);
 
-    changeRoom(roomId, (current) => ({ ...current, hostId: callerId }));
+    changeRoom(roomId, (current) => ({ ...current, hostId: callerId, origin: 'stream', isPublic: true }));
     return true;
   }
 
@@ -970,7 +1004,8 @@ class MockWatchRepository implements WatchRepository {
     const tables = load();
     const room = tables.rooms.find((candidate) => candidate.id === input.roomId);
     if (room === undefined || room.endedAt !== null) throw new Error('THE STREAM HAS ENDED.');
-    refuseIfShut(room, input.author.id);
+    // A main room's link joiners chat before it is live (SPEC-rooms-perpetual.md).
+    refuseIfShut(room, input.author.id, true);
     if (room.guestsCanTalk === false && readMockGuest()?.id === input.author.id) throw new Error(NOT_ALLOWED);
 
     const message: WatchMessage = {

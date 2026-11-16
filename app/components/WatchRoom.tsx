@@ -60,6 +60,7 @@ import {
   refusedByBrowser,
   nextQueuePosition,
   nextPlayIndex,
+  roomAnnounced,
   roomIsLive,
   serverElapsed,
   serverRestarted,
@@ -102,6 +103,8 @@ import { QualityKey, SpeakerKey, SubsKey } from './StreamBarKeys';
 import StreamCrawl from './StreamCrawl';
 import RoomFloatChrome, { useRoomFloatDrag } from './RoomFloatChrome';
 import RoomSettingsWindow from './RoomSettingsWindow';
+import MainRoomKeys from './MainRoomKeys';
+import { registerMainRoomPlay, type MainRoomSource } from '../lib/watch/main-room-play';
 import StreamQueueWindow from './StreamQueueWindow';
 import CanvasToggle from './CanvasToggle';
 import RoomVisualiser from './RoomVisualiser';
@@ -184,6 +187,12 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   const amHost = user !== null && room.hostId === user.id;
   /** Somebody's music room (SPEC-music-queues.md): its owner always hosts, it is switched off rather than ended, and it is not on the board. */
   const music = room.origin === 'music';
+  /**
+   * Announced (SPEC-rooms-perpetual.md): a stream room, or a main room after GO LIVE. Only then does the host keep the
+   * 3-second beat (a private main room writes on play, pause and seek only), can the room be taken over, and does it
+   * light the lists and lamps.
+   */
+  const announced = roomAnnounced(room);
   const itemsById = useMemo(() => new Map(catalogue.items.map((item) => [item.id, item])), [catalogue.items]);
   const entry = currentEntry(read);
   /** Nothing on: the black screen with its three keys (SPEC-cytube.md). */
@@ -266,8 +275,47 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   /** False until the room's presence has answered once: before that, "the host is missing" means nothing. */
   const [membersHeard, setMembersHeard] = useState(false);
 
+  /**
+   * Your private main room, with nobody else ever let in by its link: no presence channel at all (SPEC-rooms-perpetual.md,
+   * section 4). Once a member row of somebody else appears (they used the link), or the room goes live, it opens.
+   */
+  const [othersMayBeIn, setOthersMayBeIn] = useState(false);
+  const aloneByRule = music && amHost && !room.isPublic;
+  useEffect(() => {
+    if (!aloneByRule || user === null) return;
+    const me = user.id;
+    let alive = true;
+    void repository
+      .listRoomMembers(roomId)
+      .then((rows) => {
+        if (alive && rows.some((row) => row.userId !== me && row.removedAt === null)) setOthersMayBeIn(true);
+      })
+      .catch(() => undefined);
+    const off = repository.subscribeRoomMembers(roomId, (row) => {
+      if (row.userId !== me && row.removedAt === null) setOthersMayBeIn(true);
+    });
+    return () => {
+      alive = false;
+      off();
+    };
+  }, [repository, roomId, aloneByRule, user]);
+  const presenceOn = !aloneByRule || othersMayBeIn;
+
   useEffect(() => {
     if (room.endedAt !== null) return;
+    if (!presenceOn) {
+      // Just you: said here, nothing sent anywhere. Handed over once this effect is done, as the song's player is below.
+      let current = true;
+      const me: WatchMember = { key: myKey, userId: user?.id ?? null, guestId: null, name: user?.displayName ?? '', joinedAt: Date.now() };
+      void Promise.resolve().then(() => {
+        if (!current) return;
+        setMembers([me]);
+        setMembersHeard(true);
+      });
+      return () => {
+        current = false;
+      };
+    }
     const membership = repository.joinRoom(
       roomId,
       // A guest is here by name only: no id on the wire, so nobody can crown them or hand them the room.
@@ -284,7 +332,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       window.clearTimeout(heard);
       membership.leave();
     };
-  }, [repository, roomId, room.endedAt, user?.id, user?.displayName, presenceGuestId, guestLabel, myKey]);
+  }, [repository, roomId, room.endedAt, user?.id, user?.displayName, presenceGuestId, guestLabel, myKey, presenceOn]);
 
   const accounts = accountsPresent(members);
 
@@ -373,6 +421,33 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       });
   }
   const fileEnded = useEffectEvent(() => moveOn(false));
+
+  /**
+   * PLAY on a video in MEDIA or FILES while your main room's window is drawn (SPEC-rooms-perpetual.md): it is filed in the
+   * queue and started from the top, as moving on is, so this player and the room agree on what is on.
+   */
+  const playHere = useEffectEvent((source: MainRoomSource) => {
+    if (user === null) return;
+    const queue = read.queue;
+    const added = source.link !== undefined
+      ? repository.addToQueue({ roomId, addedBy: user.id, position: nextQueuePosition(queue), inQueue: true, link: source.link })
+      : repository.addToQueue({ roomId, addedBy: user.id, position: nextQueuePosition(queue), inQueue: true, mediaItemId: source.mediaItemId });
+    void added
+      .then((entry) => {
+        hostEntry.current = entry.id;
+        goingBlack.current = false;
+        return repository.startEntry(roomId, entry.id, nextPlayIndex(queue));
+      })
+      .then(() => applyLocalChange(roomId, { kind: 'refresh' }))
+      .catch((failure: unknown) => {
+        hostEntry.current = null;
+        setFault(failure instanceof Error ? failure.message : 'THAT COULD NOT BE PUT ON.');
+      });
+  });
+  useEffect(() => {
+    if (!music || !amHost) return;
+    return registerMainRoomPlay(roomId, (source) => playHere(source));
+  }, [music, amHost, roomId]);
   /** Whether the room says the host is playing, read by the effects without depending on every write. */
   const roomPlaying = useEffectEvent(() => room.isPlaying);
   useCompanionScene('watch', room.isPlaying);
@@ -413,8 +488,9 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     video.addEventListener('pause', say);
     video.addEventListener('seeked', say);
     video.addEventListener('ended', ended);
-    // On a worker's clock, so a paused host in a background tab keeps the beat (lib/watch/steady-timer.ts).
-    const stopBeat = steadyInterval(say, WATCH_HEARTBEAT_MS);
+    // On a worker's clock, so a paused host in a background tab keeps the beat (lib/watch/steady-timer.ts). A private
+    // main room has no beat: its play, pause and seek are written as they happen, and nobody can take it over.
+    const stopBeat = announced ? steadyInterval(say, WATCH_HEARTBEAT_MS) : () => undefined;
 
     // Taking the transport over mid-file: carry on from where this player is, and say so at once. A follower
     // waits at the end of a file for the host to move on, so a hand-over at that moment finds this player
@@ -430,7 +506,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       video.removeEventListener('ended', ended);
       stopBeat();
     };
-  }, [amHost, live, src, videoElement, refusedPlay]);
+  }, [amHost, live, src, videoElement, refusedPlay, announced]);
 
   /* --- following ------------------------------------------------------------------------------- */
 
@@ -627,8 +703,9 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
 
   const hostId = room.hostId;
   useEffect(() => {
-    // A music room is its owner's: a quiet host is waited for, never taken over.
-    if (music || user === null || amHost || !live || !membersHeard) return;
+    // A private main room is its owner's: a quiet host is waited for, never taken over. A live one is taken over after
+    // 45 quiet seconds (the store's rule, MAIN_ROOM_TAKE_OVER_MS): until then each try is simply refused.
+    if (!announced || user === null || amHost || !live || !membersHeard) return;
     if (!shouldTakeOver(members, hostId, myKey)) return;
 
     const attempt = () =>
@@ -638,7 +715,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     attempt();
     const timer = window.setInterval(attempt, TAKE_OVER_RETRY_MS);
     return () => window.clearInterval(timer);
-  }, [repository, roomId, hostId, user, amHost, live, members, membersHeard, myKey, music]);
+  }, [repository, roomId, hostId, user, amHost, live, members, membersHeard, myKey, announced]);
 
   // `<NAME> IS HOSTING NOW` on every change of host after the first one this tab saw (decision 6).
   const seenHost = useRef(hostId);
@@ -659,13 +736,13 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   const hostName = hostMember?.name ?? room.originalHostLabel;
   const title = entryTitle ?? '';
   useEffect(() => {
-    // Somebody's own room is on no list and lights no lamp or TV key, whoever is in it (SPEC-rooms-queues.md).
-    if (user === null || !live || music) {
+    // A private main room is on no list and lights no lamp or TV key, whoever is in it (SPEC-rooms-perpetual.md).
+    if (user === null || !live || !announced) {
       repository.setWatching(null);
       return;
     }
     repository.setWatching({ userId: user.id, roomId, hostName, title, hosting: amHost, unlisted: !myProfile.visibility.showOnline || room.privacy !== 'open' });
-  }, [repository, user, live, music, roomId, hostName, title, amHost, myProfile.visibility.showOnline, room.privacy]);
+  }, [repository, user, live, announced, roomId, hostName, title, amHost, myProfile.visibility.showOnline, room.privacy]);
   useEffect(() => () => repository.setWatching(null), [repository]);
 
   /* --- leaving --------------------------------------------------------------------------------- */
@@ -798,8 +875,9 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   useEffect(() => {
     if (!(officialOn || pictureOn) || !amHost || !live) return;
     officialBeat();
+    if (!announced) return;
     return steadyInterval(() => officialBeat(), WATCH_HEARTBEAT_MS);
-  }, [officialOn, pictureOn, amHost, live, entryId]);
+  }, [officialOn, pictureOn, amHost, live, entryId, announced]);
   // A crown's NEXT takes the picture off by clearing the room's pointer (`watch_picture_next`). This host was on that
   // picture, not ahead of the room: its black-screen beat may speak again, and whatever is queued behind starts.
   const shownPicture = useRef<string | null>(null);
@@ -852,8 +930,9 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     if (blank) goingBlack.current = false;
     if (!blank || !amHost || !live) return;
     blankBeat();
+    if (!announced) return;
     return steadyInterval(() => blankBeat(), WATCH_HEARTBEAT_MS);
-  }, [blank, amHost, live]);
+  }, [blank, amHost, live, announced]);
 
   // Black, and a crown has queued something: the host starts it, from the top.
   const toStart = amHost && live ? blankStart(room, read.queue) : null;
@@ -1172,7 +1251,9 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       </button>
     </>
   ) : null;
-  const endKey = hostKeys && !music ? (
+  // Your main room has its own keys instead (SPEC-rooms-perpetual.md): GO LIVE / ● LIVE, LEAVE while live, END ROOM.
+  const mainRoomKeys = hostKeys && music ? <MainRoomKeys room={room} hostName={hostName} heir={heir} onLeft={onLeft} /> : null;
+  const endKey = mainRoomKeys ?? (hostKeys && !music ? (
     // Ending it for everybody takes a second press, like starting it did.
     <button
       type="button"
@@ -1204,7 +1285,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     >
       {confirmEnd ? '[ END FOR EVERYBODY ]' : '[ END STREAM ]'}
     </button>
-  ) : null;
+  ) : null);
 
   // Under the picture, left to right: play/pause (host), where it is and the time, skip (host), the sound, QUALITY,
   // PIP, FULL, END STREAM (host). The chat column's strip names the video.
@@ -1416,7 +1497,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
           {fault}
         </p>
       )}
-      {room.forumThreadId === null && live && !music ? (
+      {room.forumThreadId === null && live && announced ? (
         <p className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">NOT ON THE BOARD</p>
       ) : null}
     </div>
@@ -1441,7 +1522,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
           <>
             <span className={`min-w-0 flex-1 frame bg-hardware px-2 py-1 text-label ${lookLines}`} data-stream-bar-screen>
               <span className="flex min-w-0 items-center gap-2 font-bold text-ink-bar">
-                <span className={`shrink-0 px-1 ${live ? 'bg-acid text-ink-plate' : 'bg-bubble-pale text-ink-bar'}`}>{music ? (live ? 'BY LINK' : 'CLOSED') : live ? 'LIVE' : 'ENDED'}</span>
+                <span className={`shrink-0 px-1 ${live ? 'bg-acid text-ink-plate' : 'bg-bubble-pale text-ink-bar'}`}>{music ? (!live ? 'CLOSED' : room.isPublic ? 'LIVE' : amHost ? 'PRIVATE' : 'BY LINK') : live ? 'LIVE' : 'ENDED'}</span>
                 <span className="truncate">
                   {music ? 'ROOM' : 'STREAM'} :: {amHost ? 'YOU ARE HOSTING' : music ? `${hostName.toUpperCase()} IS PLAYING` : `HOSTED BY ${hostName.toUpperCase()}`}
                 </span>
@@ -1729,13 +1810,7 @@ function ChatPanel({
           }}
         />
       ) : null}
-      {!live ? null : read.room.origin === 'music' ? (
-        // Somebody's own room, joined by its link (SPEC-rooms-queues.md): you listen along, see the queue and add to it.
-        // There is no chat here; the database refuses a line from anybody but its owner, who has nobody to answer.
-        <p className="text-label font-bold text-ink" data-watch-no-chat>
-          NO CHAT IN THIS ROOM. ITS OWNER CAN GO LIVE FOR CHAT.
-        </p>
-      ) : identity?.kind !== 'account' && read.room.guestsCanTalk === false ? (
+      {!live ? null : identity?.kind !== 'account' && read.room.guestsCanTalk === false ? (
         <p className="text-label font-bold text-ink" data-watch-guests-quiet>
           <Link href="/account" className="key px-1 py-1 text-label">
             [ LOG IN ]
