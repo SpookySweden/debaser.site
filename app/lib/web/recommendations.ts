@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useSyncExternalStore } from 'react';
+import { getRecommendationsRepository } from '../recommendations/repository';
 import { getSupabaseBrowserClient } from '../supabase/client';
 import { WEB_DATA_SOURCE } from './repository';
 import type { WebItem, WebPlatform } from './types';
@@ -41,13 +42,33 @@ export type RecommendationStore = {
 };
 
 const mockMine = new Set<string>();
+/**
+ * The mock's public picks: an invented person recommending three of the mock catalogue's own rows
+ * (tag-station/mock-tag-repository.ts), which the mock stream doesn't hold, so FOR YOU never shows them first.
+ */
+// ANON, so no invented name ever shows, signed in or out.
+const MOCK_PEOPLE_PICKS: readonly RecommendedPick[] = ['24', '31', '38'].map((n) => ({ person: `${ANON_PERSON}mock-${n}`, displayName: 'ANON', itemId: `internet_archive:mock-station-${n}`, at: '2026-11-15T00:00:00.000Z' }));
 const MOCK_STORE: RecommendationStore = {
   mine: async () => [...mockMine],
   set: async (item, on) => {
     if (on) mockMine.add(item.id);
     else mockMine.delete(item.id);
   },
-  feed: async () => [...mockMine].map((itemId) => ({ person: 'mock-reader', displayName: 'YOU', itemId, at: '2026-11-05T00:00:00.000Z' })),
+  // As the database's web_recommendations_feed (since 2026-11-10): the MEDIA things in public recommendations, here the mock
+  // RECOMMENDATIONS page's own (kept for the page load), after the old key's, plus three invented picks so the mock site has a
+  // person's pick at all. People's picks show only once the catalogue is ready (picks.ts poolReady), which the mock
+  // catalogue never is by itself: a local drive raises it (scripts/drive-media-feed.cjs --pool-ready).
+  feed: async (limit) => {
+    const own = [...mockMine].map((itemId) => ({ person: 'mock-reader', displayName: 'YOU', itemId, at: '2026-11-05T00:00:00.000Z' }));
+    const repository = getRecommendationsRepository();
+    const posted: RecommendedPick[] = [];
+    for (const rec of await repository.list('public').catch(() => [])) {
+      for (const thing of await repository.items(rec.id).catch(() => [])) {
+        if (thing.kind === 'web') posted.push({ person: rec.sender ?? `${ANON_PERSON}${posted.length}`, displayName: rec.senderName ?? 'ANON', itemId: thing.ref, at: rec.createdAt });
+      }
+    }
+    return [...own, ...posted, ...MOCK_PEOPLE_PICKS].slice(0, limit);
+  },
 };
 
 const SUPABASE_STORE: RecommendationStore = {

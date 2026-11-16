@@ -16,6 +16,16 @@ export function useHiddenShort(item: Parameters<typeof isShort>[0] & { externalI
   useEffect(() => {
     if (ask && id !== null) askSoon(id);
   }, [ask, id]);
+  return hiddenShortNow(item);
+}
+
+/**
+ * The same answer as the hook, read now, for a list that chooses rows before they draw (MEDIA's default feed, list 3): a
+ * row hidden only as it draws leaves a hole, and every place after it in the mix's blocks moves up by one. Re-read when
+ * `shortsVersion` changes.
+ */
+export function hiddenShortNow(item: Parameters<typeof isShort>[0] & { externalId?: string }): boolean {
   if (isShort(item)) return true;
-  return ask && id !== null && knownShort(id) === true;
+  const id = youtubeIdOf(item);
+  return id !== null && shortCandidate(item) && knownShort(id) === true;
 }

@@ -22,6 +22,12 @@ import type { WebItem, WebSource } from './types';
  */
 
 const FETCHED_AT = '2026-10-31T12:00:00.000Z';
+
+/** The plain stream's page size on the mock site: no cap unless a local drive's launcher sets one (listItems). */
+const MOCK_PAGE_CAP = (() => {
+  const set = Number(process.env.NEXT_PUBLIC_WEB_MOCK_PAGE);
+  return Number.isInteger(set) && set >= 1 ? set : Number.MAX_SAFE_INTEGER;
+})();
 const COLLECTION = 'https://archive.org/details/librivoxaudio';
 
 function borrowed(n: number, externalId: string, publishedAt: string, extra: Partial<WebItem> = {}): WebItem {
@@ -225,7 +231,10 @@ export function getMockWebRepository(): WebRepository {
   instance ??= {
     source: 'mock',
     // The media servers' titles (mock-media-titles.ts) join the stream as the Supabase repository joins them.
-    async listItems({ cursor, limit }) {
+    async listItems({ cursor, limit: asked }) {
+      // The mock stream is 22 rows, one page, so LOAD MORE never shows on a mock site. A local drive may serve it in
+      // smaller pages (NEXT_PUBLIC_WEB_MOCK_PAGE, set only in the drive's dev-server launcher) to see LOAD MORE at work.
+      const limit = MOCK_PAGE_CAP === Number.MAX_SAFE_INTEGER ? asked : Math.min(asked ?? MOCK_PAGE_CAP, MOCK_PAGE_CAP);
       const stream = await readStreamPage(async (at) => pageOf(MOCK_WEB_ITEMS, at, limit), mockGroup(null), cursor ?? null);
       return mergeStreamPages(stream, await mockMedia(MOCK_MEDIA_ITEMS, cursor, limit), limit);
     },
