@@ -1,7 +1,7 @@
 'use client';
 
 import { closeWatch, expandWatch, openWatch, watchWindowState } from './watch-window';
-import { ownRoomState } from './own-room-client';
+import { ownRoomState, subscribeToOwnRoom } from './own-room-client';
 import { createWindowSlot } from '../ui/window-slot';
 import { noteRoomStart } from './room-start';
 import type { WatchLink } from './types';
@@ -106,13 +106,38 @@ export function subscribeToGoLiveAsk(listener: () => void): () => void {
 
 /**
  * `[ GO LIVE ]` on the music bar or the CYTUBE page (SPEC-rooms-perpetual.md): it announces the room you are already in,
- * so it opens your main room's window on WHO CAN JOIN. False when you have no main room here (a visitor): the caller
- * keeps its old way.
+ * so it opens your main room's window on WHO CAN JOIN. False only for a signed-out visitor: the caller keeps its old way.
+ * Pressed before your room has been read (just after the page opened), it waits for it rather than making a separate
+ * room (list 3: found on the live site, where reading it takes a moment).
  */
 export function goLiveInMainRoom(): boolean {
   const own = ownRoomState();
-  const session = own.session;
-  if (session === null || own.visitor || own.roomId === null) return false;
+  if (own.visitor) return false;
+  if (own.session !== null && own.roomId !== null) {
+    announceFrom(own.session);
+    return true;
+  }
+  let off: (() => void) | null = null;
+  // Not read in this long (offline): the press is let go of, and the next one asks again.
+  const timer = window.setTimeout(() => stop(), ROOM_WAIT_MS);
+  const stop = () => {
+    off?.();
+    off = null;
+    window.clearTimeout(timer);
+  };
+  off = subscribeToOwnRoom(() => {
+    const now = ownRoomState();
+    if (now.visitor) stop();
+    else if (now.session !== null && now.roomId !== null) {
+      stop();
+      announceFrom(now.session);
+    }
+  });
+  return true;
+}
+const ROOM_WAIT_MS = 30000;
+
+function announceFrom(session: NonNullable<ReturnType<typeof ownRoomState>['session']>): void {
   void session.ensureMade().then((held) => {
     const roomId = session.id();
     if (!held || roomId === null) return;
@@ -120,7 +145,6 @@ export function goLiveInMainRoom(): boolean {
     openOrUnfold(roomId);
     for (const listener of goLiveListeners) listener();
   });
-  return true;
 }
 
 function openOrUnfold(roomId: string): void {
