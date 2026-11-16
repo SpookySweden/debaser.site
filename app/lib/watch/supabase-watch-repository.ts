@@ -7,6 +7,7 @@ import { MUSIC_ROOM_GONE_SECONDS } from './music-rooms';
 import { OWN_QUEUE_FULL, OwnRoomRefusal } from './own-room';
 import { companionOutState, parseCompanionWire, setRoomCompanions, subscribeToCompanionOut, type RoomCompanion } from '../companion/wire';
 import { membersSignature } from './members-signature';
+import { presencePace, type PresencePace } from './presence-pace';
 import { NOT_ALLOWED, watchClockSkewMs } from './rules';
 import type { GuestNameAnswer, JoinAnswer, LiveRoom, PrivateLine, PrivateSize, PrivateFold, PrivateRoomLine, QueueMove, RoomDoor, RoomGuest, RoomMemberRow, RoomOutline, RoomPrivacy, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap, DiscussLine, DiscussQuery } from './types';
 
@@ -222,6 +223,33 @@ let watchingCloseTimer: ReturnType<typeof setTimeout> | null = null;
 let stopWatchingSession: (() => void) | null = null;
 /** A leave still in flight: the client hands back a channel it still holds, and re-using one on its way out throws. */
 let watchingLeaving: Promise<unknown> = Promise.resolve();
+/** The joined channel's presence calls, under Realtime's limit (`./presence-pace.ts`): a run of skips changes the title fast. */
+let watchingPace: PresencePace | null = null;
+/** Whether the channel holds this tab's line now, so an untrack is only sent when there is something to take back. */
+let watchingSaid = false;
+
+/** Tells the joined channel this tab's line as it stands when the pace sends it: the newest entry, or nothing. */
+function sayWatching(): void {
+  const channel = watchingChannel;
+  if (!watchingJoined || channel === null || watchingPace === null) return;
+  watchingPace.say(() => {
+    if (channel !== watchingChannel) return;
+    const entry = watchingTracked;
+    if (entry !== null && entry.unlisted !== true) {
+      watchingSaid = true;
+      void channel.track(trackPayload(entry)).catch(() => undefined);
+    } else if (watchingSaid) {
+      watchingSaid = false;
+      void channel.untrack().catch(() => undefined);
+    }
+  });
+}
+
+function forgetWatchingPace(): void {
+  watchingPace?.stop();
+  watchingPace = null;
+  watchingSaid = false;
+}
 
 /** What the wire says, plus this tab's own line while its lamp is off: it told nobody, but it still knows where it is. */
 function watchingView(): WatchingMap | null {
@@ -277,6 +305,7 @@ function openWatchingChannel(): void {
         const leaving = watchingChannel;
         watchingChannel = null;
         watchingJoined = false;
+        forgetWatchingPace();
         watchingLeaving = client.removeChannel(leaving).catch(() => undefined);
         emitWatching(null);
       }
@@ -303,13 +332,17 @@ function joinWatchingChannel(client: NonNullable<ReturnType<typeof getSupabaseBr
     if (channel !== watchingChannel) return;
     if (status === 'SUBSCRIBED') {
       watchingJoined = true;
-      if (watchingTracked !== null && watchingTracked.unlisted !== true) void channel.track(trackPayload(watchingTracked)).catch(() => undefined);
+      // A fresh join holds nothing of this tab's yet.
+      watchingSaid = false;
+      if (watchingTracked !== null && watchingTracked.unlisted !== true) sayWatching();
       return;
     }
     watchingJoined = false;
     emitWatching(null);
   });
   watchingChannel = channel;
+  forgetWatchingPace();
+  watchingPace = presencePace();
 }
 
 function scheduleWatchingClose(): void {
@@ -328,6 +361,7 @@ function scheduleWatchingClose(): void {
     watchingChannel = null;
     watchingJoined = false;
     watchingSnapshot = null;
+    forgetWatchingPace();
   }, WATCHING_CLOSE_DELAY_MS);
 }
 
@@ -1075,6 +1109,11 @@ class SupabaseWatchRepository implements WatchRepository {
     // A failed join's next try, and how many have failed in a row (see the subscribe below).
     let retry: ReturnType<typeof setTimeout> | null = null;
     let tries = 0;
+    /**
+     * This channel's presence calls, kept under Realtime's limit (`./presence-pace.ts`): past five in half a minute the
+     * server shuts the channel, and this tab drops off everybody's list of watchers, its companion with it.
+     */
+    let pace: PresencePace | null = null;
     const presencePayload = () => ({
       user_id: self.userId,
       guest_id: self.guestId ?? null,
@@ -1083,9 +1122,18 @@ class SupabaseWatchRepository implements WatchRepository {
       // This tab's companion, re-said only when it changes (SPEC-companion.md); null while it is off or a guest's.
       companion: self.userId === null ? null : companionOutState(),
     });
+    /** Says this tab's presence on the channel it is in, by the pace, and as it stands when the pace sends it. */
+    const sayPresence = () => {
+      const current = channel;
+      if (left || !subscribed || current === null || pace === null) return;
+      pace.say(() => {
+        if (left || channel !== current) return;
+        void current.track(presencePayload()).catch(() => undefined);
+      });
+    };
     const offCompanion = subscribeToCompanionOut(() => {
-      if (left || !subscribed || channel === null || self.userId === null) return;
-      void channel.track(presencePayload()).catch(() => undefined);
+      if (self.userId === null) return;
+      sayPresence();
     });
 
     // Presence is per topic, so this channel cannot take a fresh name: a leave still in flight for the same
@@ -1097,6 +1145,9 @@ class SupabaseWatchRepository implements WatchRepository {
       // (20261105124800_presence_table_and_private_wires.sql).
       const joined = client.channel(topic, { config: { presence: { key: self.key }, private: true } });
       channel = joined;
+      // The server counts each joined channel afresh.
+      pace?.stop();
+      pace = presencePace();
       joined.on('presence', { event: 'sync' }, () => {
       if (left) return;
       const members: WatchMember[] = [];
@@ -1130,7 +1181,7 @@ class SupabaseWatchRepository implements WatchRepository {
         if (status === 'SUBSCRIBED') {
           subscribed = true;
           tries = 0;
-          void joined.track(presencePayload()).catch(() => undefined);
+          sayPresence();
           return;
         }
         // A join that fails is tried again (Luke, 2026-11-13: two people in one room each heard only themselves). Until
@@ -1179,6 +1230,7 @@ class SupabaseWatchRepository implements WatchRepository {
         if (left) return;
         left = true;
         if (retry !== null) clearTimeout(retry);
+        pace?.stop();
         offCompanion();
         setRoomCompanions([]);
         if (channel === null) return;
@@ -1209,9 +1261,8 @@ class SupabaseWatchRepository implements WatchRepository {
     watchingTracked = entry;
 
     const told = entry !== null && entry.unlisted !== true;
-    if (!told && was !== null && was.unlisted !== true && watchingJoined && watchingChannel !== null) {
-      void watchingChannel.untrack().catch(() => undefined);
-    }
+    // Taken back by the pace, as every call on this channel is.
+    if (!told && was !== null && was.unlisted !== true) sayWatching();
     emitWatching(watchingSnapshot);
 
     if (entry === null) {
@@ -1220,7 +1271,7 @@ class SupabaseWatchRepository implements WatchRepository {
     }
 
     openWatchingChannel();
-    if (told && watchingJoined && watchingChannel !== null) void watchingChannel.track(trackPayload(entry)).catch(() => undefined);
+    if (told) sayWatching();
   }
 }
 
