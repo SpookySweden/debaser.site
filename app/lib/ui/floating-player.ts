@@ -27,13 +27,8 @@ export type FramePlayer = {
   timeFrom: 'youtube' | 'vimeo' | null;
 };
 
-/**
- * Whether the site's own fullscreen can work in this browser: one that can fullscreen any box. An iPhone's cannot (it only
- * fullscreens a video, its own way), so there another site's player keeps its own fullscreen key: it is the only one that works.
- */
-export function siteFullscreenWorks(): boolean {
-  return typeof document !== 'undefined' && document.fullscreenEnabled === true;
-}
+/** Whether the site's own fullscreen can work in this browser (./site-fullscreen.ts, a file of its own for the room's players). */
+export { siteFullscreenWorks } from './site-fullscreen';
 
 /**
  * A frame's permissions with fullscreen taken out (Luke, 2026-11-16: "Switch it off"). Another site's own fullscreen key shows
