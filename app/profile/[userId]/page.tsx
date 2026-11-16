@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import PublicProfileWindow from '../../components/PublicProfileWindow';
 import SiteWindow from '../../components/SiteWindow';
+import { profileTitle } from '../../lib/profile/profile-title';
 
 type ProfilePageProps = {
   params: Promise<{ userId: string }>;
@@ -11,7 +12,8 @@ export async function generateMetadata({ params }: ProfilePageProps): Promise<Me
   const id = decodeURIComponent(userId);
 
   return {
-    title: `DEBASER.SITE - Profile ${id}`,
+    // The person's name, never the id; plain words for a hidden or unknown account (profile-title.ts).
+    title: await profileTitle(id),
     description: 'Public profile: picture history, bio, tags given by other users and comments.',
   };
 }
