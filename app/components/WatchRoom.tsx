@@ -1181,14 +1181,11 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   // `[ BKG ]` (SPEC-rooms-your-room.md, part 4): off, a fullscreen video is as its player shows it, bars and all.
   const bkg = useSyncExternalStore(subscribeToStageBkg, stageBkgOn, stageBkgOnServer);
   const dressed = staged && bkg;
-  /** The shape of the room's own `<video>`, as its file says once it has loaded; kept against the entry it is of. */
-  const [fileShape, setFileShape] = useState<{ entry: string | null; shape: number } | null>(null);
-  // The same file named again keeps its element, which says its size only once: the new play takes the shape it already has.
-  useEffect(() => {
-    if (!(videoElement instanceof HTMLVideoElement) || videoElement.videoWidth === 0) return;
-    const shape = shapeFrom(videoElement.videoWidth, videoElement.videoHeight);
-    if (shape !== null) setFileShape((was) => (was !== null && was.entry === entryId ? was : { entry: entryId, shape }));
-  }, [videoElement, entryId]);
+  /**
+   * The shape of the room's own `<video>`, as its file says once it has loaded; kept against the file's address, not the play:
+   * the same file named again keeps its element, which says its size only once (list 4).
+   */
+  const [fileShape, setFileShape] = useState<{ file: string | null; shape: number } | null>(null);
   /** The black bars in the room's own `<video>`, read from it as it plays where its host allows (`bar-watch.ts`). */
   const [fileTrim, setFileTrim] = useState<{ entry: string | null; trim: Trim } | null>(null);
   useEffect(() => {
@@ -1488,7 +1485,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   const pictureFit = fullscreen || pictureFloats ? 'h-full w-full' : ROOM_PICTURE_FIT;
   /** Fullscreen, a video is its own shape with the background round it; a song's cover, a held picture and the blank screen fill the box as before. */
   const videoFit = dressed ? 'stage-fit' : pictureFit;
-  const ownShape = fileShape !== null && fileShape.entry === entryId ? fileShape.shape : WIDE;
+  const ownShape = fileShape !== null && fileShape.file === (src ?? null) ? fileShape.shape : WIDE;
   const ownTrim = fileTrim !== null && fileTrim.entry === entryId ? fileTrim.trim : NO_TRIM;
   // The room window fits itself to the picture's shape (list 4, `room-fit.ts`): a file's own, YouTube's or Vimeo's as their site
   // says, 16:9 for any other player; nothing to fit for a song, a held picture or the blank screen.
@@ -1513,7 +1510,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
           : null
         : officialOn || (link !== null && isEmbedKind(link.kind))
           ? WIDE
-          : fileShape !== null && fileShape.entry === entryId
+          : fileShape !== null && fileShape.file === (src ?? null)
             ? fileShape.shape
             : null;
   useEffect(() => {
@@ -1633,7 +1630,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
             onTimeUpdate={onTime}
             onLoadedMetadata={(event) => {
               const shape = shapeFrom(event.currentTarget.videoWidth, event.currentTarget.videoHeight);
-              if (shape !== null) setFileShape({ entry: entryId, shape });
+              if (shape !== null) setFileShape({ file: src ?? null, shape });
               onTime();
             }}
             onPlay={onTime}
