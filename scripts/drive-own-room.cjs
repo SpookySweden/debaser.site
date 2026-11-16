@@ -268,16 +268,20 @@ async function open(page, path) {
     assert.ok(await page.locator('[data-own-room-screen] [data-cover-card]').count(), 'the cover card is drawn');
     assert.ok((await page.locator('[data-own-room-alone]').innerText()).includes('JUST YOU HERE'), 'where a live room has its chat, it says JUST YOU HERE');
     assert.ok((await page.locator('[data-own-room-alone]').innerText()).includes('LOG IN'), 'a visitor is told to log in to go live');
-    assert.ok(await page.locator('[data-own-room-window] [data-own-queue]').count(), 'the queue is in the room window');
+    // Updated on purpose 2026-11-16 (SPEC-rooms-your-room.md, part 1): the window is drawn in the live room's frame, so the
+    // queue is no longer stacked in it. It opens from [ QUEUE ] in the side column, as a live room's does, and the song
+    // has its keys under the picture. (scripts/drive-rooms-your-room.cjs holds the frame and the keys in full.)
+    assert.equal(await page.locator('[data-own-room-window] [data-own-queue]').count(), 0, 'the queue is not stacked in the room window');
+    assert.ok(await page.locator('[data-own-room-side] [data-own-room-queue-key]').count(), 'it is behind [ QUEUE ], in the side column');
+    assert.ok(await page.locator('[data-own-room-bar] [data-own-room-play]').count(), 'and the song has its keys under the picture');
     assert.equal(await page.locator('[data-stream-bar]').count(), 0, 'the bar stays the music bar: your own room is not a stream');
     assert.equal((await audio(page)).paused, false, 'and the song plays on');
-    pass('the pop-up opens the room window: the cover card, the queue, JUST YOU HERE; the song plays on');
+    pass('the pop-up opens the room window: the cover card with its keys, [ QUEUE ], JUST YOU HERE; the song plays on');
     await page.screenshot({ path: join(SHOTS, 'own-room-window-song.png') });
-    await page.locator('button[aria-label="Fold YOUR ROOM away"]').click();
-    await page.waitForSelector('[data-own-room-door="folded"]', { timeout: 10000 });
-    pass('folded away, the same key brings it back');
-    await page.locator('[data-own-room-door] button').click();
-    await page.waitForFunction(() => document.querySelector('[data-dock-window="own-room"]')?.getAttribute('data-minimized') !== 'true', null, { timeout: 10000 });
+    // Updated on purpose 2026-11-16 (part 2): folding is PIP, and the folded [ ▲ ROOM ] tile is gone. A song has no picture
+    // to put out, so its window has no [ _ ]; [ × ] shuts the window and stops nothing.
+    assert.equal(await page.locator('button[aria-label="Fold YOUR ROOM away"]').count(), 0, 'no [ _ ] with a song on');
+    pass('a song on: no [ _ ], because there is no picture to put out');
     await page.locator('button[aria-label="Close YOUR ROOM"]').click();
     await page.waitForSelector('[data-own-room-door="shut"]', { timeout: 10000 });
     assert.equal((await audio(page)).paused, false, 'closing the window stops nothing');
@@ -361,7 +365,10 @@ async function open(page, path) {
         const folded = await page.evaluate(() => ({ state: document.querySelector('[data-floating-player]').getAttribute('data-floating-player'), same: document.querySelector('[data-floating-player] video') === window.__sameVideo }));
         assert.equal(folded.state, 'floating', 'the window folded away: the video floats again');
         assert.ok(folded.same, 'still the same element');
-        await page.locator('[data-own-room-door] button').click();
+        // Updated on purpose 2026-11-16 (SPEC-rooms-your-room.md, part 2): the way back is on the floating picture, not a
+        // tile above the bar.
+        assert.equal(await page.locator('[data-own-room-door]').count(), 0, 'no folded tile above the bar');
+        await page.locator('[data-floating-player]').getByRole('button', { name: /^Back to where/ }).click();
         await page.waitForFunction(() => document.querySelector('[data-floating-player]')?.getAttribute('data-floating-player') === 'in-box', null, { timeout: 10000 });
         await page.locator('button[aria-label="Close YOUR ROOM"]').click();
         await sleep(800);

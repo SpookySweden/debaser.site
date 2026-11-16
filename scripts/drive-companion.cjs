@@ -350,7 +350,7 @@ async function waitMood(page, wanted, ms) {
     assert.ok(frames < minute * 2, `under two a second (${frames})`);
 
     // The room ends, for everybody.
-    await a.page.locator('[data-watch-tv-box] button').click().catch(() => undefined);
+    await a.page.locator('[data-room-float] button[aria-label="Back to the room"]').click().catch(() => undefined);
     await sleep(800);
     await a.page.getByRole('button', { name: '[ END STREAM ]' }).last().click();
     await a.page.getByRole('button', { name: '[ END FOR EVERYBODY ]' }).last().click();

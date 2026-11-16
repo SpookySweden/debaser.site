@@ -360,7 +360,7 @@ async function mediaRun(page) {
   // (The robot's clicks scroll keys into view, so the page is put back first.)
   await paneScroll(page, place);
   await untilState(page, 'in-box', 'before walking away');
-  await page.getByRole('navigation', { name: 'Site pages' }).getByRole('link', { name: 'FORUM' }).click();
+  await page.getByRole('navigation', { name: 'Modules' }).getByRole('link', { name: 'FORUM' }).click();
   await page.waitForURL(/\/forum/);
   await untilState(page, 'floating', 'another page');
   await sleep(1500);
@@ -463,7 +463,7 @@ async function mediaRun(page) {
   await sleep(600);
   const placeNoVideo = await paneTop(page);
   assert.ok(placeNoVideo > 300, `a long enough page to test: ${placeNoVideo}`);
-  await page.getByRole('navigation', { name: 'Site pages' }).getByRole('link', { name: 'STREAM' }).click();
+  await page.getByRole('navigation', { name: 'Modules' }).getByRole('link', { name: 'STREAM' }).click();
   await page.waitForURL(/\/stream/);
   await sleep(1200);
   await page.getByRole('button', { name: 'Back', exact: true }).click();
@@ -591,7 +591,7 @@ async function filesRun(page) {
   await untilState(page, 'in-box', 'FILES PIP off');
 
   const t0 = (await layerState(page)).time;
-  await page.getByRole('navigation', { name: 'Site pages' }).getByRole('link', { name: 'MEDIA' }).click();
+  await page.getByRole('navigation', { name: 'Modules' }).getByRole('link', { name: 'MEDIA' }).click();
   await page.waitForURL(/\/media/);
   await untilState(page, 'floating', 'FILES to MEDIA');
   await stillTheSame(page, 'FILES: walked to MEDIA');
@@ -620,7 +620,9 @@ async function roomRun(page) {
   const addLink = async (link) => {
     await page.getByRole('button', { name: '[ QUEUE ]' }).last().click();
     await sleep(500);
-    const field = page.getByPlaceholder('SEARCH MEDIA OR PASTE A VIDEO LINK');
+    // Updated on purpose 2026-11-16: found by its id, since the box's words changed when queues took pictures
+    // ("...A VIDEO OR PICTURE LINK", SPEC-rooms-queues.md) and this step had been failing on the old ones.
+    const field = page.locator('#stream-queue-search');
     await field.fill(link);
     await field.press('Enter');
     await sleep(5000);
@@ -698,6 +700,25 @@ async function roomRun(page) {
   await sleep(600);
   await stillRoom('the room\'s float, in and out of fullscreen');
   pass('a room\'s floating picture goes fullscreen and comes back exactly as it was');
+  // Added 2026-11-16 (SPEC-rooms-your-room.md, part 2): the floating picture drags by the picture itself, over YouTube's
+  // player too (the room's clear cover takes the press), and nothing is reloaded. Folded, there is no tile above the bar
+  // and no key to put the picture away: BACK on the picture is the way back.
+  // (It comes straight after the double presses above on purpose: what a double press leaves selected is draggable by
+  // the browser's own drag, which took the pointer away after the first step until the handle refused it.)
+  const from = await page.evaluate(() => document.querySelector('[data-room-picture]').getBoundingClientRect().toJSON());
+  const hold = { x: from.left + from.width / 2, y: from.top + from.height / 2 + 20 };
+  await page.mouse.move(hold.x, hold.y);
+  await page.mouse.down();
+  for (let step = 1; step <= 10; step += 1) await page.mouse.move(hold.x + 16 * step, hold.y - 12 * step);
+  await page.mouse.up();
+  await sleep(500);
+  const to = await page.evaluate(() => document.querySelector('[data-room-picture]').getBoundingClientRect().toJSON());
+  assert.ok(near(to.left, from.left + 160) && near(to.top, from.top - 120) && near(to.width, from.width) && near(to.height, from.height), `dragged by the picture, it moves and keeps its size: ${JSON.stringify([from, to])}`);
+  assert.equal(await fullIs(), 'none', 'a drag is not a double press');
+  await stillRoom('the room\'s float, dragged by its picture');
+  assert.equal(await page.locator('[data-watch-tv-box]').count(), 0, 'no folded tile above the bar');
+  assert.equal(await page.locator('[data-room-float] button').count(), 1, 'BACK is the floating picture\'s one key');
+  pass('a room\'s floating picture drags by the picture, YouTube\'s player untouched; no folded tile, BACK is its one key');
   await page.locator('[data-room-float]').getByRole('button', { name: 'Back to the room' }).click();
   await sleep(800);
 
@@ -760,7 +781,7 @@ async function roomRun(page) {
     await small.waitForSelector('[data-floating-player] iframe');
     await small.waitForTimeout(2500);
     await small.screenshot({ path: join(SHOTS, 'float-phone-box.png') });
-    await small.getByRole('navigation', { name: 'Site pages' }).getByRole('link', { name: 'FORUM' }).click();
+    await small.getByRole('navigation', { name: 'Modules' }).getByRole('link', { name: 'FORUM' }).click();
     await small.waitForURL(/\/forum/);
     await small.waitForTimeout(2000);
     await small.screenshot({ path: join(SHOTS, 'float-phone-float.png') });

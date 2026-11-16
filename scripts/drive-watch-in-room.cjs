@@ -194,7 +194,10 @@ async function endRoom(page) {
       assert.equal(row.in_queue, true, 'in the queue, not on a list');
       pass(`it goes to the back of the queue (place ${row.position}, after place ${firstRow.position})`);
     }
-    await a.locator('[data-watch-tv-box] button').click();
+    // Updated on purpose 2026-11-16 (SPEC-rooms-your-room.md, part 2): a folded room's way back is [ BACK ] on its floating
+    // picture; the tile above the bar is gone.
+    assert.equal(await a.locator('[data-watch-tv-box]').count(), 0, 'no folded tile above the bar');
+    await a.locator('[data-room-float]').getByRole('button', { name: 'Back to the room' }).click();
     await sleep(800);
     await endRoom(a);
     pass('the room ended');

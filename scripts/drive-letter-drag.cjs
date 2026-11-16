@@ -308,7 +308,7 @@ async function closeFirstLooks(page) {
 }
 
 async function unfoldRoom(page) {
-  const up = page.locator('[data-watch-tv-box] button');
+  const up = page.locator('[data-room-float] button[aria-label="Back to the room"]');
   if ((await up.count()) > 0 && (await up.first().isVisible().catch(() => false))) await up.first().click();
 }
 
