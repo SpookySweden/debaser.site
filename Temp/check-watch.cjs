@@ -419,82 +419,52 @@ const member = (key, userId, joinedAt, name = key) => ({ key, userId, name, join
     assert.doesNotMatch(html(element(StreamQueueWindow, { read: ended, itemsById: new Map([['v1', VIDEO]]), live: false, userId: 'a', members: [], nowLive: false, onClose: noop })), /\+ ADD|id="stream-queue-search"/);
   });
 
-  // (2026-11-16, SPEC-rooms-your-room.md part 1) YOUR ROOM, the window before GO LIVE, is drawn in the live room's frame:
-  // the same class lists (lib/watch/room-frame.ts), so the bar of keys and the side column sit where a live room's do.
-  // A server render has no floating video, so this is the room with a song on; the video's keys are held in a browser
-  // (scripts/drive-rooms-your-room.cjs).
-  await ok("your own room is drawn in the live room's frame: the bar of keys under the picture, [ QUEUE ] and the cog, JUST YOU HERE and GO LIVE where chat is, nothing disabled, no END", () => {
+  // Replaced on purpose 2026-11-16 (list 3, ROOMS): this case drew OwnRoomWindow.tsx, the look-alike of your room before GO
+  // LIVE. Since SPEC-rooms-perpetual.md your room opens in the live room's own window (WatchRoom), a signed-out visitor's too
+  // (list 3, item 1), so the old window is imported by nothing and a fresh build of this check no longer compiles it. The
+  // same promises, held on the window your room really uses: the live room's frame, [ QUEUE ] and the cog, and for a private
+  // room GO LIVE and END ROOM in place of END STREAM; a visitor gets JUST YOU HERE and LOG IN where chat is, no chat box and
+  // no canvas. The browser proof is scripts/drive-rooms-perpetual.cjs and scripts/drive-rooms-your-room.cjs.
+  await ok("your own room is the live room's own window: its frame, [ QUEUE ] and the cog, GO LIVE and END ROOM; a visitor's says JUST YOU HERE and LOG IN, with no chat and no canvas", () => {
     viewer = ACCOUNT_A;
-    const OwnRoomWindow = require('./watch-render/components/OwnRoomWindow.js').default;
     const ownClient = require('./watch-render/lib/watch/own-room-client.js');
-    const playerModule = require.cache[require.resolve('./watch-render/components/MusicPlayerProvider.js')].exports;
-    const playerWas = playerModule.useMusicPlayer;
-    const SONG = { id: 's1', title: 'TEST TONE', credit: 'TEST', kind: 'TEST', src: '/assets/audio/tone.wav', length: '0:45', tags: [], folderPath: null, shelf: 'bucket' };
-    const ownRead = {
-      crowns: [{ roomId: 'own-r', userId: 'a', givenBy: 'a', givenAt: now }],
-      room: room({ id: 'own-r', currentEntryId: 'o1', updatedAt: now, origin: 'music', isPublic: false, privacy: 'private', clearedAt: null }),
-      queue: [
-        entry('o1', { roomId: 'own-r', mediaItemId: null, link: { url: SONG.src, kind: 'audio', title: SONG.title }, playedAt: now, playIndex: 0 }),
-        entry('o2', { roomId: 'own-r', mediaItemId: 'v1', position: 1 }),
-      ],
+    const ownRead = (hostId) => ({
+      crowns: [{ roomId: 'own-r', userId: hostId, givenBy: hostId, givenAt: now }],
+      room: room({ id: 'own-r', currentEntryId: 'o1', updatedAt: now, origin: 'music', isPublic: false, privacy: 'private', clearedAt: null, hostId, originalHostId: hostId }),
+      queue: [entry('o1', { roomId: 'own-r', mediaItemId: 'v1', playedAt: now, playIndex: 0 }), entry('o2', { roomId: 'own-r', mediaItemId: 'v1', position: 1 })],
       messages: [],
-    };
-    primeRoom(ownRead);
-    ownClient.setOwnRoom({ session: null, roomId: 'own-r', hostId: 'a', visitor: false, waiting: false });
-    const drawOwn = () => html(element(OwnRoomWindow, { roomId: 'own-r', collapsed: false, onCollapse: noop, onClose: noop }));
-    const classOf = (page, mark) => (new RegExp(`class="([^"]*)"[^>]*${mark}`).exec(page) ?? new RegExp(`${mark}[^>]*class="([^"]*)"`).exec(page) ?? [])[1];
+    });
+    const drawRoom = (read) => html(element(WatchRoom, { read, closing: false, onStay: noop, onLeft: noop, pictureFloats: false, onFloatPicture: noop }));
     try {
-      playerModule.useMusicPlayer = () => ({ playing: true, steer: noop, toggle: noop, seek: noop, next: noop, queue: [SONG], shelfSize: 1, track: SONG, elapsed: 12, duration: 45 });
-      const own = drawOwn();
+      ownClient.setOwnRoom({ session: null, roomId: 'own-r', hostId: 'a', visitor: false, waiting: false });
+      primeRoom(ownRead('a'));
+      const own = drawRoom(ownRead('a'));
       const live = html(element(WatchRoom, { read: liveRead, closing: false, onStay: noop, onLeft: noop }));
-      assert.match(own, /data-title="YOUR ROOM"/);
-      assert.match(own, /data-badge="JUST YOU"/);
-      // The frame: the very class lists the live room draws with.
+      // The frame: the very class lists the live room draws with, because it is the same component.
       const frame = require('./watch-render/lib/watch/room-frame.js');
-      for (const name of ['ROOM_ROOT', 'ROOM_COLUMNS', 'ROOM_STAGE', 'ROOM_SCREEN', 'ROOM_BAR', 'ROOM_BAR_PLACE', 'ROOM_SIDE']) {
+      for (const name of ['ROOM_ROOT', 'ROOM_COLUMNS', 'ROOM_STAGE', 'ROOM_SCREEN', 'ROOM_BAR', 'ROOM_BAR_PLACE']) {
         const list = frame[name].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        assert.match(own, new RegExp(`class="${list}"`), `your room draws ${name}`);
-        assert.match(live, new RegExp(`class="${list}[" ]`), `and so does a live room`);
+        assert.match(own, new RegExp(`class="${list}[" ]`), `your room draws ${name}`);
+        assert.match(live, new RegExp(`class="${list}[" ]`), 'and so does a live room');
       }
-      assert.equal(classOf(own, 'data-watch-bar="shown"'), classOf(live, 'data-watch-bar="shown"'), 'the bar of keys is the same bar');
-      assert.ok(own.indexOf('data-own-room-screen') < own.indexOf('data-own-room-bar') && own.indexOf('data-own-room-bar') < own.indexOf('data-own-room-side'), 'the picture, its bar under it, then the side column');
-      // A song on the bar: PLAY, the seek line, the time, next. As a live room's bar has for a song.
-      assert.match(own, /data-own-room-screen="song"/);
-      assert.match(own, /aria-label="Pause"[^>]*data-own-room-play="playing"/);
-      assert.match(own, /type="range"[^>]*aria-label="Seek"[^>]*max="45"/);
-      assert.match(own, /00:12 \/ 00:45/);
-      assert.match(own, /aria-label="Skip to the next in your queue"/);
-      assert.doesNotMatch(own, /disabled=""/, 'nothing is drawn disabled');
-      assert.doesNotMatch(own, /END STREAM|aria-label="Send"|data-watch-queue-key|aria-label="Mute"|\[ PIP \]/, 'no END, no chat, and no key a song has no use for');
-      // The side column: [ QUEUE ] and the cog on the title line, then what is on, then JUST YOU HERE with GO LIVE.
-      const side = own.slice(own.indexOf('data-own-room-side'));
-      // Updated on purpose 2026-11-16 (Luke's ROOMFIX list, item 1): the edge that drags the column comes first, laid in the gap
-      // beside it (absolute, so nothing moves); then the title line as before.
-      assert.match(side, /^[^<]*>\s*<div role="separator"[^>]*data-room-side-grip="usual"[^>]*>(?:<span[^>]*><\/span>)?<\/div><div class="title-line[^"]*"><button[^>]*data-own-room-queue-key="true"[^>]*>\[ QUEUE \]<\/button><button[^>]*aria-label="Room link and settings"[^>]*>\[ ⚙︎ \]<\/button><\/div>/);
-      assert.match(live, /data-watch-queue-key="true"[^>]*>\[ QUEUE \]<\/button><button[^>]*aria-label="Room settings"[^>]*>\[ ⚙︎ \]/, 'the live room: the same two keys, the same cog');
-      assert.match(side, /SONG :: TEST TONE[\s\S]*1 QUEUED[\s\S]*JUST YOU HERE[\s\S]*data-own-room-go-live="true"[^>]*>\[ GO LIVE \]/);
-      assert.doesNotMatch(own, /data-own-queue/, 'the queue is not stacked in the window: it opens from [ QUEUE ], as in a live room');
-      // Paused, the key offers PLAY; a song the bar is not on has no transport here (its keys would drive something else).
-      playerModule.useMusicPlayer = () => ({ playing: false, steer: noop, toggle: noop, seek: noop, next: noop, queue: [SONG], shelfSize: 1, track: SONG, elapsed: 12, duration: 45 });
-      assert.match(drawOwn(), /aria-label="Play"[^>]*data-own-room-play="paused"/);
-      playerModule.useMusicPlayer = () => ({ playing: false, steer: noop, toggle: noop, seek: noop, next: noop, queue: [], shelfSize: 0, track: undefined, elapsed: 0, duration: 0 });
-      assert.doesNotMatch(drawOwn(), /data-own-room-play|aria-label="Seek"/);
-      // Nothing on: the black screen with its three keys, and no bar at all rather than an empty or disabled one.
-      primeRoom({ ...ownRead, room: { ...ownRead.room, currentEntryId: null }, queue: [] });
-      const empty = drawOwn();
-      assert.match(empty, /data-own-room-screen="empty"/);
-      assert.match(empty, /BOOKS[\s\S]*VIDEO[\s\S]*MUSIC/);
-      assert.doesNotMatch(empty, /data-own-room-bar/);
-      assert.match(empty, /NOTHING ON[\s\S]*NOTHING QUEUED/);
-      // A visitor's browser room: no cog (it has no link to share), and LOG IN where GO LIVE would be.
+      assert.match(own, /data-watch-queue-key="true"[^>]*>\[ QUEUE \]<\/button><button[^>]*aria-label="Room settings"/, '[ QUEUE ] and the cog head the side column');
+      assert.match(own, /data-main-room-live="private"[\s\S]*?\[ GO LIVE \]/, 'a private room: GO LIVE on its bar of keys');
+      assert.match(own, /\[ END ROOM \]/, 'and END ROOM');
+      assert.doesNotMatch(own, /END STREAM/, 'never END STREAM: it is your room, not a stream');
+      assert.match(own, /id="watch-chat"/, 'chat is on (for whoever joins by your link)');
+      assert.doesNotMatch(own, /data-visitor-room-alone/);
+
+      // A signed-out visitor's room, kept in their browser.
       viewer = null;
       ownClient.setOwnRoom({ session: null, roomId: 'own-r', hostId: 'visitor:1', visitor: true, waiting: false });
-      const visitor = drawOwn();
-      assert.match(visitor, /data-badge="IN THIS BROWSER"/);
-      assert.doesNotMatch(visitor, /data-own-room-settings|data-own-room-go-live/);
-      assert.match(visitor, /\[ LOG IN \]<\/a>[^<]*TO GO LIVE/);
+      primeRoom(ownRead('visitor:1'));
+      const visitor = drawRoom(ownRead('visitor:1'));
+      assert.match(visitor, /data-visitor-room-alone[\s\S]*JUST YOU HERE[\s\S]*\[ LOG IN \][\s\S]*TO SHARE ITS LINK, CHAT WITH WHO JOINS, AND GO LIVE/);
+      assert.doesNotMatch(visitor, /id="watch-chat"/, 'no chat box');
+      assert.doesNotMatch(visitor, /\[ CANVAS \]/, 'no canvas key');
+      assert.match(visitor, /data-main-room-live="private"[\s\S]*?\[ GO LIVE \]/, 'GO LIVE is there (it asks them to log in)');
+      assert.match(visitor, /data-watch-queue-key="true"/, 'and [ QUEUE ]');
     } finally {
-      playerModule.useMusicPlayer = playerWas;
       ownClient.setOwnRoom({ session: null, roomId: null, hostId: null, visitor: false, waiting: false });
       viewer = null;
     }

@@ -173,9 +173,9 @@ export default function MusicPlayer() {
   // draws the stream's part into it; lib/watch/stream-bar.ts).
   const watch = useSyncExternalStore(subscribeToWatchWindow, watchWindowState, watchWindowServerState);
   const streamBar = useSyncExternalStore(subscribeToStreamBar, streamBarState, streamBarState);
-  // Your own room's window is not a stream: the bar stays the music bar, which is that room's controls already.
-  const ownRoomId = useSyncExternalStore(subscribeToOwnRoom, () => ownRoomState().roomId, () => null);
-  const roomId = watch.open && watch.focus?.kind === 'room' && watch.focus.roomId !== ownRoomId ? watch.focus.roomId : null;
+  // Your own room too, private or live, a visitor's included (SPEC-rooms-perpetual.md: "the music bar is the room's bar";
+  // Luke, 2026-11-16, "Yes, bring it back"): its window open or folded, the bar is the room's, as in anybody's room.
+  const roomId = watch.open && watch.focus?.kind === 'room' ? watch.focus.roomId : null;
   const streamOn = roomId !== null && showsStream(streamBar, roomId);
 
   /**

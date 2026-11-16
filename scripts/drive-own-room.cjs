@@ -149,9 +149,26 @@ const tables = (page) =>
       });
   });
 
-const barQueue = (page) => page.evaluate(() => Number(document.querySelector('[data-bar-queue]')?.getAttribute('data-bar-queue') ?? -1));
+/**
+ * Updated on purpose 2026-11-16 (list 3, item 6, Luke: "Yes, bring it back"): while your room's window is open or folded
+ * the bar along the foot is the room's, as in anybody's room; its TV key turns it to the music player, whose keys these
+ * helpers press. Pressed in the page: the dev server's corner badge sits over the bar's left end.
+ */
+async function musicFace(page) {
+  await page.evaluate(() => document.querySelector('[data-stream-bar-swap="stream"]')?.click());
+  await page.waitForSelector('[data-bar-queue]', { timeout: 10000 });
+}
+const barQueue = async (page) => {
+  await musicFace(page);
+  return page.evaluate(() => Number(document.querySelector('[data-bar-queue]')?.getAttribute('data-bar-queue') ?? -1));
+};
+async function openBarQueue(page) {
+  await musicFace(page);
+  await page.locator('[data-bar-queue]').click();
+}
 
 async function pressTransport(page) {
+  await musicFace(page);
   await page.evaluate(() => {
     // The pad is three keys in a row: previous, the one cell that shows the state, next.
     const previous = document.querySelector('button[aria-label="Previous track"]');
@@ -175,10 +192,12 @@ async function pressUntil(page, wantPaused) {
 }
 
 async function pressNext(page) {
+  await musicFace(page);
   await page.evaluate(() => document.querySelector('button[aria-label="Next track"]').click());
 }
 
 async function songMenu(page, key) {
+  await musicFace(page);
   await page.locator('button[aria-label^="Song options for"]').first().click();
   await page.locator('[data-song-menu]').getByText(key, { exact: false }).first().click();
   await sleep(300);
@@ -267,7 +286,7 @@ async function open(page, path) {
     // Updated on purpose 2026-11-16 (list 3, SPEC-rooms-perpetual.md): a visitor's room opens in the live room's own
     // window, as an account's does; the old look-alike (OwnRoomWindow.tsx) is unused. Where chat would be it says JUST YOU
     // HERE and LOG IN (nobody can join a room kept in a browser). scripts/drive-rooms-your-room.cjs holds the window in full.
-    await page.waitForSelector('[data-dock-window="stream"] [data-main-room-live="private"]', { timeout: 15000 });
+    await page.waitForSelector('[data-main-room-live="private"]', { timeout: 15000 });
     assert.equal(await page.locator('[data-own-room-window]').count(), 0, 'not the old look-alike window');
     assert.equal(await page.locator('[data-dock-window="stream"]').getAttribute('aria-label'), 'YOUR ROOM', 'the window is YOUR ROOM');
     assert.ok(await page.locator('[data-dock-window="stream"] [data-room-picture] [data-cover-card]').count(), 'a song on: the screen is its cover card');
@@ -289,7 +308,7 @@ async function open(page, path) {
     assert.equal((await audio(page)).paused, false, 'closing the window stops nothing');
     pass('the window\'s X folds your room away, playing on, with its key above the player');
 
-    await page.locator('[data-bar-queue]').click();
+    await openBarQueue(page);
     await page.waitForSelector('[data-own-room="browser"]', { timeout: 15000 });
     const tabs = await page.evaluate(() => [...document.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent.trim()));
     assert.deepEqual(tabs, ['[ UP NEXT ]', '[ PLAYLISTS ]', '[ RADI-OH ]'], 'the queue window has UP NEXT, PLAYLISTS and RADI-OH (answer 9A)');
@@ -414,7 +433,7 @@ async function open(page, path) {
     assert.equal(account.waiting.length, waitingBefore, 'holding what the visitor had queued');
     assert.equal(visitor.waiting.length, 0, "and the browser's queue is emptied");
     pass('logged in: the account has its own private room, with what was queued in the browser');
-    await page.locator('[data-bar-queue]').click();
+    await openBarQueue(page);
     await page.waitForSelector('[data-own-room="account"]', { timeout: 15000 });
     assert.equal(await page.locator('[data-own-room-note="visitor"]').count(), 0, 'no "kept in this browser" line for an account');
     assert.ok(await page.locator('[data-playlist-keys]').count(), 'an account can save its queue as a playlist');
@@ -467,7 +486,7 @@ async function open(page, path) {
     await pressUntil(page, false);
     await page.waitForSelector('[data-own-room-door="shut"]', { timeout: 10000 });
     await page.locator('[data-own-room-door] button').click();
-    await page.waitForSelector('[data-dock-window="stream"] [data-main-room-live="private"]', { timeout: 15000 });
+    await page.waitForSelector('[data-main-room-live="private"]', { timeout: 15000 });
     const roomsBeforeMenu = (await tables(page)).length;
     await page.locator('[data-main-room-live="private"]').first().click();
     await page.waitForSelector('[data-main-room-who]', { timeout: 10000 });
@@ -652,7 +671,7 @@ async function open(page, path) {
     };
     // Start from an empty queue, so the order is known: the picture, then a song.
     await open(page, '/forum');
-    await page.locator('[data-bar-queue]').click();
+    await openBarQueue(page);
     await page.waitForSelector('[data-playlist-keys]', { timeout: 15000 });
     if ((await barQueue(page)) > 0) {
       await page.locator('[data-clear-queue]').click();
@@ -763,7 +782,7 @@ async function open(page, path) {
     await open(page, '/forum');
     // The QUEUE window may still be open from the steps before: its key is a switch.
     await sleep(800);
-    if ((await page.locator('[data-playlist-keys]').count()) === 0) await page.locator('[data-bar-queue]').click();
+    if ((await page.locator('[data-playlist-keys]').count()) === 0) await openBarQueue(page);
     await page.waitForSelector('[data-playlist-keys]', { timeout: 15000 });
     if ((await barQueue(page)) > 0) {
       await page.locator('[data-clear-queue]').click();

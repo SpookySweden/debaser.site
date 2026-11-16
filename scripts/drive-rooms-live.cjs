@@ -120,7 +120,8 @@ async function open(page, path) {
     const taken = await roomRow(roomId);
     assert.equal(taken.host_id, b.userId, 'B hosts it now');
     assert.equal(taken.origin, 'stream', 'and it is a stream room now: nobody\'s main room');
-    assert.ok(tookAfter >= 45, `not before 45 seconds (${tookAfter.toFixed(0)}s)`);
+    // The database counts 45 quiet seconds from the host's last beat, which is every 3 seconds: up to 3 before the tab closed.
+    assert.ok(tookAfter >= 42 && tookAfter < 75, `about 45 seconds after the host's last beat (${tookAfter.toFixed(0)}s after the tab closed)`);
     await pageB.screenshot({ path: join(SHOTS, '2-taken-over.png') });
     pass(`A's tab closed with the room live: it was still A's at 30 seconds, and B took it over at ${tookAfter.toFixed(0)}s; it is B's stream room now`);
 
