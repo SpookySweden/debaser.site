@@ -66,7 +66,9 @@ export function readTimeMessage(source: TimeSource, data: unknown): { seconds: n
 }
 
 /** YouTube's own numbers for what its player is doing. */
+const YOUTUBE_UNSTARTED = -1;
 const YOUTUBE_ENDED = 0;
+const YOUTUBE_CUED = 5;
 const YOUTUBE_PLAYING = 1;
 const YOUTUBE_PAUSED = 2;
 const YOUTUBE_BUFFERING = 3;
@@ -143,9 +145,10 @@ export function readClockMessage(source: TimeSource, data: unknown): ClockSaid |
     // YouTube counts its volume to a hundred.
     if (number(info.volume)) clock.volume = Math.min(1, Math.max(0, info.volume / 100));
     if (typeof info.muted === 'boolean') clock.muted = info.muted;
-    // Buffering, not started and cued say nothing either way: the key keeps what it last heard.
+    // Not started, cued, paused and ended are all "not playing": the key offers PLAY. Buffering says nothing either way
+    // (it happens on the way to playing and in the middle of it), so the key keeps what it last heard.
     if (info.playerState === YOUTUBE_PLAYING) clock.paused = false;
-    else if (info.playerState === YOUTUBE_PAUSED || info.playerState === YOUTUBE_ENDED) clock.paused = true;
+    else if (info.playerState === YOUTUBE_PAUSED || info.playerState === YOUTUBE_ENDED || info.playerState === YOUTUBE_UNSTARTED || info.playerState === YOUTUBE_CUED) clock.paused = true;
   } else {
     if (said.event === 'play') clock.paused = false;
     else if (said.event === 'pause' || said.event === 'ended') clock.paused = true;

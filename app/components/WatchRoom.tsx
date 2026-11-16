@@ -1240,7 +1240,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       <div ref={stageRef} className={`${ROOM_SCREEN} ${look === null ? '' : `frame ${lookLines}`}`}>
       {/* Floating, the box leaves the folded window's invisible frame by staying in it: `visible` and `fixed`. Its top is kept for
           its title strip, deeper on a phone where the strip's keys are the tap size, so nothing sits over the picture (2026-11-08). */}
-      <div ref={pictureBox} onDoubleClick={fullOnDoublePress} {...(pictureFloats ? floatDrag.picture : {})} className={`${pictureFloats ? 'fixed visible frame bg-ink-plate pt-10 max-sm:pt-14 fullscreen:pt-0' : 'relative'} ${ROOM_PICTURE_BOX}`} data-room-picture={pictureFloats ? 'floating' : 'in-room'}>
+      <div ref={pictureBox} onDoubleClick={fullOnDoublePress} {...(pictureFloats ? floatDrag.picture : {})} className={`${pictureFloats ? 'fixed visible select-none frame bg-ink-plate pt-10 max-sm:pt-14 fullscreen:pt-0' : 'relative'} ${ROOM_PICTURE_BOX}`} data-room-picture={pictureFloats ? 'floating' : 'in-room'} data-companion-avoid={pictureFloats ? '' : undefined}>
         {blank ? (
           <BlankScreen fit={pictureFit} onPick={(key) => openQueue(key)} hidden={screen === 'canvas'} />
         ) : src === undefined ? (

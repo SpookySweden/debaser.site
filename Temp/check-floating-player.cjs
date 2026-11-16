@@ -374,6 +374,13 @@ same(
 same(time.readClockMessage('youtube', { event: 'infoDelivery', info: { playerState: 2 } }), { paused: true }, 'YouTube paused');
 same(time.readClockMessage('youtube', { event: 'infoDelivery', info: { playerState: 0 } }), { paused: true }, 'at its end it is not playing');
 same(time.readClockMessage('youtube', { event: 'infoDelivery', info: { playerState: 3, currentTime: 5 } }), { seconds: 5 }, 'buffering says nothing either way about paused');
+// Seen in a drive: a YouTube frame that had not started read as playing, so the key offered PAUSE to a still picture.
+same(time.readClockMessage('youtube', { event: 'infoDelivery', info: { playerState: -1 } }), { paused: true }, 'not started yet is not playing: the key offers PLAY');
+same(time.readClockMessage('youtube', { event: 'infoDelivery', info: { playerState: 5 } }), { paused: true }, 'nor is cued');
+// A pause and a play the site asked for are heard from outside exactly as a double press on YouTube's picture is, and a
+// double press is FULL: the room's own key set it off until the layer learnt to tell its own orders apart
+// (scripts/drive-rooms-your-room.cjs holds it in a browser).
+ok(/if \(performance\.now\(\) - orderedAt\.current < OWN_ORDER_MS\) return;/.test(read('app/components/FloatingPlayer.tsx')) && /orderedAt\.current = performance\.now\(\);/.test(read('app/components/FloatingPlayer.tsx')), "the site's own pause and play are not taken for a double press");
 same(time.readClockMessage('vimeo', JSON.stringify({ event: 'timeupdate', data: { seconds: 7, duration: 90, percent: 0.07 } })), { seconds: 7, duration: 90 }, 'Vimeo: where it is and how long');
 same(time.readClockMessage('vimeo', { event: 'pause', data: { seconds: 7, duration: 90 } }), { paused: true, seconds: 7, duration: 90 }, 'Vimeo paused');
 same(time.readClockMessage('vimeo', { event: 'play' }), { paused: false }, 'Vimeo playing');
@@ -437,6 +444,20 @@ same(writes.length, 1, 'a press the title line has taken is not taken twice');
 floatDrag.bar.onPointerMove(pointer(150, 150));
 same(writes.at(-1), { x: 200, y: 200, w: 384, h: 256 }, 'and the title line drags it as before');
 floatDrag.bar.onPointerUp(pointer(150, 150, { buttons: 0 }));
+// The browser's own drag (a picture, or whatever a double press left selected) takes the pointer away mid-move: found by
+// scripts/drive-floating-player.cjs over YouTube's cover, where the float stopped after its first step. A press the
+// handle has is refused to the browser; with no press on, the browser's drags are left alone.
+let refused = 0;
+const browserDrag = { preventDefault: () => (refused += 1) };
+floatDrag.picture.onDragStart(browserDrag);
+same(refused, 0, 'with no press on the picture, a drag of the browser\'s own is left alone');
+floatDrag.picture.onPointerDown(pointer(200, 200));
+floatDrag.picture.onPointerMove(pointer(230, 230));
+floatDrag.picture.onDragStart(browserDrag);
+same(refused, 1, 'during a press on the picture the browser\'s own drag is refused, so the float keeps the pointer');
+floatDrag.picture.onPointerUp(pointer(230, 230, { buttons: 0 }));
+floatDrag.picture.onDragStart(browserDrag);
+same(refused, 1, 'and not after it');
 delete globalThis.Element;
 
 // Bigger grips, on both floats; the windows keep theirs.

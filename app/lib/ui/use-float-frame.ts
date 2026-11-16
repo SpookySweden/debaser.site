@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef } from 'react';
-import type { PointerEvent as ReactPointerEvent } from 'react';
+import type { DragEvent as ReactDragEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { floorFrom, resizedFloat, type FloatEdges, type FloatRect } from './float-geometry';
 
 /** What the strips along the foot reach up to right now (`use-edge-reserve.ts`), read from `<html>`'s own style. */
@@ -125,6 +125,12 @@ export function useFloatFrame(host: () => HTMLElement | null, read: () => FloatR
         const dragged = press.current !== null && start.current === press.current;
         press.current = null;
         if (dragged) end(event);
+      },
+      // The browser's own drag (a picture is draggable by nature, and so is anything a double press left selected) would
+      // take the pointer away mid-move and leave the float where the first step put it: seen with YouTube's cover in a
+      // room, 2026-11-16. A press this handle has is this handle's.
+      onDragStart: (event: ReactDragEvent<HTMLElement>) => {
+        if (press.current !== null) event.preventDefault();
       },
     },
   };

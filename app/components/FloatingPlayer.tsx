@@ -34,7 +34,7 @@ import {
 } from '../lib/ui/floating-player';
 import { FLOAT_GRIPS, footFloor, screenNow, useFloatFrame } from '../lib/ui/use-float-frame';
 import { expandWatch } from '../lib/watch/watch-window';
-import { listenForTime } from '../lib/web/embed-time';
+import { DOUBLE_PRESS_MS, listenForTime } from '../lib/web/embed-time';
 import { useAuth } from './AuthProvider';
 import QueuedPicture from './QueuedPicture';
 import WatchInRoomKey from './WatchInRoomKey';
@@ -67,6 +67,12 @@ const ROOM_MIDDLE = SPARE_SCROLL / 2;
 const ROOM_REST_MS = 200;
 
 const READER_ACTS = ['wheel', 'touchstart', 'pointerdown', 'keydown'] as const;
+
+/**
+ * How long after the site's own pause or play order a frame's "paused, then playing" is not taken for a double press on
+ * its picture (`doublePressWatcher`, which hears the two the same way): twice the double press's own window.
+ */
+const OWN_ORDER_MS = DOUBLE_PRESS_MS * 2;
 
 /** Where the reader last left the float, for this visit. Null: the corner. */
 let placed: FloatRect | null = null;
@@ -106,6 +112,8 @@ export default function FloatingPlayer() {
   const roomRest = useRef(0);
   const router = useRouter();
   const playKey = entry === null ? null : `${entry.id}:${entry.play}`;
+  /** When the site last told a frame's player to pause or play (`onFloatingOrder`), so that is not read as a double press on it. */
+  const orderedAt = useRef(0);
 
   // Each frame: is there a box, how much of it shows, and so where does the layer go.
   useLayoutEffect(() => {
@@ -187,6 +195,9 @@ export default function FloatingPlayer() {
       frameSource,
       (seconds) => notePlace(id, seconds),
       () => {
+        // A pause and a play the site itself just asked for (the keys under your room's screen, the bar's middle key)
+        // look the same from outside as two presses on the picture: they are not a double press.
+        if (performance.now() - orderedAt.current < OWN_ORDER_MS) return;
         const before = document.fullscreenElement;
         window.clearTimeout(wait);
         wait = window.setTimeout(() => {
@@ -234,6 +245,7 @@ export default function FloatingPlayer() {
         }
         const tell = (message: object) => element.contentWindow?.postMessage(JSON.stringify(message), origin);
         if (order === 'pause' || order === 'play') {
+          orderedAt.current = performance.now();
           tell(frameSource === 'youtube' ? { event: 'command', func: order === 'pause' ? 'pauseVideo' : 'playVideo', args: [] } : { method: order });
         } else if ('seek' in order) {
           tell(frameSource === 'youtube' ? { event: 'command', func: 'seekTo', args: [order.seek, true] } : { method: 'setCurrentTime', value: order.seek });
