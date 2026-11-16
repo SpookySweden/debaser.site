@@ -1,6 +1,6 @@
 /*
  * MEDIA's default feed mix (SPEC-media-feed.md; app/lib/web/feed-mix.ts, passed-over.ts, brief/mock-brief.ts):
- *   npx tsc app/lib/web/feed-mix.ts app/lib/web/passed-over.ts app/lib/web/brief/mock-brief.ts app/lib/web/row-addresses.ts --outDir Temp/out-media-feed-mix --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop --moduleResolution node --strictNullChecks
+ *   npx tsc app/lib/web/feed-mix.ts app/lib/web/passed-over.ts app/lib/web/brief/mock-brief.ts app/lib/web/brief/addresses.ts --outDir Temp/out-media-feed-mix --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop --moduleResolution node --strictNullChecks
  *
  * - the 12-place pattern; reading never more than 2 in 12, even with everything else empty
  * - the fill order (FOR YOU, NEW TO YOU, PEOPLE'S PICKS); no YOUR YOUTUBE for a visitor
@@ -15,7 +15,7 @@ const OUT = join(__dirname, 'out-media-feed-mix', 'lib', 'web');
 const mix = require(join(OUT, 'feed-mix.js'));
 const passed = require(join(OUT, 'passed-over.js'));
 const { mockBrief } = require(join(OUT, 'brief', 'mock-brief.js'));
-const { rowAddresses } = require(join(OUT, 'row-addresses.js'));
+const { readingRowAddresses } = require(join(OUT, 'brief', 'addresses.js'));
 
 process.exitCode = 1;
 let count = 0;
@@ -172,7 +172,7 @@ const big = passed.withFirstBlock({}, Array.from({ length: 700 }, (_, i) => `id$
 ok(Object.keys(big).length === passed.PASSED_MAX, 'at most 500 rows are kept');
 
 /* ------------------------------------------------------------------ mock reading */
-for (const row of reading) ok(rowAddresses(row.item).link === row.item.url, `mock reading: ${row.item.id} passes the page's address check`);
+for (const row of reading) ok(readingRowAddresses(row.item).link === row.item.url, `mock reading: ${row.item.id} passes the page's address check`);
 ok(new Set(reading.map((row) => row.kind)).size === 4, 'mock reading has all four kinds');
 
 console.log(`check-media-feed-mix: ${count} passed`);

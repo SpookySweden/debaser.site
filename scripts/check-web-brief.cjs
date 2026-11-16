@@ -1,10 +1,11 @@
 /*
  * The reading in MEDIA's default feed (SPEC-media-feed.md; run by `npm run checks:web`), offline against real saved
  * documents (scripts/fixtures/web/brief-*) and hostile ones:
- *   npx tsc app/lib/web/brief/index.ts app/lib/web/row-addresses.ts --outDir Temp/out-web-brief --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop --moduleResolution node --strictNullChecks
+ *   npx tsc app/lib/web/brief/index.ts app/lib/web/brief/addresses.ts app/lib/web/row-addresses.ts --outDir Temp/out-web-brief --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop --moduleResolution node --strictNullChecks
  *
  * - arXiv, Europe PMC, Wikipedia and every listed article feed parse; HTML is stripped
- * - every link and picture passes the page's own re-check (`rowAddresses`), and nothing else does: off-list hosts and
+ * - every link and picture passes the page's own re-check (`readingRowAddresses`; `rowAddresses` for the YouTube and
+ *   Archive rows), and nothing else does: off-list hosts and
  *   paths, http, tracking queries kept, a forged open link
  * - Hacker News and Lobsters rows link to the story's site, name that site, and carry no summary (decision 2A)
  * - no counts anywhere: no citation counts, no Wikipedia "most read", no YouTube ratings, no points
@@ -23,6 +24,9 @@ const epmc = require(join(OUT, 'brief', 'europe-pmc.js'));
 const wiki = require(join(OUT, 'brief', 'wikipedia.js'));
 const articles = require(join(OUT, 'brief', 'articles.js'));
 const { rowAddresses } = require(join(OUT, 'row-addresses.js'));
+const { readingRowAddresses, isReadingRow } = require(join(OUT, 'brief', 'addresses.js'));
+/** The page's re-check: a reading row against the reading lists, any other row against its platform's. */
+const pageCheck = (item) => (isReadingRow(item) ? readingRowAddresses(item) : rowAddresses(item));
 
 process.exitCode = 1;
 let passed = 0;
@@ -52,9 +56,9 @@ const ENGAGEMENT = /"(likes?|views?|viewCount|ratings?|stars?|score|points|comme
 /** A tag left in text (a plain `<` in "p < 0.05" is fine). */
 const TAG = /<\/?[a-z!]/i;
 
-/** Every address on a row passes `rowAddresses`, and the row has a link. */
+/** Every address on a row passes the page's re-check, and the row has a link. */
 function addressesHold(item, label) {
-  const shown = rowAddresses(item);
+  const shown = pageCheck(item);
   ok(shown.link === item.url, `${label}: its link passes the page's check (${item.url})`);
   if (item.thumbnailUrl) ok(shown.thumb === item.thumbnailUrl, `${label}: its picture passes the page's check (${item.thumbnailUrl})`);
   ok(shown.embed === null, `${label}: a reading row has no player`);
@@ -192,10 +196,13 @@ throws(() => articles.parseArticles('<html><body>not a feed</body></html>', bbcF
 
 /* ------------------------------------------------------------------ the page's re-check */
 const forged = { ...hostileHn[0], id: 'tech:hackaday-abc', url: 'https://evil.example/x' };
-ok(rowAddresses(forged).link === null, 'the open link is only for Hacker News and Lobsters ids: any other tech row stays on its list');
-ok(rowAddresses({ ...hostileHn[0], url: 'http://example.com/a' }).link === null, 'an open link is re-checked on the page too');
-ok(rowAddresses({ ...byFeed.bbc[0], url: 'https://www.bbc.co.uk/news/articles/abcdefgh12?x=1' }).link === null, 'a news row with a query fails the page check');
-ok(rowAddresses({ ...byFeed.bbc[0], thumbnailUrl: 'https://ichef.bbci.co.uk/other/x.jpg' }).thumb === null, 'a picture off its path fails the page check');
+ok(pageCheck(forged).link === null, 'the open link is only for Hacker News and Lobsters ids: any other tech row stays on its list');
+ok(pageCheck({ ...hostileHn[0], url: 'http://example.com/a' }).link === null, 'an open link is re-checked on the page too');
+ok(pageCheck({ ...byFeed.bbc[0], url: 'https://www.bbc.co.uk/news/articles/abcdefgh12?x=1' }).link === null, 'a news row with a query fails the page check');
+ok(pageCheck({ ...byFeed.bbc[0], thumbnailUrl: 'https://ichef.bbci.co.uk/other/x.jpg' }).thumb === null, 'a picture off its path fails the page check');
+ok(rowAddresses(byFeed.bbc[0]).link === null && rowAddresses(papers[0]).link === null, "the platforms' own lists (rowAddresses) give a reading row nothing: only the reading lists do");
+ok(readingRowAddresses(byFeed.bbc[0]).embed === null && readingRowAddresses(byFeed.bbc[0]).licence === null, 'a reading row never has a player or a licence');
+ok(readingRowAddresses({ ...byFeed.bbc[0], platform: 'youtube' }).link === null, 'the reading lists answer for reading rows only');
 
 /* ------------------------------------------------------------------ the whole brief */
 const RESPONSES = [

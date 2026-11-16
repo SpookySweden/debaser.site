@@ -131,7 +131,10 @@ for (const anchor of anchors) {
 // row draws only what it returned.
 // The row passes the PeerTube instances from the public index (SPEC-web-search.md); rowAddresses still holds
 // every address to the platform's path shapes (check-web-search-peertube.cjs).
-ok(/const addresses = rowAddresses\(item, extraHosts\)/.test(stream), 'the row takes its addresses from rowAddresses');
+// Updated on purpose 2026-11-16 (SPEC-media-feed.md): a reading row (paper, news, long read, tech link) takes its
+// addresses from the reading lists' own re-check, brief/addresses.ts (held by check-web-brief.cjs); every other row
+// from rowAddresses as before.
+ok(/const addresses = isReadingKind\(item\.platform\) \? readingRowAddresses\(item\) : rowAddresses\(item, extraHosts\)/.test(stream), 'the row takes its addresses from rowAddresses (a reading row from readingRowAddresses)');
 ok(/src=\{thumb\}/.test(stream) && /const thumb = thumbFailed \? null : addresses\.thumb;/.test(stream), 'the thumbnail is the checked one');
 // 2026-11-03: the row's language rides along for English subtitles (SPEC-subtitles.md).
 ok(/src=\{startingEmbed\(embed, item\.platform(, contentLanguage\(item\))?\)\}/.test(stream) && /const \{ link, embed, licence \} = addresses;/.test(stream), 'the player and links are the checked ones (the player asked to start: check-web-audio.cjs)');

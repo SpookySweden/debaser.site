@@ -17,6 +17,7 @@ import { useFeedLanes } from '../lib/web/use-feed-lanes';
 import { BLOCK_SIZE, mixFeed, openedLately, readingOpens, type Lane, type MixLane, type ReadingRow } from '../lib/web/feed-mix';
 import { noteFirstBlock, noteOpenedRow, readResting } from '../lib/web/passed-over';
 import { isReadingKind, openLinkSite } from '../lib/web/brief/feeds';
+import { readingRowAddresses } from '../lib/web/brief/addresses';
 import { YOUTUBE_LINK_ON } from '../lib/web/youtube-link';
 import WebYouTubeHome from './WebYouTubeHome';
 import { EverywhereError, loadPeertubeHosts, loadRelated, needsPeertubeHosts, searchEverywhere, type LinkOutcome, type ProviderLine, type Related } from '../lib/web/everywhere-client';
@@ -1595,7 +1596,8 @@ export function WebRow({
   };
 
   const source = PLATFORM_LABELS[item.platform];
-  const addresses = rowAddresses(item, extraHosts);
+  // A reading row is checked against the reading lists (brief/addresses.ts); every other row against its platform's.
+  const addresses = isReadingKind(item.platform) ? readingRowAddresses(item) : rowAddresses(item, extraHosts);
   const { link, embed, licence } = addresses;
   // A book the site's reader opens (Luke, 2026-11-13: "any book can be read in the ereader"): every Open Library work,
   // every Internet Archive text (free, lent or unknown), and every book on IPFS. The reader resolves a bare OL work ref

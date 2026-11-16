@@ -1,6 +1,6 @@
-import { PLATFORM_HOSTS, readingHosts } from './hosts';
+import { PLATFORM_HOSTS } from './hosts';
 import type { WebItem, WebPlatform } from './types';
-import { isAllowedUrl, openLink } from './urls';
+import { isAllowedUrl } from './urls';
 
 export type RowAddresses = {
   link: string | null;
@@ -69,16 +69,12 @@ const ENGLISH_SUBTITLES: Partial<Record<WebPlatform, readonly [string, string][]
  * `scripts/check-web-internet-archive.cjs` holds it against hostile items.
  */
 export function rowAddresses(item: WebItem, extra: ExtraHosts = {}): RowAddresses {
-  // A reading row's lists are apart from the platforms' (hosts.ts `readingHosts`), built the first time one is drawn.
-  const reading = item.platform === 'paper' || item.platform === 'news' || item.platform === 'longread' || item.platform === 'tech';
-  const allow = reading ? readingHosts()[item.platform as keyof ReturnType<typeof readingHosts>] : PLATFORM_HOSTS[item.platform];
+  const allow = PLATFORM_HOSTS[item.platform];
   if (!allow) return { link: null, thumb: null, embed: null, licence: null };
   const more = extra[item.platform] ?? [];
   const hosts = (narrow: readonly string[] | undefined) => (more.length === 0 ? (narrow ?? allow.hosts) : [...(narrow ?? allow.hosts), ...more]);
-  // A Hacker News or Lobsters story goes to its own site (SPEC-media-feed.md, decision 2A): the link only, held by `openLink`.
-  const open = allow.openPagePrefixes?.some((prefix) => item.id.startsWith(prefix)) === true;
   return {
-    link: open ? openLink(item.url) : shaped(item.url, hosts(allow.pageHosts), allow.pagePath),
+    link: shaped(item.url, hosts(allow.pageHosts), allow.pagePath),
     thumb: shaped(item.thumbnailUrl, hosts(allow.thumbHosts), allow.thumbPath),
     embed: shaped(item.embedUrl, hosts(allow.embedHosts), allow.embedPath, allow.embedQuery ?? ''),
     licence: isAllowedUrl(item.licenseUrl, allow.linkHosts) ? item.licenseUrl : null,
