@@ -27,6 +27,12 @@ It lists 13 decisions. Luke said to take its recommendations and ask him the big
 - A report of abuse inside a private room can't be checked on the site. The plan's moderation wording needs to cover this:
   removal and bans still work on people, without reading what they said.
 
+## Changed 2026-11-16: room chat on DISCUSS (SPEC-room-chat-discuss.md)
+Luke: "change the privacy promise and deafulats to accomodate this". Chat said in any room, private and password rooms
+included, while a thing is on the room's screen shows on that thing's DISCUSS page by default. A room switch
+(`CHAT ON DISCUSSION`) and a person's switch (`MY ROOM CHAT ON DISCUSSION PAGES`), both on by default, take it back,
+past lines included. A private room's queue, canvas and stream record stay its members'.
+
 ## Other standing answers
 - `[ WATCH IN ROOM ]` waits for private streams (`SPEC-floating-player.md`, part 3).
 - Questions from sessions go to the main session, not to Luke directly, and are answered from the spec where it settles them.
