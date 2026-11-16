@@ -232,7 +232,8 @@ ok(!/className="[^"]*inset-0[^"]*" onDoubleClick/.test(read('app/components/Floa
 ok(/onDoubleClick=\{togglePlayerFullscreen\}/.test(read('app/components/FloatingPlayer.tsx')), 'a double press on the float\'s title line');
 // Updated on purpose 2026-11-16 (Luke's ROOMFIX list, item 8: "BACK, FULL and GO LIVE come off the PIP window"): the float has
 // no [ FULL ] any more; its title line's double press is its fullscreen, and every row's [ FULL ] stays beside its [ PIP ].
-ok(!/\[ FULL \]/.test(read('app/components/FloatingPlayer.tsx')) && /\[ FULL \]/.test(read('app/components/PlayerBox.tsx')), 'no [ FULL ] on the float; a [ FULL ] beside every row\'s [ PIP ]');
+// The key's own line of text, not the comments that still name `[ FULL ]` as the way to the site's fullscreen.
+ok(!/^\s*\[ FULL \]\s*$/m.test(read('app/components/FloatingPlayer.tsx')) && /\[ FULL \]/.test(read('app/components/PlayerBox.tsx')), 'no [ FULL ] on the float; a [ FULL ] beside every row\'s [ PIP ]');
 ok(/onDoubleClick=\{fullOnDoublePress\}/.test(read('app/components/WatchRoom.tsx')), 'in a room, a double press on the picture is the FULL key');
 
 /* ---------------------------------------------------------------- the arrows */
@@ -274,7 +275,8 @@ same((layer.match(/key=\{playKey\}/g) ?? []).length, 3, 'each under one key per 
 ok(/player\.kind === 'picture' \? \(\s*<QueuedPicture key=\{playKey\}/.test(layer), 'a queued picture is drawn by QueuedPicture, which decides in the browser whether it may load');
 ok(!/key=\{[^}]*floating/.test(layer), 'nothing about floating decides an element\'s identity');
 ok(!/\{floating \? <(iframe|video)/.test(layer) && !/createPortal/.test(layer), 'the player is never moved in the page');
-ok(/\[ BACK \]/.test(layer) && /\[ × \]/.test(layer) && /\[ POP OUT \]/.test(layer), 'the float\'s keys');
+// Updated on purpose 2026-11-16 (Luke's ROOMFIX list, item 8: "BACK, FULL and GO LIVE come off the PIP window").
+ok(!/\[ BACK \]/.test(layer) && /\[ × \]/.test(layer) && /\[ POP OUT \]/.test(layer), 'the float\'s keys: close and POP OUT, no BACK');
 ok(/player\.kind === 'file' && document\.pictureInPictureEnabled/.test(layer), 'POP OUT is offered only for our own files');
 ok(/sticky top-0/.test(layer) && /passScrollToPane/.test(layer) && /pane\.scrollTop \+= moved/.test(layer), 'the wheel over a video in its row still scrolls the page');
 // Luke, 2026-11-05: scrolling up stuck where the video goes back in its box. The video's size change moved the wheel room,

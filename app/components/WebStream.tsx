@@ -1,6 +1,6 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { artSlot } from '../lib/ui/art/slots';
 import { FIELD_TIGHT, PLATE, PLATE_LINK, PLATE_MAIN } from '../lib/ui/controls';
@@ -386,6 +386,7 @@ function pickSortOf(filters: Parameters<typeof sortOf>[0]): 'best' | 'newest' | 
 
 export default function WebStream() {
   const params = useSearchParams();
+  const router = useRouter();
   // M14 (Luke's list, 2026-11-14: "retains the way it was when you switch around tabs"): coming back to MEDIA at the address
   // it left, or at plain /media, shows what it showed, at once, with nothing asked (media-keep.ts). Read once, in the browser.
   const [restored] = useState(() => (typeof window === 'undefined' ? null : keptFor<KeptMedia>(params.toString())));
@@ -1059,11 +1060,11 @@ export default function WebStream() {
             </button>
           ) : null}
           {/* Luke, 2026-11-11: your own PDF or EPUB in the site's reader, opened in the browser, never uploaded. */}
-          {/* A link within the site, never a fresh page load: that took a room and what was playing down with it (Luke,
+          {/* A move within the site, never a fresh page load: that took a room and what was playing down with it (Luke,
               2026-11-16). Nothing to prefetch for a page that only opens a file picker. */}
-          <Link href="/read" prefetch={false} className={FILTER_KEY} data-own-book-key>
+          <button type="button" onClick={() => router.push('/read')} className={FILTER_KEY} data-own-book-key>
             [ READ YOUR OWN BOOK ]
-          </Link>
+          </button>
         </div>
         {/* The filter panel (Luke, 2026-11-13: "expandable, organised and much clearer"): one plain line of what is
             chosen, RESET, and a section for each filter that folds open and shut. Every key still only writes its
