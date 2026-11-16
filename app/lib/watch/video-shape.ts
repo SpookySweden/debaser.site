@@ -1,4 +1,5 @@
 import { vimeoUrl, vimeoVideo, youtubeId, youtubeWatchUrl } from './links';
+import { hasTrim, NO_TRIM, trimmedShape, type Trim } from './video-bars';
 
 /**
  * A video's true shape: how wide it is for how tall (SPEC-rooms-your-room.md, part 3; Luke, 2026-11-16: "when
@@ -33,9 +34,32 @@ export function shapeFrom(width: unknown, height: unknown): number | null {
   return Math.min(WIDEST, Math.max(NARROWEST, common ?? measured));
 }
 
-/** What a picture of this shape is fitted by in a fullscreen surround: `.stage-fit` reads it (globals.css). */
-export function stageStyle(shape: number): { '--stage-ratio': string } {
-  return { '--stage-ratio': shape.toFixed(4) };
+const share = (part: number) => `${(part * 100).toFixed(2)}%`;
+
+/**
+ * What another site's frame of this shape is fitted by in a fullscreen surround: `.stage-fit` reads it (globals.css). With
+ * bars to trim, the box that shows is the shape of what is left, and the frame is made that much bigger than the box and
+ * cut back to it, so the bars fall outside (nothing else can remove them: the frame's inside is the other site's).
+ */
+export function stageStyle(shape: number, trim: Trim = NO_TRIM): Record<string, string> {
+  if (!hasTrim(trim)) return { '--stage-ratio': shape.toFixed(4) };
+  return {
+    '--stage-ratio': trimmedShape(shape, trim).toFixed(4),
+    '--stage-grow-x': (1 / (1 - 2 * trim.x)).toFixed(4),
+    '--stage-grow-y': (1 / (1 - 2 * trim.y)).toFixed(4),
+    '--stage-trim-x': share(trim.x),
+    '--stage-trim-y': share(trim.y),
+  };
+}
+
+/**
+ * The same for a `<video>` of our own: the element is the shape of what is left and shows only that part of its picture
+ * (`object-view-box`, Chrome and Edge; `object-fit: cover` beside it does the same wherever the bars are on one pair of
+ * edges only, in every browser). The browser's own controls stay whole, which a frame cut back could not keep.
+ */
+export function pictureStyle(shape: number, trim: Trim = NO_TRIM): Record<string, string> {
+  if (!hasTrim(trim)) return { '--stage-ratio': shape.toFixed(4) };
+  return { '--stage-ratio': trimmedShape(shape, trim).toFixed(4), objectViewBox: `inset(${share(trim.y)} ${share(trim.x)})`, objectFit: 'cover' };
 }
 
 /** The largest box of this shape that fits in a space this big, in its middle. */
@@ -43,6 +67,18 @@ export function fitShape(width: number, height: number, shape: number): { left: 
   const w = Math.min(width, height * shape);
   const h = w / shape;
   return { left: (width - w) / 2, top: (height - h) / 2, w, h };
+}
+
+/**
+ * A frame of shape `base` placed so that what is left of it after `trim` exactly fills the largest box of that shape that
+ * fits a space this big: the box (in the space), and the whole frame's place and size measured from the box's corner. The
+ * frame is bigger than the box by the bars, which hang outside it and are cut off by whatever clips the box.
+ */
+export function fitTrimmed(width: number, height: number, base: number, trim: Trim): { box: { left: number; top: number; w: number; h: number }; frame: { left: number; top: number; w: number; h: number } } {
+  const box = fitShape(width, height, trimmedShape(base, trim));
+  const w = box.w / (1 - 2 * trim.x);
+  const h = box.h / (1 - 2 * trim.y);
+  return { box, frame: { left: -trim.x * w, top: -trim.y * h, w, h } };
 }
 
 /** Where a video's shape can be asked: its site's oEmbed address, or null for a video of no site that says. */
@@ -61,31 +97,54 @@ export function shapeAddress(address: string): string | null {
   return null;
 }
 
-const asked = new Map<string, Promise<number | null>>();
+/** What a site's oEmbed says of a video: its shape, and a still of it where the answer has one (an https picture). */
+type Facts = { shape: number | null; still: string | null };
+const NOTHING: Facts = { shape: null, still: null };
+
+function stillFrom(address: unknown): string | null {
+  if (typeof address !== 'string') return null;
+  try {
+    return new URL(address).protocol === 'https:' ? address : null;
+  } catch {
+    return null;
+  }
+}
+
+const asked = new Map<string, Promise<Facts>>();
+
+/** Asked once per video for the visit; never throws. */
+function videoFacts(address: string): Promise<Facts> {
+  const from = shapeAddress(address);
+  if (from === null) return Promise.resolve(NOTHING);
+  const before = asked.get(from);
+  if (before !== undefined) return before;
+  const asking = (async (): Promise<Facts> => {
+    try {
+      const response = await fetch(from, { signal: AbortSignal.timeout(6000) });
+      if (!response.ok) return NOTHING;
+      const body = (await response.json()) as { width?: unknown; height?: unknown; thumbnail_url?: unknown };
+      return { shape: shapeFrom(body.width, body.height), still: stillFrom(body.thumbnail_url) };
+    } catch {
+      return NOTHING;
+    }
+  })();
+  asked.set(from, asking);
+  // An answer that never came is asked again next time, not remembered as "no shape".
+  void asking.then((facts) => {
+    if (facts.shape === null) asked.delete(from);
+  });
+  return asking;
+}
 
 /**
  * The shape of the video at this address (a watch page or a player's own address), or null: not a site that says, not
  * reached, or no sizes in the answer. Never throws; asked once per video for the visit.
  */
 export function videoShape(address: string): Promise<number | null> {
-  const from = shapeAddress(address);
-  if (from === null) return Promise.resolve(null);
-  const before = asked.get(from);
-  if (before !== undefined) return before;
-  const asking = (async () => {
-    try {
-      const response = await fetch(from, { signal: AbortSignal.timeout(6000) });
-      if (!response.ok) return null;
-      const body = (await response.json()) as { width?: unknown; height?: unknown };
-      return shapeFrom(body.width, body.height);
-    } catch {
-      return null;
-    }
-  })();
-  asked.set(from, asking);
-  // An answer that never came is asked again next time, not remembered as "no shape".
-  void asking.then((shape) => {
-    if (shape === null) asked.delete(from);
-  });
-  return asking;
+  return videoFacts(address).then((facts) => facts.shape);
+}
+
+/** A still of the video at this address, where its site's answer gives one (Vimeo's does), or null. The same asking as its shape. */
+export function videoStill(address: string): Promise<string | null> {
+  return videoFacts(address).then((facts) => facts.still);
 }

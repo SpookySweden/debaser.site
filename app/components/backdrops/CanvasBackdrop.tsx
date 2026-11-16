@@ -51,7 +51,13 @@ function readSolids(cell: number, w: number, h: number, stage: boolean): Box[] {
   };
   for (const element of document.querySelectorAll(stage ? '[data-backdrop-solid]' : '[data-site-window="frame"], [data-dock-window]')) {
     const rect = element.getBoundingClientRect();
-    if (rect.width > 0 && rect.height > 0) add(rect.left, rect.top, rect.right, rect.bottom);
+    if (rect.width <= 0 || rect.height <= 0) continue;
+    // A frame trimmed of its bars is bigger than what shows of it (`data-backdrop-inset`: the share cut from each side, then
+    // from top and foot): only the part that shows is solid.
+    const [insetX, insetY] = (element.getAttribute('data-backdrop-inset') ?? '').split(' ').map(Number);
+    const dx = insetX > 0 && insetX < 0.5 ? rect.width * insetX : 0;
+    const dy = insetY > 0 && insetY < 0.5 ? rect.height * insetY : 0;
+    add(rect.left + dx, rect.top + dy, rect.right - dx, rect.bottom - dy);
   }
   if (stage) return boxes;
   const root = document.documentElement.style;

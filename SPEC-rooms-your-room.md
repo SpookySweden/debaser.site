@@ -105,3 +105,43 @@ Part 3:
 - Proof: `Temp/check-video-shape.cjs` (13 deliberate breaks, all caught) and `scripts/drive-rooms-your-room.cjs`, run with
   AQUARIUM, STARFIELD, SAND and TILE chosen (`--backdrop`). Not proved: Vimeo and Twitch in a browser, a real 4:3 YouTube
   video (the drive tells the frame 4:3 by answering for YouTube), two accounts, phones.
+
+## Part 4: black bars found by themselves, and `[ BKG ]` (Luke, 2026-11-16; built the same day)
+Luke: "i want you to find a way to auto detect the bars for every video", "and to have it be a toggle called bkg which
+appears inside of the bar/backround in the top left corner of it similar to the backround settings button".
+
+- **What is found.** Bars a player adds because its frame is not the video's shape, and bars in the video's own pixels. A
+  still of the picture shows both the same way, so one detector does both (`app/lib/watch/video-bars.ts`).
+- **Where the pictures come from** (`app/lib/watch/bar-watch.ts`), in the browser only:
+  - a file the site plays itself (its own files, an Archive episode in a room): read from the picture as it plays, every few
+    seconds, where its host lets a page read it (the site's own storage and the Archive's file servers);
+  - YouTube: the three stills it publishes of every video (`i.ytimg.com/vi/<id>/mq1.jpg`, `mq2`, `mq3`), which any page may
+    read. Long-standing, written down nowhere by YouTube: if they go, nothing is trimmed;
+  - Vimeo: the one picture in its oEmbed answer, believed only when it is the video's shape (an uploader may put any
+    picture there);
+  - nothing for Twitch, an embedded Archive or PeerTube player, or a friend's server: a page may not read their pictures.
+- **It errs towards doing nothing.** A picture too dark to judge is not counted. Black along an edge is a bar only where
+  picture starts hard against it: a title on a black card, a lit face on a dark stage and a night sky have black edges and
+  no line where the picture begins. Enough pictures must show the same hard edge (two of YouTube's three stills; three
+  looks at a playing file, each a second of video apart), and none may show anything inside it: subtitles sitting in a bar
+  mean trimming it would trim them, and one picture that fills the frame means there is no bar. An edge counts only with
+  its opposite; slivers are left; never more than 42% from an edge. A playing file's trim, once found, is held through dark
+  scenes and let go for the rest of the play the first time something shows in a bar.
+- **What is done with them, in fullscreen only.** The picture is the shape of what is left, and the bars fall outside it,
+  where the background shows. A file of ours shows only that part of its picture (its controls whole). Another site's frame
+  is made bigger than its box by the bars and cut back to it, which cuts its own controls off with them: so the floating
+  player's fullscreen box has the site's own keys along its foot for YouTube and Vimeo (play, seek, sound, EXIT), as a live
+  room's always had. In a live room only YouTube's player and the room's own video are trimmed; Vimeo's and Twitch's lay
+  themselves out.
+- **`[ BKG ]`**, in the top-left corner of whatever is fullscreen, quiet until pointed at. Pressed in (how everybody starts):
+  the background, bars trimmed. Out: the video as its player shows it, nothing trimmed, no background, no second bar of
+  keys. Kept in this browser (`app/lib/ui/stage-bkg.ts`). It is also the way out when bars were judged wrong.
+- **Not every video**, said plainly: see the list above. And a watermark or channel logo sitting in a bar makes that edge
+  look like picture, so those bars are left on.
+- Proof: `Temp/check-video-bars.cjs` on made-up pictures and a made-up playing file (23 deliberate breaks, all caught; it
+  also found that a speck of compression hid a bar, a guard that guarded nothing, and that subtitles after a dark scene
+  were trimmed for a while). The review of the first build found that a title card or a subject on black was taken for
+  bars: the hard-edge rule above is the answer, and both are in the check. `scripts/drive-rooms-your-room.cjs` makes a letterboxed clip
+  and stand-in YouTube stills and holds the trimmed picture's place, `[ BKG ]` and the keys (23 steps). The drive found two faults: the surround could be scrolled to a hung bar (`overflow: clip` now), and the bar of
+  keys sat in the picture's row. Not proved: real YouTube stills of a real letterboxed video, Vimeo, the site's real
+  storage answering the way a read needs, phones.

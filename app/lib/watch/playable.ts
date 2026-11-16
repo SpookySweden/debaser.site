@@ -31,8 +31,11 @@ export interface EmbedPlayable extends Playable {
   readonly isLive: boolean;
   /** Where a live broadcast should be watched from now; null when not live or the site handles it. */
   liveEdge(): number | null;
-  /** Told the video's true shape (wide for tall), where the player fits its own frame to it (YouTube). */
-  setShape?(shape: number): void;
+  /**
+   * Told the shape of the frame its site's player should be (wide for tall) and what to trim off it as bars (shares of the
+   * frame, the same from both sides and from top and foot), where the player lays its own frame out (YouTube).
+   */
+  setFit?(fit: { base: number; x: number; y: number }): void;
   destroy(): void;
 }
 

@@ -148,6 +148,9 @@ html[data-backdrop]:not([data-backdrop='tile']) [data-site-window='desk'] {
 .stage-surround {
   container-type: size;
   isolation: isolate;
+  /* `clip`, not `hidden`: a frame grown by its bars hangs out of the surround on purpose, and a box that hides its overflow can
+     still be scrolled to it (it was: the picture sat a bar's width to the left). A box that clips cannot be scrolled at all. */
+  overflow: clip;
 }
 
 .stage-surround > .backdrop-stage,
@@ -158,11 +161,16 @@ html[data-backdrop]:not([data-backdrop='tile']) [data-site-window='desk'] {
 /* The picture in it: the video's own shape (`--stage-ratio`, wide for tall, set on the element), as large as fits. Another
    site's player the shape of its video draws no bars of its own, so what is round the picture is the background. */
 .stage-fit {
+  --stage-wide: min(100cqw, calc(100cqh * var(--stage-ratio)));
   position: relative;
   flex: none;
-  width: min(100cqw, calc(100cqh * var(--stage-ratio)));
-  height: auto;
-  aspect-ratio: var(--stage-ratio);
+  /* Bars to trim (part 4; `stageStyle`, video-shape.ts): `--stage-ratio` is then the shape of what is left, and the element
+     is that box grown by the bars (`--stage-grow-x`, `-y`) and cut back to it (`--stage-trim-x`, `-y`, the share of the
+     grown element each bar is), so the bars fall outside the picture and the background shows there. With nothing to trim
+     the element is the box. */
+  width: calc(var(--stage-wide) * var(--stage-grow-x, 1));
+  height: calc(var(--stage-wide) / var(--stage-ratio) * var(--stage-grow-y, 1));
+  clip-path: inset(var(--stage-trim-y, 0%) var(--stage-trim-x, 0%));
 }
 
 /* A fish: put in place by the loop, out of sight until it has been. */

@@ -24,6 +24,59 @@ const BASE = opt('--base', 'http://localhost:3003');
 const SHOTS = join('Temp', 'browse', 'rooms');
 mkdirSync(SHOTS, { recursive: true });
 const VIDEO = 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.webm';
+/**
+ * Part 4's test pictures, made here so nothing with bars has to be found on the internet: a six-second clip, 320 by 180, with
+ * black bars 24 lines deep above and below a moving picture (played as one of the site's "own" files: it is served to the
+ * browser at an Internet Archive file server's address, which the site may read pixels from, and never asked of the
+ * Archive), and three stills with bars all round (40 a side, 20 above and below), answered for YouTube's.
+ */
+const LETTERBOX = 'https://ia800100.us.archive.org/0/items/debaser-drive/letterbox.webm';
+const CLIP_BARS = 24 / 180;
+const STILL_BARS = { x: 41 / 320, y: 21 / 180 };
+async function makeTestPictures(context) {
+  const maker = await context.newPage();
+  await maker.setContent('<canvas id="c" width="320" height="180"></canvas>');
+  const made = await maker.evaluate(async () => {
+    const canvas = document.getElementById('c');
+    const pen = canvas.getContext('2d');
+    const paint = (t, x, y) => {
+      pen.fillStyle = '#000';
+      pen.fillRect(0, 0, 320, 180);
+      pen.fillStyle = '#7a8ea0';
+      pen.fillRect(x, y, 320 - 2 * x, 180 - 2 * y);
+      pen.fillStyle = '#f2e9c8';
+      pen.fillRect(x + 10 + ((t * 37) % 150), y + 14, 60, 50);
+      pen.fillStyle = '#c0504d';
+      pen.fillRect(x + 24, y + 80 + ((t * 5) % 20), 110, 18);
+    };
+    const stills = [0, 1, 2].map((n) => {
+      paint(n * 3, 40, 20);
+      return canvas.toDataURL('image/png').split(',')[1];
+    });
+    let t = 0;
+    paint(0, 0, 24);
+    const recorder = new MediaRecorder(canvas.captureStream(20), { mimeType: 'video/webm;codecs=vp8', videoBitsPerSecond: 900000 });
+    const parts = [];
+    recorder.ondataavailable = (event) => parts.push(event.data);
+    const timer = setInterval(() => {
+      t += 1;
+      paint(t / 4, 0, 24);
+    }, 50);
+    recorder.start();
+    await new Promise((resolve) => setTimeout(resolve, 6000));
+    const stopped = new Promise((resolve) => (recorder.onstop = resolve));
+    recorder.stop();
+    await stopped;
+    clearInterval(timer);
+    const bytes = new Uint8Array(await new Blob(parts, { type: 'video/webm' }).arrayBuffer());
+    let binary = '';
+    for (let at = 0; at < bytes.length; at += 0x8000) binary += String.fromCharCode.apply(null, bytes.subarray(at, at + 0x8000));
+    return { stills, clip: btoa(binary) };
+  });
+  await maker.close();
+  return { stills: made.stills.map((still) => Buffer.from(still, 'base64')), clip: Buffer.from(made.clip, 'base64') };
+}
+
 /** `--backdrop sand` (or fluid, starfield, mystify, tile) runs it with that background chosen; without, the default. */
 const BACKDROP = opt('--backdrop', null);
 
@@ -62,13 +115,33 @@ const stagedNow = (page, pictureSelector) =>
       drawn = 0;
       for (let at = 4; at < data.length; at += 4) if (data[at] !== data[0] || data[at + 1] !== data[1] || data[at + 2] !== data[2]) drawn += 1;
     }
-    const at = rect(picture);
+    // A frame trimmed of its bars is bigger than what shows of it (part 4): what shows is the frame less the share cut from each edge.
+    const whole = rect(picture);
+    const [cutX, cutY] = (picture.getAttribute('data-backdrop-inset') ?? '').split(' ').map(Number);
+    const dx = cutX > 0 ? whole.width * cutX : 0;
+    const dy = cutY > 0 ? whole.height * cutY : 0;
+    const at = { left: whole.left + dx, top: whole.top + dy, right: whole.right - dx, bottom: whole.bottom - dy, width: whole.width - 2 * dx, height: whole.height - 2 * dy };
     const hit = document.elementFromPoint(at.left + at.width / 2, at.top + at.height / 2);
+    // Just outside what shows, where a bar hangs: nothing of the frame is there to see or to press.
+    const beside = dy > 6 && at.top - 5 >= 0 ? [at.left + at.width / 2, at.top - 5] : dx > 6 && at.left - 5 >= 0 ? [at.left - 5, at.top + at.height / 2] : null;
+    const outside = beside === null ? null : document.elementFromPoint(beside[0], beside[1]);
+    // The room the picture has: the surround less the strip the site's own keys take along its foot.
+    const inner = rect(surround);
+    const foot = parseFloat(window.getComputedStyle(surround).paddingBottom) || 0;
+    inner.bottom -= foot;
+    inner.height -= foot;
+    const bar = box.querySelector('[data-floating-stage-bar]');
     return {
       screen: { w: window.innerWidth, h: window.innerHeight },
       box: rect(box),
-      surround: rect(surround),
+      surround: inner,
       picture: at,
+      whole,
+      cut: [cutX > 0 ? cutX : 0, cutY > 0 ? cutY : 0],
+      view: window.getComputedStyle(picture).objectViewBox ?? '',
+      barsGone: outside === null ? null : outside !== picture && !picture.contains(outside),
+      key: box.querySelector('[data-stage-bkg]')?.getAttribute('data-stage-bkg') ?? null,
+      bar: bar === null ? null : rect(bar),
       stages: stages.map((stage) => stage.getAttribute('data-backdrop-scene') ?? (stage.classList.contains('aquarium-stage') ? 'aquarium' : 'unknown')),
       fish: surround.querySelectorAll('.aquarium-stage .aquarium-fish').length,
       drawn,
@@ -88,7 +161,7 @@ function assertStaged(now, shape, chosen, what) {
   assert.ok(Math.abs(is - shape) / shape < 0.015, `${what}: the picture is the video's own shape (${is.toFixed(3)}, wanted ${shape.toFixed(3)})`);
   assert.ok(near(now.picture.width, now.surround.width, 3) || near(now.picture.height, now.surround.height, 3), `${what}: as large as fits (${Math.round(now.picture.width)}x${Math.round(now.picture.height)} in ${Math.round(now.surround.width)}x${Math.round(now.surround.height)})`);
   assert.ok(now.picture.width <= now.surround.width + 1 && now.picture.height <= now.surround.height + 1, `${what}: and never larger than its surround`);
-  assert.ok(near(now.picture.left - now.surround.left, now.surround.right - now.picture.right, 3) && near(now.picture.top - now.surround.top, now.surround.bottom - now.picture.bottom, 3), `${what}: in the middle`);
+  assert.ok(near(now.picture.left - now.surround.left, now.surround.right - now.picture.right, 3) && near(now.picture.top - now.surround.top, now.surround.bottom - now.picture.bottom, 3), `${what}: in the middle (left ${Math.round(now.picture.left - now.surround.left)}, right ${Math.round(now.surround.right - now.picture.right)}, above ${Math.round(now.picture.top - now.surround.top)}, below ${Math.round(now.surround.bottom - now.picture.bottom)})`);
   assert.deepEqual(now.stages, [chosen], `${what}: the chosen background, and only it, is drawn in the surround`);
   assert.ok(now.under < 0, `${what}: under everything in the box`);
   assert.ok(now.onTop, `${what}: the picture is over it`);
@@ -97,6 +170,9 @@ function assertStaged(now, shape, chosen, what) {
   else if (chosen !== 'tile') assert.ok(now.drawn > 5, `${what}: the background is drawing (${now.drawn} cells)`);
   assert.ok(now.solid, `${what}: the picture is marked solid for the background`);
   assert.ok(now.press, `${what}: a press on the surround reaches the background`);
+  assert.equal(now.key, 'on', `${what}: [ BKG ] is in the corner, pressed in`);
+  if (now.barsGone !== null) assert.ok(now.barsGone, `${what}: where a trimmed bar hangs, nothing of the frame is left to see or press`);
+  if (now.bar !== null) assert.ok(now.picture.bottom <= now.bar.top + 1 && near(now.bar.bottom, now.screen.h, 2), `${what}: the site's keys are along the foot, under the picture`);
   return `${Math.round(now.picture.width)}x${Math.round(now.picture.height)} on ${now.screen.w}x${now.screen.h}, ${chosen} round it`;
 }
 
@@ -235,6 +311,13 @@ const floorOf = (page) =>
   await context.addInitScript(SEED);
   if (BACKDROP !== null) await context.addInitScript(`try { localStorage.setItem('debaser.site.backdrop.v1', ${JSON.stringify(BACKDROP)}); } catch (error) {}`);
   // YouTube says its video is 4:3, whatever it is: the frame must take the shape it is told (part 3).
+  const pictures = await makeTestPictures(context);
+  assert.ok(pictures.clip.length > 20000, `the letterboxed test clip was made (${pictures.clip.length} bytes)`);
+  await context.route(LETTERBOX, (route) => route.fulfill({ status: 200, contentType: 'video/webm', headers: { 'access-control-allow-origin': '*' }, body: pictures.clip }));
+  await context.route(/^https:\/\/i\.ytimg\.com\/vi\/[^/]+\/mq[123]\.jpg$/, (route) => {
+    const which = Number(/mq([123])\.jpg$/.exec(route.request().url())[1]) - 1;
+    return route.fulfill({ status: 200, contentType: 'image/png', headers: { 'access-control-allow-origin': '*' }, body: pictures.stills[which] });
+  });
   await context.route('https://www.youtube.com/oembed**', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ type: 'video', title: 'A video said to be 4:3', width: 200, height: 150 }) }),
   );
@@ -425,6 +508,47 @@ const floorOf = (page) =>
       await sleep(600);
       assert.ok(await page.evaluate(() => document.querySelector('[data-floating-player] video') === window.__sameVideo), 'the same player still');
       pass('a double press on our own file: its box in fullscreen with the background; a double press on the surround comes back');
+
+      console.log('BARS IN A FILE THE SITE PLAYS ITSELF: read from its picture as it plays, trimmed in fullscreen');
+      const waitingWas = await barQueue(page);
+      await page.locator('[data-own-room-queue-key]').click();
+      await page.waitForSelector('#stream-queue-search', { timeout: 15000 });
+      await page.fill('#stream-queue-search', LETTERBOX);
+      await page.keyboard.press('Enter');
+      const boxedQueued = await page.waitForFunction((was) => Number(document.querySelector('[data-bar-queue]')?.getAttribute('data-bar-queue')) === was + 1, waitingWas, { timeout: 30000 }).then(() => true, () => false);
+      await page.keyboard.press('Escape');
+      await page.waitForFunction(() => document.querySelector('#stream-queue-search') === null, null, { timeout: 10000 });
+      assert.ok(boxedQueued, 'the letterboxed test clip was queued');
+      await page.locator('[data-own-room-next]').click();
+      await page.waitForFunction(() => {
+        const video = document.querySelector('[data-floating-player] video');
+        return video !== null && video.currentSrc.includes('letterbox.webm') && video.videoWidth > 0;
+      }, null, { timeout: 20000 });
+      await page.evaluate(() => {
+        const video = document.querySelector('[data-floating-player] video');
+        video.loop = true;
+        window.__sameVideo = video;
+        void video.play();
+      });
+      assert.equal(await page.evaluate(() => window.__sameVideo.crossOrigin), 'anonymous', 'a file from a host that allows it is asked for the way its picture may be read');
+      // Two looks at the picture, at least a second of video apart, before anything is trimmed.
+      await sleep(6500);
+      await page.locator('[data-own-room-full]').click();
+      await page.waitForFunction(() => document.fullscreenElement !== null && document.fullscreenElement.getAttribute('data-floating-stage') === 'full', null, { timeout: 8000 });
+      await page.waitForFunction(() => /inset/.test(window.getComputedStyle(window.__sameVideo).objectViewBox ?? ''), null, { timeout: 15000 });
+      await sleep(1500);
+      const boxedNow = await stagedNow(page, 'video');
+      const cut = Number(/inset\(([\d.]+)%/.exec(boxedNow.view)[1]) / 100;
+      assert.ok(Math.abs(cut - CLIP_BARS) < 0.02, `the bars it found are the bars it has (${(cut * 100).toFixed(1)}% above and below; they are ${(CLIP_BARS * 100).toFixed(1)}%)`);
+      const boxedFull = assertStaged(boxedNow, 16 / 9 / (1 - 2 * cut), chosen, 'your room, a letterboxed file');
+      assert.equal(boxedNow.bar, null, "our own file keeps the browser's controls: no second bar of keys");
+      assert.ok(await page.evaluate(() => document.fullscreenElement.querySelector('video') === window.__sameVideo && !window.__sameVideo.paused), 'the same player, still playing');
+      await page.screenshot({ path: join(SHOTS, `full-letterbox-${chosen}.png`) });
+      await page.evaluate(() => document.exitFullscreen());
+      await page.waitForFunction(() => document.fullscreenElement === null && document.querySelector('[data-floating-stage]').getAttribute('data-floating-stage') === 'in-place', null, { timeout: 8000 });
+      await sleep(600);
+      assert.ok(await page.evaluate(() => !/inset/.test(window.getComputedStyle(window.__sameVideo).objectViewBox ?? '') && document.querySelector('[data-stage-bkg]') === null), 'out of fullscreen the picture is whole again, and the key is gone');
+      pass(`bars in our own file: found from its picture as it plays and trimmed in fullscreen (${boxedFull}); whole again outside`);
     }
 
     console.log('THE ROOM WINDOW LIFTS OFF THE MUSIC BAR');
@@ -544,10 +668,14 @@ const floorOf = (page) =>
       });
       await page.getByRole('button', { name: 'Fullscreen', exact: true }).first().click();
       await page.waitForFunction(() => document.fullscreenElement !== null && document.fullscreenElement.querySelector('.stage-surround') !== null, null, { timeout: 8000 });
+      // The room's own player reads its picture too: the clip it carried over is letterboxed, and two looks agree within seconds.
+      await page.waitForFunction(() => document.fullscreenElement?.querySelector('video')?.hasAttribute('data-stage-trim') === true, null, { timeout: 20000 });
       await sleep(2500);
+      const roomCut = await page.evaluate(() => Number(document.fullscreenElement.querySelector('video').getAttribute('data-stage-trim').split(' ')[1]));
+      assert.ok(Math.abs(roomCut - CLIP_BARS) < 0.02, `the live room found the clip's bars (${(roomCut * 100).toFixed(1)}% above and below)`);
       const roomShape = await page.evaluate(() => window.__roomVideo.videoWidth / window.__roomVideo.videoHeight);
       const roomNow = await stagedNow(page, 'video');
-      const roomFull = assertStaged(roomNow, roomShape, chosen, 'the live room');
+      const roomFull = assertStaged(roomNow, roomShape / (1 - 2 * roomCut), chosen, 'the live room');
       assert.ok(roomNow.surround.bottom < roomNow.box.bottom - 10, `the bar of keys is along the foot of the screen, under the surround (${Math.round(roomNow.surround.bottom)} of ${Math.round(roomNow.box.bottom)})`);
       assert.ok(await page.evaluate(() => document.fullscreenElement.querySelector('video') === window.__roomVideo), 'the same player: nothing reloaded');
       await page.screenshot({ path: join(SHOTS, `full-room-${chosen}.png`) });
@@ -699,14 +827,59 @@ const floorOf = (page) =>
           const chosen = await page.getAttribute('html', 'data-backdrop');
           await page.locator('[data-own-room-full]').click();
           await page.waitForFunction(() => document.fullscreenElement !== null && document.fullscreenElement.getAttribute('data-floating-stage') === 'full', null, { timeout: 8000 });
+          // Its three stills (answered here) have bars all round: the frame is 16:9, as the stills are, with those bars hung outside.
+          await page.waitForFunction(() => document.fullscreenElement?.querySelector('iframe')?.hasAttribute('data-backdrop-inset') === true, null, { timeout: 15000 });
           await sleep(2500);
-          const tubeFull = assertStaged(await stagedNow(page, 'iframe'), 4 / 3, chosen, 'your room, YouTube said to be 4:3');
+          const tubeNow = await stagedNow(page, 'iframe');
+          assert.ok(Math.abs(tubeNow.cut[0] - STILL_BARS.x) < 0.01 && Math.abs(tubeNow.cut[1] - STILL_BARS.y) < 0.01, `the bars in YouTube's stills were found (${tubeNow.cut.map((part) => (part * 100).toFixed(1) + '%').join(' a side, ')} above and below)`);
+          assert.ok(Math.abs(tubeNow.whole.width / tubeNow.whole.height - 16 / 9) < 0.02, "YouTube's frame itself stays 16:9, so its player draws the picture as it always does");
+          const tubeShape = ((16 / 9) * (1 - 2 * tubeNow.cut[0])) / (1 - 2 * tubeNow.cut[1]);
+          const tubeFull = assertStaged(tubeNow, tubeShape, chosen, 'your room, YouTube with bars in its stills');
+          assert.ok(tubeNow.barsGone === true, 'and its bars are outside what shows');
+          assert.ok(tubeNow.bar !== null, "the site's own keys are along the foot: YouTube's are cut off with its bars");
           await page.screenshot({ path: join(SHOTS, `full-youtube-${chosen}.png`) });
+
+          // The site's keys in fullscreen drive YouTube's player, and show what it says back.
+          await page.evaluate(() => {
+            window.__said = [];
+          });
+          await page.locator('[data-floating-stage-bar] [data-stage-play]').click();
+          await page.waitForFunction(() => window.__said.some((info) => info.playerState === 2) && document.querySelector('[data-stage-play]').getAttribute('data-stage-play') === 'paused', null, { timeout: 15000 });
+          await page.locator('[data-floating-stage-bar] [data-stage-play]').click();
+          await page.waitForFunction(() => window.__said.some((info) => info.playerState === 1) && document.querySelector('[data-stage-play]').getAttribute('data-stage-play') === 'playing', null, { timeout: 15000 });
+          await sleep(1500);
+          assert.ok(await page.evaluate(() => document.fullscreenElement !== null), 'a pause and a play from the bar is not a double press: still fullscreen');
+          pass("the site's keys along the foot of the fullscreen box pause and play YouTube's player");
+
+          // [ BKG ] off: the video as its player shows it, nothing trimmed, no background. On again: as it was.
+          await page.locator('[data-stage-bkg]').click();
+          await page.waitForFunction(() => document.fullscreenElement?.querySelector('[data-stage-bkg]')?.getAttribute('data-stage-bkg') === 'off', null, { timeout: 8000 });
+          await sleep(600);
+          const plain = await page.evaluate(() => {
+            const box = document.fullscreenElement;
+            const frame = box.querySelector('iframe').getBoundingClientRect();
+            return {
+              stages: box.querySelectorAll('.backdrop-stage, .backdrop-stage-tile').length,
+              fills: Math.abs(frame.width - window.innerWidth) < 3 && Math.abs(frame.height - window.innerHeight) < 3,
+              cut: box.querySelector('iframe').hasAttribute('data-backdrop-inset'),
+              bar: box.querySelector('[data-floating-stage-bar]') !== null,
+              kept: window.localStorage.getItem('debaser.site.stage-bkg.v1'),
+              same: box.querySelector('iframe') === window.__frame && window.__loads === window.__loadsAtStart,
+            };
+          });
+          assert.deepEqual(plain, { stages: 0, fills: true, cut: false, bar: false, kept: 'off', same: true }, '[ BKG ] off: no background, the frame fills the screen whole, no second bar of keys, remembered, and the same frame');
+          await page.screenshot({ path: join(SHOTS, `full-youtube-bkg-off-${chosen}.png`) });
+          await page.locator('[data-stage-bkg]').click();
+          await page.waitForFunction(() => document.fullscreenElement?.querySelector('iframe')?.hasAttribute('data-backdrop-inset') === true, null, { timeout: 8000 });
+          await sleep(1200);
+          assertStaged(await stagedNow(page, 'iframe'), tubeShape, chosen, 'your room, YouTube, [ BKG ] on again');
+          assert.equal(await page.evaluate(() => window.localStorage.getItem('debaser.site.stage-bkg.v1')), 'on', 'and that is remembered');
+          pass('[ BKG ] in the corner: off is the plain video, on is the background with the bars trimmed; the frame never reloads');
           await page.evaluate(() => document.exitFullscreen());
           await page.waitForFunction(() => document.fullscreenElement === null, null, { timeout: 8000 });
           await sleep(600);
           assert.ok(await page.evaluate(() => document.querySelector('[data-floating-player] iframe') === window.__frame && window.__loads === window.__loadsAtStart), 'in and out of fullscreen, the same frame, never reloaded');
-          pass(`FULL on YouTube's frame: ${tubeFull}; the frame is the shape YouTube says, so its player has no bars to draw`);
+          pass(`FULL on YouTube's frame: ${tubeFull}; the bars in its stills are trimmed off`);
         }
         await page.locator(`${ROOM} button[aria-label="Close YOUR ROOM"]`).click();
         await page.locator('[data-floating-player]').getByRole('button', { name: /^Close "/ }).click().catch(() => undefined);

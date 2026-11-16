@@ -31,9 +31,13 @@ import QueuedPicture from './QueuedPicture';
 import { useWebTrack, webTrackNow } from '../lib/web/web-track-lookup';
 
 import { ROOM_BAR, ROOM_BAR_PLACE, ROOM_COG, ROOM_COLUMNS, ROOM_PICTURE_BOX, ROOM_PICTURE_FIT, ROOM_ROOT, ROOM_SCREEN, ROOM_SIDE, ROOM_SIDE_BODY, ROOM_STAGE } from '../lib/watch/room-frame';
-import { shapeFrom, stageStyle, videoShape, WIDE } from '../lib/watch/video-shape';
+import { stillBars, watchVideoBars, type FrameBars } from '../lib/watch/bar-watch';
+import { hasTrim, NO_TRIM, trimmedShape, type Trim } from '../lib/watch/video-bars';
+import { pictureStyle, shapeFrom, stageStyle, videoShape, WIDE } from '../lib/watch/video-shape';
+import { stageBkgOn, stageBkgOnServer, subscribeToStageBkg } from '../lib/ui/stage-bkg';
 import { siteFullscreenWorks, withoutFullscreen } from '../lib/ui/floating-player';
 import { StageBackdrop } from './backdrops/Backdrops';
+import StageKey from './StageKey';
 import { roomStartFor } from '../lib/watch/room-start';
 import { streamBarState, subscribeToStreamBar } from '../lib/watch/stream-bar';
 import {
@@ -967,8 +971,17 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     document.addEventListener('fullscreenchange', changed);
     return () => document.removeEventListener('fullscreenchange', changed);
   }, []);
+  // `[ BKG ]` (SPEC-rooms-your-room.md, part 4): off, a fullscreen video is as its player shows it, bars and all.
+  const bkg = useSyncExternalStore(subscribeToStageBkg, stageBkgOn, stageBkgOnServer);
+  const dressed = staged && bkg;
   /** The shape of the room's own `<video>`, as its file says once it has loaded; kept against the entry it is of. */
   const [fileShape, setFileShape] = useState<{ entry: string | null; shape: number } | null>(null);
+  /** The black bars in the room's own `<video>`, read from it as it plays where its host allows (`bar-watch.ts`). */
+  const [fileTrim, setFileTrim] = useState<{ entry: string | null; trim: Trim } | null>(null);
+  useEffect(() => {
+    if (!(videoElement instanceof HTMLVideoElement)) return;
+    return watchVideoBars(videoElement, (trim) => setFileTrim({ entry: entryId, trim }));
+  }, [videoElement, entryId]);
   // Floating, the picture is a handle as well as its title line (SPEC-rooms-your-room.md, part 2).
   const floatDrag = useRoomFloatDrag(pictureBox);
   function toggleFullscreen() {
@@ -1222,8 +1235,9 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   /** On a desktop the picture takes the column's height; on a phone (and in fullscreen there) its own shape. */
   const pictureFit = fullscreen || pictureFloats ? 'h-full w-full' : ROOM_PICTURE_FIT;
   /** Fullscreen, a video is its own shape with the background round it; a song's cover, a held picture and the blank screen fill the box as before. */
-  const videoFit = staged ? 'stage-fit' : pictureFit;
+  const videoFit = dressed ? 'stage-fit' : pictureFit;
   const ownShape = fileShape !== null && fileShape.entry === entryId ? fileShape.shape : WIDE;
+  const ownTrim = fileTrim !== null && fileTrim.entry === entryId ? fileTrim.trim : NO_TRIM;
   /** A double press on the picture is the FULL key (Luke, 2026-11-05). Keys on the picture and a canvas being drawn on keep theirs. */
   const fullOnDoublePress = (event: MouseEvent<HTMLDivElement>) => {
     if (blank || song !== null || screen === 'canvas') return;
@@ -1258,7 +1272,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       <div ref={stageRef} className={`${ROOM_SCREEN} ${look === null ? '' : `frame ${lookLines}`}`}>
       {/* Floating, the box leaves the folded window's invisible frame by staying in it: `visible` and `fixed`. Its top is kept for
           its title strip, deeper on a phone where the strip's keys are the tap size, so nothing sits over the picture (2026-11-08). */}
-      <div ref={pictureBox} onDoubleClick={fullOnDoublePress} {...(pictureFloats ? floatDrag.picture : {})} className={`${pictureFloats ? 'fixed visible frame bg-ink-plate pt-10 max-sm:pt-14 fullscreen:pt-0 select-none' : 'relative'} ${ROOM_PICTURE_BOX} ${staged ? 'stage-surround' : ''}`} data-room-picture={pictureFloats ? 'floating' : 'in-room'} data-backdrop-press={staged ? '' : undefined} data-companion-avoid={pictureFloats ? '' : undefined}>
+      <div ref={pictureBox} onDoubleClick={fullOnDoublePress} {...(pictureFloats ? floatDrag.picture : {})} className={`${pictureFloats ? 'fixed visible frame bg-ink-plate pt-10 max-sm:pt-14 fullscreen:pt-0 select-none' : 'relative'} ${ROOM_PICTURE_BOX} ${dressed ? 'stage-surround' : ''}`} data-room-picture={pictureFloats ? 'floating' : 'in-room'} data-backdrop-press={dressed ? '' : undefined} data-companion-avoid={pictureFloats ? '' : undefined}>
         {blank ? (
           <BlankScreen fit={pictureFit} onPick={(key) => openQueue(key)} hidden={screen === 'canvas'} />
         ) : src === undefined ? (
@@ -1290,13 +1304,13 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
           <SongCoverCard track={songTrack} fit={pictureFit} />
         ) : link !== null && link.kind === 'embed' ? (
           // A server's player is made again on each of the host's PLAYs (`restarts`), so everybody's starts from the top together.
-          <OfficialEmbedStage key={`official-${entryId}-${serverOn ? serverSeen.restarts : 0}`} link={link} fit={videoFit} shaped={staged} />
+          <OfficialEmbedStage key={`official-${entryId}-${serverOn ? serverSeen.restarts : 0}`} link={link} fit={videoFit} shaped={dressed} />
         ) : link !== null && isEmbedKind(link.kind) ? (
           <EmbedStage
             key={`embed-${entryId}`}
             link={link}
             fit={videoFit}
-            shaped={staged}
+            shaped={dressed}
             autoPlay={amHost && live}
             onPlayer={attachVideo}
             onGone={(gone) => {
@@ -1346,8 +1360,10 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
               if (link !== null) setDeadEntry(entryId);
             }}
             className={`object-contain ${videoFit}`}
-            style={staged ? (stageStyle(ownShape) as CSSProperties) : undefined}
-            data-backdrop-solid={staged ? '' : undefined}
+            // Its bars trimmed: the element is the shape of what is left and shows only that part of its picture.
+            style={dressed ? (pictureStyle(ownShape, ownTrim) as CSSProperties) : undefined}
+            data-backdrop-solid={dressed ? '' : undefined}
+            data-stage-trim={dressed && hasTrim(ownTrim) ? `${ownTrim.x} ${ownTrim.y}` : undefined}
             data-watch-video={amHost ? 'host' : 'viewer'}
           >
             <track kind="captions" />
@@ -1384,7 +1400,9 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
         </div>
         {pictureFloats ? <RoomFloatChrome host={pictureBox} drag={floatDrag} title={entryTitle ?? (music ? 'ROOM' : 'STREAM')} onBack={onBackFromFloat} /> : null}
         {/* Fullscreen: the chosen background, live, under everything in this box. Last in the box, so nothing before it is moved. */}
-        {staged ? <StageBackdrop /> : null}
+        {dressed ? <StageBackdrop /> : null}
+        {/* `[ BKG ]`, in the corner of whatever is fullscreen: on or off, it is the way to the other. */}
+        {staged ? <StageKey /> : null}
       </div>
       {playerBar}
       </div>
@@ -2112,6 +2130,9 @@ function EmbedStage({
   const { url, kind } = link;
   /** The video's true shape, asked of its site once (`video-shape.ts`); 16:9 until it answers, and where it never does. */
   const [shape, setShape] = useState(WIDE);
+  /** Its black bars, from its site's stills (`bar-watch.ts`); null until they answer, and where there are none. */
+  const [bars, setBars] = useState<FrameBars | null>(null);
+  const made = useRef<EmbedPlayable | null>(null);
 
   useEffect(() => {
     const box = boxRef.current;
@@ -2130,19 +2151,43 @@ function EmbedStage({
     player.addEventListener('playing', onPlay);
     player.addEventListener('error', onFail);
     give(player);
+    made.current = player;
     let alive = true;
     void videoShape(url).then((found) => {
-      if (!alive || found === null) return;
-      setShape(found);
-      player.setShape?.(found);
+      if (alive && found !== null) setShape(found);
+    });
+    void stillBars(url).then((found) => {
+      if (alive) setBars(found);
     });
     return () => {
       alive = false;
+      made.current = null;
       take(player);
       player.destroy();
       box.replaceChildren();
     };
   }, [url, kind]);
 
-  return <div ref={boxRef} className={fit} style={shaped ? (stageStyle(shape) as CSSProperties) : undefined} data-backdrop-solid={shaped ? '' : undefined} data-watch-video={role} data-watch-embed={kind} />;
+  // Fullscreen with bars found, a player that lays its own frame out (YouTube's, `setFit`) is the shape its stills picture
+  // with the bars hung outside the box; otherwise it is the video's own shape, whole. Only YouTube's is trimmed in a room:
+  // Vimeo's and Twitch's players lay themselves out.
+  const trims = kind === 'youtube';
+  const base = shaped && trims && bars !== null ? bars.base : shape;
+  const trimX = shaped && trims && bars !== null ? bars.trim.x : 0;
+  const trimY = shaped && trims && bars !== null ? bars.trim.y : 0;
+  useEffect(() => {
+    made.current?.setFit?.({ base, x: trimX, y: trimY });
+  }, [base, trimX, trimY, url, kind]);
+
+  return (
+    <div
+      ref={boxRef}
+      className={fit}
+      style={shaped ? (stageStyle(trimmedShape(base, { x: trimX, y: trimY })) as CSSProperties) : undefined}
+      data-backdrop-solid={shaped ? '' : undefined}
+      data-stage-trim={trimX > 0 || trimY > 0 ? `${trimX} ${trimY}` : undefined}
+      data-watch-video={role}
+      data-watch-embed={kind}
+    />
+  );
 }

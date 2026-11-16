@@ -105,7 +105,13 @@ const close = (a, b, slack = 1e-9) => Math.abs(a - b) <= slack;
 
   /* --- the players use it ------------------------------------------------------------------------------------------- */
   const tubePlayer = read('app/lib/watch/youtube-player.ts');
-  assert.match(tubePlayer, /const \{ left, top, w, h \} = fitShape\(width, height, this\.shape\);/, "the room's YouTube frame is fitted by the shape it was told");
+  // Since part 4 the frame is fitted with its bars trimmed (`fitTrimmed`, held in check-video-bars.cjs); with none it is `fitShape`.
+  assert.match(tubePlayer, /const \{ box, frame: whole \} = fitTrimmed\(width, height, this\.shape, this\.trim\);/, "the room's YouTube frame is fitted by the shape it was told");
+  {
+    const plain = S.fitTrimmed(1440, 900, 4 / 3, { x: 0, y: 0 });
+    assert.deepEqual(plain.box, S.fitShape(1440, 900, 4 / 3), 'with no bars to trim, that is the largest box of the shape');
+    assert.deepEqual(plain.frame, { left: -0, top: -0, w: 1200, h: 900 }, 'and the frame is the box');
+  }
   assert.match(tubePlayer, /const shownWidth = shownHeight \* this\.shape;/, "and YouTube's own player is made that shape, so it has no bars to draw");
   assert.doesNotMatch(tubePlayer, /\(height \* 16\) \/ 9|\(shownHeight \* 16\) \/ 9/, 'no 16:9 left written into its layout');
 
@@ -113,14 +119,16 @@ const close = (a, b, slack = 1e-9) => Math.abs(a - b) <= slack;
   assert.match(floating, /notePlayerElement\(stageBox\.current\);/, "FULL fullscreens the player's own box");
   assert.doesNotMatch(floating, /notePlayerElement\(frame\.current/, 'never the bare frame');
   assert.match(floating, /controlsList="nofullscreen"/, "our own file has no fullscreen of the browser's own (it shows black bars)");
-  assert.match(floating, /\{staged \? <StageBackdrop \/> : null\}\s*<\/div>/, 'the background is drawn in the box only while it is fullscreen, after the player (which is never moved)');
+  // Since part 4: only while it is fullscreen AND `[ BKG ]` is on (`dressed`), and still after the player.
+  assert.match(floating, /<\/video>\s*\)\}\s*\{\/\*[^*]*\*\/\}\s*\{dressed \? <StageBackdrop \/> : null\}/, 'the background is drawn in the box only while it is fullscreen, after the player (which is never moved)');
 
   const room = read('app/components/WatchRoom.tsx');
   assert.match(room, /setStaged\(full !== null && \(full === stageRef\.current \|\| full === pictureBox\.current\)\);/, 'the live room: the stage or the floating picture in fullscreen');
-  assert.match(room, /player\.setShape\?\.\(found\);/, "and its embedded player is told the video's shape");
+  assert.match(room, /if \(alive && found !== null\) setShape\(found\);/, "and its embedded player's shape is asked of its site");
+  assert.match(room, /const base = shaped && trims && bars !== null \? bars\.base : shape;/, 'which the player is told, unless its bars are being trimmed (check-video-bars.cjs)');
 
   const css = read('app/globals.css');
-  assert.match(css, /\.stage-fit \{[^}]*width: min\(100cqw, calc\(100cqh \* var\(--stage-ratio\)\)\);[^}]*aspect-ratio: var\(--stage-ratio\);/, 'a fullscreen picture is its own shape, as large as fits its surround');
+  assert.match(css, /\.stage-fit \{[^}]*--stage-wide: min\(100cqw, calc\(100cqh \* var\(--stage-ratio\)\)\);[^}]*width: calc\(var\(--stage-wide\) \* var\(--stage-grow-x, 1\)\);[^}]*height: calc\(var\(--stage-wide\) \/ var\(--stage-ratio\) \* var\(--stage-grow-y, 1\)\);/, 'a fullscreen picture is its own shape, as large as fits its surround');
   assert.match(css, /\.stage-surround \{[^}]*container-type: size;[^}]*isolation: isolate;/, 'the surround measures itself and keeps its own layers');
   assert.match(css, /\.stage-surround > \.backdrop-stage,\s*\.stage-surround > \.backdrop-stage-tile \{\s*z-index: var\(--z-index-backdrop\);/, 'and the background is under everything in it');
 

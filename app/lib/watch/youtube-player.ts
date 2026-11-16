@@ -2,7 +2,7 @@ import { LINK_PROBE_MS, LINK_REFUSALS, youtubeWatchUrl } from './links';
 import { normaliseLanguage } from '../web/language';
 import type { SubtitleTrack } from '../web/subtitles';
 import { AUTO_QUALITY, type EmbedPlayable, type QualityChoice, type QualityControl, type SubtitleControl } from './playable';
-import { fitShape, WIDE } from './video-shape';
+import { fitTrimmed, WIDE } from './video-shape';
 
 /**
  * YouTube videos in the stream room (SPEC-watch-links.md step 3), through YouTube's own embed player
@@ -157,8 +157,9 @@ export class YouTubePlayable extends EventTarget implements EmbedPlayable, Quali
   private readonly cover: HTMLDivElement;
   private readonly resizing: ResizeObserver;
   private qualityNow: string = AUTO_QUALITY;
-  /** How wide the video is for how tall: 16:9 until its true shape is told (`setShape`). */
+  /** The shape YouTube's player is made (wide for tall), 16:9 until told, and the bars to trim off it (`setFit`). */
   private shape = WIDE;
+  private trim = { x: 0, y: 0 };
   /** YouTube's caption tracks once its captions module has listed them, as the SUBS key's list, and the one showing. */
   private captionTracks: { track: SubtitleTrack; raw: YTCaptionTrack }[] = [];
   private captionNow: string | null = null;
@@ -221,13 +222,19 @@ export class YouTubePlayable extends EventTarget implements EmbedPlayable, Quali
   }
 
   /**
-   * The video's true shape (SPEC-rooms-your-room.md, part 3). YouTube draws black bars inside its player when the player
-   * is not the video's shape, and nothing outside can recolour them; a player of the video's own shape has none, so what
-   * is round the picture is the room's.
+   * The video's true shape, and its bars (SPEC-rooms-your-room.md, parts 3 and 4). YouTube draws black bars inside its
+   * player when the player is not the video's shape, and nothing outside can recolour them; a player of the video's own
+   * shape has none, so what is round the picture is the room's. Bars in the video's own pixels are trimmed the only way
+   * there is from outside: the player is made bigger than the picture's box by the bars, which the box cuts off.
    */
-  setShape(shape: number) {
-    if (this.destroyed || !Number.isFinite(shape) || shape <= 0 || shape === this.shape) return;
-    this.shape = shape;
+  setFit(fit: { base: number; x: number; y: number }) {
+    const { base, x, y } = fit;
+    if (this.destroyed || !Number.isFinite(base) || base <= 0) return;
+    // A trim is a share of the frame from each of two sides: under a half, or there is no picture left.
+    if (!(x >= 0 && x < 0.45 && y >= 0 && y < 0.45)) return;
+    if (base === this.shape && x === this.trim.x && y === this.trim.y) return;
+    this.shape = base;
+    this.trim = { x, y };
     this.layout();
   }
 
@@ -240,8 +247,10 @@ export class YouTubePlayable extends EventTarget implements EmbedPlayable, Quali
     const width = this.container.clientWidth;
     const height = this.container.clientHeight;
     if (width === 0 || height === 0) return;
-    const { left, top, w, h } = fitShape(width, height, this.shape);
-    Object.assign(this.frame.style, { left: `${left}px`, top: `${top}px`, width: `${w}px`, height: `${h}px` });
+    // The box is what shows; the player is the box and its bars (`whole`), hung so the bars fall outside the box.
+    const { box, frame: whole } = fitTrimmed(width, height, this.shape, this.trim);
+    Object.assign(this.frame.style, { left: `${box.left}px`, top: `${box.top}px`, width: `${box.w}px`, height: `${box.h}px` });
+    const { w, h } = whole;
 
     const iframe = this.frame.querySelector('iframe');
     if (iframe === null) return;
@@ -252,8 +261,8 @@ export class YouTubePlayable extends EventTarget implements EmbedPlayable, Quali
     const bleed = Math.max(BLEED_FLOOR, shownHeight * BLEED_SHARE);
     Object.assign(iframe.style, {
       position: 'absolute',
-      left: '0',
-      top: `${-bleed * scale}px`,
+      left: `${whole.left}px`,
+      top: `${whole.top - bleed * scale}px`,
       width: `${shownWidth}px`,
       height: `${shownHeight + 2 * bleed}px`,
       maxWidth: 'none',
