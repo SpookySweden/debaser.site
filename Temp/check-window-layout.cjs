@@ -167,6 +167,83 @@ place('a', 900, 100);
 L.windowOpened('b');
 assert.equal(L.liveWindow('b').group, null, 'a moved away, so b does not rejoin');
 
+/* 7. A window kept above the bar along the foot (the stream room; SPEC-rooms-your-room.md, part 2). It is drawn no lower
+ *    than the bar whatever its box says. It used to be dragged by that box: pulled up, it only grew until its saved
+ *    height fitted, so it felt glued to the bar. Picked up now, it is the box it is drawn in: it moves as one piece,
+ *    stays where it is put, and its foot stops at the bar. */
+{
+  fresh({ w: 1440, h: 900 });
+  const ROOM = { min: { w: 560, h: 420 }, size: { w: 2560, h: 1440 }, dock: 'top', fill: true, aboveBar: true };
+  L.registerWindow('room', ROOM);
+  L.windowOpened('room');
+  // The bar reaches 76px up the screen, and the window is drawn a quarter-rem clear of it.
+  const FLOOR = 900 - 76 - 4;
+  const filled = rect('room');
+  assert.ok(filled.y + filled.h > FLOOR, 'filling the screen, its box reaches under the bar: it is only drawn above it');
+
+  // A press on its title line with no move changes nothing.
+  L.beginMove('room', filled.x + 10, filled.y + 5, FLOOR);
+  L.endMove();
+  assert.deepEqual(rect('room'), filled, 'a click leaves its box as it was');
+
+  // Its foot is pulled up by the grip where the foot is drawn: the first pixel of the pull already shows.
+  L.beginResize('room', { bottom: true }, 700, FLOOR, FLOOR);
+  L.resizeTo(700, FLOOR - 200);
+  L.endResize();
+  assert.equal(rect('room').y + rect('room').h, FLOOR - 200, 'resized from where its foot is drawn, not from under the bar');
+  const short = rect('room');
+
+  // Down: one piece, the same height.
+  L.beginMove('room', short.x + 10, short.y + 5, FLOOR);
+  L.moveTo(short.x + 10, short.y + 5 + 60);
+  L.endMove();
+  assert.deepEqual(rect('room'), { ...short, y: short.y + 60 }, 'it moves down as one piece');
+
+  // Further than the bar allows: its foot stops there, and it is not squashed.
+  L.beginMove('room', rect('room').x + 10, rect('room').y + 5, FLOOR);
+  L.moveTo(rect('room').x + 10, 5000);
+  L.endMove();
+  assert.equal(rect('room').y + rect('room').h, FLOOR, 'it cannot go under the bar');
+  assert.equal(rect('room').h, short.h, 'and keeps its height there');
+
+  // Up off the bar: the whole window lifts, and stays where it is put.
+  const onBar = rect('room');
+  L.beginMove('room', onBar.x + 10, onBar.y + 5, FLOOR);
+  L.moveTo(onBar.x + 10, onBar.y + 5 - 150);
+  L.endMove();
+  assert.deepEqual(rect('room'), { ...onBar, y: onBar.y - 150 }, 'dragged up, it lifts off the bar as one piece');
+
+  // The glued case itself: a box taller than what is drawn (saved that way, or the bar has grown since).
+  L.beginResize('room', { bottom: true }, 700, rect('room').y + rect('room').h);
+  L.resizeTo(700, 5000);
+  L.endResize();
+  const tall = rect('room');
+  assert.ok(tall.y + tall.h > FLOOR, 'a box that reaches under the bar again');
+  L.beginMove('room', tall.x + 10, tall.y + 5, FLOOR);
+  L.moveTo(tall.x + 10, tall.y + 5 - 30);
+  L.endMove();
+  assert.equal(rect('room').h, FLOOR - tall.y, 'picked up, it is the height it was drawn at');
+  assert.equal(rect('room').y, tall.y - 30, 'and it moves up by the drag');
+  assert.equal(rect('room').y + rect('room').h, FLOOR - 30, 'so its foot leaves the bar instead of the window growing');
+
+  // The same floor means nothing to a window that is not kept above the bar.
+  L.windowOpened('a');
+  place('a', 100, 100);
+  const plain = rect('a');
+  L.beginMove('a', plain.x + 10, plain.y + 5, FLOOR);
+  L.moveTo(plain.x + 10, 5000);
+  L.endMove();
+  assert.equal(rect('a').y, 900 - L.TITLE_BAR, 'an ordinary window still goes down to its title line');
+  assert.equal(rect('a').h, plain.h);
+
+  // The sums by themselves.
+  assert.deepEqual(L.rectAboveBar({ x: 0, y: 100, w: 800, h: 900 }, 820, ROOM.min), { x: 0, y: 100, w: 800, h: 720 }, 'no taller than the room above the bar');
+  assert.deepEqual(L.rectAboveBar({ x: 0, y: 100, w: 800, h: 500 }, 820, ROOM.min), { x: 0, y: 100, w: 800, h: 500 }, 'one that fits is left alone');
+  assert.equal(L.rectAboveBar({ x: 0, y: 700, w: 800, h: 600 }, 820, ROOM.min).h, 420, 'never under its own least height');
+  assert.deepEqual(L.clampOffset([{ x: 0, y: 100, w: 800, h: 500 }], 0, 999, { w: 1440, h: 900 }, 0, [820]), { dx: 0, dy: 220 }, 'the foot stops at the floor');
+  assert.match(fs.readFileSync('app/components/DockWindow.tsx', 'utf8'), /aboveBar: aboveBottomBar/, 'the window frame tells the store which windows these are');
+}
+
 /* 4. Per-bucket saving. */
 async function buckets() {
   fresh({ w: 1440, h: 900 });

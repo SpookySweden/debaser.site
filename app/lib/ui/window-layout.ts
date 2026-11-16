@@ -47,6 +47,12 @@ export type WindowSpec = {
   dock: 'top' | 'bottom';
   /** Opens filling the usable screen (the stream room, whose video wants all of it), rather than 78% of it. */
   fill?: boolean;
+  /**
+   * Kept above the bar along the foot (the stream room, `DockWindow`'s `aboveBottomBar`). It is drawn no lower than
+   * that bar whatever its box says, so picked up or resized it is first made the height it is drawn at (`rectAboveBar`)
+   * and then moves as one piece, its foot stopping at the bar (SPEC-rooms-your-room.md, part 2).
+   */
+  aboveBar?: boolean;
 };
 
 /** One window, as stored: enough to put it back. */
@@ -185,25 +191,40 @@ export function snapOffset(moving: WindowRect[], others: WindowRect[], dx: numbe
   return { dx: dx + (bestX ?? 0), dy: dy + (bestY ?? 0) };
 }
 
-/** The furthest a set of windows may travel: every one stays wholly across the screen, title bar below `top`. */
+/**
+ * A window kept above the bar along the foot (`WindowSpec.aboveBar`), as it is drawn: no taller than the room above the
+ * bar leaves it. `floor` is how far down the screen its foot may reach. Never under its own least height.
+ */
+export function rectAboveBar(rect: WindowRect, floor: number, min: WindowSize): WindowRect {
+  const h = Math.max(Math.min(rect.h, floor - rect.y), Math.min(min.h, rect.h));
+  return h === rect.h ? rect : { ...rect, h };
+}
+
+/**
+ * The furthest a set of windows may travel: every one stays wholly across the screen, title bar below `top`.
+ * `floors`, one per window or null: that window's foot goes no lower than this (the bar along the foot).
+ */
 export function clampOffset(
   moving: WindowRect[],
   dx: number,
   dy: number,
   viewport: WindowSize,
   top: number,
+  floors: readonly (number | null)[] = [],
 ): { dx: number; dy: number } {
   let minDx = -Infinity;
   let maxDx = Infinity;
   let minDy = -Infinity;
   let maxDy = Infinity;
 
-  for (const r of moving) {
+  moving.forEach((r, index) => {
     minDx = Math.max(minDx, -r.x);
     maxDx = Math.min(maxDx, viewport.w - (r.x + r.w));
     minDy = Math.max(minDy, top - r.y);
     maxDy = Math.min(maxDy, viewport.h - TITLE_BAR - r.y);
-  }
+    const floor = floors[index] ?? null;
+    if (floor !== null) maxDy = Math.min(maxDy, floor - (r.y + r.h));
+  });
 
   // A set already wider than the screen cannot satisfy both sides; the left edge wins, so the title
   // bar's text is the part that stays reachable.
@@ -694,22 +715,37 @@ type Drag = {
   shake: ReturnType<typeof createShakeTracker>;
   /** Whether anything actually moved. A click on a title bar is a press with no move, and joins nothing. */
   moved: boolean;
+  /** How far down a window kept above the bar may reach (`WindowSpec.aboveBar`), or null when nobody said. */
+  floor: number | null;
 };
 let drag: Drag | null = null;
 
-function startDragOf(ids: string[], x: number, y: number): Drag {
-  const starts: Record<string, WindowRect> = {};
-  for (const id of ids) starts[id] = state.windows[id].rect;
-  return { ids, starts, pointerX: x, pointerY: y, shake: createShakeTracker(), moved: false };
+/** The floor for this window, if it is one kept above the bar and a floor was given. */
+function floorFor(id: string, floor: number | null): number | null {
+  return floor !== null && specs[id]?.aboveBar === true ? floor : null;
 }
 
-export function beginMove(id: string, x: number, y: number): void {
+/** Where a press finds a window: its box, or for one kept above the bar the box it is drawn in. */
+function startRect(id: string, floor: number | null): WindowRect {
+  const rect = state.windows[id].rect;
+  const mine = floorFor(id, floor);
+  return mine === null ? rect : rectAboveBar(rect, mine, specs[id].min);
+}
+
+function startDragOf(ids: string[], x: number, y: number, floor: number | null): Drag {
+  const starts: Record<string, WindowRect> = {};
+  for (const id of ids) starts[id] = startRect(id, floor);
+  return { ids, starts, pointerX: x, pointerY: y, shake: createShakeTracker(), moved: false, floor };
+}
+
+/** `floor`: how far down the screen a window kept above the bar may reach just now (its foot stops there). */
+export function beginMove(id: string, x: number, y: number, floor: number | null = null): void {
   // Nothing moves until the saved layout has arrived, or the arrival would throw the move away.
   if (state.windows[id] === undefined || !state.ready) return;
   bringToFront(id);
   // A maximised window stays put: it fills the screen, and its way back is the second double-click.
   if (state.windows[id].restore !== null) return;
-  drag = startDragOf(members(id), x, y);
+  drag = startDragOf(members(id), x, y, floor);
   drag.shake.feed(x, performance.now());
 }
 
@@ -720,7 +756,7 @@ export function moveTo(x: number, y: number, time = performance.now()): void {
   // Shaken loose: the grabbed window carries on alone, from where it is now.
   if (drag.ids.length > 1 && drag.shake.feed(x, time)) {
     detachWindow(lead);
-    drag = { ...startDragOf([lead], x, y), moved: true };
+    drag = { ...startDragOf([lead], x, y, drag.floor), moved: true };
     return;
   }
 
@@ -729,7 +765,8 @@ export function moveTo(x: number, y: number, time = performance.now()): void {
     .filter((id) => !drag!.ids.includes(id) && state.windows[id].open)
     .map((id) => state.windows[id].rect);
   const snapped = snapOffset(moving, others, x - drag.pointerX, y - drag.pointerY);
-  const { dx, dy } = clampOffset(moving, snapped.dx, snapped.dy, state.viewport, state.top);
+  const floors = drag.ids.map((id) => floorFor(id, drag!.floor));
+  const { dx, dy } = clampOffset(moving, snapped.dx, snapped.dy, state.viewport, state.top, floors);
   // A drag, as opposed to a click, is a pointer that travelled. The window itself may not have moved at
   // all - it can snap straight back to where it was - and that still counts as a drop.
   if (!drag.moved && Math.hypot(x - drag.pointerX, y - drag.pointerY) < 3) return;
@@ -780,15 +817,18 @@ type Resize = {
   starts: Record<string, WindowRect>;
   pointerX: number;
   pointerY: number;
+  /** As a drag's: how far down a window kept above the bar may reach, or null. */
+  floor: number | null;
 };
 let resize: Resize | null = null;
 
-export function beginResize(id: string, edges: ResizeEdges, x: number, y: number): void {
+/** `floor`: as `beginMove`'s. A window kept above the bar is resized from the box it is drawn in, and no lower than the bar. */
+export function beginResize(id: string, edges: ResizeEdges, x: number, y: number, floor: number | null = null): void {
   if (state.windows[id] === undefined || !state.ready) return;
   bringToFront(id);
   const starts: Record<string, WindowRect> = {};
-  for (const other of Object.keys(state.windows)) starts[other] = state.windows[other].rect;
-  resize = { id, edges, starts, pointerX: x, pointerY: y };
+  for (const other of Object.keys(state.windows)) starts[other] = startRect(other, floor);
+  resize = { id, edges, starts, pointerX: x, pointerY: y, floor };
 }
 
 export function resizeTo(x: number, y: number): void {
@@ -805,7 +845,8 @@ export function resizeTo(x: number, y: number): void {
 
   const sized = () => pool.map((other) => ({ id: other, rect: rects[other], min: specs[other]?.min ?? { w: 160, h: 120 } }));
   const apply = (axis: 'x' | 'y', side: 'before' | 'after', delta: number) => {
-    const bounds = axis === 'x' ? { lo: 0, hi: state.viewport.w } : { lo: state.top, hi: state.viewport.h };
+    const foot = floorFor(id, resize!.floor);
+    const bounds = axis === 'x' ? { lo: 0, hi: state.viewport.w } : { lo: state.top, hi: foot === null ? state.viewport.h : Math.min(state.viewport.h, foot) };
     const moved = moveLine(sized(), id, axis, side, delta, bounds);
     rects = { ...rects, ...moved.rects };
   };

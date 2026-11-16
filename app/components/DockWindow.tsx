@@ -48,6 +48,8 @@ type DockWindowProps = {
    * must keep running out of sight (the stream room keeps playing); the caller draws the way back.
    */
   onMinimize?: () => void;
+  /** The `[ _ ]` key's hover tip, when folding means something more than "out of sight" (a room: its picture floats). */
+  minimizeTip?: string;
   /**
    * Folded away: still drawn, so what is inside keeps running (a video keeps playing), but invisible and out
    * of reach - the board behind it is usable and nothing in it can be tabbed to.
@@ -61,7 +63,8 @@ type DockWindowProps = {
   /**
    * Drawn no lower than the top of the music player in whichever shape it is in (`--music-top`: the bar, the phone
    * card, the folded tile), whatever its box says: the stream room, whose keys are on that bar while it shows the
-   * stream, and whose way back is on the tile. Its saved box is left as it is.
+   * stream. Its saved box is left as it is until it is picked up or resized: then it becomes the box it is drawn in,
+   * so the window moves as one piece and stays where it is put, never under the bar (`WindowSpec.aboveBar`).
    */
   aboveBottomBar?: boolean;
   /**
@@ -113,6 +116,17 @@ function release(event: ReactPointerEvent<HTMLElement>) {
 }
 
 /**
+ * How far down the screen the foot of a window kept above the bar may reach just now: the top of the music player
+ * (`--music-top`, in whichever shape it is in), less the quarter-rem gap such a window is drawn with (`aboveBottomBar`).
+ */
+function barFloor(): number {
+  const root = document.documentElement;
+  const reach = Number.parseFloat(root.style.getPropertyValue('--music-top'));
+  const rem = Number.parseFloat(window.getComputedStyle(root).fontSize);
+  return window.innerHeight - (Number.isFinite(reach) ? reach : 0) - (Number.isFinite(rem) ? rem : 16) * 0.25;
+}
+
+/**
  * A utility window: docked beside the page, draggable, and no scrim.
  *
  * The pop-ups (`./PopoutWindow.tsx`) are dialogues - they take the screen, they close on ESC, and
@@ -141,6 +155,7 @@ export default function DockWindow({
   minSize,
   fill,
   onMinimize,
+  minimizeTip = 'Fold away (keeps playing)',
   minimized = false,
   pictureOut = false,
   aboveBottomBar = false,
@@ -156,7 +171,7 @@ export default function DockWindow({
   // Mounting is opening and unmounting is closing: every docked window draws nothing while it is shut.
   useEffect(() => {
     if (!desktop) return;
-    registerWindow(id, { min: minSize, size: defaultSize, dock, fill });
+    registerWindow(id, { min: minSize, size: defaultSize, dock, fill, aboveBar: aboveBottomBar });
     windowOpened(id);
     return () => windowClosed(id);
     // The sizes are per-window constants; re-registering on every render would only churn.
@@ -180,7 +195,8 @@ export default function DockWindow({
     onPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => {
       if (!managed || event.button !== 0) return;
       capture(event);
-      beginMove(id, event.clientX, event.clientY);
+      // The floor is for whichever windows in the drag are kept above the bar; the store asks each.
+      beginMove(id, event.clientX, event.clientY, barFloor());
     },
     onPointerMove: (event: ReactPointerEvent<HTMLDivElement>) => {
       if (managed && event.currentTarget.hasPointerCapture(event.pointerId)) moveTo(event.clientX, event.clientY);
@@ -269,7 +285,7 @@ export default function DockWindow({
                 onDoubleClick={(event) => event.stopPropagation()}
                 onClick={onMinimize}
                 aria-label={`Fold ${title} away`}
-                title="Fold away (keeps playing)"
+                title={minimizeTip}
                 className="cursor-pointer key px-1 py-0.75 text-label font-bold leading-none max-sm:min-h-tap max-sm:min-w-tap max-sm:text-sm"
               >
                 [ _ ]
@@ -314,7 +330,7 @@ export default function DockWindow({
                 if (event.button !== 0) return;
                 event.stopPropagation();
                 capture(event);
-                beginResize(id, grip.edges, event.clientX, event.clientY);
+                beginResize(id, grip.edges, event.clientX, event.clientY, barFloor());
               }}
               onPointerMove={(event) => {
                 if (event.currentTarget.hasPointerCapture(event.pointerId)) resizeTo(event.clientX, event.clientY);
