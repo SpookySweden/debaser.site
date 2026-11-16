@@ -97,7 +97,10 @@ assert.match(corner, /folded \? 'flex-col-reverse items-start' : 'items-end'/, '
 assert.ok(corner.indexOf('<span ref={slot} className="contents" />') < corner.indexOf('data-restore-window'), 'the room keys nearest the player, the window key after');
 assert.match(corner, /useEdgeReserve\(shelf, '--stream-box', true\)/, 'the page window keeps clear of the whole shelf');
 const watch = read('app/components/WatchWindow.tsx');
-assert.equal((watch.match(/useSyncExternalStore\(subscribeToCornerSlot, cornerSlot, noCornerSlot\)/g) ?? []).length, 2, '[ ▲ ROOM ] and ROOM :: LIVE both go on the shelf');
+assert.equal((watch.match(/useSyncExternalStore\(subscribeToCornerSlot, cornerSlot, noCornerSlot\)/g) ?? []).length, 1, '[ ▲ ROOM ] goes on the shelf');
+// One key, not two, on purpose: the folded live room's ROOM :: LIVE tile is gone (SPEC-rooms-your-room.md, part 2: a folded
+// room is its floating picture, with `[ BACK ]` on it), so `[ ▲ ROOM ]` is the only room key left for the shelf.
+assert.doesNotMatch(watch, /function UpBox/, 'and there is no folded tile to put beside it');
 assert.doesNotMatch(watch, /className="fixed z-50 frame bg-sun-pale p-0\.5"/, 'neither sits on the spot by itself any more');
 assert.doesNotMatch(watch, /useEdgeReserve/, 'and the shelf, not each key, keeps the window clear');
 
