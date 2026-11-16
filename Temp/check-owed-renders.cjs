@@ -969,8 +969,12 @@ test('WatchInRoomKey: in no room, a press uses your own room: with it not found 
   noMainRoom();
   asked = [];
   roomKey();
-  press('[ WATCH IN ROOM ]');
-  await tick();
+  // Updated on purpose 2026-11-16 (list 3, MEDIA, after merging ROOMS): the press sets a timer on `window`, so it runs in the
+  // fake browser like every other press that touches the page; it had passed only on a `window` left behind by an earlier case.
+  await inBrowser(fakeBrowser(), async () => {
+    press('[ WATCH IN ROOM ]');
+    await tick();
+  });
   assert.deepEqual(said('goLiveEmpty'), [], 'no separate stream room');
   const html = roomKey({ useRoomKey: slots({ kind: 'loading' }) });
   assert.ok(!html.includes('data-window="WATCH IN ROOM"'), 'no menu of its own');
