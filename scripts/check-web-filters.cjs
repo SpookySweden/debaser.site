@@ -204,4 +204,7 @@ ok(
   'an old /cytube address lands on /stream',
 );
 
+// Luke, 2026-11-16: YOUR YOUTUBE has no description under it ("VIDEOS FROM THE CHANNELS YOU STILL WATCH...").
+ok(!/STILL WATCH|NOTHING IS EVER POSTED/.test(readFileSync(join(ROOT, 'app/components/WebYouTubeHome.tsx'), 'utf8').replace(//*[sS]*?*//g, '')), 'YOUR YOUTUBE has no description line under it');
+
 asserts.done();
