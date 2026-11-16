@@ -39,6 +39,7 @@ import { closeFloating, floatingState, subscribeToFloating } from '../lib/ui/flo
 import { answerPlayAsk, playAskState, playInMainRoomLeaving, subscribeToPlayAsk } from '../lib/watch/main-room-play';
 import { ownRoomState, subscribeToOwnRoom } from '../lib/watch/own-room-client';
 import { noteRoomStart } from '../lib/watch/room-start';
+import { fitRoom, roomFitShape, subscribeToRoomFit } from '../lib/watch/room-fit';
 import { askToSaveCanvas } from '../lib/watch/use-room-canvas';
 
 /** Large, over the board, like the arcade but bigger: the video is the point (decision 1). */
@@ -51,7 +52,8 @@ const ROOM_MIN = { w: 560, h: 420 };
  * to cover the whole page again"). Its layout key is new (`room`, it was `stream`), so a box saved while it filled the
  * screen does not stick.
  */
-const ROOM_START = { w: 1040, h: 680 };
+// Fitted to a 16:9 video (`room-fit.ts`, the picture keeping its room) this settles near 1100x440 on a 1440x900 screen.
+const ROOM_START = { w: 920, h: 580 };
 /** The `[ _ ]` key's tip on a room's window: folded to its key above the player, nothing floats (Luke, 2026-11-16). */
 const FOLD_TIP = 'Fold away to a key above the player (keeps playing)';
 /** The folded room's hand-drawn mark (`mark-up-wide` in app/lib/ui/art/slots.ts), shown at 40x16; `[ ▲ ]` until it is drawn. */
@@ -534,6 +536,7 @@ function RoomWindow({
         id="stream"
         layoutId="room"
         maximisable
+        titleKeys={<RoomFitKey />}
         // Somebody's own room, joined by its link, is named as theirs: it is not a stream and has no privacy to pick.
         title={read ? (read.room.origin === 'music' ? roomOwnerTitle : `STREAM :: ${roomShownName(read.room, hostName).toUpperCase()}${read.room.privacy === 'open' ? '' : ` :: ${roomPrivacyLabel(read.room.privacy)}`}`) : 'STREAM'}
         badge={read ? (read.room.origin === 'music' ? (read.room.isPublic ? 'LIVE' : mainRoom ? 'PRIVATE' : 'BY LINK') : live ? 'LIVE' : 'ENDED') : undefined}
@@ -590,6 +593,41 @@ function RoomWindow({
     </>
   );
 }
+
+/**
+ * `[ FIT ]` on the room's title line (Luke, 2026-11-16: "add a button to fit the view window in the room to size in a
+ * reasonable way"): the window takes the picture's shape, no bars round it (`room-fit.ts`). Drawn only while there is a
+ * picture of a known shape, and only on a desktop, where the window can be sized.
+ */
+function RoomFitKey() {
+  const shape = useSyncExternalStore(subscribeToRoomFit, roomFitShape, noRoomFitShape);
+  const desktop = useSyncExternalStore(subscribeToWidth, wideEnough, notWide);
+  if (shape === null || !desktop) return null;
+  return (
+    <button
+      type="button"
+      onPointerDown={(event) => event.stopPropagation()}
+      onDoubleClick={(event) => event.stopPropagation()}
+      onClick={() => fitRoom()}
+      aria-label="Fit the window to the picture"
+      title="Fit the window to the picture"
+      className="cursor-pointer key px-1 py-0.75 text-label font-bold leading-none"
+      data-room-fit
+    >
+      [ FIT ]
+    </button>
+  );
+}
+const noRoomFitShape = () => null;
+/** A desktop: `DockWindow`'s own line (the `sm` width), where windows are sized and moved. */
+const WIDE_QUERY = '(min-width: 640px)';
+function subscribeToWidth(listener: () => void) {
+  const query = window.matchMedia(WIDE_QUERY);
+  query.addEventListener('change', listener);
+  return () => query.removeEventListener('change', listener);
+}
+const wideEnough = () => window.matchMedia(WIDE_QUERY).matches;
+const notWide = () => false;
 
 /** The music bar's stream box before the room has been read (the room draws its own part once it has). */
 function BarWaiting({ text }: { text: string }) {

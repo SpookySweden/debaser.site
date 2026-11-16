@@ -80,6 +80,7 @@ import { attachStream, playsDirectly, type StreamHandle } from '../lib/watch/str
 import { applyLocalChange } from '../lib/watch/use-watch-room';
 import { officialEmbedUrl, WEB_EMBED_SANDBOX } from '../lib/web/official-embed';
 import { useArchiveRoomFile } from '../lib/watch/archive-room-file';
+import { setRoomPicture } from '../lib/watch/room-fit';
 import { mediaServerForUrl, playerSandbox } from '../lib/web/media-servers';
 import { subscribeFindInRoom, takeFindInRoom } from '../lib/watch/find-in-room';
 import { withEnglishSubtitles } from '../lib/web/row-addresses';
@@ -1087,6 +1088,12 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   const dressed = staged && bkg;
   /** The shape of the room's own `<video>`, as its file says once it has loaded; kept against the entry it is of. */
   const [fileShape, setFileShape] = useState<{ entry: string | null; shape: number } | null>(null);
+  // The same file named again keeps its element, which says its size only once: the new play takes the shape it already has.
+  useEffect(() => {
+    if (!(videoElement instanceof HTMLVideoElement) || videoElement.videoWidth === 0) return;
+    const shape = shapeFrom(videoElement.videoWidth, videoElement.videoHeight);
+    if (shape !== null) setFileShape((was) => (was !== null && was.entry === entryId ? was : { entry: entryId, shape }));
+  }, [videoElement, entryId]);
   /** The black bars in the room's own `<video>`, read from it as it plays where its host allows (`bar-watch.ts`). */
   const [fileTrim, setFileTrim] = useState<{ entry: string | null; trim: Trim } | null>(null);
   useEffect(() => {
@@ -1361,6 +1368,36 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   const videoFit = dressed ? 'stage-fit' : pictureFit;
   const ownShape = fileShape !== null && fileShape.entry === entryId ? fileShape.shape : WIDE;
   const ownTrim = fileTrim !== null && fileTrim.entry === entryId ? fileTrim.trim : NO_TRIM;
+  // The room window fits itself to the picture's shape (list 4, `room-fit.ts`): a file's own, YouTube's or Vimeo's as their site
+  // says, 16:9 for any other player; nothing to fit for a song, a held picture or the blank screen.
+  const [siteShape, setSiteShape] = useState<{ url: string; shape: number } | null>(null);
+  const shapeAsked = link !== null && (link.kind === 'youtube' || link.kind === 'vimeo') && song === null ? link.url : null;
+  useEffect(() => {
+    if (shapeAsked === null) return;
+    let alive = true;
+    void videoShape(shapeAsked).then((found) => {
+      if (alive) setSiteShape({ url: shapeAsked, shape: found ?? WIDE });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [shapeAsked]);
+  const roomShape =
+    blank || song !== null || pictureOn || archiveRead.waiting || src === undefined
+      ? null
+      : shapeAsked !== null
+        ? siteShape !== null && siteShape.url === shapeAsked
+          ? siteShape.shape
+          : null
+        : officialOn || (link !== null && isEmbedKind(link.kind))
+          ? WIDE
+          : fileShape !== null && fileShape.entry === entryId
+            ? fileShape.shape
+            : null;
+  useEffect(() => {
+    setRoomPicture(pictureFloats ? null : pictureBox.current, roomShape);
+  }, [roomShape, pictureFloats]);
+  useEffect(() => () => setRoomPicture(null, null), []);
   /** A double press on the picture is the FULL key (Luke, 2026-11-05). Keys on the picture and a canvas being drawn on keep theirs. */
   const fullOnDoublePress = (event: MouseEvent<HTMLDivElement>) => {
     if (blank || song !== null || screen === 'canvas') return;

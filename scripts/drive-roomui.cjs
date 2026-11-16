@@ -13,7 +13,11 @@
  *      keys, and fullscreen keeps the background; an item whose listing cannot be read keeps the Archive's player. The
  *      site's own series route and the file are answered here, so the Archive is never asked.
  *
- *   node scripts/drive-roomui.cjs --base http://localhost:3317 [--only 1,3,2,4,5]
+ *   6. The room window fits its picture: by itself when a 16:9 video gives way to a 4:3 one, in a few hard steps (sampled);
+ *      left alone once sized by hand, until [ FIT ]; a maximised window stays so; one jump under reduced motion. The 4:3
+ *      clip is made in the browser at the start.
+ *
+ *   node scripts/drive-roomui.cjs --base http://localhost:3317 [--only 1,3,2,4,5,6]
  *
  * Start the server with Temp/browse/dev-mock-rooms.cjs (every data source on mock, Supabase empty): nothing reaches the
  * live database, and the "account" is a made-up one in the browser's mock store. From the network it asks only a
@@ -44,6 +48,45 @@ const ARCHIVE_UNREADABLE = 'https://archive.org/embed/debaser-drive-unreadable';
 /** ...and one whose first read is refused for now (503) and second answered. */
 const ARCHIVE_FLAKY = 'https://archive.org/embed/debaser-drive-flaky';
 const ARCHIVE_FLAKY_FILE = 'https://archive.org/download/debaser-drive-flaky/clip.webm';
+/** Item 6: a 4:3 clip, made in the browser at the start and served here (never fetched from anywhere). */
+const FOUR_THREE = 'https://interactive-examples.mdn.mozilla.net/media/debaser-drive/four-three.webm';
+
+/** Records a six-second 320x240 clip with a moving picture in a page of its own, as webm bytes. */
+async function makeFourThree(context) {
+  const maker = await context.newPage();
+  await maker.setContent('<canvas id="c" width="320" height="240"></canvas>');
+  const clip = await maker.evaluate(async () => {
+    const canvas = document.getElementById('c');
+    const pen = canvas.getContext('2d');
+    let t = 0;
+    const paint = () => {
+      pen.fillStyle = '#7a8ea0';
+      pen.fillRect(0, 0, 320, 240);
+      pen.fillStyle = '#f2e9c8';
+      pen.fillRect(20 + ((t * 9) % 200), 60, 80, 80);
+    };
+    paint();
+    const recorder = new MediaRecorder(canvas.captureStream(20), { mimeType: 'video/webm;codecs=vp8' });
+    const parts = [];
+    recorder.ondataavailable = (event) => parts.push(event.data);
+    const timer = setInterval(() => {
+      t += 1;
+      paint();
+    }, 50);
+    recorder.start();
+    await new Promise((resolve) => setTimeout(resolve, 6000));
+    const stopped = new Promise((resolve) => (recorder.onstop = resolve));
+    recorder.stop();
+    await stopped;
+    clearInterval(timer);
+    const bytes = new Uint8Array(await new Blob(parts, { type: 'video/webm' }).arrayBuffer());
+    let binary = '';
+    for (let at = 0; at < bytes.length; at += 0x8000) binary += String.fromCharCode.apply(null, bytes.subarray(at, at + 0x8000));
+    return btoa(binary);
+  });
+  await maker.close();
+  return Buffer.from(clip, 'base64');
+}
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 let passed = 0;
@@ -171,6 +214,10 @@ async function queueLink(page, url) {
     return route.fulfill(answer(ARCHIVE_FILE));
   });
   const clip = Buffer.from(await (await fetch(VIDEO)).arrayBuffer());
+  if (wants(6)) {
+    const fourThree = await makeFourThree(context);
+    await context.route(FOUR_THREE, (route) => route.fulfill({ status: 200, contentType: 'video/webm', headers: { 'access-control-allow-origin': '*' }, body: fourThree }));
+  }
   await context.route(ARCHIVE_FLAKY_FILE, (route) => route.fulfill({ status: 200, contentType: 'video/webm', headers: { 'access-control-allow-origin': '*' }, body: clip }));
   await context.route(ARCHIVE_FILE, (route) => route.fulfill({ status: 200, contentType: 'video/webm', headers: { 'access-control-allow-origin': '*' }, body: clip }));
   await context.route(/https:\/\/archive\.org\/embed\//, (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>stand-in</title><body style="background:#533"></body>' }));
@@ -425,6 +472,104 @@ async function queueLink(page, url) {
       assert.equal(await page.evaluate((room) => document.querySelector(`${room} video[data-watch-video]`).getAttribute('src'), ROOM), ARCHIVE_FLAKY_FILE, 'asked again, it plays as its file');
       assert.equal(await page.locator(`${ROOM} iframe[data-watch-embed]`).count(), 0, 'and the Archive player is gone');
       pass('an Archive read refused for now: the Archive\'s player meanwhile, then the room\'s own player once it answers');
+    }
+
+    if (wants(6)) {
+      console.log('6. THE ROOM WINDOW FITS ITS PICTURE: [ FIT ], AND BY ITSELF WHEN THE SHAPE CHANGES');
+      // A fresh room with the 16:9 test video on, playing.
+      await open(page, '/files?kind=video');
+      await pressPlay(page);
+      await page.waitForSelector('[data-main-room-live]', { timeout: 30000 });
+      if ((await page.locator(ROOM).getAttribute('data-minimized')) === 'true') await page.locator('[data-room-shelf-key] button').click();
+      await page.waitForFunction((room) => (document.querySelector(`${room} video[data-watch-video]`)?.videoWidth ?? 0) > 0, ROOM, { timeout: 30000 });
+      // The five-second clip goes round, so the screen never goes blank (and FIT away) between the checks.
+      await page.evaluate((room) => {
+        document.querySelector(`${room} video[data-watch-video]`).loop = true;
+      }, ROOM);
+      await sleep(800);
+      const shapeNow = () =>
+        page.evaluate((room) => {
+          const box = document.querySelector(`${room} [data-room-picture]`).getBoundingClientRect();
+          const win = document.querySelector(room).getBoundingClientRect();
+          return { shape: box.width / box.height, w: Math.round(win.width), h: Math.round(win.height) };
+        }, ROOM);
+      const wide = await shapeNow();
+      assert.ok(Math.abs(wide.shape - 16 / 9) < 0.04, `a 16:9 video: the picture's box is 16:9 (${wide.shape.toFixed(3)})`);
+      assert.ok(await page.locator(`${ROOM} [data-room-fit]`).count(), '[ FIT ] is on the title line');
+      // Every size the window passes through, sampled far faster than its steps.
+      const startSampling = () =>
+        page.evaluate((room) => {
+          window.__sizes = [];
+          clearInterval(window.__sampler);
+          window.__sampler = setInterval(() => {
+            const win = document.querySelector(room).getBoundingClientRect();
+            const size = `${Math.round(win.width)}x${Math.round(win.height)}`;
+            if (window.__sizes[window.__sizes.length - 1] !== size) window.__sizes.push(size);
+          }, 4);
+        }, ROOM);
+      const sizesSeen = () => page.evaluate(() => (clearInterval(window.__sampler), window.__sizes));
+      const nextVideo = async (url) => {
+        await queueLink(page, url);
+        await page.evaluate(() => document.querySelector('[data-stream-bar] button[aria-label="Skip to the next video"]')?.click());
+        await page.waitForFunction(([room, wanted]) => {
+          const video = document.querySelector(`${room} video[data-watch-video]`);
+          return video !== null && (video.currentSrc || video.src) === wanted && video.videoWidth > 0;
+        }, [ROOM, url], { timeout: 30000 });
+        await sleep(800);
+      };
+
+      await startSampling();
+      await nextVideo(FOUR_THREE);
+      const square = await shapeNow();
+      const steps = await sizesSeen();
+      assert.ok(Math.abs(square.shape - 4 / 3) < 0.04, `the next video is 4:3: the window fits itself to it (${square.shape.toFixed(3)}, ${square.w}x${square.h})`);
+      assert.ok(steps.length >= 4 && steps.length <= 6, `in a few hard steps, not one jump and not a glide (${steps.join(' -> ')})`);
+      await page.screenshot({ path: join(SHOTS, '6-four-three.png') });
+      pass(`16:9 then 4:3: the room window refits itself to the picture in ${steps.length - 1} hard steps (${steps.join(' -> ')})`);
+
+      // Sized by hand: the next shape change leaves it alone; [ FIT ] fits it.
+      const grip = await rectOf(page, ROOM);
+      await page.mouse.move(grip.right - 1, grip.bottom - 1);
+      await page.mouse.down();
+      await page.mouse.move(grip.right - 40, grip.bottom - 60, { steps: 6 });
+      await page.mouse.up();
+      await sleep(300);
+      const byHand = await shapeNow();
+      await nextVideo(VIDEO);
+      const kept = await shapeNow();
+      assert.ok(Math.abs(kept.w - byHand.w) <= 1 && Math.abs(kept.h - byHand.h) <= 1, `sized by hand, a new shape leaves it as it was (${byHand.w}x${byHand.h} -> ${kept.w}x${kept.h})`);
+      await page.locator(`${ROOM} [data-room-fit]`).click();
+      await sleep(400);
+      const fitted = await shapeNow();
+      assert.ok(Math.abs(fitted.shape - 16 / 9) < 0.04, `[ FIT ]: the picture is 16:9 again (${fitted.shape.toFixed(3)})`);
+      pass('a window sized by hand is left alone by a new shape; [ FIT ] fits it to the picture');
+
+      // Maximised: it stays so.
+      await page.locator(`${ROOM} [data-window-maximise="off"]`).click();
+      await page.waitForSelector(`${ROOM} [data-window-maximise="on"]`, { timeout: 5000 });
+      await nextVideo(FOUR_THREE);
+      assert.equal(await page.locator(`${ROOM} [data-window-maximise="on"]`).count(), 1, 'maximised, a new shape leaves it maximised');
+      assert.ok((await rectOf(page, ROOM)).width >= page.viewportSize().width - 1, 'still the page\'s whole width');
+      await page.locator(`${ROOM} [data-window-maximise="on"]`).click();
+      await sleep(300);
+      pass('a maximised room window stays maximised when the shape changes');
+
+      // Reduced motion: one jump.
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      const again = await rectOf(page, ROOM);
+      await page.mouse.move(again.right - 1, again.bottom - 1);
+      await page.mouse.down();
+      await page.mouse.move(again.right - 30, again.bottom - 80, { steps: 6 });
+      await page.mouse.up();
+      await sleep(300);
+      await startSampling();
+      await page.locator(`${ROOM} [data-room-fit]`).click();
+      await sleep(400);
+      const still = await sizesSeen();
+      const stillShape = await shapeNow();
+      assert.ok(still.length === 2 && Math.abs(stillShape.shape - 4 / 3) < 0.04, `under reduced motion, [ FIT ] is one jump (${still.join(' -> ')})`);
+      await page.emulateMedia({ reducedMotion: null });
+      pass('under reduced motion the fit is one jump, no steps');
     }
 
     assert.deepEqual(errors, [], `no page errors (${errors.join(' | ')})`);

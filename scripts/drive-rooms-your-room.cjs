@@ -504,8 +504,13 @@ const floorOf = (page) =>
     assert.ok(opened.bottom < floor - 10, `opened smaller, its foot clear of the music bar (${opened.bottom} vs ${floor})`);
     const start = await titlePoint(page);
     await dragBy(page, start.x, start.y, 0, 700);
+    const rested = await rectOf(page, ROOM);
+    assert.ok(near(rested.bottom, floor, 3) && near(rested.height, opened.height), `dragged down, its foot rests on the music bar, not squashed (${rested.bottom} vs ${floor})`);
+    // List 4: the window fits its picture by itself (room-fit.ts), so it can be little taller than its least height; made
+    // taller by its top edge first, so the foot has room to come up by the pull below.
+    await dragBy(page, rested.left + rested.width / 2, rested.top, 0, -260);
     const filled = await rectOf(page, ROOM);
-    assert.ok(near(filled.bottom, floor, 3) && near(filled.height, opened.height), `dragged down, its foot rests on the music bar, not squashed (${filled.bottom} vs ${floor})`);
+    assert.ok(near(filled.bottom, floor, 3) && filled.height > rested.height + 200, `made taller by its top edge, its foot still on the bar (${Math.round(rested.height)} -> ${Math.round(filled.height)})`);
     await dragBy(page, filled.left + filled.width / 2, filled.bottom - 1, 0, -200);
     const short = await rectOf(page, ROOM);
     assert.ok(near(short.bottom, filled.bottom - 200, 3) && near(short.top, filled.top), `the foot came up by the pull (${filled.bottom} -> ${short.bottom})`);
