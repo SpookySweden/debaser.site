@@ -8,6 +8,7 @@ import { getMockWatchRepository } from '../watch/mock-watch-repository';
 import { streamRoomId } from '../watch/rules';
 import { canonicalTagLabel, collectTagLabels } from './tag-vocabulary';
 import { deriveTags, mergeTags } from './tags';
+import { hashTagsIn } from './post-format';
 import type {
   AddCommentResult,
   CommentPatch,
@@ -280,7 +281,7 @@ class MockForumRepository implements ForumRepository {
       createdAt: new Date().toISOString(),
       anchor: { ...input.anchor },
       tags: mergeTags(
-        canonicalUserTags(input.userTags ?? [], existing),
+        canonicalUserTags([...(input.userTags ?? []), ...hashTagsIn(input.body)], existing),
         deriveTags({ text: `${input.title}\n${input.body}`, anchor: input.anchor }),
       ),
       comments: [],
@@ -311,7 +312,8 @@ class MockForumRepository implements ForumRepository {
     const body = input.body.trim();
     const author = { ...input.author };
     const createdAt = new Date().toISOString();
-    const userTags = canonicalUserTags(input.userTags ?? [], threads);
+    // `#tag` words in the reply are filed as its tags, beside the ones picked in the chooser.
+    const userTags = canonicalUserTags([...(input.userTags ?? []), ...hashTagsIn(body)], threads);
 
     const existing =
       input.threadId !== undefined

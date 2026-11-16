@@ -2,6 +2,7 @@ import { getSupabaseBrowserClient } from '../supabase/client';
 import { ANONYMOUS_AUTHOR } from '../auth/author';
 import { AUTO_FILED_BODY, autoThreadTitle } from './anchors';
 import { deriveTags, mergeTags } from './tags';
+import { hashTagsIn } from './post-format';
 import { pinExpiry } from './pins';
 import { privateRecordThread } from './private-record';
 import type {
@@ -262,7 +263,8 @@ function threadPayload(input: CreateThreadInput): ThreadInsert {
     anchor_kind: input.anchor.kind,
     anchor_id: input.anchor.id,
     anchor_label: input.anchor.label,
-    tags: mergeTags(input.userTags ?? [], deriveTags({ text: `${input.title}\n${input.body}`, anchor: input.anchor })),
+    // `#tag` words in the post are filed as its tags, beside the ones picked in the chooser (post-format.ts).
+    tags: mergeTags([...(input.userTags ?? []), ...hashTagsIn(input.body)], deriveTags({ text: `${input.title}\n${input.body}`, anchor: input.anchor })),
     media_src: input.media?.src ?? null,
     media_alt: input.media?.alt ?? null,
     media_width: input.media?.width ?? null,
@@ -277,7 +279,7 @@ function commentPayload(input: CreateCommentInput, threadId: string): CommentIns
     body: input.body.trim(),
     author_id: input.author.id,
     author_label: input.author.displayName,
-    tags: mergeTags(input.userTags ?? [], deriveTags({ text: input.body, anchor: input.anchor, maxTags: 3 })),
+    tags: mergeTags([...(input.userTags ?? []), ...hashTagsIn(input.body)], deriveTags({ text: input.body, anchor: input.anchor, maxTags: 3 })),
     parent_id: input.parentId ?? null,
     media_src: input.media?.src ?? null,
     media_alt: input.media?.alt ?? null,
@@ -477,7 +479,7 @@ class SupabaseForumRepository implements ForumRepository {
 
     const title = autoThreadTitle(anchor);
     const payload = threadPayload({ title, body: AUTO_FILED_BODY, anchor, author: input.author });
-    payload.tags = mergeTags(input.userTags ?? [], deriveTags({ text: `${title}\n${AUTO_FILED_BODY}\n${input.body}`, anchor }));
+    payload.tags = mergeTags([...(input.userTags ?? []), ...hashTagsIn(input.body)], deriveTags({ text: `${title}\n${AUTO_FILED_BODY}\n${input.body}`, anchor }));
 
     const { data: created, error: createError } = await client
       .from(THREADS_TABLE)

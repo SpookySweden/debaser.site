@@ -5,7 +5,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { threadDomId } from '../lib/forum/anchors';
 import { countReplies } from '../lib/forum/format';
 import { mentionsIn } from '../lib/forum/mentions';
-import { deriveTags, displayTags } from '../lib/forum/tags';
+import { hashTagsIn } from '../lib/forum/post-format';
+import { deriveTags, displayTags, mergeTags } from '../lib/forum/tags';
 import type { ForumAnchor, ForumTrack } from '../lib/forum/types';
 import type { DiscussQuery } from '../lib/watch/types';
 import { useCatalogue } from '../lib/media/catalogue';
@@ -59,7 +60,11 @@ export default function CommentWindow({ anchor, onClose, roomChat }: CommentWind
   }, [thread]);
 
   const composerId = `comment-window-body-${anchor.id}`;
-  const previewTags = useMemo(() => deriveTags({ text: body, anchor, maxTags: 3 }), [body, anchor]);
+  // The `#tag` words are filed as tags when the comment is, so they show here first (post-format.ts).
+  const previewTags = useMemo(
+    () => mergeTags(hashTagsIn(body), deriveTags({ text: body, anchor, maxTags: 3 })),
+    [body, anchor],
+  );
 
   // Put the caret in the textarea as the window opens.
   useEffect(() => {

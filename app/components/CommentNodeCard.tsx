@@ -13,6 +13,7 @@ import { CommentModeration } from './ForumModerationControls';
 import InlineTrackPlayer from './InlineTrackPlayer';
 import MediaThumbnail from './MediaThumbnail';
 import MentionRow from './MentionRow';
+import PostText from './PostText';
 import ProfileAvatarLink from './ProfileAvatarLink';
 import ProfileLink from './ProfileLink';
 import ProfileName from './ProfileName';
@@ -140,7 +141,7 @@ export default function CommentNodeCard({
           <TimeStamp at={comment.createdAt} />
         </div>
 
-        <p className="mt-1 whitespace-pre-line text-prose leading-normal wrap-anywhere text-ink">{comment.body}</p>
+        <PostText body={comment.body} className="mt-1 whitespace-pre-line text-prose leading-normal wrap-anywhere text-ink" />
 
         {/* Whoever the reply names: the tags are in the words, said plainly here. */}
         <MentionRow body={comment.body} accounts={accounts} />

@@ -19,6 +19,7 @@ import { useCatalogue } from '../lib/media/catalogue';
 import { previewFor, recordUses, replyUse } from '../lib/media/uses';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { bodyWords, songHrefIn } from '../lib/forum/song-link';
+import PostText from './PostText';
 import { docLinkIn } from '../lib/docs/forum';
 import { PLATE, ROW_READ, ROW_UNREAD } from '../lib/ui/controls';
 import CommentComposer from './CommentComposer';
@@ -447,7 +448,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                 </Link>
               </>
             ) : (
-              <p className="whitespace-pre-line text-prose leading-normal wrap-anywhere text-ink">{layout.right.body}</p>
+              <PostText body={layout.right.body} className="whitespace-pre-line text-prose leading-normal wrap-anywhere text-ink" />
             )}
 
             {/* The track the post came with: one display, one button, played by the site's player. */}

@@ -7,7 +7,8 @@ import { postUse, previewFor, recordUses, replyUse } from '../lib/media/uses';
 import { AUTO_FILED_BODY, BOARD_TARGET, POST_TARGETS, autoThreadTitle, postTargetTree } from '../lib/forum/anchors';
 import { countReplies } from '../lib/forum/format';
 import { mentionsIn } from '../lib/forum/mentions';
-import { deriveTags } from '../lib/forum/tags';
+import { hashTagsIn } from '../lib/forum/post-format';
+import { deriveTags, mergeTags } from '../lib/forum/tags';
 import type { ForumThread, ForumTrack } from '../lib/forum/types';
 import CommentComposer from './CommentComposer';
 import { useComms } from './CommsProvider';
@@ -115,7 +116,11 @@ export default function NewPostForm({ onClose, onCreated, initialTrack = null, i
   const existingThread = isBoardPost ? undefined : (forum.threadForAnchor(anchor) ?? openedHere[anchor.id]);
   const catalogue = useCatalogue();
   const media = previewFor(catalogue.items, mediaId);
-  const previewTags = useMemo(() => deriveTags({ text: `${title}\n${body}`, anchor }), [title, body, anchor]);
+  // The `#tag` words are filed as tags when the post is, so they show here first (post-format.ts).
+  const previewTags = useMemo(
+    () => mergeTags(hashTagsIn(body), deriveTags({ text: `${title}\n${body}`, anchor })),
+    [title, body, anchor],
+  );
   /** Whoever the words name with `@`: tagging them is what files a notification. */
   const mentions = useMemo(() => mentionsIn(body, accounts), [accounts, body]);
 

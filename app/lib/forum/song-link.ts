@@ -1,3 +1,5 @@
+import { postWords } from './post-format';
+
 /**
  * A post that is nothing but a link to a beat box song (`ShareSongToForum`). The song is BeepBox's own text
  * after the #, so a post can hold it with no table of its own. The board shows a key rather than the long
@@ -14,7 +16,7 @@ export function songHrefIn(body: string): string | null {
 /** What the board says in place of the long link. */
 export const SONG_POST_WORDS = 'A SONG FROM THE BEAT BOX';
 
-/** A post's words as a list or preview should show them. */
+/** A post's words as a list or preview should show them: the formatting stars taken out (post-format.ts). */
 export function bodyWords(body: string): string {
-  return songHrefIn(body) === null ? body : SONG_POST_WORDS;
+  return songHrefIn(body) === null ? postWords(body) : SONG_POST_WORDS;
 }

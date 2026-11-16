@@ -3,6 +3,7 @@ import { threadDomId } from './anchors';
 import { livePins, pinLabel } from './pins';
 import type { ForumAuthor, ForumComment, ForumThread, ThreadPin } from './types';
 import { bodyWords } from './song-link';
+import { postWords } from './post-format';
 
 /**
  * A wire as a list of rows.
@@ -54,9 +55,9 @@ export const NEWS_SLICE = 110;
 /** Newest first, which is the only order a wire is ever read in. */
 export const NEWS_DEFAULT_LIMIT = 14;
 
-/** One line's worth of somebody's writing. */
+/** One line's worth of somebody's writing, the formatting stars taken out (post-format.ts), for a post or a reply alike. */
 export function clipForNews(body: string, limit: number = NEWS_SLICE): string {
-  const oneLine = body.replace(/\s+/g, ' ').trim();
+  const oneLine = postWords(body).replace(/\s+/g, ' ').trim();
 
   return oneLine.length > limit ? `${oneLine.slice(0, limit).trimEnd()}...` : oneLine;
 }
