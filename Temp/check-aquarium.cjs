@@ -15,7 +15,7 @@
  *   7. every picture is on disk at the size the code lays it out at, and the stylesheet stands aside as it should.
  *
  * Compiled fresh on every run:
- *   npx tsc app/components/Aquarium.tsx app/components/AquariumSettingsWindow.tsx app/lib/ui/backdrop-slot.ts app/lib/aquarium/settings.ts app/lib/aquarium/sim.ts app/lib/aquarium/settings-slot.ts --outDir Temp/aquarium-out --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
+ *   npx tsc app/components/Aquarium.tsx app/components/BackdropSettingsWindow.tsx app/lib/ui/backdrop-slot.ts app/lib/aquarium/settings.ts app/lib/aquarium/sim.ts app/lib/aquarium/settings-slot.ts --outDir Temp/aquarium-out --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
  */
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -35,7 +35,7 @@ const fresh = (file) => {
 const backdropFile = 'lib/ui/backdrop-slot.js';
 const slot = fresh(backdropFile);
 assert.equal(slot.DEFAULT_BACKDROP, 'aquarium', 'a browser with nothing stored gets the aquarium');
-assert.deepEqual(slot.BACKDROPS.map((b) => b.id), ['aquarium', 'tile'], 'AQUARIUM first, TILE beside it');
+assert.deepEqual([slot.BACKDROPS[0].id, slot.BACKDROPS[slot.BACKDROPS.length - 1].id], ['aquarium', 'tile'], 'AQUARIUM first, TILE last, the simulated backgrounds between');
 assert.equal(slot.backdropState().id, 'aquarium', 'the store starts on the default');
 
 // A browser: storage that keeps what it is given, and the document the choice is written onto.
@@ -483,7 +483,7 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
   store.toggleGiant();
   assert.equal(store.aquariumGiant(), false, 'and off again at a second press (or by itself, twenty seconds on)');
   assert.equal(store.GIANT_MS, 20000, 'twenty seconds');
-  const slotSource = fs.readFileSync('app/lib/aquarium/settings-slot.ts', 'utf8');
+  const slotSource = fs.readFileSync('app/lib/backdrops/store.ts', 'utf8');
   assert.match(slotSource, /process\.env\.NEXT_PUBLIC_AQUARIUM_DATA_SOURCE === 'supabase' \? SUPABASE_STORE : null/, 'accounts are only asked of the database once its table is switched on');
   assert.match(slotSource, /from\('user_aquarium'\)/, 'in the table the SPEC names');
   // The table (Luke's OK 2026-11-15, "Yes, add it"): owner only, nothing for a visitor, and switched on for the deployed site.
@@ -520,28 +520,31 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
   /* ---------------------------------------------------------------- 6. what is drawn, and where from */
   const Aquarium = require('./aquarium-out/components/Aquarium.js').default;
   assert.equal(renderToString(React.createElement(Aquarium)), '', 'the server draws no aquarium');
-  const windowModule = require('./aquarium-out/components/AquariumSettingsWindow.js');
+  const windowModule = require('./aquarium-out/components/BackdropSettingsWindow.js');
   assert.equal(typeof windowModule.default, 'function', 'the AQUARIUM window is a component');
-  const key = renderToString(React.createElement(windowModule.AquariumSeaKey));
+  const key = renderToString(React.createElement(windowModule.BackdropKey));
   assert.match(key, /class="aquarium-key /, 'the sea key is placed by the stylesheet');
   assert.match(key.replace(/<!-- -->/g, ''), /\[ AQUARIUM \]/, 'and says what it opens');
-  const knobs = renderToString(React.createElement(windowModule.AquariumKnobs)).replace(/<!-- -->/g, '');
+  const knobs = renderToString(React.createElement(windowModule.BackdropKnobs, { id: 'aquarium' })).replace(/<!-- -->/g, '');
   for (const tab of S.TABS) assert.ok(knobs.includes(`[ ${tab.label} ]`), `the window has a ${tab.label} tab`);
-  for (const knob of S.KNOBS.filter((k) => k.tab === 'fish')) assert.ok(knobs.includes(knob.label), `FISH lists ${knob.label}`);
+  // (HIGHEST and LOWEST are drawn as one control, DEPTH: a strip with two handles.)
+  const paired = new Set(S.AQUARIUM.widgets.flatMap((w) => (w.kind === 'band' ? [w.low, w.high] : [w.x, w.y])));
+  for (const knob of S.KNOBS.filter((k) => k.tab === 'fish' && !paired.has(k.key))) assert.ok(knobs.includes(knob.label), `FISH lists ${knob.label}`);
+  assert.ok(knobs.includes('DEPTH') && knobs.includes('data-backdrop-band="depth"'), 'and DEPTH, the band HIGHEST and LOWEST share');
   assert.ok(knobs.includes('type="range"') && knobs.includes('aria-valuetext="2x"'), 'a slider is a real slider, its value read out');
   for (const look of ['RESET', 'PARTY', '98', 'CALM', 'SCHOOL', 'CHAOS']) assert.ok(knobs.includes(`[ ${look} ]`), `the foot has [ ${look} ]`);
-  const windowSource = fs.readFileSync('app/components/AquariumSettingsWindow.tsx', 'utf8');
+  const windowSource = fs.readFileSync('app/components/BackdropSettingsWindow.tsx', 'utf8');
   assert.match(windowSource, /<DockWindow/, 'a window beside the page, with no scrim');
   assert.doesNotMatch(windowSource, /<PopoutWindow/, 'not a dialogue that takes the screen');
   assert.match(windowSource, /seeThrough=\{seeThrough\}/, 'that can be made see-through');
   assert.match(fs.readFileSync('app/components/DockWindow.tsx', 'utf8'), /seeThrough \? ' opacity-50' : ''/, 'by half');
-  assert.match(layout, /<AquariumSettingsWindow \/>/, 'the shell draws the window once');
-  assert.match(layout, /<AquariumSeaKey \/>/, 'and the key on the sea');
+  assert.match(layout, /<BackdropSettingsWindow \/>/, 'the shell draws the window once');
+  assert.match(layout, /<BackdropKey \/>/, 'and the key on the sea');
   const prefs = fs.readFileSync('app/components/PreferencesWindow.tsx', 'utf8');
   assert.match(prefs, /<span>BACKGROUND<\/span>/, 'PREFERENCES has a BACKGROUND section');
   assert.match(prefs, /BACKDROPS\.map\(/, 'listing every background the store offers');
   assert.match(prefs, /onClick=\{\(\) => setBackdrop\(backdrop\.id\)\}/, 'each row switches to its own');
-  assert.match(prefs, /setBackdrop\('aquarium'\);\s*openAquariumWindow\(\);/, 'and [ SETTINGS ] beside AQUARIUM puts the sea on and opens its window');
+  assert.match(prefs, /setBackdrop\(backdrop\.id\);\s*openBackdropWindow\(\);/, 'and [ SETTINGS ] beside a background puts it on and opens its window');
   assert.match(fs.readFileSync('app/components/ThemeHost.tsx', 'utf8'), /useEffect\(\(\) => initBackdrop\(\), \[\]\)/, 'the choice is applied on mount');
   const sea = fs.readFileSync('app/components/Aquarium.tsx', 'utf8');
   assert.match(sea, /if \(hidden \|\| still\) return;/, 'the loop never runs in a hidden tab or with motion off');
@@ -566,11 +569,11 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
   assert.match(fs.readFileSync('assets/aquarium/README.txt', 'utf8'), /pellet\.png/, 'the pictures say where they came from, the food included');
 
   const css = fs.readFileSync('app/globals.css', 'utf8');
-  assert.match(css, /html\[data-backdrop='aquarium'\] \[data-site-window='desk'\] \{\s*background: none;/, 'the desk lets go of its tile only for the aquarium');
-  assert.match(css, /html\[data-backdrop='aquarium'\] body \{\s*background: var\(--dye-black\);/, 'and the canvas is the sea before the fish arrive');
+  assert.match(css, /html\[data-backdrop\]:not\(\[data-backdrop='tile'\]\) \[data-site-window='desk'\] \{\s*background: none;/, 'the desk lets go of its tile for any background but TILE');
+  assert.match(css, /html\[data-backdrop\]:not\(\[data-backdrop='tile'\]\) body \{\s*background: var\(--dye-black\);/, 'and the canvas is the sea before the fish arrive');
   assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{\s*\.aquarium-fish,\s*\.aquarium-bubble \{\s*display: none;/, 'motion off: no fish, no bubbles');
   assert.match(css, /\.aquarium\[data-aquarium='paused'\] \* \{\s*animation-play-state: paused;/, 'a hidden tab pauses them');
-  assert.match(css, /html:not\(\[data-backdrop='aquarium'\]\) \.aquarium-key \{\s*display: none;/, 'the sea key is only on the sea');
+  assert.match(css, /html:not\(\[data-backdrop\]\) \.aquarium-key,\s*html\[data-backdrop='tile'\] \.aquarium-key \{\s*display: none;/, 'the key on the background is not shown on TILE');
   assert.match(css, /html\[data-site-fill='on'\] \.aquarium-key,\s*html:has\(\[data-page-fill\]\) \.aquarium-key \{\s*display: none;/, 'and stands aside when the site window fills the screen');
   assert.match(fs.readFileSync('app/components/SiteWindow.tsx', 'utf8'), /data-page-fill=\{fill \? '' : undefined\}/, 'which a page that fills by itself says');
   assert.match(fs.readFileSync('app/theme/tokens.css', 'utf8'), /--z-index-backdrop: -1;/, 'the layer sits under the page');

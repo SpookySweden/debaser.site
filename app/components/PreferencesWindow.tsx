@@ -25,7 +25,8 @@ import {
   type ThemeId,
 } from '../lib/ui/theme-slot';
 import { resetLayout } from '../lib/ui/window-layout';
-import { openAquariumWindow } from '../lib/aquarium/settings-slot';
+import { backdropDef } from '../lib/backdrops/registry';
+import { openBackdropWindow } from '../lib/backdrops/store';
 import { BACKDROPS, backdropState, setBackdrop, subscribeToBackdrop } from '../lib/ui/backdrop-slot';
 import CompanionPreferences from './CompanionPreferences';
 import DockWindow from './DockWindow';
@@ -208,17 +209,17 @@ function BackdropChoice() {
             >
               <span className="min-w-0 flex-1 truncate">[ {backdrop.label} ]</span>
             </button>
-            {/* The aquarium's own knobs (SPEC-aquarium-settings.md): its window, with the sea put on if TILE was. */}
-            {backdrop.id === 'aquarium' ? (
+            {/* A background's own knobs (SPEC-backgrounds.md): its window, with that background put on if another was. TILE has none. */}
+            {backdropDef(backdrop.id) !== null ? (
               <button
                 type="button"
                 onClick={() => {
-                  setBackdrop('aquarium');
-                  openAquariumWindow();
+                  setBackdrop(backdrop.id);
+                  openBackdropWindow();
                 }}
                 aria-haspopup="dialog"
-                title="FISH, SEA, PLAY, SILLY: EVERY KNOB OF THE AQUARIUM"
-                data-backdrop-settings=""
+                title={`EVERY KNOB OF THE ${backdrop.label}`}
+                data-backdrop-settings={backdrop.id}
                 className={PLATE}
               >
                 [ SETTINGS ]

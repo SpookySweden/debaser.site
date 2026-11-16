@@ -30,7 +30,8 @@ import WindowLayoutHost from './components/WindowLayoutHost';
 import { cursorBootScript } from './lib/ui/cursor-slot';
 import { backdropBootScript } from './lib/ui/backdrop-slot';
 import Aquarium from './components/Aquarium';
-import AquariumSettingsWindow, { AquariumSeaKey } from './components/AquariumSettingsWindow';
+import Backdrops from './components/backdrops/Backdrops';
+import BackdropSettingsWindow, { BackdropKey } from './components/BackdropSettingsWindow';
 import { siteFillBootScript } from './lib/ui/site-fill';
 import { themeBootScript } from './lib/ui/theme-slot';
 import { FACE_VARIABLES } from './theme/fonts';
@@ -83,6 +84,8 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
         {/* The AQUARIUM background, fixed under everything while it is the chosen one (PREFERENCES, BACKGROUND). Outside the
             providers on purpose: nothing it shows depends on who is signed in, and nothing above it may make a layer of its own. */}
         <Aquarium />
+        {/* ...and the simulated ones (SAND and the rest, SPEC-backgrounds.md), the same way: only the chosen one is drawn. */}
+        <Backdrops />
 
         <AuthProvider>
           <PresenceProvider>
@@ -142,8 +145,8 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
 
                       {/* The AQUARIUM window: every knob of the sea behind the site (SPEC-aquarium-settings.md), and the key
                           on the sea that opens it. Beside PREFERENCES, which holds its other key. */}
-                      <AquariumSettingsWindow />
-                      <AquariumSeaKey />
+                      <BackdropSettingsWindow />
+                      <BackdropKey />
 
                       {/* The MODULOS key's list: which modules appear on the bar, and their hover colours. */}
                       <ModulesWindow />

@@ -55,7 +55,8 @@ body {
 }
 
 /* The AQUARIUM background (app/components/Aquarium.tsx, chosen in PREFERENCES; the default since 2026-11-15) ------------------
-   While `<html>` carries `data-backdrop="aquarium"` - written by the boot script before the first paint - the desk lets go of its
+   While `<html>` carries a `data-backdrop` other than `tile` (the aquarium, or a simulated background: SPEC-backgrounds.md) -
+   written by the boot script before the first paint - the desk lets go of its
    tile and the page's canvas is the sea's black, so the sea is there from the first frame and the coral and fish join it once
    the page's script runs. The layer sits under the page itself (`z-backdrop`, on the element), so the window, the bars and every docked
    window stay over it and it never takes a click. Every picture is shown at a whole-number zoom, pixel for pixel.
@@ -63,11 +64,11 @@ body {
    Where each fish, bubble and piece of food is comes from the component's one loop (app/lib/aquarium/sim.ts), which writes a
    `transform` to each; the stylesheet only steps a fish's strip through its frames, and holds the looks the AQUARIUM window's
    knobs switch on (SPEC-aquarium-settings.md): the tint, the murk and the light are flat fields of colour over the pictures. */
-html[data-backdrop='aquarium'] body {
+html[data-backdrop]:not([data-backdrop='tile']) body {
   background: var(--dye-black);
 }
 
-html[data-backdrop='aquarium'] [data-site-window='desk'] {
+html[data-backdrop]:not([data-backdrop='tile']) [data-site-window='desk'] {
   background: none;
 }
 
@@ -116,6 +117,15 @@ html[data-backdrop='aquarium'] [data-site-window='desk'] {
 .aquarium-still {
   position: absolute;
   bottom: 0;
+}
+
+/* A simulated background's grid (CanvasBackdrop.tsx): one canvas pixel a cell, shown at a whole number of screen pixels each.
+   The component sets its size; it starts in the top-left corner and whatever hangs over the far edges is cut off. */
+.backdrop-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  image-rendering: pixelated;
 }
 
 /* A fish: put in place by the loop, out of sight until it has been. */
@@ -226,7 +236,8 @@ html[data-backdrop='aquarium'] [data-site-window='desk'] {
   left: 0.5rem;
 }
 
-html:not([data-backdrop='aquarium']) .aquarium-key {
+html:not([data-backdrop]) .aquarium-key,
+html[data-backdrop='tile'] .aquarium-key {
   display: none;
 }
 

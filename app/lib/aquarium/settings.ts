@@ -5,7 +5,13 @@
  * Plain data and plain functions, no browser: the window draws `KNOBS`, the store parses with `parseAquariumSettings`, the
  * simulation (`./sim.ts`) reads the values, and the checks run all of it. `DEFAULT_SETTINGS` is the Windows 98 look the
  * aquarium shipped with: four fish, one of each, crossing alone.
+ *
+ * The machinery (parse, clamp, PARTY, the looks) is every background's since SPEC-backgrounds.md (`../backdrops/knobs.ts`);
+ * this file is the aquarium's own list, and the same functions under the names the sea already used.
  */
+import { morphValues, parseValues, partyValues, sameValues, shownValue as shownKnobValue, withValue, type BackdropDef, type Knob, type Values } from '../backdrops/knobs';
+
+export type { Knob, RangeKnob, SwitchKnob, ChoiceKnob } from '../backdrops/knobs';
 
 export type PointerMode = 'ignore' | 'scare' | 'follow';
 
@@ -105,10 +111,6 @@ export const DEFAULT_SETTINGS: AquariumSettings = {
   tiny: false,
 };
 
-type KeysOf<Value> = { [Key in keyof AquariumSettings]: AquariumSettings[Key] extends Value ? Key : never }[keyof AquariumSettings];
-export type RangeKey = Exclude<KeysOf<number>, 'v'>;
-export type SwitchKey = KeysOf<boolean>;
-
 export type AquariumTab = 'fish' | 'sea' | 'play' | 'silly';
 
 export const TABS: readonly { id: AquariumTab; label: string }[] = [
@@ -117,43 +119,6 @@ export const TABS: readonly { id: AquariumTab; label: string }[] = [
   { id: 'play', label: 'PLAY' },
   { id: 'silly', label: 'SILLY' },
 ];
-
-export type RangeKnob = {
-  kind: 'range';
-  key: RangeKey;
-  tab: AquariumTab;
-  label: string;
-  /** The row's hover tip. */
-  tip: string;
-  min: number;
-  max: number;
-  step: number;
-  /** Written after the value: `2x`, `60%`. */
-  unit: string;
-  /** What `[ PARTY ]` may pick between, where the whole range would be too much (a sea too dark to see). */
-  party?: readonly [number, number];
-};
-
-export type SwitchKnob = {
-  kind: 'switch';
-  key: SwitchKey;
-  tab: AquariumTab;
-  label: string;
-  tip: string;
-  /** The chance `[ PARTY ]` switches it on (0 keeps it as the default has it). */
-  party: number;
-};
-
-export type ChoiceKnob = {
-  kind: 'choice';
-  key: 'pointer';
-  tab: AquariumTab;
-  label: string;
-  tip: string;
-  options: readonly { value: PointerMode; label: string; tip: string }[];
-};
-
-export type Knob = RangeKnob | SwitchKnob | ChoiceKnob;
 
 /** Every knob, in the order the window lists them. */
 export const KNOBS: readonly Knob[] = [
@@ -184,7 +149,7 @@ export const KNOBS: readonly Knob[] = [
   { kind: 'switch', key: 'coralLeft', tab: 'sea', label: 'LEFT CORAL', tip: 'THE CORAL IN THE LEFT CORNER', party: 0 },
   { kind: 'switch', key: 'coralRight', tab: 'sea', label: 'RIGHT CORAL', tip: 'THE CORAL IN THE RIGHT CORNER', party: 0 },
   { kind: 'range', key: 'coralSize', tab: 'sea', label: 'CORAL SIZE', tip: 'HOW BIG THE CORAL IS', min: 1, max: 3, step: 1, unit: 'x' },
-  { kind: 'range', key: 'current', tab: 'sea', label: 'CURRENT', tip: 'THE WATER PUSHES EVERYTHING LEFT (-) OR RIGHT (+)', min: -100, max: 100, step: 5, unit: '', party: [-50, 50] },
+  { kind: 'range', key: 'current', tab: 'sea', label: 'CURRENT', tip: 'THE WATER PUSHES EVERYTHING LEFT (-) OR RIGHT (+)', min: -100, max: 100, step: 5, unit: '', signed: true, party: [-50, 50] },
   { kind: 'switch', key: 'tide', tab: 'sea', label: 'TIDE', tip: 'THE WHOLE SEA RISES AND FALLS A LITTLE, SLOWLY', party: 0.4 },
   // PLAY
   {
@@ -193,6 +158,7 @@ export const KNOBS: readonly Knob[] = [
     tab: 'play',
     label: 'POINTER',
     tip: 'WHAT THE FISH MAKE OF YOUR POINTER',
+    party: true,
     options: [
       { value: 'ignore', label: 'IGNORE', tip: 'THEY TAKE NO NOTICE' },
       { value: 'scare', label: 'SCARE', tip: 'THEY DART AWAY FROM IT' },
@@ -210,60 +176,58 @@ export const KNOBS: readonly Knob[] = [
   { kind: 'switch', key: 'mirror', tab: 'silly', label: 'MIRROR', tip: 'THE WHOLE SEA, LEFT TO RIGHT', party: 0.3 },
   { kind: 'switch', key: 'rainbow', tab: 'silly', label: 'RAINBOW', tip: 'EVERY FISH CYCLES THROUGH ITS COLOURS', party: 0.4 },
   { kind: 'switch', key: 'disco', tab: 'silly', label: 'DISCO', tip: 'THE WATER CHANGES COLOUR TO A BEAT', party: 0.15 },
-  { kind: 'range', key: 'gravity', tab: 'silly', label: 'GRAVITY', tip: 'FISH SINK (+) OR FLOAT UP (-)', min: -100, max: 100, step: 5, unit: '', party: [-30, 30] },
+  { kind: 'range', key: 'gravity', tab: 'silly', label: 'GRAVITY', tip: 'FISH SINK (+) OR FLOAT UP (-)', min: -100, max: 100, step: 5, unit: '', signed: true, party: [-30, 30] },
   { kind: 'range', key: 'time', tab: 'silly', label: 'TIME', tip: 'EVERYTHING SLOWER OR FASTER', min: 0.1, max: 3, step: 0.1, unit: 'x', party: [0.5, 2] },
   { kind: 'switch', key: 'tiny', tab: 'silly', label: 'TINY TANK', tip: 'THE WHOLE AQUARIUM SHRINKS INTO A SMALL TANK IN THE CORNER', party: 0 },
 ];
 
-const POINTER_MODES: readonly PointerMode[] = ['ignore', 'scare', 'follow'];
+/** The aquarium as the shared machinery sees it: its knobs, its two-knob controls, its one-press keys. The looks are added below. */
+const BASE: BackdropDef = {
+  id: 'aquarium',
+  label: 'AQUARIUM',
+  tabs: TABS,
+  knobs: KNOBS,
+  widgets: [
+    { kind: 'band', id: 'depth', tab: 'fish', label: 'DEPTH', tip: 'THE STRETCH OF THE SEA THE FISH KEEP TO: DRAG EITHER END', low: 'depthTop', high: 'depthBottom', gap: 10 },
+    { kind: 'pad', id: 'water', tab: 'sea', label: 'CURRENT AND GRAVITY', tip: 'ACROSS: THE CURRENT, LEFT OR RIGHT. UP AND DOWN: FISH FLOAT OR SINK', x: 'current', y: 'gravity' },
+  ],
+  actions: [{ id: 'giant', tab: 'silly', label: 'GIANT MODE', tip: 'FOR 20 SECONDS THE FISH ARE SIXTEEN TIMES THEIR SIZE (TWO AT THE MOST). PRESS AGAIN TO STOP' }],
+  defaults: DEFAULT_SETTINGS as unknown as Values,
+  looks: [],
+  // Schooling, wander, tint, gravity and current are worth having at nothing as often as not: a party where every fish shoals
+  // looks like the last one.
+  partyRests: [
+    { key: 'schooling', chance: 0.5 },
+    { key: 'wander', chance: 0.4 },
+    { key: 'tint', chance: 0.5 },
+    { key: 'gravity', chance: 0.6 },
+    { key: 'current', chance: 0.5 },
+  ],
+};
 
-/** A number held to a knob's range and snapped to its step (so a stored 2.37x is read back as 2.25x). */
-function clampToKnob(knob: RangeKnob, value: number): number {
-  const stepped = knob.min + Math.round((value - knob.min) / knob.step) * knob.step;
-  // Steps like 0.1 don't add up exactly; six places is far finer than any step here.
-  return Math.min(knob.max, Math.max(knob.min, Math.round(stepped * 1e6) / 1e6));
-}
+const typed = (values: Values): AquariumSettings => values as unknown as AquariumSettings;
+const loose = (settings: AquariumSettings): Values => settings as unknown as Values;
 
 /**
  * Whatever was stored, read back as settings: every key checked on its own, anything missing, of the wrong kind or out of range
  * falling back or clamped, unknown keys dropped. Never throws.
  */
 export function parseAquariumSettings(raw: unknown): AquariumSettings {
-  const held = typeof raw === 'object' && raw !== null && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
-  const settings: AquariumSettings = { ...DEFAULT_SETTINGS };
-  for (const knob of KNOBS) {
-    const value = held[knob.key];
-    if (knob.kind === 'range') {
-      if (typeof value === 'number' && Number.isFinite(value)) settings[knob.key] = clampToKnob(knob, value);
-    } else if (knob.kind === 'switch') {
-      if (typeof value === 'boolean') settings[knob.key] = value;
-    } else if (typeof value === 'string' && (POINTER_MODES as readonly string[]).includes(value)) {
-      settings[knob.key] = value as PointerMode;
-    }
-  }
-  // The two ends of the depth band can't cross: the lowest stays at least a tenth of the sea under the highest.
-  if (settings.depthBottom < settings.depthTop + 10) settings.depthBottom = Math.min(100, settings.depthTop + 10);
-  return settings;
+  return typed(parseValues(BASE, raw));
 }
 
 /** One knob changed, the rest as they were, read back through the same checks. */
 export function withSetting<Key extends keyof AquariumSettings>(settings: AquariumSettings, key: Key, value: AquariumSettings[Key]): AquariumSettings {
-  const next = { ...settings, [key]: value };
-  // Dragging HIGHEST down past LOWEST pushes LOWEST along, and the other way round.
-  if (key === 'depthBottom' && next.depthBottom < next.depthTop + 10) next.depthTop = Math.max(0, next.depthBottom - 10);
-  return parseAquariumSettings(next);
+  return typed(withValue(BASE, loose(settings), key, value));
 }
 
 /** True when two settings are the same on every knob. */
 export function sameSettings(a: AquariumSettings, b: AquariumSettings): boolean {
-  return KNOBS.every((knob) => a[knob.key] === b[knob.key]);
+  return sameValues(BASE, loose(a), loose(b));
 }
 
 /** A value as the window writes it beside the knob's name. */
-export function shownValue(knob: RangeKnob, value: number): string {
-  const rounded = Math.round(value * 100) / 100;
-  return `${knob.key === 'current' || knob.key === 'gravity' ? (rounded > 0 ? '+' : '') : ''}${rounded}${knob.unit}`;
-}
+export const shownValue = shownKnobValue;
 
 export type Preset = { id: string; label: string; tip: string; settings: AquariumSettings };
 
@@ -295,27 +259,18 @@ export const PRESETS: readonly Preset[] = [
   },
 ];
 
+/** The aquarium, whole: what the settings window and the store work from. */
+export const AQUARIUM: BackdropDef = { ...BASE, looks: PRESETS.map((look) => ({ id: look.id, label: look.label, tip: look.tip, values: loose(look.settings) })) };
+
 /**
  * `[ PARTY ]`: every knob somewhere at random, inside limits that keep the sea worth looking at. `random` is `Math.random` on
  * the site and a fixed sequence in the checks.
  */
 export function partySettings(random: () => number): AquariumSettings {
-  const next: Record<string, unknown> = { ...DEFAULT_SETTINGS };
-  for (const knob of KNOBS) {
-    if (knob.kind === 'range') {
-      const [low, high] = knob.party ?? [knob.min, knob.max];
-      next[knob.key] = low + random() * (high - low);
-    } else if (knob.kind === 'switch') {
-      if (knob.party > 0) next[knob.key] = random() < knob.party;
-    } else {
-      next[knob.key] = knob.options[Math.floor(random() * knob.options.length) % knob.options.length].value;
-    }
-  }
-  // Schooling and wander are worth having at nothing as often as not: a party where every fish shoals looks like the last one.
-  if (random() < 0.5) next.schooling = 0;
-  if (random() < 0.4) next.wander = 0;
-  if (random() < 0.5) next.tint = 0;
-  if (random() < 0.6) next.gravity = 0;
-  if (random() < 0.5) next.current = 0;
-  return parseAquariumSettings(next);
+  return typed(partyValues(BASE, random));
+}
+
+/** MORPH for the sea, typed. */
+export function morphSettings(from: AquariumSettings, to: AquariumSettings, t: number): AquariumSettings {
+  return typed(morphValues(BASE, loose(from), loose(to), t));
 }

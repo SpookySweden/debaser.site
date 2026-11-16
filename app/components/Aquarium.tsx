@@ -3,11 +3,11 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react';
 import {
   aquariumGiant,
-  aquariumSettings,
+  liveAquariumSettings,
   serverAquariumGiant,
   serverAquariumSettings,
   subscribeToAquariumGiant,
-  subscribeToAquariumSettings,
+  subscribeToLiveAquariumSettings,
 } from '../lib/aquarium/settings-slot';
 import type { AquariumSettings } from '../lib/aquarium/settings';
 import {
@@ -29,6 +29,7 @@ import {
   type FishPlan,
   type SimState,
 } from '../lib/aquarium/sim';
+import { backgroundCovered, pointerNow, setBackdropMeters, watchLiveValues, watchPointer } from '../lib/backdrops/runtime';
 import { backdropState, subscribeToBackdrop, type BackdropState } from '../lib/ui/backdrop-slot';
 
 /**
@@ -116,8 +117,6 @@ function Sea({ settings, giant, hidden, still }: { settings: AquariumSettings; g
   const tintEl = useRef<HTMLDivElement>(null);
   const darkEl = useRef<HTMLDivElement>(null);
   const sim = useRef<SimState | null>(null);
-  /** The pointer, where the browser says it is; null while it is off the page. */
-  const pointer = useRef<{ x: number; y: number } | null>(null);
   /** What the loop reads: the newest settings, plan and sea size, without the loop restarting for every knob. */
   const now = useRef({ settings, plan, world, small, coral });
   useEffect(() => {
@@ -126,22 +125,8 @@ function Sea({ settings, giant, hidden, still }: { settings: AquariumSettings; g
 
   // The pointer is only watched while a knob that uses it is on.
   const watchesPointer = !still && (settings.pointer !== 'ignore' || settings.wake);
-  useEffect(() => {
-    if (!watchesPointer) return;
-    const move = (event: PointerEvent) => {
-      pointer.current = { x: event.clientX, y: event.clientY };
-    };
-    const leave = () => {
-      pointer.current = null;
-    };
-    window.addEventListener('pointermove', move, { passive: true });
-    document.documentElement.addEventListener('pointerleave', leave);
-    return () => {
-      window.removeEventListener('pointermove', move);
-      document.documentElement.removeEventListener('pointerleave', leave);
-      pointer.current = null;
-    };
-  }, [watchesPointer]);
+  // (The shared watcher also plays the GHOST POINTER while the real one rests: `pointerNow`, in the loop.)
+  useEffect(() => (watchesPointer ? watchPointer() : undefined), [watchesPointer]);
 
   /** A place on the screen as a place in the sea, which may be flipped, mirrored or shrunk into its tank. Null when outside it. */
   const toSea = (x: number, y: number, inside: boolean): { x: number; y: number } | null => {
@@ -181,6 +166,10 @@ function Sea({ settings, giant, hidden, still }: { settings: AquariumSettings; g
     let frame = 0;
     let last = performance.now();
     let owed = 0;
+    let ticks = 0;
+    let covered = false;
+    let stepped = 0;
+    let reported = last;
 
     const place = (el: HTMLDivElement | null | undefined, x: number, y: number, opacity: number) => {
       if (el === null || el === undefined) return;
@@ -267,12 +256,31 @@ function Sea({ settings, giant, hidden, still }: { settings: AquariumSettings; g
       const { settings: s, plan: fish, world: size } = now.current;
       if (size === null) return;
       // In the TINY TANK the fish only mind a pointer that is over the tank.
-      const at = pointer.current === null ? null : toSea(pointer.current.x, pointer.current.y, s.tiny);
+      // Nothing of the sea shows while the site window fills the screen: it rests until there is something to see.
+      ticks += 1;
+      if (ticks % 15 === 1) covered = backgroundCovered();
+      if (covered) return;
+      const real = s.pointer !== 'ignore' || s.wake ? pointerNow() : null;
+      const at = real === null ? null : toSea(real.x, real.y, s.tiny);
       for (let n = 0; n < steps; n += 1) stepSim(state, fish, s, { w: size.w, h: size.h, pointer: at }, TICK * s.time, Math.random);
       draw();
+      // What the sea says about itself, for the window's live strips: twice a second.
+      stepped += steps;
+      if (time - reported >= 500) {
+        const inView = state.fish.filter((body, n) => body.wait <= 0 && fish[n] !== undefined && body.x > 0 && body.x < size.w).length;
+        setBackdropMeters([
+          { id: 'fish', label: 'FISH IN VIEW', value: inView, most: Math.max(1, fish.length) },
+          { id: 'steps', label: 'STEPS A SECOND', value: (stepped * 1000) / (time - reported), most: 15 },
+        ]);
+        stepped = 0;
+        reported = time;
+      }
     };
     frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+      setBackdropMeters([]);
+    };
     // (The loop reads everything else through `now`.)
   }, [hidden, still]);
 
@@ -389,7 +397,8 @@ function Sea({ settings, giant, hidden, still }: { settings: AquariumSettings; g
 export default function Aquarium() {
   // Nothing on the server or while hydrating: the server cannot know what this browser chose.
   const chosen = useSyncExternalStore<BackdropState | null>(subscribeToBackdrop, backdropState, () => null);
-  const settings = useSyncExternalStore(subscribeToAquariumSettings, aquariumSettings, serverAquariumSettings);
+  // The settings this instant: a swaying or bouncing knob moves them several times a second.
+  const settings = useSyncExternalStore(subscribeToLiveAquariumSettings, liveAquariumSettings, serverAquariumSettings);
   const giant = useSyncExternalStore(subscribeToAquariumGiant, aquariumGiant, serverAquariumGiant);
   const still = useSyncExternalStore(subscribeToReducedMotion, reducedMotion, () => false);
   const [hidden, setHidden] = useState(false);
@@ -401,7 +410,10 @@ export default function Aquarium() {
     return () => document.removeEventListener('visibilitychange', follow);
   }, []);
 
-  if (chosen?.id !== 'aquarium') return null;
+  const on = chosen?.id === 'aquarium';
+  useEffect(() => (on ? watchLiveValues('aquarium') : undefined), [on]);
+
+  if (!on) return null;
 
   return <Sea settings={settings} giant={giant} hidden={hidden} still={still} />;
 }
