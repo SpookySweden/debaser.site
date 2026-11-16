@@ -46,7 +46,7 @@ async function clearWindows(page) {
 }
 
 async function unfold(page) {
-  const up = page.locator('[data-room-float] button[aria-label="Back to the room"]');
+  const up = page.locator('[data-room-shelf-key] button');
   if ((await up.count()) > 0 && (await up.first().isVisible().catch(() => false))) await up.first().click();
 }
 
@@ -113,7 +113,7 @@ async function main() {
     if ((await startKey.count()) > 0) await startKey.click();
     started = true;
     // The chat is what says the room has opened: an empty room draws no picture until something is queued.
-    await a.page.waitForSelector('[data-room-picture], [data-watch-tv-box], [placeholder="Say something..."]', { state: 'attached', timeout: 45000 });
+    await a.page.waitForSelector('[data-room-picture], [data-room-shelf-key], [placeholder="Say something..."]', { state: 'attached', timeout: 45000 });
     await unfold(a.page);
     await chatOf(a.page).waitFor({ timeout: 30000 });
     await sleep(1500);
@@ -126,11 +126,11 @@ async function main() {
     await b.page.mouse.move(700, 300);
     // Somebody who is not a member yet gets the room's door (`RoomDoor.tsx`): pressing JOIN is what lets them in. The
     // first run of this check (2026-11-15) waited for the room itself here and stopped: it had never pressed JOIN.
-    await b.page.waitForSelector('[data-room-door-join], [data-room-picture], [data-watch-tv-box], [placeholder="Say something..."]', { state: 'attached', timeout: 45000 });
+    await b.page.waitForSelector('[data-room-door-join], [data-room-picture], [data-room-shelf-key], [placeholder="Say something..."]', { state: 'attached', timeout: 45000 });
     await clearWindows(b.page);
     const join = b.page.locator('[data-room-door-join]');
     if ((await join.count()) > 0) await join.first().click();
-    await b.page.waitForSelector('[data-room-picture], [data-watch-tv-box], [placeholder="Say something..."]', { state: 'attached', timeout: 45000 });
+    await b.page.waitForSelector('[data-room-picture], [data-room-shelf-key], [placeholder="Say something..."]', { state: 'attached', timeout: 45000 });
     await unfold(b.page);
     await chatOf(b.page).waitFor({ timeout: 30000 });
     const bOnA = `[data-companion="room"][data-companion-of="${b.account.userId}"]`;

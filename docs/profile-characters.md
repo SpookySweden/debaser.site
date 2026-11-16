@@ -43,6 +43,11 @@ Read this before touching the motions, the bake or the profile walker. The spec 
   version: the `profile_characters` table plus the `profile-characters` picture folder
   (`20261113022903_profile_characters.sql`).
 
+## Taken out of the ROOM (Luke, 2026-11-16)
+- Anybody looking at a profile can press-and-drag a character out of its ROOM (`RoomWalker`'s `takeOut`): it leaves for a
+  layer over the page (`LooseCharacter.tsx`), is carried and thrown with the companion's own rules, and walks and climbs
+  back in by itself (`app/lib/companion/loose.ts`). `docs/companion.md` has the details.
+
 ## Talking (SPEC-character-speech.md, Luke 2026-11-14)
 - **In a profile's ROOM** (`ProfileRoom.tsx`) up to three of the newest commenters' shown characters come to visit, and
   every so often one character stops, faces the reader and says something in a bubble over its head
@@ -58,7 +63,7 @@ Read this before touching the motions, the bake or the profile walker. The spec 
 - **Reduced motion:** nothing speaks by itself. A press on a character shows its next line whole; a second press puts it away.
 - Checked by `Temp/check-character-speech.cjs` (the rules) and `scripts/drive-character-speech.cjs` (a real browser on
   a local dev server with mock data: it seeds its own accounts, comments and characters and touches no database).
-- **The voice:** the ROOM's title bar carries `[ ♪ OFF ]` (`SpeechAudioKey.tsx`) while anybody has something to say.
+- **The voice:** the ROOM's title bar carries `[ ♪ ]` (`SpeechAudioKey.tsx`; a symbol only, Luke 2026-11-16: the note struck through while off, the key filled while on) while anybody has something to say.
   Switched on (remembered in that browser, one choice for the whole site), each letter of a bubble makes one short blip
   made in the browser (`app/lib/speech/blip.ts`): no recordings. A character's voice is worked out, never chosen
   (`app/lib/speech/voice.ts`): taller is deeper, and the account gives it a quirk. No sound machinery exists before a

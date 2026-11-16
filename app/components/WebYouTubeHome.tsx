@@ -40,7 +40,6 @@ export default function WebYouTubeHome({
   const linked = youtube.items.length > 0 && !youtube.needsLink;
   return (
     <section aria-label="Your YouTube" className="flex flex-col gap-2" data-youtube-home>
-      <p className="text-key text-ink">VIDEOS FROM THE CHANNELS YOU STILL WATCH, SUBSCRIBED OR NOT, WITH A FEW NEW ONES. READ ONLY: NOTHING IS EVER POSTED TO YOUTUBE.</p>
       {!signedIn ? (
         <p className="text-key text-ink">
           <Link href="/account" className={PLATE}>

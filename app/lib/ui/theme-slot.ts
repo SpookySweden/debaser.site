@@ -12,7 +12,11 @@
 import { createWindowSlot } from './window-slot';
 import { FALLBACK_THEME, THEMES, THEME_TOKEN_NAMES, themeById, type Theme, type ThemeId } from './themes';
 
-const STORAGE_KEY = 'debaser.site.theme.v1';
+/**
+ * `.v2` (2026-11-16, Luke: "new defaults ... NIGROSINE theme ... reset everyone, including people who chose something else"):
+ * the old `.v1` choice is left behind on purpose, so every browser lands on NIGROSINE (`dark`, `FALLBACK_THEME`) once and can then choose again.
+ */
+const STORAGE_KEY = 'debaser.site.theme.v2';
 
 /** The stored key, exported so the browser tooling can seed a theme without guessing at a string. */
 export const THEME_STORAGE_KEY = STORAGE_KEY;

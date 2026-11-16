@@ -3,6 +3,7 @@
 import { artSlot } from '../lib/ui/art/slots';
 import { PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED } from '../lib/ui/controls';
 import { chooseScreen, useScreenView } from '../lib/watch/canvas-view';
+import { setVisualiserOn } from '../lib/watch/visualiser';
 import ArtMark from './ArtMark';
 
 /** The toggle's hand-drawn mark (`mark-canvas` in app/lib/ui/art/slots.ts), shown at 16px. */
@@ -32,7 +33,11 @@ export default function CanvasToggle({ roomId, audio, className }: CanvasToggleP
       aria-pressed={onCanvas}
       aria-label={onCanvas ? 'Show the picture' : 'Show the canvas'}
       title={onCanvas ? 'Picture' : 'Canvas'}
-      onClick={() => chooseScreen(roomId, onCanvas ? 'picture' : 'canvas', audio)}
+      onClick={() => {
+        // The visualiser lies over the canvas, so choosing the canvas puts it away: one press opens the canvas (Luke, 2026-11-16).
+        if (!onCanvas) setVisualiserOn(roomId, false);
+        chooseScreen(roomId, onCanvas ? 'picture' : 'canvas', audio);
+      }}
       data-canvas-toggle={view}
     >
       <ArtMark src={CANVAS_MARK_SRC} size={MARK_SIZE} fallback={<span>{onCanvas ? '[ PICTURE ]' : '[ CANVAS ]'}</span>} />

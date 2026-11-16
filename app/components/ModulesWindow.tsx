@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
 import { inkOnNameColour } from '../lib/profile/name-colours';
 import { KEY_FOCUS } from '../lib/ui/controls';
-import { MODULES, moduleIsOn, moduleSwatches, withColour, withTick, type ModuleDef } from '../lib/ui/modules';
+import { MODULES, moduleColour, moduleIsOn, moduleSwatches, withColour, withTick, type ModuleDef } from '../lib/ui/modules';
 import {
   closeModulesWindow,
   modulesSaveFailed,
@@ -44,7 +44,9 @@ export function moduleBarColour(themeId: string): string {
 function ModuleRow({ module, bar }: { module: ModuleDef; bar: string }) {
   const choices = useSyncExternalStore(subscribeToModules, modulesState, serverModules);
   const on = moduleIsOn(module, choices);
-  const picked = choices.colours[module.key];
+  // What its word turns on hover: the one picked, else the module's own default (FORUM, MEDIA and STREAM have one).
+  const picked = moduleColour(module, choices);
+  const chosen = choices.colours[module.key];
   const swatches = moduleSwatches(bar, picked);
   const pickedLabel = swatches.find((swatch) => swatch.id === picked)?.label ?? 'SITE';
 
@@ -79,8 +81,8 @@ function ModuleRow({ module, bar }: { module: ModuleDef; bar: string }) {
             {picked === swatch.id ? <span aria-hidden="true">✓</span> : null}
           </button>
         ))}
-        <button type="button" aria-pressed={picked === undefined} onClick={() => setModuleChoices(withColour(choices, module.key, null))} className={SMALL_KEY}>
-          [ SITE ]
+        <button type="button" aria-pressed={chosen === undefined} onClick={() => setModuleChoices(withColour(choices, module.key, null))} className={SMALL_KEY}>
+          {module.defaultColour === undefined ? '[ SITE ]' : '[ DEFAULT ]'}
         </button>
       </div>
     </li>

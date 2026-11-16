@@ -37,7 +37,7 @@ export type ProfileVisibility = {
   /**
    * Your listening (SPEC-vanity.md): on, your plays count towards public play counts and your face can
    * show beside songs in other people's picks; off, you are left out of both. Stored inverted, as
-   * `profiles.hide_listening`. Off for a new account, like every switch here (SPEC-privacy-phase-1.md).
+   * `profiles.hide_listening`. On for a new account since 2026-11-16 (SPEC-privacy-decisions.md); it was off, like every switch here (SPEC-privacy-phase-1.md).
    */
   showListening: boolean;
   /** Your lamp, your last-seen time and your `[ TV ]` key, to other accounts. */

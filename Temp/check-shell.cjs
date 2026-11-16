@@ -256,8 +256,11 @@ assert.ok(nav.indexOf('aria-label="Back"') > -1 && nav.indexOf('aria-label="Forw
 // pill. It is marked `module-on` (its word in its own colour over a highlighter stroke, globals.css). It was one `key-fill` link.
 assert.equal((nav.match(/<a\b[^>]*(?<=[" ])key-fill(?=[" ])[^>]*>/g) ?? []).length, 0, 'no page key is a filled block');
 assert.equal((nav.match(/<a\b[^>]*(?<=[" ])module-on(?=[" ])[^>]*>/g) ?? []).length, 1, "the open page's key is the one marked");
-assert.equal((nav.match(/<button\b[^>]*(?<=[" ])key-fill(?=[" ])[^>]*>/g) ?? []).length, 1, 'and the only other solid key is MODULOS');
-assert.match(nav, /<button\b[^>]*modulos-key[^>]*>MODULOS</, 'wearing its own face, not the pressed one');
+// Changed on purpose 2026-11-16 (Luke: MODULOS is "a word like the others", no solid block): no key on the band is filled, MODULOS included,
+// and it wears the same hover class as the words.
+assert.equal((nav.match(/<button\b[^>]*(?<=[" ])key-fill(?=[" ])[^>]*>/g) ?? []).length, 0, 'no solid key at all: MODULOS is a word like the others');
+assert.match(nav, /<button\b[^>]*module-key[^>]*>MODULOS</, "MODULOS wears the words' hover class");
+assert.doesNotMatch(nav, /modulos-key/, "and the solid block's class is gone");
 assert.match(nav, /<a[^>]*class="[^"]*module-on[^"]*"[^>]*aria-current="page"|<a[^>]*aria-current="page"[^>]*class="[^"]*module-on/, 'and it is the open page`s key that is marked');
 assert.equal((nav.match(/aria-current="page"/g) ?? []).length, 1, 'and says so to a screen reader');
 /**

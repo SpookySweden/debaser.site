@@ -143,5 +143,8 @@ appears inside of the bar/backround in the top left corner of it similar to the 
   were trimmed for a while). The review of the first build found that a title card or a subject on black was taken for
   bars: the hard-edge rule above is the answer, and both are in the check. `scripts/drive-rooms-your-room.cjs` makes a letterboxed clip
   and stand-in YouTube stills and holds the trimmed picture's place, `[ BKG ]` and the keys (23 steps). The drive found two faults: the surround could be scrolled to a hung bar (`overflow: clip` now), and the bar of
-  keys sat in the picture's row. Not proved: real YouTube stills of a real letterboxed video, Vimeo, the site's real
+  keys sat in the picture's row. (Part 2 changed 2026-11-16, Luke's second list: `[ _ ]` folds a room to its key on the corner
+  shelf above the player and floats nothing; `[ PIP ]` is the only way the picture floats; the floating picture has no BACK,
+  FULL or GO LIVE, and the shelf key is the way back. A window kept above the bar is lifted whole, never shortened, unless it
+  is taller than all the room above the bar. Proof: `scripts/drive-roomfix.cjs`.) Not proved: real YouTube stills of a real letterboxed video, Vimeo, the site's real
   storage answering the way a read needs, phones.

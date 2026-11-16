@@ -27,10 +27,14 @@ export const BACKDROPS: readonly Backdrop[] = [
   { id: 'tile', label: 'TILE', note: "THE DOTTED DESKTOP, IN THE THEME'S OWN COLOURS" },
 ];
 
-/** What a browser with no choice stored gets. */
-export const DEFAULT_BACKDROP: BackdropId = 'aquarium';
+/**
+ * What a browser with no choice stored gets. FLUID since 2026-11-16 (Luke: "new defaults ... FLUID background"; the sea was
+ * the default from 2026-11-15 to then), and "reset everyone" is the key below going from `.v1` to `.v2`.
+ */
+export const DEFAULT_BACKDROP: BackdropId = 'fluid';
 
-const STORAGE_KEY = 'debaser.site.backdrop.v1';
+/** `.v2`: everyone's old `.v1` choice is left behind on purpose, so each browser lands on the new default once and can choose again. */
+const STORAGE_KEY = 'debaser.site.backdrop.v2';
 
 export type BackdropState = { id: BackdropId };
 

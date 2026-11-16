@@ -40,7 +40,13 @@ const SUPABASE_STORE: ModulesStore = {
 
 const store = (): ModulesStore => (USING_MOCK_AUTH ? MOCK_STORE : SUPABASE_STORE);
 
-const STORAGE_KEY = 'debaser-modules';
+/**
+ * `-v2` (2026-11-16, Luke: "reset everyone, including people who chose something else"): the old `debaser-modules` copy is left behind on purpose,
+ * so every browser lands on the new starting bar (FORUM, MEDIA, STREAM and the three default hover colours, `modules.ts`) once. An account's saved
+ * choices (`user_modules`) replace the browser's on sign-in, so those are reset by a database update that waits for Luke's typed OK
+ * (`defaults-reset-draft.sql` in the notes folder).
+ */
+const STORAGE_KEY = 'debaser-modules-v2';
 
 function readBrowser(): ModuleChoices {
   if (typeof window === 'undefined') return NO_CHOICES;

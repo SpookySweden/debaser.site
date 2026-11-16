@@ -85,6 +85,12 @@ each live on its own ("Yes, all three"), and the quiet re-bake ("Yes, quietly").
   `splat`, `dizzy`); nothing drawn. Nothing is thrown under reduced motion. A room sees only where it ended up.
   Desktop first: touch is not tuned. How it is built: `docs/companion.md`, "Thrown".
 
+- **Luke's second list (2026-11-16):** the voice key a symbol only; "anyone can grab one out of its window; let go, it
+  walks and climbs back in by itself" (a profile ROOM's characters); companions climb in rather than float in; better
+  framerate and tracking when picked up, dragged and thrown, with smears ("be leniant with the rules where necessary for
+  the sake of creativity and fun": code may stretch, shear and ghost the baked frames). How it is built:
+  `docs/companion.md`.
+
 ## Database changes (need Luke's typed OK)
 - The COMPANION switch and choice follow the account: one small row of settings. It could share a table with the review's
   "settings follow you" idea if that's built first.

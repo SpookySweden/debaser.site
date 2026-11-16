@@ -1379,7 +1379,9 @@ test('FloatingPlayer: nothing until PLAY; then one player, its keys only while f
     floating.noteFloating(true);
     html = draw(el(FloatingPlayer));
     assert.match(html, /data-floating-player="floating"/);
-    for (const key of ['[ BACK ]', '[ POP OUT ]', '[ × ]']) assert.ok(visible(html).includes(key), key);
+    for (const key of ['[ POP OUT ]', '[ × ]']) assert.ok(visible(html).includes(key), key);
+    // Updated on purpose 2026-11-16 (Luke's ROOMFIX list, item 8): BACK, FULL and GO LIVE came off the floating picture.
+    for (const gone of ['[ BACK ]', '[ FULL ]', '[ GO LIVE ]', '[ WATCH IN ROOM ]']) assert.ok(!visible(html).includes(gone), `no ${gone}`);
     assert.ok(html.includes('z-float'));
     press('Close "One"');
     assert.equal(floating.floatingState().entry, null);
@@ -1387,8 +1389,7 @@ test('FloatingPlayer: nothing until PLAY; then one player, its keys only while f
     floating.noteFloating(true);
     html = draw(el(FloatingPlayer));
     assert.ok(!visible(html).includes('[ POP OUT ]'), 'an outside player cannot be lifted out');
-    press('Back to where "Two" came from');
-    assert.deepEqual(said('push').at(-1), ['push', floating.floatingState().entry.home], 'BACK goes to the address it came from');
+    assert.ok(!visible(html).includes('[ BACK ]'), 'and has no BACK either (ROOMFIX item 8): its way back is its page, or a room\'s key above the player');
     floating.closeFloating();
   });
 });
