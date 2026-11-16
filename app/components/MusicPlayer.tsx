@@ -725,7 +725,8 @@ function DockedBar({ roomId, onHide, onSettings }: BarControls) {
           <TransportPad
             playing={obeys ? !videoPaused : playing}
             loop={obeys ? false : loop}
-            disabled={loading || player.queue.length === 0}
+            // Hosting a room, back, loop and next are the room's (ROOMSYNC), so an empty shelf does not grey them out.
+            disabled={loading || (player.queue.length === 0 && player.room?.hosting !== true)}
             onPrevious={player.previous}
             onCycle={obeys ? pressVideo : cycleState}
             onNext={player.next}

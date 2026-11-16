@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from 'react';
+import { createPortal } from 'react-dom';
 import { DANCES, type MotionId } from '../lib/character/motion';
 import { useShownCharacter } from '../lib/character/use-shown-character';
 import { fallStep, spanFor, startBrain, think, throwOf, type BrainScene, type BrainState, type Fall, type Span } from '../lib/companion/brain';
@@ -11,7 +12,10 @@ import {
   setCompanionAccount,
   subscribeToCompanionChoices,
 } from '../lib/companion/companion-slot';
-import { onCompanionCatch, onCompanionPoke, onCompanionSpoke } from '../lib/companion/events';
+import { onCompanionCatch, onCompanionHolds, onCompanionPoke, onCompanionSpoke, type HeldPicture } from '../lib/companion/events';
+import { addedHere, outsideAnswer, outsidePicturesServerState, outsidePicturesState, subscribeToOutsidePictures } from '../lib/watch/outside-pictures';
+import { dimensionsRefusal, loadPicture, outsideAddressRefusal, pictureHost } from '../lib/watch/pictures';
+import { watchWindowState } from '../lib/watch/watch-window';
 import { measureWindows, type Floor, type FloorBox } from '../lib/companion/floor';
 import { shoveStep, shoveThrow } from '../lib/companion/shove';
 import { holdLedgeHeight } from '../lib/companion/ledge';
@@ -325,6 +329,150 @@ function CompanionSpeech({ ownerId, name, look }: { ownerId: string; name: strin
   );
 }
 
+/** How long a companion holds up a picture its owner sent. */
+const HELD_MS = 8000;
+/**
+ * The held picture's frame, on the top layer: a companion in a room stands on the room window's top edge, with only a sliver
+ * of screen above it, and its own layer is under every window, so the picture is drawn over them, following its companion.
+ */
+const HELD_FRAME = 'pointer-events-none fixed left-0 top-0 z-popout border border-ink bg-paper p-0.5';
+const HELD_PICTURE = 'block max-h-24 max-w-32 object-contain';
+/** Kept this far inside the screen's edges. */
+const HELD_MARGIN = 4;
+
+/**
+ * A picture its owner just sent in a stream room's chat, held up over its head for a few seconds instead of the address
+ * being said in a bubble (ROOMSYNC, Luke 2026-11-16: "when a user sends a gif or image, have the companion raise it rather
+ * than sending the text of the url"). The words come with `companionHolds`, from the chat line this browser already has.
+ *
+ * A GIPHY, Commons or site picture is drawn at once, hotlinked with no referrer. An outside picture follows this viewer's
+ * OUTSIDE PICTURES choice, as it does in the chat and the queue (`outside-pictures.ts`): ASK holds up only a card naming
+ * its host (nothing is loaded; the chat line has SHOW), NEVER holds up nothing, and one this viewer may see is loaded once
+ * here, measured, and the very element that was measured is the one held up. Nothing is stored or sent. Hidden from a
+ * screen reader: the chat is where the line is read. It only goes where its companion goes, so reduced motion changes
+ * nothing here.
+ */
+function CompanionHeldPicture({ ownerId, figure, head }: { ownerId: string; figure: RefObject<HTMLDivElement | null>; /** Its head's height from the box's foot, when known. */ head: number | undefined }) {
+  const viewerId = useAuth().user?.id ?? null;
+  const choice = useSyncExternalStore(subscribeToOutsidePictures, outsidePicturesState, outsidePicturesServerState);
+  const [held, setHeld] = useState<{ turn: number; picture: HeldPicture; roomId: string | null } | null>(null);
+  const turns = useRef(0);
+  useEffect(
+    () =>
+      onCompanionHolds((who, picture) => {
+        if (who !== ownerId) return;
+        turns.current += 1;
+        const shown = watchWindowState();
+        setHeld({ turn: turns.current, picture, roomId: shown.focus?.kind === 'room' ? shown.focus.roomId : null });
+      }),
+    [ownerId],
+  );
+  // A line of words from the same person takes the picture's place.
+  useEffect(
+    () =>
+      onCompanionSpoke((who, words) => {
+        if (who === ownerId && words !== undefined && words.trim().length > 0) setHeld(null);
+      }),
+    [ownerId],
+  );
+  useEffect(() => {
+    if (held === null) return;
+    const timer = setTimeout(() => setHeld(null), HELD_MS);
+    return () => clearTimeout(timer);
+  }, [held]);
+
+  if (held === null) return null;
+  const { url, outside } = held.picture;
+  if (!outside) {
+    return (
+      <HeldBox figure={figure} head={head} ownerId={ownerId} state="shown">
+        {/* eslint-disable-next-line @next/next/no-img-element -- hotlinked from where it lives, never through the site's server */}
+        <img key={held.turn} src={url} alt="" referrerPolicy="no-referrer" decoding="async" onError={() => setHeld(null)} className={HELD_PICTURE} />
+      </HeldBox>
+    );
+  }
+  if (outsideAddressRefusal(url) !== null) return null;
+  const answer = outsideAnswer(choice, { mine: ownerId === viewerId || addedHere(choice, url), roomId: held.roomId, guest: viewerId === null });
+  if (answer === 'never') return null;
+  if (answer === 'ask') {
+    return (
+      <HeldBox figure={figure} head={head} ownerId={ownerId} state="covered">
+        <span className="block whitespace-nowrap px-1 font-mono text-label text-ink">{`PICTURE · ${pictureHost(url).toUpperCase()}`}</span>
+      </HeldBox>
+    );
+  }
+  return <HeldOutsidePicture key={held.turn} url={url} figure={figure} head={head} ownerId={ownerId} />;
+}
+
+/** An outside picture this viewer may see, loaded once, measured, and held up as that same element (never fetched twice). */
+function HeldOutsidePicture({ url, figure, head, ownerId }: { url: string; figure: RefObject<HTMLDivElement | null>; head: number | undefined; ownerId: string }) {
+  const [image, setImage] = useState<HTMLImageElement | null>(null);
+  useEffect(() => {
+    let current = true;
+    void loadPicture(url).then((drawn) => {
+      if (!current || drawn === null || dimensionsRefusal(drawn.width, drawn.height) !== null) return;
+      drawn.image.alt = '';
+      drawn.image.className = HELD_PICTURE;
+      setImage(drawn.image);
+    });
+    return () => {
+      current = false;
+    };
+  }, [url]);
+  const mount = useCallback(
+    (box: HTMLSpanElement | null) => {
+      if (box !== null && image !== null) box.replaceChildren(image);
+    },
+    [image],
+  );
+  if (image === null) return null;
+  return (
+    <HeldBox figure={figure} head={head} ownerId={ownerId} state="outside">
+      <span ref={mount} className="block" />
+    </HeldBox>
+  );
+}
+
+/**
+ * The frame a held picture is in: on the top layer, kept over its companion's head (inside the screen). It follows on the
+ * companion's own ten-a-second clock, the steps its companion walks in.
+ */
+function HeldBox({ figure, head, ownerId, state, children }: { figure: RefObject<HTMLDivElement | null>; head: number | undefined; ownerId: string; state: string; children: ReactNode }) {
+  const box = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const follow = () => {
+      const held = box.current;
+      const body = figure.current;
+      if (held !== null && body !== null) {
+        const at = body.getBoundingClientRect();
+        held.style.visibility = at.width > 0 && getComputedStyle(body).visibility !== 'hidden' ? 'visible' : 'hidden';
+        const headTop = at.bottom - (head ?? at.height);
+        const w = held.offsetWidth;
+        const h = held.offsetHeight;
+        const keepIn = (x: number) => Math.min(window.innerWidth - w - HELD_MARGIN, Math.max(HELD_MARGIN, x));
+        let x = keepIn(at.left + at.width / 2 - w / 2);
+        let y = headTop - h - HELD_MARGIN;
+        // No room over its head (a room window's top edge is near the top of the screen): held out at its side instead,
+        // on whichever side has the room, so it never covers its own companion.
+        if (y < HELD_MARGIN) {
+          y = HELD_MARGIN;
+          x = at.right + HELD_MARGIN + w <= window.innerWidth - HELD_MARGIN ? at.right + HELD_MARGIN : keepIn(at.left - HELD_MARGIN - w);
+        }
+        held.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+      }
+    };
+    follow();
+    const steps = setInterval(follow, TICK_MS);
+    return () => clearInterval(steps);
+  }, [figure, head]);
+  return createPortal(
+    <span ref={box} aria-hidden="true" className={`${HELD_FRAME} invisible`} data-companion-held={state} data-companion-held-of={ownerId}>
+      {children}
+    </span>,
+    document.body,
+  );
+}
+
 /** One figure on the strip: the character (or the placeholder field), its name on hover, and the `!` over its head. */
 function Figure({ placeRef, bodyRef, markRef, label, own, ownerId, look }: FigureProps) {
   const size = sizeOf(look);
@@ -359,6 +507,8 @@ function Figure({ placeRef, bodyRef, markRef, label, own, ownerId, look }: Figur
       <NoteTrail watch={placeRef} sleepAt={look === null ? size.h : Math.round((size.h - look.sheet.head * SCALE) * 0.6)} />
       {/* What its owner has just said in a stream room's chat, when the chat hands the words over. */}
       {ownerId === null ? null : <CompanionSpeech ownerId={ownerId} name={label} look={look} />}
+      {/* A picture its owner has just sent in a stream room's chat, held up over its head (ROOMSYNC). */}
+      {ownerId === null ? null : <CompanionHeldPicture ownerId={ownerId} figure={placeRef} head={look === null ? undefined : look.sheet.head * SCALE} />}
       {/* The `!`: text, not art (SPEC-companion.md, decision 3). */}
       <span
         ref={markRef}
@@ -1275,6 +1425,11 @@ function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, loo
     const offCatch = onCompanionCatch((who) => {
       if (who === company.current.userId && phase === 'strip') react('catch');
     });
+    // A picture you sent in a room's chat: it raises it, arms up (ROOMSYNC). Played here only: every browser in the room
+    // has the line, and raises your companion's arms for itself.
+    const offHold = onCompanionHolds((who) => {
+      if (who === company.current.userId && phase === 'strip' && !still) act = { motion: 'cheer', tick: 0 };
+    });
     window.addEventListener('pointermove', onMove, { passive: true });
     window.addEventListener('pointerdown', active, { passive: true });
     window.addEventListener('keydown', onKey, { passive: true });
@@ -1292,6 +1447,7 @@ function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, loo
       offPoke();
       offSpoke();
       offCatch();
+      offHold();
       window.removeEventListener('pointerdown', onPutDown);
       // Gone while it was in the hand (the motion setting changed): nothing of the carry is left on the figure.
       if (place !== null) {
@@ -1461,12 +1617,17 @@ function RoomFigure({ companion, still }: { companion: RoomCompanion; still: boo
     const offCatch = onCompanionCatch((who) => {
       if (who === owner.current && !still) act = { motion: 'catch', tick: 0 };
     });
+    // A picture its owner sent in the room's chat: it raises it, arms up (ROOMSYNC).
+    const offHold = onCompanionHolds((who) => {
+      if (who === owner.current && !still) act = { motion: 'cheer', tick: 0 };
+    });
     tick();
     const timer = setInterval(tick, TICK_MS);
     return () => {
       clearInterval(timer);
       offSpoke();
       offCatch();
+      offHold();
       if (markTimer !== null) clearTimeout(markTimer);
     };
   }, [still]);

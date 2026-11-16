@@ -104,6 +104,13 @@ export type MusicPlayerValue = {
   playAt: (index: number) => void;
   setVolume: (value: number) => void;
   setLoop: (value: boolean) => void;
+  /**
+   * The loop of the room you host (ROOMSYNC, Luke 2026-11-16: "the loop button to loop it"): what is on in the room
+   * starts again from the top when it ends, instead of the room moving on. While you host a room the bar's own loop key
+   * (`loop` / `setLoop`) is this switch; it starts off in every room, is this tab's alone, and is never saved.
+   */
+  roomLoop: boolean;
+  setRoomLoop: (value: boolean) => void;
   /** Whether a profile's track starts on its own (the options pop-up's switch). */
   playByDefault: boolean;
   setPlayByDefault: (value: boolean) => void;
@@ -196,6 +203,8 @@ export type RoomBinding = {
   hosting: boolean;
   /** The host's NEXT: the room moves on. */
   onNext: () => void;
+  /** The host's back arrow: what played before what is on now starts again (ROOMSYNC; the room's own rule). */
+  onPrevious: () => void;
   /** A follower took the controls: they leave the room. */
   onLeave: () => void;
   /** The host played songs from outside the queue (a post, a profile, PLAY FOR YOU): the first slots in as playing, the rest after it. */
@@ -411,6 +420,8 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
   /** The room bound now (`bindRoom`), as state for the render and as a ref for the handlers. */
   const [roomBinding, setRoomBinding] = useState<RoomBinding | null>(null);
   const roomRef = useRef<RoomBinding | null>(null);
+  /** The loop of the room you host (`roomLoop`): off whenever a different room, or none, is bound. */
+  const [roomLoop, setRoomLoop] = useState(false);
   /** Your own room (`bindOwnRoom`): its queue is up-next whenever you are not hosting a live room. */
   const [ownBinding, setOwnBinding] = useState<OwnRoomBinding | null>(null);
   const ownRef = useRef<OwnRoomBinding | null>(null);
@@ -932,6 +943,8 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
 
 
   const bindRoom = useCallback((binding: RoomBinding | null) => {
+    // A room's loop is that room's: another room, or none, starts with it off.
+    if ((binding?.roomId ?? null) !== (roomRef.current?.roomId ?? null)) setRoomLoop(false);
     roomRef.current = binding;
     setRoomBinding(binding);
   }, []);
@@ -1017,10 +1030,10 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
 
   const previous = useCallback(() => {
     setError(null);
-    // A room has no going back: the host's PREVIOUS starts the song again.
+    // The host's back arrow is the room's (ROOMSYNC, Luke 2026-11-16: "the back arrow on the bottom player to go back to
+    // it"): what played before what is on now starts again, or what is on starts from the top when nothing did.
     if (hostingRoom()) {
-      const audio = audioRef.current;
-      if (audio !== null) audio.currentTime = 0;
+      roomRef.current?.onPrevious();
       return;
     }
     pendingStart.current = null;
@@ -1170,6 +1183,11 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
    * switch governs, which is what its own key promises.
    */
   const setLoop = useCallback((value: boolean) => {
+    // Hosting a room, the bar's loop key loops what is on in the room (`roomLoop`), and the shelf's saved switch is left be.
+    if (roomRef.current?.hosting === true) {
+      setRoomLoop(value);
+      return;
+    }
     setOwnLoop(null);
     setLoopState(value);
   }, []);
@@ -1281,7 +1299,10 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       // switch, exactly as the `ended` handler reads them (see `repeatOnEnd`). The bar draws one symbol
       // for what the player is *doing*, so it is handed the answer rather than the switch that decided
       // it - a `↻` beside a file that is about to stop would be the bar lying about its own transport.
-      loop: ownLoop ?? loop,
+      // Hosting a room, the room's loop (`setLoop` is that switch then).
+      loop: roomBinding !== null && roomBinding.hosting ? roomLoop : (ownLoop ?? loop),
+      roomLoop,
+      setRoomLoop,
       toggle,
       stop,
       next,
@@ -1329,6 +1350,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       volume,
       loop,
       ownLoop,
+      roomLoop,
       toggle,
       stop,
       next,

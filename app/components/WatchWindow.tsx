@@ -16,9 +16,9 @@ import { guestReturnRoom } from '../lib/watch/guest-return';
 import { announceRoomClientChange, hasStoredGuest } from '../lib/watch/room-client';
 import { applyLocalChange, peekRoom, useWatchRoom } from '../lib/watch/use-watch-room';
 import {
-  closeWatch,
   collapseWatch,
   expandWatch,
+  leaveRoom,
   openWatch,
   subscribeToWatchWindow,
   watchWindowServerState,
@@ -85,11 +85,14 @@ export default function WatchWindow() {
     if (named !== null) openWatch(named);
   }, [asked]);
 
-  /** Closes the window and spends the address, so the same link opens it again later. */
+  /**
+   * Leaves the room on screen and spends the address, so the same link opens it again later. Leaving somebody else's room
+   * puts you back in your own, as you left it, when that is where you came from (ROOMSYNC; `leaveRoom`).
+   */
   const close = useCallback(() => {
-    closeWatch();
+    leaveRoom(ownRoomId);
     if (watchFocusFromSearch(asked.length === 0 ? '' : `?${asked}`) !== null) router.replace(pathname);
-  }, [asked, pathname, router]);
+  }, [asked, pathname, router, ownRoomId]);
 
   /**
    * Folds the room away to its key above the player (`[ _ ]`), or with its picture floating too (`pip`, `[ PIP ]`), and
