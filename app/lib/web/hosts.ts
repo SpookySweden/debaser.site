@@ -446,25 +446,6 @@ export const PLATFORM_HOSTS: Record<WebPlatform, PlatformAddresses> = {
     thumbHosts: ['4everland.io'],
     embedHosts: [],
   },
-  // The reading in MEDIA's default feed (SPEC-media-feed.md, brief/feeds.ts): a link out and, for a few feeds, a picture;
-  // never a player. Papers: arXiv's abstract page and Europe PMC's article page.
-  paper: {
-    hosts: [ARXIV_API_HOST, ARXIV_PAGE_HOST, EUROPE_PMC_API_HOST, EUROPE_PMC_PAGE_HOST],
-    linkHosts: [],
-    pagePath: new RegExp(`${ARXIV_PAGE_PATH.source}|${EUROPE_PMC_PAGE_PATH.source}`),
-    thumbPath: NEVER,
-    embedPath: NEVER,
-    pageHosts: [ARXIV_PAGE_HOST, EUROPE_PMC_PAGE_HOST],
-    thumbHosts: [],
-    embedHosts: [],
-  },
-  // News: the listed outlets' article pages (their query dropped), and Wikipedia's "In the news" articles.
-  news: readingAddresses('news', [WIKIPEDIA_HOST], WIKIPEDIA_PAGE_PATH),
-  // Long reads: the listed magazines, and Wikipedia's article of the day.
-  longread: readingAddresses('longread', [WIKIPEDIA_HOST], WIKIPEDIA_PAGE_PATH),
-  // Tech: Hackaday and Make:'s pages. Hacker News and Lobsters rows link to the story's own site (decision 2A), which
-  // `rowAddresses` allows only for their id prefixes and only through `openLink`.
-  tech: { ...readingAddresses('tech'), openPagePrefixes: OPEN_LINK_PREFIXES },
   // The media servers (SPEC-media-servers.md), one entry each from media-servers.ts. A title's row has no link
   // and no embed of its own here: its player is built per server by `mediaPlayUrl` (media-titles.ts), on that
   // server's host. Its picture is TMDB's poster on TMDB's image host, or a picture from the server's list on the
@@ -484,4 +465,31 @@ export const PLATFORM_HOSTS: Record<WebPlatform, PlatformAddresses> = {
       },
     ]),
   ) as Record<MediaServerId, PlatformAddresses>),
+};
+
+/**
+ * The reading in MEDIA's default feed (SPEC-media-feed.md): its allow-lists, apart from PLATFORM_HOSTS on purpose. The
+ * room and the floating player walk every PLATFORM_HOSTS entry to recognise a player or a picture (official-embed.ts,
+ * own-screen.ts, watch/pictures.ts), and a reading address is neither; with these entries in that list the production
+ * prerender of the layout broke (2026-11-16). Only `rowAddresses` reads them.
+ */
+export const READING_HOSTS: Readonly<Record<'paper' | 'news' | 'longread' | 'tech', PlatformAddresses>> = {
+  // Papers: arXiv's abstract page and Europe PMC's article page.
+  paper: {
+    hosts: [ARXIV_API_HOST, ARXIV_PAGE_HOST, EUROPE_PMC_API_HOST, EUROPE_PMC_PAGE_HOST],
+    linkHosts: [],
+    pagePath: new RegExp(`${ARXIV_PAGE_PATH.source}|${EUROPE_PMC_PAGE_PATH.source}`),
+    thumbPath: NEVER,
+    embedPath: NEVER,
+    pageHosts: [ARXIV_PAGE_HOST, EUROPE_PMC_PAGE_HOST],
+    thumbHosts: [],
+    embedHosts: [],
+  },
+  // News: the listed outlets' article pages (their query dropped), and Wikipedia's "In the news" articles.
+  news: readingAddresses('news', [WIKIPEDIA_HOST], WIKIPEDIA_PAGE_PATH),
+  // Long reads: the listed magazines, and Wikipedia's article of the day.
+  longread: readingAddresses('longread', [WIKIPEDIA_HOST], WIKIPEDIA_PAGE_PATH),
+  // Tech: Hackaday and Make:'s pages. Hacker News and Lobsters rows link to the story's own site (decision 2A), which
+  // `rowAddresses` allows only for their id prefixes and only through `openLink`.
+  tech: { ...readingAddresses('tech'), openPagePrefixes: OPEN_LINK_PREFIXES },
 };
