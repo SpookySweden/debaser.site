@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FIELD_TIGHT, PLATE, PLATE_MAIN, PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED, PLATE_PRESSED } from '../lib/ui/controls';
-import { takeGoLiveAsk } from '../lib/watch/main-room-play';
+import { subscribeToGoLiveAsk, takeGoLiveAsk } from '../lib/watch/main-room-play';
 import { ownRoomState } from '../lib/watch/own-room-client';
-import { getWatchRepository } from '../lib/watch/repository';
+import { getWatchRepository, repositoryFor } from '../lib/watch/repository';
+import Link from 'next/link';
 import { streamAnchor, streamThreadTitle } from '../lib/watch/rules';
 import type { RoomPrivacy, WatchMember, WatchRoom } from '../lib/watch/types';
 import { askToSaveCanvas } from '../lib/watch/use-room-canvas';
@@ -21,6 +22,15 @@ import PopoutWindow from './PopoutWindow';
 export default function MainRoomKeys({ room, hostName, heir, onLeft }: { room: WatchRoom; hostName: string; heir: WatchMember | null; onLeft: () => void }) {
   // GO LIVE pressed on the music bar or the CYTUBE page opens this room on WHO CAN JOIN (main-room-play.ts).
   const [asking, setAsking] = useState(() => takeGoLiveAsk(room.id));
+  // ...and while it is already drawn (the window was open, or folded, when GO LIVE or WATCH IN ROOM was pressed).
+  const roomId = room.id;
+  useEffect(
+    () =>
+      subscribeToGoLiveAsk(() => {
+        if (takeGoLiveAsk(roomId)) setAsking(true);
+      }),
+    [roomId],
+  );
   const [confirmEnd, setConfirmEnd] = useState(false);
   const [busy, setBusy] = useState(false);
   const [fault, setFault] = useState<string | null>(null);
@@ -49,7 +59,8 @@ export default function MainRoomKeys({ room, hostName, heir, onLeft }: { room: W
     try {
       // A changed canvas nobody saved asks "save this canvas?" first (SPEC-stream-art.md).
       await askToSaveCanvas(room.id, { ending: true });
-      await getWatchRepository().endRoom(room.id);
+      // A visitor's own room is ended where it lives, in this browser.
+      await repositoryFor(room.id).endRoom(room.id);
       letGo();
     } catch (failure) {
       setFault(failure instanceof Error ? failure.message : 'THE ROOM COULD NOT BE ENDED.');
@@ -104,8 +115,33 @@ export default function MainRoomKeys({ room, hostName, heir, onLeft }: { room: W
           {fault}
         </span>
       ) : null}
-      {asking ? <WhoCanJoin room={room} hostName={hostName} onClose={() => setAsking(false)} /> : null}
+      {asking ? (
+        ownRoomState().visitor && ownRoomState().roomId === room.id ? (
+          <LogInToGoLive onClose={() => setAsking(false)} />
+        ) : (
+          <WhoCanJoin room={room} hostName={hostName} onClose={() => setAsking(false)} />
+        )
+      ) : null}
     </>
+  );
+}
+
+/** A signed-out visitor's own room lives in this browser: it can't be put on the site's lists without an account. */
+function LogInToGoLive({ onClose }: { onClose: () => void }) {
+  return (
+    <PopoutWindow title="GO LIVE" onClose={onClose} maxWidth="max-w-md">
+      <div className="flex flex-col gap-2 p-2 text-label font-bold text-ink" data-main-room-log-in>
+        <p>YOUR ROOM IS KEPT IN THIS BROWSER. TO PUT IT ON THE LISTS, SHARE ITS LINK AND CHAT, LOG IN FIRST.</p>
+        <p className="flex flex-wrap gap-2">
+          <Link href="/account" className={PLATE_MAIN}>
+            [ LOG IN ]
+          </Link>
+          <button type="button" className={PLATE} onClick={onClose}>
+            [ CANCEL ]
+          </button>
+        </p>
+      </div>
+    </PopoutWindow>
   );
 }
 

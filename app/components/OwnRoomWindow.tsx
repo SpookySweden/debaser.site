@@ -38,6 +38,9 @@ const screenNow = () => floatingState().entry;
 const noClock = () => null;
 
 /**
+ * UNUSED since 2026-11-16 (list 3): every room, a signed-out visitor's own included, opens in the live room's window
+ * (`WatchWindow.tsx` `RoomWindow`). Kept, unreferenced, by Luke's SPEC-rooms-perpetual.md Q5 A.
+ *
  * Your own room's window (SPEC-rooms-queues.md, phase 2; Luke: "at any time you can click the pop up above the music
  * player to open the room window like usual and access all the usual stuff").
  *

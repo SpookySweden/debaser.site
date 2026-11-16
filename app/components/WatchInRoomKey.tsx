@@ -2,25 +2,26 @@
 
 import { useState, type ReactNode } from 'react';
 import { PLATE, PLATE_PRESSED } from '../lib/ui/controls';
-import type { RoomSource } from '../lib/ui/floating-player';
+import { placeOf, type RoomSource } from '../lib/ui/floating-player';
 import { useNow } from '../lib/ui/use-now';
 import type { RoomSeries } from '../lib/watch/go-live';
+import { goLiveInMainRoom, playInMainRoom } from '../lib/watch/main-room-play';
+import { ownRoomState } from '../lib/watch/own-room-client';
 import { getWatchRepository } from '../lib/watch/repository';
 import { nextQueuePosition, queueRights, roomIsLive } from '../lib/watch/rules';
 import { applyLocalChange, useWatchRoom } from '../lib/watch/use-watch-room';
 import { useWatching } from '../lib/watch/use-watching';
 import { openWatch } from '../lib/watch/watch-window';
 import { useAuth } from './AuthProvider';
-import { useForum } from './ForumProvider';
 import GoLiveKey from './GoLiveKey';
-import GoLiveWindow from './GoLiveWindow';
 
 /**
  * A video's way into a room (SPEC-floating-player.md, part 3): one key, which reads for the situation. It replaced `[ WATCH ]`
  * and `[ ▶ STREAM ]`.
  *
- * - Not in a room you can add to: `[ WATCH IN ROOM ]`. One press opens the menu (WHO CAN JOIN, with PRIVATE picked), and START
- *   there makes the room, so a stray press posts nothing.
+ * - Not in a room you can add to: `[ WATCH IN ROOM ]`. One press puts it on in your own always-on room, from where you had
+ *   got to, and opens that room on WHO CAN JOIN (PRIVATE picked), as `[ GO LIVE ]` does (SPEC-rooms-perpetual.md, list 3):
+ *   START there announces the room, CANCEL keeps it private, so a stray press posts nothing. No separate room is made.
  * - In one you can add to: `[ ADD TO ROOM ]`. One press puts it at the back: of the queue with a crown, or of your own list without.
  *
  * Accounts only. The caller draws it only for a video that can play in a room, so there is never a dead key.
@@ -29,7 +30,7 @@ import GoLiveWindow from './GoLiveWindow';
  * key as the bar's, which takes the video on the screen and your queue into the room it starts.
  */
 
-type AddState = { kind: 'idle' } | { kind: 'busy' } | { kind: 'added'; roomId: string; listed: boolean; note: string | null } | { kind: 'refused'; roomId: string; reason: string };
+type AddState = { kind: 'idle' } | { kind: 'busy' } | { kind: 'loading' } | { kind: 'added'; roomId: string; listed: boolean; note: string | null } | { kind: 'refused'; roomId: string; reason: string };
 
 /** How long the key says it worked, before it can add the video again. */
 const ADDED_MS = 5000;
@@ -80,12 +81,10 @@ export default function WatchInRoomKey(props: { source: RoomSource; series?: Roo
 
 export function useRoomKey({ source, series, playId, title, onPress }: { source: RoomSource | undefined; series?: RoomSeries; playId: string; title: string; onPress?: () => void }): RoomKey | null {
   const { user } = useAuth();
-  const forum = useForum();
   const watching = useWatching(user?.id ?? null);
   const roomId = watching?.roomId ?? null;
   const { read, error } = useWatchRoom(roomId, { follow: false });
   const now = useNow(5000);
-  const [asking, setAsking] = useState(false);
   const [state, setState] = useState<AddState>({ kind: 'idle' });
 
   if (user === null || source === undefined) return null;
@@ -94,6 +93,25 @@ export function useRoomKey({ source, series, playId, title, onPress }: { source:
   /** A room's answer isn't here yet: the key waits rather than offering to start a second room. */
   const waiting = roomId !== null && read === undefined && error === null;
   const adds = waiting || (roomId !== null && read !== undefined && read !== null && queueRights(read.room, read.crowns, user.id, roomIsLive(read.room, now)).add);
+
+  /**
+   * Into your own always-on room (SPEC-rooms-perpetual.md): this video on now, from where you had got to, and the room opened
+   * on WHO CAN JOIN. ALL (server-picks.ts) puts its first episode on and the rest at the end of your queue.
+   */
+  function watchInOwnRoom() {
+    const [first, ...rest] = series === undefined ? [] : series.links;
+    const on: RoomSource = first === undefined ? known : { link: first };
+    const went = playInMainRoom(on.link !== undefined ? { link: on.link } : { mediaItemId: on.mediaItemId }, title, placeOf(playId));
+    if (went === 'none') {
+      setState({ kind: 'loading' });
+      window.setTimeout(() => setState({ kind: 'idle' }), ADDED_MS);
+      return;
+    }
+    // Somebody else's room is open: its small ask decides (Q2 A); WHO CAN JOIN is for your own room only.
+    if (went !== 'room') return;
+    if (rest.length > 0) ownRoomState().session?.enqueueAll(rest);
+    goLiveInMainRoom();
+  }
 
   async function add() {
     if (user === null || roomId === null) return;
@@ -127,15 +145,20 @@ export function useRoomKey({ source, series, playId, title, onPress }: { source:
     return {
       mode: 'start',
       words: 'WATCH IN ROOM',
-      label: `Watch "${title}" in a room: opens the room's settings`,
+      label: `Watch "${title}" in your room: puts it on there and asks who can join`,
       press: () => {
         onPress?.();
-        setAsking(true);
+        watchInOwnRoom();
       },
       disabled: false,
-      open: asking,
+      open: false,
       data: 'start',
-      after: asking ? <GoLiveWindow user={user} createThread={forum.createThread} first={{ source, playId, title, ...(series === undefined ? {} : { series }) }} onClose={() => setAsking(false)} /> : null,
+      after:
+        state.kind === 'loading' ? (
+          <span role="status" className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">
+            YOUR ROOM IS STILL BEING READ. TRY AGAIN IN A MOMENT.
+          </span>
+        ) : null,
     };
   }
 

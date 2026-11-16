@@ -156,11 +156,16 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
       }
       setPhase('closed');
       const picks: RowPicks = { server: to, partIndex: at.partIndex, season: at.season, episode: at.episode, whole: at.whole, all: at.all };
+      // How it plays in a room: PLAY opens it in your own room, the server's page in the room's sandboxed frame, as a MEDIA
+      // video does (SPEC-rooms-perpetual.md, list 3). ALL plays its first episode there, as it does here.
+      const inRoom = roomAddFor(to, media, item.title, at);
+      const roomLink = inRoom === null ? null : inRoom.kind === 'one' ? inRoom.link : inRoom.links[0];
       playFloating({
         id: playId,
         title: item.title,
         shape: 'video',
         details: picks,
+        room: roomLink === null || roomLink === undefined ? undefined : { link: roomLink, webRef: item.id },
         player: {
           kind: 'frame',
           src: url,

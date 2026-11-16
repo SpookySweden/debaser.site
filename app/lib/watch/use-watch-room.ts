@@ -129,7 +129,8 @@ function apply(roomId: string, change: RoomChange, stampedHere = false): void {
 function follow(roomId: string): () => void {
   const entry = entryFor(roomId);
   entry.followers += 1;
-  if (entry.unsubscribe === null) entry.unsubscribe = getWatchRepository().subscribeRoom(roomId, (change) => apply(roomId, change));
+  // From the store that holds it: a signed-out visitor's own room is followed in this browser, never on the site's line.
+  if (entry.unsubscribe === null) entry.unsubscribe = repositoryFor(roomId).subscribeRoom(roomId, (change) => apply(roomId, change));
 
   return () => {
     entry.followers -= 1;
@@ -148,7 +149,7 @@ export function refollowRooms(): void {
   for (const [roomId, entry] of rooms) {
     if (entry.unsubscribe !== null) {
       entry.unsubscribe();
-      entry.unsubscribe = getWatchRepository().subscribeRoom(roomId, (change) => apply(roomId, change));
+      entry.unsubscribe = repositoryFor(roomId).subscribeRoom(roomId, (change) => apply(roomId, change));
     }
     if (entry.state.read !== undefined) read(roomId);
   }
