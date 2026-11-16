@@ -525,6 +525,17 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     };
   }, [amHost, live, src, videoElement, refusedPlay, announced]);
 
+  // A new play the room names while the host's file player already holds that file (the same file again: PLAY in MEDIA on the
+  // video paused here, list 4): nothing loads, so `autoPlay` never fires. Started here; a new file starts by `autoPlay`.
+  const playedEntry = useRef(entryId);
+  useEffect(() => {
+    if (playedEntry.current === entryId) return;
+    playedEntry.current = entryId;
+    const video = videoRef.current;
+    if (!amHost || !live || song !== null || !roomPlaying() || !(video instanceof HTMLMediaElement)) return;
+    if (video.readyState > 0 && video.paused) void video.play().catch(refusedPlay);
+  }, [entryId, amHost, live, song, refusedPlay]);
+
   /* --- following ------------------------------------------------------------------------------- */
 
   useEffect(() => {
@@ -1269,6 +1280,14 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       </button>
     </>
   ) : null;
+  // Fullscreen with no FULL key among the picture's keys (the blank screen's BOOKS / VIDEO / MUSIC, a song, another site's
+  // own player): the way out is still on the bar (Luke, 2026-11-16: "the unfullscreen button is still visible").
+  const exitKey =
+    fullscreen && !(!officialOn && hasTransport && song === null) ? (
+      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Leave fullscreen" onClick={toggleFullscreen} data-room-exit-full>
+        [ EXIT ]
+      </button>
+    ) : null;
   // Your main room has its own keys instead (SPEC-rooms-perpetual.md): GO LIVE / ● LIVE, LEAVE while live, END ROOM.
   const mainRoomKeys = hostKeys && music ? <MainRoomKeys room={room} hostName={hostName} heir={heir} onLeft={onLeft} /> : null;
   const endKey = mainRoomKeys ?? (hostKeys && !music ? (
@@ -1307,7 +1326,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
 
   // Under the picture, left to right: play/pause (host), where it is and the time, skip (host), the sound, QUALITY,
   // PIP, FULL, END STREAM (host). The chat column's strip names the video.
-  const playerBar = !keysOnMusicBar && (hasTransport || hostKeys || floatKey !== null) ? (
+  const playerBar = !keysOnMusicBar && (hasTransport || hostKeys || floatKey !== null || exitKey !== null) ? (
     // `relative`: on a phone the SUBS list opens as a sheet across the bar, just above it.
     <div className={ROOM_BAR} data-watch-bar="shown">
       {playKey}
@@ -1328,6 +1347,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       )}
       {skipKey}
       {pictureKeys}
+      {exitKey}
       {endKey}
     </div>
   ) : null;
@@ -1416,7 +1436,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
             link={link}
             fit={videoFit}
             shaped={dressed}
-            autoPlay={amHost && live}
+            // Only while the room says it plays: a paused room's window opened (or brought back folded after a reload, list 4) stays paused.
+            autoPlay={amHost && live && room.isPlaying}
             onPlayer={attachVideo}
             onGone={(gone) => {
               if (videoRef.current === gone) attachVideo(null);
@@ -1441,7 +1462,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
             src={playsDirectly(link) ? src : undefined}
             preload="auto"
             playsInline
-            autoPlay={amHost && live}
+            // Only while the room says it plays (as the embeds above).
+            autoPlay={amHost && live && room.isPlaying}
             onTimeUpdate={onTime}
             onLoadedMetadata={(event) => {
               const shape = shapeFrom(event.currentTarget.videoWidth, event.currentTarget.videoHeight);
@@ -2160,7 +2182,7 @@ function OfficialEmbedStage({ link, fit, shaped }: { link: WatchLink; fit: strin
   const checked = server !== undefined ? link.url : officialEmbedUrl(link.url);
   // A PeerTube player is asked to start with English subtitles on foreign audio (SPEC-subtitles.md): its own
   // menu is the way to change them, since the room cannot drive this player. Added after the check, never stored.
-  const url = checked !== null && server === undefined && new URL(checked).pathname.startsWith('/videos/embed/') ? withEnglishSubtitles(checked, 'peertube', detectLanguage(link.title)) : checked;
+  const url = checked !== null && server === undefined && new URL(checked).pathname.startsWith('/videos/embed/') ? quietPeerTube(withEnglishSubtitles(checked, 'peertube', detectLanguage(link.title))) : checked;
 
   if (url === null) {
     return (
@@ -2188,6 +2210,17 @@ function OfficialEmbedStage({ link, fit, shaped }: { link: WatchLink; fit: strin
       />
     </div>
   );
+}
+
+/**
+ * A PeerTube player in a room, asked (its documented embed options) to leave out its title line, its warning line and its
+ * PeerTube link (Luke, 2026-11-16: "i need the embedded players ui to not be shown inside the room viewport"). Its play bar
+ * stays: the room cannot drive a PeerTube player, so it is the only way to start or pause it. Added after the check, never stored.
+ */
+function quietPeerTube(embed: string): string {
+  const url = new URL(embed);
+  for (const name of ['title', 'warningTitle', 'peertubeLink']) url.searchParams.set(name, '0');
+  return url.toString();
 }
 
 /** The room's place in a server's player, by the host's beat: redrawn each second on its own, not the whole room. */

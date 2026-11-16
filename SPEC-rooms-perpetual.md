@@ -264,6 +264,14 @@ Then the house loop once per batch (League mode: one heavy step at a time, low p
   anybody's room; TV turns it to the music player and `♪ PLAYER` back. `MusicPlayer.tsx` no longer leaves your own room
   out (it had since 623137c, when your room was the look-alike window). Its keys moving from under the picture into the
   bar no longer lose an open WHO CAN JOIN (`returnGoLiveAsk`).
+- **List 4 (2026-11-16, ROOMUI):** a room's window starts smaller (1040x680, upper corner; layout key `room`, so a box
+  saved while it filled the screen does not stick) and its title line has `[ _ ] [ □ ] [ × ]`: `[ □ ]` fills the page above
+  the bar, `[ ❐ ]` puts it back. Fullscreen with no FULL among the picture's keys (the blank screen, a song, another site's
+  own player) has `[ EXIT ]` on the bar. Vimeo is asked for no controls (honoured only for paid owners), PeerTube for no
+  title, warning or logo (its play bar stays). Your own room, open or folded when the page went away, comes back folded
+  after a reload with its key and its bar, paused, from its place (`OwnRoomComesBack`, a note in this browser); the folded
+  key says PRIVATE / BY LINK / LIVE as the badge does. The host's player starts by itself only while the room says it
+  plays, and the same file named again starts. Proof: `scripts/drive-roomui.cjs` on a mock server.
 - **Not done, said here:** `<NAME> IS AWAY` for joiners of an away host is not drawn; the 3-minute close of a handed-on room and the
   45-second take-over are proved on the mock store and in the migration, not live (the migration waits for Luke's
   typed OK).
