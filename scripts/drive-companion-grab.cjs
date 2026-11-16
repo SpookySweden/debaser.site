@@ -319,10 +319,17 @@ async function roomSteps(browser) {
     const back = document.querySelector('[data-profile-room] [data-profile-character="owner"]');
     return back !== null && !['wave', 'hop', 'turn'].includes(back.getAttribute('data-motion'));
   }, null, { timeout: 15_000 });
-  await figure.click();
-  const hello = await page
-    .waitForFunction(() => ['wave', 'hop', 'turn'].includes(document.querySelector('[data-profile-room] [data-profile-character="owner"]')?.getAttribute('data-motion')), null, { timeout: 2000 })
-    .then(() => true, () => false);
+  // A press while it is saying something is left alone on purpose (it would cut its bubble off): press between lines.
+  let hello = false;
+  for (let tries = 0; tries < 6 && !hello; tries += 1) {
+    await page.waitForFunction(() => document.querySelector('[data-profile-room] [data-speech-bubble]') === null, null, { timeout: 30_000 });
+    await figure.click();
+    hello = await page
+      .waitForFunction(() => ['wave', 'hop', 'turn'].includes(document.querySelector('[data-profile-room] [data-profile-character="owner"]')?.getAttribute('data-motion')), null, { timeout: 1000 })
+      .then(() => true, () => false);
+    // Tried again only when it started talking in that moment; a press that was simply swallowed is the failure.
+    if (!hello && (await page.locator('[data-profile-room] [data-speech-bubble]').count()) === 0) break;
+  }
   if (!MEASURE) {
     assert.equal(await page.locator('[data-loose-character]').count(), 0, 'a press is not a grab');
     assert.ok(hello, 'and the first press after it came back says hello (it was swallowed once)');
