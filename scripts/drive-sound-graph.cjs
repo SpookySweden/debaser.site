@@ -17,6 +17,8 @@
  *   relay   the site's relay of a YouTube video's sound, played into an analyser in the page: 206 slices, sound heard,
  *           and a seek past the first slice still plays (the second slice).
  *   youtube a YouTube video from MEDIA in the floating player with the bar quiet: the graph listens to the relay.
+ *   limit   (asked for by name only: it uses up this address's relay for a minute) the relay refuses this address with a
+ *           429 once it has asked too often; a YouTube video from MEDIA then plays, the graph moves gently instead.
  */
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright-core');
@@ -409,6 +411,13 @@ async function relay(browserPath) {
   }
 }
 
+/** Presses PLAY on MEDIA's first YouTube row (its key says which player it loads; a row's text is cut short). */
+async function playYoutubeRow(page) {
+  const key = page.getByRole('button', { name: /^Play .*\(loads the YOUTUBE player\)$/ }).first();
+  await key.waitFor({ timeout: 60000 });
+  await key.click();
+}
+
 async function youtube(browserPath) {
   console.log('a YouTube video from MEDIA, the bar quiet');
   const browser = await chromium.launch({ executablePath: browserPath, headless: true, args: ['--autoplay-policy=no-user-gesture-required', '--no-first-run'] });
@@ -416,9 +425,7 @@ async function youtube(browserPath) {
     const { page } = await newPage(browser);
     await page.addInitScript(`try { sessionStorage.setItem('debaser.audio.love-buzz.v1', 'skipped'); } catch {}`);
     await page.goto(`${BASE}/media`, { waitUntil: 'domcontentloaded' });
-    await page.waitForFunction(() => [...document.querySelectorAll('li')].some((row) => /YOUTUBE/.test(row.innerText) && /\[ ▶ PLAY \]/.test(row.innerText)), null, { timeout: 60000 });
-    const row = page.locator('li', { hasText: 'YOUTUBE' }).filter({ hasText: '[ ▶ PLAY ]' }).first();
-    await row.getByRole('button', { name: /^Play / }).click();
+    await playYoutubeRow(page);
     const state = await until('the graph listens to the relay', () => graphState(page), (s) => s && (s.source === 'relay' || s.source === 'gentle'), 30000);
     if (state.source === 'relay') {
       const heard = await until('the relay carries sound', () => graphState(page), (s) => s && s.source === 'relay' && s.level > 0.02, 30000).catch(() => null);
@@ -428,6 +435,51 @@ async function youtube(browserPath) {
       note(`the graph moved gently (${JSON.stringify(state)}): the relay failed or YouTube's player has not said where it is`);
     }
     await page.locator('[data-bar-led]').screenshot({ path: join(OUT, 'led-youtube.png') });
+  } finally {
+    await browser.close();
+  }
+}
+
+/**
+ * The relay's per-address limit (list 3): this address asks until the relay refuses (429), then a YouTube video from
+ * MEDIA plays: the graph's hidden player is refused, the graph moves gently, and YouTube's own player plays on. Not in
+ * the default run: it uses up this address's relay for a minute on that server.
+ */
+async function limit(browserPath) {
+  console.log('the relay refusing this address');
+  const browser = await chromium.launch({ executablePath: browserPath, headless: true, args: ['--autoplay-policy=no-user-gesture-required', '--no-first-run'] });
+  try {
+    const { page } = await newPage(browser);
+    await page.addInitScript(`try { sessionStorage.setItem('debaser.audio.love-buzz.v1', 'skipped'); } catch {}`);
+    const answers = [];
+    page.on('response', (response) => {
+      if (response.url().includes('/api/audio/relay/')) answers.push({ url: response.url(), status: response.status() });
+    });
+    await page.goto(`${BASE}/media`, { waitUntil: 'domcontentloaded' });
+    // A malformed id: counted like any ask, and nothing is fetched from YouTube.
+    const used = await page.evaluate(async () => {
+      for (let i = 1; i <= 400; i += 1) {
+        const r = await fetch('/api/audio/relay/x');
+        if (r.status === 429) return { asks: i, retryAfter: r.headers.get('retry-after') };
+      }
+      return null;
+    });
+    assert.ok(used, 'the relay refuses one address within 400 asks');
+    assert.equal(used.retryAfter, '60');
+    pass(`the relay refused this address after ${used.asks - 1} asks (429, Retry-After ${used.retryAfter})`);
+    await playYoutubeRow(page);
+    const refused = await until('the graph asks the relay for the video', async () => answers.find((a) => !a.url.endsWith('/x')) ?? null, (a) => a !== null, 30000);
+    assert.equal(refused.status, 429, `the video's relay ask is refused (${refused.url})`);
+    pass(`the graph's hidden player was refused: ${refused.status}`);
+    const state = await until('the graph moves gently', () => graphState(page), (s) => s && s.source === 'gentle' && s.level > 0, 15000);
+    await sleep(3000);
+    const still = await graphState(page);
+    assert.equal(still.source, 'gentle', `the graph stays gentle and does not go back to the relay (${JSON.stringify(still)})`);
+    pass(`the graph moves gently instead (level ${state.level}), and stays so`);
+    const youtubePlayer = await page.locator('iframe[src*="youtube"]').count();
+    assert.ok(youtubePlayer >= 1, "YouTube's own player is still there");
+    pass(`YouTube's own player is untouched (${youtubePlayer} frame)`);
+    await page.locator('[data-bar-led]').screenshot({ path: join(OUT, 'led-relay-refused.png') });
   } finally {
     await browser.close();
   }
@@ -445,6 +497,7 @@ async function youtube(browserPath) {
   if (ONLY.includes('tab')) await tab(browserPath);
   if (ONLY.includes('relay')) await relay(browserPath);
   if (ONLY.includes('youtube')) await youtube(browserPath);
+  if (ONLY.includes('limit')) await limit(browserPath);
   console.log(`DRIVE PASSED: ${passed} steps`);
 })().catch((error) => {
   console.error(`DRIVE FAILED after ${passed} steps:`, error.message);
