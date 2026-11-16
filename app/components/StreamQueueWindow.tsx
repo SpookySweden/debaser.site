@@ -178,6 +178,17 @@ function ourMatches(videos: MediaItem[], words: string, anyWord: boolean, author
 }
 
 /**
+ * Your own room is written to its store before something is added to it here: after END ROOM or a hand-on (and for a new
+ * account) it is only in this browser until the next thing plays, and an add to a room the store does not hold is refused
+ * (found by drive-own-room.cjs, list 3: "THE STREAM HAS ENDED." on [ + ADD ] after END ROOM). Any other room: nothing.
+ */
+async function ownRoomWritten(roomId: string): Promise<void> {
+  const session = ownRoomState().session;
+  if (session === null || session.id() !== roomId || session.isMade()) return;
+  if (!(await session.ensureMade())) throw new Error('YOUR ROOM COULD NOT BE SAVED. TRY AGAIN.');
+}
+
+/**
  * The stream room's queue as its own window (Luke, 2026-11-02), opened from the QUEUE line in the chat
  * column rather than unfolding there. Split down the middle (SPEC-stream-queue.md): the real queue on the
  * left, the additions waiting for it on the right; in a narrow window the two stack, the queue first.
@@ -252,6 +263,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
     // A blank screen (the three keys) takes what is added straight into the queue, so it starts at once (Luke, 2026-11-16:
     // "it plays, no skip needed first"). Only for somebody who may arrange the queue: anybody else's still waits for a crown.
     const inQueue = (straight || ownRoom || screenIsBlank(read.room, read.queue)) && rights.arrange;
+    await ownRoomWritten(roomId);
     const entry = await repository.addToQueue({ roomId, addedBy: userId, position: nextQueuePosition(read.queue), inQueue, ...what });
     applyLocalChange(roomId, { kind: 'entry', entry });
     return inQueue ? 'QUEUED' : 'ADDED';
@@ -276,6 +288,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
       if (refusal !== null) throw new Error(refusal);
     }
     const inQueue = (straight || ownRoom || screenIsBlank(read.room, read.queue)) && rights.arrange;
+    await ownRoomWritten(roomId);
     const entries = await repository.addSeriesToQueue({ roomId, addedBy: userId, position: nextQueuePosition(read.queue), inQueue, seriesTitle: title, links });
     for (const entry of entries) applyLocalChange(roomId, { kind: 'entry', entry });
     return inQueue ? 'QUEUED' : 'ADDED';

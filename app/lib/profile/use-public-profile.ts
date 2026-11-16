@@ -40,7 +40,10 @@ const EMPTY_RECORD: CachedProfile = { profile: null, status: 'unread' };
  * opening a profile nobody has filled in sees the empty state, and the owner's customiser can
  * write to it straight away.
  */
-export function usePublicProfile(userId: string | null): UsePublicProfileResult {
+export function usePublicProfile(asked: string | null): UsePublicProfileResult {
+  // A signed-out visitor's browser id (`visitor:<uuid>`, their own room's host; SPEC-rooms-perpetual.md) is no account:
+  // nothing to read, and it never goes to the site's database.
+  const userId = asked !== null && asked.startsWith('visitor:') ? null : asked;
   const repository = useMemo(() => getProfileRepository(), []);
 
   const subscribe = useCallback(

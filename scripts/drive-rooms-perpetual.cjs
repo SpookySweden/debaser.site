@@ -11,7 +11,17 @@
  *   6. [ END ROOM ] twice ends it and closes the window; the next PLAY makes a new main room with a new id.
  *   7. In somebody else's room, PLAY asks first (Luke, Q2 A): CANCEL keeps you there; PLAY IN YOUR ROOM leaves theirs.
  *
+ *   8-9. The bar's GO LIVE opens your own room; a reload while live brings it back folded, its beat on.
+ *  10. [ WATCH IN ROOM ] puts the video on in your own room and opens WHO CAN JOIN on it: no separate room (list 3).
+ *  11. A friend's server row and a free copy (KINO's WATCH list) open in your room on PLAY (list 3). The server list in
+ *      app/lib/web/media-servers.ts is empty today, so this step needs two test servers put between its SERVERS markers on
+ *      the dev server's copy only (those of scripts/web-media-test-servers.cjs), never committed; `--no-servers` skips it.
+ *  12. Signed out: the same room window, kept in this browser, JUST YOU HERE and LOG IN where chat is (list 3).
+ *
  *   node scripts/drive-rooms-perpetual.cjs --base http://localhost:3317
+ *
+ * Chrome is started with --disable-audio-output: on the desktop (2026-11-16) a headless Chrome's media clock froze on the
+ * machine's own sound output, so videos sat at 0:00 while "playing".
  *
  * Start the server with Temp/browse/dev-mock-rooms.cjs (every data source on mock, Supabase empty): nothing reaches the
  * live database, and the "account" is a made-up one in the browser's mock store. From the network it asks only a
@@ -45,6 +55,20 @@ const SEED = `(() => {
       const user = { id: 'drive-user', email: 'test-drive@debaser.site', displayName: 'TEST DRIVE', createdAt: new Date().toISOString(), salt: '', secretHash: '', hidden: true };
       localStorage.setItem('debaser.auth.mock.v1', JSON.stringify({ ...kept, users: [...(kept.users ?? []).filter((held) => held.id !== user.id), user], sessionUserId: user.id }));
     }
+    const items = JSON.parse(localStorage.getItem('debaser.media.items.v1') ?? '[]');
+    if (!items.some((item) => item.id === 'drive-video')) {
+      items.push({ id: 'drive-video', kind: 'video', bucket: '', path: '', src: '${VIDEO}', sha256: 'drive-video', bytes: 1, mime: 'video/webm', length: '0:05', title: 'DRIVE VIDEO', credit: 'THE DRIVE', tags: [], source: 'upload', uploadedBy: null, uploadedByLabel: 'THE DRIVE', createdAt: new Date().toISOString() });
+      localStorage.setItem('debaser.media.items.v1', JSON.stringify(items));
+    }
+  } catch {}
+})()`;
+
+/** Signed out: the drive's video in the catalogue, and nobody signed in to the mock. */
+const VISITOR_SEED = `(() => {
+  try {
+    const kept = JSON.parse(localStorage.getItem('debaser.auth.mock.v1') ?? '{"users":[],"bannedIds":[]}');
+    delete kept.sessionUserId;
+    localStorage.setItem('debaser.auth.mock.v1', JSON.stringify(kept));
     const items = JSON.parse(localStorage.getItem('debaser.media.items.v1') ?? '[]');
     if (!items.some((item) => item.id === 'drive-video')) {
       items.push({ id: 'drive-video', kind: 'video', bucket: '', path: '', src: '${VIDEO}', sha256: 'drive-video', bytes: 1, mime: 'video/webm', length: '0:05', title: 'DRIVE VIDEO', credit: 'THE DRIVE', tags: [], source: 'upload', uploadedBy: null, uploadedByLabel: 'THE DRIVE', createdAt: new Date().toISOString() });
@@ -97,7 +121,7 @@ const roomVideo = (page) =>
   });
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: findChrome(), headless: true, args: ['--autoplay-policy=no-user-gesture-required', '--mute-audio'] });
+  const browser = await chromium.launch({ executablePath: findChrome(), headless: true, args: ['--autoplay-policy=no-user-gesture-required', '--mute-audio', '--disable-audio-output'] });
   const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
   await context.addInitScript(SEED);
   // Mock data only: should anything still be pointed at the live database, it never gets there.
@@ -263,6 +287,113 @@ const roomVideo = (page) =>
     assert.equal(after9.isPublic, true, 'still live');
     assert.notEqual(after9.updatedAt, beatAt, 'the host\'s beat runs again after the reload');
     pass('reloaded while live, your room came back folded above the player and its beat carried on');
+
+    console.log('10. [ WATCH IN ROOM ] USES YOUR OWN ROOM (list 3)');
+    // Your live room from step 9, ended first, so WATCH IN ROOM finds no room to add to and starts in your own.
+    await page.locator('[data-room-shelf-key] button').click();
+    await page.locator('[data-main-room-end="first"]').first().click();
+    await page.locator('[data-main-room-end="confirm"]').first().click();
+    await page.waitForFunction(() => document.querySelector('[data-dock-window="stream"]') === null, null, { timeout: 15000 });
+    await open(page, '/files?kind=video');
+    await pressPlay(page);
+    await page.waitForSelector('[data-dock-window="stream"] [data-main-room-live="private"]', { timeout: 30000 });
+    const roomsAt10 = (await tables(page)).rooms.length;
+    const ownAt10 = await openMain(page);
+    const playsAt10 = (await tables(page)).queue.filter((entry) => entry.roomId === ownAt10.id && entry.mediaItemId === 'drive-video' && entry.playedAt !== null).length;
+    // Folded away, so the row's key is in reach; the room plays on.
+    await page.locator('[data-dock-window="stream"] button[aria-label^="Close"]').first().click();
+    await page.waitForSelector('[data-room-shelf-key]', { timeout: 10000 });
+    // Pressed in the page itself: a first visit's PRIVACY window may sit over the row.
+    await page.waitForSelector('[data-watch-in-room="start"]', { timeout: 20000 });
+    await page.evaluate(() => document.querySelector('[data-watch-in-room="start"]').click());
+    await page.waitForSelector('[data-main-room-who]', { timeout: 20000 });
+    assert.equal((await tables(page)).rooms.filter((room) => room.origin === 'stream' && room.originalHostId === 'drive-user').length, 0, 'no separate stream room');
+    assert.equal((await tables(page)).rooms.length, roomsAt10, 'no room made at all');
+    assert.equal((await openMain(page)).id, ownAt10.id, 'your own room');
+    // Put on as a new play in your room (the clip is five seconds long, so it is read from the room, not the screen).
+    await page.waitForFunction(
+      ([roomId, before]) => JSON.parse(localStorage.getItem('debaser.watch.v1')).queue.filter((entry) => entry.roomId === roomId && entry.mediaItemId === 'drive-video' && entry.playedAt !== null).length > before,
+      [ownAt10.id, playsAt10],
+      { timeout: 15000 },
+    );
+    await page.locator('[data-main-room-who] button', { hasText: 'CANCEL' }).click();
+    assert.equal((await openMain(page)).isPublic, false, 'CANCEL keeps it private');
+    pass('[ WATCH IN ROOM ] put the video on in your own room and opened WHO CAN JOIN on it: no separate room; CANCEL keeps it private');
+
+    if (!args.includes('--no-servers')) {
+      console.log('11. A FRIEND\'S SERVER ROW AND A FREE COPY OPEN IN YOUR ROOM (list 3)');
+      // Needs test servers in app/lib/web/media-servers.ts on the dev server (the list is empty today): see --no-servers.
+      await page.route(/\/api\/web\/media\/ping/, (route) => route.fulfill({ status: 200, contentType: 'application/json', body: '{"up":true}' }));
+      await page.route(/\/api\/web\/kino\/sources/, (route) =>
+        route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ sources: { 'movie-999999901': { watch: null, free: [{ platform: 'internet_archive', id: 'debaser-drive-film', publicDomain: true }] } } }) }),
+      );
+      // The server's player page and the Archive's embed, answered here: nothing is asked of either.
+      await page.route(/placeholder-server1\.xyz|archive\.org\/embed/, (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>stand-in player</title><p>STAND-IN PLAYER</p>' }));
+      await open(page, '/media?q=MOCK%20FILM%2001');
+      await page.waitForFunction(() => /MOCK FILM 01/i.test(document.body.innerText), null, { timeout: 60000 });
+      const watchKey = page.locator('button', { hasText: /\[ ▶ WATCH|\[ WATCH/ }).first();
+      if (await watchKey.count()) await watchKey.evaluate((key) => key.click());
+      const onServer = page.locator('button[aria-label^="Play \\"MOCK FILM 01"][aria-label*="SERVER 1"]').first();
+      await onServer.waitFor({ timeout: 20000 });
+      await onServer.evaluate((key) => key.click());
+      await page.waitForSelector('[data-dock-window="stream"] [data-main-room-live]', { timeout: 30000 });
+      await page.waitForFunction(() => [...document.querySelectorAll('[data-dock-window="stream"] iframe')].some((frame) => /placeholder-server1\.xyz/.test(frame.src)), null, { timeout: 20000 });
+      assert.equal(await page.locator('[data-floating-player] iframe').count(), 0, 'nothing floats');
+      const serverEntry = (await tables(page)).queue.find((entry) => entry.roomId === (ownAt10.id) && entry.link?.url?.includes('placeholder-server1.xyz'));
+      assert.ok(serverEntry, 'filed in your room as a play');
+      pass('a friend\'s server row: PLAY opened your room with the server\'s player in the room\'s frame; nothing floats');
+
+      await page.locator('[data-dock-window="stream"] button[aria-label^="Close"]').first().click();
+      await page.waitForSelector('[data-room-shelf-key]', { timeout: 10000 });
+      const freeKey = page.locator('[data-free-copy="internet_archive"] button', { hasText: 'FREE ON' }).first();
+      await freeKey.waitFor({ timeout: 20000 });
+      await freeKey.evaluate((key) => key.click());
+      await page.waitForSelector('[data-dock-window="stream"] [data-main-room-live]', { timeout: 30000 });
+      await page.waitForFunction(() => [...document.querySelectorAll('[data-dock-window="stream"] iframe')].some((frame) => /archive\.org\/embed\/debaser-drive-film/.test(frame.src)), null, { timeout: 20000 });
+      assert.equal(await page.locator('[data-floating-player] iframe').count(), 0, 'nothing floats');
+      pass('a free copy (KINO\'s WATCH list): PLAY opened your room with the Archive\'s player on its screen; nothing floats');
+    }
+
+    console.log('12. SIGNED OUT: THE SAME ROOM WINDOW, KEPT IN THIS BROWSER (list 3)');
+    const visitorContext = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+    await visitorContext.addInitScript(VISITOR_SEED);
+    await visitorContext.route(/supabase\.(co|in)/, (route) => {
+      blocked.push(route.request().url());
+      return route.abort();
+    });
+    const visitor = await visitorContext.newPage();
+    visitor.on('pageerror', (error) => errors.push(error.message));
+    await open(visitor, '/files?kind=video');
+    await pressPlay(visitor);
+    await visitor.waitForSelector('[data-dock-window="stream"] [data-main-room-live="private"]', { timeout: 30000 });
+    await visitor.waitForFunction(() => {
+      const video = document.querySelector('[data-dock-window="stream"] video[data-watch-video]');
+      return video !== null && video.currentTime > 0.3 && !video.paused;
+    }, null, { timeout: 30000 });
+    assert.equal(await visitor.locator('[data-own-room-window]').count(), 0, 'not the old look-alike window');
+    assert.equal(await visitor.locator('[data-floating-player] video').count(), 0, 'nothing floats');
+    const visitorText = await visitor.locator('[data-dock-window="stream"]').innerText();
+    assert.match(visitorText, /YOUR ROOM\s+PRIVATE/, 'the window is YOUR ROOM, PRIVATE');
+    assert.match(await visitor.locator('[data-visitor-room-alone]').innerText(), /JUST YOU HERE[\s\S]*LOG IN/, 'where chat would be: JUST YOU HERE and LOG IN');
+    assert.equal(await visitor.locator('[data-dock-window="stream"] input[placeholder^="Say"]').count(), 0, 'no chat box');
+    assert.equal(await visitor.locator('[data-dock-window="stream"] button', { hasText: 'CANVAS' }).count(), 0, 'no canvas key');
+    // The room's keys, under its picture or on the music bar: PIP and FULL among them, as in any room.
+    assert.match(await visitor.locator('body').innerText(), /\[ PIP \][\s\S]*\[ FULL \]/, 'the room\'s keys: PIP and FULL');
+    const visitorRooms = await visitor.evaluate(() => JSON.parse(localStorage.getItem('debaser.watch.v1') ?? '{"rooms":[]}').rooms.filter((room) => room.origin === 'music' && room.endedAt === null));
+    assert.equal(visitorRooms.length, 1, 'one room');
+    assert.match(visitorRooms[0].hostId, /^visitor:/, 'the visitor\'s own, in this browser');
+    await visitor.screenshot({ path: join(SHOTS, '12-visitor.png') });
+    await visitor.locator('[data-main-room-live="private"]').first().click();
+    await visitor.waitForSelector('[data-main-room-log-in]', { timeout: 10000 });
+    assert.equal(await visitor.locator('[data-main-room-who]').count(), 0, 'no WHO CAN JOIN for a visitor');
+    await visitor.locator('[data-main-room-log-in] button', { hasText: 'CANCEL' }).click();
+    // X folds it and it plays on; the key above the player brings it back.
+    await visitor.locator('[data-dock-window="stream"] button[aria-label^="Close"]').first().click();
+    await visitor.waitForSelector('[data-room-shelf-key]', { timeout: 10000 });
+    await visitor.locator('[data-room-shelf-key] button').click();
+    await visitor.waitForSelector('[data-dock-window="stream"] [data-main-room-live]', { timeout: 10000 });
+    pass('signed out: PLAY opened the same room window (YOUR ROOM, PRIVATE), playing; JUST YOU HERE and LOG IN where chat is; no canvas; GO LIVE asks to log in; it folds and comes back; kept in this browser');
+    await visitorContext.close();
 
     const real = errors.filter((message) => !/ResizeObserver|hydrat/i.test(message));
     assert.deepEqual(real, [], 'no page errors');

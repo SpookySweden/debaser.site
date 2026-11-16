@@ -294,9 +294,9 @@ export default function MusicRoomKeeper() {
       if (entry === null || entry.play === lastPlay) return;
       lastPlay = entry.play;
       // PLAY on a row's video opens your main room's window with it on screen, not the floating player
-      // (SPEC-rooms-perpetual.md, Luke 2026-11-16). Not a video this keeper put on from the queue (`own:`), and not
-      // for a visitor, whose room keeps its own window. In somebody else's room you are asked first (Luke, Q2 A).
-      if (entry.shape === 'video' && entry.room !== undefined && !entry.id.startsWith('own:') && !ownRoomState().visitor) {
+      // (SPEC-rooms-perpetual.md, Luke 2026-11-16), a signed-out visitor's too (list 3). Not a video this keeper put on
+      // from the queue (`own:`). In somebody else's room you are asked first (Luke, Q2 A).
+      if (entry.shape === 'video' && entry.room !== undefined && !entry.id.startsWith('own:')) {
         const went = playInMainRoom(entry.room.link !== undefined ? { link: entry.room.link } : { mediaItemId: entry.room.mediaItemId }, entry.title);
         // Asked first: the video plays on where it was until the answer (CANCEL keeps it).
         if (went === 'room') {

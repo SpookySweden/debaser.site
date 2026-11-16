@@ -10,7 +10,7 @@ import { useForum } from './ForumProvider';
 import { useCatalogue } from '../lib/media/catalogue';
 import type { MediaItem } from '../lib/media/types';
 import { ASCII_EMOTICONS } from '../lib/comms/ascii-emoticons';
-import { FIELD_TIGHT, KEY_FOCUS, PLATE, PLATE_MAIN, PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED, PLATE_PRESSED, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
+import { FIELD_TIGHT, KEY_FOCUS, PLATE, PLATE_LINK, PLATE_MAIN, PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED, PLATE_PRESSED, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
 import { useNow } from '../lib/ui/use-now';
 import { chatImageUrl, type ImageResult, type ImageSearchKind } from '../lib/watch/chat-images';
 import { forgetGuestReturn, guestReturnDraft, keepGuestReturn } from '../lib/watch/guest-return';
@@ -21,7 +21,8 @@ import { lookClass, lookForRoom } from '../lib/cytube/looks';
 import { setOpenRoomLook } from '../lib/cytube/room-look';
 import { saveLookChoice, useLookChoice } from '../lib/cytube/use-looks';
 import { afterFile, blankPrefill, blankStart, screenIsBlank, type BlankKey } from '../lib/watch/blank-screen';
-import { getWatchRepository } from '../lib/watch/repository';
+import { getWatchRepository, repositoryFor } from '../lib/watch/repository';
+import { ownRoomState, subscribeToOwnRoom } from '../lib/watch/own-room-client';
 import type { AudioTrack } from '../lib/audio/tracks';
 import { frontPosition } from '../lib/watch/music-rooms';
 import { isSongLink, songLink, trackForSong } from '../lib/watch/songs';
@@ -40,7 +41,7 @@ import { stageBkgOn, stageBkgOnServer, subscribeToStageBkg } from '../lib/ui/sta
 import { siteFullscreenWorks, withoutFullscreen } from '../lib/ui/floating-player';
 import { StageBackdrop } from './backdrops/Backdrops';
 import StageKey from './StageKey';
-import { roomStartFor } from '../lib/watch/room-start';
+import { noteRoomStart, roomStartFor } from '../lib/watch/room-start';
 import { streamBarState, subscribeToStreamBar } from '../lib/watch/stream-bar';
 import { expandWatch } from '../lib/watch/watch-window';
 import {
@@ -177,14 +178,23 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   const { user } = useAuth();
   const catalogue = useCatalogue();
   const player = useMusicPlayer();
-  const repository = getWatchRepository();
   const { room } = read;
   const roomId = room.id;
+  // The store that holds this room: this browser's for a signed-out visitor's own room, the site's for every other.
+  const repository = repositoryFor(roomId);
+  /**
+   * Who runs this room from here: the account, or, in a signed-out visitor's own room (list 3: "the same room as a signed-in
+   * reader as far as a visitor can have one"), the visitor by their browser's id. It lives in this browser only, so nothing
+   * of theirs leaves it: no link, no chat, no board, and GO LIVE asks them to log in.
+   */
+  const own = useSyncExternalStore(subscribeToOwnRoom, ownRoomState, ownRoomState);
+  const visitorRoom = user === null && own.visitor && own.roomId === roomId && own.hostId !== null;
+  const me = user !== null ? { id: user.id, displayName: user.displayName } : visitorRoom && own.hostId !== null ? { id: own.hostId, displayName: 'YOU' } : null;
 
   const now = useNow(5000);
 
   const live = roomIsLive(room, now);
-  const amHost = user !== null && room.hostId === user.id;
+  const amHost = me !== null && room.hostId === me.id;
   /** Somebody's music room (SPEC-music-queues.md): its owner always hosts, it is switched off rather than ended, and it is not on the board. */
   const music = room.origin === 'music';
   /**
@@ -284,9 +294,11 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   // Watched for the whole time you host your main room, live or not: a live room with people in it that goes private
   // keeps its presence (they stay in it).
   const watchMembers = music && amHost;
+  const meId = me?.id ?? null;
+  const meName = me?.displayName ?? '';
   useEffect(() => {
-    if (!watchMembers || user === null) return;
-    const me = user.id;
+    if (!watchMembers || meId === null) return;
+    const me = meId;
     let alive = true;
     void repository
       .listRoomMembers(roomId)
@@ -301,7 +313,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       alive = false;
       off();
     };
-  }, [repository, roomId, watchMembers, user]);
+  }, [repository, roomId, watchMembers, meId]);
   const presenceOn = !aloneByRule || othersMayBeIn;
 
   useEffect(() => {
@@ -309,10 +321,10 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     if (!presenceOn) {
       // Just you: said here, nothing sent anywhere. Handed over once this effect is done, as the song's player is below.
       let current = true;
-      const me: WatchMember = { key: myKey, userId: user?.id ?? null, guestId: null, name: user?.displayName ?? '', joinedAt: Date.now() };
+      const alone: WatchMember = { key: myKey, userId: meId, guestId: null, name: meName, joinedAt: Date.now() };
       void Promise.resolve().then(() => {
         if (!current) return;
-        setMembers([me]);
+        setMembers([alone]);
         setMembersHeard(true);
       });
       return () => {
@@ -335,7 +347,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       window.clearTimeout(heard);
       membership.leave();
     };
-  }, [repository, roomId, room.endedAt, user?.id, user?.displayName, presenceGuestId, guestLabel, myKey, presenceOn]);
+  }, [repository, roomId, room.endedAt, user?.id, user?.displayName, presenceGuestId, guestLabel, myKey, presenceOn, meId, meName]);
 
   const accounts = accountsPresent(members);
 
@@ -429,14 +441,16 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
    * PLAY on a video in MEDIA or FILES while your main room's window is drawn (SPEC-rooms-perpetual.md): it is filed in the
    * queue and started from the top, as moving on is, so this player and the room agree on what is on.
    */
-  const playHere = useEffectEvent((source: MainRoomSource) => {
-    if (user === null) return;
+  const playHere = useEffectEvent((source: MainRoomSource, startAt: number | null) => {
+    if (me === null) return;
     const queue = read.queue;
     const added = source.link !== undefined
-      ? repository.addToQueue({ roomId, addedBy: user.id, position: nextQueuePosition(queue), inQueue: true, link: source.link })
-      : repository.addToQueue({ roomId, addedBy: user.id, position: nextQueuePosition(queue), inQueue: true, mediaItemId: source.mediaItemId });
+      ? repository.addToQueue({ roomId, addedBy: me.id, position: nextQueuePosition(queue), inQueue: true, link: source.link })
+      : repository.addToQueue({ roomId, addedBy: me.id, position: nextQueuePosition(queue), inQueue: true, mediaItemId: source.mediaItemId });
     void added
       .then((entry) => {
+        // From where the viewer had got to, when the caller knew (`[ WATCH IN ROOM ]`).
+        noteRoomStart(entry.id, startAt);
         hostEntry.current = entry.id;
         goingBlack.current = false;
         return repository.startEntry(roomId, entry.id, nextPlayIndex(queue));
@@ -449,7 +463,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   });
   useEffect(() => {
     if (!music || !amHost) return;
-    return registerMainRoomPlay(roomId, (source) => playHere(source));
+    return registerMainRoomPlay(roomId, (source, startAt) => playHere(source, startAt));
   }, [music, amHost, roomId]);
   /** Whether the room says the host is playing, read by the effects without depending on every write. */
   const roomPlaying = useEffectEvent(() => room.isPlaying);
@@ -591,31 +605,31 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   const fromTop = useRef<string | null>(null);
   const playFromOutside = useEffectEvent((tracks: AudioTrack[]) => {
     const [first, ...rest] = tracks;
-    if (first === undefined || user === null || !amHost) return;
+    if (first === undefined || me === null || !amHost) return;
     const queue = read.queue;
-    const crowned = hasCrown(read.crowns, user.id);
+    const crowned = hasCrown(read.crowns, me.id);
     void repository
-      .playNow({ roomId, by: user.id, link: songLink(first), position: nextQueuePosition(queue), playIndex: nextPlayIndex(queue) })
+      .playNow({ roomId, by: me.id, link: songLink(first), position: nextQueuePosition(queue), playIndex: nextPlayIndex(queue) })
       .then(async (entry) => {
         fromTop.current = entry.id;
         hostEntry.current = entry.id;
         applyLocalChange(roomId, { kind: 'entry', entry });
         applyLocalChange(roomId, { kind: 'refresh' });
-        if (rest.length === 1) await repository.addToQueue({ roomId, addedBy: user.id, position: frontPosition(queue), inQueue: crowned, link: songLink(rest[0]) });
-        else if (rest.length > 1) await repository.addSeriesToQueue({ roomId, addedBy: user.id, position: frontPosition(queue), inQueue: crowned, seriesTitle: first.credit || first.title, links: rest.map(songLink) });
+        if (rest.length === 1) await repository.addToQueue({ roomId, addedBy: me.id, position: frontPosition(queue), inQueue: crowned, link: songLink(rest[0]) });
+        else if (rest.length > 1) await repository.addSeriesToQueue({ roomId, addedBy: me.id, position: frontPosition(queue), inQueue: crowned, seriesTitle: first.credit || first.title, links: rest.map(songLink) });
         if (rest.length > 0) applyLocalChange(roomId, { kind: 'refresh' });
       })
       .catch((failure: unknown) => setFault(failure instanceof Error ? failure.message : 'IT COULD NOT BE PLAYED IN THE ROOM.'));
   });
   // The host's ADD TO QUEUE / PLAY NEXT write into the room, by the crown rule: crowned, straight in; else their list.
   const enqueueFromOutside = useEffectEvent((track: AudioTrack, where: 'end' | 'next') => {
-    if (user === null) return;
+    if (me === null) return;
     void repository
       .addToQueue({
         roomId,
-        addedBy: user.id,
+        addedBy: me.id,
         position: where === 'next' ? frontPosition(read.queue) : nextQueuePosition(read.queue),
-        inQueue: hasCrown(read.crowns, user.id),
+        inQueue: hasCrown(read.crowns, me.id),
         link: songLink(track),
       })
       .then((entry) => applyLocalChange(roomId, { kind: 'entry', entry }))
@@ -750,8 +764,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
 
   /* --- leaving --------------------------------------------------------------------------------- */
 
-  const heir = user === null ? null : handoverTo(members, user.id);
-  const myOtherTab = user !== null && members.some((member) => member.userId === user.id && member.key !== myKey);
+  const heir = me === null ? null : handoverTo(members, me.id);
+  const myOtherTab = me !== null && members.some((member) => member.userId === me.id && member.key !== myKey);
   const [leaving, setLeaving] = useState(false);
   const [confirmEnd, setConfirmEnd] = useState(false);
 
@@ -893,7 +907,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     shownPicture.current = null;
   }, [pictureOn, entryId, room.currentEntryId]);
   /** NEXT off a picture: the host moves the room on; a crown asks the database to take it off, and the host's tab starts what is next. */
-  const crownedHere = user !== null && hasCrown(read.crowns, user.id);
+  const crownedHere = me !== null && hasCrown(read.crowns, me.id);
   const mayNextPicture = pictureOn && live && (amHost || crownedHere);
   function nextFromPicture() {
     if (amHost) {
@@ -1121,7 +1135,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
 
   const myChoice = useLookChoice(user?.id ?? null);
   // Read fresh as the room opens: a look the host changed since this tab last read it shows.
-  const hostChoice = useLookChoice(room.hostId, { fresh: true });
+  // A visitor's own room: their browser id is no account, so there is no saved look to read for it.
+  const hostChoice = useLookChoice(visitorRoom ? null : room.hostId, { fresh: true });
   const look = lookForRoom(hostChoice.look, myChoice, amHost);
   const lookCls = lookClass(look);
   /** With a look: its lines on the screen's frame and the LED's frames, its key colour on the bar's keys. */
@@ -1333,16 +1348,19 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   // The room canvas (SPEC-stream-art.md): each viewer's own screen shows the picture or the shared canvas. While a
   // song plays the canvas is the default; with a video, the picture.
   const canvasAudio = song !== null;
-  const screen = useScreenView(roomId, canvasAudio);
+  // A visitor's own room has no canvas (it is shared through the site, and their room never leaves this browser): the
+  // song's cover is their screen instead.
+  const screen = useScreenView(roomId, canvasAudio && !visitorRoom);
   const visualiserOn = useVisualiserOn(roomId);
   /** The side column's width: the frame's own, or where the reader dragged its edge (`RoomSideGrip`). */
   const sideFrame = roomSide(useRoomSideWidth());
   const crownedIds = new Set(read.crowns.map((crown) => crown.userId));
   const canvasContext: CanvasContext = {
-    me: user !== null ? { id: user.id, label: user.displayName } : roomGuest !== null && roomGuest.named && room.guestsCanTalk !== false ? { id: roomGuest.id, label: roomGuest.label } : null,
+    // A visitor's own room keeps nothing outside this browser: its canvas is to look at, drawing needs an account.
+    me: user !== null ? { id: user.id, label: user.displayName } : !visitorRoom && roomGuest !== null && roomGuest.named && room.guestsCanTalk !== false ? { id: roomGuest.id, label: roomGuest.label } : null,
     guest: user === null,
     guests: new Set(members.flatMap((member) => (typeof member.guestId === 'string' ? [member.guestId] : []))),
-    askName: user === null && live && room.guestsCanTalk !== false && (roomGuest === null || !roomGuest.named) ? () => setNaming(true) : undefined,
+    askName: user === null && !visitorRoom && live && room.guestsCanTalk !== false && (roomGuest === null || !roomGuest.named) ? () => setNaming(true) : undefined,
     host: { id: room.originalHostId, label: room.originalHostLabel },
     title: `${music ? 'MUSIC' : 'STREAM'} :: ${room.originalHostLabel.toUpperCase()}`,
     amHost,
@@ -1480,10 +1498,10 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
         {visualiserOn ? (
           <RoomVisualiser roomId={roomId} element={song !== null ? player.audioElement() : videoElement instanceof HTMLMediaElement ? videoElement : null} />
         ) : null}
-        <RoomCanvas roomId={roomId} context={canvasContext} visible={screen === 'canvas'} />
+        {visitorRoom ? null : <RoomCanvas roomId={roomId} context={canvasContext} visible={screen === 'canvas'} />}
         <div className="absolute right-1 top-1 z-30 flex gap-1">
           <VisualiserToggle roomId={roomId} audio={canvasAudio} />
-          <CanvasToggle roomId={roomId} audio={canvasAudio} />
+          {visitorRoom ? null : <CanvasToggle roomId={roomId} audio={canvasAudio} />}
         </div>
         {pictureFloats ? <RoomFloatChrome host={pictureBox} drag={floatDrag} title={entryTitle ?? (music ? 'ROOM' : 'STREAM')} /> : null}
         {/* Fullscreen: the chosen background, live, under everything in this box. Last in the box, so nothing before it is moved. */}
@@ -1583,21 +1601,36 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       {user !== null && !amHost ? (
         <LookToggle compact choice={myChoice} onChange={(next) => void saveLookChoice(user.id, next).catch(() => undefined)} />
       ) : null}
-      <StreamCrawl accounts={accounts} hostId={hostId} currentTitle={blank ? 'NOTHING ON' : (entryTitle ?? '...')} nextTitle={nextTitle} />
-      <ChatPanel
-        read={read}
-        item={item}
-        videoRef={videoRef}
-        live={live}
-        nextTitle={live ? nextTitle : null}
-        notInStep={live && officialOn && entryId !== null ? { entryId, text: notInStepNote(serverOn) } : null}
-      />
+      {/* A visitor's browser id is no account: the crawl names only what is on. */}
+      <StreamCrawl accounts={visitorRoom ? [] : accounts} hostId={hostId} currentTitle={blank ? 'NOTHING ON' : (entryTitle ?? '...')} nextTitle={nextTitle} />
+      {visitorRoom ? (
+        // A signed-out visitor's own room is kept in this browser: nobody can join it, so there is nobody to chat with.
+        <aside aria-label="Who is here" className={`${ROOM_SIDE_BODY} frame p-2 text-label text-ink sm:overflow-y-auto`} data-visitor-room-alone>
+          <p className="text-key font-bold">JUST YOU HERE</p>
+          <p>This room is kept in this browser. Nobody else can see it or join it.</p>
+          <p className="mt-1">
+            <Link href="/account" className={PLATE_LINK}>
+              [ LOG IN ]
+            </Link>{' '}
+            TO SHARE ITS LINK, CHAT WITH WHO JOINS, AND GO LIVE.
+          </p>
+        </aside>
+      ) : (
+        <ChatPanel
+          read={read}
+          item={item}
+          videoRef={videoRef}
+          live={live}
+          nextTitle={live ? nextTitle : null}
+          notInStep={live && officialOn && entryId !== null ? { entryId, text: notInStepNote(serverOn) } : null}
+        />
+      )}
       {queueOpen ? (
         <StreamQueueWindow
           read={read}
           itemsById={itemsById}
           live={live}
-          userId={user?.id ?? null}
+          userId={me?.id ?? null}
           members={members}
           nowLive={stageLive}
           onClose={() => setQueueOpen(false)}

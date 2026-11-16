@@ -485,7 +485,9 @@ const ownWindow = read('app/components/OwnRoomWindow.tsx');
 const watchStore = read('app/lib/watch/watch-window.ts');
 ok(/function FoldedRoomKey/.test(roomWindow) && /\{collapsed && drawn && read \? \(\s*<FoldedRoomKey/.test(roomWindow), 'a folded live room has its key above the player');
 ok(/createPortal\([\s\S]*?data-room-shelf-key[\s\S]*?shelf,\s*\)/.test(roomWindow), 'on the corner shelf');
-ok(/\{state\.collapsed \? <OwnRoomDoor folded \/> : null\}/.test(roomWindow) && /folded \? expandWatch\(\) : openWatch/.test(roomWindow), 'and so has your own room: [ ▲ ROOM ] brings it back');
+// Updated on purpose 2026-11-16 (list 3, ROOMS item 1): your own room, a signed-out visitor's included, is the live room's
+// window (RoomWindow), so folded it has that same key; the visitor-only window and its folded door are gone from here.
+ok(/<RoomWindow[\s\S]*?mainRoom=\{state\.focus\.roomId === ownRoomId\}/.test(roomWindow) && !/<OwnRoomWindow/.test(roomWindow), 'and so has your own room, a visitor\'s too: it is a RoomWindow, folded to the same key');
 ok(/onMinimize=\{drawn \? \(\) => onCollapse\(false\) : undefined\}/.test(roomWindow) && /pictureOut=\{pip && drawn\}/.test(roomWindow) && /pictureFloats=\{pip\}/.test(roomWindow), "a live room's [ _ ] folds it without putting its picture out");
 ok(/onFloatPicture=\{\(\) => onCollapse\(true\)\}/.test(roomWindow), 'its [ PIP ] folds it with the picture out');
 ok(/onMinimize=\{readable \? \(\) => onCollapse\(false\) : undefined\}/.test(ownWindow) && /onClick=\{\(\) => onCollapse\(true\)\} data-own-room-pip/.test(ownWindow), "your room's [ _ ] folds it, and its [ PIP ] floats the video");

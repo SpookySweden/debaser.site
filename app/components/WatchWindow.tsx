@@ -33,7 +33,6 @@ import { useAuth } from './AuthProvider';
 import { useRoomIdentity } from './use-room-identity';
 import DockWindow from './DockWindow';
 import { useLedgeHeadroom } from '../lib/companion/use-ledge-headroom';
-import OwnRoomWindow from './OwnRoomWindow';
 import RoomDoor from './RoomDoor';
 import WatchRoom from './WatchRoom';
 import { closeFloating, floatingState, subscribeToFloating } from '../lib/ui/floating-player';
@@ -130,6 +129,7 @@ function WatchWindowBody({
   onJoined: () => void;
 }) {
   const ownVisitor = useSyncExternalStore(subscribeToOwnRoom, ownRoomVisitorNow, noOwnRoomVisitor);
+  const ownVisitorHost = useSyncExternalStore(subscribeToOwnRoom, ownRoomHostNow, noOwnRoom);
   // A link to somebody's own room (`?join=<secret>`): the way in is asked before any window opens.
   const joining = joinSecretFromSearch(asked.length === 0 ? '' : `?${asked}`);
   if (joining !== null) return <JoinByLink key={joining} secret={joining} signedIn={accountId !== null} onDone={onJoined} />;
@@ -139,22 +139,25 @@ function WatchWindowBody({
 
   if (state.focus.kind === 'prelive') return <PreLiveWindow mediaItemId={state.focus.mediaItemId} onClose={close} />;
 
-  // A signed-out visitor's room lives in their browser and keeps its own window (no link, no chat, nobody else). Folded,
-  // its `[ ▲ ROOM ]` above the player brings it back (Luke, 2026-11-16).
-  if (state.focus.roomId === ownRoomId && ownVisitor) {
-    return (
-      <>
-        <OwnRoomWindow key={state.focus.roomId} roomId={state.focus.roomId} collapsed={state.collapsed} pip={state.collapsed && state.pip} onCollapse={collapse} onClose={close} />
-        {state.collapsed ? <OwnRoomDoor folded /> : null}
-      </>
-    );
-  }
-
-  // Every other room, your main room included (SPEC-rooms-perpetual.md): the live room's own window, switched by state.
-  return <RoomWindow key={state.focus.roomId} roomId={state.focus.roomId} mainRoom={state.focus.roomId === ownRoomId} collapsed={state.collapsed} pip={state.collapsed && state.pip} onCollapse={collapse} onLeft={close} />;
+  // Every room, your main room included (SPEC-rooms-perpetual.md): the live room's own window, switched by state. A
+  // signed-out visitor's own room too (list 3): it lives in their browser, so it has no link, no chat and nobody else, and
+  // GO LIVE asks them to log in; everything else is the same window. (`OwnRoomWindow.tsx`, its old look-alike, is unused.)
+  return (
+    <RoomWindow
+      key={state.focus.roomId}
+      roomId={state.focus.roomId}
+      mainRoom={state.focus.roomId === ownRoomId}
+      visitorHost={ownVisitor && state.focus.roomId === ownRoomId ? ownVisitorHost : null}
+      collapsed={state.collapsed}
+      pip={state.collapsed && state.pip}
+      onCollapse={collapse}
+      onLeft={close}
+    />
+  );
 }
 
 const ownRoomVisitorNow = () => ownRoomState().visitor;
+const ownRoomHostNow = () => ownRoomState().hostId;
 const noOwnRoomVisitor = () => false;
 
 /**
@@ -391,7 +394,24 @@ function PreLiveWindow({ mediaItemId, onClose }: { mediaItemId: string; onClose:
  * and nothing more; `[ PIP ]` (`pip`) folds it with its picture floating over the site, and the same key is the way
  * back (Luke, 2026-11-16: "collapsing the room goes to a small button above the player like before, not PIP").
  */
-function RoomWindow({ roomId, mainRoom, collapsed, pip, onCollapse, onLeft }: { roomId: string; mainRoom: boolean; collapsed: boolean; pip: boolean; onCollapse: (pip?: boolean) => void; onLeft: () => void }) {
+function RoomWindow({
+  roomId,
+  mainRoom,
+  visitorHost,
+  collapsed,
+  pip,
+  onCollapse,
+  onLeft,
+}: {
+  roomId: string;
+  mainRoom: boolean;
+  /** A signed-out visitor's own room: their browser's id, which hosts it. It lives in this browser and is joined by nobody. */
+  visitorHost: string | null;
+  collapsed: boolean;
+  pip: boolean;
+  onCollapse: (pip?: boolean) => void;
+  onLeft: () => void;
+}) {
   const { read, error } = useWatchRoom(roomId);
   // Your main room's window plays the room itself: whatever the floating player had on gives way, so nothing plays twice.
   useEffect(() => {
@@ -399,11 +419,16 @@ function RoomWindow({ roomId, mainRoom, collapsed, pip, onCollapse, onLeft }: { 
   }, [mainRoom]);
   const headroom = useLedgeHeadroom();
   const [closing, setClosing] = useState(false);
-  const { profile } = usePublicProfile(read?.room.hostId ?? null);
+  // A visitor's browser id is no account: nothing to look up.
+  const { profile } = usePublicProfile(visitorHost !== null ? null : (read?.room.hostId ?? null));
   const now = useNow(5000);
   const live = read !== undefined && read !== null && roomIsLive(read.room, now);
   const hostName = profile?.displayName ?? read?.room.originalHostLabel ?? '';
+  /** Somebody's own room by its owner's name; a visitor's own is simply YOUR ROOM. */
+  const roomOwnerTitle = visitorHost !== null ? 'YOUR ROOM' : `${hostName.toUpperCase()}'S ROOM`;
   const userId = useRoomIdentity()?.id ?? null;
+  /** Who hosts from here: the account (or guest), or the visitor in their own browser room. */
+  const selfId = visitorHost ?? userId;
   const readable = read !== undefined && read !== null;
   /** Taken out of this stream while in it (SPEC-privacy-phase-2.md): the room goes, and its wires with it. */
   const [removedFor, setRemovedFor] = useState<string | null>(null);
@@ -418,7 +443,8 @@ function RoomWindow({ roomId, mainRoom, collapsed, pip, onCollapse, onLeft }: { 
   // Somebody who can read the room and is signed in, or a guest, belongs to it from here (an open room going private keeps them).
   // A room they cannot read waits for JOIN at its door.
   useEffect(() => {
-    if (userId === null || !readable) return;
+    // A visitor's own browser room has no members to enter or watch: nobody can join it.
+    if (userId === null || !readable || visitorHost !== null) return;
     const repository = getWatchRepository();
     void repository.enterRoom(roomId, null).then((said) => {
       if (said === 'removed') setRemovedFor(roomId);
@@ -428,7 +454,7 @@ function RoomWindow({ roomId, mainRoom, collapsed, pip, onCollapse, onLeft }: { 
       setRemovedFor(roomId);
       applyLocalChange(roomId, { kind: 'refresh' });
     });
-  }, [roomId, userId, readable]);
+  }, [roomId, userId, readable, visitorHost]);
 
   return (
     <>
@@ -437,12 +463,12 @@ function RoomWindow({ roomId, mainRoom, collapsed, pip, onCollapse, onLeft }: { 
         id="stream"
         fill
         // Somebody's own room, joined by its link, is named as theirs: it is not a stream and has no privacy to pick.
-        title={read ? (read.room.origin === 'music' ? `${hostName.toUpperCase()}'S ROOM` : `STREAM :: ${roomShownName(read.room, hostName).toUpperCase()}${read.room.privacy === 'open' ? '' : ` :: ${roomPrivacyLabel(read.room.privacy)}`}`) : 'STREAM'}
+        title={read ? (read.room.origin === 'music' ? roomOwnerTitle : `STREAM :: ${roomShownName(read.room, hostName).toUpperCase()}${read.room.privacy === 'open' ? '' : ` :: ${roomPrivacyLabel(read.room.privacy)}`}`) : 'STREAM'}
         badge={read ? (read.room.origin === 'music' ? (read.room.isPublic ? 'LIVE' : mainRoom ? 'PRIVATE' : 'BY LINK') : live ? 'LIVE' : 'ENDED') : undefined}
         // Your main room's X folds it away and it plays on (SPEC-rooms-perpetual.md): you never leave it by closing the
         // window, only by LEAVE or END ROOM. Anybody else leaving with a changed canvas nobody saved is asked first.
         onClose={() =>
-          mainRoom && drawn && read !== undefined && read !== null && read.room.endedAt === null && read.room.hostId === userId
+          mainRoom && drawn && read !== undefined && read !== null && read.room.endedAt === null && read.room.hostId === selfId
             ? onCollapse(false)
             : removed
               ? onLeft()
@@ -482,7 +508,7 @@ function RoomWindow({ roomId, mainRoom, collapsed, pip, onCollapse, onLeft }: { 
         )}
       </DockWindow>
       {collapsed && drawn && read ? (
-        <FoldedRoomKey live={read.room.origin === 'music' || live} label={read.room.origin === 'music' ? `${hostName.toUpperCase()}'S ROOM` : roomShownName(read.room, hostName).toUpperCase()} />
+        <FoldedRoomKey live={read.room.origin === 'music' || live} label={read.room.origin === 'music' ? roomOwnerTitle : roomShownName(read.room, hostName).toUpperCase()} />
       ) : null}
       {read === undefined || read === null ? <BarWaiting text={read === null ? 'STREAM' : (error ?? 'READING THE STREAM...')} /> : null}
     </>

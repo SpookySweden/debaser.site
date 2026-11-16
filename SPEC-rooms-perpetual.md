@@ -252,10 +252,12 @@ Then the house loop once per batch (League mode: one heavy step at a time, low p
   hands the bar a new up-next only when what is in it changes (`MusicRoomKeeper.tsx`); their probe gives 0 errors.
 - **A new room:** after END ROOM or a hand-on, the session (`own-room.ts` `renew`) starts a blank room, written with
   the next play; its queue is empty (Q1 A).
-- **Not done, said here:** a signed-out visitor keeps the old YOUR ROOM window (their room lives in the browser and
-  has no link or chat), so `OwnRoomWindow.tsx` is still used for visitors; KINO free copies and a media server's rows
-  carry no source and still play in the floating player; `[ WATCH IN ROOM ]` still makes a separate stream room;
-  `<NAME> IS AWAY` for joiners of an away host is not drawn; the 3-minute close of a handed-on room and the
+- **List 3 (2026-11-16, ROOMS):** a signed-out visitor's room opens in this same window (YOUR ROOM, PRIVATE; kept in
+  their browser, so no link, no chat, no canvas: JUST YOU HERE and LOG IN where chat is, and GO LIVE says LOG IN);
+  `OwnRoomWindow.tsx` is unused, kept (Q5 A). KINO free copies and a media server's rows open in your room on PLAY.
+  `[ WATCH IN ROOM ]` puts the video on in your own room, from where you had got to, and opens WHO CAN JOIN on it.
+  After END ROOM, `[ + ADD ]` in the QUEUE window writes your new room first (it said THE STREAM HAS ENDED before).
+- **Not done, said here:** `<NAME> IS AWAY` for joiners of an away host is not drawn; the 3-minute close of a handed-on room and the
   45-second take-over are proved on the mock store and in the migration, not live (the migration waits for Luke's
   typed OK).
 - **Proof:** `Temp/check-rooms-perpetual.cjs` (8, two mutations caught), `scripts/drive-rooms-perpetual.cjs` (9 on a

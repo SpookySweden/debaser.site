@@ -2,7 +2,10 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { PLATE_LARGE, PLATE_LINK, PLATE_MAIN } from '../lib/ui/controls';
-import { closeFloatingIfMine, floatingState, placeOf, playFloating } from '../lib/ui/floating-player';
+import { closeFloatingIfMine, floatingState, placeOf, playFloating, type RoomSource } from '../lib/ui/floating-player';
+import { LINK_TITLE_MAX } from '../lib/watch/link-limits';
+import { youtubeWatchUrl } from '../lib/watch/links';
+import type { WatchLink } from '../lib/watch/types';
 import { embedWithPlace, timeSourceOf } from '../lib/web/embed-time';
 import { freeServiceUrl } from '../lib/web/free-services';
 import { freeCopyEmbed, type FreeCopy, type KinoSources, type KinoTitle, type WatchOffer } from '../lib/web/kino';
@@ -72,6 +75,8 @@ function FreeCopyKeys({ copy, title, audio, open, only }: { copy: FreeCopy; titl
       id: playId,
       title,
       shape: 'video',
+      // How it plays in a room: PLAY opens it in your own room, as a MEDIA video does (SPEC-rooms-perpetual.md, list 3).
+      room: freeCopyRoomSource(copy, embed, title),
       player: {
         kind: 'frame',
         src: embedWithPlace(startingEmbed(embed, copy.platform, audio), timeFrom, placeOf(playId), window.location.origin),
@@ -105,6 +110,16 @@ function FreeCopyKeys({ copy, title, audio, open, only }: { copy: FreeCopy; titl
       {playing ? <PlayerBox id={playId} title={title} className={`${WATCH_PLAYER_BOX} aspect-video w-full border border-ink-plate bg-paper`} /> : null}
     </>
   );
+}
+
+/**
+ * A free copy as a room plays it: YouTube by its own player (the room drives it), the Internet Archive by its embed, as
+ * MEDIA's rows of those platforms are (`watchLinkForItem`). It starts from the top in the room.
+ */
+export function freeCopyRoomSource(copy: Pick<FreeCopy, 'platform' | 'id'>, embed: string, title: string): RoomSource {
+  const name = title.replace(/\s+/g, ' ').trim().slice(0, LINK_TITLE_MAX).trim() || SITE_NAMES[copy.platform];
+  const link: WatchLink = copy.platform === 'youtube' ? { url: youtubeWatchUrl(copy.id), kind: 'youtube', title: name } : { url: embed, kind: 'embed', title: name };
+  return { link };
 }
 
 /** A service that has the title free: its own search for the title where that's been tried, or just its name. */
