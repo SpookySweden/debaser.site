@@ -5,6 +5,7 @@ import { PLATE, PLATE_PRESSED } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import { useForum } from './ForumProvider';
 import GoLiveWindow from './GoLiveWindow';
+import { goLiveInMainRoom } from '../lib/watch/main-room-play';
 
 /**
  * `[ GO LIVE ]` wherever your room shows itself: on the bar, and on the floating player in place of its old
@@ -25,7 +26,10 @@ export default function GoLiveKey({ plate = PLATE, pressed = PLATE_PRESSED, scre
     <>
       <button
         type="button"
-        onClick={() => setAsking(true)}
+        // Your own room goes live where it is (SPEC-rooms-perpetual.md): its window opens on WHO CAN JOIN.
+        onClick={() => {
+          if (!goLiveInMainRoom()) setAsking(true);
+        }}
         aria-haspopup="dialog"
         aria-expanded={asking}
         aria-label="Go live: start a room people can join, with what is on and your queue"

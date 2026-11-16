@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { FIELD_TIGHT, PLATE, PLATE_MAIN, PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED, PLATE_PRESSED } from '../lib/ui/controls';
+import { takeGoLiveAsk } from '../lib/watch/main-room-play';
 import { ownRoomState } from '../lib/watch/own-room-client';
 import { getWatchRepository } from '../lib/watch/repository';
 import { streamAnchor, streamThreadTitle } from '../lib/watch/rules';
@@ -18,7 +19,8 @@ import PopoutWindow from './PopoutWindow';
  * The same room throughout: going live moves nothing and restarts nothing.
  */
 export default function MainRoomKeys({ room, hostName, heir, onLeft }: { room: WatchRoom; hostName: string; heir: WatchMember | null; onLeft: () => void }) {
-  const [asking, setAsking] = useState(false);
+  // GO LIVE pressed on the music bar or the CYTUBE page opens this room on WHO CAN JOIN (main-room-play.ts).
+  const [asking, setAsking] = useState(() => takeGoLiveAsk(room.id));
   const [confirmEnd, setConfirmEnd] = useState(false);
   const [busy, setBusy] = useState(false);
   const [fault, setFault] = useState<string | null>(null);

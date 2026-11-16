@@ -86,6 +86,32 @@ function putOn(source: MainRoomSource): 'room' | 'none' {
   return 'room';
 }
 
+/** The room whose window should open on WHO CAN JOIN: GO LIVE was pressed outside it. Taken once. */
+let goLiveAsked: string | null = null;
+export function takeGoLiveAsk(roomId: string): boolean {
+  if (goLiveAsked !== roomId) return false;
+  goLiveAsked = null;
+  return true;
+}
+
+/**
+ * `[ GO LIVE ]` on the music bar or the CYTUBE page (SPEC-rooms-perpetual.md): it announces the room you are already in,
+ * so it opens your main room's window on WHO CAN JOIN. False when you have no main room here (a visitor): the caller
+ * keeps its old way.
+ */
+export function goLiveInMainRoom(): boolean {
+  const own = ownRoomState();
+  const session = own.session;
+  if (session === null || own.visitor || own.roomId === null) return false;
+  void session.ensureMade().then((held) => {
+    const roomId = session.id();
+    if (!held || roomId === null) return;
+    goLiveAsked = roomId;
+    openOrUnfold(roomId);
+  });
+  return true;
+}
+
 function openOrUnfold(roomId: string): void {
   const now = watchWindowState();
   if (now.open && now.focus?.kind === 'room' && now.focus.roomId === roomId) expandWatch();

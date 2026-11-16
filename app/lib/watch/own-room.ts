@@ -179,6 +179,13 @@ export class OwnRoomSession {
     return this.made;
   }
 
+  /** Writes the room now if it is only in this browser (GO LIVE with nothing played yet); true once it is held. */
+  async ensureMade(): Promise<boolean> {
+    if (this.closed || this.roomId === null) return false;
+    if (!this.made) this.push('other', async () => undefined);
+    return this.saved();
+  }
+
   /**
    * The room stopped being your main room (SPEC-rooms-perpetual.md): you ended it, or it was handed on and is somebody
    * else's now. A new blank room takes its place in the browser, written with the next thing you play; its queue starts

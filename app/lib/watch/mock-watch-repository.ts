@@ -211,7 +211,14 @@ function save(tables: Tables, roomId: string | null): void {
   send({ type: 'changed', roomId });
 }
 
-function changeRoom(roomId: string, change: (room: WatchRoom) => WatchRoom | null): void {
+/**
+ * What only the database's own functions may change (SPEC-rooms-perpetual.md): `announcing` is watch_room_announce
+ * (a main room's live switch and privacy), `passing` is watch_room_pass_on / watch_take_over (a main room changes hands
+ * and becomes a stream room).
+ */
+type RoomRights = { announcing?: boolean; passing?: boolean };
+
+function changeRoom(roomId: string, change: (room: WatchRoom) => WatchRoom | null, rights: RoomRights = {}): void {
   const tables = load();
   const room = tables.rooms.find((candidate) => candidate.id === roomId);
   if (room === undefined) throw new Error('NO SUCH STREAM.');
@@ -219,14 +226,22 @@ function changeRoom(roomId: string, change: (room: WatchRoom) => WatchRoom | nul
 
   const changed = change(room);
   if (changed === null) return;
-  // As the database's `watch_rooms_own_room_private`: a person's own room is never switched public.
-  if (room.origin === 'music' && changed.isPublic) throw new OwnRoomRefusal('THAT DID NOT SAVE.');
-  // As the database's `watch_rooms_guard`: a room keeps its origin; a music room keeps its host and is never
-  // ended; a stream room is always public.
+  // As the database's `watch_rooms_guard`: a room keeps its origin, except a main room handed on, which becomes a stream
+  // room (never back). A main room keeps its host, and its live switch and privacy change only by GO LIVE / GO PRIVATE;
+  // its host may end it. A stream room is always public.
+  const origin = rights.passing === true && room.origin === 'music' && changed.origin === 'stream' ? 'stream' : room.origin;
   const next: WatchRoom =
-    room.origin === 'music'
-      ? { ...changed, origin: room.origin, hostId: room.hostId, endedAt: null, isPublic: false, privacy: 'private' }
-      : { ...changed, origin: room.origin, isPublic: true };
+    origin === 'music'
+      ? {
+          ...changed,
+          origin,
+          hostId: room.hostId,
+          isPublic: rights.announcing === true ? changed.isPublic : room.isPublic,
+          privacy: rights.announcing === true ? changed.privacy : room.privacy,
+        }
+      : { ...changed, origin, isPublic: true };
+  // As the database's `watch_rooms_own_room_private`: a main room that is not live is private.
+  if (next.origin === 'music' && !next.isPublic && next.privacy !== 'private') throw new OwnRoomRefusal('THAT DID NOT SAVE.');
   // A new host is crowned at once, as the database's `watch_rooms_crown_host` does it.
   const crowns = next.hostId === room.hostId ? tables.crowns : withCrown(tables.crowns, crownFor(roomId, next.hostId, room.hostId));
   save({ ...tables, crowns, rooms: tables.rooms.map((candidate) => (candidate.id === roomId ? { ...next, updatedAt: stamp() } : candidate)) }, roomId);
@@ -828,7 +843,7 @@ class MockWatchRepository implements WatchRepository {
       delete passwords[roomId];
     }
     save({ ...tables, passwords, attempts: tables.attempts.filter((row) => row.roomId !== roomId) }, null);
-    changeRoom(roomId, (current) => ({ ...current, isPublic: on, privacy: chosen }));
+    changeRoom(roomId, (current) => ({ ...current, isPublic: on, privacy: chosen }), { announcing: true });
   }
 
   /** As the database's `watch_room_pass_on`: a live room handed to a member; a main room becomes a stream room. */
@@ -839,7 +854,7 @@ class MockWatchRepository implements WatchRepository {
     if (me === null || heirId === me || room === undefined || room.hostId !== me || room.endedAt !== null) return false;
     if (!(room.origin === 'stream' || (room.origin === 'music' && room.isPublic))) return false;
     if (!tables.members.some((row) => row.roomId === roomId && row.userId === heirId && row.removedAt === null)) return false;
-    changeRoom(roomId, (current) => ({ ...current, hostId: heirId, origin: 'stream', isPublic: true }));
+    changeRoom(roomId, (current) => ({ ...current, hostId: heirId, origin: 'stream', isPublic: true }), { passing: true });
     return true;
   }
 
@@ -856,7 +871,7 @@ class MockWatchRepository implements WatchRepository {
     }
     addMember(tables, roomId, callerId);
 
-    changeRoom(roomId, (current) => ({ ...current, hostId: callerId, origin: 'stream', isPublic: true }));
+    changeRoom(roomId, (current) => ({ ...current, hostId: callerId, origin: 'stream', isPublic: true }), { passing: true });
     return true;
   }
 

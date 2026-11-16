@@ -13,6 +13,7 @@ import { enterRoom } from '../lib/watch/use-music-room';
 import { useWatchRoom } from '../lib/watch/use-watch-room';
 import { useWatching } from '../lib/watch/use-watching';
 import { openWatch } from '../lib/watch/watch-window';
+import { goLiveInMainRoom } from '../lib/watch/main-room-play';
 import type { AccountUser } from '../lib/auth/types';
 import { useAuth } from './AuthProvider';
 import CytubeLayout from './CytubeLayout';
@@ -134,7 +135,8 @@ function GoLiveKey({ user }: { user: AccountUser }) {
 
   function goLive() {
     if (hosting !== null) openWatch({ kind: 'room', roomId: hosting });
-    else setAsking(true);
+    // Your own room goes live where it is (SPEC-rooms-perpetual.md): its window opens on WHO CAN JOIN.
+    else if (!goLiveInMainRoom()) setAsking(true);
   }
 
   return (
