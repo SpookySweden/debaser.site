@@ -1,6 +1,9 @@
 'use client';
 
+import { fluidEngine } from '../../lib/backdrops/fluid/sim';
+import { mystifyEngine } from '../../lib/backdrops/mystify/sim';
 import { sandEngine } from '../../lib/backdrops/sand/sim';
+import { starfieldEngine } from '../../lib/backdrops/starfield/sim';
 import CanvasBackdrop from './CanvasBackdrop';
 
 /**
@@ -12,6 +15,9 @@ export default function Backdrops() {
   return (
     <>
       <CanvasBackdrop engine={sandEngine} />
+      <CanvasBackdrop engine={fluidEngine} />
+      <CanvasBackdrop engine={starfieldEngine} />
+      <CanvasBackdrop engine={mystifyEngine} />
     </>
   );
 }
