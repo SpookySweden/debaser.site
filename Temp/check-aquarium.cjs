@@ -525,7 +525,7 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
   assert.equal(typeof windowModule.default, 'function', 'the AQUARIUM window is a component');
   const key = renderToString(React.createElement(windowModule.BackdropKey));
   assert.match(key, /class="aquarium-key /, 'the sea key is placed by the stylesheet');
-  assert.match(key.replace(/<!-- -->/g, ''), /\[ AQUARIUM \]/, 'and says what it opens');
+  assert.match(key.replace(/<!-- -->/g, ''), /\[ FLUID \]/, 'and says what it opens: the background that is on, FLUID by default since 2026-11-16 (Luke)');
   const knobs = renderToString(React.createElement(windowModule.BackdropKnobs, { id: 'aquarium' })).replace(/<!-- -->/g, '');
   for (const tab of S.TABS) assert.ok(knobs.includes(`[ ${tab.label} ]`), `the window has a ${tab.label} tab`);
   // (HIGHEST and LOWEST are drawn as one control, DEPTH: a strip with two handles.)
