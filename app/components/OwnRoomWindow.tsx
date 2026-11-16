@@ -117,7 +117,9 @@ export default function OwnRoomWindow({ roomId, collapsed, onCollapse, onClose }
   /** The song the room has on is the one on the bar, so the bar's transport is this room's. */
   const songOnBar = song !== null && player.track?.src === song.src;
   const hasTransport = obeys || songOnBar;
-  const paused = songOnBar ? !player.playing : (clock?.paused ?? false);
+  // A player that has said nothing yet is not known to be playing: the key reads PLAY, and a press asks it to play (which a
+  // player already playing ignores). It used to read PAUSE, and the first press on a video the browser had not let start did nothing.
+  const paused = songOnBar ? !player.playing : (clock?.paused ?? true);
   const seconds = songOnBar ? player.elapsed : (clock?.seconds ?? 0);
   const length = songOnBar ? player.duration : (clock?.duration ?? Number.NaN);
   const duration = Number.isFinite(length) && length > 0 ? length : 0;
@@ -243,7 +245,8 @@ export default function OwnRoomWindow({ roomId, collapsed, onCollapse, onClose }
         title="YOUR ROOM"
         badge={own.visitor ? 'IN THIS BROWSER' : 'JUST YOU'}
         onClose={onClose}
-        onMinimize={readable && videoOn ? onCollapse : undefined}
+        // A held picture has no `[ PIP ]`, so it has no `[ _ ]` either: only a video floats.
+        onMinimize={readable && videoOn && !pictureOn ? onCollapse : undefined}
         minimizeTip="Picture in picture: the window tucks away and the video floats"
         minimized={collapsed}
         aboveBottomBar
