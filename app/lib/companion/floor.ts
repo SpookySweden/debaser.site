@@ -104,3 +104,18 @@ export function measureFloor(figureWidth: number, figureHeight: number): Floor {
   setLedgeCovering(ledgeBox !== null && reachesStrip(ledgeBox, stripY, COVER_REACH));
   return floorFrom(screen, stripY, ledgeBox, blocks, figureWidth, figureHeight);
 }
+
+/**
+ * The windows that can shove it (`./shove.ts`; Luke, 2026-11-16): every docked or pop-up window on screen, and the video while
+ * it floats. Not the stream room's window while it is the floor under it (`ledge`): that one it stands on.
+ */
+export function measureWindows(ledge: boolean): { id: string; box: FloorBox }[] {
+  const standing = ledge ? ([...document.querySelectorAll(LEDGE_SELECTOR)].find(shown) ?? null) : null;
+  const found: { id: string; box: FloorBox }[] = [];
+  for (const element of document.querySelectorAll('[data-dock-window], [data-floating-player="floating"]')) {
+    if (element === standing || !shown(element)) continue;
+    const id = element instanceof HTMLElement ? (element.dataset.dockWindow ?? 'floating-player') : 'window';
+    found.push({ id, box: boxOf(element) });
+  }
+  return found;
+}

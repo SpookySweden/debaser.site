@@ -82,6 +82,8 @@ export type Thrown = {
   /** Where it was a frame ago: the smear lies back along that line. */
   fromX: number;
   fromY: number;
+  /** Pressed flat on its floor under a window (`./shove.ts`): the way it squirts out when it peels off. */
+  squirt?: { vx: number; vy: number };
 };
 
 /**
@@ -161,6 +163,8 @@ export function throwStep(now: Thrown, arena: Arena): Thrown {
       const slide = now.edge === 'top' ? 0 : PEEL_SLIDE;
       return { ...now, ...from, age: now.age + 1, y: Math.min(Math.max(arena.floor, now.y), now.y + slide) };
     }
+    // Flat on the floor under a window: it squirts out sideways.
+    if (now.edge === 'floor' && now.squirt !== undefined) return fly({ ...now, vx: now.squirt.vx, vy: now.squirt.vy, squirt: undefined }, arena);
     // Off it comes, pushed a little away from the side it was on, and falls.
     const kick = now.edge === 'left' ? PEEL_KICK : now.edge === 'right' ? -PEEL_KICK : 0;
     return fly({ ...now, vx: kick, vy: 0 }, arena);

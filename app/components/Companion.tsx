@@ -13,7 +13,8 @@ import {
   subscribeToCompanionChoices,
 } from '../lib/companion/companion-slot';
 import { onCompanionCatch, onCompanionPoke, onCompanionSpoke } from '../lib/companion/events';
-import { LEDGE_SELECTOR, measureFloor, type Floor } from '../lib/companion/floor';
+import { LEDGE_SELECTOR, measureFloor, measureWindows, type Floor, type FloorBox } from '../lib/companion/floor';
+import { shoveStep, shoveThrow } from '../lib/companion/shove';
 import { holdLedgeHeight } from '../lib/companion/ledge';
 import { companionScene } from '../lib/companion/scene';
 import {
@@ -681,6 +682,9 @@ function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, loo
     let insets: Insets = NO_INSETS;
     let measured = false;
     let markTimer: ReturnType<typeof setTimeout> | null = null;
+    /** The windows as they were last frame, and those that have just hit it (`../lib/companion/shove.ts`). Null until first seen. */
+    let windowsSeen: Map<string, FloorBox> | null = null;
+    let windowsCooling = new Map<string, number>();
     let lastSaid: { mood: CompanionMood; target: number | null; ref: string | null; pose: MotionId | null; share: number; at: number } | null = null;
     // Visiting a profile's room.
     let phase: Phase = 'strip';
@@ -738,6 +742,40 @@ function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, loo
       if (portalUntil !== 0 && now >= portalUntil) {
         portalUntil = 0;
         closePortal(portal);
+      }
+
+      // Shoved by a window (Luke, 2026-11-16): one that pops up on it, is dragged into it, or is brought down onto its head
+      // throws it (../lib/companion/shove.ts). On its strip, falling, or already in the air; not in the hand, nor on its way
+      // to or from a profile's room. The windows are looked at every frame, so the first frame after one moves is the hit;
+      // the first look of all only learns where they are (a window open as the page loads has not just popped up on it).
+      {
+        const windows = still ? [] : measureWindows(floor.ledge);
+        if (windowsSeen === null) windowsSeen = new Map(windows.map((seen) => [seen.id, seen.box]));
+        else {
+          const feet = phase === 'strip' ? floor.y : y;
+          const left = x ?? 0;
+          const body = { left, right: left + size.w, top: feet - size.h, bottom: feet };
+          const looked = shoveStep(windows, windowsSeen, windowsCooling, body, [Math.random(), Math.random()]);
+          windowsSeen = looked.seen;
+          windowsCooling = looked.cooling;
+          if (looked.shove !== null && x !== null && (phase === 'strip' || phase === 'fall' || phase === 'thrown')) {
+            thrown = shoveThrow(x, feet, looked.shove, phase === 'thrown' ? thrown : null);
+            phase = 'thrown';
+            fall = null;
+            act = null;
+            queue.length = 0;
+            settle = [];
+            if (Math.abs(thrown.vx) >= 2) facing = thrown.vx > 0 ? 1 : -1;
+            const worn = wearing.current.look;
+            if (!measured && worn !== null) {
+              measured = true;
+              void measureInsets(worn, 'splat').then((found) => {
+                insets = found;
+              });
+            }
+            markTimer = showMark(mark, markTimer, '!');
+          }
+        }
       }
 
       // In the reader's hand: it hangs where the pointer has it, swinging, never off the screen or under its own floor.

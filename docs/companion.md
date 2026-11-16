@@ -56,6 +56,16 @@ bake.
   air or peeled off the glass by pressing and dragging it. A put-down after a double press throws too if the pointer is
   on the move. Escape, the window going and reduced motion never throw. A room is told nothing while it flies: one
   message when it is down, saying where (and `dizzy`, which older tabs draw as a hop).
+- **Shoved by windows** (Luke, 2026-11-16: "If a window pops up on him or moves across him, it pushes him in silly, fun
+  ways, like a physics experiment"). `app/lib/companion/shove.ts`, pure. Each frame the loop measures every docked or pop-up
+  window and the floating video (`measureWindows` in `floor.ts`; never the room window it stands on) against last frame's
+  boxes. A window that has just appeared over it **pops** it out sideways, away from the window's middle, and up; one dragged
+  into it **pushes** it the way the window went, at one and a half times the window's speed, up too (a hard drag splats it
+  on the screen's edge); one brought down onto its head **squashes** it flat on its floor (a `stuck` against `floor`) and it
+  squirts out sideways, dizzy. Each is a throw (`shoveThrow`) with no wind-up, so the flight, smear, splats and bounces are
+  the throw's own. In the air a window bats it again (a squash up there swats it down), but the same window waits
+  `SHOVE_COOLDOWN` frames. The first look at the page only learns where the windows are. Not in the hand, not climbing to
+  a room, not under reduced motion. The knobs are the constants at the top of `shove.ts`.
 - **Stepped, always.** Ten frames a second in whole pixels, a carry, a fall and a throw included. No `requestAnimationFrame`.
 - **Joining in.** A scene (`type`, `game`, `read`, `watch`) settles it where it stands in a pose. Typing, a game and a book
   come before the music; a video after it. It hears typing itself (a key into a text box, never which key, never a
@@ -123,6 +133,9 @@ bake.
   every frame of an arc, three splats, a soft bounce, a put-down and a catch against the rules run in Node from the same
   let-go; close-ups go to `Temp/browse/throw/`. Leaves nothing. The same trick (mock storage seeded, `page.clock`) is the
   cheapest way to drive anything else the companion does without the live database.
+- `scripts/drive-companion-shove.cjs`: shoved by windows in a real browser against a LOCAL mock dev server (the plain
+  figure, no bake): PREFERENCES dragged hard across it throws it (and splats it on the edge), PREFERENCES opened on top of
+  it pops it away from the window's middle, and under reduced motion nothing moves. Leaves nothing.
 - `scripts/drive-companion.cjs`: the first spec's proof in real browsers as TEST ACCOUNT A and B (it leaves a room and a
   message to clear; `--dance-only` leaves nothing).
 - `scripts/drive-companion-life.cjs`: the re-bake, picking up and dropping (the start at being lifted, the double press,

@@ -1,6 +1,6 @@
 /*
  * The companion along the bottom of the site (SPEC-companion.md): its rules, without a browser.
- *   npx tsc app/lib/companion/brain.ts app/lib/companion/wire.ts app/lib/companion/choices.ts app/lib/companion/scene.ts app/lib/companion/events.ts app/lib/companion/ledge.ts app/lib/companion/floor.ts app/lib/companion/throw.ts app/lib/watch/members-signature.ts --outDir Temp/companion-check --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strict
+ *   npx tsc app/lib/companion/brain.ts app/lib/companion/wire.ts app/lib/companion/choices.ts app/lib/companion/scene.ts app/lib/companion/events.ts app/lib/companion/ledge.ts app/lib/companion/floor.ts app/lib/companion/throw.ts app/lib/companion/shove.ts app/lib/watch/members-signature.ts --outDir Temp/companion-check --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strict
  *   node Temp/check-companion.cjs
  *
  * What it holds:
@@ -14,7 +14,10 @@
  *   - the wiring: rides on the room's existing presence (no new channel), never per frame, clicks pass through the strip;
  *   - thrown (Luke, 2026-11-14): let go on the move it keeps the pointer's speed, winds up, flies under gravity and drag,
  *     splats on a side or the top of the screen it hits hard and bounces off one it hits softly, bounces on its floor and
- *     settles; a squash keeps as much of it as there was; the smear lies back along its path; a room hears only the end.
+ *     settles; a squash keeps as much of it as there was; the smear lies back along its path; a room hears only the end;
+ *   - shoved by windows (Luke, 2026-11-16): one that pops up on it knocks it out sideways and up, one dragged into it sends it
+ *     the way the window went, one brought down onto its head squashes it flat and it squirts out; a window that only sits
+ *     there does nothing, the same window can't hit it every frame, and a first look at the page is not a pop.
  */
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -30,6 +33,7 @@ const events = require(path.join(OUT, 'companion', 'events.js'));
 const ledge = require(path.join(OUT, 'companion', 'ledge.js'));
 const floors = require(path.join(OUT, 'companion', 'floor.js'));
 const throws = require(path.join(OUT, 'companion', 'throw.js'));
+const shoves = require(path.join(OUT, 'companion', 'shove.js'));
 const { membersSignature } = require(path.join(OUT, 'watch', 'members-signature.js'));
 const read = (file) => fs.readFileSync(path.join(ROOT, file), 'utf8');
 
@@ -986,6 +990,99 @@ ok('the throw on the page: only on a moving let-go, never under reduced motion, 
   assert.equal(wire.parseCompanionWire({ x: 0.5, m: 'stand', r: 3, k: 'dizzy' }).k, 'dizzy');
   const motions = read('app/lib/character/motion.ts');
   assert.match(motions, /flung: 'idle',\s*splat: 'stand',\s*dizzy: 'idle',/, 'a strip baked before the throw plays older motions in their place');
+});
+
+/* --- shoved by windows (Luke, 2026-11-16) --- */
+const SHOVE_FIG = { left: 500, right: 564, top: 836, bottom: 900 };
+const SHOVE_ARENA = { left: 0, right: 1536, ceiling: 64, floor: 900 };
+const win = (left, top, w = 400, h = 300) => ({ left, top, right: left + w, bottom: top + h });
+
+ok('a window that pops up over it knocks it out sideways, away from the window, and up', () => {
+  const right = shoves.shoveFrom({ id: 'a', now: win(400, 700), before: undefined }, SHOVE_FIG, [0.5, 0.5]);
+  assert.equal(right.kind, 'pop');
+  assert.ok(right.vx < 0, "the window's middle is right of it: out to the left");
+  assert.ok(right.vy < 0, 'and up');
+  const off = shoves.shoveFrom({ id: 'a', now: win(800, 700), before: undefined }, SHOVE_FIG, [0.5, 0.5]);
+  assert.equal(off, null, 'a window that appears somewhere else does nothing');
+  const soft = shoves.shoveFrom({ id: 'a', now: win(300, 700), before: undefined }, SHOVE_FIG, [0.5, 0]);
+  const hard = shoves.shoveFrom({ id: 'a', now: win(300, 700), before: undefined }, SHOVE_FIG, [0.5, 0.999]);
+  assert.ok(Math.abs(hard.vx) > Math.abs(soft.vx) && hard.vy < soft.vy, 'the dice make some pops harder than others');
+});
+
+ok('a window dragged into it sends it the way the window went, ahead of it; a slow drag is a bump, a hard one splats it', () => {
+  const push = shoves.shoveFrom({ id: 'a', now: win(140, 700), before: win(100, 700) }, SHOVE_FIG, [0.5, 0.5]);
+  assert.equal(push.kind, 'push');
+  assert.ok(push.vx > 40, 'faster than the window, so it flies off ahead of it');
+  assert.ok(push.vy < 0, 'and up');
+  const back = shoves.shoveFrom({ id: 'a', now: win(560, 700), before: win(600, 700) }, SHOVE_FIG, [0.5, 0.5]);
+  assert.ok(back.vx < 0, 'dragged the other way, it goes the other way');
+  assert.equal(shoves.shoveFrom({ id: 'a', now: win(302, 700), before: win(300, 700) }, SHOVE_FIG, [0.5, 0.5]), null, 'a window barely moving over it only leans');
+  assert.equal(shoves.shoveFrom({ id: 'a', now: win(300, 700), before: win(300, 700) }, SHOVE_FIG, [0.5, 0.5]), null, 'a window that sits there does nothing');
+  // A hard drag to the right, flown out with the throw's own rules: it reaches the right edge fast enough to splat.
+  const hardPush = shoves.shoveFrom({ id: 'a', now: win(240, 700), before: win(150, 700) }, SHOVE_FIG, [0.5, 0.5]);
+  let t = shoves.shoveThrow(1100, 900, hardPush, null);
+  assert.equal(t.stage, 'fly', 'a hit has no wind-up: it is in the air at once');
+  let splat = false;
+  for (let i = 0; i < 40 && t.stage !== 'landed'; i += 1) {
+    t = throws.throwStep(t, SHOVE_ARENA);
+    if (t.stage === 'stuck' && t.edge === 'right') splat = true;
+  }
+  assert.ok(splat, 'flat against the right edge of the screen');
+  assert.ok(t.splatted, 'and it lands dizzy');
+  const slowPush = shoves.shoveFrom({ id: 'a', now: win(106, 700), before: win(100, 700) }, SHOVE_FIG, [0.5, 0.5]);
+  assert.ok(Math.hypot(slowPush.vx, slowPush.vy) < throws.SPLAT_SPEED, 'a slow drag is only a bump');
+  const huge = shoves.shoveFrom({ id: 'a', now: win(900, 700), before: win(100, 700) }, { ...SHOVE_FIG, left: 1000, right: 1064 }, [0.5, 0.5]);
+  assert.ok(Math.hypot(huge.vx, huge.vy) <= throws.THROW_MAX + 1, 'never faster than a throw');
+});
+
+ok('a window brought down onto its head squashes it flat on its floor, and it squirts out sideways', () => {
+  const squash = shoves.shoveFrom({ id: 'a', now: win(400, 560), before: win(400, 520) }, SHOVE_FIG, [0.5, 0.5]);
+  assert.equal(squash.kind, 'squash');
+  let t = shoves.shoveThrow(500, 900, squash, null);
+  assert.equal(t.stage, 'stuck');
+  assert.equal(t.edge, 'floor');
+  const look = throws.throwLook(t, { w: 64, h: 64 });
+  assert.ok(look.d < 0.5 && look.a > 1, 'flat and wide');
+  let out = false;
+  for (let i = 0; i < 40 && t.stage !== 'landed'; i += 1) {
+    t = throws.throwStep(t, SHOVE_ARENA);
+    if (t.stage === 'fly' && t.vy < 0 && t.vx !== 0) out = true;
+  }
+  assert.ok(out, 'it squirts out, up and sideways');
+  assert.equal(t.stage, 'landed');
+  assert.ok(t.splatted, 'dizzy after');
+  const aloft = shoves.shoveThrow(500, 700, squash, shoves.shoveThrow(500, 700, { kind: 'pop', vx: 30, vy: -60 }, null));
+  assert.equal(aloft.stage, 'fly', 'in the air, a window coming down swats it instead');
+  assert.ok(aloft.vy > 0, 'down');
+});
+
+ok('it can be juggled, but the same window cannot hit it every frame, and nothing is a pop on the first look', () => {
+  const first = shoves.shoveStep([{ id: 'a', box: win(300, 700) }], new Map([['a', win(300, 700)]]), new Map(), SHOVE_FIG, [0.5, 0.5]);
+  assert.equal(first.shove, null, 'a window already there is not a pop');
+  let step = shoves.shoveStep([{ id: 'a', box: win(140, 700) }], new Map([['a', win(100, 700)]]), new Map(), SHOVE_FIG, [0.5, 0.5]);
+  assert.equal(step.shove.kind, 'push');
+  assert.equal(step.cooling.get('a'), shoves.SHOVE_COOLDOWN);
+  for (let i = 1; i < shoves.SHOVE_COOLDOWN; i += 1) {
+    step = shoves.shoveStep([{ id: 'a', box: win(140 + 40 * i, 700) }], step.seen, step.cooling, SHOVE_FIG, [0.5, 0.5]);
+    assert.equal(step.shove, null, `not frame ${i} after the hit, though the window still moves over it`);
+  }
+  step = shoves.shoveStep([{ id: 'a', box: win(400, 700) }], step.seen, step.cooling, SHOVE_FIG, [0.5, 0.5]);
+  assert.ok(step.shove !== null, 'but again once it has cooled: a window can juggle it');
+  const two = shoves.shoveStep([{ id: 'a', box: win(300, 700) }, { id: 'b', box: win(450, 700) }], new Map(), new Map(), SHOVE_FIG, [0.5, 0.5]);
+  assert.ok(two.shove !== null && two.cooling.has('a') && !two.cooling.has('b'), 'one hit a frame');
+  const t = shoves.shoveThrow(500, 700, { kind: 'push', vx: -50, vy: -30 }, { ...shoves.shoveThrow(500, 700, { kind: 'pop', vx: 30, vy: -60 }, null), splatted: true });
+  assert.equal(t.vx, -50, 'batted the new way in the air');
+  assert.equal(t.splatted, true, 'and still dizzy when it lands, if it splatted on the way');
+});
+
+ok('the wiring: the loop looks at the windows every frame, not under reduced motion, never the window it stands on', () => {
+  const companion = read('app/components/Companion.tsx');
+  assert.ok(companion.includes('const windows = still ? [] : measureWindows(floor.ledge);'));
+  assert.ok(companion.includes('if (windowsSeen === null) windowsSeen = new Map'), 'the first look only learns where they are');
+  assert.ok(companion.includes("(phase === 'strip' || phase === 'fall' || phase === 'thrown')"), 'on its strip, falling or in the air; never in the hand or climbing');
+  const floor = read('app/lib/companion/floor.ts');
+  assert.ok(floor.includes('if (element === standing || !shown(element)) continue;'), 'not the room window it stands on, nor a folded one');
+  assert.ok(floor.includes(`'[data-dock-window], [data-floating-player="floating"]'`), 'every window, and the video while it floats');
 });
 
 console.log(`\n${passed} passed`);
