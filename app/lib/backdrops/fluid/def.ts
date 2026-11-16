@@ -17,9 +17,10 @@ const DEFAULTS: Values = {
   windX: 0,
   windY: 0,
   walls: true,
+  // GRID 10px, COLOUR STEPS 3, DITHER 15%, KALEIDOSCOPE OFF: Luke's settings, made the defaults (list 4, 2026-11-16).
   cell: 10,
-  steps: 4,
-  dither: 60,
+  steps: 3,
+  dither: 15,
   mirror: 'off',
   pointer: 'stir',
   time: 1,
@@ -111,8 +112,9 @@ export const FLUID_DEF: BackdropDef = {
   ...BASE,
   looks: [
     { id: 'ink', label: 'INK', tip: 'COLOURED INK IN STILL WATER, AS IT COMES', values: DEFAULTS },
-    { id: 'smoke', label: 'SMOKE', tip: 'GREY SMOKE THAT RISES AND CURLS', values: look({ colours: 'mono', buoyancy: 60, fade: 45, swirl: 65, thickness: 10, auto: 45, steps: 5, splat: 6 }) },
+    // (SMOKE and OIL SLICK keep the DITHER they were made with, 60, now that the default is 15.)
+    { id: 'smoke', label: 'SMOKE', tip: 'GREY SMOKE THAT RISES AND CURLS', values: look({ colours: 'mono', buoyancy: 60, fade: 45, swirl: 65, thickness: 10, auto: 45, steps: 5, splat: 6, dither: 60 }) },
     { id: 'lava', label: 'LAVA', tip: 'THICK, SLOW AND HOT', values: look({ colours: 'fire', buoyancy: 25, thickness: 60, fade: 90, swirl: 10, steps: 3, dither: 100, splat: 8, time: 0.75 }) },
-    { id: 'oil-slick', label: 'OIL SLICK', tip: 'EVERY COLOUR, TIGHTLY CURLED, FOLDED FOUR WAYS', values: look({ colours: 'rainbow', swirl: 85, fade: 90, thickness: 5, steps: 6, mirror: '4', auto: 35 }) },
+    { id: 'oil-slick', label: 'OIL SLICK', tip: 'EVERY COLOUR, TIGHTLY CURLED, FOLDED FOUR WAYS', values: look({ colours: 'rainbow', swirl: 85, fade: 90, thickness: 5, steps: 6, mirror: '4', auto: 35, dither: 60 }) },
   ],
 };
