@@ -40,7 +40,7 @@ const { close, flags, goto, open } = require('./browser.cjs');
 const PORT = 3210;
 const BASE = `http://127.0.0.1:${PORT}`;
 const STORAGE_KEY = 'debaser.site.theme.v2';
-const THEME_IDS = ['default', 'dark', 'sherbet-pink', 'sherbet-night', 'sherbet-mint'];
+const THEME_IDS = ['default', 'dark', 'sherbet-pink', 'sherbet-night', 'sherbet-mint', 'marmalade-peach', 'marmalade-pistachio', 'marmalade-nectarine', 'marmalade-kiwi', 'marmalade-magma', 'marmalade-moss', 'overdrive-ember', 'overdrive-volt', 'overdrive-blaze', 'overdrive-glitch', 'tigerbread-crumb', 'tigerbread-toasted', 'tigerbread-charred', 'clementine'];
 
 const argv = flags();
 const target = argv.at('--url', `${BASE}/forum`);

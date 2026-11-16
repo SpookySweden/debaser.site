@@ -190,7 +190,8 @@ assert.equal(typeof validateNameColour('#123456'), 'string', 'off-swatch colours
   assert.match(chooserHtml, />OUTLINED ON BRIGHT THEMES<\/p>/, 'and the bright ones another');
   assert.doesNotMatch(chooserHtml, /DARK STRIP/, 'named for the outline, not the strip that went');
   assert.doesNotMatch(chooserHtml, />INK<\/p>|>GLOW<\/p>|PREVIEW ::/, 'the old heads and the readback are gone');
-  assert.equal((chooserHtml.match(/>sweden<\/span>/g) ?? []).length, 18 + 5, 'the reader own name beside each choice and on all five themes');
+  // 19 themes since the MARMALADE swatch's 14 (SPEC-themes-marmalade.md, 2026-11-16).
+  assert.equal((chooserHtml.match(/>sweden<\/span>/g) ?? []).length, 18 + 19, 'the reader own name beside each choice and on all nineteen themes');
   for (const colour of NAME_COLOURS) assert.doesNotMatch(chooser(colour.hex), /HARD TO READ/, colour.label + ' reads on every theme, so nothing warns');
 
   console.log('stamp + swatch checks passed');

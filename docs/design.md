@@ -27,6 +27,15 @@ picked under SHERBET in Preferences. All are light except Orchid, and Orchid wor
 Light/dark CSS (name colours, the CONTRAST cursor) reads `data-scheme`, not a theme id. One borrowing outside it: the beat box's loop bar is
 Orchid under White numbers, because BeepBox's is purple and Orchid is the only purple there is (Luke, 2026-11-06).
 
+## Palette: "MARMALADE" (orange and green, 2026-11-16, SPEC-themes-marmalade.md)
+Made for Luke's partner: pastel peaches and pistachios, neons and bread, about 70 named dyes in `DYES`. Worn only by four
+rows of the picker: MARMALADE (PEACH, PISTACHIO, NECTARINE, KIWI light; MAGMA, MOSS dark with coloured windows),
+OVERDRIVE (EMBER, VOLT, BLAZE, GLITCH: sleek near-black, neon), TIGERBREAD (CRUMB, TOASTED, CHARRED) and CLEMENTINE on
+its own. Tuned for a screen with its vibrance turned up: the neons stop short of full strength (58-75% saturation) so
+they reach neon there without clipping, the dark windows are near-black rather than Black, and their words a touch
+off-White. TIGERBREAD's CRUMB and TOASTED tile the desktop with a crackle (`tile: 'crackle'`, `data-tile` on `<html>`)
+instead of the checker. MOSS borrows SHERBET's Lime.
+
 ## The cover card (SPEC-music-queues.md, 2026-11-03)
 A room's screen while a song plays has a look of its own, the same in every theme: still retro, an Ash grey
 ground (#3D3C44) with coloured words, the title in Flavine and the rest in Candy (`cover-card`,

@@ -8,7 +8,7 @@ her monitor likely has high digital vibrance and contrast". Then: "include some 
 tigerbread", "give tigerbread a few variants and add clemantime too as a unique one", and, offered three plans,
 "add all and organise appropriately".
 
-Status: **planned, waiting for Luke's OK to build.** Nothing here is built yet.
+Status: **built** (Luke's OK, "Build it here", 2026-11-16), in the same session that wrote this spec.
 
 ## Luke's answers (interview, 2026-11-16)
 
@@ -84,7 +84,7 @@ the keys), and an almost flat desktop.
 - CRUMB: cream crumb windows, dark brown words, crust-brown links, golden keys, toast-brown chips, a butter-yellow
   pointed row. Crust desktop (toasted orange-brown) with dark brown crackle.
 - TOASTED: toasted-brown windows, cream words, gold links, pale toasted-orange captions, golden keys, black chips, on the
-  same crackled crust desktop. Its music queue shows already-played songs in Candy, because Light Red is 4.41:1 on its brown.
+  same crackled crust desktop.
 - CHARRED: charcoal windows (EMBER's warm black), cream words, glowing neon-orange links, gold captions. Near-flat charcoal desktop.
 
 **CLEMENTINE.** The whole fruit, and the one bright, saturated light theme: vivid clementine windows, black words, dark
@@ -98,11 +98,10 @@ Swatch mock-ups were shown to Luke in the session. The palettes as data (dye nam
   the table at the end). Four `ThemeFamily`s (MARMALADE, OVERDRIVE, TIGERBREAD; CLEMENTINE has none), 14 `Theme`s, the
   `ThemeId` union, and `THEMES` in the order above. Shared parts as the existing themes have them: `ink-plate` Black,
   `ink-bar` White, `hardware` Black, faults and BARR in Rose, the cover card and reader tokens unchanged (`READER_TOKENS`).
-  The light themes take Deep Red / Deep Green / Royal Blue for the queue and the dark ones Light Red / Emerald / Light Blue,
-  except TOASTED's played songs (Candy). Light themes: `ice`, `ice-pale`, `chrome-dark` and `acid-pale` are the panel
+  The light themes take Deep Red / Deep Green / Royal Blue for the queue and the dark ones Light Red / Emerald / Light Blue. Light themes: `ice`, `ice-pale`, `chrome-dark` and `acid-pale` are the panel
   colour, and `chrome` is Nigrosine (Crust Shadow on CRUMB). Dark themes: `sun-pale`, `ice` and `acid-pale` are the window
   colour, and `chrome`, `chrome-dark`, `ice-pale` and `ena-deep` are Black. `pointed-quiet` is White on the light ones
-  (Pith White on CLEMENTINE); on the dark ones it's the pointed colour, except Black on MAGMA and MOSS and Crust Ink on TOASTED.
+  (Pith White on CLEMENTINE); on the dark ones it's the pointed colour, except Crust Ink on TOASTED.
 - MOSS reuses SHERBET's Lime. Every other MARMALADE colour is new.
 - `npm run tokens -- --write` regenerates `app/theme/tokens.css`.
 - `Temp/check-themes.cjs` pins every dye and says where each may be worn (`wornAllowed`). Add the new swatch to it as
@@ -122,6 +121,18 @@ Swatch mock-ups were shown to Luke in the session. The palettes as data (dye nam
   `sun-pale`), people's name colours and their outlines on bright themes (`Temp/check-name-colour.cjs`), the split key's
   halves (`Temp/check-media-list.cjs`), and the literal-pair scan in `check-themes.cjs` step 5 (every `text-X bg-Y` in the
   source, in every theme). A pair that fails there gets the smallest nudge to a dye, and the tables below are updated with it.
+
+## Nudged while building (2026-11-16)
+
+The site-wide checks found three things the token arithmetic alone could not, all fixed and remeasured here:
+- MAGMA and MOSS lit an already-read post in Black, the colour it already rests on, so pointing at it showed nothing
+  (`check-hover-pairs.cjs`). They light it in their pointed colour now, like the other darks.
+- People's name colours must read on every window (`check-name-colour.cjs`): Rose and Brilliant Pink names were 3.6-4.4:1 on
+  MAGMA, MOSS and TOASTED, and six dark names 4.36-4.44:1 on CLEMENTINE. So MAGMA (#3a1607 → #351405), MOSS (#0f3521 →
+  #08231a, its desktop #08200f → #04150c) and TOASTED (#4a2812 → #341709) went a shade darker, and CLEMENTINE (#ff9f45 →
+  #ffa74b) a hair lighter. Every name colour now reads on every new theme.
+- With TOASTED darker, Light Red reads on it again (5.3:1), so its played songs are Light Red like the other darks; the Candy
+  borrowing is gone.
 
 ## Proof
 
@@ -162,8 +173,8 @@ printed on the link colour, the fill a bracket key takes when pointed at.
 | PISTACHIO | 17.23 | 6.43 | 14.62 | 15.24 | 10.74 | 6.21 | 15.81 | 5.91 | 6.43 |
 | NECTARINE | 14.02 | 5.78 | 11.90 | 12.27 | 9.67 | 6.09 | 16.03 | 6.60 | 5.78 |
 | KIWI | 16.60 | 6.20 | 14.09 | 14.68 | 9.67 | 6.21 | 14.02 | 5.24 | 6.20 |
-| MAGMA | 14.51 | 9.93 | 10.79 | 14.51 | 9.15 | 21.00 | 10.79 | 7.39 | 9.93 |
-| MOSS | 12.94 | 11.44 | 9.02 | 12.94 | 14.54 | 21.00 | 8.74 | 7.73 | 11.44 |
+| MAGMA | 15.02 | 10.28 | 11.17 | 15.02 | 9.15 | 21.00 | 10.79 | 7.39 | 10.28 |
+| MOSS | 15.86 | 14.02 | 11.06 | 15.86 | 14.54 | 21.00 | 8.74 | 7.73 | 14.02 |
 
 ### OVERDRIVE: dyes by job
 
@@ -192,7 +203,7 @@ printed on the link colour, the fill a bracket key takes when pointed at.
 | option | words on windows | links on windows | captions | words on panels | key labels | chip words | words on pointed row | links on pointed row | key under pointer |
 |---|---|---|---|---|---|---|---|---|---|
 | CRUMB | 15.17 | 6.91 | 9.84 | 13.01 | 9.81 | 9.04 | 11.79 | 5.37 | 6.91 |
-| TOASTED | 11.51 | 8.04 | 7.53 | 11.51 | 9.81 | 21.00 | 8.22 | 5.74 | 8.04 |
+| TOASTED | 14.50 | 10.13 | 9.48 | 14.50 | 9.81 | 21.00 | 8.22 | 5.74 | 10.13 |
 | CHARRED | 16.79 | 8.32 | 11.72 | 16.79 | 9.15 | 6.09 | 13.18 | 6.53 | 8.32 |
 
 ### CLEMENTINE: dyes by job
@@ -203,7 +214,7 @@ printed on the link colour, the fill a bracket key takes when pointed at.
 
 | option | words on windows | links on windows | captions | words on panels | key labels | chip words | words on pointed row | links on pointed row | key under pointer |
 |---|---|---|---|---|---|---|---|---|---|
-| CLEMENTINE | 10.30 | 5.91 | 8.47 | 12.24 | 15.69 | 8.40 | 14.74 | 8.46 | 5.91 |
+| CLEMENTINE | 10.88 | 6.24 | 8.95 | 12.24 | 15.69 | 8.40 | 14.74 | 8.46 | 6.24 |
 
 ### New dyes
 
@@ -228,12 +239,12 @@ printed on the link colour, the fill a bracket key takes when pointed at.
 | fern | #8fe08a |
 | kiwi | #c2f2ad |
 | kiwiDeep | #aae894 |
-| magma | #3a1607 |
+| magma | #351405 |
 | magmaGlow | #5e2509 |
 | magmaDeep | #250d03 |
-| moss | #0f3521 |
+| moss | #08231a |
 | mossGlow | #1a5232 |
-| mossDeep | #08200f |
+| mossDeep | #04150c |
 | cream | #fff0e3 |
 | mintWhite | #eafff1 |
 | lilacWhite | #f5f1ff |
@@ -269,11 +280,11 @@ printed on the link colour, the fill a bracket key takes when pointed at.
 | crustShadow | #3a1f0c |
 | crustDesk | #b5622a |
 | crackle | #5c2b0f |
-| toasted | #4a2812 |
+| toasted | #341709 |
 | toastedGlow | #6b3a19 |
 | charcoalDesk | #2a160b |
 | toastedPale | #ffb38a |
-| clementine | #ff9f45 |
+| clementine | #ffa74b |
 | clementineLight | #ffb76b |
 | pith | #ffd09a |
 | leafDark | #0c3f1b |

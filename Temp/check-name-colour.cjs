@@ -194,7 +194,8 @@ for (const swatch of NAME_COLOURS) {
 assert.equal(nameColourWords(''), 'SITE COLOUR');
 assert.equal(nameColourWords('#1d3ca6'), 'ROYAL BLUE / DAFFODIL');
 
-assert.equal(THEMES.length, 5, 'every theme is asked about, not only the two the older arithmetic knows');
+// 19 since the MARMALADE swatch's 14 (SPEC-themes-marmalade.md, 2026-11-16): every one of them is asked about below.
+assert.equal(THEMES.length, 19, 'every theme is asked about, not only the two the older arithmetic knows');
 for (const swatch of NAME_COLOURS_THAT_READ) {
   for (const theme of nameOnThemes(swatch.hex)) assert.ok(theme.readable, swatch.label + ' reads on ' + theme.label);
 }

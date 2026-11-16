@@ -55,13 +55,33 @@ const QUEUE_SHADES = { deepRed: '#8c0027', deepGreen: '#0b521b', lightRed: '#ff5
 const ASH = '#3d3c44';
 // (2026-11-11) The reader's papers (SPEC-reader.md, Luke): worn only by the reader-* tokens.
 const READER_PAPERS = { vellum: '#faf8f2', moonInk: '#e6e1ee', sepiaPaper: '#f4ecd8', sepiaInk: '#4b3826' };
+// (2026-11-16) The MARMALADE swatch (SPEC-themes-marmalade.md, Luke): worn only by the MARMALADE, OVERDRIVE and TIGERBREAD
+// templates and CLEMENTINE.
+const MARMALADE = {
+  peach: '#ffd8bd', nectar: '#ffc59e', apricot: '#ffa463', burntOrange: '#a8420b', honeydew: '#c9efbf',
+  spearmint: '#8fe39a', sage: '#a7dc9c', forest: '#14572b', pistachio: '#d5f1c6', pistachioDeep: '#bfe7ac',
+  rust: '#8f3500', leaf: '#2a6e37', nectarine: '#ffc8a0', nectarineDeep: '#ffb683', papaya: '#ff9550',
+  greengage: '#b7f0a6', fern: '#8fe08a', kiwi: '#c2f2ad', kiwiDeep: '#aae894', magma: '#351405',
+  magmaGlow: '#5e2509', magmaDeep: '#250d03', moss: '#08231a', mossGlow: '#1a5232', mossDeep: '#04150c',
+  cream: '#fff0e3', mintWhite: '#eafff1', lilacWhite: '#f5f1ff', emberBlack: '#150e0a', emberGlow: '#3d1f0d',
+  emberDesk: '#1e130c', emberDither: '#26180f', voltBlack: '#0a130e', voltGlow: '#123e23', voltDesk: '#0c1a12',
+  voltDither: '#112318', blazeBlack: '#0e0b16', blazeGlow: '#22194a', blazeDither: '#16112a',
+  glitchGlow: '#173d2a', neonOrange: '#ff8d45', neonGreen: '#5df28c', cyan: '#45f0ff', magenta: '#ff6ad5',
+  amber: '#ffc98e', kumquat: '#ffa057', gold: '#f6c35e', crumb: '#fbefd9', crumbDeep: '#f2ddb9',
+  crustInk: '#2a1607', crust: '#8a390a', crumbQuiet: '#55331a', toast: '#76370f', golden: '#e9a34e',
+  butter: '#f6d08f', wheat: '#f0c062', crustOrange: '#ee9152', crustShadow: '#3a1f0c', crustDesk: '#b5622a',
+  crackle: '#5c2b0f', toasted: '#341709', toastedGlow: '#6b3a19', charcoalDesk: '#2a160b',
+  toastedPale: '#ffb38a', clementine: '#ffa74b', clementineLight: '#ffb76b', pith: '#ffd09a',
+  leafDark: '#0c3f1b', leafGreen: '#17592a', limeLeaf: '#b7f06a', pithWhite: '#fff3d6'
+};
+const MARMALADE_THEME = (id) => /^(marmalade|overdrive|tigerbread)-/.test(id) || id === 'clementine';
 assert.deepEqual(
   [...Object.values(DYES)].sort(),
-  [...NINE, ...Object.values(SHERBET), ...Object.values(QUEUE_SHADES), ...Object.values(READER_PAPERS), ASH].sort(),
+  [...NINE, ...Object.values(SHERBET), ...Object.values(QUEUE_SHADES), ...Object.values(READER_PAPERS), ...Object.values(MARMALADE), ASH].sort(),
   'every dye in themes.ts is one of these, and each is here',
 );
 assert.equal(new Set(Object.values(DYES)).size, Object.keys(DYES).length, 'and no colour is named twice');
-for (const [name, hex] of Object.entries({ ...SHERBET, ...QUEUE_SHADES, ...READER_PAPERS, ash: ASH })) assert.equal(DYES[name], hex, `${name} is ${hex}`);
+for (const [name, hex] of Object.entries({ ...SHERBET, ...QUEUE_SHADES, ...READER_PAPERS, ...MARMALADE, ash: ASH })) assert.equal(DYES[name], hex, `${name} is ${hex}`);
 
 /** Whether this token, in this theme, may wear this colour: where each colour beyond the nine is allowed to go. */
 const wornAllowed = (themeId, token, hex) => {
@@ -70,7 +90,14 @@ const wornAllowed = (themeId, token, hex) => {
   if (Object.values(READER_PAPERS).includes(hex)) return token.startsWith('reader-');
   // The reader's highlight colours (2026-11-11) borrow the queue's light blue and light red as tints.
   if (Object.values(QUEUE_SHADES).includes(hex)) return token.startsWith('queue-') || token === 'mark-blue' || token === 'mark-red';
-  if (Object.values(SHERBET).includes(hex)) return themeId.startsWith('sherbet-') || (token === 'cover-card-ink' && hex === SHERBET.candy);
+  // One borrowing from SHERBET (SPEC-themes-marmalade.md): MOSS's links and status bar are Lime.
+  if (Object.values(SHERBET).includes(hex))
+    return (
+      themeId.startsWith('sherbet-') ||
+      (token === 'cover-card-ink' && hex === SHERBET.candy) ||
+      (themeId === 'marmalade-moss' && hex === SHERBET.lime)
+    );
+  if (Object.values(MARMALADE).includes(hex)) return MARMALADE_THEME(themeId);
   return false;
 };
 

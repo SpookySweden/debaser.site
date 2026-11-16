@@ -54,6 +54,30 @@ body {
   background-size: 4px 4px;
 }
 
+/* TIGERBREAD's crust (SPEC-themes-marmalade.md, Luke 2026-11-16): instead of the checker, the crackle of a tiger loaf - thin
+   dark lines in `desktop-dither` over `desktop`. Four single-line tiles at odd angles and sizes that never line up, so the
+   segments break into an irregular net. A repeating tile pattern, not a picture (core.md's Asset Rules). Written by the
+   theme as `data-tile` (themes.ts `tile`); a backdrop other than the tile still clears it (the rule above the aquarium's). */
+html[data-tile='crackle'] .desktop-tile {
+  background-image: var(
+    --art-desktop-tile,
+    linear-gradient(17deg, transparent calc(50% - 1px), var(--color-desktop-dither) calc(50% - 1px), var(--color-desktop-dither) calc(50% + 1px), transparent calc(50% + 1px)),
+    linear-gradient(-58deg, transparent calc(50% - 1px), var(--color-desktop-dither) calc(50% - 1px), var(--color-desktop-dither) calc(50% + 1px), transparent calc(50% + 1px)),
+    linear-gradient(81deg, transparent calc(50% - 1px), var(--color-desktop-dither) calc(50% - 1px), var(--color-desktop-dither) calc(50% + 1px), transparent calc(50% + 1px)),
+    linear-gradient(-27deg, transparent calc(50% - 1px), var(--color-desktop-dither) calc(50% - 1px), var(--color-desktop-dither) calc(50% + 1px), transparent calc(50% + 1px))
+  );
+  background-position:
+    0 0,
+    11px 7px,
+    5px 19px,
+    17px 3px;
+  background-size:
+    23px 31px,
+    37px 19px,
+    29px 41px,
+    43px 27px;
+}
+
 /* The AQUARIUM background (app/components/Aquarium.tsx, chosen in PREFERENCES; the default since 2026-11-15) ------------------
    While `<html>` carries a `data-backdrop` other than `tile` (the aquarium, or a simulated background: SPEC-backgrounds.md) -
    written by the boot script before the first paint - the desk lets go of its

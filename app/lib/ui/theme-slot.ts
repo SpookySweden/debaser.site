@@ -66,6 +66,9 @@ export function applyTheme(theme: Theme, root: HTMLElement): void {
   // option must get the light readings without the stylesheet learning every id.
   root.dataset.scheme = theme.scheme;
   root.style.colorScheme = theme.scheme;
+  // The desktop's texture when it is not the checker (TIGERBREAD's crackle); removed, not emptied, so the checker returns.
+  if (theme.tile) root.dataset.tile = theme.tile;
+  else delete root.dataset.tile;
 }
 
 /**
@@ -153,7 +156,11 @@ export function currentTheme(): Theme {
  * exactly what the site looks like without this script at all.
  */
 export function themeBootScript(): string {
-  const themes = Object.fromEntries(THEMES.map((theme) => [theme.id, theme]));
+  // Only what the boot needs: the picker's labels, notes and family stay out of every page's <head> (19 themes since
+  // SPEC-themes-marmalade.md).
+  const themes = Object.fromEntries(
+    THEMES.map((theme) => [theme.id, { id: theme.id, scheme: theme.scheme, tile: theme.tile, tokens: theme.tokens }]),
+  );
   const writes = THEME_TOKEN_NAMES.map(
     (token) => `r.style.setProperty('--color-${token}',t.tokens[${JSON.stringify(token)}]);`,
   ).join('');
@@ -165,6 +172,7 @@ export function themeBootScript(): string {
     'var t=a[localStorage.getItem(k)||d]||a[d],r=document.documentElement;',
     writes,
     'r.setAttribute("data-theme",t.id);r.setAttribute("data-scheme",t.scheme);r.style.colorScheme=t.scheme;',
+    'if(t.tile)r.setAttribute("data-tile",t.tile);',
     '}catch(e){}})();',
   ].join('');
 }
