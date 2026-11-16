@@ -238,6 +238,11 @@ for (const values of [...FLUID_DEF.looks.map((look) => look.values), ...Array.fr
   let fastest = 0;
   for (let n = 0; n < 600; n += 1) {
     env.pointer = { x: 48 + Math.sin(n / 9) * 40, y: 27 + Math.cos(n / 7) * 20, down: false };
+    // Flung strokes (list 4): every so often the pointer whips across, through a few places, between two steps.
+    env.trail = n % 7 === 0 ? [{ x: 20, y: 20 }, { x: 50, y: 44 }, { x: 80, y: 12 }] : undefined;
+    // And the window is flung about, closed and opened again.
+    const at = Math.floor(n / 3);
+    env.solids = n % 150 > 130 ? [] : [{ x0: 10 + (at * 7) % 30, y0: 6 + (at * 5) % 14, x1: 66 + (at * 7) % 30, y1: 40 + (at * 5) % 14 }];
     F.stepFluid(state, values, env);
     if (n % 100 === 50) F.fluidAction(state, ['splat', 'calm', 'splat', 'clear', 'splat', 'splat'][Math.floor(n / 100)], values, env);
     if (n % 60 === 0) F.fluidPress(state, (n * 7) % 96, (n * 3) % 54, values, env);
@@ -251,9 +256,170 @@ for (const values of [...FLUID_DEF.looks.map((look) => look.values), ...Array.fr
   assert.ok(F.fluidEngine.meters(state).every((meter) => Number.isFinite(meter.value)), 'and the meters have numbers');
 }
 
+/* ------------------------------------------------------------------ 6. the feel (list 4, 2026-11-16) */
+// Luke: "make the fluid respond better to higher mouse movement speeds"; "when the main window is closed ... the fluid
+// creativeley disperses so that its not leaving this jarring black square"; "moving other windows ... push the fluid in a
+// fun way rather than ever deleting the fluid under it"; new defaults GRID 10px, COLOUR STEPS 3, DITHER 15%, KALEIDOSCOPE OFF.
+const inkAt = (state, x, y) => {
+  const n = x + 1 + (state.w + 2) * (y + 1);
+  return state.ink[0][n] + state.ink[1][n] + state.ink[2][n];
+};
+const boxInk = (state, box, least = 0.01) => {
+  let [inked, cells] = [0, 0];
+  for (let y = box.y0; y < box.y1; y += 1) for (let x = box.x0; x < box.x1; x += 1) {
+    cells += 1;
+    if (inkAt(state, x, y) > least) inked += 1;
+  }
+  return inked / cells;
+};
+{
+  // A fast stroke: 22 cells a step, straight across. Ink lies all along its way, not in blots at the ends.
+  const { state, env } = world(64, 48);
+  const values = quiet({ pointer: 'stir' });
+  for (const x of [4, 26, 48]) {
+    env.pointer = { x, y: 24, down: false };
+    F.stepFluid(state, values, env);
+  }
+  let along = 0;
+  for (let x = 6; x <= 46; x += 1) if (inkAt(state, x, 24) > 0.15) along += 1;
+  assert.ok(along >= 39, `a fast stroke leaves ink the whole way it went (${along} of 41 cells along it), not a gap between two blots`);
+  let right = 0;
+  for (let n = 0; n < state.u.length; n += 1) right += state.u[n];
+  // The same stroke made slowly, a cell a step, as a measure of what the pointer has always carried.
+  const slow = world(64, 48);
+  for (let x = 4; x <= 48; x += 1) {
+    slow.env.pointer = { x, y: 24, down: false };
+    F.stepFluid(slow.state, values, slow.env);
+  }
+  let slowRight = 0;
+  for (let n = 0; n < slow.state.u.length; n += 1) slowRight += slow.state.u[n];
+  assert.ok(right > slowRight * 1.5, `and it carries the water further than the same way taken slowly (${Math.round(right)} against ${Math.round(slowRight)})`);
+  assert.ok(finite(state), 'and stays finite');
+}
+{
+  // A stroke round a corner between two steps: it goes where the pointer went, not straight across.
+  const { state, env } = world(64, 48);
+  const values = quiet({ pointer: 'stir' });
+  env.pointer = { x: 8, y: 8, down: false };
+  F.stepFluid(state, values, env);
+  env.trail = [{ x: 20, y: 8 }, { x: 32, y: 8 }, { x: 40, y: 8 }, { x: 40, y: 20 }, { x: 40, y: 32 }];
+  env.pointer = { x: 40, y: 40, down: false };
+  F.stepFluid(state, values, env);
+  env.trail = undefined;
+  assert.ok(inkAt(state, 30, 8) > 0.15 && inkAt(state, 40, 26) > 0.15, 'a stroke round a corner lays its ink along both legs');
+  assert.ok(inkAt(state, 24, 24) < 0.05, 'and none across the corner it did not take');
+  // A very long stroke of small splats, too long for them all to join: each is still about as dark as a slow stroke's blot (where it
+  // turns a sharp corner two meet, as they would in a slow stroke; without the floor on the overlap it was 1.43).
+  const long = world(192, 108);
+  const small = quiet({ pointer: 'stir', splat: 2 });
+  long.env.pointer = { x: 4, y: 10, down: false };
+  F.stepFluid(long.state, small, long.env);
+  long.env.trail = [{ x: 84, y: 10 }, { x: 164, y: 10 }, { x: 84, y: 40 }, { x: 4, y: 40 }];
+  long.env.pointer = { x: 84, y: 90, down: false };
+  F.stepFluid(long.state, small, long.env);
+  long.env.trail = undefined;
+  let darkest = 0;
+  for (const one of long.state.ink) for (const each of one) darkest = Math.max(darkest, each);
+  assert.ok(darkest > 0 && darkest <= 0.8, `a long sparse stroke lays about as much ink in a cell as a slow one does, not double (${darkest.toFixed(2)})`);
+}
+{
+  // A slow stroke is exactly as it always was: one splat where the pointer is.
+  const values = quiet({ pointer: 'stir' });
+  const made = world(64, 48);
+  const kept = world(64, 48);
+  made.env.pointer = { x: 20, y: 20, down: false };
+  F.stepFluid(made.state, values, made.env);
+  made.env.pointer = { x: 21.5, y: 20.5, down: false };
+  F.stepFluid(made.state, values, made.env);
+  kept.env.pointer = { x: 20, y: 20, down: false };
+  F.stepFluid(kept.state, values, kept.env);
+  const drag = Math.min(6, 30 * (D.push / 100) * 0.9 + 4);
+  F.splat(kept.state, 21.5, 20.5, 1.5 * drag, 0.5 * drag, D.splat, Math.min(0.5, 0.08 + Math.hypot(1.5, 0.5) * 0.04), kept.state.turn);
+  kept.env.pointer = { x: 21.5, y: 20.5, down: false };
+  kept.state.was = null;
+  F.stepFluid(kept.state, values, kept.env);
+  assert.ok(made.state.ink[0].every((one, n) => Math.abs(one - kept.state.ink[0][n]) < 1e-5) && made.state.u.every((one, n) => Math.abs(one - kept.state.u[n]) < 1e-4), 'a slow stroke is laid down exactly as before');
+}
+{
+  // A window dragged right through ink: the ink is shoved along, not wiped, and the water in front of it is pushed.
+  const ink = (state) => {
+    for (let y = 8; y < 40; y += 1) for (let x = 0; x < 64; x += 1) state.ink[1][x + 1 + 66 * (y + 1)] = 0.8;
+    state.inkNow = 0.5;
+  };
+  const start = { x0: 6, y0: 16, x1: 18, y1: 32 };
+  const { state, env } = world(64, 48, [start]);
+  const values = quiet();
+  F.stepFluid(state, values, env);
+  ink(state);
+  F.stepFluid(state, values, env);
+  const before = total(state);
+  for (let n = 1; n <= 10; n += 1) {
+    env.solids = [{ x0: start.x0 + n * 2, y0: start.y0, x1: start.x1 + n * 2, y1: start.y1 }];
+    F.stepFluid(state, values, env);
+  }
+  const box = env.solids[0];
+  assert.ok(total(state) > before * 0.9, `a window dragged through ink keeps the ink (${Math.round((total(state) / before) * 100)}% of it), pushing it aside instead of deleting it`);
+  assert.equal(boxInk(state, box, 0), 0, 'though none lies under the window');
+  let ahead = 0;
+  for (let y = box.y0; y < box.y1; y += 1) for (let x = box.x1; x < box.x1 + 4; x += 1) ahead += state.u[x + 1 + 66 * (y + 1)];
+  assert.ok(ahead > 0, `and the water in front of it is pushed the way it goes (${ahead.toFixed(1)})`);
+  let heap = 0;
+  for (let y = box.y0; y < box.y1; y += 1) heap += inkAt(state, box.x1, y) + inkAt(state, box.x1 + 1, y);
+  assert.ok(heap / (2 * (box.y1 - box.y0)) > 0.8, 'the ink it ploughed is heaped in front of it');
+  // A window that opens over ink pushes it out past its edges.
+  const open = world(64, 48, []);
+  F.stepFluid(open.state, values, open.env);
+  open.env.solids = [{ x0: 40, y0: 40, x1: 41, y1: 41 }];
+  F.stepFluid(open.state, values, open.env);
+  ink(open.state);
+  const was = total(open.state);
+  open.env.solids = [{ x0: 40, y0: 40, x1: 41, y1: 41 }, { x0: 20, y0: 14, x1: 44, y1: 34 }];
+  F.stepFluid(open.state, values, open.env);
+  assert.ok(total(open.state) > was * 0.9, `a window opening over ink keeps it (${Math.round((total(open.state) / was) * 100)}%)`);
+  assert.ok(finite(state) && finite(open.state), 'and everything stays finite');
+}
+{
+  // The site window closed (or put away) with ink all round it: the space fills with swirling ink, never a black square.
+  const box = { x0: 16, y0: 10, x1: 48, y1: 38 };
+  const { state, env } = world(64, 48, [box]);
+  const values = quiet();
+  F.stepFluid(state, values, env);
+  for (let y = 0; y < 48; y += 1) for (let x = 0; x < 64; x += 1) state.ink[(x >> 3) % 3][x + 1 + 66 * (y + 1)] = 0.7;
+  state.inkNow = 0.5;
+  F.stepFluid(state, values, env);
+  assert.equal(boxInk(state, box, 0), 0, 'with the window there, nothing under it');
+  env.solids = [];
+  F.stepFluid(state, values, env);
+  const first = boxInk(state, box, 0.25);
+  assert.ok(first > 0.25, `at once the ink round it runs in from every side (${Math.round(first * 100)}% of the space shows ink)`);
+  run(state, values, env, 15);
+  const half = boxInk(state, box, 0.25);
+  assert.ok(half > 0.6, `half a second on most of the space is inked (${Math.round(half * 100)}%)`);
+  let turning = 0;
+  for (let y = box.y0; y < box.y1; y += 1) for (let x = box.x0; x < box.x1; x += 1) turning += Math.abs(state.u[x + 1 + 66 * (y + 1)]) + Math.abs(state.v[x + 1 + 66 * (y + 1)]);
+  assert.ok(turning / ((box.x1 - box.x0) * (box.y1 - box.y0)) > 1, 'and it is moving: the water churns where the window was');
+  assert.ok(F.bunching(state) < 0.2, 'the churn neither piles the water up nor thins it out');
+  // A window that only moved has no churn: just its wake filling.
+  const moved = world(64, 48, [box]);
+  F.stepFluid(moved.state, values, moved.env);
+  moved.env.solids = [{ x0: box.x0 + 1, y0: box.y0, x1: box.x1 + 1, y1: box.y1 }];
+  F.stepFluid(moved.state, values, moved.env);
+  let wild = 0;
+  for (let n = 0; n < moved.state.u.length; n += 1) wild = Math.max(wild, Math.abs(moved.state.v[n]));
+  assert.ok(wild < 20, `a window that only moved does not churn the water (fastest up or down ${wild.toFixed(1)})`);
+}
+{
+  // Luke's settings are the defaults; the looks keep what they were made with.
+  assert.deepEqual([D.cell, D.steps, D.dither, D.mirror], [10, 3, 15, 'off'], 'as it comes: GRID 10px, COLOUR STEPS 3, DITHER 15%, KALEIDOSCOPE OFF');
+  const byId = Object.fromEntries(FLUID_DEF.looks.map((look) => [look.id, look.values]));
+  assert.deepEqual([byId.smoke.steps, byId.smoke.dither, byId['oil-slick'].steps, byId['oil-slick'].dither, byId.lava.steps, byId.lava.dither], [5, 60, 6, 60, 3, 100], 'SMOKE, OIL SLICK and LAVA look as they did');
+}
+
 console.log('backdrop: fluid');
 console.log('  still   : clean still water rests; ink in still water stays put');
 console.log('  moving  : a push carries ink its way; the pressure step stops the water bunching');
 console.log('  knobs   : ink lasts, thickness, swirl, buoyancy, wind, pointer, auto splats, solid windows; splat, calm, clear, a press');
 console.log('  picture : empty left empty, colour steps, dither, five colour sets, kaleidoscope 2 / 4 / 8');
-console.log('  range   : 4 looks, 6 parties and everything-at-once, 600 steps each: finite and bounded');
+console.log('  range   : 4 looks, 6 parties and everything-at-once, 600 steps each with flung strokes and a window flung about: finite and bounded');
+console.log('  feel    : fast strokes laid along their way and round corners, slow ones as before; windows shove ink, never wipe it;');
+console.log('            a closed window fills with swirling ink; GRID 10, COLOUR STEPS 3, DITHER 15, KALEIDOSCOPE OFF');
