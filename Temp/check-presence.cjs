@@ -48,6 +48,23 @@ assert.deepEqual(
   'one tab in use is enough for green; every tab idle is away',
 );
 
+// 1a. (List 4, 2026-11-16, Luke: "make the yellow "away" signal, take 40 minutes to kick in, unless the site is closed
+// completely") A tab is away only after 40 minutes unused, in front or in the background alike (it was 30 seconds in the
+// background, 5 minutes untouched in front); a closed site leaves the room and goes red as before.
+{
+  const presence = require('./check-out/profile/presence.js');
+  assert.equal(presence.PRESENCE_AWAY_MS, 40 * 60 * 1000, 'away after 40 minutes');
+  assert.equal(presence.PRESENCE_AWAY_HIDDEN_MS, undefined, 'no quicker away for a tab in the background');
+  assert.equal(presence.PRESENCE_AWAY_IDLE_MS, undefined, 'no quicker away for a tab left untouched');
+  assert.equal(presence.tabState(0), 'active');
+  assert.equal(presence.tabState(39 * 60 * 1000), 'active', '39 minutes unused (even in another tab): still green');
+  assert.equal(presence.tabState(40 * 60 * 1000), 'away', '40 minutes unused: yellow');
+  const provider = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'app', 'components', 'PresenceProvider.tsx'), 'utf8');
+  assert.doesNotMatch(provider, /say\(visible\(\) \? 'active' : 'away'\)/, 'a tab opened or shown in the background is not away at once');
+  assert.match(provider, /tabState\(Date\.now\(\) - lastUse\)/, 'the provider judges every tab by the one 40-minute rule');
+  console.log('  ok    away after 40 minutes unused, in front or behind');
+}
+
 // 1b. Without the room (still connecting, or unreachable): the stored record on the clock, never away.
 assert.equal(presenceStatus(undefined, NOW), 'offline', 'nobody heard from is offline');
 assert.equal(presenceStatus({ userId: 'a', lastSeenAt: at(0), online: true }, NOW), 'online');
