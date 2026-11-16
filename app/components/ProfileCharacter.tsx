@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
 import type { ShownCharacter } from '../lib/character/profile-character-repository';
 import type { CharacterSheet, Mood } from '../lib/character/sheet';
 import { SPRITE_SLOT } from '../lib/ui/controls';
@@ -19,7 +19,9 @@ import {
   type WalkerState,
 } from '../lib/character/walker';
 import { onCompanionCatch } from '../lib/companion/events';
+import type { Sample } from '../lib/companion/throw';
 import CharacterSprite from './CharacterSprite';
+import LooseCharacter, { type LooseGrab } from './LooseCharacter';
 import NoteTrail from './NoteTrail';
 
 /**
@@ -110,6 +112,8 @@ const ROOM_PLACEHOLDER = { w: 32, h: 32 } as const;
 /** What a figure in the room wears: a baked strip, or nothing (the placeholder field). */
 export type RoomLook = { stripUrl: string; sheet: CharacterSheet } | null;
 
+/** How far a press on a room's character must move before it is taken out of the room, not a hello. */
+const GRAB_SLOP = 5;
 /** How long after a companion arrives the room's own character waves back. */
 const HELLO_BACK_MS = 900;
 
@@ -192,6 +196,53 @@ export function RoomWalker({
     return () => clearTimeout(timer);
   }, [hello, reduced]);
   const figure = useRef<HTMLButtonElement>(null);
+  const wrap = useRef<HTMLDivElement>(null);
+
+  /**
+   * Taken out of the room (Luke, 2026-11-16: "anyone can grab one out of its window; let go, it walks and climbs back in by
+   * itself"): pressed and dragged by anybody, it leaves the room for a layer over the page (`./LooseCharacter.tsx`) and
+   * comes back by itself. Not your own companion visiting (it is yours to pick up off its strip), not under reduced motion.
+   */
+  const [loose, setLoose] = useState<{ grab: LooseGrab; stage: HTMLElement } | null>(null);
+  /** A drag just took it out: the click that ends the press is not a hello. */
+  const dragged = useRef(false);
+  const takeOut = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (reduced || who === 'visitor' || event.button !== 0 || loose !== null) return;
+    const button = event.currentTarget;
+    const stage = wrap.current?.parentElement ?? null;
+    if (stage === null) return;
+    const id = event.pointerId;
+    const from = { x: event.clientX, y: event.clientY };
+    const trail: Sample[] = [{ x: from.x, y: from.y, t: performance.now() }];
+    const stop = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', stop);
+      window.removeEventListener('pointercancel', stop);
+    };
+    const onMove = (move: PointerEvent) => {
+      if (move.pointerId !== id) return;
+      trail.push({ x: move.clientX, y: move.clientY, t: performance.now() });
+      if (Math.hypot(move.clientX - from.x, move.clientY - from.y) < GRAB_SLOP) return;
+      stop();
+      const box = button.getBoundingClientRect();
+      dragged.current = true;
+      setLoose({
+        grab: { pointerId: id, px: move.clientX, py: move.clientY, offX: from.x - box.left, offY: box.bottom - from.y, x: box.left, feet: box.bottom, trail },
+        stage,
+      });
+    };
+    window.addEventListener('pointermove', onMove, { passive: true });
+    window.addEventListener('pointerup', stop, { passive: true });
+    window.addEventListener('pointercancel', stop, { passive: true });
+  };
+  /** Back in: it steps in where it climbed up, with a wave. */
+  const backIn = (left: number | null) => {
+    const stage = loose?.stage ?? null;
+    setLoose(null);
+    if (left === null || stage === null) return;
+    const into = Math.round(left - stage.getBoundingClientRect().left);
+    setState((current) => greet({ ...current, x: Math.min(Math.max(0, into), room) }));
+  };
 
   const ticksOf = useCallback((motion: MotionId) => (look === null ? 6 : look.sheet.motions[motion].ticks.length), [look]);
 
@@ -219,24 +270,32 @@ export function RoomWalker({
     if (onSpot !== undefined && figure.current !== null) onSpot(figure.current);
   });
 
-  const talking = speech !== undefined && (reduced || breaksOffFor(state.motion));
+  const out = loose !== null;
+  const talking = !out && speech !== undefined && (reduced || breaksOffFor(state.motion));
   const motion = reduced || talking ? 'idle' : state.motion;
-  const dancing = !reduced && DANCES.includes(motion);
+  const dancing = !out && !reduced && DANCES.includes(motion);
   const visitor = who === 'visitor';
   const left = Math.min(Math.max(0, state.x), room);
   return (
-    <div className="absolute bottom-0" style={{ left, width: w, height: h }}>
+    <div ref={wrap} className={`absolute bottom-0 ${out ? 'invisible' : ''}`} style={{ left, width: w, height: h }} data-room-figure-out={out ? 'true' : undefined}>
+      {loose !== null ? <LooseCharacter look={look} grab={loose.grab} facing={state.dir} stage={loose.stage} label={label} onHome={backIn} /> : null}
       <NoteTrail active={dancing} />
       {talking && speech !== undefined ? speech({ x: left, w, h }) : null}
       <button
         ref={figure}
         type="button"
+        onPointerDown={takeOut}
+        draggable={false}
         {...(visitor ? { 'data-companion': 'visiting' } : { 'data-profile-character': who })}
         data-character-of={person}
         data-motion={motion}
         aria-label={visitor ? 'YOUR COMPANION: PRESS TO SAY HELLO' : `${label}: PRESS TO SAY HELLO`}
         title={who === 'guest' ? label : 'SAY HELLO'}
         onClick={() => {
+          if (dragged.current) {
+            dragged.current = false;
+            return;
+          }
           onPress?.();
           // While it is talking a press leaves it be: a wave would take its bubble away and start the line again.
           if (!reduced && speech === undefined) setState((current) => react(current));
