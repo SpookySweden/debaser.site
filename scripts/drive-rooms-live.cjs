@@ -11,7 +11,7 @@
  *
  *   node "<notes>/heavy-step.cjs" ROOMS --live -- node scripts/drive-rooms-live.cjs
  *
- * Kept test accounts A and B only (scripts/browser.cjs, password from the gitignored .env.test). It writes: A's room and
+ * In the steps "A" hosts and "B" joins; by default TEST ACCOUNT B hosts and A joins (`--host`, `--guest`). Kept test accounts A and B only (scripts/browser.cjs, password from the gitignored .env.test). It writes: A's room and
  * its link, B's member row, one chat line, one board record (GO LIVE files one, for a room's first time live). It deletes
  * nothing: the ids are printed for the check-in file. Database reads are the accounts' own (read-only selects).
  */
@@ -24,6 +24,8 @@ const { findChrome, installSession, signInTestAccount, testAccountClient } = req
 const args = process.argv.slice(2);
 const opt = (name, fallback) => (args.includes(name) ? args[args.indexOf(name) + 1] : fallback);
 const BASE = opt('--base', 'https://debaser-site.vercel.app');
+const HOST = opt('--host', 'B');
+const GUEST = opt('--guest', 'A');
 const SHOTS = join('Temp', 'browse', 'rooms-live');
 mkdirSync(SHOTS, { recursive: true });
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -45,10 +47,12 @@ async function open(page, path) {
 }
 
 (async () => {
-  const a = await signInTestAccount('A');
-  const b = await signInTestAccount('B');
+  // "A" in the steps is the host, "B" the one who joins: TEST ACCOUNT B hosts and A joins, because B is a removed member of
+  // A's own room (kept so on purpose since 2026-11-15, HANDOFF.md) and can never come back into it by its link.
+  const a = await signInTestAccount(HOST);
+  const b = await signInTestAccount(GUEST);
   if (a.error || b.error) throw new Error(`sign-in: ${a.error ?? b.error}`);
-  const db = await testAccountClient('A');
+  const db = await testAccountClient(HOST);
   /** A room as the database holds it (A's own read: A hosts it or is in it). */
   const roomRow = async (id) => (await db.client.from('watch_rooms').select('id, host_id, original_host_id, origin, is_public, privacy, ended_at, forum_thread_id').eq('id', id).single()).data;
 
@@ -80,7 +84,7 @@ async function open(page, path) {
     await pageA.keyboard.press('Escape');
     const mine = (await db.client.from('watch_rooms').select('id').eq('original_host_id', db.id).eq('origin', 'music').is('ended_at', null).single()).data;
     roomId = mine.id;
-    left.push(`watch_rooms ${roomId} (A's main room, then handed on)`);
+    left.push(`watch_rooms ${roomId} (the host's main room, then handed on)`);
     assert.equal((await roomRow(roomId)).is_public, false, 'private');
 
     await open(pageB, `/forum?join=${secret}`);
@@ -89,8 +93,8 @@ async function open(page, path) {
     await pageB.fill('#watch-chat', said);
     await pageB.keyboard.press('Enter');
     await pageA.waitForFunction((words) => [...document.querySelectorAll('[data-watch-message]')].some((line) => line.textContent.includes(words)), said, { timeout: 30000 });
-    left.push(`watch_messages: one line by TEST ACCOUNT B in ${roomId} ("${said}")`);
-    left.push(`watch_room_members: TEST ACCOUNT B in ${roomId}`);
+    left.push(`watch_messages: one line by the guest in ${roomId} ("${said}")`);
+    left.push(`watch_room_members: the guest in ${roomId}`);
     left.push(`watch_room_links: A's link for ${roomId}`);
     await pageA.screenshot({ path: join(SHOTS, '1-chat-by-link.png') });
     pass('B joined A\'s private room by its link and said a line in its chat; A saw it arrive');
@@ -130,7 +134,7 @@ async function open(page, path) {
     // A host closing a live room with somebody in it is asked: LEAVE (they host), END STREAM, or STAY.
     const handKey = pageB.locator('[role="alertdialog"][aria-label="Leave the stream"] button', { hasText: '[ LEAVE ]' }).first();
     await handKey.waitFor({ timeout: 15000 });
-    assert.match(await pageB.locator('[role="alertdialog"][aria-label="Leave the stream"]').innerText(), /TEST ACCOUNT A WILL HOST/, 'it names who will host');
+    assert.match(await pageB.locator('[role="alertdialog"][aria-label="Leave the stream"]').innerText(), new RegExp(`TEST ACCOUNT ${HOST} WILL HOST`), 'it names who will host');
     await handKey.click();
     await pageA.waitForFunction(() => /IS HOSTING NOW/.test(document.querySelector('[data-dock-window="stream"]')?.textContent ?? ''), null, { timeout: 30000 });
     assert.equal((await roomRow(roomId)).host_id, a.userId, 'A hosts it again');
