@@ -870,6 +870,7 @@ export default function ForumBoard() {
           aria-haspopup="dialog"
           aria-expanded={composerOpen}
           className={`${PLATE_MAIN} ml-auto`}
+          data-main-key
         >
           + NEW POST
         </button>

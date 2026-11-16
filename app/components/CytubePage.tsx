@@ -141,7 +141,7 @@ function GoLiveKey({ user }: { user: AccountUser }) {
 
   return (
     <>
-      <button type="button" onClick={goLive} className={PLATE_MAIN} data-cytube-go-live={hosting === null ? 'new' : 'back'}>
+      <button type="button" onClick={goLive} className={PLATE_MAIN} data-main-key data-cytube-go-live={hosting === null ? 'new' : 'back'}>
         {hosting === null ? '[ GO LIVE ]' : '[ BACK TO YOUR ROOM ]'}
       </button>
       {asking ? <GoLiveWindow user={user} createThread={forum.createThread} onClose={() => setAsking(false)} /> : null}

@@ -1,6 +1,8 @@
 'use client';
 
-import { useSyncExternalStore, type ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
+import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
+import { clearMainKeys } from '../lib/ui/clear-main-keys';
 import { PLATE, PLATE_PRESSED, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import { OUTSIDE_MODES, outsidePicturesServerState, outsidePicturesState, setOutsideMode, subscribeToOutsidePictures } from '../lib/watch/outside-pictures';
 import {
@@ -24,7 +26,10 @@ import {
   type ThemeFamily,
   type ThemeId,
 } from '../lib/ui/theme-slot';
-import { resetLayout } from '../lib/ui/window-layout';
+import { layoutReady, resetLayout, subscribeToWindowLayout } from '../lib/ui/window-layout';
+
+/** The window's name in the layout store and on the page (`data-dock-window`). */
+const PREFERENCES_ID = 'preferences';
 import { backdropDef } from '../lib/backdrops/registry';
 import { openBackdropWindow } from '../lib/backdrops/store';
 import { BACKDROPS, backdropState, setBackdrop, subscribeToBackdrop } from '../lib/ui/backdrop-slot';
@@ -244,6 +249,26 @@ export default function PreferencesWindow() {
     preferencesWindowState,
   );
 
+  const pathname = usePathname();
+  const layoutIsReady = useSyncExternalStore(subscribeToWindowLayout, layoutReady, () => false);
+
+  // It stays open across pages (Luke, "4B"), but never on a page's main keys: checked as it opens, on each
+  // new page (and again as a late page draws its keys), when the screen is resized and when it is dropped.
+  useEffect(() => {
+    if (!open || !layoutIsReady || !window.matchMedia('(min-width: 640px)').matches) return;
+    const check = () => clearMainKeys(PREFERENCES_ID);
+    const timers = [0, 300, 1000, 2500].map((delay) => window.setTimeout(check, delay));
+    // After the layout store has taken the drop.
+    const onDrop = () => window.setTimeout(check, 0);
+    window.addEventListener('resize', check);
+    document.addEventListener('pointerup', onDrop);
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+      window.removeEventListener('resize', check);
+      document.removeEventListener('pointerup', onDrop);
+    };
+  }, [open, layoutIsReady, pathname]);
+
   // Drawn only while it is open. The slot is read here rather than by a host above it, so the window
   // is the only thing that re-renders when it opens or closes - the same arrangement `MusicWindow`
   // keeps, and the reason opening a window cannot touch the board.
@@ -256,7 +281,7 @@ export default function PreferencesWindow() {
       // Empty on purpose: no title-bar tip (DockWindow's fallback is a drag how-to, SPEC-less-text.md).
       status=""
       dock="bottom"
-      id="preferences"
+      id={PREFERENCES_ID}
       defaultSize={{ w: 384, h: 620 }}
       minSize={{ w: 280, h: 200 }}
     >

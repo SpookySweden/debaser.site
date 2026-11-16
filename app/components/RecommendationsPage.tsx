@@ -127,7 +127,7 @@ function ComposerSection({ me }: { me: string }) {
   const [open, setOpen] = useState(false);
   return (
     <section aria-label="Make a recommendation" className="px-2">
-      <button type="button" onClick={() => setOpen(true)} aria-haspopup="dialog" className={PLATE_MAIN}>
+      <button type="button" onClick={() => setOpen(true)} aria-haspopup="dialog" className={PLATE_MAIN} data-main-key>
         MAKE A RECOMMENDATION
       </button>
       {open ? (

@@ -536,12 +536,12 @@ export default function MediaCatalogue() {
             <button type="button" onClick={() => setCreating({ kind: 'folder', parent: null })} className={PLATE}>
               [ + NEW FOLDER ]
             </button>
-            <button type="button" onClick={() => setCreating({ kind: 'file', parent: category?.folderPath ?? null })} className={PLATE_MAIN}>
+            <button type="button" onClick={() => setCreating({ kind: 'file', parent: category?.folderPath ?? null })} className={PLATE_MAIN} data-main-key>
               + NEW FILE
             </button>
           </span>
         ) : (
-          <button type="button" onClick={() => setUploading(true)} className={PLATE_MAIN}>
+          <button type="button" onClick={() => setUploading(true)} className={PLATE_MAIN} data-main-key>
             + UPLOAD
           </button>
         )}
