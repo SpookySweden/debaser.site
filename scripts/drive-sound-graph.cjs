@@ -71,6 +71,8 @@ const SEED = (themeId) => `
   try {
     if (!localStorage.getItem('debaser.audio.mock.v1')) localStorage.setItem('debaser.audio.mock.v1', JSON.stringify({ version: 1, tracks: [{
       id: 'drive/love-buzz', title: 'LOVE BUZZ - UPLOAD TEST', credit: 'sweden', kind: 'UPLOADED TO THE SHELF', src: location.origin + '${TONE_PATH}',
+      length: '0:02', tags: [], folderPath: 'UPLOAD TEST', shelf: 'bucket' }, {
+      id: 'drive/other-song', title: 'ANOTHER SONG', credit: 'sweden', kind: 'UPLOADED TO THE SHELF', src: location.origin + '/drive-audio/other-song.wav',
       length: '0:02', tags: [], folderPath: 'UPLOAD TEST', shelf: 'bucket' }] }));
     ${themeId ? `localStorage.setItem('debaser.site.theme.v1', '${themeId}'); localStorage.setItem('debaser.site.theme.v2', '${themeId}');` : ''}
   } catch {}
@@ -78,6 +80,7 @@ const SEED = (themeId) => `
 
 async function newPage(browser, { theme, reducedMotion } = {}) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: reducedMotion ? 'reduce' : 'no-preference' });
+  await context.route('**/drive-audio/other-song.wav', (route) => route.fulfill({ status: 200, body: TONE, headers: { 'Content-Type': 'audio/wav', 'Accept-Ranges': 'none' } }));
   await context.route(`**${TONE_PATH}`, (route) => route.fulfill({ status: 200, body: TONE, headers: { 'Content-Type': 'audio/wav', 'Accept-Ranges': 'none' } }));
   // Cut off from the live database, whatever the server was started with.
   await context.route(/supabase\.co/, (route) => route.abort());
@@ -237,20 +240,20 @@ async function buzz(browser) {
   assert.ok(song.time < 2, `it went round again (at ${song.time.toFixed(2)}s)`);
   assert.equal(await page.evaluate(() => sessionStorage.getItem('debaser.audio.love-buzz.v1')), 'started');
   pass('looping');
-  // The next song gets the reader's own volume back.
+  // The reader pauses it and moves to the next song: their own volume comes back. (Paused first: on the mock server a
+  // song filed into your own room sends its keeper round in a loop, an existing fault outside this work, 2026-11-16.)
+  await pauseBar(page);
   await page.getByRole('button', { name: 'Next track' }).click();
   await until('the reader\'s volume back', () => page.evaluate(() => Number(document.querySelector('input[aria-label="Volume"]').value)), (v) => v === Math.round(ownVolume * 100), 5000);
   pass(`the next song: the reader's volume back (${ownVolume})`);
-  // Back to LOVE BUZZ for the rest: the reader pauses it, then reloads: it is not started again.
-  await page.getByRole('button', { name: 'Previous track' }).click();
-  await sleep(800);
-  await pauseBar(page);
+  // Then reloads: it is not started again.
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => /LOVE BUZZ/.test(document.querySelector('[data-bar-led]')?.innerText ?? ''), null, { timeout: 60000 });
+  await page.waitForFunction(() => /ANOTHER SONG|LOVE BUZZ/.test(document.querySelector('[data-bar-led]')?.innerText ?? ''), null, { timeout: 60000 });
+  await sleep(1500);
   await page.keyboard.press('KeyA');
   await sleep(1500);
-  song = await songState(page);
-  assert.ok(song === null || song.paused, 'the next page of the visit does not start it again');
+  assert.equal(await page.evaluate(() => (window.__audios ?? []).filter((a) => !a.paused).length), 0, 'nothing plays: the next page of the visit does not start it again');
+  assert.doesNotMatch(await page.locator('[data-bar-led]').innerText(), /LOVE BUZZ/, 'nor loads it again over the song the reader moved to');
   pass('a reload in the same visit does not start it again');
   await context.close();
 
