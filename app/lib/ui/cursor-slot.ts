@@ -27,9 +27,11 @@ export const CURSORS: readonly Cursor[] = [
   { id: 'system', label: 'SYSTEM', note: "YOUR COMPUTER'S OWN POINTER" },
 ];
 
-const FALLBACK_CURSOR: CursorId = 'contrast';
+/** What a browser with no choice stored gets: PINK since 2026-11-16 (Luke: "new defaults ... PINK cursor", for everyone). */
+const FALLBACK_CURSOR: CursorId = 'pink';
 
-const STORAGE_KEY = 'debaser.site.cursor.v1';
+/** `.v2`: the old `.v1` choice is left behind on purpose, so each browser lands on the new default once and can choose again. */
+const STORAGE_KEY = 'debaser.site.cursor.v2';
 
 export type CursorState = { id: CursorId };
 
@@ -83,14 +85,18 @@ export function setCursor(id: CursorId): void {
 
 /**
  * The stored cursor, as JavaScript for `<head>`, so the first paint already has it - the same reason
- * `themeBootScript` exists. A missing or unknown choice writes nothing, which is `contrast` in the CSS.
+ * `themeBootScript` exists. A missing or unknown choice writes the default (PINK), as the backdrop's does: with the default
+ * no longer the stylesheet's own fallback (`contrast`), the attribute is always written, even when storage is blocked.
  */
 export function cursorBootScript(): string {
   return [
-    '(function(){try{',
+    '(function(){var b=',
+    JSON.stringify(FALLBACK_CURSOR),
+    ';try{',
     `var c=localStorage.getItem(${JSON.stringify(STORAGE_KEY)});`,
-    `if(${JSON.stringify(CURSORS.map((cursor) => cursor.id))}.indexOf(c)>=0)`,
-    'document.documentElement.setAttribute("data-cursor",c);',
-    '}catch(e){}})();',
+    `if(${JSON.stringify(CURSORS.map((cursor) => cursor.id))}.indexOf(c)>=0)b=c;`,
+    '}catch(e){}',
+    'document.documentElement.setAttribute("data-cursor",b);',
+    '})();',
   ].join('');
 }

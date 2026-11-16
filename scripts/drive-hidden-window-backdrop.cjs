@@ -72,7 +72,7 @@ async function open(browser, storage) {
   const browser = await chromium.launch({ executablePath: findChrome(), headless: true, args: ['--no-first-run'] });
   try {
     console.log('FLUID, THE WINDOW THERE');
-    let { context, page, errors } = await open(browser, { 'debaser.site.backdrop.v1': 'fluid' });
+    let { context, page, errors } = await open(browser, { 'debaser.site.backdrop.v2': 'fluid' });
     const frame = await page.locator('[data-site-window="frame"]').boundingBox();
     assert.ok(frame !== null && frame.x > 50, `there is bare desk to the left of the site window (${frame && Math.round(frame.x)} pixels)`);
     const beside = { x: Math.round(frame.x / 2), y: 450 };
@@ -107,7 +107,7 @@ async function open(browser, storage) {
     await context.close();
 
     console.log('FILL WINDOW ON, AND PUT AWAY');
-    ({ context, page, errors } = await open(browser, { 'debaser.site.backdrop.v1': 'fluid', 'debaser.shell.fill.v1': 'on', 'debaser.shell.hidden.v1': 'on' }));
+    ({ context, page, errors } = await open(browser, { 'debaser.site.backdrop.v2': 'fluid', 'debaser.shell.fill.v1': 'on', 'debaser.shell.hidden.v1': 'on' }));
     assert.equal(await page.evaluate(() => `${document.documentElement.getAttribute('data-site-fill')} ${document.documentElement.getAttribute('data-site-hidden')}`), 'on on', 'both marks are on the page');
     await page.mouse.click(middle.x, middle.y);
     await sleep(400);
@@ -121,7 +121,7 @@ async function open(browser, storage) {
     await context.close();
 
     console.log('SAND, PUT AWAY');
-    ({ context, page, errors } = await open(browser, { 'debaser.site.backdrop.v1': 'sand', 'debaser.shell.hidden.v1': 'on' }));
+    ({ context, page, errors } = await open(browser, { 'debaser.site.backdrop.v2': 'sand', 'debaser.shell.hidden.v1': 'on' }));
     // Poured high up, above where the window stands when it is there: it must fall on through that space.
     await page.mouse.move(middle.x, 120);
     await page.mouse.down();

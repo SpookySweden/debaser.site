@@ -464,8 +464,11 @@ ok("on top of the room's window: the window leaves room above itself for the tal
   assert.equal(floors.reachesStrip({ left: 16, top: 8, right: 1272, bottom: 892 }, 2671, 48), false, 'a phone: the window is at the top of a tall screen, nowhere near the strip');
   const dock = read('app/components/DockWindow.tsx');
   assert.match(dock, /const drop = managed && headroom !== undefined \? Math\.max\(0, headroom - live\.rect\.y\) : 0;/, 'only as much lower as it needs: a window already low enough is not moved');
-  assert.match(dock, /top: live\.rect\.y \+ drop,/);
-  assert.match(dock, /live\.rect\.h - drop\}px, calc\(100vh - var\(--music-top, 0px\) - \$\{live\.rect\.y \+ drop\}px - 0\.25rem\)\)` : live\.rect\.h - drop,/, 'shorter by the same, so its foot stays put');
+  // Updated on purpose 2026-11-16 (Luke's ROOMFIX list, item 5: the room window "must not shrink" against the bar): the room
+  // window's top and height are one sum that lifts it whole off the bar; the headroom's drop is still in both.
+  assert.match(dock, /min\(\$\{live\.rect\.y \+ drop\}px, \$\{foot\} - \$\{live\.rect\.h - drop\}px\)\)\)` : live\.rect\.y \+ drop,/, 'drawn that much lower');
+  assert.match(dock, /height: aboveBottomBar \? `min\(\$\{live\.rect\.h - drop\}px, \$\{foot\} - \$\{highest\}px\)\)` : live\.rect\.h - drop,/, 'shorter by the same, so its foot stays put');
+  assert.match(dock, /const highest = Math\.max\(layoutTop\(\), headroom \?\? 0\);/, 'and never drawn above the headroom it leaves');
   assert.match(dock, /data-headroom=\{headroom\}/, 'and marked, so the companion knows which window to stand on');
   assert.equal((read('app/components/WatchWindow.tsx').match(/headroom=\{headroom\}/g) ?? []).length, 2, "the stream room's window, live or not yet");
   assert.doesNotMatch(read('app/components/ArcadeWindow.tsx'), /headroom/, 'no other window moves');

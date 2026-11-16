@@ -40,7 +40,7 @@ async function open(browser, account, { theme = null, ...options } = {}) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, ...options });
   await context.addInitScript((picked) => {
     window.localStorage.setItem('debaser.lost-account.never.v1', '1');
-    if (picked !== null) window.localStorage.setItem('debaser.site.theme.v1', picked);
+    if (picked !== null) window.localStorage.setItem('debaser.site.theme.v2', picked);
   }, theme);
   const page = await context.newPage();
   page.on('pageerror', (error) => console.log(`  page error: ${String(error).slice(0, 200)}`));
