@@ -28,6 +28,7 @@ import { isPictureLink } from '../lib/watch/pictures';
 import QueuedPicture from './QueuedPicture';
 import { useWebTrack, webTrackNow } from '../lib/web/web-track-lookup';
 
+import { ROOM_BAR, ROOM_BAR_PLACE, ROOM_COG, ROOM_COLUMNS, ROOM_PICTURE_BOX, ROOM_PICTURE_FIT, ROOM_ROOT, ROOM_SCREEN, ROOM_SIDE, ROOM_SIDE_BODY, ROOM_STAGE } from '../lib/watch/room-frame';
 import { roomStartFor } from '../lib/watch/room-start';
 import { streamBarState, subscribeToStreamBar } from '../lib/watch/stream-bar';
 import {
@@ -87,7 +88,7 @@ import MarqueeText from './MarqueeText';
 import ProfileName from './ProfileName';
 import { QualityKey, SpeakerKey, SubsKey } from './StreamBarKeys';
 import StreamCrawl from './StreamCrawl';
-import RoomFloatChrome from './RoomFloatChrome';
+import RoomFloatChrome, { useRoomFloatDrag } from './RoomFloatChrome';
 import RoomSettingsWindow from './RoomSettingsWindow';
 import StreamQueueWindow from './StreamQueueWindow';
 import CanvasToggle from './CanvasToggle';
@@ -135,14 +136,15 @@ type WatchRoomProps = {
   closing: boolean;
   onStay: () => void;
   onLeft: () => void;
-  /** The room is folded with its picture floating (SPEC-floating-player.md). */
+  /**
+   * The room's window is folded, which is its picture floating (SPEC-floating-player.md; SPEC-rooms-your-room.md,
+   * part 2: folding is PIP, and the folded tile above the bar is gone).
+   */
   pictureFloats: boolean;
-  /** Folds the room with its picture floating. */
+  /** Folds the room with its picture floating: `[ PIP ]`, the same as the window's `[ _ ]`. */
   onFloatPicture: () => void;
-  /** Back to the room, from the floating picture. */
+  /** Back to the room's window, from the floating picture. */
   onBackFromFloat: () => void;
-  /** The picture stops floating; the room stays folded and keeps playing. */
-  onHidePicture: () => void;
 };
 
 /**
@@ -158,7 +160,7 @@ type WatchRoomProps = {
  * and jumps (off by more than two seconds) or nudges its speed (a little off). A browser that refuses to
  * start the sound gets one key, `[ ▶ JOIN PLAYBACK ]`, rather than playing on silently out of step.
  */
-export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats, onFloatPicture, onBackFromFloat, onHidePicture }: WatchRoomProps) {
+export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats, onFloatPicture, onBackFromFloat }: WatchRoomProps) {
   const { user } = useAuth();
   const catalogue = useCatalogue();
   const player = useMusicPlayer();
@@ -952,6 +954,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     return () => document.removeEventListener('fullscreenchange', changed);
   }, []);
   const pictureBox = useRef<HTMLDivElement>(null);
+  // Floating, the picture is a handle as well as its title line (SPEC-rooms-your-room.md, part 2).
+  const floatDrag = useRoomFloatDrag(pictureBox);
   function toggleFullscreen() {
     const box = stageRef.current;
     if (box === null) return;
@@ -1177,7 +1181,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   // PIP, FULL, END STREAM (host). The chat column's strip names the video.
   const playerBar = !keysOnMusicBar && (hasTransport || hostKeys || floatKey !== null) ? (
     // `relative`: on a phone the SUBS list opens as a sheet across the bar, just above it.
-    <div className="relative flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 bg-ink-plate px-2 py-1 text-label text-sun max-sm:gap-x-1" data-watch-bar="shown">
+    <div className={ROOM_BAR} data-watch-bar="shown">
       {playKey}
       {/* Where it is, and the time: a row of its own on a phone, so the keys fit on the one under it. With no
           transport (a WEB platform's own player) the space only pushes the host's keys to the right. */}
@@ -1189,7 +1193,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       ) : !hasTransport ? (
         <span className="flex-1" />
       ) : (
-        <span className="flex min-w-12 flex-1 items-center gap-2 max-sm:order-first max-sm:basis-full">
+        <span className={ROOM_BAR_PLACE}>
           {seekLine}
           {timeMark}
         </span>
@@ -1201,7 +1205,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   ) : null;
 
   /** On a desktop the picture takes the column's height; on a phone (and in fullscreen there) its own shape. */
-  const pictureFit = fullscreen || pictureFloats ? 'h-full w-full' : 'aspect-video w-full sm:aspect-auto sm:h-full';
+  const pictureFit = fullscreen || pictureFloats ? 'h-full w-full' : ROOM_PICTURE_FIT;
   /** A double press on the picture is the FULL key (Luke, 2026-11-05). Keys on the picture and a canvas being drawn on keep theirs. */
   const fullOnDoublePress = (event: MouseEvent<HTMLDivElement>) => {
     if (blank || song !== null || screen === 'canvas') return;
@@ -1231,12 +1235,12 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   };
 
   const stage = (
-    <div className="flex min-w-0 flex-col gap-1 sm:min-h-0 sm:flex-1">
+    <div className={ROOM_STAGE}>
       {/* The picture with its bar under it: the two go fullscreen together. */}
-      <div ref={stageRef} className={`flex flex-col bg-ink-plate sm:min-h-0 sm:flex-1 ${look === null ? '' : `frame ${lookLines}`}`}>
+      <div ref={stageRef} className={`${ROOM_SCREEN} ${look === null ? '' : `frame ${lookLines}`}`}>
       {/* Floating, the box leaves the folded window's invisible frame by staying in it: `visible` and `fixed`. Its top is kept for
           its title strip, deeper on a phone where the strip's keys are the tap size, so nothing sits over the picture (2026-11-08). */}
-      <div ref={pictureBox} onDoubleClick={fullOnDoublePress} className={`${pictureFloats ? 'fixed visible frame bg-ink-plate pt-10 max-sm:pt-14 fullscreen:pt-0' : 'relative'} flex min-h-0 flex-1 items-center justify-center`} data-room-picture={pictureFloats ? 'floating' : 'in-room'}>
+      <div ref={pictureBox} onDoubleClick={fullOnDoublePress} {...(pictureFloats ? floatDrag.picture : {})} className={`${pictureFloats ? 'fixed visible frame bg-ink-plate pt-10 max-sm:pt-14 fullscreen:pt-0' : 'relative'} ${ROOM_PICTURE_BOX}`} data-room-picture={pictureFloats ? 'floating' : 'in-room'}>
         {blank ? (
           <BlankScreen fit={pictureFit} onPick={(key) => openQueue(key)} hidden={screen === 'canvas'} />
         ) : src === undefined ? (
@@ -1353,7 +1357,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
           <VisualiserToggle roomId={roomId} />
           <CanvasToggle roomId={roomId} audio={canvasAudio} />
         </div>
-        {pictureFloats ? <RoomFloatChrome host={pictureBox} title={entryTitle ?? 'STREAM'} onBack={onBackFromFloat} onHide={onHidePicture} /> : null}
+        {pictureFloats ? <RoomFloatChrome host={pictureBox} drag={floatDrag} title={entryTitle ?? (music ? 'ROOM' : 'STREAM')} onBack={onBackFromFloat} /> : null}
       </div>
       {playerBar}
       </div>
@@ -1425,7 +1429,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   // Top to bottom (Luke, 2026-11-02): the QUEUE line, which opens the queue as its own window; the strip of
   // who is watching with what is on and what is next, newswire-style, the width of the chat; then the chat.
   const side = (
-    <div className="flex flex-col gap-1 sm:min-h-0 sm:w-80 sm:shrink-0 lg:w-96">
+    <div className={ROOM_SIDE}>
       {/* One key for the queue window, where everything is added and seen (Luke, 2026-11-02). */}
       <div className={TITLE_BAR}>
         <button type="button" className={`${TITLE_BAR_BUTTON} max-sm:min-h-tap`} aria-haspopup="dialog" onClick={() => openQueue()} data-watch-queue-key>
@@ -1433,7 +1437,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
         </button>
         {user !== null && mayEditRoom(room, read.crowns, user.id, live) ? (
           <button type="button" className={`${TITLE_BAR_BUTTON} max-sm:min-h-tap`} aria-haspopup="dialog" aria-label="Room settings" title="Room settings" onClick={() => setSettingsOpen(true)} data-room-settings-key>
-            [ {'⚙︎'} ]
+            [ {ROOM_COG} ]
           </button>
         ) : null}
       </div>
@@ -1474,7 +1478,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   );
 
   return (
-    <div className="flex flex-col gap-2 sm:h-full sm:min-h-0">
+    <div className={ROOM_ROOT}>
       {musicBarPart}
       {ended ? (
         <p className="text-label font-bold text-ink" role="status">
@@ -1509,7 +1513,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       {/* One tree at every width, so the video element is never rebuilt when the layout changes (a phone
           turned, a window resized): the host's listeners are on that element, and a rebuilt one played on
           without them - no loop, no pause written. Only the side column changes. */}
-      <div className="flex flex-col gap-2 sm:min-h-0 sm:flex-1 sm:flex-row sm:gap-3">
+      <div className={ROOM_COLUMNS}>
         {stage}
         {side}
       </div>
@@ -1623,7 +1627,7 @@ function ChatPanel({
   }
 
   return (
-    <div className="flex flex-col gap-1 sm:min-h-0 sm:flex-1">
+    <div className={ROOM_SIDE_BODY}>
       <ol ref={listRef} className="max-h-72 min-h-24 overflow-y-auto text-prose text-ink sm:max-h-none sm:min-h-0 sm:flex-1" aria-label="Chat" aria-live="polite">
         {count === 0 ? <li className="text-label text-ink-quiet">NOTHING SAID YET.</li> : null}
         {lines.map((line) =>

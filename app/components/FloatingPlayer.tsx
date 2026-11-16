@@ -20,6 +20,7 @@ import {
   floatingState,
   keptBox,
   letKeptBoxGo,
+  noteClock,
   notePlace,
   noteFloating,
   notePlayerElement,
@@ -31,10 +32,10 @@ import {
   wantBoxShown,
   type FloatingEntry,
 } from '../lib/ui/floating-player';
-import { footFloor, screenNow, useFloatFrame } from '../lib/ui/use-float-frame';
+import { FLOAT_GRIPS, footFloor, screenNow, useFloatFrame } from '../lib/ui/use-float-frame';
+import { expandWatch } from '../lib/watch/watch-window';
 import { listenForTime } from '../lib/web/embed-time';
 import { useAuth } from './AuthProvider';
-import { GRIPS } from './DockWindow';
 import QueuedPicture from './QueuedPicture';
 import WatchInRoomKey from './WatchInRoomKey';
 
@@ -177,6 +178,7 @@ export default function FloatingPlayer() {
     const element = frame.current;
     if (element === null || entry === null || frameSource === null) return;
     const id = entry.id;
+    const play = entry.play;
     // A press inside the frame counts for our page too, so the browser allows fullscreen from here. Some players may go
     // fullscreen by themselves one day: anything that has changed by the time this looks is left alone.
     let wait = 0;
@@ -191,6 +193,8 @@ export default function FloatingPlayer() {
           if (document.fullscreenElement === before) togglePlayerFullscreen();
         }, 300);
       },
+      // Where it is, how long it is and whether it is paused, for the keys under your room's screen.
+      (said) => noteClock(play, said),
     );
     return () => {
       window.clearTimeout(wait);
@@ -212,7 +216,12 @@ export default function FloatingPlayer() {
         const file = video.current;
         if (file !== null) {
           if (order === 'pause') file.pause();
-          else void file.play().catch(() => undefined);
+          else if (order === 'play') void file.play().catch(() => undefined);
+          else if ('seek' in order) file.currentTime = order.seek;
+          else {
+            file.volume = Math.min(1, Math.max(0, order.volume));
+            file.muted = order.muted;
+          }
           return;
         }
         const element = frame.current;
@@ -223,8 +232,18 @@ export default function FloatingPlayer() {
         } catch {
           return;
         }
-        const message = frameSource === 'youtube' ? { event: 'command', func: order === 'pause' ? 'pauseVideo' : 'playVideo', args: [] } : { method: order };
-        element.contentWindow?.postMessage(JSON.stringify(message), origin);
+        const tell = (message: object) => element.contentWindow?.postMessage(JSON.stringify(message), origin);
+        if (order === 'pause' || order === 'play') {
+          tell(frameSource === 'youtube' ? { event: 'command', func: order === 'pause' ? 'pauseVideo' : 'playVideo', args: [] } : { method: order });
+        } else if ('seek' in order) {
+          tell(frameSource === 'youtube' ? { event: 'command', func: 'seekTo', args: [order.seek, true] } : { method: 'setCurrentTime', value: order.seek });
+        } else if (frameSource === 'youtube') {
+          // YouTube counts its volume to a hundred, and mutes apart from it.
+          tell({ event: 'command', func: 'setVolume', args: [Math.round(Math.min(1, Math.max(0, order.volume)) * 100)] });
+          tell({ event: 'command', func: order.muted ? 'mute' : 'unMute', args: [] });
+        } else {
+          tell({ method: 'setVolume', value: order.muted ? 0 : Math.min(1, Math.max(0, order.volume)) });
+        }
       }),
     [playKey, frameSource],
   );
@@ -269,7 +288,9 @@ export default function FloatingPlayer() {
     const box = boxOf(entry.id);
     setFloatAsked(false);
     if (box !== undefined) {
-      box.scrollIntoView({ block: 'center' });
+      // Its box is in a room window that was folded away (your room, `[ _ ]`): the way back is the window itself.
+      if (box.closest('[data-minimized="true"]') !== null) expandWatch();
+      else box.scrollIntoView({ block: 'center' });
       return;
     }
     wantBoxShown();
@@ -278,6 +299,8 @@ export default function FloatingPlayer() {
 
   if (entry === null) return null;
   const { player } = entry;
+  /** Our own file's clock, for the keys under your room's screen (`noteClock`). */
+  const tellClock = (file: HTMLVideoElement) => noteClock(entry.play, { seconds: file.currentTime, duration: file.duration, paused: file.paused, volume: file.volume, muted: file.muted });
   // Our own file can use the browser's pop-out, the one that stays above other apps. An outside player can't be lifted
   // out. `floating` is never true on the server, where there is no document to ask.
   const canPopOut = floating && player.kind === 'file' && document.pictureInPictureEnabled === true;
@@ -356,8 +379,15 @@ export default function FloatingPlayer() {
             onLoadedMetadata={(event) => {
               const from = placeOf(entry.id);
               if (from !== null) event.currentTarget.currentTime = from;
+              tellClock(event.currentTarget);
             }}
-            onTimeUpdate={(event) => notePlace(entry.id, event.currentTarget.currentTime)}
+            onTimeUpdate={(event) => {
+              notePlace(entry.id, event.currentTarget.currentTime);
+              tellClock(event.currentTarget);
+            }}
+            onPlay={(event) => tellClock(event.currentTarget)}
+            onPause={(event) => tellClock(event.currentTarget)}
+            onVolumeChange={(event) => tellClock(event.currentTarget)}
             onEnded={() => notePlace(entry.id, null)}
             className="absolute inset-0 block h-full w-full border border-ink bg-ink-plate object-contain"
           >
@@ -369,7 +399,7 @@ export default function FloatingPlayer() {
       </div>
 
       {floating
-        ? GRIPS.map((grip) => <div key={grip.className} aria-hidden="true" className={`absolute z-10 touch-none ${grip.className}`} {...drag.grip(grip.edges)} />)
+        ? FLOAT_GRIPS.map((grip) => <div key={grip.className} aria-hidden="true" className={`absolute z-10 touch-none ${grip.className}`} {...drag.grip(grip.edges)} data-float-grip />)
         : null}
     </div>
   );

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { getWatchRepository } from './repository';
 import { showMusicOnBar } from './stream-bar';
 import type { LiveRoom, RoomOrigin } from './types';
-import { collapseWatch, openWatch } from './watch-window';
+import { openWatch } from './watch-window';
 
 /**
  * Rooms in the browser: joining one, and the list of live ones. GO PUBLIC and its switch are gone
@@ -12,14 +12,13 @@ import { collapseWatch, openWatch } from './watch-window';
  */
 
 /**
- * Joining a room. A music room opens folded with the bar on the music (following stays light; the TV key turns
- * the bar to the stream view); a video stream opens as the `[ TV ]` key opens it.
+ * Joining a room: it opens as a window, every kind (SPEC-rooms-your-room.md, part 2; Luke, 2026-11-16: "dont do pip
+ * by default have the room open by default"). A music room used to open folded away; it still opens with the bar on
+ * the music (the TV key turns the bar to the stream view), and its window's `[ _ ]` is there for whoever wants it small.
  */
 export function enterRoom(roomId: string, origin: RoomOrigin): void {
   openWatch({ kind: 'room', roomId });
-  if (origin !== 'music') return;
-  collapseWatch();
-  showMusicOnBar(roomId);
+  if (origin === 'music') showMusicOnBar(roomId);
 }
 
 /** Every room not ended, with what is on in each, kept current; null until the first answer. */

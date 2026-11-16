@@ -1,6 +1,6 @@
 /*
  * The floating player and the site's arrows (SPEC-floating-player.md), offline. From the root:
- *   npx tsc app/lib/ui/float-geometry.ts app/lib/ui/floating-player.ts app/lib/ui/site-history.ts app/lib/web/embed-time.ts app/lib/watch/room-start.ts --rootDir app --outDir Temp/out-floating-player --module commonjs --target es2022 --lib es2022,dom,dom.iterable --skipLibCheck --esModuleInterop --moduleResolution node --strictNullChecks
+ *   npx tsc app/lib/ui/float-geometry.ts app/lib/ui/floating-player.ts app/lib/ui/use-float-frame.ts app/lib/ui/site-history.ts app/lib/web/embed-time.ts app/lib/watch/room-start.ts --rootDir app --outDir Temp/out-floating-player --module commonjs --target es2022 --lib es2022,dom,dom.iterable --skipLibCheck --esModuleInterop --moduleResolution node --strictNullChecks
  *   node Temp/check-floating-player.cjs
  *
  * - where a float may be: whole on screen and off the strips along the foot, whatever is asked of it
@@ -330,5 +330,132 @@ ok(/<WatchInRoomKey key=\{entry\.play\}[^>]* live \/>/.test(layer) && /key\.mode
 ok(/const mine = whatToCarry\(player, screenFirst\);/.test(read('app/components/GoLiveWindow.tsx')), 'every START carries what is on and your queue');
 ok(/useState<RoomPrivacy>\('private'\)/.test(read('app/components/GoLiveWindow.tsx')), 'PRIVATE already picked');
 ok(/const place = roomStartFor\(videoElement, entryId\);/.test(read('app/components/WatchRoom.tsx')), 'the host\'s room starts from the place');
+
+/* ---------------------------------------------------------------- your room's keys, folding as PIP, and the picture as a handle
+ * (SPEC-rooms-your-room.md, parts 1 and 2; added 2026-11-16). The browser proof is scripts/drive-rooms-your-room.cjs. */
+
+// The clock: what the video's own player says, so PLAY and the seek line show what it is doing, not what was last asked.
+same(store.floatingClock(), null, 'nothing on: no clock');
+store.playFloating({ id: 'own:c', title: 'C', shape: 'video', player: { kind: 'file', src: '/c.mp4' } });
+const playC = store.floatingState().entry.play;
+same(store.floatingClock(), null, 'a player that has said nothing has no clock: the keys guess nothing');
+let ticks = 0;
+const stopTicks = store.subscribeToFloatingClock(() => (ticks += 1));
+store.noteClock(playC, { seconds: 1, duration: 60, paused: false, volume: 0.8, muted: false });
+same(store.floatingClock(), { play: playC, seconds: 1, duration: 60, paused: false, volume: 0.8, muted: false }, 'what the player said');
+same(ticks, 1, 'and whoever draws keys for it is told');
+store.noteClock(playC, { seconds: 1.1 });
+same(ticks, 1, 'a tenth of a second is not news: four a second at most');
+store.noteClock(playC, { paused: true });
+same([ticks, store.floatingClock().paused, store.floatingClock().seconds, store.floatingClock().duration], [2, true, 1, 60], 'a pause inside the player is heard at once, and what it did not say is kept');
+store.noteClock(playC - 1, { seconds: 50, paused: false });
+same([ticks, store.floatingClock().seconds], [2, 1], 'a word about a video that is no longer on is dropped');
+store.noteClock(playC, { seconds: Number.NaN, duration: -4, volume: Number.NaN });
+same([store.floatingClock().seconds, store.floatingClock().duration, store.floatingClock().volume], [1, 60, 0.8], 'nonsense changes nothing');
+store.noteClock(playC, { volume: 7 });
+same(store.floatingClock().volume, 1, 'a volume is 0 to 1');
+store.playFloating({ id: 'own:d', title: 'D', shape: 'video', player: { kind: 'file', src: '/d.mp4' } });
+same(store.floatingClock(), null, "a new video starts with no clock: the last one's is not shown for it");
+stopTicks();
+store.closeFloating();
+const askedOfLayer = [];
+const stopAsked = store.onFloatingOrder((order) => askedOfLayer.push(order));
+store.orderFloating({ seek: 12.5 });
+store.orderFloating({ volume: 0.4, muted: true });
+stopAsked();
+same(askedOfLayer, [{ seek: 12.5 }, { volume: 0.4, muted: true }], 'the seek line and the sound key reach the layer as orders');
+
+// A platform's messages, read as a clock. Third-party text: nothing is assumed of it.
+same(
+  time.readClockMessage('youtube', JSON.stringify({ event: 'infoDelivery', info: { currentTime: 12.5, duration: 300, playerState: 1, volume: 40, muted: false } })),
+  { seconds: 12.5, duration: 300, volume: 0.4, muted: false, paused: false },
+  'YouTube: where it is, how long, playing, its sound out of a hundred',
+);
+same(time.readClockMessage('youtube', { event: 'infoDelivery', info: { playerState: 2 } }), { paused: true }, 'YouTube paused');
+same(time.readClockMessage('youtube', { event: 'infoDelivery', info: { playerState: 0 } }), { paused: true }, 'at its end it is not playing');
+same(time.readClockMessage('youtube', { event: 'infoDelivery', info: { playerState: 3, currentTime: 5 } }), { seconds: 5 }, 'buffering says nothing either way about paused');
+same(time.readClockMessage('vimeo', JSON.stringify({ event: 'timeupdate', data: { seconds: 7, duration: 90, percent: 0.07 } })), { seconds: 7, duration: 90 }, 'Vimeo: where it is and how long');
+same(time.readClockMessage('vimeo', { event: 'pause', data: { seconds: 7, duration: 90 } }), { paused: true, seconds: 7, duration: 90 }, 'Vimeo paused');
+same(time.readClockMessage('vimeo', { event: 'play' }), { paused: false }, 'Vimeo playing');
+for (const nonsense of ['', 'not json', null, 5, '{"event":"other"}', { event: 'infoDelivery', info: null }, { event: 'infoDelivery', info: { currentTime: '5', duration: -1, volume: 'loud', playerState: '1' } }]) {
+  same(time.readClockMessage('youtube', nonsense), null, `nonsense is no clock: ${JSON.stringify(nonsense)}`);
+}
+same(time.readClockMessage('vimeo', { event: 'timeupdate', data: { seconds: 'x' } }), null, 'nor from Vimeo');
+ok(/\['timeupdate', 'ended', 'play', 'pause'\]/.test(read('app/lib/web/embed-time.ts')), 'Vimeo is asked to say when it plays and pauses, which it only does when asked');
+
+// The picture as a handle: the hook itself, pressed and moved as a pointer does it.
+const React = require('react');
+const { renderToStaticMarkup } = require('react-dom/server');
+const frameHook = require(join(OUT, 'lib/ui/use-float-frame.js'));
+class FakeElement {
+  constructor(still) {
+    this.still = still;
+  }
+  closest(selector) {
+    return this.still && selector.includes('button') ? this : null;
+  }
+}
+globalThis.Element = FakeElement;
+let floatDrag = null;
+let drawnAt = { x: 100, y: 100, w: 384, h: 256 };
+const writes = [];
+function Probe() {
+  floatDrag = frameHook.useFloatFrame(() => null, () => drawnAt, (rect) => {
+    writes.push(rect);
+  });
+  return null;
+}
+renderToStaticMarkup(React.createElement(Probe));
+const captured = new Set();
+const pointerBox = { setPointerCapture: (id) => captured.add(id), hasPointerCapture: (id) => captured.has(id), releasePointerCapture: (id) => captured.delete(id) };
+const pointer = (x, y, more = {}) => ({ button: 0, buttons: 1, clientX: x, clientY: y, pointerId: 7, currentTarget: pointerBox, target: new FakeElement(false), stopPropagation() {}, ...more });
+floatDrag.picture.onPointerDown(pointer(200, 200));
+floatDrag.picture.onPointerMove(pointer(203, 202));
+same([writes.length, captured.size], [0, 0], 'a press on the picture that has hardly moved is still a press: nothing moves, nothing is captured (a double press is FULL)');
+floatDrag.picture.onPointerMove(pointer(260, 170));
+same(writes.at(-1), { x: 160, y: 70, w: 384, h: 256 }, 'past the threshold, the picture drags the float from where the press began');
+same([...captured], [7], 'and the pointer is held, so the drag carries on off the picture');
+floatDrag.picture.onPointerUp(pointer(260, 170, { buttons: 0 }));
+same(captured.size, 0, 'let go');
+floatDrag.picture.onPointerMove(pointer(400, 400));
+same(writes.length, 1, 'after that nothing follows the pointer');
+floatDrag.picture.onPointerDown(pointer(10, 10, { target: new FakeElement(true) }));
+floatDrag.picture.onPointerMove(pointer(90, 90));
+same(writes.length, 1, 'a key on the picture keeps its own presses');
+floatDrag.picture.onPointerDown(pointer(200, 200, { button: 2 }));
+floatDrag.picture.onPointerMove(pointer(300, 300));
+same(writes.length, 1, 'only the main button drags');
+floatDrag.picture.onPointerDown(pointer(200, 200));
+floatDrag.picture.onPointerMove(pointer(300, 300, { buttons: 0 }));
+floatDrag.picture.onPointerMove(pointer(320, 320));
+same(writes.length, 1, 'a press let go somewhere else is over: the float does not then follow a bare pointer');
+// The title line sits inside the box, so its press reaches the box too: the line has it, and the picture leaves it alone.
+floatDrag.bar.onPointerDown(pointer(50, 50));
+floatDrag.picture.onPointerDown(pointer(50, 50));
+floatDrag.picture.onPointerMove(pointer(150, 150));
+same(writes.length, 1, 'a press the title line has taken is not taken twice');
+floatDrag.bar.onPointerMove(pointer(150, 150));
+same(writes.at(-1), { x: 200, y: 200, w: 384, h: 256 }, 'and the title line drags it as before');
+floatDrag.bar.onPointerUp(pointer(150, 150, { buttons: 0 }));
+delete globalThis.Element;
+
+// Bigger grips, on both floats; the windows keep theirs.
+const corners = frameHook.FLOAT_GRIPS.filter((grip) => Object.keys(grip.edges).length === 2);
+same([frameHook.FLOAT_GRIPS.length, corners.length], [8, 4], 'eight grips, four of them corners');
+ok(corners.every((grip) => /\bh-5 w-5\b/.test(grip.className)), 'each corner a 20px square');
+ok(/h-3 w-3 cursor-nwse-resize/.test(read('app/components/DockWindow.tsx')), "where a window's corner is 12px");
+const floatChrome = read('app/components/RoomFloatChrome.tsx');
+ok(/FLOAT_GRIPS\.map/.test(layer) && /FLOAT_GRIPS\.map/.test(floatChrome), "the site's float and a room's floating picture both draw them");
+ok(/\{\.\.\.\(pictureFloats \? floatDrag\.picture : \{\}\)\}/.test(read('app/components/WatchRoom.tsx')), "a room's floating picture is a handle itself");
+ok(!/inset-0/.test(floatChrome), 'and still nothing is laid over the picture to catch presses');
+
+// Folding a room is PIP: the folded tile above the bar is gone, so the picture has the way back and no key to put it away.
+const roomWindow = read('app/components/WatchWindow.tsx');
+ok(!/data-watch-tv-box|function UpBox|<OwnRoomDoor folded/.test(roomWindow), 'no folded tile above the bar, for a live room or for yours');
+ok(/pictureFloats=\{collapsed\}/.test(roomWindow) && /onMinimize=\{drawn \? onCollapse : undefined\}/.test(roomWindow), "a room's [ _ ] puts its picture out");
+ok(/if \(collapsed && !drawn\) expandWatch\(\);/.test(roomWindow), 'a folded room with no picture left to float comes back as its window: it is never left with no way back');
+ok(/Back to the room/.test(floatChrome) && !/Hide the picture/.test(floatChrome), 'the floating picture has BACK and no key that would leave a playing room with no way back');
+ok(/box\.closest\('\[data-minimized="true"\]'\) !== null\) expandWatch\(\);/.test(layer), "BACK on the site's float brings back your room's folded window");
+ok(!/collapseWatch/.test(read('app/lib/watch/use-music-room.ts')), 'joining a room opens it as a window: nothing folds it by itself');
 
 console.log(`ok: ${count} assertions (floating player, site arrows)`);

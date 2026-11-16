@@ -66,6 +66,7 @@ export function readTimeMessage(source: TimeSource, data: unknown): { seconds: n
 }
 
 /** YouTube's own numbers for what its player is doing. */
+const YOUTUBE_ENDED = 0;
 const YOUTUBE_PLAYING = 1;
 const YOUTUBE_PAUSED = 2;
 const YOUTUBE_BUFFERING = 3;
@@ -112,8 +113,61 @@ export function doublePressWatcher(now: () => number): (state: number) => boolea
   };
 }
 
-/** Listens to a frame's player. `onTime(null)`: it reached the end. Returns the way to stop listening. */
-export function listenForTime(frame: HTMLIFrameElement, source: TimeSource, onTime: (seconds: number | null) => void, onDoublePress?: () => void): () => void {
+/** What a player's message says of its clock: where it is, how long it is, whether it is paused, its sound (0 to 1). Only what it said. */
+export type ClockSaid = { seconds?: number; duration?: number; paused?: boolean; volume?: number; muted?: boolean };
+
+/**
+ * A player's message as a clock, for the keys under your room's screen (SPEC-rooms-your-room.md, part 1): the same
+ * messages `readTimeMessage` reads, kept for what else they say. Third-party text, so nothing is assumed of it; null
+ * when it says nothing of the clock.
+ */
+export function readClockMessage(source: TimeSource, data: unknown): ClockSaid | null {
+  let message: unknown = data;
+  if (typeof data === 'string') {
+    try {
+      message = JSON.parse(data);
+    } catch {
+      return null;
+    }
+  }
+  if (typeof message !== 'object' || message === null) return null;
+  const said = message as { event?: unknown; info?: unknown; data?: unknown };
+  const clock: ClockSaid = {};
+  const number = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
+  if (source === 'youtube') {
+    if (said.event !== 'infoDelivery' && said.event !== 'initialDelivery') return null;
+    const info = said.info as { currentTime?: unknown; duration?: unknown; playerState?: unknown; volume?: unknown; muted?: unknown } | null | undefined;
+    if (typeof info !== 'object' || info === null) return null;
+    if (number(info.currentTime)) clock.seconds = info.currentTime;
+    if (number(info.duration) && info.duration > 0) clock.duration = info.duration;
+    // YouTube counts its volume to a hundred.
+    if (number(info.volume)) clock.volume = Math.min(1, Math.max(0, info.volume / 100));
+    if (typeof info.muted === 'boolean') clock.muted = info.muted;
+    // Buffering, not started and cued say nothing either way: the key keeps what it last heard.
+    if (info.playerState === YOUTUBE_PLAYING) clock.paused = false;
+    else if (info.playerState === YOUTUBE_PAUSED || info.playerState === YOUTUBE_ENDED) clock.paused = true;
+  } else {
+    if (said.event === 'play') clock.paused = false;
+    else if (said.event === 'pause' || said.event === 'ended') clock.paused = true;
+    else if (said.event !== 'timeupdate' && said.event !== 'playProgress') return null;
+    const at = said.data as { seconds?: unknown; duration?: unknown } | null | undefined;
+    if (number(at?.seconds)) clock.seconds = at.seconds;
+    if (number(at?.duration) && at.duration > 0) clock.duration = at.duration;
+  }
+  return Object.keys(clock).length === 0 ? null : clock;
+}
+
+/**
+ * Listens to a frame's player. `onTime(null)`: it reached the end. `onClock`: everything it says of its clock, for
+ * whoever draws keys for it. Returns the way to stop listening.
+ */
+export function listenForTime(
+  frame: HTMLIFrameElement,
+  source: TimeSource,
+  onTime: (seconds: number | null) => void,
+  onDoublePress?: () => void,
+  onClock?: (said: ClockSaid) => void,
+): () => void {
   const origins = source === 'youtube' ? YOUTUBE_FRAME_ORIGINS : VIMEO_FRAME_ORIGINS;
   const target = () => {
     try {
@@ -128,7 +182,8 @@ export function listenForTime(frame: HTMLIFrameElement, source: TimeSource, onTi
     if (source === 'youtube') {
       frame.contentWindow?.postMessage(JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }), origin);
     } else {
-      for (const value of ['timeupdate', 'ended']) frame.contentWindow?.postMessage(JSON.stringify({ method: 'addEventListener', value }), origin);
+      // Vimeo says only what it is asked to: when it plays and pauses too, for the clock.
+      for (const value of ['timeupdate', 'ended', 'play', 'pause']) frame.contentWindow?.postMessage(JSON.stringify({ method: 'addEventListener', value }), origin);
     }
   };
   let answered = false;
@@ -138,6 +193,10 @@ export function listenForTime(frame: HTMLIFrameElement, source: TimeSource, onTi
     if (source === 'youtube' && onDoublePress !== undefined) {
       const state = readYouTubeState(event.data);
       if (state !== null && watcher(state)) onDoublePress();
+    }
+    if (onClock !== undefined) {
+      const clock = readClockMessage(source, event.data);
+      if (clock !== null) onClock(clock);
     }
     const said = readTimeMessage(source, event.data);
     if (source === 'vimeo' && !answered && typeof event.data === 'string' && event.data.includes('"ready"')) hello();

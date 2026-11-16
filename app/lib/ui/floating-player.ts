@@ -245,8 +245,11 @@ export function onFloatingEnded(listener: (id: string) => void): () => void {
   };
 }
 
-/** What the bar may ask of the video: only some players take orders (`takesOrders`). */
-export type FloatingOrder = 'pause' | 'play';
+/**
+ * What the bar may ask of the video: only some players take orders (`takesOrders`). The keys under your room's screen
+ * (`OwnRoomWindow.tsx`, SPEC-rooms-your-room.md part 1) also move it (`seek`, in seconds) and set its sound.
+ */
+export type FloatingOrder = 'pause' | 'play' | { seek: number } | { volume: number; muted: boolean };
 
 const orderListeners = new Set<(order: FloatingOrder) => void>();
 
@@ -266,4 +269,65 @@ export function orderFloating(order: FloatingOrder): void {
 export function takesOrders(entry: Pick<FloatingEntry, 'player'>): boolean {
   if (entry.player.kind === 'picture') return false;
   return entry.player.kind === 'file' || entry.player.timeFrom !== null;
+}
+
+/**
+ * Where the video on now is, as its own player says: our own files exactly, YouTube and Vimeo by the messages their
+ * frames send (`app/lib/web/embed-time.ts`). The keys under your room's screen read it, so PLAY and the seek line show
+ * what the player is doing and not what was last asked of it. `play` is the PLAY it is about.
+ *
+ * A store of its own, plain: it ticks a few times a second, so it is kept out of `FloatingState` (which every row
+ * reads) and out of the window slots (whose writes the top bar's undo arrows hear).
+ */
+export type FloatingClock = {
+  play: number;
+  seconds: number;
+  /** NaN until the player has said how long it is. */
+  duration: number;
+  paused: boolean;
+  /** Its sound, 0 to 1, and whether it is muted: null where the player never says (Vimeo), so the key shows what was last asked. */
+  volume: number | null;
+  muted: boolean | null;
+};
+
+let clock: FloatingClock | null = null;
+const clockListeners = new Set<() => void>();
+
+/** The clock of the video on now, or null: nothing is on, or its player has said nothing (most outside players never do). */
+export function floatingClock(): FloatingClock | null {
+  return clock !== null && slot.state().entry?.play === clock.play ? clock : null;
+}
+
+export function subscribeToFloatingClock(listener: () => void): () => void {
+  clockListeners.add(listener);
+  return () => {
+    clockListeners.delete(listener);
+  };
+}
+
+/** How little a clock may move and still be the same news: listeners hear four a second at most. */
+const CLOCK_STEP_SECONDS = 0.25;
+
+/** Told by the layer as its player speaks (`FloatingPlayer.tsx`). A word about a PLAY that is no longer on is dropped. */
+export function noteClock(play: number, said: { seconds?: number; duration?: number; paused?: boolean; volume?: number; muted?: boolean }): void {
+  if (slot.state().entry?.play !== play) return;
+  const was = clock !== null && clock.play === play ? clock : null;
+  const next: FloatingClock = {
+    play,
+    seconds: said.seconds !== undefined && Number.isFinite(said.seconds) ? Math.max(0, said.seconds) : (was?.seconds ?? 0),
+    duration: said.duration !== undefined && Number.isFinite(said.duration) && said.duration > 0 ? said.duration : (was?.duration ?? Number.NaN),
+    paused: said.paused ?? was?.paused ?? false,
+    volume: said.volume !== undefined && Number.isFinite(said.volume) ? Math.min(1, Math.max(0, said.volume)) : (was?.volume ?? null),
+    muted: said.muted ?? was?.muted ?? null,
+  };
+  const same =
+    was !== null &&
+    was.paused === next.paused &&
+    was.volume === next.volume &&
+    was.muted === next.muted &&
+    Object.is(was.duration, next.duration) &&
+    Math.abs(was.seconds - next.seconds) < CLOCK_STEP_SECONDS;
+  if (same) return;
+  clock = next;
+  for (const listener of clockListeners) listener();
 }

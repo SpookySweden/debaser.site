@@ -27,7 +27,6 @@ import {
   watchWindowState,
 } from '../lib/watch/watch-window';
 import PopoutWindow from './PopoutWindow';
-import ArtMark from './ArtMark';
 import { useAuth } from './AuthProvider';
 import { useRoomIdentity } from './use-room-identity';
 import DockWindow from './DockWindow';
@@ -43,10 +42,8 @@ import { askToSaveCanvas } from '../lib/watch/use-room-canvas';
 /** Wide enough to take the screen: the room opens filling it (`fill`), as the video wants all the room it can get. */
 const ROOM_SIZE = { w: 2560, h: 1440 };
 const ROOM_MIN = { w: 560, h: 420 };
-/** The folded room's hand-drawn mark (`mark-up-wide` in app/lib/ui/art/slots.ts), shown at 40x16. */
-const UP_MARK_SRC = '/assets/icons/up-wide.png';
-const UP_MARK_WIDTH = 40;
-const UP_MARK_HEIGHT = 16;
+/** The `[ _ ]` key's tip on a room's window: folding a room is putting its picture out (SPEC-rooms-your-room.md, part 2). */
+const PIP_TIP = 'Picture in picture: the window tucks away and the picture floats';
 
 /**
  * The stream room, drawn once in `layout.tsx` (SPEC-watch-together.md).
@@ -88,7 +85,7 @@ export default function WatchWindow() {
     if (watchFocusFromSearch(asked.length === 0 ? '' : `?${asked}`) !== null) router.replace(pathname);
   }, [asked, pathname, router]);
 
-  /** Folds the room away and spends the address the same way, so a link to the room unfolds it again. */
+  /** Folds the room away, its picture floating, and spends the address the same way, so a link to the room unfolds it again. */
   const collapse = useCallback(() => {
     collapseWatch();
     if (watchFocusFromSearch(asked.length === 0 ? '' : `?${asked}`) !== null) router.replace(pathname);
@@ -103,14 +100,10 @@ export default function WatchWindow() {
 
   if (state.focus.kind === 'prelive') return <PreLiveWindow mediaItemId={state.focus.mediaItemId} onClose={close} />;
 
-  // Your own room has a window of its own: nobody else is in it, so none of a live room's machinery runs.
+  // Your own room has a window of its own: nobody else is in it, so none of a live room's machinery runs. Folded, its
+  // video floats and has the way back; there is no folded tile any more (SPEC-rooms-your-room.md, part 2).
   if (state.focus.roomId === ownRoomId) {
-    return (
-      <>
-        <OwnRoomWindow key={state.focus.roomId} roomId={state.focus.roomId} collapsed={state.collapsed} onCollapse={collapse} onClose={close} />
-        {state.collapsed ? <OwnRoomDoor folded /> : null}
-      </>
-    );
+    return <OwnRoomWindow key={state.focus.roomId} roomId={state.focus.roomId} collapsed={state.collapsed} onCollapse={collapse} onClose={close} />;
   }
 
   return <RoomWindow key={state.focus.roomId} roomId={state.focus.roomId} collapsed={state.collapsed} onCollapse={collapse} onLeft={close} />;
@@ -185,13 +178,14 @@ const noScreenOn = () => false;
  * The pop-up above the music bar (Luke's P2: "at any time you can click the pop up above the music player to open the
  * room window like usual"). It is there whenever your own room has something on, a song or a video, and it says what
  * it is in words: `[ ▲ ROOM ]`. Pressing it opens the room window: the screen, the queue, who is here.
- * `folded`: the window is open but put away, and the same key brings it back.
+ * It is the way in while no room window is open, and only that: it was also the folded window's way back, which is the
+ * floating picture's `[ BACK ]` now (SPEC-rooms-your-room.md, part 2).
  */
-function OwnRoomDoor({ folded = false }: { folded?: boolean }) {
+function OwnRoomDoor() {
   const roomId = useSyncExternalStore(subscribeToOwnRoom, ownRoomIdNow, noOwnRoom);
   const { read } = useWatchRoom(roomId, { follow: false });
   const video = useSyncExternalStore(subscribeToFloating, screenOn, noScreenOn);
-  // The page window's foot keeps clear of it (`--stream-box`, ./SiteWindow.tsx), as it does of a folded live room.
+  // The page window's foot keeps clear of it (`--stream-box`, ./SiteWindow.tsx).
   const box = useRef<HTMLSpanElement>(null);
   const on = roomId !== null && (video || (read !== undefined && read !== null && read.room.currentEntryId !== null));
   useEdgeReserve(box, '--stream-box', on);
@@ -204,10 +198,10 @@ function OwnRoomDoor({ folded = false }: { folded?: boolean }) {
       ref={box}
       className="fixed z-50 frame bg-sun-pale p-0.5"
       style={{ bottom: 'calc(var(--music-top, 0px) + 0.5rem)', left: 'var(--music-key-left, 0.5rem)' }}
-      data-own-room-door={folded ? 'folded' : 'shut'}
+      data-own-room-door="shut"
       data-companion-avoid
     >
-      <button type="button" onClick={() => (folded ? expandWatch() : openWatch({ kind: 'room', roomId }))} className={PLATE} aria-label={tip} title={tip}>
+      <button type="button" onClick={() => openWatch({ kind: 'room', roomId })} className={PLATE} aria-label={tip} title={tip}>
         [ ▲ ROOM ]
       </button>
     </span>
@@ -258,17 +252,16 @@ function PreLiveWindow({ mediaItemId, onClose }: { mediaItemId: string; onClose:
   );
 }
 
-/** A room: read once, followed while live. Folded away (`collapsed`) it plays on out of sight. */
+/**
+ * A room: read once, followed while live. It opens as a window. Folded away (`collapsed`, its `[ _ ]` key or `[ PIP ]`)
+ * its window tucks out of sight and its picture floats over the site, with `[ BACK ]` on it: folding is PIP, never by
+ * itself, and there is no folded tile above the bar any more (SPEC-rooms-your-room.md, part 2).
+ */
 function RoomWindow({ roomId, collapsed, onCollapse, onLeft }: { roomId: string; collapsed: boolean; onCollapse: () => void; onLeft: () => void }) {
   const { read, error } = useWatchRoom(roomId);
   const headroom = useLedgeHeadroom();
   const [closing, setClosing] = useState(false);
   const { profile } = usePublicProfile(read?.room.hostId ?? null);
-  /** `[ PIP ]` on an embedded picture: the room folds, and its picture floats (SPEC-floating-player.md). */
-  const [pictureOut, setPictureOut] = useState(false);
-  // Back in the room, by whichever way: the next fold is an ordinary one unless `[ PIP ]` asks again.
-  if (!collapsed && pictureOut) setPictureOut(false);
-  const pictureFloats = collapsed && pictureOut;
   const now = useNow(5000);
   const live = read !== undefined && read !== null && roomIsLive(read.room, now);
   const hostName = profile?.displayName ?? read?.room.originalHostLabel ?? '';
@@ -277,6 +270,12 @@ function RoomWindow({ roomId, collapsed, onCollapse, onLeft }: { roomId: string;
   /** Taken out of this stream while in it (SPEC-privacy-phase-2.md): the room goes, and its wires with it. */
   const [removedFor, setRemovedFor] = useState<string | null>(null);
   const removed = removedFor === roomId;
+  /** The room itself is on screen, so there is a picture to put out. A door, or a room this person was taken out of, has none. */
+  const drawn = readable && !removed;
+  // Folded, the floating picture is the only way back: a room that stops being drawn while folded comes back as its window.
+  useEffect(() => {
+    if (collapsed && !drawn) expandWatch();
+  }, [collapsed, drawn]);
 
   // Somebody who can read the room and is signed in, or a guest, belongs to it from here (an open room going private keeps them).
   // A room they cannot read waits for JOIN at its door.
@@ -304,16 +303,10 @@ function RoomWindow({ roomId, collapsed, onCollapse, onLeft }: { roomId: string;
         badge={read ? (read.room.origin === 'music' ? 'BY LINK' : live ? 'LIVE' : 'ENDED') : undefined}
         // Leaving with a changed canvas nobody saved asks "save this canvas?" first (SPEC-stream-art.md).
         onClose={() => (removed ? onLeft() : void askToSaveCanvas(roomId).then(() => (read && live ? setClosing(true) : onLeft())))}
-        onMinimize={
-          read
-            ? () => {
-                setPictureOut(false);
-                onCollapse();
-              }
-            : undefined
-        }
-        minimized={collapsed}
-        pictureOut={pictureFloats}
+        onMinimize={drawn ? onCollapse : undefined}
+        minimizeTip={PIP_TIP}
+        minimized={collapsed && drawn}
+        pictureOut={collapsed && drawn}
         aboveBottomBar
         headroom={headroom}
         dock="top"
@@ -338,17 +331,12 @@ function RoomWindow({ roomId, collapsed, onCollapse, onLeft }: { roomId: string;
             closing={closing}
             onStay={() => setClosing(false)}
             onLeft={onLeft}
-            pictureFloats={pictureFloats}
-            onFloatPicture={() => {
-              setPictureOut(true);
-              onCollapse();
-            }}
+            pictureFloats={collapsed}
+            onFloatPicture={onCollapse}
             onBackFromFloat={expandWatch}
-            onHidePicture={() => setPictureOut(false)}
           />
         )}
       </DockWindow>
-      {collapsed ? <UpBox live={live} hostName={hostName} /> : null}
       {read === undefined || read === null ? <BarWaiting text={read === null ? 'STREAM' : (error ?? 'READING THE STREAM...')} /> : null}
     </>
   );
@@ -359,34 +347,4 @@ function BarWaiting({ text }: { text: string }) {
   const target = useSyncExternalStore(subscribeToStreamBar, () => streamBarState().target, () => null);
   if (target === null) return null;
   return createPortal(<span className="min-w-0 flex-1 frame bg-hardware px-2 py-1 text-label font-bold text-ink-bar">{text}</span>, target);
-}
-
-/**
- * The room folded away: a framed tile with a wide up arrow just above the music bar's TV key (`--music-top`,
- * whichever shape the player is in; Luke, 2026-11-03). Pressing it brings the room back; so does any link to
- * the room (watch-window.ts). Still: the TV key under it is the one that wiggles.
- */
-function UpBox({ live, hostName }: { live: boolean; hostName: string }) {
-  const tip = live ? `BACK TO THE STREAM WITH ${hostName.toUpperCase()}` : 'BACK TO THE STREAM (ENDED)';
-  // The page window's foot keeps clear of it (`--stream-box`, ./SiteWindow.tsx), as it does of the player.
-  const box = useRef<HTMLSpanElement>(null);
-  useEdgeReserve(box, '--stream-box', true);
-
-  return (
-    // A framed tile, like the folded music player under it: a bare key would sit straight on the desktop.
-    <span
-      ref={box}
-      className="fixed z-50 frame bg-sun-pale p-0.5"
-      // Over the bar's left key (`--music-key-left`, ./MusicPlayer.tsx); the folded tile and the phone card sit at 0.5rem.
-      style={{ bottom: 'calc(var(--music-top, 0px) + 0.5rem)', left: 'var(--music-key-left, 0.5rem)' }}
-      data-watch-tv-box={live ? 'live' : 'ended'}
-      data-companion-avoid
-    >
-      {/* It says what it is in words too (SPEC-rooms-queues.md): the mark alone was a puzzle. */}
-      <button type="button" onClick={expandWatch} className={`${PLATE} inline-flex items-center gap-1`} aria-label={tip} title={tip}>
-        <ArtMark src={UP_MARK_SRC} size={UP_MARK_HEIGHT} width={UP_MARK_WIDTH} fallback="[ ▲ ]" />
-        <span>{live ? 'ROOM :: LIVE' : 'ROOM :: ENDED'}</span>
-      </button>
-    </span>
-  );
 }

@@ -11,10 +11,11 @@ import { createWindowSlot } from '../ui/window-slot';
  * The window is drawn once in `layout.tsx`, so a stream keeps playing while the reader walks the site.
  * Going live swaps the first purpose for the second in the store; the address is spent on close.
  *
- * A room can also be folded away (`collapsed`): still drawn, still in the room and still playing, only out
- * of sight, with the TV box above the music player to bring it back. Folding spends the address too, so any
- * link to the room (a `[ TV ]` key, the board's record, WEB's OPEN ROOM) is a new address again, and opening
- * the room it names unfolds it.
+ * A room can also be folded away (`collapsed`): still drawn, still in the room and still playing, its window out
+ * of sight and its picture floating over the site, with `[ BACK ]` on the picture to bring the window back
+ * (SPEC-rooms-your-room.md, part 2: folding is PIP; the TV box above the music player is gone). A room always opens
+ * as its window, never folded. Folding spends the address too, so any link to the room (a `[ TV ]` key, the board's
+ * record, WEB's OPEN ROOM) is a new address again, and opening the room it names unfolds it.
  */
 
 export type WatchFocus = { kind: 'prelive'; mediaItemId: string } | { kind: 'room'; roomId: string };
@@ -22,7 +23,7 @@ export type WatchFocus = { kind: 'prelive'; mediaItemId: string } | { kind: 'roo
 export type WatchWindowState = {
   open: boolean;
   focus: WatchFocus | null;
-  /** Folded away to the TV box: the room plays on out of sight. */
+  /** Folded away: the room plays on, its window out of sight and its picture floating. */
   collapsed: boolean;
 };
 
@@ -53,7 +54,7 @@ export function closeWatch(): void {
   if (slot.state().open) slot.set(CLOSED);
 }
 
-/** Folds an open room away to the TV box; it keeps playing. */
+/** Folds an open room away, its picture floating; it keeps playing. */
 export function collapseWatch(): void {
   const current = slot.state();
   if (current.open && current.focus?.kind === 'room' && !current.collapsed) slot.set({ ...current, collapsed: true });
