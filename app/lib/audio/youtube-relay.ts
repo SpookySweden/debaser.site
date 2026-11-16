@@ -1,4 +1,5 @@
 import { SafeFetchError, safeFetchJson, safeFetchStream, type FetchLike } from '../web/safe-fetch';
+import { makeRateLimiter } from '../web/search/rate-limit';
 import { buildUrl } from '../web/urls';
 
 /**
@@ -120,6 +121,31 @@ export async function findAudioFile(videoId: string, options: { fresh?: boolean;
   }
   kept.delete(videoId);
   return null;
+}
+
+/**
+ * How often one address may ask for a slice (list 3, 2026-11-16: the relay had no limit, so any script could use it as a
+ * YouTube audio copier through the site). A listener asks about once every two and a half minutes of a song, a few times
+ * more when they skip or seek; these are ten times that and more, so a household listening together never meets them.
+ * A refusal is a 429, which the graph's hidden player takes as a failed relay: the graph moves gently instead, and the
+ * music itself (YouTube's own player) is untouched.
+ *
+ * What it holds, said once: the count is in memory, so it is per running copy of the server. Vercel keeps a warm copy
+ * busy with many requests and starts more under load, so one address hammering it is slowed to these numbers on each
+ * copy it lands on, not stopped site-wide. A count shared by every copy needs a store (a table, or Vercel's firewall).
+ */
+export const RELAY_LIMIT = { perMinute: 30, perHour: 300 } as const;
+const minuteLimit = makeRateLimiter(RELAY_LIMIT.perMinute, 60_000);
+const hourLimit = makeRateLimiter(RELAY_LIMIT.perHour, 60 * 60_000);
+
+/** Whether `address` (from `clientAddress`) may have another slice now; counts the ask when it may. */
+export function relayAllowed(address: string, now = Date.now()): boolean {
+  return minuteLimit.allow(address, now) && hourLimit.allow(address, now);
+}
+
+/** The answer to an address over the limit: 429 with when to ask again, never kept by a cache. */
+export function relayRefused(): Response {
+  return new Response('too many slices: wait a minute', { status: 429, headers: { 'Retry-After': '60', 'Cache-Control': 'no-store' } });
 }
 
 /** The slice a `Range` header asks for, cut to `SLICE_BYTES` and the file's end; null when it asks past the end. */
