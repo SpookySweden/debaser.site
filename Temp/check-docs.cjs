@@ -261,6 +261,14 @@ void (async () => {
   assert.equal(docLinkIn('see https://evil.example/docs/../x'), null);
   assert.equal(docLinkIn('nothing here'), null);
 
+  // Luke, 2026-11-16: the settings strip scrolls away with the page; it is not pinned. Held against the source because the
+  // bar's position is only seen in a browser (drive: Temp/browse, TIDY, 2026-11-16).
+  const editorSource = require('node:fs').readFileSync('app/components/DocEditor.tsx', 'utf8');
+  const barTag = /<div className="([^"]*)">s*<div className="flex flex-wrap items-center gap-x-5/.exec(editorSource);
+  assert.ok(barTag !== null && /(^| )docs-bar( |$)/.test(barTag[1]), 'the docs bar is found');
+  assert.ok(!/(sticky|fixed)/.test(barTag[1]), 'the docs bar is not pinned: it scrolls away with the page');
+  assert.ok(!/docs-bar[^{]*{[^}]*position:s*(sticky|fixed)/.test(require('node:fs').readFileSync('app/globals.css', 'utf8')), 'and no rule pins it');
+
   console.log('check-docs: addresses, sharing, pointers (8/s, 2/s crowded, stepped fade), handshake, readers silent, mock access rules, forum post: all hold');
   process.exit(0);
 })().catch((error) => {
