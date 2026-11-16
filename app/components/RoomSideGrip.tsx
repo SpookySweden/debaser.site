@@ -72,7 +72,7 @@ export default function RoomSideGrip() {
       className="group absolute -left-3 bottom-0 top-0 z-10 flex w-3 cursor-col-resize touch-none select-none justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-ink max-sm:hidden"
       data-room-side-grip={width ?? 'usual'}
     >
-      <span aria-hidden="true" className="h-full border-l-2 border-dotted border-line group-hover:border-ink group-focus-visible:border-ink" />
+      <span aria-hidden="true" className="h-full border-l-line border-dotted border-ink-quiet group-hover:border-ink group-focus-visible:border-ink" />
     </div>
   );
 }
