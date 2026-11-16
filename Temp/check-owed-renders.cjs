@@ -374,7 +374,7 @@ const CatCursor = require('./owed-render/components/CatCursor.js').default;
 const { liveRows, useLiveStreams } = require('./owed-render/components/CytubeLiveStreams.js');
 const CytubePage = require('./owed-render/components/CytubePage.js').default;
 const MusicRoomKeeper = require('./owed-render/components/MusicRoomKeeper.js').default;
-/** No main room in hand (SPEC-rooms-perpetual.md): a row's PLAY then plays where it is pressed, as for a visitor. */
+/** No main room in hand (SPEC-rooms-perpetual.md): a row's PLAY then plays where it is pressed (before your room is found). */
 const noMainRoom = () => require('./owed-render/lib/watch/own-room-client.js').setOwnRoom({ session: null, roomId: null, hostId: null, visitor: false, waiting: false });
 const StreamArtShelf = require('./owed-render/components/StreamArtShelf.js').default;
 const WatchInRoomKey = require('./owed-render/components/WatchInRoomKey.js').default;
@@ -956,24 +956,21 @@ test('WatchInRoomKey: in no room, it reads WATCH IN ROOM, and a press only opens
   press('[ WATCH IN ROOM ]');
   assert.deepEqual(said('goLiveEmpty'), [], 'a stray press starts nothing');
 });
-test('WatchInRoomKey: the menu names the video, with PRIVATE picked, and START passes the choices and where it had got to', async () => {
+// Replaced on purpose 2026-11-16 (list 3, ROOMS item 3): WATCH IN ROOM no longer opens a menu that makes a separate room. It
+// puts the video on in your own always-on room and opens that room on WHO CAN JOIN, as GO LIVE does
+// (scripts/drive-rooms-perpetual.cjs step 10 drives it). Here, with your room not found yet, it says so and makes nothing.
+test('WatchInRoomKey: in no room, a press uses your own room: with it not found yet, it says so, and no other room is made', async () => {
   auth = { status: 'signed-in', user: USER };
   watching = null;
-  const html = roomKey({ useRoomKey: slots(true) });
-  assert.ok(html.includes('data-window="WATCH IN ROOM"'));
-  assert.ok(visible(html).includes('A Train Film'));
-  for (const word of ['ROOM NAME', 'TOPIC', 'WHO CAN ADD:', 'WHO CAN JOIN:', '[ START ]']) assert.ok(visible(html).includes(word), word);
-  assert.match(html, /aria-checked="true"[^>]*data-room-privacy="private"/);
-  floating.notePlace('web:v', 42);
+  noMainRoom();
   asked = [];
-  lastChoice = null;
-  drawn.find(({ type }) => type === 'form').props.onSubmit({ preventDefault: () => undefined });
+  roomKey();
+  press('[ WATCH IN ROOM ]');
   await tick();
-  floating.notePlace('web:v', null);
-  assert.deepEqual(said('goLiveEmpty'), [['goLiveEmpty', USER.id, true]]);
-  // Updated on purpose 2026-11-15 (SPEC-rooms-queues.md, phase 3): every START carries your own queue in behind the
-  // video it names (nothing is queued here), so END STREAM can bring back what is left.
-  assert.deepEqual(lastChoice, { privacy: 'private', start: { name: '', topic: '', addMode: 'anyone', first: source(), place: 42 }, carry: { song: null, video: null, waiting: [] } });
+  assert.deepEqual(said('goLiveEmpty'), [], 'no separate stream room');
+  const html = roomKey({ useRoomKey: slots({ kind: 'loading' }) });
+  assert.ok(!html.includes('data-window="WATCH IN ROOM"'), 'no menu of its own');
+  assert.ok(visible(html).includes('YOUR ROOM IS STILL BEING READ. TRY AGAIN IN A MOMENT.'), visible(html));
 });
 test('WatchInRoomKey: holding a crown, it reads ADD TO ROOM, and one press goes to the back of the queue', async () => {
   auth = { status: 'signed-in', user: USER };
@@ -1086,6 +1083,9 @@ test('WebMediaRow: PLAY asks our own route whether that server answers, before a
 });
 /** Presses a server row's PLAY with its server answering, as far as the player starting. */
 async function playRow(item) {
+  // Updated on purpose 2026-11-16 (list 3, ROOMS item 2): a server row's PLAY opens your own room when you have one, as a
+  // MEDIA video does (scripts/drive-rooms-perpetual.cjs step 11); these tests are about the row's own player, so no room.
+  noMainRoom();
   const realFetch = global.fetch;
   global.fetch = async () => ({ ok: true, json: async () => ({ up: true }) });
   try {

@@ -66,7 +66,9 @@ ok('the switches: the host in ROOM SETTINGS, the person in PRIVACY, both on by d
 ok('rows label what they queue; DISCUSS asks by that label and by the address', () => {
   assert.ok(read('app/components/WebStream.tsx').includes('const roomSource = roomLink === null ? undefined : { link: roomLink, webRef: item.id };'));
   const card = read('app/components/WebMediaRow.tsx');
-  assert.equal(card.split('webRef: item.id').length - 1, 2, 'a KINO or server card, one video or a whole series');
+  // Updated on purpose 2026-11-16 (list 3, ROOMS item 2): PLAY on a server row opens it in your room, labelled the same way,
+  // so a third: WATCH IN ROOM's one video, its whole series, and PLAY.
+  assert.equal(card.split('webRef: item.id').length - 1, 3, 'a KINO or server card: one video, a whole series, and PLAY into your room');
   assert.equal(card.split('<WebDiscussKey item={item} short />').length - 1, 2, 'and KINO and server cards have the pen');
   assert.ok(read('app/lib/watch/my-queue.ts').includes('{ link: thing.link, ...(thing.webRef === undefined ? {} : { webRef: thing.webRef }) }'));
   const bridges = read('app/components/WebBridgeKeys.tsx');

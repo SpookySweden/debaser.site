@@ -84,7 +84,9 @@ for (const tool of walk('scripts', (name) => name.endsWith('.cjs'))) {
 // anything else left unused still fails, and this entry fails once something uses it or it is gone.
 // (2026-11-15, SPEC-rooms-queues.md phase 7) QueueBrowser.tsx, the old QUEUES list of live rooms, was on this list from
 // phase 1 until Luke answered ("Delete it"); it is deleted, so it is off the list again.
-const AWAITING_LUKE = new Set(['app/components/BroadcastHeartbeat.tsx']);
+// (2026-11-16, list 3) OwnRoomWindow.tsx, the old look-alike of your room: unused once a signed-out visitor's room opened in
+// the live room's window too. Kept unreferenced by Luke's answer Q5 A in SPEC-rooms-perpetual.md ("kept in the repo").
+const AWAITING_LUKE = new Set(['app/components/BroadcastHeartbeat.tsx', 'app/components/OwnRoomWindow.tsx']);
 for (const file of AWAITING_LUKE) {
   if (!sources.has(file) || referenced.has(file) || toolReferenced.has(file)) fail(file, 'take it off AWAITING_LUKE');
 }

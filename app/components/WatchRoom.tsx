@@ -1135,7 +1135,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
 
   const myChoice = useLookChoice(user?.id ?? null);
   // Read fresh as the room opens: a look the host changed since this tab last read it shows.
-  const hostChoice = useLookChoice(room.hostId, { fresh: true });
+  // A visitor's own room: their browser id is no account, so there is no saved look to read for it.
+  const hostChoice = useLookChoice(visitorRoom ? null : room.hostId, { fresh: true });
   const look = lookForRoom(hostChoice.look, myChoice, amHost);
   const lookCls = lookClass(look);
   /** With a look: its lines on the screen's frame and the LED's frames, its key colour on the bar's keys. */
