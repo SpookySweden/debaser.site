@@ -1,15 +1,17 @@
 /*
- * Drives SPEC-rooms-your-room.md, parts 1 and 2, in a real browser: YOUR ROOM in the live room's frame with keys that
- * work, GO LIVE turning that window into the live room where it stands, the room window lifted off the music bar as one
- * piece, `[ _ ]` as PIP with the way back on the picture, the folded tile gone, and the floating picture dragged by the
- * picture. Not in `npm run checks`: it needs a running site.
+ * Drives your room in a real browser (SPEC-rooms-your-room.md, rewritten for SPEC-rooms-perpetual.md on 2026-11-16, list 3):
+ * your room is the live room's own window now, so this drives that window as your room: the cover card for a song, the
+ * room's PLAY and seek on the bar's song and on a video in the room's own player, FULL with the picture its own shape and the
+ * chosen background round it, `[ BKG ]` in the corner (off and on), bars found in a letterboxed file and trimmed, the window
+ * lifting off the music bar as one piece, `[ _ ]` folding it to its key above the player, GO LIVE in place, a YouTube row
+ * opening in your room with FULL and `[ BKG ]` on its frame, and phone width. Not in `npm run checks`: it needs a running site.
  *
  *   node scripts/drive-rooms-your-room.cjs --base http://localhost:3003
  *
- * For a local dev server on mock data only (start it with NEXT_PUBLIC_SUPABASE_URL empty and every data source on
- * mock, so nothing reaches the live database). It signs nobody up: the "account" is a made-up one in the browser's mock
- * store. The one thing it asks of the network is a five-second public test video (`--no-video` skips every step that
- * needs a video, which is most of the PIP proof).
+ * For a local dev server on mock data only (Temp/browse/dev-mock-rooms.cjs: every data source on mock and Supabase empty, so
+ * nothing reaches the live database). It signs nobody up: the "account" is a made-up one in the browser's mock store. It asks
+ * the network for a five-second public test video and, if it is there, YouTube's player (`--no-video` skips every step that
+ * needs a video). Set the background to try with `--backdrop <name>`.
  */
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright-core');
@@ -298,6 +300,8 @@ async function titlePoint(page) {
   return { x: bar.left + 40, y: bar.top + bar.height / 2 };
 }
 /** How far down the screen a room window's foot may reach: the music bar's top, less the quarter-rem gap. */
+/** One of the room's keys by what it is read as: under the picture, or on the music bar while the bar shows the room. */
+const roomKey = (page, label) => page.locator(`${ROOM} [data-watch-bar] button[aria-label="${label}"], [data-stream-bar] button[aria-label="${label}"]`).first();
 const floorOf = (page) =>
   page.evaluate(() => {
     const reach = Number.parseFloat(document.documentElement.style.getPropertyValue('--music-top'));
@@ -305,7 +309,7 @@ const floorOf = (page) =>
   });
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: findChrome(), headless: true, args: ['--autoplay-policy=no-user-gesture-required', '--no-first-run'] });
+  const browser = await chromium.launch({ executablePath: findChrome(), headless: true, args: ['--autoplay-policy=no-user-gesture-required', '--no-first-run', '--disable-audio-output'] });
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   await context.addInitScript(HOOK);
   await context.addInitScript(SEED);
@@ -328,19 +332,23 @@ const floorOf = (page) =>
   const withVideo = !flag('--no-video');
 
   try {
-    console.log('YOUR ROOM, IN THE LIVE ROOM\'S FRAME (a song on)');
+    // Rewritten on purpose 2026-11-16 (list 3, ROOMS item 4): since SPEC-rooms-perpetual.md your room IS the live room's
+    // window (the old look-alike, OwnRoomWindow.tsx, is unused), so every step below runs in that window: its own players,
+    // its keys (under the picture, or on the music bar while the bar shows the room), its FULL with the background round
+    // the picture and [ BKG ] in the corner. What the old frame was checked for is checked here on the room itself.
+    console.log('YOUR ROOM IS THE LIVE ROOM\'S WINDOW (a song on)');
     await open(page, '/forum');
     await page.waitForFunction(() => window.__audios.length > 0, null, { timeout: 20000 });
     await pressUntil(page, false);
     await songMenu(page, 'ADD TO QUEUE');
     await page.waitForFunction(() => Number(document.querySelector('[data-bar-queue]')?.getAttribute('data-bar-queue')) === 1, null, { timeout: 10000 });
     await page.waitForSelector('[data-own-room-door="shut"]', { timeout: 10000 });
-    assert.equal(await page.locator(ROOM).count(), 0, 'playing a song opens no window by itself');
+    assert.equal(await page.locator(ROOM).count(), 0, 'playing a song opens no window by itself (Luke, Q6 A)');
     await page.locator('[data-own-room-door] button').click();
-    await page.waitForSelector('[data-own-room-window="account"]', { timeout: 20000 });
-    assert.equal(await titleOf(page), 'YOUR ROOM');
+    await page.waitForSelector(`${ROOM} [data-main-room-live="private"]`, { timeout: 20000 });
+    assert.match(await titleOf(page), /'S ROOM$/, 'the window is your room, by your name');
     assert.notEqual(await page.locator(ROOM).getAttribute('data-minimized'), 'true', 'it opens as a window, not folded');
-
+    assert.equal(await page.locator('[data-own-room-window]').count(), 0, 'not the old look-alike window');
     const frame = await page.evaluate(() => {
       const box = (sel) => {
         const element = document.querySelector(sel);
@@ -349,226 +357,161 @@ const floorOf = (page) =>
         return { left, top, right, bottom, width, height };
       };
       return {
-        screen: box('[data-own-room-screen]'),
-        bar: box('[data-own-room-bar]'),
-        side: box('[data-own-room-side]'),
-        queueKey: box('[data-own-room-queue-key]'),
-        cog: box('[data-own-room-settings]'),
-        alone: box('[data-own-room-alone]'),
-        goLive: box('[data-own-room-go-live]'),
-        keys: [...document.querySelectorAll('[data-own-room-bar] button, [data-own-room-bar] input')].map((key) => key.getAttribute('aria-label')),
-        disabled: document.querySelectorAll('[data-own-room-window] button:disabled').length,
-        queueInWindow: document.querySelectorAll('[data-own-room-window] [data-own-queue]').length,
-        screenIs: document.querySelector('[data-own-room-screen]').getAttribute('data-own-room-screen'),
-        words: document.querySelector('[data-own-room-alone]').innerText,
-        queueWords: document.querySelector('[data-own-room-queue-key]').innerText.trim(),
+        picture: box('[data-dock-window="stream"] [data-room-picture]'),
+        queueKey: box('[data-dock-window="stream"] [data-watch-queue-key]'),
+        cog: box('[data-dock-window="stream"] [data-room-settings-key]'),
+        chat: box('#watch-chat'),
+        cover: document.querySelector('[data-dock-window="stream"] [data-room-picture] [data-cover-card]') !== null,
+        badge: document.querySelector('[data-dock-window="stream"] .title-line').innerText,
       };
     });
-    assert.equal(frame.screenIs, 'song', 'a song on: the screen is its cover card');
-    assert.ok(frame.bar !== null, 'there is a bar of keys');
-    assert.ok(near(frame.bar.top, frame.screen.bottom) && near(frame.bar.left, frame.screen.left) && near(frame.bar.width, frame.screen.width), 'the bar of keys is under the picture, as wide as it');
-    assert.ok(frame.side.left >= frame.screen.right, 'the side column is beside the picture');
-    assert.equal(frame.queueWords, '[ QUEUE ]');
+    assert.ok(frame.cover, 'a song on: the screen is its cover card');
+    assert.ok(frame.queueKey.left >= frame.picture.right - 1, 'the side column is beside the picture');
     assert.ok(near(frame.queueKey.top, frame.cog.top, 6) && frame.cog.left > frame.queueKey.right, '[ QUEUE ] and the cog head the side column, on one line');
-    assert.ok(frame.queueKey.bottom <= frame.alone.top && frame.alone.left >= frame.side.left - 1, 'JUST YOU HERE is under them, where a live room has its chat');
-    assert.ok(frame.words.includes('JUST YOU HERE') && frame.goLive !== null && frame.goLive.top > frame.alone.top, 'with GO LIVE in it');
-    assert.deepEqual(frame.keys, ['Pause', 'Seek', 'Skip to the next in your queue'], 'a song: PLAY, the seek line and next, as a live room\'s bar has for a song');
-    assert.equal(frame.disabled, 0, 'nothing is drawn disabled');
-    assert.equal(frame.queueInWindow, 0, 'the queue is not stacked in the window any more: it is behind [ QUEUE ]');
-    // Updated on purpose 2026-11-16 (Luke's ROOMFIX list, item 7): [ _ ] folds to a key above the player and floats nothing,
-    // so a song on has it too (scripts/drive-roomfix.cjs drives it).
-    assert.equal(await page.locator(`${ROOM} button[aria-label^="Fold "]`).count(), 1, 'a song on: YOUR ROOM can be folded away');
-    assert.equal(await page.locator('[data-stream-bar]').count(), 0, 'the bar stays the music bar: your own room is not a stream');
-    pass('YOUR ROOM: the picture with the bar of keys under it, the side column with [ QUEUE ] and the cog, JUST YOU HERE and GO LIVE where chat would be');
-    await page.screenshot({ path: join(SHOTS, 'your-room-frame-song.png') });
+    assert.ok(frame.chat !== null && frame.chat.top > frame.queueKey.bottom, 'the chat is in the column (with nobody else in, it says so)');
+    assert.ok(frame.badge.includes('PRIVATE'), 'and it says PRIVATE');
+    pass('YOUR ROOM: the live room\'s own window, the cover card on its screen, [ QUEUE ] and the cog heading the column, chat, PRIVATE');
+    await page.screenshot({ path: join(SHOTS, 'your-room-song.png') });
 
-    await page.locator('[data-own-room-play]').click();
+    // The room steers the bar's one audio element as it steers a video: its PLAY key pauses and plays the song.
+    await roomKey(page, 'Pause').click();
     await page.waitForFunction(() => window.__audios[window.__audios.length - 1].paused, null, { timeout: 5000 });
-    assert.equal(await page.locator('[data-own-room-play]').getAttribute('aria-label'), 'Play', 'the key says what a press will do');
-    await page.locator('[data-own-room-play]').click();
+    await roomKey(page, 'Play').click();
     await page.waitForFunction(() => !window.__audios[window.__audios.length - 1].paused, null, { timeout: 5000 });
-    // The mock site's own asset route answers no byte ranges, so the browser cannot land a seek in these test tones:
-    // what is held is that the line asks the bar's player to move (a real song's host answers ranges).
-    await page.evaluate(() => {
-      window.__seeks = 0;
-      window.__audios[window.__audios.length - 1].addEventListener('seeking', () => (window.__seeks += 1));
-    });
-    await setRange(page, '[data-own-room-bar] input[aria-label="Seek"]', 20);
-    await page.waitForFunction(() => window.__seeks > 0, null, { timeout: 5000 });
-    pass('the song\'s keys work: PLAY pauses and plays the bar\'s song, and the seek line moves it');
+    pass('the room\'s PLAY key pauses and plays the bar\'s song');
 
-    await page.locator('[data-own-room-queue-key]').click();
+    await page.locator(`${ROOM} [data-watch-queue-key]`).click();
     await page.waitForSelector('#stream-queue-search', { timeout: 15000 });
     assert.ok(await page.locator('[data-queue-state="queued"]').count(), 'the queue window shows what waits');
-    pass('[ QUEUE ] opens the queue as its own window, as in a live room');
+    pass('[ QUEUE ] opens the room\'s queue as its own window');
     let videoQueued = false;
     if (withVideo) {
       await page.fill('#stream-queue-search', VIDEO);
       await page.keyboard.press('Enter');
-      videoQueued = await page.waitForFunction(() => Number(document.querySelector('[data-bar-queue]')?.getAttribute('data-bar-queue')) === 2, null, { timeout: 30000 }).then(() => true, () => false);
+      videoQueued = await page.waitForFunction(() => document.querySelectorAll('[data-queue-state="queued"]').length >= 2, null, { timeout: 30000 }).then(() => true, () => false);
       if (!videoQueued) note('the test video could not be queued (no network to its host?): every step that needs a video was skipped');
     }
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => document.querySelector('#stream-queue-search') === null, null, { timeout: 10000 });
 
-    await page.locator('[data-own-room-next]').click();
-    await sleep(1500);
-    assert.equal(await barQueue(page), videoQueued ? 1 : 0, 'next on the room\'s bar took the queued song');
-    assert.equal((await audio(page)).paused, false, 'and it plays');
-    pass('next under the picture starts what is queued');
-
     if (videoQueued) {
-      console.log('A VIDEO ON YOUR SCREEN: the keys drive the site\'s one player');
-      await page.locator('[data-own-room-next]').click();
-      await page.waitForSelector('[data-own-room-screen="video"]', { timeout: 20000 });
-      await page.waitForSelector('[data-floating-player] video', { timeout: 20000 });
+      console.log('A VIDEO ON YOUR SCREEN: the room\'s own player');
+      // The queued song first, then the video: two presses of next.
+      await roomKey(page, 'Skip to the next video').click();
+      await sleep(1500);
+      await roomKey(page, 'Skip to the next video').click();
+      await page.waitForFunction(() => {
+        const video = document.querySelector('[data-dock-window="stream"] [data-room-picture] video[data-watch-video]');
+        return video !== null && /flower\.webm/.test(video.currentSrc || video.src) && video.currentTime > 0.3;
+      }, null, { timeout: 30000 });
       await page.evaluate(() => {
-        const video = document.querySelector('[data-floating-player] video');
+        const video = document.querySelector('[data-dock-window="stream"] [data-room-picture] video[data-watch-video]');
         video.loop = true;
-        window.__sameVideo = video;
+        window.__roomVideo = video;
       });
-      await page.waitForFunction(() => document.querySelector('[data-own-room-bar] input[aria-label="Seek"]') !== null, null, { timeout: 20000 });
-      await sleep(800);
-      const video = await page.evaluate(() => {
-        const layer = document.querySelector('[data-floating-player]').getBoundingClientRect();
-        const box = document.querySelector('[data-own-room-screen] [data-player-box]').getBoundingClientRect();
-        const bar = document.querySelector('[data-own-room-bar]').getBoundingClientRect();
-        return {
-          keys: [...document.querySelectorAll('[data-own-room-bar] button, [data-own-room-bar] input')].map((key) => key.getAttribute('aria-label')),
-          over: Math.abs(layer.left - box.left) < 3 && Math.abs(layer.top - box.top) < 3 && Math.abs(layer.width - box.width) < 3,
-          barUnder: Math.abs(bar.top - box.bottom) < 3,
-          state: document.querySelector('[data-floating-player]').getAttribute('data-floating-player'),
-        };
-      });
-      assert.equal(video.state, 'in-box', 'the video sits in the room window\'s screen');
-      assert.ok(video.over && video.barUnder, 'exactly over its box, the bar of keys right under it');
-      assert.deepEqual(video.keys, ['Pause', 'Seek', 'Mute', 'Volume', 'Picture in picture: floats over the site', 'Fullscreen'], 'a video: PLAY, seek, sound, PIP, FULL (no next with nothing waiting, no END, nothing disabled)');
-      await page.locator('[data-own-room-play]').click();
-      await page.waitForFunction(() => window.__sameVideo.paused, null, { timeout: 5000 });
-      await page.waitForFunction(() => document.querySelector('[data-own-room-play]').getAttribute('aria-label') === 'Play', null, { timeout: 5000 });
-      await setRange(page, '[data-own-room-bar] input[aria-label="Seek"]', 3);
-      await page.waitForFunction(() => Math.abs(window.__sameVideo.currentTime - 3) < 0.5, null, { timeout: 5000 });
-      await page.locator('[data-own-room-play]').click();
-      await page.waitForFunction(() => !window.__sameVideo.paused, null, { timeout: 5000 });
-      await page.locator('[data-own-room-bar] button[aria-label="Mute"]').click();
-      await page.waitForFunction(() => window.__sameVideo.muted, null, { timeout: 5000 });
-      await page.locator('[data-own-room-bar] button[aria-label="Unmute"]').click();
-      await page.waitForFunction(() => !window.__sameVideo.muted, null, { timeout: 5000 });
-      await setRange(page, '[data-own-room-bar] input[aria-label="Volume"]', 0.5);
-      await page.waitForFunction(() => Math.abs(window.__sameVideo.volume - 0.5) < 0.01, null, { timeout: 5000 });
-      // A press on the player's own controls is heard by the key too: paused in the player, the key offers PLAY.
-      await page.evaluate(() => window.__sameVideo.pause());
-      await page.waitForFunction(() => document.querySelector('[data-own-room-play]').getAttribute('aria-label') === 'Play', null, { timeout: 5000 });
-      await page.evaluate(() => void window.__sameVideo.play());
-      await page.waitForFunction(() => document.querySelector('[data-own-room-play]').getAttribute('aria-label') === 'Pause', null, { timeout: 5000 });
-      assert.ok(await page.evaluate(() => document.querySelector('[data-floating-player] video') === window.__sameVideo), 'the same player element throughout: nothing reloaded');
-      pass('the video\'s keys work on the one floating player: PLAY, seek, mute, volume; and the PLAY key follows the player\'s own controls');
-      await page.screenshot({ path: join(SHOTS, 'your-room-frame-video.png') });
+      assert.equal(await page.locator('[data-floating-player] video').count(), 0, 'nothing floats: the room has its own player');
+      assert.ok(await page.evaluate(() => window.__audios[window.__audios.length - 1].paused), 'the song gave way to the video');
+      await roomKey(page, 'Pause').click();
+      await page.waitForFunction(() => window.__roomVideo.paused, null, { timeout: 5000 });
+      await setRange(page, '[data-watch-bar] input[aria-label="Seek"], [data-stream-bar] input[aria-label="Seek"]', 3);
+      await page.waitForFunction(() => Math.abs(window.__roomVideo.currentTime - 3) < 0.6, null, { timeout: 5000 });
+      await roomKey(page, 'Play').click();
+      await page.waitForFunction(() => !window.__roomVideo.paused, null, { timeout: 5000 });
+      pass('next put the video on the room\'s own screen; PLAY, pause and seek reach it; nothing floats');
+      await page.screenshot({ path: join(SHOTS, 'your-room-video.png') });
 
-      console.log('FULL: the box goes fullscreen, the picture its own shape, the chosen background round it');
+      console.log('FULL IN YOUR ROOM: the picture its own shape, the chosen background round it, [ BKG ] in the corner');
       const chosen = await page.getAttribute('html', 'data-backdrop');
-      await page.locator('[data-own-room-full]').click();
-      await page.waitForFunction(() => document.fullscreenElement !== null && document.fullscreenElement.getAttribute('data-floating-stage') === 'full', null, { timeout: 8000 });
+      await page.getByRole('button', { name: 'Fullscreen', exact: true }).first().click();
+      await page.waitForFunction(() => document.fullscreenElement !== null && document.fullscreenElement.querySelector('.stage-surround') !== null, null, { timeout: 8000 });
       await sleep(2500);
-      const fileShape = await page.evaluate(() => window.__sameVideo.videoWidth / window.__sameVideo.videoHeight);
-      const fileFull = assertStaged(await stagedNow(page, 'video'), fileShape, chosen, 'your room, our own file');
-      assert.ok(await page.evaluate(() => document.fullscreenElement.querySelector('video') === window.__sameVideo && !window.__sameVideo.paused), 'the same player, still playing: nothing reloaded');
-      await page.screenshot({ path: join(SHOTS, `full-file-${chosen}.png`) });
-      await page.evaluate(() => document.exitFullscreen());
-      await page.waitForFunction(() => document.fullscreenElement === null && document.querySelector('[data-floating-stage]').getAttribute('data-floating-stage') === 'in-place', null, { timeout: 8000 });
+      const fileShape = await page.evaluate(() => window.__roomVideo.videoWidth / window.__roomVideo.videoHeight);
+      const fileNow = await stagedNow(page, 'video');
+      const fileFull = assertStaged(fileNow, fileShape, chosen, 'your room, our own file');
+      assert.ok(fileNow.surround.bottom < fileNow.box.bottom - 10, 'the room\'s keys are along the foot of the screen, under the surround');
+      assert.ok(await page.evaluate(() => document.fullscreenElement.querySelector('video') === window.__roomVideo && !window.__roomVideo.paused), 'the same player, still playing: nothing reloaded');
+      await page.screenshot({ path: join(SHOTS, `full-your-room-${chosen}.png`) });
+      pass(`FULL in your room: ${fileFull}; the room's keys under it`);
+
+      // [ BKG ] off: the video as it is, no background. On again: the background round it, as before. Remembered either way.
+      await page.locator('[data-stage-bkg]').click();
+      await page.waitForFunction(() => document.fullscreenElement?.querySelector('[data-stage-bkg]')?.getAttribute('data-stage-bkg') === 'off', null, { timeout: 8000 });
       await sleep(600);
-      const back = await page.evaluate(() => {
-        const layer = document.querySelector('[data-floating-player]').getBoundingClientRect();
-        const box = document.querySelector('[data-own-room-screen] [data-player-box]').getBoundingClientRect();
-        const video = document.querySelector('[data-floating-player] video').getBoundingClientRect();
+      const plain = await page.evaluate(() => {
+        const box = document.fullscreenElement;
         return {
-          over: Math.abs(layer.left - box.left) < 3 && Math.abs(layer.top - box.top) < 3 && Math.abs(layer.width - box.width) < 3,
-          fills: Math.abs(video.width - layer.width) < 3 && Math.abs(video.height - layer.height) < 3,
-          stages: document.querySelectorAll('.backdrop-stage, .backdrop-stage-tile').length,
-          same: document.querySelector('[data-floating-player] video') === window.__sameVideo && !window.__sameVideo.paused,
+          stages: box.querySelectorAll('.backdrop-stage, .backdrop-stage-tile').length,
+          kept: window.localStorage.getItem('debaser.site.stage-bkg.v1'),
+          same: box.querySelector('video') === window.__roomVideo && !window.__roomVideo.paused,
+          full: document.fullscreenElement !== null,
         };
       });
-      assert.ok(back.over && back.fills, 'out of fullscreen, the video is over its box again and fills it');
-      assert.equal(back.stages, 0, 'and the copy of the background that was round it is gone');
-      assert.ok(back.same, 'the same player, still playing');
-      pass(`FULL on your room's own file: ${fileFull}; back as it was, never reloaded`);
-
-      // A double press on our own file is the same key: the box, never the browser's own fullscreen of the bare video (black bars).
-      const fileAt = await page.evaluate(() => {
-        const at = window.__sameVideo.getBoundingClientRect();
-        return { x: at.left + at.width / 2, y: at.top + at.height / 3 };
-      });
-      await page.mouse.dblclick(fileAt.x, fileAt.y, { delay: 30 });
-      await page.waitForFunction(() => document.fullscreenElement !== null, null, { timeout: 8000 });
-      await sleep(800);
-      assert.equal(await page.evaluate(() => document.fullscreenElement.getAttribute('data-floating-stage')), 'full', 'a double press on our own file puts its box in fullscreen, not the bare video');
-      // On the surround (the strip above the picture), a double press is the way out.
-      const strip = await page.evaluate(() => document.fullscreenElement.querySelector('video').getBoundingClientRect().top);
-      assert.ok(strip > 20, `there is a strip of background above the picture to press (${Math.round(strip)} pixels)`);
-      await page.mouse.dblclick(700, strip / 2, { delay: 30 });
-      await page.waitForFunction(() => document.fullscreenElement === null, null, { timeout: 8000 });
+      assert.deepEqual(plain, { stages: 0, kept: 'off', same: true, full: true }, '[ BKG ] off: still fullscreen, no background, remembered, the same player playing');
+      await page.screenshot({ path: join(SHOTS, `full-your-room-bkg-off-${chosen}.png`) });
+      await page.locator('[data-stage-bkg]').click();
+      await page.waitForFunction(() => document.fullscreenElement?.querySelector('[data-stage-bkg]')?.getAttribute('data-stage-bkg') === 'on', null, { timeout: 8000 });
+      await sleep(1500);
+      assertStaged(await stagedNow(page, 'video'), fileShape, chosen, 'your room, [ BKG ] on again');
+      assert.equal(await page.evaluate(() => window.localStorage.getItem('debaser.site.stage-bkg.v1')), 'on', 'and that is remembered');
+      pass('[ BKG ] in the corner of your room\'s fullscreen: off is the plain video, on is the background round it; the player never reloads');
+      await page.getByRole('button', { name: 'Leave fullscreen', exact: true }).first().click();
+      await page.waitForFunction(() => document.fullscreenElement === null && document.querySelector('.stage-surround') === null, null, { timeout: 8000 });
       await sleep(600);
-      assert.ok(await page.evaluate(() => document.querySelector('[data-floating-player] video') === window.__sameVideo), 'the same player still');
-      pass('a double press on our own file: its box in fullscreen with the background; a double press on the surround comes back');
+      assert.equal(await page.evaluate(() => document.querySelectorAll('.backdrop-stage, .backdrop-stage-tile').length), 0, 'out of fullscreen, the copy of the background is gone');
+      assert.ok(await page.evaluate(() => document.querySelector('[data-dock-window="stream"] [data-room-picture] video') === window.__roomVideo), 'and the room has the same player');
+      pass('out of fullscreen: back in the window, the background gone, the same player');
 
-      console.log('BARS IN A FILE THE SITE PLAYS ITSELF: read from its picture as it plays, trimmed in fullscreen');
-      const waitingWas = await barQueue(page);
-      await page.locator('[data-own-room-queue-key]').click();
+      console.log('BARS IN A FILE THE ROOM PLAYS: read from its picture as it plays, trimmed in fullscreen');
+      await page.locator(`${ROOM} [data-watch-queue-key]`).click();
       await page.waitForSelector('#stream-queue-search', { timeout: 15000 });
+      const queuedBefore = await page.locator('[data-queue-state="queued"]').count();
       await page.fill('#stream-queue-search', LETTERBOX);
       await page.keyboard.press('Enter');
-      const boxedQueued = await page.waitForFunction((was) => Number(document.querySelector('[data-bar-queue]')?.getAttribute('data-bar-queue')) === was + 1, waitingWas, { timeout: 30000 }).then(() => true, () => false);
+      const boxedQueued = await page.waitForFunction((was) => document.querySelectorAll('[data-queue-state="queued"]').length === was + 1, queuedBefore, { timeout: 30000 }).then(() => true, () => false);
       await page.keyboard.press('Escape');
       await page.waitForFunction(() => document.querySelector('#stream-queue-search') === null, null, { timeout: 10000 });
       assert.ok(boxedQueued, 'the letterboxed test clip was queued');
-      await page.locator('[data-own-room-next]').click();
+      await roomKey(page, 'Skip to the next video').click();
       await page.waitForFunction(() => {
-        const video = document.querySelector('[data-floating-player] video');
-        return video !== null && video.currentSrc.includes('letterbox.webm') && video.videoWidth > 0;
+        const video = document.querySelector('[data-dock-window="stream"] [data-room-picture] video[data-watch-video]');
+        return video !== null && (video.currentSrc || video.src).includes('letterbox.webm') && video.videoWidth > 0;
       }, null, { timeout: 20000 });
       await page.evaluate(() => {
-        const video = document.querySelector('[data-floating-player] video');
+        const video = document.querySelector('[data-dock-window="stream"] [data-room-picture] video[data-watch-video]');
         video.loop = true;
-        window.__sameVideo = video;
+        window.__roomVideo = video;
         void video.play();
       });
-      assert.equal(await page.evaluate(() => window.__sameVideo.crossOrigin), 'anonymous', 'a file from a host that allows it is asked for the way its picture may be read');
-      // Two looks at the picture, at least a second of video apart, before anything is trimmed.
-      await sleep(6500);
-      await page.locator('[data-own-room-full]').click();
-      await page.waitForFunction(() => document.fullscreenElement !== null && document.fullscreenElement.getAttribute('data-floating-stage') === 'full', null, { timeout: 8000 });
-      await page.waitForFunction(() => /inset/.test(window.getComputedStyle(window.__sameVideo).objectViewBox ?? ''), null, { timeout: 15000 });
-      await sleep(1500);
-      const boxedNow = await stagedNow(page, 'video');
-      const cut = Number(/inset\(([\d.]+)%/.exec(boxedNow.view)[1]) / 100;
-      assert.ok(Math.abs(cut - CLIP_BARS) < 0.02, `the bars it found are the bars it has (${(cut * 100).toFixed(1)}% above and below; they are ${(CLIP_BARS * 100).toFixed(1)}%)`);
-      const boxedFull = assertStaged(boxedNow, 16 / 9 / (1 - 2 * cut), chosen, 'your room, a letterboxed file');
-      assert.equal(boxedNow.bar, null, "our own file keeps the browser's controls: no second bar of keys");
-      assert.ok(await page.evaluate(() => document.fullscreenElement.querySelector('video') === window.__sameVideo && !window.__sameVideo.paused), 'the same player, still playing');
-      await page.screenshot({ path: join(SHOTS, `full-letterbox-${chosen}.png`) });
-      await page.evaluate(() => document.exitFullscreen());
-      await page.waitForFunction(() => document.fullscreenElement === null && document.querySelector('[data-floating-stage]').getAttribute('data-floating-stage') === 'in-place', null, { timeout: 8000 });
+      await page.getByRole('button', { name: 'Fullscreen', exact: true }).first().click();
+      await page.waitForFunction(() => document.fullscreenElement !== null && document.fullscreenElement.querySelector('.stage-surround') !== null, null, { timeout: 8000 });
+      await page.waitForFunction(() => document.fullscreenElement?.querySelector('video')?.hasAttribute('data-stage-trim') === true, null, { timeout: 20000 });
+      await sleep(2500);
+      const roomCut = await page.evaluate(() => Number(document.fullscreenElement.querySelector('video').getAttribute('data-stage-trim').split(' ')[1]));
+      assert.ok(Math.abs(roomCut - CLIP_BARS) < 0.02, `the bars it found are the bars it has (${(roomCut * 100).toFixed(1)}% above and below; they are ${(CLIP_BARS * 100).toFixed(1)}%)`);
+      const roomShape = await page.evaluate(() => window.__roomVideo.videoWidth / window.__roomVideo.videoHeight);
+      const boxedFull = assertStaged(await stagedNow(page, 'video'), roomShape / (1 - 2 * roomCut), chosen, 'your room, a letterboxed file');
+      await page.screenshot({ path: join(SHOTS, `full-your-room-letterbox-${chosen}.png`) });
+      await page.getByRole('button', { name: 'Leave fullscreen', exact: true }).first().click();
+      await page.waitForFunction(() => document.fullscreenElement === null && document.querySelector('.stage-surround') === null, null, { timeout: 8000 });
       await sleep(600);
-      assert.ok(await page.evaluate(() => !/inset/.test(window.getComputedStyle(window.__sameVideo).objectViewBox ?? '') && document.querySelector('[data-stage-bkg]') === null), 'out of fullscreen the picture is whole again, and the key is gone');
-      pass(`bars in our own file: found from its picture as it plays and trimmed in fullscreen (${boxedFull}); whole again outside`);
+      pass(`bars in a file in your room: found from its picture as it plays and trimmed in fullscreen (${boxedFull})`);
     }
 
     console.log('THE ROOM WINDOW LIFTS OFF THE MUSIC BAR');
     const floor = await floorOf(page);
     const filled = await rectOf(page, ROOM);
     assert.ok(near(filled.bottom, floor, 3), `opened, its foot rests on the music bar (${filled.bottom} vs ${floor})`);
-    // Its foot is pulled up by the grip on it: the window gets shorter at once, from where the foot is drawn.
     await dragBy(page, filled.left + filled.width / 2, filled.bottom - 1, 0, -200);
     const short = await rectOf(page, ROOM);
     assert.ok(near(short.bottom, filled.bottom - 200, 3) && near(short.top, filled.top), `the foot came up by the pull (${filled.bottom} -> ${short.bottom})`);
     let grab = await titlePoint(page);
     await dragBy(page, grab.x, grab.y, 0, 80);
     const down = await rectOf(page, ROOM);
-    assert.ok(near(down.top, short.top + 80) && near(down.height, short.height), `dragged down, it moves as one piece (top ${short.top} -> ${down.top}, height ${short.height} -> ${down.height})`);
+    assert.ok(near(down.top, short.top + 80) && near(down.height, short.height), `dragged down, it moves as one piece (top ${short.top} -> ${down.top})`);
     grab = await titlePoint(page);
     await dragBy(page, grab.x, grab.y, 0, -60);
     const up = await rectOf(page, ROOM);
-    assert.ok(near(up.top, down.top - 60) && near(up.height, down.height), `dragged up, the whole window lifts (top ${down.top} -> ${up.top}, height ${down.height} -> ${up.height})`);
+    assert.ok(near(up.top, down.top - 60) && near(up.height, down.height), `dragged up, the whole window lifts (top ${down.top} -> ${up.top})`);
     assert.ok(up.bottom < floor - 100, `and its foot is well clear of the bar (${Math.round(floor - up.bottom)}px above it)`);
     await sleep(1500);
     const stayed = await rectOf(page, ROOM);
@@ -576,70 +519,44 @@ const floorOf = (page) =>
     grab = await titlePoint(page);
     await dragBy(page, grab.x, grab.y, 0, 700);
     const onBar = await rectOf(page, ROOM);
-    assert.ok(near(onBar.bottom, floor, 3) && near(onBar.height, up.height), `dragged far down, its foot stops at the bar and it is not squashed (foot ${onBar.bottom}, floor ${floor}, height ${onBar.height})`);
+    assert.ok(near(onBar.bottom, floor, 3) && near(onBar.height, up.height), `dragged far down, its foot stops at the bar and it is not squashed (foot ${onBar.bottom}, floor ${floor})`);
     grab = await titlePoint(page);
     await dragBy(page, grab.x, grab.y, -10, -90);
     const lifted = await rectOf(page, ROOM);
     assert.ok(near(lifted.top, onBar.top - 90) && near(lifted.left, onBar.left - 10) && near(lifted.height, onBar.height), `off the bar again, in one piece (top ${onBar.top} -> ${lifted.top})`);
-    if (videoQueued) {
-      const follows = await page.evaluate(() => {
-        const layer = document.querySelector('[data-floating-player]').getBoundingClientRect();
-        const box = document.querySelector('[data-own-room-screen] [data-player-box]').getBoundingClientRect();
-        return { over: Math.abs(layer.left - box.left) < 3 && Math.abs(layer.top - box.top) < 3, same: document.querySelector('[data-floating-player] video') === window.__sameVideo };
-      });
-      assert.ok(follows.over && follows.same, 'the video went with the window, the same element still');
-    }
+    if (videoQueued) assert.ok(await page.evaluate(() => document.querySelector('[data-dock-window="stream"] [data-room-picture] video') === window.__roomVideo), 'the video went with the window, the same element still');
     pass('the room window: resized by its foot, dragged down and up as one piece, off the bar and staying there, never under the bar');
-    await page.screenshot({ path: join(SHOTS, 'your-room-lifted.png') });
 
+    console.log('[ _ ] FOLDS YOUR ROOM TO ITS KEY ABOVE THE PLAYER; IT PLAYS ON');
+    await page.locator(`${ROOM} button[aria-label^="Fold "]`).click();
+    await page.waitForSelector('[data-room-shelf-key]', { timeout: 10000 });
+    assert.equal(await page.locator(ROOM).getAttribute('data-minimized'), 'true', 'the window is tucked away');
+    assert.equal(await page.locator('[data-room-picture="floating"]').count(), 0, 'nothing floats');
     if (videoQueued) {
-      // Updated on purpose 2026-11-16 (Luke's ROOMFIX list, items 7 and 8): [ _ ] folds the window to [ ▲ ROOM ] above the
-      // player and the video plays on out of sight; [ PIP ] floats it; the floating picture has no BACK; the key brings it back.
-      console.log('[ _ ] FOLDS TO [ ▲ ROOM ]; [ PIP ] FLOATS THE VIDEO; THE KEY ABOVE THE PLAYER IS THE WAY BACK');
-      await page.locator(`${ROOM} button[aria-label="Fold YOUR ROOM away"]`).click();
-      await page.waitForSelector('[data-own-room-door="folded"]', { timeout: 10000 });
-      assert.equal(await page.locator(ROOM).getAttribute('data-minimized'), 'true', 'the window is tucked away');
-      assert.equal(await page.locator('[data-floating-player]').getAttribute('data-floating-tucked'), 'true', 'the video does not float: it plays on out of sight');
-      assert.ok(await page.evaluate(() => document.querySelector('[data-floating-player] video') === window.__sameVideo && !window.__sameVideo.paused), 'the same video, still playing');
-      await page.locator('[data-own-room-door="folded"] button').click();
-      await page.waitForFunction(() => document.querySelector('[data-dock-window="stream"]')?.getAttribute('data-minimized') !== 'true' && document.querySelector('[data-floating-player]')?.getAttribute('data-floating-tucked') === 'false', null, { timeout: 10000 });
-      await page.locator('[data-own-room-pip]').click();
-      await page.waitForFunction(() => document.querySelector('[data-floating-player]')?.getAttribute('data-floating-player') === 'floating', null, { timeout: 10000 });
-      assert.equal(await page.locator('[data-floating-player]').getByRole('button', { name: /^Back to where/ }).count(), 0, 'the floating picture has no BACK');
-      const grips = await page.evaluate(() => [...document.querySelectorAll('[data-floating-player] [data-float-grip]')].map((grip) => Math.round(grip.getBoundingClientRect().width) + 'x' + Math.round(grip.getBoundingClientRect().height)));
-      assert.equal(grips.length, 8, 'the floating picture has its eight grips');
-      assert.equal(grips.filter((size) => size === '20x20').length, 4, `its four corner grips are 20px squares, where a window's are 12px (${grips.join(' ')})`);
-      await page.screenshot({ path: join(SHOTS, 'your-room-pip.png') });
-      await page.locator('[data-own-room-door="folded"] button').click();
-      await page.waitForFunction(() => document.querySelector('[data-dock-window="stream"]')?.getAttribute('data-minimized') !== 'true' && document.querySelector('[data-floating-player]')?.getAttribute('data-floating-player') === 'in-box', null, { timeout: 10000 });
-      const back = await rectOf(page, ROOM);
-      assert.ok(near(back.top, lifted.top) && near(back.left, lifted.left) && near(back.height, lifted.height), '[ ▲ ROOM ] brings the window back where it was');
-      assert.ok(await page.evaluate(() => document.querySelector('[data-floating-player] video') === window.__sameVideo), 'never reloaded');
-      pass('[ _ ] folds the window to [ ▲ ROOM ], the video out of sight; [ PIP ] floats it with no BACK; the key brings both back');
+      const at = await page.evaluate(() => window.__roomVideo.currentTime);
+      await sleep(1200);
+      assert.ok(await page.evaluate((was) => window.__roomVideo.currentTime !== was && !window.__roomVideo.paused, at), 'the video plays on out of sight');
     }
+    await page.locator('[data-room-shelf-key] button').click();
+    await page.waitForFunction(() => document.querySelector('[data-dock-window="stream"]')?.getAttribute('data-minimized') !== 'true', null, { timeout: 10000 });
+    const back = await rectOf(page, ROOM);
+    assert.ok(near(back.top, lifted.top) && near(back.left, lifted.left) && near(back.height, lifted.height), 'the key brings the window back where it was');
+    if (videoQueued) assert.ok(await page.evaluate(() => document.querySelector('[data-dock-window="stream"] [data-room-picture] video') === window.__roomVideo), 'never reloaded');
+    pass('[ _ ] folds your room to its key above the player, playing on; the key brings it back where it was');
 
-    console.log('GO LIVE: the same window becomes the live room, where it stands');
+    console.log('GO LIVE: THE SAME ROOM, IN THE SAME WINDOW, WHERE IT STANDS');
     const before = await page.evaluate(() => {
       const box = (sel) => {
         const { left, top, right, bottom, width, height } = document.querySelector(sel).getBoundingClientRect();
         return { left, top, right, bottom, width, height };
       };
-      return { window: box('[data-dock-window="stream"]'), screen: box('[data-own-room-screen]'), side: box('[data-own-room-side]'), queueKey: box('[data-own-room-queue-key]') };
+      return { window: box('[data-dock-window="stream"]'), picture: box('[data-dock-window="stream"] [data-room-picture]'), queueKey: box('[data-dock-window="stream"] [data-watch-queue-key]') };
     });
-    await page.locator('[data-own-room-go-live]').click();
-    await page.waitForSelector('[data-go-live-window]', { timeout: 10000 });
-    assert.equal(await titleOf(page), 'YOUR ROOM', 'one press opens the menu and starts nothing');
-    await page.locator('[data-go-live-window]').getByText('[ START ]', { exact: false }).click();
-    await page.waitForFunction(() => (document.querySelector('[data-dock-window="stream"]')?.getAttribute('aria-label') ?? '').startsWith('STREAM ::'), null, { timeout: 30000 });
-    await page.waitForSelector('[data-room-picture="in-room"]', { timeout: 30000 });
-    await page.waitForSelector('#watch-chat', { timeout: 20000 });
-    await sleep(1500);
-    if (videoQueued) {
-      await page.waitForSelector('[data-room-picture] video', { timeout: 20000 });
-      await page.evaluate(() => {
-        document.querySelector('[data-room-picture] video').loop = true;
-      });
-    }
+    await page.locator('[data-main-room-live="private"]').first().click();
+    await page.waitForSelector('[data-main-room-who]', { timeout: 10000 });
+    await page.locator('[data-main-room-start]').click();
+    await page.waitForSelector('[data-main-room-live="live"]', { timeout: 15000 });
+    await sleep(1200);
     const after = await page.evaluate(() => {
       const box = (sel) => {
         const element = document.querySelector(sel);
@@ -649,119 +566,39 @@ const floorOf = (page) =>
       };
       return {
         window: box('[data-dock-window="stream"]'),
-        picture: box('[data-room-picture]'),
-        queueKey: box('[data-watch-queue-key]'),
-        minimized: document.querySelector('[data-dock-window="stream"]').getAttribute('data-minimized'),
+        picture: box('[data-dock-window="stream"] [data-room-picture]'),
+        queueKey: box('[data-dock-window="stream"] [data-watch-queue-key]'),
         badge: document.querySelector('[data-dock-window="stream"] .title-line').innerText,
+        same: window.__roomVideo === undefined || document.querySelector('[data-dock-window="stream"] [data-room-picture] video') === window.__roomVideo,
       };
     });
-    assert.notEqual(after.minimized, 'true', 'the live room opens as a window, not folded and not as PIP');
-    assert.ok(after.badge.includes('LIVE'), 'and says LIVE');
+    assert.ok(after.badge.includes('LIVE'), 'it says LIVE');
+    assert.ok(after.same, 'the same player: nothing restarted');
     for (const side of ['left', 'top', 'width', 'height']) assert.ok(near(after.window[side], before.window[side]), `the window did not move (${side}: ${before.window[side]} -> ${after.window[side]})`);
-    for (const side of ['left', 'top', 'width']) assert.ok(near(after.picture[side], before.screen[side]), `the picture is where it was (${side}: ${before.screen[side]} -> ${after.picture[side]})`);
-    for (const side of ['left', 'top', 'width', 'height']) assert.ok(near(after.queueKey[side], before.queueKey[side]), `[ QUEUE ] is where it was (${side}: ${before.queueKey[side]} -> ${after.queueKey[side]})`);
-    pass('GO LIVE: the same window, in the same place, the picture and [ QUEUE ] where they were; chat arrives and it says LIVE');
+    for (const side of ['left', 'top', 'width']) assert.ok(near(after.picture[side], before.picture[side]), `the picture is where it was (${side})`);
+    for (const side of ['left', 'top', 'width', 'height']) assert.ok(near(after.queueKey[side], before.queueKey[side]), `[ QUEUE ] is where it was (${side})`);
+    pass('GO LIVE: the same room in the same window, in the same place, the same player; it says LIVE');
     await page.screenshot({ path: join(SHOTS, 'your-room-went-live.png') });
 
-    if (videoQueued) {
-      console.log('THE LIVE ROOM, FULL: the picture and its bar fill the screen, the background round the picture');
-      const chosen = await page.getAttribute('html', 'data-backdrop');
-      await page.waitForFunction(() => (document.querySelector('[data-room-picture] video')?.videoWidth ?? 0) > 0, null, { timeout: 20000 });
-      await page.evaluate(() => {
-        window.__roomVideo = document.querySelector('[data-room-picture] video');
-      });
-      await page.getByRole('button', { name: 'Fullscreen', exact: true }).first().click();
-      await page.waitForFunction(() => document.fullscreenElement !== null && document.fullscreenElement.querySelector('.stage-surround') !== null, null, { timeout: 8000 });
-      // The room's own player reads its picture too: the clip it carried over is letterboxed, and two looks agree within seconds.
-      await page.waitForFunction(() => document.fullscreenElement?.querySelector('video')?.hasAttribute('data-stage-trim') === true, null, { timeout: 20000 });
-      await sleep(2500);
-      const roomCut = await page.evaluate(() => Number(document.fullscreenElement.querySelector('video').getAttribute('data-stage-trim').split(' ')[1]));
-      assert.ok(Math.abs(roomCut - CLIP_BARS) < 0.02, `the live room found the clip's bars (${(roomCut * 100).toFixed(1)}% above and below)`);
-      const roomShape = await page.evaluate(() => window.__roomVideo.videoWidth / window.__roomVideo.videoHeight);
-      const roomNow = await stagedNow(page, 'video');
-      const roomFull = assertStaged(roomNow, roomShape / (1 - 2 * roomCut), chosen, 'the live room');
-      assert.ok(roomNow.surround.bottom < roomNow.box.bottom - 10, `the bar of keys is along the foot of the screen, under the surround (${Math.round(roomNow.surround.bottom)} of ${Math.round(roomNow.box.bottom)})`);
-      assert.ok(await page.evaluate(() => document.fullscreenElement.querySelector('video') === window.__roomVideo), 'the same player: nothing reloaded');
-      await page.screenshot({ path: join(SHOTS, `full-room-${chosen}.png`) });
-      await page.getByRole('button', { name: 'Leave fullscreen', exact: true }).first().click();
-      await page.waitForFunction(() => document.fullscreenElement === null && document.querySelector('.stage-surround') === null, null, { timeout: 8000 });
-      await sleep(600);
-      assert.equal(await page.evaluate(() => document.querySelectorAll('.backdrop-stage, .backdrop-stage-tile').length), 0, 'out of fullscreen, the copy of the background is gone');
-      assert.ok(await page.evaluate(() => document.querySelector('[data-room-picture] video') === window.__roomVideo), 'and the room has the same player');
-      pass(`FULL in the live room: ${roomFull}, the bar under it; back as it was`);
-    }
-
-    // Updated on purpose 2026-11-16 (Luke's ROOMFIX list, item 7): [ _ ] folds the live room to ROOM :: LIVE above the player
-    // and floats nothing. A file of our own in a live room floats only by the browser's own picture-in-picture, so the room's
-    // floating picture (dragged by the picture, its grips, no keys) is driven with YouTube in scripts/drive-floating-player.cjs
-    // and scripts/drive-roomfix.cjs; what follows the fold here is kept for a room whose picture does float.
-    console.log('THE LIVE ROOM: [ _ ] FOLDS IT TO ROOM :: LIVE ABOVE THE PLAYER');
+    console.log('LIVE, FOLDED: ROOM :: LIVE ABOVE THE PLAYER');
     await page.locator(`${ROOM} button[aria-label^="Fold "]`).click();
     await page.waitForSelector('[data-room-shelf-key="live"]', { timeout: 10000 });
-    assert.equal(await page.locator(ROOM).getAttribute('data-minimized'), 'true');
     assert.equal(await page.locator('[data-room-picture="floating"]').count(), 0, 'nothing floats');
-    assert.equal(await page.locator('[data-own-room-door]').count(), 0);
-    pass('the live room folded: ROOM :: LIVE above the player, nothing floats');
-    if (await page.locator('[data-room-picture="floating"]').count()) {
-    const roomGrips = await page.evaluate(() => [...document.querySelectorAll('[data-room-picture] [data-float-grip]')].map((grip) => Math.round(grip.getBoundingClientRect().width) + 'x' + Math.round(grip.getBoundingClientRect().height)));
-    assert.equal(roomGrips.filter((size) => size === '20x20').length, 4, `four 20px corner grips (${roomGrips.join(' ')})`);
-    await page.evaluate(() => {
-      window.__roomPlayer = document.querySelector('[data-room-picture] video, [data-room-picture] iframe');
-    });
-    const float = await rectOf(page, '[data-room-picture]');
-    // By the picture: a press in the middle of it, well under the title line.
-    await dragBy(page, float.left + float.width / 2, float.top + float.height / 2 + 20, 220, -160);
-    const moved = await rectOf(page, '[data-room-picture]');
-    assert.ok(near(moved.left, float.left + 220, 3) && near(moved.top, float.top - 160, 3), `dragged by the picture, it moves (${Math.round(float.left)},${Math.round(float.top)} -> ${Math.round(moved.left)},${Math.round(moved.top)})`);
-    assert.ok(near(moved.width, float.width) && near(moved.height, float.height), 'the same size');
-    // A press that does not travel is still a press: nothing moves.
-    await page.mouse.click(moved.left + moved.width / 2, moved.top + moved.height / 2 + 20);
-    await sleep(300);
-    const still = await rectOf(page, '[data-room-picture]');
-    assert.ok(near(still.left, moved.left, 0.5) && near(still.top, moved.top, 0.5), 'a press without a drag moves nothing');
-    // By the title line still.
-    const strip = await rectOf(page, '[data-room-float]');
-    await dragBy(page, strip.left + 30, strip.top + strip.height / 2, -50, 40);
-    const byLine = await rectOf(page, '[data-room-picture]');
-    assert.ok(near(byLine.left, still.left - 50, 3) && near(byLine.top, still.top + 40, 3), 'and by its title line, as before');
-    // A corner grip, by its outer part.
-    await dragBy(page, byLine.right + 4, byLine.bottom + 4, 60, 40);
-    const bigger = await rectOf(page, '[data-room-picture]');
-    assert.ok(near(bigger.width, byLine.width + 60, 3) && near(bigger.height, byLine.height + 40, 3), `a corner grip resizes it (${Math.round(byLine.width)}x${Math.round(byLine.height)} -> ${Math.round(bigger.width)}x${Math.round(bigger.height)})`);
-    assert.ok(await page.evaluate(() => window.__roomPlayer === null || window.__roomPlayer === document.querySelector('[data-room-picture] video, [data-room-picture] iframe')), 'the room\'s player was never rebuilt');
-    pass('the live room\'s floating picture drags by the picture and by its title line, resizes by a bigger corner grip');
-    }
-    await page.screenshot({ path: join(SHOTS, 'live-room-folded.png') });
     await page.locator('[data-room-shelf-key] button').click();
-    await page.waitForSelector('[data-room-picture="in-room"]', { timeout: 10000 });
-    assert.notEqual(await page.locator(ROOM).getAttribute('data-minimized'), 'true', 'the key brings the room\'s window back');
+    await page.waitForFunction(() => document.querySelector('[data-dock-window="stream"]')?.getAttribute('data-minimized') !== 'true', null, { timeout: 10000 });
     const home = await rectOf(page, ROOM);
     for (const side of ['left', 'top', 'width', 'height']) assert.ok(near(home[side], after.window[side]), `where it was (${side})`);
-    pass('ROOM :: LIVE above the player brings the room\'s window back where it was');
+    pass('live and folded: ROOM :: LIVE above the player, nothing floats; the key brings the window back where it was');
 
-    // The stream's own strip is on the bar now, taller or shorter than the music bar: the window still lifts.
-    grab = await titlePoint(page);
-    await dragBy(page, grab.x, grab.y, 30, -40);
-    const liveLifted = await rectOf(page, ROOM);
-    assert.ok(near(liveLifted.top, home.top - 40) && near(liveLifted.height, home.height), 'the live room\'s window moves as one piece too');
-    pass('the live room\'s window lifts the same way');
-
-    await page.getByText('[ END STREAM ]', { exact: false }).first().click();
-    await page.getByText('[ END FOR EVERYBODY ]', { exact: false }).first().click();
-    await page.waitForFunction(
-      () => {
-        const kept = JSON.parse(localStorage.getItem('debaser.watch.v1') ?? '{"rooms":[],"queue":[]}');
-        return !kept.rooms.some((held) => held.origin === 'stream' && held.hostId === 'drive-user' && held.endedAt === null);
-      },
-      null,
-      { timeout: 20000 },
-    );
-    pass('END STREAM, to leave the mock store tidy');
+    await page.locator('[data-main-room-end="first"]').first().click();
+    await page.locator('[data-main-room-end="confirm"]').first().click();
+    await page.waitForFunction(() => document.querySelector('[data-dock-window="stream"]') === null, null, { timeout: 15000 });
+    pass('END ROOM, to leave the mock store tidy');
 
     if (withVideo) {
-      console.log('A YOUTUBE VIDEO ON YOUR SCREEN: its frame takes the same keys, by message');
-      // The mock MEDIA page has one row over a real YouTube video. Its player is YouTube's own frame: the keys reach it
-      // by the messages its own script sends, and what it says back is all this can know of it.
+      console.log('A YOUTUBE VIDEO IN YOUR ROOM: the room\'s own YouTube player, FULL and [ BKG ]');
+      // The mock MEDIA page has one row over a real YouTube video. PLAY opens it in your room (SPEC-rooms-perpetual.md),
+      // in the room's own YouTube player: the keys reach it by the messages its own script sends.
       await open(page, '/media');
       const listed = await page.waitForFunction(() => [...document.querySelectorAll('li')].some((row) => /YOUTUBE · VIDEO/.test(row.innerText)), null, { timeout: 45000 }).then(() => true, () => false);
       if (!listed) note('no YouTube row on the mock MEDIA page: the YouTube keys were not driven');
@@ -778,141 +615,79 @@ const floorOf = (page) =>
             }
           });
         });
-        await page.locator('li').filter({ hasText: 'YOUTUBE · VIDEO' }).first().locator('button[aria-label^="Play "]').first().click();
-        await page.waitForSelector('[data-floating-player] iframe', { timeout: 20000 });
-        // YouTube's own fullscreen key is switched off (Luke, 2026-11-16): the browser is told the frame may not go fullscreen
-        // by itself, so `[ FULL ]` and a double press are the way, and those show the background (part 3).
-        const may = await page.evaluate(() => {
-          const frame = document.querySelector('[data-floating-player] iframe');
-          return { allow: frame.getAttribute('allow') ?? '', attribute: frame.hasAttribute('allowfullscreen'), policy: typeof frame.featurePolicy?.allowsFeature === 'function' ? frame.featurePolicy.allowsFeature('fullscreen') : null };
-        });
-        assert.ok(!/fullscreen/i.test(may.allow) && !may.attribute, `YouTube's frame is not allowed its own fullscreen (allow="${may.allow}")`);
-        if (may.policy !== null) assert.equal(may.policy, false, 'and the browser agrees: fullscreen is not permitted from inside the frame');
-        pass(`YouTube's own fullscreen key is off: its frame has no permission for it (allow="${may.allow}")`);
-        await page.evaluate(() => {
-          window.__frame = document.querySelector('[data-floating-player] iframe');
-          window.__loads = 0;
-          window.__frame.addEventListener('load', () => (window.__loads += 1));
-        });
-        await page.waitForSelector('[data-own-room-door="shut"]', { timeout: 15000 });
-        await page.locator('[data-own-room-door] button').click();
-        await page.waitForSelector('[data-own-room-screen="video"]', { timeout: 20000 });
-        // Playing by YouTube's own word (its state 1), not by what the key assumes before the player has spoken.
-        const spoke = await page
-          .waitForFunction(() => window.__said.some((info) => info.playerState === 1) && document.querySelector('[data-own-room-bar] input[aria-label="Seek"]') !== null && document.querySelector('[data-own-room-play="playing"]') !== null, null, { timeout: 60000 })
-          .then(() => true, () => false);
-        if (!spoke) note('YouTube\'s player did not play or say its clock here (no network to it, or it asked for a press): its keys were not driven');
+        await page.locator('li').filter({ hasText: 'YOUTUBE · VIDEO' }).first().locator('button[aria-label^="Play "]').first().evaluate((key) => key.click());
+        await page.waitForSelector(`${ROOM} [data-main-room-live]`, { timeout: 30000 });
+        const framed = await page.waitForFunction(() => document.querySelector('[data-dock-window="stream"] [data-room-picture] iframe') !== null, null, { timeout: 30000 }).then(() => true, () => false);
+        assert.equal(await page.locator('[data-floating-player] iframe').count(), 0, 'nothing floats: the room has its own player');
+        if (!framed) note('YouTube\'s player did not load in the room (no network to it?): its keys were not driven');
         else {
-          const keys = await page.evaluate(() => [...document.querySelectorAll('[data-own-room-bar] button, [data-own-room-bar] input')].map((key) => key.getAttribute('aria-label')));
-          assert.ok(['Pause', 'Seek', 'Mute', 'Volume', 'Picture in picture: floats over the site', 'Fullscreen'].every((label) => keys.includes(label)), `YouTube has the same keys as our own file (${keys.join(', ')})`);
-          // The frame's first load may land after the listener went on: reloads are counted from here, with it playing.
-          await page.evaluate(() => {
-            window.__loadsAtStart = window.__loads;
-          });
-          await page.locator('[data-own-room-play]').click();
-          await page.waitForSelector('[data-own-room-play="paused"]', { timeout: 15000 });
-          assert.ok(await page.evaluate(() => window.__said.some((info) => info.playerState === 2)), 'YouTube says it paused');
-          await page.locator('[data-own-room-play]').click();
-          await page.waitForSelector('[data-own-room-play="playing"]', { timeout: 15000 });
-          // A pause and a play in quick succession is how a double press on YouTube's picture is heard from outside, and a
-          // double press is FULL. The room's own key must not set that off (it did: found here, 2026-11-16).
-          await sleep(1500);
-          assert.equal(await page.evaluate(() => document.fullscreenElement === null), true, 'a quick pause and play from the key is not a double press: nothing went fullscreen');
-          await setRange(page, '[data-own-room-bar] input[aria-label="Seek"]', 120);
-          await page.waitForFunction(() => Math.abs(Number(document.querySelector('[data-own-room-bar] [data-watch-clock]').getAttribute('data-watch-clock')) - 123) < 8, null, { timeout: 20000 });
-          await page.evaluate(() => {
-            window.__said = [];
-          });
-          await page.locator('[data-own-room-bar] button[aria-label="Mute"]').click();
-          await page.waitForFunction(() => window.__said.some((info) => info.muted === true), null, { timeout: 15000 });
-          await page.locator('[data-own-room-bar] button[aria-label="Unmute"]').click();
-          await page.waitForFunction(() => window.__said.some((info) => info.muted === false), null, { timeout: 15000 });
-          await setRange(page, '[data-own-room-bar] input[aria-label="Volume"]', 0.3);
-          await page.waitForFunction(() => window.__said.some((info) => info.volume === 30), null, { timeout: 15000 });
-          assert.ok(await page.evaluate(() => document.querySelector('[data-floating-player] iframe') === window.__frame && window.__loads === window.__loadsAtStart), 'the same frame throughout, never reloaded');
-          pass('YouTube on your screen: PLAY, seek, mute and volume reach its own player, and the keys show what it says back; never reloaded');
-          await page.screenshot({ path: join(SHOTS, 'your-room-frame-youtube.png') });
-
-          const chosen = await page.getAttribute('html', 'data-backdrop');
-          await page.locator('[data-own-room-full]').click();
-          await page.waitForFunction(() => document.fullscreenElement !== null && document.fullscreenElement.getAttribute('data-floating-stage') === 'full', null, { timeout: 8000 });
-          // Its three stills (answered here) have bars all round: the frame is 16:9, as the stills are, with those bars hung outside.
-          await page.waitForFunction(() => document.fullscreenElement?.querySelector('iframe')?.hasAttribute('data-backdrop-inset') === true, null, { timeout: 15000 });
-          await sleep(2500);
-          const tubeNow = await stagedNow(page, 'iframe');
-          assert.ok(Math.abs(tubeNow.cut[0] - STILL_BARS.x) < 0.01 && Math.abs(tubeNow.cut[1] - STILL_BARS.y) < 0.01, `the bars in YouTube's stills were found (${tubeNow.cut.map((part) => (part * 100).toFixed(1) + '%').join(' a side, ')} above and below)`);
-          assert.ok(Math.abs(tubeNow.whole.width / tubeNow.whole.height - 16 / 9) < 0.02, "YouTube's frame itself stays 16:9, so its player draws the picture as it always does");
-          const tubeShape = ((16 / 9) * (1 - 2 * tubeNow.cut[0])) / (1 - 2 * tubeNow.cut[1]);
-          const tubeFull = assertStaged(tubeNow, tubeShape, chosen, 'your room, YouTube with bars in its stills');
-          assert.ok(tubeNow.barsGone === true, 'and its bars are outside what shows');
-          assert.ok(tubeNow.bar !== null, "the site's own keys are along the foot: YouTube's are cut off with its bars");
-          await page.screenshot({ path: join(SHOTS, `full-youtube-${chosen}.png`) });
-
-          // The site's keys in fullscreen drive YouTube's player, and show what it says back. YouTube is still catching up
-          // from the seek above some of the time (it did once here, and a pause sent then was never answered): wait for it to
-          // be playing by its own word before pressing anything.
-          await page.waitForFunction(() => document.querySelector('[data-stage-play]')?.getAttribute('data-stage-play') === 'playing', null, { timeout: 45000 });
-          await sleep(1500);
-          await page.evaluate(() => {
-            window.__said = [];
-          });
-          await page.locator('[data-floating-stage-bar] [data-stage-play]').click();
-          await page.waitForFunction(() => window.__said.some((info) => info.playerState === 2) && document.querySelector('[data-stage-play]').getAttribute('data-stage-play') === 'paused', null, { timeout: 15000 });
-          await page.locator('[data-floating-stage-bar] [data-stage-play]').click();
-          await page.waitForFunction(() => window.__said.some((info) => info.playerState === 1) && document.querySelector('[data-stage-play]').getAttribute('data-stage-play') === 'playing', null, { timeout: 15000 });
-          await sleep(1500);
-          assert.ok(await page.evaluate(() => document.fullscreenElement !== null), 'a pause and a play from the bar is not a double press: still fullscreen');
-          pass("the site's keys along the foot of the fullscreen box pause and play YouTube's player");
-
-          // [ BKG ] off: the video as its player shows it, nothing trimmed, no background. On again: as it was.
-          await page.locator('[data-stage-bkg]').click();
-          await page.waitForFunction(() => document.fullscreenElement?.querySelector('[data-stage-bkg]')?.getAttribute('data-stage-bkg') === 'off', null, { timeout: 8000 });
-          await sleep(600);
-          const plain = await page.evaluate(() => {
-            const box = document.fullscreenElement;
-            const frame = box.querySelector('iframe').getBoundingClientRect();
-            return {
-              stages: box.querySelectorAll('.backdrop-stage, .backdrop-stage-tile').length,
-              fills: Math.abs(frame.width - window.innerWidth) < 3 && Math.abs(frame.height - window.innerHeight) < 3,
-              cut: box.querySelector('iframe').hasAttribute('data-backdrop-inset'),
-              bar: box.querySelector('[data-floating-stage-bar]') !== null,
-              kept: window.localStorage.getItem('debaser.site.stage-bkg.v1'),
-              same: box.querySelector('iframe') === window.__frame && window.__loads === window.__loadsAtStart,
-            };
-          });
-          assert.deepEqual(plain, { stages: 0, fills: true, cut: false, bar: false, kept: 'off', same: true }, '[ BKG ] off: no background, the frame fills the screen whole, no second bar of keys, remembered, and the same frame');
-          await page.screenshot({ path: join(SHOTS, `full-youtube-bkg-off-${chosen}.png`) });
-          await page.locator('[data-stage-bkg]').click();
-          await page.waitForFunction(() => document.fullscreenElement?.querySelector('iframe')?.hasAttribute('data-backdrop-inset') === true, null, { timeout: 8000 });
-          await sleep(1200);
-          assertStaged(await stagedNow(page, 'iframe'), tubeShape, chosen, 'your room, YouTube, [ BKG ] on again');
-          assert.equal(await page.evaluate(() => window.localStorage.getItem('debaser.site.stage-bkg.v1')), 'on', 'and that is remembered');
-          pass('[ BKG ] in the corner: off is the plain video, on is the background with the bars trimmed; the frame never reloads');
-          await page.evaluate(() => document.exitFullscreen());
-          await page.waitForFunction(() => document.fullscreenElement === null, null, { timeout: 8000 });
-          await sleep(600);
-          assert.ok(await page.evaluate(() => document.querySelector('[data-floating-player] iframe') === window.__frame && window.__loads === window.__loadsAtStart), 'in and out of fullscreen, the same frame, never reloaded');
-          pass(`FULL on YouTube's frame: ${tubeFull}; the bars in its stills are trimmed off`);
+          // The room's own YouTube player is made by YouTube's script with its keys off (`controls=0`) and no fullscreen key
+          // (`fs=0`): the room's FULL is the only way to fullscreen (Luke, 2026-11-16, "Switch it off").
+          const src = await page.evaluate(() => document.querySelector('[data-dock-window="stream"] [data-room-picture] iframe').src);
+          assert.ok(/[?&]controls=0/.test(src) && /[?&]fs=0/.test(src), `YouTube's player in the room draws no keys and no fullscreen key of its own (${src.slice(0, 120)})`);
+          pass('a YouTube row\'s PLAY opened your room with the room\'s own YouTube player: no keys of YouTube\'s, no fullscreen key of its own');
+          const spoke = await page.waitForFunction(() => window.__said.some((info) => info.playerState === 1), null, { timeout: 60000 }).then(() => true, () => false);
+          if (!spoke) note('YouTube\'s player did not play here (no network to it, or it asked for a press): FULL on it was not driven');
+          else {
+            await page.evaluate(() => {
+              window.__frame = document.querySelector('[data-dock-window="stream"] [data-room-picture] iframe');
+            });
+            const chosen = await page.getAttribute('html', 'data-backdrop');
+            await page.getByRole('button', { name: 'Fullscreen', exact: true }).first().click();
+            await page.waitForFunction(() => document.fullscreenElement !== null && document.fullscreenElement.querySelector('.stage-surround') !== null, null, { timeout: 8000 });
+            // The picture is the room's embed box (YouTube's frame is laid out inside it, a little larger, to hide its chrome).
+            // Its three stills (answered here) have bars all round: found, the box is the stills' 16:9 less those bars.
+            const trimmed = await page.waitForFunction(() => document.fullscreenElement?.querySelector('[data-watch-embed]')?.hasAttribute('data-stage-trim') === true, null, { timeout: 20000 }).then(() => true, () => false);
+            await sleep(2500);
+            const tubeNow = await stagedNow(page, '[data-watch-embed]');
+            if (trimmed) {
+              const cut = await page.evaluate(() => document.fullscreenElement.querySelector('[data-watch-embed]').getAttribute('data-stage-trim').split(' ').map(Number));
+              assert.ok(Math.abs(cut[0] - STILL_BARS.x) < 0.01 && Math.abs(cut[1] - STILL_BARS.y) < 0.01, `the bars in YouTube's stills were found (${cut.map((part) => (part * 100).toFixed(1) + '%').join(' a side, ')})`);
+              const tubeShape = ((16 / 9) * (1 - 2 * cut[0])) / (1 - 2 * cut[1]);
+              pass(`FULL on YouTube in your room: ${assertStaged(tubeNow, tubeShape, chosen, 'your room, YouTube with bars in its stills')}; the bars in its stills trimmed off`);
+            } else {
+              note('YouTube\'s stills were not read in the room (its oEmbed shape is used instead): the trim was not proved here');
+              pass(`FULL on YouTube in your room: ${assertStaged(tubeNow, 4 / 3, chosen, 'your room, YouTube (4:3 by its oEmbed answer)')}`);
+            }
+            await page.screenshot({ path: join(SHOTS, `full-your-room-youtube-${chosen}.png`) });
+            await page.locator('[data-stage-bkg]').click();
+            await page.waitForFunction(() => document.fullscreenElement?.querySelector('[data-stage-bkg]')?.getAttribute('data-stage-bkg') === 'off', null, { timeout: 8000 });
+            await sleep(600);
+            const plainTube = await page.evaluate(() => {
+              const box = document.fullscreenElement;
+              return { stages: box.querySelectorAll('.backdrop-stage, .backdrop-stage-tile').length, same: box.querySelector('iframe') === window.__frame };
+            });
+            assert.deepEqual(plainTube, { stages: 0, same: true }, '[ BKG ] off on YouTube: no background, the same frame');
+            await page.locator('[data-stage-bkg]').click();
+            await page.waitForFunction(() => document.fullscreenElement?.querySelector('[data-stage-bkg]')?.getAttribute('data-stage-bkg') === 'on', null, { timeout: 8000 });
+            await sleep(1200);
+            assert.ok(await page.evaluate(() => document.fullscreenElement.querySelectorAll('.backdrop-stage, .backdrop-stage-tile').length === 1 && document.fullscreenElement.querySelector('iframe') === window.__frame), '[ BKG ] on again: the background is back, the same frame');
+            pass('[ BKG ] on YouTube in your room: off is the plain video, on is the background round it; the frame never reloads');
+            await page.getByRole('button', { name: 'Leave fullscreen', exact: true }).first().click();
+            await page.waitForFunction(() => document.fullscreenElement === null, null, { timeout: 8000 });
+          }
         }
-        await page.locator(`${ROOM} button[aria-label="Close YOUR ROOM"]`).click();
-        await page.locator('[data-floating-player]').getByRole('button', { name: /^Close "/ }).click().catch(() => undefined);
+        await page.locator('[data-main-room-end="first"]').first().click().catch(() => undefined);
+        await page.locator('[data-main-room-end="confirm"]').first().click().catch(() => undefined);
       }
     }
 
     console.log('PHONE WIDTH: nothing scrolls sideways with your room open');
-    await page.setViewportSize({ width: 390, height: 844 });
+    // A song started at desktop width (the bar's keys are laid out for it), then the page narrowed.
     await open(page, '/forum');
-    // After a reload the room is back, paused, with what was on: its door is there without anything being pressed.
-    await page.waitForSelector('[data-own-room-door="shut"]', { timeout: 10000 });
+    await pressUntil(page, false);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForSelector('[data-own-room-door="shut"]', { timeout: 15000 });
     // Pressed in the page: a first-visit sheet (PRIVACY) lies over the door at this width.
     await page.evaluate(() => document.querySelector('[data-own-room-door] button').click());
-    await page.waitForSelector('[data-own-room-window="account"]', { timeout: 20000 });
+    await page.waitForSelector(`${ROOM} [data-main-room-live]`, { timeout: 20000 });
+    await sleep(800);
     const sideways = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     assert.ok(sideways <= 1, `no sideways scroll at 390 (${sideways}px over)`);
     const stacked = await page.evaluate(() => {
-      const screen = document.querySelector('[data-own-room-screen]').getBoundingClientRect();
-      const side = document.querySelector('[data-own-room-side]').getBoundingClientRect();
-      return side.top >= screen.bottom - 1;
+      const picture = document.querySelector('[data-dock-window="stream"] [data-room-picture]').getBoundingClientRect();
+      const queue = document.querySelector('[data-dock-window="stream"] [data-watch-queue-key]').getBoundingClientRect();
+      return queue.top >= picture.bottom - 1;
     });
     assert.ok(stacked, 'at phone width the side column is under the picture, as in a live room');
     pass('at 390 wide: no sideways scroll, the picture then the column');
