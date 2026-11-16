@@ -44,3 +44,32 @@ export function buildUrl(
   return url.toString();
 }
 
+/* --- the open links (decision 2A) ---------------------------------------------------------------------------- */
+
+const OPEN_LINK_MAX = 600;
+const IP_LITERAL = /^(?:[0-9.]+|\[.*\])$/;
+
+/**
+ * A Hacker News or Lobsters story's own address, or null: https, an ordinary public host name (no port, no login, no
+ * address written as numbers, nothing local), no fragment, at most 600 characters. Its query is kept, since a story
+ * page may need one. The page checks it again before drawing the link.
+ */
+export function openLink(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length > OPEN_LINK_MAX) return null;
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return null;
+  }
+  const host = url.hostname.toLowerCase();
+  if (url.protocol !== 'https:' || url.username !== '' || url.password !== '' || url.port !== '') return null;
+  if (!host.includes('.') || IP_LITERAL.test(host) || host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal')) return null;
+  url.hash = '';
+  return url.toString();
+}
+
+/** The site an open link goes to, as the row names it: `GITHUB.COM` (no `www.`). */
+export function openLinkSite(link: string): string {
+  return new URL(link).hostname.replace(/^www\./, '').toUpperCase();
+}

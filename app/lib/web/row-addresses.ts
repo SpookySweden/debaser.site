@@ -1,7 +1,6 @@
-import { openLink } from './brief/feeds';
 import { PLATFORM_HOSTS } from './hosts';
 import type { WebItem, WebPlatform } from './types';
-import { isAllowedUrl } from './urls';
+import { isAllowedUrl, openLink } from './urls';
 
 export type RowAddresses = {
   link: string | null;
