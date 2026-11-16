@@ -11,6 +11,7 @@ import {
   detachWindow,
   endMove,
   endResize,
+  layoutTop,
   liveWindow,
   moveTo,
   registerWindow,
@@ -220,12 +221,16 @@ export default function DockWindow({
   // Asked to leave room above itself, it is drawn that much lower when it would sit nearer the top of the screen than
   // that, and shorter by the same, so its foot stays where it was. Its saved box is left as it is.
   const drop = managed && headroom !== undefined ? Math.max(0, headroom - live.rect.y) : 0;
+  // Kept above the bar: a foot under it is lifted to it whole, the window moving up rather than getting shorter, and only
+  // one taller than all the room above the bar is shortened (Luke, 2026-11-16: "must not shrink"; `rectAboveBar`'s sum).
+  const highest = Math.max(layoutTop(), headroom ?? 0);
+  const foot = 'calc(100vh - var(--music-top, 0px) - 0.25rem';
   const style = managed
     ? {
         left: live.rect.x,
-        top: live.rect.y + drop,
+        top: aboveBottomBar ? `max(${highest}px, min(${live.rect.y + drop}px, ${foot} - ${live.rect.h - drop}px)))` : live.rect.y + drop,
         width: live.rect.w,
-        height: aboveBottomBar ? `min(${live.rect.h - drop}px, calc(100vh - var(--music-top, 0px) - ${live.rect.y + drop}px - 0.25rem))` : live.rect.h - drop,
+        height: aboveBottomBar ? `min(${live.rect.h - drop}px, ${foot} - ${highest}px))` : live.rect.h - drop,
         zIndex: 90 + Math.min(live.z, 8),
       }
     : {

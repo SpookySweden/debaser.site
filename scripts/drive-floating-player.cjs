@@ -433,12 +433,14 @@ async function mediaRun(page) {
     pass('each history entry keeps its own place');
   }
 
-  // [ BACK ] on the float, from another page.
-  await page.locator('[data-floating-player]').getByRole('button', { name: /^Back to where/ }).click();
+  // Updated on purpose 2026-11-16 (Luke's ROOMFIX list, item 8: "BACK, FULL and GO LIVE come off the PIP window"): the float
+  // has no BACK any more. Going back to its page is the way: its box arriving puts it back in.
+  assert.equal(await page.locator('[data-floating-player]').getByRole('button', { name: /^Back to where/ }).count(), 0, 'the float has no BACK');
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
   await page.waitForURL(/\/media/);
-  await untilState(page, 'in-box', 'the float\'s BACK');
-  await stillTheSame(page, 'the float\'s [ BACK ]');
-  pass('[ BACK ] on the float goes to where it came from');
+  await untilState(page, 'in-box', 'back on its page');
+  await stillTheSame(page, 'back on its page');
+  pass('the float has no BACK; back on the page it came from, it is in its box again');
 
   // Closed, it keeps its place; played again it starts from there.
   await sleep(1500);
@@ -717,10 +719,12 @@ async function roomRun(page) {
   assert.ok(near(to.left, from.left + 160) && near(to.top, from.top - 120) && near(to.width, from.width) && near(to.height, from.height), `dragged by the picture, it moves and keeps its size: ${JSON.stringify([from, to])}`);
   assert.equal(await fullIs(), 'none', 'a drag is not a double press');
   await stillRoom('the room\'s float, dragged by its picture');
-  assert.equal(await page.locator('[data-watch-tv-box]').count(), 0, 'no folded tile above the bar');
-  assert.equal(await page.locator('[data-room-float] button').count(), 1, 'BACK is the floating picture\'s one key');
-  pass('a room\'s floating picture drags by the picture, YouTube\'s player untouched; no folded tile, BACK is its one key');
-  await page.locator('[data-room-float]').getByRole('button', { name: 'Back to the room' }).click();
+  // Updated on purpose 2026-11-16 (ROOMFIX items 7 and 8): the floating picture has no keys; the room's key above the player
+  // (ROOM :: LIVE on the corner shelf) is the way back.
+  assert.equal(await page.locator('[data-room-float] button').count(), 0, 'the floating picture has no keys');
+  assert.equal(await page.locator('[data-room-shelf-key]').count(), 1, 'the room\'s key is above the player');
+  pass('a room\'s floating picture drags by the picture, YouTube\'s player untouched; no keys on it, the way back above the player');
+  await page.locator('[data-room-shelf-key] button').click();
   await sleep(800);
 
   // A plain file on the stage: our own <video> with no controls of its own.

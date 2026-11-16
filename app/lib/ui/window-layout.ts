@@ -49,8 +49,9 @@ export type WindowSpec = {
   fill?: boolean;
   /**
    * Kept above the bar along the foot (the stream room, `DockWindow`'s `aboveBottomBar`). It is drawn no lower than
-   * that bar whatever its box says, so picked up or resized it is first made the height it is drawn at (`rectAboveBar`)
-   * and then moves as one piece, its foot stopping at the bar (SPEC-rooms-your-room.md, part 2).
+   * that bar whatever its box says, lifted whole rather than shortened, so picked up or resized it is first made the box
+   * it is drawn in (`rectAboveBar`) and then moves as one piece, its foot stopping at the bar (SPEC-rooms-your-room.md,
+   * part 2; Luke, 2026-11-16: it must not shrink against the bar).
    */
   aboveBar?: boolean;
 };
@@ -192,12 +193,17 @@ export function snapOffset(moving: WindowRect[], others: WindowRect[], dx: numbe
 }
 
 /**
- * A window kept above the bar along the foot (`WindowSpec.aboveBar`), as it is drawn: no taller than the room above the
- * bar leaves it. `floor` is how far down the screen its foot may reach. Never under its own least height.
+ * A window kept above the bar along the foot (`WindowSpec.aboveBar`), as it is drawn. `floor` is how far down the screen
+ * its foot may reach, `top` how far up its top may go. A foot under the bar (the bar grew, or the box was saved that way)
+ * is lifted to it whole: the window moves up, keeping its height (Luke, 2026-11-16: dragged against the panel at the
+ * bottom it "must not shrink"). Only a window taller than all the room between `top` and the bar is shortened, from the
+ * top down to the bar. Never under its own least height. `DockWindow` draws it by the same sum.
  */
-export function rectAboveBar(rect: WindowRect, floor: number, min: WindowSize): WindowRect {
-  const h = Math.max(Math.min(rect.h, floor - rect.y), Math.min(min.h, rect.h));
-  return h === rect.h ? rect : { ...rect, h };
+export function rectAboveBar(rect: WindowRect, floor: number, min: WindowSize, top = 0): WindowRect {
+  if (rect.y + rect.h <= floor) return rect;
+  const y = Math.max(top, Math.min(rect.y, floor - rect.h));
+  const h = Math.max(Math.min(rect.h, floor - y), Math.min(min.h, rect.h));
+  return y === rect.y && h === rect.h ? rect : { ...rect, y, h };
 }
 
 /**
@@ -729,7 +735,12 @@ function floorFor(id: string, floor: number | null): number | null {
 function startRect(id: string, floor: number | null): WindowRect {
   const rect = state.windows[id].rect;
   const mine = floorFor(id, floor);
-  return mine === null ? rect : rectAboveBar(rect, mine, specs[id].min);
+  return mine === null ? rect : rectAboveBar(rect, mine, specs[id].min, state.top);
+}
+
+/** How far up the screen a window's top may go (under the top bar), for a window drawn by `rectAboveBar`'s sum. */
+export function layoutTop(): number {
+  return state.top;
 }
 
 function startDragOf(ids: string[], x: number, y: number, floor: number | null): Drag {

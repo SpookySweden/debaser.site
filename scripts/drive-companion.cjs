@@ -318,7 +318,7 @@ async function waitMood(page, wanted, ms) {
     });
     await b.page.goto(`${BASE}/forum?watch=${roomId}`, { waitUntil: 'domcontentloaded' });
     // In the room: its window open, or already folded (the site remembers a folded room), with the TV up-box showing.
-    await b.page.waitForSelector('[data-room-picture], [data-watch-tv-box]', { state: 'attached', timeout: 45000 });
+    await b.page.waitForSelector('[data-room-picture], [data-room-shelf-key]', { state: 'attached', timeout: 45000 });
     await b.page.screenshot({ path: join(SHOTS, 'companion-room-b-joined.png') });
     const foldB = b.page.locator('[data-dock-window="stream"]').getByRole('button', { name: /^Fold / });
     if (await foldB.isVisible().catch(() => false)) await foldB.click();
@@ -350,7 +350,7 @@ async function waitMood(page, wanted, ms) {
     assert.ok(frames < minute * 2, `under two a second (${frames})`);
 
     // The room ends, for everybody.
-    await a.page.locator('[data-room-float] button[aria-label="Back to the room"]').click().catch(() => undefined);
+    await a.page.locator('[data-room-shelf-key] button').click().catch(() => undefined);
     await sleep(800);
     await a.page.getByRole('button', { name: '[ END STREAM ]' }).last().click();
     await a.page.getByRole('button', { name: '[ END FOR EVERYBODY ]' }).last().click();
