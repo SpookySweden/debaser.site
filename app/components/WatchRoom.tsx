@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore, type MouseEvent } from 'react';
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type MouseEvent } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { stopFollowing } from '../lib/audio/follow';
@@ -29,6 +29,8 @@ import QueuedPicture from './QueuedPicture';
 import { useWebTrack, webTrackNow } from '../lib/web/web-track-lookup';
 
 import { ROOM_BAR, ROOM_BAR_PLACE, ROOM_COG, ROOM_COLUMNS, ROOM_PICTURE_BOX, ROOM_PICTURE_FIT, ROOM_ROOT, ROOM_SCREEN, ROOM_SIDE, ROOM_SIDE_BODY, ROOM_STAGE } from '../lib/watch/room-frame';
+import { shapeFrom, stageStyle, videoShape, WIDE } from '../lib/watch/video-shape';
+import { StageBackdrop } from './backdrops/Backdrops';
 import { roomStartFor } from '../lib/watch/room-start';
 import { streamBarState, subscribeToStreamBar } from '../lib/watch/stream-bar';
 import {
@@ -947,13 +949,23 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   // picture and the bar go fullscreen together, so the bar stays along the foot of the screen there too.
   const stageRef = useRef<HTMLDivElement>(null);
 
+  const pictureBox = useRef<HTMLDivElement>(null);
   const [fullscreen, setFullscreen] = useState(false);
+  // The stage, or the floating picture alone, is fullscreen: the chosen background is drawn round the picture, which takes
+  // the video's own shape (SPEC-rooms-your-room.md, part 3; Luke, 2026-11-16: "i want the black bars replaced by the
+  // backround of the website that is selected").
+  const [staged, setStaged] = useState(false);
   useEffect(() => {
-    const changed = () => setFullscreen(document.fullscreenElement !== null && document.fullscreenElement === stageRef.current);
+    const changed = () => {
+      const full = document.fullscreenElement;
+      setFullscreen(full !== null && full === stageRef.current);
+      setStaged(full !== null && (full === stageRef.current || full === pictureBox.current));
+    };
     document.addEventListener('fullscreenchange', changed);
     return () => document.removeEventListener('fullscreenchange', changed);
   }, []);
-  const pictureBox = useRef<HTMLDivElement>(null);
+  /** The shape of the room's own `<video>`, as its file says once it has loaded; kept against the entry it is of. */
+  const [fileShape, setFileShape] = useState<{ entry: string | null; shape: number } | null>(null);
   // Floating, the picture is a handle as well as its title line (SPEC-rooms-your-room.md, part 2).
   const floatDrag = useRoomFloatDrag(pictureBox);
   function toggleFullscreen() {
@@ -1206,6 +1218,9 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
 
   /** On a desktop the picture takes the column's height; on a phone (and in fullscreen there) its own shape. */
   const pictureFit = fullscreen || pictureFloats ? 'h-full w-full' : ROOM_PICTURE_FIT;
+  /** Fullscreen, a video is its own shape with the background round it; a song's cover, a held picture and the blank screen fill the box as before. */
+  const videoFit = staged ? 'stage-fit' : pictureFit;
+  const ownShape = fileShape !== null && fileShape.entry === entryId ? fileShape.shape : WIDE;
   /** A double press on the picture is the FULL key (Luke, 2026-11-05). Keys on the picture and a canvas being drawn on keep theirs. */
   const fullOnDoublePress = (event: MouseEvent<HTMLDivElement>) => {
     if (blank || song !== null || screen === 'canvas') return;
@@ -1240,7 +1255,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       <div ref={stageRef} className={`${ROOM_SCREEN} ${look === null ? '' : `frame ${lookLines}`}`}>
       {/* Floating, the box leaves the folded window's invisible frame by staying in it: `visible` and `fixed`. Its top is kept for
           its title strip, deeper on a phone where the strip's keys are the tap size, so nothing sits over the picture (2026-11-08). */}
-      <div ref={pictureBox} onDoubleClick={fullOnDoublePress} {...(pictureFloats ? floatDrag.picture : {})} className={`${pictureFloats ? 'fixed visible frame bg-ink-plate pt-10 max-sm:pt-14 fullscreen:pt-0 select-none' : 'relative'} ${ROOM_PICTURE_BOX}`} data-room-picture={pictureFloats ? 'floating' : 'in-room'} data-companion-avoid={pictureFloats ? '' : undefined}>
+      <div ref={pictureBox} onDoubleClick={fullOnDoublePress} {...(pictureFloats ? floatDrag.picture : {})} className={`${pictureFloats ? 'fixed visible frame bg-ink-plate pt-10 max-sm:pt-14 fullscreen:pt-0 select-none' : 'relative'} ${ROOM_PICTURE_BOX} ${staged ? 'stage-surround' : ''}`} data-room-picture={pictureFloats ? 'floating' : 'in-room'} data-backdrop-press={staged ? '' : undefined} data-companion-avoid={pictureFloats ? '' : undefined}>
         {blank ? (
           <BlankScreen fit={pictureFit} onPick={(key) => openQueue(key)} hidden={screen === 'canvas'} />
         ) : src === undefined ? (
@@ -1272,12 +1287,13 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
           <SongCoverCard track={songTrack} fit={pictureFit} />
         ) : link !== null && link.kind === 'embed' ? (
           // A server's player is made again on each of the host's PLAYs (`restarts`), so everybody's starts from the top together.
-          <OfficialEmbedStage key={`official-${entryId}-${serverOn ? serverSeen.restarts : 0}`} link={link} fit={pictureFit} />
+          <OfficialEmbedStage key={`official-${entryId}-${serverOn ? serverSeen.restarts : 0}`} link={link} fit={videoFit} shaped={staged} />
         ) : link !== null && isEmbedKind(link.kind) ? (
           <EmbedStage
             key={`embed-${entryId}`}
             link={link}
-            fit={pictureFit}
+            fit={videoFit}
+            shaped={staged}
             autoPlay={amHost && live}
             onPlayer={attachVideo}
             onGone={(gone) => {
@@ -1305,7 +1321,11 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
             playsInline
             autoPlay={amHost && live}
             onTimeUpdate={onTime}
-            onLoadedMetadata={onTime}
+            onLoadedMetadata={(event) => {
+              const shape = shapeFrom(event.currentTarget.videoWidth, event.currentTarget.videoHeight);
+              if (shape !== null) setFileShape({ entry: entryId, shape });
+              onTime();
+            }}
             onPlay={onTime}
             onPause={onTime}
             // Playing again (the next file after one that would not start) clears the JOIN PLAYBACK key.
@@ -1322,7 +1342,9 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
               }
               if (link !== null) setDeadEntry(entryId);
             }}
-            className={`object-contain ${pictureFit}`}
+            className={`object-contain ${videoFit}`}
+            style={staged ? (stageStyle(ownShape) as CSSProperties) : undefined}
+            data-backdrop-solid={staged ? '' : undefined}
             data-watch-video={amHost ? 'host' : 'viewer'}
           >
             <track kind="captions" />
@@ -1358,6 +1380,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
           <CanvasToggle roomId={roomId} audio={canvasAudio} />
         </div>
         {pictureFloats ? <RoomFloatChrome host={pictureBox} drag={floatDrag} title={entryTitle ?? (music ? 'ROOM' : 'STREAM')} onBack={onBackFromFloat} /> : null}
+        {/* Fullscreen: the chosen background, live, under everything in this box. Last in the box, so nothing before it is moved. */}
+        {staged ? <StageBackdrop /> : null}
       </div>
       {playerBar}
       </div>
@@ -1975,7 +1999,7 @@ export function TimedMessage({ message }: { message: WatchMessage }) {
  * (`officialEmbedUrl`). The platform's player cannot be driven from here, so the room does not keep it in
  * step: everybody presses play on it themselves, and the host moves the room on with NEXT.
  */
-function OfficialEmbedStage({ link, fit }: { link: WatchLink; fit: string }) {
+function OfficialEmbedStage({ link, fit, shaped }: { link: WatchLink; fit: string; /** Fullscreen: a 16:9 box with the background round it (this player never says its video's shape). */ shaped: boolean }) {
   // A configured media server's own player page (SPEC-media-servers.md): played with that server's sandbox. The host
   // match also re-proves it is still a configured server, so a de-configured server's old queue link stops playing.
   const server = mediaServerForUrl(link.url);
@@ -1994,7 +2018,7 @@ function OfficialEmbedStage({ link, fit }: { link: WatchLink; fit: string }) {
 
   // What this player does and doesn't share is said once in the chat (`notInStepNote`), never over or under the picture (Luke, 2026-11-08).
   return (
-    <div className={`flex flex-col ${fit}`}>
+    <div className={`flex flex-col ${fit}`} style={shaped ? (stageStyle(WIDE) as CSSProperties) : undefined} data-backdrop-solid={shaped ? '' : undefined}>
       <iframe
         src={url}
         title={`Player: ${link.title}`}
@@ -2028,6 +2052,7 @@ function ServerClock({ room }: { room: WatchRoomRead['room'] }) {
 function EmbedStage({
   link,
   fit,
+  shaped,
   autoPlay,
   onPlayer,
   onGone,
@@ -2038,6 +2063,8 @@ function EmbedStage({
   role,
 }: {
   link: WatchLink;
+  /** Fullscreen: the box is the video's own shape, with the background round it. */
+  shaped: boolean;
   /** The box's shape, from the room: its own 16:9 on a phone, the stage's height on a desktop. */
   fit: string;
   autoPlay: boolean;
@@ -2060,6 +2087,8 @@ function EmbedStage({
   const give = useEffectEvent((player: EmbedPlayable) => onPlayer(player));
   const take = useEffectEvent((player: EmbedPlayable) => onGone(player));
   const { url, kind } = link;
+  /** The video's true shape, asked of its site once (`video-shape.ts`); 16:9 until it answers, and where it never does. */
+  const [shape, setShape] = useState(WIDE);
 
   useEffect(() => {
     const box = boxRef.current;
@@ -2078,12 +2107,19 @@ function EmbedStage({
     player.addEventListener('playing', onPlay);
     player.addEventListener('error', onFail);
     give(player);
+    let alive = true;
+    void videoShape(url).then((found) => {
+      if (!alive || found === null) return;
+      setShape(found);
+      player.setShape?.(found);
+    });
     return () => {
+      alive = false;
       take(player);
       player.destroy();
       box.replaceChildren();
     };
   }, [url, kind]);
 
-  return <div ref={boxRef} className={fit} data-watch-video={role} data-watch-embed={kind} />;
+  return <div ref={boxRef} className={fit} style={shaped ? (stageStyle(shape) as CSSProperties) : undefined} data-backdrop-solid={shaped ? '' : undefined} data-watch-video={role} data-watch-embed={kind} />;
 }

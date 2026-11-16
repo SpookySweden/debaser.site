@@ -78,3 +78,28 @@ Checks that render the room windows keep passing or are updated on purpose (`Tem
 `Temp/check-floating-player.cjs`, `check-room-settings`, `check-window-layout`); local drives on the mock server for YOUR ROOM's
 layout, GO LIVE in place, the window dragged off the bar and staying, `[ _ ]` to PIP and back, FULL with each background and the
 frame at 16:9, 4:3 and 21:9; then the house loop.
+
+## As built (2026-11-16)
+Parts 1 and 2 are as written above, with these differences: YOUR ROOM keeps the site's one floating player, drawn in the live
+room's frame with the room's keys driving it (the other site's own controls still show; no QUALITY or SUBS there); `[ ▲ ROOM ]`
+stays as the way in, on the corner shelf beside `[ ▲ WINDOW ]`; a window that fills the whole space has to be made shorter
+before it can lift.
+
+Part 3:
+- FULL and a double press fullscreen a box the site owns: the live room's stage (picture and bar) or its floating picture, and
+  the floating player's own box (YOUR ROOM, a MEDIA row, the float). Never the bare frame or video.
+- In there the picture is the video's own shape, as large as fits, in the middle, and the chosen background runs live round it
+  (a second copy, only while fullscreen; the page's own rests). Sand rests on the picture; a press on the surround pours or
+  splats as on the desk. A double press on the surround leaves; so does ESC.
+- The shape: the site's own files say it themselves; YouTube and Vimeo are asked through their public oEmbed, from the browser,
+  once a video (`app/lib/watch/video-shape.ts`); anything else is 16:9. The room's YouTube player is told the shape and makes
+  YouTube's frame that shape, in the window too.
+- The site's own files lose the browser's own fullscreen key and double press in Chrome and Edge (`controlsList`), because
+  those show the bare video with black bars; `[ FULL ]` and a double press on the picture do the site's instead.
+- Not done, Luke's call: the fullscreen key inside another site's own player (YouTube's, Vimeo's) still gives that site's
+  fullscreen, bars and all. It can be switched off so only the site's `[ FULL ]` exists, but phones (which can only fullscreen
+  a video the browser's way) would lose fullscreen for those until the phone pass.
+- Bars burnt into a video's own pixels stay. A video whose site answers the wrong shape has bars inside its frame, as before.
+- Proof: `Temp/check-video-shape.cjs` (13 deliberate breaks, all caught) and `scripts/drive-rooms-your-room.cjs`, run with
+  AQUARIUM, STARFIELD, SAND and TILE chosen (`--backdrop`). Not proved: Vimeo and Twitch in a browser, a real 4:3 YouTube
+  video (the drive tells the frame 4:3 by answering for YouTube), two accounts, phones.

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import { PLATE, WINDOW_TITLE_BAR } from '../lib/ui/controls';
 import {
@@ -33,11 +33,13 @@ import {
   type FloatingEntry,
 } from '../lib/ui/floating-player';
 import { FLOAT_GRIPS, footFloor, screenNow, useFloatFrame } from '../lib/ui/use-float-frame';
+import { shapeFrom, stageStyle, videoShape, WIDE } from '../lib/watch/video-shape';
 import { expandWatch } from '../lib/watch/watch-window';
 import { DOUBLE_PRESS_MS, listenForTime } from '../lib/web/embed-time';
 import { useAuth } from './AuthProvider';
 import QueuedPicture from './QueuedPicture';
 import WatchInRoomKey from './WatchInRoomKey';
+import { StageBackdrop } from './backdrops/Backdrops';
 
 /**
  * The site's one video (SPEC-floating-player.md, `app/lib/ui/floating-player.ts`), drawn once in `layout.tsx`, so it
@@ -73,6 +75,9 @@ const READER_ACTS = ['wheel', 'touchstart', 'pointerdown', 'keydown'] as const;
  * its picture (`doublePressWatcher`, which hears the two the same way): twice the double press's own window.
  */
 const OWN_ORDER_MS = DOUBLE_PRESS_MS * 2;
+
+/** The strip along the foot of our own file's player where the browser's controls sit: a double press there is two presses on a control. */
+const CONTROLS_STRIP = 48;
 
 /** Where the reader last left the float, for this visit. Null: the corner. */
 let placed: FloatRect | null = null;
@@ -213,10 +218,34 @@ export default function FloatingPlayer() {
     };
   }, [playKey, frameSource]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // FULL and a double press put the player's own box in fullscreen, never the bare frame (SPEC-rooms-your-room.md, part 3;
+  // Luke, 2026-11-16: "when fullscreening a video that has black bars i want the black bars replaced by the backround of
+  // the website that is selected"). In there the picture is the video's own shape and the chosen background is round it.
+  // The box is the one the player already sits in, so nothing is moved and nothing reloads.
+  const stageBox = useRef<HTMLDivElement>(null);
+  const [staged, setStaged] = useState(false);
   useEffect(() => {
-    notePlayerElement(frame.current ?? video.current);
+    notePlayerElement(stageBox.current);
     return () => notePlayerElement(null);
   }, [playKey]);
+  useEffect(() => {
+    const changed = () => setStaged(document.fullscreenElement !== null && document.fullscreenElement === stageBox.current);
+    document.addEventListener('fullscreenchange', changed);
+    return () => document.removeEventListener('fullscreenchange', changed);
+  }, []);
+  /** The video's true shape, kept against the PLAY it is of: a frame's from its site (`video-shape.ts`), our own file's from the file. */
+  const [shape, setShape] = useState<{ play: string; shape: number } | null>(null);
+  const frameAddress = entry?.player.kind === 'frame' ? entry.player.src : null;
+  useEffect(() => {
+    if (playKey === null || frameAddress === null) return;
+    let alive = true;
+    void videoShape(frameAddress).then((found) => {
+      if (alive && found !== null) setShape({ play: playKey, shape: found });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [playKey, frameAddress]);
 
   // The bar's pause and play for the video (SPEC-rooms-queues.md), where its player takes orders: our own file is a
   // plain `<video>`; YouTube and Vimeo answer messages sent to their frame (the same ones their own scripts send; if
@@ -316,6 +345,9 @@ export default function FloatingPlayer() {
   // Our own file can use the browser's pop-out, the one that stays above other apps. An outside player can't be lifted
   // out. `floating` is never true on the server, where there is no document to ask.
   const canPopOut = floating && player.kind === 'file' && document.pictureInPictureEnabled === true;
+  /** Fullscreen, a video is its own shape with the background round it. A strip of sound and a held picture fill the box as before. */
+  const shaped = staged && entry.shape === 'video';
+  const ratio = shaped ? (stageStyle(shape !== null && shape.play === playKey ? shape.shape : WIDE) as CSSProperties) : undefined;
 
   return (
     <div
@@ -365,7 +397,20 @@ export default function FloatingPlayer() {
         data-floating-wheel
         className="relative min-h-0 flex-1 overflow-y-scroll [overflow-anchor:none] [scrollbar-width:none]"
       >
-        <div className="sticky top-0 h-full w-full">
+        <div ref={stageBox} className={`sticky top-0 h-full w-full ${staged ? 'stage-surround flex items-center justify-center' : ''}`}
+          data-floating-stage={staged ? 'full' : 'in-place'}
+          data-backdrop-press={staged ? '' : undefined}
+          onDoubleClick={(event) => {
+            // Our own file: the browser's own double press is switched off below (`controlsList`), because it fullscreens the
+            // bare video, with black bars; this one fullscreens the box. In fullscreen, a double press on the surround is the way out.
+            // (Another site's frame keeps its presses to itself: its double press is heard by message, above.)
+            const onFile = event.target instanceof HTMLVideoElement && event.clientY < event.target.getBoundingClientRect().bottom - CONTROLS_STRIP;
+            if (!onFile && !(staged && event.target === event.currentTarget)) return;
+            // A browser that ignores `controlsList` would fullscreen the bare video as well: this press is ours.
+            event.preventDefault();
+            togglePlayerFullscreen();
+          }}
+        >
         {player.kind === 'frame' ? (
           <iframe
             key={playKey}
@@ -376,7 +421,9 @@ export default function FloatingPlayer() {
             sandbox={player.sandbox}
             allow={player.allow}
             allowFullScreen={player.allowFullScreen}
-            className="absolute inset-0 block h-full w-full border border-ink-plate bg-paper"
+            className={`block border border-ink-plate bg-paper ${shaped ? 'stage-fit' : 'absolute inset-0 h-full w-full'}`}
+            style={ratio}
+            data-backdrop-solid={shaped ? '' : undefined}
           />
         ) : player.kind === 'picture' ? (
           <QueuedPicture key={playKey} src={player.src} title={entry.title} className="absolute inset-0 h-full w-full border border-ink bg-ink-plate" />
@@ -385,6 +432,9 @@ export default function FloatingPlayer() {
             key={playKey}
             ref={video}
             controls
+            // No fullscreen key of the browser's own, and no double press of its own (Chrome and Edge; others ignore this): both
+            // show the bare video with black bars. `[ FULL ]` and a double press on the picture show the box, with the background.
+            controlsList="nofullscreen"
             autoPlay
             preload="metadata"
             src={player.src}
@@ -392,6 +442,8 @@ export default function FloatingPlayer() {
               const from = placeOf(entry.id);
               if (from !== null) event.currentTarget.currentTime = from;
               tellClock(event.currentTarget);
+              const own = shapeFrom(event.currentTarget.videoWidth, event.currentTarget.videoHeight);
+              if (own !== null && playKey !== null) setShape({ play: playKey, shape: own });
             }}
             onTimeUpdate={(event) => {
               notePlace(entry.id, event.currentTarget.currentTime);
@@ -401,11 +453,15 @@ export default function FloatingPlayer() {
             onPause={(event) => tellClock(event.currentTarget)}
             onVolumeChange={(event) => tellClock(event.currentTarget)}
             onEnded={() => notePlace(entry.id, null)}
-            className="absolute inset-0 block h-full w-full border border-ink bg-ink-plate object-contain"
+            className={`block border border-ink bg-ink-plate object-contain ${shaped ? 'stage-fit' : 'absolute inset-0 h-full w-full'}`}
+            style={ratio}
+            data-backdrop-solid={shaped ? '' : undefined}
           >
             <track kind="captions" />
           </video>
         )}
+        {/* Fullscreen: the chosen background, live, under the picture. Last in the box, so the player before it is never moved. */}
+        {staged ? <StageBackdrop /> : null}
         </div>
         <div aria-hidden="true" style={{ height: SPARE_SCROLL }} />
       </div>

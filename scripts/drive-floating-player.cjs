@@ -252,7 +252,8 @@ async function mediaRun(page) {
   await untilState(page, 'in-box', 'after scrolling up');
 
   // A double press on the picture itself: fullscreen, then back, the video carrying on (Luke, 2026-11-05).
-  const fullIs = () => page.evaluate(() => document.fullscreenElement?.tagName ?? 'none');
+  // The player's own box goes fullscreen, never the bare frame (SPEC-rooms-your-room.md, part 3): the background shows round the picture.
+  const fullIs = () => page.evaluate(() => (document.fullscreenElement === null ? 'none' : document.fullscreenElement.getAttribute('data-floating-stage') === 'full' ? 'BOX' : document.fullscreenElement.tagName));
   const dbl = async (x, y) => {
     await page.mouse.move(x, y);
     await sleep(200);
@@ -264,7 +265,7 @@ async function mediaRun(page) {
     return { x: b.left + b.width / 2, y: Math.max(b.top, 130) + 150 };
   }, id);
   await dbl(pictureAt.x, pictureAt.y);
-  assert.equal(await fullIs(), 'IFRAME', 'a double press on YouTube\'s picture goes fullscreen');
+  assert.equal(await fullIs(), 'BOX', 'a double press on YouTube\'s picture goes fullscreen');
   await stillTheSame(page, 'a double press: in');
   await page.screenshot({ path: join(SHOTS, 'float-fullscreen.png') });
   await dbl(720, 400);
@@ -273,7 +274,7 @@ async function mediaRun(page) {
   pass('a double press on YouTube\'s picture goes fullscreen, and another comes back');
   await page.getByRole('button', { name: /^Fullscreen:/ }).first().click();
   await sleep(800);
-  assert.equal(await fullIs(), 'IFRAME', '[ FULL ] goes fullscreen');
+  assert.equal(await fullIs(), 'BOX', '[ FULL ] goes fullscreen');
   await page.evaluate(() => document.exitFullscreen());
   await sleep(800);
   await stillTheSame(page, '[ FULL ]');
@@ -302,13 +303,13 @@ async function mediaRun(page) {
   await sleep(200);
   const floatBefore = (await layerState(page)).rect;
   await dbl(floatBefore.x + 40, floatBefore.y + 15);
-  assert.equal(await fullIs(), 'IFRAME', 'a double press on the float\'s title line goes fullscreen');
+  assert.equal(await fullIs(), 'BOX', 'a double press on the float\'s title line goes fullscreen');
   await page.evaluate(() => document.exitFullscreen());
   await sleep(800);
   const floatTitleBack = (await layerState(page)).rect;
   assert.deepEqual(floatTitleBack, floatBefore, 'back as it was');
   await dbl(floatBefore.x + floatBefore.w / 2, floatBefore.y + floatBefore.h / 2 + 20);
-  assert.equal(await fullIs(), 'IFRAME', 'a double press on the floating picture goes fullscreen');
+  assert.equal(await fullIs(), 'BOX', 'a double press on the floating picture goes fullscreen');
   await dbl(720, 400);
   assert.equal(await fullIs(), 'none', 'another comes back');
   await sleep(300);
@@ -555,14 +556,14 @@ async function filesRun(page) {
   const media = await layerState(page);
   if (media.paused) note('the video did not start by itself here');
 
-  // A double press on our own file: the browser's own player does it, both ways.
+  // A double press on our own file: the site does it, both ways (the browser's own is switched off: it shows black bars).
   const fileAt = await page.evaluate(() => {
     const b = document.querySelector('[data-floating-player] video').getBoundingClientRect();
     return { x: b.left + b.width / 2, y: b.top + b.height / 2 - 30 };
   });
   await page.mouse.dblclick(fileAt.x, fileAt.y, { delay: 30 });
   await sleep(1200);
-  assert.equal(await page.evaluate(() => document.fullscreenElement?.tagName ?? 'none'), 'VIDEO', 'a double press on our own file goes fullscreen');
+  assert.equal(await page.evaluate(() => document.fullscreenElement?.getAttribute('data-floating-stage') ?? 'none'), 'full', 'a double press on our own file puts its box in fullscreen, not the bare video');
   await page.mouse.dblclick(720, 500, { delay: 30 });
   await sleep(1200);
   assert.equal(await page.evaluate(() => document.fullscreenElement?.tagName ?? 'none'), 'none', 'another comes back');

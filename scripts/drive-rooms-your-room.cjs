@@ -24,6 +24,8 @@ const BASE = opt('--base', 'http://localhost:3003');
 const SHOTS = join('Temp', 'browse', 'rooms');
 mkdirSync(SHOTS, { recursive: true });
 const VIDEO = 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.webm';
+/** `--backdrop sand` (or fluid, starfield, mystify, tile) runs it with that background chosen; without, the default. */
+const BACKDROP = opt('--backdrop', null);
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 let passed = 0;
@@ -36,6 +38,67 @@ const note = (what) => {
   notes.push(what);
   console.log(`  NOTE ${what}`);
 };
+
+/**
+ * Part 3 (fullscreen): what the fullscreen box holds. The surround, the picture in it (its place and shape), the chosen
+ * background drawn in the surround, and whether the picture is over it. Null when nothing is fullscreen.
+ */
+const stagedNow = (page, pictureSelector) =>
+  page.evaluate((selector) => {
+    const box = document.fullscreenElement;
+    if (box === null) return null;
+    const surround = box.matches('.stage-surround') ? box : box.querySelector('.stage-surround');
+    const picture = box.querySelector(selector);
+    if (surround === null || picture === null) return { missing: surround === null ? 'the surround' : 'the picture' };
+    const rect = (element) => {
+      const { left, top, right, bottom, width, height } = element.getBoundingClientRect();
+      return { left, top, right, bottom, width, height };
+    };
+    const stages = [...surround.querySelectorAll(':scope > .backdrop-stage, :scope > .backdrop-stage-tile')];
+    const canvas = surround.querySelector(':scope > .backdrop-stage canvas');
+    let drawn = -1;
+    if (canvas !== null) {
+      const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+      drawn = 0;
+      for (let at = 4; at < data.length; at += 4) if (data[at] !== data[0] || data[at + 1] !== data[1] || data[at + 2] !== data[2]) drawn += 1;
+    }
+    const at = rect(picture);
+    const hit = document.elementFromPoint(at.left + at.width / 2, at.top + at.height / 2);
+    return {
+      screen: { w: window.innerWidth, h: window.innerHeight },
+      box: rect(box),
+      surround: rect(surround),
+      picture: at,
+      stages: stages.map((stage) => stage.getAttribute('data-backdrop-scene') ?? (stage.classList.contains('aquarium-stage') ? 'aquarium' : 'unknown')),
+      fish: surround.querySelectorAll('.aquarium-stage .aquarium-fish').length,
+      drawn,
+      onTop: hit !== null && (hit === picture || picture.contains(hit)),
+      solid: picture.matches('[data-backdrop-solid]') || picture.querySelector('[data-backdrop-solid]') !== null,
+      press: surround.hasAttribute('data-backdrop-press'),
+      under: Number(window.getComputedStyle(stages[0] ?? surround).zIndex),
+    };
+  }, pictureSelector);
+
+/** Holds what part 3 promises of a fullscreen picture of this shape, with this background chosen. */
+function assertStaged(now, shape, chosen, what) {
+  assert.ok(now !== null, `${what}: something is fullscreen`);
+  assert.equal(now.missing, undefined, `${what}: the fullscreen box has ${now.missing}`);
+  assert.ok(near(now.box.width, now.screen.w) && near(now.box.height, now.screen.h), `${what}: the box fills the screen (${now.box.width}x${now.box.height})`);
+  const is = now.picture.width / now.picture.height;
+  assert.ok(Math.abs(is - shape) / shape < 0.015, `${what}: the picture is the video's own shape (${is.toFixed(3)}, wanted ${shape.toFixed(3)})`);
+  assert.ok(near(now.picture.width, now.surround.width, 3) || near(now.picture.height, now.surround.height, 3), `${what}: as large as fits (${Math.round(now.picture.width)}x${Math.round(now.picture.height)} in ${Math.round(now.surround.width)}x${Math.round(now.surround.height)})`);
+  assert.ok(now.picture.width <= now.surround.width + 1 && now.picture.height <= now.surround.height + 1, `${what}: and never larger than its surround`);
+  assert.ok(near(now.picture.left - now.surround.left, now.surround.right - now.picture.right, 3) && near(now.picture.top - now.surround.top, now.surround.bottom - now.picture.bottom, 3), `${what}: in the middle`);
+  assert.deepEqual(now.stages, [chosen], `${what}: the chosen background, and only it, is drawn in the surround`);
+  assert.ok(now.under < 0, `${what}: under everything in the box`);
+  assert.ok(now.onTop, `${what}: the picture is over it`);
+  if (chosen === 'aquarium') assert.ok(now.fish > 0, `${what}: the sea has its fish (${now.fish})`);
+  // A copy on a stage starts from nothing each time: SAND has only a few grains in the air two seconds in, where the strips are narrow.
+  else if (chosen !== 'tile') assert.ok(now.drawn > 5, `${what}: the background is drawing (${now.drawn} cells)`);
+  assert.ok(now.solid, `${what}: the picture is marked solid for the background`);
+  assert.ok(now.press, `${what}: a press on the surround reaches the background`);
+  return `${Math.round(now.picture.width)}x${Math.round(now.picture.height)} on ${now.screen.w}x${now.screen.h}, ${chosen} round it`;
+}
 
 /** Keeps hold of the bar's one audio element, which is made outside the page's tree. */
 const HOOK = `(() => {
@@ -170,6 +233,11 @@ const floorOf = (page) =>
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   await context.addInitScript(HOOK);
   await context.addInitScript(SEED);
+  if (BACKDROP !== null) await context.addInitScript(`try { localStorage.setItem('debaser.site.backdrop.v1', ${JSON.stringify(BACKDROP)}); } catch (error) {}`);
+  // YouTube says its video is 4:3, whatever it is: the frame must take the shape it is told (part 3).
+  await context.route('https://www.youtube.com/oembed**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ type: 'video', title: 'A video said to be 4:3', width: 200, height: 150 }) }),
+  );
   writeTones();
   const page = await context.newPage();
   const errors = [];
@@ -311,6 +379,52 @@ const floorOf = (page) =>
       assert.ok(await page.evaluate(() => document.querySelector('[data-floating-player] video') === window.__sameVideo), 'the same player element throughout: nothing reloaded');
       pass('the video\'s keys work on the one floating player: PLAY, seek, mute, volume; and the PLAY key follows the player\'s own controls');
       await page.screenshot({ path: join(SHOTS, 'your-room-frame-video.png') });
+
+      console.log('FULL: the box goes fullscreen, the picture its own shape, the chosen background round it');
+      const chosen = await page.getAttribute('html', 'data-backdrop');
+      await page.locator('[data-own-room-full]').click();
+      await page.waitForFunction(() => document.fullscreenElement !== null && document.fullscreenElement.getAttribute('data-floating-stage') === 'full', null, { timeout: 8000 });
+      await sleep(2500);
+      const fileShape = await page.evaluate(() => window.__sameVideo.videoWidth / window.__sameVideo.videoHeight);
+      const fileFull = assertStaged(await stagedNow(page, 'video'), fileShape, chosen, 'your room, our own file');
+      assert.ok(await page.evaluate(() => document.fullscreenElement.querySelector('video') === window.__sameVideo && !window.__sameVideo.paused), 'the same player, still playing: nothing reloaded');
+      await page.screenshot({ path: join(SHOTS, `full-file-${chosen}.png`) });
+      await page.evaluate(() => document.exitFullscreen());
+      await page.waitForFunction(() => document.fullscreenElement === null && document.querySelector('[data-floating-stage]').getAttribute('data-floating-stage') === 'in-place', null, { timeout: 8000 });
+      await sleep(600);
+      const back = await page.evaluate(() => {
+        const layer = document.querySelector('[data-floating-player]').getBoundingClientRect();
+        const box = document.querySelector('[data-own-room-screen] [data-player-box]').getBoundingClientRect();
+        const video = document.querySelector('[data-floating-player] video').getBoundingClientRect();
+        return {
+          over: Math.abs(layer.left - box.left) < 3 && Math.abs(layer.top - box.top) < 3 && Math.abs(layer.width - box.width) < 3,
+          fills: Math.abs(video.width - layer.width) < 3 && Math.abs(video.height - layer.height) < 3,
+          stages: document.querySelectorAll('.backdrop-stage, .backdrop-stage-tile').length,
+          same: document.querySelector('[data-floating-player] video') === window.__sameVideo && !window.__sameVideo.paused,
+        };
+      });
+      assert.ok(back.over && back.fills, 'out of fullscreen, the video is over its box again and fills it');
+      assert.equal(back.stages, 0, 'and the copy of the background that was round it is gone');
+      assert.ok(back.same, 'the same player, still playing');
+      pass(`FULL on your room's own file: ${fileFull}; back as it was, never reloaded`);
+
+      // A double press on our own file is the same key: the box, never the browser's own fullscreen of the bare video (black bars).
+      const fileAt = await page.evaluate(() => {
+        const at = window.__sameVideo.getBoundingClientRect();
+        return { x: at.left + at.width / 2, y: at.top + at.height / 3 };
+      });
+      await page.mouse.dblclick(fileAt.x, fileAt.y, { delay: 30 });
+      await page.waitForFunction(() => document.fullscreenElement !== null, null, { timeout: 8000 });
+      await sleep(800);
+      assert.equal(await page.evaluate(() => document.fullscreenElement.getAttribute('data-floating-stage')), 'full', 'a double press on our own file puts its box in fullscreen, not the bare video');
+      // On the surround (the strip above the picture), a double press is the way out.
+      const strip = await page.evaluate(() => document.fullscreenElement.querySelector('video').getBoundingClientRect().top);
+      assert.ok(strip > 20, `there is a strip of background above the picture to press (${Math.round(strip)} pixels)`);
+      await page.mouse.dblclick(700, strip / 2, { delay: 30 });
+      await page.waitForFunction(() => document.fullscreenElement === null, null, { timeout: 8000 });
+      await sleep(600);
+      assert.ok(await page.evaluate(() => document.querySelector('[data-floating-player] video') === window.__sameVideo), 'the same player still');
+      pass('a double press on our own file: its box in fullscreen with the background; a double press on the surround comes back');
     }
 
     console.log('THE ROOM WINDOW LIFTS OFF THE MUSIC BAR');
@@ -420,6 +534,30 @@ const floorOf = (page) =>
     for (const side of ['left', 'top', 'width', 'height']) assert.ok(near(after.queueKey[side], before.queueKey[side]), `[ QUEUE ] is where it was (${side}: ${before.queueKey[side]} -> ${after.queueKey[side]})`);
     pass('GO LIVE: the same window, in the same place, the picture and [ QUEUE ] where they were; chat arrives and it says LIVE');
     await page.screenshot({ path: join(SHOTS, 'your-room-went-live.png') });
+
+    if (videoQueued) {
+      console.log('THE LIVE ROOM, FULL: the picture and its bar fill the screen, the background round the picture');
+      const chosen = await page.getAttribute('html', 'data-backdrop');
+      await page.waitForFunction(() => (document.querySelector('[data-room-picture] video')?.videoWidth ?? 0) > 0, null, { timeout: 20000 });
+      await page.evaluate(() => {
+        window.__roomVideo = document.querySelector('[data-room-picture] video');
+      });
+      await page.getByRole('button', { name: 'Fullscreen', exact: true }).first().click();
+      await page.waitForFunction(() => document.fullscreenElement !== null && document.fullscreenElement.querySelector('.stage-surround') !== null, null, { timeout: 8000 });
+      await sleep(2500);
+      const roomShape = await page.evaluate(() => window.__roomVideo.videoWidth / window.__roomVideo.videoHeight);
+      const roomNow = await stagedNow(page, 'video');
+      const roomFull = assertStaged(roomNow, roomShape, chosen, 'the live room');
+      assert.ok(roomNow.surround.bottom < roomNow.box.bottom - 10, `the bar of keys is along the foot of the screen, under the surround (${Math.round(roomNow.surround.bottom)} of ${Math.round(roomNow.box.bottom)})`);
+      assert.ok(await page.evaluate(() => document.fullscreenElement.querySelector('video') === window.__roomVideo), 'the same player: nothing reloaded');
+      await page.screenshot({ path: join(SHOTS, `full-room-${chosen}.png`) });
+      await page.getByRole('button', { name: 'Leave fullscreen', exact: true }).first().click();
+      await page.waitForFunction(() => document.fullscreenElement === null && document.querySelector('.stage-surround') === null, null, { timeout: 8000 });
+      await sleep(600);
+      assert.equal(await page.evaluate(() => document.querySelectorAll('.backdrop-stage, .backdrop-stage-tile').length), 0, 'out of fullscreen, the copy of the background is gone');
+      assert.ok(await page.evaluate(() => document.querySelector('[data-room-picture] video') === window.__roomVideo), 'and the room has the same player');
+      pass(`FULL in the live room: ${roomFull}, the bar under it; back as it was`);
+    }
 
     console.log('THE LIVE ROOM: [ _ ] IS PIP, THE PICTURE IS A HANDLE, THE TILE IS GONE');
     await page.locator(`${ROOM} button[aria-label^="Fold "]`).click();
@@ -548,6 +686,18 @@ const floorOf = (page) =>
           assert.ok(await page.evaluate(() => document.querySelector('[data-floating-player] iframe') === window.__frame && window.__loads === window.__loadsAtStart), 'the same frame throughout, never reloaded');
           pass('YouTube on your screen: PLAY, seek, mute and volume reach its own player, and the keys show what it says back; never reloaded');
           await page.screenshot({ path: join(SHOTS, 'your-room-frame-youtube.png') });
+
+          const chosen = await page.getAttribute('html', 'data-backdrop');
+          await page.locator('[data-own-room-full]').click();
+          await page.waitForFunction(() => document.fullscreenElement !== null && document.fullscreenElement.getAttribute('data-floating-stage') === 'full', null, { timeout: 8000 });
+          await sleep(2500);
+          const tubeFull = assertStaged(await stagedNow(page, 'iframe'), 4 / 3, chosen, 'your room, YouTube said to be 4:3');
+          await page.screenshot({ path: join(SHOTS, `full-youtube-${chosen}.png`) });
+          await page.evaluate(() => document.exitFullscreen());
+          await page.waitForFunction(() => document.fullscreenElement === null, null, { timeout: 8000 });
+          await sleep(600);
+          assert.ok(await page.evaluate(() => document.querySelector('[data-floating-player] iframe') === window.__frame && window.__loads === window.__loadsAtStart), 'in and out of fullscreen, the same frame, never reloaded');
+          pass(`FULL on YouTube's frame: ${tubeFull}; the frame is the shape YouTube says, so its player has no bars to draw`);
         }
         await page.locator(`${ROOM} button[aria-label="Close YOUR ROOM"]`).click();
         await page.locator('[data-floating-player]').getByRole('button', { name: /^Close "/ }).click().catch(() => undefined);
