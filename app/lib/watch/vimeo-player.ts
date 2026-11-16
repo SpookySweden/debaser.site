@@ -1,5 +1,5 @@
 import { EmbedPlayer, loadScript } from './embed-player';
-import { siteFullscreenWorks } from '../ui/floating-player';
+import { siteFullscreenWorks } from '../ui/site-fullscreen';
 import { vimeoUrl, type VimeoVideo } from './links';
 import { normaliseLanguage } from '../web/language';
 import type { SubtitleTrack } from '../web/subtitles';

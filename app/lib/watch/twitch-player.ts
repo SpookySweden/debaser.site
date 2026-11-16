@@ -1,5 +1,5 @@
 import { EmbedPlayer, loadScript } from './embed-player';
-import { siteFullscreenWorks } from '../ui/floating-player';
+import { siteFullscreenWorks } from '../ui/site-fullscreen';
 import type { TwitchTarget } from './links';
 import { AUTO_QUALITY, type QualityChoice, type QualityControl } from './playable';
 
