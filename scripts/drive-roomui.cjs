@@ -41,6 +41,9 @@ const ROOM = '[data-dock-window="stream"]';
 const ARCHIVE_EMBED = 'https://archive.org/embed/debaser-drive-ia';
 const ARCHIVE_FILE = 'https://archive.org/download/debaser-drive-ia/clip.webm';
 const ARCHIVE_UNREADABLE = 'https://archive.org/embed/debaser-drive-unreadable';
+/** ...and one whose first read is refused for now (503) and second answered. */
+const ARCHIVE_FLAKY = 'https://archive.org/embed/debaser-drive-flaky';
+const ARCHIVE_FLAKY_FILE = 'https://archive.org/download/debaser-drive-flaky/clip.webm';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 let passed = 0;
@@ -156,15 +159,19 @@ async function queueLink(page, url) {
     route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ title: 'DRIVE VIMEO', width: 640, height: 360 }) }),
   );
   // Item 5: our own series route answered here for the two test items, and the test file served at its Archive address.
+  let flakyAsks = 0;
   await context.route(/\/api\/web\/series\?ia=debaser-drive-/, (route) => {
-    const unreadable = route.request().url().includes('unreadable');
-    return route.fulfill(
-      unreadable
-        ? { status: 404, contentType: 'application/json', body: JSON.stringify({ error: 'NOTHING HERE PLAYS IN A ROOM.' }) }
-        : { status: 200, contentType: 'application/json', body: JSON.stringify({ title: 'DRIVE ARCHIVE', episodes: [{ title: 'clip', url: ARCHIVE_FILE, kind: 'file', seconds: 5 }], partial: false }) },
-    );
+    const asked = route.request().url();
+    const answer = (file) => ({ status: 200, contentType: 'application/json', body: JSON.stringify({ title: 'DRIVE ARCHIVE', episodes: [{ title: 'clip', url: file, kind: 'file', seconds: 5 }], partial: false }) });
+    if (asked.includes('unreadable')) return route.fulfill({ status: 404, contentType: 'application/json', body: JSON.stringify({ error: 'NOTHING HERE PLAYS IN A ROOM.' }) });
+    if (asked.includes('flaky')) {
+      flakyAsks += 1;
+      return route.fulfill(flakyAsks === 1 ? { status: 503, contentType: 'application/json', body: '{"error":"The platform did not answer."}' } : answer(ARCHIVE_FLAKY_FILE));
+    }
+    return route.fulfill(answer(ARCHIVE_FILE));
   });
   const clip = Buffer.from(await (await fetch(VIDEO)).arrayBuffer());
+  await context.route(ARCHIVE_FLAKY_FILE, (route) => route.fulfill({ status: 200, contentType: 'video/webm', headers: { 'access-control-allow-origin': '*' }, body: clip }));
   await context.route(ARCHIVE_FILE, (route) => route.fulfill({ status: 200, contentType: 'video/webm', headers: { 'access-control-allow-origin': '*' }, body: clip }));
   await context.route(/https:\/\/archive\.org\/embed\//, (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>stand-in</title><body style="background:#533"></body>' }));
   await context.route(/https:\/\/framatube\.org\//, (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>stand-in</title><body style="background:#353"></body>' }));
@@ -410,6 +417,14 @@ async function queueLink(page, url) {
       await page.waitForSelector(`${ROOM} iframe[data-watch-embed="embed"]`, { timeout: 30000 });
       assert.equal(await page.locator(`${ROOM} iframe[data-watch-embed="embed"]`).getAttribute('src'), ARCHIVE_UNREADABLE, 'an item that cannot be read: the Archive\'s own player, as before');
       pass('an Archive item that cannot be read still plays, in the Archive\'s own player');
+
+      // A read refused for now (too many asks, the Archive down): the Archive's player meanwhile, then the file once it answers.
+      await putOn(ARCHIVE_FLAKY);
+      await page.waitForSelector(`${ROOM} iframe[data-watch-embed="embed"]`, { timeout: 30000 });
+      await page.waitForSelector(`${ROOM} video[data-watch-video]`, { timeout: 30000 });
+      assert.equal(await page.evaluate((room) => document.querySelector(`${room} video[data-watch-video]`).getAttribute('src'), ROOM), ARCHIVE_FLAKY_FILE, 'asked again, it plays as its file');
+      assert.equal(await page.locator(`${ROOM} iframe[data-watch-embed]`).count(), 0, 'and the Archive player is gone');
+      pass('an Archive read refused for now: the Archive\'s player meanwhile, then the room\'s own player once it answers');
     }
 
     assert.deepEqual(errors, [], `no page errors (${errors.join(' | ')})`);

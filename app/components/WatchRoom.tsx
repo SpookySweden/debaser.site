@@ -1256,7 +1256,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     </button>
   ) : null;
   const floatKey =
-    link !== null && (officialOn || isEmbedKind(link.kind)) && song === null ? (
+    link !== null && !archiveRead.waiting && (officialOn || isEmbedKind(link.kind)) && song === null ? (
       <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Picture in picture: floats over the site" title="Floats over the site" onClick={pictureFloats ? expandWatch : onFloatPicture}>
         [ PIP ]
       </button>
@@ -1651,7 +1651,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
           videoRef={videoRef}
           live={live}
           nextTitle={live ? nextTitle : null}
-          notInStep={live && officialOn && entryId !== null ? { entryId, text: notInStepNote(serverOn) } : null}
+          notInStep={live && officialOn && !archiveRead.waiting && entryId !== null ? { entryId, text: notInStepNote(serverOn) } : null}
         />
       )}
       {queueOpen ? (
