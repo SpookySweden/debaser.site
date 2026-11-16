@@ -291,14 +291,16 @@ html[data-backdrop='tile'] .aquarium-key {
    to its left wider than the key, whatever the screen's height and whichever strips are showing. Narrower than that the
    window's corner is where the key would be, so it is not drawn (PREFERENCES still has its key). */
 @media (width < 96rem) {
-  .aquarium-key {
+  html:not([data-site-hidden='on']) .aquarium-key {
     display: none;
   }
 }
 
+/* (With the site window put away, HIDE WINDOW, there is no window for the key to sit under or beside: it shows at any
+   width and whatever FILL WINDOW says, since the background is all there is.) */
 @media (width >= theme(--breakpoint-md)) {
-  html[data-site-fill='on'] .aquarium-key,
-  html:has([data-page-fill]) .aquarium-key {
+  html[data-site-fill='on']:not([data-site-hidden='on']) .aquarium-key,
+  html:has([data-page-fill]):not([data-site-hidden='on']) .aquarium-key {
     display: none;
   }
 }

@@ -29,7 +29,7 @@ import {
   type FishPlan,
   type SimState,
 } from '../lib/aquarium/sim';
-import { backgroundCovered, pointerNow, setBackdropMeters, watchLiveValues, watchPointer } from '../lib/backdrops/runtime';
+import { backgroundCovered, onBareBackground, pointerNow, setBackdropMeters, watchLiveValues, watchPointer } from '../lib/backdrops/runtime';
 import { backdropState, subscribeToBackdrop, type BackdropState } from '../lib/ui/backdrop-slot';
 
 /**
@@ -148,7 +148,7 @@ function Sea({ settings, giant, hidden, still, stage }: { settings: AquariumSett
     const press = (event: PointerEvent) => {
       if (event.button !== 0 || !(event.target instanceof Element)) return;
       // On a stage (round a fullscreen picture) the bare sea is the picture's surround.
-      if (stage ? event.target.closest('[data-backdrop-press]') === null || event.target.closest('[data-backdrop-solid]') !== null : event.target.closest('[data-site-window="desk"]') === null || event.target.closest('[data-site-window="frame"]') !== null) return;
+      if (stage ? event.target.closest('[data-backdrop-press]') === null || event.target.closest('[data-backdrop-solid]') !== null : !onBareBackground(event.target)) return;
       const spot = toSea(event.clientX, event.clientY, true);
       if (spot === null || sim.current === null) return;
       if (now.current.settings.feed) dropPellet(sim.current, spot.x, spot.y);

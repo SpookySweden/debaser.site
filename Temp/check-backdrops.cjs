@@ -297,7 +297,57 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
   assert.equal(renderToString(React.createElement(StageBackdrop)), '', 'nor a background on a stage');
   const runtimeSource = fs.readFileSync('app/lib/backdrops/runtime.ts', 'utf8');
   assert.match(runtimeSource, /if \(document\.fullscreenElement !== null\) return true;/, 'the page`s own background rests while something is fullscreen');
+  // The site window put away (HIDE WINDOW; Luke, 2026-11-16: the background acted as if the window were still there).
+  {
+    const had = { document: globalThis.document, window: globalThis.window, Element: globalThis.Element };
+    class FakeElement {
+      constructor(inside = []) {
+        this.inside = inside;
+      }
+      closest(selector) {
+        return this.inside.includes(selector) ? this : null;
+      }
+    }
+    const marks = new Map();
+    const html = new FakeElement();
+    const body = new FakeElement();
+    html.getAttribute = (name) => marks.get(name) ?? null;
+    let filledPage = false;
+    globalThis.Element = FakeElement;
+    globalThis.document = { fullscreenElement: null, documentElement: html, body, querySelector: (selector) => (selector === '[data-page-fill]' && filledPage ? {} : null) };
+    globalThis.window = { matchMedia: () => ({ matches: true }) };
+    try {
+      const desk = new FakeElement(['[data-site-window="desk"]']);
+      const inWindow = new FakeElement(['[data-site-window="desk"]', '[data-site-window="frame"]']);
+      const dock = new FakeElement(['[data-dock-window]']);
+      assert.equal(runtime.onBareBackground(desk), true, 'a press on the desk round the site window is on the bare background');
+      assert.equal(runtime.onBareBackground(inWindow), false, 'one inside the site window is not');
+      assert.equal(runtime.onBareBackground(dock), false, 'nor one on a docked window');
+      assert.equal(runtime.onBareBackground(body), false, 'nor, with the window there, one that somehow reached the page`s body');
+      assert.equal(runtime.onBareBackground(null), false);
+      assert.equal(runtime.backgroundCovered(), false, 'the background shows round a window of the usual size');
+      marks.set('data-site-fill', 'on');
+      assert.equal(runtime.backgroundCovered(), true, 'FILL WINDOW covers it: it rests');
+      marks.set('data-site-hidden', 'on');
+      assert.equal(runtime.backgroundCovered(), false, 'put away, a filled window covers nothing: the background runs');
+      marks.delete('data-site-fill');
+      filledPage = true;
+      assert.equal(runtime.backgroundCovered(), false, 'nor does a page that fills by itself, put away');
+      assert.equal(runtime.onBareBackground(body), true, 'put away, the desk lets the pointer through: a press that lands on the page`s body is on the bare background');
+      assert.equal(runtime.onBareBackground(html), true, 'or on the page itself');
+      assert.equal(runtime.onBareBackground(dock), false, 'a docked window is still a window');
+      globalThis.document.fullscreenElement = {};
+      assert.equal(runtime.backgroundCovered(), true, 'something fullscreen still covers it, put away or not');
+    } finally {
+      globalThis.document = had.document;
+      globalThis.window = had.window;
+      globalThis.Element = had.Element;
+    }
+  }
   const canvasSource = fs.readFileSync('app/components/backdrops/CanvasBackdrop.tsx', 'utf8');
+  assert.match(canvasSource, /: onBareBackground\(target\);/, 'a simulated background takes its presses by that rule');
+  assert.match(fs.readFileSync('app/components/Aquarium.tsx', 'utf8'), /: !onBareBackground\(event\.target\)\) return;/, 'and so does the sea');
+  assert.match(canvasSource, /const stopHidden = stage \? \(\) => undefined : subscribeToSiteHidden\(again\);/, 'with motion off, the still frame is made again when the window is put away or brought back');
   assert.match(canvasSource, /covered = !stage && backgroundCovered\(\);/, 'and the copy on the stage does not');
 
   console.log('backdrops');

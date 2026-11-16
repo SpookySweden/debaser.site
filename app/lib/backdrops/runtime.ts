@@ -22,6 +22,23 @@ const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
 const calm = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(REDUCED_MOTION).matches;
 const seconds = () => (typeof performance === 'undefined' ? 0 : performance.now() / 1000);
 
+/** The reader has put the site window away (`app/lib/ui/site-hidden.ts` writes this mark on `<html>`; the stylesheet hides the window from it). */
+function siteWindowAway(): boolean {
+  return document.documentElement.getAttribute('data-site-hidden') === 'on';
+}
+
+/**
+ * Whether a press landed on the bare background and nothing else: the desk round the site window, never the window, a
+ * docked window, a strip or a key. With the site window put away the desk lets the pointer through (so the page under it
+ * can be reached), and a press on the background then lands on the page's own body: that is the bare background too.
+ */
+export function onBareBackground(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  if (target.closest('[data-site-window="frame"]') !== null) return false;
+  if (target.closest('[data-site-window="desk"]') !== null) return true;
+  return siteWindowAway() && (target === document.body || target === document.documentElement);
+}
+
 /**
  * True while nothing of the page's background can be seen: something is fullscreen, or the site window fills the screen (the
  * reader's FILL WINDOW, or a page that fills by itself), from the width those apply at. A background's loop rests while this is so. Asked now and then, not a frame.
@@ -30,6 +47,9 @@ export function backgroundCovered(): boolean {
   // Something is fullscreen (a video): only what is inside it shows. The copy of the background drawn inside it
   // (`StageBackdrop`) does not ask this.
   if (document.fullscreenElement !== null) return true;
+  // The site window put away (HIDE WINDOW): the background is all there is to see, whatever FILL WINDOW says and whatever
+  // page this is. (It used to rest here as if the filled window were still over it.)
+  if (siteWindowAway()) return false;
   if (!window.matchMedia('(min-width: 768px)').matches) return false;
   return document.documentElement.getAttribute('data-site-fill') === 'on' || document.querySelector('[data-page-fill]') !== null;
 }

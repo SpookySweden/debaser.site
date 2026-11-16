@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { DYES, pixelFromHex, type Box, type Engine, type EngineEnv, type Palette } from '../../lib/backdrops/engine';
-import { backgroundCovered, liveValues, onBackdropAction, pointerNow, setBackdropMeters, watchLiveValues, watchPointer } from '../../lib/backdrops/runtime';
+import { backgroundCovered, liveValues, onBackdropAction, onBareBackground, pointerNow, setBackdropMeters, watchLiveValues, watchPointer } from '../../lib/backdrops/runtime';
+import { subscribeToSiteHidden } from '../../lib/ui/site-hidden';
 import { backdropValues, subscribeToBackdropScenes } from '../../lib/backdrops/store';
 import { backdropState, subscribeToBackdrop, type BackdropState } from '../../lib/ui/backdrop-slot';
 
@@ -113,7 +114,7 @@ function Running<State>({ engine, still, stage }: { engine: Engine<State>; still
 
     // A press counts on the bare background: the desk round the site window, or (on a stage) the surround of a fullscreen picture.
     const onBare = (target: EventTarget | null) =>
-      target instanceof Element && (stage ? target.closest('[data-backdrop-press]') !== null && target.closest('[data-backdrop-solid]') === null : target.closest('[data-site-window="desk"]') !== null && target.closest('[data-site-window="frame"]') === null);
+      stage ? target instanceof Element && target.closest('[data-backdrop-press]') !== null && target.closest('[data-backdrop-solid]') === null : onBareBackground(target);
     const press = (event: PointerEvent) => {
       if (event.button !== 0 || !onBare(event.target)) return;
       held = true;
@@ -149,10 +150,14 @@ function Running<State>({ engine, still, stage }: { engine: Engine<State>; still
         }, 200);
       };
       const stopScenes = subscribeToBackdropScenes(again);
+      // The site window put away or brought back changes what is solid: the still frame is made again (it kept the
+      // window's shape cut out of it, with sand heaped on a window that was no longer there).
+      const stopHidden = stage ? () => undefined : subscribeToSiteHidden(again);
       window.addEventListener('resize', again);
       return () => {
         if (waiting !== null) clearTimeout(waiting);
         stopScenes();
+        stopHidden();
         window.removeEventListener('resize', again);
         stopActions();
       };

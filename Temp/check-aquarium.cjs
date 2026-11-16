@@ -548,7 +548,9 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
   assert.match(fs.readFileSync('app/components/ThemeHost.tsx', 'utf8'), /useEffect\(\(\) => initBackdrop\(\), \[\]\)/, 'the choice is applied on mount');
   const sea = fs.readFileSync('app/components/Aquarium.tsx', 'utf8');
   assert.match(sea, /if \(hidden \|\| still\) return;/, 'the loop never runs in a hidden tab or with motion off');
-  assert.match(sea, /closest\('\[data-site-window="desk"\]'\) === null \|\| event\.target\.closest\('\[data-site-window="frame"\]'\) !== null\) return;/, 'a click only counts on the bare sea, never on the page');
+  // The rule itself is `onBareBackground` (runtime.ts), held by behaviour in check-backdrops.cjs since 2026-11-16 (it also
+  // has to count a press with the site window put away, which lands on the page's body).
+  assert.match(sea, /: !onBareBackground\(event\.target\)\) return;/, 'a click only counts on the bare sea, never on the page');
   assert.doesNotMatch(sea, /useState<Sim|setFish|setState\(/, 'where a fish is, is never React state');
 
   /* ---------------------------------------------------------------- 7. the pictures and the stylesheet */
@@ -574,7 +576,8 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
   assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{\s*\.aquarium-fish,\s*\.aquarium-bubble \{\s*display: none;/, 'motion off: no fish, no bubbles');
   assert.match(css, /\.aquarium\[data-aquarium='paused'\] \*,\s*\.aquarium-stage\[data-aquarium='paused'\] \* \{\s*animation-play-state: paused;/, 'a hidden tab pauses them (on a stage too)');
   assert.match(css, /html:not\(\[data-backdrop\]\) \.aquarium-key,\s*html\[data-backdrop='tile'\] \.aquarium-key \{\s*display: none;/, 'the key on the background is not shown on TILE');
-  assert.match(css, /html\[data-site-fill='on'\] \.aquarium-key,\s*html:has\(\[data-page-fill\]\) \.aquarium-key \{\s*display: none;/, 'and stands aside when the site window fills the screen');
+  // Since 2026-11-16 these stand aside only while the site window is there: put away (HIDE WINDOW), the key shows.
+  assert.match(css, /html\[data-site-fill='on'\]:not\(\[data-site-hidden='on'\]\) \.aquarium-key,\s*html:has\(\[data-page-fill\]\):not\(\[data-site-hidden='on'\]\) \.aquarium-key \{\s*display: none;/, 'and stands aside when the site window fills the screen');
   assert.match(fs.readFileSync('app/components/SiteWindow.tsx', 'utf8'), /data-page-fill=\{fill \? '' : undefined\}/, 'which a page that fills by itself says');
   assert.match(fs.readFileSync('app/theme/tokens.css', 'utf8'), /--z-index-backdrop: -1;/, 'the layer sits under the page');
 
