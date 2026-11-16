@@ -631,8 +631,12 @@ test('CytubePage: a tab key writes the address, and ROOMS clears it', () => {
 test('CytubePage: GO LIVE alone starts nothing; hosting already, the same key goes back to it', async () => {
   let html = draw(el(CytubePage));
   assert.match(openingTag(html, '[ GO LIVE ]'), /data-cytube-go-live="new"/);
-  press('[ GO LIVE ]');
-  await tick();
+  // Updated on purpose 2026-11-16 (list 3, ROOMS): pressed before your room is read, GO LIVE waits for it with a timer on
+  // `window` (never a separate room), so the press runs in the fake browser like every other press that touches the page.
+  await inBrowser(fakeBrowser(), async () => {
+    press('[ GO LIVE ]');
+    await tick();
+  });
   assert.deepEqual(said('goLiveEmpty'), [], 'one press is not a room');
 
   asked = [];
