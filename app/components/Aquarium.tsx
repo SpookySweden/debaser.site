@@ -93,7 +93,7 @@ function fishStyles(plan: FishPlan, settings: AquariumSettings, n: number): { bo
   };
 }
 
-function Sea({ settings, giant, hidden, still }: { settings: AquariumSettings; giant: boolean; hidden: boolean; still: boolean }) {
+function Sea({ settings, giant, hidden, still, stage }: { settings: AquariumSettings; giant: boolean; hidden: boolean; still: boolean; stage: boolean }) {
   const [screen, setScreen] = useState<Size | null>(null);
   useEffect(() => {
     const measure = () => setScreen({ w: window.innerWidth, h: window.innerHeight });
@@ -147,7 +147,8 @@ function Sea({ settings, giant, hidden, still }: { settings: AquariumSettings; g
     if (!takesClicks) return;
     const press = (event: PointerEvent) => {
       if (event.button !== 0 || !(event.target instanceof Element)) return;
-      if (event.target.closest('[data-site-window="desk"]') === null || event.target.closest('[data-site-window="frame"]') !== null) return;
+      // On a stage (round a fullscreen picture) the bare sea is the picture's surround.
+      if (stage ? event.target.closest('[data-backdrop-press]') === null || event.target.closest('[data-backdrop-solid]') !== null : event.target.closest('[data-site-window="desk"]') === null || event.target.closest('[data-site-window="frame"]') !== null) return;
       const spot = toSea(event.clientX, event.clientY, true);
       if (spot === null || sim.current === null) return;
       if (now.current.settings.feed) dropPellet(sim.current, spot.x, spot.y);
@@ -156,7 +157,7 @@ function Sea({ settings, giant, hidden, still }: { settings: AquariumSettings; g
     document.addEventListener('pointerdown', press);
     return () => document.removeEventListener('pointerdown', press);
     // (`toSea` reads refs only, so it is not something to re-run for.)
-  }, [takesClicks]);
+  }, [takesClicks, stage]);
 
   // The one loop.
   useEffect(() => {
@@ -258,7 +259,7 @@ function Sea({ settings, giant, hidden, still }: { settings: AquariumSettings; g
       // In the TINY TANK the fish only mind a pointer that is over the tank.
       // Nothing of the sea shows while the site window fills the screen: it rests until there is something to see.
       ticks += 1;
-      if (ticks % 15 === 1) covered = backgroundCovered();
+      if (ticks % 15 === 1) covered = !stage && backgroundCovered();
       if (covered) return;
       const real = s.pointer !== 'ignore' || s.wake ? pointerNow() : null;
       const at = real === null ? null : toSea(real.x, real.y, s.tiny);
@@ -282,14 +283,14 @@ function Sea({ settings, giant, hidden, still }: { settings: AquariumSettings; g
       setBackdropMeters([]);
     };
     // (The loop reads everything else through `now`.)
-  }, [hidden, still]);
+  }, [hidden, still, stage]);
 
   const flipped = settings.mirror || settings.upsideDown;
 
   return (
     <div
       aria-hidden="true"
-      className="aquarium z-backdrop"
+      className={stage ? 'aquarium-stage backdrop-stage' : 'aquarium z-backdrop'}
       data-aquarium={hidden ? 'paused' : still ? 'still' : 'on'}
       data-aquarium-fish-count={still ? 0 : plan.length}
     >
@@ -394,7 +395,11 @@ function Sea({ settings, giant, hidden, still }: { settings: AquariumSettings; g
   );
 }
 
-export default function Aquarium() {
+/**
+ * `stage`: drawn inside the box it is put in (the surround of a fullscreen picture) instead of fixed behind the page; see
+ * `./backdrops/Backdrops.tsx`, `StageBackdrop`.
+ */
+export default function Aquarium({ stage = false }: { stage?: boolean }) {
   // Nothing on the server or while hydrating: the server cannot know what this browser chose.
   const chosen = useSyncExternalStore<BackdropState | null>(subscribeToBackdrop, backdropState, () => null);
   // The settings this instant: a swaying or bouncing knob moves them several times a second.
@@ -415,5 +420,5 @@ export default function Aquarium() {
 
   if (!on) return null;
 
-  return <Sea settings={settings} giant={giant} hidden={hidden} still={still} />;
+  return <Sea settings={settings} giant={giant} hidden={hidden} still={still} stage={stage} />;
 }

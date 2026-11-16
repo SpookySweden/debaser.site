@@ -292,6 +292,14 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
     assert.ok(require(path.join(OUT, 'lib/ui/backdrop-slot.js')).BACKDROPS.some((row) => row.id === def.id), `and offered in PREFERENCES`);
   }
 
+  // On a stage (the surround of a fullscreen picture): still nothing from the server.
+  const { StageBackdrop } = require('./backdrops-out/components/backdrops/Backdrops.js');
+  assert.equal(renderToString(React.createElement(StageBackdrop)), '', 'nor a background on a stage');
+  const runtimeSource = fs.readFileSync('app/lib/backdrops/runtime.ts', 'utf8');
+  assert.match(runtimeSource, /if \(document\.fullscreenElement !== null\) return true;/, 'the page`s own background rests while something is fullscreen');
+  const canvasSource = fs.readFileSync('app/components/backdrops/CanvasBackdrop.tsx', 'utf8');
+  assert.match(canvasSource, /covered = !stage && backgroundCovered\(\);/, 'and the copy on the stage does not');
+
   console.log('backdrops');
   console.log('  machinery : bands, rolls, parties, locks, morphs on a made-up background and every real one');
   console.log('  motion    : sway between its marks on its steps; a bouncing puck stays on its pad');

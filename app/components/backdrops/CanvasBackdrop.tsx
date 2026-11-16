@@ -39,17 +39,21 @@ function readPalette(): Palette {
   return palette;
 }
 
-/** What is solid on the page just now, in cells: the site window, the docked windows, and the strips along the top and bottom. */
-function readSolids(cell: number, w: number, h: number): Box[] {
+/**
+ * What is solid just now, in cells. Behind the page: the site window, the docked windows, and the strips along the top and
+ * bottom. On a stage (round a fullscreen video): whatever in the fullscreen box is marked `data-backdrop-solid`, the picture.
+ */
+function readSolids(cell: number, w: number, h: number, stage: boolean): Box[] {
   const boxes: Box[] = [];
   const add = (left: number, top: number, right: number, bottom: number) => {
     const box = { x0: Math.max(0, Math.floor(left / cell)), y0: Math.max(0, Math.floor(top / cell)), x1: Math.min(w, Math.ceil(right / cell)), y1: Math.min(h, Math.ceil(bottom / cell)) };
     if (box.x1 > box.x0 && box.y1 > box.y0) boxes.push(box);
   };
-  for (const element of document.querySelectorAll('[data-site-window="frame"], [data-dock-window]')) {
+  for (const element of document.querySelectorAll(stage ? '[data-backdrop-solid]' : '[data-site-window="frame"], [data-dock-window]')) {
     const rect = element.getBoundingClientRect();
     if (rect.width > 0 && rect.height > 0) add(rect.left, rect.top, rect.right, rect.bottom);
   }
+  if (stage) return boxes;
   const root = document.documentElement.style;
   const top = parseFloat(root.getPropertyValue('--top-bar')) || 0;
   const bottom = parseFloat(root.getPropertyValue('--bottom-bar')) || 0;
@@ -60,7 +64,7 @@ function readSolids(cell: number, w: number, h: number): Box[] {
 
 const sameBoxes = (a: readonly Box[], b: readonly Box[]) => a.length === b.length && a.every((box, n) => box.x0 === b[n].x0 && box.y0 === b[n].y0 && box.x1 === b[n].x1 && box.y1 === b[n].y1);
 
-function Running<State>({ engine, still }: { engine: Engine<State>; still: boolean }) {
+function Running<State>({ engine, still, stage }: { engine: Engine<State>; still: boolean; stage: boolean }) {
   const canvas = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -89,7 +93,7 @@ function Running<State>({ engine, still }: { engine: Engine<State>; still: boole
       // A whole number of screen pixels a cell: the grid may hang a little over the right and bottom edges, never squeezed to fit.
       element.style.width = `${w * cell}px`;
       element.style.height = `${h * cell}px`;
-      env = { w, h, pointer: null, solids: readSolids(cell, w, h), random: Math.random };
+      env = { w, h, pointer: null, solids: readSolids(cell, w, h, stage), random: Math.random };
       state = engine.init(env, values);
       image = context.createImageData(w, h);
       pixels = new Uint32Array(image.data.buffer);
@@ -101,7 +105,9 @@ function Running<State>({ engine, still }: { engine: Engine<State>; still: boole
     };
     build();
 
-    const onBare = (target: EventTarget | null) => target instanceof Element && target.closest('[data-site-window="desk"]') !== null && target.closest('[data-site-window="frame"]') === null;
+    // A press counts on the bare background: the desk round the site window, or (on a stage) the surround of a fullscreen picture.
+    const onBare = (target: EventTarget | null) =>
+      target instanceof Element && (stage ? target.closest('[data-backdrop-press]') !== null && target.closest('[data-backdrop-solid]') === null : target.closest('[data-site-window="desk"]') !== null && target.closest('[data-site-window="frame"]') === null);
     const press = (event: PointerEvent) => {
       if (event.button !== 0 || !onBare(event.target)) return;
       held = true;
@@ -182,12 +188,12 @@ function Running<State>({ engine, still }: { engine: Engine<State>; still: boole
       const steps = Math.min(3, Math.floor(owed / step));
       owed = Math.min(step, owed - steps * step);
       ticks += 1;
-      if (ticks % 20 === 1) covered = backgroundCovered();
+      if (ticks % 20 === 1) covered = !stage && backgroundCovered();
       if (covered) return;
       // Where the page is solid is looked up twice a second, never a frame: windows move seldom, and measuring costs.
       if (time - looked > 500) {
         looked = time;
-        const solids = readSolids(cell, env.w, env.h);
+        const solids = readSolids(cell, env.w, env.h, stage);
         if (!sameBoxes(solids, env.solids)) env = { ...env, solids };
       }
       const spot = pointerNow();
@@ -212,16 +218,20 @@ function Running<State>({ engine, still }: { engine: Engine<State>; still: boole
       window.removeEventListener('resize', build);
       setBackdropMeters([]);
     };
-  }, [engine, still]);
+  }, [engine, still, stage]);
 
   return (
-    <div aria-hidden="true" className="aquarium z-backdrop" data-backdrop-scene={engine.id} data-backdrop-running={still ? 'still' : 'on'}>
+    <div aria-hidden="true" className={stage ? 'backdrop-stage' : 'aquarium z-backdrop'} data-backdrop-scene={engine.id} data-backdrop-running={still ? 'still' : 'on'}>
       <canvas ref={canvas} className="backdrop-canvas" />
     </div>
   );
 }
 
-export default function CanvasBackdrop<State>({ engine }: { engine: Engine<State> }) {
+/**
+ * `stage`: drawn inside the box it is put in (the surround of a fullscreen picture), filling it, instead of fixed behind the
+ * page. A stage copy runs while the page's own copy rests (nothing of the page shows in fullscreen).
+ */
+export default function CanvasBackdrop<State>({ engine, stage = false }: { engine: Engine<State>; stage?: boolean }) {
   // Nothing on the server or while hydrating: the server cannot know what this browser chose.
   const chosen = useSyncExternalStore<BackdropState | null>(subscribeToBackdrop, backdropState, () => null);
   const still = useSyncExternalStore(subscribeToReducedMotion, reducedMotion, () => false);
@@ -230,5 +240,5 @@ export default function CanvasBackdrop<State>({ engine }: { engine: Engine<State
 
   if (!on) return null;
 
-  return <Running engine={engine} still={still} />;
+  return <Running engine={engine} still={still} stage={stage} />;
 }

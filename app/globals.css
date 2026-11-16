@@ -109,6 +109,7 @@ html[data-backdrop]:not([data-backdrop='tile']) [data-site-window='desk'] {
 }
 
 .aquarium img,
+.aquarium-stage img,
 .aquarium-sprite,
 .aquarium-bubble {
   image-rendering: pixelated;
@@ -126,6 +127,20 @@ html[data-backdrop]:not([data-backdrop='tile']) [data-site-window='desk'] {
   top: 0;
   left: 0;
   image-rendering: pixelated;
+}
+
+/* The chosen background on a stage: filling a box it is put in (the surround of a fullscreen picture, Backdrops.tsx
+   `StageBackdrop`) instead of fixed behind the page. The box is positioned, and everything else in it is drawn over this. */
+.backdrop-stage,
+.backdrop-stage-tile {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.backdrop-stage {
+  background-color: var(--dye-black);
 }
 
 /* A fish: put in place by the loop, out of sight until it has been. */
@@ -183,7 +198,8 @@ html[data-backdrop]:not([data-backdrop='tile']) [data-site-window='desk'] {
   background-color: var(--dye-black);
 }
 
-.aquarium[data-aquarium='paused'] * {
+.aquarium[data-aquarium='paused'] *,
+.aquarium-stage[data-aquarium='paused'] * {
   animation-play-state: paused;
 }
 

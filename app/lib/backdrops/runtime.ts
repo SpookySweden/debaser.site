@@ -23,10 +23,13 @@ const calm = () => typeof window !== 'undefined' && typeof window.matchMedia ===
 const seconds = () => (typeof performance === 'undefined' ? 0 : performance.now() / 1000);
 
 /**
- * True while nothing of the background can be seen: the site window fills the screen (the reader's FILL WINDOW, or a page that
- * fills by itself), from the width those apply at. A background's loop rests while this is so. Asked now and then, not a frame.
+ * True while nothing of the page's background can be seen: something is fullscreen, or the site window fills the screen (the
+ * reader's FILL WINDOW, or a page that fills by itself), from the width those apply at. A background's loop rests while this is so. Asked now and then, not a frame.
  */
 export function backgroundCovered(): boolean {
+  // Something is fullscreen (a video): only what is inside it shows. The copy of the background drawn inside it
+  // (`StageBackdrop`) does not ask this.
+  if (document.fullscreenElement !== null) return true;
   if (!window.matchMedia('(min-width: 768px)').matches) return false;
   return document.documentElement.getAttribute('data-site-fill') === 'on' || document.querySelector('[data-page-fill]') !== null;
 }

@@ -572,7 +572,7 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
   assert.match(css, /html\[data-backdrop\]:not\(\[data-backdrop='tile'\]\) \[data-site-window='desk'\] \{\s*background: none;/, 'the desk lets go of its tile for any background but TILE');
   assert.match(css, /html\[data-backdrop\]:not\(\[data-backdrop='tile'\]\) body \{\s*background: var\(--dye-black\);/, 'and the canvas is the sea before the fish arrive');
   assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{\s*\.aquarium-fish,\s*\.aquarium-bubble \{\s*display: none;/, 'motion off: no fish, no bubbles');
-  assert.match(css, /\.aquarium\[data-aquarium='paused'\] \* \{\s*animation-play-state: paused;/, 'a hidden tab pauses them');
+  assert.match(css, /\.aquarium\[data-aquarium='paused'\] \*,\s*\.aquarium-stage\[data-aquarium='paused'\] \* \{\s*animation-play-state: paused;/, 'a hidden tab pauses them (on a stage too)');
   assert.match(css, /html:not\(\[data-backdrop\]\) \.aquarium-key,\s*html\[data-backdrop='tile'\] \.aquarium-key \{\s*display: none;/, 'the key on the background is not shown on TILE');
   assert.match(css, /html\[data-site-fill='on'\] \.aquarium-key,\s*html:has\(\[data-page-fill\]\) \.aquarium-key \{\s*display: none;/, 'and stands aside when the site window fills the screen');
   assert.match(fs.readFileSync('app/components/SiteWindow.tsx', 'utf8'), /data-page-fill=\{fill \? '' : undefined\}/, 'which a page that fills by itself says');
