@@ -1307,7 +1307,11 @@ test('WebStream: a row names its source, its words as text, and links only where
   const words = visible(html);
   // Updated on purpose 2026-11-14 (Luke's list M5-M11): OPEN is a small ↗ in the picture's corner, DISCUSS is the pen alone,
   // PLAY is the first half of one key, and the other copies fold open under `[ ALSO ON ▾ ]` (drawn, hidden, while shut).
-  for (const word of ['A Train Film', 'Prelinger', 'YOUTUBE · VIDEO', '2026-10-01', '[ ▶ PLAY │ + QUEUE ]', '[ ✎ ]', '[ ALSO ON ▾ ]', '[ VIMEO ↗ ]']) assert.ok(words.includes(word), word);
+  // Updated on purpose 2026-11-16 (Luke: "only play and queue, with an arrow on the same row beside them that reveals the rest
+  // of the options"): the pen and ALSO ON wait behind the row's arrow, which starts folded.
+  for (const word of ['A Train Film', 'Prelinger', 'YOUTUBE · VIDEO', '2026-10-01', '[ ▶ PLAY │ + QUEUE ]', '[ VIMEO ↗ ]']) assert.ok(words.includes(word), word);
+  assert.ok(words.includes('[ ◂ ]') || words.includes('[ ▸ ]'), 'the row has its arrow');
+  assert.ok(!words.includes('[ ✎ ]') && !words.includes('[ ALSO ON ▾ ]'), 'the rest waits behind it');
   assert.match(html, new RegExp(`<a href="https://youtu\\.be/${YT_ID}"[^>]*aria-label="Open &quot;A Train Film&quot; on YOUTUBE \\(new tab\\)"[^>]*data-thumb-open`), 'the corner key, and it says where it goes');
   assert.match(html, /<div id="[^"]*-also" hidden=""/, 'the other copies are folded until asked for');
   assert.ok(html.includes(`src="https://i.ytimg.com/vi/${YT_ID}/hqdefault.jpg"`) && html.includes('referrerPolicy="no-referrer"'));
@@ -1358,7 +1362,8 @@ test('WebStream: a book reads at /read, READ first where OPEN was', () => {
   assert.ok(!words.includes('[ ▶ PLAY ]'), 'no player in the row');
   // Updated on purpose 2026-11-14 (Luke's list M8): the way out to the source is the ↗ in the picture's corner, so READ is
   // the row's first key.
-  assert.ok(words.indexOf('[ READ ]') >= 0 && words.indexOf('[ READ ]') < words.indexOf('[ ✎'), 'READ is the first key');
+  // Updated on purpose 2026-11-16 (Luke: only the main keys and an arrow): the pen waits behind the arrow, so READ comes before it.
+  assert.ok(words.indexOf('[ READ ]') >= 0 && words.indexOf('[ READ ]') < Math.max(words.indexOf('[ ◂ ]'), words.indexOf('[ ▸ ]')), 'READ is the first key');
   assert.match(html, /<a href="https:\/\/archive\.org\/details\/book"[^>]*data-thumb-open/, 'OPEN is the corner key');
   assert.equal(floating.floatingState().entry, null, 'nothing floats');
 });

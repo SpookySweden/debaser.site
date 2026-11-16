@@ -45,9 +45,14 @@ function parseScene(def: BackdropDef, raw: unknown): Scene {
   return { values: parseValues(def, raw), extras: { locks: parseLocks(def, held._locks), sway: parseSway(def, held._sway) } };
 }
 
-/** A background's settings as they are stored: the values, with the locks and sways beside them when there are any. */
-function sceneObject(scene: Scene): Record<string, unknown> {
-  const stored: Record<string, unknown> = { ...scene.values };
+/**
+ * A background's settings as they are stored: the values, with the locks and sways beside them when there are any. `lean`
+ * leaves out every value that is as the background comes (reading it back fills them in), which is how the account's row is
+ * written: five backgrounds of every knob would be most of the 4 KB the database allows it.
+ */
+function sceneObject(scene: Scene, lean?: BackdropDef): Record<string, unknown> {
+  const stored: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(scene.values)) if (lean === undefined || lean.defaults[key] !== value) stored[key] = value;
   if (scene.extras.locks.length > 0) stored._locks = scene.extras.locks;
   if (Object.keys(scene.extras.sway).length > 0) stored._sway = scene.extras.sway;
   return stored;
@@ -63,11 +68,36 @@ export function parseSavedBackdrops(raw: unknown): SavedBackdrops {
   return { scenes, backdrop };
 }
 
-/** The row as it is saved. */
-function rowObject(saved: SavedBackdrops): Record<string, unknown> {
-  const scenes: Record<string, unknown> = {};
-  for (const def of BACKDROP_DEFS) if (def.id !== 'aquarium' && saved.scenes[def.id] !== undefined) scenes[def.id] = sceneObject(saved.scenes[def.id]);
-  return { ...sceneObject(saved.scenes.aquarium), backdrop: saved.backdrop, ...(Object.keys(scenes).length > 0 ? { scenes } : {}) };
+/** The most the account's row is let grow to, as text: well inside the 4096 bytes the table's check allows. */
+export const ROW_ROOM = 3400;
+
+/**
+ * The row as it is saved: lean (see `sceneObject`), and if somebody has swayed and locked so much that it would still be too
+ * big for the table, the sways and then the locks of the backgrounds that are not on are left out, so a save is never refused.
+ */
+export function rowObject(saved: SavedBackdrops): Record<string, unknown> {
+  const build = (skip: (id: string, what: '_sway' | '_locks') => boolean): Record<string, unknown> => {
+    const scenes: Record<string, unknown> = {};
+    let top: Record<string, unknown> = {};
+    for (const def of BACKDROP_DEFS) {
+      const scene = saved.scenes[def.id];
+      if (scene === undefined) continue;
+      const stored = sceneObject(scene, def);
+      if (skip(def.id, '_sway')) delete stored._sway;
+      if (skip(def.id, '_locks')) delete stored._locks;
+      if (def.id === 'aquarium') top = stored;
+      else if (Object.keys(stored).length > 0) scenes[def.id] = stored;
+    }
+    return { v: 1, ...top, backdrop: saved.backdrop, ...(Object.keys(scenes).length > 0 ? { scenes } : {}) };
+  };
+  const fits = (row: Record<string, unknown>) => JSON.stringify(row).length <= ROW_ROOM;
+  const off = (id: string) => id !== saved.backdrop;
+  const tries: ((id: string, what: '_sway' | '_locks') => boolean)[] = [() => false, (id, what) => off(id) && what === '_sway', (id) => off(id), (_id, what) => what === '_sway', () => true];
+  for (const skip of tries) {
+    const row = build(skip);
+    if (fits(row)) return row;
+  }
+  return build(() => true);
 }
 
 const MOCK_KEY = 'debaser.aquarium.mock.v1';
@@ -178,6 +208,8 @@ export const serverBackdropSaveFailed = (): boolean => false;
 let account: string | null = null;
 /** Bumped by every change, so an answer that was already on its way can't overwrite what somebody has just set. */
 let changes = 0;
+/** Which backgrounds have been changed here since the account began to be read (`'backdrop'` for the choice itself). */
+const touched = new Set<string>();
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 /** Set while the account's own copy is being put on, so that doing so isn't taken for a change to save back. */
 let applying = false;
@@ -247,12 +279,24 @@ export async function setBackdropAccount(person: string | null): Promise<void> {
   const keeper = store();
   if (person === null || keeper === null) return;
   const before = changes;
+  touched.clear();
   try {
     const saved = await keeper.read(person);
-    // Somebody who changed a knob while the account was being read keeps what they just set: it is saved over the account's copy.
-    if (account !== person || changes !== before) return;
+    if (account !== person) return;
     const owner = browserOwner();
     setBrowserOwner(person);
+    if (changes !== before) {
+      // Somebody changed a knob while the account was being read. What they touched stays as they set it; every other
+      // background is the account's, so a quick hand on one slider can't wipe the rest of what the account held.
+      if (saved !== null) {
+        const held = scenesSlot.state();
+        const merged: Record<string, Scene> = {};
+        for (const def of BACKDROP_DEFS) merged[def.id] = touched.has(def.id) ? held[def.id] : (saved.scenes[def.id] ?? held[def.id]);
+        applyScenes(merged, touched.has('backdrop') ? backdropState().id : saved.backdrop);
+        saveSoon();
+      }
+      return;
+    }
     if (saved !== null) {
       applyScenes(saved.scenes, saved.backdrop);
       return;
@@ -270,6 +314,7 @@ export async function setBackdropAccount(person: string | null): Promise<void> {
 
 function setScene(id: string, scene: Scene): void {
   changes += 1;
+  touched.add(id);
   scenesSlot.set({ ...scenesSlot.state(), [id]: scene });
   writeBrowser(id, scene);
   saveSoon();
@@ -310,6 +355,7 @@ if (typeof window !== 'undefined') {
   subscribeToBackdrop(() => {
     if (applying) return;
     changes += 1;
+    touched.add('backdrop');
     saveSoon();
   });
   // A tab being put away may never get to its timer. (Best effort: a browser may drop a request made this late, and then the

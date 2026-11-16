@@ -170,7 +170,7 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
 
   await store.setBackdropAccount('person-a');
   const row = JSON.parse(stored.get('debaser.aquarium.mock.v1'))['person-a'];
-  assert.deepEqual([row._locks, row._sway, row.backdrop, row.count], [['count'], { speed: [0.5, 2] }, 'aquarium', 4], 'signing in carries the locks and sways to the account with the values');
+  assert.deepEqual([row._locks, row._sway, row.backdrop, row.count], [['count'], { speed: [0.5, 2] }, 'aquarium', undefined], 'signing in carries the locks and sways to the account (a knob that is as it comes is left out of the row)');
   store.setBackdropSway('aquarium', 'speed', null);
   store.setBackdropLock('aquarium', 'size', true);
   store.flushBackdropSave();
@@ -185,6 +185,44 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
   store = fresh('lib/backdrops/store.js');
   await store.setBackdropAccount('person-a');
   assert.deepEqual([...store.backdropExtras('aquarium').locks].sort(), ['count', 'size'], 'another machine gets the locks with the account');
+
+  // The account's row is lean: only what differs from how a background comes, so five of them fit well inside what the table allows.
+  const defs = registry.BACKDROP_DEFS;
+  const scenesOf = (make) => Object.fromEntries(defs.map((def) => [def.id, make(def)]));
+  const plain = store.rowObject({ scenes: scenesOf((def) => ({ values: def.defaults, extras: { locks: [], sway: {} } })), backdrop: 'aquarium' });
+  assert.deepEqual(plain, { v: 1, backdrop: 'aquarium' }, 'every background as it comes: the row is two words');
+  const busy = { scenes: scenesOf((def) => ({ values: K.partyValues(def, seeded(def.id.length + 3)), extras: { locks: def.knobs.slice(0, 3).map((knob) => knob.key), sway: Object.fromEntries(def.knobs.filter((knob) => knob.kind === 'range').slice(0, 4).map((knob) => [knob.key, [knob.min, knob.max]])) } })), backdrop: 'sand' };
+  const busyRow = store.rowObject(busy);
+  assert.ok(JSON.stringify(busyRow).length < 2600, `a party on all five, with locks and sways on each: ${JSON.stringify(busyRow).length} characters of the 4096 the table allows`);
+  const back = store.parseSavedBackdrops(JSON.parse(JSON.stringify(busyRow)));
+  for (const def of defs) {
+    assert.ok(K.sameValues(def, back.scenes[def.id].values, busy.scenes[def.id].values), `${def.label}: a lean row reads back as the same settings`);
+    assert.deepEqual([...back.scenes[def.id].extras.locks].sort(), [...busy.scenes[def.id].extras.locks].sort(), `${def.label}: and the same locks`);
+    assert.deepEqual(back.scenes[def.id].extras.sway, busy.scenes[def.id].extras.sway, `${def.label}: and the same sways`);
+  }
+  assert.equal(back.backdrop, 'sand', 'and the same background on');
+  // The worst there could be: every knob of every background changed, locked and swaying. It is trimmed rather than refused.
+  const most = { scenes: scenesOf((def) => ({ values: K.parseValues(def, Object.fromEntries(def.knobs.map((knob) => [knob.key, knob.kind === 'range' ? (def.defaults[knob.key] === knob.max ? knob.min : knob.max) : knob.kind === 'switch' ? !def.defaults[knob.key] : knob.options[knob.options.length - 1].value]))), extras: { locks: def.knobs.map((knob) => knob.key), sway: Object.fromEntries(def.knobs.filter((knob) => knob.kind === 'range').map((knob) => [knob.key, [knob.min, knob.max]])) } })), backdrop: 'fluid' };
+  const mostRow = store.rowObject(most);
+  assert.ok(JSON.stringify(mostRow).length <= store.ROW_ROOM && store.ROW_ROOM < 3600, `even then the row is kept inside the table's limit (${JSON.stringify(mostRow).length} characters)`);
+  const trimmed = store.parseSavedBackdrops(JSON.parse(JSON.stringify(mostRow)));
+  for (const def of defs) assert.ok(K.sameValues(def, trimmed.scenes[def.id].values, most.scenes[def.id].values), `${def.label}: by shedding sways and locks, never a knob's value`);
+  assert.ok(Object.keys(trimmed.scenes.fluid.extras.sway).length > 0, 'and the background that is on is the last to lose its own');
+
+  // A knob changed while the account is still being read: that background keeps what was just set, the others are the account's.
+  stored.clear();
+  stored.set('debaser.aquarium.mock.v1', JSON.stringify({ 'person-c': store.rowObject({ scenes: scenesOf((def) => ({ values: K.withValue(def, def.defaults, def.knobs.find((knob) => knob.kind === 'range').key, def.knobs.find((knob) => knob.kind === 'range').max), extras: { locks: [], sway: {} } })), backdrop: 'aquarium' }) }));
+  store = fresh('lib/backdrops/store.js');
+  const reading = store.setBackdropAccount('person-c');
+  const sandDef = registry.backdropDef('sand');
+  store.setBackdropValues('sand', K.withValue(sandDef, sandDef.defaults, 'brush', 9));
+  await reading;
+  assert.equal(store.backdropValues('sand').brush, 9, 'the knob touched during the read keeps what it was set to');
+  assert.equal(store.backdropValues('aquarium').size, 12, 'and a background that was not touched is as the account had it');
+  store.flushBackdropSave();
+  await settle();
+  const mergedRow = JSON.parse(stored.get('debaser.aquarium.mock.v1'))['person-c'];
+  assert.ok(mergedRow.size === 12 && mergedRow.scenes.sand.brush === 9, 'which is what the account is then given: nothing it held is lost');
 
   // A row from before there were other backgrounds: the aquarium's knobs at the top level, nothing else.
   const old = store.parseSavedBackdrops({ v: 1, size: 3, rainbow: true, backdrop: 'tile' });

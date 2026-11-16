@@ -279,7 +279,7 @@ function WidgetRow({ widget, panel }: { widget: Widget; panel: Panel }) {
           puck={puck}
           onCatch={bouncing ? () => stopBounce(id, widget.id) : undefined}
           onChange={(a, b) => setBackdropValues(id, withValue(panel.def, withValue(panel.def, backdropValues(id), widget.x, a), widget.y, b))}
-          onFling={bouncing ? (flung) => startBounce(id, widget.id, flung) : undefined}
+          onFling={(flung) => startBounce(id, widget.id, flung)}
         />
         <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
           <span data-backdrop-value={widget.x}>
@@ -452,6 +452,9 @@ export function BackdropKnobs({ id }: { id: string }) {
   const still = useSyncExternalStore(subscribeToReducedMotion, reducedMotion, () => false);
   const [tab, setTab] = useState(def?.tabs[0]?.id ?? '');
   useEffect(() => watchLiveValues(id), [id]);
+  // A bounce doesn't outlive the window that shows it: shut the window (or change background) and every puck is caught, its
+  // knobs left where it was.
+  useEffect(() => () => backdropDef(id)?.widgets.forEach((widget) => (widget.kind === 'pad' ? stopBounce(id, widget.id) : undefined)), [id]);
 
   if (def === null || live === null || values === null) return null;
   const panel: Panel = { def, values, live, locks: extras.locks, sway: extras.sway, still };

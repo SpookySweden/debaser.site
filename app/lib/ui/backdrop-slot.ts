@@ -3,13 +3,13 @@
  * the same reason: changing it must not re-render the board. The choice is the `data-backdrop` attribute on `<html>`, which
  * globals.css reads, and the aquarium itself is drawn once in `layout.tsx` (`../../components/Aquarium.tsx`) while it is the one on.
  *
- * The simulated backgrounds (SPEC-backgrounds.md: `sand`, and the ones to come) are drawn by `../../components/backdrops/`.
+ * The simulated backgrounds (SPEC-backgrounds.md: `sand`, `fluid`, `starfield`, `mystify`) are drawn by `../../components/backdrops/`.
  * `aquarium` is the Windows 98 Underwater screensaver's sea (Luke, 2026-11-15: "the animated windows 98 fish background ... as the
  * new default"); `tile` is the desktop tile every theme colours, which was the only background before it.
  */
 import { createWindowSlot } from './window-slot';
 
-export type BackdropId = 'aquarium' | 'sand' | 'tile';
+export type BackdropId = 'aquarium' | 'sand' | 'fluid' | 'starfield' | 'mystify' | 'tile';
 
 export type Backdrop = {
   id: BackdropId;
@@ -21,6 +21,9 @@ export type Backdrop = {
 export const BACKDROPS: readonly Backdrop[] = [
   { id: 'aquarium', label: 'AQUARIUM', note: 'THE WINDOWS 98 UNDERWATER SEA: FISH SWIM BEHIND THE WINDOW' },
   { id: 'sand', label: 'SAND', note: 'FALLING SAND: IT HEAPS ON THE WINDOW, AND YOU POUR MORE WITH THE POINTER' },
+  { id: 'fluid', label: 'FLUID', note: 'INK IN WATER: STIR IT WITH YOUR POINTER' },
+  { id: 'starfield', label: 'STARFIELD', note: 'THE WINDOWS 98 FLIGHT THROUGH THE STARS' },
+  { id: 'mystify', label: 'MYSTIFY', note: 'THE WINDOWS 98 BOUNCING SHAPES AND THEIR TRAILS' },
   { id: 'tile', label: 'TILE', note: "THE DOTTED DESKTOP, IN THE THEME'S OWN COLOURS" },
 ];
 

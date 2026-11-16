@@ -3,6 +3,7 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { DYES, pixelFromHex, type Box, type Engine, type EngineEnv, type Palette } from '../../lib/backdrops/engine';
 import { backgroundCovered, liveValues, onBackdropAction, pointerNow, setBackdropMeters, watchLiveValues, watchPointer } from '../../lib/backdrops/runtime';
+import { backdropValues, subscribeToBackdropScenes } from '../../lib/backdrops/store';
 import { backdropState, subscribeToBackdrop, type BackdropState } from '../../lib/ui/backdrop-slot';
 
 /**
@@ -69,7 +70,10 @@ function Running<State>({ engine, still }: { engine: Engine<State>; still: boole
 
     const palette = readPalette();
     let values = liveValues(engine.id);
-    let cell = Math.max(1, Math.round(engine.cell(values)));
+    // The cell's size is read from the stored settings, never the live ones: a GRID knob set to sway would otherwise start the
+    // world again every time its value crossed a whole pixel.
+    const cellNow = () => Math.max(1, Math.round(engine.cell(backdropValues(engine.id))));
+    let cell = cellNow();
     let env: EngineEnv = { w: 1, h: 1, pointer: null, solids: [], random: Math.random };
     let state: State | null = null;
     let image: ImageData | null = null;
@@ -114,15 +118,29 @@ function Running<State>({ engine, still }: { engine: Engine<State>; still: boole
 
     if (still) {
       // Motion off: the world is let settle out of sight, and one frame of it is shown.
-      for (let n = 0; n < engine.stillSteps && state !== null; n += 1) engine.step(state, values, env);
-      paint();
-      const again = () => {
-        build();
+      const settle = () => {
         for (let n = 0; n < engine.stillSteps && state !== null; n += 1) engine.step(state, values, env);
         paint();
       };
+      settle();
+      // A changed knob, or a new window size, makes a new still frame - a moment after the last change, so a slider being dragged
+      // or a window being resized is settled once, not at every pixel.
+      let waiting: ReturnType<typeof setTimeout> | null = null;
+      const again = () => {
+        if (waiting !== null) clearTimeout(waiting);
+        waiting = setTimeout(() => {
+          waiting = null;
+          values = liveValues(engine.id);
+          cell = cellNow();
+          build();
+          settle();
+        }, 200);
+      };
+      const stopScenes = subscribeToBackdropScenes(again);
       window.addEventListener('resize', again);
       return () => {
+        if (waiting !== null) clearTimeout(waiting);
+        stopScenes();
         window.removeEventListener('resize', again);
         stopActions();
       };
@@ -151,7 +169,7 @@ function Running<State>({ engine, still }: { engine: Engine<State>; still: boole
       }
       values = liveValues(engine.id);
       // A new grain size is a new grid: the world starts again at it.
-      const wanted = Math.max(1, Math.round(engine.cell(values)));
+      const wanted = cellNow();
       if (wanted !== cell) {
         cell = wanted;
         build();

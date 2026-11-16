@@ -140,6 +140,16 @@ function setBarOpen(next: boolean): void {
   for (const listener of listeners) listener();
 }
 
+/**
+ * Whether the player is folded to its small tile: the corner keys above it stand in a column then, and in a row above the bar's
+ * left key otherwise (CornerShelf.tsx). The same answer the player draws itself from.
+ */
+export function usePlayerFolded(): boolean {
+  const compact = useCompactViewport();
+  const setting = useSyncExternalStore(subscribeBar, getBarSnapshot, getBarServerSnapshot);
+  return setting === null ? compact : setting === 'closed';
+}
+
 export default function MusicPlayer() {
   const player = useMusicPlayer();
   const compact = useCompactViewport();

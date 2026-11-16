@@ -119,6 +119,29 @@ The two Windows 98 screensavers, rebuilt as code (dots and lines; nothing of Mic
 - The house loop (verify, checks:changed, capture + audit, commit, push, deploy-status, `npm run read`). While League is being
   played on the desktop: the priority watcher on, heavy steps at low priority.
 
+## As built (2026-11-16)
+Where the build differs from the plan above, and what a later session should know:
+- **Where the code is:** the frame is `app/lib/backdrops/` (`knobs.ts` the machinery, `store.ts` the one store, `runtime.ts` what
+  moves by itself, `engine.ts` what a simulated background is, `registry.ts` the list); each background is
+  `app/lib/backdrops/<name>/` (`sim.ts` the rules, `def.ts` the knobs); `app/components/backdrops/CanvasBackdrop.tsx` runs any
+  engine and `Backdrops.tsx` mounts them; the window is `app/components/BackdropSettingsWindow.tsx` with its controls in
+  `backdrops/BackdropControls.tsx`. A new background: an engine and a def, a line each in the registry, `Backdrops.tsx` and
+  `BACKDROPS` (`app/lib/ui/backdrop-slot.ts`).
+- **Checks:** `Temp/check-backdrops.cjs` (the frame), `check-backdrop-sand.cjs`, `check-backdrop-fluid.cjs`,
+  `check-backdrop-savers.cjs` (STARFIELD and MYSTIFY), `check-aquarium.cjs`. Each was shown to fail on deliberate breaks.
+- **Roll and lock** are on sliders, choices, the pad and the band. A plain switch has neither: it is one press either way.
+- **BOUNCE and the GHOST POINTER are not saved**; SWAY's two marks and the locks are (beside the values, as `_sway` and `_locks`).
+- **MORPH** goes from the settings as they are when the slider is first moved to the look named beside it (a key cycles which).
+- **SAND** gained SIFT (a heap resting on a window slowly sifts away through it, so heaps are always being fed, never just
+  sitting) and its rain comes in under whatever covers the top of the screen. The bars along the top and bottom are solid too.
+- **FLUID** is solved on the processor at about 190 x 108 squares, with over-relaxation in the pressure step; splats that come
+  by themselves land where they can be seen (not under the site window); clean still water is not worked out at all.
+- **STARFIELD** fans its far stars wide on purpose: the middle of the screen is under the site window, so a sky that only spread
+  as stars arrived would show almost none. FALL and WIND were added for the SNOW look.
+- **MYSTIFY** has TRAIL GAP (how far apart the echoes are) beside TRAILS.
+- **The key on the background** is named for the background that is on and opens its window.
+- **All four simulated backgrounds went in**, not two: Luke ticked all four.
+
 ## Out of scope
 Sound, sharing a background with other people, drawing pictures, 3D Pipes (reads as drawn objects, and heavy), a phone layout
 (desktop first; nothing may break at phone width).
