@@ -406,6 +406,13 @@ async function open(page, path) {
     const waitingBefore = await barQueue(page);
     assert.ok(waitingBefore >= 1);
     await open(page, '/forum');
+    // List 4 (ROOMUI): your room, open or folded before the reload, comes back folded with its own bar along the foot. The
+    // bar's TV key turns it to the music player, whose QUEUE count is read here.
+    await page.waitForFunction(() => document.querySelector('[data-bar-queue], [data-stream-bar-swap="stream"]') !== null, null, { timeout: 30000 });
+    if (await page.locator('[data-stream-bar-swap="stream"]').count()) {
+      assert.equal(await page.locator('[data-room-shelf-key]').count(), 1, 'your room came back folded, its key above the player');
+      await page.evaluate(() => document.querySelector('[data-stream-bar-swap="stream"]').click());
+    }
     await page.waitForFunction((count) => Number(document.querySelector('[data-bar-queue]')?.getAttribute('data-bar-queue')) === count, waitingBefore, { timeout: 20000 });
     pass(`after a reload the queue is still there (${waitingBefore} waiting)`);
     await sleep(1500);
@@ -547,7 +554,9 @@ async function open(page, path) {
     await asAccount('drive-user', 'TEST DRIVE');
     await open(page, '/forum');
     await pressUntil(page, false);
-    await page.locator('[data-own-room-door] button').click();
+    // List 4: the owner's room was open before the friends' turns, so after the page load it is back folded (its key above
+    // the player) rather than behind [ ▲ ROOM ]: either way back opens it.
+    await page.locator('[data-own-room-door] button, [data-room-shelf-key] button').first().click();
     await page.waitForSelector('[data-dock-window="stream"] [data-room-settings-key]', { timeout: 15000 });
     await page.locator('[data-dock-window="stream"] [data-room-settings-key]').click();
     await page.waitForSelector('[data-room-remove="drive-friend"]', { timeout: 10000 });
@@ -592,6 +601,9 @@ async function open(page, path) {
       });
     const jolts = () => page.evaluate(() => window.__jolts);
 
+    // The music bar's own GO LIVE is for a room whose window is not shown. Since list 4 a room whose window was open comes
+    // back folded after a page load (with the room's bar), so this browser's note of it is cleared first.
+    await page.evaluate(() => localStorage.removeItem('debaser.site.own-room-shown.v1'));
     await open(page, '/forum');
     await pressUntil(page, false);
     if ((await mine()).waiting.length === 0) await songMenu(page, 'ADD TO QUEUE');

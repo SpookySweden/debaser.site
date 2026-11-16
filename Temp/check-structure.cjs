@@ -282,7 +282,10 @@ for (const file of components) {
     if (reached.has(file)) fail(file, 'is rendered now: take it off OWED_RENDERS');
     continue;
   }
-  if (!reached.has(file)) fail(file, 'no scratch check renders this component');
+  // (2026-11-16, list 4) A file kept unused on Luke's word (AWAITING_LUKE above) needs no render: nothing on the site draws
+  // it. Luke chose to keep OwnRoomWindow.tsx ("2b": keep it, mark the check as expected) after check-watch moved to the
+  // window your room really uses (60a3936). Every other component still needs one.
+  if (!reached.has(file) && !AWAITING_LUKE.has(file)) fail(file, 'no scratch check renders this component');
 }
 for (const file of OWED_RENDERS) {
   if (!components.includes(file)) fail(file, 'is gone: take it off OWED_RENDERS');
