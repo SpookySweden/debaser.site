@@ -109,9 +109,9 @@ type PadProps = {
   /** Where the puck is, as shares of the pad from its left and its top. */
   puck: { x: number; y: number };
   onChange: (x: number, y: number) => void;
-  /** Let go while moving: how fast, in shares of the pad a second. Only asked for while the pad is set to bounce. */
-  onFling?: (puck: { x: number; y: number; vx: number; vy: number }) => void;
-  /** A press on the pad: a bouncing puck is caught by it. */
+  /** Let go after catching a bouncing puck: where, and how fast it was going (shares of the pad a second). A flick sends it off again. */
+  onFling: (puck: { x: number; y: number; vx: number; vy: number }) => void;
+  /** A press on the pad while its puck is bouncing: the puck is caught. Not given while it is at rest. */
   onCatch?: () => void;
   label: string;
   id: string;
@@ -125,6 +125,8 @@ export function XYPad({ x, y, puck, onChange, onFling, onCatch, label, id }: Pad
   const pad = useRef<HTMLDivElement>(null);
   /** The last few places of the drag, to tell how fast the puck was going when it was let go. */
   const trail = useRef<{ x: number; y: number; at: number }[]>([]);
+  /** Whether this press caught a bouncing puck. Remembered here because, once caught, the pad is drawn again as one at rest. */
+  const caught = useRef(false);
 
   const at = (event: ReactPointerEvent<HTMLDivElement>): { x: number; y: number } => {
     const box = pad.current?.getBoundingClientRect();
@@ -134,6 +136,7 @@ export function XYPad({ x, y, puck, onChange, onFling, onCatch, label, id }: Pad
   const put = (spot: { x: number; y: number }) => onChange(fromShare(x, spot.x), fromShare(y, spot.y));
   const press = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
+    caught.current = onCatch !== undefined;
     onCatch?.();
     event.currentTarget.setPointerCapture(event.pointerId);
     const spot = at(event);
@@ -151,11 +154,13 @@ export function XYPad({ x, y, puck, onChange, onFling, onCatch, label, id }: Pad
     event.currentTarget.releasePointerCapture(event.pointerId);
     const [first, last] = [trail.current[0], trail.current[trail.current.length - 1]];
     trail.current = [];
-    if (onFling === undefined || first === undefined || last === undefined) return;
+    const wasCaught = caught.current;
+    caught.current = false;
+    if (!wasCaught || first === undefined || last === undefined) return;
     const seconds = Math.max(0.016, (last.at - first.at) / 1000);
-    // Held still for a moment before letting go: no fling.
-    const stale = performance.now() - last.at > 120;
-    onFling({ x: last.x, y: last.y, vx: stale ? 0 : (last.x - first.x) / seconds, vy: stale ? 0 : (last.y - first.y) / seconds });
+    // Held still for a moment before letting go: it stays caught. Let go on the move: it is flung.
+    if (performance.now() - last.at > 120 || Math.hypot(last.x - first.x, last.y - first.y) < 0.02) return;
+    onFling({ x: last.x, y: last.y, vx: (last.x - first.x) / seconds, vy: (last.y - first.y) / seconds });
   };
   const key = (event: KeyboardEvent<HTMLDivElement>) => {
     const dx = event.key === 'ArrowLeft' ? -1 : event.key === 'ArrowRight' ? 1 : 0;

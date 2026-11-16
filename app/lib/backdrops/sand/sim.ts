@@ -382,5 +382,5 @@ export const sandEngine: Engine<SandState> = {
   render: renderSand,
   action: sandAction,
   meters: (state) => [{ id: 'grains', label: 'GRAINS', value: state.grains, most: Math.max(1, state.w * state.h * 0.25) }],
-  stillSteps: 360,
+  stillSteps: 180,
 };

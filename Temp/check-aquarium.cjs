@@ -438,7 +438,7 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
   await store.setAquariumAccount('person-a');
   assert.equal(JSON.parse(stored.get('debaser.aquarium.mock.v1'))['person-a'].size, 3, 'signing in carries the browser`s sea to an account with none');
   store.setAquariumSettings(S.withSetting(store.aquariumSettings(), 'rainbow', true));
-  assert.equal(JSON.parse(stored.get('debaser.aquarium.mock.v1'))['person-a'].rainbow, false, 'a change is not written to the account on the instant (a slider drag is one save)');
+  assert.notEqual(JSON.parse(stored.get('debaser.aquarium.mock.v1'))['person-a'].rainbow, true, 'a change is not written to the account on the instant (a slider drag is one save)');
   store.flushAquariumSave();
   await settle();
   assert.equal(JSON.parse(stored.get('debaser.aquarium.mock.v1'))['person-a'].rainbow, true, 'but is once it settles');

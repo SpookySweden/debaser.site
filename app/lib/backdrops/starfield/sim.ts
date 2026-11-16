@@ -65,6 +65,10 @@ function scatter(state: StarState, n: number, random: () => number, far: boolean
   state.oy[n] = 0;
   state.px[n] = Number.NaN;
   state.py[n] = Number.NaN;
+  // Nor a place it is drawn at yet: a star brought back when STARS is turned up must not streak from where its slot last was.
+  state.sx[n] = Number.NaN;
+  state.sy[n] = Number.NaN;
+  state.lit[n] = 0;
   state.tone[n] = random();
 }
 
