@@ -292,7 +292,9 @@ const frame = row.match(/playFloating\(\{[\s\S]*?\n {6}\}\);/);
 ok(frame && /sandbox: playerSandbox\(mediaServer\(to\)\)/.test(frame[0]), 'the media player frame takes its sandbox from playerSandbox for the server playing');
 ok(frame && /referrerPolicy: 'no-referrer'/.test(frame[0]) && /allowFullScreen: true/.test(frame[0]), 'the media player frame sends no referrer and may go fullscreen, sandboxed or not');
 const layerFile = require('node:fs').readFileSync(join(ROOT, 'app', 'components', 'FloatingPlayer.tsx'), 'utf8');
-ok(/sandbox=\{player\.sandbox\}/.test(layerFile) && /referrerPolicy=\{player\.referrerPolicy\}/.test(layerFile) && /allowFullScreen=\{player\.allowFullScreen\}/.test(layerFile), 'the layer draws the frame with exactly what the row asked for');
+// Updated on purpose 2026-11-16 (list 3): since 2acb39c (Luke, 2026-11-16, "Switch it off") another site's own fullscreen
+// key is off while the site's own fullscreen works (`ownFull`): the frame takes the row's allowFullScreen otherwise.
+ok(/sandbox=\{player\.sandbox\}/.test(layerFile) && /referrerPolicy=\{player\.referrerPolicy\}/.test(layerFile) && /allowFullScreen=\{(?:ownFull \? false : )?player\.allowFullScreen\}/.test(layerFile), 'the layer draws the frame with exactly what the row asked for');
 
 /* ---------------------------------------------------------------- Luke's real list */
 // What the Debaser Servers program (or a hand edit) saved: a mistake here stops `npm run verify`, so it never

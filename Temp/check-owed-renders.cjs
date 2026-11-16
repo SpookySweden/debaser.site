@@ -171,6 +171,10 @@ function fakeBrowser({ fine = true, still = false } = {}) {
       matchMedia: media,
       setInterval: () => 0,
       clearInterval: () => undefined,
+      // Added on purpose 2026-11-16 (list 3, MEDIA): the default feed's 2.5-second wait (WebStream.tsx, fccc05e) sets a
+      // timer in an effect; like setInterval above, it never fires here.
+      setTimeout: () => 0,
+      clearTimeout: () => undefined,
       history: { state: null, replaceState: (_state, _title, address) => addresses.push(address) },
       location: { origin: 'https://debaser.site', href: 'https://debaser.site/media', pathname: '/media', search: '' },
     },
@@ -1306,6 +1310,9 @@ test('WebStream: ?art=1 is the saved shelf in place of the stream', () => {
   assert.ok(!visible(html).includes('READING MEDIA'));
 });
 test('WebStream: a row names its source, its words as text, and links only where its address passes; no player until asked', () => {
+  // Updated on purpose 2026-11-16 (list 3, MEDIA): plain /media is the default feed since fccc05e (SPEC-media-feed.md), which
+  // draws no rows until its first block is ready; NEWEST FIRST shows the saved stream as it is, so the row itself is tested.
+  address = 'sort=date';
   const also = { ...VIDEO, id: 'vimeo:123', platform: 'vimeo', externalId: '123', url: 'https://vimeo.com/123', title: 'A Train Film' };
   const html = draw(el(WebStream), arrived([{ ...VIDEO, alsoOn: [also] }]));
   const words = visible(html);
@@ -1324,6 +1331,9 @@ test('WebStream: a row names its source, its words as text, and links only where
   assert.ok(!words.includes('NOTHING YET'));
 });
 test('WebStream: a hostile address is dropped: no link, no picture and no player', () => {
+  // Updated on purpose 2026-11-16 (list 3, MEDIA): plain /media is the default feed since fccc05e (SPEC-media-feed.md), which
+  // draws no rows until its first block is ready; NEWEST FIRST shows the saved stream as it is, so the row itself is tested.
+  address = 'sort=date';
   const html = draw(el(WebStream), arrived([{ ...VIDEO, url: 'https://evil.invalid/x', thumbnailUrl: 'javascript:alert(1)', embedUrl: 'https://evil.invalid/embed/abcdefghijk' }]));
   assert.ok(visible(html).includes('A Train Film'));
   assert.ok(!html.includes('evil.invalid') && !html.includes('javascript:'));
@@ -1335,6 +1345,9 @@ test('WebStream: a hostile address is dropped: no link, no picture and no player
 // scripts/drive-rooms-perpetual.cjs). The keeper mounted by an earlier case leaves one here, so this case lets go of it:
 // it holds the row and the frame as a reader without a main room (a signed-out visitor's browser room) gets them.
 test('WebStream: PLAY opens the platform\'s own sandboxed player; only YouTube is told our origin', async () => {
+  // Updated on purpose 2026-11-16 (list 3, MEDIA): plain /media is the default feed since fccc05e (SPEC-media-feed.md), which
+  // draws no rows until its first block is ready; NEWEST FIRST shows the saved stream as it is, so the row itself is tested.
+  address = 'sort=date';
   await inBrowser(fakeBrowser(), async () => {
     noMainRoom();
     draw(el(WebStream), arrived([VIDEO]));
@@ -1363,6 +1376,9 @@ test('WebStream: PLAY opens the platform\'s own sandboxed player; only YouTube i
 // "open" button with the read button"): an Archive book no longer plays the Archive's viewer in its row. READ opens it at
 // /read (its own EPUB in the site's reader, or the Archive's viewer there), standing first, where OPEN was.
 test('WebStream: a book reads at /read, READ first where OPEN was', () => {
+  // Updated on purpose 2026-11-16 (list 3, MEDIA): plain /media is the default feed since fccc05e (SPEC-media-feed.md), which
+  // draws no rows until its first block is ready; NEWEST FIRST shows the saved stream as it is, so the row itself is tested.
+  address = 'sort=date';
   const book = { ...VIDEO, id: 'internet_archive:book', kind: 'text', platform: 'internet_archive', externalId: 'book', url: 'https://archive.org/details/book', thumbnailUrl: undefined, embedUrl: 'https://archive.org/embed/book' };
   const html = draw(el(WebStream), arrived([book]));
   const words = visible(html);
@@ -1405,6 +1421,9 @@ test('SiteHistoryKeeper: draws nothing', () => {
   assert.equal(draw(el(SiteHistoryKeeper)), '');
 });
 test('WebStream: each row is drawn by its kind: a server\'s title with its keys, a KINO title with no player', () => {
+  // Updated on purpose 2026-11-16 (list 3, MEDIA): plain /media is the default feed since fccc05e (SPEC-media-feed.md), which
+  // draws no rows until its first block is ready; NEWEST FIRST shows the saved stream as it is, so the row itself is tested.
+  address = 'sort=date';
   const html = draw(el(WebStream), arrived([FILM, KINO]));
   const words = visible(html);
   assert.ok(words.includes('[ WATCH · 2 ▾ ]'), 'the server row has its WATCH key, shut');

@@ -205,7 +205,9 @@ const NOW = Date.parse('2026-11-06T12:00:00Z');
   const finds = fs.readFileSync(path.join(ROOT, 'app/components/WebCatalogueFinds.tsx'), 'utf8');
   const stream = fs.readFileSync(path.join(ROOT, 'app/components/WebStream.tsx'), 'utf8');
   assert.ok(finds.includes('min-h-tap'), 'the line above the results keeps one height, whatever it says');
-  assert.ok(stream.indexOf('<CatalogueLine') < stream.indexOf('{drawn.map(renderRow)}'), 'the line is above the results');
+  // Updated on purpose 2026-11-16 (list 3, MEDIA): the results are drawn as `drawn.map((item) => renderRow(item))` since fccc05e.
+  assert.ok(stream.indexOf('drawn.map((item) => renderRow(item))') > 0, 'the results are found in the page');
+  assert.ok(stream.indexOf('<CatalogueLine') < stream.indexOf('drawn.map((item) => renderRow(item))'), 'the line is above the results');
   assert.ok(stream.indexOf('<WebCatalogueFinds') > stream.indexOf('{drawn.map(renderRow)}'), 'the rows are below them, so arriving moves nothing');
   assert.ok(finds.includes('onScreen.has(item.id) || '), 'a row on the screen is not taken away when an outside site finds it late');
   assert.ok(finds.includes('[...rows.slice(0, shown), ...next]'), 'a press pins the rows it brings into view, or digging moves them');

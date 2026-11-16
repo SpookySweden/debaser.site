@@ -5,8 +5,9 @@
  * - the fixtures (5 real Open Library works and 5 real LibriVox books for "dracula", 2026-11-10; LibriVox's summaries are
  *   replaced by a short line, so only its shape is kept) parse into rows the page would draw: link and cover, never a player
  * - every work is asked for and kept (SPEC-book-editions.md, Luke 2026-11-11, replacing that day's Gutenberg-only rule), each
- *   carrying how many editions it has; a work with a Project Gutenberg copy carries its number (READ opens it in the reader)
- *   and comes first, then the library scans, then the other works
+ *   carrying how many editions it has; a work with a Project Gutenberg copy carries its number (READ opens it in the reader);
+ *   the works keep Open Library's own order (with the title-match bump) and the library scans come last (1329ce3, Luke
+ *   2026-11-13: "i cant see frank herburt dune when searching it now at all")
  * - one request a BOOKS search; the date orders are Open Library's own; a TYPE that isn't text finds nothing
  * - AUDIOBOOKS asks the start of a title, then the whole title, then an author, stopping at the first that finds something;
  *   a 404 is "nothing", not a failure; DATE reads up to 200 and orders them itself
@@ -79,8 +80,10 @@ const deps = (fetch, order) => ({ fetch, now: () => new Date(NOW), order });
     ok(item.book && Number.isInteger(item.book.editions), 'each carries how many editions it has');
   }
   same(page.items[0].externalId, 'OL85892W-pg345', 'a work Project Gutenberg has carries its number, and comes first');
-  same(page.items.findIndex((item) => item.platform === 'internet_archive'), workRows.filter((item) => /-pg[1-9]/.test(item.externalId)).length, 'then the library scans');
-  ok(page.items.slice(page.items.findIndex((item) => item.platform === 'internet_archive') + 1).every((item) => item.platform === 'books' && !/-pg[1-9]/.test(item.externalId)), 'then the other works');
+  // Updated on purpose 2026-11-16 (list 3): since 1329ce3 (Luke, 2026-11-13) every work keeps Open Library's own order, Gutenberg
+  // or not, and the library scans are the tail. The old "Gutenberg works, then scans, then the rest" ranker is gone.
+  same(page.items.findIndex((item) => item.platform === 'internet_archive'), workRows.length, 'every Open Library work first, in its own order');
+  ok(page.items.slice(workRows.length).every((item) => item.platform === 'internet_archive'), 'then the library scans, at the end');
   same(scanRows.map((item) => item.id), ['internet_archive:made_up_scan_one'], 'the lent item and the film are left out');
   checkItem(asserts, rowAddresses, scanRows[0], scanRows[0].title);
   same(scanRows[0].kind, 'text');

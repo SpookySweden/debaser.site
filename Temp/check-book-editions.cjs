@@ -266,13 +266,15 @@ function savedWeb(overrides = {}) {
     if (at.hostname === 'cloudflare-ipfs.com') return new Response('PK made-up bytes', { status: 200, headers: { 'content-type': 'application/epub+zip', 'content-length': '15' } });
     return json({}, 404);
   };
-  const streamed = await books.openBookEpub('books:OL893414W', workFetch);
+  // Updated on purpose 2026-11-16 (list 3): the site sends shadow copies through shadow-books.ts's own agent, so this fake
+  // web is handed in as openBookEpub's third argument (a check-only seam) instead of riding on epubFetch.
+  const streamed = await books.openBookEpub('books:OL893414W', workFetch, workFetch);
   ok(streamed && 'body' in streamed && streamed.shadow && streamed.shadow.extension === 'epub', 'Dune streams as an EPUB from LibGen (no redirect)');
   same(await new Response(streamed.body).text(), 'PK made-up bytes', 'the file passes through as it came');
   ok(libgenAsked.some((u) => u.startsWith('https://libgen.is/json.php')) && libgenAsked.some((u) => u.startsWith('https://library.lol/main/')), 'LibGen and library.lol are both asked');
   // Direct `shadow:<md5>` ref: same stream, no redirect.
   libgenAsked = [];
-  const direct = await books.openBookEpub(`shadow:${MD5}`, workFetch);
+  const direct = await books.openBookEpub(`shadow:${MD5}`, workFetch, workFetch);
   ok(direct && 'body' in direct && direct.shadow && direct.shadow.extension === 'epub', 'a direct shadow ref streams too');
   await new Response(direct.body).text();
   same(await books.openBookEpub('shadow:not-an-md5', workFetch), null, 'a bad shadow ref is refused');
