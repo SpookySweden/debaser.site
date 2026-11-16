@@ -1030,8 +1030,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
 
   const previous = useCallback(() => {
     setError(null);
-    // The host's back arrow is the room's (ROOMSYNC, Luke 2026-11-16: "the back arrow on the bottom player to go back to
-    // it"): what played before what is on now starts again, or what is on starts from the top when nothing did.
+    // The host's back arrow is the room's (ROOMSYNC): what played before starts again.
     if (hostingRoom()) {
       roomRef.current?.onPrevious();
       return;
