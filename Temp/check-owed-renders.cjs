@@ -374,6 +374,8 @@ const CatCursor = require('./owed-render/components/CatCursor.js').default;
 const { liveRows, useLiveStreams } = require('./owed-render/components/CytubeLiveStreams.js');
 const CytubePage = require('./owed-render/components/CytubePage.js').default;
 const MusicRoomKeeper = require('./owed-render/components/MusicRoomKeeper.js').default;
+/** No main room in hand (SPEC-rooms-perpetual.md): a row's PLAY then plays where it is pressed, as for a visitor. */
+const noMainRoom = () => require('./owed-render/lib/watch/own-room-client.js').setOwnRoom({ session: null, roomId: null, hostId: null, visitor: false, waiting: false });
 const StreamArtShelf = require('./owed-render/components/StreamArtShelf.js').default;
 const WatchInRoomKey = require('./owed-render/components/WatchInRoomKey.js').default;
 const { canWatch, WebDiscussKey } = require('./owed-render/components/WebBridgeKeys.js');
@@ -1183,6 +1185,8 @@ test('WebSiteFiles: a video loads no player until asked, and only a signed-in re
   assert.ok(!html.includes('<video'));
   assert.ok(visible(html).includes('[ WATCH IN ROOM ]'), 'signed in, in no room: it can start one');
   // Updated on purpose 2026-11-05 (SPEC-floating-player.md): a box in the row, the <video> in the one layer.
+  // And 2026-11-16 (SPEC-rooms-perpetual.md): held as a reader without a main room in hand, as in the WebStream case.
+  noMainRoom();
   press(`Play "${video.item.title}" here`);
   html = draw(el(WebSiteFiles, { matches: [video] }));
   assert.ok(!html.includes('<video') && html.includes(`data-player-box="file:${video.item.id}"`));
@@ -1327,8 +1331,12 @@ test('WebStream: a hostile address is dropped: no link, no picture and no player
 });
 // Updated on purpose 2026-11-05 (SPEC-floating-player.md): the player is in the site's one layer, and YouTube is also asked
 // to say where it has got to (enablejsapi, origin). The sandbox, referrer and autoplay rules are unchanged.
+// Updated on purpose 2026-11-16 (SPEC-rooms-perpetual.md): with a main room in hand, PLAY opens it instead (driven by
+// scripts/drive-rooms-perpetual.cjs). The keeper mounted by an earlier case leaves one here, so this case lets go of it:
+// it holds the row and the frame as a reader without a main room (a signed-out visitor's browser room) gets them.
 test('WebStream: PLAY opens the platform\'s own sandboxed player; only YouTube is told our origin', async () => {
   await inBrowser(fakeBrowser(), async () => {
+    noMainRoom();
     draw(el(WebStream), arrived([VIDEO]));
     press(`Play "${VIDEO.title}" (loads the YOUTUBE player)`);
     let html = draw(el(WebStream), arrived([VIDEO]));

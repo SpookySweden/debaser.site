@@ -245,6 +245,11 @@ Then the house loop once per batch (League mode: one heavy step at a time, low p
 - **Switched by state:** the host's beat only when announced; take-over only when announced (the store's 45 s);
   lamps and lists only when announced; presence off for a private main room until somebody else's member row
   appears (they used the link). The room's change feed is open while its window is.
+- **A reload while live:** your room comes back folded above the player, so its beat carries on (otherwise its people
+  would take it after 45 seconds).
+- **NEXT on a picture:** any room's host or crown, a main room's too (migration change 13, `watch_picture_next`).
+- **The visitor loop PLAYERBAR found** ('Maximum update depth exceeded' when a visitor played a song): the keeper now
+  hands the bar a new up-next only when what is in it changes (`MusicRoomKeeper.tsx`); their probe gives 0 errors.
 - **A new room:** after END ROOM or a hand-on, the session (`own-room.ts` `renew`) starts a blank room, written with
   the next play; its queue is empty (Q1 A).
 - **Not done, said here:** a signed-out visitor keeps the old YOUR ROOM window (their room lives in the browser and

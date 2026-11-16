@@ -223,6 +223,9 @@ const roomVideo = (page) =>
     await page.locator('[data-play-ask-cancel]').click();
     await page.waitForFunction(() => document.querySelector('[data-play-ask]') === null, null, { timeout: 5000 });
     assert.equal(await page.locator('[data-main-room-live]').count(), 0, 'CANCEL: still in their room');
+    // While asked, and after CANCEL, the video plays on where it was pressed: nothing is lost.
+    assert.equal(await page.locator('button[aria-label=\'Close the player for "DRIVE VIDEO"\']').count(), 1, 'CANCEL: the video still plays in its row');
+    await page.evaluate(() => document.querySelector('button[aria-label=\'Close the player for "DRIVE VIDEO"\']').click());
     await pressPlay(page);
     await page.waitForSelector('[data-play-ask-mine]', { timeout: 10000 });
     await page.locator('[data-play-ask-mine]').click();
@@ -247,6 +250,19 @@ const roomVideo = (page) =>
     await page.waitForSelector('[data-main-room-live="live"]', { timeout: 15000 });
     assert.equal((await openMain(page)).isPublic, true);
     pass('the bar\'s GO LIVE opened your own room on WHO CAN JOIN, and START put that same room live');
+
+    console.log('9. A RELOAD WHILE LIVE: THE ROOM COMES BACK FOLDED, AND ITS BEAT GOES ON');
+    const liveRoom = await openMain(page);
+    await open(page, '/forum');
+    await page.waitForSelector('[data-room-shelf-key]', { timeout: 30000 });
+    await sleep(2000);
+    const beatAt = (await openMain(page)).updatedAt;
+    await sleep(7000);
+    const after9 = await openMain(page);
+    assert.equal(after9.id, liveRoom.id, 'still your room');
+    assert.equal(after9.isPublic, true, 'still live');
+    assert.notEqual(after9.updatedAt, beatAt, 'the host\'s beat runs again after the reload');
+    pass('reloaded while live, your room came back folded above the player and its beat carried on');
 
     const real = errors.filter((message) => !/ResizeObserver|hydrat/i.test(message));
     assert.deepEqual(real, [], 'no page errors');

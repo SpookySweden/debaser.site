@@ -443,7 +443,10 @@ const names = (counted) => counted.writes().map((call) => call.name);
     const added = await friend.addToQueue({ roomId: 'room-o', addedBy: 'account-friend', position: 5, inQueue: false, link: song(2) });
     assert.equal(added.inQueue, false, 'what they add waits on their own list');
     await assert.rejects(() => friend.addToQueue({ roomId: 'room-o', addedBy: 'account-friend', position: 5, inQueue: true, link: song(3) }), 'only a crown puts a thing straight into the queue');
-    await assert.rejects(() => friend.sendMessage({ roomId: 'room-o', queueEntryId: null, mediaItemId: null, author: { id: 'account-friend', label: 'FRIEND' }, body: 'hello', mediaSeconds: 0 }), 'there is no chat in an own room');
+    // Updated on purpose 2026-11-16 (SPEC-rooms-perpetual.md, Luke: "all the other room features" before going live):
+    // a link joiner chats in a private main room now. Who else may not is held by check-rooms-perpetual.
+    const line = await friend.sendMessage({ roomId: 'room-o', queueEntryId: null, mediaItemId: null, author: { id: 'account-friend', label: 'FRIEND' }, body: 'hello', mediaSeconds: 0 });
+    assert.equal(line.body, 'hello', 'a link joiner chats in a private main room');
     await owner.reorderQueue([{ id: added.id, position: 1, pull: true }], 'account-owner');
     assert.equal((await owner.readRoom('room-o')).queue.find((entry) => entry.id === added.id).inQueue, true, 'the owner pulls it in');
 

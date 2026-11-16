@@ -372,6 +372,37 @@ as $$
   group by q.media_item_id;
 $$;
 
+-- 13. NEXT on a picture (latest: 20261115170354_rooms_tightening.sql) -------------------------------------------------
+--     Was: stream rooms only. Now any room's host or crown, a main room's too, live or not ("all the other room
+--     features" before live). Otherwise as it was.
+create or replace function public.watch_picture_next(room uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  moved integer;
+begin
+  if auth.uid() is null or public.is_banned() then
+    return false;
+  end if;
+
+  update public.watch_rooms r
+     set picture_off_entry_id = r.current_entry_id, picture_off_at = now(),
+         current_entry_id = null, position_seconds = 0, is_playing = false
+   where r.id = room
+     and r.ended_at is null
+     and (r.host_id = auth.uid() or exists (select 1 from public.watch_crowns c where c.room_id = r.id and c.user_id = auth.uid()))
+     and exists (select 1 from public.watch_queue q where q.id = r.current_entry_id and q.room_id = r.id and q.source_kind = 'picture');
+  get diagnostics moved = row_count;
+
+  return moved = 1;
+end;
+$$;
+revoke all on function public.watch_picture_next(uuid) from public, anon;
+grant execute on function public.watch_picture_next(uuid) to authenticated, service_role;
+
 -- Not changed, on purpose: watch_close_stale (ends only stream rooms, so a main room never ends by itself and a
 -- handed-on room ends 3 minutes after it is left quiet), the queue's insert rule (a main room's members already add as
 -- in a stream room: to their own list, straight in with a crown), crowns, members, passwords, canvases, the board.

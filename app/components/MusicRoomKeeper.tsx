@@ -8,6 +8,7 @@ import type { MediaItem } from '../lib/media/types';
 import { closeFloating, floatingState, onFloatingEnded, orderFloating, playFloating, subscribeToFloating } from '../lib/ui/floating-player';
 import { getBrowserWatchRepository } from '../lib/watch/mock-watch-repository';
 import { playInMainRoom } from '../lib/watch/main-room-play';
+import { collapseWatch, openWatch, watchWindowState } from '../lib/watch/watch-window';
 import { OwnRoomSession, ownRoomPlace } from '../lib/watch/own-room';
 import { clearOwnRoom, ownRoomState, patchOwnRoom, setOwnRoom, sharedRoomStore, storedVisitorRoomId, subscribeToOwnRoom, visitorRoomId } from '../lib/watch/own-room-client';
 import { floatingForLink } from '../lib/watch/own-screen';
@@ -115,10 +116,16 @@ export default function MusicRoomKeeper() {
   const shelf = player.queue;
   const queue = read?.queue;
   // On the stored queue's identity (a new list each render would re-bind the player, which draws this again).
-  const waiting = useMemo(
+  const fresh = useMemo(
     () => (queue === undefined ? [] : upcoming([...queue]).flatMap((next) => (isSongLink(next.link) ? [trackForSong(next.link, shelf, webTrackNow(next.link.url))] : []))),
     [queue, shelf],
   );
+  // The same up-next, kept as the same list while what is in it is the same: a room read again (a refused write's
+  // reread, a refresh) must not hand the bar a new binding, or the bar tells the room "playing" again, which writes,
+  // which reads again: the loop PLAYERBAR found (2026-11-16, 'Maximum update depth exceeded' for a visitor).
+  const contents = fresh.map((track) => `${track.id}\u0001${track.src}\u0001${track.title}`).join('\u0002');
+  // Keyed on what is in it, not on the list itself: that is the point.
+  const waiting = useMemo(() => fresh, [contents]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** The next thing queued becomes what is on: a song for the bar, or a video started on the room's screen. */
   const takeNext = useEffectEvent((): { track: AudioTrack } | 'other' | null => {
@@ -187,6 +194,20 @@ export default function MusicRoomKeeper() {
     const held = read.room;
     if (held.id !== session.id()) return;
     if (held.endedAt !== null || held.origin !== 'music' || held.hostId !== ownHost) session.renew(held.id);
+  }, [session, read, ownHost, visitorRoom]);
+
+  /* --- after a reload: a LIVE main room comes back folded, so its host's beat carries on ---------------- */
+  // Without its window nothing says "still here", and after 45 seconds its people would take it (SPEC-rooms-perpetual.md).
+
+  const reopened = useRef<OwnRoomSession | null>(null);
+  useEffect(() => {
+    if (session === null || visitorRoom || read === undefined || read === null || reopened.current === session) return;
+    reopened.current = session;
+    const held = read.room;
+    if (held.origin !== 'music' || !held.isPublic || held.endedAt !== null || held.hostId !== ownHost) return;
+    if (watchWindowState().open) return;
+    openWatch({ kind: 'room', roomId: held.id });
+    collapseWatch();
   }, [session, read, ownHost, visitorRoom]);
 
   /* --- after a reload: the room is back, paused ------------------------------------------------------ */
@@ -277,11 +298,13 @@ export default function MusicRoomKeeper() {
       // for a visitor, whose room keeps its own window. In somebody else's room you are asked first (Luke, Q2 A).
       if (entry.shape === 'video' && entry.room !== undefined && !entry.id.startsWith('own:') && !ownRoomState().visitor) {
         const went = playInMainRoom(entry.room.link !== undefined ? { link: entry.room.link } : { mediaItemId: entry.room.mediaItemId }, entry.title);
-        if (went !== 'none') {
+        // Asked first: the video plays on where it was until the answer (CANCEL keeps it).
+        if (went === 'room') {
           closeFloating();
           if (now.current.playing && now.current.room === null) now.current.steer(false);
           return;
         }
+        if (went === 'ask') return;
       }
       // In a live room the bar and the queue are that room's; a video played beside it is its own business.
       if (now.current.room !== null) return;

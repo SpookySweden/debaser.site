@@ -281,8 +281,11 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
    */
   const [othersMayBeIn, setOthersMayBeIn] = useState(false);
   const aloneByRule = music && amHost && !room.isPublic;
+  // Watched for the whole time you host your main room, live or not: a live room with people in it that goes private
+  // keeps its presence (they stay in it).
+  const watchMembers = music && amHost;
   useEffect(() => {
-    if (!aloneByRule || user === null) return;
+    if (!watchMembers || user === null) return;
     const me = user.id;
     let alive = true;
     void repository
@@ -298,7 +301,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       alive = false;
       off();
     };
-  }, [repository, roomId, aloneByRule, user]);
+  }, [repository, roomId, watchMembers, user]);
   const presenceOn = !aloneByRule || othersMayBeIn;
 
   useEffect(() => {

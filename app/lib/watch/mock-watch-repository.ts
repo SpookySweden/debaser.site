@@ -800,7 +800,8 @@ class MockWatchRepository implements WatchRepository {
   async pictureNext(roomId: string, by: string): Promise<boolean> {
     const tables = load();
     const room = tables.rooms.find((candidate) => candidate.id === roomId);
-    if (room === undefined || room.origin !== 'stream' || room.endedAt !== null) return false;
+    // Any room's host or crown, a main room's too (SPEC-rooms-perpetual.md; the database's `watch_picture_next`).
+    if (room === undefined || room.endedAt !== null) return false;
     if (room.hostId !== by && !hasCrown(tables.crowns.filter((crown) => crown.roomId === roomId), by)) return false;
     const on = tables.queue.find((entry) => entry.id === room.currentEntryId && entry.roomId === roomId);
     if (on === undefined || on.link?.kind !== 'picture') return false;
