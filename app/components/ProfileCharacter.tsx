@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from 'react';
 import type { ShownCharacter } from '../lib/character/profile-character-repository';
 import type { CharacterSheet, Mood } from '../lib/character/sheet';
@@ -21,7 +22,14 @@ import {
 import { onCompanionCatch } from '../lib/companion/events';
 import type { Sample } from '../lib/companion/throw';
 import CharacterSprite from './CharacterSprite';
-import LooseCharacter, { type LooseGrab } from './LooseCharacter';
+import type { LooseGrab } from './LooseCharacter';
+
+/**
+ * A character taken out of the room is drawn by `./LooseCharacter.tsx`, fetched only in the browser and only once
+ * somebody takes one out (a press starts fetching it): imported up front it broke the production prerender of every
+ * page (2026-11-16), and nobody needs it before a press.
+ */
+const LooseCharacter = dynamic(() => import('./LooseCharacter'), { ssr: false });
 import NoteTrail from './NoteTrail';
 
 /**
@@ -210,6 +218,8 @@ export function RoomWalker({
     // A fresh press: whatever an earlier drag left behind is forgotten (its release may never have reached this key).
     dragged.current = false;
     if (reduced || who === 'visitor' || event.button !== 0 || loose !== null) return;
+    // Fetched now, so it is there by the time the press has moved far enough to take it out.
+    void import('./LooseCharacter');
     const button = event.currentTarget;
     const stage = wrap.current?.parentElement ?? null;
     if (stage === null) return;
