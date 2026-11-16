@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { DYES, pixelFromHex, type Box, type Engine, type EngineEnv, type Palette } from '../../lib/backdrops/engine';
-import { backgroundCovered, onBackdropAction, onBareBackground, pointerNow, setBackdropMeters, watchLiveValues, watchPointer } from '../../lib/backdrops/runtime';
+import { backgroundCovered, onBackdropAction, onBareBackground, pointerNow, setBackdropMeters, takePointerTrail, watchLiveValues, watchPointer } from '../../lib/backdrops/runtime';
 import { subscribeToSiteHidden } from '../../lib/ui/site-hidden';
 import { backdropValues, subscribeToBackdropScenes } from '../../lib/backdrops/store';
 import { THEME_KEY, currentThemeId, drawnValues, subscribeToTheme, themeGround, themePalette } from '../../lib/backdrops/theme';
@@ -33,6 +33,9 @@ function subscribeToReducedMotion(listener: () => void) {
 
 const reducedMotion = () => window.matchMedia(REDUCED_MOTION).matches;
 
+/** How long after a press is let go, or a window last moved, where windows are is still read every step. */
+const BUSY_AFTER_MS = 1000;
+
 /** The site's dyes as the page has them, read from the token variables: no colour is written in a background. */
 function readPalette(): Palette {
   const style = getComputedStyle(document.documentElement);
@@ -55,6 +58,10 @@ function readSolids(cell: number, w: number, h: number, stage: boolean): Box[] {
     if (box.x1 > box.x0 && box.y1 > box.y0) boxes.push(box);
   };
   for (const element of document.querySelectorAll(stage ? '[data-backdrop-solid]' : '[data-site-window="frame"], [data-dock-window]')) {
+    // A window folded away keeps its box, only unseen (your room's X folds it so its video plays on: `invisible` in
+    // DockWindow.tsx): what can't be seen is not solid. The water used to keep going round a room that was closed until
+    // the page was loaded again (list 4, Luke: "fluid seems to obey a closed room winodw sometimes").
+    if (element.closest('[data-minimized="true"]') !== null || getComputedStyle(element).visibility === 'hidden') continue;
     const rect = element.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) continue;
     // A frame trimmed of its bars is bigger than what shows of it (`data-backdrop-inset`: the share cut from each side, then
@@ -142,6 +149,16 @@ function Running<State>({ engine, still, stage }: { engine: Engine<State>; still
     const release = () => {
       held = false;
     };
+    /** A press anywhere (a window's title bar being dragged, its X): windows may move, so where they are is read each step. */
+    let pressing = false;
+    let busyUntil = 0;
+    const pressAnywhere = () => {
+      pressing = true;
+    };
+    const releaseAnywhere = () => {
+      pressing = false;
+      busyUntil = performance.now() + BUSY_AFTER_MS;
+    };
     const stopActions = onBackdropAction(engine.id, (action) => {
       if (state === null) return;
       engine.action?.(state, action, values, env);
@@ -190,6 +207,10 @@ function Running<State>({ engine, still, stage }: { engine: Engine<State>; still
     document.addEventListener('pointerdown', press);
     window.addEventListener('pointerup', release);
     window.addEventListener('pointercancel', release);
+    window.addEventListener('pointerdown', pressAnywhere, { capture: true, passive: true });
+    window.addEventListener('pointerup', releaseAnywhere, { capture: true, passive: true });
+    window.addEventListener('pointercancel', releaseAnywhere, { capture: true, passive: true });
+    window.addEventListener('keydown', releaseAnywhere, { capture: true, passive: true });
     window.addEventListener('resize', build);
 
     let frame = 0;
@@ -205,6 +226,7 @@ function Running<State>({ engine, still, stage }: { engine: Engine<State>; still
       frame = requestAnimationFrame(tick);
       if (document.hidden || state === null) {
         last = time;
+        takePointerTrail();
         return;
       }
       values = drawnValues(engine.id);
@@ -224,16 +246,33 @@ function Running<State>({ engine, still, stage }: { engine: Engine<State>; still
       owed = Math.min(step, owed - steps * step);
       ticks += 1;
       if (ticks % 20 === 1) covered = !stage && backgroundCovered();
-      if (covered) return;
-      // Where the page is solid is looked up twice a second, never a frame: windows move seldom, and measuring costs.
-      if (time - looked > 500) {
+      if (covered) {
+        // Where the pointer went while nothing of the water showed is no stroke: it is let go, not drawn when it shows again.
+        takePointerTrail();
+        return;
+      }
+      // Where the page is solid. It was looked up twice a second, always, and that was the whole of why a dragged window
+      // reached the water in jumps (list 4, Luke: "the tick rate for those movements also need to be increased"): now it is
+      // looked up every step while a window can be moving - a press is held (a title bar dragged), a key was pressed, or a
+      // window moved a moment ago - and twice a second while the page sits still, since measuring every frame costs.
+      const busy = pressing || time < busyUntil;
+      if (busy || time - looked > 500) {
         looked = time;
         const solids = readSolids(cell, env.w, env.h, stage);
-        if (!sameBoxes(solids, env.solids)) env = { ...env, solids };
+        if (!sameBoxes(solids, env.solids)) {
+          env = { ...env, solids };
+          busyUntil = time + BUSY_AFTER_MS;
+        }
       }
       const spot = pointerNow();
       env.pointer = spot === null ? null : { x: spot.x / cell, y: spot.y / cell, down: held || spot.ghost };
-      for (let n = 0; n < steps && state !== null; n += 1) engine.step(state, values, env);
+      const trail = takePointerTrail();
+      env.trail = spot === null || spot.ghost ? undefined : trail.map((point) => ({ x: point.x / cell, y: point.y / cell }));
+      for (let n = 0; n < steps && state !== null; n += 1) {
+        engine.step(state, values, env);
+        // The way the pointer came is spent on the first step: the ones after it see it resting where it is.
+        env.trail = undefined;
+      }
       paint();
       stepped += steps;
       if (time - reported >= 500 && state !== null) {
@@ -250,6 +289,10 @@ function Running<State>({ engine, still, stage }: { engine: Engine<State>; still
       document.removeEventListener('pointerdown', press);
       window.removeEventListener('pointerup', release);
       window.removeEventListener('pointercancel', release);
+      window.removeEventListener('pointerdown', pressAnywhere, { capture: true });
+      window.removeEventListener('pointerup', releaseAnywhere, { capture: true });
+      window.removeEventListener('pointercancel', releaseAnywhere, { capture: true });
+      window.removeEventListener('keydown', releaseAnywhere, { capture: true });
       window.removeEventListener('resize', build);
       setBackdropMeters([]);
     };

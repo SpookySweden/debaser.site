@@ -25,6 +25,11 @@ export type EngineEnv = {
   h: number;
   /** The pointer, in cells, while it is over the page; `down` while it is held on the bare background (or is the ghost). */
   pointer: { x: number; y: number; down: boolean } | null;
+  /**
+   * Where the pointer passed since the last step, in cells, oldest first (not counting where it is now): a fast stroke is
+   * many places between two steps, and a background that follows them draws the curve, not a straight line or a gap.
+   */
+  trail?: readonly { x: number; y: number }[];
   /** What is solid just now. The same list until something moves. */
   solids: readonly Box[];
   random: () => number;
