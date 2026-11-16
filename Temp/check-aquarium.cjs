@@ -466,7 +466,7 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
   await store.setAquariumAccount('person-b');
   assert.equal(JSON.parse(stored.get('debaser.aquarium.mock.v1'))['person-a'].size, 3, 'somebody else signing in here leaves the first account`s copy alone');
   assert.deepEqual(store.aquariumSettings(), D, 'and, having saved nothing, starts on the default sea rather than the first person`s');
-  assert.equal(require(path.join(OUT, backdropFile)).backdropState().id, 'aquarium', 'with the aquarium on');
+  assert.equal(require(path.join(OUT, backdropFile)).backdropState().id, 'fluid', 'and the default background (FLUID since 2026-11-16, Luke; it was the aquarium)');
   assert.equal(JSON.parse(stored.get('debaser.aquarium.mock.v1'))['person-b'], undefined, 'nothing of the first person`s is saved as theirs');
   await store.setAquariumAccount(null);
   await store.setAquariumAccount('person-a');
