@@ -314,12 +314,19 @@ async function roomSteps(browser) {
     assert.equal(await page.locator('[data-room-figure-out="true"]').count(), 0);
     pass(`d. signed out, the ROOM's character is dragged out (worst gap ${Math.max(...lags)}px), thrown, walks, climbs ${climbing.length} frames back up into its room and waves`);
   }
-  // A press without a drag is still a hello, not a grab.
+  // A press without a drag is still a hello, not a grab: right after it came back too (its release never reached the key).
+  await page.waitForFunction(() => {
+    const back = document.querySelector('[data-profile-room] [data-profile-character="owner"]');
+    return back !== null && !['wave', 'hop', 'turn'].includes(back.getAttribute('data-motion'));
+  }, null, { timeout: 15_000 });
   await figure.click();
-  await sleep(150);
+  const hello = await page
+    .waitForFunction(() => ['wave', 'hop', 'turn'].includes(document.querySelector('[data-profile-room] [data-profile-character="owner"]')?.getAttribute('data-motion')), null, { timeout: 2000 })
+    .then(() => true, () => false);
   if (!MEASURE) {
     assert.equal(await page.locator('[data-loose-character]').count(), 0, 'a press is not a grab');
-    pass('d. a press without a drag is still a hello');
+    assert.ok(hello, 'and the first press after it came back says hello (it was swallowed once)');
+    pass('d. a press without a drag is still a hello, the first one after it came back included');
   }
   await context.close();
 }

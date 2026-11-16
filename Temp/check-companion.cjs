@@ -35,7 +35,10 @@ const floors = require(path.join(OUT, 'companion', 'floor.js'));
 const throws = require(path.join(OUT, 'companion', 'throw.js'));
 const shoves = require(path.join(OUT, 'companion', 'shove.js'));
 const { membersSignature } = require(path.join(OUT, 'watch', 'members-signature.js'));
-const read = (file) => fs.readFileSync(path.join(ROOT, file), 'utf8');
+const readFile = (file) => fs.readFileSync(path.join(ROOT, file), 'utf8');
+// The companion layer draws its figure with app/lib/companion/draw.ts (moved out of Companion.tsx on 2026-11-16 so a
+// profile ROOM's carried figure shares it): read together, they are the layer the rules below hold.
+const read = (file) => (file === 'app/components/Companion.tsx' ? `${readFile(file)}\n${readFile('app/lib/companion/draw.ts')}` : readFile(file));
 
 let passed = 0;
 function ok(name, fn) {
@@ -1219,12 +1222,16 @@ ok("the wiring: anybody can take a ROOM's character out, never under reduced mot
   assert.doesNotMatch(walker.slice(walker.indexOf('const takeOut'), walker.indexOf('const backIn')), /user|signedIn|viewerId/, 'nothing asks who is looking');
   assert.match(walker, /if \(dragged\.current\) \{\s*dragged\.current = false;\s*return;\s*\}/, 'the click that ends a drag is not a hello');
   assert.match(walker, /onPointerDown=\{takeOut\}/);
+  // Its release lands on the page, not on the key, so no click clears the mark: a new press and coming back both do.
+  assert.match(walker, /const takeOut = \(event: ReactPointerEvent<HTMLButtonElement>\) => \{[\s\S]{0,200}?dragged\.current = false;\s*if \(reduced/, 'a fresh press forgets an old drag');
+  assert.match(walker, /setLoose\(null\);[\s\S]{0,200}?dragged\.current = false;/, 'and so does coming back');
   assert.match(walker, /setState\(\(current\) => greet\(\{ \.\.\.current, x: /, 'back in, it waves');
   const out = read('app/components/LooseCharacter.tsx');
   assert.match(out, /createPortal\(/, 'out of the room it is drawn over the page');
   assert.match(out, /pointer-events-none fixed inset-0 z-40 overflow-hidden/, 'under the music bar and every window, taking no presses but on itself');
   assert.match(out, /const room = roomFloor\(boxOf\(stage\), clipOf\(stage\), size, floor\.y\);\s*loose = looseStep\(/, 'its way home is the rule above');
   assert.match(out, /thrown = throwStep\(thrown, arena\);/, "thrown with the companion's own throw");
+  assert.match(out, /if \(event\.buttons === 0 && event\.pointerType === 'mouse'\) \{\s*onUp\(/, 'let go before it was listening, it is let go, not stuck to the pointer');
   assert.match(out, /fx: dragLook\(pull\.vx, pull\.vy\)/, 'and dragged with its lean');
   assert.doesNotMatch(out, /<svg|<canvas|clip-path|border-radius|blur\(|transition|fetch\(|localStorage/, 'nothing drawn, nothing eased, nothing sent or saved');
 });

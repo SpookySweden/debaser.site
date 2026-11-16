@@ -21,7 +21,7 @@ import {
 } from '../lib/companion/throw';
 import { boxOf, clipOf, roomFloor } from '../lib/companion/visit';
 import { SPRITE_SLOT } from '../lib/ui/controls';
-import { draw, floorNow, measureInsets, NO_INSETS, sizeOf, type Insets, type Look } from './Companion';
+import { draw, floorNow, measureInsets, NO_INSETS, sizeOf, type Insets, type Look } from '../lib/companion/draw';
 
 /** One frame: ten a second, as the strips are baked; in the hand and in the air it is placed between frames too. */
 const TICK_MS = 100;
@@ -139,6 +139,12 @@ export default function LooseCharacter({
     };
     const onMove = (event: PointerEvent) => {
       if (grab === null || event.pointerId !== grab.pointerId) return;
+      // Let go before this layer was listening (a very quick release as it left the room): no key is down, so it is
+      // let go now rather than left stuck to the pointer.
+      if (event.buttons === 0 && event.pointerType === 'mouse') {
+        onUp(new PointerEvent('pointerup', { pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY }));
+        return;
+      }
       grab.px = event.clientX;
       grab.py = event.clientY;
       const at = performance.now();

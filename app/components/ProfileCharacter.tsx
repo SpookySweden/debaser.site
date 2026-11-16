@@ -207,6 +207,8 @@ export function RoomWalker({
   /** A drag just took it out: the click that ends the press is not a hello. */
   const dragged = useRef(false);
   const takeOut = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    // A fresh press: whatever an earlier drag left behind is forgotten (its release may never have reached this key).
+    dragged.current = false;
     if (reduced || who === 'visitor' || event.button !== 0 || loose !== null) return;
     const button = event.currentTarget;
     const stage = wrap.current?.parentElement ?? null;
@@ -239,6 +241,8 @@ export function RoomWalker({
   const backIn = (left: number | null) => {
     const stage = loose?.stage ?? null;
     setLoose(null);
+    // Its release landed on the page, not on this key, so no click came to clear it: the next press is a hello again.
+    dragged.current = false;
     if (left === null || stage === null) return;
     const into = Math.round(left - stage.getBoundingClientRect().left);
     setState((current) => greet({ ...current, x: Math.min(Math.max(0, into), room) }));
