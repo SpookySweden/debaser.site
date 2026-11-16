@@ -231,6 +231,31 @@ Then the house loop once per batch (League mode: one heavy step at a time, low p
 - **Q6. Playing a song opens the room window too:** **A. No, only videos** (as you asked; a song plays in the room's
   bar and the door opens the window) / B. yes, every time.
 
+## As built (Phase B, 2026-11-16)
+- **The window:** an account's main room opens in the live room's window (`WatchWindow.tsx` `RoomWindow`, `WatchRoom.tsx`).
+  Its X folds it (it plays on; the key above the player brings it back). Badge PRIVATE / LIVE.
+- **The keys** (`MainRoomKeys.tsx`) are on the picture's bar, where END STREAM sits for a stream, not in the cog:
+  `[ GO LIVE ]` / `[ ● LIVE ]` (WHO CAN JOIN; SAVE; GO PRIVATE), `[ LEAVE ]` while live with somebody to hand it to
+  (its tip names who will host), `[ END ROOM ]` (two presses). COPY LINK, REFRESH LINK and REMOVE stay where they were.
+- **GO LIVE elsewhere:** the music bar's `[ GO LIVE ]` and CYTUBE's open your own room on WHO CAN JOIN (the room is
+  written first if nothing was played yet). No separate stream room is made for an account any more.
+- **PLAY:** a MEDIA or FILES row's video that names its source (`room` on the floating entry: WEB, YOUR YOUTUBE, site
+  files, the catalogue) opens your room (`main-room-play.ts`, from `MusicRoomKeeper.tsx`). In somebody else's room the
+  small ask comes first (Q2 A).
+- **Switched by state:** the host's beat only when announced; take-over only when announced (the store's 45 s);
+  lamps and lists only when announced; presence off for a private main room until somebody else's member row
+  appears (they used the link). The room's change feed is open while its window is.
+- **A new room:** after END ROOM or a hand-on, the session (`own-room.ts` `renew`) starts a blank room, written with
+  the next play; its queue is empty (Q1 A).
+- **Not done, said here:** a signed-out visitor keeps the old YOUR ROOM window (their room lives in the browser and
+  has no link or chat), so `OwnRoomWindow.tsx` is still used for visitors; KINO free copies and a media server's rows
+  carry no source and still play in the floating player; `[ WATCH IN ROOM ]` still makes a separate stream room;
+  `<NAME> IS AWAY` for joiners of an away host is not drawn; the 3-minute close of a handed-on room and the
+  45-second take-over are proved on the mock store and in the migration, not live (the migration waits for Luke's
+  typed OK).
+- **Proof:** `Temp/check-rooms-perpetual.cjs` (8, two mutations caught), `scripts/drive-rooms-perpetual.cjs` (9 on a
+  mock server).
+
 ## 11. Not checked
 - Nothing was built or driven. This is from the code (two read-only maps of the room and MEDIA code, the migrations'
   latest functions read in part) and read-only counts.
