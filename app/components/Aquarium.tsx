@@ -30,6 +30,7 @@ import {
   type SimState,
 } from '../lib/aquarium/sim';
 import { backgroundCovered, onBareBackground, pointerNow, setBackdropMeters, watchLiveValues, watchPointer } from '../lib/backdrops/runtime';
+import { THEME_KEY, aquariumSeaVariable, currentThemeId } from '../lib/backdrops/theme';
 import { backdropState, subscribeToBackdrop, type BackdropState } from '../lib/ui/backdrop-slot';
 
 /**
@@ -107,6 +108,8 @@ function Sea({ settings, giant, hidden, still, stage }: { settings: AquariumSett
   // Bubbles and food are shown at the size the screensaver showed them; in the tiny tank, at half that, like everything else.
   const small = settings.tiny ? 1 : 2;
   const coral = settings.tiny ? 1 : settings.coralSize;
+  // The theme's water while THEME is on. A new theme gives `settings` anew, so this is read again then.
+  const sea = aquariumSeaVariable(currentThemeId(), (settings as unknown as Record<string, unknown>)[THEME_KEY] === true);
 
   const tank = useRef<HTMLDivElement>(null);
   const fishEls = useRef<(HTMLDivElement | null)[]>([]);
@@ -385,7 +388,8 @@ function Sea({ settings, giant, hidden, still, stage }: { settings: AquariumSett
           key={settings.disco ? 'disco' : 'tint'}
           ref={tintEl}
           className="aquarium-tint"
-          style={{ opacity: tintOpacity(settings.tint), filter: `hue-rotate(${settings.tintHue}deg)` }}
+          // While THEME is on the water is the theme's own dye (its CSS variable), not Royal Blue turned round the wheel.
+          style={{ opacity: tintOpacity(settings.tint), filter: `hue-rotate(${settings.tintHue}deg)`, ...(sea === null ? {} : { backgroundColor: `var(${sea})` }) }}
         />
         {settings.murk > 0 ? <div className="aquarium-murk-blur" style={{ backdropFilter: `blur(${((settings.murk / 100) * 3).toFixed(1)}px)` }} /> : null}
         {settings.murk > 0 ? <div className="aquarium-murk-haze" style={{ opacity: (settings.murk / 100) * 0.35 }} /> : null}

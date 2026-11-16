@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { DYES, pixelFromHex, type Box, type Engine, type EngineEnv, type Palette } from '../../lib/backdrops/engine';
-import { backgroundCovered, liveValues, onBackdropAction, onBareBackground, pointerNow, setBackdropMeters, takePointerTrail, watchLiveValues, watchPointer } from '../../lib/backdrops/runtime';
+import { backgroundCovered, onBackdropAction, onBareBackground, pointerNow, setBackdropMeters, takePointerTrail, watchLiveValues, watchPointer } from '../../lib/backdrops/runtime';
 import { subscribeToSiteHidden } from '../../lib/ui/site-hidden';
 import { backdropValues, subscribeToBackdropScenes } from '../../lib/backdrops/store';
+import { THEME_KEY, currentThemeId, drawnValues, subscribeToTheme, themeGround, themePalette } from '../../lib/backdrops/theme';
 import { backdropState, subscribeToBackdrop, type BackdropState } from '../../lib/ui/backdrop-slot';
 
 /**
@@ -17,6 +18,9 @@ import { backdropState, subscribeToBackdrop, type BackdropState } from '../../li
  * Drawn in the browser only, fixed under everything like the aquarium (`.aquarium` in globals.css lays the black down before
  * the first paint), and only while its background is the chosen one. Under `prefers-reduced-motion` it shows one settled frame
  * and runs no loop. In a hidden tab, and while the site window fills the screen, the loop rests.
+ *
+ * It draws from `drawnValues`: the reader's settings with the site theme laid over them while the background's `[ THEME ]` is on
+ * (`../../lib/backdrops/theme.ts`), which also repaints the dyes in the theme's colours and tints the empty ground toward its desk.
  */
 
 const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
@@ -86,8 +90,21 @@ function Running<State>({ engine, still, stage }: { engine: Engine<State>; still
     const context = element?.getContext('2d') ?? null;
     if (element === null || context === null) return;
 
-    const palette = readPalette();
-    let values = liveValues(engine.id);
+    const dyes = readPalette();
+    let values = drawnValues(engine.id);
+    // The theme's colours and ground, worked out again only when the theme or the THEME switch changes, never a frame.
+    let themed = '';
+    let palette = dyes;
+    let ground = 0;
+    const retheme = () => {
+      const on = values[THEME_KEY] === true;
+      const theme = currentThemeId();
+      if (themed === `${theme}:${on}`) return;
+      themed = `${theme}:${on}`;
+      palette = themePalette(theme, engine.id, dyes, on);
+      ground = themeGround(theme, on);
+    };
+    retheme();
     // The cell's size is read from the stored settings, never the live ones: a GRID knob set to sway would otherwise start the
     // world again every time its value crossed a whole pixel.
     const cellNow = () => Math.max(1, Math.round(engine.cell(backdropValues(engine.id))));
@@ -115,6 +132,8 @@ function Running<State>({ engine, still, stage }: { engine: Engine<State>; still
     const paint = () => {
       if (state === null || image === null) return;
       engine.render(state, values, pixels, palette, env);
+      // The empty background in the theme's ground rather than the black behind.
+      if (ground !== 0) for (let i = 0; i < pixels.length; i += 1) if (pixels[i] === 0) pixels[i] = ground;
       context.putImageData(image, 0, 0);
     };
     build();
@@ -160,13 +179,16 @@ function Running<State>({ engine, still, stage }: { engine: Engine<State>; still
         if (waiting !== null) clearTimeout(waiting);
         waiting = setTimeout(() => {
           waiting = null;
-          values = liveValues(engine.id);
+          values = drawnValues(engine.id);
+          retheme();
           cell = cellNow();
           build();
           settle();
         }, 200);
       };
       const stopScenes = subscribeToBackdropScenes(again);
+      // A new site theme is a new still frame too, while THEME is on.
+      const stopTheme = subscribeToTheme(again);
       // The site window put away or brought back changes what is solid: the still frame is made again (it kept the
       // window's shape cut out of it, with sand heaped on a window that was no longer there).
       const stopHidden = stage ? () => undefined : subscribeToSiteHidden(again);
@@ -174,6 +196,7 @@ function Running<State>({ engine, still, stage }: { engine: Engine<State>; still
       return () => {
         if (waiting !== null) clearTimeout(waiting);
         stopScenes();
+        stopTheme();
         stopHidden();
         window.removeEventListener('resize', again);
         stopActions();
@@ -206,7 +229,8 @@ function Running<State>({ engine, still, stage }: { engine: Engine<State>; still
         takePointerTrail();
         return;
       }
-      values = liveValues(engine.id);
+      values = drawnValues(engine.id);
+      retheme();
       // A new grain size is a new grid: the world starts again at it.
       const wanted = cellNow();
       if (wanted !== cell) {
