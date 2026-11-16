@@ -145,15 +145,16 @@ async function main() {
   let asked = 0;
   globalThis.fetch = async (url) => {
     asked += 1;
-    assert.match(String(url), /\/rest\/v1\/profiles\?select=display_name%2Cis_hidden&id=eq\./, 'asks for the name and the hidden mark only');
+    // The account list, not the profile row: a visitor's key may read a name but not the hidden mark (live, 2026-11-16).
+    assert.match(String(url), /\/rest\/v1\/rpc\/account_list\?select=display_name%2Chidden&id=eq\./, 'asks the account list for one name');
     return new Response(answer === null ? '' : JSON.stringify(answer), {
       status: answer === null ? 406 : 200,
       headers: { 'content-type': 'application/json' },
     });
   };
-  answer = { display_name: 'good morning', is_hidden: false };
+  answer = { display_name: 'good morning', hidden: false };
   assert.equal(await profileTitle(id), `${PROFILE_TITLE_FALLBACK} :: good morning`, 'a person by their display name');
-  answer = { display_name: 'TEST ACCOUNT A', is_hidden: true };
+  answer = { display_name: 'TEST ACCOUNT A', hidden: true };
   assert.equal(await profileTitle(id), PROFILE_TITLE_FALLBACK, 'a hidden account gets plain words');
   answer = null;
   assert.equal(await profileTitle(id), PROFILE_TITLE_FALLBACK, 'an unknown account gets plain words');

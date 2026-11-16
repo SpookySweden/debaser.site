@@ -7,7 +7,7 @@ import { SITE_ACCOUNT_DISPLAY_NAME, SITE_ACCOUNT_ID } from '../auth/builtin-acco
  * account that is not there, or a lookup that fails gets the plain words, never the id.
  *
  * Read on the server when the page is asked for, with the public key: a profile's name is public, the
- * same row any visitor's browser reads (`is_hidden` too, see 20261021000032_hidden_test_accounts.sql).
+ * same name any visitor's browser is told by the account list (which never tells a visitor about a hidden account).
  * With the mock accounts, which live in each browser, only the house account has a name to give here.
  */
 
@@ -32,10 +32,12 @@ async function supabaseName(id: string): Promise<string | null> {
     global: { fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(3000) }) },
   });
   try {
-    const { data, error } = await db.from('profiles').select('display_name,is_hidden').eq('id', id).maybeSingle();
+    // `account_list`, not the profile row: a visitor may not read the hidden mark, and this answer already leaves
+    // the hidden test accounts out for anybody who is not one of them (20261105124800_presence_table_and_private_wires.sql).
+    const { data, error } = await db.rpc('account_list').select('display_name,hidden').eq('id', id).maybeSingle();
     if (error !== null || data === null) return null;
-    const row = data as { display_name: string | null; is_hidden: boolean | null };
-    if (row.is_hidden === true) return null;
+    const row = data as { display_name: string | null; hidden: boolean | null };
+    if (row.hidden === true) return null;
     return row.display_name ?? null;
   } catch {
     return null;
