@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { FIELD_TIGHT, PLATE, PLATE_MAIN, PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED, PLATE_PRESSED } from '../lib/ui/controls';
-import { subscribeToGoLiveAsk, takeGoLiveAsk } from '../lib/watch/main-room-play';
+import { returnGoLiveAsk, subscribeToGoLiveAsk, takeGoLiveAsk } from '../lib/watch/main-room-play';
 import { ownRoomState } from '../lib/watch/own-room-client';
 import { getWatchRepository, repositoryFor } from '../lib/watch/repository';
 import Link from 'next/link';
@@ -31,6 +31,15 @@ export default function MainRoomKeys({ room, hostName, heir, onLeft }: { room: W
       }),
     [roomId],
   );
+  // These keys move from under the picture to the room's bar as the bar comes up (list 3, item 6): a WHO CAN JOIN still
+  // open when this copy goes is handed back, so the copy that stays opens it.
+  const askingNow = useRef(asking);
+  useEffect(() => {
+    askingNow.current = asking;
+  }, [asking]);
+  useEffect(() => () => {
+    if (askingNow.current) returnGoLiveAsk(roomId);
+  }, [roomId]);
   const [confirmEnd, setConfirmEnd] = useState(false);
   const [busy, setBusy] = useState(false);
   const [fault, setFault] = useState<string | null>(null);

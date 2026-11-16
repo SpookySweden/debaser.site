@@ -96,6 +96,16 @@ export function takeGoLiveAsk(roomId: string): boolean {
   goLiveAsked = null;
   return true;
 }
+/**
+ * A WHO CAN JOIN that was open in keys now going away (they move into the room's bar as it comes up): the ask goes back,
+ * for the keys drawn next to take. Told to the keys already drawn too.
+ */
+export function returnGoLiveAsk(roomId: string): void {
+  goLiveAsked = roomId;
+  queueMicrotask(() => {
+    for (const listener of goLiveListeners) listener();
+  });
+}
 /** Told when GO LIVE is asked, for a window already drawn (it took the ask it was drawn with, and hears the next). */
 export function subscribeToGoLiveAsk(listener: () => void): () => void {
   goLiveListeners.add(listener);

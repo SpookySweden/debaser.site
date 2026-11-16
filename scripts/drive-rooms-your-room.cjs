@@ -345,7 +345,7 @@ const floorOf = (page) =>
     await page.waitForSelector('[data-own-room-door="shut"]', { timeout: 10000 });
     assert.equal(await page.locator(ROOM).count(), 0, 'playing a song opens no window by itself (Luke, Q6 A)');
     await page.locator('[data-own-room-door] button').click();
-    await page.waitForSelector(`${ROOM} [data-main-room-live="private"]`, { timeout: 20000 });
+    await page.waitForSelector(`[data-main-room-live="private"]`, { timeout: 20000 });
     assert.match(await titleOf(page), /'S ROOM$/, 'the window is your room, by your name');
     assert.notEqual(await page.locator(ROOM).getAttribute('data-minimized'), 'true', 'it opens as a window, not folded');
     assert.equal(await page.locator('[data-own-room-window]').count(), 0, 'not the old look-alike window');
@@ -616,7 +616,7 @@ const floorOf = (page) =>
           });
         });
         await page.locator('li').filter({ hasText: 'YOUTUBE · VIDEO' }).first().locator('button[aria-label^="Play "]').first().evaluate((key) => key.click());
-        await page.waitForSelector(`${ROOM} [data-main-room-live]`, { timeout: 30000 });
+        await page.waitForSelector(`[data-main-room-live]`, { timeout: 30000 });
         const framed = await page.waitForFunction(() => document.querySelector('[data-dock-window="stream"] [data-room-picture] iframe') !== null, null, { timeout: 30000 }).then(() => true, () => false);
         assert.equal(await page.locator('[data-floating-player] iframe').count(), 0, 'nothing floats: the room has its own player');
         if (!framed) note('YouTube\'s player did not load in the room (no network to it?): its keys were not driven');
@@ -680,7 +680,7 @@ const floorOf = (page) =>
     await page.waitForSelector('[data-own-room-door="shut"]', { timeout: 15000 });
     // Pressed in the page: a first-visit sheet (PRIVACY) lies over the door at this width.
     await page.evaluate(() => document.querySelector('[data-own-room-door] button').click());
-    await page.waitForSelector(`${ROOM} [data-main-room-live]`, { timeout: 20000 });
+    await page.waitForSelector(`[data-main-room-live]`, { timeout: 20000 });
     await sleep(800);
     const sideways = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     assert.ok(sideways <= 1, `no sideways scroll at 390 (${sideways}px over)`);

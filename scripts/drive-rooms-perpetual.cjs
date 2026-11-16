@@ -77,6 +77,26 @@ const VISITOR_SEED = `(() => {
   } catch {}
 })()`;
 
+/**
+ * Your room's bar (list 3, item 6): with its window open the bar along the foot of the screen is the room's (its black
+ * screen saying PRIVATE or LIVE, the room's keys, QUEUE), as in anybody's room; TV turns it to the music player, whose
+ * ♪ PLAYER turns it back. Pressed in the page: the dev server's corner badge sits over the bar's left end.
+ */
+async function roomBarSwaps(page, badge) {
+  await page.waitForSelector('[data-stream-bar] [data-stream-bar-screen]', { timeout: 15000 });
+  const bar = await page.locator('[data-stream-bar]').innerText();
+  assert.ok(bar.includes(badge), `the room's bar says ${badge} (${bar.replace(/\s+/g, ' ').slice(0, 120)})`);
+  assert.ok(await page.locator('[data-stream-bar] [data-main-room-live]').count(), 'with your room\'s own keys in it');
+  assert.ok(await page.locator('[data-stream-bar] [data-stream-bar-queue]').count(), 'and QUEUE');
+  assert.equal(await page.locator('[data-go-live-key]').count(), 0, 'the music player\'s face is put away');
+  await page.evaluate(() => document.querySelector('[data-stream-bar-swap="stream"]').click());
+  await page.waitForSelector('[data-stream-bar-swap="music"]', { timeout: 10000 });
+  assert.equal(await page.locator('[data-stream-bar]').count(), 0, 'TV: the music player instead');
+  assert.ok(await page.locator('[data-bar-queue]').count(), 'with its own QUEUE key');
+  await page.evaluate(() => document.querySelector('[data-stream-bar-swap="music"]').click());
+  await page.waitForSelector('[data-stream-bar] [data-stream-bar-screen]', { timeout: 10000 });
+}
+
 /** The mock watch store, as the page keeps it. */
 const tables = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('debaser.watch.v1') ?? '{"rooms":[]}'));
 const mainRooms = async (page) => (await tables(page)).rooms.filter((room) => room.origin === 'music' && room.originalHostId === 'drive-user');
@@ -138,7 +158,7 @@ const roomVideo = (page) =>
     console.log('1. PLAY IN FILES OPENS YOUR ROOM');
     await open(page, '/files?kind=video');
     await pressPlay(page);
-    await page.waitForSelector('[data-dock-window="stream"] [data-main-room-live="private"]', { timeout: 30000 });
+    await page.waitForSelector('[data-main-room-live="private"]', { timeout: 30000 });
     await page.waitForFunction(() => {
       const video = document.querySelector('[data-dock-window="stream"] video[data-watch-video]');
       return video !== null && video.currentTime > 0.3 && !video.paused;
@@ -152,6 +172,10 @@ const roomVideo = (page) =>
     assert.match(await page.locator('[data-dock-window="stream"]').innerText(), /'S ROOM\s+PRIVATE/, 'the window is a person\'s room, PRIVATE');
     await page.screenshot({ path: join(SHOTS, '1-private.png') });
     pass('PLAY opened your room\'s window with the video playing on its screen; nothing floats; it is private');
+
+    console.log('1b. THE ROOM\'S BAR AT THE FOOT OF THE SCREEN (list 3, item 6: "Yes, bring it back")');
+    await roomBarSwaps(page, 'PRIVATE');
+    pass('your room\'s bar is at the foot of the screen (PRIVATE, its keys, QUEUE); TV swaps to the music player and ♪ PLAYER back');
 
     console.log('2. PRIVATE: NO BEAT');
     await page.evaluate(() => {
@@ -210,7 +234,7 @@ const roomVideo = (page) =>
     await sleep(1200);
     assert.ok((await roomVideo(page)).time !== folded.time, 'and its video plays on');
     await page.locator('[data-room-shelf-key] button').click();
-    await page.waitForSelector('[data-dock-window="stream"] [data-main-room-live]', { timeout: 10000 });
+    await page.waitForSelector('[data-main-room-live]', { timeout: 10000 });
     pass('X folds your room to the key above the player and it plays on; the key brings it back');
 
     console.log('6. END ROOM, THEN A NEW ROOM');
@@ -220,7 +244,7 @@ const roomVideo = (page) =>
     const ended = (await mainRooms(page)).find((room) => room.id === first.id);
     assert.notEqual(ended.endedAt, null, 'the room ended');
     await pressPlay(page);
-    await page.waitForSelector('[data-dock-window="stream"] [data-main-room-live="private"]', { timeout: 30000 });
+    await page.waitForSelector('[data-main-room-live="private"]', { timeout: 30000 });
     const second = await openMain(page);
     assert.notEqual(second, null);
     assert.notEqual(second.id, first.id, 'a new room');
@@ -253,7 +277,7 @@ const roomVideo = (page) =>
     await pressPlay(page);
     await page.waitForSelector('[data-play-ask-mine]', { timeout: 10000 });
     await page.locator('[data-play-ask-mine]').click();
-    await page.waitForSelector('[data-dock-window="stream"] [data-main-room-live]', { timeout: 30000 });
+    await page.waitForSelector('[data-main-room-live]', { timeout: 30000 });
     pass('in somebody else\'s room PLAY asked first; CANCEL kept you there; PLAY IN YOUR ROOM left theirs for yours');
 
     console.log('8. THE BAR\'S [ GO LIVE ] OPENS YOUR OWN ROOM ON WHO CAN JOIN');
@@ -263,7 +287,7 @@ const roomVideo = (page) =>
     await page.waitForFunction(() => document.querySelector('[data-dock-window="stream"]') === null, null, { timeout: 15000 });
     const roomsBefore = (await tables(page)).rooms.length;
     await page.locator('[data-go-live-key]').first().click();
-    await page.waitForSelector('[data-dock-window="stream"] [data-main-room-live="private"]', { timeout: 20000 });
+    await page.waitForSelector('[data-main-room-live="private"]', { timeout: 20000 });
     await page.waitForSelector('[data-main-room-who]', { timeout: 10000 });
     const fresh = await openMain(page);
     assert.notEqual(fresh, null, 'your room, written now though nothing was played');
@@ -296,7 +320,7 @@ const roomVideo = (page) =>
     await page.waitForFunction(() => document.querySelector('[data-dock-window="stream"]') === null, null, { timeout: 15000 });
     await open(page, '/files?kind=video');
     await pressPlay(page);
-    await page.waitForSelector('[data-dock-window="stream"] [data-main-room-live="private"]', { timeout: 30000 });
+    await page.waitForSelector('[data-main-room-live="private"]', { timeout: 30000 });
     const roomsAt10 = (await tables(page)).rooms.length;
     const ownAt10 = await openMain(page);
     const playsAt10 = (await tables(page)).queue.filter((entry) => entry.roomId === ownAt10.id && entry.mediaItemId === 'drive-video' && entry.playedAt !== null).length;
@@ -336,7 +360,7 @@ const roomVideo = (page) =>
       const onServer = page.locator('button[aria-label^="Play \\"MOCK FILM 01"][aria-label*="SERVER 1"]').first();
       await onServer.waitFor({ timeout: 20000 });
       await onServer.evaluate((key) => key.click());
-      await page.waitForSelector('[data-dock-window="stream"] [data-main-room-live]', { timeout: 30000 });
+      await page.waitForSelector('[data-main-room-live]', { timeout: 30000 });
       await page.waitForFunction(() => [...document.querySelectorAll('[data-dock-window="stream"] iframe')].some((frame) => /placeholder-server1\.xyz/.test(frame.src)), null, { timeout: 20000 });
       assert.equal(await page.locator('[data-floating-player] iframe').count(), 0, 'nothing floats');
       const serverEntry = (await tables(page)).queue.find((entry) => entry.roomId === (ownAt10.id) && entry.link?.url?.includes('placeholder-server1.xyz'));
@@ -348,7 +372,7 @@ const roomVideo = (page) =>
       const freeKey = page.locator('[data-free-copy="internet_archive"] button', { hasText: 'FREE ON' }).first();
       await freeKey.waitFor({ timeout: 20000 });
       await freeKey.evaluate((key) => key.click());
-      await page.waitForSelector('[data-dock-window="stream"] [data-main-room-live]', { timeout: 30000 });
+      await page.waitForSelector('[data-main-room-live]', { timeout: 30000 });
       await page.waitForFunction(() => [...document.querySelectorAll('[data-dock-window="stream"] iframe')].some((frame) => /archive\.org\/embed\/debaser-drive-film/.test(frame.src)), null, { timeout: 20000 });
       assert.equal(await page.locator('[data-floating-player] iframe').count(), 0, 'nothing floats');
       pass('a free copy (KINO\'s WATCH list): PLAY opened your room with the Archive\'s player on its screen; nothing floats');
@@ -365,7 +389,7 @@ const roomVideo = (page) =>
     visitor.on('pageerror', (error) => errors.push(error.message));
     await open(visitor, '/files?kind=video');
     await pressPlay(visitor);
-    await visitor.waitForSelector('[data-dock-window="stream"] [data-main-room-live="private"]', { timeout: 30000 });
+    await visitor.waitForSelector('[data-main-room-live="private"]', { timeout: 30000 });
     await visitor.waitForFunction(() => {
       const video = document.querySelector('[data-dock-window="stream"] video[data-watch-video]');
       return video !== null && video.currentTime > 0.3 && !video.paused;
@@ -391,8 +415,10 @@ const roomVideo = (page) =>
     await visitor.locator('[data-dock-window="stream"] button[aria-label^="Close"]').first().click();
     await visitor.waitForSelector('[data-room-shelf-key]', { timeout: 10000 });
     await visitor.locator('[data-room-shelf-key] button').click();
-    await visitor.waitForSelector('[data-dock-window="stream"] [data-main-room-live]', { timeout: 10000 });
+    await visitor.waitForSelector('[data-main-room-live]', { timeout: 10000 });
     pass('signed out: PLAY opened the same room window (YOUR ROOM, PRIVATE), playing; JUST YOU HERE and LOG IN where chat is; no canvas; GO LIVE asks to log in; it folds and comes back; kept in this browser');
+    await roomBarSwaps(visitor, 'PRIVATE');
+    pass('signed out too: the room\'s bar at the foot of the screen, swapped with the music player and back');
     await visitorContext.close();
 
     const real = errors.filter((message) => !/ResizeObserver|hydrat/i.test(message));

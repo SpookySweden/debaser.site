@@ -257,6 +257,13 @@ Then the house loop once per batch (League mode: one heavy step at a time, low p
   `OwnRoomWindow.tsx` is unused, kept (Q5 A). KINO free copies and a media server's rows open in your room on PLAY.
   `[ WATCH IN ROOM ]` puts the video on in your own room, from where you had got to, and opens WHO CAN JOIN on it.
   After END ROOM, `[ + ADD ]` in the QUEUE window writes your new room first (it said THE STREAM HAS ENDED before).
+  GO LIVE pressed before your room has been read waits for it (it opened the old separate-room menu on the live site).
+- **The room's bar for your own room (list 3, item 6; Luke: "Yes, bring it back"):** with your room's window open or
+  folded, private or live, signed in or a visitor, the bar along the foot of the screen is the room's (`StreamStrip`:
+  the black screen with PRIVATE / LIVE, what is on and the time, the room's keys with GO LIVE and END ROOM, QUEUE), as in
+  anybody's room; TV turns it to the music player and `♪ PLAYER` back. `MusicPlayer.tsx` no longer leaves your own room
+  out (it had since 623137c, when your room was the look-alike window). Its keys moving from under the picture into the
+  bar no longer lose an open WHO CAN JOIN (`returnGoLiveAsk`).
 - **Not done, said here:** `<NAME> IS AWAY` for joiners of an away host is not drawn; the 3-minute close of a handed-on room and the
   45-second take-over are proved on the mock store and in the migration, not live (the migration waits for Luke's
   typed OK).
