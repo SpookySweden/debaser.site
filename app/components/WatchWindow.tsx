@@ -8,7 +8,7 @@ import { useCatalogue } from '../lib/media/catalogue';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { useNow } from '../lib/ui/use-now';
 import { PLATE, PLATE_MAIN } from '../lib/ui/controls';
-import { useEdgeReserve } from '../lib/ui/use-edge-reserve';
+import { cornerSlot, noCornerSlot, subscribeToCornerSlot } from '../lib/ui/corner-shelf';
 import { getWatchRepository } from '../lib/watch/repository';
 import { roomIsLive, roomPrivacyLabel, roomShownName } from '../lib/watch/rules';
 import { streamBarState, subscribeToStreamBar } from '../lib/watch/stream-bar';
@@ -191,26 +191,20 @@ function OwnRoomDoor({ folded = false }: { folded?: boolean }) {
   const roomId = useSyncExternalStore(subscribeToOwnRoom, ownRoomIdNow, noOwnRoom);
   const { read } = useWatchRoom(roomId, { follow: false });
   const video = useSyncExternalStore(subscribeToFloating, screenOn, noScreenOn);
-  // The page window's foot keeps clear of it (`--stream-box`, ./SiteWindow.tsx), as it does of a folded live room.
-  const box = useRef<HTMLSpanElement>(null);
+  // On the corner shelf above the player (./CornerShelf.tsx), beside `[ ▲ WINDOW ]`; the shelf keeps the page window's foot clear.
+  const shelf = useSyncExternalStore(subscribeToCornerSlot, cornerSlot, noCornerSlot);
   const on = roomId !== null && (video || (read !== undefined && read !== null && read.room.currentEntryId !== null));
-  useEdgeReserve(box, '--stream-box', on);
 
-  if (!on || roomId === null) return null;
+  if (!on || roomId === null || shelf === null) return null;
   const tip = 'YOUR ROOM: THE SCREEN, THE QUEUE AND WHO IS HERE';
 
-  return (
-    <span
-      ref={box}
-      className="fixed z-50 frame bg-sun-pale p-0.5"
-      style={{ bottom: 'calc(var(--music-top, 0px) + 0.5rem)', left: 'var(--music-key-left, 0.5rem)' }}
-      data-own-room-door={folded ? 'folded' : 'shut'}
-      data-companion-avoid
-    >
+  return createPortal(
+    <span className="frame bg-sun-pale p-0.5" data-own-room-door={folded ? 'folded' : 'shut'} data-companion-avoid>
       <button type="button" onClick={() => (folded ? expandWatch() : openWatch({ kind: 'room', roomId }))} className={PLATE} aria-label={tip} title={tip}>
         [ ▲ ROOM ]
       </button>
-    </span>
+    </span>,
+    shelf,
   );
 }
 
@@ -368,25 +362,19 @@ function BarWaiting({ text }: { text: string }) {
  */
 function UpBox({ live, hostName }: { live: boolean; hostName: string }) {
   const tip = live ? `BACK TO THE STREAM WITH ${hostName.toUpperCase()}` : 'BACK TO THE STREAM (ENDED)';
-  // The page window's foot keeps clear of it (`--stream-box`, ./SiteWindow.tsx), as it does of the player.
-  const box = useRef<HTMLSpanElement>(null);
-  useEdgeReserve(box, '--stream-box', true);
+  // On the corner shelf above the player (./CornerShelf.tsx), which keeps the page window's foot clear of it.
+  const shelf = useSyncExternalStore(subscribeToCornerSlot, cornerSlot, noCornerSlot);
+  if (shelf === null) return null;
 
-  return (
+  return createPortal(
     // A framed tile, like the folded music player under it: a bare key would sit straight on the desktop.
-    <span
-      ref={box}
-      className="fixed z-50 frame bg-sun-pale p-0.5"
-      // Over the bar's left key (`--music-key-left`, ./MusicPlayer.tsx); the folded tile and the phone card sit at 0.5rem.
-      style={{ bottom: 'calc(var(--music-top, 0px) + 0.5rem)', left: 'var(--music-key-left, 0.5rem)' }}
-      data-watch-tv-box={live ? 'live' : 'ended'}
-      data-companion-avoid
-    >
+    <span className="frame bg-sun-pale p-0.5" data-watch-tv-box={live ? 'live' : 'ended'} data-companion-avoid>
       {/* It says what it is in words too (SPEC-rooms-queues.md): the mark alone was a puzzle. */}
       <button type="button" onClick={expandWatch} className={`${PLATE} inline-flex items-center gap-1`} aria-label={tip} title={tip}>
         <ArtMark src={UP_MARK_SRC} size={UP_MARK_HEIGHT} width={UP_MARK_WIDTH} fallback="[ ▲ ]" />
         <span>{live ? 'ROOM :: LIVE' : 'ROOM :: ENDED'}</span>
       </button>
-    </span>
+    </span>,
+    shelf,
   );
 }

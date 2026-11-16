@@ -283,6 +283,17 @@ html[data-backdrop='tile'] .aquarium-key {
   }
 }
 
+/* HIDE WINDOW (app/lib/ui/site-hidden.ts; Luke, 2026-11-16): while `<html>` carries the mark the site window is put away, so the
+   background shows, from the first paint. `[ ▲ WINDOW ]` above the player (CornerShelf.tsx) brings it back. */
+html[data-site-hidden='on'] [data-site-window='frame'] {
+  display: none;
+}
+
+/* ...and the empty desk lets the pointer through to the background under it. */
+html[data-site-hidden='on'] [data-site-window='desk'] {
+  pointer-events: none;
+}
+
 /* The key's own words follow the same mark (FullWindowKey.tsx): FILL WINDOW when normal, SHRINK WINDOW when filled. */
 html:not([data-site-fill='on']) .fill-key-on,
 html[data-site-fill='on'] .fill-key-off {

@@ -33,6 +33,8 @@ import Aquarium from './components/Aquarium';
 import Backdrops from './components/backdrops/Backdrops';
 import BackdropSettingsWindow, { BackdropKey } from './components/BackdropSettingsWindow';
 import { siteFillBootScript } from './lib/ui/site-fill';
+import { siteHiddenBootScript } from './lib/ui/site-hidden';
+import CornerShelf from './components/CornerShelf';
 import { themeBootScript } from './lib/ui/theme-slot';
 import { FACE_VARIABLES } from './theme/fonts';
 import './globals.css';
@@ -73,7 +75,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
           later - and it exists because those writes land in a React effect, which is one painted frame
           too late: a reader who chose the dark theme saw a white flash first. */}
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeBootScript() + cursorBootScript() + backdropBootScript() + siteFillBootScript() }} />
+        <script dangerouslySetInnerHTML={{ __html: themeBootScript() + cursorBootScript() + backdropBootScript() + siteFillBootScript() + siteHiddenBootScript() }} />
       </head>
       <body className="min-h-full flex flex-col">
         {/* The reader's theme, written onto <html> before anything else the client does. It draws
@@ -108,6 +110,8 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
                       <CommsNotifier />
                       {/* ...and the player's bar sits over every page, docked to the bottom. */}
                       <MusicPlayer />
+                      {/* The keys above it: [ ▲ ROOM ] and [ ▲ WINDOW ] (CornerShelf.tsx). */}
+                      <CornerShelf />
                       {/* Your companion, walking the top edge of that bar (SPEC-companion.md); others' too, in a room. */}
                       <Companion />
                       {/* A music broadcast is a room now (SPEC-music-queues.md): the room window keeps it

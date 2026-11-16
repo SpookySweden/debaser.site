@@ -70,7 +70,9 @@ for (const part of ['desk', 'frame', 'title']) {
 }
 assert.ok(read('app/layout.tsx').includes('siteFillBootScript()'), 'the mark is written before the first paint');
 assert.ok(site.includes('foldedOnThisPage={fill}'), "only a page's own fill folds the side panel, never the reader's choice");
-assert.ok(site.includes('endKey={fill ? undefined : <FullWindowKey on={chosen} />}'), 'one key, at the end of the top bar in both states');
+// Updated on purpose 2026-11-16 (Luke: a key "to the left of the fill window button that collapses the main site window"): HIDE WINDOW
+// stands just before it (Temp/check-hide-window.cjs).
+assert.ok(site.includes('endKey={fill ? undefined : (<><HideWindowKey /><FullWindowKey on={chosen} /></>)}'), 'one key, at the end of the top bar in both states, HIDE WINDOW before it');
 // The mark itself: set and cleared with the choice, and the boot script reads the same key.
 const marks = new Map();
 global.document = { documentElement: { setAttribute: (name, value) => void marks.set(name, value), removeAttribute: (name) => void marks.delete(name) } };
