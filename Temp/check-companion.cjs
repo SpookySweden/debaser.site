@@ -1,6 +1,6 @@
 /*
  * The companion along the bottom of the site (SPEC-companion.md): its rules, without a browser.
- *   npx tsc app/lib/companion/brain.ts app/lib/companion/wire.ts app/lib/companion/choices.ts app/lib/companion/scene.ts app/lib/companion/events.ts app/lib/companion/ledge.ts app/lib/companion/floor.ts app/lib/companion/throw.ts app/lib/companion/shove.ts app/lib/watch/members-signature.ts --outDir Temp/companion-check --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strict
+ *   npx tsc app/lib/companion/brain.ts app/lib/companion/wire.ts app/lib/companion/choices.ts app/lib/companion/scene.ts app/lib/companion/events.ts app/lib/companion/ledge.ts app/lib/companion/floor.ts app/lib/companion/throw.ts app/lib/companion/shove.ts app/lib/companion/loose.ts app/lib/watch/members-signature.ts --outDir Temp/companion-check --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strict
  *   node Temp/check-companion.cjs
  *
  * What it holds:
@@ -35,7 +35,10 @@ const floors = require(path.join(OUT, 'companion', 'floor.js'));
 const throws = require(path.join(OUT, 'companion', 'throw.js'));
 const shoves = require(path.join(OUT, 'companion', 'shove.js'));
 const { membersSignature } = require(path.join(OUT, 'watch', 'members-signature.js'));
-const read = (file) => fs.readFileSync(path.join(ROOT, file), 'utf8');
+const readFile = (file) => fs.readFileSync(path.join(ROOT, file), 'utf8');
+// The companion layer draws its figure with app/lib/companion/draw.ts (moved out of Companion.tsx on 2026-11-16 so a
+// profile ROOM's carried figure shares it): read together, they are the layer the rules below hold.
+const read = (file) => (file === 'app/components/Companion.tsx' ? `${readFile(file)}\n${readFile('app/lib/companion/draw.ts')}` : readFile(file));
 
 let passed = 0;
 function ok(name, fn) {
@@ -344,7 +347,12 @@ ok('the wiring: the room presence carries it, no new channel, clicks pass throug
   assert.match(strip, /hasShown: shown !== null/, 'a SHOWN character makes it on by default');
   assert.match(strip, /useShownCharacter\(companion\.wire\.c === null \? null : companion\.userId\)/, "room companions wear their owner's SHOWN character");
   assert.match(strip, /if \(still\) \{\s*brain = \{ mood: 'stand'/, 'and stands it still in one frame');
-  assert.doesNotMatch(strip, /requestAnimationFrame/, 'stepped frames on a ten-a-second clock, not a smooth loop');
+  // Stepped frames on a ten-a-second clock. Luke, 2026-11-16 ("better framerate and visual tracking when picking up,
+  // dragging and throwing"): only where it is in the air glides between those frames, every display frame; the loop
+  // itself, its walking and its picture stay stepped.
+  assert.match(strip, /const timer = setInterval\(tick, TICK_MS\);/, 'the loop is a ten-a-second clock');
+  assert.equal((strip.match(/requestAnimationFrame\(/g) ?? []).length, 2, 'a display-frame loop in one place only (the glide, which asks for its own next frame)');
+  assert.match(strip, /if \(place === null \|\| glide === null \|\| \(phase !== 'thrown' && phase !== 'fall'\)\) \{/, 'and only while it is in the air');
   assert.match(strip, /data-companion-figure="placeholder"/, 'a placeholder field when there is no SHOWN character; no drawn stand-in');
   assert.match(strip, /data-companion-figure="character"/, "the SHOWN character's baked strip otherwise");
   assert.doesNotMatch(strip, /<svg|<canvas/, 'the code never draws a character');
@@ -630,7 +638,7 @@ ok('K1: a second press soon after the first picks it up to follow the pointer; t
   assert.match(strip, /carried: true \};\s*liftOff\(\);\s*return;/, 'it is picked up, carried with nothing held down');
   assert.match(strip, /pokes = Math\.max\(0, pokes - 1\);/, "the first press's poke is given back");
   // (2026-11-14: it also keeps the pointer's last moves now, `trace`, so a put-down on the move is a throw.)
-  assert.match(strip, /if \(grab\.carried\) \{\s*grab\.px = event\.clientX;\s*grab\.py = event\.clientY;\s*trace\(grab, event\);\s*return;\s*\}/, 'it follows the pointer, whichever pointer');
+  assert.match(strip, /if \(grab\.carried\) \{\s*grab\.px = event\.clientX;\s*grab\.py = event\.clientY;\s*trace\(grab, event\);\s*followHand\(\);\s*return;\s*\}/, 'it follows the pointer, whichever pointer (placed at once since 2026-11-16)');
   assert.match(strip, /if \(grab === null \|\| grab\.carried \|\| event\.pointerId !== grab\.id\) return;/, 'letting a key go does not drop it');
   assert.match(strip, /const onPutDown = \(event: PointerEvent\) => \{\s*if \(grab === null \|\| !grab\.carried \|\| event\.button !== 0\) return;/, 'the next press puts it down');
   assert.match(strip, /window\.addEventListener\('pointerdown', onPutDown/, 'heard anywhere on the window');
@@ -967,7 +975,8 @@ ok('the look of a throw, frame by frame: pulled back to wind up, drawn out with 
 
 ok('the throw on the page: only on a moving let-go, never under reduced motion, its own frames and nothing drawn, and a room hears only where it ended', () => {
   const strip = read('app/components/Companion.tsx');
-  assert.match(strip, /if \(still \|\| !isThrow\(toss\.vx, toss\.vy\) \|\| y > floor\.y\) \{\s*letGo\(throwOf\(toss\.vx\)\);\s*return;/, 'slow, or under reduced motion, it is put down as before');
+  assert.match(strip, /if \(still \|\| !isThrow\(toss\.vx, toss\.vy\)\) \{\s*letGo\(throwOf\(toss\.vx\)\);\s*return;/, 'slow, or under reduced motion, it is put down as before');
+  // (Let go below its floor it is not thrown either: it climbs back up to it since 2026-11-16, held in the section below.)
   assert.match(strip, /fling\(releaseVelocity\(released\.trail, performance\.now\(\)\)\);/, 'a drag let go reads the pointer\'s speed');
   assert.match(strip, /fling\(releaseVelocity\(grab\.trail, performance\.now\(\)\)\);/, 'and so does a put-down after a double press');
   assert.match(strip, /if \(event\.type !== 'pointerup'\) \{\s*letGo\(0\);/, 'a pointer taken away throws nothing');
@@ -976,7 +985,8 @@ ok('the throw on the page: only on a moving let-go, never under reduced motion, 
   const to = strip.indexOf("if (phase === 'held' || phase === 'fall') {");
   assert.ok(from > 0 && to > from);
   const loop = strip.slice(from, to);
-  assert.match(loop, /thrown = throwStep\(thrown, \{ left: -insets\.left, right: floor\.screen - size\.w \+ insets\.right, ceiling: size\.h - insets\.top, floor: floor\.y, spans: floor\.spans \}\);/, 'the screen is its arena');
+  assert.match(loop, /const arena = \{ left: -insets\.left, right: floor\.screen - size\.w \+ insets\.right, ceiling: size\.h - insets\.top, floor: floor\.y, spans: floor\.spans \};\s*thrown = throwStep\(thrown, arena\);/, 'the screen is its arena');
+  assert.match(loop, /const ahead = throwStep\(thrown, arena\);\s*glideToward\(\{ x: thrown\.x, y: thrown\.y \}, \{ x: ahead\.x, y: ahead\.y \}, size\.h\);/, 'between frames it glides toward the next frame the same rules give (2026-11-16)');
   const flying = loop.slice(0, loop.indexOf('// Down:'));
   assert.doesNotMatch(flying, /say\(|sayCompanion|react\(/, 'in the air the room is told nothing');
   assert.match(loop, /react\(dizzy \? 'dizzy' : 'land'\);/, 'down, it is told once (a reaction says where it is)');
@@ -985,7 +995,7 @@ ok('the throw on the page: only on a moving let-go, never under reduced motion, 
   assert.match(strip, /\{own\s*\? \(\['opacity-50', 'opacity-25'\] as const\)\.map/, 'two fainter copies, on your own companion only');
   assert.match(strip, /className=\{`pointer-events-none invisible absolute inset-0 -z-10 block \$\{faint\}`\}\s*style=\{\{\s*backgroundImage: `url\("\$\{look\.stripUrl\}"\)`,[\s\S]{0,300}?imageRendering: 'pixelated',\s*\}\}\s*data-companion-smear/, 'the smear is its own baked strip, hard-edged, behind it');
   assert.doesNotMatch(strip, /<svg|<canvas|clip-path|border-radius|blur\(/, 'nothing is drawn, nothing is blurred');
-  assert.doesNotMatch(strip, /requestAnimationFrame|transition/, 'stepped: no smooth motion');
+  assert.doesNotMatch(strip, /transition/, 'no eased motion: the glide is a straight line between two frames of the rules');
   // Dizzy: a star, the reel, and old tabs in a room see a plain hop.
   assert.equal(wire.reactionMotion('dizzy'), 'dizzy');
   assert.equal(wire.reactionMark('dizzy'), '\u2736');
@@ -1086,6 +1096,156 @@ ok('the wiring: the loop looks at the windows every frame, not under reduced mot
   const floor = read('app/lib/companion/floor.ts');
   assert.ok(floor.includes('if (element === standing || !shown(element)) continue;'), 'not the room window it stands on, nor a folded one');
   assert.ok(floor.includes(`'[data-dock-window], [data-floating-player="floating"]'`), 'every window, and the video while it floats');
+});
+
+// Luke's second list (2026-11-16): grabbed out of a profile's ROOM, climbing in, and framerate, tracking and smears.
+const loose = require(path.join(OUT, 'companion', 'loose.js'));
+
+ok('dragged: it leans back against the drag, is drawn out along it, and trails copies of itself only when fast', () => {
+  assert.deepEqual(throws.dragLook(0, 0), throws.NO_LOOK, 'at rest it is itself');
+  assert.deepEqual(throws.dragLook(0.5, 0.4), throws.NO_LOOK, 'a pointer barely moving is no drag');
+  const right = throws.dragLook(20, 0);
+  assert.ok(right.c < 0, `dragged right, its feet trail left (a shear, c ${right.c})`);
+  assert.ok(right.a > 1, 'and it is drawn out along the drag');
+  const left = throws.dragLook(-20, 0);
+  assert.ok(left.c > 0, 'dragged left, its feet trail right');
+  const wild = throws.dragLook(1000, 0);
+  assert.ok(Math.abs(wild.c) <= throws.DRAG_LEAN_MAX * throws.STRETCH_MAX + 1e-9, 'the lean has a limit');
+  assert.ok(wild.a <= throws.STRETCH_MAX + 1e-9, 'and so has the stretch');
+  assert.equal(throws.dragLook(throws.DRAG_SMEAR_SPEED - 1, 0).ghosts.length, 0, 'slower than a smear, no copies');
+  const fast = throws.dragLook(60, -20);
+  assert.equal(fast.ghosts.length, 2, 'fast, two copies');
+  for (const ghost of fast.ghosts) {
+    assert.ok(ghost.dx < 0 && ghost.dy > 0, 'back along the way the pointer came');
+    assert.ok(Number.isInteger(ghost.dx) && Number.isInteger(ghost.dy), 'in whole pixels');
+  }
+  assert.ok(Math.abs(fast.ghosts[1].dx) > Math.abs(fast.ghosts[0].dx), 'the fainter one further back');
+  assert.equal(fast.dx, 0, 'it is not moved off the pointer');
+  assert.equal(fast.dy, 0);
+});
+
+ok('in the air it glides between two frames of the rules: exact at each frame, whole pixels, never past the next', () => {
+  const from = { x: 100, y: 400 };
+  const to = { x: 160, y: 370 };
+  assert.deepEqual(throws.glideAt(from, to, 0), from, 'on a frame it is where the rules have it');
+  assert.deepEqual(throws.glideAt(from, to, 1), to, 'and at the next one');
+  assert.deepEqual(throws.glideAt(from, to, 0.5), { x: 130, y: 385 }, 'halfway, on the straight line');
+  assert.deepEqual(throws.glideAt(from, to, 3), to, 'a late frame never carries it past where the rules will have it (past a wall)');
+  assert.deepEqual(throws.glideAt(from, to, -1), from);
+  const odd = throws.glideAt(from, { x: 101, y: 401 }, 1 / 3);
+  assert.ok(Number.isInteger(odd.x) && Number.isInteger(odd.y), 'whole pixels');
+});
+
+ok('out of its room: it walks along the floor to under its room, climbs up into it, and is home', () => {
+  const ground = { y: 700, spans: [{ left: 0, right: 1200 }] };
+  const home = { left: 300, right: 600, floor: 500 };
+  let now = loose.startLoose(900, 700, 1);
+  assert.equal(now.stage, 'walk');
+  now = loose.looseStep(now, ground, home);
+  assert.equal(now.x, 900 - loose.LOOSE_WALK, 'it walks toward its room, a walking step a frame');
+  assert.equal(now.facing, -1, 'facing the way it goes');
+  assert.equal(now.y, 700, 'along the floor');
+  let frames = 0;
+  while (now.stage === 'walk' && frames < 500) {
+    now = loose.looseStep(now, ground, home);
+    frames += 1;
+  }
+  assert.equal(now.stage, 'climb', 'under its room, it climbs');
+  assert.equal(now.x, 600, 'at the nearest place in its room');
+  assert.ok(now.y < 700 && now.y >= 700 - loose.LOOSE_CLIMB, 'a climbing step a frame, up');
+  while (now.stage === 'climb' && frames < 1000) {
+    const before = now.y;
+    now = loose.looseStep(now, ground, home);
+    assert.ok(before - now.y <= loose.LOOSE_CLIMB, 'never more than a climbing step');
+    frames += 1;
+  }
+  assert.equal(now.stage, 'home', 'and it is home');
+  assert.deepEqual([now.x, now.y], [600, 500], 'standing on its room floor');
+  assert.equal(loose.looseStep(now, ground, home), now, 'home is home');
+});
+
+ok('out of its room: it never walks over what it steps around, and waits when its room is out of sight, then pops back', () => {
+  // The folded player at 500 to 700: its room above that stretch is climbed into from the nearest free stretch.
+  const ground = { y: 700, spans: [{ left: 0, right: 450 }, { left: 750, right: 1200 }] };
+  const home = { left: 520, right: 680, floor: 500 };
+  let now = loose.startLoose(1000, 700, 1);
+  for (let frames = 0; frames < 500 && now.stage === 'walk'; frames += 1) now = loose.looseStep(now, ground, home);
+  assert.equal(now.stage, 'climb', 'it walks to the end of its own stretch and climbs from there');
+  assert.equal(now.x, 750 - loose.LOOSE_WALK, 'its first climbing step is from the end of its stretch, a step toward its room');
+  assert.ok(now.y < 700, 'off the floor: it never walks over the folded player');
+  // Its room scrolled away mid-climb: back down to the floor, and it waits.
+  now = loose.looseStep(now, ground, null);
+  assert.ok(now.y > home.floor, 'off the climb');
+  for (let frames = 0; frames < 5; frames += 1) now = loose.looseStep(now, ground, null);
+  assert.equal(now.stage, 'wait', 'down on the floor, waiting');
+  assert.equal(now.y, 700);
+  for (let frames = 0; frames < loose.LOST_TICKS; frames += 1) now = loose.looseStep(now, ground, null);
+  assert.equal(now.stage, 'home', 'out of sight long enough, it pops back in');
+  // Seen again before that: on its way.
+  let back = loose.looseStep({ ...loose.startLoose(100, 700, 1), stage: 'wait', waited: 30 }, ground, { left: 200, right: 400, floor: 500 });
+  assert.equal(back.stage, 'walk');
+  assert.equal(back.waited, 0, 'the wait starts again from nothing');
+});
+
+ok('the wiring: in the hand it is placed on every move, smeared, and in the air it glides; walking stays stepped', () => {
+  const strip = read('app/components/Companion.tsx');
+  const onDrag = strip.slice(strip.indexOf('const onDrag = (event: PointerEvent) => {'), strip.indexOf('const onPutDown'));
+  assert.equal((onDrag.match(/followHand\(\);/g) ?? []).length, 3, 'carried, dragged, and the move that picks it up: each places it at once');
+  const follow = strip.slice(strip.indexOf('const followHand = () => {'), strip.indexOf('const onFigure'));
+  assert.match(follow, /x = at\.x;\s*y = at\.y;/, 'where the pointer has it, now');
+  assert.match(follow, /fx: dragLook\(pull\.vx, pull\.vy\)/, 'leaning back against the drag');
+  assert.match(strip, /const ahead = fallNext\(next, floor, size\);\s*glideToward/, 'a drop glides too');
+  // Walking stays stepped: the glide never runs on the strip.
+  const glide = strip.slice(strip.indexOf('const glideLoop = () => {'), strip.indexOf('const glideToward'));
+  assert.match(glide, /phase !== 'thrown' && phase !== 'fall'/);
+  assert.match(strip, /if \(glideFrame !== 0\) cancelAnimationFrame\(glideFrame\);/, 'and is stopped when the companion goes');
+  assert.match(strip, /place\.dataset\.x !== at\) place\.dataset\.x = at;/, "a frame's own place is written on the figure for the drives");
+});
+
+ok('the wiring: it climbs in, never floats: on a page, up to a floor that rises, and when let go below its floor', () => {
+  const strip = read('app/components/Companion.tsx');
+  assert.match(strip, /if \(first\) \{\s*y = floor\.y \+ size\.h;\s*phase = 'mount';/, 'its first frame on a page, it climbs up from behind the edge of its floor');
+  assert.match(strip, /floor\.y < floorWas - 4\) \{\s*y = Math\.min\(floorWas, floor\.y \+ size\.h\);\s*phase = 'mount';/, 'a floor that rises under it is climbed, from just behind its edge');
+  assert.match(strip, /floor\.y > floorWas \+ 4\) \{\s*fall = \{ x, y: floorWas/, 'one that drops away is fallen from');
+  assert.match(strip, /if \(phase === 'mount'\) \{\s*\/\/[^\n]*\n\s*y = climbToward\(y, floor\.y\);\s*play\('climb'\);/, 'on its climbing frames, a climbing step a frame');
+  assert.match(strip, /if \(!still && \(phase === 'strip' \|\| phase === 'mount'\)\) \{/, 'not under reduced motion');
+  const fling = strip.slice(strip.indexOf('const fling = '), strip.indexOf('const trace = '));
+  assert.match(fling, /if \(!still && y > floor\.y\) \{[\s\S]{0,200}phase = 'mount';/, 'let go below its floor, it climbs back up to it');
+  assert.match(strip, /\(fall\?\.y \?\? y\) > floor\.y \+ 1\) \{[\s\S]{0,120}phase = 'mount';/, 'dropped below it too: never pulled up to it in one frame');
+  assert.match(strip, /phase === 'thrown' \|\| phase === 'mount';/, 'it can be picked up while it climbs');
+  // Somebody else's companion in the room climbs too.
+  const other = strip.slice(strip.indexOf('function RoomFigure('));
+  assert.match(other, /if \(feet === null\) feet = floor\.y \+ size\.h;/, "new to the room, theirs climbs up from behind the floor's edge");
+  assert.match(other, /feet = up \? climbToward\(Math\.min\(feet, floor\.y \+ size\.h\), floor\.y\) : Math\.min\(floor\.y, feet \+ FALL_STEP\);/);
+});
+
+ok("the wiring: anybody can take a ROOM's character out, never under reduced motion, never your visiting companion", () => {
+  const walker = read('app/components/ProfileCharacter.tsx');
+  assert.match(walker, /if \(reduced \|\| who === 'visitor' \|\| event\.button !== 0 \|\| loose !== null\) return;/);
+  assert.doesNotMatch(walker.slice(walker.indexOf('const takeOut'), walker.indexOf('const backIn')), /user|signedIn|viewerId/, 'nothing asks who is looking');
+  assert.match(walker, /if \(dragged\.current\) \{\s*dragged\.current = false;\s*return;\s*\}/, 'the click that ends a drag is not a hello');
+  assert.match(walker, /onPointerDown=\{takeOut\}/);
+  // Its release lands on the page, not on the key, so no click clears the mark: a new press and coming back both do.
+  assert.match(walker, /const takeOut = \(event: ReactPointerEvent<HTMLButtonElement>\) => \{[\s\S]{0,200}?dragged\.current = false;\s*if \(reduced/, 'a fresh press forgets an old drag');
+  assert.match(walker, /setLoose\(null\);[\s\S]{0,200}?dragged\.current = false;/, 'and so does coming back');
+  assert.match(walker, /setState\(\(current\) => greet\(\{ \.\.\.current, x: /, 'back in, it waves');
+  const out = read('app/components/LooseCharacter.tsx');
+  assert.match(out, /createPortal\(/, 'out of the room it is drawn over the page');
+  assert.match(out, /pointer-events-none fixed inset-0 z-40 overflow-hidden/, 'under the music bar and every window, taking no presses but on itself');
+  assert.match(out, /const room = roomFloor\(boxOf\(stage\), clipOf\(stage\), size, floor\.y\);\s*loose = looseStep\(/, 'its way home is the rule above');
+  assert.match(out, /thrown = throwStep\(thrown, arena\);/, "thrown with the companion's own throw");
+  assert.match(out, /if \(event\.buttons === 0 && event\.pointerType === 'mouse'\) \{\s*onUp\(/, 'let go before it was listening, it is let go, not stuck to the pointer');
+  assert.match(out, /fx: dragLook\(pull\.vx, pull\.vy\)/, 'and dragged with its lean');
+  assert.doesNotMatch(out, /<svg|<canvas|clip-path|border-radius|blur\(|transition|fetch\(|localStorage/, 'nothing drawn, nothing eased, nothing sent or saved');
+});
+
+ok('the voice key is a symbol: the note, struck through while off, with its name and tip in words', () => {
+  const key = read('app/components/SpeechAudioKey.tsx');
+  assert.match(key, /\[ <span className=\{on \? undefined : 'line-through'\}>♪<\/span> \]/);
+  assert.doesNotMatch(key, /'♪ ON'|'\[ ♪ OFF \]'/, 'no words on it');
+  assert.match(key, /aria-label="Character voices"/, 'a name for a screen reader');
+  assert.match(key, /aria-pressed=\{on\}/, 'which says whether it is on');
+  assert.match(key, /title=\{on \? 'Voices on: press to stop them' : 'Voices off: press to hear them talk'\}/, 'and a tip on hover');
 });
 
 console.log(`\n${passed} passed`);

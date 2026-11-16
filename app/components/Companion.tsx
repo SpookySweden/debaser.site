@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { DANCES, type MotionId } from '../lib/character/motion';
-import { cellAt, type CharacterSheet } from '../lib/character/sheet';
 import { useShownCharacter } from '../lib/character/use-shown-character';
 import { fallStep, spanFor, startBrain, think, throwOf, type BrainScene, type BrainState, type Fall, type Span } from '../lib/companion/brain';
 import { companionOut } from '../lib/companion/choices';
@@ -13,7 +12,7 @@ import {
   subscribeToCompanionChoices,
 } from '../lib/companion/companion-slot';
 import { onCompanionCatch, onCompanionPoke, onCompanionSpoke } from '../lib/companion/events';
-import { LEDGE_SELECTOR, measureFloor, measureWindows, type Floor, type FloorBox } from '../lib/companion/floor';
+import { measureWindows, type Floor, type FloorBox } from '../lib/companion/floor';
 import { shoveStep, shoveThrow } from '../lib/companion/shove';
 import { holdLedgeHeight } from '../lib/companion/ledge';
 import { companionScene } from '../lib/companion/scene';
@@ -22,13 +21,14 @@ import {
   releaseVelocity,
   SAMPLE_WINDOW_MS,
   settleFrames,
+  dragLook,
+  glideAt,
   squashLook,
   startThrow,
   throwLook,
   throwStep,
   type Sample,
   type ThrowBox,
-  type ThrowLook,
   type Thrown,
 } from '../lib/companion/throw';
 import { floatingState } from '../lib/ui/floating-player';
@@ -68,6 +68,7 @@ import {
   type RoomCompanion,
 } from '../lib/companion/wire';
 import { SPRITE_SLOT } from '../lib/ui/controls';
+import { draw, floorNow, measureInsets, NO_INSETS, SCALE, sizeOf, type Insets, type Look, type Size } from '../lib/companion/draw';
 import { useAuth } from './AuthProvider';
 import CompanionReactions from './CompanionReactions';
 import { useMusicPlayer } from './MusicPlayerProvider';
@@ -118,10 +119,6 @@ import SpriteSlot from './SpriteSlot';
  * motion it stands still in one frame.
  */
 
-/** The placeholder's box, in CSS pixels, when there is no SHOWN character to wear. */
-const PLACEHOLDER = { w: 32, h: 32 } as const;
-/** Screen pixels per strip pixel: a whole number, so every block of the character is the same size. */
-const SCALE = 2;
 /** One frame: ten a second, as the strips are baked (`sheet.fps`). */
 const TICK_MS = 100;
 /** Pixels a frame, walking and chasing. */
@@ -145,6 +142,8 @@ const CHASE_FRESH_MS = 8_000;
 const GRAB_SLOP = 5;
 /** A dance lasts this long before it changes to another (a new track changes it at once). */
 const DANCE_MS: readonly [number, number] = [20_000, 40_000];
+/** How far somebody else's companion drops a frame when its floor drops away under it (a room's window closing). */
+const FALL_STEP = 24;
 /** The book's box on its lap while it reads, in CSS pixels (its art slot, `sprite-companion-book`). */
 const BOOK_SIZE = 24;
 /** How long after the page settles a strip missing the newer motions is baked again. */
@@ -153,63 +152,6 @@ const REBAKE_AFTER_MS = 6_000;
 const POKES: readonly NonNullable<CompanionWire['k']>[] = ['poke', 'wave', 'spin'];
 /** The stars going round its head while it is dizzy, a frame each: text, not art. */
 const DIZZY_MARKS: readonly string[] = ['✶··', '·✶·', '··✶', '·✶·'];
-/** No empty margin known round its picture: its box is taken as full. */
-const NO_INSETS = { left: 0, right: 0, top: 0 } as const;
-type Insets = { left: number; right: number; top: number };
-
-/**
- * The empty margin round the figure in one cell of its strip, in screen pixels: how far its picture stops short of its
- * box on the left, the right and the top. A splat puts the figure itself on the glass, not the empty edge of its box, so
- * the cell it splats in is looked at once (its own baked frame, read back; nothing is drawn). No margin when it cannot
- * be read.
- */
-function measureInsets(look: NonNullable<Look>, motion: MotionId): Promise<Insets> {
-  return new Promise((resolve) => {
-    const { sheet } = look;
-    const image = new Image();
-    image.crossOrigin = 'anonymous';
-    image.onerror = () => resolve(NO_INSETS);
-    image.onload = () => {
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = sheet.cell.w;
-        canvas.height = sheet.cell.h;
-        const context = canvas.getContext('2d');
-        if (context === null) return resolve(NO_INSETS);
-        const at = cellAt(sheet, sheet.motions[motion].ticks[0]);
-        context.drawImage(image, at.x, at.y, sheet.cell.w, sheet.cell.h, 0, 0, sheet.cell.w, sheet.cell.h);
-        const { data } = context.getImageData(0, 0, sheet.cell.w, sheet.cell.h);
-        let left = sheet.cell.w;
-        let right = -1;
-        let top = sheet.cell.h;
-        for (let row = 0; row < sheet.cell.h; row += 1) {
-          for (let column = 0; column < sheet.cell.w; column += 1) {
-            if (data[(row * sheet.cell.w + column) * 4 + 3] === 0) continue;
-            left = Math.min(left, column);
-            right = Math.max(right, column);
-            top = Math.min(top, row);
-          }
-        }
-        if (right < 0) return resolve(NO_INSETS);
-        resolve({ left: left * SCALE, right: (sheet.cell.w - 1 - right) * SCALE, top: top * SCALE });
-      } catch {
-        // A picture this page may not read back: its box is taken as full.
-        resolve(NO_INSETS);
-      }
-    };
-    image.src = look.stripUrl;
-  });
-}
-
-/** What a figure wears: a SHOWN character's baked strip, or nothing (the placeholder field). */
-type Look = { stripUrl: string; sheet: CharacterSheet } | null;
-
-type Size = { w: number; h: number };
-
-/** The box: a cell of the strip, cut at the feet (the spare row under them is margin), or the placeholder's. */
-function sizeOf(look: Look): Size {
-  return look === null ? PLACEHOLDER : { w: look.sheet.cell.w * SCALE, h: look.sheet.floor * SCALE };
-}
 
 /** A dance at random, never the one it is doing now. */
 function pickDance(not?: MotionId): MotionId {
@@ -225,29 +167,6 @@ function MusicWatch({ onChange }: { onChange: (playing: boolean, track: string |
   return null;
 }
 
-/** The floor, measured at most once a second (and at once when the screen changes size), shared by figures of a size. */
-const floorCache = new Map<string, { at: number; w: number; h: number; ledge: string; floor: Floor }>();
-/** Where the stream room's window is just now (its top and two sides, or that it is folded away or not there). */
-function ledgeMark(): string {
-  const ledge = document.querySelector<HTMLElement>(LEDGE_SELECTOR);
-  if (ledge === null) return 'none';
-  if (ledge.dataset.minimized === 'true') return 'folded';
-  const box = ledge.getBoundingClientRect();
-  return `${Math.round(box.left)},${Math.round(box.top)},${Math.round(box.right)}`;
-}
-function floorNow(size: Size): Floor {
-  const now = Date.now();
-  const key = `${size.w}x${size.h}`;
-  const held = floorCache.get(key);
-  // A stream room's window moving, folding or closing changes the floor at once: it is looked at every time (one box).
-  const ledge = ledgeMark();
-  if (held === undefined || now - held.at > 1_000 || held.w !== window.innerWidth || held.h !== window.innerHeight || held.ledge !== ledge) {
-    const floor = measureFloor(size.w, size.h);
-    floorCache.set(key, { at: now, w: window.innerWidth, h: window.innerHeight, ledge: ledgeMark(), floor });
-    return floor;
-  }
-  return held.floor;
-}
 
 /** Where on the floor a share of it is, and back: the whole screen on the strip, between a room window's two corners on top of one. */
 const floorRoom = (floor: Floor, size: Size): number => Math.max(1, floor.right - floor.left - size.w);
@@ -290,86 +209,6 @@ const WRITING = 'input:not([type]), input[type="text"], input[type="search"], in
 /** It types along for this long after the last key. */
 const TYPING_MS = 1_500;
 
-/** Places the figure and paints its body: a cell of the strip (mirrored when it faces left), or the placeholder. */
-function draw(
-  place: HTMLDivElement | null,
-  body: HTMLSpanElement | null,
-  look: Look,
-  frame: {
-    x: number;
-    floorY: number;
-    facing: 1 | -1;
-    mood: CompanionMood;
-    motion: MotionId;
-    tick: number;
-    lift: number;
-    held?: boolean;
-    /** Thrown, or settling after it: its frame squashed, stretched, nudged, and copies of it trailing (`throw.ts`). */
-    fx?: ThrowLook | null;
-    /** Which part of a throw it is in, written on the figure (`data-throw`) for the drives to read. */
-    thrown?: string;
-  },
-) {
-  const size = sizeOf(look);
-  if (place !== null) {
-    // Its name opens toward the middle of the screen, so it is never cut off at either edge.
-    const side = frame.x > window.innerWidth / 2 ? 'right' : 'left';
-    if (place.dataset.side !== side) {
-      place.dataset.side = side;
-      const tag = place.querySelector<HTMLElement>('[data-companion-name]');
-      if (tag !== null) {
-        tag.style.left = side === 'left' ? '0' : 'auto';
-        tag.style.right = side === 'right' ? '0' : 'auto';
-      }
-    }
-    place.style.transform = `translate3d(${Math.round(frame.x)}px, ${Math.round(frame.floorY - size.h)}px, 0)`;
-    place.style.visibility = 'visible';
-    if (place.dataset.mood !== frame.mood) place.dataset.mood = frame.mood;
-    if (place.dataset.motion !== frame.motion) place.dataset.motion = frame.motion;
-    const face = frame.facing === 1 ? 'right' : 'left';
-    if (place.dataset.facing !== face) place.dataset.facing = face;
-    // Off its strip in the reader's hand, or falling back to it.
-    const held = frame.held === true ? 'true' : 'false';
-    if (place.dataset.held !== held) place.dataset.held = held;
-    // Up at the top of the screen (on a room's window) its name opens under it: over its head would be off the screen.
-    const tag = frame.floorY - size.h < 28 ? 'under' : 'over';
-    if (place.dataset.tag !== tag) place.dataset.tag = tag;
-    const thrown = frame.thrown ?? '';
-    if ((place.dataset.throw ?? '') !== thrown) place.dataset.throw = thrown;
-  }
-  if (body === null) return;
-  const fx = frame.fx ?? null;
-  // A squash or a stretch is its own frame scaled about the middle of its box, in whole steps a frame at a time: a plain
-  // 2D transform, so the blocks stay hard-edged (`image-rendering: pixelated`), never a blur.
-  const shape = fx === null ? '' : `matrix(${fx.a.toFixed(3)}, ${fx.b.toFixed(3)}, ${fx.c.toFixed(3)}, ${fx.d.toFixed(3)}, 0, 0)`;
-  const bent = fx === null ? '' : `translate(${fx.dx}px, ${fx.dy}px) ${shape}`;
-  const ghosts = place === null ? [] : [...place.querySelectorAll<HTMLElement>('[data-companion-smear]')];
-  if (look === null) {
-    body.style.transform = `${bent}${frame.lift === 0 ? '' : ` translateY(${frame.lift}px)`}`.trim();
-    return;
-  }
-  // The same arithmetic as CharacterSprite.tsx, written straight to the style so a frame re-renders nothing.
-  const { sheet } = look;
-  const playing = sheet.motions[frame.motion];
-  const count = playing.ticks.length;
-  const index = playing.ticks[playing.loop ? ((frame.tick % count) + count) % count : Math.min(Math.max(0, frame.tick), count - 1)];
-  const at = cellAt(sheet, index);
-  const cell = `${-at.x * SCALE}px ${-at.y * SCALE}px`;
-  const mirror = frame.facing < 0 && playing.facing === 'side' ? 'scaleX(-1)' : '';
-  body.style.backgroundPosition = cell;
-  body.style.transform = `${bent} ${mirror}`.trim();
-  // The smear: copies of the very frame it is showing, back along its path, fainter the further back.
-  ghosts.forEach((ghost, order) => {
-    const back = fx?.ghosts[order];
-    if (back === undefined) {
-      if (ghost.style.visibility !== '') ghost.style.visibility = '';
-      return;
-    }
-    ghost.style.backgroundPosition = cell;
-    ghost.style.transform = `translate(${back.dx}px, ${back.dy}px) ${shape} ${mirror}`.trim();
-    ghost.style.visibility = 'visible';
-  });
-}
 
 function hide(place: HTMLDivElement | null) {
   if (place !== null) place.style.visibility = 'hidden';
@@ -415,7 +254,7 @@ function closePortal(portal: HTMLDivElement | null) {
  * Where it is: on its strip, climbing up into a profile's room, in it, climbing down, gone, stepping out of the portal,
  * held up by the reader's pointer, falling back to its strip, or thrown (in the air, or flat against an edge of the screen).
  */
-type Phase = VisitPhase | 'portal' | 'held' | 'fall' | 'thrown';
+type Phase = VisitPhase | 'portal' | 'held' | 'fall' | 'thrown' | 'mount';
 
 /**
  * A press on the figure: a poke until it moves, then a pick-up. `off` is where on the figure it was taken hold of, and
@@ -698,6 +537,40 @@ function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, loo
     let goneUntil = 0;
     let stepOutAt = 0;
     let portalUntil = 0;
+    /**
+     * Its floor last frame. Climbing in, never floating (Luke, 2026-11-16): a floor that rises under it (a stream room's
+     * window opening, the music bar unfolding) is climbed up to from behind its edge; one that drops away is fallen from.
+     */
+    let lastFloorY: number | null = null;
+    /**
+     * In the air it is drawn between its frames too (Luke, 2026-11-16: "better framerate and visual tracking"): from this
+     * frame's place toward the next frame's, worked out by the same rules a frame early (`glideAt`), every display frame.
+     * Its picture (which cell, the squash, the stretch) still changes ten times a second; only where it is glides.
+     */
+    let glide: { from: { x: number; y: number }; to: { x: number; y: number }; at: number; h: number } | null = null;
+    let glideFrame = 0;
+    const glideLoop = () => {
+      glideFrame = 0;
+      if (place === null || glide === null || (phase !== 'thrown' && phase !== 'fall')) {
+        glide = null;
+        return;
+      }
+      const at = glideAt(glide.from, glide.to, (performance.now() - glide.at) / TICK_MS);
+      place.style.transform = `translate3d(${at.x}px, ${at.y - glide.h}px, 0)`;
+      glideFrame = requestAnimationFrame(glideLoop);
+    };
+    const glideToward = (from: { x: number; y: number }, to: { x: number; y: number }, h: number) => {
+      glide = { from, to, at: performance.now(), h };
+      if (glideFrame === 0) glideFrame = requestAnimationFrame(glideLoop);
+    };
+    /** One frame of its fall after a let-go: down onto the nearest stretch it can stand on, sliding off what it steps around. */
+    const fallNext = (from: Fall, floor: Floor, size: Size): Fall => {
+      const next = fallStep(from, floor.y, floor.screen - size.w);
+      const under = spanFor(floor.spans, next.x);
+      // Over something it steps around (the folded player, a floating video): it slides off to the side as it falls.
+      const slid = under === null ? next.x : Math.min(under.right, Math.max(under.left, next.x));
+      return { ...next, x: next.landed ? slid : next.x + Math.sign(slid - next.x) * Math.min(16, Math.abs(slid - next.x)) };
+    };
 
     const leaveRoom = () => {
       visiting = null;
@@ -734,6 +607,8 @@ function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, loo
       const look = wearing.current.look;
       const size = sizeOf(look);
       const floor = floorNow(size);
+      const floorWas = lastFloorY;
+      lastFloorY = floor.y;
       const now = Date.now();
       const room = visitRoomState();
       const pathNow = window.location.pathname;
@@ -792,7 +667,9 @@ function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, loo
           lifting = -1;
           play('dangle');
         }
-        draw(place, bodyRef.current, look, { x, floorY: y, facing, mood: 'stand', motion, tick: motionTick, lift: 0, held: true });
+        // Leaning back against the drag while the pointer moves (`dragLook`); itself again once the pointer rests.
+        const pull = releaseVelocity(grab.trail, performance.now());
+        draw(place, bodyRef.current, look, { x, floorY: y, facing, mood: 'stand', motion, tick: motionTick, lift: 0, held: true, fx: dragLook(pull.vx, pull.vy) });
         return;
       }
       // Thrown: it keeps the speed it was let go at (`../lib/companion/throw.ts`). A beat of wind-up, then through the air
@@ -800,11 +677,15 @@ function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, loo
       if (phase === 'thrown' && thrown !== null) {
         const box: ThrowBox = { ...size, ...insets };
         // Its picture, not the empty edge of its box, is what meets the sides and the top of the screen.
-        thrown = throwStep(thrown, { left: -insets.left, right: floor.screen - size.w + insets.right, ceiling: size.h - insets.top, floor: floor.y, spans: floor.spans });
+        const arena = { left: -insets.left, right: floor.screen - size.w + insets.right, ceiling: size.h - insets.top, floor: floor.y, spans: floor.spans };
+        thrown = throwStep(thrown, arena);
         x = thrown.x;
         y = thrown.y;
         if (Math.abs(thrown.vx) >= 2) facing = thrown.vx > 0 ? 1 : -1;
         if (thrown.stage !== 'landed') {
+          // Between this frame and the next it glides toward where the rules will have it then.
+          const ahead = throwStep(thrown, arena);
+          glideToward({ x: thrown.x, y: thrown.y }, { x: ahead.x, y: ahead.y }, size.h);
           // Winding up it still hangs as it did in the hand; in the air it is flung; on the glass it is a splat.
           play(thrown.stage === 'wind' ? 'dangle' : thrown.stage === 'stuck' || thrown.stage === 'peel' ? 'splat' : 'flung');
           draw(place, bodyRef.current, look, { x, floorY: y, facing, mood: 'stand', motion, tick: motionTick, lift: 0, held: true, fx: throwLook(thrown, box), thrown: thrown.stage });
@@ -823,18 +704,25 @@ function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, loo
         if (dizzy) queue.push('hop');
       }
       // Let go: down it comes, onto the nearest stretch of its strip it can stand on, and lands.
+      // Let go below its floor (carried down the front of a stream room's window it stands on top of): it climbs back up
+      // to it from where it is, never floats (Luke, 2026-11-16).
+      if ((phase === 'held' || phase === 'fall') && !still && (fall?.y ?? y) > floor.y + 1) {
+        y = fall?.y ?? y;
+        x = fall?.x ?? x;
+        fall = null;
+        phase = 'mount';
+      }
       if (phase === 'held' || phase === 'fall') {
         const from: Fall = fall ?? { x: x ?? 0, y, vx: 0, vy: 0, landed: false };
-        const next = fallStep(from, floor.y, floor.screen - size.w);
-        const under = spanFor(floor.spans, next.x);
-        // Over something it steps around (the folded player, a floating video): it slides off to the side as it falls.
-        const slid = under === null ? next.x : Math.min(under.right, Math.max(under.left, next.x));
-        x = next.landed ? slid : next.x + Math.sign(slid - next.x) * Math.min(16, Math.abs(slid - next.x));
+        const next = fallNext(from, floor, size);
+        x = next.x;
         y = next.y;
-        fall = { ...next, x };
+        fall = next;
         if (!next.landed) {
           phase = 'fall';
           play('dangle');
+          const ahead = fallNext(next, floor, size);
+          glideToward({ x, y }, { x: ahead.x, y: ahead.y }, size.h);
           draw(place, bodyRef.current, look, { x, floorY: y, facing, mood: 'stand', motion, tick: motionTick, lift: 0, held: true });
           return;
         }
@@ -965,11 +853,44 @@ function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, loo
         hide(place);
         return;
       }
+      const first = x === null;
       if (x === null) x = span.right;
       // Up onto a room's window: somewhere along its edge, so a room's companions do not all land on one corner.
       if (floor.ledge && !wasOnLedge) x = Math.round(span.left + Math.random() * (span.right - span.left));
       wasOnLedge = floor.ledge;
       if (x < span.left || x > span.right) x = Math.min(span.right, Math.max(span.left, x));
+
+      // Climbing in, never floating (Luke, 2026-11-16). Its first frame on a page, it climbs up over the edge of its floor
+      // from behind it (the music bar, or the foot of the window). A floor that rises under it (a stream room's window
+      // opening over the strip, the bar unfolding) is climbed up to from just behind its edge, and one that drops away (the
+      // window folded or closed) is fallen from. Under reduced motion it is simply there.
+      if (!still && (phase === 'strip' || phase === 'mount')) {
+        if (first) {
+          y = floor.y + size.h;
+          phase = 'mount';
+        } else if (phase === 'strip' && floorWas !== null && floor.y < floorWas - 4) {
+          y = Math.min(floorWas, floor.y + size.h);
+          phase = 'mount';
+        } else if (phase === 'strip' && floorWas !== null && floor.y > floorWas + 4) {
+          fall = { x, y: floorWas, vx: 0, vy: 0, landed: false };
+          y = floorWas;
+          phase = 'fall';
+          play('dangle');
+          draw(place, bodyRef.current, look, { x, floorY: y, facing, mood: 'stand', motion, tick: motionTick, lift: 0, held: true });
+          return;
+        }
+        if (phase === 'mount') {
+          // Its back to you, reaching up a step a frame on its climbing frames, as into a profile's room.
+          y = climbToward(y, floor.y);
+          play('climb');
+          draw(place, bodyRef.current, look, { x, floorY: y, facing, mood: 'walk', motion, tick: motionTick, lift: 0 });
+          if (y === floor.y) {
+            phase = 'strip';
+            brain = startBrain(now);
+          }
+          return;
+        }
+      }
 
       // A profile's room on screen: up it goes.
       // (Not from on top of a stream room's window: there is no way down from there but the window going.)
@@ -1144,7 +1065,14 @@ function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, loo
       const look = wearing.current.look;
       const size = sizeOf(look);
       const floor = floorNow(size);
-      if (still || !isThrow(toss.vx, toss.vy) || y > floor.y) {
+      if (!still && y > floor.y) {
+        // Let go below its floor (down the front of a stream room's window): it climbs back up to it (the frame loop).
+        grab = null;
+        fall = null;
+        phase = 'mount';
+        return;
+      }
+      if (still || !isThrow(toss.vx, toss.vy)) {
         letGo(throwOf(toss.vx));
         return;
       }
@@ -1210,7 +1138,21 @@ function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, loo
      * It can be taken hold of on its strip, on its way up to or down from a room, or thrown (caught out of the air, or
      * peeled off the glass): not in a room, gone, or already held.
      */
-    const canGrab = () => phase === 'strip' || phase === 'up' || phase === 'down' || phase === 'thrown';
+    const canGrab = () => phase === 'strip' || phase === 'up' || phase === 'down' || phase === 'thrown' || phase === 'mount';
+    /**
+     * In the hand it is placed on every move of the pointer, not at the next frame (Luke, 2026-11-16: "the character stays
+     * under the pointer with no visible lag"), leaning back against the drag (`dragLook`).
+     */
+    const followHand = () => {
+      if (phase !== 'held' || grab === null || place === null) return;
+      const look = wearing.current.look;
+      const size = sizeOf(look);
+      const at = hangAt(floorNow(size), size, grab);
+      x = at.x;
+      y = at.y;
+      const pull = releaseVelocity(grab.trail, performance.now());
+      draw(place, bodyRef.current, look, { x, floorY: y, facing, mood: 'stand', motion, tick: motionTick, lift: 0, held: true, fx: dragLook(pull.vx, pull.vy) });
+    };
     const onFigure = (event: PointerEvent) => {
       if (event.button !== 0 || place === null || grab !== null) return;
       if (still || !canGrab()) {
@@ -1245,13 +1187,18 @@ function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, loo
         grab.px = event.clientX;
         grab.py = event.clientY;
         trace(grab, event);
+        followHand();
         return;
       }
       if (event.pointerId !== grab.id) return;
       grab.px = event.clientX;
       grab.py = event.clientY;
       trace(grab, event);
-      if (grab.moved || Math.hypot(event.clientX - grab.startX, event.clientY - grab.startY) < GRAB_SLOP) return;
+      if (grab.moved) {
+        followHand();
+        return;
+      }
+      if (Math.hypot(event.clientX - grab.startX, event.clientY - grab.startY) < GRAB_SLOP) return;
       // Pressed while it climbed, and it has since gone into the room (or vanished): there is nothing here to pick up.
       if (!canGrab()) {
         grab = null;
@@ -1260,6 +1207,7 @@ function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, loo
       // Picked up.
       grab.moved = true;
       liftOff();
+      followHand();
     };
     // Carried after a double press, the next press anywhere puts it down there (Luke, 2026-11-14: "double click to pick
     // up and drag the companion around"). It is under the pointer, so the press lands on it and on nothing behind it.
@@ -1339,6 +1287,7 @@ function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, loo
 
     return () => {
       clearInterval(timer);
+      if (glideFrame !== 0) cancelAnimationFrame(glideFrame);
       if (markTimer !== null) clearTimeout(markTimer);
       offPoke();
       offSpoke();
@@ -1423,6 +1372,8 @@ function RoomFigure({ companion, still }: { companion: RoomCompanion; still: boo
     let motionTick = 0;
     let seen: number | null = null;
     let markTimer: ReturnType<typeof setTimeout> | null = null;
+    /** Its feet, from the top of the screen: on its floor, or on the way up to or down to it. */
+    let feet: number | null = null;
 
     const tick = () => {
       const lookNow = wearing.current;
@@ -1448,7 +1399,22 @@ function RoomFigure({ companion, still }: { companion: RoomCompanion; still: boo
       }
 
       if (still) {
+        feet = floor.y;
         draw(place, bodyRef.current, lookNow, { x, floorY: floor.y, facing, mood: 'stand', motion: 'idle', tick: 0, lift: 0 });
+        return;
+      }
+
+      // Climbing in, never floating (Luke, 2026-11-16), as its owner's does: up to a floor that rose under it (a stream
+      // room's window opening over the strip) from just behind its edge, and down off one that dropped away.
+      // New to the room, it climbs up over the edge of its floor from behind it, as yours does on a page.
+      if (feet === null) feet = floor.y + size.h;
+      if (feet > floor.y + 1 || feet < floor.y - 1) {
+        const up = feet > floor.y;
+        feet = up ? climbToward(Math.min(feet, floor.y + size.h), floor.y) : Math.min(floor.y, feet + FALL_STEP);
+        const next: MotionId = up ? 'climb' : 'dangle';
+        motionTick = next === motion ? motionTick + 1 : 0;
+        motion = next;
+        draw(place, bodyRef.current, lookNow, { x, floorY: feet, facing, mood: up ? 'walk' : 'stand', motion, tick: motionTick, lift: 0, held: !up });
         return;
       }
 

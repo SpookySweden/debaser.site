@@ -11,7 +11,8 @@ const offOnServer = () => false;
  * The key that lets you hear the characters talk (SPEC-character-speech.md; Luke, 2026-11-14: "give the character box
  * on the profile an audio button on the top right which starts muted, when unmuted you can hear what they are saying").
  *
- * `[ ♪ OFF ]` until it is pressed, a filled `♪ ON` while it is on (the site's look for a switch that is on), and the
+ * `[ ♪ ]` with the note struck through until it is pressed, filled while it is on (the site's look for a switch that is
+ * on; Luke, 2026-11-16: a symbol, no words on it), and the
  * choice is remembered in this browser, one choice for the whole site. Its own press is the press a browser needs
  * before it will sound anything. The voices follow the music bar's VOL, at about half the music's level.
  *
@@ -35,11 +36,13 @@ export default function SpeechAudioKey() {
       onClick={() => setSpeechSound(!on)}
       aria-pressed={on}
       aria-label="Character voices"
-      title={on ? 'Stop the voices' : 'Hear them talk'}
+      title={on ? 'Voices on: press to stop them' : 'Voices off: press to hear them talk'}
       data-speech-audio={on ? 'on' : 'off'}
       className={on ? `${PLATE_ON_BLACK_PRESSED} cursor-pointer` : PLATE_ON_BLACK}
     >
-      {on ? '♪ ON' : '[ ♪ OFF ]'}
+      {/* A symbol only (Luke, 2026-11-16): the note, struck through while the voices are off; filled while they are on.
+          Text, not a drawn icon; the name and the tip say it in words. */}
+      [ <span className={on ? undefined : 'line-through'}>♪</span> ]
     </button>
   );
 }
