@@ -1,8 +1,11 @@
 # SPEC: THE PERPETUAL ROOM (Luke's second list, ROOMMODEL; 2026-11-16)
 
-Status: **a plan, not built.** Waiting for Luke's OK on the whole, his letters on the questions at the end, and his typed
-OK on the database change. The room window files are ROOMFIX's until it writes "ROOMFIX done"; nothing here is built
-before both.
+Status: **OK'd, being built (Phase B).** Luke, 2026-11-16, in an interview with the list-2 coordinator: the plan
+"Yes, build it"; **Q1 A** (the new room's queue starts empty), **Q2 A** (in someone else's room, PLAY from MEDIA asks:
+play in your own room and leave theirs / add to their queue / cancel), **Q3 A** (take-over after 45 seconds), **Q4 "OK
+as described"** at plan level only (the building session backs up, shows the dry run, and asks for his typed OK again
+before anything is applied), **Q5 A** (`OwnRoomWindow.tsx` kept, unreferenced), **Q6 A** (a song does not open the
+room window; only videos and the room's own door). ROOMFIX done 775497b the same day.
 
 ## Luke's words
 > "regarding the pre room stuff we worked on, where any video or music now also plays in your own perpetual room,
