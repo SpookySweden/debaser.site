@@ -23,6 +23,8 @@ import DocHistoryWindow from './DocHistoryWindow';
 import DocSharingWindow from './DocSharingWindow';
 import DocsScale from './DocsScale';
 import { useForum } from './ForumProvider';
+import TalkedAboutIn from './TalkedAboutIn';
+import { docPath } from '../lib/docs/rules';
 
 type DocViewProps = {
   target: DocTarget;
@@ -213,6 +215,8 @@ export default function DocView({ target }: DocViewProps) {
             </button>
           </form>
         )}
+        {/* The board's threads about this page: its own comment thread, and posts that link to it (SPEC-forum-v3.md, S4A). */}
+        <TalkedAboutIn kind="doc" id={record.id} links={[docPath(record)]} className="px-1" />
         {record.summary.length === 0 ? null : <p className="docs-meta px-1 text-ink">{record.summary}</p>}
         {error === null ? null : <p className={`${DOC_FAULT} mt-1`}>{error}</p>}
       </div>

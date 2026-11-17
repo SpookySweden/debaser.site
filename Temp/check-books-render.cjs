@@ -21,7 +21,8 @@ function stub(file, exports) {
 
 let auth = { status: 'anonymous', user: null };
 stub(path.join(OUT, 'components/AuthProvider.js'), { useAuth: () => auth });
-stub(path.join(OUT, 'components/ForumProvider.js'), { useForum: () => ({ threadForAnchor: () => undefined }) });
+// (2026-11-17, SPEC-forum-v3.md S4A) The book page's TALKED ABOUT IN line reads the board's threads: an empty board here.
+stub(path.join(OUT, 'components/ForumProvider.js'), { useForum: () => ({ threadForAnchor: () => undefined, threads: [] }) });
 stub(path.join(OUT, 'components/WebStream.js'), { WebRow: ({ item }) => el('li', { 'data-web-row': item.id }) });
 stub(path.join(OUT, 'components/AddToLetterKey.js'), { default: () => el('span', { 'data-letter-key': true }) });
 stub(path.join(OUT, 'components/ProfileAvatarLink.js'), { default: () => el('span') });

@@ -52,6 +52,7 @@ function seed({ me, other, signedIn }) {
       { id: 'mine-r1', threadId: 'mine', body: 'the third one reads best', author: { id: other.id, displayName: other.name }, createdAt: at(5), tags: [] },
     ]),
     board('theirs', 'Marmalade sketches', { id: other.id, displayName: other.name }, 30),
+    { ...board('links-lore', 'Corridor theory', { id: other.id, displayName: other.name }, 20), body: 'read /lore/the-glass-corridor first' },
   ] }));
   const room = { id: 'room-live', originalHostId: other.id, originalHostLabel: other.name, hostId: other.id, forumThreadId: null, currentEntryId: null, positionSeconds: 0, isPlaying: true, startedAt: at(10), updatedAt: new Date(now).toISOString(), endedAt: null, origin: 'stream', isPublic: true, privacy: 'open', clearedAt: null, name: null, topic: null, addMode: 'anyone', guestsCanTalk: true };
   window.localStorage.setItem('debaser.watch.v1', JSON.stringify({ rooms: [room], queue: [], messages: [], crowns: [], members: [], passwords: {}, attempts: [], privateRows: [] }));
@@ -145,6 +146,14 @@ const desk = (page) => page.locator('[data-desk]');
     await page.locator('[data-search-key]').click();
     await sleep(600);
     check((await page.locator('#site-search-box').count()) === 1, 'the top bar\'s ⌕ SEARCH key opens it too');
+    console.log('2b. TALKED ABOUT IN (S4A)');
+    await page.goto(`${BASE}/lore/the-glass-corridor`, { waitUntil: 'domcontentloaded' });
+    await page.locator('[data-talked-about]').first().waitFor({ timeout: 90000 }).catch(() => null);
+    const talk = (await page.locator('[data-talked-about]').first().textContent().catch(() => '')) ?? '';
+    check(/TALKED ABOUT IN:/.test(talk) && /Corridor theory/.test(talk), 'a lore page names the thread that links it', talk.slice(0, 100));
+    const talkHref = await page.locator('[data-talked-about] a').first().getAttribute('href').catch(() => null);
+    check(talkHref === '/forum#thread-links-lore', 'and the name opens that thread on the board', String(talkHref));
+    await page.screenshot({ path: join(OUT, 'talked-about.png') });
     liveTotal += liveHits();
     await context.close();
 

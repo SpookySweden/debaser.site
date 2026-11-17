@@ -1,6 +1,6 @@
 /*
  * SPEC-forum-v2.md (Luke's answers, 2026-11-17): the pure parts of the board's keys working together.
- *   npx tsc app/lib/forum/board-address.ts app/lib/forum/board-empty.ts app/lib/forum/board-new.ts app/lib/forum/news-feed.ts app/lib/forum/stream-facts.ts app/lib/forum/board-query.ts --outDir Temp/forum-v2-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strict
+ *   npx tsc app/lib/forum/board-address.ts app/lib/forum/board-empty.ts app/lib/forum/board-new.ts app/lib/forum/news-feed.ts app/lib/forum/stream-facts.ts app/lib/forum/board-query.ts app/lib/forum/talked-about.ts --outDir Temp/forum-v2-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strict
  *   node Temp/check-forum-v2.cjs
  *
  * 1A/2A the place in the address and this browser's memory; 4A BOARD THREADS hides unanswered records; 11A the empty
@@ -160,6 +160,25 @@ assert.equal(streamFacts({ room: room({}), queue: [], messages: [], crowns: [] }
 const live = streamFacts({ room: room({ endedAt: null, updatedAt: at(0) }), queue: [entry('a', 0)], messages: [], crowns: [] }, NOW);
 assert.equal(live.live, true, 'a stream still beating is live');
 assert.equal(live.length, '1 H', 'and runs until now');
+
+/* S4A (SPEC-forum-v3.md): TALKED ABOUT IN ---------------------------------------------------------- */
+const { talkedAboutIn } = require(`${out}/talked-about.js`);
+const talk = [
+  post('doc-thread', 40, { anchor: { kind: 'doc', id: 'd1', label: 'DOC // GLASS' }, comments: [reply('doc-thread', 'dt1', 2)] }),
+  post('links-it', 30, { body: 'have you read /lore/glass-corridor yet' }),
+  post('reply-links', 50, { comments: [reply('reply-links', 'rl1', 10)] }),
+  post('unrelated', 5),
+];
+talk[2].comments[0].body = 'see /lore/glass-corridor';
+const about = talkedAboutIn(talk, { filedUnder: (a) => a.kind === 'doc' && a.id === 'd1', links: ['/lore/glass-corridor'] });
+assert.deepEqual(about.map((r) => r.threadId), ['doc-thread', 'reply-links', 'links-it'], 'filed under it, or a post or reply linking it; newest talk first');
+assert.equal(about[0].replies, 1, 'with how many replies (a count of conversation, not likes)');
+assert.equal(talkedAboutIn(talk, { filedUnder: () => false, links: ['/x'] }).length, 0, 'a link too short to mean anything matches nothing');
+const bookTalk = talkedAboutIn([post('reader', 5, { anchor: { kind: 'board', id: 'book:p1:books:OL1W', label: 'BOOK' } })], {
+  filedUnder: (a) => a.kind === 'board' && a.id.startsWith('book:') && a.id.includes('books:OL1W'),
+  links: [],
+});
+assert.equal(bookTalk.length, 1, "a reader's thread for the book counts");
 
 /* The board says what it promises ---------------------------------------------------------------- */
 const boardSource = fs.readFileSync('app/components/ForumBoard.tsx', 'utf8');

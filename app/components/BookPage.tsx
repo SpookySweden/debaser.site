@@ -14,6 +14,7 @@ import BookEditions from './BookEditions';
 import GetThisBook from './GetThisBook';
 import ProfileAvatarLink from './ProfileAvatarLink';
 import { WebRow } from './WebStream';
+import TalkedAboutIn from './TalkedAboutIn';
 
 const NO_HOSTS = {};
 const NOTHING = () => undefined;
@@ -90,6 +91,9 @@ export default function BookPage({ bookRef }: { bookRef: string }) {
             <WebRow item={{ ...item, alsoOn: [] }} extraHosts={NO_HOSTS} found={false} onCreator={NOTHING} />
           </ul>
         ) : null}
+        {/* The board's threads about this book: readers' threads for it (their highlights) and posts that link to its page or
+            its reader (SPEC-forum-v3.md, S4A). */}
+        {valid ? <TalkedAboutIn idIncludes={bookRef} links={[`/media/book/${bookRef}`, `/media/book/${encodeURIComponent(bookRef)}`, `/read/${bookRef}`]} className="px-3" /> : null}
         {/* Every legal way to get it (Luke, 2026-11-13): borrow, a library, buy, listen, preview. */}
         {item && item.platform === 'books' ? (
           <GetThisBook title={item.title} author={item.creator} work={/^books:(OL[1-9][0-9]{0,11}W)/.exec(item.id)?.[1]} />
