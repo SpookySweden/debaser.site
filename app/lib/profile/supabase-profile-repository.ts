@@ -941,20 +941,32 @@ function openPresenceChannel(repository: SupabaseProfileRepository): void {
   presenceChannel = client
     .channel('profile-presence')
     .on('postgres_changes', { event: '*', schema: 'public', table: PRESENCE_TABLE }, () => {
-      void repository
-        .listPresence()
-        .then((records) => {
-          for (const listener of presenceListeners) listener(records);
-        })
-        .catch(() => undefined);
+      // Changes a few seconds apart are read once (PERF): every signed-in tab stamps the table each minute, and each stamp
+      // used to send every other signed-in tab to read the whole table at once.
+      if (presenceReread !== null) return;
+      presenceReread = setTimeout(() => {
+        presenceReread = null;
+        void repository
+          .listPresence()
+          .then((records) => {
+            for (const listener of presenceListeners) listener(records);
+          })
+          .catch(() => undefined);
+      }, PRESENCE_REREAD_MS);
     })
     .subscribe();
 }
+
+/** How long presence changes are gathered before the table is read again. */
+const PRESENCE_REREAD_MS = 3000;
+let presenceReread: ReturnType<typeof setTimeout> | null = null;
 
 function closePresenceChannel(): void {
   const client = getSupabaseBrowserClient();
   if (client === null || presenceChannel === null) return;
 
+  if (presenceReread !== null) clearTimeout(presenceReread);
+  presenceReread = null;
   void client.removeChannel(presenceChannel);
   presenceChannel = null;
 }

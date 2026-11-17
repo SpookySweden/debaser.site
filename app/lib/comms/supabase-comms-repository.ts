@@ -630,6 +630,7 @@ class SupabaseCommsRepository implements CommsRepository {
         }
 
         channel = opened.subscribe((status, channelError) => {
+          channelLive = status === 'SUBSCRIBED';
           if (status === 'SUBSCRIBED' || status === 'CLOSED') return;
 
           console.warn(
@@ -639,6 +640,10 @@ class SupabaseCommsRepository implements CommsRepository {
           );
         });
       });
+  }
+
+  isLive(): boolean {
+    return channel !== null && channelLive;
   }
 
   /** One channel for the whole page; see `openChannel` for what it may be bound to. */
@@ -667,6 +672,8 @@ class SupabaseCommsRepository implements CommsRepository {
  */
 const listeners = new Set<(threads: CommsThread[]) => void>();
 let channel: RealtimeChannel | null = null;
+/** The channel reported SUBSCRIBED last (not an error, a timeout or closed). */
+let channelLive = false;
 
 function closeChannel(): void {
   const client = getSupabaseBrowserClient();
@@ -674,6 +681,7 @@ function closeChannel(): void {
 
   void client.removeChannel(channel);
   channel = null;
+  channelLive = false;
 }
 
 let supabaseCommsRepository: SupabaseCommsRepository | null = null;

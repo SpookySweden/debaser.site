@@ -21,6 +21,7 @@ const { chromium } = require('playwright-core');
 const { mkdirSync, rmSync, writeFileSync } = require('node:fs');
 const { join } = require('node:path');
 const { findChrome } = require('./browser.cjs');
+const { backdropCells } = require('./backdrop-pixels.cjs');
 
 const args = process.argv.slice(2);
 const BASE = args.includes('--base') ? args[args.indexOf('--base') + 1] : 'http://localhost:3321';
@@ -32,21 +33,8 @@ const pass = (what) => {
 };
 
 /** How many of the background's cells inside a box of screen pixels show ink, and how many cells there are. */
-const drawn = (page, box) =>
-  page.evaluate((within) => {
-    const canvas = document.querySelector('.backdrop-canvas');
-    const cell = Math.round(parseFloat(canvas.style.width) / canvas.width);
-    const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
-    const seen = { count: 0, cells: 0 };
-    for (let y = Math.max(0, Math.floor(within.y / cell)); y < Math.min(canvas.height, Math.ceil((within.y + within.height) / cell)); y += 1) {
-      for (let x = Math.max(0, Math.floor(within.x / cell)); x < Math.min(canvas.width, Math.ceil((within.x + within.width) / cell)); x += 1) {
-        seen.cells += 1;
-        const at = (y * canvas.width + x) * 4;
-        if (data[at + 3] !== 0 && data[at] + data[at + 1] + data[at + 2] >= 24) seen.count += 1;
-      }
-    }
-    return seen;
-  }, box);
+// Read off the screen: FLUID's canvas is drawn by a thread of its own and can't be read from the page (PERF 1b).
+const drawn = (page, box) => backdropCells(page, box, join('Temp', 'browse', 'fluid-feel-cells.png'));
 
 /** Counts how often the site window's box is measured: the background is the only thing on the page that measures it. */
 const COUNT = `(() => {
@@ -130,6 +118,8 @@ async function play(page) {
   await context.addInitScript(COUNT);
   await context.addInitScript(HOOK);
   await context.addInitScript(SEED);
+  // --nothread: no OffscreenCanvas, so FLUID runs on the page (the fallback where a browser cannot hand a canvas to a thread).
+  if (process.argv.includes('--nothread')) await context.addInitScript('delete HTMLCanvasElement.prototype.transferControlToOffscreen;');
   let supabase = 0;
   await context.route(/supabase\.(co|in)\//, (route) => {
     supabase += 1;

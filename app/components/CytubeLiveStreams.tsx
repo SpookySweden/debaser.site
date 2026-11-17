@@ -34,7 +34,10 @@ export function usePrivateRoomLines(): PrivateRoomLine[] {
         })
         .catch(() => undefined);
     read();
-    const timer = window.setInterval(read, 20000);
+    // Not from a hidden tab (PERF).
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') read();
+    }, 20000);
     return () => {
       alive = false;
       window.clearInterval(timer);

@@ -221,6 +221,8 @@ export type CommsRepository = {
   markRead(userId: string, threadId: string): Promise<CommsThread>;
   /** Realtime hook: fires with every thread whenever comms moves. */
   subscribe(listener: (threads: CommsThread[]) => void): () => void;
+  /** True while the realtime channel is joined, so the timed read can slow down (`COMMS_POLL_LIVE_MS`). */
+  isLive?(): boolean;
   /** Mock-only helper so local test conversations can be purged. */
   clearLocalThreads?(): Promise<void>;
 };

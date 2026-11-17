@@ -112,6 +112,9 @@ const TRACK_COLUMNS = 'title, credit, kind, src, length, tags';
 
 /** One listing is enough for a shelf of demos; the folder pass is one level deep. */
 const LIST_LIMIT = 200;
+/** How long one listing of the shelf's bucket is shared between the parts of the page that ask (`listBucketFiles`). */
+const BUCKET_FILES_HELD_MS = 60 * 1000;
+let bucketFilesHeld: { at: number; files: Promise<StoredAudio[]> } | null = null;
 
 type TrackRow = {
   title: string;
@@ -191,8 +194,25 @@ class SupabaseMusicRepository implements MusicRepository {
     return client;
   }
 
-  /** Every file the bucket holds: the root, then one level down for account folders. */
-  private async listBucketFiles(): Promise<StoredAudio[]> {
+  /**
+   * Every file the bucket holds, shared for a minute (PERF): the music bar, FOR YOU, the vanity view and MY MUSIC each
+   * asked for the shelf on their own, and each ask listed the bucket afresh (one listing, plus one for every account
+   * folder) - the second-heaviest thing readers did to the database. Asks while one is under way share it too.
+   */
+  private listBucketFiles(): Promise<StoredAudio[]> {
+    const now = Date.now();
+    if (bucketFilesHeld !== null && now - bucketFilesHeld.at < BUCKET_FILES_HELD_MS) return bucketFilesHeld.files;
+    const files = this.readBucketFiles();
+    bucketFilesHeld = { at: now, files };
+    // Nothing back (a failed listing answers empty): not held, so the next ask tries again, as it always did.
+    void files.then((found) => {
+      if (found.length === 0 && bucketFilesHeld?.files === files) bucketFilesHeld = null;
+    });
+    return files;
+  }
+
+  /** The root, then one level down for account folders. */
+  private async readBucketFiles(): Promise<StoredAudio[]> {
     try {
       const storage = this.client().storage.from(MUSIC_BUCKET);
       const root = await storage.list('', { limit: LIST_LIMIT, sortBy: { column: 'name', order: 'asc' } });
@@ -365,6 +385,8 @@ class SupabaseMusicRepository implements MusicRepository {
       );
     }
 
+    // The bucket changed: the next list reads it again rather than the shared answer from before the upload.
+    bucketFilesHeld = null;
     const src = client.storage.from(MUSIC_BUCKET).getPublicUrl(path).data.publicUrl;
     const credit = input.credit.trim().length === 0 ? input.uploaderName : input.credit.trim();
     const kind = 'UPLOADED TO THE SHELF';

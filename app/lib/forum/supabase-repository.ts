@@ -495,10 +495,21 @@ class SupabaseForumRepository implements ForumRepository {
   subscribe(listener: (threads: ForumThread[]) => void): () => void {
     const client = this.client();
 
+    // Changes two seconds apart are read once (PERF): the read is every post with every reply, and it ran in every open
+    // tab, visitors' too, for each post, reply, edit and delete.
+    let waiting: ReturnType<typeof setTimeout> | null = null;
+    let closed = false;
     const refresh = () => {
-      void this.listThreads()
-        .then((threads) => listener(threads))
-        .catch(() => undefined);
+      if (waiting !== null) return;
+      waiting = setTimeout(() => {
+        waiting = null;
+        if (closed) return;
+        void this.listThreads()
+          .then((threads) => {
+            if (!closed) listener(threads);
+          })
+          .catch(() => undefined);
+      }, FORUM_REREAD_MS);
     };
 
     // A name of its own per subscription: Supabase hands back the *same* channel for the same name, so a
@@ -513,6 +524,8 @@ class SupabaseForumRepository implements ForumRepository {
       .subscribe();
 
     return () => {
+      closed = true;
+      if (waiting !== null) clearTimeout(waiting);
       void client.removeChannel(channel);
     };
   }
@@ -592,6 +605,8 @@ class SupabaseForumRepository implements ForumRepository {
 
 /** Numbers each board and pin subscription's channel, so no two share a name (see `subscribe`). */
 let forumChannelCount = 0;
+/** How long the board gathers changes before it reads every post again (`subscribe`). */
+const FORUM_REREAD_MS = 2000;
 
 let supabaseRepository: SupabaseForumRepository | null = null;
 

@@ -33,6 +33,7 @@ import { cursorBootScript } from './lib/ui/cursor-slot';
 import { backdropBootScript } from './lib/ui/backdrop-slot';
 import Aquarium from './components/Aquarium';
 import Backdrops from './components/backdrops/Backdrops';
+import BackdropThreads from './BackdropThreads';
 import BackdropSettingsWindow, { BackdropKey } from './components/BackdropSettingsWindow';
 import { siteFillBootScript } from './lib/ui/site-fill';
 import { siteHiddenBootScript } from './lib/ui/site-hidden';
@@ -89,6 +90,8 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
             providers on purpose: nothing it shows depends on who is signed in, and nothing above it may make a layer of its own. */}
         <Aquarium />
         {/* ...and the simulated ones (SAND and the rest, SPEC-backgrounds.md), the same way: only the chosen one is drawn. */}
+        {/* FLUID runs its world on a thread of its own where it can (PERF 1b): this tells the backgrounds how to start it. */}
+        <BackdropThreads />
         <Backdrops />
 
         <AuthProvider>

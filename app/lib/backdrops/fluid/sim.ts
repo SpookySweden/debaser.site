@@ -22,8 +22,9 @@ export type FluidState = {
   v: Float32Array;
   u0: Float32Array;
   v0: Float32Array;
-  p: Float32Array;
-  div: Float32Array;
+  /** Pressure and how much the water bunches: whole-precision numbers, so the pressure sum never waits on rounding (PERF). */
+  p: Float64Array;
+  div: Float64Array;
   /** The three inks. */
   ink: [Float32Array, Float32Array, Float32Array];
   ink0: Float32Array;
@@ -58,7 +59,7 @@ export function newFluid(w: number, h: number): FluidState {
   const size = (w + 2) * (h + 2);
   const field = () => new Float32Array(size);
   return {
-    w, h, u: field(), v: field(), u0: field(), v0: field(), p: field(), div: field(), ink: [field(), field(), field()], ink0: field(),
+    w, h, u: field(), v: field(), u0: field(), v0: field(), p: new Float64Array(size), div: new Float64Array(size), ink: [field(), field(), field()], ink0: field(),
     solid: new Uint8Array(size), solidsOf: null, solidOn: false, t: 0, was: null, nextSplat: 0.5, turn: 0, inkNow: 0, flowNow: 0, solved: 0,
     solidAt: 0, movers: [], moversUntil: 0,
   };
@@ -86,7 +87,7 @@ export function splat(state: FluidState, x: number, y: number, fx: number, fy: n
 }
 
 /** The edges of the grid are walls: nothing flows through them. A field that isn't a speed just copies its neighbour. */
-function edges(state: FluidState, field: Float32Array, kind: 0 | 1 | 2): void {
+function edges(state: FluidState, field: Float32Array | Float64Array, kind: 0 | 1 | 2): void {
   const { w, h } = state;
   const row = w + 2;
   for (let i = 1; i <= w; i += 1) {
@@ -164,10 +165,15 @@ function project(state: FluidState): void {
   edges(state, p, 0);
   for (let pass = 0; pass < PRESSURE_PASSES; pass += 1) {
     for (let j = 1; j <= h; j += 1) {
-      for (let i = 1; i <= w; i += 1) {
-        const n = i + row * j;
-        // Each pass overshoots a little on purpose (over-relaxation): the same sixteen passes settle far more of the bunching.
-        p[n] += 1.6 * ((div[n] + p[n - 1] + p[n + 1] + p[n - row] + p[n + row]) * 0.25 - p[n]);
+      // Each pass overshoots a little on purpose (over-relaxation): the same sixteen passes settle far more of the bunching.
+      // It is p += 1.6 * ((div + left + right + up + down) / 4 - p), worked out in an order that lets the processor get
+      // on with everything but the cell just to the left (it was three quarters of FLUID's time, and on a wide screen it
+      // held up every frame: PERF, Luke: "the most laggy thing ... is moving a window inside the fluid sim").
+      let n = 1 + row * j;
+      let left = p[n - 1];
+      for (let i = 1; i <= w; i += 1, n += 1) {
+        left = -0.6 * p[n] + 0.4 * (div[n] + p[n + 1] + p[n - row] + p[n + row]) + 0.4 * left;
+        p[n] = left;
       }
     }
     edges(state, p, 0);
@@ -472,7 +478,8 @@ export function stepFluid(state: FluidState, values: Values, env: EngineEnv): vo
         const n = i + row * j;
         const dx = 0.5 * (Math.abs(curl[n + 1]) - Math.abs(curl[n - 1]));
         const dy = 0.5 * (Math.abs(curl[n + row]) - Math.abs(curl[n - row]));
-        const length = Math.hypot(dx, dy) + 1e-5;
+        // (Not Math.hypot, which is several times slower and runs for every cell of every step.)
+        const length = Math.sqrt(dx * dx + dy * dy) + 1e-5;
         u[n] += dt * swirl * (dy / length) * curl[n];
         v[n] -= dt * swirl * (dx / length) * curl[n];
       }
