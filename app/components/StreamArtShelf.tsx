@@ -7,8 +7,8 @@ import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { currentAvatarVersion } from '../lib/profile/visibility';
 import { artSlot } from '../lib/ui/art/slots';
 import { PLATE, PLATE_PRESSED } from '../lib/ui/controls';
-import { CanvasRaster, placementsOf, replayOrder, type CanvasInput } from '../lib/watch/canvas';
-import { getCanvasRepository, type CanvasSnapshot, type CanvasTimelineInput, type StreamArtPiece } from '../lib/watch/canvas-repository';
+import { CanvasRaster, creditsOf, placementsOf, rasterOf, replayOrder, type CanvasInput } from '../lib/watch/canvas';
+import { getCanvasRepository, type CanvasSnapshot, type CanvasTimelineInput, type PastCanvas, type StreamArtPiece } from '../lib/watch/canvas-repository';
 import { useAuth } from './AuthProvider';
 import ArtMark from './ArtMark';
 import CanvasPicture from './CanvasPicture';
@@ -206,7 +206,7 @@ function Participant({ id, label, crowned }: { id: string; label: string; crowne
 
 /* --- one piece: the final snapshot, the replay, every snapshot ------------------------------------------ */
 
-function PieceWindow({ piece, onClose, onPeople }: { piece: StreamArtPiece; onClose: () => void; onPeople: () => void }) {
+function PieceWindow({ piece, onClose, onPeople, past = false }: { piece: StreamArtPiece; onClose: () => void; onPeople: () => void; past?: boolean }) {
   const [snapshots, setSnapshots] = useState<CanvasSnapshot[] | null>(null);
   const [inputs, setInputs] = useState<CanvasTimelineInput[] | null>(null);
   const [fault, setFault] = useState<string | null>(null);
@@ -231,9 +231,11 @@ function PieceWindow({ piece, onClose, onPeople }: { piece: StreamArtPiece; onCl
 
   const finalShot = snapshots === null ? piece.latest : (snapshots[snapshots.length - 1] ?? null);
   const [replaying, setReplaying] = useState(false);
+  // No snapshot (a past canvas nobody saved): the drawing as its timeline left it.
+  const whole = useMemo(() => (finalShot === null && inputs !== null && inputs.length > 0 ? { raster: rasterOf(inputs), placements: placementsOf(inputs).map((entry) => entry.place) } : null), [finalShot, inputs]);
 
   return (
-    <PopoutWindow title={piece.canvas.title} badge="STREAM ART" onClose={onClose} maxWidth="max-w-3xl">
+    <PopoutWindow title={piece.canvas.title} badge={past ? 'NOT SAVED' : 'STREAM ART'} onClose={onClose} maxWidth="max-w-3xl">
       <div className="space-y-2 p-2 text-ink" data-stream-art-window>
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" className={replaying ? PLATE : PLATE_PRESSED} aria-pressed={!replaying} onClick={() => setReplaying(false)}>
@@ -253,15 +255,20 @@ function PieceWindow({ piece, onClose, onPeople }: { piece: StreamArtPiece; onCl
         {fault === null ? null : <p className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">{fault}</p>}
         {replaying && inputs !== null ? (
           <Replay inputs={inputs} />
+        ) : whole !== null ? (
+          <div className="border border-ink">
+            <CanvasPicture source={{ kind: 'raster', raster: () => whole.raster, version: 1 }} placements={whole.placements} className="aspect-video w-full" label="The drawing as it was left" />
+          </div>
         ) : (
           <div className="border border-ink">
             <CanvasPicture source={{ kind: 'image', url: finalShot?.imageUrl ?? null }} placements={finalShot?.placements ?? []} className="aspect-video w-full" label="The final snapshot" />
           </div>
         )}
         {finalShot === null ? null : <SnapshotCredit shot={finalShot} final />}
+        {past ? <PastLine canvas={piece.canvas} inputs={inputs} /> : null}
 
-        <h3 className="title-line text-label text-ink">SNAPSHOTS</h3>
-        {snapshots === null ? (
+        {past ? null : <h3 className="title-line text-label text-ink">SNAPSHOTS</h3>}
+        {past ? null : snapshots === null ? (
           <p className="text-label text-ink-quiet">READING...</p>
         ) : snapshots.length === 0 ? (
           <p className="text-label text-ink">NONE YET.</p>
@@ -377,3 +384,138 @@ function Replay({ inputs }: { inputs: readonly CanvasInput[] }) {
 }
 
 const WORDS: Record<CanvasInput['kind'], string> = { stroke: 'DREW', erase: 'RUBBED OUT', undo: 'UNDID', place: 'PLACED' };
+
+/* --- past canvases: unsaved, kept, for the people who were in the room ----------------------------------- */
+
+/** When the room's drawing began, and who drew on it. */
+function PastLine({ canvas, inputs }: { canvas: StreamArtPiece['canvas']; inputs: readonly CanvasInput[] | null }) {
+  const credits = useMemo(() => (inputs === null ? [] : creditsOf(inputs)), [inputs]);
+  return (
+    <div className="text-label text-ink">
+      <span>
+        NOBODY SAVED THIS ONE. STARTED <TimeStamp at={canvas.openedAt} />
+      </span>
+      {credits.length > 0 ? <Credits credits={credits} /> : null}
+    </div>
+  );
+}
+
+/**
+ * PAST CANVASES (CANVAS, 2026-11-17): the drawings of rooms this person was in whose session is over (the room
+ * ended, or its canvas was closed) and that nobody saved. Their whole timeline is kept, so each is drawn from it:
+ * nothing drawn in a room is out of reach once the room has gone. Read in the browser; the read rules decide who
+ * sees which (a private room's only to its members).
+ */
+export function PastCanvasShelf() {
+  const { user } = useAuth();
+  const [past, setPast] = useState<PastCanvas[] | null>(null);
+  const [failed, setFailed] = useState<string | null>(null);
+  const [open, setOpen] = useState<StreamArtPiece | null>(null);
+  const [people, setPeople] = useState<StreamArtPiece | null>(null);
+  const me = user?.id ?? null;
+
+  useEffect(() => {
+    if (me === null) return;
+    let current = true;
+    getCanvasRepository()
+      .listPastCanvases(me)
+      .then((found) => {
+        if (!current) return;
+        setPast(found);
+        setFailed(null);
+      })
+      .catch((failure: unknown) => {
+        if (current) setFailed(failure instanceof Error ? failure.message : 'THE PAST CANVASES COULD NOT BE READ.');
+      });
+    return () => {
+      current = false;
+    };
+  }, [me]);
+
+  if (me === null) return null;
+  return (
+    <section aria-label="Past canvases" data-past-canvases>
+      {failed !== null ? (
+        <p role="alert" className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">
+          {failed}
+        </p>
+      ) : past === null ? (
+        <p role="status" className="text-label font-bold text-ink-quiet">
+          READING...
+        </p>
+      ) : past.length === 0 ? (
+        <p role="status" className="text-label font-bold text-ink">
+          NONE. A DRAWING NOBODY SAVED SHOWS HERE ONCE ITS ROOM HAS ENDED.
+        </p>
+      ) : (
+        <ul aria-label="Past canvases, newest first">
+          {past.map((entry) => (
+            <PastRow key={entry.canvas.id} entry={entry} onOpen={setOpen} onPeople={setPeople} />
+          ))}
+        </ul>
+      )}
+      {open === null ? null : <PieceWindow piece={open} past onClose={() => setOpen(null)} onPeople={() => setPeople(open)} />}
+      {people === null ? null : <ParticipantsWindow piece={people} onClose={() => setPeople(null)} />}
+    </section>
+  );
+}
+
+function PastRow({ entry, onOpen, onPeople }: { entry: PastCanvas; onOpen: (piece: StreamArtPiece) => void; onPeople: (piece: StreamArtPiece) => void }) {
+  const { canvas, inputCount } = entry;
+  const [inputs, setInputs] = useState<CanvasTimelineInput[] | null>(null);
+  useEffect(() => {
+    let current = true;
+    getCanvasRepository()
+      .readInputs(canvas.id)
+      .then((timeline) => {
+        if (current) setInputs(replayOrder(timeline));
+      })
+      .catch(() => undefined);
+    return () => {
+      current = false;
+    };
+  }, [canvas.id]);
+  const picture = useMemo(() => (inputs === null ? null : { raster: rasterOf(inputs), placements: placementsOf(inputs).map((item) => item.place) }), [inputs]);
+  // Shaped as a piece, so the archive's own window and WHO WAS THERE show it: the host, then whoever drew.
+  const piece = useMemo<StreamArtPiece>(() => {
+    const drew = new Map<string, string>();
+    for (const input of inputs ?? []) if (input.authorId !== canvas.hostId && !drew.has(input.authorId)) drew.set(input.authorId, input.authorLabel);
+    const participants = [{ id: canvas.hostId, label: canvas.hostLabel, crowned: false }, ...[...drew].map(([id, label]) => ({ id, label, crowned: false }))];
+    return { canvas, latest: null, snapshotCount: 0, participants };
+  }, [canvas, inputs]);
+
+  return (
+    <li className="rule-pixel py-2" data-past-canvas={canvas.id}>
+      <div className="flex flex-wrap items-start gap-2">
+        <button type="button" onClick={() => onOpen(piece)} className="block w-40 shrink-0 cursor-pointer border border-ink" aria-label={`Open ${canvas.title}`}>
+          {picture === null ? (
+            <CanvasPicture source={{ kind: 'image', url: null }} placements={[]} className="aspect-video w-full" />
+          ) : (
+            <CanvasPicture source={{ kind: 'raster', raster: () => picture.raster, version: 1 }} placements={picture.placements} className="aspect-video w-full" />
+          )}
+        </button>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <button type="button" onClick={() => onOpen(piece)} className="min-w-0 cursor-pointer text-left text-sm font-bold text-ink hover:underline">
+              {canvas.title}
+            </button>
+            <button type="button" onClick={() => onPeople(piece)} className="inline-flex shrink-0 cursor-pointer" title="Everybody who drew" aria-label={`Everybody who drew in ${canvas.hostLabel}'s room`}>
+              <PersonPicture id={canvas.hostId} label={canvas.hostLabel} size={HOST_PICTURE} />
+            </button>
+          </div>
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-label text-ink">
+            <span>
+              STARTED <TimeStamp at={canvas.openedAt} />
+            </span>
+            <span>{`${inputCount} STROKE${inputCount === 1 ? '' : 'S'}, NOT SAVED`}</span>
+          </div>
+        </div>
+        <span className="flex shrink-0 items-center gap-1 max-sm:w-full max-sm:justify-start max-sm:pl-42">
+          <button type="button" onClick={() => onOpen(piece)} className={PLATE}>
+            [ OPEN ]
+          </button>
+        </span>
+      </div>
+    </li>
+  );
+}

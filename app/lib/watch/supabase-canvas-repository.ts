@@ -9,6 +9,7 @@ import type {
   CanvasTimelineInput,
   CanvasWire,
   CanvasWireMessage,
+  PastCanvas,
   RoomCanvasRecord,
   SnapshotInput,
   StreamArtPiece,
@@ -36,6 +37,12 @@ const INPUT_PAGE = 1000;
 /** The archive lists this many pieces, newest saved first. */
 const PIECE_LIMIT = 200;
 const SNAPSHOT_LIMIT = 5000;
+/** CANVASES lists this many past canvases, newest first. */
+const PAST_LIMIT = 24;
+/** Read to find them: this many unsaved canvases, this person's newest inputs, and ids of each kind in the ask. */
+const PAST_SCAN = 120;
+const PAST_INPUT_SCAN = 2000;
+const PAST_ID_LIMIT = 80;
 /** How long a snapshot's signed address lasts: the bucket is private, read by signed-in people only. */
 const SIGNED_SECONDS = 60 * 60;
 
@@ -52,6 +59,8 @@ type CanvasRow = {
   saved_by_label: string | null;
   hidden: boolean;
 };
+
+type PastRow = CanvasRow & { watch_rooms: { ended_at: string | null } | null; room_canvas_inputs: { count: number }[] | null };
 
 type InputRow = { id: string; seq: number | string; author_id: string; author_label: string; kind: string; data: Record<string, unknown> | null; created_at: string };
 
@@ -291,6 +300,38 @@ class SupabaseCanvasRepository implements CanvasRepository {
         participants: participantsOf(canvas.hostId, shots),
       };
     });
+  }
+
+  async listPastCanvases(by: string): Promise<PastCanvas[]> {
+    const client = this.client();
+    // The rooms this person was in: the canvases they drew on, and the rooms they belong to. The read rules still
+    // decide what comes back (a private room's canvas only to its members).
+    const [drew, belonged] = await Promise.all([
+      client.from(INPUTS).select('canvas_id').eq('author_id', by).order('created_at', { ascending: false }).limit(PAST_INPUT_SCAN).returns<{ canvas_id: string }[]>(),
+      client.from('watch_members').select('room_id').eq('user_id', by).is('removed_at', null).order('joined_at', { ascending: false }).limit(PAST_ID_LIMIT).returns<{ room_id: string }[]>(),
+    ]);
+    if (drew.error || belonged.error) throw refusal(drew.error ?? belonged.error, 'THE PAST CANVASES COULD NOT BE READ.');
+    const canvasIds = [...new Set((drew.data ?? []).map((row) => row.canvas_id))].slice(0, PAST_ID_LIMIT);
+    const roomIds = [...new Set((belonged.data ?? []).map((row) => row.room_id))].slice(0, PAST_ID_LIMIT);
+    const whose = [`host_id.eq.${by}`, ...(canvasIds.length > 0 ? [`id.in.(${canvasIds.join(',')})`] : []), ...(roomIds.length > 0 ? [`room_id.in.(${roomIds.join(',')})`] : [])];
+    const { data, error } = await client
+      .from(CANVASES)
+      .select(`${CANVAS_COLUMNS}, watch_rooms(ended_at), room_canvas_inputs(count)`)
+      .is('saved_at', null)
+      .eq('hidden', false)
+      .or(whose.join(','))
+      .order('opened_at', { ascending: false })
+      .limit(PAST_SCAN)
+      .returns<PastRow[]>();
+    if (error) throw refusal(error, 'THE PAST CANVASES COULD NOT BE READ.');
+    return (data ?? [])
+      .flatMap((row) => {
+        const inputCount = row.room_canvas_inputs?.[0]?.count ?? 0;
+        // Over: closed, or its room has ended (a room that ended by itself leaves its canvas open on paper).
+        const over = row.closed_at !== null || (row.watch_rooms !== null && row.watch_rooms.ended_at !== null);
+        return inputCount > 0 && over ? [{ canvas: toCanvas(row), inputCount }] : [];
+      })
+      .slice(0, PAST_LIMIT);
   }
 
   async setHidden(canvasId: string, hidden: boolean): Promise<void> {
