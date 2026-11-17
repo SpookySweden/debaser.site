@@ -1,0 +1,9 @@
+class LolGetSummonerProfile: data
+class Data: summoner
+class Summoner: game_name,tagline,profile_image_url,level,lp_histories,previous_seasons,league_stats
+class LpHistorie: created_at,tier_info,elo_point
+class TierInfo: tier,division,lp
+class PreviousSeason: season_id,tier_info
+class LeagueStat: game_type,tier_info,win,lose,is_hot_streak
+
+LolGetSummonerProfile(Data(Summoner("MOCK PLAYER","EUW","https://opgg-static.akamaized.net/meta/images/profile_icons/profileIcon6621.jpg",619,[LpHistorie("2026-11-17T01:01:46+09:00",TierInfo("MASTER",1,1815),3531),LpHistorie("2026-11-13T06:41:42+09:00",TierInfo("MASTER",1,1455),3325),LpHistorie("2026-11-10T03:31:48+09:00",TierInfo("MASTER",1,1305),3240),LpHistorie("2026-11-07T00:11:38+09:00",TierInfo("MASTER",1,1260),3214)],[PreviousSeason(31,TierInfo("MASTER",1,471)),PreviousSeason(29,TierInfo("EMERALD",1,14)),PreviousSeason(27,TierInfo("DIAMOND",4,88)),PreviousSeason(25,TierInfo("EMERALD",3,0))],[LeagueStat("SOLORANKED",TierInfo("GRANDMASTER",1,1837),1149,1084,true),LeagueStat("FLEXRANKED",TierInfo(null,null,null),null,null,false),LeagueStat("ARENA",TierInfo(null,null,null),null,null,false)])))

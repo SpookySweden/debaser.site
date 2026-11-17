@@ -61,6 +61,9 @@ export const ICON_LIVE = '●';
  */
 export const ICON_READ = '\u{1F4D6}︎';
 
+/** LEAGUEBOT (SPEC-leaguebot.md): crossed swords, U+2694 with the text-style selector, so it draws in the key's ink. */
+export const ICON_LEAGUE = '⚔︎';
+
 /** A notice waiting. */
 export const ICON_BELL = '☼';
 

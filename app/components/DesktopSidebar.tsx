@@ -32,7 +32,7 @@ import type { AccountUser } from '../lib/auth/types';
 import { historyAddressSpentByClose, historyWindowServerState, historyWindowState, subscribeToHistoryWindow, toggleHistory } from '../lib/history/history-window';
 import { TITLE_BAR_BUTTON, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import { pagePanelOpen, setPagePanelOpen, subscribeToPagePanel } from '../lib/ui/side-panel-page';
-import { ICON_LIVE, ICON_READ } from '../lib/ui/icons';
+import { ICON_LEAGUE, ICON_LIVE, ICON_READ } from '../lib/ui/icons';
 import { useWatching } from '../lib/watch/use-watching';
 import GoLiveWindow from './GoLiveWindow';
 import { openWatch } from '../lib/watch/watch-window';
@@ -364,6 +364,12 @@ export default function DesktopSidebar({ foldedOnThisPage = false }: { foldedOnT
             <Link href="/read" className="key flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-label">
               <span className="min-w-0 flex-1 truncate text-left">
                 [ <span aria-hidden="true">{ICON_READ}</span> READ ]
+              </span>
+            </Link>
+            {/* LEAGUEBOT (SPEC-leaguebot.md, Luke's 10A+B): on the shelf for everyone, as well as its top-bar key in MODULOS. */}
+            <Link href="/leaguebot" className="key flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-label">
+              <span className="min-w-0 flex-1 truncate text-left">
+                [ <span aria-hidden="true">{ICON_LEAGUE}</span> LEAGUEBOT ]
               </span>
             </Link>
             <RecommendationsKey me={user?.id ?? null} />
