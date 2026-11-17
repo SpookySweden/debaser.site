@@ -164,8 +164,10 @@ export type WatchQueueEntry = {
 /**
  * One chat line said in a room over a thing, as that thing's DISCUSS page shows it (SPEC-room-chat-discuss.md): no room,
  * no queue, nothing else. `authorId` is null when the name is ANON to a signed-out visitor.
+ * `privateRoom`: said while its room was private (or password). `anonymous`: the reader was not in that room, so the database
+ * sent no name and no id, only the speaker's number in the room (`ANON-3`); ROOMCHAT, Luke 2026-11-17.
  */
-export type DiscussLine = { id: string; saidAt: string; authorId: string | null; authorLabel: string; body: string; mediaSeconds: number; guest: boolean };
+export type DiscussLine = { id: string; saidAt: string; authorId: string | null; authorLabel: string; body: string; mediaSeconds: number; guest: boolean; privateRoom: boolean; anonymous: boolean };
 
 /** Which thing's lines: its MEDIA/KINO id, a catalogue file, and the addresses an older queue item may have kept. */
 export type DiscussQuery = { webRef: string | null; mediaItemId: string | null; urls: string[] };

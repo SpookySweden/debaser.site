@@ -29,6 +29,22 @@ Asked and answered the same day ("all a's but change the privacy promise and dea
   past ones included.
 - Signed-out visitors see the lines as they see the board's names (ANON rules for names apply).
 
+### Private rooms anonymised (Luke, 2026-11-17, ROOMCHAT)
+Luke's words: "make sure that previous things said in own room are non private by default and appear as comments on the
+specified media and timestamped, in a public steam room its the same but in a private one its anonymised to anyone but who
+was in the room."
+- Each line keeps the room's setting from the moment it was said (`privacy_at_write`, stamped by the database). A line said
+  while the room was open shows its speaker's name to everyone, as before.
+- A line said while the room was private (or password) shows its name only to those who were in the room: its host, the
+  host who started it, a member not REMOVED, and the speaker. To them it is marked `PRIVATE ROOM · NAME SHOWN TO ITS MEMBERS`.
+- To everyone else, signed in or not, it shows as the speaker's number in that room (`ANON-3`, the number private room
+  outlines already use) with `PRIVATE ROOM`: no name, no picture, no profile link, not even GUEST. The words, the date and
+  time, and `IN ROOM · 02:14` still show. The database's `discuss_room_chat` sends no name or id for these lines
+  (`20261117023807_room_chat_private_anonymous.sql`); the browser hides nothing.
+- Hidden test accounts' lines show only to those who were in their room.
+- Both switches still win: a host's CHAT ON DISCUSSION off, or a person's MY ROOM CHAT ON DISCUSSION PAGES off, takes the
+  lines away, past ones included. Both stay on by default.
+
 ## Database (each change needs Luke's typed OK first, through a migration)
 - `watch_rooms.chat_on_discuss` (on by default) and a person's `room_chat_on_discuss` (on by default).
 - A mark on a queue item saying which MEDIA or KINO result it came from, so DISCUSS finds it reliably; older items are

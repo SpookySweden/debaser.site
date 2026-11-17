@@ -44,11 +44,15 @@ export function useDiscussChat(query: DiscussQuery | undefined): DiscussLine[] {
 
 export function RoomChatLine({ line }: { line: DiscussLine }) {
   const name = line.guest ? line.authorLabel.replace(/ \[GUEST\]$/, '') : line.authorLabel;
+  // A private room's line (ROOMCHAT, Luke 2026-11-17): to someone who wasn't in the room the database already sent it as
+  // the speaker's number there (`ANON-3`), no name; to those who were, the name, with a note that others don't see it.
+  const privateTag = line.anonymous ? 'PRIVATE ROOM' : line.privateRoom ? 'PRIVATE ROOM · NAME SHOWN TO ITS MEMBERS' : null;
   return (
-    <li className="rule-pixel py-1 text-ink" data-room-chat-line={line.id}>
+    <li className="rule-pixel py-1 text-ink" data-room-chat-line={line.id} data-room-chat-anonymous={line.anonymous ? '' : undefined}>
       <p className="flex flex-wrap items-baseline gap-x-2 text-label">
-        <span className="font-strong text-key">{name}</span>
+        <span className={line.anonymous ? 'font-strong text-ink-quiet' : 'font-strong text-key'}>{name}</span>
         {line.guest ? <span className="text-ink-quiet">GUEST</span> : null}
+        {privateTag === null ? null : <span className="text-ink-quiet" data-room-chat-private>{privateTag}</span>}
         <TimeStamp at={line.saidAt} />
         <span className="text-ink-quiet" data-room-chat-tag>{`IN ROOM · ${videoClock(line.mediaSeconds)}`}</span>
       </p>
