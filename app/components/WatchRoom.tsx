@@ -977,6 +977,9 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
    */
   const [offlineEntry, setOfflineEntry] = useState<string | null>(null);
   const offlineChannel = linkDead && offlineEntry === entryId && link !== null ? (twitchOf(link)?.channel ?? null) : null;
+  /** A Twitch channel's own page, for the note's way out when Twitch's player can't start here. */
+  const twitchChannel = link === null ? null : (twitchOf(link)?.channel ?? null);
+  const twitchPage = twitchChannel === null ? null : `https://www.twitch.tv/${encodeURIComponent(twitchChannel)}`;
   const skipDead = useEffectEvent(() => {
     if (upcoming(read.queue).length === 0) return;
     setNotice(offlineChannel !== null ? `SKIPPED: ${offlineChannel.toUpperCase()} IS OFFLINE` : `SKIPPED: ${(entryTitle ?? '').toUpperCase()} WOULDN'T PLAY`);
@@ -1667,6 +1670,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
             onPlaying={(player) => {
               setNeedsPress(false);
               setLiveEntry(player.isLive ? entryId : null);
+              // It plays after all (the site's own RELOAD, a slow start): the room no longer calls it dead, so nothing skips it.
+              setDeadEntry((dead) => (dead === entryId ? null : dead));
             }}
             onError={(why) => {
               setOfflineEntry(why === 'offline' ? entryId : null);
@@ -1721,9 +1726,26 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
           </video>
         )}
         {linkDead ? (
-          <div className="absolute inset-0 flex items-center justify-center">
+          // Over another site's player the note sits at the top and lets every press through (LIVE TWITCH2000, Luke 2026-11-17: Twitch's
+          // "network error (Error #2000)" with its own RELOAD key under a note that covered it): the site's own message and key stay
+          // readable and pressable. Our own video's note stays in the middle.
+          <div className={`pointer-events-none absolute inset-0 z-20 flex justify-center ${link !== null && (isEmbedKind(link.kind) || link.kind === 'embed') ? 'items-start pt-2' : 'items-center'}`} data-watch-dead>
             <p className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar" role="alert" data-watch-offline={offlineChannel ?? undefined}>
-              {offlineChannel !== null ? `${offlineChannel.toUpperCase()} IS OFFLINE` : 'THIS LINK WON\u2019T PLAY HERE'}
+              {offlineChannel !== null
+                ? `${offlineChannel.toUpperCase()} IS OFFLINE`
+                : twitchPage !== null
+                  ? 'TWITCH COULDN\u2019T START THIS STREAM HERE'
+                  : 'THIS LINK WON\u2019T PLAY HERE'}
+              {/* Twitch's network error (#2000) is its player failing to reach its stream: often an ad blocker, a VPN or a filtering DNS on
+                  the viewer's side. Its own page may still play it. */}
+              {offlineChannel === null && twitchPage !== null ? (
+                <>
+                  {' '}
+                  <a href={twitchPage} target="_blank" rel="noopener noreferrer" className="pointer-events-auto underline" data-watch-twitch-page>
+                    [ WATCH ON TWITCH ↗ ]
+                  </a>
+                </>
+              ) : null}
             </p>
           </div>
         ) : null}

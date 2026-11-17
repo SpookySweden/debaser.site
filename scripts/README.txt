@@ -174,6 +174,17 @@ store), Twitch and YouTube lives through our server (the real platforms), + QUEU
 player in your room and the room saying LIVE once it plays, the feed's LIVE places, no counts, nothing asked of Supabase.
 Not in `npm run checks`: it needs a running site and the network. Screenshots go to `Temp/browse/live-*.png`.
 
+probe-twitch-play.cjs
+---------------------
+    node scripts/probe-twitch-play.cjs --base <site> --browser edge|chrome                 does a Twitch live play in our room?
+    node scripts/probe-twitch-play.cjs --base <site> --browser edge --block "usher\.ttvnw\.net" --recover
+
+Read-only, signed out (SPEC-live-streams.md; Twitch's "network error (Error #2000)", 2026-11-17). Plays a Twitch live from MEDIA's LIVE
+key and reports from inside Twitch's player: its error text, whether its video advances and decodes frames, failed Twitch requests.
+`--block` refuses matching requests as a blocking extension would: refusing Twitch's stream server (usher.ttvnw.net) is what
+makes Twitch show #2000. `--recover` then checks the room's note (top, lets presses through, links to Twitch), unblocks, presses
+Twitch's own RELOAD and play, and expects the stream to play and the note to go. `--jitless` stands in for Edge's enhanced security.
+
 drive-visualiser.cjs
 --------------------
     node scripts/drive-visualiser.cjs --base http://localhost:<port> --privacy open [--reduced]   on a local dev server, as kept test account A

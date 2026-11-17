@@ -90,7 +90,8 @@ const name = (id) => `C${id}`;
   assert.equal(answer.source, 'U.GG', '"not in a game" from U.GG is believed');
   answer = await readLive(ME, {}, { uggLive: down, opggLive: async () => live });
   assert.equal(answer.source, 'OP.GG');
-  assert.match(answer.notes[0], /U\.GG didn't answer/);
+  // (2026-11-17) Worded plainly now that U.GG is known to turn LEAGUEBOT's server away; the fallback check holds the rest.
+  assert.match(answer.notes[0], /U\.GG isn't answering LEAGUEBOT's server/);
   answer = await readLive(ME, {}, { uggLive: down, opggLive: down });
   assert.equal(answer.game, null);
   assert.match(answer.notes[0], /Neither/);

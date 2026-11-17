@@ -34,7 +34,10 @@ export type Profile = {
   /** Riot's profile icon number (drawn from Data Dragon), or null. */
   iconId: number | null;
   ranks: RankEntry[];
+  /** Ranked solo LP over time, oldest first: U.GG's point after every game when it answers, else OP.GG's point a day. */
   lpHistory: LpPoint[];
+  /** Who kept `lpHistory`, or null when nobody had any. */
+  lpFrom: SourceName | null;
   pastSeasons: PastSeason[];
 };
 
@@ -80,6 +83,11 @@ export type PlayerAnswer = {
   notFound: boolean;
   /** Plain-English notes for the window: a source that didn't answer, a fallback taken. */
   notes: string[];
+  /**
+   * Why U.GG failed for the game list, in a few words (`HTTP 403`, `timed out`), or null when it answered. The window's
+   * browser then reads the 100 games from OP.GG itself (./browser-opgg.ts).
+   */
+  uggTrouble: string | null;
 };
 
 /** How many ranked solo games the STATS tab reads (five pages of U.GG's twenty). */

@@ -44,6 +44,8 @@ export type LiveAnswer = {
   game: LiveGame | null;
   source: SourceName | null;
   notes: string[];
+  /** Why U.GG failed (`HTTP 403`, `timed out`), or null when it answered. The window then asks OP.GG from the browser. */
+  uggTrouble: string | null;
 };
 
 export type MatchupGuide = {

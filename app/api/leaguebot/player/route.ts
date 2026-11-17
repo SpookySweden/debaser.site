@@ -3,7 +3,7 @@ import { readPlayer, type PlayerSources } from '../../../lib/leaguebot/pick-sour
 import { regionById } from '../../../lib/leaguebot/regions';
 import { riotIdFrom, type RiotId } from '../../../lib/leaguebot/riot-id';
 import { opggMatches, opggProfile } from '../../../lib/leaguebot/sources/opgg-mcp';
-import { uggMatches, uggRanks, uggRefresh } from '../../../lib/leaguebot/sources/ugg';
+import { uggLpHistory, uggMatches, uggRanks, uggRefresh } from '../../../lib/leaguebot/sources/ugg';
 import type { PlayerAnswer } from '../../../lib/leaguebot/types';
 import { keeper, visitorOf, json } from '../../../lib/leaguebot/route-helpers';
 
@@ -25,6 +25,7 @@ export const maxDuration = 30;
 const SOURCES: PlayerSources = {
   opggProfile: (id, region) => opggProfile(id, region),
   uggRanks: (id, region) => uggRanks(id, region),
+  uggLpHistory: (id, region) => uggLpHistory(id, region),
   uggMatches: (id, region, want) => uggMatches(id, region, want),
   opggMatches: (id, region) => opggMatches(id, region),
 };
@@ -53,7 +54,10 @@ export async function GET(request: Request): Promise<Response> {
       KEEP.player,
       async () => {
         if (fresh) await uggRefresh(id, region).catch(() => false);
-        return readPlayer(id, region, SOURCES);
+        const read = await readPlayer(id, region, SOURCES);
+        // What U.GG said when it failed goes in the server's log (Vercel's runtime logs), never a Riot ID.
+        if (read.uggTrouble !== null) console.warn(`[leaguebot] U.GG failed for the game list on ${region.id}: ${read.uggTrouble}`);
+        return read;
       },
       fresh,
       // An answer that only says both sources broke is not kept: the next look-up asks again.

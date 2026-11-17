@@ -111,6 +111,7 @@ export function toProfile(decoded: Decoded, id: RiotId, region: Region): Profile
     iconId: icon ? Number(icon[1]) : null,
     ranks,
     lpHistory,
+    lpFrom: lpHistory.length > 0 ? 'OP.GG' : null,
     pastSeasons,
   };
 }

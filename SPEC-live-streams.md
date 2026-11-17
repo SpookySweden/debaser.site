@@ -196,5 +196,11 @@ YouTube upcoming broadcasts; Kick and other live sites; playing any raw stream o
 - **Twitch's own overlay** shows the stream's title and viewer count ("Playing ... for 4,339 viewers") while its player is paused
   or hovered. That is Twitch's player, not our page, and no embed setting hides it; covering it would also block the click
   Twitch's mature-content warning needs. Luke, 2026-11-17: "Keep it".
+- **Twitch's "network error (Error #2000)"** (Luke, 2026-11-17) is Twitch's player failing to reach its own stream server
+  (usher.ttvnw.net): reproduced by refusing that address, as an ad blocker, VPN or filtering DNS can. Not Edge's Strict tracking
+  prevention, not WebAssembly being off, not our frame (tested). What was ours: after 15 silent seconds the room called the link
+  dead and laid a note over the whole stage that caught every press, so Twitch's own RELOAD could not be pressed. Now the note
+  sits at the top, lets presses through, says TWITCH COULDN'T START THIS STREAM HERE with `[ WATCH ON TWITCH ↗ ]`, and goes
+  away (nothing is skipped) the moment the stream plays. `scripts/probe-twitch-play.cjs` proves both, in Edge and Chrome.
 - **Proof:** `scripts/check-web-search-twitch.cjs` (the provider, keys, cache, YouTube live mode, the key, the feed place, the
-  asks); `Temp/browse/drive-live.cjs` on a local mock server (`Temp/browse/dev-mock-live.cjs 3317`).
+  asks); `scripts/drive-live.cjs` on a local mock server (`scripts/dev-mock-live.cjs 3317`).
