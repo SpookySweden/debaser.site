@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useRef } from 'react';
 import { DEBASER_PROJECT, PROJECT_SECTIONS } from '../lib/projects/debaser';
-import { NAV_ITEMS, SIDE_ARCADE, SIDE_MUSIC, SIDE_QUEUES } from './SiteNav';
+import { NAV_ITEMS, SIDE_ARCADE, SIDE_DESK, SIDE_MUSIC, SIDE_QUEUES, SIDE_SEARCH } from './SiteNav';
+import { useOptionalAuth } from './AuthProvider';
 
 /**
  * A row in the menu: flat until the pointer is on it, the way a desktop menu reads - a column of
@@ -51,6 +52,7 @@ type StartMenuProps = {
  */
 export default function StartMenu({ onDismiss, commsUnread = 0 }: StartMenuProps) {
   const frame = useRef<HTMLDivElement | null>(null);
+  const user = useOptionalAuth()?.user ?? null;
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -114,7 +116,8 @@ export default function StartMenu({ onDismiss, commsUnread = 0 }: StartMenuProps
         <div className="mt-1 border-t border-ink pt-1">
           <p className="px-2 pb-1 text-label font-bold text-ink">WINDOWS</p>
 
-          {[SIDE_ARCADE, SIDE_MUSIC, SIDE_QUEUES].map((item) => (
+          {/* DESK for a signed-in reader only, and the one SEARCH box (SPEC-forum-v3.md). */}
+          {[SIDE_ARCADE, SIDE_MUSIC, SIDE_QUEUES, ...(user === null ? [] : [SIDE_DESK]), SIDE_SEARCH].map((item) => (
             <Link key={item.key} href={item.href} onClick={onDismiss} className={MENU_ROW}>
               <span aria-hidden="true" className="w-4 shrink-0 text-center text-label">
                 {item.mark}

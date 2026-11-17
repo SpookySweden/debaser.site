@@ -31,6 +31,9 @@ import {
 } from '../lib/ui/icons';
 import { QUEUES_HREF } from '../lib/audio/queue-window';
 import { HISTORY_HREF } from '../lib/history/history-window';
+import { DESK_HREF, deskWindowServerState, deskWindowState, subscribeToDeskWindow, toggleDesk } from '../lib/desk/desk-window';
+import { SEARCH_HREF, searchWindowServerState, searchWindowState, subscribeToSearchWindow, toggleSearch } from '../lib/search/site-search';
+import { useAuth } from './AuthProvider';
 import { LIBRARY_HREF } from '../lib/audio/music-window';
 
 /**
@@ -40,7 +43,7 @@ import { LIBRARY_HREF } from '../lib/audio/music-window';
  * the home page is what opens it. Pages under a project (or otherwise off the taskbar) pass no
  * `active` key, which leaves every key unlit rather than lighting one that does not own the page.
  */
-export type NavKey = 'home' | 'forum' | 'media' | 'web' | 'read' | 'tagstation' | 'recommendations' | 'beatbox' | 'cytube' | 'animate' | 'leaguebot' | 'games' | 'music' | 'queues' | 'history' | 'users' | 'comms' | 'account';
+export type NavKey = 'home' | 'forum' | 'media' | 'web' | 'read' | 'tagstation' | 'recommendations' | 'beatbox' | 'cytube' | 'animate' | 'leaguebot' | 'games' | 'music' | 'queues' | 'history' | 'desk' | 'search' | 'users' | 'comms' | 'account';
 
 /**
  * A key: a glyph, and the word a screen reader reads it as.
@@ -183,6 +186,33 @@ export const SIDE_HISTORY: NavItem = {
   href: HISTORY_HREF,
 };
 
+/** YOUR DESK and the one SEARCH box (SPEC-forum-v3.md, D1A+ and S2A): windows over the forum, on the top bar and in the Start menu. */
+export const SIDE_DESK: NavItem = { key: 'desk', label: 'DESK', mark: '▭', href: DESK_HREF };
+export const SIDE_SEARCH: NavItem = { key: 'search', label: 'SEARCH', mark: '⌕', href: SEARCH_HREF };
+
+/**
+ * The top bar's two window keys, after the modules: DESK (signed in only: a visitor has no desk) and ⌕ SEARCH (Ctrl+K too).
+ * Word keys like the modules, with the hover a module with no colour of its own wears; `aria-expanded` gives them the one
+ * "this is open" look while their window is up.
+ */
+function TopBarWindowKeys({ hover }: { hover: CSSProperties }) {
+  const { user } = useAuth();
+  const desk = useSyncExternalStore(subscribeToDeskWindow, deskWindowState, deskWindowServerState);
+  const find = useSyncExternalStore(subscribeToSearchWindow, searchWindowState, searchWindowServerState);
+  return (
+    <>
+      {user === null ? null : (
+        <button type="button" aria-expanded={desk.open} onClick={toggleDesk} title="What is waiting for you" className={`${wordClass(false)} module-key cursor-pointer`} style={hover} data-desk-key>
+          DESK
+        </button>
+      )}
+      <button type="button" aria-expanded={find.open} onClick={toggleSearch} title="Search the whole site (Ctrl+K)" className={`${wordClass(false)} module-key cursor-pointer`} style={hover} data-search-key>
+        ⌕ SEARCH
+      </button>
+    </>
+  );
+}
+
 /** The windows a menu lists (the phone's picture menu): the shelf's keys, without the arcade while its key is off the screen. */
 export const SIDE_WINDOWS: NavItem[] = ARCADE_KEY_SHOWN ? [SIDE_ARCADE, SIDE_MUSIC, SIDE_QUEUES] : [SIDE_MUSIC, SIDE_QUEUES];
 
@@ -271,6 +301,7 @@ export default function SiteNav({ active, endKey }: { active?: NavKey; /** A key
           </Link>
         );
       })}
+      <TopBarWindowKeys hover={{ '--module-ink': moduleHoverInk(MODULES.find((module) => module.key === 'modules') ?? MODULES[0], choices, bar) } as CSSProperties} />
       {endKey ? <span className="ml-auto flex items-center">{endKey}</span> : null}
     </nav>
   );

@@ -246,7 +246,11 @@ assert.deepEqual(
 );
 // Updated on purpose 2026-11-05 (SPEC-floating-player.md): the band now starts with the site's two arrows, which go
 // nowhere of their own and so are buttons. Every page key is still a link.
-assert.equal((nav.match(/<button/g) ?? []).length, 3, 'each page key is a link wearing its own chrome; the only buttons are the two arrows and MODULOS, which opens its list (Luke, 2026-11-06)');
+// Updated on purpose 2026-11-17 (SPEC-forum-v3.md, S2A): ⌕ SEARCH opens its window, so it is a button too; DESK joins it
+// only for a signed-in reader (D1A+), and this render is a visitor's.
+assert.equal((nav.match(/<button/g) ?? []).length, 4, 'each page key is a link wearing its own chrome; the only buttons are the two arrows, MODULOS, which opens its list (Luke, 2026-11-06), and ⌕ SEARCH, which opens its window');
+assert.match(nav, /data-search-key/, 'the search key is on the bar');
+assert.doesNotMatch(nav, /data-desk-key/, 'and a visitor has no DESK key');
 assert.ok(nav.indexOf('aria-label="Back"') > -1 && nav.indexOf('aria-label="Forward"') > nav.indexOf('aria-label="Back"') && nav.indexOf('aria-label="Forward"') < nav.indexOf('<a '), 'the arrows sit left of the first page key');
 // "Pressed in" is a filled pill now (`key-fill`, SPEC-readability.md) rather than the inverted Win95 bevel
 // this used to count, and it is held to the tab that says it is the page - not just to a count of one.
@@ -329,9 +333,12 @@ for (const section of PROJECT_SECTIONS) assert.match(menu, new RegExp(`>${esc(se
 // player bar lost its queues key and a 640-767px screen (no phone card, no side panel) had no other way in.
 assert.equal(
   (menu.match(/<a\b/g) ?? []).length,
-  NAV_ITEMS.length + 3 + PROJECT_SECTIONS.length,
-  'every key, all three windows and every shelf is a link in this menu',
+  // (2026-11-17, SPEC-forum-v3.md S2A) SEARCH joins the windows; DESK too, but only for a signed-in reader, and this is a visitor's menu.
+  NAV_ITEMS.length + 4 + PROJECT_SECTIONS.length,
+  'every key, all four windows a visitor has and every shelf is a link in this menu',
 );
+assert.match(menu, /href="\/forum\?search=1"/, 'SEARCH is in the menu');
+assert.doesNotMatch(menu, /href="\/forum\?desk=1"/, 'and a visitor has no DESK');
 assert.match(menu, /COMMS/, 'and comms is one of them');
 assert.match(menu, /\(3\)/, 'saying how many are waiting, on every screen');
 

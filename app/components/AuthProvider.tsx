@@ -324,6 +324,11 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+/** The account, or null where no provider is above (a menu drawn on its own): for a key that only shows when signed in. */
+export function useOptionalAuth(): AuthContextValue | null {
+  return useContext(AuthContext);
+}
+
 export function useAuth(): AuthContextValue {
   const value = useContext(AuthContext);
   if (value === null) throw new Error('useAuth must be used inside <AuthProvider>.');

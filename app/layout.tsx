@@ -16,6 +16,8 @@ import MusicPlayerProvider from './components/MusicPlayerProvider';
 import MusicWindow from './components/MusicWindow';
 import QueueWindow from './components/QueueWindow';
 import HistoryWindow from './components/HistoryWindow';
+import DeskWindow from './components/DeskWindow';
+import SearchWindow from './components/SearchWindow';
 import PlayHistoryKeeper from './components/PlayHistoryKeeper';
 import NotificationsProvider from './components/NotificationsProvider';
 import LostAccountWindow from './components/LostAccountWindow';
@@ -143,6 +145,9 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
                         <QueueWindow />
                         {/* HISTORY (SPEC-history.md): the log of what you played, under QUEUE on the shelf. */}
                         <HistoryWindow />
+                        {/* YOUR DESK and the one SEARCH box (SPEC-forum-v3.md): windows over the forum, from the top bar. */}
+                        <DeskWindow />
+                        <SearchWindow />
                         {/* The stream room (SPEC-watch-together.md): drawn here so a stream keeps
                             playing while the reader walks the site. */}
                         <WatchWindow />
