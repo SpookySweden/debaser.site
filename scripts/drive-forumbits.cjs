@@ -120,7 +120,8 @@ async function preferences(browser) {
   console.log('PREFERENCES keeps off + NEW POST');
   // Saved open, on top of where + NEW POST sits on a 1440 x 900 screen (where the test run found it).
   const seeded = { x: 880, y: 120, w: 384, h: 620 };
-  const layout = { standard: { screen: { w: 1440, h: 900 }, windows: { preferences: { rect: seeded, group: null, open: true, restore: null } }, order: ['preferences'] } };
+  // Under its layout name since it opened taller (SETTINGSUI, 2026-11-17: `preferences-tall`), so the saved place is the one it opens at.
+  const layout = { standard: { screen: { w: 1440, h: 900 }, windows: { 'preferences-tall': { rect: seeded, group: null, open: true, restore: null } }, order: ['preferences-tall'] } };
   const { context, page, liveHits } = await newPage(browser, {
     script: (saved) => {
       try {

@@ -21,6 +21,10 @@ of themes for the background, add 2 more for now."
 3. **Each background has its own settings window**, built like the AQUARIUM one (floats, no dimming, `[ 50% ]`, tabs, RESET,
    PARTY, looks along the foot), saved to the account in the same row (`user_aquarium.settings`, under a key per background;
    no database change: the row is capped at 4 KB and all five fit in about half of it).
+   Since 2026-11-17 (SETTINGSUI, Luke: "more readable ... ideally i dont want any scrolling to be necessary to see all the
+   settings") the window has no tabs: every knob is on one sheet, each old tab a titled section and the looks a LOOKS section,
+   in two or three columns, one aligned line per knob (name, control, value, `~ ? =`), `[ THEME ]` at its head. It opens as
+   big as its sheet, which fits a 1366 x 768 screen whole (`app/lib/backdrops/sheet.ts`, `scripts/drive-settings-sheet.cjs`).
 4. **The windows get stranger controls** than plain sliders (below), the AQUARIUM's included.
 
 ## The new controls (all backgrounds)

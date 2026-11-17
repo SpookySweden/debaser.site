@@ -530,13 +530,15 @@ const HELD = { ...D, theme: true };
   assert.match(key, /class="aquarium-key /, 'the sea key is placed by the stylesheet');
   assert.match(key.replace(/<!-- -->/g, ''), /\[ FLUID \]/, 'and says what it opens: the background that is on, FLUID by default since 2026-11-16 (Luke)');
   const knobs = renderToString(React.createElement(windowModule.BackdropKnobs, { id: 'aquarium' })).replace(/<!-- -->/g, '');
-  for (const tab of S.TABS) assert.ok(knobs.includes(`[ ${tab.label} ]`), `the window has a ${tab.label} tab`);
+  // One sheet since 2026-11-17 (Luke: no scrolling to see all the settings): each of the four is a section with its title line, all in sight.
+  for (const tab of S.TABS) assert.ok(knobs.includes(`data-backdrop-section="${tab.id}"`) && knobs.includes(`<span>${tab.label}</span>`), `the window has a ${tab.label} section`);
+  assert.doesNotMatch(knobs, /data-backdrop-tab=/, 'and no tabs to hide three of them');
   // (HIGHEST and LOWEST are drawn as one control, DEPTH: a strip with two handles.)
   const paired = new Set(S.AQUARIUM.widgets.flatMap((w) => (w.kind === 'band' ? [w.low, w.high] : [w.x, w.y])));
   for (const knob of S.KNOBS.filter((k) => k.tab === 'fish' && !paired.has(k.key))) assert.ok(knobs.includes(knob.label), `FISH lists ${knob.label}`);
   assert.ok(knobs.includes('DEPTH') && knobs.includes('data-backdrop-band="depth"'), 'and DEPTH, the band HIGHEST and LOWEST share');
   assert.ok(knobs.includes('type="range"') && knobs.includes('aria-valuetext="2x"'), 'a slider is a real slider, its value read out');
-  for (const look of ['RESET', 'PARTY', '98', 'CALM', 'SCHOOL', 'CHAOS']) assert.ok(knobs.includes(`[ ${look} ]`), `the foot has [ ${look} ]`);
+  for (const look of ['RESET', 'PARTY', '98', 'CALM', 'SCHOOL', 'CHAOS']) assert.ok(knobs.includes(`[ ${look} ]`), `the LOOKS section has [ ${look} ]`);
   const windowSource = fs.readFileSync('app/components/BackdropSettingsWindow.tsx', 'utf8');
   assert.match(windowSource, /<DockWindow/, 'a window beside the page, with no scrim');
   assert.doesNotMatch(windowSource, /<PopoutWindow/, 'not a dialogue that takes the screen');

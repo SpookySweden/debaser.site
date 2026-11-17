@@ -19,6 +19,7 @@ import {
   type Widget,
 } from '../lib/backdrops/knobs';
 import { backdropDef } from '../lib/backdrops/registry';
+import { COLUMN_W, LOOKS_SECTION, choiceLayout, evenRows, looksKeys, sheetLayout } from '../lib/backdrops/sheet';
 import {
   GHOST_SECONDS,
   activeActions,
@@ -60,7 +61,7 @@ import {
   toggleBackdropSeeThrough,
   toggleBackdropWindow,
 } from '../lib/backdrops/store';
-import { THEME_KEY, currentThemeId, subscribeToTheme, themeNudges, themeSet, themedValues } from '../lib/backdrops/theme';
+import { THEME_KEY, currentThemeId, subscribeToTheme, themeSet, themedValues } from '../lib/backdrops/theme';
 import { BACKDROPS, DEFAULT_BACKDROP, backdropState, setBackdrop, subscribeToBackdrop } from '../lib/ui/backdrop-slot';
 import { themeById } from '../lib/ui/themes';
 import { PLATE, PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED, PLATE_PRESSED, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
@@ -79,6 +80,21 @@ function subscribeToReducedMotion(listener: () => void) {
 const reducedMotion = () => window.matchMedia(REDUCED_MOTION).matches;
 
 const NOTE = 'w-fit bg-bubble-pale px-1 text-label text-ink-bar';
+
+/*
+ * The sheet's grid (Luke, 2026-11-17: "more readable ... ideally i dont want any scrolling"). Every knob is one line, as a
+ * control panel's property sheet or a plug-in panel lays them out: its name in a column of names, its control, its value in
+ * a column of values on the right, and its `~ ? =` keys in a column of their own at the far end, so the eye runs straight
+ * down any of the four. A run of switches, a choice's keys and a section's one-off actions are a line of bracket keys.
+ */
+/** One knob's line. */
+const LINE = 'flex min-h-6 items-center gap-1.5 text-label text-ink';
+/** The knob's name: one width for every name, so the controls start in one place. */
+const NAME = 'w-24 shrink-0 truncate';
+/** Its value: a column on the right, in the one heavier weight, so the numbers read at a glance. */
+const VALUE = 'w-18 shrink-0 text-right text-key font-strong';
+/** The `~ ? =` keys: a column at the far end; a knob with fewer keys keeps them at the right of it. */
+const ROW_KEYS = 'flex w-13 shrink-0 items-center justify-end gap-px';
 
 /** Everything a row needs to read and change its background's settings. */
 type Panel = {
@@ -110,7 +126,7 @@ function RowKeys({ panel, knobs, name }: { panel: Panel; knobs: readonly Knob[];
   const swaying = ranges.length === 1 && panel.sway[ranges[0].key] !== undefined;
   const locked = knobs.every((knob) => panel.locks.includes(knob.key));
   return (
-    <span className="flex shrink-0 items-center gap-px">
+    <span className={ROW_KEYS}>
       {ranges.length === 1 && knobs.length === 1 ? (
         <button
           type="button"
@@ -153,7 +169,19 @@ function RowKeys({ panel, knobs, name }: { panel: Panel; knobs: readonly Knob[];
   );
 }
 
-/** A slider: its name and its value written out above it, the arrow keys working on it when it has focus. */
+/**
+ * In the keys' column of a knob the theme sets while `[ THEME ]` is on: the word THEME where the keys were, because the keys
+ * would change nothing the reader sees.
+ */
+function SetByTheme() {
+  return (
+    <span className={ROW_KEYS} data-backdrop-set-by-theme="">
+      THEME
+    </span>
+  );
+}
+
+/** A slider on one line: its name, the slider, its value, its keys. The arrow keys work on it when it has focus. */
 function RangeRow({ knob, panel }: { knob: RangeKnob; panel: Panel }) {
   const marks = panel.sway[knob.key];
   const byTheme = knob.key in panel.themed;
@@ -163,36 +191,48 @@ function RangeRow({ knob, panel }: { knob: RangeKnob; panel: Panel }) {
   const drawn = panel.drawn[knob.key];
   const nudged = !byTheme && typeof drawn === 'number' && drawn !== value ? shownValue(knob, drawn) : null;
   return (
-    <div className="flex flex-col gap-0.5 py-1 text-label text-ink" title={byTheme ? SET_BY_THEME : nudged === null ? knob.tip : `${knob.tip}. THE THEME NUDGES IT TO ${nudged}`}>
-      <span className="flex items-center justify-between gap-2">
-        <span className="min-w-0 flex-1 truncate">{knob.label}</span>
-        <span data-backdrop-value={knob.key}>{byTheme ? `THEME ${shown}` : nudged === null ? shown : `${shown} → ${nudged}`}</span>
-        {byTheme ? null : <RowKeys panel={panel} knobs={[knob]} name={knob.label} />}
-      </span>
-      <input
-        type="range"
-        min={knob.min}
-        max={knob.max}
-        step={knob.step}
-        value={value}
-        // While it sways, the slider shows where the value has got to and the strip under it sets the two marks.
-        disabled={byTheme || (marks !== undefined && !panel.still)}
-        aria-label={knob.label}
-        aria-valuetext={shown}
-        onChange={(event) => change(panel, knob.key, Number(event.target.value))}
-        className="h-5 w-full cursor-pointer accent-bubble"
-        data-backdrop-knob={knob.key}
-      />
-      {marks === undefined || byTheme ? null : (
-        <BandStrip
-          id={`sway-${knob.key}`}
-          low={knob}
-          high={knob}
-          values={marks}
-          gap={0}
-          names={[`${knob.label} sways from`, `${knob.label} sways to`]}
-          onChange={(low, high) => setBackdropSway(panel.def.id, knob.key, [low, high])}
+    <div className="flex flex-col" title={byTheme ? SET_BY_THEME : nudged === null ? knob.tip : `${knob.tip}. THE THEME NUDGES IT TO ${nudged}`}>
+      <div className={LINE}>
+        <span className={NAME}>{knob.label}</span>
+        <input
+          type="range"
+          min={knob.min}
+          max={knob.max}
+          step={knob.step}
+          value={value}
+          // While it sways, the slider shows where the value has got to and the strip under it sets the two marks.
+          disabled={byTheme || (marks !== undefined && !panel.still)}
+          aria-label={knob.label}
+          aria-valuetext={shown}
+          onChange={(event) => change(panel, knob.key, Number(event.target.value))}
+          className="h-5 min-w-0 flex-1 cursor-pointer accent-bubble"
+          data-backdrop-knob={knob.key}
         />
+        <span className={VALUE} data-backdrop-value={knob.key}>
+          {nudged === null ? shown : `${shown}→${nudged}`}
+        </span>
+        {byTheme ? <SetByTheme /> : <RowKeys panel={panel} knobs={[knob]} name={knob.label} />}
+      </div>
+      {/* Swaying: the strip that sets its two marks, on a line of its own under the slider, in the slider's column. */}
+      {marks === undefined || byTheme ? null : (
+        <div className={LINE}>
+          <span className={NAME}>SWAYS</span>
+          <span className="min-w-0 flex-1">
+            <BandStrip
+              id={`sway-${knob.key}`}
+              low={knob}
+              high={knob}
+              values={marks}
+              gap={0}
+              names={[`${knob.label} sways from`, `${knob.label} sways to`]}
+              onChange={(low, high) => setBackdropSway(panel.def.id, knob.key, [low, high])}
+            />
+          </span>
+          <span className={VALUE}>
+            {shownValue(knob, marks[0])}–{shownValue(knob, marks[1])}
+          </span>
+          <span className={ROW_KEYS} />
+        </div>
       )}
     </div>
   );
@@ -212,29 +252,45 @@ function SwitchKey({ knob, panel }: { knob: SwitchKnob; panel: Panel }) {
 function ChoiceRow({ knob, panel }: { knob: ChoiceKnob; panel: Panel }) {
   // Set by the theme (COLOURS, while THEME is on): the reader's own choice is kept and waits; the keys rest.
   const byTheme = knob.key in panel.themed;
-  return (
-    <div className="flex flex-wrap items-center gap-1 py-1 text-label text-ink" role="group" aria-label={knob.label} title={byTheme ? SET_BY_THEME : knob.tip}>
-      <span className="pr-1">{knob.label}</span>
-      {byTheme ? <span data-backdrop-value={knob.key}>THE THEME&apos;S</span> : null}
-      {knob.options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          aria-pressed={!byTheme && panel.values[knob.key] === option.value}
-          title={byTheme ? SET_BY_THEME : option.tip}
-          disabled={byTheme}
-          onClick={() => change(panel, knob.key, option.value)}
-          className={!byTheme && panel.values[knob.key] === option.value ? PLATE_PRESSED : PLATE}
-          data-backdrop-knob={`${knob.key}-${option.value}`}
-        >
-          [ {option.label} ]
-        </button>
-      ))}
-      {byTheme ? null : (
-        <span className="ml-auto">
-          <RowKeys panel={panel} knobs={[knob]} name={knob.label} />
-        </span>
-      )}
+  const { beside, rows } = choiceLayout(knob);
+  const keys = byTheme ? <SetByTheme /> : <RowKeys panel={panel} knobs={[knob]} name={knob.label} />;
+  const line = (row: number[]) => (
+    <span key={row[0]} className="flex min-w-0 flex-1 items-center gap-1">
+      {row.map((index) => {
+        const option = knob.options[index];
+        const chosen = !byTheme && panel.values[knob.key] === option.value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            aria-pressed={chosen}
+            title={byTheme ? SET_BY_THEME : option.tip}
+            disabled={byTheme}
+            onClick={() => change(panel, knob.key, option.value)}
+            className={chosen ? PLATE_PRESSED : PLATE}
+            data-backdrop-knob={`${knob.key}-${option.value}`}
+          >
+            [ {option.label} ]
+          </button>
+        );
+      })}
+    </span>
+  );
+  // Beside its name when its keys fit there on one line, as a slider sits; otherwise its name's line, then its keys under it in
+  // even lines (`choiceLayout`).
+  return beside ? (
+    <div className={LINE} role="group" aria-label={knob.label} title={byTheme ? SET_BY_THEME : knob.tip}>
+      <span className={NAME}>{knob.label}</span>
+      {line(rows[0])}
+      {keys}
+    </div>
+  ) : (
+    <div className="flex flex-col gap-1" role="group" aria-label={knob.label} title={byTheme ? SET_BY_THEME : knob.tip}>
+      <span className={LINE}>
+        <span className="min-w-0 flex-1 truncate">{knob.label}</span>
+        {keys}
+      </span>
+      {rows.map(line)}
     </div>
   );
 }
@@ -243,22 +299,23 @@ const THEME_TIP = "THE BACKGROUND MATCHED TO THE SITE'S THEME: ITS COLOURS, LIGH
 
 /**
  * `[ THEME ]` (Luke, 2026-11-16): at the top of every background's window, on as it comes. While it is on the background wears the
- * site theme (`../lib/backdrops/theme.ts`); the line beside it says which theme, and which knobs the theme sets.
+ * site theme (`../lib/backdrops/theme.ts`). It heads the sheet, first thing in its top-left corner, with the theme's name beside it in
+ * the heavier weight and nothing more, so the head stays one line beside the meters. Which knobs it sets each say so in their own row
+ * (THEME where their keys were), and a value it nudges reads `35%→50%`, its hover tip saying what the arrow is.
  */
 function ThemeRow({ panel, theme }: { panel: Panel; theme: string }) {
   const on = panel.values[THEME_KEY] === true;
   const shown = themeById(theme);
   const name = shown.family === undefined ? shown.label : `${shown.family.label} ${shown.label}`;
-  const sets = panel.def.knobs.filter((knob) => knob.key in panel.themed).map((knob) => knob.label);
   return (
-    <div className="flex flex-wrap items-center gap-2 pb-1 text-label text-ink" data-backdrop-theme={on ? 'on' : 'off'}>
+    <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-label text-ink" data-backdrop-theme={on ? 'on' : 'off'}>
       <button type="button" aria-pressed={on} title={THEME_TIP} onClick={() => change(panel, THEME_KEY, !on)} className={on ? PLATE_PRESSED : PLATE} data-backdrop-knob={THEME_KEY}>
         [ THEME ]
       </button>
-      <span className="min-w-0 flex-1">
-        {on ? `MATCHED TO ${name}: ITS COLOURS, LIGHT AND MOOD.${sets.length > 0 ? ` IT SETS ${sets.join(', ')}.` : ''}` : 'OFF: YOUR OWN COLOURS AND SETTINGS.'}
+      <span>
+        {on ? <span className="text-key font-strong">{name}</span> : 'OFF: YOUR OWN COLOURS AND SETTINGS'}
       </span>
-    </div>
+    </span>
   );
 }
 
@@ -277,27 +334,27 @@ function WidgetRow({ widget, panel }: { widget: Widget; panel: Panel }) {
     if (low === null || high === null) return null;
     const values = [panel.values[widget.low] as number, panel.values[widget.high] as number] as const;
     return (
-      <div className="flex flex-col gap-0.5 py-1 text-label text-ink" title={widget.tip}>
-        <span className="flex items-center justify-between gap-2">
-          <span className="min-w-0 flex-1 truncate">{widget.label}</span>
-          <span data-backdrop-value={widget.id}>
-            {shownValue(low, values[0])} TO {shownValue(high, values[1])}
-          </span>
-          <RowKeys panel={panel} knobs={[low, high]} name={widget.label} />
+      <div className={LINE} title={widget.tip}>
+        <span className={NAME}>{widget.label}</span>
+        <span className="min-w-0 flex-1">
+          <BandStrip
+            id={widget.id}
+            low={low}
+            high={high}
+            values={values}
+            gap={widget.gap}
+            names={[low.label, high.label]}
+            onChange={(a, b) => {
+              // Whichever end moved goes through the same door as a slider would, so the other end gives way the same way.
+              if (a !== values[0]) change(panel, widget.low, a);
+              else if (b !== values[1]) change(panel, widget.high, b);
+            }}
+          />
         </span>
-        <BandStrip
-          id={widget.id}
-          low={low}
-          high={high}
-          values={values}
-          gap={widget.gap}
-          names={[low.label, high.label]}
-          onChange={(a, b) => {
-            // Whichever end moved goes through the same door as a slider would, so the other end gives way the same way.
-            if (a !== values[0]) change(panel, widget.low, a);
-            else if (b !== values[1]) change(panel, widget.high, b);
-          }}
-        />
+        <span className={VALUE} data-backdrop-value={widget.id}>
+          {shownValue(low, values[0])}–{shownValue(high, values[1])}
+        </span>
+        <RowKeys panel={panel} knobs={[low, high]} name={widget.label} />
       </div>
     );
   }
@@ -306,42 +363,42 @@ function WidgetRow({ widget, panel }: { widget: Widget; panel: Panel }) {
   const bouncing = padIsBouncing(id, widget.id);
   const puck = padPuck(id, widget.id);
   return (
-    <div className="flex flex-col gap-1 py-1 text-label text-ink" title={widget.tip}>
-      <span className="flex items-center justify-between gap-2">
-        <span className="min-w-0 flex-1 truncate">{widget.label}</span>
+    // The pad's block: its name over its keys in the names' column, the pad in the sliders', its two values beside it.
+    <div className="flex items-start gap-1.5 py-1 text-label text-ink" title={widget.tip}>
+      <span className="flex w-24 shrink-0 flex-col items-start gap-1">
+        <span>{widget.label}</span>
         <RowKeys panel={panel} knobs={[x, y]} name={widget.label} />
       </span>
-      <div className="flex items-start gap-2">
-        <XYPad
-          id={widget.id}
-          label={widget.label}
-          x={x}
-          y={y}
-          puck={puck}
-          onCatch={bouncing ? () => stopBounce(id, widget.id) : undefined}
-          onChange={(a, b) => setBackdropValues(id, withValue(panel.def, withValue(panel.def, backdropValues(id), widget.x, a), widget.y, b))}
-          onFling={(flung) => startBounce(id, widget.id, flung)}
-        />
-        <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
-          <span data-backdrop-value={widget.x}>
-            {x.label} {shownValue(x, panel.live[widget.x] as number)}
-          </span>
-          <span data-backdrop-value={widget.y}>
-            {y.label} {shownValue(y, panel.live[widget.y] as number)}
-          </span>
-          {panel.still ? null : (
-            <button
-              type="button"
-              aria-pressed={bouncing}
-              title={bouncing ? 'CATCH IT: THE TWO KNOBS STOP WHERE THE PUCK IS' : 'LET THE PUCK GO: IT BOUNCES ROUND THE PAD AND THE TWO KNOBS GO WITH IT. FLICK IT TO SEND IT FASTER'}
-              onClick={() => (bouncing ? stopBounce(id, widget.id) : startBounce(id, widget.id, { ...puck, vx: 0, vy: 0 }))}
-              className={bouncing ? PLATE_PRESSED : PLATE}
-              data-backdrop-bounce={widget.id}
-            >
-              [ BOUNCE ]
-            </button>
-          )}
-        </div>
+      <XYPad
+        id={widget.id}
+        label={widget.label}
+        x={x}
+        y={y}
+        puck={puck}
+        onCatch={bouncing ? () => stopBounce(id, widget.id) : undefined}
+        onChange={(a, b) => setBackdropValues(id, withValue(panel.def, withValue(panel.def, backdropValues(id), widget.x, a), widget.y, b))}
+        onFling={(flung) => startBounce(id, widget.id, flung)}
+        compact
+      />
+      <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
+        <span data-backdrop-value={widget.x}>
+          {x.label} <span className="text-key font-strong">{shownValue(x, panel.live[widget.x] as number)}</span>
+        </span>
+        <span data-backdrop-value={widget.y}>
+          {y.label} <span className="text-key font-strong">{shownValue(y, panel.live[widget.y] as number)}</span>
+        </span>
+        {panel.still ? null : (
+          <button
+            type="button"
+            aria-pressed={bouncing}
+            title={bouncing ? 'CATCH IT: THE TWO KNOBS STOP WHERE THE PUCK IS' : 'LET THE PUCK GO: IT BOUNCES ROUND THE PAD AND THE TWO KNOBS GO WITH IT. FLICK IT TO SEND IT FASTER'}
+            onClick={() => (bouncing ? stopBounce(id, widget.id) : startBounce(id, widget.id, { ...puck, vx: 0, vy: 0 }))}
+            className={bouncing ? PLATE_PRESSED : PLATE}
+            data-backdrop-bounce={widget.id}
+          >
+            [ BOUNCE ]
+          </button>
+        )}
       </div>
     </div>
   );
@@ -359,7 +416,7 @@ function KnobList({ tab, panel }: { tab: string; panel: Panel }) {
     const group = switches;
     switches = [];
     rows.push(
-      <div key={`switches-${group[0].key}`} className="flex flex-wrap items-center gap-1 py-1" role="group">
+      <div key={`switches-${group[0].key}`} className="flex flex-wrap items-center gap-1" role="group">
         {group.map((knob) => (
           <SwitchKey key={knob.key} knob={knob} panel={panel} />
         ))}
@@ -396,13 +453,12 @@ function Meters() {
   const meters = useSyncExternalStore(subscribeToMeters, backdropMeters, serverMeters);
   if (meters.length === 0) return null;
   return (
-    <div className="flex flex-wrap items-end gap-x-3 gap-y-1 pb-1 text-label text-ink" data-backdrop-meters="">
+    <div className="ml-auto flex flex-wrap items-end gap-x-4 gap-y-1 text-label text-ink" data-backdrop-meters="">
       {meters.map((meter) => (
-        <span key={meter.id} className="flex items-end gap-1" title={`${meter.label}, AS IT IS NOW`}>
+        <span key={meter.id} className="flex items-end gap-1.5" title={`${meter.label}, AS IT IS NOW`}>
+          <span>{meter.label}</span>
           <Sparkline readings={meter.history} most={meter.most} />
-          <span>
-            {meter.label} {Math.round(meter.value)}
-          </span>
+          <span className="text-key font-strong">{Math.round(meter.value)}</span>
         </span>
       ))}
     </div>
@@ -420,8 +476,8 @@ function Morph({ panel }: { panel: Panel }) {
   if (look === undefined) return null;
   const t = run?.t ?? 0;
   return (
-    <div className="flex items-center gap-2 pt-1 text-label text-ink" title="MORPH: EVERY KNOB SLIDES FROM WHERE IT IS TO THE LOOK NAMED HERE">
-      <span>MORPH TO</span>
+    <div className={LINE} title="MORPH: EVERY KNOB SLIDES FROM WHERE IT IS TO THE LOOK NAMED HERE">
+      <span className={NAME}>MORPH TO</span>
       <button
         type="button"
         title="WHICH LOOK TO MORPH TO: PRESS FOR THE NEXT"
@@ -465,7 +521,8 @@ function Morph({ panel }: { panel: Panel }) {
 function Ghost() {
   const ghost = useSyncExternalStore(subscribeToGhost, ghostState, serverGhostState);
   return (
-    <div className="flex flex-wrap items-center gap-2 pt-1 text-label text-ink">
+    <div className={LINE}>
+      <span className={NAME}>GHOST</span>
       <button
         type="button"
         aria-pressed={ghost !== 'off'}
@@ -493,7 +550,6 @@ export function BackdropKnobs({ id }: { id: string }) {
   const { id: backdrop } = useSyncExternalStore(subscribeToBackdrop, backdropState, backdropState);
   const still = useSyncExternalStore(subscribeToReducedMotion, reducedMotion, () => false);
   const theme = useSyncExternalStore(subscribeToTheme, currentThemeId, currentThemeId);
-  const [tab, setTab] = useState(def?.tabs[0]?.id ?? '');
   useEffect(() => watchLiveValues(id), [id]);
   // A bounce doesn't outlive the window that shows it: shut the window (or change background) and every puck is caught, its
   // knobs left where it was.
@@ -502,95 +558,139 @@ export function BackdropKnobs({ id }: { id: string }) {
   if (def === null || live === null || values === null) return null;
   const themeOn = values[THEME_KEY] === true;
   const panel: Panel = { def, values, live, locks: extras.locks, sway: extras.sway, still, themed: themeOn ? themeSet(theme, id) : {}, drawn: themeOn ? themedValues(def, live, theme) : live };
-  const shownTab = def.tabs.some((each) => each.id === tab) ? tab : def.tabs[0].id;
+  const sheet = sheetLayout(def);
   // PARTY, the looks and MORPH leave `[ THEME ]` as the reader has it, as if it were locked; RESET puts it back on, as it came.
   const kept = [...panel.locks, THEME_KEY];
-  const put = (next: Values) => setBackdropValues(id, keepingLocks(def, next, panel.values, kept));
-  const isLook = (look: Values) => sameValues(def, { ...panel.values, [THEME_KEY]: look[THEME_KEY] }, look);
+  const looks = <Looks panel={panel} still={still} kept={kept} />;
 
   return (
-    <div className="flex min-h-full flex-col" data-backdrop-window={id}>
+    <div className="flex flex-col" data-backdrop-window={id}>
       {failed ? (
         <p role="alert" className={NOTE}>
           COULD NOT SAVE TO YOUR ACCOUNT. KEPT IN THIS BROWSER.
         </p>
       ) : null}
-      {backdrop === id ? null : (
-        <p className="flex flex-wrap items-center gap-2 pb-1 text-label text-ink">
-          <span>THE BACKGROUND IS ON {BACKDROPS.find((each) => each.id === backdrop)?.label ?? 'SOMETHING ELSE'}.</span>
-          <button type="button" onClick={() => setBackdrop(BACKDROPS.find((each) => each.id === id)?.id ?? DEFAULT_BACKDROP)} className={PLATE}>
-            [ SHOW THE {def.label} ]
-          </button>
-        </p>
-      )}
       {still ? <p className={`${NOTE} mb-1`}>YOUR COMPUTER ASKS FOR LESS MOTION, SO WHAT MOVES IS RESTING. THE KNOBS THAT DON&apos;T MOVE ANYTHING STILL WORK.</p> : null}
 
-      <Meters />
+      {/* The head: [ THEME ] first, in the top-left corner, and on the right what the background says about itself as it runs,
+          or, when another background is on (TILE, which has no settings), the key that puts this one on. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pb-2">
+        <ThemeRow panel={panel} theme={theme} />
+        {backdrop === id ? (
+          <Meters />
+        ) : (
+          <p className="ml-auto flex flex-wrap items-center gap-2 text-label text-ink">
+            <span>THE BACKGROUND IS ON {BACKDROPS.find((each) => each.id === backdrop)?.label ?? 'SOMETHING ELSE'}.</span>
+            <button type="button" onClick={() => setBackdrop(BACKDROPS.find((each) => each.id === id)?.id ?? DEFAULT_BACKDROP)} className={PLATE}>
+              [ SHOW THE {def.label} ]
+            </button>
+          </p>
+        )}
+      </div>
 
-      <ThemeRow panel={panel} theme={theme} />
-      {themeOn && Object.keys(themeNudges(theme, id)).length > 0 ? <p className="pb-1 text-label text-ink">AN ARROW BESIDE A VALUE: WHERE THE THEME NUDGES IT FROM YOURS.</p> : null}
-
-      <div className="flex flex-wrap items-center gap-1 pb-1" role="group" aria-label="Kinds of setting">
-        {def.tabs.map((each) => (
-          <button key={each.id} type="button" aria-pressed={shownTab === each.id} onClick={() => setTab(each.id)} className={shownTab === each.id ? PLATE_PRESSED : PLATE} data-backdrop-tab={each.id}>
-            [ {each.label} ]
-          </button>
+      {/* The sheet: every section in sight at once, shared out between two or three columns (`../lib/backdrops/sheet.ts`); one
+          above another in a phone's bottom sheet, where there is no room for columns. */}
+      <div className="flex min-h-0 flex-1 items-start gap-4 max-sm:flex-col max-sm:items-stretch" data-backdrop-sheet={sheet.columns.length}>
+        {sheet.columns.map((column) => (
+          <div key={column[0].id} className="flex min-w-0 flex-1 flex-col gap-2" data-backdrop-column="">
+            {column.map((part) =>
+              part.id === LOOKS_SECTION ? (
+                <Section key={part.id} id={part.id} label={part.label}>
+                  {looks}
+                </Section>
+              ) : (
+                <Section key={part.id} id={part.id} label={part.label}>
+                  <KnobList tab={part.id} panel={panel} />
+                  {def.actions.some((action) => action.tab === part.id) ? (
+                    <p className="flex flex-wrap items-center gap-1">
+                      {def.actions
+                        .filter((action) => action.tab === part.id)
+                        .map((action) => (
+                          <button
+                            key={action.id}
+                            type="button"
+                            aria-pressed={active.includes(`${id}:${action.id}`)}
+                            title={action.tip}
+                            onClick={() => fireBackdropAction(id, action.id)}
+                            className={active.includes(`${id}:${action.id}`) ? PLATE_PRESSED : PLATE}
+                            data-backdrop-knob={action.id}
+                          >
+                            [ {action.label} ]
+                          </button>
+                        ))}
+                    </p>
+                  ) : null}
+                </Section>
+              ),
+            )}
+          </div>
         ))}
       </div>
-
-      <section className="flex-1 pb-2" aria-label={def.tabs.find((each) => each.id === shownTab)?.label}>
-        <KnobList tab={shownTab} panel={panel} />
-        {def.actions.some((action) => action.tab === shownTab) ? (
-          <p className="flex flex-wrap items-center gap-1 py-1">
-            {def.actions
-              .filter((action) => action.tab === shownTab)
-              .map((action) => (
-                <button
-                  key={action.id}
-                  type="button"
-                  aria-pressed={active.includes(`${id}:${action.id}`)}
-                  title={action.tip}
-                  onClick={() => fireBackdropAction(id, action.id)}
-                  className={active.includes(`${id}:${action.id}`) ? PLATE_PRESSED : PLATE}
-                  data-backdrop-knob={action.id}
-                >
-                  [ {action.label} ]
-                </button>
-              ))}
-          </p>
-        ) : null}
-      </section>
-
-      {/* The foot stays in sight however far the knobs are scrolled: starting again, a surprise, the ready-made looks, a morph between them, and the ghost. */}
-      <div className="sticky -bottom-2 -mx-2 -mb-2 bg-sun-pale px-2 pt-2 pb-2">
-        <div className={TITLE_BAR_INACTIVE}>
-          <span>LOOKS</span>
-        </div>
-        <div className="flex flex-wrap items-center gap-1 pt-1" role="group" aria-label="Looks">
-          <button type="button" title={`BACK TO THE ${def.label} AS IT CAME`} onClick={() => setBackdropValues(id, keepingLocks(def, def.defaults, panel.values, panel.locks))} className={PLATE} data-backdrop-look="reset">
-            [ RESET ]
-          </button>
-          <button type="button" title="EVERY KNOB SOMEWHERE AT RANDOM" onClick={() => setBackdropValues(id, partyValues(def, Math.random, panel.values, kept))} className={PLATE} data-backdrop-look="party">
-            [ PARTY ]
-          </button>
-          {def.looks.map((look) => (
-            <button
-              key={look.id}
-              type="button"
-              aria-pressed={isLook(look.values)}
-              title={look.tip}
-              onClick={() => put(look.values)}
-              className={isLook(look.values) ? PLATE_PRESSED : PLATE}
-              data-backdrop-look={look.id}
-            >
-              [ {look.label} ]
-            </button>
-          ))}
-        </div>
-        {still ? null : <Morph key={id} panel={panel} />}
-        {still ? null : <Ghost />}
-      </div>
     </div>
+  );
+}
+
+/** A section of the sheet: its title line, as every section inside a window on the site has (no box), then its knobs. */
+function Section({ id, label, children }: { id: string; label: string; children: ReactNode }) {
+  return (
+    <section className="flex flex-col" aria-label={label} data-backdrop-section={id}>
+      <div className={TITLE_BAR_INACTIVE}>
+        <span>{label}</span>
+      </div>
+      <div className="flex flex-col gap-px pt-1">{children}</div>
+    </section>
+  );
+}
+
+/** The LOOKS section's insides: starting again, a surprise, the ready-made looks, a morph between them, and the ghost. */
+function Looks({ panel, still, kept }: { panel: Panel; still: boolean; kept: readonly string[] }) {
+  const { def } = panel;
+  const id = def.id;
+  const put = (next: Values) => setBackdropValues(id, keepingLocks(def, next, panel.values, kept));
+  const isLook = (look: Values) => sameValues(def, { ...panel.values, [THEME_KEY]: look[THEME_KEY] }, look);
+  // RESET, PARTY, then each look, on even lines (`evenRows`): the n-th key of `looksKeys`.
+  const key = (index: number) => {
+    if (index === 0) {
+      return (
+        <button key="reset" type="button" title={`BACK TO THE ${def.label} AS IT CAME`} onClick={() => setBackdropValues(id, keepingLocks(def, def.defaults, panel.values, panel.locks))} className={PLATE} data-backdrop-look="reset">
+          [ RESET ]
+        </button>
+      );
+    }
+    if (index === 1) {
+      return (
+        <button key="party" type="button" title="EVERY KNOB SOMEWHERE AT RANDOM" onClick={() => setBackdropValues(id, partyValues(def, Math.random, panel.values, kept))} className={PLATE} data-backdrop-look="party">
+          [ PARTY ]
+        </button>
+      );
+    }
+    const look = def.looks[index - 2];
+    return (
+      <button
+        key={look.id}
+        type="button"
+        aria-pressed={isLook(look.values)}
+        title={look.tip}
+        onClick={() => put(look.values)}
+        className={isLook(look.values) ? PLATE_PRESSED : PLATE}
+        data-backdrop-look={look.id}
+      >
+        [ {look.label} ]
+      </button>
+    );
+  };
+  return (
+    <>
+      <div className="flex flex-col gap-1" role="group" aria-label="Looks">
+        {evenRows(looksKeys(def), COLUMN_W).map((row) => (
+          <span key={row[0]} className="flex items-center gap-1">
+            {row.map(key)}
+          </span>
+        ))}
+      </div>
+      {still ? null : <Morph key={id} panel={panel} />}
+      {still ? null : <Ghost />}
+    </>
   );
 }
 
@@ -601,7 +701,7 @@ function shownScene(backdrop: string): string {
 
 /**
  * A background's settings window (SPEC-aquarium-settings.md, then SPEC-backgrounds.md): every knob of whichever background is
- * on, in tabs, with the looks along its foot. A window beside the page, with no scrim, because the background it changes is the
+ * on, all on one sheet in labelled sections (`../lib/backdrops/sheet.ts`; they were tabs until 2026-11-17). A window beside the page, with no scrim, because the background it changes is the
  * thing to look at while changing it; its `[ 50% ]` key makes the window itself half see-through for the same reason. Drawn once
  * in `layout.tsx`, and it is what tells the settings who is signed in (as the MODULOS window does for the bar), so it does that
  * whether or not it is open.
@@ -618,15 +718,20 @@ export default function BackdropSettingsWindow() {
 
   if (!open) return null;
   const scene = shownScene(backdrop);
+  const def = backdropDef(scene);
 
   return (
     <DockWindow
       id="aquarium"
-      title={backdropDef(scene)?.label ?? 'BACKGROUND'}
+      // Each background's window has its own size and place (2026-11-17): it opens as big as its sheet, every knob in sight,
+      // and a box saved at the old 400 x 700 doesn't stick.
+      layoutId={`backdrop-${scene}`}
+      title={def?.label ?? 'BACKGROUND'}
       onClose={closeBackdropWindow}
       status=""
       dock="top"
-      defaultSize={{ w: 400, h: 700 }}
+      tall
+      defaultSize={def === null ? { w: 400, h: 700 } : sheetLayout(def).size}
       minSize={{ w: 300, h: 240 }}
       seeThrough={seeThrough}
       titleKeys={

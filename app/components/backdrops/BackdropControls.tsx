@@ -115,13 +115,15 @@ type PadProps = {
   onCatch?: () => void;
   label: string;
   id: string;
+  /** A small square of a set size, for a line of the settings sheet, rather than one as wide as its box. */
+  compact?: boolean;
 };
 
 /**
  * Two knobs on one square: across is one, down is the other. Dragged with one finger; the arrow keys move the puck a step; a
  * double-click puts it back in the middle.
  */
-export function XYPad({ x, y, puck, onChange, onFling, onCatch, label, id }: PadProps) {
+export function XYPad({ x, y, puck, onChange, onFling, onCatch, label, id, compact = false }: PadProps) {
   const pad = useRef<HTMLDivElement>(null);
   /** The last few places of the drag, to tell how fast the puck was going when it was let go. */
   const trail = useRef<{ x: number; y: number; at: number }[]>([]);
@@ -187,7 +189,7 @@ export function XYPad({ x, y, puck, onChange, onFling, onCatch, label, id }: Pad
         onCatch?.();
         put({ x: 0.5, y: 0.5 });
       }}
-      className="relative aspect-square w-full max-w-48 cursor-pointer touch-none select-none border border-ink bg-paper focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble"
+      className={`relative aspect-square ${compact ? 'w-22 shrink-0' : 'w-full max-w-48'} cursor-pointer touch-none select-none border border-ink bg-paper focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble`}
       data-backdrop-pad={id}
     >
       {/* The middle, where both knobs are at rest: two dotted lines. */}
