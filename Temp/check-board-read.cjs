@@ -129,10 +129,17 @@ const tileSource = fs.readFileSync('app/components/ForumGalleryTile.tsx', 'utf8'
 assert.match(tileSource, /read \? ROW_READ : ROW_UNREAD/, 'and filled from the same pair');
 
 const boardSource = fs.readFileSync('app/components/ForumBoard.tsx', 'utf8');
+// A tile's [ OPEN ] takes the same jump as a #thread- link and a search result (FORUMUX, 2026-11-17), so the jump's
+// one call covers both: a click, the jump (tile, link, result) and filing one.
 const openCalls = boardSource.match(/markThreadRead\(/g) ?? [];
 assert.ok(
-  openCalls.length >= 4,
-  `every way a post can open marks it read - a click, a tile, a #thread- link and filing one (found ${openCalls.length})`,
+  openCalls.length >= 3,
+  `every way a post can open marks it read - a click, a tile or #thread- link (the jump) and filing one (found ${openCalls.length})`,
+);
+assert.match(
+  boardSource,
+  /const openFromGallery = useCallback\([\s\S]{0,300}?jumpToPost\(thread\)/,
+  "a tile's [ OPEN ] goes through the jump, which marks the post read",
 );
 assert.match(boardSource, /if \(open\) markThreadRead\(threadId\)/, 'and closing a post does not');
 
