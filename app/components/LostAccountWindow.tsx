@@ -1,23 +1,46 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { useState, useSyncExternalStore } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { USING_MOCK_AUTH } from '../lib/auth/auth-repository';
-import { forgetLostAccount, parseLostAccount, readLostAccountRaw, rememberLostAccount, rememberNeverHadOne, saidNeverHadOne, subscribeToLostAccount } from '../lib/auth/lost-account';
+import {
+  askForLostAccount,
+  askedForLostAccount,
+  forgetLostAccount,
+  loginFormShown,
+  parseLostAccount,
+  readLostAccountRaw,
+  rememberLostAccount,
+  rememberNeverHadOne,
+  rememberNotNow,
+  saidNeverHadOne,
+  saidNotNowTo,
+  showingLoginForm,
+  stopAskingForLostAccount,
+  subscribeToLostAccount,
+} from '../lib/auth/lost-account';
 import { readLibrary } from '../lib/character/library';
 import { getSupabaseBrowserClient } from '../lib/supabase/client';
 import { hasErrors, MIN_PASSWORD_LENGTH, validateSignUp, type CredentialErrors } from '../lib/auth/validation';
-import { FIELD, PLATE_LARGE, PLATE_MAIN } from '../lib/ui/controls';
+import { FIELD, PLATE, PLATE_LARGE, PLATE_MAIN } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import PopoutWindow from './PopoutWindow';
 
 const onServer = () => null;
 const hiddenOnServer = () => true;
+const notAskedOnServer = () => false;
+
+/** The login page: the window never opens over its form unless the reader asked (`LostAccountLine` is the offer there). */
+const LOGIN_PAGE = '/account';
 
 /**
  * The moment anybody signed out enters the site (Luke, 2026-11-06: "it needs to be urgent"): their old address, unless their browser still
  * knows it (`lost-account.ts`), then a new password, then their profile to edit. It's their own sign-up, under their old address, which brings
  * their details and old posts back, and signing in sends up the characters their browser holds. Drawn once in `layout.tsx`.
+ *
+ * Review fixes (2026-11-17): "it came back on Forum, Media, Stream, Read and Account, where it sits on top of the login
+ * form". NOT NOW is now kept in this browser (`rememberNotNow`) until something changes (a lost address turns up),
+ * and on /account the window waits to be asked: the LOG IN box carries a one-line offer instead (`LostAccountLine`).
  */
 export default function LostAccountWindow() {
   const raw = useSyncExternalStore(subscribeToLostAccount, readLostAccountRaw, onServer);
@@ -26,7 +49,14 @@ export default function LostAccountWindow() {
   const [address, setAddress] = useState('');
   const { status, signUp } = useAuth();
   const router = useRouter();
-  // Which address was put away: logging in with another brings the window back.
+  const pathname = usePathname();
+  const said = raw ?? 'asking';
+  // NOT NOW, kept in this browser for this case; a new case (another address) asks again.
+  const notNow = useSyncExternalStore(subscribeToLostAccount, () => saidNotNowTo(said), hiddenOnServer);
+  const asked = useSyncExternalStore(subscribeToLostAccount, askedForLostAccount, notAskedOnServer);
+  // A login form on screen (the STREAM page's guest window carries one too): wait to be asked there as well.
+  const formShown = useSyncExternalStore(subscribeToLostAccount, loginFormShown, notAskedOnServer);
+  // The same for this page, in a browser whose storage refuses writes.
   const [dismissed, setDismissed] = useState<string | null>(null);
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -35,8 +65,9 @@ export default function LostAccountWindow() {
   const [busy, setBusy] = useState(false);
 
   // The mock accounts have nothing to lose.
-  if (USING_MOCK_AUTH || status !== 'anonymous' || dismissed === (raw ?? 'asking')) return null;
+  if (USING_MOCK_AUTH || status !== 'anonymous') return null;
   if (lost === null && neverHadOne) return null;
+  if (pathname === LOGIN_PAGE || formShown ? !asked : notNow || dismissed === said) return null;
 
   const find = async () => {
     setMessage(null);
@@ -74,7 +105,11 @@ export default function LostAccountWindow() {
     router.push('/account?edit=1');
   };
 
-  const away = () => setDismissed(raw ?? 'asking');
+  const away = () => {
+    setDismissed(said);
+    rememberNotNow(said);
+    stopAskingForLostAccount();
+  };
   const characters = readLibrary().length;
   const holding = characters > 0 ? ` THIS BROWSER STILL HOLDS ${characters} SAVED ${characters === 1 ? 'CHARACTER' : 'CHARACTERS'}: THEY COME BACK TOO.` : '';
 
@@ -142,5 +177,32 @@ export default function LostAccountWindow() {
         </div>
       </form>
     </PopoutWindow>
+  );
+}
+
+/**
+ * The login page's way to the window: one line in the LOG IN box. The window never opens over that form unless this
+ * is pressed (or the reader logs in with an address that is waiting to come back). Drawn only while the window would
+ * have something to say, and still there after NOT NOW: it is the quiet way back, not a nag.
+ */
+export function LostAccountLine() {
+  const raw = useSyncExternalStore(subscribeToLostAccount, readLostAccountRaw, onServer);
+  const lost = parseLostAccount(raw);
+  const neverHadOne = useSyncExternalStore(subscribeToLostAccount, saidNeverHadOne, hiddenOnServer);
+  const asked = useSyncExternalStore(subscribeToLostAccount, askedForLostAccount, notAskedOnServer);
+  const { status } = useAuth();
+  // Says a login form is on screen for as long as this line's form is, drawn or not.
+  useEffect(() => showingLoginForm(), []);
+
+  if (USING_MOCK_AUTH || status !== 'anonymous' || asked) return null;
+  if (lost === null && neverHadOne) return null;
+
+  return (
+    <p className="mb-3 flex flex-wrap items-center gap-2 text-label font-bold text-ink">
+      <span className="wrap-anywhere">{lost === null ? 'HAD AN ACCOUNT BEFORE 6 NOVEMBER?' : `${lost.name.toUpperCase()}, YOUR OLD ACCOUNT IS WAITING.`}</span>
+      <button type="button" onClick={askForLostAccount} className={PLATE}>
+        [ GET IT BACK ]
+      </button>
+    </p>
   );
 }

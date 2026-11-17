@@ -52,7 +52,7 @@ export default function TagStrip({ tags, limit, className, emptyLabel }: TagStri
           type="button"
           onClick={() => setOpen(true)}
           title="Show the rest of the tags"
-          className="cursor-pointer font-bold text-ink hover:underline"
+          className="hit cursor-pointer font-bold text-ink hover:underline"
         >
           {`[+${hidden}]`}
         </button>
@@ -63,7 +63,7 @@ export default function TagStrip({ tags, limit, className, emptyLabel }: TagStri
           type="button"
           onClick={() => setOpen(false)}
           title="Fold the tags back to one line"
-          className="cursor-pointer font-bold text-ink hover:underline"
+          className="hit cursor-pointer font-bold text-ink hover:underline"
         >
           [-]
         </button>

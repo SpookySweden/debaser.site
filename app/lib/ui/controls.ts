@@ -157,7 +157,7 @@ export const PANEL_INSET = '';
 
 /** A key small enough to sit at the end of a title line: `[ × ]`, `[ ⇲ ]`. */
 export const TITLE_BAR_BUTTON =
-  'key cursor-pointer px-1 py-0.75 text-label leading-none active:animate-flash active:bg-bubble active:text-ink-plate max-sm:px-1.5 max-sm:py-1.5 max-sm:text-sm';
+  'key hit cursor-pointer px-1 py-0.75 text-label leading-none active:animate-flash active:bg-bubble active:text-ink-plate max-sm:px-1.5 max-sm:py-1.5 max-sm:text-sm';
 
 /**
  * A control whose face is a glyph rather than a word.

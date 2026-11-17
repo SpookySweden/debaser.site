@@ -268,6 +268,9 @@
   --spacing: calc(0.25rem * var(--scale-space));
   /* The phone tap target: 44px, the size Apple and Material both land on. A floor, so not on the dial. */
   --spacing-tap: 2.75rem;
+  /* The smallest hit area anything pressable has at any width: 24px each way (WCAG 2.5.8), given by `.hit` in
+     globals.css as an invisible area around a small key, so the key looks the same. A floor, so not on the dial. */
+  --spacing-hit: 1.5rem;
 
   /* -----------------------------------------------------------------------------------------------------
      LINES. The outline every window, panel, field and key wears (`.frame`), the rule under a title, the

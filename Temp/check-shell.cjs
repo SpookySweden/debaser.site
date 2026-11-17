@@ -447,9 +447,13 @@ const googleKeys = google.match(/<button[^>]*>[\s\S]*?<\/button>/g) ?? [];
 assert.equal(googleKeys.length, 2, 'two keys: LOG IN and the Google mark');
 assert.match(googleKeys[0], /\[ LOG IN \]/);
 assert.match(googleKeys[1], /aria-label="Log in with Google"/, 'the mark key is named for a screen reader');
-assert.match(googleKeys[1], /\[ G \]/, 'and reads [ G ] until the drawing loads');
+// Updated on purpose 2026-11-17 (FORUMFIX, review fixes: the undrawn icon came back "not found" on every guest page
+// and the bare `[ G ]` read as broken): the key reads `[ GOOGLE ]` in letters, its G a size up, and asks for no file
+// until the build finds the drawing on disk (`artOnDisk`, next.config.ts).
+assert.match(googleKeys[1], /\[ <span[^>]*>G<\/span>OOGLE \]/, 'and reads [ GOOGLE ] in letters until the drawing is on disk');
 assert.match(googleKeys[1], /max-sm:min-w-tap/, 'with a thumb-wide tap area on a phone');
-assert.match(googleKeys[1], /src="\/assets\/icons\/google-retro\.png"/, 'the mark is the hand-drawn file as drawn, not resampled');
+assert.doesNotMatch(googleKeys[1], /<img/, 'no request for the undrawn file');
+assert.match(require('node:fs').readFileSync('app/components/GoogleSignInButton.tsx', 'utf8'), /src=\{GOOGLE_ICON_SRC\}[\s\S]*?unoptimized/, 'once drawn, the mark is the hand-drawn file as drawn, not resampled');
 // (2026-10-25, Luke) The account page's email form ends in its own `[ LOG IN ]`, so the Google key
 // there says `[ LOG IN WITH ]`; the side panel keeps the short `[ LOG IN ]`.
 const googleWith = withProviders(element(GoogleSignInButton, { label: '[ LOG IN WITH ]' }));
@@ -457,7 +461,7 @@ assert.match((googleWith.match(/<button[^>]*>[\s\S]*?<\/button>/g) ?? [])[0] ?? 
 assert.match(require('node:fs').readFileSync('app/components/AccountForms.tsx', 'utf8'), /<GoogleSignInButton label="\[ LOG IN WITH \]"/, 'the account page asks for LOG IN WITH');
 const googleSrc = require('node:fs').readFileSync('app/components/GoogleSignInButton.tsx', 'utf8');
 assert.equal((googleSrc.match(/onClick=\{\(\) => void handleClick\(\)\}/g) ?? []).length, 2, 'both keys start the same sign-in');
-assert.match(google, /google-retro\.png/, 'the mark is a hand-drawn file, not a drawn logo');
+assert.match(require('node:fs').readFileSync('app/lib/auth/google.ts', 'utf8'), /google-retro\.png/, 'the mark is a hand-drawn file, not a drawn logo');
 assert.equal(USING_MOCK_AUTH, true, 'these checks run against the mock backend');
 assert.equal(GOOGLE_SIGN_IN_AVAILABLE, false);
 // (2026-10-25, SPEC-less-text.md) The standing local-mode note under the keys (`GOOGLE SIGN-IN IS NOT SET UP

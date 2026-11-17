@@ -490,7 +490,7 @@ export const ART_SLOTS = [
     k: 2,
     fit: 'contain',
     css: ['--art-mark-signin'],
-    fallback: 'the key reads `[ G ]` (`GoogleSignInButton`)',
+    fallback: 'the key reads `[ GOOGLE ]` in letters, no file asked for until the build finds it (`GoogleSignInButton`, `artOnDisk`)',
     brief: 'The Google mark: its own key beside `[ LOG IN ]`. A glyph, not a logo lock-up, at 20px.',
   },
   {
@@ -795,7 +795,7 @@ export const ART_SLOTS = [
     k: 2,
     fit: 'contain',
     scales: true,
-    fallback: 'the anonymous slot `ProfileAvatar` draws: dithered field, "[ NO PICTURE ]" at 96px',
+    fallback: 'the text face `(o_O)` on the dithered field (`textFaceFor`, `ProfileAvatar`), no file asked for until the build finds it',
     brief: 'The house picture: the site\'s own account, and every account that has filed none.',
   },
   {

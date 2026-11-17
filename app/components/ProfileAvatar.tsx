@@ -1,6 +1,8 @@
 import type { AvatarVersion } from '../lib/profile/types';
 import { DEFAULT_AVATAR_CROP, type AvatarCrop } from '../lib/profile/avatar-crop';
 import { DEFAULT_AVATAR_SRC } from '../lib/profile/avatar-catalogue';
+import { textFaceFor } from '../lib/profile/text-face';
+import { artOnDisk } from '../lib/ui/art/on-disk';
 import { SPRITE_SLOT } from '../lib/ui/controls';
 import SheetImage from './SheetImage';
 
@@ -47,11 +49,12 @@ function cropFit(crop: AvatarCrop | null): { mode: 'cover' | 'contain'; position
 export const AVATAR_PLAIN_FRAME =
   'inline-flex shrink-0 items-center justify-center overflow-hidden rounded-none border border-ink bg-paper';
 
-/** A frame this wide has room for the notice; below it the frame is smaller than the words. */
-const NOTICE_MIN_SIZE = 96;
-
 /**
  * The anonymous placeholder: what an account without a drawing wears.
+ *
+ * Since the review fixes (2026-11-17, Luke: "make a default silly art fitting the site") it wears a face built from
+ * text characters (`textFaceFor`, app/lib/profile/text-face.ts) instead of a bare dithered square. It is still the
+ * slot, not a drawing: the day `avatar-default.png` is on disk, the house picture shows instead (`artOnDisk`).
  *
  * The archive's `assets/profiles/avatar-default.png` is a hand-drawn file that has not been drawn
  * yet, and an account that has never chosen a picture is the *common* case here - every visitor
@@ -66,23 +69,33 @@ const NOTICE_MIN_SIZE = 96;
  * than to a person (`app/lib/forum/site-author.ts`).
  */
 function AnonymousSlot({ size, label }: { size: number; label: string }) {
+  const { face, sizeClass, caption } = textFaceFor(size);
+
   return (
     <span
-      className={`${SPRITE_SLOT} inline-flex items-center justify-center align-middle`}
+      className={`${SPRITE_SLOT} inline-flex flex-col items-center justify-center gap-0.5 align-middle`}
       style={{ width: size, height: size }}
-      title={`${label} has no profile picture yet - ${DEFAULT_AVATAR_SRC} is not in the assets folder`}
+      title={`${label} has no profile picture yet`}
       role="img"
-      aria-label={`${label} anonymous placeholder avatar`}
+      aria-label={`${label}: no profile picture`}
+      data-text-face
     >
-      {/* Only wide enough for the notice when the frame can hold it; a 26px title-bar square gets
-          the bare field, which is what a 26px square of any 1998 desktop actually showed. */}
-      {size < NOTICE_MIN_SIZE ? null : (
-        <span aria-hidden="true" className="text-label font-bold text-ink-bar">
-          NO PICTURE
+      {/* On the hardware black, not on the dither, so the face reads in every theme (the guest strip's pair). */}
+      <span aria-hidden="true" className={`${sizeClass} whitespace-pre bg-hardware font-bold leading-none text-ink-bar`}>
+        {face}
+      </span>
+      {caption === undefined ? null : (
+        <span aria-hidden="true" className="bg-hardware text-label font-bold leading-none text-ink-bar">
+          {caption}
         </span>
       )}
     </span>
   );
+}
+
+/** The house picture's file, or nothing while it is not drawn (then the text face stands in, with no request made). */
+function pictureOnDisk(src: string | undefined): string | undefined {
+  return src === DEFAULT_AVATAR_SRC && !artOnDisk(DEFAULT_AVATAR_SRC) ? undefined : src;
 }
 
 /**
@@ -104,7 +117,7 @@ export default function ProfileAvatar({
 }: ProfileAvatarProps) {
   const fit = cropFit(crop === undefined ? (src === undefined ? DEFAULT_AVATAR_CROP : null) : crop);
   // Either a profile's picture or one the caller named, and neither means the anonymous slot.
-  const picture = src ?? version?.src;
+  const picture = pictureOnDisk(src ?? version?.src);
   const anonymous = picture === undefined;
 
   if (variant === 'plain') {

@@ -1,8 +1,9 @@
 'use client';
 
 import Image from 'next/image';
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { GOOGLE_ICON_SRC } from '../lib/auth/google';
+import { artOnDisk } from '../lib/ui/art/on-disk';
 import { PLATE, PLATE_LARGE } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 
@@ -24,18 +25,15 @@ type GoogleSignInButtonProps = {
  * answer when the backend cannot do OAuth at all.
  *
  * The mark is a hand-drawn file in `assets/icons/` (the `mark-signin` slot in app/lib/ui/art/slots.ts,
- * shown at 20x20). Until it exists the key reads `[ G ]`: the words and the picture share one grid cell,
- * so the key keeps the larger of the two boxes and nothing moves when the drawing lands - the picture is
- * only shown once it has loaded, and no logo on this site is drawn in CSS or SVG.
+ * shown at 20x20). Until it exists the key reads `[ GOOGLE ]` in text, and the file is not asked for at all: the
+ * build says which art is on disk (`artOnDisk`), so the drawing shows from the first build after it lands. No logo on
+ * this site is drawn in CSS or SVG.
  */
+const MARK_DRAWN = artOnDisk(GOOGLE_ICON_SRC);
 export default function GoogleSignInButton({ size = 'normal', label = '[ LOG IN ]', className }: GoogleSignInButtonProps) {
   const { signInWithGoogle } = useAuth();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [markDrawn, setMarkDrawn] = useState(false);
-  const markRef = useCallback((img: HTMLImageElement | null) => {
-    if (img?.complete && img.naturalWidth > 0) setMarkDrawn(true);
-  }, []);
 
   async function handleClick() {
     setBusy(true);
@@ -73,24 +71,28 @@ export default function GoogleSignInButton({ size = 'normal', label = '[ LOG IN 
           disabled={busy}
           aria-label="Log in with Google"
           title="Sign in with a Google account"
-          className={`${key} inline-grid place-items-center disabled:cursor-wait max-sm:min-w-tap`}
+          className={`${key} inline-flex items-baseline justify-center disabled:cursor-wait max-sm:min-w-tap`}
         >
-          <span aria-hidden="true" className={`col-start-1 row-start-1 ${markDrawn ? 'invisible' : ''}`}>
-            [ G ]
-          </span>
-          <Image
-            src={GOOGLE_ICON_SRC}
-            alt=""
-            width={20}
-            height={20}
-            // The file as drawn (40x40, k=2): the optimiser would resample it to 32 or 48 and blur it.
-            unoptimized
-            loading="eager"
-            // A cached file can finish before the key mounts, when no load event is left to hear.
-            ref={markRef}
-            onLoad={() => setMarkDrawn(true)}
-            className={`col-start-1 row-start-1 size-5 rounded-none ${markDrawn ? '' : 'opacity-0'}`}
-          />
+          {MARK_DRAWN ? (
+            <Image
+              src={GOOGLE_ICON_SRC}
+              alt=""
+              width={20}
+              height={20}
+              // The file as drawn (40x40, k=2): the optimiser would resample it to 32 or 48 and blur it.
+              unoptimized
+              loading="eager"
+              className="size-5 self-center rounded-none"
+            />
+          ) : (
+            /* The text mark (review fixes, 2026-11-17: a bare `[ G ]` and a "not found" icon): the word itself, its G a
+               size up, built from letters only - not Google's logo, and no file asked for. */
+            <span aria-hidden="true" className="whitespace-pre font-bold">
+              {'[ '}
+              <span className="text-title leading-none">G</span>
+              {'OOGLE ]'}
+            </span>
+          )}
         </button>
       </div>
 

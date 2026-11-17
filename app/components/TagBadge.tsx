@@ -140,7 +140,7 @@ export function TagLink({ tag, className }: { tag: ForumTag; className?: string 
     <Link
       href={`/forum#tag-${tagKey(tag.label)}`}
       title={`Show every post tagged ${tag.label}`}
-      className={`inline-flex items-center gap-0.75 hover:underline ${className ?? ''}`}
+      className={`hit inline-flex items-center gap-0.75 hover:underline ${className ?? ''}`}
     >
       <TagMark colour={tagMarkColour(tag)} compact />
       <span className="text-ink">{tagNamespace(tag)}:</span>

@@ -1,6 +1,18 @@
+import { existsSync } from "node:fs";
 import type { NextConfig } from "next";
 
+/**
+ * The art slots whose missing file used to be asked for anyway (a 404 on every guest's page, review fixes 2026-11-17).
+ * The build looks on disk and tells the browser code which of these exist (`app/lib/ui/art/on-disk.ts`), so a slot
+ * shows its text stand-in without asking, and the day Luke drops his drawing in, the next build shows it.
+ */
+const ART_WATCHED = ["/assets/profiles/avatar-default.png", "/assets/icons/google-retro.png"];
+
 const nextConfig: NextConfig = {
+  env: {
+    ART_ON_DISK: ART_WATCHED.filter((path) => existsSync(`.${path}`)).join(","),
+  },
+
   /**
    * Hand-drawn artwork lives in the project `assets/` folder (never in
    * `public/`) and is streamed by `app/assets/[...path]/route.ts`. The route

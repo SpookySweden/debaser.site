@@ -16,7 +16,7 @@ import { redoStep, startUndoTrail, subscribeToUndoTrail, undoStep, undoTrailServ
  * keeps the plain names Back and Forward. `pointer-coarse`: a phone is given the 1280 layout (`layout.tsx`), so the width can't
  * tell a finger from a mouse, and a finger gets the full tap size.
  */
-const ARROW = `${KEY_FOCUS} key cursor-pointer inline-flex h-7 min-w-0 items-center px-0.5 text-label font-bold leading-none active:translate-y-press active:bg-bubble active:text-ink-plate disabled:cursor-not-allowed max-md:min-h-tap pointer-coarse:min-h-tap pointer-coarse:min-w-tap`;
+const ARROW = `${KEY_FOCUS} key hit cursor-pointer inline-flex h-7 min-w-0 items-center px-0.5 text-label font-bold leading-none active:translate-y-press active:bg-bubble active:text-ink-plate disabled:cursor-not-allowed max-md:min-h-tap pointer-coarse:min-h-tap pointer-coarse:min-w-tap`;
 
 /**
  * A press of an arrow. The trail first; with nothing in it, or when every step left in it turned out to be gone (and nothing was

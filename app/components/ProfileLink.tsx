@@ -28,7 +28,7 @@ export default function ProfileLink({ author, children, className }: ProfileLink
     <Link
       href={`/profile/${encodeURIComponent(author.id)}`}
       title={`Open ${label}'s public profile`}
-      className={`underline decoration-dotted hover:bg-ice ${className ?? ''}`}
+      className={`hit underline decoration-dotted hover:bg-ice ${className ?? ''}`}
     >
       {children ?? label}
     </Link>

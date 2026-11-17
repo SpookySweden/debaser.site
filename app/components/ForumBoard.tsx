@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { commentDomId, findBoardPost, readBoardAddress, threadDomId, type BoardAddress } from '../lib/forum/anchors';
-import { selectBoardThreads, type SortMode, type SourceFilter, type TagMatchMode } from '../lib/forum/board-query';
+import { onMainBoard, selectBoardThreads, type SortMode, type SourceFilter, type TagMatchMode } from '../lib/forum/board-query';
 import {
   BOARD_SORTS,
   DEFAULT_SORT,
@@ -425,7 +425,8 @@ export default function ForumBoard() {
         musicTagKeys,
       });
       if (shown.length === 0) {
-        setSourceFilter('all');
+        // A stream record nobody has replied to lives under STREAMS, not on the main board.
+        setSourceFilter(onMainBoard(thread) ? 'all' : 'stream');
         setTagFilters([]);
         setMusicOnly(false);
         setMusicTagKeys([]);
@@ -661,6 +662,22 @@ export default function ForumBoard() {
             </button>
           ))}
         </span>
+
+        {/* The auto-made stream records (STREAM :: <host> :: <day>) wait here, off the main board, until somebody replies
+            to one (Luke's 4A, 2026-11-17: the board was flooded with them). The same filter as SOURCE > STREAMS, one press
+            away; pressed again, back to the main board. */}
+        <button
+          type="button"
+          onClick={() => {
+            setSourceFilter((current) => (current === 'stream' ? 'all' : 'stream'));
+            setPage(1);
+          }}
+          aria-pressed={sourceFilter === 'stream'}
+          title="The records of past streams. One with a reply is on the main board too."
+          className={sourceFilter === 'stream' ? PLATE_PRESSED : PLATE}
+        >
+          [ STREAMS ]
+        </button>
 
         <button
           type="button"

@@ -742,7 +742,7 @@ function DockedBar({ roomId, onHide, onSettings }: BarControls) {
               max={100}
               value={Math.round(volume * 100)}
               onChange={(event) => player.setVolume(Number(event.target.value) / 100)}
-              className="h-4 w-20 cursor-pointer"
+              className="h-6 w-20 cursor-pointer"
               style={{ accentColor: ACCENT_COLOUR }}
               aria-label="Volume"
             />

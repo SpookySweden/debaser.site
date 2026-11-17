@@ -102,6 +102,8 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
   const [replyTags, setReplyTags] = useState<string[]>([]);
   const [replyMediaId, setReplyMediaId] = useState('');
   const [replyTrack, setReplyTrack] = useState<ForumTrack | null>(null);
+  /** Whether REPLY was pressed: the form is only built then. */
+  const [replyOpen, setReplyOpen] = useState(false);
   const catalogue = useCatalogue();
 
   async function handleReply() {
@@ -473,28 +475,43 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                 emptyLabel="NO REPLIES YET."
               />
 
-              <CommentComposer
-                id={`reply-${thread.id}`}
-                value={reply}
-                onChange={setReply}
-                onSubmit={handleReply}
-                variant="reply"
-                submitLabel="[ FILE REPLY ]"
-                placeholder="Reply..."
-                author={forum.author}
-                accounts={accounts}
-                autoTag={thread.author}
-                tags={replyTags}
-                onTagsChange={setReplyTags}
-                mediaId={replyMediaId}
-                onMediaIdChange={setReplyMediaId}
-                track={replyTrack}
-                onTrackChange={setReplyTrack}
-                busy={replyBusy}
-                error={replyError}
-                status={replyStatus}
-                rows={2}
-              />
+              {/* The reply form is built only once REPLY is pressed (review fixes, 2026-11-17: every post carried a
+                  whole hidden form - tag picker, picture picker, account list - about 200 elements a post). The key
+                  is where the form will open, the way a reply's own REPLY works (./CommentNodeCard.tsx). */}
+              <button
+                type="button"
+                data-post-reply
+                onClick={() => setReplyOpen((open) => !open)}
+                aria-expanded={replyOpen}
+                className={`${PLATE} mt-2`}
+              >
+                {replyOpen ? '[ CANCEL ]' : '[ REPLY ]'}
+              </button>
+
+              {replyOpen ? (
+                <CommentComposer
+                  id={`reply-${thread.id}`}
+                  value={reply}
+                  onChange={setReply}
+                  onSubmit={handleReply}
+                  variant="reply"
+                  submitLabel="[ FILE REPLY ]"
+                  placeholder="Reply..."
+                  author={forum.author}
+                  accounts={accounts}
+                  autoTag={thread.author}
+                  tags={replyTags}
+                  onTagsChange={setReplyTags}
+                  mediaId={replyMediaId}
+                  onMediaIdChange={setReplyMediaId}
+                  track={replyTrack}
+                  onTrackChange={setReplyTrack}
+                  busy={replyBusy}
+                  error={replyError}
+                  status={replyStatus}
+                  rows={2}
+                />
+              ) : null}
             </div>
           </div>
         </div>

@@ -81,6 +81,10 @@ export default function GuestPrompt() {
         >
           [ LOG IN ]
         </Link>
+
+        {/* The flavour above stays; this says it plainly, so a new visitor doesn't read the site as broken
+            (Luke's 7A, 2026-11-17). Its own line, still, and not bold: it explains rather than alarms. */}
+        <p className="basis-full text-label font-normal text-ink-bar">YOU&apos;RE NOT SIGNED IN. LOG IN, OR BROWSE AS A VISITOR.</p>
       </div>
     </div>
   );

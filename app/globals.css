@@ -1398,6 +1398,25 @@ img {
     background-color: var(--key-fill);
   }
 
+  /* A hit area of at least 24px each way (`--spacing-hit`, WCAG 2.5.8) around a key or link drawn smaller than that,
+     with no change to how it looks or where anything sits: an invisible box centred on it, as big as the element or
+     24px, whichever is larger (review fixes, 2026-11-17: "86 of the 206 links and buttons on the forum are under
+     24px in one direction"). A press on the box is a press on the element. In this layer so a component's own
+     `absolute` / `fixed` / `sticky` still wins over the `relative`. Not for an element whose own ::before is used. */
+  .hit {
+    position: relative;
+  }
+
+  .hit::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(100%, var(--spacing-hit));
+    height: max(100%, var(--spacing-hit));
+    transform: translate(-50%, -50%);
+  }
+
   /* A bracket key (SPEC-efficiency.md, 2026-10-23): at rest a key is its label and nothing else -
      `[ LOG IN ]` in the accent ink, no outline, on whatever it sits on. The brackets in the words are the
      frame, so after this, accent-ink brackets mean "press me". Under the pointer it fills with that ink

@@ -406,8 +406,12 @@ const cornerEmpty = renderToStaticMarkup(
   element(ProfileAvatar, { version: undefined, displayName: 'sweden', size: 26, variant: 'plain' }),
 );
 
-assert.match(bigEmpty, /NO PICTURE/, 'a full-size frame says what is missing');
-assert.doesNotMatch(smallEmpty, /NO PICTURE/, 'a thumbnail does not - the words do not fit');
+// Updated on purpose 2026-11-17 (FORUMFIX, Luke: "make a default silly art fitting the site"): the words
+// became a text-character face, `(o_O)` with WHO?? under it where there is room, `o_O` on a thumbnail.
+assert.match(bigEmpty, /\(o_O\)/, 'a full-size frame wears the face');
+assert.match(bigEmpty, /WHO\?\?/, 'and the line under it, where there is room');
+assert.doesNotMatch(smallEmpty, /WHO\?\?/, 'a thumbnail does not - the words do not fit');
+assert.match(cornerEmpty, /o_O/, 'the corner chip still wears a face');
 assert.match(smallEmpty, /sprite-slot/, 'and shows the anonymous slot instead');
 assert.match(cornerEmpty, /sprite-slot/, 'the corner chip is the same anonymous slot');
 

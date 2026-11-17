@@ -6,6 +6,7 @@ import type { CredentialErrors } from '../lib/auth/validation';
 import { FIELD, PLATE_LARGE, PLATE_MAIN } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import GoogleSignInButton from './GoogleSignInButton';
+import { LostAccountLine } from './LostAccountWindow';
 
 type FieldProps = {
   id: string;
@@ -188,6 +189,9 @@ export default function AccountForms({ stacked = false }: { stacked?: boolean })
         >
           {/* One tap, and no password to remember. Wired to Supabase's provider: on
               the mock backend the button says what it needs instead of failing quietly. */}
+          {/* The lost-account window's offer: on this page it never opens over the form by itself. */}
+          <LostAccountLine />
+
           <GoogleSignInButton label="[ LOG IN WITH ]" className="mb-3" />
 
           <p className="mb-3 border-t border-ink pt-2 text-label font-bold text-ink">OR</p>

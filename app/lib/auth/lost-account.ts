@@ -51,6 +51,8 @@ export function subscribeToLostAccount(listener: () => void): () => void {
 
 /** Somebody logged in with an address that's waiting to come back: the window opens for it. */
 export function rememberLostAccount(lost: LostAccount): void {
+  // Always the reader's own doing (they logged in with it, or looked it up), so the window opens for it here too.
+  asked = true;
   try {
     window.localStorage.setItem(LOST_ACCOUNT_KEY, JSON.stringify(lost));
   } catch {
@@ -94,6 +96,78 @@ export function rememberNeverHadOne(): void {
   } catch {
     // Nothing to do without storage.
   }
+  listeners.forEach((listener) => listener());
+}
+
+const NOT_NOW_KEY = 'debaser.lost-account.not-now.v1';
+
+/**
+ * NOT NOW, kept in this browser for the case it was said about (`said` is the stored lost account, or 'asking'
+ * while there is none): the window stays away on every page and reload until that case changes, e.g. a lost
+ * address turns up (review fixes, 2026-11-17: it came back on every page and sat on the login form).
+ */
+export function rememberNotNow(said: string): void {
+  try {
+    window.localStorage.setItem(NOT_NOW_KEY, said);
+  } catch {
+    // Nothing to keep without storage: the window still goes away for this page.
+  }
+  listeners.forEach((listener) => listener());
+}
+
+export function saidNotNowTo(said: string): boolean {
+  try {
+    return window.localStorage.getItem(NOT_NOW_KEY) === said;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Whether the reader asked for the window on this page load: pressed the login page's one-line offer, or logged in
+ * with (or looked up) an address that is waiting to come back. Only then does the window open on /account, where
+ * it would otherwise sit on the login form. Not stored: a reload is a fresh page.
+ */
+let asked = false;
+
+export function askedForLostAccount(): boolean {
+  return asked;
+}
+
+/** The login page's one-line offer, pressed: the window opens, even after NOT NOW. */
+export function askForLostAccount(): void {
+  asked = true;
+  try {
+    window.localStorage.removeItem(NOT_NOW_KEY);
+  } catch {
+    // Nothing to do without storage.
+  }
+  listeners.forEach((listener) => listener());
+}
+
+/**
+ * How many login forms are on screen (each carries a `LostAccountLine`: the account page, the STREAM page's guest
+ * window). While one is, the window waits to be asked, so it never sits on a login form.
+ */
+let loginForms = 0;
+
+export function loginFormShown(): boolean {
+  return loginForms > 0;
+}
+
+/** A login form came on screen; the returned function says it went. */
+export function showingLoginForm(): () => void {
+  loginForms += 1;
+  listeners.forEach((listener) => listener());
+  return () => {
+    loginForms -= 1;
+    listeners.forEach((listener) => listener());
+  };
+}
+
+/** NOT NOW on the login page puts the window back to the one-line offer. */
+export function stopAskingForLostAccount(): void {
+  asked = false;
   listeners.forEach((listener) => listener());
 }
 

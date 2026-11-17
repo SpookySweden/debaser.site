@@ -127,8 +127,12 @@ export default function UserDirectoryRow({
 
         <ProfileAvatarLink author={author} size={20} showName={false} />
 
-        <ProfileLink author={author} className="glow-link min-w-0 flex-1 truncate">
-          <ProfileName author={author} lamp={false} />
+        {/* The cut-off long name is inside the link, not on it: a link that clips itself would clip its own 24px hit area
+            (`.hit`, review fixes 2026-11-17). */}
+        <ProfileLink author={author} className="glow-link min-w-0 flex-1">
+          <span className="block truncate">
+            <ProfileName author={author} lamp={false} />
+          </span>
         </ProfileLink>
 
         {/* In a live room: the key that joins them (SPEC-watch-together.md, decision 4). */}

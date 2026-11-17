@@ -223,13 +223,24 @@ export function matchesMusicTags(thread: ForumThread, musicTagKeys: string[] = [
   );
 }
 
+/**
+ * Whether a post belongs on the main board (ALL SOURCES). An auto-made stream record (`STREAM :: <host> :: <day>`)
+ * waits under STREAMS until somebody replies to it, then it is back on the main board (Luke's 4A, 2026-11-17: the
+ * board was flooded with them).
+ */
+export function onMainBoard(thread: ForumThread): boolean {
+  return !isStreamThread(thread) || thread.comments.length > 0;
+}
+
 export function selectBoardThreads(threads: ForumThread[], options: BoardQuery): ForumThread[] {
   const needle = options.query.trim().toLowerCase();
 
   const filtered = threads.filter((thread) => {
     if (options.sourceFilter === 'stream') {
       if (!isStreamThread(thread)) return false;
-    } else if (options.sourceFilter !== 'all' && thread.anchor.kind !== options.sourceFilter) return false;
+    } else if (options.sourceFilter === 'all') {
+      if (!onMainBoard(thread)) return false;
+    } else if (thread.anchor.kind !== options.sourceFilter) return false;
     if (!matchesTagFilter(thread, options.tagKeys, options.tagMatchMode)) return false;
     if (options.musicOnly === true && !carriesMusic(thread)) return false;
     if (options.imageOnly === true && !carriesImage(thread)) return false;
