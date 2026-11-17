@@ -1,7 +1,7 @@
 /*
  * LIVE (SPEC-live-streams.md, Luke 2026-11-17): the Twitch provider, its keys, the one-minute live cache, YouTube's live mode,
  * the `[ ● LIVE ]` filter, the feed's LIVE place and the live lane's asks, offline (run by `npm run checks:web`):
- *   npx tsc app/lib/web/search/providers/twitch.ts app/lib/web/search/providers/youtube.ts app/lib/web/search/live-fetch.ts app/lib/web/search/run.ts app/lib/web/row-addresses.ts app/lib/web/web-filters.ts app/lib/web/feed-mix.ts app/lib/web/live-lane.ts --outDir Temp/out-web-search-twitch --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop --moduleResolution node
+ *   npx tsc app/lib/web/search/providers/twitch.ts app/lib/web/search/providers/youtube.ts app/lib/web/search/live-fetch.ts app/lib/web/search/run.ts app/lib/web/row-addresses.ts app/lib/web/web-filters.ts app/lib/web/feed-rank.ts app/lib/web/live-lane.ts --outDir Temp/out-web-search-twitch --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop --moduleResolution node
  *
  * The site-API fixture is a real answer (search "chess", 2026-11-17) with the viewer counts replaced by small made-up numbers:
  * they exist only to prove POPULAR orders by them and that none comes out. The Helix answers are hand-built in the documented
@@ -31,7 +31,7 @@ const { makeLiveFetch } = require(join(OUT, 'search', 'live-fetch.js'));
 const { searchEverywhere } = require(join(OUT, 'search', 'run.js'));
 const { rowAddresses, startingEmbed } = require(join(OUT, 'row-addresses.js'));
 const filters = require(join(OUT, 'web-filters.js'));
-const { mixFeed, BLOCK_PATTERN } = require(join(OUT, 'feed-mix.js'));
+const { rankFeed, BLOCK_ROLES } = require(join(OUT, 'feed-rank.js'));
 const { liveAsk, orderLives, loginLike, playedChannel } = require(join(OUT, 'live-lane.js'));
 const asserts = makeAsserts('LIVE: Twitch, YouTube lives, the LIVE key and the feed');
 const { ok, same } = asserts;
@@ -260,17 +260,20 @@ const TOKEN = { access_token: PASS, expires_in: 5000000, token_type: 'bearer' };
   }
 
   /* ---------------------------------------------------------------- the feed's LIVE place */
+  // Updated on purpose 2026-11-17 (FEEDALGO, SPEC-media-feed-v2.md, Luke: "All A"): the default feed is ranked now
+  // (feed-rank.ts) and the LIVE place moved into the ranker; the same promises are asked of it here.
   {
-    const row = (id, extra = {}) => ({ id, platform: 'internet_archive', externalId: id, kind: 'video', url: 'u', canonicalUrl: 'u', title: id, publishedAt: NOW, fetchedAt: NOW, ...extra });
+    const row = (id, extra = {}) => ({ id, platform: 'internet_archive', externalId: id, kind: 'video', url: 'u', canonicalUrl: 'u', title: `Row ${id}`, publishedAt: NOW, fetchedAt: NOW, ...extra });
     const you = Array.from({ length: 30 }, (_, index) => row(`you${index}`));
-    const base = { forYou: you, forYouEnded: true, youtube: null, reading: null, discover: null, people: null, visitor: true, readingOpens: {}, taste: { tags: {}, creators: {}, platforms: {} }, dropped: () => false, now: Date.parse(NOW) };
-    const at = BLOCK_PATTERN.indexOf('live');
+    const profile = { words: {}, spelled: {}, makers: {}, kinds: {}, platforms: {}, out: new Set(), channels: new Set(), reasons: [], closeness: new Map(), evidence: 0 };
+    const base = { pool: you, youtube: null, reading: null, discover: null, people: [], visitor: true, readingOpens: {}, profile, dropped: () => false, now: Date.parse(NOW) };
+    const at = BLOCK_ROLES.indexOf('live');
     same(at, 4, 'one LIVE place in each block of 12, the fifth');
-    const lives = [row('twitch:a', { platform: 'twitch', live: true }), row('twitch:b', { platform: 'twitch', live: true })];
-    const mixed = mixFeed({ ...base, live: { rows: lives, fromBlock: 0 } });
+    const lives = [row('twitch:a', { platform: 'twitch', live: true, title: 'Live a' }), row('twitch:b', { platform: 'twitch', live: true, title: 'Live b' })];
+    const mixed = rankFeed({ ...base, live: { rows: lives, fromBlock: 0 } });
     same([mixed[at].item.id, mixed[at].lane, mixed[12 + at].item.id], ['twitch:a', 'live', 'twitch:b'], 'a live in that place, block after block');
-    const none = mixFeed(base);
-    same(none[at].lane, 'you', 'with no lives the place is FOR YOU\'s');
+    const none = rankFeed(base);
+    ok(none[at].lane !== 'live', 'with no lives the place is an ordinary one');
   }
 
   /* ---------------------------------------------------------------- the live lane's asks */
