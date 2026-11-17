@@ -574,9 +574,9 @@ export async function askToSaveCanvas(roomId: string, options: { ending?: boolea
   } else if (open && state.saved && session.lastSnapshot?.inputCount !== session.confirmed.size + session.pending.length) {
     await snapshot(session).catch(() => undefined);
   }
-  // A music room's host closing the room switches it off: that ends the session too.
-  const ending = options.ending === true || (context?.music === true && context.amHost);
-  if (ending) await closeCanvas(session).catch(() => undefined);
+  // Only ending the room closes its canvas: a room goes on when its window closes (SPEC-rooms-perpetual.md), and so
+  // does its drawing (a music room's host closing the window once closed it, CANVAS 2026-11-17).
+  if (options.ending === true) await closeCanvas(session).catch(() => undefined);
 }
 
 export type RoomCanvasControls = {

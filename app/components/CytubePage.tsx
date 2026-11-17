@@ -19,7 +19,7 @@ import { useAuth } from './AuthProvider';
 import CytubeLayout from './CytubeLayout';
 import { useForum } from './ForumProvider';
 import { useLiveStreams, usePrivateRoomLines, type LiveStreamRow } from './CytubeLiveStreams';
-import StreamArtShelf from './StreamArtShelf';
+import StreamArtShelf, { PastCanvasShelf } from './StreamArtShelf';
 import StreamQueueWindow from './StreamQueueWindow';
 
 /**
@@ -319,6 +319,11 @@ function Canvases() {
       <section className="flex flex-col gap-1">
         <h2 className={TITLE_BAR_INACTIVE}>STREAM ART</h2>
         <StreamArtShelf />
+      </section>
+      {/* What rooms you were in drew and nobody saved, kept once the room is over (CANVAS, 2026-11-17). */}
+      <section className="flex flex-col gap-1">
+        <h2 className={TITLE_BAR_INACTIVE}>PAST CANVASES, NOT SAVED</h2>
+        <PastCanvasShelf />
       </section>
     </div>
   );

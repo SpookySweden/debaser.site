@@ -1594,7 +1594,9 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     amHost,
     live,
     music,
-    over: room.endedAt !== null || !room.isPublic,
+    // Only an ended room is over (SPEC-rooms-perpetual.md: private and live are the same room). Going private once
+    // closed the canvas as the old music room's "public off" did, and the drawing went missing (CANVAS, 2026-11-17).
+    over: room.endedAt !== null,
     present: accounts.flatMap((member) => (member.userId === null ? [] : [{ id: member.userId, label: member.name, crowned: crownedIds.has(member.userId) }])),
     crowned: crownedIds,
   };

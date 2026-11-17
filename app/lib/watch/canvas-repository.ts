@@ -11,7 +11,7 @@ import { getSupabaseCanvasRepository } from './supabase-canvas-repository';
  * browser (localStorage, and a BroadcastChannel between its tabs), with the same rules kept by hand.
  */
 
-/** One canvas: a room session's drawing, from GO LIVE to END STREAM (or GO PUBLIC to public off). */
+/** One canvas: a room's drawing, from its first stroke until the room ends (END STREAM, END ROOM). */
 export type RoomCanvasRecord = {
   id: string;
   roomId: string;
@@ -62,6 +62,12 @@ export type StreamArtPiece = {
   participants: CanvasParticipant[];
 };
 
+/**
+ * A canvas whose session is over (closed, or its room ended) that nobody saved: never in STREAM ART, but its whole
+ * timeline is kept, so CANVASES lists it for the people who were in that room (CANVAS, 2026-11-17).
+ */
+export type PastCanvas = { canvas: RoomCanvasRecord; inputCount: number };
+
 export type SnapshotInput = {
   canvasId: string;
   takenBy: { id: string; label: string };
@@ -102,6 +108,11 @@ export interface CanvasRepository {
   listSnapshots(canvasId: string): Promise<CanvasSnapshot[]>;
   /** The archive's STREAM ART: saved canvases, newest first; hidden ones only when asked (the house account). */
   listPieces(options: { includeHidden: boolean }): Promise<StreamArtPiece[]>;
+  /**
+   * The unsaved canvases of sessions that are over, with something drawn on them, from rooms this person was in
+   * (whose room it was, who drew on it, or who belonged to the room): newest first.
+   */
+  listPastCanvases(by: string): Promise<PastCanvas[]>;
   /** HIDE (the house account only): off the archive, never wiped. */
   setHidden(canvasId: string, hidden: boolean, by: string): Promise<void>;
   /** The live wire for one room. */

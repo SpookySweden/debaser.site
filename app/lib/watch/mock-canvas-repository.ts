@@ -7,6 +7,7 @@ import type {
   CanvasTimelineInput,
   CanvasWire,
   CanvasWireMessage,
+  PastCanvas,
   RoomCanvasRecord,
   SnapshotInput,
   StreamArtPiece,
@@ -25,6 +26,8 @@ const KEY = 'debaser.canvas.v1';
 const WIRE = 'debaser-canvas';
 /** The bucket's rate limit (one picture per account per 10 seconds), kept here by hand. */
 const SNAPSHOT_EVERY_MS = 10_000;
+/** CANVASES lists this many past canvases, as the Supabase store does. */
+const PAST_LIMIT = 24;
 
 type StoredSnapshot = Omit<CanvasSnapshot, 'imageUrl'> & { image: string };
 type Tables = { canvases: RoomCanvasRecord[]; inputs: (CanvasInput & { seq: number; canvasId: string })[]; snapshots: StoredSnapshot[]; seq: number };
@@ -245,6 +248,29 @@ class MockCanvasRepository implements CanvasRepository {
         const latest = snapshots[snapshots.length - 1];
         return { canvas, latest: latest === undefined ? null : shown(latest), snapshotCount: snapshots.length, participants: participantsOf(canvas.hostId, snapshots) };
       });
+  }
+
+  async listPastCanvases(by: string): Promise<PastCanvas[]> {
+    const tables = load();
+    const out: PastCanvas[] = [];
+    const candidates = tables.canvases.filter((canvas) => canvas.savedAt === null && !canvas.hidden).sort((a, b) => b.openedAt.localeCompare(a.openedAt));
+    for (const canvas of candidates) {
+      const inputs = tables.inputs.filter((input) => input.canvasId === canvas.id);
+      if (inputs.length === 0) continue;
+      const read = await getMockWatchRepository().readRoom(canvas.roomId);
+      const over = canvas.closedAt !== null || read === null || read.room.endedAt !== null;
+      if (!over) continue;
+      // As the database's people: whose room it was, who drew, who hosts it or held a crown there, who spoke in it.
+      const tookPart =
+        canvas.hostId === by ||
+        inputs.some((input) => input.authorId === by) ||
+        read?.room.hostId === by ||
+        (read?.crowns ?? []).some((crown) => crown.userId === by) ||
+        (read?.messages ?? []).some((message) => message.authorId === by);
+      if (tookPart) out.push({ canvas, inputCount: inputs.length });
+      if (out.length >= PAST_LIMIT) break;
+    }
+    return out;
   }
 
   async setHidden(canvasId: string, hidden: boolean, by: string): Promise<void> {
