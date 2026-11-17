@@ -6,7 +6,7 @@ import { officialEmbedUrl, WEB_EMBED_SANDBOX } from '../web/official-embed';
 import { startingEmbed } from '../web/row-addresses';
 import type { WebPlatform } from '../web/types';
 import { isAllowedUrl } from '../web/urls';
-import { vimeoOf, youtubeIdOf } from './links';
+import { twitchOf, vimeoOf, youtubeIdOf } from './links';
 import type { WatchLink } from './types';
 
 /**
@@ -15,8 +15,9 @@ import type { WatchLink } from './types';
  *
  * Only the link is kept in a queue (its address, kind and title), so the player is put back together from that:
  * the same official embed address, sandbox and referrer rule a MEDIA row uses. Nothing is fetched by our server and
- * nothing is copied. A kind the floating player has no player for (a streaming link, Twitch, Dailymotion) plays in
- * a live room only, and `soloRefusal` says so before it is queued.
+ * nothing is copied. A kind the floating player has no player for (a streaming link, a Twitch past broadcast, Dailymotion)
+ * plays in a live room only, and `soloRefusal` says so before it is queued. A Twitch channel, live, has one (SPEC-live-streams.md,
+ * Luke 2026-11-17, 6A: visitors play lives in their own room too): Twitch's own player page, told this site's host.
  */
 
 export const LIVE_ROOM_ONLY = 'THAT ONE PLAYS IN A LIVE ROOM ONLY. PRESS GO LIVE TO WATCH IT.';
@@ -66,6 +67,13 @@ export function floatingForLink(link: WatchLink, id: string, origin: string): Om
     const url = new URL(address);
     url.searchParams.set('h', vimeo.hash);
     return entry({ ...frame, src: place === undefined ? url.toString() : `${url.toString()}#${place}` });
+  }
+
+  // A Twitch channel, live: Twitch's own player page for it (`startingEmbed` adds `parent`, Twitch's rule). A past broadcast has none here.
+  const twitch = link.kind === 'twitch' ? twitchOf(link) : null;
+  if (twitch !== null && twitch.channel !== undefined) {
+    const embed = `https://player.twitch.tv/?channel=${encodeURIComponent(twitch.channel)}`;
+    return entry(frameFor('twitch', embed, link.title, id, origin));
   }
 
   if (link.kind === 'embed') {

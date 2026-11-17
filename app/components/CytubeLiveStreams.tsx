@@ -6,11 +6,12 @@ import { useNow } from '../lib/ui/use-now';
 import { listedRooms } from '../lib/watch/music-rooms';
 import { withSeries } from '../lib/watch/rules';
 import { getWatchRepository } from '../lib/watch/repository';
-import type { LiveRoom, PrivateRoomLine, RoomOrigin, WatchQueueEntry } from '../lib/watch/types';
+import type { LiveRoom, PrivateRoomLine, RoomOrigin, WatchLink, WatchQueueEntry } from '../lib/watch/types';
 import { useLiveRooms } from '../lib/watch/use-music-room';
 
 /** One live room on the CYTUBE page's LIVE tab. */
-export type LiveStreamRow = { roomId: string; hostId: string; hostName: string; name: string | null; title: string; kind: RoomOrigin };
+/** `link`: what is on, when it is a link, so MEDIA's room rows can show its picture (WebLiveRooms.tsx). */
+export type LiveStreamRow = { roomId: string; hostId: string; hostName: string; name: string | null; title: string; kind: RoomOrigin; link: WatchLink | null };
 
 /**
  * The live rooms, for the LIVE tab (SPEC-cytube.md: "the same list as the QUEUES tab: one source, not a copy"):
@@ -64,5 +65,6 @@ export function liveRows(rooms: readonly LiveRoom[], titles: Map<string, string>
     name: room.name,
     title: titleOf(current, titles),
     kind: room.origin,
+    link: current?.link ?? null,
   }));
 }

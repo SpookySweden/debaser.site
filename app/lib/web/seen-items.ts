@@ -29,7 +29,8 @@ const noted = new Set<string>();
 export function namesToNote(items: readonly WebItem[]): Map<WebPlatform, string[]> {
   const names = new Map<WebPlatform, string[]>();
   for (const item of items) {
-    if (item.media !== undefined || !SEEN_PLATFORMS.includes(item.platform) || !isSafeIdentifier(item.externalId)) continue;
+    // A live is read live and never kept (SPEC-live-streams.md): not named either.
+    if (item.media !== undefined || item.live === true || !SEEN_PLATFORMS.includes(item.platform) || !isSafeIdentifier(item.externalId)) continue;
     const list = names.get(item.platform) ?? [];
     if (list.length < MAX_NAMES) list.push(item.externalId);
     names.set(item.platform, list);

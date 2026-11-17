@@ -14,7 +14,7 @@ import { getLettersRepository } from '../lib/letters/repository';
 import type { Letter, LetterItem } from '../lib/letters/types';
 import { ICON_LIVE, ICON_MEDIA, ICON_MUSIC } from '../lib/ui/icons';
 import { PLATE, PLATE_LINK, PLATE_PRESSED, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
-import { recognizeLink } from '../lib/watch/links';
+import { recognizeLink, twitchOf } from '../lib/watch/links';
 import { playInMainRoom } from '../lib/watch/main-room-play';
 import { ownRoomState, subscribeToOwnRoom } from '../lib/watch/own-room-client';
 import { repositoryFor } from '../lib/watch/repository';
@@ -76,6 +76,23 @@ function videoSource(play: Pick<Play, 'ref' | 'title'>): { link: WatchLink } | {
   if (play.ref.startsWith('file:')) return { mediaItemId: play.ref.slice(5) };
   const verdict = recognizeLink(play.ref);
   return verdict.ok ? { link: { ...verdict.link, title: play.title || verdict.link.title } } : null;
+}
+
+/**
+ * A Twitch channel's line (SPEC-live-streams.md, 9A): its login, else null. A live is known by its address (a channel, not a past
+ * broadcast); nothing new is stored. Played again it opens the channel live now, or the room says it is offline.
+ */
+function liveChannel(play: Pick<Play, 'kind' | 'ref'>): string | null {
+  if (play.kind !== 'video') return null;
+  const verdict = recognizeLink(play.ref);
+  return verdict.ok && verdict.link.kind === 'twitch' ? (twitchOf(verdict.link)?.channel ?? null) : null;
+}
+
+/** How long a live was watched: from when its line began to when it stopped; null while it plays or when unknown. */
+function watchedSeconds(play: Pick<Play, 'playedAt' | 'stoppedAt'>): number | null {
+  if (play.stoppedAt === null) return null;
+  const seconds = (Date.parse(play.stoppedAt) - Date.parse(play.playedAt)) / 1000;
+  return Number.isFinite(seconds) && seconds >= 1 ? Math.round(seconds) : null;
 }
 
 function canResume(play: Play): boolean {
@@ -278,6 +295,11 @@ function PlayLine({ play, me, open, onToggle }: { play: Play; me: string | null;
       <span className="min-w-0 flex-1">
         <span className="block truncate text-label font-bold text-ink">
           {what}
+          {liveChannel(play) !== null ? (
+            <span className="ml-2 bg-acid px-1 text-ink-plate" data-history-live>
+              ● LIVE
+            </span>
+          ) : null}
           {on ? <span className="ml-2 text-accent-ink">{ICON_MUSIC} NOW</span> : null}
         </span>
         <span className="block truncate text-label text-ink">
@@ -379,16 +401,20 @@ function LineFold({ play, me }: { play: Play; me: string | null }) {
 const FOLD = 'ml-4 mt-1 flex flex-col gap-1 border-l border-ink pl-2 pb-1';
 
 function FactsFold({ play }: { play: Play }) {
-  const left = placeOf(play.leftAtSeconds);
+  const live = liveChannel(play) !== null;
+  // A live has no place to leave it at: how long it was watched instead.
+  const left = live ? null : placeOf(play.leftAtSeconds);
   const length = placeOf(play.lengthSeconds);
+  const watched = live ? placeOf(watchedSeconds(play)) : null;
   const opens = play.whereHref !== null && play.whereHref.startsWith('/');
   return (
     <div className={FOLD} data-history-fold="facts">
       {play.how === 'not_recorded' ? <p className="text-label text-ink">FILLED IN FROM BEFORE HISTORY BEGAN: HOW IT REACHED YOU WAS NEVER WRITTEN DOWN.</p> : null}
       <p className="text-label text-ink">
-        {play.kind === 'song' ? 'A SONG' : play.kind === 'video' ? 'A VIDEO' : 'A BOOK'}
+        {play.kind === 'song' ? 'A SONG' : live ? 'A LIVE STREAM' : play.kind === 'video' ? 'A VIDEO' : 'A BOOK'}
         {play.whereLabel ? ` · ${play.whereLabel.toUpperCase()}` : ''}
         {left ? ` · YOU LEFT IT AT ${left}${length ? ` OF ${length}` : ''}` : ''}
+        {watched ? ` · YOU WATCHED ${watched}` : ''}
       </p>
       {opens ? (
         <Link href={play.whereHref as string} className={`${PLATE} self-start`} data-history-open>

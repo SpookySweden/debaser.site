@@ -94,6 +94,8 @@ export const WATCH_KIND_BY_PLATFORM: Record<WebPlatform, Extract<WatchLinkKind, 
   wikimedia_commons: null,
   // The room already drives Vimeo with its own player.
   vimeo: 'vimeo',
+  // A Twitch channel, live (SPEC-live-streams.md): the room drives Twitch's own player, from the channel's page address.
+  twitch: 'twitch',
   // KINO rows have no player at all (kino.ts).
   kino: null,
   // Books open in the site's reader or link out; audiobooks play in the music bar (SPEC-books.md): nothing for a room.

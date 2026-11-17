@@ -1,0 +1,184 @@
+{
+ "data": {
+  "searchFor": {
+   "channels": {
+    "cursor": "MTU=",
+    "items": [
+     {
+      "login": "chess",
+      "displayName": "Chess",
+      "broadcastSettings": {
+       "language": "EN"
+      },
+      "stream": null
+     },
+     {
+      "login": "gothamchess",
+      "displayName": "GothamChess",
+      "broadcastSettings": {
+       "language": "EN"
+      },
+      "stream": null
+     },
+     {
+      "login": "hannahsayce",
+      "displayName": "HannahSayce",
+      "broadcastSettings": {
+       "language": "EN"
+      },
+      "stream": {
+       "title": "STREAM WILL NOT END UNTIL IM > 2500 or <2300 :)) !!  |!donate A LIL SICK BUT STILL LONG STREAM",
+       "createdAt": "2026-11-17T02:46:04Z",
+       "viewersCount": 10,
+       "game": {
+        "displayName": "Chess"
+       },
+       "freeformTags": [
+        {
+         "name": "English"
+        },
+        {
+         "name": "donkey"
+        },
+        {
+         "name": "donkeywoman"
+        },
+        {
+         "name": "cooking"
+        }
+       ]
+      }
+     },
+     {
+      "login": "chess24",
+      "displayName": "chess24",
+      "broadcastSettings": {
+       "language": "EN"
+      },
+      "stream": null
+     },
+     {
+      "login": "whyyyyyyysoserious",
+      "displayName": "whyyyyyyysoserious",
+      "broadcastSettings": {
+       "language": "EN"
+      },
+      "stream": {
+       "title": "Late Night Fancy Chess...lichess.org",
+       "createdAt": "2026-11-17T03:40:22Z",
+       "viewersCount": 20,
+       "game": {
+        "displayName": "Chess"
+       },
+       "freeformTags": [
+        {
+         "name": "English"
+        }
+       ]
+      }
+     },
+     {
+      "login": "trinicupid",
+      "displayName": "TriniCupid",
+      "broadcastSettings": {
+       "language": "EN"
+      },
+      "stream": {
+       "title": "Trini is Back Road to 2700 Post CAC Day 29",
+       "createdAt": "2026-11-17T03:15:25Z",
+       "viewersCount": 30,
+       "game": {
+        "displayName": "Chess"
+       },
+       "freeformTags": [
+        {
+         "name": "English"
+        }
+       ]
+      }
+     },
+     {
+      "login": "endgamepulse7",
+      "displayName": "endgamepulse7",
+      "broadcastSettings": {
+       "language": "EN"
+      },
+      "stream": {
+       "title": "EndgamePulse plays chess with his viewers! / chess.com",
+       "createdAt": "2026-11-17T05:33:00Z",
+       "viewersCount": 40,
+       "game": {
+        "displayName": "Chess"
+       },
+       "freeformTags": [
+        {
+         "name": "English"
+        }
+       ]
+      }
+     },
+     {
+      "login": "brianestraduh",
+      "displayName": "brianestraduh",
+      "broadcastSettings": {
+       "language": "EN"
+      },
+      "stream": {
+       "title": "Chess @ Nite",
+       "createdAt": "2026-11-17T03:48:09Z",
+       "viewersCount": 50,
+       "game": {
+        "displayName": "Chess"
+       },
+       "freeformTags": [
+        {
+         "name": "English"
+        }
+       ]
+      }
+     },
+     {
+      "login": "1luxeru6767",
+      "displayName": "1luxeru6767",
+      "broadcastSettings": {
+       "language": "EN"
+      },
+      "stream": {
+       "title": "ngl imma take a nap lmk",
+       "createdAt": "2026-11-17T05:36:03Z",
+       "viewersCount": 60,
+       "game": {
+        "displayName": "Chess"
+       },
+       "freeformTags": [
+        {
+         "name": "English"
+        }
+       ]
+      }
+     },
+     {
+      "login": "ozzy14417",
+      "displayName": "ozzy14417",
+      "broadcastSettings": {
+       "language": "EN"
+      },
+      "stream": {
+       "title": "chess",
+       "createdAt": "2026-11-17T05:20:15Z",
+       "viewersCount": 70,
+       "game": {
+        "displayName": "Chess"
+       },
+       "freeformTags": [
+        {
+         "name": "English"
+        }
+       ]
+      }
+     }
+    ]
+   }
+  }
+ }
+}

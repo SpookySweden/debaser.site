@@ -164,6 +164,16 @@ drive-watch-in-room.cjs
 `[ WATCH IN ROOM ]` and `[ ADD TO ROOM ]` in a real browser (SPEC-floating-player.md, part 3). Live it starts two rooms as A
 and ends them, and prints their ids: each leaves an ended record and a board thread to delete, so ask Luke.
 
+drive-live.cjs and dev-mock-live.cjs
+------------------------------------
+    node scripts/dev-mock-live.cjs 3317                                                 a local server, every switch on mock
+    node scripts/drive-live.cjs --base http://localhost:3317                            then the drive, as a visitor
+
+Live streams in MEDIA and rooms (SPEC-live-streams.md): the [ ● LIVE ] key, LIVE ROOMS first (one room seeded in the mock
+store), Twitch and YouTube lives through our server (the real platforms), + QUEUE as a visitor, PLAY opening Twitch's own
+player in your room and the room saying LIVE once it plays, the feed's LIVE places, no counts, nothing asked of Supabase.
+Not in `npm run checks`: it needs a running site and the network. Screenshots go to `Temp/browse/live-*.png`.
+
 drive-visualiser.cjs
 --------------------
     node scripts/drive-visualiser.cjs --base http://localhost:<port> --privacy open [--reduced]   on a local dev server, as kept test account A

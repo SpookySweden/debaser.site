@@ -7,10 +7,10 @@ import type { WebItem } from './types';
  * MEDIA's default feed (SPEC-media-feed.md; Luke's yes, 2026-11-16): every recommender mixed into one list, drawn in blocks
  * of 12. Pure, so `Temp/check-media-feed-mix.cjs` holds it: nothing here reads a clock, the browser or the network.
  *
- * Each block follows one pattern of places: 5 FOR YOU (the saved stream in this reader's order), 2 YOUR YOUTUBE, 2
- * READING (a paper, news story, long read or tech link), 2 NEW TO YOU (the DISCOVER catalogue) and 1 PEOPLE'S PICKS.
- * A place whose source has nothing goes to FOR YOU, then NEW TO YOU, then PEOPLE'S PICKS; reading never takes more
- * than its own two places.
+ * Each block follows one pattern of places: 4 FOR YOU (the saved stream in this reader's order), 1 LIVE (a Twitch or YouTube
+ * live that fits the reader, SPEC-live-streams.md: "lives mixed in"), 2 YOUR YOUTUBE, 2 READING (a paper, news story, long
+ * read or tech link), 2 NEW TO YOU (the DISCOVER catalogue) and 1 PEOPLE'S PICKS. A place whose source has nothing goes to
+ * FOR YOU, then NEW TO YOU, then PEOPLE'S PICKS; reading and lives never take more than their own places.
  *
  * **The list holds still.** Every source is a list that only grows at its end, and a source that arrives late is used
  * only from the block after the last one already drawn (`fromBlock`). The mix stops where FOR YOU runs out while the
@@ -18,13 +18,13 @@ import type { WebItem } from './types';
  * never moves a row already on screen.
  */
 
-export type MixLane = 'you' | 'youtube' | 'reading' | 'new' | 'people';
+export type MixLane = 'you' | 'youtube' | 'reading' | 'new' | 'people' | 'live';
 
 /** The 12 places of a block (SPEC-media-feed.md, "What Luke will see"). One table: "reading 3 in 12" is one line here. */
-export const BLOCK_PATTERN: readonly MixLane[] = ['you', 'you', 'youtube', 'reading', 'you', 'new', 'people', 'youtube', 'you', 'reading', 'you', 'new'];
+export const BLOCK_PATTERN: readonly MixLane[] = ['you', 'you', 'youtube', 'reading', 'live', 'new', 'people', 'youtube', 'you', 'reading', 'you', 'new'];
 export const BLOCK_SIZE = BLOCK_PATTERN.length;
 
-/** Where an empty place goes, in order. Reading is never a stand-in. */
+/** Where an empty place goes, in order. Reading and lives are never a stand-in. */
 export const FILL_ORDER: readonly MixLane[] = ['you', 'new', 'people'];
 
 /** A source that arrived: its rows in its own order, usable from block `fromBlock` (0 when it was there at the start). */
@@ -41,6 +41,8 @@ export type MixInput<T extends WebItem> = {
   reading: Lane<ReadingRow<T>> | null;
   discover: Lane<T> | null;
   people: Lane<T> | null;
+  /** Lives that fit the reader (use-live-lane.ts), in that order; null until they have answered. */
+  live?: Lane<T> | null;
   /** Signed out: no YOUR YOUTUBE (its places go to FOR YOU) and the four reading kinds in an even turn. */
   visitor: boolean;
   /** How many reading rows of each kind this reader opened or finished in the last 30 days (`readingOpens`). */
@@ -142,9 +144,19 @@ export function mixFeed<T extends WebItem>(input: MixInput<T>): MixedRow<T>[] {
     if (work !== null) works.add(work);
   };
 
-  const cursors: Record<Exclude<MixLane, 'reading'>, number> = { you: 0, youtube: 0, new: 0, people: 0 };
+  const cursors: Record<Exclude<MixLane, 'reading'>, number> = { you: 0, youtube: 0, new: 0, people: 0, live: 0 };
   const laneOf = (lane: Exclude<MixLane, 'reading'>): Lane<T> | null =>
-    lane === 'you' ? { rows: input.forYou, fromBlock: 0 } : lane === 'youtube' ? (input.visitor ? null : input.youtube) : lane === 'new' ? input.discover : input.people;
+    lane === 'you'
+      ? { rows: input.forYou, fromBlock: 0 }
+      : lane === 'youtube'
+        ? input.visitor
+          ? null
+          : input.youtube
+        : lane === 'new'
+          ? input.discover
+          : lane === 'live'
+            ? (input.live ?? null)
+            : input.people;
   const nextFrom = (lane: Exclude<MixLane, 'reading'>, block: number): T | null => {
     const source = laneOf(lane);
     if (source === null || block < source.fromBlock) return null;
@@ -189,8 +201,8 @@ export function mixFeed<T extends WebItem>(input: MixInput<T>): MixedRow<T>[] {
       }
       if (!filled && youWaits()) return out;
     }
-    // A block of reading alone is never drawn: reading flavours the list, it never becomes it.
-    if (out.slice(start).every((row) => row.lane === 'reading')) return out.slice(0, start);
+    // A block of reading alone is never drawn: reading flavours the list, it never becomes it. Lives the same (SPEC-live-streams.md).
+    if (out.slice(start).every((row) => row.lane === 'reading' || row.lane === 'live')) return out.slice(0, start);
     if (placed === 0) return out;
   }
 }

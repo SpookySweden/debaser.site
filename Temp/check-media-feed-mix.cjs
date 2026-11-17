@@ -2,7 +2,8 @@
  * MEDIA's default feed mix (SPEC-media-feed.md; app/lib/web/feed-mix.ts, passed-over.ts, brief/mock-brief.ts):
  *   npx tsc app/lib/web/feed-mix.ts app/lib/web/passed-over.ts app/lib/web/brief/mock-brief.ts app/lib/web/brief/addresses.ts --outDir Temp/out-media-feed-mix --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop --moduleResolution node --strictNullChecks
  *
- * - the 12-place pattern; reading never more than 2 in 12, even with everything else empty
+ * - the 12-place pattern; reading never more than 2 in 12, even with everything else empty; one LIVE place (SPEC-live-streams.md,
+ *   Luke 2026-11-17: "lives mixed in"), FOR YOU's when there are no lives
  * - the fill order (FOR YOU, NEW TO YOU, PEOPLE'S PICKS); no YOUR YOUTUBE for a visitor
  * - the kinds' turns follow the reader's history; one outlet never twice running within a kind; Hacker News's order
  * - repeats, the same work twice, opened, NOT FOR ME and resting rows stay out
@@ -48,6 +49,7 @@ function input(over = {}) {
     reading: lane(reading),
     discover: lane(NEW),
     people: lane(PEOPLE),
+    live: lane(LIVE),
     visitor: false,
     readingOpens: {},
     taste: NO_TASTE,
@@ -60,29 +62,35 @@ const FOR_YOU = many('internet_archive', 60);
 const YT = many('youtube', 30);
 const NEW = many('openverse', 30);
 const PEOPLE = many('peertube', 30);
+const LIVE = many('twitch', 30, { live: true });
 const lanes = (rows) => rows.map((row) => row.lane);
 const ids = (rows) => rows.map((row) => row.item.id);
 
 /* ------------------------------------------------------------------ the pattern */
 const full = mix.mixFeed(input());
 same(lanes(full.slice(0, 24)), [...mix.BLOCK_PATTERN, ...mix.BLOCK_PATTERN], 'with every source full, each block follows the 12-place pattern');
-ok(mix.BLOCK_PATTERN.filter((place) => place === 'you').length === 5 && mix.BLOCK_PATTERN.filter((place) => place === 'reading').length === 2, '5 FOR YOU and 2 READING places in 12');
+// Updated on purpose (SPEC-live-streams.md, 2026-11-17): one of FOR YOU's five places became the LIVE place.
+ok(mix.BLOCK_PATTERN.filter((place) => place === 'you').length === 4 && mix.BLOCK_PATTERN.filter((place) => place === 'live').length === 1 && mix.BLOCK_PATTERN.filter((place) => place === 'reading').length === 2, '4 FOR YOU, 1 LIVE and 2 READING places in 12');
+same(lanes(mix.mixFeed(input({ live: null })).slice(0, 12)), mix.BLOCK_PATTERN.map((place) => (place === 'live' ? 'you' : place)), 'with no lives, the LIVE place is FOR YOU\'s');
 for (let start = 0; start + 12 <= full.length; start += 12) ok(full.slice(start, start + 12).filter((row) => row.lane === 'reading').length <= 2, `block ${start / 12 + 1}: reading at most 2 of 12`);
-ok(full.length === 12 * 12, `the mix runs until FOR YOU runs out, in whole blocks here (${full.length})`);
+// Updated on purpose (SPEC-live-streams.md): with four FOR YOU places a block the mock reading (27 rows) runs out first and its
+// places borrow FOR YOU rows, so the end is no longer on a block's edge; what holds is that every FOR YOU row is used, and no more.
+ok(full.filter((row) => row.lane === 'you').length === FOR_YOU.length && full.length < 12 * 16, `the mix runs until FOR YOU runs out (${full.length})`);
 ok(new Set(ids(full)).size === full.length, 'no row twice');
 
 /* ------------------------------------------------------------------ fill order and visitors */
 const visitor = mix.mixFeed(input({ visitor: true }));
 ok(!visitor.some((row) => row.lane === 'youtube'), "a visitor gets no YOUR YOUTUBE rows, even if some were handed in");
-same(lanes(visitor.slice(0, 12)), ['you', 'you', 'you', 'reading', 'you', 'new', 'people', 'you', 'you', 'reading', 'you', 'new'], "a visitor's YouTube places go to FOR YOU");
+same(lanes(visitor.slice(0, 12)), ['you', 'you', 'you', 'reading', 'live', 'new', 'people', 'you', 'you', 'reading', 'you', 'new'], "a visitor's YouTube places go to FOR YOU");
 const noNew = mix.mixFeed(input({ discover: null, people: null, youtube: null }));
-same(lanes(noNew.slice(0, 12)), ['you', 'you', 'you', 'reading', 'you', 'you', 'you', 'you', 'you', 'reading', 'you', 'you'], 'empty sources give their places to FOR YOU');
+same(lanes(noNew.slice(0, 12)), ['you', 'you', 'you', 'reading', 'live', 'you', 'you', 'you', 'you', 'reading', 'you', 'you'], 'empty sources give their places to FOR YOU');
 const ended = mix.mixFeed(input({ forYou: FOR_YOU.slice(0, 3), forYouEnded: true, youtube: null }));
-same(lanes(ended.slice(0, 12)), ['you', 'you', 'you', 'reading', 'new', 'new', 'people', 'new', 'new', 'reading', 'new', 'new'], 'once the stream has ended, FOR YOU runs out and NEW TO YOU fills, then PEOPLE');
-const endedNoNew = mix.mixFeed(input({ forYou: [], forYouEnded: true, youtube: null, discover: null }));
+same(lanes(ended.slice(0, 12)), ['you', 'you', 'you', 'reading', 'live', 'new', 'people', 'new', 'new', 'reading', 'new', 'new'], 'once the stream has ended, FOR YOU runs out and NEW TO YOU fills, then PEOPLE');
+// No lives here either (SPEC-live-streams.md): the LIVE place is never a stand-in, so it would hold one of the twelve.
+const endedNoNew = mix.mixFeed(input({ forYou: [], forYouEnded: true, youtube: null, discover: null, live: null }));
 ok(endedNoNew.slice(0, 12).filter((row) => row.lane === 'people').length === 10, "with FOR YOU and NEW TO YOU empty, PEOPLE'S PICKS fill");
 const onlyReading = mix.mixFeed(input({ forYou: [], forYouEnded: true, youtube: null, discover: null, people: null }));
-ok(onlyReading.length === 0, `reading alone never becomes the list (${onlyReading.length} rows)`);
+ok(onlyReading.length === 0, `reading alone, or reading and lives, never becomes the list (${onlyReading.length} rows)`);
 const waiting = mix.mixFeed(input({ forYou: [], forYouEnded: false }));
 ok(waiting.length === 0, 'while the stream has more to load and nothing yet, nothing is drawn (it waits rather than fill FOR YOU places)');
 

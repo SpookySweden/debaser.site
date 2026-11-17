@@ -15,8 +15,9 @@ import { useNow } from '../lib/ui/use-now';
 import { chatImageUrl, type ImageResult, type ImageSearchKind } from '../lib/watch/chat-images';
 import { forgetGuestReturn, guestReturnDraft, keepGuestReturn } from '../lib/watch/guest-return';
 import { createEmbed, isEmbedKind } from '../lib/watch/embeds';
-import { liveJump } from '../lib/watch/links';
+import { liveJump, twitchOf } from '../lib/watch/links';
 import { hasQualityControl, hasSubtitleControl, type EmbedPlayable, type Playable, type QualityControl } from '../lib/watch/playable';
+import type { EmbedRefusal } from '../lib/watch/embed-player';
 import { lookClass, lookForRoom } from '../lib/cytube/looks';
 import { setOpenRoomLook } from '../lib/cytube/room-look';
 import { saveLookChoice, useLookChoice } from '../lib/cytube/use-looks';
@@ -970,9 +971,15 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   // moment, so one dead link does not stop the stream for everybody.
   const [deadEntry, setDeadEntry] = useState<string | null>(null);
   const linkDead = link !== null && deadEntry !== null && deadEntry === entryId;
+  /**
+   * A Twitch channel that is not broadcasting, or whose stream has just ended (SPEC-live-streams.md, Luke 2026-11-17, 3A and 4A):
+   * Twitch's player says OFFLINE, and the room says so by the channel's name, then moves on like any link that won't play.
+   */
+  const [offlineEntry, setOfflineEntry] = useState<string | null>(null);
+  const offlineChannel = linkDead && offlineEntry === entryId && link !== null ? (twitchOf(link)?.channel ?? null) : null;
   const skipDead = useEffectEvent(() => {
     if (upcoming(read.queue).length === 0) return;
-    setNotice(`SKIPPED: ${(entryTitle ?? '').toUpperCase()} WOULDN'T PLAY`);
+    setNotice(offlineChannel !== null ? `SKIPPED: ${offlineChannel.toUpperCase()} IS OFFLINE` : `SKIPPED: ${(entryTitle ?? '').toUpperCase()} WOULDN'T PLAY`);
     moveOn(true);
   });
   useEffect(() => {
@@ -1661,7 +1668,10 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
               setNeedsPress(false);
               setLiveEntry(player.isLive ? entryId : null);
             }}
-            onError={() => setDeadEntry(entryId)}
+            onError={(why) => {
+              setOfflineEntry(why === 'offline' ? entryId : null);
+              setDeadEntry(entryId);
+            }}
             onBlocked={() => setNeedsPress(true)}
             role={amHost ? 'host' : 'viewer'}
           />
@@ -1712,8 +1722,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
         )}
         {linkDead ? (
           <div className="absolute inset-0 flex items-center justify-center">
-            <p className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar" role="alert">
-              THIS LINK WON&apos;T PLAY HERE
+            <p className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar" role="alert" data-watch-offline={offlineChannel ?? undefined}>
+              {offlineChannel !== null ? `${offlineChannel.toUpperCase()} IS OFFLINE` : 'THIS LINK WON\u2019T PLAY HERE'}
             </p>
           </div>
         ) : null}
@@ -2506,7 +2516,8 @@ function EmbedStage({
   onGone: (player: Playable) => void;
   onTime: () => void;
   onPlaying: (player: EmbedPlayable) => void;
-  onError: () => void;
+  /** `why`: the site's own refusal, when it said one (`offline`: a Twitch channel that is not broadcasting). */
+  onError: (why: EmbedRefusal | null) => void;
   /** The browser would not start it without a press. */
   onBlocked: () => void;
   role: 'host' | 'viewer';
@@ -2516,7 +2527,7 @@ function EmbedStage({
   const startsPlaying = useEffectEvent(() => autoPlay);
   const time = useEffectEvent(() => onTime());
   const playing = useEffectEvent((player: EmbedPlayable) => onPlaying(player));
-  const failed = useEffectEvent(() => onError());
+  const failed = useEffectEvent((why: EmbedRefusal | null) => onError(why));
   const blocked = useEffectEvent(() => onBlocked());
   const give = useEffectEvent((player: EmbedPlayable) => onPlayer(player));
   const take = useEffectEvent((player: EmbedPlayable) => onGone(player));
@@ -2532,12 +2543,12 @@ function EmbedStage({
     if (box === null) return;
     const player = createEmbed({ url, kind, title: '' }, box, startsPlaying());
     if (player === null) {
-      failed();
+      failed(null);
       return;
     }
     const onTick = () => time();
     const onPlay = () => playing(player);
-    const onFail = () => failed();
+    const onFail = () => failed(player.refusal ?? null);
     const onBlock = () => blocked();
     player.addEventListener('blocked', onBlock);
     for (const type of ['timeupdate', 'loadedmetadata', 'play', 'pause']) player.addEventListener(type, onTick);

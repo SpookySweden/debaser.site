@@ -33,7 +33,7 @@ import { taggedShort } from '../../shorts';
 import type { WebItem } from '../../types';
 import { SearchProblemError, type ProviderPage, type SearchDeps, type SearchOrder, type SearchPage, type SearchProvider } from '../types';
 import { datedSearch, YT_DATED_CURSOR } from './youtube-dates';
-import { INNERTUBE_TOKEN, innertubeSearch, VIDEOS_BY_VIEWS } from './youtube-innertube';
+import { INNERTUBE_TOKEN, innertubeSearch, LIVE_ONLY, VIDEOS_BY_VIEWS } from './youtube-innertube';
 
 const API_HOST = 'www.googleapis.com';
 const OEMBED_HOST = 'www.youtube.com';
@@ -54,12 +54,14 @@ export function youtubeKey(deps: SearchDeps): string | null {
 /** The Data API's own order for an order it has; best match (and oldest-first, which it lacks) sends none. */
 const API_ORDERS: Record<SearchOrder, string | null> = { relevance: null, popular: 'viewCount', newest: 'date', oldest: null };
 
-export function ytSearchUrl(words: string, pageToken: string | null, key: string, order: SearchOrder = 'relevance'): string {
+export function ytSearchUrl(words: string, pageToken: string | null, key: string, order: SearchOrder = 'relevance', live = false): string {
   const sort = API_ORDERS[order];
   return buildUrl(API_HOST, ['youtube', 'v3', 'search'], [
     ...(sort === null ? [] : [['order', sort] as const]),
     ['part', 'snippet'],
     ['type', 'video'],
+    // The `[ ● LIVE ]` key (SPEC-live-streams.md): only broadcasts that are live now.
+    ...(live ? [['eventType', 'live'] as const] : []),
     ['videoEmbeddable', 'true'],
     ['safeSearch', 'moderate'],
     ['maxResults', String(YT_SEARCH_MAX)],
@@ -116,28 +118,33 @@ export function youtubeItem(id: string, words: { title?: string; creator?: strin
 }
 
 /** One search result (or `videos.list` entry, `idField` 'id') as a WebItem, or null. */
-export function toWebItem(doc: unknown, fetchedAt: string, idField: 'search' | 'videos' = 'search'): WebItem | null {
+export function toWebItem(doc: unknown, fetchedAt: string, idField: 'search' | 'videos' = 'search', keepLive = false): WebItem | null {
   const entry = record(doc);
   if (!entry) return null;
   const id = idField === 'search' ? str(record(entry.id)?.videoId) : str(entry.id);
   if (!id || !YT_VIDEO_ID.test(id)) return null;
   const snippet = record(entry.snippet);
   if (!snippet) return null;
-  // Live and upcoming broadcasts are not something to queue or play later.
-  if (str(snippet.liveBroadcastContent) !== 'none') return null;
-  const publishedAt = plausibleIsoDate(snippet.publishedAt, fetchedAt);
+  // Upcoming broadcasts are nothing to play yet. One live now is kept, marked (SPEC-live-streams.md), only from a live search
+  // (`keepLive`, `eventType=live`, kept a minute): an ordinary search is cached a day. Never from `videos.list`: that is how an
+  // opened item is saved into the stream, and a live is never saved.
+  const broadcast = str(snippet.liveBroadcastContent);
+  const live = broadcast === 'live' && idField === 'search' && keepLive;
+  if (broadcast !== 'none' && !live) return null;
+  const publishedAt = live ? fetchedAt : plausibleIsoDate(snippet.publishedAt, fetchedAt);
   if (!publishedAt) return null;
   // No Shorts in MEDIA (shorts.ts): the Data API has no flag for one, so a #shorts tag is what is caught here.
   if (taggedShort(str(snippet.title), str(snippet.description))) return null;
-  return youtubeItem(id, { title: str(snippet.title), creator: str(snippet.channelTitle), description: str(snippet.description) }, publishedAt, fetchedAt);
+  const item = youtubeItem(id, { title: str(snippet.title), creator: str(snippet.channelTitle), description: str(snippet.description) }, publishedAt, fetchedAt);
+  return live ? { ...item, live: true } : item;
 }
 
-export function parseYtSearch(body: unknown, fetchedAt: string): SearchPage {
+export function parseYtSearch(body: unknown, fetchedAt: string, keepLive = false): SearchPage {
   const root = record(body);
   if (!root || !Array.isArray(root.items)) throw new Error('unexpected response shape');
   const items: WebItem[] = [];
   for (const doc of root.items) {
-    const item = toWebItem(doc, fetchedAt);
+    const item = toWebItem(doc, fetchedAt, 'search', keepLive);
     if (item && !items.some((seen) => seen.id === item.id)) items.push(item);
   }
   const token = str(root.nextPageToken);
@@ -193,11 +200,14 @@ export const youtubeApiSearch: SearchProvider = {
     const token = typeof page === 'string' && PAGE_TOKEN.test(page) ? page : null;
     let body: unknown;
     try {
-      body = await safeFetchJson(ytSearchUrl(words, token, key, deps.order), { allowedHosts: [API_HOST], fetchImpl: deps.fetch });
+      body = await safeFetchJson(ytSearchUrl(words, token, key, deps.live ? 'relevance' : deps.order, deps.live === true), {
+        allowedHosts: [API_HOST],
+        fetchImpl: deps.live ? (deps.liveFetch ?? deps.fetch) : deps.fetch,
+      });
     } catch (error) {
       youtubeProblem(error);
     }
-    return parseYtSearch(body, (deps.now?.() ?? new Date()).toISOString());
+    return parseYtSearch(body, (deps.now?.() ?? new Date()).toISOString(), deps.live === true);
   },
   fetchOne: youtubeById,
 };
@@ -215,12 +225,15 @@ export const youtubeSearch: SearchProvider = {
   // The date windows ask many small questions, mostly at once (youtube-dates.ts).
   sortedTimeoutMs: 25_000,
   orders: ['popular', 'newest', 'oldest'],
+  // The `[ ● LIVE ]` key: InnerTube's live filter, the Data API's `eventType=live` (SPEC-live-streams.md).
+  live: true,
   // The Data API's budget, spent here only when the fallback is used (run.ts does not spend it up front).
   dailyBudget: youtubeApiSearch.dailyBudget,
   spendsOwnBudget: true,
   async search(words: string, page: ProviderPage | null, deps: SearchDeps): Promise<SearchPage> {
     const fetchedAt = (deps.now?.() ?? new Date()).toISOString();
-    const order = deps.order ?? 'relevance';
+    // Live now has no dates to window: best match within InnerTube's live filter, whatever the SORT (Twitch sorts its own).
+    const order = deps.live ? 'relevance' : (deps.order ?? 'relevance');
     if (order === 'newest' || order === 'oldest') {
       const windowed = typeof page === 'string' && YT_DATED_CURSOR.test(page);
       if (page === null || windowed) {
@@ -240,7 +253,9 @@ export const youtubeSearch: SearchProvider = {
     if (page === null || continuation !== null) {
       if (continuation !== null && !INNERTUBE_TOKEN.test(continuation)) return { items: [], next: null };
       try {
-        const found = await innertubeSearch(words, continuation, deps.fetch, fetchedAt, order === 'popular' ? VIDEOS_BY_VIEWS : undefined);
+        const found = deps.live
+          ? await innertubeSearch(words, continuation, deps.liveFetch ?? deps.fetch, fetchedAt, LIVE_ONLY)
+          : await innertubeSearch(words, continuation, deps.fetch, fetchedAt, order === 'popular' ? VIDEOS_BY_VIEWS : undefined);
         return { items: found.items, next: found.next === null ? null : `${INNERTUBE_PAGE}${found.next}` };
       } catch {
         // InnerTube failed (changed, blocked or slow). A next page of it cannot be asked of the Data API.

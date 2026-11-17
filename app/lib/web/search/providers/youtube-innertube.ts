@@ -15,7 +15,10 @@
  * - playback stays the youtube-nocookie embed.
  *
  * Dates: InnerTube says "3 years ago", not a date, so an item is dated that far back from the moment it was
- * read (months as 30 days, years as 365). Live and upcoming broadcasts have no such line and are skipped.
+ * read (months as 30 days, years as 365). Upcoming broadcasts have no such line and are skipped. A broadcast that is live
+ * now (SPEC-live-streams.md: YouTube's own LIVE NOW badge, no length, nothing upcoming) is kept, marked `live` and dated when
+ * it was read, only when the live filter asked for it (`keepLive`): an ordinary search is cached a day, and a row would go on
+ * saying LIVE long after it ended. Without the filter it is skipped as before.
  */
 import { safeFetchJson } from '../../safe-fetch';
 import { buildUrl } from '../../urls';
@@ -31,6 +34,8 @@ export const INNERTUBE_TIMEOUT_MS = 6_000;
 export const INNERTUBE_TOKEN = /^[A-Za-z0-9_%=-]{20,800}$/;
 /** YouTube's own filter for "Type: Video", as its search page sends it. */
 const VIDEOS_ONLY = 'EgIQAQ==';
+/** YouTube's own "Features: Live" filter, as its search page sends it (live-checked 2026-11-17: only LIVE NOW videos). */
+export const LIVE_ONLY = 'EgJAAQ==';
 /**
  * "Sort by: View count" with "Type: Video", as its search page sends them (SPEC-web-sort.md, POPULAR; live-checked
  * 2026-11-02). YouTube's own order: no view count is ever read. Its "Upload date" sort now answers in relevance
@@ -92,7 +97,7 @@ export function relativeAge(value: string | undefined, fetchedAt: string): { dat
 }
 
 /** One `videoRenderer` as a WebItem, or null. Only the id, title, channel, snippet and age are read. */
-export function toWebItem(renderer: unknown, fetchedAt: string): WebItem | null {
+export function toWebItem(renderer: unknown, fetchedAt: string, keepLive = false): WebItem | null {
   const video = record(renderer);
   if (!video) return null;
   const id = typeof video.videoId === 'string' ? video.videoId : undefined;
@@ -103,14 +108,25 @@ export function toWebItem(renderer: unknown, fetchedAt: string): WebItem | null 
   const opensAt = record(record(opens?.commandMetadata)?.webCommandMetadata)?.url;
   if (typeof opensAt === 'string' && isShortsAddress(opensAt)) return null;
   if (taggedShort(text(video.title))) return null;
-  // No age line means live now or upcoming: nothing to queue or play later.
-  const publishedAt = relativeDate(text(video.publishedTimeText), fetchedAt);
+  // No age line means live now or upcoming. Upcoming is nothing to play yet; live now is kept, marked (SPEC-live-streams.md).
+  const live = keepLive && liveNow(video);
+  const publishedAt = relativeDate(text(video.publishedTimeText), fetchedAt) ?? (live ? fetchedAt : undefined);
   if (!publishedAt) return null;
   const snippet = text(record(list(video.detailedMetadataSnippets)[0])?.snippetText);
-  const item = youtubeItem(id, { title: text(video.title), creator: text(video.ownerText) ?? text(video.longBylineText), description: snippet }, publishedAt, fetchedAt);
+  const found = youtubeItem(id, { title: text(video.title), creator: text(video.ownerText) ?? text(video.longBylineText), description: snippet }, publishedAt, fetchedAt);
+  const item: WebItem = live ? { ...found, live: true } : found;
   // Its length (`4:05`), so only a video of three minutes or less is asked about as a possible Short (shorts-check.ts).
   const seconds = clockSeconds(text(video.lengthText));
   return seconds === null ? item : { ...item, durationSeconds: seconds };
+}
+
+/**
+ * Live now: YouTube's own LIVE NOW badge (`BADGE_STYLE_TYPE_LIVE_NOW`) with no length line and nothing upcoming. Only the badge's
+ * style is read, never its words or anything counted.
+ */
+export function liveNow(video: Record<string, unknown>): boolean {
+  if (video.upcomingEventData !== undefined || video.lengthText !== undefined) return false;
+  return list(video.badges).some((badge) => record(record(badge)?.metadataBadgeRenderer)?.style === 'BADGE_STYLE_TYPE_LIVE_NOW');
 }
 
 /** A clock reading (`4:05`, `1:02:03`) as seconds, or null. */
@@ -125,13 +141,13 @@ export function clockSeconds(value: string | undefined): number | null {
  * one (`onResponseReceivedCommands...continuationItems`). Shelves, films for sale, Shorts rows and ads are
  * not plain `videoRenderer`s and are passed over. A thrown error when neither shape is there.
  */
-export function parseInnertube(body: unknown, fetchedAt: string): SearchPage {
-  const { items, next } = parseInnertubeAged(body, fetchedAt);
+export function parseInnertube(body: unknown, fetchedAt: string, keepLive = false): SearchPage {
+  const { items, next } = parseInnertubeAged(body, fetchedAt, keepLive);
   return { items, next };
 }
 
 /** `parseInnertube`, with each video's age width (`relativeAge`) by id, for the date windows (youtube-dates.ts). */
-export function parseInnertubeAged(body: unknown, fetchedAt: string): SearchPage & { units: Map<string, number> } {
+export function parseInnertubeAged(body: unknown, fetchedAt: string, keepLive = false): SearchPage & { units: Map<string, number> } {
   const root = record(body);
   const first = record(record(record(record(root?.contents)?.twoColumnSearchResultsRenderer)?.primaryContents)?.sectionListRenderer)?.contents;
   const more = list(root?.onResponseReceivedCommands).flatMap((command) => list(record(record(command)?.appendContinuationItemsAction)?.continuationItems));
@@ -150,7 +166,7 @@ export function parseInnertubeAged(body: unknown, fetchedAt: string): SearchPage
       if (renderer !== undefined) videos += 1;
       // YouTube's own "No results found" notice.
       if (record(entry)?.backgroundPromoRenderer !== undefined) noResults = true;
-      const item = toWebItem(renderer, fetchedAt);
+      const item = toWebItem(renderer, fetchedAt, keepLive);
       if (item && !items.some((seen) => seen.id === item.id)) {
         items.push(item);
         units.set(item.externalId, relativeAge(text(record(renderer)?.publishedTimeText), fetchedAt)?.unitMs ?? UNIT_MS.year);
@@ -183,5 +199,5 @@ export async function innertubeSearchAged(words: string, continuation: string | 
     timeoutMs: INNERTUBE_TIMEOUT_MS,
     postJson: innertubeBody(words, continuation, params),
   });
-  return parseInnertubeAged(body, fetchedAt);
+  return parseInnertubeAged(body, fetchedAt, params === LIVE_ONLY);
 }

@@ -34,7 +34,7 @@ void STREAM_PLATFORMS_COMPLETE;
  * Found only by searching everywhere or by a pasted link (`app/lib/web/search/`, SPEC-web-search.md): no
  * stream source reads them, but an opened one can be saved into the stream like any other item.
  */
-export type SearchOnlyPlatform = 'wikimedia_commons' | 'vimeo' | 'kino' | 'books' | 'audiobooks' | 'ipfs' | 'anna';
+export type SearchOnlyPlatform = 'wikimedia_commons' | 'vimeo' | 'kino' | 'books' | 'audiobooks' | 'ipfs' | 'anna' | 'twitch';
 
 /**
  * The reading mixed into MEDIA's default feed (SPEC-media-feed.md, Luke 2026-11-16): papers, news, long reads and tech
@@ -89,7 +89,12 @@ export type WebItem = {
    * ARXIV, HACKER NEWS). Absent on every other item.
    */
   outlet?: string;
-  /** ISO 8601. The stream is ordered by this, newest first, then by `id`. */
+  /**
+   * On now (SPEC-live-streams.md): a Twitch channel that is broadcasting or a YouTube live broadcast. The row shows `● LIVE`
+   * where a length goes; a live is read live, never saved into the stream. Absent on everything else.
+   */
+  live?: true;
+  /** ISO 8601. The stream is ordered by this, newest first, then by `id`. For a live, when it started. */
   publishedAt: string;
   /** ISO 8601: when WEB last read it. */
   fetchedAt: string;
@@ -133,6 +138,8 @@ export const PLATFORM_LABELS: Record<WebPlatform, string> = {
   // reach is blocked by Vercel's DNS for the real mirrors; this label is the option the reader picks when the Vercel
   // block is worked around (an outside proxy, or client-side fetching).
   anna: "ANNA'S ARCHIVE",
+  // Twitch's channels that are live now (SPEC-live-streams.md, Luke 2026-11-17): read live, never saved into the stream.
+  twitch: 'TWITCH',
   // The reading in MEDIA's default feed (SPEC-media-feed.md): each row shows its kind here and its outlet beside it.
   paper: 'PAPER',
   news: 'NEWS',

@@ -13,6 +13,8 @@ const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const NEVER = /(?!)/;
 /** A YouTube video id as WEB accepts it: 11 characters, alphanumeric first (see adapters/youtube.ts). */
 const YT_VIDEO = '[A-Za-z0-9][A-Za-z0-9_-]{10}';
+/** A Twitch channel's login as WEB accepts it: lower-case letters, digits and `_`, a letter or digit first, 2 to 25 long. */
+export const TWITCH_LOGIN = '[a-z0-9][a-z0-9_]{1,24}';
 /**
  * A Wikimedia Commons file name as one path segment: what `encodeURIComponent` leaves of it (spaces already
  * underscores), so anything outside these characters is percent-encoded and nothing can end the segment.
@@ -93,6 +95,11 @@ export type PlatformAddresses = {
    * player, must have no query at all.
    */
   embedQuery?: string;
+  /**
+   * Instead of `embedQuery`, a pattern the player's query must match whole, for a player asked for by query with the item's
+   * own id in it (Twitch: `?channel=<login>`). Only the one shape: the page adds `parent` itself when it frames it.
+   */
+  embedQueryPattern?: RegExp;
 };
 
 /**
@@ -167,6 +174,20 @@ export const PLATFORM_HOSTS: Record<WebPlatform, PlatformAddresses> = {
     pageHosts: ['vimeo.com'],
     thumbHosts: ['i.vimeocdn.com'],
     embedHosts: ['player.vimeo.com'],
+  },
+  // Twitch (search/providers/twitch.ts, SPEC-live-streams.md; live-checked 2026-11-17): the channel's page, the preview picture
+  // Twitch's picture server keeps of a live channel (an offline one redirects to Twitch's own "offline" picture), and the
+  // player page, asked for by `?channel=<login>`; the page adds `parent=<this site>` itself, as Twitch requires.
+  twitch: {
+    hosts: ['www.twitch.tv', 'static-cdn.jtvnw.net', 'player.twitch.tv'],
+    linkHosts: [],
+    pagePath: new RegExp(`^/${TWITCH_LOGIN}$`),
+    thumbPath: new RegExp(`^/previews-ttv/live_user_${TWITCH_LOGIN}-640x360\\.jpg$`),
+    embedPath: /^\/$/,
+    embedQueryPattern: new RegExp(`^\\?channel=${TWITCH_LOGIN}$`),
+    pageHosts: ['www.twitch.tv'],
+    thumbHosts: ['static-cdn.jtvnw.net'],
+    embedHosts: ['player.twitch.tv'],
   },
   // KINO (kino.ts): a link out to the title's TMDB page and TMDB's poster on its image host; no player.
   kino: {

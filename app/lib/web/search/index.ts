@@ -8,6 +8,7 @@ import { openverseSearch } from './providers/openverse';
 import { peertubeSearch } from './providers/peertube';
 import { vimeoLookup } from './providers/vimeo';
 import { wikimediaCommonsSearch } from './providers/wikimedia-commons';
+import { twitchSearch } from './providers/twitch';
 import { youtubeSearch } from './providers/youtube';
 import type { SearchProvider } from './types';
 
@@ -18,6 +19,7 @@ import type { SearchProvider } from './types';
 export const SEARCH_PROVIDERS: readonly SearchProvider[] = [
   internetArchiveSearch,
   youtubeSearch,
+  twitchSearch,
   peertubeSearch,
   wikimediaCommonsSearch,
   openverseSearch,

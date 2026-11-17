@@ -23,7 +23,9 @@ const EXTERNAL_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$/;
 const asked = new Set<string>();
 
 /** Records that someone opened this result. Never throws: a failed request only means it is not saved. */
-export async function recordOpened(item: Pick<WebItem, 'id' | 'platform' | 'externalId'>): Promise<void> {
+export async function recordOpened(item: Pick<WebItem, 'id' | 'platform' | 'externalId'> & { live?: true }): Promise<void> {
+  // A live is read live and never saved (SPEC-live-streams.md): no request for the hourly job either.
+  if (item.live === true || item.platform === 'twitch') return;
   if (!SAVE_OPENED || asked.has(item.id) || !ID.test(item.platform) || !EXTERNAL_ID.test(item.externalId)) return;
   const db = getSupabaseBrowserClient();
   if (db === null) return;

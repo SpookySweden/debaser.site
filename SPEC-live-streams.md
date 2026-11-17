@@ -169,3 +169,29 @@ YouTube upcoming broadcasts; Kick and other live sites; playing any raw stream o
 - Rooms also come first in an ordinary ALL search, not only with the LIVE key on.
 - A Twitch channel queues as the channel, a YouTube live as that one broadcast.
 - Lives are cached about a minute on the server; nothing about them is stored.
+
+## As built (2026-11-17)
+- **The key** is `[ ● LIVE ]` to the right of ORDER, pressed it reads `● LIVE`; typed `is:live` (`is:all` clears it); the
+  address carries `?live=1`. With no words it lists the most-watched lives on Twitch now (`/api/web/live`); YouTube needs words.
+- **LIVE ROOMS** (`WebLiveRooms.tsx`) sits first under a search (ALL source, any or VIDEO kind, no creator), under the LIVE key,
+  and at the top of the default feed; three rooms, then `[ ALL n ROOMS ]`. JOIN is the ROOM list's own (`enterRoom`).
+- **The feed's LIVE place** is the fifth of each block of 12 (one FOR YOU place became it); empty, it is FOR YOU's again. A live
+  is never rested or held back for being opened lately, so a channel watched here keeps coming back while it is live.
+- **FOR YOU** has a LIVE NOW lane under YOUR YOUTUBE; its title key puts the live on in your room.
+- **Recommendation asks** (`live-lane.ts`): the Twitch channels in your MEDIA history (newest first, not NOT FOR ME), then the
+  makers your taste leans to and YOUR YOUTUBE's channels tried as Twitch logins of the same name, then your taste's 5 strongest
+  words (Twitch categories, YouTube lives for the first two). Ordered: watched here first, then the taste score, then the day.
+- **The room** says `<CHANNEL> IS OFFLINE` on the stage when Twitch's player says OFFLINE (not broadcasting, or the stream just
+  ended), and the host's room moves on after the same pause as any link that won't play (`SKIPPED: <CHANNEL> IS OFFLINE`).
+- **HISTORY** marks a Twitch channel's line `● LIVE` from its address, with the channel as maker and Twitch's preview as its
+  picture; its fold says `A LIVE STREAM · ... · YOU WATCHED h:mm:ss`. A YouTube live's line is an ordinary video line (it is
+  known to have been live only while it plays; played again it is the recording, as 4A says).
+- **YouTube lives in an ordinary search** (changed in review): an ordinary search is cached a day on the server, so a YouTube
+  live found there would go on saying LIVE long after it ended. So an ordinary (ALL or YOUTUBE) search still leaves YouTube
+  lives out, as before; they show under the LIVE key, in the feed's LIVE places and FOR YOU's LIVE NOW, all read fresh.
+  Twitch's rows are always live and always read fresh (a minute), so they do mix into ordinary searches.
+- **POPULAR with Twitch's keys**: Helix's search has no counts, so `/streams` is asked for the found channels and orders them.
+- **Never saved:** a live is not named for tagging, not asked for by the hourly save of opened rows, and YouTube's `videos.list`
+  never makes a live into a saved item. Live answers are kept a minute in server memory (`live-fetch.ts`) and never by the browser.
+- **Proof:** `scripts/check-web-search-twitch.cjs` (the provider, keys, cache, YouTube live mode, the key, the feed place, the
+  asks); `Temp/browse/drive-live.cjs` on a local mock server (`Temp/browse/dev-mock-live.cjs 3317`).

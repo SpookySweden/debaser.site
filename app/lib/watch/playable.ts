@@ -36,6 +36,8 @@ export interface EmbedPlayable extends Playable {
    * frame, the same from both sides and from top and foot), where the player lays its own frame out (YouTube).
    */
   setFit?(fit: { base: number; x: number; y: number }): void;
+  /** Why the site refused it, once it has: `offline` is a Twitch channel that is not broadcasting (SPEC-live-streams.md). */
+  readonly refusal?: 'embed' | 'missing' | 'offline' | null;
   destroy(): void;
 }
 

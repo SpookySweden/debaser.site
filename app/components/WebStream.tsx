@@ -15,13 +15,14 @@ import { useYourYouTube } from '../lib/web/use-your-youtube';
 import { askBrief, useBrief } from '../lib/web/use-brief';
 import { readingPage } from '../lib/web/brief/reading-search';
 import { useFeedLanes } from '../lib/web/use-feed-lanes';
+import { useLiveLane } from '../lib/web/use-live-lane';
 import { BLOCK_SIZE, mixFeed, openedLately, readingOpens, type Lane, type MixLane, type ReadingRow } from '../lib/web/feed-mix';
 import { noteFirstBlock, noteOpenedRow, readResting } from '../lib/web/passed-over';
 import { isReadingKind, openLinkSite } from '../lib/web/brief/feeds';
 import { readingRowAddresses } from '../lib/web/brief/addresses';
 import { YOUTUBE_LINK_ON } from '../lib/web/youtube-link';
 import WebYouTubeHome from './WebYouTubeHome';
-import { EverywhereError, loadPeertubeHosts, loadRelated, needsPeertubeHosts, searchEverywhere, type LinkOutcome, type ProviderLine, type Related } from '../lib/web/everywhere-client';
+import { EverywhereError, loadLiveNow, loadPeertubeHosts, loadRelated, needsPeertubeHosts, searchEverywhere, type LinkOutcome, type ProviderLine, type Related } from '../lib/web/everywhere-client';
 import { looksLikeLink, MAX_LINK_LENGTH } from '../lib/web/link-shape';
 import { arrive, compareIn, EMPTY_LIVE, emptyLive, freeze, heldBack, lanesToAsk, release, type ListOrder, type LiveList } from '../lib/web/live-merge';
 import { getWebRepository } from '../lib/web/repository';
@@ -93,6 +94,7 @@ import SpriteSlot from './SpriteSlot';
 import WebMediaRow, { isKinoRow, isMediaRow, KinoRow } from './WebMediaRow';
 import WebCatalogueFinds, { CatalogueLine, useCatalogueFinds } from './WebCatalogueFinds';
 import WebSiteFiles from './WebSiteFiles';
+import WebLiveRooms from './WebLiveRooms';
 import StreamArtShelf from './StreamArtShelf';
 import { watchLinkForItem } from '../lib/web/bridges';
 import { canWatch, WebDiscussKey } from './WebBridgeKeys';
@@ -164,11 +166,11 @@ const TITLE_CLASS: Record<MediaView, string> = {
 const MISSING_THUMB_SRC = `/${artSlot('web-thumb-missing')?.path ?? 'assets/web/thumb-missing.png'}`;
 
 /** The SOURCE, TYPE, `from:`, VIBE and SORT filters a list is shown under (web-filters.ts). */
-type Filters = Pick<WebSearch, 'source' | 'type' | 'authors' | 'vibe' | 'sort' | 'lang'>;
+type Filters = Pick<WebSearch, 'source' | 'type' | 'authors' | 'vibe' | 'sort' | 'lang' | 'live'>;
 
 /** No filter at all: the only view MEDIA's default feed mixes (SPEC-media-feed.md). */
 function plainFilters(filters: Filters): boolean {
-  return filters.source === 'all' && filters.type === 'all' && authorsOf(filters).length === 0 && filters.vibe !== true && filters.sort === undefined && filters.lang === undefined;
+  return filters.source === 'all' && filters.type === 'all' && authorsOf(filters).length === 0 && filters.vibe !== true && filters.sort === undefined && filters.lang === undefined && filters.live !== true;
 }
 
 /** The default feed's sources other than the stream, each taken once a visit (feed-mix.ts). */
@@ -177,6 +179,7 @@ type MixLanes = {
   youtube?: Lane<WebStreamItem>;
   discover?: Lane<WebStreamItem>;
   people?: Lane<WebStreamItem>;
+  live?: Lane<WebStreamItem>;
 };
 
 /**
@@ -210,6 +213,7 @@ function requestFor(box: string): Shown {
     ...(parsed.vibe ? { vibe: true as const } : {}),
     ...(parsed.sort ? { sort: parsed.sort } : {}),
     ...(parsed.lang ? { lang: parsed.lang } : {}),
+    ...(parsed.live ? { live: true as const } : {}),
   };
   const query = searchText(parsed.text);
   // A creator alone is a search too: every source is asked for their items.
@@ -245,6 +249,7 @@ function filtersInWords(search: WebSearch, art: boolean): string {
     ...(authors.length > 0 ? [`FROM ${authors.join(' OR ').toUpperCase()}`] : []),
     ...(search.vibe ? ['MOOD SEARCH ON'] : []),
     ...(search.lang ? [`IN ${languageLabel(search.lang)}`] : []),
+    ...(search.live ? ['ON NOW ONLY'] : []),
     orderLabel(sortOf(search)),
   ].join(', ');
 }
@@ -307,6 +312,8 @@ function sourcesFor(shown: Shown): Source[] {
   if (isReadingSource(shown.filters.source)) return canSort(shown.filters.source, sortOf(shown.filters)) ? [shown.filters.source] : [];
   const plan = sourcesToAsk(shown.filters);
   const stream: Source[] = plan.stream ? ['stream'] : [];
+  // The `[ ● LIVE ]` key with no words: what is on now on Twitch (its own most-watched order); YouTube needs words.
+  if (shown.kind === 'stream' && shown.filters.live === true) return plan.live.includes('twitch') ? ['twitch'] : [];
   // Live sources need words to search for; with none, the list is the stream alone.
   if (shown.kind === 'stream') return stream;
   return [...stream, ...plan.live].filter((source) => canSort(source, sortOf(shown.filters)) || swapsOnly(source, shown));
@@ -379,12 +386,15 @@ function readSource(source: Source, what: Shown, after: string | null, keyword?:
         });
   }
   if (what.kind === 'link') return searchEverywhere(what.link, after);
+  // The `[ ● LIVE ]` key with no words: what is on now (`/api/web/live`), one page.
+  if (what.kind === 'stream') return after === null ? loadLiveNow().then((items) => ({ items, nextCursor: null })) : Promise.resolve({ items: [], nextCursor: null });
   // A live source is asked about one creator at a time: the first.
   return searchEverywhere(what.kind === 'search' ? what.query : '', after, source, authorsOf(what.filters)[0] ?? null, what.filters.type, {
     vibe: what.filters.vibe === true,
     ...(keyword !== undefined ? { keyword } : {}),
     ...(order !== undefined ? { order } : {}),
     ...(what.filters.lang !== undefined ? { lang: what.filters.lang } : {}),
+    ...(what.filters.live === true ? { live: true } : {}),
   });
 }
 
@@ -979,13 +989,17 @@ export default function WebStream() {
   const mixOn = picksOrdered && shown.kind === 'stream' && plainFilters(shown.filters);
   const briefRows = useBrief(mixOn);
   const feedLanes = useFeedLanes(mixOn, historyUsed === null ? null : taste, openedAt);
+  // The LIVE places (SPEC-live-streams.md): lives that fit this reader's history, linked YouTube and taste.
+  const youtubeMakers = useMemo(() => [...new Set(youtube.items.flatMap((item) => (item.creator ? [item.creator] : [])))], [youtube.items]);
+  const liveLane = useLiveLane(mixOn, historyUsed === null ? null : taste, historyUsed, youtubeMakers, openedAt);
   /**
    * The first block waits for the reading, the reader's history and whether they are signed in, or 2.5 seconds,
    * whichever comes first. What it was drawn with (the history, signed in or not) is then held for the visit, so a late
    * answer never reshuffles rows already on screen.
    */
   const [mixGate, setMixGate] = useState(false);
-  if (mixOn && !mixGate && briefRows !== null && history !== null && authStatus !== 'loading') setMixGate(true);
+  // The lives too (SPEC-live-streams.md), so the LIVE places are in the first blocks rather than after LOAD MORE; the 2.5 seconds still cap it.
+  if (mixOn && !mixGate && briefRows !== null && history !== null && liveLane !== null && authStatus !== 'loading') setMixGate(true);
   const [mixHistory, setMixHistory] = useState<readonly HistoryRow[] | null>(null);
   if (mixGate && mixHistory === null) setMixHistory(history ?? []);
   const [mixVisitor, setMixVisitor] = useState<boolean | null>(null);
@@ -1012,11 +1026,13 @@ export default function WebStream() {
       reading: mixLanes.reading ?? null,
       discover: mixLanes.discover ?? null,
       people: mixLanes.people ?? null,
+      live: mixLanes.live ?? null,
       visitor,
       readingOpens: kindOpens,
       taste,
       // A Short YouTube has confirmed is dropped here, so its place is filled rather than left a hole (WebRow hides it).
-      dropped: (item) => notForMe.has(keyOf('media', item.id)) || openedIds.has(item.id) || resting.has(item.id) || hiddenShortNow(item),
+      // A live is never rested or held back for being opened lately: a channel watched here is what the LIVE places look for.
+      dropped: (item) => notForMe.has(keyOf('media', item.id)) || (item.live !== true && (openedIds.has(item.id) || resting.has(item.id))) || hiddenShortNow(item),
       now: openedAt,
     });
     // shortsSeen: re-mixed when YouTube answers about a Short, so the dropped rule above reads the answer.
@@ -1030,6 +1046,7 @@ export default function WebStream() {
     if (mixLanes.youtube === undefined && !visitor && youtube.items.length > 0) arrivals.youtube = { rows: youtube.items.map((item) => ({ ...item, alsoOn: [] })), fromBlock: from };
     if (mixLanes.discover === undefined && feedLanes.discover !== null) arrivals.discover = { rows: feedLanes.discover.map((item) => ({ ...item, alsoOn: [] })), fromBlock: from };
     if (mixLanes.people === undefined && feedLanes.people !== null) arrivals.people = { rows: feedLanes.people.map((item) => ({ ...item, alsoOn: [] })), fromBlock: from };
+    if (mixLanes.live === undefined && liveLane !== null) arrivals.live = { rows: liveLane.map((item) => ({ ...item, alsoOn: [] })), fromBlock: from };
     if (Object.keys(arrivals).length > 0) setMixLanes({ ...mixLanes, ...arrivals });
   }
   // Today's first block, noted once a visit in this browser: three days of being passed over rests a row for a week.
@@ -1213,6 +1230,18 @@ export default function WebStream() {
           <button type="button" onClick={() => toggleFold('media-order')} aria-expanded={folds.has('media-order')} aria-controls="media-order-panel" className={FOLD_KEY} data-order-toggle>
             {`[ ORDER: ${orderLabel(boxSort)} ]`}
           </button>
+          {/* LIVE, beside ORDER (SPEC-live-streams.md, Luke 2026-11-17, 1A): only what is on now, this site's live rooms first, then
+              Twitch and YouTube. Typed `is:live` too; it only writes that into the box, like every filter key. */}
+          <button
+            type="button"
+            onClick={() => pickFilter('is', boxFilters.live === true ? 'all' : 'live')}
+            aria-pressed={boxFilters.live === true}
+            aria-label="Live: only what is on now"
+            className={boxFilters.live === true ? FILTER_KEY_ON : FILTER_KEY}
+            data-live-key
+          >
+            {boxFilters.live === true ? '● LIVE' : '[ ● LIVE ]'}
+          </button>
           <p className="text-key text-ink wrap-anywhere">
             <span className="text-accent-ink">SHOWING: </span>
             {home ? 'YOUR YOUTUBE' : filtersInWords(boxFilters, art)}
@@ -1345,7 +1374,11 @@ export default function WebStream() {
 
       {home ? youtubeHome() : picked !== null && !art ? <WebPickedList key={boxFilters.lang ?? 'any'} list={picked} sort={pickSortOf(boxFilters)} filters={boxFilters} renderRow={(item) => renderRow({ ...item, alsoOn: [] } as WebStreamItem)} /> : art ? <StreamArtShelf /> : <>
       {/* DEBASER.SITE first: the site's own files the search finds. Keyed by the search, so ALL n FILES starts shut. */}
-      {shown.kind === 'search' ? <WebSiteFiles key={searchAddress({ ...shown.filters, text: shown.query })} matches={siteFiles} /> : null}
+      {/* This site's live rooms, first of all (SPEC-live-streams.md: "prioritises user rooms"): under a search, or the LIVE key. */}
+      {(shown.kind === 'search' || (shown.kind === 'stream' && (shown.filters.live === true || mixOn))) && shown.filters.source === 'all' && (shown.filters.type === 'all' || shown.filters.type === 'video') && authorsOf(shown.filters).length === 0 ? (
+        <WebLiveRooms key={searchAddress({ ...shown.filters, text: shown.kind === 'search' ? shown.query : '' })} query={shown.kind === 'search' ? shown.query : ''} />
+      ) : null}
+      {shown.kind === 'search' && shown.filters.live !== true ? <WebSiteFiles key={searchAddress({ ...shown.filters, text: shown.query })} matches={siteFiles} /> : null}
 
       {emptyLine !== null ? (
         <p role="status" className="text-label font-bold text-ink wrap-anywhere">
@@ -1840,9 +1873,16 @@ ${item.description}` : item.title)} className="ml-1.5" />
                   </span>
                 )}
                 <TightDot />
-                <time dateTime={item.publishedAt} className="shrink-0">
-                  {date}
-                </time>
+                {item.live ? (
+                  // On now (SPEC-live-streams.md): where a date goes, the same LIVE mark the room lists use.
+                  <span className="shrink-0 bg-acid px-1 font-bold text-ink-plate" data-live-mark>
+                    ● LIVE
+                  </span>
+                ) : (
+                  <time dateTime={item.publishedAt} className="shrink-0">
+                    {date}
+                  </time>
+                )}
               </p>
             ) : full ? (
               <p className="flex flex-wrap items-center gap-x-1.5 text-label text-ink-quiet" data-row-facts>
@@ -1853,7 +1893,13 @@ ${item.description}` : item.title)} className="ml-1.5" />
                   </span>
                 )}
                 <span aria-hidden="true">·</span>
-                <time dateTime={item.publishedAt}>{date}</time>
+                {item.live ? (
+                  <span className="bg-acid px-1 font-bold text-ink-plate" data-live-mark>
+                    ● LIVE
+                  </span>
+                ) : (
+                  <time dateTime={item.publishedAt}>{date}</time>
+                )}
                 {item.platform === 'books' && item.book && item.book.editions > 0 ? <span>{`· ${editionCount(item.book.editions)}`}</span> : null}
                 {licence ? (
                   <a
