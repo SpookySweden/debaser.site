@@ -57,8 +57,10 @@ The house rules live in `.claude/rules/core.md` (loaded automatically).
   Feeds and APIs come first. Reading a platform's ordinary web pages (scraping) is a last resort, only with Luke's OK
   each time and a fallback (Luke, 2026-11-15): pages change shape without warning, and platforms block the address
   that scrapes, which after the move to a local server is his home connection.
-- The default feed (SPEC-media-feed.md, Luke's yes 2026-11-16): /media with nothing searched mixes the stream, YOUR YOUTUBE,
-  DISCOVER, people's picks and reading in blocks of 12 (`app/lib/web/feed-mix.ts`). The reading (papers, news, long reads,
+- The default feed (SPEC-media-feed.md, Luke's yes 2026-11-16; ranked since SPEC-media-feed-v2.md, "All A" 2026-11-17):
+  /media with nothing searched ranks every saved row, YOUR YOUTUBE, DISCOVER, people's picks and reading against a profile of
+  every signal the reader may already read (`app/lib/web/feed-profile.ts`, `feed-rank.ts`), in screens of 12 with variety
+  limits and a why-line under each row; scores never leave the ranker. The reading (papers, news, long reads,
   tech links) is read live by `/api/web/brief` from the feeds listed in `app/lib/web/brief/feeds.ts`, never stored;
   Hacker News and Lobsters rows link to the story's own site (his decision 2A, the one open-link exception).
 - Remote fetches from the server go through `app/lib/web/safe-fetch.ts`. Browser code may fetch outside sites

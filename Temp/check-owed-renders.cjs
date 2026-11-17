@@ -1265,7 +1265,10 @@ test('WebStream: the plain stream draws the search box and every filter, says it
   assert.ok(!html.includes('data-imdb-key'), 'no IMDB key: films and shows are KINO under WHERE FROM');
   await inBrowser(fakeBrowser(), async () => runEffects());
   await tick();
-  assert.deepEqual(said('listItems').length, 1);
+  // Updated on purpose 2026-11-17 (SPEC-media-feed-v2.md, Luke: "All A"): plain /media is the ranked default feed, which
+  // weighs every saved row, so the whole stream is read once a visit (use-feed-signals.ts `useStreamPool`) besides the
+  // list's own first page. Still only the saved stream: no live source, no search.
+  assert.deepEqual(said('listItems').length, 2);
   assert.deepEqual(said('searchEverywhere'), []);
   assert.deepEqual(said('searchItems'), []);
 });

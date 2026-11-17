@@ -6,6 +6,7 @@ import { subscribeHistory } from '../recommender/history';
 import { subscribeSummary } from '../recommender/watch-summary';
 import { youTubeTaste } from '../recommender/youtube-picks';
 import { channelNames, type Taste } from './recommend';
+import type { FeedSignals } from './feed-profile';
 import type { WebItem } from './types';
 import { forgetYouTube, readMineOnce, rememberLinker, reweighMine, YOUTUBE_LINK_ON, type YouTubeFound } from './youtube-link';
 
@@ -25,6 +26,8 @@ export type YourYouTube = {
   items: readonly WebItem[];
   /** Adds what their YouTube says to a taste: channels by where they stand, topics, playlist names, an import's words. */
   teach: (taste: Taste) => Taste;
+  /** The same read as the profile of MEDIA's default feed takes it (feed-profile.ts): null until the first read. */
+  signals: FeedSignals['youtube'];
   /** The names of the channels that stand, for moving their rows up a search's page. Read from a ref, so asking never restarts. */
   standing: RefObject<ReadonlySet<string>>;
   /** Nothing to show, or Google's permission has run out: LINK YOUTUBE is offered. */
@@ -90,5 +93,12 @@ export function useYourYouTube(): YourYouTube {
     [taught],
   );
   const items = useMemo(() => found?.items ?? [], [found]);
-  return { items, teach, standing, needsLink, problem, link, unlink };
+  const signals = useMemo(
+    (): FeedSignals['youtube'] =>
+      taught === null
+        ? null
+        : { channels: taught.standings.map(({ name, outside }) => ({ name, outside })), topics: taught.topics, playlists: taught.playlists, imported: taught.summary?.words ?? [] },
+    [taught],
+  );
+  return { items, teach, signals, standing, needsLink, problem, link, unlink };
 }

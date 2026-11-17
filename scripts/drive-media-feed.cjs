@@ -1,8 +1,10 @@
 /*
- * Drives MEDIA's default feed (SPEC-media-feed.md) in a real browser, on a local dev server with mock data only:
+ * Drives MEDIA's default feed (SPEC-media-feed.md; version 2, SPEC-media-feed-v2.md) in a real browser, on a local dev
+ * server with mock data only:
  *
- *   1. /media with nothing searched draws PICKED FOR YOU in blocks of 12, reading in places 4 and 10 of each block,
- *      never more than 2 reading rows in 12, and no YOUR YOUTUBE rows for a visitor;
+ *   1. /media with nothing searched draws PICKED FOR YOU in screens of 12, reading in places 4 and 10 of each,
+ *      never more than 2 reading rows in 12, no YOUR YOUTUBE rows for a visitor, and every row says why it is there in
+ *      plain words (v2: a visitor's say no name and no history);
  *   2. a reading row has its outlet key, opening in a new tab on a listed address, and no DISCUSS;
  *   3. LOAD MORE adds rows below and the rows already drawn stay where they were;
  *   4. a reload the same day draws the same first block;
@@ -11,6 +13,10 @@
  *      has answered, and LOAD MORE is really pressed (`--need-more` fails the run without it);
  *   7. (list 3) WHERE FROM's READING group: its keys in the panel, NEWS shows news alone, a search in TECH finds tech alone,
  *      and POPULAR under a reading kind says PAPER: NO POPULARITY ORDER.
+ *   8. (v2) signed in as the mock's hidden test person with a seeded mock history: a row played and a row turned down
+ *      (NOT FOR ME) are nowhere in the feed, and rows say why in the history's words (BECAUSE YOU ... / MORE FROM ...).
+ *
+ * v2 changed step 6: NEW TO YOU and PEOPLE'S PICKS are no longer fixed places; people's picks are at most 2 in 12.
  *
  *   node scripts/drive-media-feed.cjs --base http://localhost:3316 --pool-ready --need-more
  *
@@ -51,8 +57,35 @@ const readRows = (page) =>
       href: li.querySelector('[data-outlet-key]')?.getAttribute('href') ?? null,
       target: li.querySelector('[data-outlet-key]')?.getAttribute('target') ?? null,
       discuss: li.querySelector('[data-discuss-key]') !== null,
+      why: li.querySelector('p[data-why]')?.textContent?.trim() ?? null,
+      block: Number(li.getAttribute('data-feed-block') ?? '-1'),
     })),
   );
+
+/** Every why-line comes from the ranker's fixed list (feed-rank.ts), in plain words. */
+const WHY = /^(BECAUSE YOU (PLAYED|FINISHED|READ|OPENED|WANTED MORE LIKE) .+|FROM A CHANNEL YOU WATCH|MORE FROM .+|FITS .+|PICKED FOR TODAY|NEW: NEAR .+|NEW TO YOU|TODAY'S NEWS|A NEW PAPER|A LONG READ FOR TODAY|IN TECH TODAY|.+ SENT YOU THIS|SENT TO YOU|QUEUED IN A ROOM YOU JOINED|RECOMMENDED HERE|ON NOW|.+ RECOMMENDED THIS)$/;
+const VISITOR_WHY = new Set(['PICKED FOR TODAY', 'RECOMMENDED HERE', "TODAY'S NEWS", 'A NEW PAPER', 'A LONG READ FOR TODAY', 'IN TECH TODAY', 'ON NOW']);
+
+/** The mock's hidden test person, signed in by writing this browser's own storage, with a seeded mock history. */
+const PERSON = 'mock-test-account';
+const PLAYED = 'internet_archive:principlesofscientificmanagement_2610_librivox';
+const TURNED_DOWN = 'peertube:75458950-1377-42fb-be1c-34a2c5b9f98c';
+function seedSignedIn({ person, played, turnedDown, now }) {
+  window.localStorage.setItem('debaser.lost-account.never.v1', '1');
+  window.localStorage.setItem(
+    'debaser.auth.mock.v1',
+    JSON.stringify({ users: [{ id: person, email: 'test-mock@debaser.site', displayName: 'TEST ACCOUNT (MOCK)', createdAt: '2026-11-14T00:00:00.000Z', salt: '', secretHash: '', hidden: true }], sessionUserId: person, bannedIds: [] }),
+  );
+  const at = (days) => new Date(now - days * 86_400_000).toISOString();
+  window.localStorage.setItem(
+    'debaser.history.mock.v1',
+    JSON.stringify([
+      { kind: 'media', ref: played, title: 'The Principles of Scientific Management', maker: 'Mock Creator', words: ['management', 'audiobook'], action: 'played', firstAt: at(1), lastAt: at(1) },
+      { kind: 'media', ref: turnedDown, title: 'A turned down video', maker: 'Mock PeerTube Maker', words: [], action: 'not_for_me', firstAt: at(1), lastAt: at(1) },
+      { kind: 'media', ref: 'youtube:drive-quantum', title: 'Why quantum mechanics is strange', maker: 'Mock Channel', words: [], action: 'finished', firstAt: at(3), lastAt: at(2) },
+    ]),
+  );
+}
 
 (async () => {
   const browser = await chromium.launch({ executablePath: findChrome(), headless: true });
@@ -84,15 +117,22 @@ const readRows = (page) =>
   assert.ok(rows.length >= 12, `at least one whole block (${rows.length})`);
   assert.ok(rows.every((row) => row.lane !== null), 'every row says which source placed it');
   pass('PICKED FOR YOU draws the mixed feed');
-  for (let start = 0; start + 12 <= rows.length; start += 12) {
-    const block = rows.slice(start, start + 12);
-    assert.ok(block.filter((row) => row.lane === 'reading').length <= 2, `block ${start / 12 + 1}: at most 2 reading rows`);
-    assert.equal(block[3].lane, 'reading', `block ${start / 12 + 1}: place 4 is reading`);
-    assert.equal(block[9].lane, 'reading', `block ${start / 12 + 1}: place 10 is reading`);
+  // v2: rows are grouped by the screen they are on (data-feed-block): a screen the stream ran out in may be short.
+  const screens = [...new Set(rows.map((row) => row.block))].map((b) => rows.filter((row) => row.block === b));
+  for (const [index, block] of screens.entries()) {
+    assert.ok(block.filter((row) => row.lane === 'reading').length <= 2, `screen ${index + 1}: at most 2 reading rows`);
+    if (block.length < 12) continue;
+    assert.equal(block[3].lane, 'reading', `screen ${index + 1}: place 4 is reading`);
+    assert.equal(block[9].lane, 'reading', `screen ${index + 1}: place 10 is reading`);
   }
   pass('reading sits in places 4 and 10 of every block, never more than 2 in 12');
   assert.ok(!rows.some((row) => row.lane === 'youtube'), 'a visitor gets no YOUR YOUTUBE rows');
   pass('no YOUR YOUTUBE rows for a visitor');
+  for (const row of rows) {
+    assert.ok(row.why !== null && WHY.test(row.why), `${row.id}: a why-line in plain words (${row.why})`);
+    assert.ok(VISITOR_WHY.has(row.why), `${row.id}: a visitor's why-line names nobody and no history (${row.why})`);
+  }
+  pass(`every row says why, in a visitor's words (${[...new Set(rows.map((row) => row.why))].join(' / ')})`);
   const kinds = new Set(rows.filter((row) => row.reading).map((row) => row.reading));
   assert.ok(kinds.size >= 2, `the reading kinds take turns (${[...kinds].join(', ')})`);
   pass(`the reading kinds take turns: ${[...kinds].join(', ')}`);
@@ -140,15 +180,10 @@ const readRows = (page) =>
     const people = at('people');
     assert.ok(fresh.length > 0, 'NEW TO YOU rows are drawn');
     assert.ok(people.length > 0, "PEOPLE'S PICKS rows are drawn");
-    // PEOPLE'S PICKS only ever takes its own place. NEW TO YOU holds places 6 and 12 of every whole block from the first one
-    // it joins (a late source joins from the next block not yet started); once FOR YOU runs dry (the mock stream is 22
-    // rows) it takes FOR YOU's places too, as the fill order says, so it is not held to 6 and 12 alone.
-    assert.ok(people.every((place) => place === 6), `PEOPLE'S PICKS sits in place 7 (${people.map((p) => p + 1)})`);
-    const firstNew = all.findIndex((row) => row.lane === 'new');
-    for (let start = Math.floor(firstNew / 12) * 12; start + 12 <= all.length; start += 12) {
-      if (start + 5 < firstNew) continue;
-      assert.equal(all[start + 5].lane, 'new', `block ${start / 12 + 1}: place 6 is NEW TO YOU`);
-      assert.equal(all[start + 11].lane, 'new', `block ${start / 12 + 1}: place 12 is NEW TO YOU`);
+    // v2 (SPEC-media-feed-v2.md): people's picks are ranked like everything else, at most 2 in each screen of 12; NEW TO
+    // YOU places are 3, 7 and 12, but a DISCOVER find may also win a place of its own.
+    for (const b of new Set(all.map((row) => row.block))) {
+      assert.ok(all.filter((row) => row.block === b && row.lane === 'people').length <= 2, `screen ${b + 1}: at most 2 people's picks`);
     }
     pass(`NEW TO YOU (${fresh.length} rows, places ${[...new Set(fresh.map((p) => p + 1))]}) and PEOPLE'S PICKS (${people.length}, place ${[...new Set(people.map((p) => p + 1))]}) drawn`);
     const titles = await page.$$eval('ul[aria-label="Items picked for you"] > li[data-feed-lane="new"], ul[aria-label="Items picked for you"] > li[data-feed-lane="people"]', (items) =>
@@ -200,6 +235,32 @@ const readRows = (page) =>
   await page.goto(`${BASE}/media?in=paper&sort=popular`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('text=PAPER: NO POPULARITY ORDER', { timeout: 60_000 });
   pass('POPULAR under PAPERS says PAPER: NO POPULARITY ORDER');
+
+  // 8. Signed in, with a seeded history (v2).
+  {
+    const signedIn = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+    await signedIn.route(/supabase\.(co|in)\//, (route) => {
+      supabaseTried += 1;
+      return route.abort();
+    });
+    await signedIn.addInitScript(seedSignedIn, { person: PERSON, played: PLAYED, turnedDown: TURNED_DOWN, now: Date.now() });
+    const mine = await signedIn.newPage();
+    mine.on('pageerror', (error) => problems.push(String(error)));
+    await mine.goto(`${BASE}/media`, { waitUntil: 'domcontentloaded', timeout: 180_000 });
+    await mine.waitForSelector(`${ROWS}[data-feed-lane]`, { timeout: 120_000 });
+    await mine.waitForTimeout(3000);
+    const own = await readRows(mine);
+    console.log(`  signed in: ${own.length} rows; why: ${own.slice(0, 12).map((row) => row.why).join(' / ')}`);
+    const idOf = (id) => `web-row-${id.replace(/[^A-Za-z0-9_-]/g, '-')}`;
+    assert.ok(!own.some((row) => row.id === idOf(PLAYED)), 'the row played yesterday is not in the feed');
+    assert.ok(!own.some((row) => row.id === idOf(TURNED_DOWN)), 'the row turned down (NOT FOR ME) is not in the feed');
+    pass('signed in: the played row and the NOT FOR ME row are left out');
+    for (const row of own) assert.ok(row.why !== null && WHY.test(row.why), `${row.id}: a why-line in plain words (${row.why})`);
+    assert.ok(own.some((row) => /^(BECAUSE YOU |MORE FROM )/.test(row.why ?? '')), 'some rows say which thing done brought them');
+    pass(`signed in: why-lines in the history's words (${[...new Set(own.map((row) => row.why))].slice(0, 6).join(' / ')})`);
+    await mine.screenshot({ path: join(SHOTS, 'feed-signed-in-1440.png'), fullPage: false });
+    await signedIn.close();
+  }
 
   assert.equal(supabaseTried, 0, 'nothing tried to reach Supabase');
   pass('nothing reached Supabase');

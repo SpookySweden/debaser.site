@@ -19,7 +19,13 @@ import type { WebItem } from './types';
  * RECOMMENDED does). Both are null until they have answered, and empty when the catalogue can't be read or isn't
  * ready. `on` false asks for nothing.
  */
-export type FeedLanes = { discover: readonly WebItem[] | null; people: readonly WebItem[] | null };
+export type FeedLanes = {
+  discover: readonly WebItem[] | null;
+  /** People's public picks found in the catalogue, with who recommended each. */
+  people: readonly { item: WebItem; people: readonly { id: string; name: string }[] }[] | null;
+  /** Every public pick as read (an id and who), so the page can find the ones in the saved stream too. */
+  picks: readonly RecommendedPick[];
+};
 
 /** A catalogue row as a MEDIA row: its words become its tags (they only ever order a list). */
 function asItem(item: StationItem): WebItem {
@@ -70,9 +76,9 @@ export function useFeedLanes(on: boolean, taste: Taste | null, now: number): Fee
   const digging = useMoreItems(loaded, ask);
 
   return useMemo((): FeedLanes => {
-    if (failed || (loaded !== null && !poolReady(loaded))) return { discover: [], people: [] };
+    if (failed || (loaded !== null && !poolReady(loaded))) return { discover: [], people: [], picks };
     const index = digging.index;
-    if (index === null || taste === null || recipe === null || digging.loading) return { discover: null, people: null };
+    if (index === null || taste === null || recipe === null || digging.loading) return { discover: null, people: null, picks };
     const discover = discoverList(index, recipe, taste, 'best', now)
       .filter((item) => !item.seenOnly)
       .slice(0, 120)
@@ -80,7 +86,7 @@ export function useFeedLanes(on: boolean, taste: Taste | null, now: number): Fee
     const people = recommendedList(index, picks, taste, 'best', now)
       .filter((row) => row.people.length > 0 && !row.item.seenOnly)
       .slice(0, 60)
-      .map((row) => asItem(row.item));
-    return { discover, people };
+      .map((row) => ({ item: asItem(row.item), people: row.people }));
+    return { discover, people, picks };
   }, [failed, loaded, digging.index, digging.loading, taste, recipe, picks, now]);
 }
