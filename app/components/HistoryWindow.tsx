@@ -123,7 +123,8 @@ function playFrom(links: readonly WatchLink[], player: MusicPlayerValue): void {
 
 /* --- the log ------------------------------------------------------------------------------------- */
 
-function HistoryLog() {
+/** The window's inside. Exported for its render check (server rendering always sees the window shut). */
+export function HistoryLog() {
   const { user } = useAuth();
   const own = useSyncExternalStore(subscribeToOwnRoom, ownRoomState, ownRoomState);
   const me = user?.id ?? (own.visitor ? own.hostId : null);
