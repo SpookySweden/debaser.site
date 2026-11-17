@@ -301,6 +301,11 @@ const canvasRepo = {
     say('listPieces', options);
     return canvasPieces;
   },
+  // PAST CANVASES under CANVASES (CANVAS, 2026-11-17): the unsaved drawings of finished rooms the reader was in.
+  listPastCanvases: async (by) => {
+    say('listPastCanvases', by);
+    return [];
+  },
   setHidden: async (...args) => say('setHidden', ...args),
   findOpenCanvas: async (roomId) => {
     say('findOpenCanvas', roomId);
@@ -679,6 +684,7 @@ test('CytubePage: CANVASES asks each live room about its canvas, up to twelve, a
   });
   assert.equal(said('findOpenCanvas').length, 12);
   assert.equal(said('listPieces').length, 1);
+  assert.equal(said('listPastCanvases').length, 1, 'PAST CANVASES is read once, for the reader (CANVAS, 2026-11-17)');
 });
 
 // --- MusicRoomKeeper
