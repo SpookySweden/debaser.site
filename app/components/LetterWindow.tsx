@@ -158,9 +158,17 @@ function LetterWindowBody({ letterId, onClose }: { letterId: string; onClose: ()
                 }}
               />
             ) : null}
-            {/* HISTORY (SPEC-history.md): a PLAY pressed inside the popout is filed FROM A LETTER BY its owner. 'contents' adds no box. */}
+            {/* HISTORY (SPEC-history.md): a PLAY pressed inside the popout is filed FROM A LETTER BY its owner. Only a press on a
+                PLAY, LISTEN or WATCH key counts, so closing it or picking text never files a later play here. 'contents' adds no box. */}
             {opened && value !== null ? (
-              <div className="contents" onClickCapture={() => armPlayContext({ how: 'letter', letterId: value.id, addedBy: value.owner, addedByName: owner ? (user?.displayName ?? '') : accountName(value.owner), whereLabel: value.name, whereHref: letterHref(pathname, value.id) })}>
+              <div
+                className="contents"
+                onClickCapture={(event) => {
+                  const key = (event.target as HTMLElement).closest('button, a');
+                  if (key === null || !/PLAY|LISTEN|WATCH/.test(key.textContent ?? '')) return;
+                  armPlayContext({ how: 'letter', letterId: value.id, addedBy: value.owner, addedByName: owner ? (user?.displayName ?? '') : accountName(value.owner), whereLabel: value.name, whereHref: letterHref(pathname, value.id) });
+                }}
+              >
                 <LetterItemPopout item={opened} owner={owner} onClose={() => setOpened(null)} />
               </div>
             ) : null}

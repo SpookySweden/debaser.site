@@ -73,7 +73,9 @@ export function foldLog(plays: readonly Play[], now: Date): LogDay[] {
     const lastPlay = last === undefined ? undefined : last.kind === 'play' ? last.play : last.plays[last.plays.length - 1];
     const joins =
       play.roomId !== null &&
+      sessionHow(play.how) &&
       lastPlay !== undefined &&
+      sessionHow(lastPlay.how) &&
       lastPlay.roomId === play.roomId &&
       Date.parse(lastPlay.playedAt) - Date.parse(play.playedAt) < SESSION_GAP_MS;
     if (joins && last !== undefined) {
@@ -84,6 +86,14 @@ export function foldLog(plays: readonly Play[], now: Date): LogDay[] {
     }
   }
   return days;
+}
+
+/**
+ * A play the room itself put on: somebody's room, or your own queue moving on. Only these make sessions and fold to the
+ * room's queue; a play from a letter, a post or MEDIA keeps its own line even though it, too, played in your room.
+ */
+export function sessionHow(how: PlayHow): boolean {
+  return how === 'room' || how === 'own_queue';
 }
 
 /** The text-character mark for how a play reached you (SPEC-history.md's table). No drawn icons. */

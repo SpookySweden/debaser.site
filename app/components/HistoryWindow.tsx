@@ -7,7 +7,7 @@ import { threadDomId } from '../lib/forum/anchors';
 import { closeHistory, HISTORY_HREF, historyRequested, historyWindowServerState, historyWindowState, openHistory, subscribeToHistoryWindow } from '../lib/history/history-window';
 import { accountName, loadAccountNames } from '../lib/history/names';
 import { erasePlays, historyKeptInBrowser, readPlays, readPlaysPaused, removePlay, setPlaysPaused, subscribePlays } from '../lib/history/plays';
-import { clockOf, foldLog, howLine, howMark, LOG_FILTERS, passes, placeOf, type LogFilter, type PlaySession } from '../lib/history/sessions';
+import { clockOf, foldLog, howLine, howMark, LOG_FILTERS, passes, placeOf, sessionHow, type LogFilter, type PlaySession } from '../lib/history/sessions';
 import type { Play } from '../lib/history/types';
 import { openLetter } from '../lib/letters/letter-window';
 import { getLettersRepository } from '../lib/letters/repository';
@@ -368,8 +368,10 @@ function SessionLine({ session, me, open, onToggle }: { session: PlaySession; me
 /* --- what a line folds open to ------------------------------------------------------------------- */
 
 function LineFold({ play, me }: { play: Play; me: string | null }) {
-  if (play.roomId !== null) return <RoomFold roomId={play.roomId} plays={[play]} me={me} />;
+  // Where it came from decides the fold: a letter's things, a room's queue (only for a play the room itself put on), or
+  // the facts with [ OPEN ] (code review: every keeper line has a room, so the room must not be asked first).
   if (play.letterId !== null) return <LetterFold play={play} />;
+  if (play.roomId !== null && sessionHow(play.how)) return <RoomFold roomId={play.roomId} plays={[play]} me={me} />;
   return <FactsFold play={play} />;
 }
 

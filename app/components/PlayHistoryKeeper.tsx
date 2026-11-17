@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useSyncExternalStore, type RefObject } from 'react';
 import { lengthSeconds } from '../lib/audio/track-context';
 import { accountName, loadAccountNames } from '../lib/history/names';
 import { historyAccountChanged, notePlay, takePlayContext, type PlayHandle } from '../lib/history/plays';
@@ -129,9 +129,10 @@ export default function PlayHistoryKeeper() {
   const own = useSyncExternalStore(subscribeToOwnRoom, ownRoomState, ownRoomState);
   const watch = useSyncExternalStore(subscribeToWatchWindow, watchWindowState, watchWindowServerState);
   const watched = watch.open && watch.focus?.kind === 'room' ? watch.focus.roomId : null;
-  // The room you are hearing: the live room the bar follows, else the room window that is open, else your own.
-  const hearing = player.room?.roomId ?? watched ?? own.roomId;
-  const { read } = useWatchRoom(hearing, { follow: false });
+  // The rooms you may be hearing: your own, the live room the bar follows, and the room window that is open. Each is
+  // listened to on its own (code review: watching only one let your own room's songs go unnoted while another's window
+  // was open); a room that is not playing notes nothing.
+  const rooms = [...new Set([own.roomId, player.room?.roomId ?? null, watched].filter((id): id is string => id !== null))];
 
   const playerNow = useRef(player);
   useEffect(() => {
@@ -149,7 +150,7 @@ export default function PlayHistoryKeeper() {
 
   /* --- where the song on the bar has got to, for the line's place when it stops -------------------- */
 
-  const songPlace = useRef<{ src: string; at: number; length: number | null } | null>(null);
+  const songPlace = useRef<SongPlace | null>(null);
   const { audioElement } = player;
   useEffect(() => {
     const audio = audioElement();
@@ -168,8 +169,32 @@ export default function PlayHistoryKeeper() {
     };
   }, [audioElement]);
 
-  /* --- the room moved on: the last play stops, the new one is noted ------------------------------ */
+  return (
+    <>
+      {rooms.map((roomId) => (
+        <RoomEars key={roomId} roomId={roomId} ownRoomId={own.roomId} me={me} playerNow={playerNow} songPlace={songPlace} />
+      ))}
+    </>
+  );
+}
 
+type SongPlace = { src: string; at: number; length: number | null };
+
+/** One room listened to: when it moves on to a new row while playing, the last play stops and the new one is noted. */
+function RoomEars({
+  roomId,
+  ownRoomId,
+  me,
+  playerNow,
+  songPlace,
+}: {
+  roomId: string;
+  ownRoomId: string | null;
+  me: string | null;
+  playerNow: RefObject<MusicPlayerValue>;
+  songPlace: RefObject<SongPlace | null>;
+}) {
+  const { read } = useWatchRoom(roomId, { follow: false });
   const current = useRef<Current | null>(null);
 
   const stopCurrent = (now: number) => {
@@ -190,28 +215,37 @@ export default function PlayHistoryKeeper() {
     const room = read.room;
     const held = current.current;
     // Keep the room as last read with the play it holds, for the video's place when it stops.
-    if (held !== null && held.room.id === room.id && room.currentEntryId !== null && held.key === `${room.id}:${room.currentEntryId}`) {
+    const key = room.currentEntryId === null ? null : `${room.id}:${room.currentEntryId}`;
+    if (held !== null && key !== null && held.key === key) {
       current.current = { ...held, room };
     }
-    if (!room.isPlaying || room.currentEntryId === null) return;
-    const key = `${room.id}:${room.currentEntryId}`;
+    if (!room.isPlaying || key === null) return;
     if (held?.key === key) return;
     const entry = read.queue.find((row) => row.id === room.currentEntryId);
     if (entry === undefined) return;
     const now = Date.now();
-    const note = noteForRow(entry, room, playerNow.current, own.roomId, me, now);
+    const note = noteForRow(entry, room, playerNow.current, ownRoomId, me, now);
     if (note === null) return;
     stopCurrent(now);
     current.current = { key, kind: note.kind === 'song' ? 'song' : 'video', ref: note.ref, handle: notePlay(note), room, length: note.lengthSeconds ?? null };
-    // `stopCurrent` reads refs only, so it is not a dependency.
-  }, [read, own.roomId, me]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `stopCurrent` reads refs only.
+  }, [read, ownRoomId, me, playerNow]);
 
-  // The page going away (a close, a reload, another site): where it got to is said now, once.
+  // Where it got to is said when the tab is hidden (the request still goes out then; one sent while the page is being
+  // closed may be cut off), and again as the page goes away. Coming back, the same row is the same line (6-hour rule).
   useEffect(() => {
     const away = () => stopCurrent(Date.now());
+    const hidden = () => {
+      if (document.visibilityState === 'hidden') away();
+    };
     window.addEventListener('pagehide', away);
-    return () => window.removeEventListener('pagehide', away);
-    // `stopCurrent` reads refs only, so it is not a dependency.
+    document.addEventListener('visibilitychange', hidden);
+    return () => {
+      window.removeEventListener('pagehide', away);
+      document.removeEventListener('visibilitychange', hidden);
+      away();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `stopCurrent` reads refs only.
   }, []);
 
   return null;

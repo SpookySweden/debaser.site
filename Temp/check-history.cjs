@@ -85,6 +85,16 @@ const play = (fields) => ({
   const today = days[0].entries;
   assert.deepEqual(today.map((entry) => (entry.kind === 'session' ? `session:${entry.plays.length}` : `play:${entry.play.roomId ?? '-'}`)), ['session:3', 'play:r1', 'play:r2', 'play:-', 'play:r3'], 'three in a row fold; a 30-minute gap, another room and a lone play stay lines');
   assert.equal(days[1].entries.length, 1, 'a session never crosses midnight');
+  // Code review, 2026-11-17: every play the keeper notes has a room, so only a play the room put on may join a session.
+  const mixed = foldLog(
+    [
+      play({ roomId: 'own', how: 'own_queue', playedAt: at('2026-11-17T16:10:00') }),
+      play({ roomId: 'own', how: 'letter', letterId: 'l1', playedAt: at('2026-11-17T16:05:00') }),
+      play({ roomId: 'own', how: 'yourself', whereLabel: 'MEDIA', playedAt: at('2026-11-17T16:00:00') }),
+    ],
+    now,
+  );
+  assert.deepEqual(mixed[0].entries.map((entry) => entry.kind), ['play', 'play', 'play'], 'a letter or MEDIA play in your room keeps its own line');
   assert.equal(logStamp(new Date('2026-11-17T09:00:00'), now), 'LOG 17.11 · TODAY');
 
   /* --- the how line -------------------------------------------------------------------------------- */
