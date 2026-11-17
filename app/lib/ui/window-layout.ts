@@ -48,6 +48,12 @@ export type WindowSpec = {
   /** Opens filling the usable screen (the stream room, whose video wants all of it), rather than 78% of it. */
   fill?: boolean;
   /**
+   * Opens as tall as `size` asks, up to all the room between the top bar and the player bar, rather than 78% of the screen
+   * (PREFERENCES and a background's settings, Luke 2026-11-17: taller by default, no scrolling). It starts just under the top
+   * bar whichever corner it docks in.
+   */
+  tall?: boolean;
+  /**
    * Kept above the bar along the foot (the stream room, `DockWindow`'s `aboveBottomBar`). It is drawn no lower than
    * that bar whatever its box says, lifted whole rather than shortened, so picked up or resized it is first made the box
    * it is drawn in (`rectAboveBar`) and then moves as one piece, its foot stopping at the bar (SPEC-rooms-your-room.md,
@@ -469,8 +475,14 @@ export function defaultRect(spec: WindowSpec, viewport: WindowSize, top: number)
     const y = top + 8;
     return { x: Math.max(0, viewport.w - 8 - w), y, w, h: Math.max(Math.min(spec.min.h, areaH), viewport.h - y - 8) };
   }
-  const h = Math.max(Math.min(spec.min.h, areaH), Math.min(spec.size.h, Math.round(areaH * 0.78)));
   const x = viewport.w - 8 - w;
+  if (spec.tall === true) {
+    // Its foot no lower than the one a lower-corner window keeps, clear of the player bar (112px).
+    const y = top + 8;
+    const h = Math.max(Math.min(spec.min.h, areaH), Math.min(spec.size.h, viewport.h - 112 - y));
+    return { x: Math.max(0, x), y: spec.dock === 'top' ? y : Math.max(y, viewport.h - 112 - h), w, h };
+  }
+  const h = Math.max(Math.min(spec.min.h, areaH), Math.min(spec.size.h, Math.round(areaH * 0.78)));
   // The upper corner sits 64px down, as the docked windows always have; the lower one sits clear of the
   // player bar (112px), and never above the usable area.
   const y = spec.dock === 'top' ? Math.max(top + 8, 64) : Math.max(top + 8, viewport.h - 112 - h);

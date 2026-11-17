@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect } from 'react';
 import { openMusic } from '../lib/audio/music-window';
 import { openQueues } from '../lib/audio/queue-window';
 import { openArcade } from '../lib/games/arcade-window';
-import { openPreferences } from '../lib/ui/preferences-window';
+import { PREFERENCES_LAYOUT, openPreferences } from '../lib/ui/preferences-window';
 import {
   adoptLayouts,
   awaitLayouts,
@@ -30,6 +30,7 @@ const OPENERS: Record<string, () => void> = {
   arcade: () => openArcade(),
   queue: () => openQueues(),
   preferences: () => openPreferences(),
+  [PREFERENCES_LAYOUT]: () => openPreferences(),
 };
 
 /** The bottom of the guest strip, which windows may not go under; 0 when there is none. */

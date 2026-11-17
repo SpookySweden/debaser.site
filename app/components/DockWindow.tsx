@@ -54,6 +54,8 @@ type DockWindowProps = {
   minSize: WindowSize;
   /** Opens filling the screen on a desktop (`WindowSpec.fill`). */
   fill?: boolean;
+  /** Opens as tall as `defaultSize` asks, up to the room between the top bar and the player bar (`WindowSpec.tall`). */
+  tall?: boolean;
   /**
    * Draws a `[ _ ]` key beside the close key that folds the window away. Only for a window whose contents
    * must keep running out of sight (the stream room keeps playing); the caller draws the way back.
@@ -167,6 +169,7 @@ export default function DockWindow({
   defaultSize,
   minSize,
   fill,
+  tall,
   onMinimize,
   minimizeTip = 'Fold away (keeps playing)',
   minimized = false,
@@ -186,7 +189,7 @@ export default function DockWindow({
   // Mounting is opening and unmounting is closing: every docked window draws nothing while it is shut.
   useEffect(() => {
     if (!desktop) return;
-    registerWindow(id, { min: minSize, size: defaultSize, dock, fill, aboveBar: aboveBottomBar });
+    registerWindow(id, { min: minSize, size: defaultSize, dock, fill, tall, aboveBar: aboveBottomBar });
     windowOpened(id);
     return () => windowClosed(id);
     // The sizes are per-window constants; re-registering on every render would only churn.
