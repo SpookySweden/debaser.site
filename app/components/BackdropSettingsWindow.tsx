@@ -62,6 +62,7 @@ import {
   toggleBackdropWindow,
 } from '../lib/backdrops/store';
 import { THEME_KEY, currentThemeId, subscribeToTheme, themeSet, themedValues } from '../lib/backdrops/theme';
+import { resetValues } from '../lib/backdrops/theme-switch';
 import { BACKDROPS, DEFAULT_BACKDROP, backdropState, setBackdrop, subscribeToBackdrop } from '../lib/ui/backdrop-slot';
 import { themeById } from '../lib/ui/themes';
 import { PLATE, PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED, PLATE_PRESSED, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
@@ -310,11 +311,10 @@ function ThemeRow({ panel, theme }: { panel: Panel; theme: string }) {
   return (
     <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-label text-ink" data-backdrop-theme={on ? 'on' : 'off'}>
       <button type="button" aria-pressed={on} title={THEME_TIP} onClick={() => change(panel, THEME_KEY, !on)} className={on ? PLATE_PRESSED : PLATE} data-backdrop-knob={THEME_KEY}>
-        [ THEME ]
+        {/* It says which way it is, as a toggle (Luke, 2026-11-17: "a toggle separate to the "reset" button"). */}
+        [ THEME: {on ? 'ON' : 'OFF'} ]
       </button>
-      <span>
-        {on ? <span className="text-key font-strong">{name}</span> : 'OFF: YOUR OWN COLOURS AND SETTINGS'}
-      </span>
+      <span>{on ? <span className="text-key font-strong">{name}</span> : 'YOUR OWN SETTINGS'}</span>
     </span>
   );
 }
@@ -449,11 +449,11 @@ function KnobList({ tab, panel }: { tab: string; panel: Panel }) {
 }
 
 /** What the background says about itself as it runs: each number with its last half-minute beside it. */
-function Meters() {
+function Meters({ ownLine }: { ownLine: boolean }) {
   const meters = useSyncExternalStore(subscribeToMeters, backdropMeters, serverMeters);
   if (meters.length === 0) return null;
   return (
-    <div className="ml-auto flex flex-wrap items-end gap-x-4 gap-y-1 text-label text-ink" data-backdrop-meters="">
+    <div className={`ml-auto flex flex-wrap items-end justify-end gap-x-4 gap-y-1 text-label text-ink${ownLine ? " w-full" : ""}`} data-backdrop-meters="">
       {meters.map((meter) => (
         <span key={meter.id} className="flex items-end gap-1.5" title={`${meter.label}, AS IT IS NOW`}>
           <span>{meter.label}</span>
@@ -559,7 +559,7 @@ export function BackdropKnobs({ id }: { id: string }) {
   const themeOn = values[THEME_KEY] === true;
   const panel: Panel = { def, values, live, locks: extras.locks, sway: extras.sway, still, themed: themeOn ? themeSet(theme, id) : {}, drawn: themeOn ? themedValues(def, live, theme) : live };
   const sheet = sheetLayout(def);
-  // PARTY, the looks and MORPH leave `[ THEME ]` as the reader has it, as if it were locked; RESET puts it back on, as it came.
+  // PARTY, the looks, MORPH and RESET leave `[ THEME ]` as the reader has it, as if it were locked (RESET: `resetValues`).
   const kept = [...panel.locks, THEME_KEY];
   const looks = <Looks panel={panel} still={still} kept={kept} />;
 
@@ -573,13 +573,15 @@ export function BackdropKnobs({ id }: { id: string }) {
       {still ? <p className={`${NOTE} mb-1`}>YOUR COMPUTER ASKS FOR LESS MOTION, SO WHAT MOVES IS RESTING. THE KNOBS THAT DON&apos;T MOVE ANYTHING STILL WORK.</p> : null}
 
       {/* The head: [ THEME ] first, in the top-left corner, and on the right what the background says about itself as it runs,
-          or, when another background is on (TILE, which has no settings), the key that puts this one on. */}
+          or, when another background is on (TILE, which has no settings), the key that puts this one on. In a two-column window
+          that goes on a line of its own: the meters' strips widen as they fill, and would wrap onto a second line later anyway,
+          pushing the sheet down into a scroll (`sheet.ts` counts the line). */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pb-2">
         <ThemeRow panel={panel} theme={theme} />
         {backdrop === id ? (
-          <Meters />
+          <Meters ownLine={sheet.columns.length < 3} />
         ) : (
-          <p className="ml-auto flex flex-wrap items-center gap-2 text-label text-ink">
+          <p className={`ml-auto flex flex-wrap items-center justify-end gap-2 text-label text-ink${sheet.columns.length < 3 ? " w-full" : ""}`}>
             <span>THE BACKGROUND IS ON {BACKDROPS.find((each) => each.id === backdrop)?.label ?? 'SOMETHING ELSE'}.</span>
             <button type="button" onClick={() => setBackdrop(BACKDROPS.find((each) => each.id === id)?.id ?? DEFAULT_BACKDROP)} className={PLATE}>
               [ SHOW THE {def.label} ]
@@ -652,7 +654,15 @@ function Looks({ panel, still, kept }: { panel: Panel; still: boolean; kept: rea
   const key = (index: number) => {
     if (index === 0) {
       return (
-        <button key="reset" type="button" title={`BACK TO THE ${def.label} AS IT CAME`} onClick={() => setBackdropValues(id, keepingLocks(def, def.defaults, panel.values, panel.locks))} className={PLATE} data-backdrop-look="reset">
+        // RESET never flips THEME: with it on, back to the theme's own tuned look; with it off, the background's plain defaults.
+        <button
+          key="reset"
+          type="button"
+          title={panel.values[THEME_KEY] === true ? `BACK TO THE ${def.label} AS IT COMES, IN THE THEME'S LOOK` : `BACK TO THE ${def.label}'S OWN SETTINGS, AS IT COMES WITHOUT A THEME`}
+          onClick={() => setBackdropValues(id, resetValues(def, panel.values, panel.locks))}
+          className={PLATE}
+          data-backdrop-look="reset"
+        >
           [ RESET ]
         </button>
       );

@@ -46,9 +46,13 @@ const LETTER = 7.8;
 const KEY_EXTRA = 12;
 /** What is left of a column for a choice's keys, beside its name and its two row keys. */
 const CHOICE_ROOM = COLUMN_W - 96 - 52 - 12;
-/** The window round the sheet (its title line, frame and padding), and the THEME line above the columns. */
+/**
+ * The window round the sheet (its title line, frame and padding), and the head above the columns: one line in a three-column
+ * window; two in a two-column one, where the meters go under `[ THEME ]` (their strips widen as they fill).
+ */
 const CHROME = 56;
 const HEAD = 36;
+const HEAD_TWO = 61;
 
 /** How tall a run of bracket keys is when it wraps in `room` pixels. */
 const keysHeight = (labels: readonly string[], room: number) => KEYS + (keyLines(labels, room) - 1) * KEYS_MORE;
@@ -206,7 +210,7 @@ export function shareColumns(sections: readonly SheetSection[], count: number): 
 }
 
 /** Below this the sheet is short enough in two columns; above it, three. */
-const TWO_COLUMNS_UP_TO = 500;
+const TWO_COLUMNS_UP_TO = 480;
 
 /** The sheet for a background: its columns, and the size its window opens at. */
 export function sheetLayout(def: BackdropDef): SheetLayout {
@@ -216,6 +220,6 @@ export function sheetLayout(def: BackdropDef): SheetLayout {
   const tallest = Math.max(...columns.map(columnHeight));
   return {
     columns,
-    size: { w: columns.length * COLUMN_W + (columns.length - 1) * COLUMN_GAP + 24, h: CHROME + HEAD + tallest },
+    size: { w: columns.length * COLUMN_W + (columns.length - 1) * COLUMN_GAP + 24, h: CHROME + (columns.length < 3 ? HEAD_TWO : HEAD) + tallest },
   };
 }
