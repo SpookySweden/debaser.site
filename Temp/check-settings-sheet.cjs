@@ -8,7 +8,8 @@
  *   1. every background's settings are one sheet: no tabs; each old tab is a section, then LOOKS; every knob is drawn;
  *   2. the sheet opens in a window whose size fits a 1366 x 768 screen whole, not cut to 78% of it (so nothing scrolls);
  *   3. a choice whose keys don't fit beside its name, and the LOOKS keys, are shared out evenly: no key alone on a line;
- *   4. PREFERENCES opens as tall as the room above the music bar, under a new layout name, and reopens by either name.
+ *   4. PREFERENCES opens as tall as the room above the music bar, under a new layout name, and reopens by either name;
+ *   5. RESET never flips [ THEME ]: with it on, the theme's tuned look; with it off, the plain defaults (item 3).
  * A real browser holds the "nothing scrolls" itself: scripts/drive-settings-sheet.cjs on a local mock server.
  *
  * Compiled fresh on every run:
@@ -86,6 +87,36 @@ for (const d of BACKDROP_DEFS) {
   const rows = sheet.evenRows(sheet.looksKeys(d), sheet.COLUMN_W);
   if (rows.length > 1) assert.ok(rows[rows.length - 1].length > 1 || rows.length === sheet.looksKeys(d).length, `${d.label}: no look alone on the last line (${lens(rows)})`);
 }
+
+/* ------------------------------------------------------------------ 5. RESET apart from THEME (item 3) */
+// Luke: "the "theme" button ... should be a toggle separate to the "reset" button, the reset button resets according to wether
+// theme is on or off, resetting to a separate default ie the one we used before incoroporating the "theme" button".
+const { resetValues } = load('lib/backdrops/theme-switch.js');
+const T = load('lib/backdrops/theme.js');
+for (const d of BACKDROP_DEFS) {
+  const range = d.knobs.find((k) => k.kind === 'range' && !d.widgets.some((w) => [w.x, w.y, w.low, w.high].includes(k.key)));
+  const moved = (theme) => ({ ...d.defaults, theme, [range.key]: range.max === d.defaults[range.key] ? range.min : range.max });
+  const plain = { ...d.defaults, theme: false };
+  // THEME off: RESET gives the background's own plain defaults, and THEME stays off.
+  const off = resetValues(d, moved(false), []);
+  assert.equal(off.theme, false, `${d.label}: RESET with THEME off leaves it off`);
+  assert.deepEqual(off, plain, `${d.label}: and puts every knob back to its plain default`);
+  // THEME on: RESET gives the theme's tuned look (the theme drawn over the defaults), and THEME stays on.
+  const on = resetValues(d, moved(true), []);
+  assert.equal(on.theme, true, `${d.label}: RESET with THEME on leaves it on`);
+  assert.deepEqual(on, { ...d.defaults, theme: true }, `${d.label}: and the knobs go back to the defaults the theme tunes`);
+  for (const id of ['dark', 'overdrive-ember', 'sherbet-pink']) {
+    assert.deepEqual(T.themedValues(d, on, id), T.themedValues(d, d.defaults, id), `${d.label}: so in ${id} it is drawn as the theme's own look`);
+  }
+  // A locked knob keeps its place through RESET, as before.
+  assert.equal(resetValues(d, moved(false), [range.key])[range.key], moved(false)[range.key], `${d.label}: a locked knob stays put`);
+}
+const fluid = resetValues(def('fluid'), { ...def('fluid').defaults, theme: false, cell: 20, steps: 7, dither: 80, mirror: '8' }, []);
+assert.deepEqual([fluid.cell, fluid.steps, fluid.dither, fluid.mirror], [10, 3, 15, 'off'], "FLUID's plain defaults: GRID 10px, COLOUR STEPS 3, DITHER 15%, KALEIDOSCOPE OFF");
+const windowSource = fs.readFileSync('app/components/BackdropSettingsWindow.tsx', 'utf8');
+assert.match(windowSource, /onClick=\{\(\) => setBackdropValues\(id, resetValues\(def, panel\.values, panel\.locks\)\)\}/, 'the window`s RESET is that rule');
+const fishOn = renderToString(React.createElement(BackdropKnobs, { id: 'aquarium' })).replace(/<!-- -->/g, '');
+assert.match(fishOn, /aria-pressed="true"[^>]*data-backdrop-knob="theme">\[ THEME: ON \]</, '[ THEME ] says which way it is');
 
 /* ------------------------------------------------------------------ 4. PREFERENCES */
 const prefs = fs.readFileSync('app/components/PreferencesWindow.tsx', 'utf8');
