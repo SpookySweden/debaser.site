@@ -84,6 +84,7 @@ import HighlightBar, { type BarSpot } from './HighlightBar';
 import { BookmarkList, ContentsList, HighlightList, LookSettings, Panel, SearchBox, type PanelName, type SearchGroup } from './ReaderPanels';
 import ReadingShelf from './ReadingShelf';
 import { noteHistory } from '../../lib/recommender/history';
+import { notePlay } from '../../lib/history/plays';
 import { pokeCompanion } from '../../lib/companion/events';
 import { useCompanionScene } from '../../lib/companion/use-companion-scene';
 import { MatchSearch, OWN_ACCEPT } from './OwnFileDrop';
@@ -405,6 +406,13 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
     historyMaker.current = forInfo?.author ?? '';
     if (title && !own && bookRef) noteHistory({ kind: 'book', ref: bookRef, title, maker: historyMaker.current, words: [], action: 'read' });
   }, [title, own, bookRef, forInfo]);
+
+  // HISTORY (SPEC-history.md): a book opened here is one play, once its title is known. Your own file stays out, as above.
+  // The author arriving a moment later is the same play (one line for the same thing within 60 seconds).
+  const historyAuthor = forInfo?.author ?? '';
+  useEffect(() => {
+    if (title && !own && bookRef) notePlay({ kind: 'book', ref: bookRef, title, maker: historyAuthor, how: 'reader', whereLabel: 'THE READER', whereHref: `/read/${bookRef}` });
+  }, [title, own, bookRef, historyAuthor]);
 
   // ---------- this reader's highlights and bookmarks ----------
 

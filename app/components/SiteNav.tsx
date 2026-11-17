@@ -22,6 +22,7 @@ import {
   ICON_CYTUBE,
   ICON_FORUM,
   ICON_HOME,
+  ICON_HISTORY,
   ICON_LOOP,
   ICON_MEDIA,
   ICON_MUSIC,
@@ -29,6 +30,7 @@ import {
   ICON_WEB,
 } from '../lib/ui/icons';
 import { QUEUES_HREF } from '../lib/audio/queue-window';
+import { HISTORY_HREF } from '../lib/history/history-window';
 import { LIBRARY_HREF } from '../lib/audio/music-window';
 
 /**
@@ -38,7 +40,7 @@ import { LIBRARY_HREF } from '../lib/audio/music-window';
  * the home page is what opens it. Pages under a project (or otherwise off the taskbar) pass no
  * `active` key, which leaves every key unlit rather than lighting one that does not own the page.
  */
-export type NavKey = 'home' | 'forum' | 'media' | 'web' | 'read' | 'tagstation' | 'recommendations' | 'beatbox' | 'cytube' | 'animate' | 'games' | 'music' | 'queues' | 'users' | 'comms' | 'account';
+export type NavKey = 'home' | 'forum' | 'media' | 'web' | 'read' | 'tagstation' | 'recommendations' | 'beatbox' | 'cytube' | 'animate' | 'games' | 'music' | 'queues' | 'history' | 'users' | 'comms' | 'account';
 
 /**
  * A key: a glyph, and the word a screen reader reads it as.
@@ -171,6 +173,14 @@ export const SIDE_QUEUES: NavItem = {
   label: 'QUEUE',
   mark: ICON_LOOP,
   href: QUEUES_HREF,
+};
+
+/** The HISTORY window's key (SPEC-history.md, Luke 2026-11-17): right under QUEUE on the shelf. Not in the phone's menu yet (desktop first). */
+export const SIDE_HISTORY: NavItem = {
+  key: 'history',
+  label: 'HISTORY',
+  mark: ICON_HISTORY,
+  href: HISTORY_HREF,
 };
 
 /** The windows a menu lists (the phone's picture menu): the shelf's keys, without the arcade while its key is off the screen. */

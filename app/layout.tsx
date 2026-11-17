@@ -15,6 +15,8 @@ import MusicLibraryProvider from './components/MusicLibraryProvider';
 import MusicPlayerProvider from './components/MusicPlayerProvider';
 import MusicWindow from './components/MusicWindow';
 import QueueWindow from './components/QueueWindow';
+import HistoryWindow from './components/HistoryWindow';
+import PlayHistoryKeeper from './components/PlayHistoryKeeper';
 import NotificationsProvider from './components/NotificationsProvider';
 import LostAccountWindow from './components/LostAccountWindow';
 import ModulesWindow from './components/ModulesWindow';
@@ -118,6 +120,8 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
                           going, and this opens yours again after a reload while it is public. PLAY FOR YOU
                           keeps topping up up-next from the shell, whatever window is open. */}
                       <MusicRoomKeeper />
+                      {/* HISTORY's ears (SPEC-history.md): notes each play as the room you hear moves on. Draws nothing. */}
+                      <PlayHistoryKeeper />
                       <ForYouRadio />
                       {/* The site's two utility windows, drawn once and docked beside whatever is
                           being read rather than being pages of their own: the arcade (a post's
@@ -134,6 +138,8 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
                         <ArcadeWindow />
                         <MusicWindow />
                         <QueueWindow />
+                        {/* HISTORY (SPEC-history.md): the log of what you played, under QUEUE on the shelf. */}
+                        <HistoryWindow />
                         {/* The stream room (SPEC-watch-together.md): drawn here so a stream keeps
                             playing while the reader walks the site. */}
                         <WatchWindow />
