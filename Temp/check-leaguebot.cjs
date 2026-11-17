@@ -105,7 +105,8 @@ const ME = { name: 'MOCK PLAYER', tag: 'EUW' };
   answer = await readPlayer(ME, EUW, { ...ok, uggMatches: down });
   assert.equal(answer.matchesSource, 'OP.GG', 'U.GG down: the games come from OP.GG');
   assert.equal(answer.matches.length, 20);
-  assert.match(answer.notes.join(' '), /last 20 games from OP\.GG/);
+  // (2026-11-17) The friendlier wording; the browser then fills the list out to 100 (check-leaguebot-fallback.cjs).
+  assert.match(answer.notes.join(' '), /Only your last 20 games: U\.GG isn't answering LEAGUEBOT's server/);
   answer = await readPlayer(ME, EUW, { opggProfile: missing, uggRanks: async () => ({ ranks: [], pastSeasons: [] }), uggMatches: async () => [], opggMatches: missing });
   assert.equal(answer.notFound, true, 'nobody by that name');
   answer = await readPlayer(ME, EUW, { opggProfile: down, uggRanks: down, uggMatches: down, opggMatches: down });

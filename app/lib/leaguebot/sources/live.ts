@@ -11,9 +11,10 @@ import type { LiveGame, LivePlayer } from '../live-types';
 import type { Region } from '../regions';
 import type { RiotId } from '../riot-id';
 import type { Lane } from '../types';
+import { OPGG_SITE_HOST, opggSpectateUrl, opggSummonerUrl, summonerIdOf, toOpggLive } from '../opgg-site';
 import { romanToNumber, uggQuery } from './ugg';
 
-export const OPGG_SITE_HOST = 'lol-api-summoner.op.gg';
+export { OPGG_SITE_HOST };
 
 type Json = Record<string, unknown>;
 const num = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) ? value : null);
@@ -94,74 +95,15 @@ export async function uggLive(id: RiotId, region: Region, fetchImpl?: FetchLike,
   return toUggLive(data, now);
 }
 
-function opggLane(position: unknown): Lane | null {
-  switch (str(position).toUpperCase()) {
-    case 'TOP':
-      return 'TOP';
-    case 'JUNGLE':
-      return 'JUNGLE';
-    case 'MID':
-      return 'MID';
-    case 'ADC':
-      return 'BOTTOM';
-    case 'SUPPORT':
-      return 'SUPPORT';
-    default:
-      return null;
-  }
-}
-
-/** OP.GG's spectate answer in LEAGUEBOT's shape. Exported for the checks. */
-export function toOpggLive(data: Json, now: number): LiveGame | null {
-  const game = data.data as Json | undefined;
-  if (!game || !Array.isArray(game.participants)) return null;
-  const created = Date.parse(str(game.created_at));
-  const players: LivePlayer[] = (game.participants as Json[]).map((p) => {
-    const summoner = (p.summoner ?? {}) as Json;
-    const solo = (Array.isArray(summoner.league_stats) ? (summoner.league_stats as Json[]) : []).find((l) => l.game_type === 'SOLORANKED');
-    const tierInfo = (solo?.tier_info ?? {}) as Json;
-    const tier = str(tierInfo.tier).toUpperCase();
-    const runes = (p.rune_build ?? {}) as Json;
-    const most = (p.most_champion_stat ?? null) as Json | null;
-    const sameChampion = most !== null && num(most.id) === num(p.champion_id);
-    return {
-      team: p.team_key === 'RED' ? 200 : 100,
-      championId: num(p.champion_id) ?? 0,
-      name: str(summoner.game_name),
-      tag: str(summoner.tagline),
-      lane: opggLane(p.position),
-      onRole: null,
-      spells: nums(p.spells),
-      primaryStyle: num(runes.primary_page_id),
-      subStyle: num(runes.secondary_page_id),
-      keystone: nums(runes.primary_rune_ids)[0] ?? null,
-      rank: tier === '' ? null : { tier, division: num(tierInfo.division), lp: num(tierInfo.lp), wins: num(solo?.win), losses: num(solo?.lose) },
-      championGames: sameChampion ? num(most?.play) : null,
-      championWins: sameChampion ? num(most?.win) : null,
-      lanes: [],
-      party: null,
-    };
-  });
-  const bans = (Array.isArray(game.teams) ? (game.teams as Json[]) : []).flatMap((t) => nums(t.banned_champions));
-  return {
-    queueId: num(game.queue_id) ?? 0,
-    lengthSec: Number.isFinite(created) ? Math.max(0, Math.round((now - created) / 1000)) : 0,
-    fetchedAt: now,
-    players,
-    bans,
-  };
-}
+// The OP.GG shaping is shared with the browser fallback (../opgg-site.ts).
+export { toOpggLive };
 
 export async function opggLive(id: RiotId, region: Region, fetchImpl?: FetchLike, now = Date.now()): Promise<LiveGame | null> {
-  const lookup = (await safeFetchJson(`https://${OPGG_SITE_HOST}/api/v3/${region.opgg}/summoners?riot_id=${encodeURIComponent(`${id.name}#${id.tag}`)}&hl=en_US`, {
-    allowedHosts: [OPGG_SITE_HOST],
-    fetchImpl,
-  })) as Json;
-  const first = (Array.isArray(lookup.data) ? (lookup.data as Json[]) : [])[0];
-  const summonerId = str(first?.summoner_id);
-  if (!/^[A-Za-z0-9_-]{10,100}$/.test(summonerId)) throw new Error('not found');
+  const lookup = await safeFetchJson(opggSummonerUrl(region, id), { allowedHosts: [OPGG_SITE_HOST], fetchImpl });
+  const summonerId = summonerIdOf(lookup);
+  if (summonerId === null) throw new Error('not found');
   try {
-    const data = (await safeFetchJson(`https://${OPGG_SITE_HOST}/api/${region.opgg}/spectates/${summonerId}?hl=en_US`, { allowedHosts: [OPGG_SITE_HOST], fetchImpl, maxBytes: 3 * 1024 * 1024 })) as Json;
+    const data = (await safeFetchJson(opggSpectateUrl(region, summonerId), { allowedHosts: [OPGG_SITE_HOST], fetchImpl, maxBytes: 3 * 1024 * 1024 })) as Json;
     return toOpggLive(data, now);
   } catch (error) {
     // OP.GG answers 404 "data not found" when the player isn't in a game.

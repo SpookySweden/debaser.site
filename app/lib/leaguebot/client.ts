@@ -4,12 +4,14 @@
  * no live source. Browser-side; it never imports the server's fetching code.
  */
 
+import { browserOpggHistory, browserOpggLive } from './browser-opgg';
+import { withBrowserHistory, withBrowserLive } from './fallback';
 import { LEAGUEBOT_DATA_SOURCE } from './riot-id-store';
 import type { RegionId } from './regions';
 import type { RiotId } from './riot-id';
 import type { LiveAnswer, MatchupGuide } from './live-types';
 import type { MatchReview } from './review-types';
-import type { Lane, PlayerAnswer } from './types';
+import { STATS_GAMES, type Lane, type PlayerAnswer } from './types';
 
 export class LookupError extends Error {
   constructor(message: string) {
@@ -33,10 +35,11 @@ async function getAnswer<T>(path: string, query: Record<string, string>): Promis
 
 export async function lookUpLive(id: RiotId, region: RegionId): Promise<LiveAnswer> {
   if (LEAGUEBOT_DATA_SOURCE === 'mock') {
-    const { mockLive } = await import('./fixtures/mock-answers');
-    return mockLive(id);
+    const { mockLive, mockBrowserLive } = await import('./fixtures/mock-answers');
+    return withBrowserLive(await mockLive(id), () => mockBrowserLive(id));
   }
-  return getAnswer<LiveAnswer>('/api/leaguebot/live', { region, name: id.name, tag: id.tag });
+  const answer = await getAnswer<LiveAnswer>('/api/leaguebot/live', { region, name: id.name, tag: id.tag });
+  return withBrowserLive(answer, () => browserOpggLive(id, region));
 }
 
 export async function lookUpMatchup(lane: Lane, mine: number, theirs: number): Promise<MatchupGuide> {
@@ -61,4 +64,21 @@ export async function lookUpPlayer(id: RiotId, region: RegionId, refresh = false
     return mockPlayer(id, region);
   }
   return getAnswer<PlayerAnswer>('/api/leaguebot/player', { region, name: id.name, tag: id.tag, ...(refresh ? { refresh: '1' } : {}) });
+}
+
+/** True when the window should fill the game list out from the browser (U.GG turned the server away). */
+export function wantsBrowserHistory(answer: PlayerAnswer): boolean {
+  return !answer.notFound && answer.uggTrouble !== null && (answer.matches?.length ?? 0) < STATS_GAMES;
+}
+
+/**
+ * The game list filled out to 100 from OP.GG by this browser. The window shows the server's answer first and swaps this in
+ * when it arrives (five pages take several seconds).
+ */
+export async function fillHistory(answer: PlayerAnswer, id: RiotId, region: RegionId): Promise<PlayerAnswer> {
+  if (LEAGUEBOT_DATA_SOURCE === 'mock') {
+    const { mockBrowserHistory } = await import('./fixtures/mock-answers');
+    return withBrowserHistory(answer, () => mockBrowserHistory(id));
+  }
+  return withBrowserHistory(answer, () => browserOpggHistory(id, region));
 }

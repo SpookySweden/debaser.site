@@ -35,7 +35,11 @@ export async function GET(request: Request): Promise<Response> {
     const answer = await keeper.get<LiveAnswer>(
       key,
       KEEP.live,
-      () => readLive(id, region, { uggLive: (i, r) => uggLive(i, r), opggLive: (i, r) => opggLive(i, r) }),
+      async () => {
+        const read = await readLive(id, region, { uggLive: (i, r) => uggLive(i, r), opggLive: (i, r) => opggLive(i, r) });
+        if (read.uggTrouble !== null) console.warn(`[leaguebot] U.GG failed for the live game on ${region.id}: ${read.uggTrouble}`);
+        return read;
+      },
       false,
       // "Neither source answered" is not kept.
       (kept) => kept.source !== null || kept.game !== null || kept.notes.length === 0,
