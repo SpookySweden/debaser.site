@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { LOOKS, lookClass, type LookId } from '../lib/cytube/looks';
 import { saveLookChoice, useLookChoice } from '../lib/cytube/use-looks';
 import { FIELD_TIGHT, PLATE, PLATE_PRESSED } from '../lib/ui/controls';
@@ -27,8 +27,28 @@ const LOOK_KEYS: readonly { id: LookId | null; label: string }[] = [{ id: null, 
  *
  * WHO CAN JOIN and CHANGE PASSWORD are the host's alone, and each takes one more press with the consequence said first. PEOPLE lists
  * who joined, with REMOVE for the host and crowns (SPEC-privacy-phase-2.md).
+ *
+ * Your main room's host gets its WHO CAN JOIN (GO LIVE, GO PRIVATE) and END ROOM here too (Luke, 2026-11-17), handed in as
+ * `liveSection` and `endSection` (MainRoomKeys.tsx); `askedLive` changes each time GO LIVE asks for this window, which
+ * then shows WHO CAN JOIN and puts the keyboard on it.
  */
-export default function RoomSettingsWindow({ room, userId, look, onClose }: { room: WatchRoom; userId: string; look: LookId | null; onClose: () => void }) {
+export default function RoomSettingsWindow({
+  room,
+  userId,
+  look,
+  onClose,
+  liveSection,
+  endSection,
+  askedLive,
+}: {
+  room: WatchRoom;
+  userId: string;
+  look: LookId | null;
+  onClose: () => void;
+  liveSection?: ReactNode;
+  endSection?: ReactNode;
+  askedLive?: number;
+}) {
   const [nameDraft, setNameDraft] = useState<string | null>(null);
   const [topicDraft, setTopicDraft] = useState<string | null>(null);
   const [addDraft, setAddDraft] = useState<RoomAddMode | null>(null);
@@ -36,6 +56,15 @@ export default function RoomSettingsWindow({ room, userId, look, onClose }: { ro
   const [copied, setCopied] = useState<'idle' | 'copied' | 'failed'>('idle');
   const choice = useLookChoice(userId);
   const isHost = room.hostId === userId;
+  // The window draws its insides a frame after it opens (PopoutWindow), so the section is looked for once it is there.
+  const [liveBox, setLiveBox] = useState<HTMLDivElement | null>(null);
+  const answered = useRef(0);
+  useEffect(() => {
+    if (askedLive === undefined || askedLive === 0 || answered.current === askedLive || liveBox === null) return;
+    answered.current = askedLive;
+    liveBox.scrollIntoView({ block: 'nearest' });
+    liveBox.querySelector<HTMLElement>('[aria-checked="true"], button, a')?.focus();
+  }, [askedLive, liveBox]);
 
   /* --- who can join: the host's, saved on its own --------------------------------------------------- */
 
@@ -256,7 +285,9 @@ export default function RoomSettingsWindow({ room, userId, look, onClose }: { ro
           </div>
         </form>
 
-        {isHost && room.origin === 'stream' ? (
+        {liveSection !== undefined && isHost ? (
+          <div ref={setLiveBox}>{liveSection}</div>
+        ) : isHost && room.origin === 'stream' ? (
           <form
             noValidate
             className="flex flex-col gap-2"
@@ -400,6 +431,9 @@ export default function RoomSettingsWindow({ room, userId, look, onClose }: { ro
           ))}
         </div>
         <p className="text-ink-quiet">YOUR LOOK IS YOURS: IT COLOURS THE ROOMS YOU HOST.</p>
+
+        {/* Last, away from the rest: ending the room is for everybody in it. */}
+        {endSection !== undefined && isHost ? endSection : null}
       </div>
     </PopoutWindow>
   );

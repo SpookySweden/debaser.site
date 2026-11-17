@@ -26,6 +26,7 @@ import {
   type VisualiserSettings,
 } from '../lib/watch/visualiser';
 import { PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED } from '../lib/ui/controls';
+import { ROOM_FULL_MARK } from '../lib/watch/room-frame';
 
 type Hearing = 'starting' | 'listening' | 'own-rhythm' | 'unsupported';
 type Deaf = ReturnType<typeof whyDeaf>;
@@ -429,8 +430,8 @@ function Visualiser({ element }: { element: HTMLMediaElement | null }) {
           >
             [ SLIDERS ]
           </button>
-          <button type="button" className={PLATE_ON_BLACK} onClick={fullscreen} aria-label="Fullscreen (F)">
-            [ FULL ]
+          <button type="button" className={PLATE_ON_BLACK} onClick={fullscreen} aria-label="Fullscreen (F)" title="Full screen (F)">
+            {`[ ${ROOM_FULL_MARK} ]`}
           </button>
           <span className="min-w-0 flex-1 truncate bg-chrome px-1 text-label text-ink-bar">
             {/* The level it hears, as squares: written straight into the page a few times a second, and kept from a

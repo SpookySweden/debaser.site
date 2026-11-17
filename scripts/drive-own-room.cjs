@@ -206,6 +206,20 @@ async function songMenu(page, key) {
   await sleep(200);
 }
 
+/**
+ * Your room's END ROOM and WHO CAN JOIN live in the room's cog since ROOMPOLISH (Luke, 2026-11-17): the cog is opened when it
+ * is not already, then END ROOM pressed twice. `closeCog` puts the cog away (Escape), back to the room.
+ */
+async function endInCog(page) {
+  if ((await page.locator('[data-room-end-section]').count()) === 0) await page.locator('[data-room-settings-key]').first().click();
+  await page.locator('[data-main-room-end="first"]').first().click();
+  await page.locator('[data-main-room-end="confirm"]').first().click();
+}
+async function closeCog(page) {
+  if ((await page.locator('[data-room-settings]').count()) === 0) return;
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => document.querySelector('[data-room-settings]') === null, null, { timeout: 5000 });
+}
 async function open(page, path) {
   await page.goto(`${BASE}${path}`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('[data-bar-queue]', { timeout: 60000 });
@@ -499,7 +513,7 @@ async function open(page, path) {
     await page.waitForSelector('[data-main-room-who]', { timeout: 10000 });
     assert.equal((await tables(page)).length, roomsBeforeMenu, 'opening the menu starts no room');
     pass('signed in: GO LIVE in your room\'s window opens WHO CAN JOIN on this same room, and starts nothing by itself');
-    await page.locator('[data-main-room-who] button', { hasText: 'CANCEL' }).click();
+    await closeCog(page);
 
     console.log('THE LINK: COPY, JOIN, REFRESH, REMOVE (one browser, the mock accounts taking turns)');
     const asAccount = async (id, name) => {
@@ -518,7 +532,8 @@ async function open(page, path) {
     assert.ok(!(await memberRows(ownerRoom)).some((row) => row.userId !== 'drive-user' && row.removedAt === null), 'nobody has joined yet');
     assert.equal(await secretOf(), null, 'and there is no link until its owner asks for one');
     await page.locator('[data-dock-window="stream"] [data-room-settings-key]').click();
-    await page.waitForSelector('[data-room-own-join]', { timeout: 10000 });
+    // Its WHO CAN JOIN section stands where the private line was since ROOMPOLISH (2026-11-17): GO LIVE is in the cog now.
+    await page.waitForSelector('[data-room-live-section]', { timeout: 10000 });
     await page.locator('[data-room-copy-link]').click();
     await page.waitForFunction(() => /COPIED|COULD NOT COPY/.test(document.querySelector('[data-room-copy-link]')?.textContent ?? ''), null, { timeout: 10000 });
     const secret = await secretOf();
@@ -628,6 +643,7 @@ async function open(page, path) {
     await watchBar();
     await page.locator('[data-main-room-start]').click();
     await page.waitForSelector('[data-main-room-live="live"]', { timeout: 15000 });
+    await closeCog(page);
     await sleep(2500);
     const liveRoom = await mainRoomRow();
     assert.equal(liveRoom.id, roomBefore.id, 'the same room');
@@ -657,8 +673,7 @@ async function open(page, path) {
     assert.ok(!afterPrivate.paused && afterPrivate.src === atPrivate.src && afterPrivate.time > atPrivate.time, 'the song plays on');
     assert.deepEqual(await jolts(), { seeks: 0, pauses: 0 }, 'never moved or stopped');
     pass('GO PRIVATE: the same room off the lists, the queue as it was, the song playing on');
-    await page.locator('[data-main-room-end="first"]').first().click();
-    await page.locator('[data-main-room-end="confirm"]').first().click();
+    await endInCog(page);
     await page.waitForFunction(() => document.querySelector('[data-dock-window="stream"]') === null, null, { timeout: 15000 });
     pass('END ROOM ends it; the next thing you play makes a new room');
 
@@ -724,6 +739,7 @@ async function open(page, path) {
     await page.waitForSelector('[data-main-room-who]', { timeout: 20000 });
     await page.locator('[data-main-room-start]').click();
     await page.waitForSelector('[data-main-room-live="live"]', { timeout: 30000 });
+    await closeCog(page);
     await page.waitForFunction(() => {
       const kept = JSON.parse(localStorage.getItem('debaser.watch.v1') ?? '{"rooms":[],"queue":[]}');
       const room = kept.rooms.find((held) => held.origin === 'music' && held.isPublic && held.hostId === 'drive-user' && held.endedAt === null);
@@ -752,8 +768,7 @@ async function open(page, path) {
     }, null, { timeout: 15000 });
     assert.equal(await page.locator('[data-room-picture-held]').count(), 0, 'the picture is off the stage');
     pass('NEXT with nothing behind it: the picture comes off and the screen goes back to black');
-    await page.locator('[data-main-room-end="first"]').first().click();
-    await page.locator('[data-main-room-end="confirm"]').first().click();
+    await endInCog(page);
     await page.waitForFunction(() => {
       const kept = JSON.parse(localStorage.getItem('debaser.watch.v1') ?? '{"rooms":[],"queue":[]}');
       return !kept.rooms.some((held) => held.origin === 'music' && held.isPublic && held.hostId === 'drive-user' && held.endedAt === null);

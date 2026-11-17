@@ -33,7 +33,22 @@ import { noteAddedHere } from '../lib/watch/outside-pictures';
 import QueuedPicture from './QueuedPicture';
 import { useWebTrack, webTrackNow } from '../lib/web/web-track-lookup';
 
-import { ROOM_BAR, ROOM_BAR_PLACE, ROOM_COG, ROOM_COLUMNS, ROOM_PICTURE_BOX, ROOM_PICTURE_FIT, ROOM_ROOT, ROOM_SCREEN, ROOM_SIDE_BODY, ROOM_STAGE, roomSide } from '../lib/watch/room-frame';
+import {
+  ROOM_BAR,
+  ROOM_BAR_PLACE,
+  ROOM_COG,
+  ROOM_COLUMNS,
+  ROOM_FULL_MARK,
+  ROOM_LEAVE_FULL_MARK,
+  ROOM_PICTURE_BOX,
+  ROOM_PICTURE_FIT,
+  ROOM_PIP_MARK,
+  ROOM_ROOT,
+  ROOM_SCREEN,
+  ROOM_SIDE_BODY,
+  ROOM_STAGE,
+  roomSide,
+} from '../lib/watch/room-frame';
 import { useRoomSideWidth } from '../lib/watch/room-side-width';
 import RoomSideGrip from './RoomSideGrip';
 import { stillBars, watchVideoBars, type FrameBars } from '../lib/watch/bar-watch';
@@ -109,10 +124,11 @@ import { QualityKey, SpeakerKey, SubsKey } from './StreamBarKeys';
 import StreamCrawl from './StreamCrawl';
 import RoomFloatChrome, { useRoomFloatDrag } from './RoomFloatChrome';
 import RoomSettingsWindow from './RoomSettingsWindow';
-import MainRoomKeys from './MainRoomKeys';
-import { registerMainRoomPlay, type MainRoomSource } from '../lib/watch/main-room-play';
+import MainRoomKeys, { MainRoomEndSection, MainRoomLiveSection, VisitorRoomSettings } from './MainRoomKeys';
+import { registerMainRoomPlay, subscribeToGoLiveAsk, takeGoLiveAsk, type MainRoomSource } from '../lib/watch/main-room-play';
 import StreamQueueWindow from './StreamQueueWindow';
 import CanvasToggle from './CanvasToggle';
+import RoomCornerKeys from './RoomCornerKeys';
 import RoomVisualiser from './RoomVisualiser';
 import VisualiserToggle from './VisualiserToggle';
 import { useVisualiserOn } from '../lib/watch/visualiser';
@@ -1224,6 +1240,17 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
 
   const [queueOpen, setQueueOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  /** Counts GO LIVE's asks: each opens the cog on WHO CAN JOIN (Luke, 2026-11-17), from the bar's key, the music bar or CYTUBE. */
+  const [askedLive, setAskedLive] = useState(0);
+  const askLive = () => {
+    setSettingsOpen(true);
+    setAskedLive((asked) => asked + 1);
+  };
+  /** Shut, the cog forgets the ask: the next plain press of the cog opens it at the top. */
+  const closeSettings = () => {
+    setSettingsOpen(false);
+    setAskedLive(0);
+  };
   /** The search a blank screen's key opened the queue window with (SPEC-cytube.md). */
   const [queuePrefill, setQueuePrefill] = useState<string | undefined>(undefined);
   const openQueue = (key?: BlankKey) => {
@@ -1268,6 +1295,19 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   // A picture has nothing to play, pause or seek: it is held until NEXT.
   const hasTransport = src !== undefined && !officialOn && !pictureOn;
   const hostKeys = amHost && live;
+  /** Your own main room, live: its WHO CAN JOIN and END ROOM are in the cog. */
+  const mainRoomHost = hostKeys && music;
+  // GO LIVE pressed on the music bar or the CYTUBE page opens this room (main-room-play.ts): here, its cog on WHO CAN JOIN.
+  useEffect(() => {
+    if (!mainRoomHost) return;
+    const check = () => {
+      if (!takeGoLiveAsk(roomId)) return;
+      setSettingsOpen(true);
+      setAskedLive((asked) => asked + 1);
+    };
+    check();
+    return subscribeToGoLiveAsk(check);
+  }, [mainRoomHost, roomId]);
   const duration = Number.isFinite(clock.duration) ? clock.duration : 0;
   const progress = duration > 0 ? Math.min(100, (clock.seconds / duration) * 100) : 0;
 
@@ -1383,8 +1423,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   ) : null;
   const floatKey =
     link !== null && !archiveRead.waiting && (officialOn || isEmbedKind(link.kind)) && song === null ? (
-      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Picture in picture: floats over the site" title="Floats over the site" onClick={pictureFloats ? expandWatch : onFloatPicture}>
-        [ PIP ]
+      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Picture in picture: floats over the site" title="Picture in picture: floats over the site" onClick={pictureFloats ? expandWatch : onFloatPicture} data-room-pip>
+        {`[ ${ROOM_PIP_MARK} ]`}
       </button>
     ) : null;
   const pictureKeys = officialOn ? floatKey : hasTransport && song === null ? (
@@ -1400,12 +1440,20 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
         burnedIn={burnedInSubtitles(subtitleTitle)}
       />
       {canPip ? (
-        <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Picture in picture" onClick={togglePip}>
-          [ PIP ]
+        <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Picture in picture" title="Picture in picture" onClick={togglePip} data-room-pip>
+          {`[ ${ROOM_PIP_MARK} ]`}
         </button>
       ) : floatKey}
-      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label={fullscreen ? 'Leave fullscreen' : 'Fullscreen'} onClick={toggleFullscreen}>
-        {fullscreen ? '[ EXIT ]' : '[ FULL ]'}
+      {/* As most video players mark them (Luke, 2026-11-17); the words stay in the name and the tooltip. */}
+      <button
+        type="button"
+        className={`${PLATE_ON_BLACK} shrink-0`}
+        aria-label={fullscreen ? 'Leave fullscreen' : 'Fullscreen'}
+        title={fullscreen ? 'Leave full screen' : 'Full screen'}
+        onClick={toggleFullscreen}
+        data-room-full={fullscreen ? 'leave' : 'enter'}
+      >
+        {`[ ${fullscreen ? ROOM_LEAVE_FULL_MARK : ROOM_FULL_MARK} ]`}
       </button>
     </>
   ) : null;
@@ -1413,12 +1461,13 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   // own player): the way out is still on the bar (Luke, 2026-11-16: "the unfullscreen button is still visible").
   const exitKey =
     fullscreen && !(!officialOn && hasTransport && song === null) ? (
-      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Leave fullscreen" onClick={toggleFullscreen} data-room-exit-full>
-        [ EXIT ]
+      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Leave fullscreen" title="Leave full screen" onClick={toggleFullscreen} data-room-exit-full>
+        {`[ ${ROOM_LEAVE_FULL_MARK} ]`}
       </button>
     ) : null;
-  // Your main room has its own keys instead (SPEC-rooms-perpetual.md): GO LIVE / ● LIVE, LEAVE while live, END ROOM.
-  const mainRoomKeys = hostKeys && music ? <MainRoomKeys room={room} hostName={hostName} heir={heir} onLeft={onLeft} /> : null;
+  // Your main room has its own keys instead (SPEC-rooms-perpetual.md): GO LIVE / ● LIVE, which opens the cog on WHO CAN JOIN,
+  // and LEAVE while live. END ROOM is in the cog (Luke, 2026-11-17): nothing on the bar ends your room.
+  const mainRoomKeys = mainRoomHost ? <MainRoomKeys room={room} heir={heir} onLeft={onLeft} onAskLive={askLive} /> : null;
   const endKey = mainRoomKeys ?? (hostKeys && !music ? (
     // Ending it for everybody takes a second press, like starting it did.
     <button
@@ -1684,10 +1733,10 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
           <RoomVisualiser roomId={roomId} element={song !== null ? player.audioElement() : videoElement instanceof HTMLMediaElement ? videoElement : null} />
         ) : null}
         {visitorRoom ? null : <RoomCanvas roomId={roomId} context={canvasContext} visible={screen === 'canvas'} />}
-        <div className="absolute right-1 top-1 z-30 flex gap-1">
+        <RoomCornerKeys box={pictureBox}>
           <VisualiserToggle roomId={roomId} audio={canvasAudio} />
           {visitorRoom ? null : <CanvasToggle roomId={roomId} audio={canvasAudio} />}
-        </div>
+        </RoomCornerKeys>
         {pictureFloats ? <RoomFloatChrome host={pictureBox} drag={floatDrag} title={entryTitle ?? (music ? 'ROOM' : 'STREAM')} /> : null}
         {/* Fullscreen: the chosen background, live, under everything in this box. Last in the box, so nothing before it is moved. */}
         {dressed ? <StageBackdrop /> : null}
@@ -1777,7 +1826,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
         <button type="button" className={`${TITLE_BAR_BUTTON} max-sm:min-h-tap`} aria-haspopup="dialog" onClick={() => openQueue()} data-watch-queue-key>
           [ QUEUE ]
         </button>
-        {user !== null && mayEditRoom(room, read.crowns, user.id, live) ? (
+        {/* A signed-out visitor's own room has a cog too: its END ROOM, and LOG IN for going live. */}
+        {(user !== null && mayEditRoom(room, read.crowns, user.id, live)) || (visitorRoom && mainRoomHost) ? (
           <button type="button" className={`${TITLE_BAR_BUTTON} max-sm:min-h-tap`} aria-haspopup="dialog" aria-label="Room settings" title="Room settings" onClick={() => setSettingsOpen(true)} data-room-settings-key>
             [ {ROOM_COG} ]
           </button>
@@ -1830,7 +1880,19 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
         />
       ) : null}
       {naming && user === null ? <GuestWindow onNamed={() => setNaming(false)} onClose={() => setNaming(false)} /> : null}
-      {settingsOpen && user !== null && mayEditRoom(room, read.crowns, user.id, live) ? <RoomSettingsWindow room={room} userId={user.id} look={look} onClose={() => setSettingsOpen(false)} /> : null}
+      {settingsOpen && visitorRoom && mainRoomHost ? (
+        <VisitorRoomSettings room={room} onLeft={onLeft} onClose={closeSettings} />
+      ) : settingsOpen && user !== null && mayEditRoom(room, read.crowns, user.id, live) ? (
+        <RoomSettingsWindow
+          room={room}
+          userId={user.id}
+          look={look}
+          onClose={closeSettings}
+          liveSection={mainRoomHost ? <MainRoomLiveSection room={room} hostName={hostName} /> : undefined}
+          endSection={mainRoomHost ? <MainRoomEndSection room={room} onLeft={onLeft} /> : undefined}
+          askedLive={askedLive}
+        />
+      ) : null}
     </div>
   );
 

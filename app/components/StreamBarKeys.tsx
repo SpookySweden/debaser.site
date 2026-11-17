@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED } from '../lib/ui/controls';
 import { AUTO_QUALITY, type QualityControl, type SubtitleControl } from '../lib/watch/playable';
+import { ROOM_QUALITY_MARK } from '../lib/watch/room-frame';
 import type { LanguageTag } from '../lib/web/language';
 import { audioLanguage, choiceOf, defaultSubtitle, orderSubtitles, subtitleName, trackForChoice, type SubtitleChoice, type SubtitleTrack } from '../lib/web/subtitles';
 import ArtMark from './ArtMark';
@@ -106,8 +107,10 @@ export function QualityKey({ source }: { source: QualityControl | null }) {
 
   return (
     <span ref={boxRef} className="relative shrink-0">
-      <button type="button" className={PLATE_ON_BLACK} aria-haspopup="menu" aria-expanded={open} aria-label={`Quality: ${label}`} title="Quality" onClick={() => setOpen((value) => !value)} data-watch-quality={current}>
-        [ {label} ▴ ]
+      {/* The mark most players wear (Luke, 2026-11-17: "pip should also by symbolised as well as the quality button"); the choice
+          in force is said in its name and tooltip, and marked in the list. */}
+      <button type="button" className={PLATE_ON_BLACK} aria-haspopup="menu" aria-expanded={open} aria-label={`Quality: ${label}`} title={`Quality: ${label}`} onClick={() => setOpen((value) => !value)} data-watch-quality={current}>
+        {`[ ${ROOM_QUALITY_MARK} ▴ ]`}
       </button>
       {open ? (
         // Over the key, so opening it moves nothing on the bar.

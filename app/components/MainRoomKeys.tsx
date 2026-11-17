@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { FIELD_TIGHT, PLATE, PLATE_MAIN, PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED, PLATE_PRESSED } from '../lib/ui/controls';
-import { returnGoLiveAsk, subscribeToGoLiveAsk, takeGoLiveAsk } from '../lib/watch/main-room-play';
 import { ownRoomState } from '../lib/watch/own-room-client';
 import { getWatchRepository, repositoryFor } from '../lib/watch/repository';
 import Link from 'next/link';
@@ -14,43 +13,21 @@ import { useForum } from './ForumProvider';
 import PopoutWindow from './PopoutWindow';
 
 /**
- * Your main room's own keys on the picture's bar (SPEC-rooms-perpetual.md): `[ GO LIVE ]` while it is private and
- * `[ ● LIVE ]` once it is announced, both opening WHO CAN JOIN; `[ LEAVE ]` while it is live with somebody to hand it
- * to (it becomes theirs, and your next play makes you a new room); `[ END ROOM ]`, two presses, for everybody in it.
+ * Your main room's own keys and settings (SPEC-rooms-perpetual.md). Making it public or private and ending it live in the
+ * room's cog (Luke, 2026-11-17: "the ability to make your room public or private again etc should be accessable through
+ * the settings cog in the top right corner of the room rather than clicking the go live button", "end room should also be
+ * inside of the room settings rather than at the bottom right"): `MainRoomLiveSection` (WHO CAN JOIN, START, GO PRIVATE)
+ * and `MainRoomEndSection` (END ROOM, two presses), drawn by `RoomSettingsWindow`, or by `VisitorRoomSettings` for a
+ * signed-out visitor's own room.
+ *
+ * On the picture's bar stay `[ GO LIVE ]` / `[ ● LIVE ]`, now only a shortcut that opens the cog on WHO CAN JOIN, and
+ * `[ LEAVE ]` while it is live with somebody to hand it to (it becomes theirs, and your next play makes you a new room).
  * The same room throughout: going live moves nothing and restarts nothing.
  */
-export default function MainRoomKeys({ room, hostName, heir, onLeft }: { room: WatchRoom; hostName: string; heir: WatchMember | null; onLeft: () => void }) {
-  // GO LIVE pressed on the music bar or the CYTUBE page opens this room on WHO CAN JOIN (main-room-play.ts).
-  const [asking, setAsking] = useState(() => takeGoLiveAsk(room.id));
-  // ...and while it is already drawn (the window was open, or folded, when GO LIVE or WATCH IN ROOM was pressed).
-  const roomId = room.id;
-  useEffect(
-    () =>
-      subscribeToGoLiveAsk(() => {
-        if (takeGoLiveAsk(roomId)) setAsking(true);
-      }),
-    [roomId],
-  );
-  // These keys move from under the picture to the room's bar as the bar comes up (list 3, item 6): a WHO CAN JOIN still
-  // open when this copy goes is handed back, so the copy that stays opens it.
-  const askingNow = useRef(asking);
-  useEffect(() => {
-    askingNow.current = asking;
-  }, [asking]);
-  useEffect(() => () => {
-    if (askingNow.current) returnGoLiveAsk(roomId);
-  }, [roomId]);
-  const [confirmEnd, setConfirmEnd] = useState(false);
+export default function MainRoomKeys({ room, heir, onLeft, onAskLive }: { room: WatchRoom; heir: WatchMember | null; onLeft: () => void; /** Opens the cog on WHO CAN JOIN. */ onAskLive: () => void }) {
   const [busy, setBusy] = useState(false);
   const [fault, setFault] = useState<string | null>(null);
   const live = room.isPublic;
-
-  /** The room is no longer your main room: the session here starts a new one with your next play (Luke, Q1 A: empty). */
-  const letGo = () => {
-    ownRoomState().session?.renew(room.id);
-    applyLocalChange(room.id, { kind: 'refresh' });
-    onLeft();
-  };
 
   const leave = async () => {
     if (heir === null || heir.userId === null) return;
@@ -59,23 +36,8 @@ export default function MainRoomKeys({ room, hostName, heir, onLeft }: { room: W
       .passOn(room.id, heir.userId)
       .catch(() => false);
     setBusy(false);
-    if (handed) letGo();
+    if (handed) letGo(room, onLeft);
     else setFault('THE ROOM COULD NOT BE HANDED ON. TRY AGAIN.');
-  };
-
-  const end = async () => {
-    setBusy(true);
-    try {
-      // A changed canvas nobody saved asks "save this canvas?" first (SPEC-stream-art.md).
-      await askToSaveCanvas(room.id, { ending: true });
-      // A visitor's own room is ended where it lives, in this browser.
-      await repositoryFor(room.id).endRoom(room.id);
-      letGo();
-    } catch (failure) {
-      setFault(failure instanceof Error ? failure.message : 'THE ROOM COULD NOT BE ENDED.');
-    } finally {
-      setBusy(false);
-    }
   };
 
   return (
@@ -84,9 +46,10 @@ export default function MainRoomKeys({ room, hostName, heir, onLeft }: { room: W
         type="button"
         className={`${live ? PLATE_ON_BLACK_PRESSED : PLATE_ON_BLACK} shrink-0`}
         data-main-room-live={live ? 'live' : 'private'}
-        aria-label={live ? 'Live: change who can join, or go private' : 'Go live: put this room on the lists'}
-        title={live ? 'LIVE: CHANGE WHO CAN JOIN, OR GO PRIVATE' : 'GO LIVE: THIS SAME ROOM GOES ON THE LISTS'}
-        onClick={() => setAsking(true)}
+        aria-haspopup="dialog"
+        aria-label={live ? 'Live: change who can join, or go private, in the room settings' : 'Go live: opens the room settings on who can join'}
+        title={live ? 'LIVE: CHANGE WHO CAN JOIN, OR GO PRIVATE (ROOM SETTINGS)' : 'GO LIVE: WHO CAN JOIN, IN THE ROOM SETTINGS'}
+        onClick={onAskLive}
       >
         {live ? '[ ● LIVE ]' : '[ GO LIVE ]'}
       </button>
@@ -103,10 +66,50 @@ export default function MainRoomKeys({ room, hostName, heir, onLeft }: { room: W
           [ LEAVE ]
         </button>
       ) : null}
+      {fault !== null ? (
+        <span className="shrink-0 bg-bubble-pale px-1 text-label font-bold text-ink-bar" role="alert">
+          {fault}
+        </span>
+      ) : null}
+    </>
+  );
+}
+
+/** The room is no longer your main room: the session here starts a new one with your next play (Luke, Q1 A: empty). */
+function letGo(room: WatchRoom, onLeft: () => void) {
+  ownRoomState().session?.renew(room.id);
+  applyLocalChange(room.id, { kind: 'refresh' });
+  onLeft();
+}
+
+/** `[ END ROOM ]`, two presses, for everybody in it: in the room's cog. */
+export function MainRoomEndSection({ room, onLeft }: { room: WatchRoom; onLeft: () => void }) {
+  const [confirmEnd, setConfirmEnd] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [fault, setFault] = useState<string | null>(null);
+
+  const end = async () => {
+    setBusy(true);
+    try {
+      // A changed canvas nobody saved asks "save this canvas?" first (SPEC-stream-art.md).
+      await askToSaveCanvas(room.id, { ending: true });
+      // A visitor's own room is ended where it lives, in this browser.
+      await repositoryFor(room.id).endRoom(room.id);
+      letGo(room, onLeft);
+    } catch (failure) {
+      setFault(failure instanceof Error ? failure.message : 'THE ROOM COULD NOT BE ENDED.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-2" data-room-end-section>
+      <span className="font-bold">END THE ROOM:</span>
       <button
         type="button"
         disabled={busy}
-        className={`${confirmEnd ? PLATE_ON_BLACK_PRESSED : PLATE_ON_BLACK} shrink-0`}
+        className={confirmEnd ? PLATE_PRESSED : PLATE}
         data-main-room-end={confirmEnd ? 'confirm' : 'first'}
         onClick={() => {
           if (!confirmEnd) {
@@ -119,36 +122,33 @@ export default function MainRoomKeys({ room, hostName, heir, onLeft }: { room: W
       >
         {confirmEnd ? '[ END FOR EVERYBODY ]' : '[ END ROOM ]'}
       </button>
+      {confirmEnd ? <span className="font-bold">PRESS AGAIN: EVERYBODY IN IT LEAVES.</span> : null}
       {fault !== null ? (
-        <span className="shrink-0 bg-bubble-pale px-1 text-label font-bold text-ink-bar" role="alert">
+        <span className="w-fit bg-bubble-pale px-1 font-bold text-ink-bar" role="alert">
           {fault}
         </span>
       ) : null}
-      {asking ? (
-        ownRoomState().visitor && ownRoomState().roomId === room.id ? (
-          <LogInToGoLive onClose={() => setAsking(false)} />
-        ) : (
-          <WhoCanJoin room={room} hostName={hostName} onClose={() => setAsking(false)} />
-        )
-      ) : null}
-    </>
+    </div>
   );
 }
 
-/** A signed-out visitor's own room lives in this browser: it can't be put on the site's lists without an account. */
-function LogInToGoLive({ onClose }: { onClose: () => void }) {
+/**
+ * A signed-out visitor's own room lives in this browser: it can't be put on the site's lists without an account, so its
+ * cog says LOG IN for going live, and holds END ROOM.
+ */
+export function VisitorRoomSettings({ room, onLeft, onClose }: { room: WatchRoom; onLeft: () => void; onClose: () => void }) {
   return (
-    <PopoutWindow title="GO LIVE" onClose={onClose} maxWidth="max-w-md">
-      <div className="flex flex-col gap-2 p-2 text-label font-bold text-ink" data-main-room-log-in>
-        <p>YOUR ROOM IS KEPT IN THIS BROWSER. TO PUT IT ON THE LISTS, SHARE ITS LINK AND CHAT, LOG IN FIRST.</p>
-        <p className="flex flex-wrap gap-2">
-          <Link href="/account" className={PLATE_MAIN}>
-            [ LOG IN ]
-          </Link>
-          <button type="button" className={PLATE} onClick={onClose}>
-            [ CANCEL ]
-          </button>
-        </p>
+    <PopoutWindow title="ROOM SETTINGS" onClose={onClose} maxWidth="max-w-md">
+      <div className="flex flex-col gap-3 p-2 text-label text-ink" data-room-settings data-visitor-room-settings>
+        <div className="flex flex-col gap-2 font-bold" data-room-live-section data-main-room-log-in>
+          <p>GO LIVE: YOUR ROOM IS KEPT IN THIS BROWSER. TO PUT IT ON THE LISTS, SHARE ITS LINK AND CHAT, LOG IN FIRST.</p>
+          <p>
+            <Link href="/account" className={PLATE_MAIN}>
+              [ LOG IN ]
+            </Link>
+          </p>
+        </div>
+        <MainRoomEndSection room={room} onLeft={onLeft} />
       </div>
     </PopoutWindow>
   );
@@ -160,18 +160,25 @@ const CHOICES: { value: RoomPrivacy; label: string; tip: string }[] = [
   { value: 'open', label: 'OPEN', tip: 'ANYBODY CAN COME IN AND READ THE CHAT.' },
 ];
 
-/** WHO CAN JOIN for GO LIVE (PRIVATE picked first, as GO LIVE has always started), and GO PRIVATE once live. */
-function WhoCanJoin({ room, hostName, onClose }: { room: WatchRoom; hostName: string; onClose: () => void }) {
+/**
+ * WHO CAN JOIN, in the room's cog: GO LIVE (PRIVATE picked first, as GO LIVE has always started) while it is private, and
+ * SAVE or GO PRIVATE once live.
+ */
+export function MainRoomLiveSection({ room, hostName }: { room: WatchRoom; hostName: string }) {
   const forum = useForum();
   const live = room.isPublic;
-  const [privacy, setPrivacy] = useState<RoomPrivacy>(live ? room.privacy : 'private');
+  // Null until touched, so what the room says shows (going live or private again sets it back).
+  const [privacyDraft, setPrivacyDraft] = useState<RoomPrivacy | null>(null);
+  const privacy = privacyDraft ?? (live ? room.privacy : 'private');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [fault, setFault] = useState<string | null>(null);
+  const [said, setSaid] = useState<string | null>(null);
 
   const announce = async (on: boolean) => {
     setBusy(true);
     setFault(null);
+    setSaid(null);
     try {
       await getWatchRepository().announceRoom(room.id, on, privacy, privacy === 'password' && password.length > 0 ? password : null);
       // A room has one record on the board, filed the first time it goes live. One that could not be filed is still live.
@@ -184,7 +191,9 @@ function WhoCanJoin({ room, hostName, onClose }: { room: WatchRoom; hostName: st
         }
       }
       applyLocalChange(room.id, { kind: 'refresh' });
-      onClose();
+      setPrivacyDraft(null);
+      setPassword('');
+      setSaid(on ? (live ? 'SAVED.' : 'YOUR ROOM IS LIVE.') : 'YOUR ROOM IS PRIVATE AGAIN.');
     } catch (failure) {
       setFault(failure instanceof Error ? failure.message : 'THAT COULD NOT BE CHANGED.');
     } finally {
@@ -193,51 +202,55 @@ function WhoCanJoin({ room, hostName, onClose }: { room: WatchRoom; hostName: st
   };
 
   return (
-    <PopoutWindow title={live ? 'YOUR ROOM IS LIVE' : 'GO LIVE'} onClose={onClose} maxWidth="max-w-md">
-      <div className="flex flex-col gap-2 p-2 text-label font-bold text-ink" data-main-room-who>
-        <p>{live ? 'WHO CAN JOIN. OR GO PRIVATE: OFF EVERY LIST, EVERYBODY IN STAYS.' : 'THIS SAME ROOM GOES ON THE LISTS. NOTHING RESTARTS.'}</p>
-        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Who can join">
-          {CHOICES.map((choice) => (
-            <button
-              key={choice.value}
-              type="button"
-              role="radio"
-              aria-checked={privacy === choice.value}
-              title={choice.tip}
-              className={privacy === choice.value ? PLATE_PRESSED : PLATE}
-              data-main-room-privacy={choice.value}
-              onClick={() => setPrivacy(choice.value)}
-            >
-              [ {choice.label} ]
-            </button>
-          ))}
-        </div>
-        <p>{CHOICES.find((choice) => choice.value === privacy)?.tip}</p>
-        {privacy === 'password' ? (
-          <label className="flex items-center gap-2">
-            PASSWORD
-            <input type="password" value={password} maxLength={72} onChange={(event) => setPassword(event.target.value)} className={FIELD_TIGHT} />
-          </label>
-        ) : null}
-        {fault !== null ? (
-          <p className="w-fit bg-bubble-pale px-1 text-ink-bar" role="alert">
-            {fault}
-          </p>
-        ) : null}
-        <p className="flex flex-wrap gap-2">
-          <button type="button" disabled={busy} className={PLATE_MAIN} data-main-room-start onClick={() => void announce(true)}>
-            {live ? '[ SAVE ]' : '[ START ]'}
+    <div className="flex flex-col gap-2" data-room-live-section data-main-room-who>
+      <p className="font-bold">
+        {live ? 'YOUR ROOM IS LIVE. WHO CAN JOIN, OR GO PRIVATE: OFF EVERY LIST, EVERYBODY IN STAYS.' : "PRIVATE: ONLY SOMEBODY SIGNED IN WHO HAS YOUR ROOM'S LINK. GO LIVE: THIS SAME ROOM GOES ON THE LISTS. NOTHING RESTARTS."}
+      </p>
+      <div className="flex flex-wrap items-center gap-1" role="radiogroup" aria-label="Who can join">
+        <span className="font-bold">WHO CAN JOIN:</span>
+        {CHOICES.map((choice) => (
+          <button
+            key={choice.value}
+            type="button"
+            role="radio"
+            aria-checked={privacy === choice.value}
+            title={choice.tip}
+            className={privacy === choice.value ? PLATE_PRESSED : PLATE}
+            data-main-room-privacy={choice.value}
+            onClick={() => {
+              setPrivacyDraft(choice.value);
+              setSaid(null);
+            }}
+          >
+            [ {choice.label} ]
           </button>
-          {live ? (
-            <button type="button" disabled={busy} className={PLATE} data-main-room-private onClick={() => void announce(false)}>
-              [ GO PRIVATE ]
-            </button>
-          ) : null}
-          <button type="button" disabled={busy} className={PLATE} onClick={onClose}>
-            [ CANCEL ]
-          </button>
-        </p>
+        ))}
       </div>
-    </PopoutWindow>
+      <p>{CHOICES.find((choice) => choice.value === privacy)?.tip}</p>
+      {privacy === 'password' ? (
+        <label className="flex items-center gap-2 font-bold">
+          PASSWORD
+          <input type="password" value={password} maxLength={72} onChange={(event) => setPassword(event.target.value)} className={`${FIELD_TIGHT} font-normal`} />
+        </label>
+      ) : null}
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" disabled={busy} className={live ? PLATE : PLATE_MAIN} data-main-room-start onClick={() => void announce(true)}>
+          {live ? '[ SAVE ]' : '[ GO LIVE ]'}
+        </button>
+        {live ? (
+          <button type="button" disabled={busy} className={PLATE} data-main-room-private onClick={() => void announce(false)}>
+            [ GO PRIVATE ]
+          </button>
+        ) : null}
+        <span className="font-bold" role="status" data-main-room-said>
+          {said}
+        </span>
+      </div>
+      {fault !== null ? (
+        <p className="w-fit bg-bubble-pale px-1 font-bold text-ink-bar" role="alert">
+          {fault}
+        </p>
+      ) : null}
+    </div>
   );
 }

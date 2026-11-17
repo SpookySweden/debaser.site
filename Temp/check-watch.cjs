@@ -425,7 +425,9 @@ const member = (key, userId, joinedAt, name = key) => ({ key, userId, name, join
   // same promises, held on the window your room really uses: the live room's frame, [ QUEUE ] and the cog, and for a private
   // room GO LIVE and END ROOM in place of END STREAM; a visitor gets JUST YOU HERE and LOG IN where chat is, no chat box and
   // no canvas. The browser proof is scripts/drive-rooms-perpetual.cjs and scripts/drive-rooms-your-room.cjs.
-  await ok("your own room is the live room's own window: its frame, [ QUEUE ] and the cog, GO LIVE and END ROOM; a visitor's says JUST YOU HERE and LOG IN, with no chat and no canvas", () => {
+  // Updated on purpose 2026-11-17 (ROOMPOLISH, Luke: "end room should also be inside of the room settings rather than at the
+  // bottom right"): END ROOM left the bar for the cog, and a visitor's own room has the cog too (Temp/check-roompolish.cjs).
+  await ok("your own room is the live room's own window: its frame, [ QUEUE ] and the cog, GO LIVE on the bar and END ROOM in the cog; a visitor's says JUST YOU HERE and LOG IN, with no chat and no canvas", () => {
     viewer = ACCOUNT_A;
     const ownClient = require('./watch-render/lib/watch/own-room-client.js');
     const ownRead = (hostId) => ({
@@ -449,7 +451,7 @@ const member = (key, userId, joinedAt, name = key) => ({ key, userId, name, join
       }
       assert.match(own, /data-watch-queue-key="true"[^>]*>\[ QUEUE \]<\/button><button[^>]*aria-label="Room settings"/, '[ QUEUE ] and the cog head the side column');
       assert.match(own, /data-main-room-live="private"[\s\S]*?\[ GO LIVE \]/, 'a private room: GO LIVE on its bar of keys');
-      assert.match(own, /\[ END ROOM \]/, 'and END ROOM');
+      assert.doesNotMatch(own, /END ROOM|data-main-room-end/, 'END ROOM is in the cog, not on the bar');
       assert.doesNotMatch(own, /END STREAM/, 'never END STREAM: it is your room, not a stream');
       assert.match(own, /id="watch-chat"/, 'chat is on (for whoever joins by your link)');
       assert.doesNotMatch(own, /data-visitor-room-alone/);
@@ -461,7 +463,8 @@ const member = (key, userId, joinedAt, name = key) => ({ key, userId, name, join
       const visitor = drawRoom(ownRead('visitor:1'));
       assert.match(visitor, /data-visitor-room-alone[\s\S]*JUST YOU HERE[\s\S]*\[ LOG IN \][\s\S]*TO SHARE ITS LINK, CHAT WITH WHO JOINS, AND GO LIVE/);
       assert.doesNotMatch(visitor, /id="watch-chat"/, 'no chat box');
-      assert.doesNotMatch(visitor, /\[ CANVAS \]/, 'no canvas key');
+      assert.doesNotMatch(visitor, /data-canvas-toggle/, 'no canvas key');
+      assert.match(visitor, /aria-label="Room settings"/, 'the cog, for its END ROOM and LOG IN');
       assert.match(visitor, /data-main-room-live="private"[\s\S]*?\[ GO LIVE \]/, 'GO LIVE is there (it asks them to log in)');
       assert.match(visitor, /data-watch-queue-key="true"/, 'and [ QUEUE ]');
     } finally {
