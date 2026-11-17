@@ -66,7 +66,11 @@ export function LetterPlaylistKey({ letter, playlist }: { letter: LetterThing; p
  * The arrow stays under the pointer when pressed: in a row whose keys hug the right edge (`unfold="left"`) the rest
  * unfolds before it, otherwise after it. It points the way they come out, and back once they have.
  */
-export function MoreKeys({ title, unfold = 'right', children }: { title: string; unfold?: 'left' | 'right'; children: ReactNode }) {
+/**
+ * `inKey` (MEDIA's GRID cards, Luke 2026-11-17): the arrow is drawn as the last part of the row's PLAY / QUEUE key, `▸ ]`
+ * with no side padding, handed to `inKey` to place (SplitKey's `end`), so a narrow card keeps them on one line.
+ */
+export function MoreKeys({ title, unfold = 'right', inKey, children }: { title: string; unfold?: 'left' | 'right'; inKey?: (arrow: ReactNode) => ReactNode; children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const glyph = (unfold === 'right') === open ? '◂' : '▸';
   const arrow = (
@@ -76,17 +80,20 @@ export function MoreKeys({ title, unfold = 'right', children }: { title: string;
       aria-expanded={open}
       aria-label={open ? `Fewer options for "${title}"` : `More options for "${title}"`}
       title={open ? 'Fewer options' : 'More options'}
-      className={PLATE}
+      className={inKey ? PLATE_IN_KEY : PLATE}
       data-more-keys={open ? 'open' : 'shut'}
     >
-      {`[ ${glyph} ]`}
+      {inKey ? `${glyph} ]` : `[ ${glyph} ]`}
     </button>
   );
   return (
     <>
       {open && unfold === 'left' ? children : null}
-      {arrow}
+      {inKey ? inKey(arrow) : arrow}
       {open && unfold === 'right' ? children : null}
     </>
   );
 }
+
+/** The arrow as the last part of a key: `PLATE` with no side padding (the brackets are the key's own). */
+const PLATE_IN_KEY = PLATE.replace(/(^|\s)(?:max-sm:)?px-1(?=\s|$)/g, '$1').replace(/\s+/g, ' ').trim();

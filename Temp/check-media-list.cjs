@@ -115,7 +115,13 @@ for (const key of ["<LetterPlaylistKey letter={{ kind: 'web'", '<WebDiscussKey i
   assert.ok(at > moreAt && at < stream.indexOf('</MoreKeys>'), key + ' waits behind the arrow');
 }
 assert.equal(mediaRow.split('<MoreKeys title={item.title}>').length - 1, 2, 'KINO and server cards have the arrow too');
-assert.match(rowKeys, /\{open && unfold === 'left' \? children : null\}\s*\{arrow\}\s*\{open && unfold === 'right' \? children : null\}/, 'the arrow stays put: the rest unfolds on its far side');
+// Updated on purpose 2026-11-17 (list 4, GRIDCARD; Luke: "fitting the < . > on the end of the play and queue buttons"): in a
+// GRID card the arrow is drawn as the last part of the PLAY / QUEUE key (`inKey`, SplitKey's `end`); it still stays put.
+assert.match(rowKeys, /\{open && unfold === 'left' \? children : null\}\s*\{inKey \? inKey\(arrow\) : arrow\}\s*\{open && unfold === 'right' \? children : null\}/, 'the arrow stays put: the rest unfolds on its far side');
+assert.match(stream, /\(arrow: React\.ReactNode\) => <SplitKey label=\{keyHoldsArrow\.label\} first=\{keyHoldsArrow\.first\} second=\{keyHoldsArrow\.second\} end=\{arrow\} tight \/>/, 'GRID: [ ▶ PLAY│+ QUEUE│▸ ], one key on one line');
+assert.match(stream, /view !== 'grid' \|\| !full\s*\? null/, '... in GRID only; LIST, LARGE and COMPACT keep the arrow as its own key');
+assert.match(stream, /<p className="flex w-full min-w-0 items-center whitespace-nowrap text-label text-ink-quiet" data-row-facts>\s*<span className="min-w-0 truncate">/, "GRID's facts are one line; the end of SOURCE · KIND is cut first");
+assert.match(stream, /<time dateTime=\{item\.publishedAt\} className="shrink-0">/, '... and the date always shows whole');
 assert.ok(rowKeys.includes('const [open, setOpen] = useState(false);'), 'each row starts folded');
 assert.match(stream, /aria-expanded=\{alsoOpen\} aria-controls=\{alsoId\}/, '... and says whether it is open');
 assert.match(read('app/components/KinoSources.tsx'), /\[ WATCH · \$\{total\} \$\{open \? '▴' : '▾'\} \]`\}\n        <\/button>\n        \{beside\}/, 'a card\'s other keys come after WATCH');
