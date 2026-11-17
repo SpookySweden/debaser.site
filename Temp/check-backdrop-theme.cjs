@@ -141,14 +141,15 @@ const { BackdropKnobs } = load('components/BackdropSettingsWindow.js');
 themeSlot.setTheme('overdrive-ember');
 const ember = renderToString(React.createElement(BackdropKnobs, { id: 'fluid' })).replace(/<!-- -->/g, '');
 assert.match(ember, /aria-pressed="true"[^>]*data-backdrop-knob="theme"/, 'FLUID`s window has [ THEME ], pressed');
-assert.ok(ember.indexOf('data-backdrop-knob="theme"') < ember.indexOf('data-backdrop-tab='), 'above the tabs, not inside one');
-assert.match(ember, /MATCHED TO OVERDRIVE EMBER/, 'naming the theme it is matched to');
-assert.match(ember, /IT SETS COLOURS/, 'and the knobs the theme sets');
+assert.ok(ember.indexOf('data-backdrop-knob="theme"') < ember.indexOf('data-backdrop-sheet='), 'heading the sheet, not inside a section (one sheet since 2026-11-17)');
+assert.match(ember, /data-backdrop-knob="theme">\[ THEME \]<\/button><span><span[^>]*>OVERDRIVE EMBER</, 'naming the theme it is matched to, beside it');
+// The knobs the theme sets say so in their own row (THEME in their keys' column), not in a list at the top (2026-11-17).
+assert.match(ember, /aria-label="COLOURS"[\s\S]*?data-backdrop-set-by-theme="">THEME</, 'and the knobs the theme sets say THEME in their row');
 assert.match(ember, /disabled=""[^>]*data-backdrop-knob="colours-dyes"/, 'which rest while it is on');
 assert.match(ember, /→/, 'a nudged value shows where the theme has it');
 const fish = renderToString(React.createElement(BackdropKnobs, { id: 'aquarium' })).replace(/<!-- -->/g, '');
 assert.match(fish, /data-backdrop-knob="theme"/, 'the AQUARIUM`s window has it too');
-assert.match(fish, /IT SETS WATER TINT, TINT COLOUR, LIGHT, MURK/, 'where the theme sets the water');
+assert.equal((fish.match(/data-backdrop-set-by-theme=""/g) ?? []).length, 4, 'where the theme sets the water: WATER TINT, TINT COLOUR, LIGHT, MURK each say THEME');
 // (The server draws a background's settings as they come, THEME on: the window with THEME off is proven in a real browser.)
 
 /* ------------------------------------------------------------------ 7. PARTY and the looks leave it be */
