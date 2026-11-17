@@ -36,6 +36,20 @@ const pass = (what) => {
 };
 const left = [];
 
+/**
+ * Your room's END ROOM and WHO CAN JOIN live in the room's cog since ROOMPOLISH (Luke, 2026-11-17): the cog is opened when it
+ * is not already, then END ROOM pressed twice. `closeCog` puts the cog away (Escape), back to the room.
+ */
+async function endInCog(page) {
+  if ((await page.locator('[data-room-end-section]').count()) === 0) await page.locator('[data-room-settings-key]').first().click();
+  await page.locator('[data-main-room-end="first"]').first().click();
+  await page.locator('[data-main-room-end="confirm"]').first().click();
+}
+async function closeCog(page) {
+  if ((await page.locator('[data-room-settings]').count()) === 0) return;
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => document.querySelector('[data-room-settings]') === null, null, { timeout: 5000 });
+}
 async function open(page, path) {
   await page.goto(`${BASE}${path}`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('[data-bar-queue]', { timeout: 90000 });
@@ -73,7 +87,7 @@ async function open(page, path) {
     await open(pageA, '/forum');
     await pageA.locator('[data-go-live-key]').first().click();
     await pageA.waitForSelector('[data-main-room-who]', { timeout: 30000 });
-    await pageA.locator('[data-main-room-who] button', { hasText: 'CANCEL' }).click();
+    await closeCog(pageA);
     await pageA.locator('[data-dock-window="stream"] [data-room-settings-key]').click();
     await pageA.waitForSelector('[data-room-copy-link]', { timeout: 15000 });
     await pageA.locator('[data-room-copy-link]').click();
@@ -100,10 +114,12 @@ async function open(page, path) {
     pass('B joined A\'s private room by its link and said a line in its chat; A saw it arrive');
 
     console.log('2. THE 45-SECOND TAKE-OVER');
+    await closeCog(pageA);
     await pageA.locator('[data-main-room-live="private"]').first().click();
     await pageA.waitForSelector('[data-main-room-who]', { timeout: 15000 });
     await pageA.locator('[data-main-room-start]').click();
     await pageA.waitForSelector('[data-main-room-live="live"]', { timeout: 30000 });
+    await closeCog(pageA);
     await sleep(4000);
     const live = await roomRow(roomId);
     assert.equal(live.is_public, true, 'live');

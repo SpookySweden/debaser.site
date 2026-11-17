@@ -3,6 +3,7 @@
 import { artSlot } from '../lib/ui/art/slots';
 import { PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED } from '../lib/ui/controls';
 import { chooseScreen, useScreenView } from '../lib/watch/canvas-view';
+import { ROOM_CANVAS_MARK } from '../lib/watch/room-frame';
 import { setVisualiserOn } from '../lib/watch/visualiser';
 import ArtMark from './ArtMark';
 
@@ -40,7 +41,8 @@ export default function CanvasToggle({ roomId, audio, className }: CanvasToggleP
       }}
       data-canvas-toggle={view}
     >
-      <ArtMark src={CANVAS_MARK_SRC} size={MARK_SIZE} fallback={<span>{onCanvas ? '[ PICTURE ]' : '[ CANVAS ]'}</span>} />
+      {/* One mark both ways: pressed (filled) while the canvas shows, as the visualiser key is while it shows. */}
+      <ArtMark src={CANVAS_MARK_SRC} size={MARK_SIZE} fallback={<span>{`[ ${ROOM_CANVAS_MARK} ]`}</span>} />
     </button>
   );
 }

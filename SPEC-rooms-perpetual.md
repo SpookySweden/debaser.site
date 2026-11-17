@@ -279,6 +279,16 @@ Then the house loop once per batch (League mode: one heavy step at a time, low p
   steps 40 ms apart (one under reduced motion), unless the window was sized by hand (remembered in this browser until
   `[ FIT ]`), is maximised or fullscreen; folded, it fits when unfolded (`room-fit.ts`). The window starts at 920x580.
   Proof: `scripts/drive-roomui.cjs` on a mock server.
+- **ROOMPOLISH (Luke, 2026-11-17):** WHO CAN JOIN (GO LIVE; SAVE and GO PRIVATE once live) and `[ END ROOM ]` (two presses)
+  are in the room's cog, as sections 4 and 5 always had END ROOM: "the ability to make your room public or private again etc
+  should be accessable through the settings cog", "end room should also be inside of the room settings". The bar keeps
+  `[ GO LIVE ]` / `[ ● LIVE ]` as a shortcut that opens the cog on WHO CAN JOIN (so do the music bar's and CYTUBE's GO LIVE),
+  and `[ LEAVE ]` while live with somebody to hand it to; nothing on the bar ends your room. A signed-out visitor's own room
+  has a cog too: LOG IN for going live, and END ROOM. The picture's keys are the marks video players use, words kept in their
+  names and tooltips: FULL `[ ⤢ ]`, leaving it `[ ⤡ ]`, PIP `[ ⧉ ]`, QUALITY `[ HD ▴ ]`; the visualiser and canvas keys' stand-ins
+  (until Luke's drawn marks) are `[ ▁▃▅ ]` and `[ ✎ ]`, on a black plate in the picture's corner, shown while the pointer is
+  over the picture and gone after `ROOM_CORNER_KEYS_AWAKE_MS` (5 minutes) without it, back for the keyboard
+  (`RoomCornerKeys.tsx`). Proof: `Temp/check-roompolish.cjs`, `scripts/drive-roompolish.cjs` (Chrome and Edge) on a mock server.
 - **Not done, said here:** `<NAME> IS AWAY` for joiners of an away host is not drawn; the 3-minute close of a handed-on room and the
   45-second take-over are proved on the mock store and in the migration, not live (the migration waits for Luke's
   typed OK).

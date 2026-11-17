@@ -23,6 +23,13 @@ import { fitTrimmed, WIDE } from './video-shape';
  * suggestions. YouTube's embedding rules ask sites not to cover its player; if YouTube moves its strips,
  * `BLEED_SHARE` is the number to change, and the cover still keeps every click on the site.
  *
+ * **YouTube's own play/pause in the middle** (Luke, 2026-11-17: "the II pause button still appears"). YouTube's embed now
+ * draws a round play/pause in the middle of the picture for about four seconds every time a video starts or resumes, then
+ * hides it by itself. Measured on a local server with a real YouTube video (ROOMPOLISH, 2026-11-17): it shows with `controls` 0 or 1, `autohide`,
+ * without `playsinline`, for play, seek, stop-and-seek, cue-and-play, reload-at-place, mute and speed tricks, and when the
+ * frame is resized or hidden for a moment from this page; the cover means no pointer reaches it. Nothing this side can
+ * switch it off, so it is left as YouTube's.
+ *
  * **Quality.** YouTube stopped letting other sites choose quality in 2019 (`setPlaybackQuality` does
  * nothing); it picks by the size of its player on screen and the connection. So the QUALITY key changes the
  * size YouTube is told its player is - drawn that size and scaled to fit the picture's box - which nudges

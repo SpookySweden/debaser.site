@@ -256,6 +256,20 @@ async function songMenu(page, key) {
   if (await page.locator('[data-song-menu]').count()) await page.keyboard.press('Escape');
   await sleep(200);
 }
+/**
+ * Your room's END ROOM and WHO CAN JOIN live in the room's cog since ROOMPOLISH (Luke, 2026-11-17): the cog is opened when it
+ * is not already, then END ROOM pressed twice. `closeCog` puts the cog away (Escape), back to the room.
+ */
+async function endInCog(page) {
+  if ((await page.locator('[data-room-end-section]').count()) === 0) await page.locator('[data-room-settings-key]').first().click();
+  await page.locator('[data-main-room-end="first"]').first().click();
+  await page.locator('[data-main-room-end="confirm"]').first().click();
+}
+async function closeCog(page) {
+  if ((await page.locator('[data-room-settings]').count()) === 0) return;
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => document.querySelector('[data-room-settings]') === null, null, { timeout: 5000 });
+}
 async function open(page, path) {
   await page.goto(`${BASE}${path}`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('[data-bar-queue]', { timeout: 90000 });
@@ -566,6 +580,7 @@ const floorOf = (page) =>
     await page.waitForSelector('[data-main-room-who]', { timeout: 10000 });
     await page.locator('[data-main-room-start]').click();
     await page.waitForSelector('[data-main-room-live="live"]', { timeout: 15000 });
+    await closeCog(page);
     await sleep(1200);
     const after = await page.evaluate(() => {
       const box = (sel) => {
@@ -600,8 +615,7 @@ const floorOf = (page) =>
     for (const side of ['left', 'top', 'width', 'height']) assert.ok(near(home[side], after.window[side]), `where it was (${side})`);
     pass('live and folded: ROOM :: LIVE above the player, nothing floats; the key brings the window back where it was');
 
-    await page.locator('[data-main-room-end="first"]').first().click();
-    await page.locator('[data-main-room-end="confirm"]').first().click();
+    await endInCog(page);
     await page.waitForFunction(() => document.querySelector('[data-dock-window="stream"]') === null, null, { timeout: 15000 });
     pass('END ROOM, to leave the mock store tidy');
 
@@ -677,8 +691,7 @@ const floorOf = (page) =>
             await page.waitForFunction(() => document.fullscreenElement === null, null, { timeout: 8000 });
           }
         }
-        await page.locator('[data-main-room-end="first"]').first().click().catch(() => undefined);
-        await page.locator('[data-main-room-end="confirm"]').first().click().catch(() => undefined);
+        await endInCog(page).catch(() => undefined);
       }
     }
 

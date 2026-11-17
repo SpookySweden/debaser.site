@@ -37,3 +37,31 @@ export function roomSide(width: number | null): { className: string; style: Reco
 export const ROOM_SIDE_BODY = 'flex flex-col gap-1 sm:min-h-0 sm:flex-1';
 /** The settings key's mark: the cog, asked for as a symbol rather than a coloured emoji. */
 export const ROOM_COG = '⚙︎';
+
+/*
+ * The picture's keys as the marks most video players use (Luke, 2026-11-17: "convert the fullscreen and back button into
+ * symbols like used in most video players", "pip should also by symbolised as well as the quality button"). The site's face
+ * is IBM Plex Mono's Latin subset, so each of these comes from the reader's own symbol font (Segoe UI Symbol on Windows,
+ * Apple Symbols on a Mac, Noto on Android): only marks every system has, none with a coloured emoji form. Each key keeps
+ * its words in its accessible name and tooltip.
+ */
+/** FULL: arrows out to the corners. */
+export const ROOM_FULL_MARK = '⤢';
+/** Leaving fullscreen: arrows in from the corners. */
+export const ROOM_LEAVE_FULL_MARK = '⤡';
+/** Picture in picture: a small box over a larger one. */
+export const ROOM_PIP_MARK = '⧉';
+/** QUALITY: the letters every player's quality key wears; a gear would read as the room's cog. */
+export const ROOM_QUALITY_MARK = 'HD';
+/**
+ * The visualiser and canvas keys' stand-ins until Luke's drawn marks land (`ArtMark`; Luke, 2026-11-17: "symbolised rather
+ * than saying exactly what they are"): rising bars for the visualiser, a pencil (U+270E, not U+270F, which has an emoji form)
+ * for the canvas.
+ */
+export const ROOM_VIS_MARK = '▁▃▅';
+export const ROOM_CANVAS_MARK = '✎';
+/**
+ * How long the visualiser and canvas keys stay in the picture's corner after the pointer was last over the picture (Luke,
+ * 2026-11-17: "dissapear after not hovering on the player for 5 minutes"). The one number to change.
+ */
+export const ROOM_CORNER_KEYS_AWAKE_MS = 5 * 60 * 1000;

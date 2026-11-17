@@ -143,6 +143,20 @@ const VIMEO_STAND_IN = `(() => {
   window.Vimeo = { Player };
 })();`;
 
+/**
+ * Your room's END ROOM and WHO CAN JOIN live in the room's cog since ROOMPOLISH (Luke, 2026-11-17): the cog is opened when it
+ * is not already, then END ROOM pressed twice. `closeCog` puts the cog away (Escape), back to the room.
+ */
+async function endInCog(page) {
+  if ((await page.locator('[data-room-end-section]').count()) === 0) await page.locator('[data-room-settings-key]').first().click();
+  await page.locator('[data-main-room-end="first"]').first().click();
+  await page.locator('[data-main-room-end="confirm"]').first().click();
+}
+async function closeCog(page) {
+  if ((await page.locator('[data-room-settings]').count()) === 0) return;
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => document.querySelector('[data-room-settings]') === null, null, { timeout: 5000 });
+}
 async function open(page, path) {
   await page.goto(`${BASE}${path}`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('[data-bar-queue], [data-stream-bar]', { timeout: 120000 });
@@ -287,7 +301,7 @@ async function queueLink(page, url) {
         const box = key.getBoundingClientRect();
         return { inside: full.contains(key), seen: box.width > 0 && box.height > 0 && box.bottom <= window.innerHeight && box.top >= 0, text: key.innerText.trim() };
       });
-      assert.deepEqual(exit, { inside: true, seen: true, text: '[ EXIT ]' }, 'the [ EXIT ] key is in the fullscreen box, on screen');
+      assert.deepEqual(exit, { inside: true, seen: true, text: '[ ⤡ ]' }, 'the leave-fullscreen key (⤡ since ROOMPOLISH) is in the fullscreen box, on screen');
       await page.screenshot({ path: join(SHOTS, '3-blank-fullscreen.png') });
       await page.locator('[data-room-exit-full]').click();
       await page.waitForFunction(() => document.fullscreenElement === null, null, { timeout: 8000 });
@@ -388,8 +402,7 @@ async function queueLink(page, url) {
       pass('a reload with your room folded: it comes back folded with its key and its bar, paused; PLAY on the bar starts it; the key opens it');
 
       console.log('4. END ROOM: A RELOAD BRINGS NOTHING BACK');
-      await page.locator('[data-main-room-end="first"]').first().click();
-      await page.locator('[data-main-room-end="confirm"]').first().click();
+      await endInCog(page);
       await page.waitForFunction(() => document.querySelector('[data-dock-window="stream"]') === null, null, { timeout: 15000 });
       await open(page, '/forum');
       await sleep(3000);

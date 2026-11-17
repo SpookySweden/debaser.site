@@ -103,7 +103,8 @@ for (let i = 0; i < 20; i += 1) assert.notEqual(vis.stepPreset(2, 5, 'random', (
 console.log('  ok    looks');
 
 /* 4. The key, and the warning first -------------------------------------------------------------------- */
-assert.match(renderToStaticMarkup(el(VisualiserToggle, { roomId: 'r1' })), /aria-pressed="false"[\s\S]*>\[ VIS \]</, 'the key reads [ VIS ] until Luke draws its mark');
+// Updated on purpose 2026-11-17 (ROOMPOLISH, Luke: 'the "VIS" and "canvas" buttons also now need to by symbolised'): rising bars.
+assert.match(renderToStaticMarkup(el(VisualiserToggle, { roomId: 'r1' })), /aria-pressed="false"[\s\S]*>\[ ▁▃▅ \]</, 'the key reads [ ▁▃▅ ] until Luke draws its mark');
 // (Pressed while it shows is the browser's business: a server render always draws the starting state, off.)
 assert.equal(vis.warningAccepted(), false);
 const first = renderToStaticMarkup(el(RoomVisualiser, { roomId: 'r1', element: null }));
