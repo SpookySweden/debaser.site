@@ -3,7 +3,8 @@
 import { buildNewsFeed } from '../lib/forum/news-feed';
 import { useForum } from './ForumProvider';
 import NewsCrawl from './NewsCrawl';
-import { TITLE_BAR } from '../lib/ui/controls';
+import { PLATE, TITLE_BAR } from '../lib/ui/controls';
+import { useEffect, useState } from 'react';
 
 /**
  * The wire: everything filed on the board, crawling across one strip.
@@ -33,7 +34,31 @@ import { TITLE_BAR } from '../lib/ui/controls';
  */
 export default function NewsTicker() {
   const forum = useForum();
-  const items = buildNewsFeed(forum.threads, undefined, { pins: forum.pins });
+  // Pinned first, then the newest posts and replies (SPEC-forum-v2.md, Luke's 8A: pins alone left it empty most days).
+  const items = buildNewsFeed(forum.threads, 64, { pins: forum.pins, newest: WIRE_NEWEST });
+  /** `[ ❚❚ ]` stops the crawl and `[ ▶ ]` starts it, remembered in this browser (8A). Read after the first paint. */
+  const [paused, setPaused] = useState(false);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      try {
+        setPaused(window.localStorage.getItem(WIRE_PAUSED_KEY) === '1');
+      } catch {
+        // No storage: the wire moves, and the key still stops it for this visit.
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  const togglePaused = () => {
+    const next = !paused;
+    setPaused(next);
+    try {
+      window.localStorage.setItem(WIRE_PAUSED_KEY, next ? '1' : '0');
+    } catch {
+      // Kept for this visit only.
+    }
+  };
 
   if (items.length === 0) return null;
 
@@ -43,9 +68,25 @@ export default function NewsTicker() {
         <span>NEWSWIRE</span>
       </div>
 
-      <div>
-        <NewsCrawl items={items} className="overflow-hidden px-1 py-0.75" />
+      <div className="flex items-center gap-1">
+        {/* Gone under reduced motion, where the wire is already a still list (./NewsCrawl.tsx). */}
+        <button
+          type="button"
+          onClick={togglePaused}
+          aria-pressed={paused}
+          aria-label={paused ? 'Start the newswire' : 'Stop the newswire'}
+          title={paused ? 'Start the newswire' : 'Stop the newswire'}
+          className={`${PLATE} hit shrink-0 motion-reduce:hidden`}
+          data-wire-pause
+        >
+          {paused ? '[ ▶ ]' : '[ ❚❚ ]'}
+        </button>
+        <NewsCrawl items={items} paused={paused} className="min-w-0 flex-1 overflow-hidden px-1 py-0.75" />
       </div>
     </section>
   );
 }
+
+/** How many of the newest posts and replies follow the pins. */
+const WIRE_NEWEST = 12;
+const WIRE_PAUSED_KEY = 'debaser.forum.wire-paused.v1';

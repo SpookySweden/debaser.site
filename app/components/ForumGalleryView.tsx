@@ -38,11 +38,14 @@ export default function ForumGalleryView({
   tagFilter = [],
   seenByThread = {},
 }: ForumGalleryViewProps) {
+  // Columns by the board's own width, not the screen's (the side panel and the search results take a share): four
+  // across on a desktop board (SPEC-forum-v2.md, Luke's 6A), fewer as it narrows.
   return (
+    <div className="@container">
     <ul
       id="forum-thread-list"
       data-view="gallery"
-      className="grid list-none grid-cols-1 gap-2 p-2 text-ink sm:grid-cols-2 xl:grid-cols-3"
+      className="grid list-none grid-cols-1 gap-2 p-2 text-ink @min-[28rem]:grid-cols-2 @min-[40rem]:grid-cols-3 @min-[52rem]:grid-cols-4"
     >
       {threads.map((thread) => (
         <ForumGalleryTile
@@ -54,5 +57,6 @@ export default function ForumGalleryView({
         />
       ))}
     </ul>
+    </div>
   );
 }

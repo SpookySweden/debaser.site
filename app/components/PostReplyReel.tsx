@@ -38,7 +38,12 @@ export default function PostReplyReel({ comments, className = '' }: PostReplyRee
     <div className={className} aria-hidden="true">
       {/* No heading: each row already says `[ REPLY ]` beside the name, so a `LATEST REPLIES` line
           over the strip said it twice (SPEC-efficiency.md). */}
-      <NewsCrawl items={rows} className="overflow-hidden" />
+      {/* The rows fade in and out at both ends of the band rather than being chopped mid-word at the board's edge
+          (SPEC-forum-v2.md, Luke's 5B: keep it moving, never cut off). The mask is still: only the words move. */}
+      <NewsCrawl
+        items={rows}
+        className="overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_2rem,black_calc(100%-2rem),transparent)]"
+      />
     </div>
   );
 }

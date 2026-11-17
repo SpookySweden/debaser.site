@@ -137,7 +137,7 @@ export default function ForumGalleryTile({ thread, onOpen, tagFilter = [], read 
           <p className="whitespace-pre-line text-prose leading-normal wrap-anywhere text-ink">{bodyWords(layout.right.body)}</p>
         )}
 
-        <TagStrip tags={layout.left.tags} limit={5} emptyLabel="NO TAGS" className="mt-1" />
+        <TagStrip tags={layout.left.tags} limit={5} className="mt-1" />
 
         {/* The same line a filtered row draws, saying which tags brought this tile in and where they
             were typed - the tags belong to the post or to somebody's reply, and a tile whose own tag

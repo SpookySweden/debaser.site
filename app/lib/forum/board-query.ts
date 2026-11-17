@@ -241,6 +241,8 @@ export function selectBoardThreads(threads: ForumThread[], options: BoardQuery):
     } else if (options.sourceFilter === 'all') {
       if (!onMainBoard(thread)) return false;
     } else if (thread.anchor.kind !== options.sourceFilter) return false;
+    // BOARD THREADS is a narrower ALL: an unanswered stream record waits under STREAMS there too (SPEC-forum-v2.md, 4A).
+    else if (options.sourceFilter === 'board' && !onMainBoard(thread)) return false;
     if (!matchesTagFilter(thread, options.tagKeys, options.tagMatchMode)) return false;
     if (options.musicOnly === true && !carriesMusic(thread)) return false;
     if (options.imageOnly === true && !carriesImage(thread)) return false;

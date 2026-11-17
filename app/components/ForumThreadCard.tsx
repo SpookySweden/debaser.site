@@ -29,7 +29,7 @@ import { useForum } from './ForumProvider';
 import { ThreadPinControl } from './ForumPinPanel';
 import { ThreadModeration } from './ForumModerationControls';
 import AddToLetterKey from './AddToLetterKey';
-import StreamRecord, { StreamMarker } from './StreamRecord';
+import StreamRecord, { StreamMarker, StreamRowFacts } from './StreamRecord';
 import { streamRoomId } from '../lib/watch/rules';
 import InlineTrackPlayer from './InlineTrackPlayer';
 import MentionRow from './MentionRow';
@@ -288,9 +288,11 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                     country={layout.author.country}
                     displayedTags={layout.author.displayedTags}
                     stamp={
-                      /* The instant is the one blue thing in the strip: POSTED stays black. */
+                      /* The instant is the one blue thing in the strip: POSTED stays black. A stream's record says
+                         HOSTED, then what the stream was (Luke's 3A, SPEC-forum-v2.md). */
                       <span className="font-bold">
-                        POSTED <TimeStamp at={thread.createdAt} />
+                        {streamRoom === null ? 'POSTED' : 'HOSTED'} <TimeStamp at={thread.createdAt} />
+                        {streamRoom === null ? null : <StreamRowFacts roomId={streamRoom} />}
                       </span>
                     }
                   />
@@ -418,7 +420,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
             {/* The open post's left column: its tags, folded to one line of tokens like the
                 collapsed row's, with the rest behind the strip's own `[+n]`. The column is narrow and
                 a post with nine tags would otherwise be nine lines of reading before the text. */}
-            <TagStrip tags={layout.left.tags} limit={5} className="mt-2" emptyLabel="NO TAGS" />
+            <TagStrip tags={layout.left.tags} limit={5} className="mt-2" />
 
             {images.count > 1 ? (
               <p className="mt-1 text-label font-bold text-ink">

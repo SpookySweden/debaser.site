@@ -19,8 +19,6 @@ type MediaPickerProps = {
   heightClass?: string;
 };
 
-/** The tile that means "no artwork": a post does not have to carry a picture. */
-const NONE = 'NONE';
 
 /**
  * Artwork picker, laid out like the icon view of a file browser.
@@ -95,9 +93,18 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
             bar ink: Black on Rose is 4.47:1 - a hair under the floor, and it is the pair the audit
             caught here - while Pure White is 4.70:1 in either theme. The children name their own ink
             rather than inheriting, so each one has to say it. */}
-        <div className={`flex w-full items-center gap-2 border border-ink bg-bubble-pale p-1 [--key-ink:var(--color-ink-bar)] [--key-hover-ink:var(--color-bubble-pale)] [--key-quiet-ink:var(--color-ink-bar)] sm:flex-1 ${heightClass}`}>
+        {/* With nothing chosen the pane is a quiet box in the field's own inks, saying NO PICTURE: a big Rose square
+            reading NONE looked like an error (SPEC-forum-v2.md, tidy-up 13). Rose is for a chosen picture. */}
+        <div
+          className={`flex w-full items-center gap-2 border border-ink p-1 sm:flex-1 ${heightClass} ${
+            selected === undefined
+              ? 'bg-paper'
+              : 'bg-bubble-pale [--key-ink:var(--color-ink-bar)] [--key-hover-ink:var(--color-bubble-pale)] [--key-quiet-ink:var(--color-ink-bar)]'
+          }`}
+          data-picture-pane={selected === undefined ? 'none' : 'chosen'}
+        >
           {selected === undefined ? (
-            <p className="text-label font-bold text-ink-bar">{NONE}</p>
+            <p className="text-label font-bold text-ink">NO PICTURE</p>
           ) : (
             <>
               <MediaThumbnail media={selected.preview} size={56} />

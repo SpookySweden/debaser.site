@@ -4,6 +4,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { commentDomId, findBoardPost, readBoardAddress, threadDomId, type BoardAddress } from '../lib/forum/anchors';
 import { onMainBoard, selectBoardThreads, type SortMode, type SourceFilter, type TagMatchMode } from '../lib/forum/board-query';
 import {
+  BOARD_STORAGE_KEY,
+  DEFAULT_PLACE,
+  parseStoredPlace,
+  readBoardPlace,
+  writeBoardPlace,
+  type BoardView,
+} from '../lib/forum/board-address';
+import { emptyBoardLine, type EmptyClear } from '../lib/forum/board-empty';
+import { countNewPosts, newLabel } from '../lib/forum/board-new';
+import { accountOf } from '../lib/forum/read-state';
+import { useNow } from '../lib/ui/use-now';
+import { isStreamThread } from '../lib/watch/rules';
+import {
   BOARD_SORTS,
   DEFAULT_SORT,
   DEFAULT_TOP_FRAME,
@@ -37,18 +50,19 @@ import { TagMark, tagMarkColour } from './TagBadge';
 import { PLATE,PLATE_MAIN, PLATE_PRESSED } from '../lib/ui/controls';
 
 /**
- * How the board is read.
+ * How the board is read: one row of three tabs, exactly one lit (SPEC-forum-v2.md, Luke's 1A).
  *
  * `feed` is the board as it has always been: one row per post, collapsed, opened one at a time.
  * `gallery` is the same list read as a wall of pictures - Explorer's large-icons view - filtered to
  * the posts that carry a picture (`imageOnly` in app/lib/forum/board-query.ts) and drawn open, so
  * nothing on a tile has to be pressed before it can be read.
+ * `streams` is the records of past streams (`STREAM :: <host> :: <day>`), which wait off the main board until somebody
+ * replies to one (Luke's 4A). Tags and the source are set aside there, not cleared: records carry none (12A).
  */
-type BoardView = 'feed' | 'gallery';
-
-const VIEWS: { value: BoardView; label: string }[] = [
+const VIEWS: { value: BoardView; label: string; title?: string }[] = [
   { value: 'feed', label: '[ FEED ]' },
   { value: 'gallery', label: '[ GALLERY ]' },
+  { value: 'streams', label: '[ STREAMS ]', title: 'The records of past streams. One with a reply is on the feed too.' },
 ];
 
 const SOURCE_FILTERS: { value: SourceFilter; label: string }[] = [
@@ -65,12 +79,22 @@ const SOURCE_FILTERS: { value: SourceFilter; label: string }[] = [
   { value: 'web', label: 'MEDIA THREADS' },
   // Posts filed under a document's [ COMMENT ] key (SPEC-live-docs.md, `docAnchor` in app/lib/docs/forum.ts).
   { value: 'doc', label: 'DOC THREADS' },
-  // The records of watch-together streams (SPEC-watch-together.md): board posts that name a room.
-  { value: 'stream', label: 'STREAMS' },
+  // The records of streams are the STREAMS tab now, not a source (SPEC-forum-v2.md, 1A).
 ];
+
+/** The keys an empty board offers (`./lib/forum/board-empty.ts`). */
+const EMPTY_CLEAR_LABELS: Record<EmptyClear, string> = {
+  tags: '[ CLEAR TAGS ]',
+  source: '[ ALL SOURCES ]',
+  music: '[ MUSIC OFF ]',
+  feed: '[ FEED ]',
+};
 
 /** Posts-per-page choices, offered at the board's foot beside the page arrows. */
 const PAGE_SIZES = [5, 10, 20, 50];
+
+/** The gallery's own choices: four tiles a row, so whole rows (SPEC-forum-v2.md, Luke's 6A). */
+const GALLERY_PAGE_SIZES = [8, 12, 24, 48];
 
 /** Past this many pages the foot draws a key per page as well: up to it, `[ < ]` and `[ > ]` walk it. */
 const NUMBERED_PAGES_AFTER = 5;
@@ -120,13 +144,15 @@ export default function ForumBoard() {
   const [topFrame, setTopFrame] = useState<TopFrame>(DEFAULT_TOP_FRAME);
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
   /**
-   * How the board is read here, the feed or the gallery.
-   *
-   * Local state rather than an address, like the sort and the source filter beside it: this is the
-   * same list read two ways, not somewhere else to be. So it is deliberately *not* a query
-   * parameter - a link to the board means the board.
+   * Which tab the board is on. With the tags and their match mode it is in the address and this browser's memory, and
+   * a reader's own change is a step Back can take (Luke's 2A: a reload or Back used to throw it all away). The effects
+   * that read and write them follow the sort's.
    */
   const [view, setView] = useState<BoardView>('feed');
+  /** Set once the address or this browser's memory has been read: until then nothing is written over them. */
+  const placeRead = useRef(false);
+  /** How the next write of the place goes into history: a reader's own press is a step, anything else replaces. */
+  const historyMode = useRef<'push' | 'replace'>('replace');
   /** The search that was run in the box (./ForumSearchBox.tsx), or null when none is showing. */
   const [search, setSearch] = useState<ParsedSearch | null>(null);
   const [searchBoxKey, setSearchBoxKey] = useState(0);
@@ -149,6 +175,10 @@ export default function ForumBoard() {
   const controlsRef = useRef<HTMLDivElement | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
   const [perPage, setPerPage] = useState<number>(PAGE_SIZES[0]);
+  /** The gallery keeps its own page size, 12 to begin with: the feed's is sized to its rows. */
+  const [galleryPerPage, setGalleryPerPage] = useState<number>(12);
+  const pageSize = view === 'gallery' ? galleryPerPage : perPage;
+  const pageSizes = view === 'gallery' ? GALLERY_PAGE_SIZES : PAGE_SIZES;
   const [page, setPage] = useState(1);
   const [openThreadIds, setOpenThreadIds] = useState<string[]>([]);
 
@@ -171,6 +201,11 @@ export default function ForumBoard() {
    */
   const [addressJump, setAddressJump] = useState<Exclude<BoardAddress, { kind: 'tag' }> | null>(null);
 
+  /**
+   * On STREAMS the tags, the source and the music filters are set aside, not cleared (Luke's 12A): records carry none,
+   * so they would only empty the list. They apply again on FEED or GALLERY.
+   */
+  const setAside = view === 'streams';
   const visibleThreads = useMemo(
     () =>
       // A pinned post leads whatever the filters say: the point of a pin is that it is seen, and
@@ -179,21 +214,38 @@ export default function ForumBoard() {
       sortThreadsPinnedFirst(
         selectBoardThreads(forum.threads, {
           query: '',
-          sourceFilter,
-          tagKeys: tagFilters,
+          sourceFilter: setAside ? 'stream' : sourceFilter,
+          tagKeys: setAside ? [] : tagFilters,
           tagMatchMode,
           sortMode,
           topFrame,
-          musicOnly,
-          musicTagKeys,
+          musicOnly: setAside ? false : musicOnly,
+          musicTagKeys: setAside ? [] : musicTagKeys,
           // The gallery is a *reading* of the board, not a second board: the same filter, sort and
           // paging, narrowed to the posts that carry a picture of their own.
           imageOnly: view === 'gallery',
         }),
         forum.pins,
       ),
-    [forum.threads, forum.pins, sourceFilter, tagFilters, tagMatchMode, sortMode, topFrame, musicOnly, musicTagKeys, view],
+    [forum.threads, forum.pins, sourceFilter, tagFilters, tagMatchMode, sortMode, topFrame, musicOnly, musicTagKeys, view, setAside],
   );
+
+  /** What the FEED tab says is new since this reader last looked (Luke's 9B): marks are this browser's, so none on the server. */
+  const now = useNow(60000);
+  const newOnFeed = newLabel(countNewPosts(forum.threads, forum.seenByThread, accountOf(forum.author), now));
+
+  /** What an empty board says, and what it offers to clear (Luke's 11A). */
+  const emptyBoard = emptyBoardLine({
+    view,
+    tagLabels: tagFilters.map((key) => forum.tagVocabulary.find((option) => option.key === key)?.label ?? key.toUpperCase()),
+    match: tagMatchMode,
+    sourceLabel: sourceFilter === 'all' ? null : (SOURCE_FILTERS.find((option) => option.value === sourceFilter)?.label ?? null),
+    musicOnly,
+    musicTagCount: musicTagKeys.length,
+  });
+
+  /** How many filters narrow the board, said on the FILTER key: each tag, the source, the music switch and its sounds. */
+  const filtersOn = tagFilters.length + (sourceFilter === 'all' ? 0 : 1) + (musicOnly ? 1 : 0) + musicTagKeys.length;
 
   /** BY TAG with no tags picked reads as HOT (board-query does the same), so the key names what is shown. */
   const shownSort: SortMode = sortMode === 'tags' && tagFilters.length === 0 ? DEFAULT_SORT : sortMode;
@@ -223,6 +275,74 @@ export default function ForumBoard() {
     return () => window.cancelAnimationFrame(frame);
   }, []);
 
+  // The place a visitor arrives at: the address's, else the one this browser remembers (then written into the address,
+  // so the link in the bar is the board on screen), else the plain feed. Declared before the deep-link effect below, so
+  // a `#tag-` link adds its tag to the remembered ones rather than being overwritten by them.
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      let place = readBoardPlace(new URLSearchParams(window.location.search));
+      try {
+        // An address that names a place is remembered as it stands, even the plain feed (which changes no state, so the
+        // write below would not run); one that names none is filled from memory.
+        if (place !== null) window.localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(place));
+        else place = parseStoredPlace(window.localStorage.getItem(BOARD_STORAGE_KEY));
+      } catch {
+        // No storage: the address alone.
+      }
+      placeRead.current = true;
+      if (place === null) return;
+      setView(place.view);
+      setTagFilters(place.tags);
+      setTagMatchMode(place.match);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  // The place, written wherever it changes: this browser's memory, and the address (a reader's own press as a step Back
+  // can take, the board's own moves - a jump to a post, filing one, a `#tag-` link - in place). A move that leaves the
+  // address as it is (Back itself) writes nothing.
+  useEffect(() => {
+    if (!placeRead.current) return;
+    const place = { view, tags: tagFilters, match: tagMatchMode };
+    try {
+      window.localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(place));
+    } catch {
+      // A browser that refuses storage still has the address.
+    }
+    const mode = historyMode.current;
+    historyMode.current = 'replace';
+    const url = new URL(window.location.href);
+    writeBoardPlace(url.searchParams, place);
+    if (url.search === window.location.search) return;
+    if (mode === 'push') {
+      // The post or tag a link named has been served: a step back should not serve it again.
+      if (/^#(thread|comment|tag)-/.test(url.hash)) url.hash = '';
+      window.history.pushState(window.history.state, '', url);
+    } else {
+      window.history.replaceState(window.history.state, '', url);
+    }
+  }, [view, tagFilters, tagMatchMode]);
+
+  // Back and Forward: the board becomes the place (and the sort) the address now names.
+  useEffect(() => {
+    const onPop = () => {
+      const params = new URLSearchParams(window.location.search);
+      const place = readBoardPlace(params) ?? DEFAULT_PLACE;
+      setView(place.view);
+      setTagFilters(place.tags);
+      setTagMatchMode(place.match);
+      setPage(1);
+      const choice = readSortParams(params);
+      if (choice !== null) {
+        setSortMode(choice.sort);
+        setTopFrame(choice.frame);
+      }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
   /** A sort picked in the menu: shown, remembered in this browser, and written into the address. */
   const chooseSort = useCallback((choice: SortChoice) => {
     setSortMode(choice.sort);
@@ -238,14 +358,16 @@ export default function ForumBoard() {
   }, []);
 
   // Paging: the page is clamped, so filtering a page away can never show a blank board.
-  const slice = paginate(visibleThreads, perPage, page);
+  const slice = paginate(visibleThreads, pageSize, page);
   const currentPage = slice.page;
   const totalPages = slice.totalPages;
   const pageStart = slice.start;
   const pageThreads = slice.items;
   const pageNumbers = Array.from({ length: totalPages }, (_unused, index) => index + 1);
 
+  // A reader's own pick of a tag or of how tags combine is a step Back can take (Luke's 2A).
   const toggleTagFilter = useCallback((key: string) => {
+    historyMode.current = 'push';
     setTagFilters((current) =>
       current.includes(key) ? current.filter((item) => item !== key) : [...current, key],
     );
@@ -253,7 +375,16 @@ export default function ForumBoard() {
   }, []);
 
   const clearTagFilters = useCallback(() => {
-    setTagFilters([]);
+    setTagFilters((current) => {
+      if (current.length > 0) historyMode.current = 'push';
+      return [];
+    });
+    setPage(1);
+  }, []);
+
+  const chooseMatchMode = useCallback((next: TagMatchMode) => {
+    historyMode.current = 'push';
+    setTagMatchMode(next);
     setPage(1);
   }, []);
 
@@ -281,11 +412,17 @@ export default function ForumBoard() {
   /** Set once the reader picks a page size, or once the board has sized itself to the screen. */
   const perPageSettled = useRef(false);
 
-  const handlePerPageChange = useCallback((next: number) => {
-    perPageSettled.current = true;
-    setPerPage(next);
-    setPage(1);
-  }, []);
+  const handlePerPageChange = useCallback(
+    (next: number) => {
+      if (view === 'gallery') setGalleryPerPage(next);
+      else {
+        perPageSettled.current = true;
+        setPerPage(next);
+      }
+      setPage(1);
+    },
+    [view],
+  );
 
   /**
    * The first page fills the screen: once the feed has drawn its first posts, count how many more of
@@ -293,7 +430,8 @@ export default function ForumBoard() {
    * Never fewer than the smallest choice; the reader's own pick always wins.
    */
   useEffect(() => {
-    if (perPageSettled.current || view !== 'feed' || pageThreads.length === 0) return;
+    // FEED and STREAMS are the same rows; the gallery keeps its own size.
+    if (perPageSettled.current || view === 'gallery' || pageThreads.length === 0) return;
     const list = document.getElementById('forum-thread-list');
     if (!list || list.children.length === 0) return;
     perPageSettled.current = true;
@@ -387,33 +525,36 @@ export default function ForumBoard() {
    */
   const jumpToPost = useCallback(
     (thread: ForumThread, commentId?: string) => {
-      setView('feed');
+      // The tab that holds it: a stream record nobody has replied to lives under STREAMS, not on the feed; an answered
+      // one is in both, so a reader already on STREAMS stays there.
+      const target: BoardView = !onMainBoard(thread) || (view === 'streams' && isStreamThread(thread)) ? 'streams' : 'feed';
+      const onStreams = target === 'streams';
+      setView(target);
 
       const shown = selectBoardThreads([thread], {
         query: '',
-        sourceFilter,
-        tagKeys: tagFilters,
+        sourceFilter: onStreams ? 'stream' : sourceFilter,
+        tagKeys: onStreams ? [] : tagFilters,
         tagMatchMode,
         sortMode,
         topFrame,
-        musicOnly,
-        musicTagKeys,
+        musicOnly: onStreams ? false : musicOnly,
+        musicTagKeys: onStreams ? [] : musicTagKeys,
       });
-      if (shown.length === 0) {
-        // A stream record nobody has replied to lives under STREAMS, not on the main board.
-        setSourceFilter(onMainBoard(thread) ? 'all' : 'stream');
+      if (shown.length === 0 && !onStreams) {
+        setSourceFilter('all');
         setTagFilters([]);
         setMusicOnly(false);
         setMusicTagKeys([]);
-        if (sortMode === 'top') {
-          setSortMode('hot');
-          writeSortToAddress({ sort: 'hot', frame: topFrame });
-        }
+      }
+      if (shown.length === 0 && sortMode === 'top') {
+        setSortMode('hot');
+        writeSortToAddress({ sort: 'hot', frame: topFrame });
       }
 
       setPendingJump({ threadId: thread.id, ...(commentId === undefined ? {} : { commentId }) });
     },
-    [sourceFilter, tagFilters, tagMatchMode, sortMode, topFrame, musicOnly, musicTagKeys],
+    [view, sourceFilter, tagFilters, tagMatchMode, sortMode, topFrame, musicOnly, musicTagKeys],
   );
 
   /**
@@ -479,7 +620,7 @@ export default function ForumBoard() {
     const frame = window.requestAnimationFrame(() => {
       const { threadId, commentId } = pendingJump;
       setPendingJump(null);
-      setPage(Math.floor(index / perPage) + 1);
+      setPage(Math.floor(index / pageSize) + 1);
       markThreadRead(threadId);
       setOpenThreadIds((current) => (current.includes(threadId) ? current : [...current, threadId]));
 
@@ -518,7 +659,7 @@ export default function ForumBoard() {
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [pendingJump, visibleThreads, perPage, markThreadRead]);
+  }, [pendingJump, visibleThreads, pageSize, markThreadRead]);
 
   /** The panel's [ × ] (or the phone's [ ◂ BACK ]): the search ends and the box empties with it. */
   const closeSearch = useCallback(() => {
@@ -526,10 +667,27 @@ export default function ForumBoard() {
     setSearchBoxKey((current) => current + 1);
   }, []);
 
+  // A press on the tab already lit changes nothing, so it must not leave a step waiting for the board's next own move.
   const handleView = useCallback((next: BoardView) => {
-    setView(next);
+    setView((current) => {
+      if (current !== next) historyMode.current = 'push';
+      return next;
+    });
     setPage(1);
   }, []);
+
+  /** An empty board's key: drops the one thing it names. */
+  const clearForEmpty = useCallback(
+    (clear: EmptyClear) => {
+      if (clear === 'tags') clearTagFilters();
+      else if (clear === 'source') {
+        setSourceFilter('all');
+        setPage(1);
+      } else if (clear === 'music') handleMusicOnly(false);
+      else handleView('feed');
+    },
+    [clearTagFilters, handleMusicOnly, handleView],
+  );
 
   const handleCreated = useCallback(
     (thread: ForumThread) => {
@@ -639,38 +797,27 @@ export default function ForumBoard() {
           (SPEC-efficiency.md), so that on a phone the first post is on the first screen. The row wraps
           at phone width; `ml-auto` keeps `+ NEW POST` at the right end of whichever line it lands on. */}
       <div ref={controlsRef} className="relative flex flex-wrap items-center gap-2 text-label text-ink">
-        {/* How the board is read: two plates, and the one you are standing on is pressed in
-            (`PLATE_PRESSED`), which is the same way every other switch on the site says "on". The
-            label is a word rather than an icon, because a pair of glyphs is a puzzle. */}
-        <span className="flex items-center gap-1">
+        {/* How the board is read: three tabs, and the one you are standing on is pressed in (`PLATE_PRESSED`), which is
+            the same way every other switch on the site says "on". Exactly one is lit (Luke's 1A). Marked for the top
+            bar's undo arrows, as MEDIA's VIEW is (app/lib/ui/undo-trail.ts): a tab only changes what is shown. */}
+        <span role="group" aria-label="Board view" className="flex items-center gap-1" data-undo-picks="VIEW">
           {VIEWS.map((option) => (
             <button
               key={option.value}
               type="button"
               onClick={() => handleView(option.value)}
               aria-pressed={view === option.value}
+              title={option.title}
               className={view === option.value ? PLATE_PRESSED : PLATE}
+              // A steady name up to the full stop: the undo arrows know a key by it (app/lib/ui/undo-trail.ts `pickName`),
+              // so the count changing as posts are read is not taken for a change of tab.
+              aria-label={`${option.value.toUpperCase()}${option.value === 'feed' && newOnFeed !== '' ? `. ${newOnFeed}` : ''}`}
+              {...(option.value === 'feed' && newOnFeed !== '' ? { 'data-new': newOnFeed } : {})}
             >
-              {option.label}
+              {option.value === 'feed' && newOnFeed !== '' ? `[ FEED · ${newOnFeed} ]` : option.label}
             </button>
           ))}
         </span>
-
-        {/* The auto-made stream records (STREAM :: <host> :: <day>) wait here, off the main board, until somebody replies
-            to one (Luke's 4A, 2026-11-17: the board was flooded with them). The same filter as SOURCE > STREAMS, one press
-            away; pressed again, back to the main board. */}
-        <button
-          type="button"
-          onClick={() => {
-            setSourceFilter((current) => (current === 'stream' ? 'all' : 'stream'));
-            setPage(1);
-          }}
-          aria-pressed={sourceFilter === 'stream'}
-          title="The records of past streams. One with a reply is on the main board too."
-          className={sourceFilter === 'stream' ? PLATE_PRESSED : PLATE}
-        >
-          [ STREAMS ]
-        </button>
 
         <button
           type="button"
@@ -678,19 +825,22 @@ export default function ForumBoard() {
           onClick={() => toggleMenu('tags')}
           aria-expanded={menu === 'tags'}
           aria-controls="board-tags-panel"
+          title="Tags, and where posts come from"
           className={PLATE}
         >
-          {menu === 'tags' ? '[ TAGS ▴ ]' : '[ TAGS ▾ ]'}
+          {`[ FILTER${filtersOn > 0 ? ` · ${filtersOn}` : ''} ${menu === 'tags' ? '▴' : '▾'} ]`}
         </button>
 
-        {/* Tag inclusion: one ranked list, most used first, with the whole index - and the board's
-            music - one key away (./TagWindow.tsx). The ranking is the only order offered: what a
-            board's tags are *for* is telling you what is on it, and that is a count. */}
+        {/* What the board is narrowed to (Luke's 10A: the source used to hide under SORT). Tag inclusion: one ranked
+            list, most used first, with the whole index - and the board's music - one key away (./TagWindow.tsx). The
+            ranking is the only order offered: what a board's tags are *for* is telling you what is on it, and that is a
+            count. Under it, where posts come from. */}
         {menu === 'tags' ? (
           <div id="board-tags-panel" className={MENU_PANEL}>
+            {setAside ? <p className="mb-2 text-label font-bold text-ink">TAGS AND SOURCES DON&apos;T APPLY TO STREAMS.</p> : null}
             {/* The wall scrolls inside the panel, so a hundred chips never make the panel taller
                 than the screen it opened on. */}
-            <div className="flex max-h-72 flex-wrap gap-x-3 gap-y-0.75 overflow-y-auto">
+            <div className="flex max-h-72 flex-wrap gap-x-3 gap-y-0.75 overflow-y-auto" data-undo-picks="TAGS">
               {forum.tagVocabulary.map((option) => {
                 const tag = makeUserTag(option.label, option.colour);
                 const active = tagFilters.includes(option.key);
@@ -735,10 +885,7 @@ export default function ForumBoard() {
                       name="tag-match"
                       value="any"
                       checked={tagMatchMode === 'any'}
-                      onChange={() => {
-                        setTagMatchMode('any');
-                        setPage(1);
-                      }}
+                      onChange={() => chooseMatchMode('any')}
                     />
                     ANY
                   </label>
@@ -748,10 +895,7 @@ export default function ForumBoard() {
                       name="tag-match"
                       value="all"
                       checked={tagMatchMode === 'all'}
-                      onChange={() => {
-                        setTagMatchMode('all');
-                        setPage(1);
-                      }}
+                      onChange={() => chooseMatchMode('all')}
                     />
                     ALL
                   </label>
@@ -761,6 +905,28 @@ export default function ForumBoard() {
                   </button>
                 </>
               )}
+            </div>
+
+            <div className="mt-3 max-w-md">
+              <label htmlFor="forum-source-filter" className="block text-label font-bold text-ink">
+                FILTER SOURCE:
+              </label>
+              <select
+                id="forum-source-filter"
+                value={sourceFilter}
+                disabled={setAside}
+                onChange={(event) => {
+                  setSourceFilter(event.target.value as SourceFilter);
+                  setPage(1);
+                }}
+                className="mt-1 w-full frame bg-paper p-2 font-mono text-prose text-ink outline-none"
+              >
+                {SOURCE_FILTERS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
         ) : null}
@@ -776,8 +942,8 @@ export default function ForumBoard() {
           {`[ SORT: ${sortKeyLabel} ${menu === 'controls' ? '▴' : '▾'} ]`}
         </button>
 
-        {/* Sort / source / search, and how many posts a page holds: folded away by default, because
-            the posts themselves are the practical information on this page. */}
+        {/* The sort and its time frame, nothing else (Luke's 10A): folded away by default, because the posts themselves
+            are the practical information on this page. */}
         {menu === 'controls' ? (
           <div id="board-controls-panel" className={`${MENU_PANEL} grid gap-3 sm:grid-cols-2`}>
             <div className="flex flex-wrap gap-x-6 gap-y-3">
@@ -816,27 +982,6 @@ export default function ForumBoard() {
                   ))}
                 </fieldset>
               ) : null}
-            </div>
-
-            <div>
-              <label htmlFor="forum-source-filter" className="block text-label font-bold text-ink">
-                FILTER SOURCE:
-              </label>
-              <select
-                id="forum-source-filter"
-                value={sourceFilter}
-                onChange={(event) => {
-                  setSourceFilter(event.target.value as SourceFilter);
-                  setPage(1);
-                }}
-                className="mt-1 w-full frame bg-paper p-2 font-mono text-prose text-ink outline-none"
-              >
-                {SOURCE_FILTERS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
             </div>
 
             {/* The mock store's housekeeping: never drawn on the live board. */}
@@ -889,7 +1034,7 @@ export default function ForumBoard() {
       {/* What the board is narrowed to, after the row: each picked tag as a key that drops it, and the
           music filters the tag index can set. Drawn only while something is picked. */}
       {tagFilters.length === 0 && !musicOnly && musicTagKeys.length === 0 ? null : (
-        <div className="flex flex-wrap items-center gap-2 text-label font-bold text-ink">
+        <div className={`flex flex-wrap items-center gap-2 text-label font-bold ${setAside ? 'text-ink-quiet' : 'text-ink'}`} data-tag-chips={setAside ? 'set-aside' : 'on'}>
           {tagFilters.map((key) => {
             const label =
               forum.tagVocabulary.find((option) => option.key === key)?.label ?? key.toUpperCase();
@@ -899,12 +1044,15 @@ export default function ForumBoard() {
                 key={key}
                 type="button"
                 onClick={() => toggleTagFilter(key)}
-                className={PLATE}
+                className={setAside ? `${PLATE} [--key-ink:var(--color-ink-quiet)]` : PLATE}
               >
                 [ {label} × ]
               </button>
             );
           })}
+
+          {/* On STREAMS they are kept, greyed, and apply again on FEED or GALLERY (Luke's 12A). */}
+          {setAside ? <span>TAGS DON&apos;T APPLY TO STREAMS</span> : null}
 
           {musicOnly ? (
             <span className="border border-ink-plate bg-ena px-1 text-label font-bold text-ink-bar">MUSIC ONLY</span>
@@ -940,14 +1088,18 @@ export default function ForumBoard() {
               className="text-ink"
             >
               <p className="p-3 text-key font-bold text-ink">
-                {!forum.ready
-                  ? 'READING THE BOARD...'
-                  : forum.threads.length === 0
-                    ? 'THE BOARD IS EMPTY.'
-                  : view === 'gallery'
-                    ? 'NO PICTURES MATCH.'
-                    : 'NO THREADS MATCH.'}
+                {!forum.ready ? 'READING THE BOARD...' : forum.threads.length === 0 ? 'THE BOARD IS EMPTY.' : emptyBoard.line}
               </p>
+              {/* The keys that clear what emptied it (Luke's 11A). */}
+              {forum.ready && forum.threads.length > 0 && emptyBoard.clears.length > 0 ? (
+                <p className="flex flex-wrap gap-2 px-3 pb-3 text-label font-bold" data-empty-clears>
+                  {emptyBoard.clears.map((clear) => (
+                    <button key={clear} type="button" onClick={() => clearForEmpty(clear)} className={PLATE}>
+                      {EMPTY_CLEAR_LABELS[clear]}
+                    </button>
+                  ))}
+                </p>
+              ) : null}
             </div>
           ) : view === 'gallery' ? (
             /* The wall of pictures. The tiles are the same posts the feed draws, already open - and
@@ -987,11 +1139,11 @@ export default function ForumBoard() {
               <label htmlFor="forum-per-page">PER PAGE:</label>
               <select
                 id="forum-per-page"
-                value={perPage}
+                value={pageSize}
                 onChange={(event) => handlePerPageChange(Number(event.target.value))}
                 className="cursor-pointer bg-transparent font-bold text-ink outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-dotted focus-visible:outline-bubble max-sm:min-h-tap"
               >
-                {(PAGE_SIZES.includes(perPage) ? PAGE_SIZES : [...PAGE_SIZES, perPage].sort((a, b) => a - b)).map((size) => (
+                {(pageSizes.includes(pageSize) ? pageSizes : [...pageSizes, pageSize].sort((a, b) => a - b)).map((size) => (
                   // The select is transparent, and Chrome on Windows paints a transparent popup white under the
                   // ink: each choice carries the paper itself so the list reads in every theme.
                   <option key={size} value={size} className="bg-paper">
@@ -1070,7 +1222,7 @@ export default function ForumBoard() {
           onToggleTag={toggleTagFilter}
           onClearTags={clearTagFilters}
           matchMode={tagMatchMode}
-          onMatchMode={setTagMatchMode}
+          onMatchMode={chooseMatchMode}
           musicOnly={musicOnly}
           onMusicOnly={handleMusicOnly}
           musicTagKeys={musicTagKeys}

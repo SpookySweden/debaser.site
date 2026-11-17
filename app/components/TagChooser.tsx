@@ -117,7 +117,7 @@ export default function TagChooser({
       <div className="mt-2 space-y-0.5 text-label text-ink">
         {groupByNamespace(suggestions).map((group) => (
           <div key={group.namespace} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.75">
-            <span className="w-12 shrink-0 font-bold text-ink">{group.namespace}:</span>
+            <span className="min-w-12 shrink-0 font-bold text-ink">{group.namespace.toUpperCase()}:</span>
 
             {group.items.map((option) => {
               const tag = makeUserTag(option.label, option.colour);

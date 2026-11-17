@@ -1,5 +1,6 @@
 import { displayTitle } from './site-author';
-import { threadDomId } from './anchors';
+import { commentDomId, threadDomId } from './anchors';
+import { onMainBoard } from './board-query';
 import { livePins, pinLabel } from './pins';
 import type { ForumAuthor, ForumComment, ForumThread, ThreadPin } from './types';
 import { bodyWords } from './song-link';
@@ -77,14 +78,20 @@ export type NewsFeedOptions = {
   pins?: ThreadPin[];
   /** The moment to read the pins at. Passed in, so a check never depends on the clock. */
   at?: Date;
+  /**
+   * How many of the newest posts and replies follow the pins (SPEC-forum-v2.md, Luke's 8A: the wire was usually empty).
+   * 0, the default, is the pins alone. Only posts on the main board count (`onMainBoard`: no unanswered stream record),
+   * a pinned post is not said twice, and a reply's row opens that reply (`#comment-`), not just its post.
+   */
+  newest?: number;
 };
 
 /**
- * The wire is the pinned posts, and nothing else for now.
+ * The wire: the pinned posts, then (when asked for) the newest posts and replies.
  *
  * Each live pin becomes one row - its post, marked and stamped with how long is left - so the
- * strip reads as the archive's standing announcements rather than as the whole board. Newest
- * pin first. A pin whose post is no longer on the board is skipped.
+ * announcements lead whatever part of the run a reader catches. Newest pin first. A pin whose
+ * post is no longer on the board is skipped.
  */
 export function buildNewsFeed(
   threads: ForumThread[],
@@ -113,6 +120,46 @@ export function buildNewsFeed(
       pinned: true,
       pinLabel: pinLabel(pin, at),
     });
+  }
+
+  const newest = options.newest ?? 0;
+  if (newest > 0) {
+    const pinnedIds = new Set(items.map((item) => item.threadId));
+    const recent: NewsItem[] = [];
+    for (const thread of threads) {
+      if (!onMainBoard(thread)) continue;
+      const title = displayTitle(thread);
+      if (!pinnedIds.has(thread.id)) {
+        recent.push({
+          id: `news-post-${thread.id}`,
+          kind: 'post',
+          tag: 'POST',
+          author: thread.author,
+          text: clipForNews(thread.body.length === 0 ? title : bodyWords(thread.body)),
+          createdAt: thread.createdAt,
+          href: newsHref(thread.id),
+          hrefTitle: `Open "${title}"`,
+          threadId: thread.id,
+          threadTitle: title,
+        });
+      }
+      for (const comment of thread.comments) {
+        recent.push({
+          id: `news-reply-${comment.id}`,
+          kind: 'reply',
+          tag: 'REPLY',
+          author: comment.author,
+          text: clipForNews(bodyWords(comment.body)),
+          createdAt: comment.createdAt,
+          href: `/forum#${commentDomId(comment.id)}`,
+          hrefTitle: `Open the reply in "${title}"`,
+          threadId: thread.id,
+          threadTitle: title,
+        });
+      }
+    }
+    recent.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+    items.push(...recent.slice(0, newest));
   }
 
   return items.slice(0, Math.max(0, limit));

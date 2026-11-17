@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { streamFacts } from '../lib/forum/stream-facts';
 import { useCatalogue } from '../lib/media/catalogue';
 import { useNow } from '../lib/ui/use-now';
 import { playOrder, roomIsLive, streamDate, withSeries } from '../lib/watch/rules';
@@ -19,6 +20,32 @@ export function StreamMarker({ roomId }: { roomId: string }) {
   if (read === undefined || read === null || !roomIsLive(read.room, now)) return null;
 
   return <span className="shrink-0 bg-acid px-1 text-label font-bold text-ink-plate">LIVE</span>;
+}
+
+/**
+ * What a closed record's row says after its host and day (SPEC-forum-v2.md, Luke's 3A): `· 3 VIDEOS · 40 MIN`, and
+ * `[ ▶ WATCH ]` while it is on. From the same shared read as the marker above, so nothing more is asked of the database.
+ * Says nothing until the room is read, or when it can't be (a private stream this reader was not in).
+ */
+export function StreamRowFacts({ roomId }: { roomId: string }) {
+  const { read } = useWatchRoom(roomId);
+  const now = useNow(15000);
+  if (read === undefined || read === null) return null;
+  const facts = streamFacts(read, now);
+
+  return (
+    <span className="font-bold" data-stream-facts>
+      {` · ${facts.videos}${facts.length === '' ? '' : ` · ${facts.length}`}`}
+      {facts.live ? (
+        <>
+          {' '}
+          <Link href={watchHref({ kind: 'room', roomId })} className="key px-1 text-label">
+            [ ▶ WATCH ]
+          </Link>
+        </>
+      ) : null}
+    </span>
+  );
 }
 
 /**

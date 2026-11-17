@@ -20,6 +20,8 @@ type NewsCrawlProps = {
   className?: string;
   /** Shown instead of nothing when the wire is empty. */
   emptyLabel?: string;
+  /** Held still by its reader (the board's `[ ❚❚ ]`, SPEC-forum-v2.md 8A). */
+  paused?: boolean;
 };
 
 /**
@@ -41,7 +43,7 @@ type NewsCrawlProps = {
  * variants below drop the duplicate copy and let the rows wrap, so a still wire is a legible
  * list instead of a long line clipped to its first row.
  */
-export default function NewsCrawl({ items, className = '', emptyLabel }: NewsCrawlProps) {
+export default function NewsCrawl({ items, className = '', emptyLabel, paused = false }: NewsCrawlProps) {
   if (items.length === 0) {
     return emptyLabel === undefined ? null : (
       <p className="text-label font-bold text-ink">{emptyLabel}</p>
@@ -61,7 +63,12 @@ export default function NewsCrawl({ items, className = '', emptyLabel }: NewsCra
           ./CommentRow.tsx, or one long reply would still run off the edge.) */}
       <div
         className="crawl flex w-max items-center motion-reduce:w-full motion-reduce:flex-wrap"
-        style={{ animationDuration: `${Math.max(SECONDS_FLOOR, items.length * SECONDS_PER_ITEM)}s` }}
+        data-crawl-paused={paused ? 'true' : undefined}
+        // Held still inline: the `crawl` rule's own `animation` would win over a class.
+        style={{
+          animationDuration: `${Math.max(SECONDS_FLOOR, items.length * SECONDS_PER_ITEM)}s`,
+          ...(paused ? { animationPlayState: 'paused' } : {}),
+        }}
       >
         {[0, 1].map((copy) => (
           <ul
