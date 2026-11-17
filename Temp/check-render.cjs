@@ -44,9 +44,11 @@ assert.match(siteRow, /debaser\.site/, 'header signs the site');
 assert.doesNotMatch(siteRow, /sweden/, 'no commenter name in the header');
 assert.match(siteRow, /href="\/profile\/debaser-site"/, 'the byline opens the house account profile');
 assert.match(siteRow, /width:56px;height:56px/, 'default pfp keeps the avatar size');
-// The house picture is a named path the row points at (SITE_AUTHOR_PICTURE), so while the drawing is
-// still unmade the browser is the one that says so - the same treatment every other slot gets.
-assert.match(siteRow, /avatar-default\.png/, 'the default pfp names the file it is waiting for');
+// Updated on purpose 2026-11-17 (FORUMFIX, review fixes: the undrawn file came back "not found" on every guest page):
+// while `assets/profiles/avatar-default.png` is not on disk the row wears the text face and asks for no file; the build
+// lists the file once it is there (next.config.ts ART_ON_DISK, app/lib/ui/art/on-disk.ts).
+assert.doesNotMatch(siteRow, /avatar-default\.png/, 'the undrawn default pfp is not asked for');
+assert.match(siteRow, /data-text-face/, 'the text face stands in for it');
 assert.match(siteRow, /border border-ink bg-paper/, 'in the plain avatar frame');
 
 // 2. An ordinary post keeps its poster's name and profile link.

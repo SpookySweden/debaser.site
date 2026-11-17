@@ -295,24 +295,31 @@ assert.match(card, /\[ IMG/, 'the collapsed row says a picture is filed with thi
 assert.doesNotMatch(card, /sheet-03\.png/, 'but the drawing itself is not drawn until it is opened');
 const openPost = render(element(ForumThreadCard, { thread: THREAD, isOpen: true }));
 assert.match(openPost, /sheet-03\.png/, 'and opening the post draws the artwork it was posted with');
-assert.match(openPost, /FILE REPLY/, 'the post`s own reply box files a reply');
-assert.doesNotMatch(openPost, /AUTHOR:/, 'and drops the byline the same way the reply-on-a-reply box does');
+// Updated on purpose 2026-11-17 (FORUMFIX, review fixes: every post carried a whole hidden reply form): the post's
+// reply box is built only once its [ REPLY ] key is pressed (scripts/drive-forumfix.cjs presses it and files a reply).
+assert.match(openPost, /data-post-reply[^>]*>\[ REPLY \]/, 'the post has its own REPLY key');
+assert.doesNotMatch(openPost, /FILE REPLY/, 'and builds no reply box until it is pressed');
+// The reply box as the post builds it once REPLY is pressed: the same props ForumThreadCard passes.
+const CommentComposer = require('./board-render/components/CommentComposer.js').default;
+const replyBox = render(element(CommentComposer, { id: 'reply-thread-1', value: '', onChange: () => undefined, onSubmit: () => undefined, variant: 'reply', submitLabel: '[ FILE REPLY ]', placeholder: 'Reply...', author: { id: null, displayName: 'Anonymous' }, accounts: [{ id: 'acct-1', displayName: 'SOMEONE' }], autoTag: THREAD.author, tags: [], onTagsChange: () => undefined, mediaId: '', onMediaIdChange: () => undefined, track: null, onTrackChange: () => undefined, rows: 2 }));
+assert.match(replyBox, /FILE REPLY/, 'the post`s own reply box files a reply');
+assert.doesNotMatch(replyBox, /AUTHOR:/, 'and drops the byline the same way the reply-on-a-reply box does');
 // What a reply can still carry - tags, a tagged account, a picture, an MP3 - is one plate away rather
 // than four controls deep, and the plate spells all four out: an unexplained `[ + ]` is a puzzle.
 // (2026-10-23, SPEC-efficiency.md) The key is `[ + ATTACH ]` now, and the four things it carries are its tip.
-assert.match(openPost, /\[ \+ ATTACH \]/, 'one plate names what else a reply can carry');
+assert.match(replyBox, /\[ \+ ATTACH \]/, 'one plate names what else a reply can carry');
 // (2026-10-25, SPEC-less-text.md) The tip `Tags, a picture, an MP3 or an @name` repeated what the fold opens
 // onto: cut (rule 1). The four are the controls inside the fold, so that is what is asserted now.
-assert.doesNotMatch(openPost, /<summary[^>]*title=/, 'the plate carries no tip any more');
-const attachFold = (openPost.match(/<details[\s\S]*?<\/details>/) ?? [''])[0];
+assert.doesNotMatch(replyBox, /<summary[^>]*title=/, 'the plate carries no tip any more');
+const attachFold = (replyBox.match(/<details[\s\S]*?<\/details>/) ?? [''])[0];
 assert.match(attachFold, /TAG/i, 'the fold holds the tags control');
 assert.match(attachFold, /PICTURE|IMG|IMAGE/i, 'a picture control');
 assert.match(attachFold, /MP3/i, 'and an MP3 control');
-assert.match(openPost, /<details/, 'and what it carries is folded behind it');
+assert.match(replyBox, /<details/, 'and what it carries is folded behind it');
 // (2026-10-24, Luke's OK on the review leftovers) The reply form inside an open post has no box of its own:
 // the typing field's frame is what says "write here".
-assert.match(openPost, /<form class="mt-2">/, 'the reply form is not a box inside the post');
-assert.doesNotMatch(openPost, /<details open/, 'which starts closed');
+assert.match(replyBox, /<form class="mt-2">/, 'the reply form is not a box inside the post');
+assert.doesNotMatch(replyBox, /<details open/, 'which starts closed');
 assert.match(card, /thread-thread-1/, 'and the anchor other windows scroll to');
 assert.match(card, /pointer-events-none/, 'the hover preview keeps its space reserved');
 assert.match(card, /the second pass reads better/, 'the replies are on the card');
@@ -351,12 +358,13 @@ assert.match(form, /TAG A USER:/, 'the composer offers to tag somebody');
 assert.doesNotMatch(form, /OR WRITE @NAME IN THE POST/, 'without the how-to line beside it');
 assert.match(form, /PICK AN ACCOUNT\.\.\./, 'with the accounts to choose from');
 
-// A reply answers somebody, so that somebody is tagged without being asked.
+// A reply answers somebody, so that somebody is tagged without being asked. (FORUMFIX 2026-11-17: the reply box is
+// built only on REPLY, so its parts are read from the box itself, `replyBox` above.)
 const replies = render(element(ForumThreadCard, { thread: THREAD }));
 // (2026-10-25, SPEC-less-text.md) `ANSWERS THIS POST, SO <name> IS TAGGED AUTOMATICALLY.` -> `AUTO-TAGGED: <name>`.
-assert.match(replies, /AUTO-TAGGED: /, 'the reply box says who it tags by itself');
-assert.doesNotMatch(replies, /ANSWERS THIS POST, SO|IS TAGGED\s*AUTOMATICALLY/, 'in two words, not a sentence');
-assert.match(replies, /TAG A USER:/, 'and offers the rest of the accounts');
+assert.match(replyBox, /AUTO-TAGGED: /, 'the reply box says who it tags by itself');
+assert.doesNotMatch(replyBox, /ANSWERS THIS POST, SO|IS TAGGED\s*AUTOMATICALLY/, 'in two words, not a sentence');
+assert.match(replyBox, /TAG A USER:/, 'and offers the rest of the accounts');
 // `(?<!AUTO-)`: the reply box's own `AUTO-TAGGED:` must not stand in for the post's tag row.
 assert.match(replies, /(?<!AUTO-)TAGGED:/, 'the post itself says who it names');
 

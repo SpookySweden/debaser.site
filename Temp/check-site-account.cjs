@@ -245,7 +245,10 @@ function layoutFor(subject, authorProfile) {
   assert.match(row, /--name-ink-dark:#fff000/, 'and its Daffodil counterpart for the dark field');
   assert.match(row, /class="name-ink"/, 'through the class the stylesheet picks a value on');
   assert.match(row, /href="\/profile\/debaser-site"/, 'and opens its public profile');
-  assert.match(row, /avatar-default\.png/, 'with the default pfp slot, pointing at the file it will be');
+  // Updated on purpose 2026-11-17 (FORUMFIX): the undrawn default pfp is the text face, with no request for the file
+  // until the build finds it on disk (app/lib/ui/art/on-disk.ts).
+  assert.doesNotMatch(row, /avatar-default\.png/, 'with the default pfp slot asking for no undrawn file');
+  assert.match(row, /data-text-face/, 'and wearing the text face');
   assert.match(row, /width:56px;height:56px/);
 
   const painted = withProviders(
