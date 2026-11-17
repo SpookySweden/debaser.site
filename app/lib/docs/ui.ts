@@ -41,6 +41,17 @@ export const DOC_KEY_ON = `key key-fill key-on ${DOC_KEY_BOX} [--key-fill:var(--
 /** The one filled key a DOCS screen has: NEW DOCUMENT, SHARE, CREATE, SAVE. */
 export const DOC_KEY_MAIN = `key key-fill ${DOC_KEY_BOX} [--key-fill:var(--color-sun)] [--frame-line:var(--color-ink-plate)] px-3.5 py-1.5 text-ink-plate hover:[--key-fill:var(--color-acid)] ${KEY_FOCUS} active:translate-y-press active:[--key-fill:var(--color-bubble)] disabled:cursor-not-allowed disabled:[--key-fill:var(--color-chrome-dark)] disabled:text-ink`;
 
+/**
+ * The front page's one line of keys (list 4, DOCSBAR; Luke, 2026-11-17: "have [them] all be on one line", then "A: shorter
+ * words"): NEW, the places to look and TEXT SIZE, one step smaller than a DOCS key (the small-line size, which TEXT SIZE still
+ * steps up) with less padding, still a thumb tall, so the line fits his laptop's DOCS window (about 670px wide).
+ */
+const DOC_BAR_BOX = 'docs-meta inline-flex min-h-tap cursor-pointer items-center gap-2';
+export const DOC_BAR_KEY = `key ${DOC_BAR_BOX} px-1 py-2 ${KEY_FOCUS} active:animate-flash active:translate-y-press active:bg-bubble active:text-ink-plate disabled:cursor-not-allowed`;
+// As DOC_KEY_ON: its 2px outline is the rest of DOC_BAR_KEY's padding, so the place you are on does not change size.
+export const DOC_BAR_KEY_ON = `key key-fill key-on ${DOC_BAR_BOX} [--key-fill:var(--color-ink)] px-0.5 py-1.5 text-paper ${KEY_FOCUS}`;
+export const DOC_BAR_KEY_MAIN = `key key-fill ${DOC_BAR_BOX} [--key-fill:var(--color-sun)] [--frame-line:var(--color-ink-plate)] px-2 py-1.5 text-ink-plate hover:[--key-fill:var(--color-acid)] ${KEY_FOCUS} active:translate-y-press active:[--key-fill:var(--color-bubble)] disabled:cursor-not-allowed disabled:[--key-fill:var(--color-chrome-dark)] disabled:text-ink`;
+
 /** A fault, said in DOCS' size: White words on a Rose strip (docs/design.md). */
 export const DOC_FAULT = 'docs-meta w-fit bg-bubble-pale px-2 py-1 text-ink-bar';
 

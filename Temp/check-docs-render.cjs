@@ -60,7 +60,10 @@ assert.match(text(draw(el(DocsBrowser))), /PUBLIC DOCUMENTS/, 'signed out, the b
 searchParams = new URLSearchParams();
 const front = draw(el(DocsBrowser));
 assert.match(text(front), /\[ PUBLIC DOCUMENTS \].*\[ FOLDERS \]/, 'the places to look are keys across the top');
-assert.match(text(front), /TEXT SIZE \[ A− \] \[ A\+ \]/, 'the text size keys are on the front page');
+// Updated on purpose 2026-11-17 (list 4, DOCSBAR; Luke: "have [them] all be on one line", then "A: shorter words"): the front
+// page's keys share one line, so the words TEXT SIZE go; A− and A+ keep their names for a screen reader and the hover tip.
+assert.match(text(front), /\[ PUBLIC DOCUMENTS \] \[ FOLDERS \] \[ A− \] \[ A\+ \]/, 'the text size keys are on the front page, on the line with the places');
+assert.match(front, /aria-label="Smaller text" title="Smaller text"[^>]*>\[ A− \]/, '... named for a screen reader and the hover tip');
 assert.match(front, /class="docs-ui" data-docs-size="2"/, 'the page is drawn at the starting text size until the browser says otherwise');
 assert.match(text(draw(el(LoreDirectory))), /PAGES/);
 

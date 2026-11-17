@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getDocsRepository } from '../lib/docs/repository';
 import { DOC_ACCESS_LABELS, DOC_ACCESS_ORDER } from '../lib/docs/rules';
 import { LORE_FOLDER_ID, type DocAccess, type DocFolder, type DocSummary, type DocViewer } from '../lib/docs/types';
-import { DOC_FAULT, DOC_KEY, DOC_KEY_MAIN, DOC_KEY_ON } from '../lib/docs/ui';
+import { DOC_BAR_KEY, DOC_BAR_KEY_MAIN, DOC_BAR_KEY_ON, DOC_FAULT, DOC_KEY, DOC_KEY_ON } from '../lib/docs/ui';
 import { FIELD_TIGHT, TITLE_BAR } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import DocMoveWindow from './DocMoveWindow';
@@ -125,11 +125,13 @@ export default function DocsBrowser() {
 
   // The big key the reader is standing on: a folder counts as the place it lives under.
   const tab: Place = folder === null ? place : folder.kind === 'shared' ? 'shared' : 'mine';
-  const tabs: { place: Place; label: string }[] = signedIn
+  // Short words, so they share one line with NEW and TEXT SIZE (Luke, 2026-11-17: "A: shorter words"); the title bar under
+  // them still says the place in full (placeName), and so does the hover tip (`full`).
+  const tabs: { place: Place; label: string; full?: string }[] = signedIn
     ? [
-        { place: 'recent', label: 'RECENT' },
-        { place: 'mine', label: 'MY DOCUMENTS' },
-        { place: 'others', label: 'SHARED WITH ME' },
+        { place: 'recent', label: 'RECENT', full: 'RECENT DOCUMENTS' },
+        { place: 'mine', label: 'MINE', full: 'MY DOCUMENTS' },
+        { place: 'others', label: 'SHARED', full: 'SHARED WITH ME' },
         { place: 'shared', label: 'FOLDERS' },
       ]
     : [
@@ -169,10 +171,13 @@ export default function DocsBrowser() {
 
   return (
     <DocsScale>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pb-3">
+      {/* One line of keys (list 4, DOCSBAR; Luke, 2026-11-17: "in the documents tab, have [them] all be on one line", and
+          "A: shorter words"): NEW, the places to look, then TEXT SIZE at the far end, in the line's smaller keys. A bigger
+          TEXT SIZE step makes them bigger, and then the line wraps again. */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-2 pb-3">
         {signedIn ? (
-          <button type="button" className={DOC_KEY_MAIN} onClick={() => setMaking('doc')}>
-            {lore ? '[ + NEW LORE PAGE ]' : '[ + NEW DOCUMENT ]'}
+          <button type="button" className={DOC_BAR_KEY_MAIN} onClick={() => setMaking('doc')} aria-label={lore ? undefined : 'New document'} title={lore ? undefined : 'New document'}>
+            {lore ? '[ + NEW LORE PAGE ]' : '[ + NEW ]'}
           </button>
         ) : status === 'loading' ? null : (
           <p className="docs-key text-ink">
@@ -183,22 +188,21 @@ export default function DocsBrowser() {
           </p>
         )}
         {canMakeFolder ? (
-          <button type="button" className={DOC_KEY} onClick={() => setMaking('folder')}>
+          <button type="button" className={DOC_BAR_KEY} onClick={() => setMaking('folder')}>
             [ + NEW FOLDER ]
           </button>
         ) : null}
+        <nav className="flex flex-wrap items-center gap-x-2 gap-y-2" aria-label="Where to look">
+          {tabs.map((entry) => (
+            <Link key={entry.place} href={placeHref(entry.place)} className={tab === entry.place ? DOC_BAR_KEY_ON : DOC_BAR_KEY} aria-current={place === entry.place ? 'page' : undefined} title={entry.full}>
+              [ {entry.label} ]
+            </Link>
+          ))}
+        </nav>
         <span className="ml-auto">
-          <DocsSizeKeys />
+          <DocsSizeKeys bar />
         </span>
       </div>
-
-      <nav className="flex flex-wrap items-center gap-x-3 gap-y-2 pb-3" aria-label="Where to look">
-        {tabs.map((entry) => (
-          <Link key={entry.place} href={placeHref(entry.place)} className={tab === entry.place ? DOC_KEY_ON : DOC_KEY} aria-current={place === entry.place ? 'page' : undefined}>
-            [ {entry.label} ]
-          </Link>
-        ))}
-      </nav>
 
       <section>
         <div className={TITLE_BAR}>

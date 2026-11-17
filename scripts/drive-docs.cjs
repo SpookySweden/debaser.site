@@ -166,7 +166,8 @@ async function seesOthers(page, otherName, otherPage, label) {
     await pageA.goto(`${BASE}/docs`, { waitUntil: 'domcontentloaded' });
     await clearPrivacyWindow(pageA);
     // The window asks only for a title (the 2026-11-13 overhaul); who can open it is set afterwards with SHARE.
-    await pageA.getByRole('button', { name: '[ + NEW DOCUMENT ]' }).click();
+    // `[ + NEW ]` since DOCSBAR (2026-11-17, Luke's "A: shorter words"); its name still says what it makes.
+    await pageA.getByRole('button', { name: 'New document', exact: true }).click();
     const make = pageA.getByRole('dialog', { name: 'NEW DOCUMENT' });
     await make.locator('#doc-new-title').fill('Drive doc');
     await make.getByRole('button', { name: '[ CREATE ]' }).click();
