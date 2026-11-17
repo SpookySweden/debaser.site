@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent } from 'react';
 import { artSlot } from '../lib/ui/art/slots';
 import { FIELD_TIGHT, PLATE, PLATE_LINK, PLATE_MAIN } from '../lib/ui/controls';
 import { pictureLink } from '../lib/watch/pictures';
@@ -1722,6 +1722,20 @@ export function WebRow({
             data: 'play',
           }
         : null;
+  // GRID (Luke, 2026-11-17: "fitting the < . > on the end of the play and queue buttons"): the arrow is the last part of the
+  // PLAY / QUEUE key, so a card about 160px wide keeps them on one line. Other views keep the arrow as its own key.
+  const keyHoldsArrow: { label: string; first: Half; second: Half | null } | null =
+    view !== 'grid' || !full
+      ? null
+      : playHalf !== null
+        ? { label: `Play or queue "${item.title}"`, first: playHalf, second: queueHalf }
+        : queueHalf !== null && !readable
+          ? { label: `Queue "${item.title}"`, first: queueHalf, second: null }
+          : null;
+  const arrowInKey =
+    keyHoldsArrow === null
+      ? undefined
+      : (arrow: React.ReactNode) => <SplitKey label={keyHoldsArrow.label} first={keyHoldsArrow.first} second={keyHoldsArrow.second} end={arrow} tight />;
   // The row's thing for a playlist (playlist-adding.ts): what the bar plays, by its first file's id; otherwise a video,
   // kept whole by the same link a room would queue (SPEC-rooms-queues.md, phase 4: ADD TO PLAYLIST takes a video).
   const playlistThing =
@@ -1805,7 +1819,32 @@ ${item.description}` : item.title)} className="ml-1.5" />
 
           {/* The small facts, then the keys on the same line (M11): fewer lines, so more results fit. */}
           <div className={full ? 'mt-1 flex flex-wrap items-center gap-x-3 gap-y-1' : 'contents'}>
-            {full ? (
+            {/* GRID (Luke, 2026-11-17: "the details of the video such as youtube- video - date should take one line"): the facts
+                on ONE line with tight dots. When a narrow card can't hold it all, the end of SOURCE · KIND is cut with "…"
+                (the kind goes first: the picture and the PLAY key already say it), and the date always shows whole. The
+                licence and a book's edition count, which the line can't hold, are behind the arrow (LICENCE) and the
+                EDITIONS key there. */}
+            {full && view === 'grid' ? (
+              <p className="flex w-full min-w-0 items-center whitespace-nowrap text-label text-ink-quiet" data-row-facts>
+                <span className="min-w-0 truncate">
+                  {facts.map((fact, index) => (
+                    <Fragment key={index}>
+                      {index === 0 ? null : <TightDot />}
+                      {fact}
+                    </Fragment>
+                  ))}
+                </span>
+                {seriesCount === null ? null : (
+                  <span className="ml-1 min-w-0 truncate bg-acid px-1 font-bold text-ink-plate" data-series-mark>
+                    {seriesMark(seriesCount)}
+                  </span>
+                )}
+                <TightDot />
+                <time dateTime={item.publishedAt} className="shrink-0">
+                  {date}
+                </time>
+              </p>
+            ) : full ? (
               <p className="flex flex-wrap items-center gap-x-1.5 text-label text-ink-quiet" data-row-facts>
                 <span>{facts.join(' · ')}</span>
                 {seriesCount === null ? null : (
@@ -1851,8 +1890,9 @@ ${item.description}` : item.title)} className="ml-1.5" />
                   {`[ ${outletKey} ↗ ]`}
                 </a>
               ) : null}
-              {/* Audio the bar can play goes there (web-audio.ts); the platform's player is the fallback. */}
-              {playHalf !== null ? (
+              {/* Audio the bar can play goes there (web-audio.ts); the platform's player is the fallback. In GRID the arrow
+                  is the key's last part instead (`[ ▶ PLAY│+ QUEUE│▸ ]`, below), so it fits the card's one line. */}
+              {keyHoldsArrow !== null ? null : playHalf !== null ? (
                 <SplitKey label={`Play or queue "${item.title}"`} first={playHalf} second={queueHalf} />
               ) : queueHalf !== null && !readable ? (
                 <SplitKey label={`Queue "${item.title}"`} first={queueHalf} second={null} />
@@ -1861,7 +1901,7 @@ ${item.description}` : item.title)} className="ml-1.5" />
               {/* The rest behind one arrow on the same line (Luke, 2026-11-16: "only play and queue, with an arrow on the same
                   row beside them that reveals the rest of the options"). COMPACT keeps to the main keys, as it always has. */}
               {full ? (
-                <MoreKeys title={item.title} unfold={view === 'list' || view === 'large' ? 'left' : 'right'}>
+                <MoreKeys title={item.title} unfold={view === 'list' || view === 'large' ? 'left' : 'right'} inKey={arrowInKey}>
                   {/* M7: several copies of the work fold open from here. */}
                   {full && item.alsoOn.length > 0 ? (
                     <button type="button" onClick={() => setAlsoOpen(!alsoOpen)} aria-expanded={alsoOpen} aria-controls={alsoId} className={PLATE}>
@@ -1882,6 +1922,12 @@ ${item.description}` : item.title)} className="ml-1.5" />
                     <Link href={`/media/book/${item.id}`} className={PLATE}>
                       [ BOOK PAGE ]
                     </Link>
+                  ) : null}
+                  {/* GRID's facts line has no room for LICENCE, so it is here (the other views keep it on that line). */}
+                  {view === 'grid' && licence ? (
+                    <a href={licence} target="_blank" rel="noopener noreferrer nofollow" aria-label={`Licence for "${item.title}" (new tab)`} className={PLATE_LINK} data-licence-key>
+                      [ LICENCE ↗ ]
+                    </a>
                   ) : null}
                 </MoreKeys>
               ) : null}
@@ -1946,6 +1992,11 @@ function AlsoOn({ item, id, open }: { item: WebStreamItem; id: string; open: boo
     </div>
   );
 }
+/** GRID's facts dot: the dot alone with a sliver either side, about half as wide as " · ", so the line fits a card. */
+function TightDot() {
+  return <span className="mx-0.5">·</span>;
+}
+
 /** Where the bar's globe sends a listener back to, for a track started here: the archive (WEB until 2026-11-03). */
 const WEB_ORIGIN = { origin: 'shelf', href: '/media', where: 'MEDIA' } as const;
 

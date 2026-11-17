@@ -69,7 +69,35 @@ function drawHalf(half: Half, className: string, text: string): ReactNode {
   );
 }
 
-export default function SplitKey({ label, first, second }: { label: string; first: Half; second: Half | null }) {
+/** A half with no side padding, for a key that has to fit a narrow card (MEDIA's GRID). */
+const unpadded = (className: string) => className.replace(/(^|\s)(?:max-sm:)?px-(?:1|0\.5)(?=\s|$)/g, '$1').replace(/\s+/g, ' ').trim();
+
+/**
+ * `end` (MEDIA's GRID cards, Luke 2026-11-17: "fitting the < . > on the end of the play and queue buttons"): a press drawn
+ * inside the same brackets, after one more seam, that closes the bracket itself (`▸ ]`): `[ ▶ PLAY│+ QUEUE│▸ ]`, one key on
+ * one line. `tight` drops the halves' side padding, so the key fits a card about 160px wide.
+ */
+export default function SplitKey({ label, first, second, end, tight = false }: { label: string; first: Half; second: Half | null; end?: ReactNode; tight?: boolean }) {
+  const pad = tight ? unpadded : (className: string) => className;
+  if (end !== undefined) {
+    return (
+      <>
+        <span role="group" aria-label={label} className="inline-flex items-stretch" data-split-key>
+          {drawHalf(first, pad(first.on ? `${SPLIT_ON} px-0.5` : SPLIT_FIRST), `[ ${first.words}`)}
+          <Seam />
+          {second === null ? null : (
+            <>
+              {drawHalf(second, pad(second.on ? `${SPLIT_ON} px-0.5` : SPLIT_SECOND), second.words)}
+              <Seam />
+            </>
+          )}
+          {end}
+        </span>
+        {first.after}
+        {second?.after}
+      </>
+    );
+  }
   if (second === null) {
     return (
       <>
@@ -82,14 +110,20 @@ export default function SplitKey({ label, first, second }: { label: string; firs
     <>
       <span role="group" aria-label={label} className="inline-flex items-stretch" data-split-key>
         {drawHalf(first, first.on ? `${SPLIT_ON} px-0.5` : SPLIT_FIRST, `[ ${first.words}`)}
-        {/* The seam between the halves: one character, the key's own ink, never pressed. */}
-        <span aria-hidden="true" className="flex items-center text-label text-accent-ink max-sm:text-sm">
-          │
-        </span>
+        <Seam />
         {drawHalf(second, second.on ? `${SPLIT_ON} px-0.5` : SPLIT_SECOND, `${second.words} ]`)}
       </span>
       {first.after}
       {second.after}
     </>
+  );
+}
+
+/** The seam between the halves: one character, the key's own ink, never pressed. */
+function Seam() {
+  return (
+    <span aria-hidden="true" className="flex items-center text-label text-accent-ink max-sm:text-sm">
+      │
+    </span>
   );
 }
