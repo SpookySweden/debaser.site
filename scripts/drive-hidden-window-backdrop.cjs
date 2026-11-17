@@ -15,7 +15,9 @@
  */
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright-core');
+const { join } = require('node:path');
 const { findChrome } = require('./browser.cjs');
+const { backdropCells } = require('./backdrop-pixels.cjs');
 
 const args = process.argv.slice(2);
 const BASE = args.includes('--base') ? args[args.indexOf('--base') + 1] : 'http://localhost:3003';
@@ -27,22 +29,8 @@ const pass = (what) => {
 };
 
 /** How many cells of the background's grid are drawn inside a box of screen pixels, and a sum that changes when they do. */
-const drawn = (page, box) =>
-  page.evaluate((within) => {
-    const canvas = document.querySelector('.backdrop-canvas');
-    const cell = Math.round(parseFloat(canvas.style.width) / canvas.width);
-    const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
-    const seen = { count: 0, sum: 0 };
-    for (let y = Math.max(0, Math.floor(within.y / cell)); y < Math.min(canvas.height, Math.ceil((within.y + within.height) / cell)); y += 1) {
-      for (let x = Math.max(0, Math.floor(within.x / cell)); x < Math.min(canvas.width, Math.ceil((within.x + within.width) / cell)); x += 1) {
-        const at = (y * canvas.width + x) * 4;
-        if (data[at + 3] === 0 || data[at] + data[at + 1] + data[at + 2] < 24) continue;
-        seen.count += 1;
-        seen.sum += (data[at] * 3 + data[at + 1] * 5 + data[at + 2] * 7 + x * 11 + y * 13) % 9973;
-      }
-    }
-    return seen;
-  }, box);
+// Read off the screen: FLUID's canvas is drawn by a thread of its own and can't be read from the page (PERF 1b).
+const drawn = (page, box) => backdropCells(page, box, join('Temp', 'browse', 'hidden-window-cells.png'));
 const round = (x, y, half = 60) => ({ x: x - half, y: y - half, width: half * 2, height: half * 2 });
 
 async function open(browser, storage) {
@@ -57,6 +45,8 @@ async function open(browser, storage) {
       // No storage: the run fails on what it expects next.
     }
   }, storage);
+  // --nothread: no OffscreenCanvas, so FLUID runs on the page (the fallback where a browser cannot hand a canvas to a thread).
+  if (process.argv.includes('--nothread')) await context.addInitScript('delete HTMLCanvasElement.prototype.transferControlToOffscreen;');
   // Nothing may reach the live database from here.
   await context.route(/supabase\.co/, (route) => route.abort());
   const page = await context.newPage();
@@ -80,7 +70,8 @@ async function open(browser, storage) {
     const besideBefore = await drawn(page, round(beside.x, beside.y, 30));
     await page.mouse.click(beside.x, beside.y);
     await sleep(500);
-    assert.ok((await drawn(page, round(beside.x, beside.y, 30))).count > besideBefore.count + 10, 'a press on the desk beside the window makes ink there');
+    const besideAfter = await drawn(page, round(beside.x, beside.y, 30));
+    assert.ok(besideAfter.count > besideBefore.count + 10, `a press on the desk beside the window makes ink there (${besideBefore.count} of ${besideBefore.cells} cells, then ${besideAfter.count})`);
     const middleBefore = await drawn(page, round(middle.x, middle.y));
     await page.mouse.click(middle.x, middle.y);
     await sleep(500);
