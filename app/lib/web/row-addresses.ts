@@ -17,10 +17,11 @@ export type RowAddresses = {
 export type ExtraHosts = Partial<Record<WebPlatform, readonly string[]>>;
 
 /** An https URL on one of `hosts`, with exactly the path shape given, and `query` (default: none) and no fragment. */
-function shaped(value: unknown, hosts: readonly string[], path: RegExp, query = ''): string | null {
+function shaped(value: unknown, hosts: readonly string[], path: RegExp, query: string | RegExp = ''): string | null {
   if (!isAllowedUrl(value, hosts)) return null;
   const url = new URL(value);
-  return url.search === query && url.hash === '' && path.test(url.pathname) ? value : null;
+  const queryFits = typeof query === 'string' ? url.search === query : query.test(url.search);
+  return queryFits && url.hash === '' && path.test(url.pathname) ? value : null;
 }
 
 /**
@@ -41,6 +42,14 @@ const AUTOPLAY_PLATFORMS: readonly WebPlatform[] = ['youtube', 'peertube', 'inte
  */
 export function startingEmbed(embed: string, platform: WebPlatform, audio: string | null = null): string {
   const subtitled = withEnglishSubtitles(embed, platform, audio);
+  // Twitch's player must be told which site embeds it (`parent`, its documented rule; SPEC-live-streams.md): this page's own
+  // host, added only here, after `rowAddresses` has checked the address. `autoplay` is Twitch's own flag.
+  if (platform === 'twitch') {
+    const url = new URL(subtitled);
+    url.searchParams.set('parent', typeof window === 'undefined' ? 'debaser-site.vercel.app' : window.location.hostname);
+    url.searchParams.set('autoplay', 'true');
+    return url.toString();
+  }
   if (!AUTOPLAY_PLATFORMS.includes(platform)) return subtitled;
   const url = new URL(subtitled);
   url.searchParams.set('autoplay', '1');
@@ -76,7 +85,7 @@ export function rowAddresses(item: WebItem, extra: ExtraHosts = {}): RowAddresse
   return {
     link: shaped(item.url, hosts(allow.pageHosts), allow.pagePath),
     thumb: shaped(item.thumbnailUrl, hosts(allow.thumbHosts), allow.thumbPath),
-    embed: shaped(item.embedUrl, hosts(allow.embedHosts), allow.embedPath, allow.embedQuery ?? ''),
+    embed: shaped(item.embedUrl, hosts(allow.embedHosts), allow.embedPath, allow.embedQueryPattern ?? allow.embedQuery ?? ''),
     licence: isAllowedUrl(item.licenseUrl, allow.linkHosts) ? item.licenseUrl : null,
   };
 }

@@ -3,6 +3,7 @@ import { filterLanguage } from '../../../lib/web/language';
 import { compareItems } from '../../../lib/web/paging';
 import { authorWords, searchText } from '../../../lib/web/search';
 import { cachedFetch } from '../../../lib/web/search/cached-fetch';
+import { liveFetch } from '../../../lib/web/search/live-fetch';
 import { SEARCH_PROVIDERS } from '../../../lib/web/search/index';
 import { parseLink, resolveLink } from '../../../lib/web/search/link';
 import { peertubeHosts } from '../../../lib/web/search/peertube-index';
@@ -18,11 +19,13 @@ import { wildcardSearch } from '../../../lib/web/wildcard-search';
 /**
  * WEB search everywhere (SPEC-web-search.md):
  *
- *   GET /api/web/search?q=<words>[&from=<a creator>][&provider=<one platform>][&order=<relevance|popular|newest|oldest>][&cursor=<from the last answer>]
+ *   GET /api/web/search?q=<words>[&from=<a creator>][&provider=<one platform>][&order=<relevance|popular|newest|oldest>][&live=1][&cursor=<from the last answer>]
  *     -> { items, statuses: [{ platform, label, problem }], nextCursor }
  *
  * `order` (SPEC-web-sort.md): each provider's own order for it, or "NO POPULARITY ORDER" / "CAN'T SORT BY DATE"
  * for one that has none. Without it, each platform's best match, the list newest first (as before sorting existed).
+ * `live=1` (SPEC-live-streams.md, the `[ ● LIVE ]` key): only what is on now, from the providers that can say (Twitch,
+ * YouTube), kept a minute on the server instead of a day. Twitch's keys are read here, like YouTube's, and never answered.
  * A count or rating may decide the order on the server; none is ever part of an answer.
  *
  * The page asks each provider on its own (`provider=youtube`, ...), all at once, so each one's results show
@@ -89,9 +92,17 @@ export async function GET(request: Request): Promise<Response> {
   const order = SEARCH_ORDERS.find((value) => value === params.get('order'));
   // `lang=<code>` (M13, the LANGUAGE filter): a language the providers that can ask their platform by language pass on.
   const lang = filterLanguage(params.get('lang') ?? undefined) ?? undefined;
+  const live = params.get('live') === '1';
   const deps = {
     fetch: cachedFetch,
-    env: { YOUTUBE_API_KEY: process.env.YOUTUBE_API_KEY, TMDB_READ_TOKEN: process.env.TMDB_READ_TOKEN },
+    liveFetch,
+    env: {
+      YOUTUBE_API_KEY: process.env.YOUTUBE_API_KEY,
+      TMDB_READ_TOKEN: process.env.TMDB_READ_TOKEN,
+      TWITCH_CLIENT_ID: process.env.TWITCH_CLIENT_ID,
+      TWITCH_CLIENT_SECRET: process.env.TWITCH_CLIENT_SECRET,
+    },
+    ...(live ? { live } : {}),
     // No YouTube Shorts in an answer (shorts-check.ts): asked of YouTube's own /shorts/ page, plain fetch (never the cache).
     dropShorts: (items: WebItem[]) => dropShorts(items),
     ...(vibe ? { vibe } : {}),
@@ -136,14 +147,15 @@ export async function GET(request: Request): Promise<Response> {
   // button per such server (wildcard-search.ts). Only on a first page of plain words, video or any kind, and only
   // with the first provider's answer: the page asks each provider on its own, so this goes out once per search.
   // Not under POPULAR: those titles have no popularity to be ordered by (SPEC-web-sort.md).
-  const withWildcard = words !== null && cursor === null && author === null && (kind === undefined || kind === 'video') && order !== 'popular' && anchorsWildcard(only, providers.includes(SEARCH_PROVIDERS[0]));
+  const withWildcard = !live && words !== null && cursor === null && author === null && (kind === undefined || kind === 'video') && order !== 'popular' && anchorsWildcard(only, providers.includes(SEARCH_PROVIDERS[0]));
   const everywhere = searchEverywhere(words ?? '', cursor, providers, { ...deps, spendBudget: dailyBudgets(address) }, author, kind);
   const [result, wildcard] = await Promise.all([
     everywhere,
     withWildcard ? wildcardSearch(words, { fetch: cachedFetch, token: process.env.TMDB_READ_TOKEN }) : Promise.resolve([]),
   ]);
   const statuses = result.statuses.map((status) => ({ ...status, label: PLATFORM_LABELS[status.platform] }));
-  const complete = statuses.every((status) => status.problem === null);
+  // A live answer is never kept by the browser either: what is on changes by the minute.
+  const complete = !live && !result.items.some((item) => item.live === true) && statuses.every((status) => status.problem === null);
   // In an order, the provider's own order is kept and the media servers' titles follow it (the page places them).
   // A word search filtered to one provider (Luke, 2026-11-13: BOOKS for "dune frank herbert") also keeps the provider's
   // order, so a relevance-ranked match stays at the top instead of being re-sorted by date.

@@ -10,6 +10,16 @@ import type { WebItem, WebPlatform } from '../types';
 /** What a provider is handed, so a check can run it offline with a fake fetch, a fixed clock and a fake key. */
 export type SearchDeps = {
   fetch?: FetchLike;
+  /**
+   * The fetch for live answers (live-fetch.ts: kept a minute, not a day), used by Twitch always and by YouTube when `live`
+   * is asked. Absent: `fetch`.
+   */
+  liveFetch?: FetchLike;
+  /**
+   * The `[ ● LIVE ]` key (SPEC-live-streams.md): only what is on now. Only providers with `live` are asked (run.ts); YouTube
+   * asks InnerTube's live filter, and its fallback `eventType=live`.
+   */
+  live?: boolean;
   now?: () => Date;
   /** Server-only settings (`YOUTUBE_API_KEY`). Read from `process.env` by the route, never by a provider. */
   env?: Readonly<Record<string, string | undefined>>;
@@ -92,6 +102,8 @@ export class SearchProblemError extends Error {
 
 export type SearchProvider = {
   platform: WebPlatform;
+  /** It can answer the `[ ● LIVE ]` key (Twitch, YouTube): with `live`, only these are asked. */
+  live?: boolean;
   /** The only hosts this provider fetches from (its API). Item addresses are held to `PLATFORM_HOSTS`. */
   allowedHosts: readonly string[];
   /** How long one search may take before the route stops waiting (Openverse is slow: 20s). */

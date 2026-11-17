@@ -5,6 +5,7 @@ import { TwitchPlayable } from './twitch-player';
 import type { WatchLink, WatchLinkKind } from './types';
 import { fetchVimeoTitle, VimeoPlayable } from './vimeo-player';
 import { fetchYouTubeTitle, probeYouTube, YouTubePlayable } from './youtube-player';
+import { loadLiveNow } from '../web/everywhere-client';
 
 /**
  * The sites whose own embed players the stream room uses (SPEC-watch-links.md steps 3-4): which player a
@@ -29,12 +30,20 @@ export function createEmbed(link: WatchLink, container: HTMLElement, autoPlay: b
   return null;
 }
 
-/** The video's real title from its site, or null (Twitch has no public lookup). */
+/**
+ * The video's real title from its site, or null. A Twitch channel's is its stream's title while it is live (our own
+ * `/api/web/live`, SPEC-live-streams.md); a past broadcast has no lookup.
+ */
 export async function fetchEmbedTitle(link: WatchLink): Promise<string | null> {
   const youtube = youtubeIdOf(link);
   if (youtube !== null) return fetchYouTubeTitle(youtube);
   const vimeo = vimeoOf(link);
   if (vimeo !== null) return fetchVimeoTitle(vimeo);
+  const twitch = twitchOf(link);
+  if (twitch?.channel !== undefined) {
+    const [live] = await loadLiveNow({ channels: [twitch.channel] });
+    return live?.title ?? null;
+  }
   return null;
 }
 

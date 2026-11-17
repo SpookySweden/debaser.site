@@ -6,7 +6,7 @@ import { accountName, loadAccountNames } from '../lib/history/names';
 import { historyAccountChanged, notePlay, takePlayContext, type PlayHandle } from '../lib/history/plays';
 import type { PlayHow, PlayNote } from '../lib/history/types';
 import { floatingState } from '../lib/ui/floating-player';
-import { youtubeIdOf } from '../lib/watch/links';
+import { twitchOf, youtubeIdOf } from '../lib/watch/links';
 import { ownRoomState, subscribeToOwnRoom } from '../lib/watch/own-room-client';
 import { isSongLink } from '../lib/watch/songs';
 import type { WatchQueueEntry, WatchRoom } from '../lib/watch/types';
@@ -78,12 +78,20 @@ export function noteForRow(
   const screen = floatingState().entry;
   const title = entry.link?.title || onBar?.title || (screen !== null && screen.id === `own:${entry.id}` ? screen.title : '') || 'A FILE FROM THE SITE';
   const youtube = entry.link === null ? null : youtubeIdOf(entry.link);
+  // A Twitch channel, live (SPEC-live-streams.md, 9A): the channel is the maker and Twitch's preview the picture; HISTORY marks
+  // the line LIVE from its address.
+  const channel = entry.link === null ? null : (twitchOf(entry.link)?.channel ?? null);
   const base = {
     kind,
     ref,
     title,
-    maker: onBar?.credit ?? '',
-    picture: youtube === null || youtube === 'videoseries' ? null : `https://i.ytimg.com/vi/${youtube}/mqdefault.jpg`,
+    maker: onBar?.credit ?? (channel !== null ? channel.toUpperCase() : ''),
+    picture:
+      channel !== null
+        ? `https://static-cdn.jtvnw.net/previews-ttv/live_user_${channel}-320x180.jpg`
+        : youtube === null || youtube === 'videoseries'
+          ? null
+          : `https://i.ytimg.com/vi/${youtube}/mqdefault.jpg`,
     roomId: room.id,
     queueEntryId: entry.id,
     whereHref: watchHref({ kind: 'room', roomId: room.id }),

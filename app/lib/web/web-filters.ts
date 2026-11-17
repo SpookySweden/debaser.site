@@ -41,7 +41,7 @@ export function isReadingSource(source: unknown): source is ReadingPlatform {
  * `?sort=date` or `?sort=date&dir=asc`. web-sort.ts says what each order means.
  */
 
-export type FilterKey = 'in' | 'type' | 'from' | 'vibe' | 'sort' | 'lang';
+export type FilterKey = 'in' | 'type' | 'from' | 'vibe' | 'sort' | 'lang' | 'is';
 
 /** A sort as typed after `sort:`; BEST MATCH, the default (Luke, 2026-11-03), has no word. */
 export type SortWord = 'popular' | 'newest' | 'oldest';
@@ -68,7 +68,12 @@ export const LIVE_SOURCE_KINDS: Readonly<Partial<Record<WebPlatform, readonly We
   // real mirrors through the server's shadow-books fetch (DoH, proxies — Vercel's DNS refuses the real hosts). When
   // nothing is reachable the source answers with no items; the panel still lists it so the reader can pick it.
   anna: ['text'],
+  // Twitch's channels live now (SPEC-live-streams.md): video, and only ever live.
+  twitch: ['video'],
 };
+
+/** The live sources that can say what is on now: the only ones the `[ ● LIVE ]` key asks (SPEC-live-streams.md). */
+export const ON_NOW_SOURCES: readonly WebPlatform[] = ['twitch', 'youtube'];
 
 export const LIVE_PROVIDERS = Object.keys(LIVE_SOURCE_KINDS) as WebPlatform[];
 
@@ -113,6 +118,7 @@ const SOURCE_ALIASES: Readonly<Record<string, SourceValue>> = {
   commons: 'wikimedia_commons',
   wikimedia: 'wikimedia_commons',
   yt: 'youtube',
+  ttv: 'twitch',
   tmdb: 'kino',
   annas: 'anna',
   annas_archive: 'anna',
@@ -156,9 +162,18 @@ export type WebSearch = {
   sort?: SortWord;
   /** `lang:` (the LANGUAGE row; Luke's list, 2026-11-14, M13): a two-letter language. Absent: any language. */
   lang?: string;
+  /** `is:live` (the `[ ● LIVE ]` key, SPEC-live-streams.md): only what is on now. Absent: everything. */
+  live?: true;
 };
 
-const FILTER = /(^|\s)(in|type|from|vibe|sort|lang):("[^"]*"?|\S*)/gi;
+const FILTER = /(^|\s)(in|type|from|vibe|sort|lang|is):("[^"]*"?|\S*)/gi;
+
+/** `is:live` as typed (`is:on`, `is:now` too); `is:all` / `is:any` clears it; anything else is no change. */
+function readIs(word: string): boolean | null {
+  const wanted = word.trim().toLowerCase();
+  if (wanted === 'live' || wanted === 'on' || wanted === 'now') return true;
+  return wanted === 'all' || wanted === 'any' || wanted === 'off' ? false : null;
+}
 
 /**
  * The LANGUAGE row's keys (M13), the languages most of MEDIA's sources carry. Any other is typed: `lang:` takes a code
@@ -248,12 +263,14 @@ export function parseWebSearch(box: string): WebSearch {
   let vibe = false;
   let sort: SortWord | 'best' = 'best';
   let lang: string | 'all' = 'all';
+  let live = false;
   const authors: string[] = [];
   const text = box
     .replace(FILTER, (_whole, space: string, key: string, raw: string) => {
       const value = raw.replace(/^"|"$/g, '');
       const filter = key.toLowerCase();
       if (filter === 'lang') lang = readLang(value) ?? lang;
+      else if (filter === 'is') live = readIs(value) ?? live;
       else if (filter === 'in') source = readSource(value) ?? source;
       else if (filter === 'type') type = readType(value) ?? type;
       else if (filter === 'vibe') vibe = readVibe(value) ?? vibe;
@@ -268,6 +285,7 @@ export function parseWebSearch(box: string): WebSearch {
   if (vibe) search.vibe = true;
   if (sort !== 'best') search.sort = sort;
   if (lang !== 'all') search.lang = lang;
+  if (live) search.live = true;
   return search;
 }
 
@@ -300,6 +318,7 @@ export function formatWebSearch(search: WebSearch): string {
     search.vibe ? 'vibe:on' : '',
     search.sort ? `sort:${search.sort}` : '',
     search.lang ? `lang:${search.lang}` : '',
+    search.live ? 'is:live' : '',
   ]
     .filter((part) => part.length > 0)
     .join(' ');
@@ -308,7 +327,7 @@ export function formatWebSearch(search: WebSearch): string {
 /** A creator's name pressed on a row: everything from them, under the same SOURCE and TYPE, words dropped. */
 export function withAuthor(box: string, name: string): string {
   const search = parseWebSearch(box);
-  return formatWebSearch({ source: search.source, type: search.type, text: '', authors: keptAuthors([name]), ...(search.vibe ? { vibe: true as const } : {}), ...(search.sort ? { sort: search.sort } : {}), ...(search.lang ? { lang: search.lang } : {}) });
+  return formatWebSearch({ source: search.source, type: search.type, text: '', authors: keptAuthors([name]), ...(search.vibe ? { vibe: true as const } : {}), ...(search.sort ? { sort: search.sort } : {}), ...(search.lang ? { lang: search.lang } : {}), ...(search.live ? { live: true as const } : {}) });
 }
 
 /** `[ × NAME ]` on a chosen creator: the box without that `from:`, everything else untouched. */
@@ -327,7 +346,7 @@ export function withoutFilters(box: string): string {
 
 /** Whether a box sets any filter at all (RESET has nothing to do otherwise). */
 export function hasFilters(search: WebSearch): boolean {
-  return search.source !== 'all' || search.type !== 'all' || authorsOf(search).length > 0 || search.vibe === true || search.sort !== undefined || search.lang !== undefined;
+  return search.source !== 'all' || search.type !== 'all' || authorsOf(search).length > 0 || search.vibe === true || search.sort !== undefined || search.lang !== undefined || search.live === true;
 }
 
 /**
@@ -340,6 +359,7 @@ const SOURCE_GROUP_OF: Readonly<Partial<Record<WebPlatform, string>>> = {
   youtube: 'FILMS AND VIDEO',
   peertube: 'FILMS AND VIDEO',
   vimeo: 'FILMS AND VIDEO',
+  twitch: 'FILMS AND VIDEO',
   internet_archive: 'ARCHIVES (EVERY KIND)',
   podcast: 'SOUND',
   audiobooks: 'SOUND',
@@ -383,6 +403,9 @@ export function withFilter(box: string, key: FilterKey, value: string): string {
     const lang = readLang(value);
     if (lang === null || lang === 'all') delete search.lang;
     else search.lang = lang;
+  } else if (key === 'is') {
+    if (readIs(value) === true) search.live = true;
+    else delete search.live;
   } else search.type = readType(value) ?? 'all';
   return formatWebSearch(search);
 }
@@ -396,6 +419,7 @@ export function searchAddress(search: WebSearch): string {
   for (const name of authorsOf(search)) params.append('from', name);
   if (search.vibe) params.set('vibe', 'on');
   if (search.lang) params.set('lang', search.lang);
+  if (search.live) params.set('live', '1');
   const choice = sortOf(search);
   if (choice.sort === 'popular') params.set('sort', 'popular');
   else if (choice.sort === 'date') {
@@ -415,6 +439,7 @@ export function boxFromAddress(params: { get(name: string): string | null; getAl
     authors: keptAuthors((params.getAll?.('from') ?? []).map((name) => name.slice(0, 100))),
     ...(readVibe(params.get('vibe') ?? '') === true ? { vibe: true as const } : {}),
     ...withSortWord(readSort(params.get('sort'), params.get('dir'))),
+    ...(params.get('live') === '1' ? { live: true as const } : {}),
     ...(() => {
       const lang = readLang(params.get('lang') ?? '');
       return lang === null || lang === 'all' ? {} : { lang };
@@ -434,8 +459,12 @@ function withSortWord(choice: SortChoice): { sort?: SortWord } {
 /** Sources an ALL search never asks: each only when it is the SOURCE (KINO; BOOKS and AUDIOBOOKS, SPEC-books.md). */
 export const ASKED_ONLY_WHEN_CHOSEN: readonly WebPlatform[] = ['kino', 'books', 'audiobooks', 'anna'];
 
-export function sourcesToAsk(search: Pick<WebSearch, 'source' | 'type'>): { stream: boolean; live: WebPlatform[] } {
+export function sourcesToAsk(search: Pick<WebSearch, 'source' | 'type'> & Partial<Pick<WebSearch, 'live'>>): { stream: boolean; live: WebPlatform[] } {
   const typeOk = (kinds: readonly WebItemKind[]) => search.type === 'all' || kinds.includes(search.type);
+  // The `[ ● LIVE ]` key: only the sources that can say what is on now; the saved stream holds no lives.
+  if (search.live === true) {
+    return { stream: false, live: ON_NOW_SOURCES.filter((platform) => (search.source === 'all' || search.source === platform) && typeOk(LIVE_SOURCE_KINDS[platform] ?? [])) };
+  }
   // KINO is asked only when it is the SOURCE: an ALL search never fills up with TMDB's titles.
   const live = LIVE_PROVIDERS.filter(
     (platform) => (search.source === platform || (search.source === 'all' && !ASKED_ONLY_WHEN_CHOSEN.includes(platform))) && typeOk(LIVE_SOURCE_KINDS[platform] ?? []),
@@ -461,10 +490,12 @@ export function anchorsWildcard(only: string | null, hasFirstProvider: boolean):
 /** Whether a row belongs in the list under the filters. `fromStream`: it came from the stream, not a live search. */
 export function matchesFilters(
   item: Pick<WebItem, 'platform' | 'kind' | 'creator' | 'media'> & Partial<Pick<WebItem, 'title' | 'description' | 'language'>>,
-  search: Pick<WebSearch, 'source' | 'type' | 'authors' | 'lang'>,
+  search: Pick<WebSearch, 'source' | 'type' | 'authors' | 'lang'> & Partial<Pick<WebSearch, 'live'>>,
   fromStream: boolean,
 ): boolean {
   if (search.type !== 'all' && item.kind !== search.type) return false;
+  // The `[ ● LIVE ]` key: only what is on now.
+  if (search.live === true && (item as { live?: true }).live !== true) return false;
   // LANGUAGE (M13): a row whose language is known and is the one asked; for English, also a row that says none (language.ts).
   if (search.lang !== undefined && !inLanguage({ ...item, title: item.title ?? '' }, search.lang)) return false;
   const authors = authorList(authorsOf(search));
@@ -518,6 +549,12 @@ export function suggestFilterValues(key: FilterKey, partial: string, creators: r
       (option) => wanted.length === 0 || option.word.startsWith(wanted) || option.label.toLowerCase().startsWith(wanted),
     );
   }
+  if (key === 'is') {
+    return [
+      { word: 'live', label: 'ON NOW' },
+      { word: 'all', label: 'EVERYTHING' },
+    ].filter((option) => wanted.length === 0 || option.word.startsWith(wanted));
+  }
   if (key === 'vibe') {
     return [
       { word: 'on', label: 'MOOD AND TAG WORDS' },
@@ -534,7 +571,7 @@ export function suggestFilterValues(key: FilterKey, partial: string, creators: r
 /** The filter whose value the caret is in (`in:you|`), with where that value sits, or null. */
 export function activeFilter(box: string, caret: number): { key: FilterKey; partial: string; start: number; end: number } | null {
   // A creator may be quoted with spaces in it (`from:"rick pre|`); the other values are one word.
-  const pattern = /(?:^|\s)(in|type|from|vibe|sort|lang):("[^"]*"?|\S*)/gi;
+  const pattern = /(?:^|\s)(in|type|from|vibe|sort|lang|is):("[^"]*"?|\S*)/gi;
   for (let match = pattern.exec(box); match !== null; match = pattern.exec(box)) {
     const start = match.index + match[0].indexOf(':') + 1;
     const end = start + match[2].length;

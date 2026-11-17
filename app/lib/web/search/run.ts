@@ -76,7 +76,8 @@ export async function searchEverywhere(
   const order = deps.order;
   const sorted = order !== undefined && order !== 'relevance';
   const canGive = (provider: SearchProvider) => !sorted || (provider.orders ?? []).includes(order);
-  const inCursor = providers.filter((provider) => provider.platform in pages);
+  // The `[ ● LIVE ]` key (SPEC-live-streams.md): only the providers that can say what is on now are asked.
+  const inCursor = providers.filter((provider) => provider.platform in pages && (deps.live !== true || provider.live === true));
   const asked = inCursor.filter(canGive);
   const name = author === null ? null : author.join(' ');
   const ask = (provider: SearchProvider) => {

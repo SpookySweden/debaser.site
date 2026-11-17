@@ -152,7 +152,8 @@ async function problem(work) {
   const unset = await (await route.GET(new Request('https://debaser.site/api/web/search?q=blender', { headers: { 'x-real-ip': '10.1.1.2' } }))).json();
   // Without a key InnerTube is still asked (here it answers in the wrong shape), and with no fallback: NO ANSWER.
   same(unset.statuses.find((s) => s.platform === 'youtube'), { platform: 'youtube', problem: 'NO ANSWER', label: 'YOUTUBE' }, 'without one, and InnerTube failing: YOUTUBE: NO ANSWER');
-  ok(unset.statuses.filter((s) => s.platform !== 'youtube').length === 4, '... and the others are still asked');
+  // 5 since Twitch joined an ALL search (SPEC-live-streams.md, 2026-11-17).
+  ok(unset.statuses.filter((s) => s.platform !== 'youtube').length === 5, '... and the others are still asked');
   // One provider at a time (the page asks each on its own, so each one's rows show as soon as they arrive).
   process.env.YOUTUBE_API_KEY = KEY;
   const askedHosts = [];
@@ -177,6 +178,8 @@ async function problem(work) {
   // `playlistItems`, the way the provider does; nothing they answer or throw carries it.
   const ALLOWED = new Set([
     'app/api/web/search/route.ts',
+    // The live route (SPEC-live-streams.md, 2026-11-17): YouTube's live search falls back to the Data API like the search route.
+    'app/api/web/live/route.ts',
     'app/api/web/ingest/route.ts',
     'app/lib/web/search/providers/youtube.ts',
     'app/lib/web/search/types.ts',

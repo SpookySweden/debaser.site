@@ -87,6 +87,13 @@ export type SafeFetchOptions = {
   accept?: string;
   /** Send this as a JSON POST body instead of a GET. */
   postJson?: unknown;
+  /** Send these fields as a form POST body instead (Twitch's token endpoint, twitch.ts); never with `postJson`. */
+  postForm?: Readonly<Record<string, string>>;
+  /**
+   * More request headers, for an API that is told who is asking by header (Twitch's `Client-Id` and its bearer pass).
+   * They never replace the user agent, the accepted type, the range or the body's type.
+   */
+  headers?: Readonly<Record<string, string>>;
   /** Sent instead of `userAgent()`: the sweep names the project and never a person, as Archive's and Wikimedia's guidance ask. */
   userAgent?: string;
   /** Hosts a redirect may also lead to (https, the same checks), for a platform that hands downloads to numbered file servers. */
@@ -155,13 +162,15 @@ async function safeFetchResponse(url: string, options: SafeFetchOptions): Promis
 
     let response: Response;
     try {
-      const headers: Record<string, string> = { 'User-Agent': options.userAgent ?? userAgent(), Accept: options.accept ?? 'application/json' };
+      const headers: Record<string, string> = { ...(options.headers ?? {}), 'User-Agent': options.userAgent ?? userAgent(), Accept: options.accept ?? 'application/json' };
       if (options.range !== undefined && /^bytes=\d{1,12}-\d{0,12}$/.test(options.range)) headers.Range = options.range;
       response = await fetchImpl(
         current,
-        options.postJson === undefined
-          ? { method: 'GET', redirect: 'manual', signal, credentials: 'omit', headers }
-          : { method: 'POST', redirect: 'manual', signal, credentials: 'omit', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(options.postJson) },
+        options.postJson !== undefined
+          ? { method: 'POST', redirect: 'manual', signal, credentials: 'omit', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(options.postJson) }
+          : options.postForm !== undefined
+            ? { method: 'POST', redirect: 'manual', signal, credentials: 'omit', headers: { ...headers, 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(options.postForm).toString() }
+            : { method: 'GET', redirect: 'manual', signal, credentials: 'omit', headers },
       );
     } catch (error) {
       const err = error as Error & { cause?: { code?: string; message?: string; name?: string } };
@@ -172,7 +181,7 @@ async function safeFetchResponse(url: string, options: SafeFetchOptions): Promis
     if (response.status >= 300 && response.status < 400) {
       const location = response.headers.get('location');
       await response.body?.cancel().catch(() => undefined);
-      if (options.postJson !== undefined) throw new SafeFetchError('redirect after a post');
+      if (options.postJson !== undefined || options.postForm !== undefined) throw new SafeFetchError('redirect after a post');
       if (!location) throw new SafeFetchError('redirect without a location');
       // Resolved against the current URL, then held to the same allow-list on the next pass.
       try {

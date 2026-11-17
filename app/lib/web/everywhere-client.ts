@@ -50,10 +50,12 @@ export async function searchEverywhere(
   provider?: WebPlatform,
   from: string | null = null,
   type = 'all',
-  extra: { vibe?: boolean; keyword?: number; order?: 'relevance' | 'popular' | 'newest' | 'oldest'; lang?: string } = {},
+  extra: { vibe?: boolean; keyword?: number; order?: 'relevance' | 'popular' | 'newest' | 'oldest'; lang?: string; live?: boolean } = {},
 ): Promise<EverywherePage> {
   const params = new URLSearchParams({ q: query });
   if (provider !== undefined) params.set('provider', provider);
+  // The `[ ● LIVE ]` key (SPEC-live-streams.md): only what is on now.
+  if (extra.live) params.set('live', '1');
   // The SORT row's order (web-sort.ts `searchOrder`); only the order travels, never a count.
   if (extra.order !== undefined) params.set('order', extra.order);
   // VIBE (search-intent.ts) and, for KINO, a related TMDB keyword (related.ts).
@@ -78,6 +80,26 @@ export async function searchEverywhere(
   });
   const link = LINKS.has(body.link as LinkOutcome) ? (body.link as LinkOutcome) : null;
   return { items, problems, nextCursor: typeof body.nextCursor === 'string' ? body.nextCursor : null, link };
+}
+
+/**
+ * What is live now without a search (`/api/web/live`, SPEC-live-streams.md): the Twitch channels among `channels` that are live,
+ * lives that fit `words`, or with neither the most-watched lives on Twitch now. Only lives come back; none on any failure.
+ */
+export async function loadLiveNow(ask: { channels?: readonly string[]; words?: readonly string[] } = {}): Promise<WebStreamItem[]> {
+  const params = new URLSearchParams();
+  const channels = (ask.channels ?? []).filter((login) => /^[a-z0-9][a-z0-9_]{1,24}$/.test(login)).slice(0, 100);
+  if (channels.length > 0) params.set('channels', channels.join(','));
+  const words = (ask.words ?? []).filter((word) => /^[\p{L}\p{N}]{1,40}$/u.test(word)).slice(0, 5);
+  if (words.length > 0) params.set('words', words.join(' '));
+  try {
+    const response = await fetch(`/api/web/live${params.size > 0 ? `?${params.toString()}` : ''}`, { credentials: 'omit' });
+    if (!response.ok) return [];
+    const body = (await response.json()) as { items?: unknown };
+    return (Array.isArray(body.items) ? body.items : []).map(toItem).filter((item): item is WebStreamItem => item !== null && item.live === true);
+  } catch {
+    return [];
+  }
 }
 
 export type Related = { suggestion: string | null; topics: { label: string; query: string; keyword?: number }[] };

@@ -29,7 +29,7 @@ export function taggedShort(...texts: (string | null | undefined)[]): boolean {
   return texts.some((text) => typeof text === 'string' && SHORTS_TAG.test(text));
 }
 
-type ShortsItem = { platform: string; url?: string; canonicalUrl?: string; title?: string; description?: string; creator?: string; durationSeconds?: number };
+type ShortsItem = { platform: string; url?: string; canonicalUrl?: string; title?: string; description?: string; creator?: string; durationSeconds?: number; live?: true };
 
 /**
  * Music is never left out on a guess (Luke, 2026-11-14: "make sure the shorts thing doesnt affect any music on youtube at
@@ -48,6 +48,8 @@ export const SHORT_MAX_SECONDS = 180;
  * never leaves a row out by itself, since plenty of songs and music videos are under three minutes.
  */
 export function shortCandidate(item: ShortsItem): boolean {
+  // A live broadcast has no length yet and is never a Short (SPEC-live-streams.md): nothing to ask YouTube.
+  if (item.live === true) return false;
   return item.platform === 'youtube' && (item.durationSeconds === undefined || item.durationSeconds <= SHORT_MAX_SECONDS);
 }
 

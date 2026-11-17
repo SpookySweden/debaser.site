@@ -13,7 +13,11 @@ import { notForMe, readHistory, subscribeHistory } from '../lib/recommender/hist
 import type { HistoryKind, HistoryRow } from '../lib/recommender/types';
 import { findTag, sourceLabel, type StationIndex } from '../lib/tag-station/query';
 import type { StationItem } from '../lib/tag-station/types';
-import { searchEverywhere } from '../lib/web/everywhere-client';
+import { loadLiveNow, searchEverywhere } from '../lib/web/everywhere-client';
+import { watchLinkForItem } from '../lib/web/bridges';
+import { liveAsk, playedChannel } from '../lib/web/live-lane';
+import { readPlays } from '../lib/history/plays';
+import { playInMainRoom } from '../lib/watch/main-room-play';
 import { rowAddresses, type ExtraHosts } from '../lib/web/row-addresses';
 import { readTaste } from '../lib/web/taste-store';
 import type { WebItem } from '../lib/web/types';
@@ -156,6 +160,32 @@ export default function ForYou({ index, extraHosts, onPick }: { index: StationIn
     return pickLane(candidates, context);
   }, [index, context]);
 
+  /*
+   * LIVE NOW (SPEC-live-streams.md; Luke, 2026-11-17: "reccomend twitch streams based on user history- linked youtube and tags and
+   * association"): the lives `/api/web/live` finds for the channels in this reader's history, the makers their taste leans to
+   * and their strongest words, picked by the same engine as every lane here. Asked once a visit, once the history is read.
+   */
+  const [lives, setLives] = useState<WebItem[] | null>(null);
+  const historyRead = rows !== null;
+  useEffect(() => {
+    if (!historyRead || userId === null || lives !== null) return;
+    let on = true;
+    void (async () => {
+      const plays = await readPlays(300).catch(() => []);
+      const played = [...new Set(plays.flatMap((play) => (play.kind === 'video' ? (playedChannel(play.ref) ?? []) : [])))];
+      const items = await loadLiveNow(liveAsk(taste, history, [], played));
+      if (on) setLives(items);
+    })();
+    return () => {
+      on = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historyRead, userId]);
+  const livePicks = useMemo(() => {
+    const candidates: Candidate<WebItem>[] = (lives ?? []).map((item) => ({ key: keyOf('media', item.id), words: item.tags ?? [], maker: item.creator, item }));
+    return pickLane(candidates, context);
+  }, [lives, context]);
+
   /* SONGS: the site's own music; people close to the reader count as an openly shared reason (VANITY's FOR YOU). */
   const songData = useSongs(userId);
   const songs = useMemo(() => {
@@ -250,6 +280,39 @@ export default function ForYou({ index, extraHosts, onPick }: { index: StationIn
             }}
           />
           <YouTubeLane hidden={hidden} onHide={hideHere} extraHosts={extraHosts} />
+          <Lane
+            id="for-you-live"
+            title="LIVE NOW"
+            loading={loading || lives === null}
+            picks={visible(livePicks)}
+            render={(pick) => {
+              const item = pick.item;
+              const { thumb } = rowAddresses(item, extraHosts);
+              const words = [...(item.tags ?? [])];
+              const link = watchLinkForItem(item);
+              return (
+                <li key={pick.key} className="rule-pixel flex items-start gap-2 py-2" data-for-you-live={item.id}>
+                  <Thumb src={thumb} />
+                  <div className="min-w-0 flex-1">
+                    {/* WATCH puts it on in your own room, as PLAY on its MEDIA row does (main-room-play.ts). */}
+                    <button
+                      type="button"
+                      onClick={() => (link === null ? onPick(item.id) : void playInMainRoom({ link }, item.title))}
+                      aria-label={`Watch ${item.title} in your room`}
+                      className={`${STATION_KEY} block w-full break-words text-left`}
+                    >
+                      {item.title}
+                    </button>
+                    <p className="break-words px-1 text-label text-ink">
+                      {sourceLabel(item.platform)} · <span className="bg-acid px-1 font-bold text-ink-plate">● LIVE</span>
+                      {item.creator ? ` · ${item.creator}` : ''}
+                    </p>
+                    <PickFoot why={pick.why} item={{ kind: 'media', ref: item.id, title: item.title, maker: item.creator ?? '', words }} onHide={() => hide('media', item.id, item.title, item.creator ?? '', words)} />
+                  </div>
+                </li>
+              );
+            }}
+          />
         </div>
         <div className="flex min-w-0 flex-1 basis-72 flex-col">
           <Lane

@@ -9,6 +9,8 @@ const ALLOWED_KEYS = new Set([
   'language',
   // A BOOKS row's catalogue facts (SPEC-book-editions.md, 2026-11-11): how many editions, a free scan, the edition found.
   'book',
+  // On now (SPEC-live-streams.md, 2026-11-17): a Twitch channel broadcasting, or a YouTube live broadcast. A mark, not a count.
+  'live',
 ]);
 const ENGAGEMENT = /like|view|download|rating|star|follow|comment|play_?count|favou?rite|subscri|review|score/i;
 const NOW = '2026-10-31T12:00:00.000Z';

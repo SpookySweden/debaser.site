@@ -30,7 +30,8 @@ const press = blank.withQueueFilter;
 
 /* ---------------------------------------------------------------- the keys on offer */
 // 2026-11-11 (Luke: "audiobooks and other audio" in the queue): PODCAST, from the saved stream, and AUDIOBOOKS.
-same(blank.QUEUE_SOURCES.map((option) => option.label), ['ALL', 'INTERNET ARCHIVE', 'PEERTUBE', 'PODCAST', 'YOUTUBE', 'AUDIOBOOKS'], 'SOURCE: only what a room can play from');
+// TWITCH joined on purpose (SPEC-live-streams.md, 2026-11-17): a room plays a Twitch channel live.
+same(blank.QUEUE_SOURCES.map((option) => option.label), ['ALL', 'INTERNET ARCHIVE', 'PEERTUBE', 'PODCAST', 'YOUTUBE', 'AUDIOBOOKS', 'TWITCH'], 'SOURCE: only what a room can play from');
 same(blank.QUEUE_TYPES.map((option) => option.label), ['ALL', 'BOOKS', 'VIDEO', 'MUSIC'], "TYPE: the blank screen's keys in Luke's order, behind ALL");
 ok(blank.QUEUE_SOURCES.every((option) => web.SOURCE_OPTIONS.some((known) => known.value === option.value)), 'every SOURCE key is one the archive page knows');
 
