@@ -183,7 +183,11 @@ export default function PresenceProvider({ children }: { children: React.ReactNo
     beat();
     say('active');
 
-    const timer = window.setInterval(beat, PRESENCE_HEARTBEAT_MS);
+    // Not from a tab sent behind (PERF): the live room already says the account is here, and every stamp written makes
+    // every other signed-in tab read the whole table again. Brought back to the front, it stamps at once (below).
+    const timer = window.setInterval(() => {
+      if (visible()) beat();
+    }, PRESENCE_HEARTBEAT_MS);
     const idleTimer = window.setInterval(() => {
       say(tabState(Date.now() - lastUse));
     }, IDLE_CHECK_MS);
