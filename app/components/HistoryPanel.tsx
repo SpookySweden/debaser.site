@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { eraseHistory, forgetOne, readHistory, readPaused, setPaused, subscribeHistory } from '../lib/recommender/history';
 import type { HistoryKind, HistoryRow } from '../lib/recommender/types';
+import { erasePlays } from '../lib/history/plays';
 import { PLATE, PLATE_PRESSED } from '../lib/ui/controls';
 
 /**
@@ -74,7 +75,9 @@ export default function HistoryPanel() {
     }
     setConfirming(false);
     setFault(null);
-    if (!(await eraseHistory())) setFault('COULD NOT ERASE IT. TRY AGAIN.');
+    // The HISTORY window's log goes too (SPEC-history.md: PRIVACY's ERASE removes both).
+    const [kept, plays] = await Promise.all([eraseHistory(), erasePlays()]);
+    if (!kept || !plays) setFault('COULD NOT ERASE IT. TRY AGAIN.');
   };
 
   return (
@@ -82,7 +85,7 @@ export default function HistoryPanel() {
       <h3 id="history-title" className="title-line text-accent-ink text-title">
         HISTORY
       </h3>
-      <p className="text-key text-ink">WHAT YOU OPEN, PLAY AND READ HERE, KEPT 90 DAYS. ONLY YOU CAN SEE IT. FOR YOU PICKS FROM IT.</p>
+      <p className="text-key text-ink">WHAT YOU OPEN, PLAY AND READ HERE, KEPT 90 DAYS. ONLY YOU CAN SEE IT. FOR YOU PICKS FROM IT. PAUSE AND ERASE ALSO COVER THE HISTORY WINDOW&apos;S LOG.</p>
       <div className="flex flex-wrap items-center gap-1">
         <button type="button" onClick={() => void flipPause()} aria-pressed={paused} className={paused ? PLATE_PRESSED : PLATE} data-history-pause>
           {paused ? 'PAUSED: [ RESUME HISTORY ]' : '[ PAUSE HISTORY ]'}

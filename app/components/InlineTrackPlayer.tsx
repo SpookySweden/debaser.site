@@ -5,6 +5,7 @@ import { formatClock } from '../lib/audio/format';
 import { postedTrackAsAudio } from '../lib/audio/forum-tracks';
 import { normaliseAudioTags } from '../lib/audio/tags';
 import type { ForumTrack } from '../lib/forum/types';
+import { armPlayContext } from '../lib/history/plays';
 import { PLATE } from '../lib/ui/controls';
 import AudioTagPill from './AudioTagPill';
 import { useMusicPlayer } from './MusicPlayerProvider';
@@ -52,6 +53,8 @@ export default function InlineTrackPlayer({ track, poster, origin, compact = fal
       return;
     }
 
+    // HISTORY (SPEC-history.md): this play is filed FROM A POST BY whoever posted it, with the thread to go back to.
+    armPlayContext({ how: 'post', addedByName: poster, whereLabel: origin ?? 'POST', whereHref: `${window.location.pathname}${window.location.search}` });
     player.play(postedTrackAsAudio(track, poster));
   }
 

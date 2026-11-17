@@ -7,7 +7,7 @@ import { useForum } from './ForumProvider';
 import SidebarComms from './SidebarComms';
 import SidebarProfile from './SidebarProfile';
 import UserDirectory from './UserDirectory';
-import { ARCADE_KEY_SHOWN, SIDE_ARCADE, SIDE_MUSIC, SIDE_QUEUES } from './SiteNav';
+import { ARCADE_KEY_SHOWN, SIDE_ARCADE, SIDE_HISTORY, SIDE_MUSIC, SIDE_QUEUES } from './SiteNav';
 import type { NavItem } from './SiteNav';
 import {
   arcadeAddressSpentByClose,
@@ -29,6 +29,7 @@ import {
   toggleQueues,
 } from '../lib/audio/queue-window';
 import type { AccountUser } from '../lib/auth/types';
+import { historyAddressSpentByClose, historyWindowServerState, historyWindowState, subscribeToHistoryWindow, toggleHistory } from '../lib/history/history-window';
 import { TITLE_BAR_BUTTON, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import { pagePanelOpen, setPagePanelOpen, subscribeToPagePanel } from '../lib/ui/side-panel-page';
 import { ICON_LIVE, ICON_READ } from '../lib/ui/icons';
@@ -213,6 +214,7 @@ export default function DesktopSidebar({ foldedOnThisPage = false }: { foldedOnT
   const arcadeOpen = arcadeState.open;
   const queueState = useSyncExternalStore(subscribeToQueueWindow, queueWindowState, queueWindowState);
   const queuesOpen = queueState.open;
+  const historyOpen = useSyncExternalStore(subscribeToHistoryWindow, historyWindowState, historyWindowServerState).open;
   const { user } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
@@ -284,6 +286,9 @@ export default function DesktopSidebar({ foldedOnThisPage = false }: { foldedOnT
     () => pressShelf(queueWindowState().open, queuesAddressSpentByClose, () => toggleQueues()),
     [pressShelf],
   );
+
+  /** The panel's HISTORY key (SPEC-history.md): the same switch as QUEUE's, for the log window. */
+  const pressHistory = useCallback(() => pressShelf(historyWindowState().open, historyAddressSpentByClose, toggleHistory), [pressShelf]);
 
 
   if (!isOpen && foldedOnThisPage) {
@@ -364,6 +369,7 @@ export default function DesktopSidebar({ foldedOnThisPage = false }: { foldedOnT
             <RecommendationsKey me={user?.id ?? null} />
             <ShelfKey item={SIDE_MUSIC} isOpen={musicOpen} onPress={pressMusic} />
             <ShelfKey item={SIDE_QUEUES} isOpen={queuesOpen} onPress={pressQueues} />
+            <ShelfKey item={SIDE_HISTORY} isOpen={historyOpen} onPress={pressHistory} />
           </div>
         </section>
 

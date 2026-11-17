@@ -73,6 +73,9 @@ export const ICON_BELL = '☼';
  */
 export const ICON_LOOP = '↻';
 
+/** The HISTORY window (SPEC-history.md): a clock face, because it is a log of when. A glyph, like the others. */
+export const ICON_HISTORY = '◷';
+
 /**
  * The six mass shapes, as glyphs.
  *

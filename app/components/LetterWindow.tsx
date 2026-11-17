@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { closeLetter, letterIdFromSearch, letterWindowState, openLetter, subscribeToLetterWindow } from '../lib/letters/letter-window';
+import { closeLetter, letterHref, letterIdFromSearch, letterWindowState, openLetter, subscribeToLetterWindow } from '../lib/letters/letter-window';
 import { shuffleLetter, updateLetter, useLetter } from '../lib/letters/store';
 import type { LetterItem } from '../lib/letters/types';
 import { PLATE } from '../lib/ui/controls';
@@ -16,6 +16,8 @@ import LetterSettings from './LetterSettings';
 import { EMPTY_LETTER } from '../lib/recommendations/send-letter';
 import { nameInkStyle } from './NameColourWindow';
 import { noteHistory } from '../lib/recommender/history';
+import { armPlayContext } from '../lib/history/plays';
+import { accountName } from '../lib/history/names';
 
 /**
  * One letter, in a window over whatever page it was opened from (SPEC-letters.md). Its name at the top in its own colour,
@@ -45,6 +47,7 @@ export default function LetterWindow() {
 
 function LetterWindowBody({ letterId, onClose }: { letterId: string; onClose: () => void }) {
   const { user } = useAuth();
+  const pathname = usePathname();
   const { letter, items } = useLetter(letterId);
   const [opened, setOpened] = useState<LetterItem | null>(null);
   const [settings, setSettings] = useState(false);
@@ -155,7 +158,12 @@ function LetterWindowBody({ letterId, onClose }: { letterId: string; onClose: ()
                 }}
               />
             ) : null}
-            {opened ? <LetterItemPopout item={opened} owner={owner} onClose={() => setOpened(null)} /> : null}
+            {/* HISTORY (SPEC-history.md): a PLAY pressed inside the popout is filed FROM A LETTER BY its owner. 'contents' adds no box. */}
+            {opened && value !== null ? (
+              <div className="contents" onClickCapture={() => armPlayContext({ how: 'letter', letterId: value.id, addedBy: value.owner, addedByName: owner ? (user?.displayName ?? '') : accountName(value.owner), whereLabel: value.name, whereHref: letterHref(pathname, value.id) })}>
+                <LetterItemPopout item={opened} owner={owner} onClose={() => setOpened(null)} />
+              </div>
+            ) : null}
             {settings ? <LetterSettings letter={value} items={held} onClose={() => setSettings(false)} /> : null}
           </>
         )}
