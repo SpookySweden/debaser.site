@@ -117,7 +117,20 @@ export default function ModulesWindow() {
   const bar = moduleBarColour(themeId);
 
   return (
-    <DockWindow title="MODULOS" onClose={closeModulesWindow} status="" dock="bottom" id="modules" defaultSize={{ w: 400, h: 640 }} minSize={{ w: 280, h: 200 }}>
+    // Full height (Luke, 2026-11-17: "make sure the modulos window opens to full height on the screen"): `tall` opens it as tall
+    // as the room between the top bar and the music bar, as PREFERENCES does. A new layout name, so a box saved at the old
+    // 640px height doesn't keep it short.
+    <DockWindow
+      title="MODULOS"
+      onClose={closeModulesWindow}
+      status=""
+      dock="bottom"
+      id="modules"
+      layoutId="modules-tall"
+      tall
+      defaultSize={{ w: 400, h: 1000 }}
+      minSize={{ w: 280, h: 200 }}
+    >
       <div className="p-2">
         {failed ? (
           <p role="alert" className="w-fit bg-bubble-pale px-1 text-label text-ink-bar">
