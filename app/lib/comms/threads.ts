@@ -19,6 +19,11 @@ import type { CommsMessage, CommsThread } from './types';
  * the same read the channel and every write already make.
  */
 export const COMMS_POLL_MS = 15 * 1000;
+/**
+ * The timed read while the realtime channel is joined (PERF): every message already arrives through the channel then, and
+ * the 15-second read of the whole inbox was 45,000 reads of the database for nothing. Still there, as a backstop.
+ */
+export const COMMS_POLL_LIVE_MS = 60 * 1000;
 
 export function threadIdFor(a: string, b: string): string {
   const [low, high] = a <= b ? [a, b] : [b, a];

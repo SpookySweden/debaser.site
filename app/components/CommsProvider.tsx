@@ -5,7 +5,7 @@ import { getAuthRepository } from '../lib/auth/auth-repository';
 import { listedAccounts } from '../lib/auth/hidden';
 import type { AccountUser } from '../lib/auth/types';
 import { COMMS_DATA_SOURCE, getCommsRepository } from '../lib/comms/repository';
-import { COMMS_POLL_MS, sortThreadsNewestFirst, unreadCount } from '../lib/comms/threads';
+import { COMMS_POLL_LIVE_MS, COMMS_POLL_MS, sortThreadsNewestFirst, unreadCount } from '../lib/comms/threads';
 import type { CommsEvent, CommsThread } from '../lib/comms/types';
 import { commsEventBody } from '../lib/games/events';
 import { formatStamp } from '../lib/forum/format';
@@ -120,8 +120,11 @@ export default function CommsProvider({ children }: { children: React.ReactNode 
     if (userId === null) return;
 
     let cancelled = false;
+    /** When the inbox last arrived, by any road: a read, an event or a write. */
+    let fresh = Date.now();
     const apply = (threads: CommsThread[]) => {
       if (cancelled) return;
+      fresh = Date.now();
       setMine(threads);
       setError(null);
       setReady(true);
@@ -145,8 +148,11 @@ export default function CommsProvider({ children }: { children: React.ReactNode 
     // blocked socket, or a project whose realtime channel is quiet (a table missing from
     // the publication - see the note on `openChannel`). A poll that fails leaves what is
     // on screen alone rather than flashing an error over a working page.
+    // While the channel is joined the read is only a backstop, once a minute (PERF; `COMMS_POLL_LIVE_MS`).
     const poll = window.setInterval(() => {
       if (document.visibilityState !== 'visible') return;
+      const every = repository.isLive?.() === true ? COMMS_POLL_LIVE_MS : COMMS_POLL_MS;
+      if (Date.now() - fresh < every - 1000) return;
       void repository.listThreads(userId).then(apply).catch(() => undefined);
     }, COMMS_POLL_MS);
 
