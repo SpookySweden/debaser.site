@@ -380,31 +380,6 @@ export default function ForumBoard() {
   );
 
   /**
-   * A tile's `[ OPEN ]`: the board goes back to the feed with that post open.
-   *
-   * Two frames, and for the same reason the tag filter's `[ OPEN REPLY ]` waits for two
-   * (`./ForumThreadCard.tsx`): the first lets the board re-render with the row open, and by the
-   * second the row is in the document to scroll to. Without the pair the scroll happens against a
-   * tile that is no longer there.
-   */
-  const openFromGallery = useCallback(
-    (threadId: string) => {
-      setView('feed');
-      markThreadRead(threadId);
-      setOpenThreadIds((current) => (current.includes(threadId) ? current : [...current, threadId]));
-
-      if (typeof window === 'undefined') return;
-
-      window.requestAnimationFrame(() =>
-        window.requestAnimationFrame(() =>
-          document.getElementById(threadDomId(threadId))?.scrollIntoView({ block: 'center' }),
-        ),
-      );
-    },
-    [markThreadRead],
-  );
-
-  /**
    * One post, or one reply in it, opened on the board: scrolled to and flashed. The thread has to be on
    * the board to be opened there, so whatever hides it gives way: the gallery, the tag / source / music
    * filters, and TOP's frame (HOT for now, shown in the address but not remembered, as after filing a
@@ -439,6 +414,19 @@ export default function ForumBoard() {
       setPendingJump({ threadId: thread.id, ...(commentId === undefined ? {} : { commentId }) });
     },
     [sourceFilter, tagFilters, tagMatchMode, sortMode, topFrame, musicOnly, musicTagKeys],
+  );
+
+  /**
+   * A tile's `[ OPEN ]`: the board goes back to the feed with that post open, by the same jump a search result
+   * makes, so it lands on the feed page that holds the post. It used to keep the gallery's page number, and the
+   * feed's page of that number mostly held other posts: nothing opened in view (FORUMUX, 2026-11-17).
+   */
+  const openFromGallery = useCallback(
+    (threadId: string) => {
+      const thread = forum.threads.find((candidate) => candidate.id === threadId);
+      if (thread !== undefined) jumpToPost(thread);
+    },
+    [forum.threads, jumpToPost],
   );
 
   /** A result row pressed: on a phone the panel folds away to show the thread it opens. */
@@ -554,8 +542,13 @@ export default function ForumBoard() {
       // reader's own choice is still there on the next visit.
       setSortMode('new');
       if (typeof window !== 'undefined') writeSortToAddress({ sort: 'new', frame: topFrame });
+      // Whatever would hide it gives way: a post with no picture is not in the gallery, and one with no track is not
+      // under the music filter (FORUMUX, 2026-11-17: a post filed from GALLERY vanished).
+      setView('feed');
       setSourceFilter('all');
       setTagFilters([]);
+      setMusicOnly(false);
+      setMusicTagKeys([]);
       setSearch(null);
       // The box keeps its own pills and words: a new key empties it along with the search.
       setSearchBoxKey((current) => current + 1);
