@@ -14,6 +14,7 @@ import { DEFAULT_REGION, REGIONS, regionById, type RegionId } from '../lib/leagu
 import { formatRiotId, parseRiotId, sameRiotId, type RiotId } from '../lib/leaguebot/riot-id';
 import { riotIdInBrowser, riotIdStore, type SavedRiotId } from '../lib/leaguebot/riot-id-store';
 import { loadStaticData, profileIconUrl, rankEmblemUrl, type StaticData } from '../lib/leaguebot/static-data';
+import { FAULT } from '../lib/leaguebot/look';
 import { rankText, type PlayerAnswer } from '../lib/leaguebot/types';
 import { FIELD_TIGHT, PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
@@ -30,6 +31,13 @@ const TABS: { tab: Tab; label: string }[] = [
 ];
 
 type Looked = { id: RiotId; region: RegionId; answer: PlayerAnswer };
+
+/** What a first visit is told LEAGUEBOT does, one line a tab. */
+const WHAT_IT_DOES: { tab: string; line: string }[] = [
+  { tab: 'STATS', line: 'Your last 100 ranked games: champions, lanes, LP over time, and what to work on.' },
+  { tab: 'LIVE', line: 'Once your game loads: all ten players, your lane matchup, and a match clock.' },
+  { tab: 'REVIEW', line: 'Any recent game, minute by minute against your lane opponent.' },
+];
 
 function readAddress(): { id: RiotId; region: RegionId } | null {
   const params = new URLSearchParams(window.location.search);
@@ -149,10 +157,10 @@ export default function LeagueBot() {
     <div className="space-y-3" data-leaguebot>
       <section aria-labelledby="lb-find">
         <h2 id="lb-find" className={TITLE_BAR}>
-          LEAGUEBOT
+          FIND A PLAYER
         </h2>
         <form onSubmit={submit} className="flex flex-wrap items-end gap-2 p-2">
-          <label className="flex min-w-0 flex-1 flex-col text-label text-ink sm:max-w-sm">
+          <label htmlFor="lb-riot-id" className="flex min-w-0 flex-1 flex-col text-label text-ink sm:max-w-sm">
             RIOT ID
             <input
               value={text}
@@ -162,12 +170,13 @@ export default function LeagueBot() {
               spellCheck={false}
               maxLength={24}
               className={`${FIELD_TIGHT} mt-1 w-full`}
+              id="lb-riot-id"
               data-leaguebot-id
             />
           </label>
-          <label className="flex flex-col text-label text-ink">
+          <label htmlFor="lb-server" className="flex flex-col text-label text-ink">
             SERVER
-            <select value={region} onChange={(event) => setRegion(event.target.value as RegionId)} className={`${FIELD_TIGHT} mt-1`} data-leaguebot-server>
+            <select id="lb-server" value={region} onChange={(event) => setRegion(event.target.value as RegionId)} className={`${FIELD_TIGHT} mt-1`} data-leaguebot-server>
               {REGIONS.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.id}
@@ -193,10 +202,27 @@ export default function LeagueBot() {
             </button>
           ) : null}
         </form>
-        <p className="px-2 pb-1 text-label text-ink" role="status" aria-live="polite">
-          {error ?? notice ?? (busy ? 'Reading OP.GG and U.GG...' : looked === null ? 'Any player on any server. Live data comes from OP.GG and U.GG; nothing about other players is stored.' : '')}
-        </p>
+        <div className="px-2 pb-1" role="status" aria-live="polite">
+          {error ? <p className={FAULT}>! {error}</p> : notice ? <p className="text-label text-ink">{notice}</p> : busy ? <p className="text-label text-ink">READING OP.GG AND U.GG...</p> : null}
+        </div>
       </section>
+
+      {looked === null && !busy ? (
+        <section aria-labelledby="lb-what" data-leaguebot-intro>
+          <h2 id="lb-what" className={TITLE_BAR}>
+            WHAT YOU GET
+          </h2>
+          <dl className="px-2">
+            {WHAT_IT_DOES.map((row) => (
+              <div key={row.tab} className="rule-pixel flex gap-3 py-2 text-prose text-ink">
+                <dt className="w-24 shrink-0">[ {row.tab} ]</dt>
+                <dd>{row.line}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="px-2 pt-2 text-label text-ink">Your Riot ID is under your name in the League client: NAME#TAG. Nothing about other players is stored.</p>
+        </section>
+      ) : null}
 
       {looked && answer ? (
         <>
@@ -248,23 +274,46 @@ export default function LeagueBot() {
           </div>
 
           {answer.notes.length > 0 || dataFailed ? (
-            <ul className="px-2 text-label text-ink" data-leaguebot-notes>
+            <ul className="space-y-1 px-2" data-leaguebot-notes>
               {answer.notes.map((note) => (
-                <li key={note}>! {note}</li>
+                <li key={note} className={FAULT}>
+                  ! {note}
+                </li>
               ))}
-              {dataFailed ? <li>! Riot&apos;s champion names didn&apos;t load: champions show as numbers.</li> : null}
+              {dataFailed ? <li className={FAULT}>! Riot&apos;s champion names didn&apos;t load: champions show as numbers.</li> : null}
             </ul>
           ) : null}
 
-          <div role="tablist" aria-label="LEAGUEBOT" className="flex flex-wrap gap-1 px-2">
+          <div
+            role="tablist"
+            aria-label="Player views"
+            className="flex flex-wrap gap-2 px-2 pt-1"
+            onKeyDown={(event) => {
+              if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+              const at = TABS.findIndex((t) => t.tab === tab);
+              const next = TABS[(at + (event.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length].tab;
+              setTab(next);
+              document.getElementById(`lb-tab-${next}`)?.focus();
+            }}
+          >
             {TABS.map((each) => (
-              <button key={each.tab} type="button" role="tab" aria-selected={tab === each.tab} onClick={() => setTab(each.tab)} className={tab === each.tab ? PLATE_PRESSED : PLATE}>
-                {each.label}
+              <button
+                key={each.tab}
+                type="button"
+                role="tab"
+                id={`lb-tab-${each.tab}`}
+                aria-selected={tab === each.tab}
+                aria-controls={`lb-panel-${each.tab}`}
+                tabIndex={tab === each.tab ? 0 : -1}
+                onClick={() => setTab(each.tab)}
+                className={tab === each.tab ? `${PLATE_PRESSED} cursor-pointer` : PLATE}
+              >
+                [ {each.label} ]
               </button>
             ))}
           </div>
 
-          <div role="tabpanel" aria-label={TABS.find((t) => t.tab === tab)?.label}>
+          <div role="tabpanel" id={`lb-panel-${tab}`} aria-labelledby={`lb-tab-${tab}`} tabIndex={0} className="outline-none focus-visible:outline-2 focus-visible:outline-bubble">
             {tab === 'stats' ? (
               answer.matches ? (
                 <LeagueStats profile={profile} matches={answer.matches} matchesSource={answer.matchesSource} data={data} />

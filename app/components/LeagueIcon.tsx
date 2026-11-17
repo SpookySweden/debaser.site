@@ -10,10 +10,35 @@ import { useState } from 'react';
 
 const SIZES = { sm: 'h-6 w-6', md: 'h-8 w-8', lg: 'h-16 w-16' } as const;
 
-export default function LeagueIcon({ src, name, size = 'md' }: { src: string | null | undefined; name: string; size?: keyof typeof SIZES }) {
+export default function LeagueIcon({
+  src,
+  name,
+  size = 'md',
+  decorative = false,
+}: {
+  src: string | null | undefined;
+  name: string;
+  size?: keyof typeof SIZES;
+  /** The name is printed beside the icon: a screen reader skips the picture rather than reading the name twice. */
+  decorative?: boolean;
+}) {
   const [failed, setFailed] = useState<string | null>(null);
   const box = `${SIZES[size]} shrink-0`;
-  if (!src || failed === src) return <span className={`${box} inline-block bg-chrome-dark`} title={name} aria-label={name} role="img" />;
-  // eslint-disable-next-line @next/next/no-img-element -- Riot's own servers, at Riot's own sizes; nothing to optimise.
-  return <img src={src} alt={name} title={name} width={64} height={64} decoding="async" referrerPolicy="no-referrer" className={`${box} object-cover`} onError={() => setFailed(src)} />;
+  if (!src || failed === src) {
+    return decorative ? <span className={`${box} inline-block bg-chrome-dark`} aria-hidden="true" /> : <span className={`${box} inline-block bg-chrome-dark`} title={name} aria-label={name} role="img" />;
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- Riot's own servers, at Riot's own sizes; nothing to optimise.
+    <img
+      src={src}
+      alt={decorative ? '' : name}
+      title={decorative ? undefined : name}
+      width={64}
+      height={64}
+      decoding="async"
+      referrerPolicy="no-referrer"
+      className={`${box} object-cover`}
+      onError={() => setFailed(src)}
+    />
+  );
 }

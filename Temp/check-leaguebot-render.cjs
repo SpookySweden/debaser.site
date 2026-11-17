@@ -52,6 +52,8 @@ assert.equal((first.match(/<option /g) ?? []).length, 17, 'every server');
 assert.match(text(first), /LOOK UP/);
 assert.match(text(first), /isn't endorsed by Riot Games/);
 assert.ok(!/data-leaguebot-player/.test(first), 'no player until one is looked up');
+assert.match(text(first), /FIND A PLAYER/, 'the form says what it is, not the window title again');
+for (const tab of ['STATS', 'LIVE', 'REVIEW']) assert.match(text(first), new RegExp(`\[ ${tab} \]`), `a first visit is told what ${tab} gives`);
 
 // STATS.
 const stats = html(el(LeagueStats, { profile, matches, matchesSource: 'U.GG', data }));
@@ -68,27 +70,31 @@ assert.match(text(html(el(LeagueStats, { profile: null, matches: [], matchesSour
 const live = text(html(el(LeagueLive, { id: ME, region: 'EUW', data })));
 assert.match(live, /NOT IN A GAME RIGHT NOW/);
 assert.match(live, /CHECK NOW/);
-assert.match(live, /not during champ select/);
+assert.match(live, /not in champ select/);
 
 // REVIEW, the list.
 const review = html(el(LeagueReview, { id: ME, region: 'EUW', matches, matchesSource: 'U.GG', data }));
 assert.equal((review.match(/<li /g) ?? []).length, 20, 'the twenty newest games');
 assert.match(text(review), /RECENT GAMES/);
 assert.ok(!/NaN|undefined/.test(text(review)));
-assert.match(text(html(el(LeagueReview, { id: ME, region: 'EUW', matches, matchesSource: 'OP.GG', data }))), /NO MINUTE-BY-MINUTE DETAIL/);
+assert.match(text(html(el(LeagueReview, { id: ME, region: 'EUW', matches, matchesSource: 'OP.GG', data }))), /no minute-by-minute detail/);
 
 // The chart.
 const chart = html(el(LeagueChart, { series: [{ label: 'LP', points: [{ x: 0, y: 1 }, { x: 1, y: 3 }], tone: 'ink' }], label: 'LP over time', yText: String, xText: String }));
 assert.match(chart, /<polyline/);
 assert.ok(!/<(path|circle|rect|text|image)[\s>]/.test(chart), 'lines only');
-assert.match(chart, /class="sr-only"/, 'a table of the same numbers for screen readers');
+assert.match(chart, /class="sr-only"><table>/, 'a table of the same numbers for screen readers, inside a hidden box (a table ignores sr-only)');
+assert.match(chart, /<svg[^>]*aria-hidden="true"/, 'the drawing is not read twice');
 assert.equal(html(el(LeagueChart, { series: [{ label: 'LP', points: [{ x: 0, y: 1 }], tone: 'ink' }], label: 'x', yText: String, xText: String })), '', 'one point draws nothing');
 
 // Advice and icons.
 const advice = html(el(LeagueAdvice, { lines: [{ key: 'a', mark: '!', text: 'Down: 50% in your last 20 games.', weight: 1 }], empty: 'NOTHING' }));
-assert.match(advice, /aria-label="Problem"/);
+assert.match(text(advice), /Problem: Down/, 'the mark is said as a word');
+assert.match(advice, /<span aria-hidden="true"[^>]*>!<\/span>/, 'the mark itself is not read');
+assert.match(advice, /text-prose/, 'advice reads at the prose size');
 assert.match(text(advice), /Down: 50%/);
 assert.match(text(html(el(LeagueAdvice, { lines: [], empty: 'NOTHING STANDS OUT' }))), /NOTHING STANDS OUT/);
 assert.match(html(el(LeagueIcon, { src: null, name: 'Ahri' })), /role="img"[^>]*|aria-label="Ahri"/, 'a missing icon keeps its square, named');
+assert.match(html(el(LeagueIcon, { src: 'https://x/a.png', name: 'Ahri', decorative: true })), /alt=""/, 'an icon with its name beside it is not read twice');
 
 console.log('check-leaguebot-render: ok');

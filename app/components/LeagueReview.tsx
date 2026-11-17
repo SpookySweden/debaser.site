@@ -6,7 +6,7 @@
  * the deaths and objectives in order, and all ten scoreboards. The detail is U.GG's alone.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { LANE_WORDS } from '../lib/leaguebot/advice';
 import { lookUpReview, LookupError } from '../lib/leaguebot/client';
 import { clockText } from '../lib/leaguebot/live-advice';
@@ -16,6 +16,7 @@ import { reviewAdvice } from '../lib/leaguebot/review-advice';
 import { sameRiotId, type RiotId } from '../lib/leaguebot/riot-id';
 import { championName, type StaticData } from '../lib/leaguebot/static-data';
 import { line } from '../lib/leaguebot/stats';
+import { FAULT } from '../lib/leaguebot/look';
 import type { MatchSummary, SourceName } from '../lib/leaguebot/types';
 import { PLATE, TITLE_BAR } from '../lib/ui/controls';
 import LeagueAdvice from './LeagueAdvice';
@@ -31,7 +32,15 @@ const ago = (ms: number, now: number) => {
 
 const signed = (value: number) => `${value > 0 ? '+' : ''}${value.toLocaleString('en-GB')}`;
 
-const EVENT_WORDS: Record<string, string> = { death: 'YOU DIED', kill: 'YOU KILLED', dragon: 'DRAGON', grubs: 'VOID GRUBS', herald: 'RIFT HERALD', baron: 'BARON', tower: 'TOWER' };
+const EVENT_WORDS: Record<string, string> = {
+  death: 'YOU DIED',
+  kill: 'YOU KILLED',
+  dragon: 'DRAGON',
+  grubs: 'VOID GRUBS',
+  herald: 'RIFT HERALD',
+  baron: 'BARON',
+  tower: 'TOWER',
+};
 
 function Section({ title, id, note, children }: { title: string; id: string; note?: string; children: React.ReactNode }) {
   return (
@@ -48,44 +57,58 @@ function Section({ title, id, note, children }: { title: string; id: string; not
 function Scoreboard({ title, id, players, me, data }: { title: string; id: string; players: ReviewPlayer[]; me: ReviewPlayer; data: StaticData | null }) {
   return (
     <Section title={title} id={id}>
-      <table className="w-full text-label text-ink">
-        <thead>
-          <tr className="text-left">
-            <th scope="col" className="px-2 py-1 font-normal">PLAYER</th>
-            <th scope="col" className="px-2 py-1 text-right font-normal">K/D/A</th>
-            <th scope="col" className="px-2 py-1 text-right font-normal">CS</th>
-            <th scope="col" className="px-2 py-1 text-right font-normal">DAMAGE</th>
-            <th scope="col" className="hidden px-2 py-1 font-normal 2xl:table-cell">ITEMS</th>
-          </tr>
-        </thead>
-        <tbody>
-          {players.map((p) => (
-            <tr key={`${p.team}-${p.championId}`} className={`rule-pixel ${sameRiotId(p, me) ? 'bg-sun-pale' : ''}`}>
-              <th scope="row" className="px-2 py-1 text-left font-normal">
-                <span className="flex items-center gap-2">
-                  <LeagueIcon src={data?.champions.get(p.championId)?.icon} name={championName(data, p.championId)} size="sm" />
-                  <span className="min-w-0 truncate">
-                    {championName(data, p.championId)}
-                    {sameRiotId(p, me) ? ' (YOU)' : ''}
-                  </span>
-                </span>
+      <div className="overflow-x-auto">
+        <table className="w-full text-label text-ink">
+          <thead>
+            <tr className="text-left">
+              <th scope="col" className="px-2 py-1 font-normal">
+                PLAYER
               </th>
-              <td className="whitespace-nowrap px-2 py-1 text-right tabular-nums">
-                {p.kills}/{p.deaths}/{p.assists}
-              </td>
-              <td className="px-2 py-1 text-right tabular-nums">{p.cs}</td>
-              <td className="px-2 py-1 text-right tabular-nums">{p.damage.toLocaleString('en-GB')}</td>
-              <td className="hidden px-2 py-1 2xl:table-cell">
-                <span className="flex gap-0.5">
-                  {p.items.filter((i) => i > 0).map((i, n) => (
-                    <LeagueIcon key={`${i}-${n}`} src={data?.items.get(i)?.icon} name={data?.items.get(i)?.name ?? String(i)} size="sm" />
-                  ))}
-                </span>
-              </td>
+              <th scope="col" className="px-2 py-1 text-right font-normal">
+                K/D/A
+              </th>
+              <th scope="col" className="px-2 py-1 text-right font-normal">
+                CS
+              </th>
+              <th scope="col" className="px-2 py-1 text-right font-normal">
+                DAMAGE
+              </th>
+              <th scope="col" className="hidden px-2 py-1 font-normal xl:table-cell">
+                ITEMS
+              </th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {players.map((p) => (
+              <tr key={`${p.team}-${p.championId}`} className={`rule-pixel ${sameRiotId(p, me) ? 'bg-pointed' : ''}`}>
+                <th scope="row" className="px-2 py-1 text-left font-normal">
+                  <span className="flex items-center gap-2">
+                    <LeagueIcon src={data?.champions.get(p.championId)?.icon} name={championName(data, p.championId)} size="md" decorative />
+                    <span className="min-w-0 truncate">
+                      {championName(data, p.championId)}
+                      {sameRiotId(p, me) ? ' (YOU)' : ''}
+                    </span>
+                  </span>
+                </th>
+                <td className="whitespace-nowrap px-2 py-1 text-right tabular-nums">
+                  {p.kills}/{p.deaths}/{p.assists}
+                </td>
+                <td className="px-2 py-1 text-right tabular-nums">{p.cs}</td>
+                <td className="px-2 py-1 text-right tabular-nums">{p.damage.toLocaleString('en-GB')}</td>
+                <td className="hidden px-2 py-1 xl:table-cell">
+                  <span className="flex gap-0.5">
+                    {p.items
+                      .filter((i) => i > 0)
+                      .map((i, n) => (
+                        <LeagueIcon key={`${i}-${n}`} src={data?.items.get(i)?.icon} name={data?.items.get(i)?.name ?? String(i)} size="sm" />
+                      ))}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </Section>
   );
 }
@@ -95,7 +118,10 @@ function Detail({ review, data, usualOf }: { review: MatchReview; data: StaticDa
   const { me, opponent } = review;
   const advice = reviewAdvice(review, name, usualOf(me.championId));
   const marks = [10, 15, 20].map((minute) => review.frames.find((f) => f.minute === minute)).filter((f) => f !== undefined);
-  const goldLine = review.frames.map((f) => ({ x: f.minute, y: f.gold[0] - f.gold[1] }));
+  const goldLine = review.frames.map((f) => ({
+    x: f.minute,
+    y: f.gold[0] - f.gold[1],
+  }));
   const firstBack = review.buys.findIndex((b) => b.atSec > 90);
   const start = firstBack < 0 ? review.buys : review.buys.slice(0, firstBack);
   const later = firstBack < 0 ? [] : review.buys.slice(firstBack);
@@ -119,7 +145,8 @@ function Detail({ review, data, usualOf }: { review: MatchReview; data: StaticDa
           </p>
           {mine && theirs ? (
             <p className="text-label text-ink">
-              TEAMS: KILLS {mine.kills}-{theirs.kills} · TOWERS {mine.towers}-{theirs.towers} · DRAGONS {mine.dragons}-{theirs.dragons} · BARONS {mine.barons}-{theirs.barons}
+              TEAMS: KILLS {mine.kills}-{theirs.kills} · TOWERS {mine.towers}-{theirs.towers} · DRAGONS {mine.dragons}-{theirs.dragons} · BARONS {mine.barons}-
+              {theirs.barons}
             </p>
           ) : null}
         </div>
@@ -133,28 +160,46 @@ function Detail({ review, data, usualOf }: { review: MatchReview; data: StaticDa
 
           {opponent && marks.length > 0 ? (
             <Section title="AGAINST YOUR LANE OPPONENT" id="lb-review-lane" note={`you against ${name(opponent.championId)}`}>
-              <table className="w-full text-label text-ink">
-                <thead>
-                  <tr className="text-left">
-                    <th scope="col" className="px-2 py-1 font-normal">AT</th>
-                    <th scope="col" className="px-2 py-1 text-right font-normal">GOLD</th>
-                    <th scope="col" className="px-2 py-1 text-right font-normal">CS</th>
-                    <th scope="col" className="px-2 py-1 text-right font-normal">XP</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {marks.map((f) => (
-                    <tr key={f.minute} className="rule-pixel">
-                      <th scope="row" className="px-2 py-1 text-left font-normal">{f.minute}:00</th>
-                      <td className="px-2 py-1 text-right tabular-nums">{signed(f.gold[0] - f.gold[1])}</td>
-                      <td className="px-2 py-1 text-right tabular-nums">{signed(f.cs[0] - f.cs[1])}</td>
-                      <td className="px-2 py-1 text-right tabular-nums">{signed(f.xp[0] - f.xp[1])}</td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-label text-ink">
+                  <thead>
+                    <tr className="text-left">
+                      <th scope="col" className="px-2 py-1 font-normal">
+                        AT
+                      </th>
+                      <th scope="col" className="px-2 py-1 text-right font-normal">
+                        GOLD
+                      </th>
+                      <th scope="col" className="px-2 py-1 text-right font-normal">
+                        CS
+                      </th>
+                      <th scope="col" className="px-2 py-1 text-right font-normal">
+                        XP
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {marks.map((f) => (
+                      <tr key={f.minute} className="rule-pixel">
+                        <th scope="row" className="px-2 py-1 text-left font-normal">
+                          {f.minute}:00
+                        </th>
+                        <td className="px-2 py-1 text-right tabular-nums">{signed(f.gold[0] - f.gold[1])}</td>
+                        <td className="px-2 py-1 text-right tabular-nums">{signed(f.cs[0] - f.cs[1])}</td>
+                        <td className="px-2 py-1 text-right tabular-nums">{signed(f.xp[0] - f.xp[1])}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
               <p className="px-2 pt-2 text-label text-ink">GOLD AHEAD (ABOVE THE LINE) OR BEHIND, EACH MINUTE</p>
-              <LeagueChart series={[{ label: 'Gold difference', points: goldLine, tone: 'ink' }]} label="Gold ahead of or behind your lane opponent, each minute" yText={(y) => signed(Math.round(y))} xText={(x) => `${x}:00`} zero />
+              <LeagueChart
+                series={[{ label: 'Gold difference', points: goldLine, tone: 'ink' }]}
+                label="Gold ahead of or behind your lane opponent, each minute"
+                yText={(y) => signed(Math.round(y))}
+                xText={(x) => `${x}:00`}
+                zero
+              />
             </Section>
           ) : null}
 
@@ -193,7 +238,8 @@ function Detail({ review, data, usualOf }: { review: MatchReview; data: StaticDa
                       </>
                     ) : (
                       <>
-                        {EVENT_WORDS[e.kind]} TAKEN{e.team === null ? '' : e.team === me.team ? ' BY YOUR TEAM' : ' BY THEIR TEAM'}
+                        {EVENT_WORDS[e.kind]} TAKEN
+                        {e.team === null ? '' : e.team === me.team ? ' BY YOUR TEAM' : ' BY THEIR TEAM'}
                       </>
                     )}
                   </span>
@@ -230,6 +276,16 @@ export default function LeagueReview({
   const [review, setReview] = useState<MatchReview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [now] = useState(() => Date.now());
+  // Keyboard focus follows: into the opened game's back key, and back to that game's row on the way out.
+  const backKey = useRef<HTMLButtonElement | null>(null);
+  const returnTo = useRef<string | null>(null);
+  useEffect(() => {
+    if (open !== null) backKey.current?.focus();
+    else if (returnTo.current !== null) {
+      document.querySelector<HTMLButtonElement>(`[data-review-game="${returnTo.current}"]`)?.focus();
+      returnTo.current = null;
+    }
+  }, [open]);
 
   useEffect(() => {
     if (open === null) return;
@@ -253,17 +309,19 @@ export default function LeagueReview({
   };
 
   if (matchesSource === 'OP.GG') {
-    return <p className="p-2 text-label text-ink">THE GAME LIST CAME FROM OP.GG, WHICH HAS NO MINUTE-BY-MINUTE DETAIL. REVIEW OPENS ONCE U.GG ANSWERS AGAIN: PRESS [ REFRESH ].</p>;
+    return <p className={`${FAULT} m-2`}>! These games came from OP.GG, which has no minute-by-minute detail. Press [ REFRESH ] to try U.GG again.</p>;
   }
 
   if (open) {
     return (
-      <div className="space-y-2" data-leaguebot-review="open">
+      <div className="space-y-3" data-leaguebot-review="open">
         <div className="px-2">
           <button
             type="button"
+            ref={backKey}
             className={PLATE}
             onClick={() => {
+              returnTo.current = open.id;
               setOpen(null);
               setReview(null);
               setError(null);
@@ -272,7 +330,10 @@ export default function LeagueReview({
             [ ◄ ALL GAMES ]
           </button>
         </div>
-        {review ? <Detail review={review} data={data} usualOf={usualOf} /> : <p className="p-2 text-label text-ink">{error ?? 'Reading the game from U.GG...'}</p>}
+        <div role="status" aria-live="polite">
+          {review ? null : error ? <p className={`${FAULT} mx-2`}>! {error}</p> : <p className="px-2 text-label text-ink">READING THE GAME FROM U.GG...</p>}
+        </div>
+        {review ? <Detail review={review} data={data} usualOf={usualOf} /> : null}
       </div>
     );
   }
@@ -288,15 +349,19 @@ export default function LeagueReview({
           <li key={game.id} className="rule-pixel">
             <button
               type="button"
+              data-review-game={game.id}
               onClick={() => {
                 setReview(null);
                 setError(null);
                 setOpen(game);
               }}
-              className="flex w-full cursor-pointer items-center gap-3 py-1.5 text-left text-label text-ink hover:bg-sun-pale focus-visible:outline-2 focus-visible:outline-bubble"
+              className="flex w-full cursor-pointer items-center gap-3 px-1 py-2 text-left text-prose text-ink hover:bg-pointed focus-visible:outline-2 focus-visible:outline-bubble"
             >
-              <span className={`w-8 shrink-0 text-center font-mono ${game.win ? 'bg-sun text-ink-plate' : 'bg-ena text-ink-bar'}`}>{game.win ? 'W' : 'L'}</span>
-              <LeagueIcon src={data?.champions.get(game.championId)?.icon} name={championName(data, game.championId)} size="md" />
+              <span className={`w-8 shrink-0 text-center font-mono ${game.win ? 'bg-sun text-ink-plate' : 'bg-ena text-ink-bar'}`}>
+                <span aria-hidden="true">{game.win ? 'W' : 'L'}</span>
+                <span className="sr-only">{game.win ? 'Win' : 'Loss'}</span>
+              </span>
+              <LeagueIcon src={data?.champions.get(game.championId)?.icon} name={championName(data, game.championId)} size="md" decorative />
               <span className="w-28 truncate">{championName(data, game.championId)}</span>
               <span className="w-20 tabular-nums">
                 {game.kills}/{game.deaths}/{game.assists}

@@ -15,6 +15,7 @@ import { isRiftQueue, QUEUE_NAMES, type LiveAnswer, type LivePlayer, type Matchu
 import type { RegionId } from '../lib/leaguebot/regions';
 import type { RiotId } from '../lib/leaguebot/riot-id';
 import { championName, type StaticData } from '../lib/leaguebot/static-data';
+import { FAULT } from '../lib/leaguebot/look';
 import { rankText } from '../lib/leaguebot/types';
 import { PLATE, TITLE_BAR } from '../lib/ui/controls';
 import LeagueAdvice from './LeagueAdvice';
@@ -59,89 +60,92 @@ function Section({ title, id, note, children }: { title: string; id: string; not
   );
 }
 
+/** A labelled row of Riot's icons, each with its name printed beside it (never a hover-only name). */
 function IconRow({ ids, lookup, label }: { ids: number[]; lookup: (id: number) => { name: string; icon: string } | undefined; label: string }) {
   if (ids.length === 0) return null;
   return (
-    <div className="flex flex-wrap items-center gap-2 px-2 py-1">
-      <span className="w-20 shrink-0 text-label text-ink">{label}</span>
-      {ids.map((id, i) => {
-        const entry = lookup(id);
-        return (
-          <span key={`${id}-${i}`} className="flex items-center gap-1 text-label text-ink">
-            <LeagueIcon src={entry?.icon} name={entry?.name ?? String(id)} size="md" />
-            <span className="hidden lg:inline">{entry?.name ?? ''}</span>
-          </span>
-        );
-      })}
+    <div className="rule-pixel flex gap-3 px-2 py-1.5">
+      <span className="w-16 shrink-0 pt-1.5 text-label text-ink">{label}</span>
+      <ul className="flex min-w-0 flex-wrap gap-x-4 gap-y-1">
+        {ids.map((id, i) => {
+          const entry = lookup(id);
+          return (
+            <li key={`${id}-${i}`} className="flex items-center gap-2 text-label text-ink">
+              <LeagueIcon src={entry?.icon} name={entry?.name ?? String(id)} size="md" decorative={entry !== undefined} />
+              <span>{entry?.name ?? ''}</span>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
 
+/** One team as a full-width table: a player a line, the champion first, plain column names. */
 function Team({ title, id, players, me, data }: { title: string; id: string; players: LivePlayer[]; me: LivePlayer | null; data: StaticData | null }) {
   const parties = new Map<number, number>();
   for (const p of players) if (p.party !== null && p.party > 0) parties.set(p.party, (parties.get(p.party) ?? 0) + 1);
   return (
     <Section title={title} id={id}>
-      <table className="w-full text-label text-ink">
-        <thead>
-          <tr className="text-left">
-            <th scope="col" className="px-2 py-1 font-normal">PLAYER</th>
-            <th scope="col" className="px-2 py-1 font-normal">RANK</th>
-            <th scope="col" className="px-2 py-1 text-right font-normal" title="Games on this champion this season, and how many were won">
-              CHAMP
-            </th>
-            <th scope="col" className="px-2 py-1 font-normal">MAIN</th>
-          </tr>
-        </thead>
-        <tbody>
-          {players.map((p) => {
-            const champion = data?.champions.get(p.championId);
-            const duo = p.party !== null && (parties.get(p.party) ?? 0) >= 2;
-            return (
-              <tr key={`${p.team}-${p.championId}`} className={`rule-pixel ${p === me ? 'bg-sun-pale' : ''}`}>
-                <th scope="row" className="px-2 py-1 text-left font-normal">
-                  <span className="flex items-center gap-2">
-                    <LeagueIcon src={champion?.icon} name={champion?.name ?? championName(data, p.championId)} size="md" />
-                    <span className="flex flex-col gap-0.5">
-                      {p.spells.map((s) => (
-                        <LeagueIcon key={s} src={data?.spells.get(s)?.icon} name={data?.spells.get(s)?.name ?? 'Spell'} size="sm" />
-                      )).slice(0, 2)}
-                    </span>
-                    {p.keystone ? <LeagueIcon src={data?.runes.get(p.keystone)?.icon} name={data?.runes.get(p.keystone)?.name ?? 'Keystone'} size="sm" /> : null}
-                    <span className="min-w-0">
-                      <span className="block truncate">{champion?.name ?? championName(data, p.championId)}</span>
-                      <span className="block truncate">
-                        {p.name}#{p.tag}
-                        {p === me ? ' (YOU)' : ''}
-                        {duo ? ' · DUO' : ''}
+      {/* A narrow screen scrolls the table inside its strip, never the page. */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-label text-ink">
+          <thead>
+            <tr className="text-left">
+              <th scope="col" className="px-2 py-1 font-normal">CHAMPION</th>
+              <th scope="col" className="px-2 py-1 font-normal">PLAYER</th>
+              <th scope="col" className="px-2 py-1 font-normal">RANK</th>
+              <th scope="col" className="px-2 py-1 text-right font-normal">ON THIS CHAMPION</th>
+              <th scope="col" className="px-2 py-1 font-normal">USUAL ROLE</th>
+            </tr>
+          </thead>
+          <tbody>
+            {players.map((p) => {
+              const champion = data?.champions.get(p.championId);
+              const champ = champion?.name ?? championName(data, p.championId);
+              const duo = p.party !== null && (parties.get(p.party) ?? 0) >= 2;
+              const isMe = p === me;
+              return (
+                <tr key={`${p.team}-${p.championId}`} className={`rule-pixel ${isMe ? 'bg-pointed' : ''}`}>
+                  <th scope="row" className="px-2 py-1.5 text-left font-normal">
+                    <span className="flex items-center gap-2">
+                      <LeagueIcon src={champion?.icon} name={champ} size="md" decorative />
+                      <span className="flex gap-0.5 max-sm:hidden">
+                        {p.spells.slice(0, 2).map((s) => (
+                          <LeagueIcon key={s} src={data?.spells.get(s)?.icon} name={data?.spells.get(s)?.name ?? 'Summoner spell'} size="sm" />
+                        ))}
+                        {p.keystone ? <LeagueIcon src={data?.runes.get(p.keystone)?.icon} name={data?.runes.get(p.keystone)?.name ?? 'Keystone'} size="sm" /> : null}
                       </span>
+                      <span className="whitespace-nowrap">{champ}</span>
                     </span>
-                  </span>
-                </th>
-                <td className="px-2 py-1">{p.rank ? rankText(p.rank.tier, p.rank.division, p.rank.lp) : 'UNRANKED'}</td>
-                <td className="whitespace-nowrap px-2 py-1 text-right tabular-nums">
-                  {p.championGames === null ? '—' : p.championGames === 0 ? 'FIRST' : (
-                    <>
-                      {p.championGames}G
-                      <br />
-                      {Math.round(((p.championWins ?? 0) / p.championGames) * 100)}%
-                    </>
-                  )}
-                </td>
-                <td className="whitespace-nowrap px-2 py-1">
-                  {p.lanes[0] ? LANE_WORDS[p.lanes[0].lane].toUpperCase() : '—'}
-                  {p.onRole === false ? (
-                    <>
-                      <br />
-                      OFF ROLE
-                    </>
-                  ) : null}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                  </th>
+                  <td className="px-2 py-1.5">
+                    <span className="block max-w-48 truncate" title={`${p.name}#${p.tag}`}>
+                      {p.name}
+                      <span className="text-ink">#{p.tag}</span>
+                    </span>
+                    {isMe || duo ? (
+                      <span className="block">
+                        {isMe ? 'YOU' : ''}
+                        {isMe && duo ? ' · ' : ''}
+                        {duo ? 'DUO' : ''}
+                      </span>
+                    ) : null}
+                  </td>
+                  <td className="whitespace-nowrap px-2 py-1.5">{p.rank ? rankText(p.rank.tier, p.rank.division, p.rank.lp) : 'UNRANKED'}</td>
+                  <td className="whitespace-nowrap px-2 py-1.5 text-right tabular-nums">
+                    {p.championGames === null ? '—' : p.championGames === 0 ? 'FIRST GAME' : `${Math.round(((p.championWins ?? 0) / p.championGames) * 100)}% · ${p.championGames} GAMES`}
+                  </td>
+                  <td className="whitespace-nowrap px-2 py-1.5">
+                    {p.lanes[0] ? LANE_WORDS[p.lanes[0].lane].toUpperCase() : '—'}
+                    {p.onRole === false && p.lanes[0] ? ' · OFF ROLE' : ''}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </Section>
   );
 }
@@ -243,19 +247,19 @@ export default function LeagueLive({ id, region, data }: { id: RiotId; region: R
 
   if (!game) {
     return (
-      <div className="space-y-2 p-2" data-leaguebot-live="waiting">
-        <p className="text-heading text-ink">{ended ? 'THE GAME HAS ENDED.' : 'NOT IN A GAME RIGHT NOW.'}</p>
-        <p className="text-label text-ink">
-          {ended
-            ? 'Its review appears on REVIEW once U.GG has read it from Riot, usually within a few minutes. Press [ REFRESH ] above to fetch it.'
-            : 'LEAGUEBOT finds the game once it has loaded (the loading screen), not during champ select: Riot hides the names there. This tab checks once a minute while it is open.'}
-        </p>
-        {error ? <p className="text-label text-ink">! {error}</p> : null}
-        {answer?.notes.map((note) => (
-          <p key={note} className="text-label text-ink">
-            ! {note}
+      <div className="space-y-3 p-2" data-leaguebot-live="waiting">
+        <div role="status" aria-live="polite" className="space-y-2">
+          <p className="text-heading text-ink">{ended ? 'THE GAME HAS ENDED.' : 'NOT IN A GAME RIGHT NOW.'}</p>
+          <p className="text-prose text-ink">
+            {ended ? 'Its review is on REVIEW once U.GG has it, usually a few minutes: press [ REFRESH ] above.' : 'Found once the game loads, not in champ select (Riot hides the names there). Checked once a minute while this tab is open.'}
           </p>
-        ))}
+          {error ? <p className={FAULT}>! {error}</p> : null}
+          {answer?.notes.map((note) => (
+            <p key={note} className={FAULT}>
+              ! {note}
+            </p>
+          ))}
+        </div>
         <button type="button" className={PLATE} onClick={() => void check()} disabled={checking}>
           {checking ? '[ CHECKING... ]' : '[ CHECK NOW ]'}
         </button>
@@ -271,82 +275,105 @@ export default function LeagueLive({ id, region, data }: { id: RiotId; region: R
   const rift = isRiftQueue(game.queueId);
 
   return (
-    <div className="space-y-3" data-leaguebot-live="playing">
-      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 px-2">
-        <p className="text-display tabular-nums text-ink" aria-label={`Game time ${clockText(seconds)}`} data-leaguebot-clock>
+    <div className="space-y-4" data-leaguebot-live="playing">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 px-2">
+        <p className="text-display tabular-nums text-ink" data-leaguebot-clock>
+          <span className="sr-only">Game time </span>
           {clockText(seconds)}
         </p>
-        <p className="text-label text-ink">
-          IN A GAME · {QUEUE_NAMES[game.queueId] ?? `QUEUE ${game.queueId}`} · FROM {answer?.source}
-          {me ? ` · YOU: ${name(me.championId).toUpperCase()}${me.lane ? `, ${LANE_WORDS[me.lane].toUpperCase()}` : ''}` : ''}
-        </p>
+        <div role="status" aria-live="polite" className="text-label text-ink">
+          <p>
+            IN A GAME · {QUEUE_NAMES[game.queueId] ?? `QUEUE ${game.queueId}`}
+          </p>
+          {me ? (
+            <p>
+              YOU: {name(me.championId).toUpperCase()}
+              {me.lane ? `, ${LANE_WORDS[me.lane].toUpperCase()}` : ''} · FROM {answer?.source}
+            </p>
+          ) : null}
+        </div>
         <button type="button" className={PLATE} onClick={() => void check()} disabled={checking}>
           {checking ? '[ CHECKING... ]' : '[ CHECK NOW ]'}
         </button>
       </div>
       {answer?.notes.map((note) => (
-        <p key={note} className="px-2 text-label text-ink">
+        <p key={note} className={`${FAULT} mx-2`}>
           ! {note}
         </p>
       ))}
 
-      <div className="grid gap-x-4 gap-y-3 xl:grid-cols-2">
-        <div className="min-w-0 space-y-3">
-          {me && opponent ? (
-            <Section title="YOUR LANE" id="lb-lane" note={`${name(me.championId)} against ${name(opponent.championId)}, from OP.GG's matchup guide`}>
-              <div className="flex items-center gap-3 px-2 py-1.5">
+      <div className="grid gap-x-5 gap-y-4 xl:grid-cols-2">
+        {me && opponent ? (
+          <Section title="YOUR LANE" id="lb-lane" note={`${name(me.championId)} against ${name(opponent.championId)}, from OP.GG`}>
+            <div className="flex flex-wrap items-center gap-4 px-2 py-2">
+              <span className="flex items-center gap-2">
                 <LeagueIcon src={data?.champions.get(me.championId)?.icon} name={name(me.championId)} size="lg" />
                 <span className="text-heading text-ink">VS</span>
                 <LeagueIcon src={data?.champions.get(opponent.championId)?.icon} name={name(opponent.championId)} size="lg" />
-                {guide ? (
-                  <dl className="grid grid-cols-2 gap-x-4 text-label text-ink">
-                    <dt>LANE FAVOURS</dt>
-                    <dd>{guide.laneAdvantage === 'EVEN' ? 'NEITHER' : (guide.laneAdvantage ?? '—').toUpperCase()}</dd>
-                    <dt>SOLO KILLS FAVOUR</dt>
-                    <dd>{(guide.soloKillAdvantage ?? '—').toUpperCase()}</dd>
-                    <dt>PLAY IT</dt>
-                    <dd>{(guide.playStyle ?? '—').toUpperCase()}</dd>
-                  </dl>
-                ) : null}
-              </div>
-              {guide?.tip ? <p className="px-2 py-1 text-label text-ink">&gt; {guide.tip}</p> : null}
+              </span>
               {guide ? (
-                <>
-                  <IconRow ids={guide.spells} lookup={(i) => data?.spells.get(i)} label="SPELLS" />
-                  <IconRow ids={guide.starter} lookup={(i) => data?.items.get(i)} label="START" />
-                  <IconRow ids={[...guide.core, ...(guide.boots ? [guide.boots] : [])]} lookup={(i) => data?.items.get(i)} label="CORE" />
-                  {guide.runes ? <IconRow ids={[...guide.runes.primary, ...guide.runes.secondary]} lookup={(i) => data?.runes.get(i)} label="RUNES" /> : null}
-                  {guide.skills.length > 0 ? (
-                    <p className="px-2 py-1 text-label text-ink">
-                      <span className="inline-block w-20">SKILLS</span>
+                <dl className="text-label text-ink">
+                  {[
+                    ['LANE FAVOURS', guide.laneAdvantage === 'EVEN' ? 'NEITHER' : (guide.laneAdvantage ?? '—').toUpperCase()],
+                    ['SOLO KILLS FAVOUR', (guide.soloKillAdvantage ?? '—').toUpperCase()],
+                    ['PLAY IT', (guide.playStyle ?? '—').toUpperCase()],
+                  ].map(([label, value]) => (
+                    <div key={label} className="flex gap-3">
+                      <dt className="w-36 shrink-0">{label}</dt>
+                      <dd>{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : null}
+            </div>
+            {guide?.tip ? (
+              <p className="flex gap-3 px-2 py-2 text-prose text-ink">
+                <span aria-hidden="true" className="font-mono">
+                  &gt;
+                </span>
+                <span>{guide.tip}</span>
+              </p>
+            ) : null}
+            {guide ? (
+              <>
+                <IconRow ids={guide.spells} lookup={(i) => data?.spells.get(i)} label="SPELLS" />
+                <IconRow ids={guide.starter} lookup={(i) => data?.items.get(i)} label="START" />
+                <IconRow ids={[...guide.core, ...(guide.boots ? [guide.boots] : [])]} lookup={(i) => data?.items.get(i)} label="CORE" />
+                {guide.runes ? <IconRow ids={[...guide.runes.primary, ...guide.runes.secondary]} lookup={(i) => data?.runes.get(i)} label="RUNES" /> : null}
+                {guide.skills.length > 0 ? (
+                  <p className="rule-pixel flex gap-3 px-2 py-2 text-label text-ink">
+                    <span className="w-16 shrink-0">SKILLS</span>
+                    <span>
                       START {guide.skills.slice(0, 3).join(' ')} · MAX {maxOrder(guide.skills).join(' > ')}
                       {guide.skills.includes('R') ? ` · R AT ${guide.skills.flatMap((s, i) => (s === 'R' ? [i + 1] : [])).join(', ')}` : ''}
-                    </p>
-                  ) : null}
-                </>
-              ) : (
-                <p className="px-2 py-1 text-label text-ink">{guideError ?? 'Reading the matchup guide...'}</p>
-              )}
-            </Section>
-          ) : (
-            <Section title="YOUR LANE" id="lb-lane">
-              <p className="px-2 py-1 text-label text-ink">{me ? "The source didn't say who you face in lane." : "This player isn't on either team's list yet. Press [ CHECK NOW ] in a moment."}</p>
-            </Section>
-          )}
+                    </span>
+                  </p>
+                ) : null}
+              </>
+            ) : (
+              <p className={guideError ? `${FAULT} mx-2` : 'px-2 py-1 text-label text-ink'}>{guideError ? `! ${guideError}` : 'READING THE MATCHUP GUIDE...'}</p>
+            )}
+          </Section>
+        ) : (
+          <Section title="YOUR LANE" id="lb-lane">
+            <p className="px-2 py-1 text-label text-ink">{me ? "The source didn't say who you face in lane." : "This player isn't on either team yet. Press [ CHECK NOW ] in a moment."}</p>
+          </Section>
+        )}
 
+        <div className="min-w-0 space-y-4">
           <Section title="ADVICE" id="lb-live-advice" note="from the ten players' public records">
             <LeagueAdvice lines={advice} empty="NOTHING STANDS OUT ABOUT THE ENEMY TEAM." />
           </Section>
 
           {rift ? (
-            <Section title="MATCH CLOCK" id="lb-clock" note="Summoner's Rift spawn times, patch 26.1 on">
+            <Section title="MATCH CLOCK" id="lb-clock" note="spawn times, patch 26.1 on">
               <ol className="px-2">
                 {RIFT_SPAWNS.map((spawn) => {
                   const left = spawn.at - seconds;
                   return (
-                    <li key={spawn.label} className="rule-pixel flex justify-between gap-2 py-1 text-label text-ink">
+                    <li key={spawn.label} className="rule-pixel flex justify-between gap-3 py-1.5 text-prose text-ink">
                       <span>
-                        <span className="inline-block w-14 tabular-nums">{clockText(spawn.at)}</span>
+                        <span className="inline-block w-16 tabular-nums">{clockText(spawn.at)}</span>
                         {spawn.label}
                       </span>
                       <span className="tabular-nums">{left > 0 ? `IN ${clockText(left)}` : 'UP'}</span>
@@ -354,25 +381,25 @@ export default function LeagueLive({ id, region, data }: { id: RiotId; region: R
                   );
                 })}
               </ol>
-              <p className="px-2 pt-1 text-label text-ink">After a kill: dragon back in 5:00, Baron in 6:00. LEAGUEBOT can&apos;t see kills; only the start times are certain.</p>
-            </Section>
-          ) : null}
-        </div>
-
-        <div className="min-w-0 space-y-3">
-          <Team title="YOUR TEAM" id="lb-allies" players={allies} me={me} data={data} />
-          <Team title="ENEMY TEAM" id="lb-enemies" players={enemies} me={null} data={data} />
-          {game.bans.length > 0 ? (
-            <Section title="BANS" id="lb-bans">
-              <div className="flex flex-wrap gap-1 px-2 py-1.5">
-                {game.bans.map((ban, i) => (
-                  <LeagueIcon key={`${ban}-${i}`} src={data?.champions.get(ban)?.icon} name={`${name(ban)} (banned)`} size="md" />
-                ))}
-              </div>
+              <p className="px-2 pt-1 text-label text-ink">After a kill: dragon back in 5:00, Baron in 6:00. Kills can&apos;t be seen here.</p>
             </Section>
           ) : null}
         </div>
       </div>
+
+      <Team title="YOUR TEAM" id="lb-allies" players={allies} me={me} data={data} />
+      <Team title="ENEMY TEAM" id="lb-enemies" players={enemies} me={null} data={data} />
+      {game.bans.length > 0 ? (
+        <Section title="BANS" id="lb-bans">
+          <ul className="flex flex-wrap gap-2 px-2 py-2">
+            {game.bans.map((ban, i) => (
+              <li key={`${ban}-${i}`}>
+                <LeagueIcon src={data?.champions.get(ban)?.icon} name={`${name(ban)} (banned)`} size="md" />
+              </li>
+            ))}
+          </ul>
+        </Section>
+      ) : null}
     </div>
   );
 }

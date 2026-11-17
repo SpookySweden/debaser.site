@@ -43,14 +43,54 @@ function Figure({ label, value, sub }: { label: string; value: string; sub?: str
   );
 }
 
-const TREND_ROWS: { label: string; pick: (l: Line) => number | null; show: (v: number) => string; higherIsBetter: boolean }[] = [
-  { label: 'Win rate', pick: (l) => l.winRate, show: pct, higherIsBetter: true },
-  { label: 'KDA', pick: (l) => l.kda, show: (v) => v.toFixed(2), higherIsBetter: true },
-  { label: 'Deaths a game', pick: (l) => l.deaths, show: (v) => v.toFixed(1), higherIsBetter: false },
-  { label: 'CS a minute', pick: (l) => l.csPerMin, show: (v) => v.toFixed(1), higherIsBetter: true },
-  { label: 'Gold a minute', pick: (l) => l.goldPerMin, show: (v) => String(v), higherIsBetter: true },
-  { label: 'Vision a minute', pick: (l) => l.visionPerMin, show: (v) => v.toFixed(2), higherIsBetter: true },
-  { label: 'Kill participation', pick: (l) => l.killParticipation, show: (v) => `${v}%`, higherIsBetter: true },
+const TREND_ROWS: {
+  label: string;
+  pick: (l: Line) => number | null;
+  show: (v: number) => string;
+  higherIsBetter: boolean;
+}[] = [
+  {
+    label: 'Win rate',
+    pick: (l) => l.winRate,
+    show: pct,
+    higherIsBetter: true,
+  },
+  {
+    label: 'KDA',
+    pick: (l) => l.kda,
+    show: (v) => v.toFixed(2),
+    higherIsBetter: true,
+  },
+  {
+    label: 'Deaths a game',
+    pick: (l) => l.deaths,
+    show: (v) => v.toFixed(1),
+    higherIsBetter: false,
+  },
+  {
+    label: 'CS a minute',
+    pick: (l) => l.csPerMin,
+    show: (v) => v.toFixed(1),
+    higherIsBetter: true,
+  },
+  {
+    label: 'Gold a minute',
+    pick: (l) => l.goldPerMin,
+    show: (v) => String(v),
+    higherIsBetter: true,
+  },
+  {
+    label: 'Vision a minute',
+    pick: (l) => l.visionPerMin,
+    show: (v) => v.toFixed(2),
+    higherIsBetter: true,
+  },
+  {
+    label: 'Kill participation',
+    pick: (l) => l.killParticipation,
+    show: (v) => `${v}%`,
+    higherIsBetter: true,
+  },
 ];
 
 export default function LeagueStats({
@@ -71,12 +111,19 @@ export default function LeagueStats({
   const { all } = stats;
   const sample = `last ${all.games} ranked solo games${matchesSource ? `, from ${matchesSource}` : ''}`;
 
-  const lpPoints = (profile?.lpHistory ?? []).map((p) => ({ x: Date.parse(p.at), y: ladderValue(p.tier, p.division, p.lp) }));
+  const lpPoints = (profile?.lpHistory ?? []).map((p) => ({
+    x: Date.parse(p.at),
+    y: ladderValue(p.tier, p.division, p.lp),
+  }));
   const solo = profile?.ranks.find((r) => r.queue === 'SOLO');
   // Today's rank closes the line, dated at the newest game (the last time the LP moved).
   const newest = matches.reduce((latest, m) => Math.max(latest, m.at + m.durationSec * 1000), 0);
   const lastPoint = lpPoints[lpPoints.length - 1];
-  if (solo?.tier && solo.lp !== null && lastPoint && newest > lastPoint.x) lpPoints.push({ x: newest, y: ladderValue(solo.tier, solo.division, solo.lp) });
+  if (solo?.tier && solo.lp !== null && lastPoint && newest > lastPoint.x)
+    lpPoints.push({
+      x: newest,
+      y: ladderValue(solo.tier, solo.division, solo.lp),
+    });
 
   if (all.games === 0) {
     return <p className="p-2 text-label text-ink">NO RANKED SOLO GAMES FOUND FOR THIS PLAYER YET.</p>;
@@ -108,9 +155,16 @@ export default function LeagueStats({
               .sort((a, b) => b.at - a.at)
               .slice(0, 20)
               .map((game) => (
-                <li key={game.id} className="flex flex-col items-center gap-0.5" title={`${name(game.championId)}: ${game.win ? 'win' : 'loss'}, ${game.kills}/${game.deaths}/${game.assists}, ${day(game.at)}`}>
+                <li
+                  key={game.id}
+                  className="flex flex-col items-center gap-0.5"
+                  title={`${name(game.championId)}: ${game.win ? 'win' : 'loss'}, ${game.kills}/${game.deaths}/${game.assists}, ${day(game.at)}`}
+                >
                   <LeagueIcon src={icon(game.championId)} name={name(game.championId)} size="md" />
-                  <span className={`w-8 text-center font-mono text-label ${game.win ? 'bg-sun text-ink-plate' : 'bg-ena text-ink-bar'}`}>{game.win ? 'W' : 'L'}</span>
+                  <span className={`w-8 text-center font-mono text-label ${game.win ? 'bg-sun text-ink-plate' : 'bg-ena text-ink-bar'}`}>
+                    <span aria-hidden="true">{game.win ? 'W' : 'L'}</span>
+                    <span className="sr-only">{game.win ? 'Win' : 'Loss'}</span>
+                  </span>
                 </li>
               ))}
           </ol>
@@ -118,33 +172,45 @@ export default function LeagueStats({
 
         {stats.before ? (
           <Section title="LATELY" id="lb-trend" note={`last ${stats.recent.games} games against the ${stats.before.games} before`}>
-            <table className="w-full text-label text-ink">
-              <thead>
-                <tr className="text-left">
-                  <th scope="col" className="px-2 py-1 font-normal">MEASURE</th>
-                  <th scope="col" className="px-2 py-1 text-right font-normal">LAST {stats.recent.games}</th>
-                  <th scope="col" className="px-2 py-1 text-right font-normal">BEFORE</th>
-                  <th scope="col" className="px-2 py-1 text-right font-normal">CHANGE</th>
-                </tr>
-              </thead>
-              <tbody>
-                {TREND_ROWS.map((row) => {
-                  const now = row.pick(stats.recent);
-                  const then = stats.before ? row.pick(stats.before) : null;
-                  if (now === null || then === null) return null;
-                  const better = row.higherIsBetter ? now > then : now < then;
-                  const same = Math.abs(now - then) < (row.label === 'Win rate' ? 0.01 : 0.05);
-                  return (
-                    <tr key={row.label} className="rule-pixel">
-                      <th scope="row" className="px-2 py-1 text-left font-normal">{row.label}</th>
-                      <td className="px-2 py-1 text-right tabular-nums">{row.show(now)}</td>
-                      <td className="px-2 py-1 text-right tabular-nums">{row.show(then)}</td>
-                      <td className="px-2 py-1 text-right">{same ? 'SAME' : better ? '▲ BETTER' : '▼ WORSE'}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="w-full text-label text-ink">
+                <thead>
+                  <tr className="text-left">
+                    <th scope="col" className="px-2 py-1 font-normal">
+                      MEASURE
+                    </th>
+                    <th scope="col" className="px-2 py-1 text-right font-normal">
+                      LAST {stats.recent.games}
+                    </th>
+                    <th scope="col" className="px-2 py-1 text-right font-normal">
+                      BEFORE
+                    </th>
+                    <th scope="col" className="px-2 py-1 text-right font-normal">
+                      CHANGE
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {TREND_ROWS.map((row) => {
+                    const now = row.pick(stats.recent);
+                    const then = stats.before ? row.pick(stats.before) : null;
+                    if (now === null || then === null) return null;
+                    const better = row.higherIsBetter ? now > then : now < then;
+                    const same = Math.abs(now - then) < (row.label === 'Win rate' ? 0.01 : 0.05);
+                    return (
+                      <tr key={row.label} className="rule-pixel">
+                        <th scope="row" className="px-2 py-1 text-left font-normal">
+                          {row.label}
+                        </th>
+                        <td className="px-2 py-1 text-right tabular-nums">{row.show(now)}</td>
+                        <td className="px-2 py-1 text-right tabular-nums">{row.show(then)}</td>
+                        <td className="px-2 py-1 text-right">{same ? 'SAME' : better ? '▲ BETTER' : '▼ WORSE'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </Section>
         ) : null}
       </div>
@@ -167,89 +233,125 @@ export default function LeagueStats({
         ) : null}
 
         <Section title="CHAMPIONS" id="lb-champions" note={sample}>
-          <table className="w-full text-label text-ink">
-            <thead>
-              <tr className="text-left">
-                <th scope="col" className="px-2 py-1 font-normal">CHAMPION</th>
-                <th scope="col" className="px-2 py-1 text-right font-normal">GAMES</th>
-                <th scope="col" className="px-2 py-1 text-right font-normal">WIN</th>
-                <th scope="col" className="px-2 py-1 text-right font-normal">KDA</th>
-                <th scope="col" className="px-2 py-1 text-right font-normal">CS/MIN</th>
-                <th scope="col" className="hidden px-2 py-1 text-right font-normal sm:table-cell">K.P.</th>
-              </tr>
-            </thead>
-            <tbody>
-              {stats.champions.slice(0, 10).map((c) => (
-                <tr key={c.championId} className="rule-pixel">
-                  <th scope="row" className="px-2 py-1 text-left font-normal">
-                    <span className="flex items-center gap-2">
-                      <LeagueIcon src={icon(c.championId)} name={name(c.championId)} size="sm" />
-                      <span className="truncate">{name(c.championId)}</span>
-                    </span>
-                  </th>
-                  <td className="px-2 py-1 text-right tabular-nums">{c.games}</td>
-                  <td className="px-2 py-1 text-right tabular-nums">{pct(c.winRate)}</td>
-                  <td className="px-2 py-1 text-right tabular-nums">{c.kda.toFixed(2)}</td>
-                  <td className="px-2 py-1 text-right tabular-nums">{c.csPerMin.toFixed(1)}</td>
-                  <td className="hidden px-2 py-1 text-right tabular-nums sm:table-cell">{dash(c.killParticipation, '%')}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Section>
-
-        <Section title="LANES" id="lb-lanes" note={sample}>
-          <table className="w-full text-label text-ink">
-            <thead>
-              <tr className="text-left">
-                <th scope="col" className="px-2 py-1 font-normal">LANE</th>
-                <th scope="col" className="px-2 py-1 text-right font-normal">GAMES</th>
-                <th scope="col" className="px-2 py-1 text-right font-normal">WIN</th>
-                <th scope="col" className="px-2 py-1 text-right font-normal">KDA</th>
-                <th scope="col" className="px-2 py-1 text-right font-normal">CS/MIN</th>
-              </tr>
-            </thead>
-            <tbody>
-              {stats.lanes.map((l) => (
-                <tr key={l.lane} className="rule-pixel">
-                  <th scope="row" className="px-2 py-1 text-left font-normal uppercase">{LANE_WORDS[l.lane]}</th>
-                  <td className="px-2 py-1 text-right tabular-nums">{l.games}</td>
-                  <td className="px-2 py-1 text-right tabular-nums">{pct(l.winRate)}</td>
-                  <td className="px-2 py-1 text-right tabular-nums">{l.kda.toFixed(2)}</td>
-                  <td className="px-2 py-1 text-right tabular-nums">{l.csPerMin.toFixed(1)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Section>
-
-        {stats.opponents.length > 0 ? (
-          <Section title="HARDEST LANE OPPONENTS" id="lb-opponents" note="met at least twice">
+          <div className="overflow-x-auto">
             <table className="w-full text-label text-ink">
               <thead>
                 <tr className="text-left">
-                  <th scope="col" className="px-2 py-1 font-normal">AGAINST</th>
-                  <th scope="col" className="px-2 py-1 font-normal">LANE</th>
-                  <th scope="col" className="px-2 py-1 text-right font-normal">WON</th>
+                  <th scope="col" className="px-2 py-1 font-normal">
+                    CHAMPION
+                  </th>
+                  <th scope="col" className="px-2 py-1 text-right font-normal">
+                    GAMES
+                  </th>
+                  <th scope="col" className="px-2 py-1 text-right font-normal">
+                    WIN
+                  </th>
+                  <th scope="col" className="px-2 py-1 text-right font-normal">
+                    KDA
+                  </th>
+                  <th scope="col" className="px-2 py-1 text-right font-normal">
+                    CS/MIN
+                  </th>
+                  <th scope="col" className="hidden px-2 py-1 text-right font-normal sm:table-cell">
+                    K.P.
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {stats.opponents.slice(0, 6).map((o) => (
-                  <tr key={`${o.championId}:${o.lane}`} className="rule-pixel">
+                {stats.champions.slice(0, 10).map((c) => (
+                  <tr key={c.championId} className="rule-pixel">
                     <th scope="row" className="px-2 py-1 text-left font-normal">
                       <span className="flex items-center gap-2">
-                        <LeagueIcon src={icon(o.championId)} name={name(o.championId)} size="sm" />
-                        <span className="truncate">{name(o.championId)}</span>
+                        <LeagueIcon src={icon(c.championId)} name={name(c.championId)} size="md" decorative />
+                        <span className="truncate">{name(c.championId)}</span>
                       </span>
                     </th>
-                    <td className="px-2 py-1 uppercase">{LANE_WORDS[o.lane]}</td>
-                    <td className="px-2 py-1 text-right tabular-nums">
-                      {o.wins} OF {o.games}
-                    </td>
+                    <td className="px-2 py-1 text-right tabular-nums">{c.games}</td>
+                    <td className="px-2 py-1 text-right tabular-nums">{pct(c.winRate)}</td>
+                    <td className="px-2 py-1 text-right tabular-nums">{c.kda.toFixed(2)}</td>
+                    <td className="px-2 py-1 text-right tabular-nums">{c.csPerMin.toFixed(1)}</td>
+                    <td className="hidden px-2 py-1 text-right tabular-nums sm:table-cell">{dash(c.killParticipation, '%')}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        </Section>
+
+        <Section title="LANES" id="lb-lanes" note={sample}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-label text-ink">
+              <thead>
+                <tr className="text-left">
+                  <th scope="col" className="px-2 py-1 font-normal">
+                    LANE
+                  </th>
+                  <th scope="col" className="px-2 py-1 text-right font-normal">
+                    GAMES
+                  </th>
+                  <th scope="col" className="px-2 py-1 text-right font-normal">
+                    WIN
+                  </th>
+                  <th scope="col" className="px-2 py-1 text-right font-normal">
+                    KDA
+                  </th>
+                  <th scope="col" className="px-2 py-1 text-right font-normal">
+                    CS/MIN
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.lanes.map((l) => (
+                  <tr key={l.lane} className="rule-pixel">
+                    <th scope="row" className="px-2 py-1 text-left font-normal uppercase">
+                      {LANE_WORDS[l.lane]}
+                    </th>
+                    <td className="px-2 py-1 text-right tabular-nums">{l.games}</td>
+                    <td className="px-2 py-1 text-right tabular-nums">{pct(l.winRate)}</td>
+                    <td className="px-2 py-1 text-right tabular-nums">{l.kda.toFixed(2)}</td>
+                    <td className="px-2 py-1 text-right tabular-nums">{l.csPerMin.toFixed(1)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Section>
+
+        {stats.opponents.length > 0 ? (
+          <Section title="HARDEST LANE OPPONENTS" id="lb-opponents" note="met at least twice">
+            <div className="overflow-x-auto">
+              <table className="w-full text-label text-ink">
+                <thead>
+                  <tr className="text-left">
+                    <th scope="col" className="px-2 py-1 font-normal">
+                      AGAINST
+                    </th>
+                    <th scope="col" className="px-2 py-1 font-normal">
+                      LANE
+                    </th>
+                    <th scope="col" className="px-2 py-1 text-right font-normal">
+                      WON
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.opponents.slice(0, 6).map((o) => (
+                    <tr key={`${o.championId}:${o.lane}`} className="rule-pixel">
+                      <th scope="row" className="px-2 py-1 text-left font-normal">
+                        <span className="flex items-center gap-2">
+                          <LeagueIcon src={icon(o.championId)} name={name(o.championId)} size="md" decorative />
+                          <span className="truncate">{name(o.championId)}</span>
+                        </span>
+                      </th>
+                      <td className="px-2 py-1 uppercase">{LANE_WORDS[o.lane]}</td>
+                      <td className="px-2 py-1 text-right tabular-nums">
+                        {o.wins} OF {o.games}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </Section>
         ) : null}
       </div>

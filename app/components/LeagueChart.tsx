@@ -8,7 +8,11 @@
  */
 
 export type ChartPoint = { x: number; y: number };
-export type ChartSeries = { label: string; points: ChartPoint[]; tone: 'ink' | 'accent' };
+export type ChartSeries = {
+  label: string;
+  points: ChartPoint[];
+  tone: 'ink' | 'accent';
+};
 
 const W = 600;
 const H = 160;
@@ -41,10 +45,30 @@ export default function LeagueChart({
       <div className="flex gap-2">
         <div className="flex w-24 shrink-0 flex-col justify-between text-right text-label text-ink" aria-hidden="true">
           <span>{yText(y1)}</span>
+          <span>{yText((y0 + y1) / 2)}</span>
           <span>{yText(y0)}</span>
         </div>
-        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-40 min-w-0 flex-1 border-b-thick border-l-thick border-ink" role="img" aria-label={label}>
-          {zero && y0 < 0 && y1 > 0 ? <line x1={0} x2={W} y1={sy(0)} y2={sy(0)} className="text-ink" stroke="currentColor" strokeWidth={1} strokeDasharray="4 4" vectorEffect="non-scaling-stroke" /> : null}
+        {/* The drawing is for the eye; screen readers get the table of the same numbers below. */}
+        <svg
+          viewBox={`0 0 ${W} ${H}`}
+          preserveAspectRatio="none"
+          className="h-40 min-w-0 flex-1 border-b-thick border-l-thick border-ink"
+          aria-hidden="true"
+          focusable="false"
+        >
+          {zero && y0 < 0 && y1 > 0 ? (
+            <line
+              x1={0}
+              x2={W}
+              y1={sy(0)}
+              y2={sy(0)}
+              className="text-ink"
+              stroke="currentColor"
+              strokeWidth={1}
+              strokeDasharray="4 4"
+              vectorEffect="non-scaling-stroke"
+            />
+          ) : null}
           {series.map((s) => (
             <g key={s.label} className={s.tone === 'accent' ? 'text-accent-ink' : 'text-ink'}>
               <polyline
@@ -74,21 +98,24 @@ export default function LeagueChart({
         ) : null}
         <span>{xText(x1)}</span>
       </div>
-      <table className="sr-only">
-        <caption>{label}</caption>
-        <tbody>
-          {series.flatMap((s) =>
-            s.points.map((p, i) => (
-              <tr key={`${s.label}-${i}`}>
-                <th scope="row">
-                  {s.label} {xText(p.x)}
-                </th>
-                <td>{yText(p.y)}</td>
-              </tr>
-            )),
-          )}
-        </tbody>
-      </table>
+      {/* A table ignores the 1px box `sr-only` gives it and would widen the page: the box goes round it instead. */}
+      <div className="sr-only">
+        <table>
+          <caption>{label}</caption>
+          <tbody>
+            {series.flatMap((s) =>
+              s.points.map((p, i) => (
+                <tr key={`${s.label}-${i}`}>
+                  <th scope="row">
+                    {s.label} {xText(p.x)}
+                  </th>
+                  <td>{yText(p.y)}</td>
+                </tr>
+              )),
+            )}
+          </tbody>
+        </table>
+      </div>
     </figure>
   );
 }

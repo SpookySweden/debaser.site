@@ -73,6 +73,9 @@ const ROUTES = [
   ['files', '/files'],
   // Watching and listening together (SPEC-cytube.md, 2026-11-03); signed-in only, so a capture is its sign-in check.
   ['cytube', '/stream'],
+  // LEAGUEBOT (SPEC-leaguebot.md, 2026-11-17): the FIND A PLAYER form and WHAT YOU GET before any player is looked up;
+  // Temp/browse/drive-leaguebot.cjs drives every tab on the mock server.
+  ['leaguebot', '/leaguebot'],
 ];
 
 const findings = [];
