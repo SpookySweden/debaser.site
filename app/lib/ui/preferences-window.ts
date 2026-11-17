@@ -15,6 +15,12 @@ import { createWindowSlot } from '../ui/window-slot';
  * window you can only open from the panel you are standing in.
  */
 
+/**
+ * The window's name in the layout store. It was `preferences` until it opened taller (Luke, 2026-11-17): a new name, so a box
+ * saved at the old height doesn't keep it short. `WindowLayoutHost` reopens it by either name.
+ */
+export const PREFERENCES_LAYOUT = 'preferences-tall';
+
 export type PreferencesWindowState = {
   open: boolean;
 };

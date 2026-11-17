@@ -125,7 +125,8 @@ async function main() {
   assert.equal(clearPlace({ x: 20, y: 300, w: 384, h: 400 }, [newPost], area), null, 'a window clear of the keys stays put');
   assert.equal(clearPlace(prefs, [], area), null, 'a page with no main keys moves nothing');
   const preferences = readFileSync('app/components/PreferencesWindow.tsx', 'utf8');
-  assert.match(preferences, /clearMainKeys\(PREFERENCES_ID\)/, 'PREFERENCES runs the check');
+  // By its layout name, `preferences-tall` since it opened taller (SETTINGSUI, 2026-11-17): the name the layout store knows it by.
+  assert.match(preferences, /clearMainKeys\(PREFERENCES_LAYOUT\)/, 'PREFERENCES runs the check');
   assert.match(preferences, /\[open, layoutIsReady, pathname\]/, 'on opening and on every new page');
   assert.match(readFileSync('app/components/ForumBoard.tsx', 'utf8'), /data-main-key\s*>\s*\+ NEW POST/, '+ NEW POST is marked as the board\'s main key');
 

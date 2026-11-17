@@ -13,6 +13,7 @@ import {
   type Cursor,
 } from '../lib/ui/cursor-slot';
 import {
+  PREFERENCES_LAYOUT,
   closePreferences,
   preferencesWindowState,
   subscribeToPreferencesWindow,
@@ -28,7 +29,7 @@ import {
 } from '../lib/ui/theme-slot';
 import { layoutReady, resetLayout, subscribeToWindowLayout } from '../lib/ui/window-layout';
 
-/** The window's name in the layout store and on the page (`data-dock-window`). */
+/** The window's name on the page (`data-dock-window`); the layout store knows it as `PREFERENCES_LAYOUT`. */
 const PREFERENCES_ID = 'preferences';
 import { backdropDef } from '../lib/backdrops/registry';
 import { openBackdropWindow } from '../lib/backdrops/store';
@@ -256,7 +257,7 @@ export default function PreferencesWindow() {
   // new page (and again as a late page draws its keys), when the screen is resized and when it is dropped.
   useEffect(() => {
     if (!open || !layoutIsReady || !window.matchMedia('(min-width: 640px)').matches) return;
-    const check = () => clearMainKeys(PREFERENCES_ID);
+    const check = () => clearMainKeys(PREFERENCES_LAYOUT);
     const timers = [0, 300, 1000, 2500].map((delay) => window.setTimeout(check, delay));
     // After the layout store has taken the drop.
     const onDrop = () => window.setTimeout(check, 0);
@@ -282,7 +283,12 @@ export default function PreferencesWindow() {
       status=""
       dock="bottom"
       id={PREFERENCES_ID}
-      defaultSize={{ w: 384, h: 620 }}
+      // Taller by default (Luke, 2026-11-17: "make sure the prefereances window that shows the site themes ect is taller by
+      // default"): as tall as the room between the top bar and the music bar, so the themes and the backgrounds show without
+      // scrolling. A new layout name, so a box saved at the old height doesn't keep it short.
+      layoutId={PREFERENCES_LAYOUT}
+      tall
+      defaultSize={{ w: 384, h: 1000 }}
       minSize={{ w: 280, h: 200 }}
     >
       {/* What each section is for is its title line's hover tip, not a paragraph under it
