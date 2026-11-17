@@ -54,12 +54,10 @@ export const ROOM_PIP_MARK = '⧉';
 /** QUALITY: the letters every player's quality key wears; a gear would read as the room's cog. */
 export const ROOM_QUALITY_MARK = 'HD';
 /**
- * The visualiser and canvas keys' stand-ins until Luke's drawn marks land (`ArtMark`; Luke, 2026-11-17: "symbolised rather
- * than saying exactly what they are"): rising bars for the visualiser, a pencil (U+270E, not U+270F, which has an emoji form)
- * for the canvas.
+ * The visualiser and canvas keys are words again, not marks (Luke, 2026-11-17: "for the canvas and visualiser can we revert
+ * their buttons to how they were before the symbol change"): `[ VIS ]`, and `[ CANVAS ]` / `[ PICTURE ]`, in their own files
+ * as their art slots' fallbacks. Their quiet corner plate and 5-minute hide stay.
  */
-export const ROOM_VIS_MARK = '▁▃▅';
-export const ROOM_CANVAS_MARK = '✎';
 /**
  * How long the visualiser and canvas keys stay in the picture's corner after the pointer was last over the picture (Luke,
  * 2026-11-17: "dissapear after not hovering on the player for 5 minutes"). The one number to change.

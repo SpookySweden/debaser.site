@@ -3,11 +3,10 @@
 import { artSlot } from '../lib/ui/art/slots';
 import { PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED } from '../lib/ui/controls';
 import { chooseScreen, useScreenView } from '../lib/watch/canvas-view';
-import { ROOM_VIS_MARK } from '../lib/watch/room-frame';
 import { setVisualiserOn, useVisualiserOn } from '../lib/watch/visualiser';
 import ArtMark from './ArtMark';
 
-/** The key's hand-drawn mark (`mark-visualiser` in app/lib/ui/art/slots.ts), shown at 16px; `[ ▁▃▅ ]` until it's drawn. */
+/** The key's hand-drawn mark (`mark-visualiser` in app/lib/ui/art/slots.ts), shown at 16px; `[ VIS ]` until it's drawn (a mark for a while on 2026-11-17, words again at Luke's ask). */
 const MARK_SRC = `/${artSlot('mark-visualiser')?.path ?? 'assets/icons/visualiser.png'}`;
 
 /**
@@ -40,7 +39,7 @@ export default function VisualiserToggle({
       }}
       data-visualiser-toggle={showing ? 'on' : 'off'}
     >
-      <ArtMark src={MARK_SRC} size={16} fallback={<span>{`[ ${ROOM_VIS_MARK} ]`}</span>} />
+      <ArtMark src={MARK_SRC} size={16} fallback={<span>[ VIS ]</span>} />
     </button>
   );
 }

@@ -41,28 +41,32 @@ const ok = (label) => {
 };
 
 /* 1. The marks: ones every system's symbol font has, none drawn as a coloured emoji ---------------------------------------- */
-const marks = { FULL: frame.ROOM_FULL_MARK, LEAVE: frame.ROOM_LEAVE_FULL_MARK, PIP: frame.ROOM_PIP_MARK, QUALITY: frame.ROOM_QUALITY_MARK, VIS: frame.ROOM_VIS_MARK, CANVAS: frame.ROOM_CANVAS_MARK };
-assert.deepEqual(marks, { FULL: '⤢', LEAVE: '⤡', PIP: '⧉', QUALITY: 'HD', VIS: '▁▃▅', CANVAS: '✎' }, 'the agreed marks (2026-11-17 research: in Segoe UI Symbol, Apple Symbols and Noto)');
+// Updated on purpose 2026-11-17: VIS and CANVAS are words again (Luke: "for the canvas and visualiser can we revert their
+// buttons to how they were before the symbol change"), so only the four player marks are checked here.
+const marks = { FULL: frame.ROOM_FULL_MARK, LEAVE: frame.ROOM_LEAVE_FULL_MARK, PIP: frame.ROOM_PIP_MARK, QUALITY: frame.ROOM_QUALITY_MARK };
+assert.deepEqual(marks, { FULL: '⤢', LEAVE: '⤡', PIP: '⧉', QUALITY: 'HD' }, 'the agreed marks (2026-11-17 research: in Segoe UI Symbol, Apple Symbols and Noto)');
+assert.equal(frame.ROOM_VIS_MARK, undefined, 'no visualiser mark any more');
+assert.equal(frame.ROOM_CANVAS_MARK, undefined, 'no canvas mark any more');
 for (const [name, mark] of Object.entries(marks)) {
   assert.ok(!/\p{Extended_Pictographic}/u.test(mark), `${name}: no character with an emoji form (U+270F, U+26F6 would be)`);
   assert.ok(!mark.includes(String.fromCodePoint(0xfe0f)), `${name}: never asked for as emoji (U+FE0F)`);
 }
-ok('FULL ⤢, leaving it ⤡, PIP ⧉, QUALITY HD, VIS ▁▃▅, CANVAS ✎: symbol-font characters, none with an emoji form');
+ok('FULL ⤢, leaving it ⤡, PIP ⧉, QUALITY HD: symbol-font characters, none with an emoji form');
 
 /* 2. The visualiser and canvas keys: the marks are only the stand-ins of Luke's drawn ones, and the words stay in the names -- */
 const vis = html(el(VisualiserToggle, { roomId: 'r1', audio: false }));
 assert.match(vis, /aria-label="Show the music visualiser"/, 'its name keeps the words');
 assert.match(vis, /title="Visualiser"/, 'and its tooltip');
-assert.ok(seen(vis).includes('[ ▁▃▅ ]') && !/VIS \]/.test(seen(vis)), `the stand-in reads [ ▁▃▅ ], not [ VIS ] (${seen(vis)})`);
+assert.ok(seen(vis).includes('[ VIS ]') && !seen(vis).includes('▁▃▅'), `the stand-in reads [ VIS ] again (${seen(vis)})`);
 const canvas = html(el(CanvasToggle, { roomId: 'r1', audio: false }));
 assert.match(canvas, /aria-label="Show the canvas"/);
 assert.match(canvas, /title="Canvas"/);
-assert.ok(seen(canvas).includes('[ ✎ ]') && !/CANVAS \]/.test(seen(canvas)), `the stand-in reads [ ✎ ] (${seen(canvas)})`);
+assert.ok(seen(canvas).includes('[ CANVAS ]') && !seen(canvas).includes('✎'), `the stand-in reads [ CANVAS ] again (${seen(canvas)})`);
 for (const file of ['app/components/VisualiserToggle.tsx', 'app/components/CanvasToggle.tsx']) {
-  // ArtMark draws Luke's file over the stand-in once it loads: the mark has to stay ArtMark's fallback, not replace it.
-  assert.match(fs.readFileSync(file, 'utf8'), /<ArtMark src=\{[A-Z_]+\} size=\{[A-Z_0-9]+\} fallback=\{<span>\{`\[ \$\{ROOM_(VIS|CANVAS)_MARK\} \]`\}<\/span>\} \/>/, `${file}: the symbol is the art slot's fallback`);
+  // ArtMark draws Luke's file over the stand-in once it loads: the words have to stay ArtMark's fallback, not replace it.
+  assert.match(fs.readFileSync(file, 'utf8'), /<ArtMark src=\{[A-Z_]+\} size=\{[A-Z_0-9]+\} fallback=\{<span>/, `${file}: the words are the art slot's fallback`);
 }
-ok('VIS reads [ ▁▃▅ ] and CANVAS [ ✎ ], as the fallbacks of their art slots, with their words in the names and tooltips');
+ok('VIS reads [ VIS ] and CANVAS [ CANVAS ] again, as the fallbacks of their art slots, with their words in the names and tooltips');
 
 /* 3. QUALITY: HD on the key, the choice in force in its name and tooltip -------------------------------------------------- */
 const source = { qualities: () => [{ id: 'auto', label: 'AUTO' }, { id: 'high', label: 'HIGH' }], quality: 'auto', setQuality: () => undefined };

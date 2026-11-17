@@ -5,7 +5,7 @@
  *      puts the room live; [ ● LIVE ] opens it on GO PRIVATE; END ROOM is in the cog (two presses) and nowhere on the bar.
  *   2. The picture's keys as video-player marks: FULL [ ⤢ ], leaving fullscreen [ ⤡ ], PIP [ ⧉ ], each drawn by this browser's
  *      fonts (not an empty box), with its words in its name and tooltip; close-ups saved for reading.
- *   3. The visualiser and canvas keys: [ ▁▃▅ ] and [ ✎ ], shown as the room opens, still there at 4:50 without the pointer,
+ *   3. The visualiser and canvas keys: [ VIS ] and [ CANVAS ], shown as the room opens, still there at 4:50 without the pointer,
  *      gone at 5:05, back at once when the pointer comes over the picture, and back for a key reached by the keyboard. A fake
  *      clock stands in for the five minutes.
  *   4. A signed-out visitor's own room: its cog says LOG IN for going live, and its END ROOM ends it.
@@ -241,9 +241,8 @@ const drawnHere = (page, selector, text) =>
           const box = document.querySelector(sel);
           return { said: box.getAttribute('data-room-corner-keys'), opacity: getComputedStyle(box).opacity, text: box.innerText.replace(/\s+/g, ' ').trim() };
         }, corner);
-      assert.deepEqual(await state(), { said: 'shown', opacity: '1', text: '[ ▁▃▅ ] [ ✎ ]' }, 'shown as the room opens, as [ ▁▃▅ ] and [ ✎ ]');
-      const cornerMarks = await drawnHere(page, `${corner} [data-visualiser-toggle]`, '▁▃▅✎');
-      assert.ok(cornerMarks.every((mark) => mark.drawn), `drawn by ${BROWSER}'s fonts: ${JSON.stringify(cornerMarks)}`);
+      assert.deepEqual(await state(), { said: 'shown', opacity: '1', text: '[ VIS ] [ CANVAS ]' }, 'shown as the room opens, as [ VIS ] and [ CANVAS ]');
+      // (2026-11-17: VIS and CANVAS are words again, so there are no symbol glyphs in the corner to check the fonts for.)
       const cornerBox = await page.locator(corner).boundingBox();
       await page.screenshot({ path: join(SHOTS, `${BROWSER}-3-corner.png`), clip: { x: cornerBox.x - 40, y: cornerBox.y - 10, width: cornerBox.width + 50, height: cornerBox.height + 20 } });
       // The pointer away from the picture, then the clock on.
@@ -251,13 +250,13 @@ const drawnHere = (page, selector, text) =>
       await page.clock.fastForward('04:50');
       assert.equal((await state()).said, 'shown', 'still there at 4:50 without the pointer');
       await page.clock.fastForward('00:15');
-      assert.deepEqual(await state(), { said: 'hidden', opacity: '0', text: '[ ▁▃▅ ] [ ✎ ]' }, 'gone at 5:05, in its place');
+      assert.deepEqual(await state(), { said: 'hidden', opacity: '0', text: '[ VIS ] [ CANVAS ]' }, 'gone at 5:05, in its place');
       assert.equal(await page.evaluate((sel) => getComputedStyle(document.querySelector(sel)).pointerEvents, corner), 'none', 'gone, they take no press');
-      pass('[ ▁▃▅ ] and [ ✎ ] show as the room opens; without the pointer over the picture they stay at 4:50 and are gone at 5:05');
+      pass('[ VIS ] and [ CANVAS ] show as the room opens; without the pointer over the picture they stay at 4:50 and are gone at 5:05');
 
       const picture = await page.locator(`${ROOM} [data-room-picture]`).boundingBox();
       await page.mouse.move(picture.x + picture.width / 2, picture.y + picture.height / 2);
-      assert.deepEqual(await state(), { said: 'shown', opacity: '1', text: '[ ▁▃▅ ] [ ✎ ]' }, 'back at once with the pointer over the picture');
+      assert.deepEqual(await state(), { said: 'shown', opacity: '1', text: '[ VIS ] [ CANVAS ]' }, 'back at once with the pointer over the picture');
       await page.clock.fastForward('04:00');
       await page.mouse.move(picture.x + picture.width / 2 + 20, picture.y + picture.height / 2);
       await page.clock.fastForward('04:00');
