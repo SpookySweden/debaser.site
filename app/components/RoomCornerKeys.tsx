@@ -8,8 +8,8 @@ import { ROOM_CORNER_KEYS_AWAKE_MS } from '../lib/watch/room-frame';
  * screen and dissapear after not hovering on the player for 5 minutes"). They show while the pointer is over the picture
  * (a touch counts) and go once it hasn't been for `ROOM_CORNER_KEYS_AWAKE_MS`; both at once, with no fade (docs/design.md,
  * "Feel"). Gone, they keep their place, so the pointer coming back over the picture shows them where they were, and a key
- * reached by the keyboard shows them both (`:focus-visible`, never `:focus-within`). The black behind them keeps their words
- * readable over a bright picture.
+ * reached by the keyboard shows them both (`:focus-visible`, never `:focus-within`). No black bar behind them (Luke,
+ * 2026-11-17: "vis and canvas buttons need the black bar behind them gone"), as before ROOMPOLISH: each key is its own plate.
  */
 export default function RoomCornerKeys({ box, children }: { box: RefObject<HTMLElement | null>; children: ReactNode }) {
   const [awake, setAwake] = useState(true);
@@ -49,7 +49,7 @@ export default function RoomCornerKeys({ box, children }: { box: RefObject<HTMLE
   return (
     <div
       // Gone, they take no press either: a touch on the corner shows them first, and the next one presses.
-      className={`absolute right-1 top-1 z-30 flex gap-1 bg-ink-plate ${awake ? '' : 'pointer-events-none opacity-0 has-[:focus-visible]:pointer-events-auto has-[:focus-visible]:opacity-100'}`}
+      className={`absolute right-1 top-1 z-30 flex gap-1 ${awake ? '' : 'pointer-events-none opacity-0 has-[:focus-visible]:pointer-events-auto has-[:focus-visible]:opacity-100'}`}
       data-room-corner-keys={awake ? 'shown' : 'hidden'}
     >
       {children}
