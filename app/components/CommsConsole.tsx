@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { getCommsRepository } from '../lib/comms/repository';
-import { lastMessage, otherParticipant, participantFromThread, threadLabel } from '../lib/comms/threads';
+import { lastMessage, otherParticipant, participantFromThread, threadLabel, unreadCount } from '../lib/comms/threads';
 import { MAX_GROUP_MEMBERS, MAX_GROUP_NAME_LENGTH } from '../lib/comms/types';
 import { PLATE, PLATE_LINK } from '../lib/ui/controls';
 import { useCompactViewport } from '../lib/ui/use-compact-viewport';
@@ -56,10 +56,14 @@ export default function CommsConsole() {
   // Read as soon as a conversation is on screen, and again when it grows.
   const newestAt = active === undefined ? null : (lastMessage(active)?.createdAt ?? null);
 
+  // Only when something in it is unread (PERF): every inbox poll hands back new objects, so keyed on the thread itself this
+  // wrote the read mark again every 15 seconds while the console was open (25,040 writes to a table of 3 rows).
+  const activeId = active?.id ?? null;
+  const unread = active === undefined || userId === null ? 0 : unreadCount(active, userId);
   useEffect(() => {
-    if (active === undefined) return;
-    void markRead(active.id);
-  }, [active, newestAt, markRead]);
+    if (activeId === null || unread === 0) return;
+    void markRead(activeId);
+  }, [activeId, unread, newestAt, markRead]);
 
   async function openWith(otherId: string) {
     setPicking(false);
