@@ -202,8 +202,14 @@ for (const [file, text] of sources) {
 }
 
 // 4. No artwork drawn in code: the illustrations are hand-drawn files, never markup.
+// (2026-11-17) One named exception, on purpose: LEAGUEBOT's line charts (LP over time, gold against the lane opponent) are
+// data drawn as lines, not artwork; Luke OK'd "data charts drawn by code in token colours, not illustrations" with
+// SPEC-leaguebot.md. Any other <svg> still fails, and so does a picture drawn inside this one (it may hold only lines).
+const DATA_CHARTS = new Set(['app/components/LeagueChart.tsx']);
 for (const [file, text] of sources) {
-  if (/<svg[\s>]/.test(text)) fail(file, 'draws an `<svg>`');
+  if (DATA_CHARTS.has(file)) {
+    if (/<(path|circle|rect|ellipse|polygon|image|text)[\s>]/.test(text)) fail(file, 'a data chart may draw only lines');
+  } else if (/<svg[\s>]/.test(text)) fail(file, 'draws an `<svg>`');
   if (/data:image\//.test(text)) fail(file, 'inlines a `data:` image');
 }
 
