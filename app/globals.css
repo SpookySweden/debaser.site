@@ -1244,6 +1244,16 @@ img {
   --key-hover-ink: var(--room-bar);
 }
 
+/* MEDIA's GRID (media-view.ts; MEDIACARD, Luke 2026-11-17: "the media stuff needs to be significantly neater"): four cards
+   across wherever each can be at least as wide as its PLAY / QUEUE key (`[ ▶ PLAY│+ QUEUE│▾ ]`: 20 letters of the 13px face,
+   156px), else three, two or one, worked out from the room the list really has (the side panel takes some), so no card is
+   ever too narrow for a key and no key breaks inside its brackets. Never more than four. */
+.media-grid {
+  display: grid;
+  column-gap: calc(var(--spacing) * 3);
+  grid-template-columns: repeat(auto-fill, minmax(max(calc(var(--spacing) * 39), calc((100% - var(--spacing) * 9) / 4)), 1fr));
+}
+
 /* The visualiser's sliders (RoomVisualiser.tsx; Luke, 2026-11-14: "accessable sliders"). They sit on the picture, which
    is Black in both themes, so they take the bar's inks: a thick White track a tired eye can find and a tall square
    Daffodil thumb. The whole input is a tap high, so a thumb lands on it; a press anywhere on the track moves it there.

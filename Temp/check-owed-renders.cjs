@@ -1337,11 +1337,19 @@ test('WebStream: a row names its source, its words as text, and links only where
   // PLAY is the first half of one key, and the other copies fold open under `[ ALSO ON ▾ ]` (drawn, hidden, while shut).
   // Updated on purpose 2026-11-16 (Luke: "only play and queue, with an arrow on the same row beside them that reveals the rest
   // of the options"): the pen and ALSO ON wait behind the row's arrow, which starts folded.
-  for (const word of ['A Train Film', 'Prelinger', 'YOUTUBE · VIDEO', '2026-10-01', '[ ▶ PLAY │ + QUEUE ]', '[ VIMEO ↗ ]']) assert.ok(words.includes(word), word);
-  assert.ok(words.includes('[ ◂ ]') || words.includes('[ ▸ ]'), 'the row has its arrow');
+  // Updated on purpose 2026-11-17 (list 4, MEDIACARD; Luke: "with the source also only showing on expansion"): the facts are
+  // VIDEO · DATE; YOUTUBE, and the other copies (`[ VIMEO ↗ ]`), wait in the area the arrow opens (`▾`), drawn only once open.
+  for (const word of ['A Train Film', 'Prelinger', 'VIDEO', '2026-10-01', '[ ▶ PLAY │ + QUEUE ]']) assert.ok(words.includes(word), word);
+  // The row alone: the page's own WHERE FROM keys name YOUTUBE too.
+  const rowAt = html.lastIndexOf('<li', html.indexOf('A Train Film'));
+  const rowWords = visible(html.slice(rowAt, html.indexOf('</li>', rowAt)));
+  assert.ok(rowAt >= 0 && rowWords.includes('2026-10-01'), 'the row is found: ' + rowWords.slice(0, 300));
+  assert.ok(!rowWords.includes('YOUTUBE') && !rowWords.includes('[ VIMEO ↗ ]'), 'where it is from waits behind the arrow');
+  assert.ok(words.includes('[ ▾ ]'), 'the row has its arrow');
   assert.ok(!words.includes('[ ✎ ]') && !words.includes('[ ALSO ON ▾ ]'), 'the rest waits behind it');
   assert.match(html, new RegExp(`<a href="https://youtu\\.be/${YT_ID}"[^>]*aria-label="Open &quot;A Train Film&quot; on YOUTUBE \\(new tab\\)"[^>]*data-thumb-open`), 'the corner key, and it says where it goes');
-  assert.match(html, /<div id="[^"]*-also" hidden=""/, 'the other copies are folded until asked for');
+  // Updated on purpose 2026-11-17 (MEDIACARD): they sit in the area the arrow opens, which is drawn only once open.
+  assert.ok(!/<div id="[^"]*-also"/.test(html) && !/-more"/.test(html), 'the other copies are folded until asked for');
   assert.ok(html.includes(`src="https://i.ytimg.com/vi/${YT_ID}/hqdefault.jpg"`) && html.includes('referrerPolicy="no-referrer"'));
   assert.ok(html.includes('&lt;b&gt;not markup&lt;/b&gt;') && !html.includes('<b>not markup'));
   assert.ok(!html.includes('<iframe'), 'nothing from the platform loads until the reader asks');
@@ -1404,7 +1412,8 @@ test('WebStream: a book reads at /read, READ first where OPEN was', () => {
   // Updated on purpose 2026-11-14 (Luke's list M8): the way out to the source is the ↗ in the picture's corner, so READ is
   // the row's first key.
   // Updated on purpose 2026-11-16 (Luke: only the main keys and an arrow): the pen waits behind the arrow, so READ comes before it.
-  assert.ok(words.indexOf('[ READ ]') >= 0 && words.indexOf('[ READ ]') < Math.max(words.indexOf('[ ◂ ]'), words.indexOf('[ ▸ ]')), 'READ is the first key');
+  // Updated on purpose 2026-11-17 (MEDIACARD): the arrow points down (`▾`), as the rest opens under the keys.
+  assert.ok(words.indexOf('[ READ ]') >= 0 && words.indexOf('[ READ ]') < words.indexOf('[ ▾ ]'), 'READ is the first key');
   assert.match(html, /<a href="https:\/\/archive\.org\/details\/book"[^>]*data-thumb-open/, 'OPEN is the corner key');
   assert.equal(floating.floatingState().entry, null, 'nothing floats');
 });

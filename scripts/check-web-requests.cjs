@@ -159,7 +159,9 @@ const sqlCode = (text) => text.replace(/--.*$/gm, '').toLowerCase();
   // Updated on purpose 2026-11-14 (Luke's list M6, "comment option smaller"): the row's key is the short pen.
   // Updated on purpose 2026-11-16 (SPEC-media-feed.md): a reading row (paper, news, long read, tech link) is never saved
   // into the stream, so it has no DISCUSS at all: the key also waits on `!reading`.
-  ok(/\{full && !reading && \(!found \|\| SAVE_OPENED\) \? <WebDiscussKey item=\{item\} onOpen=\{opened\} short \/> : null\}/.test(stream), 'DISCUSS is offered on EVERYWHERE rows only while saving is on, and never on a reading row');
+  // Updated on purpose 2026-11-17 (list 4, MEDIACARD): the pen sits in the area the row's arrow opens, which only a `full` view
+  // draws (`{full && moreOpen ? (`), so `full` is asked there once instead of on each key.
+  ok(/\{!reading && \(!found \|\| SAVE_OPENED\) \? <WebDiscussKey item=\{item\} onOpen=\{opened\} short \/> : null\}/.test(stream) && stream.indexOf('<WebDiscussKey item={item} onOpen={opened} short />') > stream.indexOf('{full && moreOpen ? ('), 'DISCUSS is offered on EVERYWHERE rows only while saving is on, and never on a reading row');
   ok(/if \(found\) void recordOpened\(item\);/.test(stream), 'only EVERYWHERE rows ask to be saved');
 
   asserts.done();

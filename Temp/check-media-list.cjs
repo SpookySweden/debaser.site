@@ -59,7 +59,8 @@ assert.ok(fs.statSync('app/theme/faces/ibm-plex-mono-600-latin.woff2').size > 50
 assert.match(read('app/theme/tokens.css'), /--font-strong: var\(--face-strong\), var\(--face-pixel\), 'Courier New', monospace;/, 'font-strong falls back to the site face');
 assert.match(stream, /className=\{`\$\{TITLE_CLASS\[view\]\} font-strong text-ink wrap-anywhere/, 'a row title wears the heavier weight');
 assert.match(stream, /text-label text-ink-quiet wrap-anywhere hover:underline/, 'who made it is in the caption ink');
-assert.match(stream, /<p className="flex flex-wrap items-center gap-x-1\.5 text-label text-ink-quiet" data-row-facts>/, 'the facts too');
+// Updated on purpose 2026-11-17 (list 4, MEDIACARD): one facts line for every view, its spacing chosen by the view.
+assert.match(stream, /<p className=\{`flex flex-wrap items-center text-label text-ink-quiet \$\{view === 'grid'/, 'the facts too');
 const mediaRow = read('app/components/WebMediaRow.tsx');
 assert.equal((mediaRow.match(/text-title font-strong text-ink wrap-anywhere/g) ?? []).length, 2, 'KINO and media-server titles wear it too');
 
@@ -108,11 +109,16 @@ assert.ok(!/AddToLetterKey/.test(stream) && !/<AddToLetterKey/.test(mediaRow), '
 // M7: the sources: ALSO ON on a row, WATCH on a KINO or server card with the other keys after it.
 // Updated on purpose 2026-11-16 (Luke: "only play and queue, with an arrow on the same row beside them that reveals the rest of
 // the options"): ALSO ON stood before PLAY; now it waits behind the arrow after PLAY, with the rest.
-const moreAt = stream.indexOf('<MoreKeys title={item.title}');
-assert.ok(stream.indexOf('<SplitKey label={`Play or queue') < moreAt && moreAt < stream.indexOf('[ ALSO ON ') && stream.indexOf('[ ALSO ON ') < stream.indexOf('</MoreKeys>'), 'ALSO ON waits behind the arrow after PLAY');
-for (const key of ["<LetterPlaylistKey letter={{ kind: 'web'", '<WebDiscussKey item={item}', "<FeedbackKey item={{ kind: 'media', ref: item.id", '[ EDITIONS ]']) {
+// Updated on purpose 2026-11-17 (list 4, MEDIACARD; Luke: "the media stuff needs to be significantly neater, with the source
+// also only showing on expansion"): the arrow (MoreArrow) opens an area of its own under the keys (`data-row-more`), so the
+// rest waits there now, not unfolded on the keys' line.
+const moreAt = stream.indexOf('data-row-more>');
+const moreEnd = stream.indexOf('{item.alsoOn.length > 0 ? <AlsoOn', moreAt);
+assert.ok(stream.indexOf('<MoreArrow title={item.title} open={moreOpen}') > stream.indexOf('<SplitKey label={`Play or queue') && moreAt > stream.indexOf('<MoreArrow title={item.title}'), 'the arrow follows PLAY; what it opens comes after the keys');
+assert.match(stream, /\{full && moreOpen \? \(\s*<div id=\{moreId\} className="fold-body /, '... drawn only while open, with the open rule down its left');
+for (const key of ['[ ALSO ON ', "<LetterPlaylistKey letter={{ kind: 'web'", '<WebDiscussKey item={item}', "<FeedbackKey item={{ kind: 'media', ref: item.id", '[ EDITIONS ]', 'data-licence-key', 'data-row-source']) {
   const at = stream.indexOf(key);
-  assert.ok(at > moreAt && at < stream.indexOf('</MoreKeys>'), key + ' waits behind the arrow');
+  assert.ok(at > moreAt && at < moreEnd, key + ' waits behind the arrow');
 }
 assert.equal(mediaRow.split('<MoreKeys title={item.title}>').length - 1, 2, 'KINO and server cards have the arrow too');
 // Updated on purpose 2026-11-17 (list 4, GRIDCARD; Luke: "fitting the < . > on the end of the play and queue buttons"): in a
@@ -120,9 +126,14 @@ assert.equal(mediaRow.split('<MoreKeys title={item.title}>').length - 1, 2, 'KIN
 assert.match(rowKeys, /\{open && unfold === 'left' \? children : null\}\s*\{inKey \? inKey\(arrow\) : arrow\}\s*\{open && unfold === 'right' \? children : null\}/, 'the arrow stays put: the rest unfolds on its far side');
 assert.match(stream, /\(arrow: React\.ReactNode\) => <SplitKey label=\{keyHoldsArrow\.label\} first=\{keyHoldsArrow\.first\} second=\{keyHoldsArrow\.second\} end=\{arrow\} tight \/>/, 'GRID: [ ▶ PLAY│+ QUEUE│▸ ], one key on one line');
 assert.match(stream, /view !== 'grid' \|\| !full\s*\? null/, '... in GRID only; LIST, LARGE and COMPACT keep the arrow as its own key');
-assert.match(stream, /<p className="flex w-full min-w-0 items-center whitespace-nowrap text-label text-ink-quiet" data-row-facts>\s*<span className="min-w-0 truncate">/, "GRID's facts are one line; the end of SOURCE · KIND is cut first");
-assert.match(stream, /<time dateTime=\{item\.publishedAt\} className="shrink-0">/, '... and the date always shows whole');
-assert.ok(rowKeys.includes('const [open, setOpen] = useState(false);'), 'each row starts folded');
+// Updated on purpose 2026-11-17 (list 4, MEDIACARD): the source left the facts line (it waits behind the arrow), so GRID's line,
+// KIND · DATE, fits a card whole and nothing in it is cut with "…" any more.
+assert.match(stream, /\$\{view === 'grid' \? 'w-full whitespace-nowrap' : 'gap-x-1\.5'\}`\} data-row-facts>\s*<span>\{kind\}<\/span>/, "GRID's facts are one line: what it is, then when");
+const factsLine = stream.slice(stream.indexOf('data-row-facts>'), stream.indexOf('</p>', stream.indexOf('data-row-facts>')));
+assert.ok(!/truncate|\{source\}|\bsource\b/.test(factsLine), '... never cut, and never the source');
+assert.match(factsLine, /<time dateTime=\{item\.publishedAt\}>\{date\}<\/time>/, '... and the date always shows whole');
+assert.match(stream, /const from = reading \? \[\.\.\.new Set\(\[item\.outlet \?\? '', outletKey \?\? ''\]\.filter\(Boolean\)\)\] : \[source\];/, 'opened: the platform, or a reading row\'s outlet and the site its key opens');
+assert.ok(rowKeys.includes('const [open, setOpen] = useState(false);') && stream.includes('const [moreOpen, setMoreOpen] = useState(false);'), 'each row starts folded');
 assert.match(stream, /aria-expanded=\{alsoOpen\} aria-controls=\{alsoId\}/, '... and says whether it is open');
 assert.match(read('app/components/KinoSources.tsx'), /\[ WATCH · \$\{total\} \$\{open \? '▴' : '▾'\} \]`\}\n        <\/button>\n        \{beside\}/, 'a card\'s other keys come after WATCH');
 
@@ -189,7 +200,8 @@ assert.match(stream, /orderLabel\(sortOf\(search\)\),/, 'the SHOWING line still 
 
 // The feedback key (the YOUR YOUTUBE session's FeedbackKey, 2026-11-14), last on a row's key line, and on KINO and server cards.
 assert.ok(stream.indexOf('<WebDiscussKey item={item} onOpen={opened} short />') < stream.indexOf('<FeedbackKey item={{ kind: \'media\', ref: item.id'), 'a row: after + LETTER / PLAYLIST and the pen');
-assert.match(stream, /\{full \? <FeedbackKey item=\{\{ kind: 'media', ref: item\.id, title: item\.title, maker: item\.creator \?\? '', words:/, '... not in COMPACT, which keeps only the main keys');
+// Updated on purpose 2026-11-17 (list 4, MEDIACARD): it sits in the area the arrow opens, which COMPACT never draws.
+assert.ok(stream.indexOf('<FeedbackKey item={{ kind: \'media\', ref: item.id') > stream.indexOf('{full && moreOpen ? ('), '... not in COMPACT, which keeps only the main keys');
 assert.equal((mediaRow.match(/<FeedbackKey item=\{\{ kind: 'media', ref: item\.id/g) ?? []).length, 2, 'KINO and server cards, after + LETTER');
 
 // M14: MEDIA keeps its place while the reader is in another module, for an hour, in this page's memory only.
