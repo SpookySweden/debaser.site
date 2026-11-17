@@ -7,7 +7,9 @@
 import { LEAGUEBOT_DATA_SOURCE } from './riot-id-store';
 import type { RegionId } from './regions';
 import type { RiotId } from './riot-id';
-import type { PlayerAnswer } from './types';
+import type { LiveAnswer, MatchupGuide } from './live-types';
+import type { MatchReview } from './review-types';
+import type { Lane, PlayerAnswer } from './types';
 
 export class LookupError extends Error {
   constructor(message: string) {
@@ -27,6 +29,30 @@ async function getAnswer<T>(path: string, query: Record<string, string>): Promis
   const body = (await response.json().catch(() => null)) as (T & { error?: string }) | null;
   if (!response.ok || body === null) throw new LookupError(body?.error ?? 'Something went wrong. Try again in a minute.');
   return body;
+}
+
+export async function lookUpLive(id: RiotId, region: RegionId): Promise<LiveAnswer> {
+  if (LEAGUEBOT_DATA_SOURCE === 'mock') {
+    const { mockLive } = await import('./fixtures/mock-answers');
+    return mockLive(id);
+  }
+  return getAnswer<LiveAnswer>('/api/leaguebot/live', { region, name: id.name, tag: id.tag });
+}
+
+export async function lookUpMatchup(lane: Lane, mine: number, theirs: number): Promise<MatchupGuide> {
+  if (LEAGUEBOT_DATA_SOURCE === 'mock') {
+    const { mockMatchup } = await import('./fixtures/mock-answers');
+    return mockMatchup(lane, mine, theirs);
+  }
+  return getAnswer<MatchupGuide>('/api/leaguebot/matchup', { lane, mine: String(mine), theirs: String(theirs) });
+}
+
+export async function lookUpReview(id: RiotId, region: RegionId, matchId: string, version: string): Promise<MatchReview> {
+  if (LEAGUEBOT_DATA_SOURCE === 'mock') {
+    const { mockReview } = await import('./fixtures/mock-answers');
+    return mockReview(id, matchId);
+  }
+  return getAnswer<MatchReview>('/api/leaguebot/match', { region, name: id.name, tag: id.tag, match: matchId, version });
 }
 
 export async function lookUpPlayer(id: RiotId, region: RegionId, refresh = false): Promise<PlayerAnswer> {

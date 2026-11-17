@@ -10,6 +10,7 @@ import { safeFetchText, type FetchLike } from '../../web/safe-fetch';
 import { decodeOpggText, type Decoded } from '../opgg-decode';
 import type { Region } from '../regions';
 import type { RiotId } from '../riot-id';
+import type { MatchupGuide } from '../live-types';
 import type { Lane, LpPoint, MatchPlayer, MatchSummary, PastSeason, Profile, RankEntry } from '../types';
 
 export const OPGG_MCP_HOST = 'mcp-api.op.gg';
@@ -193,6 +194,67 @@ export function toOpggMatches(decoded: Decoded, id: RiotId): MatchSummary[] {
     });
   }
   return out;
+}
+
+/** OP.GG's spelling of a champion for its guides: the display name in capitals, words joined by `_`, marks dropped. */
+export function opggChampionWord(displayName: string): string {
+  return displayName
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/['.&]/g, '')
+    .trim()
+    .split(/\s+/)
+    .join('_')
+    .toUpperCase();
+}
+
+/** Champion number -> OP.GG's spelling, from OP.GG's own list. */
+export async function opggChampionWords(fetchImpl?: FetchLike): Promise<Map<number, string>> {
+  const decoded = await opggTool('lol_list_champions', { desired_output_fields: [] }, fetchImpl);
+  const words = new Map<number, string>();
+  for (const champion of list(obj(obj(decoded).data).champions).map(obj)) {
+    const id = num(champion.champion_id);
+    const name = str(champion.name);
+    if (id !== null && name !== '') words.set(id, opggChampionWord(name));
+  }
+  return words;
+}
+
+const GUIDE_POSITION: Record<Lane, string> = { TOP: 'top', JUNGLE: 'jungle', MID: 'mid', BOTTOM: 'adc', SUPPORT: 'support' };
+
+const firstIds = (value: Decoded | undefined): number[] =>
+  list(obj(list(value)[0]).ids).filter((v): v is number => typeof v === 'number');
+
+/** OP.GG's lane matchup guide in LEAGUEBOT's shape. Exported for the checks. */
+export function toMatchupGuide(decoded: Decoded, lane: Lane, myChampionId: number, opponentChampionId: number): MatchupGuide {
+  const data = obj(obj(decoded).data);
+  const rune = obj(list(data.runes)[0]);
+  const ids = (value: Decoded | undefined) => list(value).filter((v): v is number => typeof v === 'number');
+  const tip = str(data.opponent_champion_tip).trim();
+  const skills = list(obj(list(data.skills)[0]).order).filter((v): v is string => typeof v === 'string' && /^[QWER]$/.test(v));
+  return {
+    lane,
+    myChampionId,
+    opponentChampionId,
+    tip: tip === '' ? null : tip.slice(0, 600),
+    laneAdvantage: str(data.lane_advantage_champion) || null,
+    soloKillAdvantage: str(data.lane_solo_kill_advantage_champion) || null,
+    playStyle: str(data.recommended_play_style) || null,
+    spells: firstIds(data.summoner_spells),
+    starter: firstIds(data.starter_items),
+    core: firstIds(data.core_items),
+    boots: firstIds(data.boots)[0] ?? null,
+    runes:
+      num(rune.primary_page_id) !== null && num(rune.secondary_page_id) !== null
+        ? { primaryStyle: num(rune.primary_page_id) as number, primary: ids(rune.primary_rune_ids), subStyle: num(rune.secondary_page_id) as number, secondary: ids(rune.secondary_rune_ids), shards: ids(rune.stat_mod_ids) }
+        : null,
+    skills: skills.slice(0, 18),
+  };
+}
+
+export async function opggMatchup(lane: Lane, mine: string, theirs: string, myChampionId: number, opponentChampionId: number, fetchImpl?: FetchLike): Promise<MatchupGuide> {
+  const decoded = await opggTool('lol_get_lane_matchup_guide', { position: GUIDE_POSITION[lane], my_champion: mine, opponent_champion: theirs }, fetchImpl);
+  return toMatchupGuide(decoded, lane, myChampionId, opponentChampionId);
 }
 
 export async function opggMatches(id: RiotId, region: Region, fetchImpl?: FetchLike): Promise<MatchSummary[]> {

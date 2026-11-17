@@ -9,6 +9,7 @@
 
 import type { Region } from './regions';
 import type { RiotId } from './riot-id';
+import type { LiveAnswer, LiveGame } from './live-types';
 import type { MatchSummary, PlayerAnswer, Profile } from './types';
 import { STATS_GAMES } from './types';
 
@@ -22,6 +23,25 @@ export type PlayerSources = {
 /** A "this player doesn't exist" answer, as opposed to a source that broke. */
 export function isNotFound(error: unknown): boolean {
   return error instanceof Error && (error.name === 'OpggNotFound' || /not.?found|no summoner|does not exist/i.test(error.message));
+}
+
+export type LiveSources = {
+  uggLive(id: RiotId, region: Region): Promise<LiveGame | null>;
+  opggLive(id: RiotId, region: Region): Promise<LiveGame | null>;
+};
+
+/** The live game: U.GG, then OP.GG's site. "Not in a game" from U.GG is believed; only a broken U.GG falls back. */
+export async function readLive(id: RiotId, region: Region, sources: LiveSources): Promise<LiveAnswer> {
+  try {
+    return { game: await sources.uggLive(id, region), source: 'U.GG', notes: [] };
+  } catch {
+    try {
+      return { game: await sources.opggLive(id, region), source: 'OP.GG', notes: ["U.GG didn't answer: the live game from OP.GG, without roles or duos."] };
+    } catch (error) {
+      if (isNotFound(error)) return { game: null, source: null, notes: [] };
+      return { game: null, source: null, notes: ["Neither U.GG nor OP.GG answered for the live game. Try again in a minute."] };
+    }
+  }
 }
 
 export async function readPlayer(id: RiotId, region: Region, sources: PlayerSources): Promise<PlayerAnswer> {

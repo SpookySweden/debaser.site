@@ -6,7 +6,12 @@
 
 import type { RegionId } from '../regions';
 import type { RiotId } from '../riot-id';
-import type { MatchSummary, PlayerAnswer, Profile } from '../types';
+import type { LiveAnswer, LiveGame, MatchupGuide } from '../live-types';
+import type { MatchReview } from '../review-types';
+import type { Lane, MatchSummary, PlayerAnswer, Profile } from '../types';
+import liveGame from './live-game.json';
+import matchReview from './match-review.json';
+import matchupGuide from './matchup-guide.json';
 import matches from './player-matches.json';
 
 export const MOCK_PROFILE: Omit<Profile, 'riotId' | 'region'> = {
@@ -28,6 +33,31 @@ export const MOCK_PROFILE: Omit<Profile, 'riotId' | 'region'> = {
 };
 
 export const MOCK_MATCHES = matches as MatchSummary[];
+
+/** A recorded ranked game in progress (renamed); `MOCK PLAYER` is in it. A name starting `idle` is not in a game. */
+export async function mockLive(id: RiotId): Promise<LiveAnswer> {
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  if (id.name.toLowerCase().startsWith('idle')) return { game: null, source: 'U.GG', notes: [] };
+  const game = liveGame as LiveGame;
+  const me = game.players.find((p) => p.name === 'MOCK PLAYER');
+  // The looked-up player stands in MOCK PLAYER's place, so the window finds them in the game.
+  const players = game.players.map((p) => (p === me ? { ...p, name: id.name, tag: id.tag } : p));
+  return { game: { ...game, players, fetchedAt: Date.now() }, source: 'U.GG', notes: [] };
+}
+
+/** A real OP.GG guide (Lee Sin against Ambessa in the jungle), answered for any matchup on the mock site. */
+export async function mockMatchup(lane: Lane, mine: number, theirs: number): Promise<MatchupGuide> {
+  await new Promise((resolve) => setTimeout(resolve, 200));
+  return { ...(matchupGuide as MatchupGuide), lane, myChampionId: mine, opponentChampionId: theirs };
+}
+
+/** A recorded game in full (renamed), opened for any game on the mock site. */
+export async function mockReview(id: RiotId, matchId: string): Promise<MatchReview> {
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  const review = matchReview as MatchReview;
+  const swap = <T extends { name: string; tag: string }>(p: T): T => (p.name === 'MOCK PLAYER' ? { ...p, name: id.name, tag: id.tag } : p);
+  return { ...review, id: matchId, me: swap(review.me), players: review.players.map(swap) };
+}
 
 export async function mockPlayer(id: RiotId, region: RegionId): Promise<PlayerAnswer> {
   await new Promise((resolve) => setTimeout(resolve, 250));

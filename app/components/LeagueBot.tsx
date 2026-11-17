@@ -18,10 +18,16 @@ import { rankText, type PlayerAnswer } from '../lib/leaguebot/types';
 import { FIELD_TIGHT, PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import LeagueIcon from './LeagueIcon';
+import LeagueLive from './LeagueLive';
+import LeagueReview from './LeagueReview';
 import LeagueStats from './LeagueStats';
 
-type Tab = 'stats';
-const TABS: { tab: Tab; label: string }[] = [{ tab: 'stats', label: 'STATS' }];
+type Tab = 'stats' | 'live' | 'review';
+const TABS: { tab: Tab; label: string }[] = [
+  { tab: 'stats', label: 'STATS' },
+  { tab: 'live', label: 'LIVE' },
+  { tab: 'review', label: 'REVIEW' },
+];
 
 type Looked = { id: RiotId; region: RegionId; answer: PlayerAnswer };
 
@@ -266,6 +272,14 @@ export default function LeagueBot() {
                 <p className="p-2 text-label text-ink">THE MATCH HISTORY DIDN&apos;T LOAD. TRY [ REFRESH ] IN A MINUTE.</p>
               )
             ) : null}
+            {tab === 'review' ? (
+              answer.matches ? (
+                <LeagueReview key={`${looked.region}:${formatRiotId(looked.id)}`} id={looked.id} region={looked.region} matches={answer.matches} matchesSource={answer.matchesSource} data={data} />
+              ) : (
+                <p className="p-2 text-label text-ink">THE MATCH HISTORY DIDN&apos;T LOAD. TRY [ REFRESH ] IN A MINUTE.</p>
+              )
+            ) : null}
+            {tab === 'live' ? <LeagueLive key={`${looked.region}:${formatRiotId(looked.id)}`} id={looked.id} region={looked.region} data={data} /> : null}
           </div>
         </>
       ) : null}

@@ -15,5 +15,5 @@ export default function LeagueIcon({ src, name, size = 'md' }: { src: string | n
   const box = `${SIZES[size]} shrink-0`;
   if (!src || failed === src) return <span className={`${box} inline-block bg-chrome-dark`} title={name} aria-label={name} role="img" />;
   // eslint-disable-next-line @next/next/no-img-element -- Riot's own servers, at Riot's own sizes; nothing to optimise.
-  return <img src={src} alt={name} title={name} width={64} height={64} loading="lazy" decoding="async" referrerPolicy="no-referrer" className={`${box} object-cover`} onError={() => setFailed(src)} />;
+  return <img src={src} alt={name} title={name} width={64} height={64} decoding="async" referrerPolicy="no-referrer" className={`${box} object-cover`} onError={() => setFailed(src)} />;
 }
