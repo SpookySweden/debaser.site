@@ -5,7 +5,7 @@
  */
 
 import type { LiveAnswer, LiveGame } from './live-types';
-import { STATS_GAMES, type MatchSummary, type PlayerAnswer } from './types';
+import { STATS_GAMES, type LpPoint, type MatchSummary, type PlayerAnswer } from './types';
 
 /** The server's "only 20 games" line starts so; it goes once the browser has the rest. */
 export const ONLY_SOME_GAMES = 'Only your last ';
@@ -20,6 +20,25 @@ export async function withBrowserHistory(answer: PlayerAnswer, history: () => Pr
     return { ...answer, matches: games, matchesSource: 'OP.GG', notes: answer.notes.filter((note) => !note.startsWith(ONLY_SOME_GAMES)) };
   } catch {
     // The server's 20 (or nothing) stands, with its note.
+    return answer;
+  }
+}
+
+/** Fewer LP points than this from the server, and the browser asks OP.GG for its point a day. */
+export const LP_POINTS_WANTED = 5;
+
+export function wantsBrowserLp(answer: PlayerAnswer): boolean {
+  return answer.profile !== null && answer.profile.lpHistory.length < LP_POINTS_WANTED;
+}
+
+/** LP over time, filled from OP.GG's point a day when the server had few or none (U.GG turned it away, or nobody had any). */
+export async function withBrowserLp(answer: PlayerAnswer, lp: () => Promise<LpPoint[]>): Promise<PlayerAnswer> {
+  if (!wantsBrowserLp(answer) || answer.profile === null) return answer;
+  try {
+    const points = await lp();
+    if (points.length <= answer.profile.lpHistory.length) return answer;
+    return { ...answer, profile: { ...answer.profile, lpHistory: points, lpFrom: 'OP.GG' } };
+  } catch {
     return answer;
   }
 }

@@ -7,10 +7,21 @@
  */
 
 import type { LiveGame } from './live-types';
-import { isOpggSummonerId, OPGG_SITE_HOST, opggGamesUrl, opggSpectateUrl, opggSummonerUrl, summonerIdOf, toOpggLive, toOpggSiteMatches } from './opgg-site';
+import {
+  isOpggSummonerId,
+  OPGG_SITE_HOST,
+  opggGamesUrl,
+  opggLpHistoryUrl,
+  opggSpectateUrl,
+  opggSummonerUrl,
+  summonerIdOf,
+  toOpggLive,
+  toOpggSiteLpHistory,
+  toOpggSiteMatches,
+} from './opgg-site';
 import { regionById, type Region, type RegionId } from './regions';
 import type { RiotId } from './riot-id';
-import { STATS_GAMES, type MatchSummary } from './types';
+import { STATS_GAMES, type LpPoint, type MatchSummary } from './types';
 
 class BrowserFetchError extends Error {
   constructor(
@@ -56,6 +67,14 @@ export async function browserOpggHistory(id: RiotId, regionId: RegionId, want = 
     .filter((m) => (seen.has(m.id) ? false : (seen.add(m.id), true)))
     .sort((a, b) => b.at - a.at)
     .slice(0, want);
+}
+
+/** The player's ranked solo LP, a point a day, from OP.GG. */
+export async function browserOpggLpHistory(id: RiotId, regionId: RegionId): Promise<LpPoint[]> {
+  const region = regionById(regionId);
+  if (region === null) throw new BrowserFetchError('unknown server');
+  const sid = await summonerId(region, id);
+  return toOpggSiteLpHistory(await getJson(opggLpHistoryUrl(region, sid)));
 }
 
 /** The player's live game from OP.GG, or null when they aren't in one. */

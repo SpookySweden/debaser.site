@@ -10,7 +10,7 @@
 import type { Region } from './regions';
 import type { RiotId } from './riot-id';
 import type { LiveAnswer, LiveGame } from './live-types';
-import type { MatchSummary, PlayerAnswer, Profile } from './types';
+import type { LpPoint, MatchSummary, PlayerAnswer, Profile } from './types';
 import { STATS_GAMES } from './types';
 
 export type PlayerSources = {
@@ -18,6 +18,8 @@ export type PlayerSources = {
   uggRanks(id: RiotId, region: Region): Promise<Pick<Profile, 'ranks' | 'pastSeasons'>>;
   uggMatches(id: RiotId, region: Region, want: number): Promise<MatchSummary[]>;
   opggMatches(id: RiotId, region: Region): Promise<MatchSummary[]>;
+  /** U.GG's rank snapshot after every game (LP over time); optional, so a source that has none can be left out. */
+  uggLpHistory?(id: RiotId, region: Region): Promise<LpPoint[]>;
 };
 
 /** A "this player doesn't exist" answer, as opposed to a source that broke. */
@@ -62,8 +64,8 @@ export async function readPlayer(id: RiotId, region: Region, sources: PlayerSour
         const { ranks, pastSeasons } = await sources.uggRanks(id, region);
         // OP.GG doesn't know them and U.GG has nothing either: nobody by that name, not an unranked player.
         if (isNotFound(error) && ranks.length === 0 && pastSeasons.length === 0) return null;
-        if (!isNotFound(error)) notes.push("OP.GG didn't answer: rank from U.GG, no LP history.");
-        return { profile: { riotId: id, region: region.id, level: null, iconId: null, ranks, lpHistory: [], pastSeasons }, source: 'U.GG' };
+        if (!isNotFound(error)) notes.push("OP.GG didn't answer: rank from U.GG.");
+        return { profile: { riotId: id, region: region.id, level: null, iconId: null, ranks, lpHistory: [], lpFrom: null, pastSeasons }, source: 'U.GG' };
       } catch {
         notes.push("Neither OP.GG nor U.GG answered for the rank.");
         return null;
@@ -90,8 +92,14 @@ export async function readPlayer(id: RiotId, region: Region, sources: PlayerSour
     }
   })();
 
-  const [profile, matches] = await Promise.all([profileTask, matchesTask]);
+  // LP over time: U.GG's point after every game is far finer than OP.GG's few; a failure here just keeps OP.GG's.
+  const lpTask = sources.uggLpHistory ? sources.uggLpHistory(id, region).catch(() => [] as LpPoint[]) : Promise.resolve([] as LpPoint[]);
+
+  const [profile, matches, uggLp] = await Promise.all([profileTask, matchesTask, lpTask]);
   const notFound = profile === null && (matches === null || matches.matches.length === 0) && missing > 0;
+  if (profile && uggLp.length >= 2 && uggLp.length > profile.profile.lpHistory.length) {
+    profile.profile = { ...profile.profile, lpHistory: uggLp, lpFrom: 'U.GG' };
+  }
   return {
     profile: profile?.profile ?? null,
     profileSource: profile?.source ?? null,

@@ -4,8 +4,8 @@
  * no live source. Browser-side; it never imports the server's fetching code.
  */
 
-import { browserOpggHistory, browserOpggLive } from './browser-opgg';
-import { withBrowserHistory, withBrowserLive } from './fallback';
+import { browserOpggHistory, browserOpggLive, browserOpggLpHistory } from './browser-opgg';
+import { wantsBrowserLp, withBrowserHistory, withBrowserLive, withBrowserLp } from './fallback';
 import { LEAGUEBOT_DATA_SOURCE } from './riot-id-store';
 import type { RegionId } from './regions';
 import type { RiotId } from './riot-id';
@@ -71,14 +71,21 @@ export function wantsBrowserHistory(answer: PlayerAnswer): boolean {
   return !answer.notFound && answer.uggTrouble !== null && (answer.matches?.length ?? 0) < STATS_GAMES;
 }
 
+/** True when the window should fill anything in from this browser: the game list, or LP over time. */
+export function wantsBrowserFill(answer: PlayerAnswer): boolean {
+  return wantsBrowserHistory(answer) || wantsBrowserLp(answer);
+}
+
 /**
- * The game list filled out to 100 from OP.GG by this browser. The window shows the server's answer first and swaps this in
- * when it arrives (five pages take several seconds).
+ * The game list filled out to 100, and LP over time filled from OP.GG's point a day, by this browser. The window shows the
+ * server's answer first and swaps this in when it arrives (five pages of games take several seconds).
  */
 export async function fillHistory(answer: PlayerAnswer, id: RiotId, region: RegionId): Promise<PlayerAnswer> {
   if (LEAGUEBOT_DATA_SOURCE === 'mock') {
-    const { mockBrowserHistory } = await import('./fixtures/mock-answers');
-    return withBrowserHistory(answer, () => mockBrowserHistory(id));
+    const { mockBrowserHistory, mockBrowserLp } = await import('./fixtures/mock-answers');
+    const games = wantsBrowserHistory(answer) ? await withBrowserHistory(answer, () => mockBrowserHistory(id)) : answer;
+    return withBrowserLp(games, () => mockBrowserLp(id));
   }
-  return withBrowserHistory(answer, () => browserOpggHistory(id, region));
+  const games = wantsBrowserHistory(answer) ? await withBrowserHistory(answer, () => browserOpggHistory(id, region)) : answer;
+  return withBrowserLp(games, () => browserOpggLpHistory(id, region));
 }

@@ -42,7 +42,7 @@ const matches = JSON.parse(fs.readFileSync(path.join(fixtures, 'player-matches.j
 const html = (node) => renderToStaticMarkup(node);
 const text = (markup) => markup.replace(/<!--.*?-->/g, '').replace(/<[^>]+>/g, ' ').replace(/&#x27;|&apos;/g, "'").replace(/\s+/g, ' ');
 const ME = { name: 'MOCK PLAYER', tag: 'EUW' };
-const profile = { riotId: ME, region: 'EUW', level: 619, iconId: 6621, ranks: [{ queue: 'SOLO', tier: 'GRANDMASTER', division: 1, lp: 1837, wins: 1149, losses: 1084, hotStreak: true }], lpHistory: [{ at: '2026-11-06T15:11:38.000Z', tier: 'MASTER', division: 1, lp: 1260 }, { at: '2026-11-12T21:41:42.000Z', tier: 'MASTER', division: 1, lp: 1455 }], pastSeasons: [{ season: 31, tier: 'MASTER', division: 1, lp: 471 }] };
+const profile = { riotId: ME, region: 'EUW', level: 619, iconId: 6621, ranks: [{ queue: 'SOLO', tier: 'GRANDMASTER', division: 1, lp: 1837, wins: 1149, losses: 1084, hotStreak: true }], lpFrom: 'OP.GG', lpHistory: [{ at: '2026-11-06T15:11:38.000Z', tier: 'MASTER', division: 1, lp: 1260 }, { at: '2026-11-12T21:41:42.000Z', tier: 'MASTER', division: 1, lp: 1455 }], pastSeasons: [{ season: 31, tier: 'MASTER', division: 1, lp: 471 }] };
 const data = { patch: '16.22.1', champions: new Map([[103, { name: 'Ahri', alias: 'Ahri', icon: 'https://ddragon.leagueoflegends.com/cdn/16.22.1/img/champion/Ahri.png' }]]), items: new Map(), spells: new Map(), runes: new Map() };
 
 // The window, first draw.
@@ -65,6 +65,11 @@ assert.ok(statsText.includes('Ahri'), "names from Riot's data");
 assert.match(statsText, /CHAMPION \d+/, 'a champion not in the data shows a plain stand-in');
 assert.ok(!/NaN|undefined|Infinity/.test(statsText), 'no broken numbers');
 assert.match(text(html(el(LeagueStats, { profile: null, matches: [], matchesSource: 'U.GG', data: null }))), /NO RANKED SOLO GAMES/);
+// LP OVER TIME (2026-11-17): it stays for any profile, says who kept its points, and says why when there are too few.
+assert.match(statsText, /RANKED SOLO, LAST \d+ DAYS?, A POINT A DAY, FROM OP\.GG/, 'the caption says who kept the points and how far back');
+const emptyLp = text(html(el(LeagueStats, { profile: { ...profile, lpHistory: [], lpFrom: null }, matches, matchesSource: 'U.GG', data })));
+assert.ok(emptyLp.includes('LP OVER TIME'), 'the section stays with no points');
+assert.match(emptyLp, /No LP history for this player yet/, 'and says why');
 
 // LIVE, first draw.
 const live = text(html(el(LeagueLive, { id: ME, region: 'EUW', data })));

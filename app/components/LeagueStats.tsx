@@ -9,6 +9,7 @@
 import { useMemo } from 'react';
 import { LANE_WORDS, statsAdvice } from '../lib/leaguebot/advice';
 import { ladderText, ladderValue } from '../lib/leaguebot/ladder';
+import { lpCaption, lpEmpty } from '../lib/leaguebot/lp-view';
 import { championName, type StaticData } from '../lib/leaguebot/static-data';
 import { computeStats, type Line } from '../lib/leaguebot/stats';
 import { rankText, type MatchSummary, type Profile, type SourceName } from '../lib/leaguebot/types';
@@ -216,9 +217,15 @@ export default function LeagueStats({
       </div>
 
       <div className="min-w-0 space-y-3">
-        {lpPoints.length >= 2 ? (
-          <Section title="LP OVER TIME" id="lb-lp" note="ranked solo, this season, from OP.GG">
-            <LeagueChart series={[{ label: 'LP', points: lpPoints, tone: 'ink' }]} label="Ranked solo LP over time" yText={ladderText} xText={day} />
+        {profile ? (
+          <Section title="LP OVER TIME" id="lb-lp" note={lpCaption(profile.lpHistory, profile.lpFrom)}>
+            {lpPoints.length >= 2 ? (
+              <LeagueChart series={[{ label: 'LP', points: lpPoints, tone: 'ink' }]} label="Ranked solo LP over time" yText={ladderText} xText={day} />
+            ) : (
+              <p className="px-2 py-2 text-prose text-ink" data-leaguebot-lp-empty>
+                {lpEmpty(profile.lpHistory)}
+              </p>
+            )}
           </Section>
         ) : null}
 

@@ -9,7 +9,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { fillHistory, lookUpPlayer, LookupError, wantsBrowserHistory } from '../lib/leaguebot/client';
+import { fillHistory, lookUpPlayer, LookupError, wantsBrowserFill, wantsBrowserHistory } from '../lib/leaguebot/client';
 import { DEFAULT_REGION, REGIONS, regionById, type RegionId } from '../lib/leaguebot/regions';
 import { formatRiotId, parseRiotId, sameRiotId, type RiotId } from '../lib/leaguebot/riot-id';
 import { riotIdInBrowser, riotIdStore, type SavedRiotId } from '../lib/leaguebot/riot-id-store';
@@ -68,7 +68,7 @@ export default function LeagueBot() {
   const [dataFailed, setDataFailed] = useState(false);
   const [tab, setTab] = useState<Tab>('stats');
   /** The browser is reading the rest of the 100 games from OP.GG. */
-  const [filling, setFilling] = useState(false);
+  const [filling, setFilling] = useState<'games' | 'lp' | null>(null);
   const asked = useRef(0);
 
   useEffect(() => {
@@ -89,17 +89,17 @@ export default function LeagueBot() {
         setError(`Nobody called ${formatRiotId(id)} plays on ${where}. Check the spelling, the tag after the #, and the server.`);
       } else {
         setLooked({ id, region: where, answer });
-        // U.GG turned the server away: show its 20 games now, and fill out to 100 from OP.GG in this browser.
-        if (wantsBrowserHistory(answer)) {
-          setFilling(true);
+        // U.GG turned the server away (or nobody kept LP): show what came now, and fill in from OP.GG in this browser.
+        if (wantsBrowserFill(answer)) {
+          setFilling(wantsBrowserHistory(answer) ? 'games' : 'lp');
           void fillHistory(answer, id, where)
             .then((filled) => {
               if (ticket === asked.current) setLooked({ id, region: where, answer: filled });
             })
             .finally(() => {
-              if (ticket === asked.current) setFilling(false);
+              if (ticket === asked.current) setFilling(null);
             });
-        } else setFilling(false);
+        } else setFilling(null);
       }
     } catch (failure) {
       if (ticket !== asked.current) return;
@@ -288,12 +288,14 @@ export default function LeagueBot() {
 
           {filling ? (
             <p className="px-2 text-label text-ink" role="status" data-leaguebot-filling>
-              READING YOUR LAST 100 GAMES FROM OP.GG... (U.GG ISN&apos;T ANSWERING LEAGUEBOT&apos;S SERVER, SO YOUR BROWSER ASKS OP.GG)
+              {filling === 'games'
+                ? 'READING YOUR LAST 100 GAMES FROM OP.GG... (U.GG ISN\'T ANSWERING LEAGUEBOT\'S SERVER, SO YOUR BROWSER ASKS OP.GG)'
+                : 'READING LP HISTORY FROM OP.GG...'}
             </p>
           ) : null}
-          {(answer.notes.length > 0 && !filling) || dataFailed ? (
+          {(answer.notes.length > 0 && filling !== 'games') || dataFailed ? (
             <ul className="space-y-1 px-2" data-leaguebot-notes>
-              {(filling ? [] : answer.notes).map((note) => (
+              {(filling === 'games' ? [] : answer.notes).map((note) => (
                 <li key={note} className={FAULT}>
                   ! {note}
                 </li>

@@ -10,7 +10,7 @@
 import type { LiveGame, LivePlayer } from './live-types';
 import type { Region } from './regions';
 import { sameRiotId, type RiotId } from './riot-id';
-import type { Lane, MatchPlayer, MatchSummary } from './types';
+import type { Lane, LpPoint, MatchPlayer, MatchSummary } from './types';
 
 export const OPGG_SITE_HOST = 'lol-api-summoner.op.gg';
 const SITE = `https://${OPGG_SITE_HOST}`;
@@ -60,6 +60,24 @@ export function opggGamesUrl(region: Region, summonerId: string, endedAt?: strin
 export function opggSpectateUrl(region: Region, summonerId: string): string {
   if (!isOpggSummonerId(summonerId)) throw new Error('not an OP.GG summoner id');
   return `${SITE}/api/${region.opgg}/spectates/${summonerId}?hl=en_US`;
+}
+
+/** OP.GG's point a day of ranked solo LP (what OP.GG's own LP graph draws). */
+export function opggLpHistoryUrl(region: Region, summonerId: string): string {
+  if (!isOpggSummonerId(summonerId)) throw new Error('not an OP.GG summoner id');
+  return `${SITE}/api/${region.opgg}/summoners/${summonerId}/lp-histories?hl=en_US`;
+}
+
+/** OP.GG's daily LP points, oldest first. */
+export function toOpggSiteLpHistory(answer: unknown): LpPoint[] {
+  return arr((answer as Json | null)?.data)
+    .map((row) => {
+      const info = (row.tier_info ?? {}) as Json;
+      return { at: Date.parse(str(row.created_at)), tier: str(info.tier).toUpperCase(), division: num(info.division), lp: num(info.lp) };
+    })
+    .filter((p): p is { at: number; tier: string; division: number | null; lp: number } => Number.isFinite(p.at) && p.tier !== '' && p.lp !== null)
+    .sort((a, b) => a.at - b.at)
+    .map((p) => ({ at: new Date(p.at).toISOString(), tier: p.tier, division: p.division, lp: p.lp }));
 }
 
 /** The summoner id from a look-up answer, or null. */

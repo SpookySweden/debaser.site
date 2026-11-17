@@ -34,7 +34,10 @@ export type Profile = {
   /** Riot's profile icon number (drawn from Data Dragon), or null. */
   iconId: number | null;
   ranks: RankEntry[];
+  /** Ranked solo LP over time, oldest first: U.GG's point after every game when it answers, else OP.GG's point a day. */
   lpHistory: LpPoint[];
+  /** Who kept `lpHistory`, or null when nobody had any. */
+  lpFrom: SourceName | null;
   pastSeasons: PastSeason[];
 };
 

@@ -113,8 +113,9 @@ const refused = Object.assign(new Error('HTTP 403'), { name: 'SafeFetchError', s
   assert.match(client, /withBrowserLive\(answer, \(\) => browserOpggLive\(id, region\)\)/, "the window's live game goes through the fallback");
   assert.ok(!/safe-fetch|sources\//.test(read('app/lib/leaguebot/browser-opgg.ts')), "the browser's reader never imports server fetching code");
   const windowCode = read('app/components/LeagueBot.tsx');
-  assert.match(windowCode, /if \(wantsBrowserHistory\(answer\)\)/, 'the window fills out the list when U.GG turned the server away');
-  assert.match(windowCode, /setLooked\(\{ id, region: where, answer \}\);[\s\S]{0,200}wantsBrowserHistory/, 'the server answer shows first, the 100 come after');
+  // (2026-11-17) The fill covers LP over time too now (check-leaguebot-lp.cjs), so the window asks wantsBrowserFill.
+  assert.match(windowCode, /if \(wantsBrowserFill\(answer\)\)/, 'the window fills in when U.GG turned the server away');
+  assert.match(windowCode, /setLooked\(\{ id, region: where, answer \}\);[\s\S]{0,250}wantsBrowserFill/, 'the server answer shows first, the 100 come after');
   assert.match(windowCode, /READING YOUR LAST 100 GAMES FROM OP\.GG/, 'and says so while it reads');
 
   console.log('check-leaguebot-fallback: ok');
