@@ -193,5 +193,8 @@ YouTube upcoming broadcasts; Kick and other live sites; playing any raw stream o
 - **POPULAR with Twitch's keys**: Helix's search has no counts, so `/streams` is asked for the found channels and orders them.
 - **Never saved:** a live is not named for tagging, not asked for by the hourly save of opened rows, and YouTube's `videos.list`
   never makes a live into a saved item. Live answers are kept a minute in server memory (`live-fetch.ts`) and never by the browser.
+- **Twitch's own overlay** shows the stream's title and viewer count ("Playing ... for 4,339 viewers") while its player is paused
+  or hovered. That is Twitch's player, not our page, and no embed setting hides it; covering it would also block the click
+  Twitch's mature-content warning needs. Luke, 2026-11-17: "Keep it".
 - **Proof:** `scripts/check-web-search-twitch.cjs` (the provider, keys, cache, YouTube live mode, the key, the feed place, the
   asks); `Temp/browse/drive-live.cjs` on a local mock server (`Temp/browse/dev-mock-live.cjs 3317`).

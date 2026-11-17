@@ -80,7 +80,8 @@ The house rules live in `.claude/rules/core.md` (loaded automatically).
   API with his app keys `TWITCH_CLIENT_ID`/`TWITCH_CLIENT_SECRET` first, Twitch's own site API, keyless, as the fallback) and
   YouTube's lives are no longer skipped. A live is read live (`/api/web/live`, kept a minute on the server) and never saved;
   the `[ ● LIVE ]` key (`is:live`) shows only what is on now, the site's own live rooms first. Lives play in the platforms'
-  own players in a room; their raw streams are never played by us. Viewer counts may order POPULAR on the server only.
+  own players in a room; their raw streams are never played by us. Viewer counts may order POPULAR on the server only;
+  Twitch's own player overlay showing one while paused or hovered is Twitch's, kept (Luke, 2026-11-17: "Keep it").
 - Luke's own and his friends' media servers are allowed sources, with no list file (any title by its TMDB number, at once) or read from each server's list file
   (`app/lib/web/media-servers.ts`; friends' side: `docs/media-server-setup.md`). Each video plays from the
   server's own player today. TMDB details (server-side, `TMDB_READ_TOKEN`) never include ratings, votes or popularity.
