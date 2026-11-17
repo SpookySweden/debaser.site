@@ -358,7 +358,10 @@ function acquire(session: Session): void {
   session.wire = getCanvasRepository().joinWire(session.roomId, (message) => onWire(session, message));
   session.timers = [
     window.setInterval(() => void flush(session), FLUSH_MS),
-    window.setInterval(() => void refresh(session), REFRESH_MS),
+    // Not from a hidden tab (PERF): nobody is looking, and the wire still carries strokes as they are drawn.
+    window.setInterval(() => {
+      if (document.visibilityState === 'visible') void refresh(session);
+    }, REFRESH_MS),
     window.setInterval(() => void autosave(session), AUTOSAVE_TICK_MS),
   ];
   void refresh(session);

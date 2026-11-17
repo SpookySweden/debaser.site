@@ -132,6 +132,11 @@ export type ForumContextValue = {
 
 const ForumContext = createContext<ForumContextValue | null>(null);
 
+/** The profile comments on the board are read again on arriving where they show, unless read this recently. */
+const COMMENT_FEED_FRESH_MS = 5 * 1000;
+/** And on any other page change, once they are this old. */
+const COMMENT_FEED_STALE_MS = 60 * 1000;
+
 /**
  * Board state for the whole site.
  *
@@ -224,20 +229,28 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
    * profile comments is still a board.
    */
   const pathname = usePathname();
+  const commentFeedReadAt = useRef(0);
 
   useEffect(() => {
-    let cancelled = false;
+    // Not on every page change (PERF): arriving on the board or a profile, where these show, reads it unless it was read
+    // in the last few seconds; anywhere else only once it is a minute old.
+    const where = pathname ?? '';
+    const shows = where === '/forum' || where.startsWith('/profile');
+    const age = Date.now() - commentFeedReadAt.current;
+    if (age < (shows ? COMMENT_FEED_FRESH_MS : COMMENT_FEED_STALE_MS)) return;
+    const startedAt = Date.now();
+    commentFeedReadAt.current = startedAt;
 
+    // Only the newest read lands (a page change no longer cancels it: the next one may be skipped).
     void getProfileRepository()
       .listCommentFeed()
       .then((next) => {
-        if (!cancelled) setProfileComments(next);
+        if (commentFeedReadAt.current === startedAt) setProfileComments(next);
       })
-      .catch(() => undefined);
-
-    return () => {
-      cancelled = true;
-    };
+      .catch(() => {
+        // A failed read is tried again on the next page change, as it always was.
+        if (commentFeedReadAt.current === startedAt) commentFeedReadAt.current = 0;
+      });
   }, [pathname]);
 
   // Colours chosen in the tag picker are kept in localStorage; load them once
