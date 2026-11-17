@@ -218,8 +218,13 @@ async function problemOf(work) {
   const code = source.replace(/\/\*\*[\s\S]*?\*\/|\/\/.*$/gm, '');
   // Updated on purpose 2026-11-14 (the Shorts check): the length is read in one place (`lengthText`), as `durationSeconds`, so only
   // a video of three minutes or less is asked about as a possible Short. Duration is an allowed field; views and badges never are.
-  ok(!/viewCount|shortViewCount|badges|thumbnail\b|url\b.*videoRenderer/.test(code), 'the reader never touches views, badges or thumbnails');
-  ok((code.match(/lengthText/g) ?? []).length === 1 && /clockSeconds\(text\(video\.lengthText\)\)/.test(code), '... and reads the length in one place, as seconds');
+  // Updated on purpose 2026-11-17 (SPEC-live-streams.md): one function, `liveNow`, reads the badges' STYLE only, to know a broadcast is
+  // LIVE NOW under the live filter. Outside it nothing touches badges; inside it, nothing but `metadataBadgeRenderer` `style`.
+  const liveNowFn = (code.match(/export function liveNow[\s\S]*?\r?\n}\r?\n/) ?? [''])[0];
+  ok(liveNowFn.includes('BADGE_STYLE_TYPE_LIVE_NOW') && !/label|text|runs|simpleText|viewCount/.test(liveNowFn), 'liveNow reads only the badge style');
+  ok(!/viewCount|shortViewCount|badges|thumbnail\b|url\b.*videoRenderer/.test(code.replace(liveNowFn, '')), 'the reader never touches views, badges or thumbnails (but liveNow\'s style)');
+  // liveNow only asks whether a length is there (a live has none), never what it says: it is left out of the count.
+  ok((code.replace(liveNowFn, '').match(/lengthText/g) ?? []).length === 1 && /clockSeconds\(text\(video\.lengthText\)\)/.test(code), '... and reads the length in one place, as seconds');
   ok((code.match(/navigationEndpoint/g) ?? []).length === 1 && /const opens = record\(video\.navigationEndpoint\);/.test(code) && /if \(opens\?\.reelWatchEndpoint !== undefined\) return null;/.test(code), '... and reads the link only to leave a Short out');
   ok(!/invidious|piped/i.test(source + readFileSync(join(ROOT, 'app/lib/web/search/providers/youtube.ts'), 'utf8')), 'no Invidious or Piped');
 

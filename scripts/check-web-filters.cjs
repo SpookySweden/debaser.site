@@ -28,7 +28,8 @@ same(
   // 2026-11-10 (Luke, SPEC-books.md): BOOKS and AUDIOBOOKS, each asked only when chosen, as KINO is.
   // 2026-11-16 (list 3): ANNA'S ARCHIVE (Luke, 2026-11-13, 45a0e9f; this list was never updated for it), and the four READING
   // kinds of SPEC-media-feed.md's WHERE FROM group, read from /api/web/brief.
-  ['ALL', 'KINO', 'INTERNET ARCHIVE', 'PEERTUBE', 'OPENVERSE', 'PODCAST', 'YOUTUBE', 'WIKIMEDIA COMMONS', 'BOOKS', 'AUDIOBOOKS', "ANNA'S ARCHIVE", 'PAPERS', 'NEWS', 'LONG READS', 'TECH'],
+  // 2026-11-17: TWITCH (SPEC-live-streams.md), a search source for its live channels.
+  ['ALL', 'KINO', 'INTERNET ARCHIVE', 'PEERTUBE', 'OPENVERSE', 'PODCAST', 'YOUTUBE', 'WIKIMEDIA COMMONS', 'BOOKS', 'AUDIOBOOKS', "ANNA'S ARCHIVE", 'TWITCH', 'PAPERS', 'NEWS', 'LONG READS', 'TECH'],
   'SOURCE: ALL, KINO, every platform the stream reads or a search asks (Vimeo, link-only, is not one), then READING; no media server, no SAVED',
 );
 /* ---------------------------------------------------------------- READING (SPEC-media-feed.md, list 3) */
@@ -102,7 +103,8 @@ same(f.boxFromAddress(new URLSearchParams('q=x&in=evil.example&type=<b>')), 'x',
 
 /* ---------------------------------------------------------------- who is asked */
 const asked = (search) => f.sourcesToAsk(search);
-same(asked({ source: 'all', type: 'all' }), { stream: true, live: ['youtube', 'internet_archive', 'wikimedia_commons', 'peertube', 'openverse'] }, 'no filter: everyone');
+// Twitch since 2026-11-17 (SPEC-live-streams.md): an ALL search asks it for live channels.
+same(asked({ source: 'all', type: 'all' }), { stream: true, live: ['youtube', 'internet_archive', 'wikimedia_commons', 'peertube', 'openverse', 'twitch'] }, 'no filter: everyone');
 same(asked({ source: 'all', type: 'audio' }).live, ['internet_archive', 'wikimedia_commons'], 'type:audio never asks YouTube, PeerTube or Openverse');
 same(asked({ source: 'all', type: 'image' }).live, ['internet_archive', 'wikimedia_commons', 'openverse'], 'type:image');
 ok(!asked({ source: 'all', type: 'text' }).live.includes('youtube'), 'type:text never asks YouTube');
