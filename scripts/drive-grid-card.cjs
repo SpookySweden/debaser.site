@@ -3,8 +3,9 @@
  * date should take one line then the rest of the buttons too should be one line fitting the < . > on the end of the play
  * and queue buttons"). On a local dev server with mock data only, at several window widths, every GRID card on /media:
  *
- *   1. its facts line (SOURCE · KIND · DATE) is ONE line, inside the card, never under 13px;
- *   2. its keys (`[ ▶ PLAY | + QUEUE ]` and the `[ ▸ ]` arrow) sit on ONE line, inside the card;
+ *   1. its facts line (KIND · DATE since MEDIACARD, 2026-11-17: the source waits behind the arrow) is ONE line, inside the
+ *      card, never under 13px;
+ *   2. its keys (`[ ▶ PLAY | + QUEUE | ▾ ]`, the arrow drawn inside the key) sit on ONE line, inside the card;
  *   3. LIST view is untouched: its rows still put the facts and the keys on one line where they fit, as before.
  *
  *   node scripts/drive-grid-card.cjs --base http://localhost:3321 [--shots]

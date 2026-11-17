@@ -62,7 +62,10 @@ export function viewLabel(view: MediaView): string {
   return MEDIA_VIEWS.find((one) => one.value === view)?.label ?? 'LIST';
 }
 
-/** The list's own layout: GRID lays its rows out in columns (about 4 across on a computer); the rest stack. */
+/**
+ * The list's own layout: GRID lays its rows out in columns, four across on a computer, fewer only where a card would be
+ * too narrow for its keys (`.media-grid` in app/globals.css; MEDIACARD, 2026-11-17); the rest stack.
+ */
 export function viewListClass(view: MediaView): string {
-  return view === 'grid' ? 'grid grid-cols-4 gap-x-3 max-lg:grid-cols-3 max-md:grid-cols-2 max-sm:grid-cols-1' : '';
+  return view === 'grid' ? 'media-grid' : '';
 }

@@ -4,7 +4,7 @@
  *   node Temp/check-media-view.cjs
  *
  * - four views, LIST the default, kept in this browser only (guarded), and previews made of text characters
- * - every MEDIA result list follows it; GRID is a 4-across grid that narrows on smaller screens
+ * - every MEDIA result list follows it; GRID is a 4-across grid that narrows where a card would be too narrow for its keys
  * - a row changes its picture box and what it shows, never how it plays: a video still goes through playFloating
  * - KINO and media-server cards keep their own card, the whole width of a GRID
  * - the summary line says the view
@@ -18,7 +18,11 @@ assert.match(store, /: 'list';\n  \} catch \{\n    return 'list';/, 'LIST when n
 assert.match(store, /try \{\n    window\.localStorage\.setItem\(KEY, view\);\n  \} catch/, 'keeping it is guarded');
 assert.match(store, /\(\) => 'list',\n  \);/, "the server's draw is LIST, so the page and the browser agree");
 assert.doesNotMatch(store, /supabase|fetch\(/, 'no database or network: this browser only');
-assert.match(store, /grid grid-cols-4 [^']*max-sm:grid-cols-1/, 'GRID is about 4 across, one across on a narrow screen');
+// Updated on purpose 2026-11-17 (list 4, MEDIACARD): the columns follow the room the list has (the side panel takes some), not
+// the screen's width, so a card is never narrower than its PLAY / QUEUE key (156px) and no key breaks inside its brackets.
+assert.match(store, /return view === 'grid' \? 'media-grid' : '';/, 'GRID lays its cards out with .media-grid');
+const css = fs.readFileSync('app/globals.css', 'utf8').replace(/\r\n/g, '\n');
+assert.match(css, /\.media-grid \{\n  display: grid;\n  column-gap: calc\(var\(--spacing\) \* 3\);\n  grid-template-columns: repeat\(auto-fill, minmax\(max\(calc\(var\(--spacing\) \* 39\), calc\(\(100% - var\(--spacing\) \* 9\) \/ 4\)\), 1fr\)\);/, '... four across at most, each card at least 156px');
 for (const line of store.match(/preview: \[[^\]]*\]/g)) assert.doesNotMatch(line, /<svg|<img|url\(/, 'previews are text characters, never drawn art');
 
 const stream = fs.readFileSync('app/components/WebStream.tsx', 'utf8');

@@ -44,11 +44,24 @@ export function ThumbOpen({ href, label }: { href: string; label: string }) {
  * through the one helper the song menu also uses (app/lib/audio/playlist-adding.ts); otherwise the key is `[ + LETTER ]`.
  * Accounts only, as both are saved to one.
  */
-export function LetterPlaylistKey({ letter, playlist }: { letter: LetterThing; playlist: PlaylistThing | null }) {
+/**
+ * `apart` (MEDIA's GRID cards, MEDIACARD, Luke 2026-11-17: "significantly neater"): the two as keys of their own,
+ * `[ + LETTER ]` and `[ + PLAYLIST ]`, each on its own line in a card's opened area, because the joined key (21 letters) is
+ * wider than a card about 160px wide and would break inside its brackets.
+ */
+export function LetterPlaylistKey({ letter, playlist, apart = false }: { letter: LetterThing; playlist: PlaylistThing | null; apart?: boolean }) {
   const { user, status } = useAuth();
   const library = useMusicLibrary();
   if (user === null || status !== 'signed-in') return null;
   const second = playlist !== null && library.canWrite ? playlist : null;
+  if (apart) {
+    return (
+      <>
+        <AddToLetterKey thing={letter} label="[ + LETTER ]" />
+        {second === null ? null : <AddToPlaylistKey thing={second} label="[ + PLAYLIST ]" />}
+      </>
+    );
+  }
   return (
     <SplitKey
       label={`Add "${letter.title}" to a letter or a playlist`}
@@ -93,6 +106,31 @@ export function MoreKeys({ title, unfold = 'right', inKey, children }: { title: 
       {open && unfold === 'right' ? children : null}
     </>
   );
+}
+
+/**
+ * The arrow of a MEDIA result (MEDIACARD, Luke 2026-11-17: "the media stuff needs to be significantly neater, with the source
+ * also only showing on expansion"): the row keeps whether it is open, and draws the rest as an area of its own under the
+ * keys (the source, the licence, then the other keys), so the arrow points down, `▾`, and up, `▴`, once it has opened.
+ * `inKey` as for MoreKeys: GRID draws it as the last part of the PLAY / QUEUE key, `▾ ]`.
+ */
+export function MoreArrow({ title, open, onToggle, controls, inKey }: { title: string; open: boolean; onToggle: () => void; controls: string; inKey?: (arrow: ReactNode) => ReactNode }) {
+  const glyph = open ? '▴' : '▾';
+  const arrow = (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      aria-controls={open ? controls : undefined}
+      aria-label={open ? `Fewer options for "${title}"` : `More options for "${title}"`}
+      title={open ? 'Fewer options' : 'More options'}
+      className={inKey ? PLATE_IN_KEY : PLATE}
+      data-more-keys={open ? 'open' : 'shut'}
+    >
+      {inKey ? `${glyph} ]` : `[ ${glyph} ]`}
+    </button>
+  );
+  return <>{inKey ? inKey(arrow) : arrow}</>;
 }
 
 /** The arrow as the last part of a key: `PLATE` with no side padding (the brackets are the key's own). */

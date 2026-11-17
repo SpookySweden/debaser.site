@@ -106,7 +106,8 @@ async function openDiscuss(page) {
   await page.waitForSelector('[data-row-keys]', { timeout: 120_000 });
   const keep = page.getByText('[ KEEP THESE SETTINGS ]');
   await keep.waitFor({ timeout: 8_000 }).then(() => keep.click(), () => undefined);
-  const row = page.locator('[data-row-keys]').filter({ has: page.locator('[data-more-keys]') }).first();
+  // The whole result: since MEDIACARD (2026-11-17) the arrow opens an area of its own under the keys, where the pen is.
+  const row = page.locator('li[data-view]').filter({ has: page.locator('[data-more-keys]') }).first();
   await row.locator('[data-more-keys]').click();
   const pen = row.locator('[data-discuss-key]');
   await pen.waitFor();
