@@ -379,7 +379,11 @@ assert.doesNotMatch(wire, /\[ 1 PINNED \]/, 'the strip does not count what is pi
 assert.match(wire, /\[ PINNED \]/, 'and the pinned row wears the badge');
 assert.doesNotMatch(wire, /PINNED FOREVER/, 'with no duration spelled out on the strip');
 assert.doesNotMatch(wire, /bg-black/, 'the strip is one more panel of the board, not a black display');
-assert.equal((wire.match(/\[ POST \]/g) ?? []).length, 2, 'the one pinned post, held twice for the loop');
+// (2026-11-17, SPEC-forum-v2.md, Luke's 8A) The newest posts and replies now follow the pins, so the wire carries more
+// than the pinned post; the pin is still the one badge, held twice for the loop, and it leads.
+assert.equal((wire.match(/\[ PINNED \]/g) ?? []).length, 2, 'the one pinned post, held twice for the loop');
+assert.ok((wire.match(/\[ POST \]/g) ?? []).length > 2, 'and the newest posts follow it');
+assert.ok(wire.indexOf('[ PINNED ]') < wire.indexOf('[ POST ]', wire.indexOf('[ PINNED ]') + 1), 'the pinned row leads the run');
 // (2026-10-23, SPEC-efficiency.md) The how-to line is the crawl's hover tip now, not a line under it.
 // (2026-10-25, SPEC-less-text.md) And the tip is cut too: a how-to (rule 1), on a strip whose rows are links.
 assert.doesNotMatch(wire, /Point at it to stop the crawl/i, 'and the strip carries no how-to tip');

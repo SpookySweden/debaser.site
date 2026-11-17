@@ -159,7 +159,10 @@ const member = (key, userId, joinedAt, name = key) => ({ key, userId, name, join
     const plain = thread({ kind: 'board', id: 'board-general', label: 'GENERAL BOARD' }, { id: 'p', title: 'HELLO', body: 'hi' });
     const options = { query: '', sourceFilter: 'stream', tagKeys: [], tagMatchMode: 'any', sortMode: 'newest' };
     assert.deepEqual(selectBoardThreads([record, plain], options).map((t) => t.id), ['t']);
-    assert.equal(selectBoardThreads([record, plain], { ...options, sourceFilter: 'board' }).length, 2);
+    // BOARD THREADS hides an unanswered record as ALL does (SPEC-forum-v2.md, Luke's 4A, 2026-11-17); it was 2 before.
+    assert.deepEqual(selectBoardThreads([record, plain], { ...options, sourceFilter: 'board' }).map((t) => t.id), ['p']);
+    const answered = thread(anchor, { id: 'a', comments: [{ id: 'c', threadId: 'a', body: 'hi', author: { id: null, displayName: 'X' }, createdAt: '2026-10-27T00:00:00Z', tags: [] }] });
+    assert.equal(selectBoardThreads([answered, plain], { ...options, sourceFilter: 'board' }).length, 2, 'an answered record is a board thread');
   });
 
   // 7. The window's address.

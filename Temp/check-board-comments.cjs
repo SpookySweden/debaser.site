@@ -389,14 +389,17 @@ const board = render(element(ForumBoard, null));
 // (2026-10-23, SPEC-efficiency.md) With nothing pinned the newswire is not drawn at all (this fixture pins
 // nothing: `pins: []`). Search lives in the `[ SORT / SEARCH ▾ ]` panel, one press away, so the
 // closed board has no input of its own.
-assert.doesNotMatch(board, /NEWSWIRE/, 'an empty wire is not drawn');
+// (2026-11-17, SPEC-forum-v2.md, Luke's 8A) The wire carries the newest posts after the pins, so a board with a post has
+// a wire; an empty board still has none (asserted on the empty board below).
+assert.match(board, /NEWSWIRE/, 'a board with posts has a wire, pinned or not');
 assert.match(board, /SHEET 03/, 'each thread is drawn');
 // (2026-11-04, SPEC-forum-search.md, Luke 2026-10-31) `[ SORT / SEARCH ▾ ]` split in two: the search is a
 // Discord-style box on the row itself, always drawn, and the key names the sort it is on. HOT is the default.
 assert.match(board, /role="combobox"[^>]*aria-label="Search the board"/, 'there is something to search with, on the row itself');
 assert.match(board, /\[ SORT: HOT ▾ \]/, 'and the sort key says which sort this is, one press away');
 assert.doesNotMatch(board, /SORT \/ SEARCH/, 'the old key that hid the search is gone');
-assert.match(board, /\[ TAGS ▾ \]/, 'and the tag filter beside it');
+// (2026-11-17, SPEC-forum-v2.md, Luke's 10A) The tag key is [ FILTER ▾ ] now: the tags and where posts come from.
+assert.match(board, /\[ FILTER ▾ \]/, 'and the filter beside it');
 // (2026-10-24, Luke's OK on the review leftovers) Each panel is written straight after the key that opens
 // it, so the Tab key reaches it next (before SORT / SEARCH and + NEW POST), and ESC hands focus back to
 // that key. Read in the source: a server render never has a panel open. The real Tab/ESC walk was driven
@@ -410,7 +413,7 @@ assert.match(board, /\[ TAGS ▾ \]/, 'and the tag filter beside it');
     assert.notEqual(found, -1, `ForumBoard draws ${pattern}`);
     return found;
   };
-  const tagsKey = at(/\[ TAGS ▾ \]/);
+  const tagsKey = at(/\[ FILTER\$\{/);
   const tagsPanel = at(/id="board-tags-panel"/);
   const sortKey = at(/\[ SORT: \$\{sortKeyLabel\}/);
   const sortPanel = at(/id="board-controls-panel"/);
@@ -428,6 +431,7 @@ assert.match(board, /\[ TAGS ▾ \]/, 'and the tag filter beside it');
 FORUM.threads = [];
 const emptyBoard = render(element(ForumBoard, null));
 assert.doesNotMatch(emptyBoard, /SHEET 03/, 'an empty board draws no cards');
+assert.doesNotMatch(emptyBoard, /NEWSWIRE/, 'and no wire: with nothing filed it is not drawn');
 
 // 8. A picture in a post is the file, and a missing one is a notice.
 const thumb = render(element(MediaThumbnail, { media: THREAD.media, size: 96 }));

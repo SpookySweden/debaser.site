@@ -136,6 +136,8 @@ const threads = [
     body: 'Which reads better at 100%?   Plenty of whitespace in here.',
     author: { id: 'user-mira', displayName: 'mira' },
     createdAt: '2026-09-20T10:00:00.000Z',
+    // Every real post is filed somewhere; the wire now reads it to keep unanswered stream records off (SPEC-forum-v2.md, 8A).
+    anchor: { kind: 'board', id: 'board-general', label: 'GENERAL BOARD' },
     comments: [
       {
         id: 'reply-1',
@@ -153,6 +155,7 @@ const threads = [
     body: '',
     author: { id: 'user-sweden', displayName: 'sweden' },
     createdAt: '2026-09-21T10:00:00.000Z',
+    anchor: { kind: 'board', id: 'board-general', label: 'GENERAL BOARD' },
     comments: [],
   },
 ];
