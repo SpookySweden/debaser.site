@@ -29,7 +29,8 @@ export async function GET(request: Request): Promise<Response> {
   const key = `match:${region.id}:${match}:${id.name.toLowerCase()}#${id.tag.toLowerCase()}`;
   if (!keeper.has(key) && !keeper.allow(visitorOf(request))) return json(429, { error: 'Too many look-ups in a minute. Wait a moment and try again.' });
   try {
-    const review = await keeper.get<MatchReview | null>(key, KEEP.match, () => uggReview(id, region, match, version));
+    // A game U.GG hasn't read yet is not kept: the next try asks again.
+    const review = await keeper.get<MatchReview | null>(key, KEEP.match, () => uggReview(id, region, match, version), false, (kept) => kept !== null);
     if (review === null) return json(404, { error: "U.GG doesn't have this game's details yet. Try again in a few minutes." });
     return json(200, review);
   } catch {

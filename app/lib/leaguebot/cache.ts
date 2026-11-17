@@ -19,13 +19,19 @@ export const KEEP = {
 export const LOOKUPS_PER_MINUTE = 20;
 /** How often one Riot ID may ask a source to re-read its games from Riot. */
 export const REFRESH_EVERY_MS = 2 * 60 * 1000;
-const MAX_ENTRIES = 2000;
+/** A player's answer holds 100 games of ten players: a few hundred kept answers is plenty for one server. */
+const MAX_ENTRIES = 400;
+const MAX_VISITORS = 2000;
 
 type Entry<T> = { until: number; value: Promise<T> };
 
 export type Keeper = {
-  /** The kept answer for `key`, or `make()`'s (kept for `keepMs` once it succeeds; a failure is not kept). */
-  get<T>(key: string, keepMs: number, make: () => Promise<T>, fresh?: boolean): Promise<T>;
+  /**
+   * The kept answer for `key`, or `make()`'s, kept for `keepMs` once it succeeds and `keepIf` (when given) says it is worth
+   * keeping: a failure, or an answer that only says the sources broke, is never kept. A `fresh` ask that fails leaves the
+   * answer that was kept before it in place.
+   */
+  get<T>(key: string, keepMs: number, make: () => Promise<T>, fresh?: boolean, keepIf?: (value: T) => boolean): Promise<T>;
   /** True while `key` is kept (so a look-up costs the sources nothing). */
   has(key: string): boolean;
   /** False when this visitor has made `LOOKUPS_PER_MINUTE` fresh look-ups in the last minute. */
@@ -47,15 +53,22 @@ export function createKeeper(now: () => number = Date.now): Keeper {
   };
 
   return {
-    get<T>(key: string, keepMs: number, make: () => Promise<T>, fresh = false): Promise<T> {
+    get<T>(key: string, keepMs: number, make: () => Promise<T>, fresh = false, keepIf?: (value: T) => boolean): Promise<T> {
       const t = now();
       const kept = entries.get(key) as Entry<T> | undefined;
       if (!fresh && kept && kept.until > t) return kept.value;
+      const before = kept && kept.until > t ? kept : undefined;
       const value = make();
-      entries.set(key, { until: t + keepMs, value });
-      value.catch(() => {
-        if (entries.get(key)?.value === value) entries.delete(key);
-      });
+      const entry: Entry<T> = { until: t + keepMs, value };
+      entries.set(key, entry);
+      const forget = () => {
+        if (entries.get(key) !== entry) return;
+        if (before) entries.set(key, before);
+        else entries.delete(key);
+      };
+      value.then((answer) => {
+        if (keepIf && !keepIf(answer)) forget();
+      }, forget);
       trim();
       return value;
     },
@@ -72,7 +85,10 @@ export function createKeeper(now: () => number = Date.now): Keeper {
       }
       recent.push(t);
       visits.set(visitor, recent);
-      if (visits.size > MAX_ENTRIES) visits.delete(visits.keys().next().value as string);
+      if (visits.size > MAX_VISITORS) {
+        for (const [who, times] of visits) if (times.every((at) => at <= t - 60_000)) visits.delete(who);
+        while (visits.size > MAX_VISITORS) visits.delete(visits.keys().next().value as string);
+      }
       return true;
     },
     mayRefresh(key) {
@@ -80,7 +96,7 @@ export function createKeeper(now: () => number = Date.now): Keeper {
       const last = refreshed.get(key);
       if (last !== undefined && t - last < REFRESH_EVERY_MS) return false;
       refreshed.set(key, t);
-      if (refreshed.size > MAX_ENTRIES) refreshed.delete(refreshed.keys().next().value as string);
+      if (refreshed.size > MAX_VISITORS) refreshed.delete(refreshed.keys().next().value as string);
       return true;
     },
   };

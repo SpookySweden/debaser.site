@@ -156,11 +156,17 @@ export default function LeagueLive({ id, region, data }: { id: RiotId; region: R
   const [guideError, setGuideError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const hadGame = useRef(false);
+  const asked = useRef(0);
+  const playing = useRef(false);
 
   const check = useCallback(async () => {
+    const ticket = (asked.current += 1);
     setChecking(true);
     try {
       const next = await lookUpLive(id, region);
+      // A slow answer never overwrites a newer one.
+      if (ticket !== asked.current) return;
+      playing.current = next.game !== null;
       setError(null);
       setAnswer(next);
       if (next.game) hadGame.current = true;
@@ -170,24 +176,35 @@ export default function LeagueLive({ id, region, data }: { id: RiotId; region: R
       }
       setNow(Date.now());
     } catch (failure) {
+      if (ticket !== asked.current) return;
       setError(failure instanceof LookupError ? failure.message : "Couldn't check. Trying again in a minute.");
     } finally {
-      setChecking(false);
+      if (ticket === asked.current) setChecking(false);
     }
   }, [id, region]);
 
-  // Ask at once, then again on a timer while the tab is open and visible.
+  // Ask at once, then once a minute while waiting and every two minutes while a game runs, only while the tab is visible.
   const inGame = answer?.game != null;
   useEffect(() => {
     if (!visible) return;
-    // The first ask goes out at once (a moment after the effect, as React prefers); a game just found waits its turn.
-    const first = window.setTimeout(() => void check(), inGame ? PLAYING_EVERY_MS : 0);
-    const timer = window.setInterval(() => void check(), inGame ? PLAYING_EVERY_MS : WAITING_EVERY_MS);
+    let last = 0;
+    // The first ask goes out a moment after the effect, as React prefers; then a one-second tick decides when to ask again.
+    const first = window.setTimeout(() => {
+      last = Date.now();
+      void check();
+    }, 0);
+    const timer = window.setInterval(() => {
+      const every = playing.current ? PLAYING_EVERY_MS : WAITING_EVERY_MS;
+      if (Date.now() - last >= every) {
+        last = Date.now();
+        void check();
+      }
+    }, 1000);
     return () => {
       window.clearTimeout(first);
       window.clearInterval(timer);
     };
-  }, [check, visible, inGame]);
+  }, [check, visible]);
 
   // The clock ticks once a second while there is a game.
   useEffect(() => {

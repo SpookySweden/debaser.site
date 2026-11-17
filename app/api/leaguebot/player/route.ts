@@ -38,7 +38,11 @@ export async function GET(request: Request): Promise<Response> {
 
   const key = `player:${region.id}:${id.name.toLowerCase()}#${id.tag.toLowerCase()}`;
   let fresh = url.searchParams.get('refresh') === '1';
-  if (fresh && !keeper.mayRefresh(key)) fresh = false;
+  let refreshRefused = false;
+  if (fresh && !keeper.mayRefresh(key)) {
+    fresh = false;
+    refreshRefused = true;
+  }
   if ((fresh || !keeper.has(key)) && !keeper.allow(visitorOf(request))) {
     return json(429, { error: 'Too many look-ups in a minute. Wait a moment and try again.' });
   }
@@ -52,8 +56,10 @@ export async function GET(request: Request): Promise<Response> {
         return readPlayer(id, region, SOURCES);
       },
       fresh,
+      // An answer that only says both sources broke is not kept: the next look-up asks again.
+      (kept) => kept.notFound || kept.profile !== null || kept.matches !== null,
     );
-    return json(200, answer);
+    return json(200, refreshRefused ? { ...answer, notes: [...answer.notes, 'Refreshed less than two minutes ago: showing that answer.'] } : answer);
   } catch {
     return json(502, { error: "The stats sites didn't answer. Try again in a minute." });
   }

@@ -8,10 +8,15 @@ import { createKeeper } from './cache';
 /** One keeper per server instance, shared by every LEAGUEBOT route. */
 export const keeper = createKeeper();
 
-/** The visitor's address as Vercel (or the home server's proxy) passes it on; only ever used as a counter's key. */
+/**
+ * The visitor's address, only ever used as a counter's key. `x-real-ip` first (Vercel sets it, and a visitor can't); then
+ * the last `x-forwarded-for` entry, the one the nearest proxy added (a visitor can write the first ones themselves).
+ */
 export function visitorOf(request: Request): string {
-  const forwarded = request.headers.get('x-forwarded-for') ?? '';
-  return forwarded.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown';
+  const real = request.headers.get('x-real-ip')?.trim();
+  if (real) return real;
+  const forwarded = (request.headers.get('x-forwarded-for') ?? '').split(',').map((part) => part.trim()).filter(Boolean);
+  return forwarded[forwarded.length - 1] ?? 'unknown';
 }
 
 export function json(status: number, body: unknown): Response {

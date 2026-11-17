@@ -32,7 +32,14 @@ export async function GET(request: Request): Promise<Response> {
     return json(429, { error: 'Too many look-ups in a minute. Wait a moment and try again.' });
   }
   try {
-    const answer = await keeper.get<LiveAnswer>(key, KEEP.live, () => readLive(id, region, { uggLive: (i, r) => uggLive(i, r), opggLive: (i, r) => opggLive(i, r) }));
+    const answer = await keeper.get<LiveAnswer>(
+      key,
+      KEEP.live,
+      () => readLive(id, region, { uggLive: (i, r) => uggLive(i, r), opggLive: (i, r) => opggLive(i, r) }),
+      false,
+      // "Neither source answered" is not kept.
+      (kept) => kept.source !== null || kept.game !== null || kept.notes.length === 0,
+    );
     return json(200, answer);
   } catch {
     return json(502, { error: "The stats sites didn't answer. Try again in a minute." });

@@ -10,7 +10,8 @@
  * - stats: win rate, KDA (deaths at least 1), CS a minute, remakes under 5 minutes left out, lane opponents, after two losses
  *   (a fresh sitting resets the run), the last 20 against the rest
  * - advice: each rule speaks only with enough games, says its number, and the window gets at most five, weightiest first
- * - the keeper: a kept answer costs nothing; a failure is not kept; the per-minute limit; a refresh at most every 2 minutes
+ * - the keeper: a kept answer costs nothing; a failure, or an answer that only says the sources broke, is not kept; a
+ *   failed refresh leaves the good answer; the per-minute limit; a refresh at most every 2 minutes
  * - Riot IDs: Name#TAG, Name-TAG and spaces read; nonsense refused
  * - from the files: no source is fetched from a browser file; no score or rating of a player is shown (no threatLevel, op_score)
  */
@@ -164,6 +165,13 @@ const ME = { name: 'MOCK PLAYER', tag: 'EUW' };
   await keeper.get('b', 1000, () => Promise.reject(new Error('x'))).catch(() => null);
   await new Promise((r) => setTimeout(r, 0));
   assert.ok(!keeper.has('b'), 'a failure is not kept');
+  await keeper.get('c', 1000, async () => ({ broken: true }), false, (v) => !v.broken);
+  await new Promise((r) => setTimeout(r, 0));
+  assert.ok(!keeper.has('c'), 'an answer that only says the sources broke is not kept');
+  await keeper.get('d', 1000, async () => 'good');
+  await keeper.get('d', 1000, () => Promise.reject(new Error('flaky')), true).catch(() => null);
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(await keeper.get('d', 1000, async () => 'asked again'), 'good', 'a failed refresh leaves the good answer in place');
   for (let i = 0; i < LOOKUPS_PER_MINUTE; i += 1) assert.ok(keeper.allow('v'));
   assert.equal(keeper.allow('v'), false, 'the per-minute limit');
   assert.ok(keeper.allow('w'), 'another visitor is untouched');
