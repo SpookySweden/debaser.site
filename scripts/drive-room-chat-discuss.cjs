@@ -9,6 +9,9 @@
  *   1. a MEDIA result's DISCUSS shows the line said over it in a private, ended room, with its name and IN ROOM · 02:14;
  *      a line said while nothing played, and one from a room whose host switched CHAT ON DISCUSSION off, are not there;
  *   2. MY ROOM CHAT ON DISCUSSION PAGES switched off in the PRIVACY switches takes the line away.
+ *   (between them, ROOMCHAT 2026-11-17) another person's line said in a private room shows to this reader, who was not in
+ *      it, as ANON-<n> with PRIVATE ROOM and no name; once this reader is a member it shows the name; a line said in an open
+ *      room shows the name to anyone.
  */
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright-core');
@@ -55,6 +58,49 @@ function rooms(ref) {
   };
 }
 
+/**
+ * ROOMCHAT (Luke 2026-11-17): another person's rooms over `ref`, one private (its line stamped private) and one open. `member`
+ * puts this reader in the private one.
+ */
+function othersRooms(ref, member) {
+  const at = (minutes) => new Date(Date.UTC(2026, 10, 16, 2, minutes)).toISOString();
+  const room = (id, privacy) => ({
+    id, originalHostId: 'drive-other', originalHostLabel: 'SOMEONE ELSE', hostId: 'drive-other', forumThreadId: null,
+    currentEntryId: null, positionSeconds: 0, isPlaying: false, startedAt: at(0), updatedAt: at(30), endedAt: at(30), origin: 'stream',
+    isPublic: true, privacy, clearedAt: null, name: null, topic: null, addMode: 'anyone', guestsCanTalk: true, chatOnDiscuss: true,
+  });
+  const entry = (id, roomId) => ({ id, roomId, position: 0, inQueue: true, mediaItemId: null, link: { url: 'https://example.invalid/v', kind: 'embed', title: 'A THING' }, series: null, webRef: ref, addedBy: 'drive-other', addedAt: at(1), playedAt: at(1), playIndex: 0 });
+  const line = (id, roomId, queueEntryId, body, minutes, seconds) => ({ id, roomId, queueEntryId, mediaItemId: null, authorId: 'drive-other', authorLabel: 'SOMEONE ELSE', body, mediaSeconds: seconds, createdAt: at(minutes) });
+  return {
+    rooms: [room('drive-room-private', 'private'), room('drive-room-open', 'open')],
+    queue: [entry('drive-entry-private', 'drive-room-private'), entry('drive-entry-open', 'drive-room-open')],
+    messages: [
+      line('drive-line-private', 'drive-room-private', 'drive-entry-private', 'SAID IN A PRIVATE ROOM', 5, 61),
+      line('drive-line-open', 'drive-room-open', 'drive-entry-open', 'SAID IN AN OPEN ROOM', 6, 75),
+    ],
+    crowns: [],
+    members: [
+      { roomId: 'drive-room-private', userId: 'drive-other', label: 'SOMEONE ELSE', removedAt: null },
+      ...(member ? [{ roomId: 'drive-room-private', userId: PERSON, label: 'TEST ACCOUNT (MOCK)', removedAt: null }] : []),
+    ],
+    passwords: {}, attempts: [], privateRows: ['drive-entry-private', 'drive-line-private'],
+  };
+}
+
+/** The feed's order changes between loads, so the rooms are written for whichever result is first, before its pen opens. */
+async function discussLines(page, member) {
+  const { pen, ref } = await openDiscuss(page);
+  await page.evaluate((stored) => window.localStorage.setItem('debaser.watch.v1', JSON.stringify(stored)), othersRooms(ref, member));
+  await pen.click();
+  const lines = page.locator('[data-room-chat-line]');
+  await lines.first().waitFor({ timeout: 15_000 }).catch(async (failure) => {
+    await page.screenshot({ path: 'Temp/browse/roomchat-drive-fail.png' });
+    throw failure;
+  });
+  await page.waitForTimeout(500);
+  return Promise.all((await lines.all()).map(async (one) => ({ text: (await one.innerText()).replace(/\s+/g, ' '), anonymous: (await one.getAttribute('data-room-chat-anonymous')) !== null })));
+}
+
 async function openDiscuss(page) {
   await page.goto(`${BASE}/media`, { waitUntil: 'domcontentloaded', timeout: 180_000 });
   await page.waitForSelector('[data-row-keys]', { timeout: 120_000 });
@@ -81,10 +127,10 @@ async function openDiscuss(page) {
   page.on('pageerror', (error) => console.log(`  page error: ${String(error).slice(0, 300)}`));
   await page.mouse.move(700, 200);
 
+  // The feed's order changes between loads (ROOMCHAT 2026-11-17): each step writes its rooms for the result on screen, before its pen opens.
   let { pen, ref } = await openDiscuss(page);
   assert.ok(ref, 'the pen says which result it is');
   await page.evaluate(({ tables }) => window.localStorage.setItem('debaser.watch.v1', JSON.stringify(tables)), { tables: rooms(ref) });
-  ({ pen } = await openDiscuss(page));
   await pen.click();
   const lines = page.locator('[data-room-chat-line]');
   await lines.first().waitFor({ timeout: 15_000 });
@@ -94,6 +140,21 @@ async function openDiscuss(page) {
   ok(`DISCUSS on ${ref}: ${words[0]}`);
   ok('a line said with nothing on, and one from a room with CHAT ON DISCUSSION off, are not there');
 
+  // ROOMCHAT: a private room's line, to a reader who was not in it, then to one who was; an open room's line to anyone.
+  const outside = await discussLines(page, false);
+  assert.equal(outside.length, 2, JSON.stringify(outside));
+  const [privateLine, openLine] = outside;
+  assert.ok(privateLine.anonymous && /^ANON-\d+ PRIVATE ROOM /.test(privateLine.text) && privateLine.text.includes('SAID IN A PRIVATE ROOM') && privateLine.text.includes('IN ROOM · 01:01'), privateLine.text);
+  assert.ok(!privateLine.text.includes('SOMEONE ELSE'), `no name to an outsider: ${privateLine.text}`);
+  assert.ok(!openLine.anonymous && openLine.text.startsWith('SOMEONE ELSE ') && !openLine.text.includes('PRIVATE ROOM') && openLine.text.includes('IN ROOM · 01:15'), openLine.text);
+  await page.locator('[data-room-chat-anonymous]').first().screenshot({ path: 'Temp/browse/roomchat-outsider-line.png' }).catch(() => undefined);
+  ok(`not in the private room: ${privateLine.text}`);
+  ok(`an open room's line, named: ${openLine.text}`);
+  const inside = await discussLines(page, true);
+  assert.equal(inside.length, 2, JSON.stringify(inside));
+  assert.ok(!inside[0].anonymous && inside[0].text.startsWith('SOMEONE ELSE PRIVATE ROOM · NAME SHOWN TO ITS MEMBERS'), inside[0].text);
+  ok(`a member of the private room: ${inside[0].text}`);
+
   // MY ROOM CHAT ON DISCUSSION PAGES, off.
   await page.goto(`${BASE}/account?tab=privacy`, { waitUntil: 'domcontentloaded' });
   const mine = page.getByRole('button', { name: /^MY ROOM CHAT ON DISCUSSION PAGES: ON/ }).first();
@@ -101,7 +162,8 @@ async function openDiscuss(page) {
   await mine.click();
   await page.getByRole('button', { name: /^MY ROOM CHAT ON DISCUSSION PAGES: OFF/ }).first().waitFor();
   ok('MY ROOM CHAT ON DISCUSSION PAGES switched off');
-  ({ pen } = await openDiscuss(page));
+  ({ pen, ref } = await openDiscuss(page));
+  await page.evaluate(({ tables }) => window.localStorage.setItem('debaser.watch.v1', JSON.stringify(tables)), { tables: rooms(ref) });
   await pen.click();
   await page.waitForTimeout(2500);
   assert.equal(await page.locator('[data-room-chat-line]').count(), 0, 'their line is gone');

@@ -681,7 +681,9 @@ class SupabaseWatchRepository implements WatchRepository {
     if (query.webRef === null && query.mediaItemId === null && urls.length === 0) return [];
     const { data, error } = await requireClient().rpc('discuss_room_chat', { p_media_item_id: query.mediaItemId, p_web_ref: query.webRef, p_urls: urls.length === 0 ? null : urls });
     if (error) throw refused(error, 'THE ROOM CHAT COULD NOT BE READ.');
-    type Row = { id: string; said_at: string; author_id: string | null; author_label: string; body: string; media_seconds: number | string; guest: boolean };
+    // The database decides the names: a line from a private room reaches someone who was not in it already anonymised
+    // (20261117023807_room_chat_private_anonymous.sql); nothing here hides or shows anything.
+    type Row = { id: string; said_at: string; author_id: string | null; author_label: string; body: string; media_seconds: number | string; guest: boolean; private_room?: boolean | null; anonymous?: boolean | null };
     return ((data ?? []) as Row[]).map((row) => ({
       id: row.id,
       saidAt: row.said_at,
@@ -690,6 +692,8 @@ class SupabaseWatchRepository implements WatchRepository {
       body: row.body,
       mediaSeconds: Number(row.media_seconds) || 0,
       guest: row.guest === true,
+      privateRoom: row.private_room === true,
+      anonymous: row.anonymous === true,
     }));
   }
 

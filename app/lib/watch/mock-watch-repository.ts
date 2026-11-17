@@ -715,8 +715,13 @@ class MockWatchRepository implements WatchRepository {
 
   async discussChat(query: DiscussQuery): Promise<DiscussLine[]> {
     // As `discuss_room_chat`: the lines said over one thing, from rooms and people whose switches are on. Unlike the
-    // database it keeps the hidden test person (the mock's only signed-in person) and has no ANON names (one browser).
+    // database it keeps the hidden test person (the mock's only signed-in person) and has no visitor ANON names (one browser).
+    // A line said while its room was private reaches someone who was not in the room (not its speaker, host, first host or
+    // a member not REMOVED) as its speaker's tag in that room, with no name and no id (ROOMCHAT, Luke 2026-11-17).
     const tables = load();
+    const me = await viewerId();
+    const insider = (room: WatchRoom, authorId: string) =>
+      me !== null && (authorId === me || room.hostId === me || room.originalHostId === me || tables.members.some((row) => row.roomId === room.id && row.userId === me && row.removedAt === null));
     const entries = new Map(tables.queue.map((entry) => [entry.id, entry]));
     const rooms = new Map(tables.rooms.map((room) => [room.id, room]));
     const said = tables.messages.filter((message) => {
@@ -736,7 +741,13 @@ class MockWatchRepository implements WatchRepository {
       const guest = message.authorLabel.endsWith(' [GUEST]');
       const profile = guest ? null : await profiles.getProfile(message.authorId).catch(() => null);
       if (profile !== null && profile.visibility.roomChatOnDiscuss === false) continue;
-      lines.push({ id: message.id, saidAt: message.createdAt, authorId: message.authorId, authorLabel: message.authorLabel, body: message.body, mediaSeconds: message.mediaSeconds, guest });
+      const room = rooms.get(message.roomId);
+      const privateRoom = tables.privateRows.includes(message.id);
+      if (room !== undefined && privateRoom && !insider(room, message.authorId)) {
+        lines.push({ id: message.id, saidAt: message.createdAt, authorId: null, authorLabel: anonTag(room.id, message.authorId), body: message.body, mediaSeconds: message.mediaSeconds, guest: false, privateRoom, anonymous: true });
+        continue;
+      }
+      lines.push({ id: message.id, saidAt: message.createdAt, authorId: message.authorId, authorLabel: message.authorLabel, body: message.body, mediaSeconds: message.mediaSeconds, guest, privateRoom, anonymous: false });
     }
     return lines;
   }
