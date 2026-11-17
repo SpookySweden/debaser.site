@@ -231,6 +231,24 @@ Locally, on a dev server with mock data sources (no live drives except the one n
    Luke as leftovers to delete with his OK.
 5. Live: `npm run deploy-status`, then `npm run read` confirms `[ ◷ HISTORY ]` is on the deployed site.
 
+## As built (2026-11-17), where it differs from the above
+- **Where plays are noted:** one keeper (`PlayHistoryKeeper.tsx`) watches *the room you are hearing* (the live room the
+  bar follows, else the room window that is open, else your own room). Since the perpetual room every song and video is
+  a row in one of those, so one place covers the bar, rooms and MEDIA. A book is noted by the reader. The same room row
+  seen again within 6 hours (a reload mid-song) stays one play, besides the 60-second rule.
+- **"Played yourself" vs "your queue":** a row in your own room that you added within 10 seconds of it starting reads
+  YOU PLAYED IT (with where you pressed it, from the bar's own record); one added earlier reads YOUR QUEUE.
+- **Letters:** the fold lists the letter's things with yours marked and `[ OPEN LETTER ]`; there is no
+  `[ ▶ PLAY FROM HERE ]` for a letter (its things are links of many kinds, not a queue). Rooms have it.
+- **Comments and posts:** the fold shows where it came from and `[ OPEN ]`, not the comment's or post's text. A song
+  played from a profile's comment window is that profile's song, so it reads `ON MIA'S PROFILE`; `FROM A COMMENT`
+  stays in the table for later.
+- **The playing line** wears a still `♪ NOW`, not a blinking mark (no motion to stop).
+- **Marks:** the site's own glyphs (`app/lib/ui/icons.ts`): `♪` `▦` the book `●` `↻` `✉` `✎` `▤` `☻` `?`; the key is
+  `[ ◷ HISTORY ]` (`ICON_HISTORY`).
+- **A video line** can be played again when its address is still a link the site knows; an old filled-in MEDIA line
+  (an id, not an address) has no `[ ▶ ]`.
+
 ## Out of scope
 - Showing anyone else's history, or HISTORY on profiles.
 - Moving a visitor's browser history onto their account at sign-in.
