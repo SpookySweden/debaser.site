@@ -11,6 +11,9 @@ const ART_WATCHED = ["/assets/profiles/avatar-default.png", "/assets/icons/googl
 const nextConfig: NextConfig = {
   env: {
     ART_ON_DISK: ART_WATCHED.filter((path) => existsSync(`.${path}`)).join(","),
+    // Read by /api/version, so `npm run deploy-status` can tell which commit debaser.site is running (SPEC-self-hosting.md).
+    DEBASER_BUILD_COMMIT: process.env.DEBASER_BUILD_COMMIT ?? process.env.VERCEL_GIT_COMMIT_SHA ?? "",
+    DEBASER_HOST: process.env.DEBASER_HOST ?? (process.env.VERCEL ? "vercel" : "local"),
   },
 
   /**
@@ -36,6 +39,12 @@ const nextConfig: NextConfig = {
         hostname: '*.supabase.co',
         pathname: '/storage/v1/object/public/**',
       },
+      // The self-hosted Supabase on Luke's PC, through the Cloudflare tunnel (SPEC-self-hosting.md).
+      {
+        protocol: 'https',
+        hostname: 'api.debaser.site',
+        pathname: '/storage/v1/object/public/**',
+      },
     ],
   },
 
@@ -52,6 +61,10 @@ const nextConfig: NextConfig = {
    */
   async redirects() {
     return [
+      // The site lives at debaser.site on Luke's PC since 2026-11-18 (SPEC-self-hosting.md); the Vercel copy is kept as the
+      // way back and sends its visitors on, path and query included. Temporary (307), so browsers don't remember it and
+      // going back to Vercel stays possible. Matches only the production address, so Vercel's preview addresses still work.
+      { source: '/:path*', has: [{ type: 'host' as const, value: 'debaser-site.vercel.app' }], destination: 'https://debaser.site/:path*', permanent: false },
       { source: '/web', destination: '/media', permanent: true },
       { source: '/archive', destination: '/media', permanent: true },
       // DISCOVER was TAG STATION until 2026-11-05 (SPEC-discover.md). A shared search keeps its address's query.

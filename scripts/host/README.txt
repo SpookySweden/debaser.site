@@ -17,3 +17,5 @@ count-rows.cjs            [--pc]     exact row counts per table: the cloud (read
                                      G:\DEBASER-HOST\supabase\from-cloud, and with --pc the PC's database.
 keep-running.cjs                     (copied to G:\DEBASER-HOST) starts and restarts what services.json lists.
 merge-pasted-keys.cjs  supabase|site moves keys Luke pasted into a paste-keys-here.txt into the file that uses them.
+self-update.cjs          [--force]  (copied to G:\DEBASER-HOST, run every 5 min by the task DebaserUpdate) builds a new main in
+                                     the copy of the site that isn't serving (site / site-b), then switches services.json to it.

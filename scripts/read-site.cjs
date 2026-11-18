@@ -28,7 +28,8 @@
  * (absent). With no arguments it answers "is the site serving what the repository says it should" -
  * which is the question worth asking after every change.
  */
-const DEPLOYED = 'https://debaser-site.vercel.app/forum';
+// The live site is debaser.site on Luke's PC since 2026-11-18 (SPEC-self-hosting.md); the Vercel address forwards there.
+const DEPLOYED = 'https://debaser.site/forum';
 const LOCAL = 'http://127.0.0.1:3210/forum';
 
 /** What must be there, and what must not. */

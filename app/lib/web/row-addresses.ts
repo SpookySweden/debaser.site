@@ -46,7 +46,7 @@ export function startingEmbed(embed: string, platform: WebPlatform, audio: strin
   // host, added only here, after `rowAddresses` has checked the address. `autoplay` is Twitch's own flag.
   if (platform === 'twitch') {
     const url = new URL(subtitled);
-    url.searchParams.set('parent', typeof window === 'undefined' ? 'debaser-site.vercel.app' : window.location.hostname);
+    url.searchParams.set('parent', typeof window === 'undefined' ? 'debaser.site' : window.location.hostname);
     url.searchParams.set('autoplay', 'true');
     return url.toString();
   }

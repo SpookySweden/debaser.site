@@ -15,7 +15,7 @@ const { chromium } = require('playwright-core');
     const supa = new Map(); const failed = []; const errors = []; const sockets = [];
     page.on('response', (r) => {
       const u = new URL(r.url());
-      if (u.port === '8000') { const k = `${r.request().method()} ${u.pathname.split('/').slice(0, 4).join('/')} ${r.status()}`; supa.set(k, (supa.get(k) || 0) + 1); }
+      if (u.port === '8000' || u.hostname === 'api.debaser.site') { const k = `${r.request().method()} ${u.pathname.split('/').slice(0, 4).join('/')} ${r.status()}`; supa.set(k, (supa.get(k) || 0) + 1); }
       if (u.hostname.endsWith('supabase.co')) failed.push('CLOUD CALL: ' + r.url().slice(0, 100));
     });
     page.on('requestfailed', (r) => failed.push(`${r.failure()?.errorText} ${r.url().slice(0, 120)}`));

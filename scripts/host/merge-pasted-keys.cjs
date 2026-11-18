@@ -4,7 +4,7 @@
  *
  *   node merge-pasted-keys.cjs supabase   G:\DEBASER-HOST\supabase\paste-keys-here.txt -> supabase\.env
  *                                         (GOOGLE_SECRET, SMTP_PASS; a filled GOOGLE_SECRET turns GOOGLE_ENABLED on)
- *   node merge-pasted-keys.cjs site       G:\DEBASER-HOST\site\paste-keys-here.txt -> site\.env.production.local
+ *   node merge-pasted-keys.cjs site       G:\DEBASER-HOST\site-keys-paste.txt -> G:\DEBASER-HOST\site.env
  *                                         (the outside-API keys the site's server uses)
  */
 const { readFileSync, writeFileSync } = require('node:fs');
@@ -12,8 +12,8 @@ const { readFileSync, writeFileSync } = require('node:fs');
 const TARGETS = {
   supabase: { paste: 'G:\\DEBASER-HOST\\supabase\\paste-keys-here.txt', file: 'G:\\DEBASER-HOST\\supabase\\.env', keys: ['GOOGLE_SECRET', 'SMTP_PASS'] },
   site: {
-    paste: 'G:\\DEBASER-HOST\\site\\paste-keys-here.txt',
-    file: 'G:\\DEBASER-HOST\\site\\.env.production.local',
+    paste: 'G:\\DEBASER-HOST\\site-keys-paste.txt',
+    file: 'G:\\DEBASER-HOST\\site.env', // self-update.cjs copies it into each build as .env.production.local
     keys: ['TMDB_READ_TOKEN', 'YOUTUBE_API_KEY', 'ANTHROPIC_API_KEY', 'GIPHY_API_KEY', 'TWITCH_CLIENT_ID', 'TWITCH_CLIENT_SECRET'],
   },
 };
