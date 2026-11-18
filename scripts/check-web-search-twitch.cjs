@@ -82,7 +82,9 @@ const TOKEN = { access_token: PASS, expires_in: 5000000, token_type: 'bearer' };
   for (const embed of ['https://player.twitch.tv/?channel=a&parent=evil.com', 'https://player.twitch.tv/?video=123', 'https://player.twitch.tv/x?channel=abc', 'https://www.twitch.tv/?channel=abc']) {
     same(rowAddresses({ ...item, embedUrl: embed }).embed, null, `a player address of another shape is refused: ${embed}`);
   }
-  same(new URL(startingEmbed(item.embedUrl, 'twitch')).searchParams.get('parent'), 'debaser-site.vercel.app', 'the player is told this site (parent), as Twitch requires');
+  // Updated on purpose 2026-11-18: the site's address is debaser.site (Luke's PC, SPEC-self-hosting.md); in a browser it is
+  // the page's own address either way.
+  same(new URL(startingEmbed(item.embedUrl, 'twitch')).searchParams.get('parent'), 'debaser.site', 'the player is told this site (parent), as Twitch requires');
 
   /* ---------------------------------------------------------------- no keys: the site API */
   {
