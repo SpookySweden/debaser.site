@@ -9,7 +9,7 @@
  * The file is read again before each restart, so a changed command takes effect the next time that program restarts.
  */
 const { spawn } = require('node:child_process');
-const { appendFileSync, existsSync, readFileSync, renameSync, statSync } = require('node:fs');
+const { appendFileSync, existsSync, readFileSync, renameSync, rmSync, statSync } = require('node:fs');
 const { createServer } = require('node:net');
 const { join } = require('node:path');
 
@@ -42,7 +42,15 @@ function run(name, delay = 5000) {
   child.stderr.on('data', (d) => log(name, d.toString()));
   child.on('error', (e) => log('keep-running', `${stamp()} ${name}: could not start: ${e.message}\n`));
   child.on('close', (code) => {
-    // A program that ran for 10 minutes before stopping starts again quickly; one failing at once backs off.
+    // A planned switch (self-update.cjs leaves `<name>.switching` before stopping it) starts again at once and is not a
+    // failure. Otherwise a program that ran for 10 minutes before stopping starts again quickly; one failing at once backs off.
+    const planned = join(LOGS, `${name}.switching`);
+    if (existsSync(planned)) {
+      try { rmSync(planned, { force: true }); } catch { /* the restart matters more than the note */ }
+      log('keep-running', `${stamp()} ${name} stopped for a planned switch; starting again now\n`);
+      setTimeout(() => run(name, 5000), 500);
+      return;
+    }
     const next = Date.now() - started > 10 * 60 * 1000 ? 5000 : Math.min(delay * 2, 60000);
     log('keep-running', `${stamp()} ${name} stopped (code ${code}); restarting in ${next / 1000} s\n`);
     setTimeout(() => run(name, next), next);

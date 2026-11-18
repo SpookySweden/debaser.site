@@ -89,6 +89,8 @@ function main() {
     // Switch: point "site" at the new copy, then stop the running one; keep-running starts the new one.
     site.cwd = other;
     writeFileSync(SERVICES, JSON.stringify(services, null, 2) + '\n');
+    // A planned switch: keep-running starts the new copy at once instead of backing off as after a failure.
+    writeFileSync(join(HOST, 'logs', 'site.switching'), target);
     spawnSync('powershell.exe', ['-NoProfile', '-Command',
       "Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Where-Object { $_.CommandLine -like '*next*start*-p*3000*' } | ForEach-Object { taskkill /PID $_.ProcessId /T /F | Out-Null }"], { windowsHide: true });
     writeFileSync(STATUS, JSON.stringify({ serving: target, from: other, at: new Date().toISOString() }, null, 1));
