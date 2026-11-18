@@ -21,3 +21,6 @@ self-update.cjs          [--force]  (copied to G:\DEBASER-HOST, run every 5 min 
                                      the copy of the site that isn't serving (site / site-b), then switches services.json to it.
 backup.cjs                           (copied to G:\DEBASER-HOST, run at 04:00 by the task DebaserBackup) the daily copy into
                                      I:\DEBASER\backups\<date>: database.dump, roles.sql, files\, settings\, report.json; 30 kept.
+find-missing-files.cjs   <folders>  reads drives for exact copies (size + MD5) of files still locked in the cloud project.
+find-in-browser-caches.cjs          the same, inside Chrome/Edge/Firefox/Electron caches; saves matches to G:\DEBASER-HOST\recovered.
+restore-found-files.cjs             uploads the matches through the PC's file service, restores each record's owner, re-checks.

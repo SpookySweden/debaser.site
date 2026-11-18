@@ -200,6 +200,16 @@ until Stage 7 replaces it; the interim copy in `I:DEBASERackups` covers the gap
     The task also writes a line Luke can see if a copy fails. Proof: C restores the newest copy into a throwaway
     database and the row counts match.
 
+**Stage 6, early part (2026-11-18, Luke: "i believe we have the ability to recover the missing profile pictures as well as
+music", then "yes and attribute them accordingly"):** the cloud still answers 402 for files, so this PC was searched
+instead, read-only, by exact size and MD5 fingerprint (storage.objects' eTag): `scripts/host/find-missing-files.cjs` over
+every drive (781,278 files) found 11 of the 38 as exact copies (Luke's avatar and the house account's, 6 of Luke's song
+uploads, a letter stamp, the test picture and video); `find-in-browser-caches.cjs` over 5.7 GB of browser caches found only
+one more, a profile-character strip its owner had already re-made on the PC. `restore-found-files.cjs` uploaded the 11
+through the PC's file service, put each record's original owner back, and downloaded each through api.debaser.site with
+the same fingerprint; all 26 owners in those buckets now equal the cloud's. Still missing until the block lifts (~20 Nov):
+26 files (6 avatars, 3 pictures, 7 songs, 3 profile-character strips, 8 stream-art drawings; 2 of them are test probes).
+
 **Stage 7 result (2026-11-18, Luke: "start stage seven but dont do back ups to google drive for now"):** `backup.cjs`
 (task `DebaserBackup`, 04:00, now running `G:\DEBASER-HOST\backup.cjs` instead of the old JSON copy) writes
 `I:\DEBASER\backups\<date>\`: the whole database (pg_dump), its roles, the uploaded files, the server's settings and keys,
