@@ -200,6 +200,15 @@ until Stage 7 replaces it; the interim copy in `I:DEBASERackups` covers the gap
     The task also writes a line Luke can see if a copy fails. Proof: C restores the newest copy into a throwaway
     database and the row counts match.
 
+**Stage 7 result (2026-11-18, Luke: "start stage seven but dont do back ups to google drive for now"):** `backup.cjs`
+(task `DebaserBackup`, 04:00, now running `G:\DEBASER-HOST\backup.cjs` instead of the old JSON copy) writes
+`I:\DEBASER\backups\<date>\`: the whole database (pg_dump), its roles, the uploaded files, the server's settings and keys,
+and a report; 30 kept; `LAST-BACKUP.txt` names the newest; a failure leaves "DEBASER BACKUP FAILED.txt" on the desktop.
+Not encrypted while nothing leaves the house (add it with the Google Drive copy, deferred by Luke). First run: 6 seconds,
+23 MB, 163 tables. Proved by restoring it into a throwaway database: 382,760 rows in 110 tables, equal to the live one
+(only pg_cron can't be re-made outside the main database, as expected). The copies sit on the same external drive as the
+uploaded files, so a failure of that drive loses both: the off-site copy is still owed.
+
 ## The way back (rollback)
 - Nothing on the cloud is deleted or changed: the Supabase project and the Vercel project stay exactly as they are for
   at least a month. Once the block lifts, the Vercel site works again with the data as it was on the night of the export.
