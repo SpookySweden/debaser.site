@@ -10,6 +10,7 @@ import { profileCommentThreads } from '../lib/forum/profile-threads';
 import type { ProfileCommentEntry } from '../lib/profile/types';
 import { pinForThread as livePinForThread } from '../lib/forum/pins';
 import { accountOf, loadMarks, saveThreadRead, subscribeToMergedMarks, type ReadMarks } from '../lib/forum/read-state';
+import { registerMadeFiler } from '../lib/forum/made-filing';
 import { readTagColours, rememberTagColour as rememberTagColourInStore } from '../lib/forum/tag-colours';
 import { buildTagVocabulary, canonicalTagLabel, type TagOption } from '../lib/forum/tag-vocabulary';
 import type {
@@ -348,6 +349,25 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
     },
     [author, canonicaliseUserTags],
   );
+
+  // MADE rows (SPEC-forum-v3.md, M1A): what `fileMade` needs from the board, wherever a thing is made public.
+  const threadsForMade = useRef(threads);
+  useEffect(() => {
+    threadsForMade.current = threads;
+  }, [threads]);
+  useEffect(() => {
+    registerMadeFiler({
+      person: () => (author.id === null ? null : { id: author.id, displayName: author.displayName }),
+      threads: () => threadsForMade.current,
+      create: async (request) => {
+        const thread = await createThread(request);
+        // On the board at once in this tab, so the maker sees their row without waiting for the feed.
+        setThreads((current) => (current.some((item) => item.id === thread.id) ? current : [thread, ...current]));
+        return thread;
+      },
+    });
+    return () => registerMadeFiler(null);
+  }, [author, createThread]);
 
   const addComment = useCallback(
     async (request: AddCommentRequest) => {

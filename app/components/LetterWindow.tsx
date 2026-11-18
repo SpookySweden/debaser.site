@@ -18,6 +18,7 @@ import { nameInkStyle } from './NameColourWindow';
 import { noteHistory } from '../lib/recommender/history';
 import { armPlayContext } from '../lib/history/plays';
 import { accountName } from '../lib/history/names';
+import { fileMade } from '../lib/forum/made-filing';
 
 /**
  * One letter, in a window over whatever page it was opened from (SPEC-letters.md). Its name at the top in its own colour,
@@ -70,6 +71,8 @@ function LetterWindowBody({ letterId, onClose }: { letterId: string; onClose: ()
     setFault(null);
     try {
       await updateLetter(value.id, { isPublic: !value.isPublic });
+      // Made public just now: the owner's MADE row for the day (SPEC-forum-v3.md, M2B). Locking it again files nothing.
+      if (!value.isPublic) void fileMade('letters');
     } catch (error) {
       setFault(error instanceof Error ? error.message : 'The letter could not be saved.');
     }

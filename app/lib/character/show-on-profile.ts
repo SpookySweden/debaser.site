@@ -15,6 +15,8 @@ export async function showOnProfile(person: string, character: SavedCharacter, m
   const { strip, sheet } = await bakeCharacter(character.figure, character.presetId);
   await getProfileCharacterRepository().show(person, { characterId: character.id, mood, strip, sheet });
   shownCharacterChanged(person);
+  // On their profile now: their MADE row for the day (SPEC-forum-v3.md, M2B). Automatic re-bakes (rebake.ts) don't come here.
+  void import('../forum/made-filing').then((made) => made.fileMade('characters'));
 }
 
 export async function setProfileMood(person: string, mood: Mood): Promise<void> {

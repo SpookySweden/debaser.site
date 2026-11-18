@@ -34,6 +34,8 @@ stub(path.join(OUT, 'components/CommsProvider.js'), { useComms: () => ({ account
 stub(path.join(OUT, 'components/PresenceProvider.js'), { usePresenceDirectory: () => ({ statusFor: (id) => (id === 'jo' ? 'online' : 'offline') }) });
 stub(path.join(OUT, 'components/ForumProvider.js'), { useForum: () => ({ threads }) });
 stub(path.join(OUT, 'lib/watch/use-music-room.js'), { useLiveRooms: () => ({ rooms: [], error: null }) });
+// DRAWINGS in the search (SPEC-forum-v3.md part 2): the art shelf's own list, stubbed like the others.
+stub(path.join(OUT, 'lib/watch/canvas-repository.js'), { getCanvasRepository: () => ({ listPieces: async () => [] }) });
 stub(path.join(OUT, 'lib/recommendations/store.js'), { useUnreadRecommendations: () => 1, useRecommendationList: () => ({ value: [], error: null, loading: false }) });
 stub(path.join(OUT, 'lib/books/repository.js'), { getBooksRepository: () => ({ places: async () => [] }) });
 stub(path.join(OUT, 'lib/audio/repository.js'), { getMusicRepository: () => ({ forYou: async () => [] }) });

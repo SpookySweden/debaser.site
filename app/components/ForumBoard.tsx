@@ -94,6 +94,9 @@ const EMPTY_CLEAR_LABELS: Record<EmptyClear, string> = {
 /** Posts-per-page choices, offered at the board's foot beside the page arrows. */
 const PAGE_SIZES = [5, 10, 20, 50];
 
+/** Where HIDE MADE is remembered (SPEC-forum-v3.md, M3A); it follows the account as `hideMade` (settings-bus.ts). */
+const HIDE_MADE_KEY = 'debaser.forum.hide-made.v1';
+
 /** The gallery's own choices: four tiles a row, so whole rows (SPEC-forum-v2.md, Luke's 6A). */
 const GALLERY_PAGE_SIZES = [8, 12, 24, 48];
 
@@ -169,6 +172,8 @@ export default function ForumBoard() {
   /** The board's music half: the switch, the sounds, and whether the whole index is open. */
   const [musicOnly, setMusicOnly] = useState(false);
   const [musicTagKeys, setMusicTagKeys] = useState<string[]>([]);
+  /** HIDE MADE (SPEC-forum-v3.md, M3A): remembered with the other filters, and it follows the account (F1B). */
+  const [hideMade, setHideMade] = useState(false);
   const [tagWindowOpen, setTagWindowOpen] = useState(false);
   /** Which of the row's two panels is open, if either: the board opens with both folded away. */
   const [menu, setMenu] = useState<BoardMenu | null>(null);
@@ -228,10 +233,11 @@ export default function ForumBoard() {
           // The gallery is a *reading* of the board, not a second board: the same filter, sort and
           // paging, narrowed to the posts that carry a picture of their own.
           imageOnly: view === 'gallery',
+          hideMade,
         }),
         forum.pins,
       ),
-    [forum.threads, forum.pins, sourceFilter, tagFilters, tagMatchMode, sortMode, topFrame, musicOnly, musicTagKeys, view, setAside],
+    [forum.threads, forum.pins, sourceFilter, tagFilters, tagMatchMode, sortMode, topFrame, musicOnly, musicTagKeys, view, setAside, hideMade],
   );
 
   /** What the FEED tab says is new since this reader last looked (Luke's 9B): marks are this browser's, so none on the server. */
@@ -249,7 +255,7 @@ export default function ForumBoard() {
   });
 
   /** How many filters narrow the board, said on the FILTER key: each tag, the source, the music switch and its sounds. */
-  const filtersOn = tagFilters.length + (sourceFilter === 'all' ? 0 : 1) + (musicOnly ? 1 : 0) + musicTagKeys.length;
+  const filtersOn = tagFilters.length + (sourceFilter === 'all' ? 0 : 1) + (musicOnly ? 1 : 0) + musicTagKeys.length + (hideMade ? 1 : 0);
 
   /** BY TAG with no tags picked reads as HOT (board-query does the same), so the key names what is shown. */
   const shownSort: SortMode = sortMode === 'tags' && tagFilters.length === 0 ? DEFAULT_SORT : sortMode;
@@ -366,6 +372,37 @@ export default function ForumBoard() {
     }
     noteSettingChanged('forumSort');
     writeSortToAddress(choice);
+  }, []);
+
+  // HIDE MADE, as this browser (or, signed in, the account) remembers it. Read after the first draw, like the place.
+  useEffect(() => {
+    const read = () => {
+      try {
+        setHideMade(window.localStorage.getItem(HIDE_MADE_KEY) === '1');
+      } catch {
+        // No storage: MADE rows show, and the switch still works for this visit.
+      }
+    };
+    const frame = window.requestAnimationFrame(read);
+    const unsubscribe = subscribeToAccountSettings(read);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      unsubscribe();
+    };
+  }, []);
+
+  const toggleHideMade = useCallback(() => {
+    setHideMade((current) => {
+      const next = !current;
+      try {
+        window.localStorage.setItem(HIDE_MADE_KEY, next ? '1' : '0');
+      } catch {
+        // Kept for this visit only.
+      }
+      return next;
+    });
+    noteSettingChanged('hideMade');
+    setPage(1);
   }, []);
 
   // Signed in, the account's place and sort are written into storage on sign-in (SPEC-forum-v3.md, F2A): the board takes
@@ -965,6 +1002,20 @@ export default function ForumBoard() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            {/* The day's `[ MADE ]` rows, out of the way for whoever would rather not see them (SPEC-forum-v3.md, M3A). */}
+            <div className="mt-3">
+              <button
+                type="button"
+                onClick={toggleHideMade}
+                aria-pressed={hideMade}
+                className={hideMade ? PLATE_PRESSED : PLATE}
+                title="Leave out the rows that say what people made today"
+                data-hide-made
+              >
+                [ HIDE MADE ]
+              </button>
             </div>
           </div>
         ) : null}

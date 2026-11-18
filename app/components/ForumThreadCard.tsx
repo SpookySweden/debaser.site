@@ -30,6 +30,8 @@ import { ThreadPinControl } from './ForumPinPanel';
 import { ThreadModeration } from './ForumModerationControls';
 import AddToLetterKey from './AddToLetterKey';
 import StreamRecord, { StreamMarker, StreamRowFacts } from './StreamRecord';
+import MadeRecord, { MadeMarker, MadeTitle } from './MadeRecord';
+import { madeOf } from '../lib/forum/made';
 import { streamRoomId } from '../lib/watch/rules';
 import InlineTrackPlayer from './InlineTrackPlayer';
 import MentionRow from './MentionRow';
@@ -206,6 +208,8 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
   const isRead = postIsRead(forum.seenByThread, thread.id);
   /** A stream's record (SPEC-watch-together.md): its body is drawn from the room, not stored. */
   const streamRoom = streamRoomId(thread.anchor);
+  /** A MADE row (SPEC-forum-v3.md, M3A): its count and its list are drawn from the things, not stored. */
+  const made = madeOf(thread.anchor);
 
   return (
     <article id={threadDomId(thread.id)} className={`rule-pixel px-2 py-2 ${isRead ? ROW_READ : ROW_UNREAD}`}>
@@ -236,7 +240,9 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
             <div className="min-w-0 flex-1">
               <div className="flex items-baseline gap-2 font-bold text-ink">
                 <span className="shrink-0 text-label leading-none text-ink">{isOpen ? '[-]' : '[+]'}</span>
-                <span className="min-w-0 flex-1 text-sm leading-tight group-hover:underline">{layout.title}</span>
+                <span className="min-w-0 flex-1 text-sm leading-tight group-hover:underline">
+                  {made === null ? layout.title : <MadeTitle person={made.person} day={made.day} name={thread.author.displayName} />}
+                </span>
                 {/* Pinned posts say so before anything else about them, because being pinned is
                     why this row is at the top of the list. */}
                 {pin === undefined ? null : (
@@ -248,6 +254,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                   </span>
                 )}
                 {streamRoom === null ? null : <StreamMarker roomId={streamRoom} />}
+                {made === null ? null : <MadeMarker />}
                 <span className="shrink-0 text-label text-ink">{layout.repliesLabel}</span>
                 {/* A post filed with a picture says so before it is opened: the drawing itself now
                     waits for the click (see the strip below), so this badge is what tells a reader
@@ -439,6 +446,8 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                 did was cut - Luke, 2026-10-24). */}
             {streamRoom !== null ? (
               isOpen ? <StreamRecord roomId={streamRoom} /> : null
+            ) : made !== null ? (
+              isOpen ? <MadeRecord person={made.person} day={made.day} /> : null
             ) : layout.right.isAnchorPost ? null : songHrefIn(layout.right.body) !== null ? (
               <Link href={songHrefIn(layout.right.body) as string} className={PLATE}>
                 [ OPEN SONG ]

@@ -2,6 +2,7 @@ import { autoThreadTitle, isAutoFiledBody, profileAnchorTarget } from './anchors
 import { SITE_ACCOUNT_DISPLAY_NAME, SITE_ACCOUNT_ID } from '../auth/builtin-account';
 import { DEFAULT_AVATAR_SRC } from '../profile/avatar-catalogue';
 import { isStreamThread } from '../watch/rules';
+import { madeHeading, madeOf } from './made';
 import type { ForumAnchor, ForumAuthor, ForumThread } from './types';
 
 /**
@@ -44,7 +45,8 @@ export const SITE_AUTHOR_PICTURE = DEFAULT_AVATAR_SRC;
 /** True when the thread is the item's own: an item's comment box opened it. */
 export function isItemOwnedThread(thread: ForumThread): boolean {
   // A stream's record has no body either, but it is a post somebody filed by going live: its title stays.
-  return isAutoFiledBody(thread.body) && !isStreamThread(thread);
+  // A MADE row (SPEC-forum-v3.md) is the same: filed by its maker's own tab, credited to them.
+  return isAutoFiledBody(thread.body) && !isStreamThread(thread) && madeOf(thread.anchor) === null;
 }
 
 /**
@@ -53,6 +55,9 @@ export function isItemOwnedThread(thread: ForumThread): boolean {
  * and the pin panel all read this, so an old row is called one thing everywhere.
  */
 export function displayTitle(thread: ForumThread): string {
+  // A MADE row is called by whose day it is (SPEC-forum-v3.md, M4A); the card adds the live count.
+  const made = madeOf(thread.anchor);
+  if (made !== null) return madeHeading(thread.author.displayName, null, made.day);
   return isItemOwnedThread(thread) ? autoThreadTitle(thread.anchor) : thread.title;
 }
 

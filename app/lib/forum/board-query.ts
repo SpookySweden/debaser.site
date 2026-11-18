@@ -3,6 +3,7 @@ import { displayTitle, postCredit } from './site-author';
 import type { ForumAnchorKind, ForumComment, ForumTag, ForumThread, ForumTrack } from './types';
 import { isStreamThread } from '../watch/rules';
 import { sortBoard, type BoardSort, type TopFrame } from './board-sort';
+import { dropDuplicateMade, isMadeThread } from './made';
 
 /**
  * Board query: filtering and ordering of the thread list.
@@ -73,6 +74,8 @@ export type BoardQuery = {
    * sits on a track, so choosing one asks a question about the music rather than about the writing.
    */
   musicTagKeys?: string[];
+  /** HIDE MADE in `[ FILTER ▾ ]` (SPEC-forum-v3.md, M3A): leave out the `[ MADE ]` rows. */
+  hideMade?: boolean;
 };
 
 /** Canonical keys of the tags on the post itself. */
@@ -235,7 +238,9 @@ export function onMainBoard(thread: ForumThread): boolean {
 export function selectBoardThreads(threads: ForumThread[], options: BoardQuery): ForumThread[] {
   const needle = options.query.trim().toLowerCase();
 
-  const filtered = threads.filter((thread) => {
+  // One MADE row a person a day, however many racing tabs filed (SPEC-forum-v3.md, M4A).
+  const filtered = dropDuplicateMade(threads).filter((thread) => {
+    if (options.hideMade === true && isMadeThread(thread)) return false;
     if (options.sourceFilter === 'stream') {
       if (!isStreamThread(thread)) return false;
     } else if (options.sourceFilter === 'all') {

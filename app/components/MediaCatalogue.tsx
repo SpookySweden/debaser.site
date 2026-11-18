@@ -37,6 +37,7 @@ import TimeStamp from './TimeStamp';
 import QueuePictureKey from './QueuePictureKey';
 import WatchInRoomKey from './WatchInRoomKey';
 import AddToLetterKey from './AddToLetterKey';
+import { fileMade } from '../lib/forum/made-filing';
 
 type Sort = 'newest' | 'title' | 'used';
 
@@ -574,6 +575,9 @@ export default function MediaCatalogue() {
             // Find it for them: the new file is the newest, so the search for its title lists it first.
             setQuery(item.title);
             setOpenId(`|${item.id}`);
+            // A file of theirs, new on /files: their MADE row for the day (SPEC-forum-v3.md, M2B). The same bytes filed
+            // before by somebody else are their file, not this person's.
+            if (user !== null && item.uploadedBy === user.id) void fileMade(item.kind === 'audio' ? 'tracks' : 'files');
           }}
           onAudioWanted={() => {
             setUploading(false);
@@ -595,6 +599,8 @@ export default function MediaCatalogue() {
             folders.refresh();
             catalogue.reload();
             setNotice(`FILED :: ${track.title}`);
+            // A track of theirs on the shelf: their MADE row for the day (SPEC-forum-v3.md, M2B).
+            void fileMade('tracks');
             // Open it: filing a file and then having to find it would be a poor sort of shelf.
             player.play(track, { origin: 'shelf', href: MUSIC_HREF, where: 'THE FILES PAGE' });
           }}

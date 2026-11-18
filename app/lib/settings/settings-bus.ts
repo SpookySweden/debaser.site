@@ -16,6 +16,7 @@ export const SYNCED_KEYS = {
   forumPlace: 'debaser.forum.board.v1',
   forumSort: 'debaser.forum.sort',
   wirePaused: 'debaser.forum.wire-paused.v1',
+  hideMade: 'debaser.forum.hide-made.v1',
   mediaFolds: 'debaser.media.filter-folds.v1',
   mediaView: 'debaser.media.view.v1',
   playerBar: 'debaser.audio.bar.v1',

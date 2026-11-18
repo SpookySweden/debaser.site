@@ -524,6 +524,9 @@ async function saveNow(session: Session): Promise<void> {
     await snapshot(session);
     session.wire?.send({ type: 'canvas', canvasId: canvas.id });
     emit(session, { saving: false });
+    // On the art shelf now, and saved by this person (saying SAVE twice, or after somebody else, files nothing): their
+    // MADE row for the day (SPEC-forum-v3.md, M2B).
+    if (canvas.savedAt === null && saved.savedBy === me.id) void import('../forum/made-filing').then((made) => made.fileMade('drawings'));
   } catch (failure) {
     emit(session, { saving: false, error: failure instanceof Error ? failure.message : 'THE CANVAS COULD NOT BE SAVED.' });
   }

@@ -28,6 +28,7 @@ import {
 } from '../lib/search/site-search';
 import { FIELD, PLATE } from '../lib/ui/controls';
 import { searchEverywhere } from '../lib/web/everywhere-client';
+import { getCanvasRepository, type StreamArtPiece } from '../lib/watch/canvas-repository';
 import type { WebStreamItem } from '../lib/web/dedupe';
 import { PLATFORM_LABELS } from '../lib/web/types';
 import { useAuth } from './AuthProvider';
@@ -146,6 +147,18 @@ export function SearchBody({ initial, onLeave }: { initial: string; onLeave: () 
   const recommendations = useRecommendationList('public', me);
   const [docs, setDocs] = useState<DocSummary[]>([]);
   const [places, setPlaces] = useState<BookPlace[]>([]);
+  /** The art shelf's drawings (SPEC-forum-v3.md: DRAWINGS, with MADE), read once like the docs. */
+  const [drawings, setDrawings] = useState<StreamArtPiece[]>([]);
+  useEffect(() => {
+    let live = true;
+    void getCanvasRepository()
+      .listPieces({ includeHidden: false })
+      .then((found) => live && setDrawings(found))
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, []);
   useEffect(() => {
     let live = true;
     void getDocsRepository(me)
@@ -188,6 +201,9 @@ export function SearchBody({ initial, onLeave }: { initial: string; onLeave: () 
     const files = catalogue.items
       .filter((item) => matchesWords(words, item.title, item.kind))
       .map((item) => ({ key: item.id, href: `/files?kind=${item.kind}`, text: `${item.title} · ${item.kind.toUpperCase()}` }));
+    const drawingRows = drawings
+      .filter((piece) => matchesWords(words, piece.canvas.title, piece.canvas.hostLabel, piece.canvas.savedByLabel ?? ''))
+      .map((piece) => ({ key: piece.canvas.id, href: '/media?art=1', text: `${piece.canvas.title || 'A DRAWING'} · ${piece.canvas.savedByLabel ?? piece.canvas.hostLabel}` }));
     const recs = (recommendations.value ?? [])
       .filter((rec) => matchesWords(words, rec.title, rec.message, rec.senderName))
       .map((rec) => ({ key: rec.id, href: rec.forumThreadId === null ? '/recommendations' : `/forum#${threadDomId(rec.forumThreadId)}`, text: `${rec.title}${rec.senderName ? ` · ${rec.senderName}` : ''}` }));
@@ -195,8 +211,8 @@ export function SearchBody({ initial, onLeave }: { initial: string; onLeave: () 
     const books = [...reading, ...read]
       .filter((place) => matchesWords(words, place.title))
       .map((place) => ({ key: place.bookRef, href: continueHref(place.bookRef), text: place.title || 'A BOOK' }));
-    return { posts, people, docRows, files, recs, books };
-  }, [words, forum.threads, accounts, docs, catalogue.items, recommendations.value, places]);
+    return { posts, people, docRows, files, drawingRows, recs, books };
+  }, [words, forum.threads, accounts, docs, catalogue.items, drawings, recommendations.value, places]);
 
   // OUTSIDE: MEDIA's own search, asked once per search and shown after the site's groups (S1B).
   const [outside, setOutside] = useState<{ for: string; items: WebStreamItem[]; failed: boolean } | null>(null);
@@ -250,6 +266,7 @@ export function SearchBody({ initial, onLeave }: { initial: string; onLeave: () 
           <Group title="PEOPLE" rows={groups.people.slice(0, GROUP_LIMIT)} onLeave={onLeave} />
           <Group title="DOCS & LORE" rows={groups.docRows.slice(0, GROUP_LIMIT)} onLeave={onLeave} />
           <Group title="FILES & TRACKS" rows={groups.files.slice(0, GROUP_LIMIT)} onLeave={onLeave} />
+          <Group title="DRAWINGS" rows={groups.drawingRows.slice(0, GROUP_LIMIT)} onLeave={onLeave} />
           <Group title="RECOMMENDATIONS" rows={groups.recs.slice(0, GROUP_LIMIT)} onLeave={onLeave} />
           <Group title="YOUR BOOKS" rows={groups.books.slice(0, GROUP_LIMIT)} onLeave={onLeave} />
           <Group

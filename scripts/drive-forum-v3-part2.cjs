@@ -195,12 +195,98 @@ async function marksPart(browser, totals) {
   await second.context.close();
 }
 
+/**
+ * Makes a letter public the way a reader does: [ + LETTER ] on a post, a new letter's name, then its lock in the letter
+ * window. The mock's letters live in the page's memory, so the letter window is opened without a reload.
+ */
+async function makeLetterPublic(page, name) {
+  await page.getByRole('button', { name: 'Add "Marmalade sketches" to a letter' }).first().click();
+  await page.getByLabel("New letter's name").fill(name);
+  await page.getByRole('button', { name: '[ + NEW LETTER ]' }).click();
+  await page.getByText(`ADDED TO "${name}".`).waitFor({ timeout: 15000 });
+  await page.keyboard.press('Escape');
+  await sleep(300);
+  // To the reader's own profile by its link (no reload), where their letters are listed, and open this one.
+  await page.locator(`a[href="/profile/${ME.id}"]`).first().click();
+  await page.getByRole('button', { name: new RegExp(name) }).first().click({ timeout: 90000 });
+  await page.getByRole('button', { name: /Press to make it public/ }).first().click({ timeout: 15000 });
+  await page.getByRole('button', { name: /Press to make it private/ }).first().waitFor({ timeout: 10000 });
+  await page.keyboard.press('Escape');
+  await page.locator('a[href="/forum"]').first().click();
+  await page.getByRole('button', { name: '+ NEW POST' }).first().waitFor({ timeout: 90000 });
+  await sleep(2500);
+}
+
+const madeRows = (page) => page.locator('article:has([data-made-tag])');
+
+async function madePart(browser, totals) {
+  console.log('7. MADE ROWS (M1A to M4A)');
+  const maker = await newContext(browser, { signedIn: true });
+  let page = maker.page;
+  await page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded' });
+  await forumReady(page);
+  check((await madeRows(page).count()) === 0, 'no MADE row before anything is made');
+  // The newswire's crawl moves names under the pointer: stopped, so a link can be pressed.
+  await page.locator('[data-wire-pause]').click();
+  await makeLetterPublic(page, 'Zine one');
+  check((await madeRows(page).count()) === 1, 'making a letter public files one MADE row on the board');
+  const title = async () => ((await madeRows(page).first().locator('summary').textContent()) ?? '').replace(/\s+/g, ' ');
+  await page.waitForFunction(() => /MADE 1 THING TODAY/.test(document.querySelector('article:has([data-made-tag]) summary')?.textContent ?? ''), null, { timeout: 15000 }).catch(() => null);
+  check(/SYNCREADER MADE 1 THING TODAY/.test(await title()), 'it reads SYNCREADER MADE 1 THING TODAY, with the [ MADE ] tag', (await title()).slice(0, 90));
+  await makeLetterPublic(page, 'Zine two');
+  check((await madeRows(page).count()) === 1, 'a second thing the same day files no second row');
+  await page.waitForFunction(() => /MADE 2 THINGS TODAY/.test(document.querySelector('article:has([data-made-tag]) summary')?.textContent ?? ''), null, { timeout: 15000 }).catch(() => null);
+  check(/MADE 2 THINGS TODAY/.test(await title()), 'the row grows: MADE 2 THINGS TODAY', (await title()).slice(0, 90));
+  await madeRows(page).first().locator('summary').click();
+  await page.locator('[data-made-record]').waitFor({ timeout: 15000 }).catch(() => null);
+  const listed = ((await page.locator('[data-made-record]').textContent().catch(() => '')) ?? '').replace(/\s+/g, ' ');
+  check(/PUBLIC LETTER:\s?Zine two/.test(listed) && /PUBLIC LETTER:\s?Zine one/.test(listed), 'opened, it lists each thing with a link to it', listed.slice(0, 100));
+  check(await page.locator('[data-made-record] a').first().getAttribute('href').then((href) => /letter=mock-/.test(href ?? '')).catch(() => false), 'and a line opens the letter');
+  await page.screenshot({ path: join(OUT, 'made-row.png') });
+  await page.getByRole('button', { name: /FILTER/ }).first().click();
+  await page.locator('[data-hide-made]').click();
+  await sleep(500);
+  check((await madeRows(page).count()) === 0, 'HIDE MADE in FILTER takes the row off the board');
+  check(await page.locator('[data-hide-made]').getAttribute('aria-pressed') === 'true', 'and the key says it is on');
+  await sleep(1500);
+  const row = (await readRow(page))[ME.id];
+  check(row?.settings?.keys?.hideMade === '1', 'HIDE MADE is remembered with the other settings (and follows the account)', String(row?.settings?.keys?.hideMade));
+
+  // PRIVACY: the five switches, each on by default; a press saves to the account.
+  await page.goto(`${BASE}/account`, { waitUntil: 'domcontentloaded' });
+  await page.getByRole('tab', { name: /PRIVACY/ }).click({ timeout: 90000 });
+  await page.locator('[data-made-switches]').waitFor({ timeout: 30000 });
+  const switches = await page.locator('[data-made-switch]').evaluateAll((nodes) => nodes.map((n) => `${n.getAttribute('data-made-switch')}=${n.getAttribute('aria-pressed')}`));
+  check(switches.join(',') === 'drawings=true,characters=true,files=true,tracks=true,letters=true', 'PRIVACY has POST WHAT I MAKE TO THE BOARD: five switches, all on', switches.join(','));
+  await page.waitForFunction(() => !document.querySelector('[data-made-switch="tracks"]')?.disabled, null, { timeout: 15000 });
+  await page.locator('[data-made-switch="tracks"]').click();
+  await sleep(1600);
+  check((await readRow(page))[ME.id]?.settings?.made?.tracks === false, 'turning TRACKS off saves it to the account');
+  await page.screenshot({ path: join(OUT, 'privacy-switches.png'), fullPage: true });
+  totals.live += maker.liveHits();
+  await maker.context.close();
+
+  // The PUBLIC LETTERS switch off: making a letter public files nothing.
+  const off = await newContext(browser, {
+    signedIn: true,
+    row: JSON.stringify({ [ME.id]: { settings: { keys: {}, made: { drawings: true, characters: true, files: true, tracks: true, letters: false } }, read_marks: {} } }),
+  });
+  page = off.page;
+  await page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded' });
+  await forumReady(page);
+  await makeLetterPublic(page, 'Quiet zine');
+  check((await madeRows(page).count()) === 0, 'with PUBLIC LETTERS switched off in PRIVACY, making one public files no row');
+  totals.live += off.liveHits();
+  await off.context.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: findChrome(), headless: true });
   const totals = { live: 0 };
   try {
     if (ONLY === null || ONLY === 'settings') await settingsPart(browser, totals);
     if (ONLY === null || ONLY === 'marks') await marksPart(browser, totals);
+    if (ONLY === null || ONLY === 'made') await madePart(browser, totals);
   } catch (error) {
     failed += 1;
     console.log(`  FAIL the run stopped: ${error.message.split('\n').slice(0, 14).join(' / ')}`);

@@ -1,6 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
+import {
+  accountSettingsLoaded,
+  madeSwitches,
+  serverAccountSettingsLoaded,
+  serverMadeSwitches,
+  setMadeSwitch,
+  subscribeToAccountSettingsLoaded,
+  subscribeToMadeSwitches,
+} from '../lib/settings/account-settings';
+import { MADE_KINDS } from '../lib/settings/settings-rules';
 import type { ProfileVisibility } from '../lib/profile/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { PLATE, PLATE_PRESSED } from '../lib/ui/controls';
@@ -68,10 +78,53 @@ export default function PrivacySwitches({ userId }: { userId: string }) {
         })}
       </ul>
 
+      <MadeSwitches />
+
       <p className="text-prose">YOU STAY LISTED IN THE DIRECTORY. YOUR COUNTRY FLAG SHOWS ONLY TO PEOPLE WHO ARE SIGNED IN: SET IT IN EDIT PROFILE.</p>
 
       {fault === null ? null : <p className="text-prose font-bold">{fault}</p>}
       <p className="text-prose text-ink">{RECOMMEND_NOTE}</p>
     </div>
+  );
+}
+
+/**
+ * POST WHAT I MAKE TO THE BOARD (SPEC-forum-v3.md, M1A and M2B): a switch per kind, each on by default, saved with the
+ * account's settings (`user_settings.settings.made`). Off stops new `[ MADE ]` rows; it never deletes old ones. Pressable
+ * once the account's settings have been read, so a press never saves a guess over them.
+ */
+function MadeSwitches() {
+  const switches = useSyncExternalStore(subscribeToMadeSwitches, madeSwitches, serverMadeSwitches);
+  const loaded = useSyncExternalStore(subscribeToAccountSettingsLoaded, accountSettingsLoaded, serverAccountSettingsLoaded);
+
+  return (
+    <section aria-labelledby="made-switches-heading" data-made-switches>
+      <h3 id="made-switches-heading" className="text-heading font-bold">POST WHAT I MAKE TO THE BOARD</h3>
+      <p className="text-prose">ONE LINE A DAY ON THE BOARD, LISTING WHAT YOU MADE PUBLIC. OFF STOPS NEW LINES; OLD ONES STAY.</p>
+      <ul>
+        {MADE_KINDS.map((row) => {
+          const on = switches[row.kind];
+          return (
+            <li key={row.kind} className="rule-pixel flex items-start justify-between gap-3 py-2">
+              <div className="min-w-0">
+                <p className="text-heading font-bold">{row.label}</p>
+                <p className="text-prose">{row.line}</p>
+              </div>
+              <button
+                type="button"
+                aria-pressed={on}
+                aria-label={`Post ${row.label.toLowerCase()} to the board: ${on ? 'ON' : 'OFF'}`}
+                onClick={() => setMadeSwitch(row.kind, !on)}
+                disabled={!loaded}
+                className={`${on ? `${PLATE_PRESSED} cursor-pointer` : PLATE} shrink-0 text-heading max-sm:min-h-tap`}
+                data-made-switch={row.kind}
+              >
+                [ {on ? 'ON' : 'OFF'} ]
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }

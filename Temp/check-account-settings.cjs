@@ -173,6 +173,7 @@ function loadSync() {
     mediaFolds: 'app/components/WebStream.tsx',
     mediaView: 'app/lib/web/media-view.ts',
     playerBar: 'app/components/MusicPlayer.tsx',
+    hideMade: 'app/components/ForumBoard.tsx',
   };
   const usedBy = { forumPlace: 'app/components/ForumBoard.tsx', forumSort: 'app/components/ForumBoard.tsx' };
   assert.deepEqual(Object.keys(owners).sort(), Object.keys(SYNCED_KEYS).sort(), 'every synced setting has an owner here');
