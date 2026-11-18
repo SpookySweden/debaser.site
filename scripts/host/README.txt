@@ -19,3 +19,5 @@ keep-running.cjs                     (copied to G:\DEBASER-HOST) starts and rest
 merge-pasted-keys.cjs  supabase|site moves keys Luke pasted into a paste-keys-here.txt into the file that uses them.
 self-update.cjs          [--force]  (copied to G:\DEBASER-HOST, run every 5 min by the task DebaserUpdate) builds a new main in
                                      the copy of the site that isn't serving (site / site-b), then switches services.json to it.
+backup.cjs                           (copied to G:\DEBASER-HOST, run at 04:00 by the task DebaserBackup) the daily copy into
+                                     I:\DEBASER\backups\<date>: database.dump, roles.sql, files\, settings\, report.json; 30 kept.
