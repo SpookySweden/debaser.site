@@ -65,6 +65,18 @@ const name = (id) => `C${id}`;
   assert.ok(advice.find((a) => a.key === 'jungle').text.includes('jungler'));
   assert.ok(advice.find((a) => a.key === 'otp:517').text.startsWith('Their mid laner'), 'role nouns, not lane words');
 
+  // --- a game with no queue given (debaser.site, 2026-11-18: LIVE read "QUEUE 0" and hid the match clock) ---
+  const types = require(path.join(out, 'live-types.js'));
+  const lanes = ['TOP', 'JUNGLE', 'MID', 'BOTTOM', 'SUPPORT'];
+  const tenOnRift = [100, 200].flatMap((team) => lanes.map((lane, i) => ({ team, lane, championId: team + i })));
+  assert.equal(types.isRiftGame({ queueId: 0, players: tenOnRift }), true, 'no queue, but all five lanes on both teams: Rift');
+  assert.equal(types.isRiftGame({ queueId: 0, players: tenOnRift.map((p) => ({ ...p, lane: null })) }), false, 'no queue and no lanes: not assumed');
+  assert.equal(types.isRiftGame({ queueId: 450, players: tenOnRift }), false, 'ARAM by its queue');
+  assert.equal(types.isRiftGame({ queueId: 420, players: [] }), true);
+  assert.equal(types.queueName(0), 'QUEUE NOT GIVEN', 'never "QUEUE 0"');
+  assert.equal(types.queueName(420), 'RANKED SOLO/DUO');
+  assert.ok(liveAdvice({ queueId: 0, lengthSec: 0, fetchedAt: 0, bans: [], players: tenOnRift.map((p) => ({ ...p, name: p.team === 100 && p.lane === 'MID' ? 'Me' : 'x', tag: 'EUW', onRole: null, spells: [], primaryStyle: null, subStyle: null, keystone: null, rank: null, championGames: null, championWins: null, lanes: [], party: null })) }, { team: 100, lane: 'MID', championId: 102 }, name).some((a) => a.key === 'jungle'), 'the jungle note shows on a Rift game with no queue');
+
   // --- the clock ---
   assert.deepEqual(RIFT_SPAWNS.map((s) => s.at), [300, 480, 900, 1200], 'patch 26.1 spawn times');
   assert.equal(clockText(605), '10:05');

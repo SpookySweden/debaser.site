@@ -6,7 +6,7 @@
 
 import type { AdviceLine } from './advice';
 import { LANE_WORDS } from './advice';
-import { isRiftQueue, type LiveGame, type LivePlayer } from './live-types';
+import { isRiftGame, type LiveGame, type LivePlayer } from './live-types';
 import { sameRiotId, type RiotId } from './riot-id';
 import { rankText, type Lane } from './types';
 
@@ -55,7 +55,7 @@ export function liveAdvice(game: LiveGame, me: LivePlayer | null, name: (champio
 
   // The enemy jungler's first clear.
   const jungler = enemies.find((p) => p.lane === 'JUNGLE');
-  if (jungler && me && me.lane !== 'JUNGLE' && isRiftQueue(game.queueId)) {
+  if (jungler && me && me.lane !== 'JUNGLE' && isRiftGame(game)) {
     lines.push({ key: 'jungle', mark: '>', text: `Their jungler is ${name(jungler.championId)}. A first clear ends around 3:00 to 3:30: ward the river before then.`, weight: 40 });
   }
 

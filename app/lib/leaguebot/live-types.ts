@@ -83,3 +83,21 @@ export const QUEUE_NAMES: Record<number, string> = {
 export function isRiftQueue(queueId: number): boolean {
   return [400, 420, 430, 440, 490, 700].includes(queueId);
 }
+
+const ALL_LANES = ['TOP', 'JUNGLE', 'MID', 'BOTTOM', 'SUPPORT'];
+
+/**
+ * A Summoner's Rift game. U.GG sometimes gives no queue at all (seen on debaser.site, 2026-11-18: "QUEUE 0" and no match
+ * clock); then ten players whose lanes fill all five on both teams say Rift.
+ */
+export function isRiftGame(game: Pick<LiveGame, 'queueId' | 'players'>): boolean {
+  if (game.queueId > 0) return isRiftQueue(game.queueId);
+  if (game.players.length !== 10) return false;
+  return [100, 200].every((team) => ALL_LANES.every((lane) => game.players.some((p) => p.team === team && p.lane === lane)));
+}
+
+/** The queue's name, or plain words when the source didn't say which (never `QUEUE 0`). */
+export function queueName(queueId: number): string {
+  if (queueId > 0) return QUEUE_NAMES[queueId] ?? `QUEUE ${queueId}`;
+  return 'QUEUE NOT GIVEN';
+}

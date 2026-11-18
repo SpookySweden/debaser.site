@@ -11,7 +11,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { LANE_WORDS } from '../lib/leaguebot/advice';
 import { lookUpLive, lookUpMatchup, LookupError } from '../lib/leaguebot/client';
 import { clockText, findMe, gameSeconds, laneOpponentOf, liveAdvice, RIFT_SPAWNS } from '../lib/leaguebot/live-advice';
-import { isRiftQueue, QUEUE_NAMES, type LiveAnswer, type LivePlayer, type MatchupGuide } from '../lib/leaguebot/live-types';
+import { isRiftGame, queueName, type LiveAnswer, type LivePlayer, type MatchupGuide } from '../lib/leaguebot/live-types';
 import type { RegionId } from '../lib/leaguebot/regions';
 import type { RiotId } from '../lib/leaguebot/riot-id';
 import { championName, type StaticData } from '../lib/leaguebot/static-data';
@@ -272,7 +272,7 @@ export default function LeagueLive({ id, region, data }: { id: RiotId; region: R
   const myTeam = me?.team ?? 100;
   const allies = game.players.filter((p) => p.team === myTeam);
   const enemies = game.players.filter((p) => p.team !== myTeam);
-  const rift = isRiftQueue(game.queueId);
+  const rift = isRiftGame(game);
 
   return (
     <div className="space-y-4" data-leaguebot-live="playing">
@@ -283,7 +283,7 @@ export default function LeagueLive({ id, region, data }: { id: RiotId; region: R
         </p>
         <div role="status" aria-live="polite" className="text-label text-ink">
           <p>
-            IN A GAME · {QUEUE_NAMES[game.queueId] ?? `QUEUE ${game.queueId}`}
+            IN A GAME · {queueName(game.queueId)}
           </p>
           {me ? (
             <p>
