@@ -132,7 +132,7 @@ Google sign-in starts and reaches Google's own sign-in page with no redirect mis
 file that `scripts/host/merge-pasted-keys.cjs` moved without printing. Vercel's server keys are marked sensitive and can't be
 pulled (they came out as a placeholder), so only the shadow proxy's two came across (from `.env.local`); TMDB, YouTube,
 Anthropic and Giphy keys come from each provider's page into `G:\DEBASER-HOST\site\paste-keys-here.txt` (`merge-pasted-keys.cjs site`).
-Twitch's keys and WEB_FETCH_CONTACT were never set in Vercel (Twitch uses its keyless fallback).
+Twitch's keys and WEB_FETCH_CONTACT were never set in Vercel (Twitch uses its keyless fallback). Done after Stage 4 (2026-11-18): Luke pasted the TMDB, YouTube, Anthropic (a new key) and GIPHY keys; each answered 200 to one harmless request.
 
 **Stage 4: moving the data** (an evening; the moment of no return for new posts on the old project)
 9. C: Fresh read-only export of every table and every account from the cloud (the same route as the daily backup).
