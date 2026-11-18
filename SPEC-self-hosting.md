@@ -173,6 +173,13 @@ and the media catalogue's rule only accepted supabase.co links ("Yes, widen it":
 (`G:DEBASER-HOSTsite` and `site-b`); `self-update.cjs` builds a new main in the idle copy, points services.json at it
 and stops the old server, and keep-running starts the new one (one full cycle tested: a 5-second blip). Task
 `DebaserUpdate` runs it every 5 minutes. The site's settings live in `G:DEBASER-HOSTsite.env`, copied into each build.
+Pushed as 280c6db (verify and verify:clean passed; checks 219/237 with my two updated on purpose, the rest
+the blocked cloud refusing sign-in, plus check-modules, which fails on main without this work). The PC picked it up by
+itself (03:36 noticed, 03:40 switched); `npm run deploy-status` waited until debaser.site reported 280c6db. Proved after:
+/api/version answers {commit: 280c6db, host: pc}; debaser-site.vercel.app answers 307 to debaser.site with path and query;
+`npm run read` reads debaser.site; TEST ACCOUNTS A and B signed in through api.debaser.site, saw each other on one live
+channel and A's broadcast reached B (nothing written). A full interim copy of the PC's database (pg_dump, 22 MB) is in
+`I:DEBASERackups` until Stage 7. Still Luke's (step 13): automatic sign-in, Windows Update's active hours, a test restart.
 Not yet switched over (next): `npm run db`, `db:push`, `db:backup`, `web:fetch` and the dev `.env.local` still reach the
 old cloud project; core.md says so until they are.
 
