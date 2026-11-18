@@ -27,7 +27,7 @@ const { readPlayer } = require(path.join(out, 'pick-source.js'));
 const { computeStats, line } = require(path.join(out, 'stats.js'));
 const { statsAdvice } = require(path.join(out, 'advice.js'));
 const { createKeeper, LOOKUPS_PER_MINUTE } = require(path.join(out, 'cache.js'));
-const { parseRiotId, riotIdFrom } = require(path.join(out, 'riot-id.js'));
+const { parseRiotId, riotIdFrom, sameRiotId } = require(path.join(out, 'riot-id.js'));
 const { ladderValue, ladderText } = require(path.join(out, 'ladder.js'));
 const { regionById } = require(path.join(out, 'regions.js'));
 
@@ -188,6 +188,11 @@ const ME = { name: 'MOCK PLAYER', tag: 'EUW' };
   assert.deepEqual(parseRiotId('  A 99 mid laner #EUW '), { name: 'A 99 mid laner', tag: 'EUW' });
   assert.deepEqual(parseRiotId('Faker-KR1'), { name: 'Faker', tag: 'KR1' });
   assert.deepEqual(parseRiotId('강인할 기#氣魄'), { name: '강인할 기', tag: '氣魄' });
+  // (2026-11-18) A tag may hold a space between its characters: a real player in a match, refused before.
+  assert.deepEqual(parseRiotId('강인할 기#氣 魄'), { name: '강인할 기', tag: '氣 魄' });
+  assert.deepEqual(riotIdFrom('Name', ' A  B '), { name: 'Name', tag: 'A B' }, 'spaces in a tag evened out');
+  for (const badTag of ['A', 'ABCDEF', 'A B C D', '  ', 'A#B']) assert.equal(riotIdFrom('Name', badTag), null, `refused tag: "${badTag}"`);
+  assert.ok(sameRiotId({ name: '강인할 기', tag: '氣 魄' }, { name: '강인할  기', tag: '氣 魄 ' }), 'the same player with spacing evened out');
   for (const bad of ['', 'NoTag', '#TAG', 'Name#', 'Name#T', 'a<script>#EUW', 'Name#TOOLONG', null]) assert.equal(parseRiotId(bad), null, `refused: ${bad}`);
   assert.equal(riotIdFrom('x'.repeat(17), 'EUW'), null);
   assert.equal(ladderValue('GOLD', 2, 40), 3 * 400 + 200 + 40);

@@ -74,10 +74,13 @@ const refused = Object.assign(new Error('HTTP 403'), { name: 'SafeFetchError', s
   browserLive = await withBrowserLive(serverLive, async () => null);
   assert.equal(browserLive.game, null);
   assert.deepEqual(browserLive.notes, [], 'not in a game says nothing extra');
-  const believed = await readLive(ME, EUW, { uggLive: async () => null, opggLive: async () => liveGame });
+  // (2026-11-18) Updated on purpose: the server asks OP.GG itself when U.GG says "not in a game" (check-leaguebot-game), so
+  // the browser has nothing more to ask when U.GG answered at all.
+  const seenByOpgg = await readLive(ME, EUW, { uggLive: async () => null, opggLive: async () => liveGame });
+  assert.equal(seenByOpgg.game, liveGame, "the server shows OP.GG's game when U.GG hasn't seen it yet");
   asked = 0;
-  await withBrowserLive(believed, async () => ((asked += 1), liveGame));
-  assert.equal(asked, 0, '"not in a game" from U.GG is believed');
+  await withBrowserLive(seenByOpgg, async () => ((asked += 1), liveGame));
+  assert.equal(asked, 0, 'U.GG answered: the browser asks nothing more');
   assert.equal((await withBrowserLive(serverLive, () => Promise.reject(new Error('x')))).source, serverLive.source, 'a failing browser look-up leaves the server answer');
 
   // --- OP.GG's site shapes ---

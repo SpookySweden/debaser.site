@@ -36,7 +36,13 @@ export type LiveSources = {
 export async function readLive(id: RiotId, region: Region, sources: LiveSources): Promise<LiveAnswer> {
   let uggTrouble: string;
   try {
-    return { game: await sources.uggLive(id, region), source: 'U.GG', notes: [], uggTrouble: null };
+    const game = await sources.uggLive(id, region);
+    if (game) return { game, source: 'U.GG', notes: [], uggTrouble: null };
+    // U.GG says "not in a game". It can be slow to notice one that has just loaded, so OP.GG is asked too (2026-11-18,
+    // Luke: "the live feature doesn't seem to work when tested"); a game OP.GG sees is shown, U.GG's richer one when it has it.
+    const second = await sources.opggLive(id, region).catch(() => null);
+    if (second) return { game: second, source: 'OP.GG', notes: ["U.GG hasn't seen this game yet: it comes from OP.GG, without roles or duos."], uggTrouble: null };
+    return { game: null, source: 'U.GG', notes: [], uggTrouble: null };
   } catch (error) {
     uggTrouble = troubleOf(error);
   }

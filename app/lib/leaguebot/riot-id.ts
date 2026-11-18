@@ -8,7 +8,11 @@
 export type RiotId = { name: string; tag: string };
 
 const NAME = /^[\p{L}\p{N}\p{M} ._]{1,16}$/u;
-const TAG = /^[\p{L}\p{N}\p{M}]{2,5}$/u;
+/**
+ * A tag may hold a space between its characters too (seen live, 2026-11-18: a Korean player's `#氣 魄` was refused, so
+ * LEAGUEBOT never looked them up). Never a leading or trailing one, never two in a row.
+ */
+const TAG = /^(?=.{2,5}$)[\p{L}\p{N}\p{M}]+(?: [\p{L}\p{N}\p{M}]+)*$/u;
 
 /** `Name#TAG` (or `Name #TAG`, `Name-TAG` as OP.GG writes it in an address) read into its parts, or null. */
 export function parseRiotId(text: unknown): RiotId | null {
@@ -24,7 +28,7 @@ export function parseRiotId(text: unknown): RiotId | null {
 export function riotIdFrom(name: unknown, tag: unknown): RiotId | null {
   if (typeof name !== 'string' || typeof tag !== 'string') return null;
   const n = name.normalize('NFC').replace(/\s+/g, ' ').trim();
-  const t = tag.normalize('NFC').trim();
+  const t = tag.normalize('NFC').replace(/\s+/g, ' ').trim();
   return NAME.test(n) && TAG.test(t) ? { name: n, tag: t } : null;
 }
 
@@ -32,7 +36,8 @@ export function formatRiotId(id: RiotId): string {
   return `${id.name}#${id.tag}`;
 }
 
-/** The same player: Riot IDs are compared without case. */
+/** The same player: Riot IDs are compared without case, and with spaces and Unicode forms evened out. */
 export function sameRiotId(a: RiotId, b: RiotId): boolean {
-  return a.name.toLowerCase() === b.name.toLowerCase() && a.tag.toLowerCase() === b.tag.toLowerCase();
+  const even = (text: string) => text.normalize('NFC').replace(/\s+/g, ' ').trim().toLowerCase();
+  return even(a.name) === even(b.name) && even(a.tag) === even(b.tag);
 }

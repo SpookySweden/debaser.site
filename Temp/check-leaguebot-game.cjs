@@ -85,9 +85,19 @@ const name = (id) => `C${id}`;
 
   // --- live fallbacks ---
   const down = () => Promise.reject(new Error('HTTP 503'));
-  let answer = await readLive(ME, {}, { uggLive: async () => null, opggLive: async () => { throw new Error('should not be asked'); } });
-  assert.equal(answer.game, null);
-  assert.equal(answer.source, 'U.GG', '"not in a game" from U.GG is believed');
+  // (2026-11-18) Updated on purpose: U.GG's "not in a game" is no longer taken on its own word (Luke: "the live feature
+  // doesn't seem to work when tested"); OP.GG is asked too, and a game it sees is shown.
+  let answer = await readLive(ME, {}, { uggLive: async () => null, opggLive: async () => null });
+  assert.equal(answer.game, null, 'neither sees a game: not in one');
+  assert.equal(answer.source, 'U.GG');
+  answer = await readLive(ME, {}, { uggLive: async () => null, opggLive: async () => live });
+  assert.equal(answer.game, live, 'U.GG has not seen it yet, OP.GG has: shown');
+  assert.equal(answer.source, 'OP.GG');
+  assert.match(answer.notes[0], /U\.GG hasn't seen this game yet/);
+  assert.equal(answer.uggTrouble, null, 'U.GG answered: the browser is not sent to ask again');
+  answer = await readLive(ME, {}, { uggLive: async () => null, opggLive: down });
+  assert.equal(answer.game, null, "OP.GG failing after U.GG's no is still a no");
+  assert.equal(answer.source, 'U.GG');
   answer = await readLive(ME, {}, { uggLive: down, opggLive: async () => live });
   assert.equal(answer.source, 'OP.GG');
   // (2026-11-17) Worded plainly now that U.GG is known to turn LEAGUEBOT's server away; the fallback check holds the rest.
