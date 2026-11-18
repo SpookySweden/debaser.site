@@ -9,6 +9,7 @@
  * The only React-aware part is the picker, which subscribes with `useSyncExternalStore` to draw which
  * theme is currently ticked. Nothing else in the site reads this.
  */
+import { noteSettingChanged, subscribeToAccountSettings } from '../settings/settings-bus';
 import { createWindowSlot } from './window-slot';
 import { FALLBACK_THEME, THEMES, THEME_TOKEN_NAMES, themeById, type Theme, type ThemeId } from './themes';
 
@@ -110,12 +111,17 @@ export function initTheme(root: HTMLElement = document.documentElement): () => v
 
   apply();
   const unsubscribe = slot.subscribe(apply);
+  // Signed in, the account's theme is written into storage on sign-in (SPEC-forum-v3.md, F2A): read it again then.
+  const unsubscribeAccount = subscribeToAccountSettings(() => slot.set({ id: readStored() }));
 
   // A stored choice is read here rather than in the slot's initial value, because the slot is created
   // at module load on the server too, where there is no storage.
   slot.set({ id: readStored() });
 
-  return unsubscribe;
+  return () => {
+    unsubscribe();
+    unsubscribeAccount();
+  };
 }
 
 /** Switches the theme and remembers it. */
@@ -129,6 +135,7 @@ export function setTheme(id: ThemeId): void {
   } catch {
     // The theme still applies for this session; it just will not be remembered.
   }
+  noteSettingChanged('theme');
 }
 
 /** The theme the store is on. */

@@ -1,6 +1,7 @@
 'use client';
 
 import { useSyncExternalStore } from 'react';
+import { noteSettingChanged, subscribeToAccountSettings } from '../settings/settings-bus';
 
 /**
  * MEDIA's VIEW setting (Luke, 2026-11-14: "settings for the media ui that show the current view and a few others such
@@ -38,9 +39,18 @@ export function setMediaView(view: MediaView): void {
   }
   memo = view;
   listeners.forEach((listener) => listener());
+  noteSettingChanged('mediaView');
 }
 
 let memo: MediaView | null = null;
+
+// Signed in, the account's view is written into storage on sign-in (SPEC-forum-v3.md, F2A): read it again then.
+if (typeof window !== 'undefined') {
+  subscribeToAccountSettings(() => {
+    memo = read();
+    listeners.forEach((listener) => listener());
+  });
+}
 
 function subscribe(listener: () => void): () => void {
   listeners.add(listener);

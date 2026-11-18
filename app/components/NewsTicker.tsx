@@ -4,6 +4,7 @@ import { buildNewsFeed } from '../lib/forum/news-feed';
 import { useForum } from './ForumProvider';
 import NewsCrawl from './NewsCrawl';
 import { PLATE, TITLE_BAR } from '../lib/ui/controls';
+import { noteSettingChanged, subscribeToAccountSettings } from '../lib/settings/settings-bus';
 import { useEffect, useState } from 'react';
 
 /**
@@ -40,14 +41,20 @@ export default function NewsTicker() {
   const [paused, setPaused] = useState(false);
 
   useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
+    const read = () => {
       try {
         setPaused(window.localStorage.getItem(WIRE_PAUSED_KEY) === '1');
       } catch {
         // No storage: the wire moves, and the key still stops it for this visit.
       }
-    });
-    return () => window.cancelAnimationFrame(frame);
+    };
+    const frame = window.requestAnimationFrame(read);
+    // Signed in, the account's choice arrives in storage on sign-in (SPEC-forum-v3.md, F2A).
+    const unsubscribe = subscribeToAccountSettings(read);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      unsubscribe();
+    };
   }, []);
 
   const togglePaused = () => {
@@ -58,6 +65,7 @@ export default function NewsTicker() {
     } catch {
       // Kept for this visit only.
     }
+    noteSettingChanged('wirePaused');
   };
 
   if (items.length === 0) return null;

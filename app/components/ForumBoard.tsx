@@ -48,6 +48,7 @@ import { useComms } from './CommsProvider';
 import { useForum } from './ForumProvider';
 import { TagMark, tagMarkColour } from './TagBadge';
 import { PLATE,PLATE_MAIN, PLATE_PRESSED } from '../lib/ui/controls';
+import { noteSettingChanged, subscribeToAccountSettings } from '../lib/settings/settings-bus';
 
 /**
  * How the board is read: one row of three tabs, exactly one lit (SPEC-forum-v2.md, Luke's 1A).
@@ -151,6 +152,9 @@ export default function ForumBoard() {
   const [view, setView] = useState<BoardView>('feed');
   /** Set once the address or this browser's memory has been read: until then nothing is written over them. */
   const placeRead = useRef(false);
+  /** Whether the address the reader arrived at named a place or a sort: a link wins over the account's memory of them. */
+  const addressNamedPlace = useRef(false);
+  const addressNamedSort = useRef(false);
   /** How the next write of the place goes into history: a reader's own press is a step, anything else replaces. */
   const historyMode = useRef<'push' | 'replace'>('replace');
   /** The search that was run in the box (./ForumSearchBox.tsx), or null when none is showing. */
@@ -257,6 +261,7 @@ export default function ForumBoard() {
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
       let choice = readSortParams(new URLSearchParams(window.location.search));
+      addressNamedSort.current = choice !== null;
 
       if (choice === null) {
         try {
@@ -281,6 +286,7 @@ export default function ForumBoard() {
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
       let place = readBoardPlace(new URLSearchParams(window.location.search));
+      addressNamedPlace.current = place !== null;
       try {
         // An address that names a place is remembered as it stands, even the plain feed (which changes no state, so the
         // write below would not run); one that names none is filled from memory.
@@ -306,7 +312,11 @@ export default function ForumBoard() {
     if (!placeRead.current) return;
     const place = { view, tags: tagFilters, match: tagMatchMode };
     try {
-      window.localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(place));
+      const text = JSON.stringify(place);
+      // Only a real change goes to the account (SPEC-forum-v3.md, F2A): rewriting what is already kept is not a choice.
+      const changed = window.localStorage.getItem(BOARD_STORAGE_KEY) !== text;
+      window.localStorage.setItem(BOARD_STORAGE_KEY, text);
+      if (changed) noteSettingChanged('forumPlace');
     } catch {
       // A browser that refuses storage still has the address.
     }
@@ -354,8 +364,36 @@ export default function ForumBoard() {
     } catch {
       // A browser that refuses storage still sorts; it just forgets on the next visit.
     }
+    noteSettingChanged('forumSort');
     writeSortToAddress(choice);
   }, []);
+
+  // Signed in, the account's place and sort are written into storage on sign-in (SPEC-forum-v3.md, F2A): the board takes
+  // them then, unless the address it was opened at named its own (a link someone followed wins).
+  useEffect(
+    () =>
+      subscribeToAccountSettings(() => {
+        try {
+          if (!addressNamedPlace.current) {
+            const place = parseStoredPlace(window.localStorage.getItem(BOARD_STORAGE_KEY)) ?? DEFAULT_PLACE;
+            setView(place.view);
+            setTagFilters(place.tags);
+            setTagMatchMode(place.match);
+          }
+          if (!addressNamedSort.current) {
+            const choice = parseStoredSort(window.localStorage.getItem(SORT_STORAGE_KEY));
+            if (choice !== null) {
+              setSortMode(choice.sort);
+              setTopFrame(choice.frame);
+              writeSortToAddress(choice);
+            }
+          }
+        } catch {
+          // No storage: the board stays as it is.
+        }
+      }),
+    [],
+  );
 
   // Paging: the page is clamped, so filtering a page away can never show a blank board.
   const slice = paginate(visibleThreads, pageSize, page);

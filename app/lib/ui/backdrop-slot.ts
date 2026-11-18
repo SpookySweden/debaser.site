@@ -7,6 +7,7 @@
  * `aquarium` is the Windows 98 Underwater screensaver's sea (Luke, 2026-11-15: "the animated windows 98 fish background ... as the
  * new default"); `tile` is the desktop tile every theme colours, which was the only background before it.
  */
+import { noteSettingChanged, subscribeToAccountSettings } from '../settings/settings-bus';
 import { createWindowSlot } from './window-slot';
 
 export type BackdropId = 'aquarium' | 'sand' | 'fluid' | 'starfield' | 'mystify' | 'tile';
@@ -69,9 +70,14 @@ export function initBackdrop(root: HTMLElement = document.documentElement): () =
 
   apply();
   const unsubscribe = slot.subscribe(apply);
+  // The account's background, written into storage on sign-in (SPEC-forum-v3.md, F2A).
+  const unsubscribeAccount = subscribeToAccountSettings(() => slot.set({ id: readStored() }));
   slot.set({ id: readStored() });
 
-  return unsubscribe;
+  return () => {
+    unsubscribe();
+    unsubscribeAccount();
+  };
 }
 
 /** Switches the background and remembers it. */
@@ -85,6 +91,7 @@ export function setBackdrop(id: BackdropId): void {
   } catch {
     // The background still applies for this session; it just will not be remembered.
   }
+  noteSettingChanged('backdrop');
 }
 
 /**

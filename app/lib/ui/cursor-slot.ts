@@ -7,6 +7,7 @@
  * `contrast` has no files of its own: it is the white set on the dark theme and the black set on the light
  * one, and `globals.css` picks between them from `data-theme`. `system` is the computer's own pointer.
  */
+import { noteSettingChanged, subscribeToAccountSettings } from '../settings/settings-bus';
 import { createWindowSlot } from './window-slot';
 
 export type CursorId = 'contrast' | 'white' | 'black' | 'pink' | 'cat' | 'system';
@@ -65,9 +66,14 @@ export function initCursor(root: HTMLElement = document.documentElement): () => 
 
   apply();
   const unsubscribe = slot.subscribe(apply);
+  // The account's cursor, written into storage on sign-in (SPEC-forum-v3.md, F2A).
+  const unsubscribeAccount = subscribeToAccountSettings(() => slot.set({ id: readStored() }));
   slot.set({ id: readStored() });
 
-  return unsubscribe;
+  return () => {
+    unsubscribe();
+    unsubscribeAccount();
+  };
 }
 
 /** Switches the cursor and remembers it. */
@@ -81,6 +87,7 @@ export function setCursor(id: CursorId): void {
   } catch {
     // The cursor still applies for this session; it just will not be remembered.
   }
+  noteSettingChanged('cursor');
 }
 
 /**

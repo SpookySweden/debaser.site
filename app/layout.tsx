@@ -5,6 +5,7 @@ import FloatingPlayer from './components/FloatingPlayer';
 import ForYouRadio from './components/ForYouRadio';
 import MusicRoomKeeper from './components/MusicRoomKeeper';
 import SiteHistoryKeeper from './components/SiteHistoryKeeper';
+import AccountSettingsKeeper from './components/AccountSettingsKeeper';
 import AuthProvider from './components/AuthProvider';
 import CharacterBrowserWindow from './components/CharacterBrowserWindow';
 import CommsNotifier from './components/CommsNotifier';
@@ -186,6 +187,8 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
                       <FloatingPlayer />
                       {/* Your place on each page, for the arrows in the nav. Draws nothing. */}
                       <SiteHistoryKeeper />
+                      {/* Settings that follow the account (SPEC-forum-v3.md, F1B): tells the sync who is signed in. Draws nothing. */}
+                      <AccountSettingsKeeper />
                     </MusicLibraryProvider>
                   </MusicPlayerProvider>
                 </NotificationsProvider>

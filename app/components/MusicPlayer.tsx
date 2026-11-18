@@ -28,6 +28,7 @@ import { SIDE_MUSIC, SIDE_QUEUES } from './SiteNav';
 import { ACCENT_COLOUR, PLATE, PLATE_HARDWARE, PLATE_PRESSED, PLATE_TAP } from '../lib/ui/controls';
 import { useCompactViewport } from '../lib/ui/use-compact-viewport';
 import { useEdgeReserve } from '../lib/ui/use-edge-reserve';
+import { noteSettingChanged, subscribeToAccountSettings } from '../lib/settings/settings-bus';
 import { setStreamBarTarget, showMusicOnBar, showsStream, showStreamOnBar, streamBarState, subscribeToStreamBar } from '../lib/watch/stream-bar';
 import { subscribeToWatchWindow, watchWindowServerState, watchWindowState } from '../lib/watch/watch-window';
 import ArtMark from './ArtMark';
@@ -116,6 +117,14 @@ function readStoredSetting(): BarSetting | null {
 
 let barSetting: BarSetting | null = typeof window === 'undefined' ? null : readStoredSetting();
 
+// Signed in, the account's bar setting is written into storage on sign-in (SPEC-forum-v3.md, F2A): read it again then.
+if (typeof window !== 'undefined') {
+  subscribeToAccountSettings(() => {
+    barSetting = readStoredSetting();
+    for (const listener of listeners) listener();
+  });
+}
+
 function subscribeBar(listener: () => void): () => void {
   listeners.add(listener);
   return () => void listeners.delete(listener);
@@ -138,6 +147,7 @@ function setBarOpen(next: boolean): void {
   } catch {
     // Storage blocked: the bar still folds for this visit.
   }
+  noteSettingChanged('playerBar');
 
   for (const listener of listeners) listener();
 }

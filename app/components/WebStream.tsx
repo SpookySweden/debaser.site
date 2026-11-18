@@ -103,6 +103,7 @@ import WebLiveRooms from './WebLiveRooms';
 import StreamArtShelf from './StreamArtShelf';
 import { watchLinkForItem } from '../lib/web/bridges';
 import { canWatch, WebDiscussKey } from './WebBridgeKeys';
+import { noteSettingChanged, subscribeToAccountSettings } from '../lib/settings/settings-bus';
 
 /**
  * WEB: one stream of media from other platforms, newest first (SPEC-web.md).
@@ -1005,6 +1006,8 @@ export default function WebStream() {
     // Read after the first draw so the server's page and the browser's agree; nothing else sets it on mount.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setFolds(readFolds());
+    // Signed in, the account's folds arrive in storage on sign-in (SPEC-forum-v3.md, F2A).
+    return subscribeToAccountSettings(() => setFolds(readFolds()));
   }, []);
   const toggleFold = (id: string) => {
     const next = new Set(folds);
@@ -1012,6 +1015,7 @@ export default function WebStream() {
     else next.add(id);
     keepFolds(next);
     setFolds(next);
+    noteSettingChanged('mediaFolds');
   };
 
   /** A WHERE FROM key: writes `in:` into the box. While STREAM ART shows, it is the one source key on. */
