@@ -5,6 +5,10 @@
  *   npm run db -- --file supabase/cleanup/verify-live-schema.sql
  *   npm run db -- --read-only "select * from auth.users limit 5;"
  *   npm run db -- --json "select tablename from pg_tables where schemaname = 'public';"
+ *   npm run db -- --cloud --read-only "select ..."   the OLD cloud project instead of the live one on Luke's PC
+ *
+ * Since 2026-11-18 (SPEC-self-hosting.md) it asks the live database, the self-hosted Supabase on Luke's desktop PC; the
+ * notes below about the Management API, linking and the access token now apply to --cloud only.
  *
  * **Tracked in `scripts/`, not `Temp/`.** `package.json` names this file, and `Temp/` is gitignored,
  * so a copy kept there means `npm run db` does not exist on a fresh clone - the same defect
@@ -80,6 +84,24 @@ function projectRef(environment) {
 
   const match = /^https:\/\/([a-z0-9]+)\.supabase\.(co|in)$/.exec(url.trim());
   return match === null ? undefined : match[1];
+}
+
+/**
+ * Which database (SPEC-self-hosting.md). Since 2026-11-18 the live one is the self-hosted Supabase on Luke's desktop PC,
+ * reached on this PC through its connection pooler (127.0.0.1:5432) with the password in its own settings file, which is
+ * read here and never printed. `--cloud` reaches the old Supabase cloud project instead (kept as the way back, and for
+ * copying its files in Stage 6), through the Management API as before. On a machine without G:\DEBASER-HOST (the laptop)
+ * the live database can't be reached; it says so.
+ */
+const PC_SETTINGS = 'G:\\DEBASER-HOST\\supabase\\.env';
+const CLOUD_REF = 'uekreahyooezywjgzirr';
+
+function target(argv, environment) {
+  if (argv.includes('--cloud')) return { kind: 'cloud', ref: projectRef(environment) ?? CLOUD_REF, label: `the OLD cloud project ${projectRef(environment) ?? CLOUD_REF}` };
+  if (!existsSync(PC_SETTINGS)) return { error: 'the live database is the one on Luke\'s desktop PC (G:\\DEBASER-HOST), which this machine cannot reach. Run this on the desktop, or add --cloud for the old cloud project.' };
+  const password = /^POSTGRES_PASSWORD=(.*)$/m.exec(readFileSync(PC_SETTINGS, 'utf8'))?.[1]?.trim();
+  if (!password) return { error: `no POSTGRES_PASSWORD in ${PC_SETTINGS}` };
+  return { kind: 'pc', url: `postgresql://postgres.debaser:${encodeURIComponent(password)}@127.0.0.1:5432/postgres?sslmode=disable`, secret: password, label: 'the live database on this PC' };
 }
 
 /**
@@ -199,8 +221,9 @@ function hasCredential(environment) {
  * removed in the `finally`, so nothing is left in the repository and the same statement can be run
  * twice without the second run finding a file from the first.
  */
-function run(sql, from, ref, environment, json) {
-  const args = ['db', 'query', '--linked', '--project-ref', ref];
+function run(sql, from, where, environment, json) {
+  const args = where.kind === 'pc' ? ['db', 'query', '--db-url', where.url] : ['db', 'query', '--linked', '--project-ref', where.ref];
+  const ref = where.ref;
   if (json) args.push('--output-format', 'json');
 
   const dir = mkdtempSync(join(tmpdir(), 'debaser-sql-'));
@@ -212,12 +235,13 @@ function run(sql, from, ref, environment, json) {
   try {
     const out = cli([...args, '--file', tmp], environment);
 
-    console.log(`${isRead(sql) ? 'read' : 'write'} :: ${from} :: ${Date.now() - started}ms`);
+    console.log(`${isRead(sql) ? 'read' : 'write'} :: ${from} :: ${where.label} :: ${Date.now() - started}ms`);
     console.log(`     ${describe(sql)}`);
     console.log('');
     process.stdout.write(out.trim() === '' ? '(no rows)\n' : `${out.trim()}\n`);
   } catch (error) {
-    const detail = `${error.stdout?.toString() ?? ''}\n${error.stderr?.toString() ?? ''}`.trim();
+    let detail = `${error.stdout?.toString() ?? ''}\n${error.stderr?.toString() ?? ''}`.trim();
+    if (where.secret) detail = detail.split(where.secret).join('***').split(encodeURIComponent(where.secret)).join('***');
 
     // The failures that are a setup step or a credential, said in one line each. Anything else is the
     // database's own words about the statement, which is the thing worth reading.
@@ -243,7 +267,6 @@ function run(sql, from, ref, environment, json) {
 function main() {
   const argv = process.argv.slice(2);
   const environment = env();
-  const ref = projectRef(environment);
   const json = argv.includes('--json');
   const readOnly = argv.includes('--read-only');
   const write = argv.includes('--write');
@@ -273,11 +296,10 @@ function main() {
     return;
   }
 
-  // The project, before anything is printed: a dry run names the ref in its command, so the ref has to
-  // be known first. A missing url is a setup step, and it is the same answer for every flag.
-  if (ref === undefined) {
-    console.error('no NEXT_PUBLIC_SUPABASE_URL in .env.local, so there is no project to point at.');
-    console.error('Copy .env.example to .env.local and fill in the two keys.');
+  // Which database, before anything is printed: a dry run names it in its command.
+  const where = target(argv, environment);
+  if (where.error !== undefined) {
+    console.error(where.error);
     process.exitCode = 1;
     return;
   }
@@ -285,7 +307,7 @@ function main() {
   // A dry run is a preview, so it is answered before the write guard: seeing what a migration would
   // do is exactly the case a dry run is for, and it runs nothing either way.
   if (dryRun) {
-    console.log(`npx supabase db query --linked --project-ref ${ref} --file <temp>`);
+    console.log(where.kind === 'pc' ? 'npx supabase db query --db-url <the live database on this PC> --file <temp>' : `npx supabase db query --linked --project-ref ${where.ref} --file <temp>`);
     console.log('(nothing is run)');
     console.log('');
     console.log(sql.trim());
@@ -314,7 +336,7 @@ function main() {
     }
   }
 
-  if (!hasCredential(environment)) {
+  if (where.kind === 'cloud' && !hasCredential(environment)) {
     console.error('no Supabase credential. One of these:');
     console.error('');
     console.error('  $env:SUPABASE_ACCESS_TOKEN = "sbp_..."   # this shell only');
@@ -328,7 +350,7 @@ function main() {
     return;
   }
 
-  run(sql, from, ref, environment, json);
+  run(sql, from, where, environment, json);
 }
 
 if (require.main === module) main();

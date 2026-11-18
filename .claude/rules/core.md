@@ -4,7 +4,7 @@ Companion website for my comic book "Debaser": a social simulation styled as an 
 
 ## Stack
 - Next.js (App Router), TypeScript, Tailwind. Hosted on my own PC since 2026-11-18 (`SPEC-self-hosting.md`): live at https://debaser.site through a Cloudflare tunnel, with self-hosted Supabase in Docker (`G:\DEBASER-HOST`), rebuilding itself from `main` on `github.com/SpookySweden/debaser.site` every 5 minutes. Down while the PC is off (my choice). The Vercel project and the old Supabase cloud project are kept, unused, as the way back; `debaser-site.vercel.app` forwards to debaser.site.
-- Until the tools are switched over: `npm run db`, `db:push`, `db:backup` and `.env.local` still reach the OLD cloud project, which is no longer the live database. Don't treat what they read as live, and write nothing there. The live database is the PC's (`G:\DEBASER-HOST\supabase`).
+- The database tools act on the live database on the PC (switched 2026-11-18): `npm run db`, `db:push`, `db:push:dry`, `db:list`, `db:pull`, `db:backup`, `web:fetch`, and `.env.local` (`https://api.debaser.site`, so checks that sign in reach the PC too). They work on the desktop only; the laptop can't reach the PC's database. `--cloud` (on `npm run db` and the `db:*` commands) reaches the OLD cloud project, kept for the way back: write nothing there.
 - Supabase backend and Google sign-in. Most features have BOTH a mock repository and a Supabase repository (`app/lib/*/mock-*` and `supabase-*`; the `NEXT_PUBLIC_*_DATA_SOURCE` switches pick one). Update both, or tell me why you didn't.
 - Lore pages are edited live by several people at once (Tiptap + Yjs). The character workbench is three.js (`@react-three/fiber`).
 

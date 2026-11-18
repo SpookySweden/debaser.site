@@ -61,8 +61,23 @@ function projectRef() {
   return match === null ? undefined : match[1];
 }
 
-const passed = process.argv.slice(2);
-const ref = projectRef();
+/*
+ * Since 2026-11-18 (SPEC-self-hosting.md) these commands act on the LIVE database, the self-hosted Supabase on Luke's
+ * desktop PC, through `--db-url` (127.0.0.1:5432, the password read from its settings file and never printed).
+ * `--cloud` passed anywhere acts on the OLD cloud project instead, the way it always did (everything below about
+ * linking and SUPABASE_DB_PASSWORD is about that). On a machine without G:\DEBASER-HOST it says the live database is
+ * on the desktop.
+ */
+const PC_SETTINGS = 'G:\\DEBASER-HOST\\supabase\\.env';
+const viaCloud = process.argv.includes('--cloud');
+const passed = process.argv.slice(2).filter((arg) => arg !== '--cloud');
+const ref = viaCloud ? projectRef() ?? 'uekreahyooezywjgzirr' : undefined;
+
+function pcUrl() {
+  if (!existsSync(PC_SETTINGS)) return undefined;
+  const password = /^POSTGRES_PASSWORD=(.*)$/m.exec(readFileSync(PC_SETTINGS, 'utf8'))?.[1]?.trim();
+  return password ? `postgresql://postgres.debaser:${encodeURIComponent(password)}@127.0.0.1:5432/postgres?sslmode=disable` : undefined;
+}
 
 /**
  * The CLI sometimes cannot authenticate its temporary login role.
@@ -94,10 +109,17 @@ function run(args) {
   }
 }
 
-if (ref === undefined) {
-  console.error('no NEXT_PUBLIC_SUPABASE_URL in .env.local, so there is no project to point at.');
-  console.error('Copy .env.example to .env.local and fill in the two keys.');
-  process.exitCode = 1;
+if (!viaCloud) {
+  const url = pcUrl();
+  if (url === undefined) {
+    console.error("The live database is the one on Luke's desktop PC (G:\\DEBASER-HOST), which this machine cannot reach.");
+    console.error('Run this on the desktop, or add --cloud for the old cloud project.');
+    process.exitCode = 1;
+  } else {
+    console.log('(the live database on this PC)');
+    // A push is never retried here either: the PC answers at once or not at all, so there is nothing to cushion.
+    process.exitCode = run([...passed, '--db-url', url]).ok ? 0 : 1;
+  }
 } else {
   // `--linked` is kept alongside the explicit ref: it is what makes the CLI treat this as a remote
   // project rather than a local stack, and some subcommands read it for more than the ref.

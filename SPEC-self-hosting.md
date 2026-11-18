@@ -180,8 +180,13 @@ itself (03:36 noticed, 03:40 switched); `npm run deploy-status` waited until deb
 `npm run read` reads debaser.site; TEST ACCOUNTS A and B signed in through api.debaser.site, saw each other on one live
 channel and A's broadcast reached B (nothing written). A full interim copy of the PC's database (pg_dump, 22 MB) is in
 `I:DEBASERackups` until Stage 7. Still Luke's (step 13): automatic sign-in, Windows Update's active hours, a test restart.
-Not yet switched over (next): `npm run db`, `db:push`, `db:backup`, `web:fetch` and the dev `.env.local` still reach the
-old cloud project; core.md says so until they are.
+Tools switched (2026-11-18, Luke: "Tools first"): `npm run db` and the `db:*` commands act on the PC's database
+(`--db-url` to 127.0.0.1:5432; `--cloud` reaches the old project); `.env.local` (main checkout and this worktree, old values
+kept as `.env.local.cloud-2026-11-18`) points at https://api.debaser.site. Proved: `db:list` matches the code, `db:push:dry`
+is up to date, `web:fetch` ran end to end from the PC (saved 66 items), and the 18 checks that failed against the blocked
+cloud now pass against the PC except check-hidden-accounts (a known red) and one line of check-media-visitors (a pool
+file, which arrives in Stage 6). The old 04:00 DebaserBackup task runs in the main checkout, 30 commits behind, so it fails
+until Stage 7 replaces it; the interim copy in `I:DEBASERackups` covers the gap.
 
 **Stage 6: the files** (when the Supabase block lifts, ~20 Nov)
 14. C: Copy the 38 files from the cloud project's buckets into the PC's buckets (read-only on the cloud side), check each
