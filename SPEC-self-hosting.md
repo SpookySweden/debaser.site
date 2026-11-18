@@ -119,6 +119,21 @@ connection to the cloud still works under the block, so Stage 4 can take a prope
    Stage 2: only the shadow proxy's two are in `.env.local`; the rest live only in Vercel's project settings, so Luke
    copies each from Vercel (Settings -> Environment Variables) into `G:\DEBASER-HOST\site\.env.production.local` himself.
 
+**Stage 3 result (2026-11-18, ~03:15):** done differently from step 7 above, to save Luke clicks and keep the rules in a
+file: Luke clicked Authorize once (`cloudflared tunnel login`), then the tunnel `debaser-home` was made from the command
+line, with DNS for `debaser.site` and `api.debaser.site`, and its rules in `G:\DEBASER-HOST\cloudflared\config.yml`:
+`api.debaser.site` passes only `/auth|rest|realtime|storage|graphql/v1/`, so Supabase's dashboard answers 404 from outside.
+It runs from a logon task (`DebaserHost` -> `start-hidden.vbs` -> `keep-running.cjs`, which restarts it and logs to
+`G:\DEBASER-HOST\logs`), not a Windows service: Docker also starts at sign-in, so a service would gain nothing. Proved from
+outside: auth health 200, a table read 200, the live-update socket upgrades (101), the dashboard 404. Google console (via
+Chrome, saved and re-read): origin `https://debaser.site`, redirect `https://api.debaser.site/auth/v1/callback`, old ones kept.
+Google sign-in starts and reaches Google's own sign-in page with no redirect mismatch. Sign-in settings copied from the cloud
+(guests, manual linking, 6-character passwords, Resend sender). Luke pasted the new Google secret and Resend key into a paste
+file that `scripts/host/merge-pasted-keys.cjs` moved without printing. Vercel's server keys are marked sensitive and can't be
+pulled (they came out as a placeholder), so only the shadow proxy's two came across (from `.env.local`); TMDB, YouTube,
+Anthropic and Giphy keys come from each provider's page into `G:\DEBASER-HOST\site\paste-keys-here.txt` (`merge-pasted-keys.cjs site`).
+Twitch's keys and WEB_FETCH_CONTACT were never set in Vercel (Twitch uses its keyless fallback).
+
 **Stage 4: moving the data** (an evening; the moment of no return for new posts on the old project)
 9. C: Fresh read-only export of every table and every account from the cloud (the same route as the daily backup).
 10. C, with Luke's typed OK for this one write into the NEW database: import it in the right order, keeping every id,
