@@ -110,6 +110,9 @@ async function addresses() {
   same(
     await config.redirects(),
     [
+      // Updated on purpose 2026-11-18: the site lives at debaser.site on Luke's PC and the Vercel address forwards there,
+      // temporarily so going back stays possible (SPEC-self-hosting.md, Stage 5).
+      { source: '/:path*', has: [{ type: 'host', value: 'debaser-site.vercel.app' }], destination: 'https://debaser.site/:path*', permanent: false },
       { source: '/web', destination: '/media', permanent: true },
       { source: '/archive', destination: '/media', permanent: true },
       // Updated on purpose 2026-11-05: TAG STATION became DISCOVER at /discover (Luke, SPEC-discover.md).
