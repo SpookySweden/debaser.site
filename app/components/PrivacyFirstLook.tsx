@@ -54,7 +54,7 @@ export default function PrivacyFirstLook() {
           )}
         </div>
 
-        <PrivacySwitches userId={userId} />
+        <PrivacySwitches userId={userId} withMade={false} />
       </div>
     </DockWindow>
   );

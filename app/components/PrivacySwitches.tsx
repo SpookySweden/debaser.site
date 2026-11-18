@@ -34,7 +34,8 @@ export const PRIVACY_SWITCHES: { key: keyof ProfileVisibility; label: string; no
  * A row's key says what it is now, and being pressed down means ON. A whole row of words beside a small key rather
  * than a checkbox, because the people this tab is for may well be reading it from across a room.
  */
-export default function PrivacySwitches({ userId }: { userId: string }) {
+/** `withMade`: the PRIVACY tab shows the POST WHAT I MAKE switches; the first-look window, whose TURN EVERYTHING OFF does not touch them, leaves them out. */
+export default function PrivacySwitches({ userId, withMade = true }: { userId: string; withMade?: boolean }) {
   const { profile, read, repository, refresh } = usePublicProfile(userId);
   const [busy, setBusy] = useState(false);
   const [fault, setFault] = useState<string | null>(null);
@@ -78,7 +79,7 @@ export default function PrivacySwitches({ userId }: { userId: string }) {
         })}
       </ul>
 
-      <MadeSwitches />
+      {withMade ? <MadeSwitches /> : null}
 
       <p className="text-prose">YOU STAY LISTED IN THE DIRECTORY. YOUR COUNTRY FLAG SHOWS ONLY TO PEOPLE WHO ARE SIGNED IN: SET IT IN EDIT PROFILE.</p>
 

@@ -1,7 +1,7 @@
 /*
  * SPEC-forum-v3.md part 2, step 5 (F1B, F2A): settings that follow the account, through `user_settings`.
  * Step 6 (F1B): the forum's read marks follow it too, saved in batches.
- *   npx tsc app/lib/settings/account-settings.ts app/lib/settings/settings-rules.ts app/lib/settings/settings-bus.ts app/lib/forum/read-state.ts --rootDir app --outDir Temp/account-settings-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop
+ *   npx tsc app/lib/settings/account-settings.ts app/lib/settings/settings-rules.ts app/lib/settings/settings-bus.ts app/lib/forum/read-state.ts app/components/AccountSettingsKeeper.tsx --rootDir app --outDir Temp/account-settings-out --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
  *   node Temp/check-account-settings.cjs
  *
  * The rules (who wins on sign-in, what is saved, the size cap) and the sync itself run here against the mock store, with a
@@ -189,6 +189,12 @@ function loadSync() {
   const bus_ = fs.readFileSync(path.join(ROOT, 'app/lib/settings/settings-bus.ts'), 'utf8');
   assert.ok(!/^import /m.test(bus_), 'the bus imports nothing (the theme slot loads it while the layout is drawn on the server)');
 
+  // The keeper draws nothing: it only tells the sync who is signed in (its effect runs in a browser; the drive proves that).
+  stub(path.join(OUT, 'components/AuthProvider.js'), { useAuth: () => ({ status: 'signed-in', user: { id: 'p1', displayName: 'P' } }) });
+  const React = require('react');
+  const { renderToStaticMarkup } = require('react-dom/server');
+  const Keeper = require('./account-settings-out/components/AccountSettingsKeeper.js').default;
+  assert.equal(renderToStaticMarkup(React.createElement(Keeper)), '', 'AccountSettingsKeeper draws nothing');
   console.log('check-account-settings: ok');
 })().catch((error) => {
   console.error(error);
