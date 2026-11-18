@@ -218,6 +218,15 @@ Not encrypted while nothing leaves the house (add it with the Google Drive copy,
 23 MB, 163 tables. Proved by restoring it into a throwaway database: 382,760 rows in 110 tables, equal to the live one
 (only pg_cron can't be re-made outside the main database, as expected). The copies sit on the same external drive as the
 uploaded files, so a failure of that drive loses both: the off-site copy is still owed.
+**Outage and Docker watch (2026-11-18, evening; Luke: "step 3 too"):** Docker Desktop stopped at 18:58 UTC with nothing
+in its own log while the PC stayed on; the pages kept serving, but api.debaser.site answered 502 (no data, no sign-in)
+until 22:06. Started alone, Docker could not attach its disk (`docker_data.vhdx`: WSL `ERROR_NO_SYSTEM_RESOURCES`); it
+came up once Docker was stopped, `wsl --shutdown` run and WSL given ~20 s to let go. All 11 containers came back healthy,
+9 accounts read. `keep-running.cjs` now watches the API once a minute and, after 3 misses in a row, runs
+`docker compose up -d` or that restart recipe (10 min grace at sign-in, back-off 5/10/20/30 min, `docker.paused` to stop
+it). The cause of the stop itself is not known (Docker quit, or crashed without a log line).
+
+
 
 ## The way back (rollback)
 - Nothing on the cloud is deleted or changed: the Supabase project and the Vercel project stay exactly as they are for

@@ -15,7 +15,11 @@ probe-local.cjs   <base> <path...>   headless Chrome/Edge: every call a page mak
                                      folder where playwright-core resolves.
 count-rows.cjs            [--pc]     exact row counts per table: the cloud (read-only), the export files in
                                      G:\DEBASER-HOST\supabase\from-cloud, and with --pc the PC's database.
-keep-running.cjs                     (copied to G:\DEBASER-HOST) starts and restarts what services.json lists.
+keep-running.cjs                     (copied to G:\DEBASER-HOST) starts and restarts what services.json lists, and watches
+                                     Docker: 3 missed minutes at 127.0.0.1:8000 -> `docker compose up -d`, or, if the
+                                     engine is gone, Docker Desktop restarted after `wsl --shutdown`. A file named
+                                     G:\DEBASER-HOST\docker.paused stops that watch (quit Docker on purpose? make it first).
+                                     Its decision is held by Temp/check-host-docker-watch.cjs.
 merge-pasted-keys.cjs  supabase|site moves keys Luke pasted into a paste-keys-here.txt into the file that uses them.
 self-update.cjs          [--force]  (copied to G:\DEBASER-HOST, run every 5 min by the task DebaserUpdate) builds a new main in
                                      the copy of the site that isn't serving (site / site-b), then switches services.json to it.
