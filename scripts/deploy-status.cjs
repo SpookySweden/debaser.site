@@ -108,8 +108,9 @@ async function waitForSite(sha) {
     let served = null;
     try {
       const response = await fetch(SITE_VERSION, { headers: { 'Cache-Control': 'no-cache' } });
-      if (!response.ok) throw new Error(`debaser.site answered HTTP ${response.status}`);
-      served = (await response.json()).commit ?? null;
+      // 404: the running build is older than /api/version itself, so whatever it runs, it isn't this commit yet.
+      if (!response.ok && response.status !== 404) throw new Error(`debaser.site answered HTTP ${response.status}`);
+      served = response.ok ? (await response.json()).commit ?? null : null;
       failures = 0;
       console.log(`${new Date().toISOString().slice(11, 19)}  ${sha.slice(0, 7)}  debaser.site runs: ${served ? served.slice(0, 7) : 'unknown'}`);
       if (served && contains(served, sha)) finish(0, `LIVE: debaser.site runs ${served.slice(0, 7)}${served === sha ? '' : `, which contains ${sha.slice(0, 7)}`}.`);
