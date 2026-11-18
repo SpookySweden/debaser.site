@@ -89,11 +89,22 @@ is asked for in chat first, even with this spec OK'd.
    it, otherwise 15 with every migration tested), logging add-on off, files saved to `I:\DEBASER\files`, the database and
    dashboard reachable from this PC only. Generate its secrets into the settings file. Proof: every container healthy;
    the dashboard opens on this PC.
-5. C: Apply all 123 migrations to the new, empty database, in order. Then compare its tables, columns, functions,
-   policies, buckets and live-update settings with the cloud project's (read-only questions to the cloud), and list
-   every difference. Fix differences only with Luke's OK. Proof: the comparison comes back empty.
-6. C: Run the site locally against it (`next start` on this PC, no tunnel yet) with an empty database, and run the
-   checks that don't need real data. Proof: pages load, a test sign-up works locally.
+5. C: Copy the cloud's structure into the new, empty database. (Done differently from first planned, 2026-11-18: the
+   migration chain alone can't rebuild it, because the first sections came from `schema.sql` and the `game`/`ink` schemas
+   from the game's own repository. So the structure is `supabase db dump`'s copy of the cloud, read-only, plus the parts
+   that dump leaves out: the two triggers on `auth.users`, 46 policies on files and live channels, the 8 buckets, the
+   migration history, and an exact copy of every permission.) Then compare columns, functions, policies, triggers,
+   indexes, permissions, row security, live-update tables and extensions with the cloud (`scripts/host/compare-structure.cjs`).
+   Proof: the comparison comes back empty.
+6. C: Run the site locally against it (dev mode on this PC, no tunnel yet) with an empty database. Proof: pages load,
+   every call to the PC's Supabase answers, the live-update connection opens, a test sign-up makes its profile.
+
+**Stage 2 result (2026-11-18, ~02:30):** Supabase self-hosted v0.8.4 (Postgres 17.6) on the PC, 11 parts healthy, ~1.5 GB
+of memory. Structure identical to the cloud: 839 columns, 209 functions, 390 policies (5 differ only in brackets), 66
+triggers, 244 indexes, 1,317 table / 3,636 column / 388 function permissions, 23 live-update tables. The PC's copy of the
+site loaded /forum and /media against it with every call answered, the live-update socket open, nothing sent to the cloud.
+A probe account signed up and in, got its profile from the trigger, and was removed. Also found: the direct database
+connection to the cloud still works under the block, so Stage 4 can take a proper full copy, not only the JSON backup.
 
 **Stage 3: the address** (half an hour)
 7. L: In Cloudflare: Zero Trust -> Networks -> Tunnels -> create a tunnel "debaser-home"; Cloudflare shows one install
@@ -104,8 +115,9 @@ is asked for in chat first, even with this spec OK'd.
 8. L: Google Cloud console -> the existing OAuth client -> add `https://api.debaser.site/auth/v1/callback` to the
    redirect addresses, and `https://debaser.site` to the allowed origins. Then type the same Google client id and secret
    into the self-hosted settings file (C shows which line; Luke types it). Same for the Resend key and the outside API
-   keys the site's server uses (TMDB, YouTube, Twitch, Anthropic, Giphy, shadow proxy): Luke copies `.env.local`'s
-   values across with a copy command C gives, so nobody reads them out.
+   keys the site's server uses (TMDB, YouTube, Twitch, Anthropic, Giphy, the shadow proxy, WEB_FETCH_CONTACT). Found in
+   Stage 2: only the shadow proxy's two are in `.env.local`; the rest live only in Vercel's project settings, so Luke
+   copies each from Vercel (Settings -> Environment Variables) into `G:\DEBASER-HOST\site\.env.production.local` himself.
 
 **Stage 4: moving the data** (an evening; the moment of no return for new posts on the old project)
 9. C: Fresh read-only export of every table and every account from the cloud (the same route as the daily backup).

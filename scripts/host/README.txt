@@ -1,0 +1,15 @@
+scripts/host: tools for hosting the site from Luke's PC (SPEC-self-hosting.md). They expect the PC's layout:
+G:\DEBASER-HOST\supabase (self-hosted Supabase, its .env holds the secrets) and G:\DEBASER-HOST\site (the copy the PC serves).
+None of them prints a key or password. Reads of the cloud go through scripts/db.cjs --read-only.
+
+cloud-managed-extras.cjs  <out.sql>  the parts `supabase db dump` leaves out: auth.users triggers, policies on storage and
+                                     realtime, bucket definitions, the migration history. Run from the site checkout.
+cloud-grants.cjs          <out.sql>  revokes every grant to the API roles in public/game/ink, then re-applies the cloud's exact
+                                     ACLs (tables, columns, sequences, functions, schemas). A restore otherwise adds the PC's
+                                     default privileges on top of the dump's grants.
+compare-structure.cjs     <parts>    cloud vs PC, item by item: cols pols trigs grants colgrants fgrants; --pols-nobrackets
+                                     also compares policies ignoring brackets, and default privileges.
+run-local-site.cjs        [port]     the PC's copy of the site in dev mode against the PC's Supabase (127.0.0.1:8000).
+probe-local.cjs   <base> <path...>   headless Chrome/Edge: every call a page makes to the PC's Supabase, the live-update
+                                     socket, failed requests, console errors. Run with MSYS_NO_PATHCONV=1 from Git Bash, from a
+                                     folder where playwright-core resolves.
