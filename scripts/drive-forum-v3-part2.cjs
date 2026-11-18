@@ -31,7 +31,7 @@ const OTHER = { id: 'sync-other', name: 'ZEPHYRFRIEND' };
 const ROW_KEY = 'debaser.user-settings.mock.v1';
 
 /** Runs in the page before its own scripts, once per context (a reload keeps what the page changed). */
-function seed({ me, other, signedIn, browser, row, extra }) {
+function seed({ me, other, signedIn, browser, row, extra, marks }) {
   if (window.localStorage.getItem('v3-seeded') !== null) return;
   window.localStorage.setItem('v3-seeded', '1');
   const now = Date.now();
@@ -54,7 +54,12 @@ function seed({ me, other, signedIn, browser, row, extra }) {
       { id: 'theirs-r1', threadId: 'theirs', body: 'and a second page', author: { id: other.id, displayName: other.name }, createdAt: at(10), tags: [] },
     ]),
     board('older', 'Panel thumbnails', { id: other.id, displayName: other.name }, 90),
+    board('fresh', 'Inking the cover', { id: other.id, displayName: other.name }, 5),
   ] }));
+  // This browser's own read marks: post id -> how many minutes ago it was opened.
+  if (marks) {
+    window.localStorage.setItem('debaser.forum.read.v1', JSON.stringify({ version: 1, accounts: { [me.id]: Object.fromEntries(Object.entries(marks).map(([id, minutes]) => [id, at(minutes)])) } }));
+  }
   for (const [key, value] of Object.entries(browser ?? {})) window.localStorage.setItem(key, value);
   if (row !== null && row !== undefined) window.localStorage.setItem('debaser.user-settings.mock.v1', row);
   for (const [key, value] of Object.entries(extra ?? {})) window.localStorage.setItem(key, value);
@@ -67,7 +72,7 @@ async function newContext(browser, options) {
     live += 1;
     return route.abort();
   });
-  await context.addInitScript(seed, { me: ME, other: OTHER, row: null, browser: {}, extra: {}, ...options });
+  await context.addInitScript(seed, { me: ME, other: OTHER, row: null, browser: {}, extra: {}, marks: null, ...options });
   const page = await context.newPage();
   page.on('pageerror', (error) => console.log(`  ..  page error: ${error.message.slice(0, 160)}`));
   return { context, page, liveHits: () => live };
@@ -147,11 +152,55 @@ async function settingsPart(browser, totals) {
   await visitor.context.close();
 }
 
+const feedNew = (page) => page.getByRole('button', { name: /^FEED/ }).first().getAttribute('data-new');
+
+async function marksPart(browser, totals) {
+  console.log('6. READ MARKS FOLLOW THE ACCOUNT (F1B)');
+  // The first machine: has read the old post; the two newer ones are NEW.
+  const first = await newContext(browser, { signedIn: true, marks: { older: 80 } });
+  let page = first.page;
+  await page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded' });
+  await forumReady(page);
+  check(await feedNew(page) === '2 NEW', 'the first machine starts with two posts NEW', String(await feedNew(page)));
+  await page.locator('#thread-theirs summary').first().click();
+  await sleep(1200);
+  let row = (await readRow(page))[ME.id];
+  check(row?.read_marks?.theirs === undefined, 'opening a post saves nothing to the account at once', JSON.stringify(row?.read_marks ?? {}));
+  await sleep(4500);
+  row = (await readRow(page))[ME.id];
+  check(typeof row?.read_marks?.theirs === 'string', 'a few seconds after the last post opened, the batch is saved', Object.keys(row?.read_marks ?? {}).join(','));
+  check(typeof row?.read_marks?.older === 'string', "and it carries this browser's earlier reading too");
+  const saved = JSON.stringify(await readRow(page));
+  totals.live += first.liveHits();
+  await first.context.close();
+
+  // The second machine: had read only the old post; handed the account's row.
+  const second = await newContext(browser, { signedIn: true, row: saved, marks: { older: 80 } });
+  page = second.page;
+  await page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded' });
+  await forumReady(page);
+  check(await feedNew(page) === '1 NEW', 'on the second machine, the post read on the first is no longer NEW', String(await feedNew(page)));
+  await page.locator('#thread-fresh summary').first().click();
+  await sleep(300);
+  // Leaving the tab sends what is waiting at once, without the few seconds' wait.
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await sleep(500);
+  row = (await readRow(page))[ME.id];
+  check(typeof row?.read_marks?.fresh === 'string', 'leaving the tab saves the reading straight away', Object.keys(row?.read_marks ?? {}).join(','));
+  check(await feedNew(page) === null, 'and nothing on the feed is NEW now', String(await feedNew(page)));
+  totals.live += second.liveHits();
+  await second.context.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: findChrome(), headless: true });
   const totals = { live: 0 };
   try {
     if (ONLY === null || ONLY === 'settings') await settingsPart(browser, totals);
+    if (ONLY === null || ONLY === 'marks') await marksPart(browser, totals);
   } catch (error) {
     failed += 1;
     console.log(`  FAIL the run stopped: ${error.message.split('\n').slice(0, 14).join(' / ')}`);

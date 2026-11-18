@@ -1,10 +1,14 @@
 import { USING_MOCK_AUTH } from '../auth/auth-repository';
 import { getSupabaseBrowserClient } from '../supabase/client';
 import { createWindowSlot } from '../ui/window-slot';
-import { announceAccountSettings, onSettingChanged, SYNCED_NAMES, type SyncedName } from './settings-bus';
+import { loadMarks, replaceAccountMarks } from '../forum/read-state';
+import { announceAccountSettings, onReadMarkSaved, onSettingChanged, SYNCED_NAMES, type SyncedName } from './settings-bus';
 import {
   DEFAULT_MADE,
+  mergeReadMarks,
   parseAccountSettings,
+  parseReadMarks,
+  sameMarks,
   settingsForSaving,
   storageKeyOf,
   valuesAfterSignIn,
@@ -96,6 +100,12 @@ const store = (): SettingsStore => (USING_MOCK_AUTH ? MOCK_STORE : SUPABASE_STOR
 /** How long changes are gathered before one save (F2A: "gathered for a second"). */
 const SETTINGS_GATHER_MS = 1000;
 
+/**
+ * Read marks are saved a few seconds after the last post opened, and when the tab is left (F1B), never one write per press,
+ * so the free database is not hammered by a reader opening post after post.
+ */
+export const MARKS_GATHER_MS = 4000;
+
 function readBrowserValues(): SyncedValues {
   const values: SyncedValues = {};
   try {
@@ -159,6 +169,33 @@ function scheduleSave(): void {
   gatherTimer = setTimeout(saveNow, SETTINGS_GATHER_MS);
 }
 
+/** What the account last held of the read marks, so a batch that would change nothing is not sent. */
+let lastSavedMarks: Record<string, string> = {};
+let marksTimer: ReturnType<typeof setTimeout> | null = null;
+
+function saveMarksNow(): void {
+  if (marksTimer !== null) clearTimeout(marksTimer);
+  marksTimer = null;
+  const person = account;
+  if (person === null || !loadedSlot.state()) return;
+  const marks = loadMarks(person);
+  if (sameMarks(marks, lastSavedMarks)) return;
+  const before = lastSavedMarks;
+  lastSavedMarks = marks;
+  store()
+    .saveReadMarks(person, marks)
+    .catch(() => {
+      // Kept in this browser; the next post opened tries again.
+      if (lastSavedMarks === marks) lastSavedMarks = before;
+    });
+}
+
+function scheduleMarks(): void {
+  if (account === null || !loadedSlot.state()) return;
+  if (marksTimer !== null) clearTimeout(marksTimer);
+  marksTimer = setTimeout(saveMarksNow, MARKS_GATHER_MS);
+}
+
 if (typeof window !== 'undefined') {
   onSettingChanged((name) => {
     if (account === null) return;
@@ -168,6 +205,21 @@ if (typeof window !== 'undefined') {
     }
     scheduleSave();
   });
+  onReadMarkSaved(scheduleMarks);
+  // Leaving the tab (another tab, the window minimised, closing it): whatever is waiting goes now.
+  const leave = () => {
+    if (marksTimer !== null) saveMarksNow();
+    if (gatherTimer !== null) {
+      clearTimeout(gatherTimer);
+      saveNow();
+    }
+  };
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') leave();
+    });
+  }
+  if (typeof window.addEventListener === 'function') window.addEventListener('pagehide', leave);
 }
 
 /** Who is signed in, from `AccountSettingsKeeper` in `layout.tsx`. Null when nobody is: the browser keeps its own. */
@@ -177,8 +229,10 @@ export async function setSettingsAccount(person: string | null): Promise<void> {
     clearTimeout(gatherTimer);
     saveNow();
   }
+  if (marksTimer !== null) saveMarksNow();
   account = person;
   lastSaved = '';
+  lastSavedMarks = {};
   changedMeanwhile.clear();
   loadedSlot.set(false);
   madeSlot.set(DEFAULT_MADE);
@@ -196,6 +250,7 @@ export async function setSettingsAccount(person: string | null): Promise<void> {
   if (row === null) {
     loadedSlot.set(true);
     saveNow();
+    saveMarksNow();
     return;
   }
 
@@ -203,10 +258,17 @@ export async function setSettingsAccount(person: string | null): Promise<void> {
   writeBrowserValues(valuesAfterSignIn(saved.keys, readBrowserValues(), changedMeanwhile));
   madeSlot.set(saved.made);
   lastSaved = JSON.stringify(settingsForSaving(saved));
+  // Both machines' reading as one (F1B): a post opened on either is read on both.
+  const accountMarks = parseReadMarks(row.readMarks);
+  const merged = mergeReadMarks(loadMarks(person), accountMarks);
+  replaceAccountMarks(person, merged);
+  lastSavedMarks = accountMarks;
   loadedSlot.set(true);
   announceAccountSettings();
-  // Anything changed meanwhile, or a setting the account had never saved, goes up with the next save.
+  // Anything changed meanwhile, or a setting the account had never saved, goes up with the next save; and this browser's
+  // own reading, if the account did not have it yet, in the next batch.
   scheduleSave();
+  if (!sameMarks(merged, accountMarks)) scheduleMarks();
 }
 
 /** One POST WHAT I MAKE TO THE BOARD switch, from PRIVACY. Only once the account's row is read, so it never saves a guess. */

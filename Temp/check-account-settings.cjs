@@ -1,6 +1,7 @@
 /*
  * SPEC-forum-v3.md part 2, step 5 (F1B, F2A): settings that follow the account, through `user_settings`.
- *   npx tsc app/lib/settings/account-settings.ts app/lib/settings/settings-rules.ts app/lib/settings/settings-bus.ts --rootDir app --outDir Temp/account-settings-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop
+ * Step 6 (F1B): the forum's read marks follow it too, saved in batches.
+ *   npx tsc app/lib/settings/account-settings.ts app/lib/settings/settings-rules.ts app/lib/settings/settings-bus.ts app/lib/forum/read-state.ts --rootDir app --outDir Temp/account-settings-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop
  *   node Temp/check-account-settings.cjs
  *
  * The rules (who wins on sign-in, what is saved, the size cap) and the sync itself run here against the mock store, with a
@@ -86,13 +87,47 @@ function loadSync() {
   await sleep(1200);
   assert.equal(rowOf('p1').settings.made.tracks, false, 'a MADE switch saves with the rest');
 
+  /* Step 6: read marks (F1B), in batches -------------------------------------------------------------------------- */
+  let readState = require(path.join(OUT, 'lib/forum/read-state.js'));
+  let rowWrites = 0;
+  const realSet = storage.setItem;
+  storage.setItem = (key, value) => {
+    if (key === sync.MOCK_SETTINGS_KEY) rowWrites += 1;
+    realSet(key, value);
+  };
+  const t0 = new Date(Date.now() - 3600000).toISOString();
+  readState.saveThreadRead('p1', 'post-a', t0);
+  readState.saveThreadRead('p1', 'post-b', t0);
+  readState.saveThreadRead('p1', 'post-c', t0);
+  await sleep(1500);
+  assert.equal(rowWrites, 0, 'opening posts saves nothing at once');
+  await sleep(sync.MARKS_GATHER_MS);
+  assert.equal(rowWrites, 1, 'three posts opened are one save, a few seconds after the last');
+  assert.deepEqual(Object.keys(rowOf('p1').read_marks).sort(), ['post-a', 'post-b', 'post-c'], 'and the account holds them');
+  storage.setItem = realSet;
+
+  const later = new Date(Date.now() - 60000).toISOString();
+  assert.deepEqual(rules.mergeReadMarks({ a: t0, b: later }, { a: later, c: t0 }), { a: later, b: later, c: t0 }, 'merged, the later opening of a post wins');
+  const many = Object.fromEntries(Array.from({ length: 320 }, (_, i) => [`p${i}`, new Date(Date.now() - i * 1000).toISOString()]));
+  const kept = rules.mergeReadMarks(many, {});
+  assert.equal(Object.keys(kept).length, rules.MAX_ACCOUNT_MARKS, 'the newest few hundred are kept');
+  assert.ok(kept.p0 !== undefined && kept.p319 === undefined, 'the oldest go first');
+  assert.deepEqual(rules.parseReadMarks({ ok: t0, bad: 'yesterday', '': t0, n: 4 }), { ok: t0 }, 'only post id -> instant survives');
+
   // A second machine: its own looks, the same "database".
   const database = storage.getItem(sync.MOCK_SETTINGS_KEY);
   storage.clear();
   storage.setItem(sync.MOCK_SETTINGS_KEY, database);
   storage.setItem(SYNCED_KEYS.theme, 'dark');
   storage.setItem(SYNCED_KEYS.mediaView, 'grid');
+  // This machine read a post the first did not, and an older opening of one it did.
+  storage.setItem('debaser.forum.read.v1', JSON.stringify({ version: 1, accounts: { p1: { 'post-d': later, 'post-a': new Date(Date.now() - 7200000).toISOString() } } }));
   ({ sync, bus } = loadSync());
+  readState = require(path.join(OUT, 'lib/forum/read-state.js'));
+  let marksHeard = 0;
+  readState.subscribeToMergedMarks(() => {
+    marksHeard += 1;
+  });
   let heard = 0;
   bus.subscribeToAccountSettings(() => {
     heard += 1;
@@ -107,9 +142,15 @@ function loadSync() {
   assert.equal(storage.getItem(SYNCED_KEYS.wirePaused), '1', 'and the newswire stop');
   assert.equal(storage.getItem(SYNCED_KEYS.cursor), 'white', 'but not over a press made meanwhile');
   assert.equal(sync.madeSwitches().tracks, false, 'the MADE switches come with the account');
+  assert.equal(marksHeard, 1, 'the board is told to read its marks again');
+  const here = readState.loadMarks('p1');
+  assert.deepEqual(Object.keys(here).sort(), ['post-a', 'post-b', 'post-c', 'post-d'], "posts read on the first machine are read here too (F1B)");
+  assert.equal(here['post-a'], t0, 'with the later opening of a post kept');
   await sleep(1200);
   assert.equal(rowOf('p1').settings.keys.cursor, 'white', 'the press made meanwhile goes up');
   assert.equal(rowOf('p1').settings.keys.mediaView, 'grid', "and a setting the account had never saved is added, not lost");
+  await sleep(sync.MARKS_GATHER_MS);
+  assert.ok(rowOf('p1').read_marks['post-d'] === later, "and this machine's own reading goes up in the next batch");
 
   // Signed out: the browser keeps its own, nothing is saved.
   await sync.setSettingsAccount(null);

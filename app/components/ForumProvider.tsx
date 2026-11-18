@@ -9,7 +9,7 @@ import { profileAnchorTarget } from '../lib/forum/anchors';
 import { profileCommentThreads } from '../lib/forum/profile-threads';
 import type { ProfileCommentEntry } from '../lib/profile/types';
 import { pinForThread as livePinForThread } from '../lib/forum/pins';
-import { accountOf, loadMarks, saveThreadRead, type ReadMarks } from '../lib/forum/read-state';
+import { accountOf, loadMarks, saveThreadRead, subscribeToMergedMarks, type ReadMarks } from '../lib/forum/read-state';
 import { readTagColours, rememberTagColour as rememberTagColourInStore } from '../lib/forum/tag-colours';
 import { buildTagVocabulary, canonicalTagLabel, type TagOption } from '../lib/forum/tag-vocabulary';
 import type {
@@ -278,7 +278,12 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => setSeenByThread(loadMarks(account)));
-    return () => window.cancelAnimationFrame(frame);
+    // Signed in, the account's marks are merged in on sign-in (SPEC-forum-v3.md, F1B): read them again then.
+    const unsubscribe = subscribeToMergedMarks(() => setSeenByThread(loadMarks(account)));
+    return () => {
+      window.cancelAnimationFrame(frame);
+      unsubscribe();
+    };
   }, [account]);
 
   /** The board as it stands, read by `markThreadRead` without changing that function when the board changes. */

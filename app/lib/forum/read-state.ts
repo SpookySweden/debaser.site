@@ -19,7 +19,12 @@
  * and without a browser (`Temp/check-board-read.cjs` installs a fake `localStorage` and does exactly
  * that). The provider holds the map for the account that is signed in and writes through
  * `saveThreadRead`.
+ *
+ * **Signed in, the marks also follow the account** (SPEC-forum-v3.md, F1B, 2026-11-18): this browser's copy is still
+ * what the board reads, and `../settings/account-settings.ts` merges the account's copy into it on sign-in and saves it
+ * back in a batch, so NEW and the quiet rows match on both machines. The paragraph above is the signed-out reader's case.
  */
+import { noteReadMarkSaved } from '../settings/settings-bus';
 import type { ForumAuthor } from './types';
 
 /** The account a signed-out reader's marks belong to, so a guest is not "everybody". */
@@ -150,8 +155,28 @@ export function saveThreadRead(accountId: string, threadId: string, at: string):
   const store = readStore();
   const marks = prune({ ...(store.accounts[accountId] ?? {}), [threadId]: at });
   writeStore({ version: 1, accounts: { ...store.accounts, [accountId]: marks } });
+  noteReadMarkSaved();
 
   return marks;
+}
+
+const mergeListeners = new Set<() => void>();
+
+/**
+ * The account's marks, merged in on sign-in (F1B): the marks given replace this browser's for that account, and the board
+ * is told to read them again. The merging itself (the later opening wins) is `mergeReadMarks` in settings-rules.ts.
+ */
+export function replaceAccountMarks(accountId: string, marks: ReadMarks): void {
+  if (accountId.length === 0) return;
+  const store = readStore();
+  writeStore({ version: 1, accounts: { ...store.accounts, [accountId]: prune(marks) } });
+  for (const listener of mergeListeners) listener();
+}
+
+/** The board's own copy: read the marks again, the account's have been merged in. */
+export function subscribeToMergedMarks(listener: () => void): () => void {
+  mergeListeners.add(listener);
+  return () => void mergeListeners.delete(listener);
 }
 
 /** How the board's own copy of the marks is asked for: by account, from the signed-in author. */
