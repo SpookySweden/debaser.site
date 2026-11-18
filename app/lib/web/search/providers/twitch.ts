@@ -54,6 +54,8 @@ export type TwitchStream = {
   language?: string;
   startedAt?: string;
   viewers?: number;
+  /** Twitch labels it for certain audiences, so its embedded player asks a signed-out viewer to log in. */
+  gated?: boolean;
 };
 
 function record(value: unknown): Record<string, unknown> | undefined {
@@ -107,6 +109,7 @@ export function twitchItem(stream: TwitchStream, fetchedAt: string): WebItem | n
     ...(tags.length > 0 ? { tags } : {}),
     ...(language ? { language } : {}),
     live: true,
+    ...(stream.gated === true ? { signInToWatch: true as const } : {}),
     publishedAt: startedAt,
     fetchedAt,
   };
@@ -194,12 +197,14 @@ function fromHelix(entry: unknown): TwitchStream | null {
     language: str(doc.language) ?? str(doc.broadcaster_language),
     startedAt: str(doc.started_at),
     viewers: num(doc.viewer_count),
+    gated: doc.is_mature === true || list(doc.content_classification_labels).length > 0,
   };
 }
 
 /* --- the site API ----------------------------------------------------------------------------------- */
 
-const STREAM_FIELDS = 'title createdAt viewersCount game{ displayName } freeformTags{ name }';
+// contentClassificationLabels: Twitch's labels for certain audiences; any label means its embed asks to log in (2026-11-18).
+const STREAM_FIELDS = 'title createdAt viewersCount game{ displayName } freeformTags{ name } contentClassificationLabels{ id }';
 const CHANNEL_FIELDS = `login displayName broadcastSettings{ language } stream{ ${STREAM_FIELDS} }`;
 
 /** One question to Twitch's own site API; the words go as a variable, never into the question itself. */
@@ -231,6 +236,7 @@ function fromSiteChannel(entry: unknown): TwitchStream | null {
     language: str(record(channel.broadcastSettings)?.language),
     startedAt: str(stream.createdAt),
     viewers: num(stream.viewersCount),
+    gated: list(stream.contentClassificationLabels).length > 0,
   };
 }
 
@@ -334,7 +340,12 @@ function items(streams: readonly TwitchStream[], fetchedAt: string): WebItem[] {
     const item = twitchItem(stream, fetchedAt);
     if (item !== null && !out.some((seen) => seen.id === item.id)) out.push(item);
   }
-  return out;
+  return playableFirst(out);
+}
+
+/** Lives that play without signing in to Twitch come first; within each group Twitch's own order is kept. */
+export function playableFirst<T extends { signInToWatch?: true }>(list: readonly T[]): T[] {
+  return [...list.filter((item) => item.signInToWatch !== true), ...list.filter((item) => item.signInToWatch === true)];
 }
 
 /** A page travels in the cursor as `h<cursor>` (Helix) or `s<cursor>` (the site API), so a next page goes back the same way. */

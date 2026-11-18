@@ -73,8 +73,20 @@ function laneRank(lane: string): number {
   return rank === -1 ? LANE_RANK.length : rank;
 }
 
-/** The list's order as a comparison. */
+/**
+ * The list's order as a comparison. Lives Twitch only shows after a sign-in come after every other row (Luke,
+ * 2026-11-18: "list playable first"); among themselves, and for everything else, the list's own order holds.
+ */
 export function compareIn(list: Pick<LiveList, 'order' | 'turns'>): (a: WebStreamItem, b: WebStreamItem) => number {
+  const own = ownOrder(list);
+  return (a, b) => {
+    const ga = a.signInToWatch === true;
+    const gb = b.signInToWatch === true;
+    return ga !== gb ? (ga ? 1 : -1) : own(a, b);
+  };
+}
+
+function ownOrder(list: Pick<LiveList, 'order' | 'turns'>): (a: WebStreamItem, b: WebStreamItem) => number {
   if (list.order.kind === 'date') return compareByDate(list.order.dir);
   const { turns } = list;
   return (a, b) => {

@@ -16,6 +16,7 @@ import { chatImageUrl, type ImageResult, type ImageSearchKind } from '../lib/wat
 import { forgetGuestReturn, guestReturnDraft, keepGuestReturn } from '../lib/watch/guest-return';
 import { createEmbed, isEmbedKind } from '../lib/watch/embeds';
 import { liveJump, twitchOf } from '../lib/watch/links';
+import { loadLiveNow } from '../lib/web/everywhere-client';
 import { hasQualityControl, hasSubtitleControl, type EmbedPlayable, type Playable, type QualityControl } from '../lib/watch/playable';
 import type { EmbedRefusal } from '../lib/watch/embed-player';
 import { lookClass, lookForRoom } from '../lib/cytube/looks';
@@ -980,6 +981,24 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   /** A Twitch channel's own page, for the note's way out when Twitch's player can't start here. */
   const twitchChannel = link === null ? null : (twitchOf(link)?.channel ?? null);
   const twitchPage = twitchChannel === null ? null : `https://www.twitch.tv/${encodeURIComponent(twitchChannel)}`;
+  /**
+   * Twitch shows this channel only after a sign-in: it is labelled for certain audiences, and Twitch's own player says
+   * "log in to continue" over the picture (Luke, 2026-11-18: "Mark, explain, list playable first"). Asked once per channel
+   * of the live list (kept a minute on the server); the stage then says why, with the two ways on.
+   */
+  const [gatedChannel, setGatedChannel] = useState<string | null>(null);
+  useEffect(() => {
+    if (twitchChannel === null) return;
+    const login = twitchChannel.toLowerCase();
+    let gone = false;
+    void loadLiveNow({ channels: [login] }).then((items) => {
+      if (!gone && items.some((item) => item.externalId === login && item.signInToWatch === true)) setGatedChannel(twitchChannel);
+    });
+    return () => {
+      gone = true;
+    };
+  }, [twitchChannel]);
+  const signInGate = twitchChannel !== null && gatedChannel === twitchChannel;
   const skipDead = useEffectEvent(() => {
     if (upcoming(read.queue).length === 0) return;
     setNotice(offlineChannel !== null ? `SKIPPED: ${offlineChannel.toUpperCase()} IS OFFLINE` : `SKIPPED: ${(entryTitle ?? '').toUpperCase()} WOULDN'T PLAY`);
@@ -1733,9 +1752,11 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
             <p className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar" role="alert" data-watch-offline={offlineChannel ?? undefined}>
               {offlineChannel !== null
                 ? `${offlineChannel.toUpperCase()} IS OFFLINE`
-                : twitchPage !== null
-                  ? 'TWITCH COULDN\u2019T START THIS STREAM HERE'
-                  : 'THIS LINK WON\u2019T PLAY HERE'}
+                : signInGate
+                  ? 'TWITCH ONLY SHOWS THIS STREAM AFTER YOU SIGN IN TO TWITCH'
+                  : twitchPage !== null
+                    ? 'TWITCH COULDN\u2019T START THIS STREAM HERE'
+                    : 'THIS LINK WON\u2019T PLAY HERE'}
               {/* Twitch's network error (#2000) is its player failing to reach its stream: often an ad blocker, a VPN or a filtering DNS on
                   the viewer's side. Its own page may still play it. */}
               {offlineChannel === null && twitchPage !== null ? (
@@ -1745,6 +1766,23 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
                     [ WATCH ON TWITCH ↗ ]
                   </a>
                 </>
+              ) : null}
+            </p>
+          </div>
+        ) : null}
+        {signInGate && !linkDead ? (
+          // Over Twitch's own "log in to continue" (its link in the middle stays pressable): why, and the two ways on.
+          // Side margins keep it clear of the stage's own keys in the corners ([ VIS ]).
+          <div className="pointer-events-none absolute inset-0 z-20 flex items-start justify-center px-16 pt-2" data-watch-sign-in>
+            <p className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar" role="status">
+              TWITCH ONLY SHOWS THIS STREAM AFTER YOU SIGN IN: IT&apos;S LABELLED FOR CERTAIN AUDIENCES.{' '}
+              <a href="https://www.twitch.tv/login" target="_blank" rel="noopener noreferrer" className="pointer-events-auto underline" data-watch-twitch-sign-in>
+                [ SIGN IN TO TWITCH ↗ ]
+              </a>{' '}
+              {twitchPage !== null ? (
+                <a href={twitchPage} target="_blank" rel="noopener noreferrer" className="pointer-events-auto underline">
+                  [ WATCH ON TWITCH ↗ ]
+                </a>
               ) : null}
             </p>
           </div>

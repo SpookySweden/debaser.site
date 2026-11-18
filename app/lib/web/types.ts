@@ -94,6 +94,13 @@ export type WebItem = {
    * where a length goes; a live is read live, never saved into the stream. Absent on everything else.
    */
   live?: true;
+  /**
+   * A Twitch live that Twitch labels for certain audiences (a mature-rated game, sexual themes, gambling...): Twitch's
+   * embedded player asks a signed-out viewer to log in before it shows the picture, and nothing here can lift that
+   * (Luke, 2026-11-18: "Mark, explain, list playable first"). The row is marked, opening it explains why, and lists put
+   * playable lives first. Absent on everything else.
+   */
+  signInToWatch?: true;
   /** ISO 8601. The stream is ordered by this, newest first, then by `id`. For a live, when it started. */
   publishedAt: string;
   /** ISO 8601: when WEB last read it. */

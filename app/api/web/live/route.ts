@@ -1,6 +1,6 @@
 import { searchWords } from '../../../lib/web/search';
 import { liveFetch } from '../../../lib/web/search/live-fetch';
-import { twitchCategories, twitchLiveNow, twitchTop, TWITCH_LOGINS_MAX } from '../../../lib/web/search/providers/twitch';
+import { playableFirst, twitchCategories, twitchLiveNow, twitchTop, TWITCH_LOGINS_MAX } from '../../../lib/web/search/providers/twitch';
 import { youtubeSearch } from '../../../lib/web/search/providers/youtube';
 import { clientAddress, makeRateLimiter } from '../../../lib/web/search/rate-limit';
 import type { SearchDeps } from '../../../lib/web/search/types';
@@ -92,5 +92,6 @@ export async function GET(request: Request): Promise<Response> {
       items.push(item);
     }
   }
-  return json({ items }, 200);
+  // Lives that play without a Twitch sign-in first (Luke, 2026-11-18); each group keeps its own order.
+  return json({ items: playableFirst(items) }, 200);
 }

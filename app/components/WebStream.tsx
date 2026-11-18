@@ -2012,10 +2012,18 @@ ${item.description}` : item.title)} className="ml-1.5" />
                 )}
                 {view === 'grid' ? <TightDot /> : <span aria-hidden="true">·</span>}
                 {item.live ? (
-                  // On now (SPEC-live-streams.md): where a date goes, the same LIVE mark the room lists use.
-                  <span className="bg-acid px-1 font-bold text-ink-plate" data-live-mark>
-                    ● LIVE
-                  </span>
+                  <>
+                    {/* On now (SPEC-live-streams.md): where a date goes, the same LIVE mark the room lists use. */}
+                    <span className="bg-acid px-1 font-bold text-ink-plate" data-live-mark>
+                      ● LIVE
+                    </span>
+                    {/* Twitch shows this one only after a sign-in (labelled for certain audiences; Luke, 2026-11-18). */}
+                    {item.signInToWatch === true ? (
+                      <span className="ml-1 whitespace-nowrap border border-ink-plate px-1 font-bold text-ink" title="Twitch asks you to sign in to Twitch before it shows this stream" data-sign-in-mark>
+                        18+ · SIGN IN
+                      </span>
+                    ) : null}
+                  </>
                 ) : (
                   <time dateTime={item.publishedAt}>{date}</time>
                 )}
@@ -2129,6 +2137,21 @@ ${item.description}` : item.title)} className="ml-1.5" />
           plays in the site's one layer, which sits over this box (FloatingPlayer.tsx); a reader stays in its row. */}
       {playing && embed && floats ? (
         <PlayerBox id={playId} title={item.title} className={`mt-2 w-full border border-ink-plate bg-paper ${item.kind === 'video' ? 'aspect-video' : 'h-[44px]'}`} />
+      ) : null}
+      {/* Why Twitch's player asks to log in, and the two ways on (Luke, 2026-11-18: "Mark, explain, list playable first").
+          Signed in to Twitch in this browser, its player shows the stream here too, where the browser lets it. */}
+      {playing && item.signInToWatch === true ? (
+        <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-label text-ink" data-sign-in-why>
+          <span>TWITCH ONLY SHOWS THIS STREAM AFTER YOU SIGN IN: IT&apos;S LABELLED FOR CERTAIN AUDIENCES.</span>
+          <a href="https://www.twitch.tv/login" target="_blank" rel="noopener noreferrer nofollow" className={PLATE_LINK} aria-label="Sign in to Twitch (new tab)">
+            [ SIGN IN TO TWITCH ↗ ]
+          </a>
+          {link !== null ? (
+            <a href={link} target="_blank" rel="noopener noreferrer nofollow" className={PLATE_LINK} aria-label={`Watch "${item.title}" on Twitch (new tab)`}>
+              [ WATCH ON TWITCH ↗ ]
+            </a>
+          ) : null}
+        </p>
       ) : null}
       {playing && embed && !floats ? (
         <iframe
