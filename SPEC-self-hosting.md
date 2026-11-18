@@ -164,6 +164,18 @@ on again it should call the site on this PC directly rather than through the tun
     Update active hours set so restarts happen at about 05:00, and sleep stays off (it already is). Proof: one test
     restart; the site comes back by itself; C checks.
 
+**Stage 5 result (2026-11-18, ~04:00-05:00):** the site is built on the PC and served at https://debaser.site by
+`keep-running.cjs` (`next start` on 127.0.0.1:3000, behind the tunnel). Proved from outside: /forum, /media, /users answer
+200; a headless visit to debaser.site loads every table from api.debaser.site and holds the live-update socket open. Found
+on the way and fixed with Luke's two OKs: about 1,260 saved links still carried the cloud's address ("Yes, rewrite them"),
+and the media catalogue's rule only accepted supabase.co links ("Yes, widen it": migration
+`20261118024044_media_src_self_hosted.sql`, applied to the PC with `supabase db push --db-url`). Self-update: two copies
+(`G:DEBASER-HOSTsite` and `site-b`); `self-update.cjs` builds a new main in the idle copy, points services.json at it
+and stops the old server, and keep-running starts the new one (one full cycle tested: a 5-second blip). Task
+`DebaserUpdate` runs it every 5 minutes. The site's settings live in `G:DEBASER-HOSTsite.env`, copied into each build.
+Not yet switched over (next): `npm run db`, `db:push`, `db:backup`, `web:fetch` and the dev `.env.local` still reach the
+old cloud project; core.md says so until they are.
+
 **Stage 6: the files** (when the Supabase block lifts, ~20 Nov)
 14. C: Copy the 38 files from the cloud project's buckets into the PC's buckets (read-only on the cloud side), check each
     file's size matches its record. Proof: a song plays and an avatar shows on debaser.site.
