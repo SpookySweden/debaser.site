@@ -143,6 +143,17 @@ Twitch's keys and WEB_FETCH_CONTACT were never set in Vercel (Twitch uses its ke
     in with Google once himself.
 11. C: The 38 file records arrive as "missing" until stage 6. The music bar and avatars show their normal empty state.
 
+**Stage 4 result (2026-11-18, ~03:45, Luke: "Yes, import it"):** exported read-only with `supabase db dump --data-only`
+over the cloud's direct connection (it still works under the block): the site's tables (public, game, ink), and
+`auth.users`, `auth.identities`, `storage.objects` only (old sessions left behind: they can't work on a new address).
+Imported in one transaction with the database's triggers off, then a new fetch lock made in the vault (never shown) and
+the three schedules re-made, pointed at `https://debaser.site` (hourly fetch on, sweep and tagging off, as on the cloud).
+Proof (`scripts/host/count-rows.cjs --pc`): 110 tables, 382,664 rows, every table equal on the cloud, in the export and
+on the PC. TEST ACCOUNT A signed in by email through `api.debaser.site` with its imported password and read its profile.
+The export files (with email addresses and password hashes) stay in `G:DEBASER-HOSTsupabaserom-cloud`, outside the repo.
+Note for later: the hourly sweep's 235-second timeout is longer than Cloudflare's 100 seconds, so if the sweep is switched
+on again it should call the site on this PC directly rather than through the tunnel.
+
 **Stage 5: switch on** (an hour)
 12. C: Turn on the self-rebuild task and the site's keep-running task; push a commit that (a) sends visitors of
     `debaser-site.vercel.app` on to `debaser.site` (a host-matched redirect in `next.config.ts`, so no Vercel setting

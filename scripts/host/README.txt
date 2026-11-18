@@ -13,3 +13,7 @@ run-local-site.cjs        [port]     the PC's copy of the site in dev mode again
 probe-local.cjs   <base> <path...>   headless Chrome/Edge: every call a page makes to the PC's Supabase, the live-update
                                      socket, failed requests, console errors. Run with MSYS_NO_PATHCONV=1 from Git Bash, from a
                                      folder where playwright-core resolves.
+count-rows.cjs            [--pc]     exact row counts per table: the cloud (read-only), the export files in
+                                     G:\DEBASER-HOST\supabase\from-cloud, and with --pc the PC's database.
+keep-running.cjs                     (copied to G:\DEBASER-HOST) starts and restarts what services.json lists.
+merge-pasted-keys.cjs  supabase|site moves keys Luke pasted into a paste-keys-here.txt into the file that uses them.
