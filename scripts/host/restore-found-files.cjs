@@ -24,9 +24,15 @@ function sql(statement) {
 }
 
 (async () => {
+  // The lists to restore from: the given ones (each [{ name, at }]), or the two the searches wrote.
   const sources = new Map();
-  for (const f of JSON.parse(readFileSync('G:\\DEBASER-HOST\\logs\\found-files.json', 'utf8'))) if (!sources.has(f.name)) sources.set(f.name, f.at);
-  if (existsSync('G:\\DEBASER-HOST\\logs\\found-in-caches.json')) for (const f of JSON.parse(readFileSync('G:\\DEBASER-HOST\\logs\\found-in-caches.json', 'utf8'))) if (!sources.has(f.name)) sources.set(f.name, f.savedTo);
+  const lists = process.argv.slice(2);
+  if (lists.length > 0) {
+    for (const list of lists) for (const f of JSON.parse(readFileSync(list, 'utf8'))) if (!sources.has(f.name)) sources.set(f.name, f.at);
+  } else {
+    for (const f of JSON.parse(readFileSync('G:\\DEBASER-HOST\\logs\\found-files.json', 'utf8'))) if (!sources.has(f.name)) sources.set(f.name, f.at);
+    if (existsSync('G:\\DEBASER-HOST\\logs\\found-in-caches.json')) for (const f of JSON.parse(readFileSync('G:\\DEBASER-HOST\\logs\\found-in-caches.json', 'utf8'))) if (!sources.has(f.name)) sources.set(f.name, f.savedTo);
+  }
 
   let restored = 0;
   for (const [name, from] of sources) {

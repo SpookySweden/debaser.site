@@ -59,15 +59,33 @@ export async function fingerprintFile(kind: MediaKind, file: File): Promise<Medi
  * The catalogued original of a file, if its bytes are already there - asked before an upload that
  * goes somewhere else (a profile picture, a track on the shelf), so the upload can be skipped and
  * the original's address used instead.
+ *
+ * Only an original whose file still answers is reused (2026-11-18, SPEC-self-hosting.md): after the move to Luke's PC some
+ * files stayed locked in the old cloud project until Stage 6, and reusing one of those pointed a re-upload back at the
+ * missing file ("ALREADY ON THE SITE ... NOT FILED YET", Luke: "it wont allow since its already technically filed"). Then
+ * the new file is uploaded as if the original weren't there.
  */
 export async function findOriginal(
   kind: MediaKind,
   file: File,
 ): Promise<{ fingerprint: MediaFingerprint; original: MediaItem | null }> {
   const fingerprint = await fingerprintFile(kind, file);
-  const original = await getMediaRepository().findBySha(fingerprint.sha256).catch(() => null);
+  const found = await getMediaRepository().findBySha(fingerprint.sha256).catch(() => null);
+  const original = found !== null && (await fileAnswers(found.src)) ? found : null;
 
   return { fingerprint, original };
+}
+
+/** Whether a file's address answers with the file: its first byte asked for, nothing more. Any failure is "no". */
+async function fileAnswers(src: string): Promise<boolean> {
+  try {
+    const base = typeof window === 'undefined' ? undefined : window.location.origin;
+    const response = await fetch(new URL(src, base), { headers: { Range: 'bytes=0-0' }, cache: 'no-store' });
+    void response.body?.cancel();
+    return response.ok;
+  } catch {
+    return false;
+  }
 }
 
 export type RecordMediaInput = {
