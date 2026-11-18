@@ -296,8 +296,13 @@ export default function ForumBoard() {
       try {
         // An address that names a place is remembered as it stands, even the plain feed (which changes no state, so the
         // write below would not run); one that names none is filled from memory.
-        if (place !== null) window.localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(place));
-        else place = parseStoredPlace(window.localStorage.getItem(BOARD_STORAGE_KEY));
+        if (place !== null) {
+          const text = JSON.stringify(place);
+          // Remembered by the account too when it is a change (SPEC-forum-v3.md, F2A), as this browser remembers it.
+          const changed = window.localStorage.getItem(BOARD_STORAGE_KEY) !== text;
+          window.localStorage.setItem(BOARD_STORAGE_KEY, text);
+          if (changed) noteSettingChanged('forumPlace');
+        } else place = parseStoredPlace(window.localStorage.getItem(BOARD_STORAGE_KEY));
       } catch {
         // No storage: the address alone.
       }

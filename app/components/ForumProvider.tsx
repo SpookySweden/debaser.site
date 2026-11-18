@@ -365,6 +365,13 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
         setThreads((current) => (current.some((item) => item.id === thread.id) ? current : [thread, ...current]));
         return thread;
       },
+      // The kinds a row lists (its body): the maker's own post, rewritten when their switches change that day.
+      update: async (threadId, body) => {
+        const repository = repositoryRef.current ?? getForumRepository();
+        const thread = await repository.updateThread(threadId, { body });
+        setThreads((current) => current.map((item) => (item.id === thread.id ? thread : item)));
+        return thread;
+      },
     });
     return () => registerMadeFiler(null);
   }, [author, createThread]);

@@ -15,6 +15,7 @@ const made = require(path.join(OUT, 'lib/forum/made.js'));
 const { selectBoardThreads } = require(path.join(OUT, 'lib/forum/board-query.js'));
 const { displayTitle, postCredit } = require(path.join(OUT, 'lib/forum/site-author.js'));
 
+const read = (file) => fs.readFileSync(path.join(ROOT, file), 'utf8');
 const PERSON = '3f2a9c10-aaaa-4bbb-8ccc-0123456789ab';
 const at = (minutes) => new Date(Date.now() - minutes * 60000).toISOString();
 const today = made.madeDay();
@@ -66,8 +67,18 @@ const things = [
 ];
 assert.deepEqual(made.thingsOfDay(things, today).map((one) => one.id), ['f'], "a row lists only its day's things");
 
+/* Which kinds a row lists (M1A: a switch off posts nothing of that kind; only the maker can read their switches) ---- */
+const allOn = { drawings: true, characters: true, files: true, tracks: true, letters: true };
+assert.equal(made.madeBody(allOn), 'LISTS: drawings characters files tracks letters', 'the row says the kinds switched on');
+assert.equal(made.madeBody({ ...allOn, tracks: false }), 'LISTS: drawings characters files letters', 'a kind switched off is left out');
+const mixed = [{ kind: 'drawings', id: 'd1', title: 'D', at: new Date().toISOString(), href: '/' }, { kind: 'tracks', id: 't1', title: 'T', at: new Date().toISOString(), href: '/' }];
+assert.deepEqual(made.thingsShown(mixed, made.madeBody({ ...allOn, tracks: false })).map((one) => one.id), ['d1'], 'TRACKS off: a track made that day is not listed on the row filed for a drawing');
+assert.deepEqual(made.thingsShown(mixed, ''), [], 'a row with no kinds written lists nothing');
+assert.deepEqual(made.thingsShown(mixed, 'LISTS: tracks drawings sneaky'), mixed, 'unknown words are ignored');
+assert.equal(postCredit({ ...row, body: made.madeBody(allOn) }).id, PERSON, 'with its kinds in the body it is still credited to its maker');
+assert.ok(read('app/lib/forum/made-filing.ts').includes('subscribeToMadeSwitches('), "a switch pressed rewrites today's row");
+
 /* Wired where it should be ------------------------------------------------------------------------------------------- */
-const read = (file) => fs.readFileSync(path.join(ROOT, file), 'utf8');
 const privacy = read('app/components/PrivacySwitches.tsx');
 assert.ok(privacy.includes('POST WHAT I MAKE TO THE BOARD') && privacy.includes('MADE_KINDS.map'), 'PRIVACY has the five switches under POST WHAT I MAKE TO THE BOARD');
 const rules = read('app/lib/settings/settings-rules.ts');
@@ -83,6 +94,7 @@ const filed = [
   ['app/components/LetterWindow.tsx', "fileMade('letters')"],
 ];
 for (const [file, call] of filed) assert.ok(read(file).includes(call), `${file} files its kind: ${call}`);
-assert.ok(!/body:\s*[^']*thing/i.test(read('app/lib/forum/made-filing.ts')), 'the row stores nothing but its anchor');
+// The row stores its anchor and which kinds it lists, never the things themselves (they are read live).
+assert.ok(read('app/lib/forum/made-filing.ts').includes('body: madeBody(madeSwitches())'), 'the row is filed with the kinds switched on as its body, and nothing else');
 
 console.log('check-made-posts: ok');

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { madeHeading, type MadeThing } from '../lib/forum/made';
+import { madeHeading, thingsShown, type MadeThing } from '../lib/forum/made';
 import { useMadeThings } from '../lib/forum/made-things';
 import { catalogueTrack } from '../lib/media/catalogue';
 import { MADE_KINDS } from '../lib/settings/settings-rules';
@@ -23,16 +23,18 @@ export function MadeMarker() {
 }
 
 /** `SWEDEN MADE 3 THINGS TODAY`, the count read live (M4A). */
-export function MadeTitle({ person, day, name }: { person: string; day: string; name: string }) {
+export function MadeTitle({ person, day, name, body }: { person: string; day: string; name: string; body: string }) {
   const things = useMadeThings(person, day);
-  return <>{madeHeading(name, things === undefined ? null : things.length, day)}</>;
+  return <>{madeHeading(name, things === undefined ? null : thingsShown(things, body).length, day)}</>;
 }
 
 const kindLabel = (thing: MadeThing) => MADE_KINDS.find((one) => one.kind === thing.kind)?.label.replace(/S$/, '') ?? 'THING';
 
 /** The day's things, newest first, each a link to where it lives. */
-export default function MadeRecord({ person, day }: { person: string; day: string }) {
-  const things = useMadeThings(person, day);
+export default function MadeRecord({ person, day, body }: { person: string; day: string; body: string }) {
+  const read = useMadeThings(person, day);
+  // Only the kinds whose switch the maker left on (M1A): their tab writes those into the row (`madeBody`).
+  const things = read === undefined ? undefined : thingsShown(read, body);
   if (things === undefined) return <p className="text-label font-bold text-ink">READING WHAT WAS MADE...</p>;
   if (things.length === 0) return <p className="text-label font-bold text-ink">NOTHING FROM THIS DAY IS STILL UP.</p>;
 

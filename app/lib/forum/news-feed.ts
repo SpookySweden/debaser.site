@@ -5,6 +5,7 @@ import { livePins, pinLabel } from './pins';
 import type { ForumAuthor, ForumComment, ForumThread, ThreadPin } from './types';
 import { bodyWords } from './song-link';
 import { postWords } from './post-format';
+import { isMadeThread } from './made';
 
 /**
  * A wire as a list of rows.
@@ -111,7 +112,7 @@ export function buildNewsFeed(
       kind: 'post',
       tag: 'POST',
       author: thread.author,
-      text: clipForNews(thread.body.length === 0 ? displayTitle(thread) : bodyWords(thread.body)),
+      text: clipForNews(thread.body.length === 0 || isMadeThread(thread) ? displayTitle(thread) : bodyWords(thread.body)),
       createdAt: thread.createdAt,
       href: newsHref(thread.id),
       hrefTitle: `Open "${displayTitle(thread)}"`,
@@ -135,7 +136,7 @@ export function buildNewsFeed(
           kind: 'post',
           tag: 'POST',
           author: thread.author,
-          text: clipForNews(thread.body.length === 0 ? title : bodyWords(thread.body)),
+          text: clipForNews(thread.body.length === 0 || isMadeThread(thread) ? title : bodyWords(thread.body)),
           createdAt: thread.createdAt,
           href: newsHref(thread.id),
           hrefTitle: `Open "${title}"`,

@@ -92,6 +92,33 @@ export function thingsOfDay(things: readonly MadeThing[], day: string): MadeThin
   return things.filter((thing) => madeDay(thing.at) === day).sort((left, right) => Date.parse(right.at) - Date.parse(left.at));
 }
 
+/**
+ * Which kinds the row lists, as its body says (M1A: a switch off means that kind is not posted). Only the maker can read
+ * their own switches (`user_settings` is owner-only), so the maker's tab writes the kinds whose switch is on into the
+ * row's body when it files it, and again whenever the switches change that day; every reader then lists only those.
+ * The body is the one thing the row stores besides its anchor, and only its owner can change it.
+ */
+const KINDS_PREFIX = 'LISTS:';
+const ALL_KINDS: readonly MadeKind[] = ['drawings', 'characters', 'files', 'tracks', 'letters'];
+
+export function madeBody(switches: Record<MadeKind, boolean>): string {
+  return `${KINDS_PREFIX} ${ALL_KINDS.filter((kind) => switches[kind]).join(' ')}`.trim();
+}
+
+/** The kinds a row's body allows. An empty or unreadable body lists nothing: a row is always filed with its kinds. */
+export function madeKindsIn(body: string): Set<MadeKind> {
+  const text = body.trim();
+  if (!text.startsWith(KINDS_PREFIX)) return new Set();
+  const words = text.slice(KINDS_PREFIX.length).trim().split(/\s+/);
+  return new Set(ALL_KINDS.filter((kind) => words.includes(kind)));
+}
+
+/** The things a row shows: its day's, of the kinds its maker had switched on. */
+export function thingsShown(things: readonly MadeThing[], body: string): MadeThing[] {
+  const kinds = madeKindsIn(body);
+  return things.filter((thing) => kinds.has(thing.kind));
+}
+
 /** Whether the maker's tab should file a row now: signed in, that kind's switch on, and no row of theirs for today yet. */
 export function shouldFileMade(input: {
   person: string | null;

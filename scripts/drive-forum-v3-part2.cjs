@@ -262,6 +262,15 @@ async function madePart(browser, totals) {
   await page.locator('[data-made-switch="tracks"]').click();
   await sleep(1600);
   check((await readRow(page))[ME.id]?.settings?.made?.tracks === false, 'turning TRACKS off saves it to the account');
+  // The row says which kinds it lists (only the maker can read their switches): turning one off takes it off today's row.
+  const rowBody = () => page.evaluate(() => {
+    const store = JSON.parse(window.localStorage.getItem('debaser.forum.ugc.v2') ?? '{}');
+    return (store.threads ?? []).find((thread) => String(thread.anchor?.id ?? '').startsWith('made:'))?.body ?? null;
+  });
+  check(/^LISTS: drawings characters files letters$/.test(String(await rowBody())), "today's row lists the kinds switched on (TRACKS gone)", String(await rowBody()));
+  await page.locator('[data-made-switch="letters"]').click();
+  await sleep(1500);
+  check(!/letters/.test(String(await rowBody())), 'turning PUBLIC LETTERS off takes letters off the row at once', String(await rowBody()));
   await page.screenshot({ path: join(OUT, 'privacy-switches.png'), fullPage: true });
   totals.live += maker.liveHits();
   await maker.context.close();

@@ -241,7 +241,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
               <div className="flex items-baseline gap-2 font-bold text-ink">
                 <span className="shrink-0 text-label leading-none text-ink">{isOpen ? '[-]' : '[+]'}</span>
                 <span className="min-w-0 flex-1 text-sm leading-tight group-hover:underline">
-                  {made === null ? layout.title : <MadeTitle person={made.person} day={made.day} name={thread.author.displayName} />}
+                  {made === null ? layout.title : <MadeTitle person={made.person} day={made.day} name={thread.author.displayName} body={thread.body} />}
                 </span>
                 {/* Pinned posts say so before anything else about them, because being pinned is
                     why this row is at the top of the list. */}
@@ -447,7 +447,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
             {streamRoom !== null ? (
               isOpen ? <StreamRecord roomId={streamRoom} /> : null
             ) : made !== null ? (
-              isOpen ? <MadeRecord person={made.person} day={made.day} /> : null
+              isOpen ? <MadeRecord person={made.person} day={made.day} body={thread.body} /> : null
             ) : layout.right.isAnchorPost ? null : songHrefIn(layout.right.body) !== null ? (
               <Link href={songHrefIn(layout.right.body) as string} className={PLATE}>
                 [ OPEN SONG ]
