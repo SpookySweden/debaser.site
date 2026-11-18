@@ -132,7 +132,9 @@ what it holds is the route list and the rules.
 
 db-backup.cjs
     npm run db:backup
-    A copy of every table to Documents/debaser-backups, the 14 newest kept. Reads only. A Windows task runs it daily at 04:00.
+    A copy of every table, as JSON, to Documents/debaser-backups, the 14 newest kept. Reads only (now the live database on
+    Luke's PC, through db.cjs). Since 2026-11-18 the 04:00 task DebaserBackup runs scripts/host/backup.cjs instead (a full
+    pg_dump, the files and the server's settings into I:\DEBASER\backups); this one is an extra, by hand.
 
 db.cjs
 ------
@@ -142,8 +144,12 @@ db.cjs
     npm run db -- --write "..."         changes something - refused without the flag
     npm run db -- --dry-run "..."       print the command, and run nothing
 
-SQL against the deployed project, through `supabase db query` - the same instrument the dashboard's
-SQL editor is, with a personal access token read from `.env.local`. This is the only tool here that
+    npm run db -- --cloud ...           the OLD cloud project instead (the way back; write nothing there)
+
+SQL against the LIVE database, which since 2026-11-18 is the self-hosted Supabase on Luke's desktop PC
+(SPEC-self-hosting.md): `supabase db query --db-url` to 127.0.0.1:5432, with the password read from
+G:\DEBASER-HOST\supabase\.env and never printed. It works on the desktop only. With `--cloud` it asks the old
+cloud project through `supabase db query --linked`, with the personal access token from `.env.local`. This is the only tool here that
 can ask the *database* a question rather than asking what a visitor would see, and it is what the
 database rules in `.claude/rules/core.md` (Safety) run on. The write guard is deliberate: leave it alone.
 
@@ -235,7 +241,8 @@ db-cli.cjs, db-repair.cjs
     npm run db:pull                     pull remote schema changes back
     npm run db:repair:list, :applied    adopt an existing schema into the migration history
 
-Both supply `--linked --project-ref <ref>` themselves, reading the ref out of
+Since 2026-11-18 both act on the LIVE database on Luke's desktop PC (`--db-url`, like db.cjs); add `--cloud` for the
+old cloud project. What follows is how the `--cloud` way works. Both supply `--linked --project-ref <ref>` themselves, reading the ref out of
 `NEXT_PUBLIC_SUPABASE_URL`, because `supabase link` writes per-machine state that a fresh clone does
 not have. Both run the CLI as `node node_modules/supabase/dist/supabase.js` rather than `npx`: Node
 24 on Windows refuses to spawn the `.cmd` shim.

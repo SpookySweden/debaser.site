@@ -43,7 +43,22 @@ function projectRef() {
 
 const APPLY = process.argv.includes('--applied');
 const stamps = timestamps();
-const ref = projectRef();
+
+/*
+ * Since 2026-11-18 (SPEC-self-hosting.md) the live database is the self-hosted Supabase on Luke's desktop PC, reached with
+ * `--db-url` (127.0.0.1:5432, the password read from its settings file, never printed), like scripts/db-cli.cjs. `--cloud`
+ * repairs the OLD cloud project's history instead.
+ */
+const PC_SETTINGS = 'G:\\DEBASER-HOST\\supabase\\.env';
+function pcUrl() {
+  if (!existsSync(PC_SETTINGS)) return undefined;
+  const password = /^POSTGRES_PASSWORD=(.*)$/m.exec(readFileSync(PC_SETTINGS, 'utf8'))?.[1]?.trim();
+  return password ? `postgresql://postgres.debaser:${encodeURIComponent(password)}@127.0.0.1:5432/postgres?sslmode=disable` : undefined;
+}
+const viaCloud = process.argv.includes('--cloud');
+const pc = viaCloud ? undefined : pcUrl();
+const ref = viaCloud ? projectRef() ?? 'uekreahyooezywjgzirr' : pc === undefined ? undefined : 'the live database on this PC';
+const target = pc !== undefined ? ['--db-url', pc] : ['--linked', '--project-ref', ref];
 
 /**
  * The CLI, run in-process.
@@ -63,7 +78,7 @@ for (const stamp of stamps) console.log(`  ${stamp}`);
 
 if (ref === undefined) {
   console.log('');
-  console.log('no NEXT_PUBLIC_SUPABASE_URL in .env.local, so there is no project to repair.');
+  console.log("the live database is on Luke's desktop PC (G:\\DEBASER-HOST), which this machine cannot reach; --cloud for the old project.");
   process.exitCode = 1;
 } else if (!APPLY) {
   console.log('');
@@ -75,7 +90,7 @@ if (ref === undefined) {
 
   for (const stamp of stamps) {
     try {
-      cli(['migration', 'repair', '--linked', '--project-ref', ref, '--status', 'applied', stamp]);
+      cli(['migration', 'repair', ...target, '--status', 'applied', stamp]);
       console.log(`  applied  ${stamp}`);
     } catch (error) {
       failed += 1;
