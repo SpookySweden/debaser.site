@@ -17,6 +17,7 @@ import { forgetGuestReturn, guestReturnDraft, keepGuestReturn } from '../lib/wat
 import { createEmbed, isEmbedKind } from '../lib/watch/embeds';
 import { liveJump, twitchOf } from '../lib/watch/links';
 import { loadLiveNow } from '../lib/web/everywhere-client';
+import { TwitchSignInNote } from './TwitchSignInNote';
 import { hasQualityControl, hasSubtitleControl, type EmbedPlayable, type Playable, type QualityControl } from '../lib/watch/playable';
 import type { EmbedRefusal } from '../lib/watch/embed-player';
 import { lookClass, lookForRoom } from '../lib/cytube/looks';
@@ -1770,23 +1771,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
             </p>
           </div>
         ) : null}
-        {signInGate && !linkDead ? (
-          // Over Twitch's own "log in to continue" (its link in the middle stays pressable): why, and the two ways on.
-          // Side margins keep it clear of the stage's own keys in the corners ([ VIS ]).
-          <div className="pointer-events-none absolute inset-0 z-20 flex items-start justify-center px-16 pt-2" data-watch-sign-in>
-            <p className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar" role="status">
-              TWITCH ONLY SHOWS THIS STREAM AFTER YOU SIGN IN: IT&apos;S LABELLED FOR CERTAIN AUDIENCES.{' '}
-              <a href="https://www.twitch.tv/login" target="_blank" rel="noopener noreferrer" className="pointer-events-auto underline" data-watch-twitch-sign-in>
-                [ SIGN IN TO TWITCH ↗ ]
-              </a>{' '}
-              {twitchPage !== null ? (
-                <a href={twitchPage} target="_blank" rel="noopener noreferrer" className="pointer-events-auto underline">
-                  [ WATCH ON TWITCH ↗ ]
-                </a>
-              ) : null}
-            </p>
-          </div>
-        ) : null}
+        {/* Over Twitch's own "log in to continue" (its link in the middle stays pressable): why, and the two ways on. */}
+        {signInGate && !linkDead ? <TwitchSignInNote channelPage={twitchPage} place="stage" linkClass="pointer-events-auto underline" /> : null}
         {needsPress && live && !linkDead ? (
           // Only the key takes the press. Over an embedded site's player it sits at the foot, so the site's own
           // play key in the middle stays in view and in reach: a phone may only start YouTube from there.

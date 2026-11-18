@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent } from 'react';
 import { artSlot } from '../lib/ui/art/slots';
 import { FIELD_TIGHT, PLATE, PLATE_LINK, PLATE_MAIN } from '../lib/ui/controls';
+import { TwitchSignInNote } from './TwitchSignInNote';
 import { pictureLink } from '../lib/watch/pictures';
 import { seriesMark } from '../lib/watch/series';
 import { useArchiveRowSubtitles, useSeriesCount } from '../lib/watch/series-client';
@@ -2140,19 +2141,7 @@ ${item.description}` : item.title)} className="ml-1.5" />
       ) : null}
       {/* Why Twitch's player asks to log in, and the two ways on (Luke, 2026-11-18: "Mark, explain, list playable first").
           Signed in to Twitch in this browser, its player shows the stream here too, where the browser lets it. */}
-      {playing && item.signInToWatch === true ? (
-        <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-label text-ink" data-sign-in-why>
-          <span>TWITCH ONLY SHOWS THIS STREAM AFTER YOU SIGN IN: IT&apos;S LABELLED FOR CERTAIN AUDIENCES.</span>
-          <a href="https://www.twitch.tv/login" target="_blank" rel="noopener noreferrer nofollow" className={PLATE_LINK} aria-label="Sign in to Twitch (new tab)">
-            [ SIGN IN TO TWITCH ↗ ]
-          </a>
-          {link !== null ? (
-            <a href={link} target="_blank" rel="noopener noreferrer nofollow" className={PLATE_LINK} aria-label={`Watch "${item.title}" on Twitch (new tab)`}>
-              [ WATCH ON TWITCH ↗ ]
-            </a>
-          ) : null}
-        </p>
-      ) : null}
+      {playing && item.signInToWatch === true ? <TwitchSignInNote channelPage={link} place="row" linkClass={PLATE_LINK} /> : null}
       {playing && embed && !floats ? (
         <iframe
           src={startingEmbed(embed, item.platform, contentLanguage(item))}
