@@ -14,8 +14,11 @@ and every session's check-in lines: the shared notes folder
 - Backups: `DebaserBackup` (04:00) dumps the PC (database, roles, files, settings) to `I:\DEBASER\backups`, 30 kept, a
   desktop note on failure; a restore was proved. Luke: no Google Drive copies for now (everything is on one PC).
 - Still to do (HOSTING session, kept open): Stage 6 copies songs, avatars and other files from the cloud when its block
-  lifts (~20 Nov); until then many pictures/songs show as missing (re-uploads now work, 245a399). Luke's part: Windows
-  automatic sign-in, Windows Update active hours.
+  lifts (~20 Nov); until then many pictures/songs show as missing (re-uploads now work, 245a399). Windows (2026-11-19):
+  automatic sign-in on, no update restarts while signed in (AUOptions=4 + NoAutoRebootWithLoggedOnUsers), active hours
+  11:00-05:00 as the fallback; Luke restarts by hand monthly. Still owed: one test restart, then check everything returns.
+- Docker stopped unnoticed 2026-11-18 18:58-22:06 UTC; `keep-running.cjs` now watches it (f09eed4). Quitting Docker on
+  purpose: create `G:\DEBASER-HOST\docker.paused` first, or the watch starts it again.
 
 ## Done 2026-11-16 to 18 (all live, sessions archived; details in the check-in files)
 Lists 3 and 4 (rooms, MEDIA, fluid, background THEME switch, room window and queue, forum fixes), 14 orange/green themes

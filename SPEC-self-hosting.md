@@ -218,6 +218,16 @@ Not encrypted while nothing leaves the house (add it with the Google Drive copy,
 23 MB, 163 tables. Proved by restoring it into a throwaway database: 382,760 rows in 110 tables, equal to the live one
 (only pg_cron can't be re-made outside the main database, as expected). The copies sit on the same external drive as the
 uploaded files, so a failure of that drive loses both: the off-site copy is still owed.
+**Step 13 (2026-11-19):** automatic sign-in is on (Luke chose `netplwiz` over Autologon; `AutoAdminLogon=1`, the password in
+Windows' protected store, none in plain text). No screen lock after it (Luke: "dont lock the screen after"). Update restarts
+(Luke: "i want windows to never restart for an update"): `NoAutoRebootWithLoggedOnUsers=1` was already set but without the
+`AUOptions=4` Microsoft says it needs, and a Windows Update restart happened on 14 Nov at 21:33. Now set by policy
+(Luke approved the admin prompt): `AUOptions=4`, `NoAutoRebootWithLoggedOnUsers=1`, and as the fallback active hours
+11:00-05:00 (`SetActiveHours=1`, the 18-hour maximum). Updates still download and install; the restart waits for Luke,
+since auto sign-in keeps a user signed in. Not guaranteed on Windows 10 Home (the policy is documented for managed
+editions): proved only when the next update needing a restart arrives. Luke restarts by hand about once a month. Still
+owed: the test restart.
+
 **Outage and Docker watch (2026-11-18, evening; Luke: "step 3 too"):** Docker Desktop stopped at 18:58 UTC with nothing
 in its own log while the PC stayed on; the pages kept serving, but api.debaser.site answered 502 (no data, no sign-in)
 until 22:06. Started alone, Docker could not attach its disk (`docker_data.vhdx`: WSL `ERROR_NO_SYSTEM_RESOURCES`); it
