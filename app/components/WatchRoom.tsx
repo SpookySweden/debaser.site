@@ -37,7 +37,10 @@ import QueuedPicture from './QueuedPicture';
 import { useWebTrack, webTrackNow } from '../lib/web/web-track-lookup';
 
 import {
+  NO_FRAME_FULLSCREEN,
   ROOM_BAR,
+  ROOM_BAR_ASLEEP,
+  ROOM_BAR_OVER,
   ROOM_BAR_PLACE,
   ROOM_COG,
   ROOM_COLUMNS,
@@ -53,6 +56,7 @@ import {
   roomSide,
 } from '../lib/watch/room-frame';
 import { useRoomSideWidth } from '../lib/watch/room-side-width';
+import { useFullscreenBar } from '../lib/watch/use-fullscreen-bar';
 import RoomSideGrip from './RoomSideGrip';
 import { stillBars, watchVideoBars, type FrameBars } from '../lib/watch/bar-watch';
 import { hasTrim, NO_TRIM, trimmedShape, type Trim } from '../lib/watch/video-bars';
@@ -1205,9 +1209,11 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
 
   /* --- the player bar -------------------------------------------------------------------------- */
 
-  // The bar sits under the picture and always shows: nothing covers the video (Luke, 2026-11-02). The
-  // picture and the bar go fullscreen together, so the bar stays along the foot of the screen there too.
+  // The bar sits under the picture and always shows: nothing covers the video (Luke, 2026-11-02). The picture and the
+  // bar go fullscreen together; there the bar lies over the foot of the picture and goes after a few seconds without the
+  // pointer moving, or at once when it leaves (Luke, 2026-11-19; `useFullscreenBar`).
   const stageRef = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
 
   const pictureBox = useRef<HTMLDivElement>(null);
   const [fullscreen, setFullscreen] = useState(false);
@@ -1346,6 +1352,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   // while the bar shows the music it is not offered, so the keys come back under the picture.
   const barTarget = useSyncExternalStore(subscribeToStreamBar, () => streamBarState().target, () => null);
   const keysOnMusicBar = barTarget !== null && !fullscreen;
+  const barAwake = useFullscreenBar(stageRef, barRef, fullscreen);
 
   // The keys, each drawn in whichever of the two bars is showing them.
   const playKey =
@@ -1536,7 +1543,12 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   // PIP, FULL, END STREAM (host). The chat column's strip names the video.
   const playerBar = !keysOnMusicBar && (hasTransport || hostKeys || floatKey !== null || exitKey !== null) ? (
     // `relative`: on a phone the SUBS list opens as a sheet across the bar, just above it.
-    <div className={ROOM_BAR} data-watch-bar="shown">
+    <div
+      ref={barRef}
+      className={`${ROOM_BAR} ${fullscreen ? ROOM_BAR_OVER : ''} ${barAwake ? '' : ROOM_BAR_ASLEEP}`}
+      data-watch-bar="shown"
+      data-watch-bar-awake={fullscreen ? (barAwake ? 'awake' : 'asleep') : undefined}
+    >
       {playKey}
       {/* Where it is, and the time: a row of its own on a phone, so the keys fit on the one under it. With no
           transport (a WEB platform's own player) the space only pushes the host's keys to the right. */}
@@ -1634,10 +1646,10 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   const stage = (
     <div className={ROOM_STAGE}>
       {/* The picture with its bar under it: the two go fullscreen together. */}
-      <div ref={stageRef} className={`${ROOM_SCREEN} ${look === null ? '' : `frame ${lookLines}`}`}>
+      <div ref={stageRef} className={`${ROOM_SCREEN} ${look === null ? '' : `frame ${lookLines} ${NO_FRAME_FULLSCREEN}`}`}>
       {/* Floating, the box leaves the folded window's invisible frame by staying in it: `visible` and `fixed`. Its top is kept for
           its title strip, deeper on a phone where the strip's keys are the tap size, so nothing sits over the picture (2026-11-08). */}
-      <div ref={pictureBox} onDoubleClick={fullOnDoublePress} {...(pictureFloats ? floatDrag.picture : {})} className={`${pictureFloats ? 'fixed visible frame bg-ink-plate pt-10 max-sm:pt-14 fullscreen:pt-0 select-none' : 'relative'} ${ROOM_PICTURE_BOX} ${dressed ? 'stage-surround' : ''}`} data-room-picture={pictureFloats ? 'floating' : 'in-room'} data-backdrop-press={dressed ? '' : undefined} data-companion-avoid={pictureFloats ? '' : undefined}>
+      <div ref={pictureBox} onDoubleClick={fullOnDoublePress} {...(pictureFloats ? floatDrag.picture : {})} className={`${pictureFloats ? `fixed visible frame bg-ink-plate pt-10 max-sm:pt-14 [&:fullscreen]:pt-0 ${NO_FRAME_FULLSCREEN} select-none` : 'relative'} ${ROOM_PICTURE_BOX} ${dressed ? 'stage-surround' : ''}`} data-room-picture={pictureFloats ? 'floating' : 'in-room'} data-backdrop-press={dressed ? '' : undefined} data-companion-avoid={pictureFloats ? '' : undefined}>
         {blank ? (
           <BlankScreen fit={pictureFit} onPick={(key) => openQueue(key)} hidden={screen === 'canvas'} />
         ) : src === undefined ? (

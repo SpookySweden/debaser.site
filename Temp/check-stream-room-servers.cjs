@@ -103,7 +103,10 @@ ok(/<OfficialEmbedStage key=\{`official-\$\{entryId\}-\$\{serverOn \? serverSeen
 ok(/serverRestarted\(serverSeen\.mark, room\)/.test(room), 'counted from the room\'s own rows');
 ok(/onClick=\{playServerForAll\}/.test(room) && /positionSeconds: 0, isPlaying: true/.test(room.slice(room.indexOf('function playServerForAll'), room.indexOf('function playServerForAll') + 600)), 'the host\'s PLAY FOR ALL writes 0, playing');
 ok(!/NOT IN STEP: EVERYONE PRESSES PLAY ON THIS ONE\.<\/p>/.test(room), 'no line under the player any more (it never covers the picture)');
-ok(/fixed visible frame bg-ink-plate pt-10 max-sm:pt-14 fullscreen:pt-0/.test(room), 'floating, the picture keeps clear of its title strip, deeper on a phone where its keys are the tap size (measured: it covered the picture\'s top)');
+// Updated on purpose (2026-11-19, the fullscreen outline): this Tailwind has no `fullscreen:` variant, so `fullscreen:pt-0`
+// compiled to no rule at all and a floating picture kept its 40px top in fullscreen. `[&:fullscreen]:pt-0` is the one that
+// exists (drive-fullscreen-bar.cjs reads the compiled result).
+ok(/fixed visible frame bg-ink-plate pt-10 max-sm:pt-14 \[&:fullscreen\]:pt-0/.test(room), 'floating, the picture keeps clear of its title strip, deeper on a phone where its keys are the tap size (measured: it covered the picture\'s top)');
 // Updated on purpose (Luke, 2026-11-16, "Switch it off"): the permissions are said once, and the player's own fullscreen is
 // taken out of them where the room's FULL works (SPEC-rooms-your-room.md, part 3). A server's player still has autoplay.
 ok(/const allowed = server !== undefined \? 'autoplay; fullscreen' : 'fullscreen';/.test(room), 'a server\'s player may start by itself when it is made again');

@@ -63,3 +63,24 @@ export const ROOM_QUALITY_MARK = 'HD';
  * 2026-11-17: "dissapear after not hovering on the player for 5 minutes"). The one number to change.
  */
 export const ROOM_CORNER_KEYS_AWAKE_MS = 5 * 60 * 1000;
+/**
+ * Fullscreen, how long the bar of keys stays over the foot of the picture after the pointer last moved (Luke, 2026-11-19:
+ * "make it so that the media buttons at the bottom dissapear after a few seconds of no mouse movement or as soon as the
+ * mouse is moved off the video"). Only in fullscreen: in the room the bar sits under the picture and always shows.
+ */
+export const ROOM_BAR_AWAKE_MS = 3 * 1000;
+/**
+ * Fullscreen, the bar lies over the foot of the picture (so the picture has the whole screen) instead of under it; asleep,
+ * it is clear and its keys take no press, but the strip itself still feels the pointer, so moving over the foot of the
+ * screen wakes it even over another site's player, whose frame keeps the pointer's moves to itself.
+ */
+// Through `:fullscreen` (as RoomFloatChrome hides its strip), so it outranks ROOM_BAR's own `relative` instead of racing it.
+export const ROOM_BAR_OVER = '[:fullscreen_&]:absolute [:fullscreen_&]:inset-x-0 [:fullscreen_&]:bottom-0 [:fullscreen_&]:z-30';
+export const ROOM_BAR_ASLEEP = 'opacity-0 *:pointer-events-none';
+/**
+ * No frame round whatever is fullscreen: a room look's lines ran round the whole screen (Luke, 2026-11-19: "the green outline
+ * of the entire screen its a bit jarring" - JUNGLE's Emerald). `.frame` draws its outline as a 2px border holding four
+ * background stripes, so both go. `[&:fullscreen]`, the element itself: this Tailwind has no `fullscreen:` variant (a
+ * `fullscreen:` class compiles to nothing), and `[:fullscreen_&]` only reaches what is inside the fullscreen element.
+ */
+export const NO_FRAME_FULLSCREEN = '[&:fullscreen]:border-0 [&:fullscreen]:bg-none';
