@@ -13,7 +13,7 @@
  * folder also refuse each other ("Another next build process is already running"), and the checks compile into
  * fixed Temp/out-* folders that two runs at once overwrite.
  *
- * This keeps ONE clean copy outside the repository (~\.debaser-clean-verify, a git worktree, so a commit made here
+ * This keeps ONE clean copy outside the repository (G:\debaser-clean-verify on the desktop, else ~\.debaser-clean-verify; a git worktree, so a commit made here
  * is already there) and reinstalls packages only when package-lock.json changed since its last install. Not under
  * AppData: the Claude app redirects that into its own package folder, so a terminal outside the app would see
  * another place. One session at a time: a lock file next to the copy names who holds it, and the next one waits.
@@ -29,7 +29,9 @@ const { existsSync, mkdirSync, openSync, closeSync, readFileSync, rmSync, writeF
 const os = require('node:os');
 const path = require('node:path');
 
-const COPY = path.join(os.homedir(), '.debaser-clean-verify');
+// On the desktop the copy lives on G: (Luke, 2026-11-20: C: had 12 GB free and the copy is ~2 GB); a machine with no G:
+// (the laptop) keeps it in the home folder as before.
+const COPY = existsSync('G:\\') ? 'G:\\debaser-clean-verify' : path.join(os.homedir(), '.debaser-clean-verify');
 const LOCK = `${COPY}.lock`;
 const STAMP = path.join(COPY, 'node_modules', '.clean-verify-lock-hash');
 /** A lock older than this is a crashed run, whatever its process id says (ids are reused). */
