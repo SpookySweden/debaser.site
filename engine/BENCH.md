@@ -251,6 +251,20 @@ included, on this one PC (no real network in it). Windows scales this desktop to
   and the runner places the windows itself); pressing keys and taking the front window fought the League client for
   it (now hands-off); a match starting mid-run now stops the rig at once.
 
+Later the same evening, **no further clean number**: three runs straight after a match saw the patch covered by
+the game's own after-match window (6 of 40 flips, then none), and six runs when the PC had gone quiet saw nothing
+change at all, because with nobody at the PC its screen was off and nothing is drawn. So this measurement needs the
+screen on and no match running, which means Luke at the PC and willing to have two small windows up for half a
+minute a run. The spoiled runs' files are not kept.
+
+**Switch 32, not a default and not proved:** a change somewhere else on the screen is no longer treated as a new
+frame of the piece being sent (Windows says which rectangles changed). It should stop identical frames being
+encoded, and stop the engine resting just before the piece itself changes. It builds and the stream check still
+passes with it on, but the only runs so far were on a still screen, where it has nothing to do.
+
+Also seen on a still screen: the engine sends about 32 repeats a second at about 2.4 Mbit/s. That is bitrate spent
+on a picture that is not changing; sending far fewer repeats when nothing changes is an easy saving, not yet made.
+
 **CONTROL** (spec phase 2; `serve --allow-control`, off without it): mouse, keys, buttons and wheel from the viewer
 page drive this PC over two WebRTC data channels, one device at a time. Refused while `League of Legends.exe` is
 running and ended at once if a match starts; everything held is let go however control ends; Ctrl+Alt+Shift+End on

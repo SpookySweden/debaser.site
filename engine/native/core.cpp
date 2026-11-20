@@ -20,6 +20,7 @@
 #include <tlhelp32.h>
 
 #include <algorithm>
+#include <vector>
 #include <cstdio>
 #include <cstring>
 
@@ -101,6 +102,8 @@ struct DbeSession {
   bool fine_timer = false;       // tweak 2 is on and has to be handed back
   bool skip_pointer_only = false;  // see DbeOptions
   bool chase_fresh = false;      // tweak 16: see next()
+  bool region_only = false;      // tweak 32: see next()
+  std::vector<BYTE> changed;     // Windows' list of what changed in a frame
   double refresh_ms = 16.7;      // one refresh of the shared screen
   LONGLONG prev_present = 0;     // when Windows showed the last frame taken
   double source_ms = 0;          // how often the screen is really changing, 0 = not known (still, or just started)
@@ -147,6 +150,7 @@ struct DbeSession {
   bool open(const DbeOptions* o, DbeInfo* info);
   bool make_scaler(int32_t fps);
   bool next(int32_t wait_ms, bool force_keyframe, DbeFrame* frame);
+  bool touches_piece(const DXGI_OUTDUPL_FRAME_INFO& info);
 };
 
 // The scale step's parts: the video unit told the two sizes, the two textures it works between, and the colours.
@@ -219,6 +223,7 @@ bool DbeSession::open(const DbeOptions* o, DbeInfo* info) {
   info->ticks_per_second = frequency.QuadPart;
   skip_pointer_only = o->skip_pointer_only != 0;
   chase_fresh = (o->tweaks & 16) != 0;
+  region_only = (o->tweaks & 32) != 0;
 
   // 1. The main screen (the one whose corner is 0,0) and the graphics card it hangs off.
   ComPtr<IDXGIAdapter1> adapter;
@@ -457,6 +462,30 @@ bool DbeSession::open(const DbeOptions* o, DbeInfo* info) {
   return true;
 }
 
+// Whether what changed on screen in this frame touches the piece being sent. Asked of Windows while the frame is
+// still held. When Windows cannot say, the answer is yes.
+bool DbeSession::touches_piece(const DXGI_OUTDUPL_FRAME_INFO& info) {
+  if (info.TotalMetadataBufferSize == 0) return true;
+  if (changed.size() < info.TotalMetadataBufferSize) changed.resize(info.TotalMetadataBufferSize);
+  const LONG left = (LONG)piece.left, top = (LONG)piece.top, right = (LONG)piece.right, bottom = (LONG)piece.bottom;
+  UINT bytes = 0;
+  HRESULT hr = duplication->GetFrameMoveRects((UINT)changed.size(), (DXGI_OUTDUPL_MOVE_RECT*)changed.data(), &bytes);
+  if (FAILED(hr)) return true;
+  const DXGI_OUTDUPL_MOVE_RECT* moved = (const DXGI_OUTDUPL_MOVE_RECT*)changed.data();
+  for (UINT i = 0; i < bytes / sizeof(DXGI_OUTDUPL_MOVE_RECT); ++i) {
+    const RECT& r = moved[i].DestinationRect;
+    if (r.left < right && r.right > left && r.top < bottom && r.bottom > top) return true;
+  }
+  hr = duplication->GetFrameDirtyRects((UINT)changed.size(), (RECT*)changed.data(), &bytes);
+  if (FAILED(hr)) return true;
+  const RECT* dirty = (const RECT*)changed.data();
+  for (UINT i = 0; i < bytes / sizeof(RECT); ++i) {
+    const RECT& r = dirty[i];
+    if (r.left < right && r.right > left && r.top < bottom && r.bottom > top) return true;
+  }
+  return false;
+}
+
 // One frame: wait for the screen to change (or `wait_ms`), copy, encode, time each step.
 bool DbeSession::next(int32_t wait_ms, bool force_keyframe, DbeFrame* frame) {
   // The bytes lent out by the last call go back to the encoder before it is asked for more.
@@ -505,7 +534,11 @@ bool DbeSession::next(int32_t wait_ms, bool force_keyframe, DbeFrame* frame) {
       }
       if (FAILED(hr)) return fail("Windows stopped sharing the screen part-way", hr);
       bool real = false;
-      if (info.LastPresentTime.QuadPart != 0) {
+      // Tweak 32: a change somewhere else on the screen is not a change to the picture being sent. Windows says
+      // which rectangles changed; when none of them touches the piece in hand, the frame is passed over like a
+      // pointer-only one. Nothing identical is encoded, and the engine is not left resting when the piece itself
+      // changes a moment later.
+      if (info.LastPresentTime.QuadPart != 0 && (!region_only || touches_piece(info))) {
         ComPtr<ID3D11Texture2D> texture;
         if (SUCCEEDED(resource.As(&texture))) {
           context->CopySubresourceRegion(picture.Get(), 0, 0, 0, 0, texture.Get(), 0, &piece);
