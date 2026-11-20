@@ -57,7 +57,9 @@ const readRows = (page) =>
       href: li.querySelector('[data-outlet-key]')?.getAttribute('href') ?? null,
       target: li.querySelector('[data-outlet-key]')?.getAttribute('target') ?? null,
       discuss: li.querySelector('[data-discuss-key]') !== null,
-      why: li.querySelector('p[data-why]')?.textContent?.trim() ?? null,
+      // Updated on purpose 2026-11-20 (MEDIADETAILS, Luke: "i want removed the BECAUSE YOU FINISHED ... now only visible with an
+      // "i" icon"): the why is shown in the row's DETAILS window now; the row carries it, unseen, as `data-feed-why`.
+      why: li.getAttribute('data-feed-why'),
       block: Number(li.getAttribute('data-feed-block') ?? '-1'),
     })),
   );

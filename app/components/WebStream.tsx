@@ -38,7 +38,9 @@ import { closeFloatingIfMine, placeOf, playFloating } from '../lib/ui/floating-p
 import PlayerBox, { PipKey, usePlayingHere } from './PlayerBox';
 import SplitKey, { type Half } from './SplitKey';
 import { useQueueHalf } from './QueueHalf';
-import { LetterPlaylistKey, MoreArrow, ThumbOpen } from './WebRowKeys';
+import { LetterPlaylistKey, MoreArrow, ThumbInfo } from './WebRowKeys';
+import PopoutWindow from './PopoutWindow';
+import { formatMediaTime } from '../lib/watch/rules';
 import FeedbackKey from './FeedbackKey';
 import Link from 'next/link';
 import { isReadable } from '../lib/books/types';
@@ -151,9 +153,29 @@ const KIND_LABELS: Record<WebItem['kind'], string> = {
  * 16:9 picture over its title (two lines, then cut). LARGE is one big card, a wide picture beside its words. COMPACT is a
  * small picture and the title with the main keys. A video still never plays in its row (PlayerBox, playFloating).
  */
+/**
+ * GRID's lines (MEDIADETAILS, Luke 2026-11-20: "make all the "play queue" interactable buttons align across each row on grid
+ * view"): a card shares its row's lines (`.media-card`, a subgrid in app/globals.css), each part of it on its own line, so
+ * across a row every title starts at one height, every creator, every facts line and every PLAY / QUEUE key too, and an
+ * opened card's area makes its line taller for the whole row rather than pushing only its own keys. The other views have
+ * no lines: empty classes, and the wrappers keep their own layout.
+ */
+const GRID_SLOTS = {
+  grid: { thumb: 'row-start-1 mb-2', title: 'row-start-2', creator: 'row-start-3', facts: 'row-start-4 mt-1', keys: 'row-start-5 mt-1', more: 'row-start-6', player: 'row-start-7' },
+  other: { thumb: '', title: '', creator: '', facts: '', keys: '', more: '', player: '' },
+} as const;
+
+/**
+ * The date on a row (MEDIADETAILS, Luke 2026-11-20: "make the date text a little smaller too"): the facts line is already
+ * the house's smallest size (13px, `text-label`), so the date reads quieter instead: the caption ink at 75%, which keeps it
+ * 4.5:1 or better on the window in every theme (scripts/drive-media-details.cjs measures it).
+ */
+const DATE_INK = 'text-ink-quiet/75';
+
 const ROW_LAYOUT: Record<MediaView, string> = {
   list: 'flex items-start gap-2',
-  grid: 'flex flex-col gap-2',
+  // GRID's card lays itself out on its row's lines (GRID_SLOTS), so this wrapper steps aside.
+  grid: 'contents',
   large: 'flex items-start gap-3 max-sm:flex-col',
   compact: 'flex items-center gap-2',
 };
@@ -1909,6 +1931,14 @@ export function WebRow({
   // under the keys, each row starting shut.
   const [moreOpen, setMoreOpen] = useState(false);
   const moreId = `${rowTitleId(item.id)}-more`;
+  // DETAILS behind the picture's `i` (MEDIADETAILS): open or shut, and the focus back on the `i` once it shuts.
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const infoKey = useRef<HTMLButtonElement>(null);
+  const closeDetails = () => {
+    setDetailsOpen(false);
+    infoKey.current?.focus();
+  };
+  const slot = GRID_SLOTS[view === 'grid' ? 'grid' : 'other'];
   // The row's thing for a playlist (playlist-adding.ts): what the bar plays, by its first file's id; otherwise a video,
   // kept whole by the same link a room would queue (SPEC-rooms-queues.md, phase 4: ADD TO PLAYLIST takes a video).
   const playlistThing =
@@ -1935,10 +1965,11 @@ export function WebRow({
   if (hiddenShort) return null;
 
   return (
-    <li className={`rule-pixel ${full ? 'py-2' : 'py-1'} ${view === 'grid' ? 'min-w-0' : ''}`} data-view={view} data-feed-lane={feedLane} data-feed-block={feedWhy?.block} data-reading={reading ? item.platform : undefined}>
+    <li className={`rule-pixel ${full ? 'py-2' : 'py-1'} ${view === 'grid' ? 'media-card min-w-0' : ''}`} data-view={view} data-feed-lane={feedLane} data-feed-block={feedWhy?.block} data-feed-why={feedWhy?.why} data-reading={reading ? item.platform : undefined}>
       <div className={ROW_LAYOUT[view]}>
-        {/* A fixed box, so a slow or missing picture never moves the row. OPEN sits in its top right corner (M8). */}
-        <span className={`relative block ${THUMB_BOX[view]} shrink-0 overflow-hidden border border-ink-plate bg-paper`}>
+        {/* A fixed box, so a slow or missing picture never moves the row. DETAILS (`i`) sits in its top right corner, where
+            OPEN's `↗` was (M8; MEDIADETAILS). */}
+        <span className={`relative block ${THUMB_BOX[view]} shrink-0 overflow-hidden border border-ink-plate bg-paper ${slot.thumb}`}>
           {/* A hotlinked third-party thumbnail: a plain <img> sends no referrer and costs no Vercel image
               optimisation, where next/image would proxy (and count) every one. Hence the one lint exception. */}
           {thumb ? (
@@ -1964,19 +1995,19 @@ export function WebRow({
               fallback={<span aria-hidden="true" className="flex h-full w-full items-center justify-center text-label font-bold text-ink">NO IMAGE</span>}
             />
           )}
-          {link ? <ThumbOpen href={link} label={`Open "${item.title}" on ${source} (new tab)`} /> : null}
+          <ThumbInfo ref={infoKey} label={`Details of "${item.title}"`} open={detailsOpen} onPress={() => setDetailsOpen(true)} />
         </span>
 
         {/* M5: the title in the one heavier weight; who made it and the small facts in the caption ink; the description in
             plain ink between them. No words say which is which. COMPACT is one line: the title, then its keys. */}
-        <div className={full ? 'min-w-0 flex-1' : 'flex min-w-0 flex-1 items-center gap-2'}>
-          <p id={rowTitleId(item.id)} tabIndex={-1} className={`${TITLE_CLASS[view]} font-strong text-ink wrap-anywhere ${full ? '' : 'min-w-0 flex-1'}`}>
+        <div className={view === 'grid' ? 'contents' : full ? 'min-w-0 flex-1' : 'flex min-w-0 flex-1 items-center gap-2'}>
+          <p id={rowTitleId(item.id)} tabIndex={-1} className={`${TITLE_CLASS[view]} font-strong text-ink wrap-anywhere ${full ? '' : 'min-w-0 flex-1'} ${slot.title}`}>
             {item.title}
             <AudioSubsFlags audio={contentLanguage(item)} subs={archiveSubtitles} burnedIn={burnedInSubtitles(item.description ? `${item.title}
 ${item.description}` : item.title)} className="ml-1.5" />
           </p>
           {!full ? null : item.creator && authorWords(item.creator) !== null ? (
-            <p>
+            <p className={slot.creator}>
               <button
                 type="button"
                 onClick={() => onCreator(item.creator ?? '')}
@@ -1988,7 +2019,7 @@ ${item.description}` : item.title)} className="ml-1.5" />
               </button>
             </p>
           ) : item.creator ? (
-            <p className={`text-label text-ink-quiet wrap-anywhere ${view === 'grid' ? CREATOR_ONE_LINE : ''}`} title={view === 'grid' ? item.creator : undefined}>
+            <p className={`text-label text-ink-quiet wrap-anywhere ${view === 'grid' ? CREATOR_ONE_LINE : ''} ${slot.creator}`} title={view === 'grid' ? item.creator : undefined}>
               {item.creator}
             </p>
           ) : null}
@@ -1997,14 +2028,14 @@ ${item.description}` : item.title)} className="ml-1.5" />
           ) : null}
 
           {/* The small facts, then the keys on the same line (M11): fewer lines, so more results fit. */}
-          <div className={full ? 'mt-1 flex flex-wrap items-center gap-x-3 gap-y-1' : 'contents'}>
+          <div className={full && view !== 'grid' ? 'mt-1 flex flex-wrap items-center gap-x-3 gap-y-1' : 'contents'}>
             {/* MEDIACARD (Luke, 2026-11-17: "the media stuff needs to be significantly neater, with the source also only
                 showing on expansion"): shut, the facts are what it is and when, KIND · DATE (● LIVE for one on now), always
                 whole, never cut with "…". GRID keeps them on one line with tight dots (GRIDCARD: "the details of the video ...
                 should take one line"); a series mark, too long for a narrow card's line, takes the next one whole. Where it is
                 from, its licence and a book's editions are behind the arrow. */}
             {full ? (
-              <p className={`flex flex-wrap items-center text-label text-ink-quiet ${view === 'grid' ? 'w-full whitespace-nowrap' : 'gap-x-1.5'}`} data-row-facts>
+              <p className={`flex flex-wrap items-center text-label text-ink-quiet ${view === 'grid' ? 'w-full whitespace-nowrap' : 'gap-x-1.5'} ${slot.facts}`} data-row-facts>
                 <span>{kind}</span>
                 {seriesCount === null ? null : (
                   <span className={`bg-acid px-1 font-bold text-ink-plate ${view === 'grid' ? 'ml-1' : ''}`} data-series-mark>
@@ -2026,25 +2057,19 @@ ${item.description}` : item.title)} className="ml-1.5" />
                     ) : null}
                   </>
                 ) : (
-                  <time dateTime={item.publishedAt}>{date}</time>
+                  // MEDIADETAILS (Luke, 2026-11-20: "make the date text a little smaller too"): already the 13px floor, so it
+                  // reads quieter instead: the caption ink, faded (`DATE_INK`), still 4.5:1 or better in every theme.
+                  <time dateTime={item.publishedAt} className={DATE_INK}>
+                    {date}
+                  </time>
                 )}
               </p>
             ) : null}
 
-            {/* Why it is here (SPEC-media-feed-v2.md, decision 4A): plain words, and the faces of the people who are the reason. */}
-            {feedWhy !== undefined && full ? (
-              <p className="flex min-w-0 flex-wrap items-center gap-1 text-label text-ink-quiet" data-why>
-                {feedWhy.people
-                  .filter((person) => !person.id.startsWith('anon:'))
-                  .slice(0, 3)
-                  .map((person) => (
-                    <FeedFace key={person.id} person={person} />
-                  ))}
-                <span className="min-w-0 break-words">{feedWhy.why}</span>
-              </p>
-            ) : null}
+            {/* Why it is here (SPEC-media-feed-v2.md, decision 4A) is in the DETAILS window now, behind the picture's `i`
+                (MEDIADETAILS, Luke 2026-11-20: "i want removed the BECAUSE YOU FINISHED ... now only visible with an "i""). */}
 
-            <div className={`flex flex-wrap items-center gap-1 ${view === 'list' || view === 'large' ? 'ml-auto' : ''}`} data-row-keys>
+            <div className={`flex flex-wrap items-center gap-1 ${view === 'list' || view === 'large' ? 'ml-auto' : ''} ${slot.keys}`} data-row-keys>
               {/* A book (SPEC-books.md, SPEC-reader.md) opens in the site's reader at /read (Luke, 2026-11-11), for a
                   Gutenberg book and for an Internet Archive one (its EPUB in the reader, or the Archive's own viewer there). */}
               {readable ? (
@@ -2087,7 +2112,7 @@ ${item.description}` : item.title)} className="ml-1.5" />
               licence, as words; then the keys, every one whole (no key breaks inside its brackets), starting at one left
               edge: one to a line in a GRID card (the pen and the feedback key share one), along one line in LIST and LARGE. */}
           {full && moreOpen ? (
-            <div id={moreId} className="fold-body mt-1 flex flex-col items-start gap-1" data-row-more>
+            <div id={moreId} className={`fold-body mt-1 flex flex-col items-start gap-1 ${slot.more}`} data-row-more>
               <p className="flex flex-wrap items-center gap-x-3 text-label text-ink-quiet" data-row-source>
                 {from.map((name) => (
                   <span key={name} className="whitespace-nowrap">
@@ -2135,7 +2160,9 @@ ${item.description}` : item.title)} className="ml-1.5" />
       </div>
 
       {/* Nothing from the platform loads until the reader asks: the player exists only while open. A video or a sound
-          plays in the site's one layer, which sits over this box (FloatingPlayer.tsx); a reader stays in its row. */}
+          plays in the site's one layer, which sits over this box (FloatingPlayer.tsx); a reader stays in its row. In GRID
+          these take the card's last line, under everything else (`slot.player`). */}
+      <div className={slot.player === '' ? 'contents' : slot.player}>
       {playing && embed && floats ? (
         <PlayerBox id={playId} title={item.title} className={`mt-2 w-full border border-ink-plate bg-paper ${item.kind === 'video' ? 'aspect-video' : 'h-[44px]'}`} />
       ) : null}
@@ -2153,7 +2180,131 @@ ${item.description}` : item.title)} className="ml-1.5" />
           className={`mt-2 block w-full border border-ink-plate bg-paper ${item.kind === 'text' ? 'h-[360px]' : 'h-[44px]'}`}
         />
       ) : null}
+      </div>
+      {detailsOpen ? (
+        <WebDetails
+          item={item}
+          kind={kind}
+          date={date}
+          from={from}
+          link={link}
+          goName={reading ? (outletKey ?? source) : source}
+          licence={licence}
+          why={feedWhy}
+          keys={
+            readable ? (
+              <Link href={`/read/${item.id}`} onClick={opened} className={PLATE}>
+                [ READ ]
+              </Link>
+            ) : playHalf !== null ? (
+              // PLAY closes the window, so the player it starts is in view.
+              <SplitKey label={`Play or queue "${item.title}"`} first={{ ...playHalf, press: () => { playHalf.press?.(); closeDetails(); } }} second={queueHalf} />
+            ) : queueHalf !== null ? (
+              <SplitKey label={`Queue "${item.title}"`} first={queueHalf} second={null} />
+            ) : null
+          }
+          onClose={closeDetails}
+        />
+      ) : null}
     </li>
+  );
+}
+
+/**
+ * DETAILS (MEDIADETAILS, Luke 2026-11-20: "the i icon shows a pop up window with video details, recommendation details,
+ * description, go to etc."): the row's facts in full, why it is here, the description, and the keys, in the site's one
+ * pop-up window (PopoutWindow: X, Escape or a click outside closes it, and it takes the focus). Metadata only, as everywhere
+ * in MEDIA: never a count or a rating. The platform's words are plain text, line breaks kept, never HTML.
+ */
+function WebDetails({
+  item,
+  kind,
+  date,
+  from,
+  link,
+  goName,
+  licence,
+  why,
+  keys,
+  onClose,
+}: {
+  item: WebStreamItem;
+  kind: string;
+  date: string;
+  from: readonly string[];
+  /** The way out to the platform: the row's own checked address (rowAddresses), never a new one. */
+  link: string | null;
+  goName: string;
+  licence: string | null | undefined;
+  why: FeedWhy | undefined;
+  keys: React.ReactNode;
+  onClose: () => void;
+}) {
+  const length = item.durationSeconds !== undefined && item.durationSeconds > 0 ? formatMediaTime(item.durationSeconds) : null;
+  const facts: { name: string; value: string; data?: string }[] = [
+    { name: 'KIND', value: kind },
+    { name: item.live ? 'NOW' : 'DATE', value: item.live ? '● LIVE' : date },
+    ...(length === null ? [] : [{ name: 'LENGTH', value: length }]),
+    { name: 'FROM', value: from.join(' · '), data: 'from' },
+  ];
+  const faces = why?.people.filter((person) => !person.id.startsWith('anon:')).slice(0, 3) ?? [];
+  // Escape shuts this window only: a row drawn inside another window (a letter's popout, LetterItemPopout.tsx) would otherwise
+  // shut both, as every PopoutWindow listens on the document. Heard first, on the way down, and stopped there.
+  useEffect(() => {
+    const onKey = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.stopPropagation();
+      onClose();
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [onClose]);
+  return (
+    <PopoutWindow title="DETAILS" onClose={onClose} maxWidth="max-w-md" centred>
+      <div className="flex flex-col gap-3" data-details>
+        <div>
+          <p className="text-sm font-strong text-ink wrap-anywhere">{item.title}</p>
+          {item.creator ? <p className="text-label text-ink wrap-anywhere">{item.creator}</p> : null}
+        </div>
+        <dl className="flex flex-col gap-0.5 text-label">
+          {facts.map((fact) => (
+            <div key={fact.name} className="flex gap-2" data-details-from={fact.data === 'from' ? '' : undefined}>
+              <dt className="w-16 shrink-0 text-ink">{fact.name}</dt>
+              <dd className="min-w-0 font-strong text-ink wrap-anywhere">{fact.value}</dd>
+            </div>
+          ))}
+        </dl>
+        {why === undefined ? null : (
+          <div className="flex flex-col gap-0.5" data-details-why>
+            <p className="text-label text-ink">WHY IT IS HERE</p>
+            <p className="flex min-w-0 flex-wrap items-center gap-1 text-label font-strong text-ink">
+              {faces.map((person) => (
+                <FeedFace key={person.id} person={person} />
+              ))}
+              <span className="min-w-0 break-words">{why.why}</span>
+            </p>
+          </div>
+        )}
+        {item.description ? (
+          <p className="whitespace-pre-line text-label text-ink wrap-anywhere" data-details-description>
+            {item.description}
+          </p>
+        ) : null}
+        <div className="flex flex-wrap items-center gap-1">
+          {keys}
+          {link === null ? null : (
+            <a href={link} target="_blank" rel="noopener noreferrer nofollow" aria-label={`Open "${item.title}" on ${goName} (new tab)`} className={PLATE_LINK} data-details-go>
+              {`[ GO TO ${goName} ↗ ]`}
+            </a>
+          )}
+          {licence ? (
+            <a href={licence} target="_blank" rel="noopener noreferrer nofollow" aria-label={`Licence for "${item.title}" (new tab)`} className={PLATE_LINK}>
+              [ LICENCE ↗ ]
+            </a>
+          ) : null}
+        </div>
+      </div>
+    </PopoutWindow>
   );
 }
 

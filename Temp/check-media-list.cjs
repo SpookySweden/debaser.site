@@ -115,7 +115,8 @@ assert.ok(!/AddToLetterKey/.test(stream) && !/<AddToLetterKey/.test(mediaRow), '
 const moreAt = stream.indexOf('data-row-more>');
 const moreEnd = stream.indexOf('{item.alsoOn.length > 0 ? <AlsoOn', moreAt);
 assert.ok(stream.indexOf('<MoreArrow title={item.title} open={moreOpen}') > stream.indexOf('<SplitKey label={`Play or queue') && moreAt > stream.indexOf('<MoreArrow title={item.title}'), 'the arrow follows PLAY; what it opens comes after the keys');
-assert.match(stream, /\{full && moreOpen \? \(\s*<div id=\{moreId\} className="fold-body /, '... drawn only while open, with the open rule down its left');
+// (2026-11-20, MEDIADETAILS: its class carries GRID's line too, `slot.more`.)
+assert.match(stream, /\{full && moreOpen \? \(\s*<div id=\{moreId\} className=\{`fold-body /, '... drawn only while open, with the open rule down its left');
 for (const key of ['[ ALSO ON ', "<LetterPlaylistKey letter={{ kind: 'web'", '<WebDiscussKey item={item}', "<FeedbackKey item={{ kind: 'media', ref: item.id", '[ EDITIONS ]', 'data-licence-key', 'data-row-source']) {
   const at = stream.indexOf(key);
   assert.ok(at > moreAt && at < moreEnd, key + ' waits behind the arrow');
@@ -128,10 +129,12 @@ assert.match(stream, /\(arrow: React\.ReactNode\) => <SplitKey label=\{keyHoldsA
 assert.match(stream, /view !== 'grid' \|\| !full\s*\? null/, '... in GRID only; LIST, LARGE and COMPACT keep the arrow as its own key');
 // Updated on purpose 2026-11-17 (list 4, MEDIACARD): the source left the facts line (it waits behind the arrow), so GRID's line,
 // KIND · DATE, fits a card whole and nothing in it is cut with "…" any more.
-assert.match(stream, /\$\{view === 'grid' \? 'w-full whitespace-nowrap' : 'gap-x-1\.5'\}`\} data-row-facts>\s*<span>\{kind\}<\/span>/, "GRID's facts are one line: what it is, then when");
+// (2026-11-20, MEDIADETAILS: the line takes GRID's facts line, `slot.facts`; the date reads quieter, DATE_INK, still whole.)
+assert.match(stream, /\$\{view === 'grid' \? 'w-full whitespace-nowrap' : 'gap-x-1\.5'\} \$\{slot\.facts\}`\} data-row-facts>\s*<span>\{kind\}<\/span>/, "GRID's facts are one line: what it is, then when");
 const factsLine = stream.slice(stream.indexOf('data-row-facts>'), stream.indexOf('</p>', stream.indexOf('data-row-facts>')));
 assert.ok(!/truncate|\{source\}|\bsource\b/.test(factsLine), '... never cut, and never the source');
-assert.match(factsLine, /<time dateTime=\{item\.publishedAt\}>\{date\}<\/time>/, '... and the date always shows whole');
+assert.match(factsLine, /<time dateTime=\{item\.publishedAt\} className=\{DATE_INK\}>\s*\{date\}\s*<\/time>/, '... and the date always shows whole');
+assert.match(stream, /const DATE_INK = 'text-ink-quiet\/75';/, '... in the caption ink, faded (13px is already the floor)');
 assert.match(stream, /const from = reading \? \[\.\.\.new Set\(\[item\.outlet \?\? '', outletKey \?\? ''\]\.filter\(Boolean\)\)\] : \[source\];/, 'opened: the platform, or a reading row\'s outlet and the site its key opens');
 assert.ok(rowKeys.includes('const [open, setOpen] = useState(false);') && stream.includes('const [moreOpen, setMoreOpen] = useState(false);'), 'each row starts folded');
 assert.match(stream, /aria-expanded=\{alsoOpen\} aria-controls=\{alsoId\}/, '... and says whether it is open');
@@ -140,12 +143,21 @@ assert.match(read('app/components/KinoSources.tsx'), /\[ WATCH · \$\{total\} \$
 // M8: OPEN is a small key in the picture's top right corner, with a name and a thumb's room on a narrow screen.
 assert.match(rowKeys, /className="group absolute right-0 top-0 [^"]*max-sm:min-h-tap max-sm:min-w-tap"/, 'the corner, with tap room');
 assert.match(rowKeys, /aria-label=\{label\}/);
-assert.match(stream, /\{link \? <ThumbOpen href=\{link\} label=\{`Open "\$\{item\.title\}" on \$\{source\} \(new tab\)`\} \/> : null\}/, 'every row with a link has it');
+// Updated on purpose 2026-11-20 (MEDIADETAILS, Luke: "an "i" icon on the top right of a thumbnail replacing the go to arrow"):
+// a MEDIA row's corner is DETAILS' `i` (every row has it), and the way out to the platform is the window's GO TO, on the row's
+// own checked address.
+assert.match(stream, /<ThumbInfo ref=\{infoKey\} label=\{`Details of "\$\{item\.title\}"`\} open=\{detailsOpen\} onPress=\{\(\) => setDetailsOpen\(true\)\} \/>/, 'every row has the i');
+assert.ok(!stream.includes('<ThumbOpen'), "... in place of the corner's ↗");
+assert.match(stream, /<a href=\{link\} target="_blank" rel="noopener noreferrer nofollow" aria-label=\{`Open "\$\{item\.title\}" on \$\{goName\} \(new tab\)`\} className=\{PLATE_LINK\} data-details-go>/, 'DETAILS: GO TO, on the checked address, in a new tab');
+assert.match(stream, /<PopoutWindow title="DETAILS" onClose=\{onClose\}/, "DETAILS is the site's one pop-up window (X, Escape, a click outside)");
+assert.ok(!/data-why>/.test(stream) && /data-details-why>/.test(stream), 'the why-line left the card for DETAILS');
 assert.ok(!stream.includes('[ OPEN ↗ ]'), 'no OPEN key among the keys');
 assert.match(mediaRow, /<ThumbOpen href=\{addresses\.link\}/, 'a KINO card too (its TMDB page)');
 
 // M11: the facts and the keys share a line; COMPACT is one line.
-assert.match(stream, /full \? 'mt-1 flex flex-wrap items-center gap-x-3 gap-y-1' : 'contents'/, 'facts and keys on one line');
+// Updated on purpose 2026-11-20 (MEDIADETAILS): GRID's card puts each on its row's own line instead (GRID_SLOTS), so the
+// keys line up across the row; LIST and LARGE keep them on one line.
+assert.match(stream, /full && view !== 'grid' \? 'mt-1 flex flex-wrap items-center gap-x-3 gap-y-1' : 'contents'/, 'facts and keys on one line');
 assert.match(stream, /full \? 'min-w-0 flex-1' : 'flex min-w-0 flex-1 items-center gap-2'/, 'COMPACT: the title and its keys on one line');
 
 // M12: a book shows its language, from the languages Open Library lists for its editions.
