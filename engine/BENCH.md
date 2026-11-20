@@ -67,11 +67,51 @@ What this does say: the grab is free, the encoded stream is valid H.264 (checked
 the encode is the host's whole cost: 2 to 5 ms at 1080p, so the 7 ms target leaves 2 to 5 ms for the network, the
 decode and the viewer's screen together.
 
-What it does not say: which settings to keep. Single runs disagree with themselves. `bench/compare.ps1` takes every
-setting in turn several times round to cancel that out; its first run was thrown away (the settings list was passed
-wrongly, so it measured nothing meaningful). **Next: run it properly** (in PowerShell itself:
-`powershell -ExecutionPolicy Bypass -File bench\compare.ps1 -Name tweaks -Tweaks 0,1,4,8,13 -Rounds 6`), on a quiet PC,
-then keep only what wins.
+Single runs disagree with themselves, so settings are judged only by `bench/compare.ps1`, which takes every setting
+in turn several times round (`-TweakList "0,1,4,8,13"`; its first two runs were thrown away: `powershell -File` read
+the list 0,1,4,8,13 as the one number 148,513).
+
+### 2026-11-20: which settings to keep (1080p H.264 at 60 fps, changed frames only, middle of the rounds)
+Quiet PC, 6 rounds (`results/compare-tweaks-20261120-060623.json`):
+
+| Setting | Encode middle | Encode worst 5% | Shown to encoded, middle | worst 5% |
+| --- | --- | --- | --- | --- |
+| none | 3.03 ms | 4.38 | 3.66 | 5.23 |
+| graphics priority (1) | 3.26 | 4.09 | 3.90 | 4.41 |
+| event mode (4) | 3.50 | 4.25 | 3.98 | 5.02 |
+| one pass (8) | 2.74 | 3.57 | 3.25 | 3.99 |
+| priority + event (5) | 3.18 | 3.89 | 3.70 | 4.36 |
+| **priority + event + one pass (13)** | **2.79** | **3.51** | **3.26** | **3.82** |
+
+**While a game was running** (Luke started GTA V during the confirming run; the game was using about 75% of the
+graphics card), 8 rounds (`results/compare-confirm-20261120-060912.json`):
+
+| Setting | Encode middle | Encode worst 5% | Shown to encoded, middle | worst 5% |
+| --- | --- | --- | --- | --- |
+| none | 16.37 ms | 33.76 | 17.70 | 39.69 |
+| one pass (8) | 13.41 | 29.53 | 16.69 | 37.26 |
+| priority + one pass (9) | 14.25 | 32.12 | 17.27 | 37.46 |
+| **priority + event + one pass (13)** | **11.57** | **29.37** | **12.72** | **32.98** |
+
+Kept as the engine's defaults: **13** (priority, event mode, one pass). Dropped: the fine timer (no change).
+
+What this says:
+- On a quiet PC the host's whole share is about **3.3 ms** from Windows showing a frame to the encoded frame in
+  memory, worst 5% under 4 ms.
+- **With a game on the card it is four to five times worse** (12 to 18 ms, worst 5% over 30 ms). The encoder chip is
+  separate, but the frame has to queue behind the game for the card's attention before it gets there. This, not the
+  quiet number, is what "streaming a game" costs, and it is the biggest thing found so far.
+- The settings help by about 30% under load, which is nowhere near enough for a 7 ms target while a game runs.
+
+Next things to try for the under-load number, in order:
+1. **Top graphics priority.** Windows has a "realtime" class above the "high" one used here; it needs the engine to
+   run with administrator rights (Sunshine gets it by running as a Windows service). Needs Luke's click on a
+   permission prompt.
+2. Hand the encoder the picture already in its own colour format, converted on the card's video unit instead of its
+   3D unit (the 3D unit is what the game is saturating).
+3. Capture only when the game has a new frame ready, and cap what is asked of the card.
+Benchmarks stop while a game is running unless Luke asks for the under-load number: the high-priority setting takes
+card time from the game.
 
 ## Not yet measured, and why
 - The yardstick: needs the laptop. The floor above is the PC's own share of every number: about a frame and a half

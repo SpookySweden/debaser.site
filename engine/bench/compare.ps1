@@ -4,11 +4,12 @@
   compares the middle of each setting's results: whatever the PC was doing, every setting met it equally.
 
   Usage (from the engine folder, after `cargo build --release`):
-    powershell -ExecutionPolicy Bypass -File bench\compare.ps1 -Name tweaks -Tweaks 0,1,4,8,13 -Rounds 6
+    powershell -ExecutionPolicy Bypass -File bench\compare.ps1 -Name tweaks -TweakList "0,1,4,8,13" -Rounds 6
 #>
 param(
   [string]$Name = 'compare',
-  [int[]]$Tweaks = @(0, 1, 4, 8, 13),
+  # A list as text ("0,1,4"): given to a number list, `powershell -File` reads 0,1,4 as the one number 14.
+  [string]$TweakList = '0,1,4,8,13',
   [int]$Rounds = 6,
   [int]$Frames = 240,
   [int]$Width = 1920,
@@ -18,7 +19,8 @@ param(
   [switch]$Hevc
 )
 $ErrorActionPreference = 'Stop'
-$engine = Join-Path $PSScriptRoot '..\target\release\debaser-engine.exe'
+$Tweaks = @($TweakList -split '[,; ]+' | Where-Object { $_ -ne '' } | ForEach-Object { [int]$_ })
+$engine =Join-Path $PSScriptRoot '..\target\release\debaser-engine.exe'
 $scratch = Join-Path $env:TEMP "debaser-compare-$Name"
 if (-not (Test-Path $scratch)) { New-Item -ItemType Directory -Force $scratch | Out-Null }
 

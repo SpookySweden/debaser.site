@@ -46,6 +46,10 @@ extern "C" {
     fn dbe_bench_encode(options: *const DbeBenchOptions, result: *mut DbeBenchResult) -> i32;
 }
 
+/// The switches kept after the fair comparisons in BENCH.md (2026-11-20): graphics priority (1), the encoder's
+/// event mode (4) and one-pass encoding (8). The fine timer (2) changed nothing and is left off.
+const DEFAULT_TWEAKS: i32 = 13;
+
 struct Stats {
     count: usize,
     p50: f64,
@@ -108,7 +112,7 @@ struct Args {
 }
 
 fn parse(args: &[String]) -> Result<Args, String> {
-    let mut a = Args { name: "encode".into(), width: 0, height: 0, fps: 60, bitrate: 20000, frames: 600, hevc: false, intra: false, preset: 1, tweaks: 0, dump: None, out: None };
+    let mut a = Args { name: "encode".into(), width: 0, height: 0, fps: 60, bitrate: 20000, frames: 600, hevc: false, intra: false, preset: 1, tweaks: DEFAULT_TWEAKS, dump: None, out: None };
     let mut i = 0;
     while i < args.len() {
         let key = args[i].as_str();
