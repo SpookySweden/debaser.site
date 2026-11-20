@@ -254,6 +254,26 @@ const FORUM = {
 };
 
 stub('./owed-render/components/AuthProvider.js', { default: ({ children }) => children, useAuth: () => auth });
+// Who moderates is the moderator list since SPEC-moderation.md (Luke, 2026-11-20, 1A); the mock store's moderator is the house
+// account, so it stands in for the list here.
+stub('./owed-render/components/ModerationProvider.js', {
+  ModerationProvider: ({ children }) => children,
+  useModeration: () => {
+    const moderator = auth?.user?.id === 'debaser-site';
+    return {
+      role: { moderator, owner: moderator },
+      standing: { banned: false, reason: '', appealOpen: false },
+      blocked: new Set(),
+      version: 0,
+      isBlocked: () => false,
+      block: async () => undefined,
+      unblock: async () => undefined,
+      refresh: () => undefined,
+      markFor: (_kind, _id, own) => own ?? null,
+      shows: () => true,
+    };
+  },
+});
 stub('./owed-render/components/ForumProvider.js', { default: ({ children }) => children, useForum: () => FORUM });
 stub('./owed-render/components/MusicPlayerProvider.js', {
   default: ({ children }) => children,

@@ -274,6 +274,30 @@ stub('./pins-render/components/AuthProvider.js', {
   useAuth: () => ({ user: viewer, ready: true, banAccount: async () => undefined }),
 });
 
+/**
+ * Who moderates is the moderator list since SPEC-moderation.md (Luke, 2026-11-20, 1A), not the house account: read from the
+ * database's `moderators` table through ModerationProvider. The mock store's moderator is the house account, so it stands in here.
+ */
+const MODERATORS = new Set(['debaser-site']);
+stub('./pins-render/components/ModerationProvider.js', {
+  ModerationProvider: ({ children }) => children,
+  useModeration: () => {
+    const moderator = viewer !== null && MODERATORS.has(viewer.id);
+    return {
+      role: { moderator, owner: moderator },
+      standing: { banned: false, reason: '', appealOpen: false },
+      blocked: new Set(),
+      version: 0,
+      isBlocked: () => false,
+      block: async () => undefined,
+      unblock: async () => undefined,
+      refresh: () => undefined,
+      markFor: (_kind, _id, own) => own ?? null,
+      shows: () => true,
+    };
+  },
+});
+
 stub('./pins-render/components/PresenceProvider.js', {
   default: ({ children }) => children,
   usePresence: () => ({ ready: true, status: 'offline', record: undefined }),
