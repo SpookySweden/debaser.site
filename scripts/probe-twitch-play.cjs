@@ -34,6 +34,17 @@ const EXE = {
   // `--block <regex>`: refuse matching requests, as a blocking extension would (to find which refusal Twitch calls #2000).
   const block = arg('--block', null);
   if (block !== null) await context.route(new RegExp(block), (route) => route.abort());
+  // `--fake-gate`: our own live list says every channel needs a Twitch sign-in, while the stream really plays: what a viewer signed in
+  // to Twitch sees (Luke, 2026-11-18: "remove the error message on twitch streams after already being signed in").
+  const fakeGate = argv.includes('--fake-gate');
+  if (fakeGate) {
+    await context.route(/\/api\/web\/live\?channels=/, async (route) => {
+      const answer = await route.fetch();
+      const body = await answer.json().catch(() => ({ items: [] }));
+      body.items = (body.items ?? []).map((item) => ({ ...item, signInToWatch: true }));
+      await route.fulfill({ response: answer, json: body });
+    });
+  }
   const twitchTrouble = [];
   const isTwitch = (url) => /twitch\.tv|ttvnw\.net|jtvnw\.net/.test(url);
   context.on('requestfailed', (request) => {
@@ -48,7 +59,9 @@ const EXE = {
   });
   let code = 1;
   try {
-    await page.goto(`${BASE}/media?live=1`, { waitUntil: 'domcontentloaded', timeout: 120_000 });
+    // `--q <words>`: a LIVE search instead of the most-watched list, for a stream that embeds and plays signed out.
+    const q = arg('--q', null);
+    await page.goto(`${BASE}/media?live=1${q === null ? '' : `&in=twitch&q=${encodeURIComponent(q)}`}`, { waitUntil: 'domcontentloaded', timeout: 120_000 });
     // The lost-account window can arrive a moment after the page: wait for it, answer it, and shut any other window over the page.
     const never = page.getByRole('button', { name: /I NEVER HAD ONE/ });
     await never.waitFor({ timeout: 10_000 }).catch(() => undefined);
@@ -62,11 +75,15 @@ const EXE = {
     if (popout) console.log(`[${which}] still a window over the page: ${popout.replace(/\s+/g, ' ').slice(0, 160)}`);
     const rows = page.locator('li[data-view]:has([data-live-mark])');
     await rows.first().waitFor({ timeout: 60_000 });
-    const row = rows.nth(1);
+    // A stream Twitch shows signed out (rows marked 18+ · SIGN IN ask for a Twitch sign-in first).
+    const row = rows.filter({ hasNotText: /SIGN IN/ }).nth(Number(arg('--row', '0')));
     const title = (await row.innerText()).split('\n')[0];
     await row.getByRole('button', { name: /^Play / }).first().click();
     const frameEl = page.locator('[data-watch-embed="twitch"] iframe, iframe[src*="player.twitch.tv"]').first();
     await frameEl.waitFor({ timeout: 30_000 });
+    // The room's sign-in note, read before Twitch has started (the live list is asked as the play goes on).
+    await page.waitForTimeout(1500);
+    const noteBefore = await page.locator('[data-watch-sign-in]').count();
     const src = await frameEl.getAttribute('src');
     const attrs = await frameEl.evaluate((el) => ({ sandbox: el.getAttribute('sandbox'), allow: el.getAttribute('allow'), referrerpolicy: el.getAttribute('referrerpolicy'), inRoom: Boolean(el.closest('[data-watch-embed]')) }));
     console.log(`[${which}] playing "${title.slice(0, 60)}"`);
@@ -96,6 +113,14 @@ const EXE = {
     const advanced = second.time !== null && first.time !== null && second.time > first.time + 2;
     console.log(`[${which}] ${advanced && !second.error ? 'PLAYS' : 'DOES NOT PLAY'}`);
     code = advanced && !second.error ? 0 : 1;
+    if (fakeGate) {
+      const noteAfter = await page.locator('[data-watch-sign-in]').count();
+      const sayAfter = await page.locator('[data-watch-dead], [data-watch-sign-in]').count();
+      console.log(`[${which}] sign-in note before it played: ${noteBefore}; once it plays: ${noteAfter} (any note: ${sayAfter})`);
+      const clears = noteBefore > 0 && noteAfter === 0 && sayAfter === 0;
+      console.log(`[${which}] ${clears ? 'NOTE CLEARS ONCE IT PLAYS' : 'NOTE DOES NOT CLEAR'}`);
+      code = advanced && !second.error && clears ? 0 : 1;
+    }
     if (argv.includes('--recover') && block !== null) {
       // The room's note while Twitch can't start: where it sits, what it says, and that it lets Twitch's own RELOAD through.
       const note = page.locator('[data-watch-dead]');

@@ -1003,7 +1003,13 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       gone = true;
     };
   }, [twitchChannel]);
-  const signInGate = twitchChannel !== null && gatedChannel === twitchChannel;
+  /**
+   * The play whose stream has played here: signed in to Twitch (or let in some other way), the sign-in note has nothing to say
+   * and never comes back for it (Luke, 2026-11-18: "remove the error message on twitch streams after already being signed in").
+   * The label alone said "sign in" even while the stream played.
+   */
+  const [streamPlayedEntry, setStreamPlayedEntry] = useState<string | null>(null);
+  const signInGate = twitchChannel !== null && gatedChannel === twitchChannel && streamPlayedEntry !== entryId;
   const skipDead = useEffectEvent(() => {
     if (upcoming(read.queue).length === 0) return;
     setNotice(offlineChannel !== null ? `SKIPPED: ${offlineChannel.toUpperCase()} IS OFFLINE` : `SKIPPED: ${(entryTitle ?? '').toUpperCase()} WOULDN'T PLAY`);
@@ -1704,6 +1710,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
               setLiveEntry(player.isLive ? entryId : null);
               // It plays after all (the site's own RELOAD, a slow start): the room no longer calls it dead, so nothing skips it.
               setDeadEntry((dead) => (dead === entryId ? null : dead));
+              setStreamPlayedEntry(entryId);
             }}
             onError={(why) => {
               setOfflineEntry(why === 'offline' ? entryId : null);
