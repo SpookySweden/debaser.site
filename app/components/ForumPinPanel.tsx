@@ -8,7 +8,7 @@ import { DEFAULT_PIN_DURATION, PIN_DURATIONS, livePins, pinLabel, pinSummary } f
 import type { ForumThread, PinDurationKey } from '../lib/forum/types';
 import { PLATE } from '../lib/ui/controls';
 import { useForum } from './ForumProvider';
-import { useAdmin } from './ForumModerationControls';
+import { useModTools } from './ForumModerationControls';
 import InfoFold from './InfoFold';
 
 function failure(caught: unknown, fallback: string): string {
@@ -62,7 +62,7 @@ function playPinTick(): void {
  */
 export function ThreadPinControl({ thread }: { thread: ForumThread }) {
   const forum = useForum();
-  const admin = useAdmin();
+  const admin = useModTools();
   const [duration, setDuration] = useState<PinDurationKey>(DEFAULT_PIN_DURATION);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -153,7 +153,7 @@ export function ThreadPinControl({ thread }: { thread: ForumThread }) {
  */
 export default function ForumPinPanel() {
   const forum = useForum();
-  const admin = useAdmin();
+  const admin = useModTools();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 

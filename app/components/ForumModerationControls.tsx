@@ -22,8 +22,17 @@ import { useModeration } from './ModerationProvider';
  * admin's.
  */
 export function useAdmin(): boolean {
-  // The moderator list (SPEC-moderation.md, 1A), read from the database's `moderators` table, not the house account; and only while
-  // the moderator has their tools showing (the `[ MOD ]` key after their name: hidden by default, Luke 2026-11-20).
+  // The moderator list (SPEC-moderation.md, 1A), read from the database's `moderators` table, not the house account. What a moderator
+  // can do anywhere (COMIC's studio asks this too); the tools drawn over the page ask `useModTools` instead.
+  return useModeration().role.moderator;
+}
+
+/**
+ * The moderator tools drawn on the page (the ADMIN and MOD rows, HIDE, BAN, the pin panel, a canvas's HIDE): only while the moderator
+ * has them showing, with the `[ ⛨ MOD ]` key after their name, top right. Hidden by default (Luke, 2026-11-20: "make the settings
+ * hidden by default instead of covering the page").
+ */
+export function useModTools(): boolean {
   return useModeration().toolsOn;
 }
 
@@ -46,7 +55,7 @@ function failure(caught: unknown, fallback: string): string {
 export function AuthorModeration({ author }: { author: ForumAuthor }) {
   const auth = useAuth();
   const moderation = useModeration();
-  const admin = useAdmin();
+  const admin = useModTools();
   const [naming, setNaming] = useState(false);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
