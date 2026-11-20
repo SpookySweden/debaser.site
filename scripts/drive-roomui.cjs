@@ -14,7 +14,8 @@
  *      site's own series route and the file are answered here, so the Archive is never asked.
  *
  *   6. The room window fits its picture: by itself when a 16:9 video gives way to a 4:3 one, in a few hard steps (sampled);
- *      left alone once sized by hand, until [ FIT ]; a maximised window stays so; one jump under reduced motion. The 4:3
+ *      after a hand resize it still fits whatever comes on next (a new shape, the same shape again) and when it is unfolded,
+ *      as if [ FIT ] were pressed (Luke, 2026-11-20); a maximised window stays so; one jump under reduced motion. The 4:3
  *      clip is made in the browser at the start.
  *
  *   node scripts/drive-roomui.cjs --base http://localhost:3317 [--only 1,3,2,4,5,6]
@@ -540,22 +541,47 @@ async function queueLink(page, url) {
       await page.screenshot({ path: join(SHOTS, '6-four-three.png') });
       pass(`16:9 then 4:3: the room window refits itself to the picture in ${steps.length - 1} hard steps (${steps.join(' -> ')})`);
 
-      // Sized by hand: the next shape change leaves it alone; [ FIT ] fits it.
-      const grip = await rectOf(page, ROOM);
-      await page.mouse.move(grip.right - 1, grip.bottom - 1);
-      await page.mouse.down();
-      await page.mouse.move(grip.right - 40, grip.bottom - 60, { steps: 6 });
-      await page.mouse.up();
-      await sleep(300);
-      const byHand = await shapeNow();
+      // Sized by hand, it still fits whatever comes on next, as if FIT were pressed (Luke, 2026-11-20: "make stream room 'fit'
+      // by default as if fit button was pressed each time media changes or is opened"): a new shape, and the same shape again.
+      const byHandResize = async () => {
+        const grip = await rectOf(page, ROOM);
+        await page.mouse.move(grip.right - 1, grip.bottom - 1);
+        await page.mouse.down();
+        await page.mouse.move(grip.right - 40, grip.bottom - 60, { steps: 6 });
+        await page.mouse.up();
+        await sleep(300);
+        return shapeNow();
+      };
+      const byHand = await byHandResize();
       await nextVideo(VIDEO);
-      const kept = await shapeNow();
-      assert.ok(Math.abs(kept.w - byHand.w) <= 1 && Math.abs(kept.h - byHand.h) <= 1, `sized by hand, a new shape leaves it as it was (${byHand.w}x${byHand.h} -> ${kept.w}x${kept.h})`);
+      const refit = await shapeNow();
+      assert.ok(Math.abs(refit.shape - 16 / 9) < 0.04, `sized by hand, the next video (16:9 after 4:3) fits it anyway (${byHand.w}x${byHand.h} -> ${refit.w}x${refit.h}, ${refit.shape.toFixed(3)})`);
+      const byHandAgain = await byHandResize();
+      assert.ok(Math.abs(byHandAgain.shape - 16 / 9) > 0.04, `the hand resize put the picture out of shape (${byHandAgain.shape.toFixed(3)})`);
+      await queueLink(page, VIDEO);
+      await page.evaluate(() => document.querySelector('[data-stream-bar] button[aria-label="Skip to the next video"]')?.click());
+      await page.waitForFunction((room) => Math.abs(document.querySelector(`${room} [data-room-picture]`).getBoundingClientRect().width / document.querySelector(`${room} [data-room-picture]`).getBoundingClientRect().height - 16 / 9) < 0.04, ROOM, { timeout: 15000 }).catch(() => undefined);
+      await sleep(400);
+      const sameShape = await shapeNow();
+      assert.ok(Math.abs(sameShape.shape - 16 / 9) < 0.04, `the same shape again (the same file queued and put on) fits it too (${sameShape.shape.toFixed(3)})`);
+      pass('a window sized by hand fits itself to whatever comes on next, a new shape or the same one again');
+
+      // Opened again (folded, then unfolded) after a hand resize: it fits.
+      await byHandResize();
+      await page.locator(`${ROOM} button[aria-label^="Fold"]`).click();
+      await page.waitForSelector('[data-room-shelf-key]', { timeout: 10000 });
+      await page.locator('[data-room-shelf-key] button').click();
+      await page.waitForFunction(() => document.querySelector('[data-dock-window="stream"]')?.getAttribute('data-minimized') !== 'true', null, { timeout: 10000 });
+      await sleep(500);
+      const unfolded = await shapeNow();
+      assert.ok(Math.abs(unfolded.shape - 16 / 9) < 0.04, `unfolded, it fits itself (${unfolded.shape.toFixed(3)})`);
+      // [ FIT ] itself, after a hand resize.
+      await byHandResize();
       await page.locator(`${ROOM} [data-room-fit]`).click();
       await sleep(400);
       const fitted = await shapeNow();
       assert.ok(Math.abs(fitted.shape - 16 / 9) < 0.04, `[ FIT ]: the picture is 16:9 again (${fitted.shape.toFixed(3)})`);
-      pass('a window sized by hand is left alone by a new shape; [ FIT ] fits it to the picture');
+      pass('opened again (unfolded) the room fits itself; [ FIT ] fits it too');
 
       // Maximised: it stays so.
       await page.locator(`${ROOM} [data-window-maximise="off"]`).click();

@@ -275,9 +275,11 @@ Then the house loop once per batch (League mode: one heavy step at a time, low p
   item's first video file in the room's own player, read through our series route (`archive-room-file.ts`): the room's
   keys, SUBS, and fullscreen with the background round it; an item that cannot be read keeps the Archive's player.
   `[ FIT ]` on the title line fits the window to the picture (the picture keeps about its room and takes the video's
-  shape; no wider than the page, no lower than the bar), and a new shape (4:3 after 16:9) fits it by itself, in four hard
-  steps 40 ms apart (one under reduced motion), unless the window was sized by hand (remembered in this browser until
-  `[ FIT ]`), is maximised or fullscreen; folded, it fits when unfolded (`room-fit.ts`). The window starts at 920x580.
+  shape; no wider than the page, no lower than the bar), in four hard steps 40 ms apart (one under reduced motion). Since
+  2026-11-20 (Luke: "make stream room 'fit' by default as if fit button was pressed each time media changes or is opened")
+  it fits by itself, exactly as FIT, each time the room opens or is unfolded with a picture on and each time what is on
+  changes (the same shape again too), even after a hand resize; not while maximised; folded or fullscreen, it fits once the
+  window is seen again (`room-fit.ts`). The window starts at 920x580.
   Proof: `scripts/drive-roomui.cjs` on a mock server.
 - **ROOMPOLISH (Luke, 2026-11-17):** WHO CAN JOIN (GO LIVE; SAVE and GO PRIVATE once live) and `[ END ROOM ]` (two presses)
   are in the room's cog, as sections 4 and 5 always had END ROOM: "the ability to make your room public or private again etc

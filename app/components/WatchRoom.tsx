@@ -1612,9 +1612,10 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
           : fileShape !== null && fileShape.file === (src ?? null)
             ? fileShape.shape
             : null;
+  // Which play is on, too: each new one fits the window again, the same shape included (Luke, 2026-11-20).
   useEffect(() => {
-    setRoomPicture(pictureFloats ? null : pictureBox.current, roomShape);
-  }, [roomShape, pictureFloats]);
+    setRoomPicture(pictureFloats ? null : pictureBox.current, roomShape, entryId);
+  }, [roomShape, pictureFloats, entryId]);
   useEffect(() => () => setRoomPicture(null, null), []);
   /** A double press on the picture is the FULL key (Luke, 2026-11-05). Keys on the picture and a canvas being drawn on keep theirs. */
   const fullOnDoublePress = (event: MouseEvent<HTMLDivElement>) => {
