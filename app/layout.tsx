@@ -30,7 +30,7 @@ import FirstVisitTour from './components/FirstVisitTour';
 import PresenceProvider from './components/PresenceProvider';
 import { ModerationProvider } from './components/ModerationProvider';
 import ReportWindow from './components/ReportWindow';
-import ReportsWindow from './components/ReportsWindow';
+import ReportsWindow, { ReportsAddress } from './components/ReportsWindow';
 import ThemeHost from './components/ThemeHost';
 import CatCursor from './components/CatCursor';
 import Companion from './components/Companion';
@@ -163,6 +163,8 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
                         <WatchWindow />
                         {/* One letter (SPEC-letters.md), opened from a profile or `?letter=<id>`. */}
                         <LetterWindow />
+                        {/* `?reports=1`, where a report alert on the bell leads, opens REPORTS for a moderator. */}
+                        <ReportsAddress />
                       </Suspense>
 
                       {/* Preferences: the one window with no address, because a theme is a setting on

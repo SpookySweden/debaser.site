@@ -33,7 +33,9 @@ export type NotificationKind =
   /** A batch of comic pages released (COMIC's `notify_comic_page`). */
   | 'comic'
   /** Reserved for COMIC's panel comments: a reply to yours. */
-  | 'comic_reply';
+  | 'comic_reply'
+  /** A report or an appeal waiting in REPORTS, for moderators only (SPEC-moderation.md, 7A; filed by a trigger on `reports`). */
+  | 'report';
 
 export const NOTIFICATION_KINDS: readonly NotificationKind[] = [
   'tag',
@@ -44,6 +46,7 @@ export const NOTIFICATION_KINDS: readonly NotificationKind[] = [
   'live',
   'comic',
   'comic_reply',
+  'report',
 ];
 
 export function isNotificationKind(value: unknown): value is NotificationKind {

@@ -1,11 +1,13 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { getAuthRepository } from '../lib/auth/auth-repository';
 import type { AccountUser } from '../lib/auth/types';
 import {
   closeReports,
+  openReports,
   reportsWindowServerState,
   reportsWindowState,
   subscribeToReportsWindow,
@@ -349,6 +351,29 @@ function ReportsBody({ me, owner }: { me: string; owner: boolean }) {
       )}
     </div>
   );
+}
+
+/**
+ * `?reports=1` (where a report alert on the bell leads) opens REPORTS for a moderator, and the address is spent at once, so a
+ * later change of the board's address doesn't open it again. Drawn behind the layout's Suspense boundary: it reads the address.
+ */
+export function ReportsAddress() {
+  const search = useSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
+  const { role } = useModeration();
+  const asked = search.get('reports') !== null;
+
+  useEffect(() => {
+    if (!asked || !role.moderator) return;
+    openReports();
+    const rest = new URLSearchParams(search.toString());
+    rest.delete('reports');
+    const left = rest.toString();
+    router.replace(left.length === 0 ? pathname : `${pathname}?${left}`);
+  }, [asked, role.moderator, search, pathname, router]);
+
+  return null;
 }
 
 export default function ReportsWindow() {

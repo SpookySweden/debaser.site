@@ -16,7 +16,8 @@ const path = require('node:path');
 const ROOT = path.join(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(ROOT, file), 'utf8').replace(/\r\n/g, '\n');
 
-const MIGRATION = read('supabase/migrations/20261120090000_moderation.sql');
+// The moderation migration, then its report alerts on the bell (both re-runnable).
+const MIGRATION = ['supabase/migrations/20261120090000_moderation.sql', 'supabase/migrations/20261120100000_moderation_report_alerts.sql'].map(read).join('\n');
 assert.ok(!MIGRATION.includes('$migration_text$'), 'the migration must not use the dollar tag this check wraps it in');
 assert.doesNotMatch(MIGRATION, /@[a-z0-9.-]+\.[a-z]+/i, 'the migration names no address (the first moderator is a write by account id, outside the repository)');
 
@@ -152,7 +153,14 @@ begin
   ${as('a')}
   select context_text into words from public.reports where id = r;
   ${expect('the report carries the line, copied by the database', "words = 'moderation check :: a post to hide'")}
+  select count(*) into n from public.forum_notifications where user_id = a and kind = 'report' and ref = 'report:' || r::text and href = '/forum?reports=1';
+  ${expect('a report tells the moderator on the bell, opening REPORTS', 'n = 1')}
   ${back}
+  ${as('b')}
+  insert into public.forum_notifications (user_id, kind, actor_id, actor_name, body) values (a, 'report', b, 'B', 'a made-up alert');
+  ${back}
+  select count(*) into n from public.forum_notifications where user_id = a and kind = 'report' and body = 'a made-up alert';
+  ${expect('a browser cannot file a report alert of its own', 'n = 0')}
   ${as('b')}
   ${refused('an account that is not banned appealed', "perform public.file_appeal('please')")}
   ${back}

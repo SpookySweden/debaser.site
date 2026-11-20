@@ -17,6 +17,7 @@ export function notificationLabel(kind: AppNotification['kind']): string {
   if (kind === 'live') return 'WENT LIVE';
   if (kind === 'comic') return 'NEW COMIC PAGES';
   if (kind === 'comic_reply') return 'REPLIED ON THE COMIC';
+  if (kind === 'report') return 'NEW REPORT';
 
   return 'INVITED YOU TO A GAME';
 }
@@ -29,6 +30,7 @@ export function notificationVerb(kind: AppNotification['kind']): string {
   if (kind === 'letter') return 'SENT A LETTER';
   if (kind === 'live') return 'WENT LIVE';
   if (kind === 'comic') return 'NEW PAGES';
+  if (kind === 'report') return 'REPORTED';
 
   return 'INVITED';
 }
@@ -41,6 +43,7 @@ export function notificationPlaceWord(kind: AppNotification['kind']): string {
   if (kind === 'letter') return 'LETTER';
   if (kind === 'live') return 'ROOM';
   if (kind === 'comic' || kind === 'comic_reply') return 'COMIC';
+  if (kind === 'report') return 'REPORTS';
 
   return 'ON';
 }
@@ -52,6 +55,8 @@ export function notificationPlaceWord(kind: AppNotification['kind']): string {
  */
 export function notificationLine(item: AppNotification, liveNow?: boolean): string {
   if (item.kind === 'comic') return item.threadTitle.length > 0 ? item.threadTitle : 'NEW COMIC PAGES';
+  // A report alert names nobody behind it (SPEC-moderation.md): its title, `NEW REPORT: <name> · SPAM`, is the whole line.
+  if (item.kind === 'report') return item.threadTitle.length > 0 ? item.threadTitle : 'NEW REPORT';
 
   const verb =
     item.kind === 'live'

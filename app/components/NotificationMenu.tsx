@@ -36,6 +36,7 @@ const KIND_BADGE: Record<AppNotification['kind'], string> = {
   live: 'bg-bubble-pale',
   comic: 'bg-ena-deep',
   comic_reply: 'bg-bubble-pale',
+  report: 'bg-bubble-pale',
 };
 
 /** The three letters on that badge. */
@@ -48,6 +49,7 @@ const KIND_TAG: Record<AppNotification['kind'], string> = {
   live: 'LIVE',
   comic: 'COMIC',
   comic_reply: 'REPLY',
+  report: 'REPORT',
 };
 
 /** A group heading inside the list: the flat grey bar a Win95 list view headed a section with. */

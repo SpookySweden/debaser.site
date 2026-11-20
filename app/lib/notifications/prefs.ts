@@ -41,6 +41,8 @@ export function switchFor(kind: NotificationKind): KindSwitch {
 
 /** Is a notification of this kind filed for somebody with these switches. */
 export function kindAllowed(prefs: NotificationPrefs, kind: NotificationKind): boolean {
+  // A moderator's report alerts have no switch: what people report is the job (SPEC-moderation.md).
+  if (kind === 'report') return true;
   return prefs[switchFor(kind)];
 }
 
