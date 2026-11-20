@@ -5,10 +5,10 @@ import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { comicPanelAnchor } from '../../lib/comic/forum';
 import { getComicRepository } from '../../lib/comic/repository';
-import { chapterPages, chapterPath, COMIC_HOME, formatPlace, nextChapter, pageAnchor, PLACE_KEY } from '../../lib/comic/rules';
+import { chapterPages, chapterPath, COMIC_HOME, formatPlace, nextChapter, pageAnchor } from '../../lib/comic/rules';
 import type { ComicPage, ComicPanel, LoreLink } from '../../lib/comic/types';
 import { useComic } from '../../lib/comic/use-comic';
-import { noteSettingChanged } from '../../lib/settings/settings-bus';
+import { writePlace } from '../../lib/comic/place';
 import { LINK_PIXEL, PLATE, PLATE_LINK, PLATE_PRESSED, TITLE_BAR } from '../../lib/ui/controls';
 import CommentPopout from '../CommentPopout';
 import { useForum } from '../ForumProvider';
@@ -123,17 +123,7 @@ export default function ComicChapter({ chapterNumber, pageNumber }: { chapterNum
         if (!top) return;
         const num = Number((top.target as HTMLElement).dataset.pageNumber);
         window.clearTimeout(timer);
-        timer = window.setTimeout(() => {
-          try {
-            const value = formatPlace(chapter.number, num);
-            if (window.localStorage.getItem(PLACE_KEY) !== value) {
-              window.localStorage.setItem(PLACE_KEY, value);
-              noteSettingChanged('comicPlace');
-            }
-          } catch {
-            // A storage that throws: CONTINUE just won't know.
-          }
-        }, 1200);
+        timer = window.setTimeout(() => writePlace(formatPlace(chapter.number, num)), 1200);
       },
       { rootMargin: '0px 0px -60% 0px' },
     );

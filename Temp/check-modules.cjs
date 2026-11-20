@@ -47,8 +47,9 @@ async function up() {
     // (2026-11-13) DOCS is on for everyone from a first visit (Luke: "on for everyone", SPEC-live-docs.md).
     // (2026-11-13) READ, the reader's module, is on for everyone too (Luke: 'a new module for reading').
     // (2026-11-14) A first visit's bar is FORUM, MEDIA and STREAM only (Luke); PROJECTS, READ and DOCS start off.
-    assert.deepEqual(await keys(), ['FORUM', 'MEDIA', 'STREAM', 'MODULOS'], 'the keys a first visit shows');
-    console.log('  ok    first visit: FORUM MEDIA STREAM MODULOS, no PROJECTS, READ, DOCS, DISCOVER, BEATBOX or ANIMATE');
+    // (2026-11-20) And COMIC, Luke's comic (SPEC-comic.md, Q1A: "on the top bar for first visits").
+    assert.deepEqual(await keys(), ['FORUM', 'MEDIA', 'COMIC', 'STREAM', 'MODULOS'], 'the keys a first visit shows');
+    console.log('  ok    first visit: FORUM MEDIA COMIC STREAM MODULOS, no PROJECTS, READ, DOCS, DISCOVER, BEATBOX or ANIMATE');
 
     // MODULOS is a word like the others (changed on purpose 2026-11-16, Luke: "a word like the others", same ink and hover swipe, last on the
     // bar, no solid block; it was a solid Emerald block from 2026-11-06 to then).
@@ -118,7 +119,7 @@ async function up() {
 
     await tick('BEATBOX').click();
     await tick('MEDIA').click();
-    assert.deepEqual(await keys(), ['FORUM', 'BEATBOX WIP', 'STREAM', 'MODULOS'], 'ticking moves the bar at once, and BEATBOX wears its tag');
+    assert.deepEqual(await keys(), ['FORUM', 'COMIC', 'BEATBOX WIP', 'STREAM', 'MODULOS'], 'ticking moves the bar at once, and BEATBOX wears its tag');
     console.log('  ok    ticking BEATBOX on and MEDIA off changes the bar at once');
 
     // A hover colour: the word turns it on the bar, with no fill. (2026-11-14) On STREAM, not FORUM: this check stands on
@@ -164,7 +165,7 @@ async function up() {
     await page.reload({ waitUntil: 'domcontentloaded' });
     await nav.waitFor({ state: 'visible' });
     await page.waitForTimeout(800);
-    assert.deepEqual(await keys(), ['FORUM', 'BEATBOX WIP', 'STREAM', 'MODULOS'], 'choices survive a reload');
+    assert.deepEqual(await keys(), ['FORUM', 'COMIC', 'BEATBOX WIP', 'STREAM', 'MODULOS'], 'choices survive a reload');
     console.log('  ok    choices survive a reload');
 
     // The page you are on. Changed on purpose 2026-11-14, twice the same day. First it was a filled block with a halo (Luke: "make sure a

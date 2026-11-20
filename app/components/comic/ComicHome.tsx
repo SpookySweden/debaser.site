@@ -4,29 +4,12 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { getComicRepository } from '../../lib/comic/repository';
-import { chapterPath, chaptersOfVolume, coverOf, COMIC_STUDIO, pageNumber, pagePath, parsePlace, PLACE_KEY, volumesInOrder } from '../../lib/comic/rules';
+import { chapterPath, chaptersOfVolume, coverOf, COMIC_STUDIO, pageNumber, pagePath, parsePlace, volumesInOrder } from '../../lib/comic/rules';
 import { useComic } from '../../lib/comic/use-comic';
-import { subscribeToAccountSettings } from '../../lib/settings/settings-bus';
+import { readPlace, subscribePlace } from '../../lib/comic/place';
 import { PLATE_LINK, TITLE_BAR } from '../../lib/ui/controls';
 import ComicFollowKey from './ComicFollowKey';
 import ComicPageImage from './ComicPageImage';
-
-function readPlace(): string | null {
-  try {
-    return window.localStorage.getItem(PLACE_KEY);
-  } catch {
-    return null;
-  }
-}
-
-function subscribePlace(listener: () => void): () => void {
-  window.addEventListener('storage', listener);
-  const unhook = subscribeToAccountSettings(listener);
-  return () => {
-    window.removeEventListener('storage', listener);
-    unhook();
-  };
-}
 
 /**
  * COMIC's contents (`/comic`, SPEC-comic.md): each volume a title line, its chapters under it with their covers and titles.

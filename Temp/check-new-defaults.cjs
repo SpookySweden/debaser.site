@@ -131,7 +131,8 @@ stored.set('debaser-modules', JSON.stringify({ on: { docs: true, web: false }, c
   const { contrastRatio } = fresh('lib/ui/colour.js');
   const choices = M.NO_CHOICES;
   const startOn = M.MODULES.filter((module) => M.moduleIsOn(module, choices)).map((module) => module.label);
-  assert.deepEqual(startOn, ['FORUM', 'MEDIA', 'STREAM', 'MODULOS'], 'a first visit: FORUM, MEDIA, STREAM, and MODULOS at the end');
+  // (2026-11-20) COMIC joins the first visit's bar (SPEC-comic.md, Luke's answer 1A).
+  assert.deepEqual(startOn, ['FORUM', 'MEDIA', 'COMIC', 'STREAM', 'MODULOS'], 'a first visit: FORUM, MEDIA, COMIC, STREAM, and MODULOS at the end');
   assert.equal(M.MODULES[M.MODULES.length - 1].key, 'modules', 'MODULOS is last');
   const colourOf = (label) => M.moduleColour(M.MODULES.find((module) => module.label === label), choices);
   assert.deepEqual([colourOf('FORUM'), colourOf('MEDIA'), colourOf('STREAM')], ['emerald', 'teal', 'rose'], 'green, light blue, reddish pink: the hover colours "Good morning" chose');

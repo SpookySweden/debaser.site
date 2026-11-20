@@ -176,6 +176,8 @@ function loadSync() {
     hideMade: 'app/components/ForumBoard.tsx',
     // FIRSTVISIT (2026-11-20): the desktop tour seen, skipped or owed.
     tour: 'app/lib/ui/first-visit-tour.ts',
+    // COMIC (2026-11-20, SPEC-comic.md): where a reader stopped, for CONTINUE.
+    comicPlace: 'app/lib/comic/place.ts',
   };
   const usedBy = { forumPlace: 'app/components/ForumBoard.tsx', forumSort: 'app/components/ForumBoard.tsx' };
   assert.deepEqual(Object.keys(owners).sort(), Object.keys(SYNCED_KEYS).sort(), 'every synced setting has an owner here');

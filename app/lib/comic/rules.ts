@@ -1,4 +1,3 @@
-import { SYNCED_KEYS } from '../settings/settings-bus';
 import type { ComicChapter, ComicContents, ComicPage, ComicVolume } from './types';
 
 /**
@@ -106,8 +105,7 @@ export function coverOf(contents: Pick<ComicContents, 'pages'>, chapter: ComicCh
   return pages.find((page) => page.id === chapter.coverPageId) ?? pages[0] ?? null;
 }
 
-/** Where a returning reader stopped: `<chapter>/<page>`, kept in the browser and synced to the account. */
-export const PLACE_KEY = SYNCED_KEYS.comicPlace;
+/** Where a returning reader stopped (`<chapter>/<page>`): kept by `./place.ts`, read here. */
 
 export function parsePlace(raw: string | null): { chapter: number; page: number } | null {
   if (raw === null) return null;
