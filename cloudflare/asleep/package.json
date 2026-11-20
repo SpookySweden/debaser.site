@@ -1,0 +1,6 @@
+{
+  "name": "debaser-asleep",
+  "private": true,
+  "type": "module",
+  "description": "The DEBASER_OS IS ASLEEP page in front of debaser.site (Cloudflare Worker). Deploy: npx wrangler deploy"
+}

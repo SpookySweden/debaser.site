@@ -1,0 +1,14 @@
+// debaser-asleep: the "DEBASER_OS IS ASLEEP" page in front of debaser.site when Luke's PC can't be reached.
+// Deploy from this folder: npx wrangler deploy   (README.txt beside this file)
+{
+  "name": "debaser-asleep",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": false,
+  "routes": [
+    // The site. api.debaser.site is deliberately not routed: its errors stay machine-readable as they were.
+    { "pattern": "debaser.site/*", "zone_name": "debaser.site" },
+    // A test address whose tunnel (debaser-sleep-test) never runs, so it always fails the way a switched-off PC does.
+    { "pattern": "sleep-test.debaser.site/*", "zone_name": "debaser.site" }
+  ]
+}
