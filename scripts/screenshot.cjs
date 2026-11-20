@@ -87,6 +87,7 @@ const scale = number('--scale', 1);
 const fullPage = has('--full-page');
 const mobile = has('--mobile');
 const reducedMotion = has('--reduced-motion');
+const tour = has('--tour');
 const allowErrorPage = has('--allow-error-page');
 const allowAmbiguous = has('--allow-ambiguous');
 const signIn = has('--signin');
@@ -259,6 +260,7 @@ async function main() {
       keepProfile: keepProfile !== null,
       attach,
       reducedMotion,
+      tour,
     });
 
     if (browser.attached) {

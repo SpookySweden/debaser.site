@@ -175,7 +175,7 @@ function loadSync() {
     playerBar: 'app/components/MusicPlayer.tsx',
     hideMade: 'app/components/ForumBoard.tsx',
     // FIRSTVISIT (2026-11-20): the desktop tour seen, skipped or owed.
-    tour: 'app/lib/ui/first-visit-tour.ts',
+    tour2: 'app/lib/ui/first-visit-tour.ts',
     // COMIC (2026-11-20, SPEC-comic.md): where a reader stopped, for CONTINUE.
     comicPlace: 'app/lib/comic/place.ts',
   };

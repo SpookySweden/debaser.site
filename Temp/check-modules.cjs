@@ -36,14 +36,17 @@ async function up() {
     assert.ok(await up(), `nothing is serving ${BASE}/forum (run npm run build first)`);
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     // Signed-out pages open the lost-account window (LostAccountWindow.tsx), which this check is not about.
-    await context.addInitScript(() => (window.localStorage.setItem('debaser.lost-account.never.v1', '1'), window.localStorage.setItem('debaser.tour.v1', 'skipped')));
+    await context.addInitScript(() => (window.localStorage.setItem('debaser.lost-account.never.v1', '1'), window.localStorage.setItem('debaser.tour.v2', 'skipped')));
     const page = await context.newPage();
     await page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded' });
     const nav = page.getByRole('navigation', { name: 'Modules' });
     await nav.waitFor({ state: 'visible', timeout: 20000 });
     await page.waitForTimeout(800);
 
-    const keys = async () => (await nav.locator('a, button:not([aria-label])').allInnerTexts()).map((text) => text.trim().replace(/\s+/g, ' '));
+    // Updated on purpose 2026-11-20 (Luke: "Yes, fix it here"): the module words only. ⌕ SEARCH (and DESK, signed in) have sat
+    // after the modules since forum v3 (2026-11-17, SPEC-forum-v3.md S2A); they are window keys, not modules, and reading them
+    // here turned every list below red from that day.
+    const keys = async () => (await nav.locator('a, button:not([aria-label]):not([data-search-key]):not([data-desk-key])').allInnerTexts()).map((text) => text.trim().replace(/\s+/g, ' '));
     // (2026-11-13) DOCS is on for everyone from a first visit (Luke: "on for everyone", SPEC-live-docs.md).
     // (2026-11-13) READ, the reader's module, is on for everyone too (Luke: 'a new module for reading').
     // (2026-11-14) A first visit's bar is FORUM, MEDIA and STREAM only (Luke); PROJECTS, READ and DOCS start off.

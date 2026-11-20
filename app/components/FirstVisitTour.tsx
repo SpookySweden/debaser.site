@@ -5,12 +5,15 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { accountSettingsLoaded, serverAccountSettingsLoaded, subscribeToAccountSettingsLoaded } from '../lib/settings/account-settings';
 import { PLATE, PLATE_MAIN } from '../lib/ui/controls';
 import {
+  automatedWithoutTour,
   endTour,
   readTourSaid,
+  serverTourHeld,
   serverTourReplaying,
   serverTourSaid,
   stepsFor,
   subscribeToTour,
+  tourHeld,
   tourOwed,
   tourReplaying,
   TOUR_STEPS,
@@ -48,25 +51,26 @@ const EDGE = 8;
 /**
  * FIRSTVISIT (Luke, 2026-11-20): the short tour of the desktop that replaced the full-page "HAD AN ACCOUNT?" pop-up.
  * Seven steps, each the real thing outlined on screen with a few words beside it ("entirely visual tour with text"):
- * NEXT, BACK, SKIP or Esc. Played on the board for a signed-out visitor's first visit and for a new account once its
- * PRIVACY window has closed; remembered when finished or skipped (`first-visit-tour.ts`); the MODULOS window's TOUR key
+ * NEXT, BACK, SKIP or Esc. Played on the board for every reader not yet toured under v2 (Luke: everyone once more), signed in
+ * or not, never while a new account's PRIVACY window is open; remembered when finished or skipped (`first-visit-tour.ts`); the MODULOS window's TOUR key
  * plays it again. Instant: nothing slides or fades; under reduced motion the outline holds still. Drawn once in `layout.tsx`.
  */
 export default function FirstVisitTour() {
   const said = useSyncExternalStore(subscribeToTour, readTourSaid, serverTourSaid);
   const replaying = useSyncExternalStore(subscribeToTour, tourReplaying, serverTourReplaying);
   const loaded = useSyncExternalStore(subscribeToAccountSettingsLoaded, accountSettingsLoaded, serverAccountSettingsLoaded);
-  const { status, user } = useAuth();
+  const held = useSyncExternalStore(subscribeToTour, tourHeld, serverTourHeld);
+  const { status } = useAuth();
   const path = usePathname();
   const signedIn = status === 'signed-in';
-  const userId = signedIn ? (user?.id ?? null) : null;
   // A signed-in account waits for its own settings, so one toured on another computer is not toured again here.
-  const settled = status === 'anonymous' || (signedIn && userId !== null && loaded);
-  const owed = settled && tourOwed({ said, userId, replaying, path });
+  const settled = status === 'anonymous' || (signedIn && loaded);
+  const owed = settled && tourOwed({ said, held, replaying, path });
   const [ready, setReady] = useState<{ steps: TourStep[]; run: number } | null>(null);
 
   useEffect(() => {
-    if (!owed) return;
+    // A scripted test browser is not toured unless it asks (`automatedWithoutTour`).
+    if (!owed || automatedWithoutTour()) return;
     let tries = 0;
     let lastCount = -1;
     const timer = window.setInterval(() => {

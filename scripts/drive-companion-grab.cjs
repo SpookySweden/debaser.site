@@ -45,7 +45,7 @@ function seed({ owner, reader, session, companion }) {
   if (!/^localhost$|^127\.0\.0\.1$/.test(window.location.hostname)) return;
   const at = (minutesAgo) => new Date(Date.now() - minutesAgo * 60000).toISOString();
   const user = (person) => ({ id: person.id, email: `${person.id}@debaser.site`, displayName: person.name, createdAt: at(5000), salt: '', secretHash: '', hidden: true });
-  (window.localStorage.setItem('debaser.lost-account.never.v1', '1'), window.localStorage.setItem('debaser.tour.v1', 'skipped'));
+  (window.localStorage.setItem('debaser.lost-account.never.v1', '1'), window.localStorage.setItem('debaser.tour.v2', 'skipped'));
   window.localStorage.setItem('debaser-companion', JSON.stringify({ computer: companion, phone: false }));
   window.localStorage.setItem('debaser.auth.mock.v1', JSON.stringify({ users: [user(owner), user(reader)], sessionUserId: session, bannedIds: [] }));
   const comments = [{ id: 'grab-c1', kind: 'profile', author: { id: owner.id, displayName: owner.name }, body: 'Pick me up and throw me.', createdAt: at(20) }];

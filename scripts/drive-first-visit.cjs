@@ -5,10 +5,11 @@
  *
  *   node scripts/drive-first-visit.cjs --base http://localhost:<port> [--out Temp/browse/first-visit]
  *
- * A visitor's first visit: seven steps on the board, each one outlining its thing; DONE remembers; a reload stays quiet.
- * SKIP and Esc remember too. MODULOS' TOUR key plays it again, from another page too. Under reduced motion the outline
- * holds still; nothing eases. An existing account is not toured; a new account is toured after its PRIVACY window, with
- * DESK in place of LOG IN. No sideways scroll at phone width while it shows.
+ * A returning visitor with the first day's DONE (Luke: everyone once more, the key is v2 now): seven steps on the board,
+ * each one outlining its thing; DONE remembers; a reload stays quiet. SKIP and Esc remember too. MODULOS' TOUR key plays it
+ * again, from another page too. Under reduced motion the outline holds still; nothing eases. A returning account with the
+ * first day's marks is toured once more (DESK in place of LOG IN), one with a v2 mark on its account is not, and a new
+ * account is toured after its PRIVACY window. No sideways scroll at phone width while it shows.
  */
 const { chromium } = require('playwright-core');
 const { mkdirSync } = require('node:fs');
@@ -33,10 +34,16 @@ const VISITOR_STEPS = ['board', 'modules', 'search', 'login', 'modulos', 'shelf'
 const ACCOUNT_STEPS = ['board', 'modules', 'search', 'desk', 'modulos', 'shelf', 'music'];
 
 /** Runs before every page: the seeded mock account (or none), once per context. */
-function seed({ account }) {
+function seed({ account, oldMarks, accountSaid, optIn }) {
+  // A scripted browser is not toured unless it asks (first-visit-tour.ts, `automatedWithoutTour`): this drive asks.
+  if (optIn) window.localStorage.setItem('debaser.tour.drive', '1');
   if (window.localStorage.getItem('fv-seeded') !== null) return;
   window.localStorage.setItem('fv-seeded', '1');
+  // The first day's marks (Luke, later that day: everyone once more): this browser's v1 DONE, and the account's under `tour`.
+  if (oldMarks) window.localStorage.setItem('debaser.tour.v1', 'done');
   if (account === null) return;
+  const keys = { ...(oldMarks ? { tour: 'done' } : {}), ...(accountSaid ? { tour2: accountSaid } : {}) };
+  window.localStorage.setItem('debaser.user-settings.mock.v1', JSON.stringify({ [account.id]: { settings: { keys, made: {} } } }));
   const at = new Date(Date.now() - 60000).toISOString();
   const user = { id: account.id, email: `${account.id}@debaser.site`, displayName: account.name, createdAt: at, salt: '', secretHash: '', hidden: true };
   window.localStorage.setItem('debaser.auth.mock.v1', JSON.stringify({ users: [user], sessionUserId: account.id, bannedIds: [] }));
@@ -44,21 +51,21 @@ function seed({ account }) {
   window.localStorage.setItem('debaser.profile.mock.v1', JSON.stringify({ version: 1, profiles: { [account.id]: profile } }));
 }
 
-async function newPage(browser, { account = null, reducedMotion = 'no-preference', width = 1440, height = 900 } = {}) {
+async function newPage(browser, { account = null, oldMarks = false, accountSaid = null, optIn = true, reducedMotion = 'no-preference', width = 1440, height = 900 } = {}) {
   const context = await browser.newContext({ viewport: { width, height }, reducedMotion });
   let live = 0;
   await context.route(/supabase\.(co|in)\/|api\.debaser\.site|\/\/debaser\.site|vercel\.app/, (route) => {
     live += 1;
     return route.abort();
   });
-  await context.addInitScript(seed, { account });
+  await context.addInitScript(seed, { account, oldMarks, accountSaid, optIn });
   const page = await context.newPage();
   return { context, page, liveHits: () => live };
 }
 
 const card = (page) => page.locator('[data-tour-card]');
 const cardId = (page) => card(page).getAttribute('data-tour-card', { timeout: 2000 }).catch(() => null);
-const said = (page) => page.evaluate(() => window.localStorage.getItem('debaser.tour.v1'));
+const said = (page) => page.evaluate(() => window.localStorage.getItem('debaser.tour.v2'));
 
 async function openBoard(page, path = '/forum') {
   await page.goto(`${BASE}${path}`, { waitUntil: 'domcontentloaded', timeout: 240000 });
@@ -92,10 +99,11 @@ async function outlineFits(page) {
   const browser = await chromium.launch({ executablePath: findChrome(), headless: true });
   let liveTotal = 0;
 
-  // 1. A visitor's first visit: seven steps, DONE remembers, a reload stays quiet.
-  console.log('1. a visitor\'s first visit');
+  // 1. A returning visitor whose browser finished the first day's tour (Luke: everyone once more): seven steps, DONE
+  //    remembers under v2, a reload stays quiet.
+  console.log('1. a returning visitor with the first day\'s DONE');
   {
-    const { context, page, liveHits } = await newPage(browser);
+    const { context, page, liveHits } = await newPage(browser, { oldMarks: true });
     await openBoard(page);
     check(await waitForCard(page), 'the tour opens on the board for a first visit');
     check((await page.getByRole('dialog', { name: 'HAD AN ACCOUNT?' }).count()) === 0, 'no full-page HAD AN ACCOUNT? pop-up');
@@ -197,12 +205,28 @@ async function outlineFits(page) {
     await context.close();
   }
 
-  // 4. Accounts: an existing one is not toured; a new one is toured after PRIVACY, with DESK.
+  // 4. Accounts: a returning one with the first day's marks (browser and account) is toured once more, with DESK; one whose
+  //    account already holds a v2 mark is not, on a fresh browser; a new one is toured after PRIVACY.
   console.log('4. accounts');
   {
-    const { context, page, liveHits } = await newPage(browser, { account: { id: 'fv-old', name: 'OLDHAND', privacySeen: true } });
+    const { context, page, liveHits } = await newPage(browser, { account: { id: 'fv-old', name: 'OLDHAND', privacySeen: true }, oldMarks: true });
     await openBoard(page);
-    check(!(await waitForCard(page, 10000)), 'an existing account is not toured');
+    check(await waitForCard(page, 30000), "a returning account with the first day's marks is toured once more");
+    check((await cardId(page)) === 'board', 'from the first step');
+    await page.locator('[data-tour-skip]').click();
+    check((await said(page)) === 'skipped', 'SKIP is remembered under v2');
+    await sleep(2500);
+    const saved = await page.evaluate(() => JSON.parse(window.localStorage.getItem('debaser.user-settings.mock.v1') ?? '{}')['fv-old']?.settings?.keys ?? {});
+    check(saved.tour2 === 'skipped', 'and saved to the account', JSON.stringify(saved));
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    check(!(await waitForCard(page, 8000)), 'a reload after SKIP: no tour');
+    liveTotal += liveHits();
+    await context.close();
+  }
+  {
+    const { context, page, liveHits } = await newPage(browser, { account: { id: 'fv-done', name: 'DONEHAND', privacySeen: true }, accountSaid: 'done' });
+    await openBoard(page);
+    check(!(await waitForCard(page, 10000)), 'an account that finished it under v2 on another computer is not toured here');
     liveTotal += liveHits();
     await context.close();
   }
@@ -231,6 +255,17 @@ async function outlineFits(page) {
     }
     check(JSON.stringify(seen) === JSON.stringify(expected), `the account's steps, DESK in place of LOG IN${sidebarShown ? '' : ' (sidebar folded by a docked window: no SHELF step)'}`, seen.join(' '));
     check((await said(page)) === 'done', 'remembered for the account');
+    liveTotal += liveHits();
+    await context.close();
+  }
+
+  // 6. A scripted browser that does not ask (any other drive or check) is never toured, so the tour holds no other test.
+  console.log('6. other drives');
+  {
+    const { context, page, liveHits } = await newPage(browser, { optIn: false });
+    await openBoard(page);
+    check(!(await waitForCard(page, 10000)), 'a drive that does not ask for the tour never meets it');
+    check((await said(page)) === null, 'and nothing is written down for it', String(await said(page)));
     liveTotal += liveHits();
     await context.close();
   }

@@ -39,7 +39,7 @@ const SECTION = '#profile-comments';
 async function open(browser, account, { theme = null, ...options } = {}) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, ...options });
   await context.addInitScript((picked) => {
-    (window.localStorage.setItem('debaser.lost-account.never.v1', '1'), window.localStorage.setItem('debaser.tour.v1', 'skipped'));
+    (window.localStorage.setItem('debaser.lost-account.never.v1', '1'), window.localStorage.setItem('debaser.tour.v2', 'skipped'));
     if (picked !== null) window.localStorage.setItem('debaser.site.theme.v2', picked);
   }, theme);
   const page = await context.newPage();

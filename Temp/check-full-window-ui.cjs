@@ -65,7 +65,7 @@ async function test(name, run) {
   const fresh = async (width = 1440, height = 900, extra = {}) => {
     const context = await browser.newContext({ viewport: { width, height }, ...extra });
     // FIRSTVISIT (2026-11-20): a first visit is toured round the board, which holds the page; this check is not about it.
-    await context.addInitScript(() => window.localStorage.getItem('debaser.tour.v1') === null && window.localStorage.setItem('debaser.tour.v1', 'skipped'));
+    await context.addInitScript(() => window.localStorage.getItem('debaser.tour.v2') === null && window.localStorage.setItem('debaser.tour.v2', 'skipped'));
     return { context, page: await context.newPage() };
   };
 
