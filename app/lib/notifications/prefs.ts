@@ -46,7 +46,7 @@ export function kindAllowed(prefs: NotificationPrefs, kind: NotificationKind): b
   return prefs[switchFor(kind)];
 }
 
-/** The PREFERENCES rows, in order, with their labels. WEEKLY EMAIL joins them in phase 2. */
+/** The PREFERENCES rows, in order, with their labels. WEEKLY EMAIL and BALLOONS are drawn after them. */
 export const KIND_SWITCHES: readonly { key: KindSwitch; label: string }[] = [
   { key: 'replies', label: 'REPLIES AND TAGS' },
   { key: 'letters', label: 'LETTERS' },

@@ -2,7 +2,7 @@
  * SPEC-notifications.md phase 1: the balloon, rendered on the server with its providers stubbed. What it does over time
  * (history, arrivals, +N MORE, BALLOONS off) is held by Temp/check-notify-phase1.cjs and driven in a browser by
  * scripts/drive-notify.cjs; here, that it draws nothing signed out and nothing for the feed a page opens with.
- *   npx tsc app/components/NotificationBalloon.tsx --rootDir app --outDir Temp/notify-render-out --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
+ *   npx tsc app/components/NotificationBalloon.tsx app/components/UnsubscribePanel.tsx --rootDir app --outDir Temp/notify-render-out --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
  *   node Temp/check-notify-render.cjs
  */
 const assert = require('node:assert/strict');
@@ -34,5 +34,12 @@ assert.equal(render(), '', 'signed out: no balloon');
 feed.userId = 'bell';
 feed.items = [{ id: 'old', userId: 'bell', kind: 'letter', actorId: 'z', actorName: 'ZEPHYR', threadId: null, threadTitle: 'SUMMER', body: '', gameId: null, inviteId: null, recommendationId: 'r1', href: null, roomId: null, createdAt: '2026-11-20T10:00:00.000Z', readAt: null }];
 assert.equal(render(), '', 'an unread row already in the feed as the page opens is not a balloon');
+
+// The unsubscribe page (10A): as it is first drawn, before its browser has asked, it has changed nothing and says so.
+const UnsubscribePanel = require('./notify-render-out/components/UnsubscribePanel.js').default;
+const page = renderToStaticMarkup(React.createElement(UnsubscribePanel));
+assert.match(page, /WEEKLY EMAIL/);
+assert.match(page, /ONE MOMENT/, 'it acts only once it is open in a browser, never on a bare fetch');
+assert.doesNotMatch(page, /WEEKLY EMAIL: OFF/);
 
 console.log('check-notify-render: OK');
