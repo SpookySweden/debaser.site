@@ -1,0 +1,19 @@
+{
+  "name": "r1-1080p-h264-60",
+  "kind": "bench-encode",
+  "screen": "3440x1440@180",
+  "encode": "1920x1080",
+  "codec": "H.264",
+  "fps": 60,
+  "bitrateKbps": 20000,
+  "preset": 1,
+  "intraRefresh": false,
+  "framesEncoded": 400,
+  "freshFrames": 225,
+  "copy": {"frames": 399, "p50Ms": 0.067, "p95Ms": 0.117, "p99Ms": 0.257, "maxMs": 0.305, "meanMs": 0.052},
+  "encode": {"frames": 399, "p50Ms": 4.872, "p95Ms": 6.958, "p99Ms": 7.311, "maxMs": 9.128, "meanMs": 4.478},
+  "copyAndEncode": {"frames": 399, "p50Ms": 4.970, "p95Ms": 7.047, "p99Ms": 7.322, "maxMs": 9.205, "meanMs": 4.530},
+  "presentToEncoded": {"frames": 224, "p50Ms": 5.496, "p95Ms": 10.593, "p99Ms": 12.862, "maxMs": 13.209, "meanMs": 5.550},
+  "firstFrameBytes": 40599,
+  "medianFrameBytes": 3481
+}

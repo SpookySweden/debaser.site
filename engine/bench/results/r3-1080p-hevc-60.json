@@ -1,0 +1,19 @@
+{
+  "name": "r3-1080p-hevc-60",
+  "kind": "bench-encode",
+  "screen": "3440x1440@180",
+  "encode": "1920x1080",
+  "codec": "HEVC",
+  "fps": 60,
+  "bitrateKbps": 20000,
+  "preset": 1,
+  "intraRefresh": false,
+  "framesEncoded": 400,
+  "freshFrames": 219,
+  "copy": {"frames": 399, "p50Ms": 0.065, "p95Ms": 0.117, "p99Ms": 0.152, "maxMs": 0.231, "meanMs": 0.048},
+  "encode": {"frames": 399, "p50Ms": 4.296, "p95Ms": 6.304, "p99Ms": 7.102, "maxMs": 7.407, "meanMs": 3.707},
+  "copyAndEncode": {"frames": 399, "p50Ms": 4.311, "p95Ms": 6.404, "p99Ms": 7.154, "maxMs": 7.407, "meanMs": 3.755},
+  "presentToEncoded": {"frames": 218, "p50Ms": 4.861, "p95Ms": 9.157, "p99Ms": 9.988, "maxMs": 12.313, "meanMs": 4.543},
+  "firstFrameBytes": 40077,
+  "medianFrameBytes": 9932
+}

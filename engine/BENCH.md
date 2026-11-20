@@ -44,11 +44,34 @@ Moonlight for every run, and write them in the Notes column.
 | Date | Contender | Line | p50 ms | p95 ms | Seen / pressed | Read every | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 2026-11-20 | floor (patch page on the PC, no stream) | none | 8.4 | 13.9 | 200 / 200 | 5.5 ms | Edge, 3440x1440 at 180 Hz; fastest 4.4, slowest 16.2; `results/floor-pc-20261120-034325.json` |
-| | **yardstick: Sunshine to Moonlight** | home network | | | | | |
+| 2026-11-20 | **yardstick: Sunshine to Moonlight** | home network | **7 (assumed)** | | | | Luke: "for now assume the yardstick is 7ms". Not measured: taken as what the stream adds on top of the floor, glass to glass. To be replaced by the laptop run. |
 | | yardstick | bad line (loss and jitter added) | | | | | phase 5 |
 
 ## Rounds
-One line per change: what changed, the numbers before and after, kept or dropped. None yet.
+One line per change: what changed, the numbers before and after, kept or dropped.
+
+### 2026-11-20: the engine's first piece (grab the screen, encode on the NVIDIA chip)
+`engine/` builds with `cargo build --release`; `debaser-engine bench-encode` times each step on this PC. No network,
+no viewer yet, so nothing here is comparable with the 7 ms yardstick: these are the host's share only.
+
+| What | Result | Status |
+| --- | --- | --- |
+| Taking the frame from Windows and copying it on the card | under 0.1 ms (worst 5% 0.13 ms) | solid: the same in every run |
+| Encoding 3440x1440 H.264, fastest preset | middle 5.4 ms, worst 5% 11 ms (one run) | one run only |
+| Encoding 1920x1080 H.264 | middle between 1.6 and 4.9 ms across runs with identical settings | **not settled**: the PC's other work (a game and browsers were open) moves it more than any setting |
+| Graphics priority for the engine (tweak 1) | worst 5% of "shown to encoded" 5.1 ms against 9.8 ms without, one run each | promising, not proved |
+| The encoder's event mode (tweak 4), one-pass (tweak 8) | faster in some runs (1.6 to 2.0 ms), no different in others | not proved |
+| Fine Windows timer (tweak 2) | no change seen | dropped unless a later run says otherwise |
+
+What this does say: the grab is free, the encoded stream is valid H.264 (checked: it starts with a proper header), and
+the encode is the host's whole cost: 2 to 5 ms at 1080p, so the 7 ms target leaves 2 to 5 ms for the network, the
+decode and the viewer's screen together.
+
+What it does not say: which settings to keep. Single runs disagree with themselves. `bench/compare.ps1` takes every
+setting in turn several times round to cancel that out; its first run was thrown away (the settings list was passed
+wrongly, so it measured nothing meaningful). **Next: run it properly** (in PowerShell itself:
+`powershell -ExecutionPolicy Bypass -File bench\compare.ps1 -Name tweaks -Tweaks 0,1,4,8,13 -Rounds 6`), on a quiet PC,
+then keep only what wins.
 
 ## Not yet measured, and why
 - The yardstick: needs the laptop. The floor above is the PC's own share of every number: about a frame and a half

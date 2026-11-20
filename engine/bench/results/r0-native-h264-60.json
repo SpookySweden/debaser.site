@@ -1,0 +1,19 @@
+{
+  "name": "r0-native-h264-60",
+  "kind": "bench-encode",
+  "screen": "3440x1440@180",
+  "encode": "3440x1440",
+  "codec": "H.264",
+  "fps": 60,
+  "bitrateKbps": 20000,
+  "preset": 1,
+  "intraRefresh": false,
+  "framesEncoded": 300,
+  "freshFrames": 204,
+  "copy": {"frames": 299, "p50Ms": 0.082, "p95Ms": 0.133, "p99Ms": 0.204, "maxMs": 0.251, "meanMs": 0.066},
+  "encode": {"frames": 299, "p50Ms": 5.372, "p95Ms": 11.054, "p99Ms": 12.220, "maxMs": 13.115, "meanMs": 7.213},
+  "copyAndEncode": {"frames": 299, "p50Ms": 5.431, "p95Ms": 11.142, "p99Ms": 12.347, "maxMs": 13.115, "meanMs": 7.279},
+  "presentToEncoded": {"frames": 203, "p50Ms": 10.329, "p95Ms": 20.323, "p99Ms": 21.312, "maxMs": 23.353, "meanMs": 9.332},
+  "firstFrameBytes": 40254,
+  "medianFrameBytes": 5079
+}
