@@ -34,7 +34,9 @@ function fakeStorage() {
 global.window = { localStorage: fakeStorage() };
 
 const storage = global.window.localStorage;
-const { GUEST_ACCOUNT, accountOf, loadMarks, postIsRead, replyIsRead, saveThreadRead } = require('./read-out/read-state.js');
+// (2026-11-20, updated on purpose) read-state.ts imports app/lib/settings/ since forum v3 part 2 (df6dcdd), so tsc keeps
+// the folders and the compiled file lands in read-out/forum/.
+const { GUEST_ACCOUNT, accountOf, loadMarks, postIsRead, replyIsRead, saveThreadRead } = require('./read-out/forum/read-state.js');
 
 const MORNING = '2026-09-29T09:00:00.000Z';
 const NOON = '2026-09-29T12:00:00.000Z';
@@ -74,7 +76,7 @@ assert.equal(accountOf({ id: 'user-7', displayName: 'seven' }), 'user-7', 'and a
 // 6. The store is re-read from scratch for the hand-edited cases: the module caches what it parsed,
 //    and a second `require` of the same file is what a fresh page view does.
 function freshStore(value) {
-  const modulePath = require.resolve('./read-out/read-state.js');
+  const modulePath = require.resolve('./read-out/forum/read-state.js');
   delete require.cache[modulePath];
   storage.setItem('debaser.forum.read.v1', value);
 
