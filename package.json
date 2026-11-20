@@ -66,6 +66,7 @@
     "perfect-freehand": "1.2.3",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "sharp": "0.35.4",
     "three": "^0.186.1",
     "umap-js": "^1.4.0",
     "undici": "^8.12.4",

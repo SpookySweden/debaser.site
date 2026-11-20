@@ -861,6 +861,25 @@ details[open]:not(:has(> summary.key)) {
   box-shadow: -3px 0 0 0 var(--color-ink);
 }
 
+/* COMIC's panels (SPEC-comic.md, Q11): with [ COMMENTS ] on, each panel of a page is a press laid over Luke's art. Only an outline
+   in the site's own inks, never a fill, so the art stays as drawn: dotted under the pointer, solid accent ink where the panel has
+   comments or lore links, a thick Brilliant Pink line round the open one. The studio's boxes wear the same outline. */
+.comic-panel {
+  background: transparent;
+  outline: 2px dotted transparent;
+  outline-offset: -2px;
+}
+.comic-panel:hover,
+.comic-panel:focus-visible {
+  outline-color: var(--color-ink);
+}
+.comic-panel-lit {
+  outline: 2px solid var(--color-accent-ink);
+}
+.comic-panel-open {
+  outline: 3px solid var(--color-bubble);
+}
+
 /* A line of text that crawls past, the way the information bar along the foot of a news
    channel does. The track holds the same run twice and slides by exactly half its width,
    so the second copy lands where the first began and the loop has no seam. The duration is

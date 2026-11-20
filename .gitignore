@@ -53,3 +53,6 @@ next-env.d.ts
 # the revert tools leave their backup beside the file they moved (Temp/revert.cjs): a `.revert-bak`
 # is a copy of a tracked source file, so it must never be committed
 *.revert-bak
+
+# COMIC pages uploaded to a local mock dev server (app/lib/comic/server.ts)
+/.comic-mock/
