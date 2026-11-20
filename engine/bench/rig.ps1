@@ -25,6 +25,11 @@ param(
   [int]$Key = 0xA3,
   [int]$X = -1,
   [int]$Y = -1,
+  # A second point: the stream's copy of the patch in a viewer window on this same screen (see bench\glass.ps1).
+  [int]$X2 = -1,
+  [int]$Y2 = -1,
+  # With the second point: only watch (the patch flips by itself), press nothing, bring nothing forward.
+  [switch]$Passive,
   [int]$TimeoutMs = 1000,
   [int]$CountdownSeconds = 5,
   [string]$Window = '',
@@ -241,8 +246,185 @@ public static class Rig {
         if (results.Count < 20) { Problem = Stopped; return new double[0]; }
         break;
       }
+      if (Process.GetProcessesByName("League of Legends").Length > 0) {
+        Stopped = "A League match started: stopped at once after " + i + " presses.";
+        if (results.Count < 20) { Problem = Stopped; return new double[0]; }
+        break;
+      }
       double ms = One(vk, timeoutMs, threshold, ref polls, ref pollTime);
       if (ms < 0) Timeouts++; else results.Add(ms);
+    }
+    PollMs = polls > 0 ? pollTime / polls : 0;
+    return results.ToArray();
+  }
+
+  // ---- Two points at once: the PC's own screen, and the stream's copy of it in a viewer window on the same screen.
+  // Both are read in ONE grab of the screen, so the gap between them changing is the stream's own delay, screen to
+  // screen: nothing of the key press, the patch page or this script is in it.
+  static IntPtr pairMemory, pairBitmap, pairOld, pairBits;
+  static int pairLeft, pairTop, pairW, pairH, ax, ay, bx, by;
+  public static List<double> SourceMs = new List<double>();
+  public static string Missing = "";
+
+  public static void OpenPair(int x1, int y1, int x2, int y2) {
+    SetProcessDPIAware();
+    ScreenWidth = GetSystemMetrics(0);
+    ScreenHeight = GetSystemMetrics(1);
+    pairLeft = Math.Min(x1, x2) - Box;
+    pairTop = Math.Min(y1, y2) - Box;
+    pairW = Math.Abs(x1 - x2) + 2 * Box;
+    pairH = Math.Abs(y1 - y2) + 2 * Box;
+    ax = x1 - pairLeft; ay = y1 - pairTop; bx = x2 - pairLeft; by = y2 - pairTop;
+    screen = GetDC(IntPtr.Zero);
+    pairMemory = CreateCompatibleDC(screen);
+    BITMAPINFOHEADER info = new BITMAPINFOHEADER();
+    info.biSize = (uint)Marshal.SizeOf(typeof(BITMAPINFOHEADER));
+    info.biWidth = pairW; info.biHeight = -pairH; info.biPlanes = 1; info.biBitCount = 32;
+    pairBitmap = CreateDIBSection(screen, ref info, 0, out pairBits, IntPtr.Zero, 0);
+    pairOld = SelectObject(pairMemory, pairBitmap);
+  }
+
+  public static void ClosePair() {
+    SelectObject(pairMemory, pairOld); DeleteObject(pairBitmap); DeleteDC(pairMemory); ReleaseDC(IntPtr.Zero, screen);
+  }
+
+  static double BoxLuma(int cx, int cy) {
+    double sum = 0;
+    for (int j = 0; j < Box; j++) {
+      for (int i = 0; i < Box; i++) {
+        int pixel = Marshal.ReadInt32(pairBits, ((cy - Box / 2 + j) * pairW + (cx - Box / 2 + i)) * 4);
+        int b = pixel & 0xFF, g = (pixel >> 8) & 0xFF, r = (pixel >> 16) & 0xFF;
+        sum += 0.299 * r + 0.587 * g + 0.114 * b;
+      }
+    }
+    return sum / (Box * Box);
+  }
+
+  static void ReadPair(out double a, out double b) {
+    BitBlt(pairMemory, 0, 0, pairW, pairH, screen, pairLeft, pairTop, SRCCOPY);
+    GdiFlush();
+    a = BoxLuma(ax, ay);
+    b = BoxLuma(bx, by);
+  }
+
+  static void SettlePair(out double a, out double b) {
+    ReadPair(out a, out b);
+    long since = Stopwatch.GetTimestamp();
+    long started = since;
+    while (Ms(since, Stopwatch.GetTimestamp()) < 80) {
+      double na, nb;
+      ReadPair(out na, out nb);
+      if (Math.Abs(na - a) > 6 || Math.Abs(nb - b) > 6) { a = na; b = nb; since = Stopwatch.GetTimestamp(); }
+      if (Ms(started, Stopwatch.GetTimestamp()) > 2000) break;
+      Thread.Sleep(1);
+    }
+  }
+
+  /**
+   * The same measurement with hands off: the patch flips by itself (patch.html?auto=1) and this only watches. No key
+   * is pressed and no window is brought forward, so it disturbs nobody; both windows just have to be visible.
+   */
+  public static double[] RunPairPassive(int samples, int timeoutMs) {
+    List<double> results = new List<double>();
+    SourceMs.Clear();
+    long polls = 0; double pollTime = 0;
+    Timeouts = 0; Problem = ""; Interruptions = 0; Stopped = ""; Missing = "";
+    const double threshold = 30;
+    int trialMisses = 0;
+    for (int i = -2; i < samples; i++) {
+      if (Process.GetProcessesByName("League of Legends").Length > 0) {
+        Stopped = "A League match started: stopped at once after " + Math.Max(i, 0) + " flips.";
+        if (results.Count < 10) { Problem = Stopped; return new double[0]; }
+        break;
+      }
+      double a0, b0;
+      SettlePair(out a0, out b0);
+      long start = Stopwatch.GetTimestamp();
+      double source = -1, mirror = -1;
+      for (;;) {
+        double a, b;
+        ReadPair(out a, out b);
+        double elapsed = Ms(start, Stopwatch.GetTimestamp());
+        polls++;
+        if (source < 0 && Math.Abs(a - a0) > threshold) source = elapsed;
+        if (mirror < 0 && Math.Abs(b - b0) > threshold) mirror = elapsed;
+        if (source >= 0 && mirror >= 0) break;
+        if (elapsed > timeoutMs) break;
+      }
+      pollTime += Ms(start, Stopwatch.GetTimestamp());
+      if (source < 0) Missing = "the PC's own patch did not change (is its window covered?)";
+      else if (mirror < 0) Missing = "the patch changed but the stream's copy of it did not (is the viewer covered, or not playing?)";
+      if (i < 0) {
+        if (source < 0 || mirror < 0) trialMisses++;
+        if (i == -1 && trialMisses == 2) { Problem = "On the first two flips, " + Missing + "."; return new double[0]; }
+        continue;
+      }
+      if (source < 0 || mirror < 0) Timeouts++;
+      else { results.Add(mirror - source); SourceMs.Add(source); }
+    }
+    PollMs = polls > 0 ? pollTime / polls : 0;
+    return results.ToArray();
+  }
+
+  /** Each value: milliseconds from the PC's own screen changing to the stream's copy of it changing. */
+  public static double[] RunPair(int samples, int vk, int timeoutMs, string window) {
+    List<double> results = new List<double>();
+    SourceMs.Clear();
+    Random random = new Random();
+    long polls = 0; double pollTime = 0;
+    Timeouts = 0; Problem = ""; Interruptions = 0; Stopped = ""; Missing = "";
+    const double threshold = 30;
+    IntPtr front = GetForegroundWindow();
+    int trialMisses = 0;
+
+    for (int i = -2; i < samples; i++) {
+      Thread.Sleep(180 + random.Next(220));
+      if (GetForegroundWindow() != front) {
+        string thief = FrontWindow();
+        if (window != "" && Interruptions < 20 && Bring(window)) {
+          Interruptions++;
+          front = GetForegroundWindow();
+          Thread.Sleep(300);
+          i--;
+          continue;
+        }
+        Stopped = "Another window came to the front after " + Math.Max(i, 0) + " presses: \"" + thief + "\".";
+        if (results.Count < 20) { Problem = Stopped; return new double[0]; }
+        break;
+      }
+      // A League match starting part-way ends the run at once: no more key presses, no taking the front back.
+      if (Process.GetProcessesByName("League of Legends").Length > 0) {
+        Stopped = "A League match started: stopped at once after " + Math.Max(i, 0) + " presses.";
+        if (results.Count < 20) { Problem = Stopped; return new double[0]; }
+        break;
+      }
+      double a0, b0;
+      SettlePair(out a0, out b0);
+      long start = Stopwatch.GetTimestamp();
+      Press(vk, false);
+      double source = -1, mirror = -1;
+      for (;;) {
+        double a, b;
+        ReadPair(out a, out b);
+        double elapsed = Ms(start, Stopwatch.GetTimestamp());
+        polls++;
+        if (source < 0 && Math.Abs(a - a0) > threshold) source = elapsed;
+        if (mirror < 0 && Math.Abs(b - b0) > threshold) mirror = elapsed;
+        if (source >= 0 && mirror >= 0) break;
+        if (elapsed > timeoutMs) break;
+      }
+      pollTime += Ms(start, Stopwatch.GetTimestamp());
+      Press(vk, true);
+      if (source < 0) Missing = "the PC's own patch did not change";
+      else if (mirror < 0) Missing = "the patch changed but the stream's copy of it did not";
+      if (i < 0) {
+        // Two trial presses: if neither shows on both points, nothing is measured.
+        if (source < 0 || mirror < 0) trialMisses++;
+        if (i == -1 && trialMisses == 2) { Problem = "On the trial presses, " + Missing + ". Front window: \"" + FrontWindow() + "\"."; return new double[0]; }
+        continue;
+      }
+      if (source < 0 || mirror < 0) Timeouts++;
+      else { results.Add(mirror - source); SourceMs.Add(source); }
     }
     PollMs = polls > 0 ? pollTime / polls : 0;
     return results.ToArray();
@@ -261,6 +443,61 @@ Write-Host ""
 Write-Host "DEBASER BENCH RIG :: $Name :: $Samples presses"
 Write-Host "Click into the window to measure now. The patch page must be open and focused on the PC being streamed."
 for ($i = $CountdownSeconds; $i -gt 0; $i--) { Write-Host "  starting in $i"; Start-Sleep -Seconds 1 }
+
+if ($X2 -ge 0 -and $Y2 -ge 0) {
+  # Two points: the PC's own screen and the stream's copy of it. The result is the stream's delay, screen to screen.
+  [Rig]::OpenPair($X, $Y, $X2, $Y2)
+  if (-not $Passive -and $Window -ne '' -and -not [Rig]::Bring($Window)) {
+    [Rig]::ClosePair()
+    Write-Host ""
+    Write-Host "NOT MEASURED. No window with '$Window' in its title could be brought to the front (front now: '$([Rig]::FrontWindow())')."
+    exit 2
+  }
+  try {
+    if ($Passive) { $pairs = [Rig]::RunPairPassive($Samples, [math]::Max($TimeoutMs, 3000)) }
+    else { $pairs = [Rig]::RunPair($Samples, $Key, $TimeoutMs, $Window) }
+  } finally { [Rig]::ClosePair() }
+  if ([Rig]::Problem -ne '') {
+    Write-Host ""
+    Write-Host "NOT MEASURED. $([Rig]::Problem)"
+    exit 2
+  }
+  $sortedPairs = [double[]]($pairs | Sort-Object)
+  $sortedSource = [double[]]([Rig]::SourceMs | Sort-Object)
+  $pairSummary = [ordered]@{
+    name = $Name
+    kind = 'screen-to-screen'
+    when = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss')
+    machine = $env:COMPUTERNAME
+    screen = "$([Rig]::ScreenWidth)x$([Rig]::ScreenHeight)"
+    samples = $sortedPairs.Count
+    missed = [Rig]::Timeouts
+    averageMs = [math]::Round(($sortedPairs | Measure-Object -Average).Average, 2)
+    p50Ms = [math]::Round((Get-Percentile $sortedPairs 50), 1)
+    p95Ms = [math]::Round((Get-Percentile $sortedPairs 95), 1)
+    minMs = [math]::Round($sortedPairs[0], 1)
+    maxMs = [math]::Round($sortedPairs[$sortedPairs.Count - 1], 1)
+    keyToOwnScreenP50Ms = [math]::Round((Get-Percentile $sortedSource 50), 1)
+    readEveryMs = [math]::Round([Rig]::PollMs, 2)
+    tookFrontBack = [Rig]::Interruptions
+    stoppedEarly = [Rig]::Stopped
+  }
+  Write-Host ""
+  Write-Host "RESULT :: $Name :: SCREEN TO SCREEN"
+  Write-Host ("  presses seen on both   {0} of {1} ({2} missed)" -f $pairSummary.samples, $Samples, $pairSummary.missed)
+  Write-Host ("  the PC's screen -> the stream's copy:  average {0} ms, middle {1} ms, worst 5% {2} ms (least {3}, most {4})" -f $pairSummary.averageMs, $pairSummary.p50Ms, $pairSummary.p95Ms, $pairSummary.minMs, $pairSummary.maxMs)
+  Write-Host ("  the screen was read every {0} ms: single values come in steps of that, so the average is the figure to use" -f $pairSummary.readEveryMs)
+  Write-Host ("  (key press -> the PC's own screen: middle {0} ms)" -f $pairSummary.keyToOwnScreenP50Ms)
+  if ($pairSummary.tookFrontBack -gt 0) { Write-Host ("  another window took the front {0} time(s); the rig took it back and carried on" -f $pairSummary.tookFrontBack) }
+  if ($pairSummary.stoppedEarly -ne '') { Write-Host ("  STOPPED EARLY. {0}" -f $pairSummary.stoppedEarly) }
+  if ($OutDir -eq '') { $OutDir = Join-Path $PSScriptRoot 'results' }
+  if (-not (Test-Path $OutDir)) { New-Item -ItemType Directory -Force $OutDir | Out-Null }
+  $pairFile = Join-Path $OutDir ("{0}-{1}.json" -f $Name, (Get-Date).ToString('yyyyMMdd-HHmmss'))
+  $pairSummary['valuesMs'] = @($pairs | ForEach-Object { [math]::Round($_, 2) })
+  ($pairSummary | ConvertTo-Json -Depth 4) | Out-File -Encoding utf8 $pairFile
+  Write-Host "  saved $pairFile"
+  exit 0
+}
 
 [Rig]::Open($X, $Y)
 if ($Window -ne '') {

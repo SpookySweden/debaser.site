@@ -9,6 +9,7 @@ use std::io::Write as _;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
+mod control;
 mod native;
 mod serve;
 mod settings;
@@ -256,9 +257,11 @@ fn main() -> ExitCode {
     match args.first().map(String::as_str) {
         Some("bench-encode") => bench_encode(&args[1..]),
         Some("serve") => serve::serve(&args[1..]),
+        Some("pointer-where") => control::pointer_where_command(&args[1..]),
         _ => {
             eprintln!("debaser-engine bench-encode [--name x] [--width W --height H] [--fps 60] [--bitrate 20000] [--frames 600] [--preset 1] [--hevc] [--intra-refresh] [--dump file] [--out folder]");
             eprintln!("debaser-engine serve {}", serve::USAGE);
+            eprintln!("debaser-engine pointer-where [--cut-off]   (for bench/control-check.cjs: where the real pointer is, and what can be seen of the control strip)");
             ExitCode::from(2)
         }
     }

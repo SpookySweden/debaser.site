@@ -31,17 +31,19 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use str0m::change::SdpOffer;
+use str0m::channel::ChannelId;
 use str0m::format::Codec;
 use str0m::media::{MediaKind, MediaTime, Mid, Pt, Writer};
 use str0m::net::{Protocol, Receive};
 use str0m::rtp::Extension;
 use str0m::{Candidate, Event, IceConnectionState, Input, Output, Rtc};
 
+use crate::control::{self, Control, Lane};
 use crate::native;
 use crate::settings::{self, Asked, Limits, Plan, Shape};
 use crate::{json, line, stats};
 
-pub const USAGE: &str = "[--shape 16:9] [--lines 1080] [--fps 60] [--bitrate 20000] [--max-lines N] [--max-fps N] [--max-bitrate 50000] [--width W --height H] [--preset 1] [--tweaks 29] [--intra-refresh] [--port 8478] [--udp-port 0] [--listen 127.0.0.1] [--token text] [--seconds N]";
+pub const USAGE: &str = "[--shape 16:9] [--lines 1080] [--fps 60] [--bitrate 20000] [--max-lines N] [--max-fps N] [--max-bitrate 50000] [--width W --height H] [--allow-control [--control-dry-run]] [--preset 1] [--tweaks 29] [--intra-refresh] [--port 8478] [--udp-port 0] [--listen 127.0.0.1] [--token text] [--seconds N]";
 
 const VIEWER_PAGE: &str = include_str!("../web/viewer.html");
 
@@ -58,13 +60,24 @@ const KEYFRAME_SPACING: Duration = Duration::from_millis(250);
 
 /// Set by Ctrl+C (and by closing the console window): the loops see it and stop tidily.
 static STOP: AtomicBool = AtomicBool::new(false);
+/// Set when `serve` has finished stopping (and has let go of any keys a viewer was holding down).
+static STOPPED: AtomicBool = AtomicBool::new(false);
 
 extern "system" {
     fn SetConsoleCtrlHandler(handler: Option<unsafe extern "system" fn(u32) -> i32>, add: i32) -> i32;
 }
 
-unsafe extern "system" fn on_console_event(_kind: u32) -> i32 {
+unsafe extern "system" fn on_console_event(kind: u32) -> i32 {
     STOP.store(true, Ordering::SeqCst);
+    // Ctrl+C (0) and Ctrl+Break (1) let the program finish in its own time. Closing the console window, logging
+    // off and shutting down do not: Windows ends the program the moment this returns. So for those it waits here
+    // (a few seconds at most) until the stopping is done, which is what lets go of any keys a viewer holds.
+    if kind > 1 {
+        let began = Instant::now();
+        while !STOPPED.load(Ordering::SeqCst) && began.elapsed() < Duration::from_secs(4) {
+            thread::sleep(Duration::from_millis(10));
+        }
+    }
     1
 }
 
@@ -84,6 +97,11 @@ struct Args {
     preset: i32,
     tweaks: i32,
     intra: bool,
+    /// `--allow-control`: a viewer may take this PC's mouse and keys. Never without it.
+    allow_control: bool,
+    /// `--control-dry-run`, for bench/control-check.cjs only: what a viewer does is written to a record that
+    /// `GET /control-log` shows, and NOTHING is put into Windows.
+    control_dry_run: bool,
     port: u16,
     udp_port: u16,
     listen: IpAddr,
@@ -105,6 +123,8 @@ fn parse(args: &[String]) -> Result<Args, String> {
         preset: 1,
         tweaks: native::DEFAULT_TWEAKS,
         intra: false,
+        allow_control: false,
+        control_dry_run: false,
         port: 8478,
         udp_port: 0,
         listen: IpAddr::V4(Ipv4Addr::LOCALHOST),
@@ -142,6 +162,8 @@ fn parse(args: &[String]) -> Result<Args, String> {
             "--token" => a.token = Some(value()?),
             "--seconds" => a.seconds = Some(value()?.parse().map_err(|_| "--seconds is a number")?),
             "--intra-refresh" => a.intra = true,
+            "--allow-control" => a.allow_control = true,
+            "--control-dry-run" => a.control_dry_run = true,
             other => return Err(format!("unknown option {other}")),
         }
         i += 1;
@@ -151,6 +173,9 @@ fn parse(args: &[String]) -> Result<Args, String> {
     }
     if (a.width > 0) != (a.height > 0) || a.width < 0 || a.height < 0 {
         return Err("--width and --height go together (a piece of that size cut from the middle of the screen)".into());
+    }
+    if a.control_dry_run && !a.allow_control {
+        return Err("--control-dry-run goes with --allow-control (it records what control would do instead of doing it)".into());
     }
     if a.port == 0 {
         return Err("--port must be between 1 and 65535".into());
@@ -241,6 +266,9 @@ struct Viewer {
     last_heard: Instant,
     /// When str0m next wants to be told the time.
     next_timeout: Instant,
+    /// The two channels control travels on (control.rs), once the page has opened them.
+    keys: Option<ChannelId>,
+    pointer: Option<ChannelId>,
 }
 
 struct Shared {
@@ -257,6 +285,11 @@ struct Shared {
     token: Option<String>,
     listen: IpAddr,
     stream: Mutex<Stream>,
+    /// CONTROL (control.rs). When both are wanted, `viewers` is locked before this, never the other way round.
+    control: Mutex<Control>,
+    /// A League match is running on the PC (or the check pretends one is): kept here as well as in `stream` so
+    /// the control path can read it without waiting for anything.
+    match_running: AtomicBool,
 }
 
 impl Shared {
@@ -294,8 +327,46 @@ impl Viewer {
     }
 }
 
+/// Says something about control to a viewer, on its keys channel.
+fn say(v: &mut Viewer, what: u8) {
+    if let Some(id) = v.keys {
+        if let Some(mut channel) = v.rtc.channel(id) {
+            let _ = channel.write(true, &[control::STATE, what]);
+        }
+    }
+}
+
 fn on_event(v: &mut Viewer, shared: &Shared, event: Event) {
     match event {
+        // The page opens two channels for control and names them (control.rs has the messages).
+        Event::ChannelOpen(id, label) => match label.as_str() {
+            "keys" => v.keys = Some(id),
+            "pointer" => v.pointer = Some(id),
+            _ => {}
+        },
+        Event::ChannelData(data) => {
+            let lane = if Some(data.id) == v.keys {
+                Lane::Keys
+            } else if Some(data.id) == v.pointer {
+                Lane::Pointer
+            } else {
+                return;
+            };
+            // Acted on here and now, on whichever thread the packet arrived: an input never waits for a frame.
+            let answer = shared.control.lock().unwrap().message(v.id, lane, &data.data, Instant::now(), shared.match_running.load(Ordering::SeqCst));
+            if let Some(what) = answer {
+                say(v, what);
+            }
+        }
+        Event::ChannelClose(id) => {
+            // A holder whose keys channel has gone is noticed by the network thread's watch, a moment later.
+            if v.keys == Some(id) {
+                v.keys = None;
+            }
+            if v.pointer == Some(id) {
+                v.pointer = None;
+            }
+        }
         Event::Connected => {
             v.connected = true;
             shared.want_keyframe.store(true, Ordering::SeqCst);
@@ -404,6 +475,15 @@ fn network_loop(shared: Arc<Shared>) {
                 pump(v, &shared, now);
             }
         }
+        // CONTROL: has anything happened that ends it (a match starting, the cut-off key on the PC, the holder
+        // gone or silent)? Whoever held it is told, and everything they held down has already been let go.
+        let ended = shared.control.lock().unwrap().watch(now, shared.match_running.load(Ordering::SeqCst), |id| viewers.iter().any(|v| v.id == id && v.rtc.is_alive() && v.keys.is_some()));
+        if let Some((id, what)) = ended {
+            if let Some(v) = viewers.iter_mut().find(|v| v.id == id && v.rtc.is_alive()) {
+                say(v, what);
+                pump(v, &shared, now);
+            }
+        }
         viewers.retain(|v| {
             if !v.rtc.is_alive() {
                 println!("  viewer {} gone", v.id);
@@ -498,8 +578,13 @@ fn send_frame(shared: &Shared, data: &Arc<[u8]>, keyframe: bool, profile: Option
 }
 
 fn respond(stream: &mut TcpStream, status: &str, content_type: &str, body: &[u8]) {
+    respond_with(stream, status, content_type, "", body);
+}
+
+/// The same, with more header lines (each ending in a line break) of the caller's own.
+fn respond_with(stream: &mut TcpStream, status: &str, content_type: &str, more: &str, body: &[u8]) {
     let head = format!(
-        "HTTP/1.1 {status}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\nConnection: close\r\n\r\n",
+        "HTTP/1.1 {status}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\n{more}Cache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\nConnection: close\r\n\r\n",
         body.len()
     );
     let _ = stream.write_all(head.as_bytes());
@@ -522,7 +607,8 @@ fn same_text(a: &str, b: &str) -> bool {
 }
 
 /// The browser's offer in, our answer out; the new connection joins the list for the network thread to run.
-fn hello(shared: &Shared, offer_text: &str) -> Result<String, (&'static str, String)> {
+/// The viewer's number comes back too, so the page can say who it is when it asks about control.
+fn hello(shared: &Shared, offer_text: &str) -> Result<(String, u64), (&'static str, String)> {
     let offer = SdpOffer::from_sdp_string(offer_text).map_err(|why| ("400 Bad Request", format!("That is not a WebRTC offer: {why}")))?;
     let now = Instant::now();
     let mut rtc = Rtc::builder()
@@ -546,8 +632,8 @@ fn hello(shared: &Shared, offer_text: &str) -> Result<String, (&'static str, Str
         return Err(("503 Service Unavailable", format!("{MAX_VIEWERS} viewers are already watching")));
     }
     let id = shared.viewers_ever.fetch_add(1, Ordering::Relaxed) + 1;
-    viewers.push(Viewer { id, rtc, mid: None, pt: None, connected: false, started: false, since: now, last_heard: now, next_timeout: now });
-    Ok(answer.to_sdp_string())
+    viewers.push(Viewer { id, rtc, mid: None, pt: None, connected: false, started: false, since: now, last_heard: now, next_timeout: now, keys: None, pointer: None });
+    Ok((answer.to_sdp_string(), id))
 }
 
 /// One web request: the page, or the "hello". Anything else is refused.
@@ -576,6 +662,9 @@ fn handle_request(mut stream: TcpStream, shared: &Shared) {
     let method = first.next().unwrap_or("");
     let target = first.next().unwrap_or("");
     let (path, query) = target.split_once('?').unwrap_or((target, ""));
+    // Which viewer is asking, when the page says (the number its hello was answered with). It only decides
+    // whether "control" reads "yours" or "another device": it opens nothing.
+    let viewer: Option<u64> = query.split('&').find_map(|pair| pair.strip_prefix("viewer=")).and_then(|number| number.parse().ok());
     let mut content_length = 0usize;
     let mut content_type = String::new();
     let mut host = String::new();
@@ -637,11 +726,22 @@ fn handle_request(mut stream: TcpStream, shared: &Shared) {
             }
             let Some(body) = body_of(&mut stream, 64 * 1024) else { return };
             match hello(shared, &String::from_utf8_lossy(&body)) {
-                Ok(answer) => respond(&mut stream, "201 Created", "application/sdp", answer.as_bytes()),
+                Ok((answer, id)) => respond_with(&mut stream, "201 Created", "application/sdp", &format!("Debaser-Viewer: {id}\r\n"), answer.as_bytes()),
                 Err((status, why)) => refuse(&mut stream, status, &why),
             }
         }
-        ("GET", "/settings") => respond(&mut stream, "200 OK", "application/json", settings_json(shared).as_bytes()),
+        ("GET", "/settings") => respond(&mut stream, "200 OK", "application/json", settings_json(shared, viewer).as_bytes()),
+        // The dry-run record of what control would have done: only with --allow-control --control-dry-run.
+        ("GET", "/control-log") => {
+            let control = shared.control.lock().unwrap();
+            if !control.allowed || !control.dry_run {
+                drop(control);
+                return refuse(&mut stream, "403 Forbidden", "The record of control only exists with --allow-control --control-dry-run");
+            }
+            let body = control.log_json();
+            drop(control);
+            respond(&mut stream, "200 OK", "application/json", body.as_bytes());
+        }
         ("POST", "/settings") => {
             // The same guard as the offer: this content type cannot be sent from another website's page unasked.
             if !content_type.starts_with("application/json") {
@@ -666,9 +766,9 @@ fn handle_request(mut stream: TcpStream, shared: &Shared) {
             while shared.stream.lock().unwrap().acted_on < mine && asked_at.elapsed() < Duration::from_secs(5) && !STOP.load(Ordering::SeqCst) {
                 thread::sleep(Duration::from_millis(5));
             }
-            respond(&mut stream, "200 OK", "application/json", settings_json(shared).as_bytes());
+            respond(&mut stream, "200 OK", "application/json", settings_json(shared, viewer).as_bytes());
         }
-        (_, "/") | (_, "/offer") | (_, "/settings") => refuse(&mut stream, "405 Method Not Allowed", "GET / for the page, POST /offer for the hello, GET or POST /settings"),
+        (_, "/") | (_, "/offer") | (_, "/settings") | (_, "/control-log") => refuse(&mut stream, "405 Method Not Allowed", "GET / for the page, POST /offer for the hello, GET or POST /settings, GET /control-log"),
         _ => refuse(&mut stream, "404 Not Found", "Nothing here"),
     }
 }
@@ -677,10 +777,23 @@ fn handle_request(mut stream: TcpStream, shared: &Shared) {
 /// second measured, the screen, the limits in force and the PC's own, and whether a cap is on and why.
 /// "applied" is false for the moment between a change being due (asked for, or a cap coming on or lifting) and the
 /// encoding thread having made it: until then "sending" is still the old picture.
-fn settings_json(shared: &Shared) -> String {
+/// "control" is how control stands for the viewer asking: "off" (the PC was not started with --allow-control),
+/// "free", "yours" or "another device"; "controlWhy" says why it cannot be taken when it cannot.
+fn settings_json(shared: &Shared, viewer: Option<u64>) -> String {
     let watching = {
         let now = Instant::now();
         shared.viewers.lock().unwrap().iter().filter(|v| v.watching(now)).count()
+    };
+    let (control_stands, control_allowed, control_dry_run) = {
+        let control = shared.control.lock().unwrap();
+        (control.standing(viewer), control.allowed, control.dry_run)
+    };
+    let control_why = if !control_allowed {
+        settings::quoted("THIS PC IS NOT ALLOWING CONTROL")
+    } else if shared.match_running.load(Ordering::SeqCst) {
+        settings::quoted(control::BLOCKED_BY_MATCH)
+    } else {
+        "null".to_string()
     };
     let stream = shared.stream.lock().unwrap();
     let number_or_null = |n: i32| if n > 0 { n.to_string() } else { "null".to_string() };
@@ -713,7 +826,7 @@ fn settings_json(shared: &Shared) -> String {
         None => "null".to_string(),
     };
     format!(
-        "{{\"asked\": {}, \"sending\": {}, \"measured\": {}, \"screen\": {{\"width\": {}, \"height\": {}, \"hz\": {}}}, \"limits\": {}, \"hostLimits\": {}, \"cap\": {}, \"capWhy\": {}, \"applied\": {}, \"refused\": {}, \"viewers\": {}}}",
+        "{{\"asked\": {}, \"sending\": {}, \"measured\": {}, \"screen\": {{\"width\": {}, \"height\": {}, \"hz\": {}}}, \"limits\": {}, \"hostLimits\": {}, \"cap\": {}, \"capWhy\": {}, \"applied\": {}, \"refused\": {}, \"viewers\": {}, \"control\": \"{}\", \"controlWhy\": {}, \"controlDryRun\": {}}}",
         asked_json,
         sending_json,
         measured_json,
@@ -726,7 +839,10 @@ fn settings_json(shared: &Shared) -> String {
         if stream.capped { settings::quoted(&format!("{} is running on the PC", settings::MATCH_PROCESS)) } else { "null".to_string() },
         stream.acted_on >= stream.asks && stream.acted_capped == stream.capped,
         stream.refused.as_deref().map_or("null".to_string(), settings::quoted),
-        watching
+        watching,
+        control_stands,
+        control_why,
+        control_dry_run
     )
 }
 
@@ -907,7 +1023,17 @@ pub fn serve(args: &[String]) -> ExitCode {
         token: a.token.clone(),
         listen: a.listen,
         stream: Mutex::new(stream),
+        control: Mutex::new(Control::new(a.allow_control, a.control_dry_run, first.region, (screen_width, screen_height))),
+        match_running: AtomicBool::new(capped_at_start),
     });
+    if a.allow_control && !a.control_dry_run {
+        // If the engine itself fails, whatever a viewer was holding down is let go before it goes.
+        let before = std::panic::take_hook();
+        std::panic::set_hook(Box::new(move |info| {
+            control::emergency_all_up();
+            before(info);
+        }));
+    }
     {
         let shared = shared.clone();
         thread::spawn(move || network_loop(shared));
@@ -930,6 +1056,7 @@ pub fn serve(args: &[String]) -> ExitCode {
                 thread::sleep(Duration::from_secs(1));
                 let running = match_running(&pretend);
                 shared.stream.lock().unwrap().capped = running;
+                shared.match_running.store(running, Ordering::SeqCst);
             }
         });
     }
@@ -955,6 +1082,12 @@ pub fn serve(args: &[String]) -> ExitCode {
     println!("  video leaves from {}", shared.candidates.iter().map(|c| c.to_string()).collect::<Vec<_>>().join(" and "));
     if !a.listen.is_loopback() {
         println!("  OPEN TO OTHER DEVICES on {}: anyone with the token sees this whole screen", a.listen);
+    }
+    if a.control_dry_run {
+        println!("  CONTROL: DRY RUN. What a viewer does is only written down (GET /control-log); nothing reaches Windows.");
+    } else if a.allow_control {
+        println!("  CONTROL IS ALLOWED: one viewer at a time may use this PC's mouse and keys. Ctrl+Alt+Shift+End on this PC stops it.");
+        println!("  It is refused while {} is running.", settings::MATCH_PROCESS);
     }
     println!("  waiting for a viewer (Ctrl+C stops)");
 
@@ -1023,6 +1156,7 @@ pub fn serve(args: &[String]) -> ExitCode {
                     interval = (ticks_per_second / current.fps as i64).max(1);
                     wait_ms = (1000 / current.fps).max(1);
                     println!("  now sending {} ({why}; the change took {} ms)", describe(&now_sending, screen_now), began.elapsed().as_millis());
+                    shared.control.lock().unwrap().sending(now_sending.region, (screen_now.0, screen_now.1));
                     let mut stream = shared.stream.lock().unwrap();
                     stream.sending = Some(now_sending);
                     stream.refused = None;
@@ -1118,6 +1252,7 @@ pub fn serve(args: &[String]) -> ExitCode {
                         wait_ms = (1000 / current.fps).max(1);
                         next_due = 0;
                         println!("  now sending {} (the screen share was started again)", describe(&now_sending, current_screen));
+                        shared.control.lock().unwrap().sending(now_sending.region, (current_screen.0, current_screen.1));
                         shared.stream.lock().unwrap().sending = Some(now_sending);
                         continue;
                     }
@@ -1256,6 +1391,20 @@ pub fn serve(args: &[String]) -> ExitCode {
         json("encodedToNetwork", &s_handed)
     );
 
+    // CONTROL ends with the engine: everything a viewer was holding down is let go, and the viewer is told.
+    {
+        let mut viewers = shared.viewers.lock().unwrap();
+        let ended = shared.control.lock().unwrap().end(control::Ended::Stopping);
+        if let Some(id) = ended {
+            if let Some(v) = viewers.iter_mut().find(|v| v.id == id && v.rtc.is_alive()) {
+                say(v, control::Ended::Stopping.says());
+                pump(v, &shared, Instant::now());
+            }
+        }
+    }
+    if a.allow_control && !a.control_dry_run {
+        control::emergency_all_up();
+    }
     // Say goodbye to whoever is still watching, so their browser stops at once instead of timing out.
     STOP.store(true, Ordering::SeqCst);
     {
@@ -1267,6 +1416,7 @@ pub fn serve(args: &[String]) -> ExitCode {
             }
         }
     }
+    STOPPED.store(true, Ordering::SeqCst);
     if failure.is_some() {
         return ExitCode::from(2);
     }

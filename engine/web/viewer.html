@@ -3,6 +3,7 @@
   The engine's viewer page (SPEC-screens.md), served by `debaser-engine serve` at "/".
   Plain HTML and script: no libraries, no artwork, and nothing is asked of any other server (the rule below
   forbids it outright; the only requests are the "hello" and the settings, back to the engine that served this page).
+  CONTROL (this device's mouse and keys driving the PC) travels on the same direct connection as the picture.
 
   The address may carry two things: "token=..." when the engine asks for one (passed along as it is), and
   "hold=1", which leaves the stream's settings as the PC started them (the measuring runs use it, so that opening
@@ -39,12 +40,18 @@
   .key:hover { border-color: #aaaaaa; }
   .key:focus-visible { outline: 2px solid #ffffff; outline-offset: 1px; }
   .key[aria-pressed="true"] { background: #d0d0d0; color: #111111; border-color: #d0d0d0; }
-  #open-settings { position: fixed; right: 8px; top: 8px; margin: 0; background: rgba(32, 32, 32, 0.8); }
+  /* The keys in the corner stay where they are whether the panel is open or not; the panel opens under them. */
+  #corner { position: fixed; right: 8px; top: 8px; display: flex; align-items: center; gap: 4px; }
+  #corner .key { margin: 0; background: rgba(32, 32, 32, 0.8); }
+  #corner .key[aria-pressed="true"] { background: #d0d0d0; }
+  #control-says { padding: 4px 6px; background: rgba(32, 32, 32, 0.8); border: 1px solid #555555; }
+  /* While this device controls the PC, its own pointer is the pointer: a plain arrow, never a text or hand cursor. */
+  #stage.controlling { cursor: default; touch-action: none; user-select: none; }
 
   #panel {
-    position: fixed; right: 0; top: 0; box-sizing: border-box; width: 430px; max-width: 100%; max-height: 100%;
-    overflow-y: auto; padding: 10px 12px 14px; background: rgba(24, 24, 24, 0.95); border-left: 1px solid #555555;
-    border-bottom: 1px solid #555555;
+    position: fixed; right: 0; top: 42px; box-sizing: border-box; width: 430px; max-width: 100%; max-height: calc(100% - 42px);
+    overflow-y: auto; padding: 10px 12px 14px; background: rgba(24, 24, 24, 0.95); border: 1px solid #555555;
+    border-right: 0;
   }
   #panel header { display: flex; justify-content: space-between; align-items: flex-start; }
   #panel h1, #panel h2, #panel h3 { margin: 0; font-size: 12px; font-weight: normal; }
@@ -66,7 +73,11 @@
   <canvas id="sharpened" hidden></canvas>
 </div>
 <pre id="numbers">connecting</pre>
-<button id="open-settings" class="key" type="button" aria-expanded="false" aria-controls="panel">[ SETTINGS ]</button>
+<div id="corner">
+  <span id="control-says" hidden></span>
+  <button id="control-key" class="key" type="button" aria-pressed="false" hidden>[ CONTROL ]</button>
+  <button id="open-settings" class="key" type="button" aria-expanded="false" aria-pressed="false" aria-controls="panel">[ SETTINGS ]</button>
+</div>
 
 <section id="panel" hidden aria-label="Stream settings">
   <header>
@@ -126,9 +137,23 @@
   <h2>WINDOW</h2>
   <div class="row"><button id="fullscreen" class="key" type="button" aria-pressed="false">[ FULLSCREEN ]</button></div>
 
+  <h2>CONTROL</h2>
+  <p class="says" id="control-state">Waiting for the PC to say whether it allows control.</p>
+  <div id="control-choices" hidden>
+    <h3>MOUSE</h3>
+    <div class="row" id="mouse">
+      <button class="key" type="button" data-mouse="pointer">[ POINTER ]</button>
+      <button class="key" type="button" data-mouse="game">[ GAME ]</button>
+    </div>
+    <p>POINTER: this device's own pointer is the pointer, drawn here with no delay; the stream itself carries no pointer. GAME: the pointer is captured and its raw movement is sent, for games that turn the view with the mouse.</p>
+    <p class="says" id="pointer-says" hidden>The pointer is not captured: click the picture to capture it (Esc gives it back).</p>
+    <p id="keys-says"></p>
+    <p>To let go: [ RELEASE ], or Ctrl+Alt+Shift+Q on this device (that is never sent to the PC). On the PC itself, Ctrl+Alt+Shift+End stops it. If this tab loses focus, every key held is let go at once.</p>
+  </div>
+
   <h2>NOT BUILT YET</h2>
   <ul>
-    <li>Control from this device: mouse, keys, controller.</li>
+    <li>A controller (gamepad) from this device.</li>
     <li>Sound.</li>
     <li>HEVC and AV1 video (this PC's graphics card cannot encode AV1).</li>
     <li>Changing the PC's real screen mode, or a virtual screen, so that games draw themselves in this screen's shape instead of having their sides cut off.</li>
@@ -151,6 +176,10 @@ const hold = address.get('hold') === '1';
 
 let connection = null;
 let connectionsMade = 0;
+// CONTROL's two channels (see the CONTROL section below), and the number the PC gave this viewer.
+let keysChannel = null;
+let pointerChannel = null;
+let viewer = null;
 let problem = '';
 // When each step of connecting happened, in milliseconds since the page began loading.
 const steps = { offerSent: null, answerBack: null, connected: null, firstFrameShown: null };
@@ -158,7 +187,7 @@ const steps = { offerSent: null, answerBack: null, connected: null, firstFrameSh
 // What this device last chose, remembered between visits. The page works the same when the browser refuses to
 // remember (private windows, blocked storage): it then starts from these every time.
 const STORE = 'debaser-engine-viewer';
-const wishes = { match: true, shape: '16:9', lines: 1080, fps: 60, bitrateKbps: 20000, upscaling: 'smooth', numbers: true };
+const wishes = { match: true, shape: '16:9', lines: 1080, fps: 60, bitrateKbps: 20000, upscaling: 'smooth', numbers: true, mouse: 'pointer' };
 try {
   const kept = JSON.parse(localStorage.getItem(STORE) || 'null');
   if (kept && typeof kept === 'object') {
@@ -169,6 +198,7 @@ try {
     if (Number.isFinite(kept.bitrateKbps) && kept.bitrateKbps >= 1000) wishes.bitrateKbps = Math.round(kept.bitrateKbps);
     if (['off', 'smooth', 'sharp', 'sharpened'].includes(kept.upscaling)) wishes.upscaling = kept.upscaling;
     if (typeof kept.numbers === 'boolean') wishes.numbers = kept.numbers;
+    if (['pointer', 'game'].includes(kept.mouse)) wishes.mouse = kept.mouse;
   }
 } catch (error) { /* nothing remembered, or not allowed to look */ }
 function remember() {
@@ -183,6 +213,14 @@ async function start() {
   connection = new RTCPeerConnection({ iceServers: [] });
   connectionsMade += 1;
   const transceiver = connection.addTransceiver('video', { direction: 'recvonly' });
+
+  // CONTROL's two channels are part of the offer. Keys, buttons and the wheel must all arrive, in order.
+  // Pointer movement must be NEW: a position that was lost is not sent again, the next one replaces it.
+  keysChannel = connection.createDataChannel('keys', { ordered: true });
+  pointerChannel = connection.createDataChannel('pointer', { ordered: false, maxRetransmits: 0 });
+  keysChannel.binaryType = 'arraybuffer';
+  keysChannel.onmessage = onPcSays;
+  keysChannel.onclose = () => { if (control.mine) controlOver('CONTROL ENDED: THE CONNECTION CLOSED'); };
 
   // Ask for H.264 first, since that is what the engine's video chip makes.
   try {
@@ -214,7 +252,7 @@ async function start() {
   await connection.setLocalDescription(await connection.createOffer());
   // The token, when the engine asks for one, is in this page's own address and is passed along as it is.
   steps.offerSent = performance.now();
-  const response = await fetch('offer' + location.search, {
+  const response = await fetch(hostAddress('offer'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/sdp' },
     body: connection.localDescription.sdp,
@@ -222,7 +260,18 @@ async function start() {
   const text = await response.text();
   steps.answerBack = performance.now();
   if (!response.ok) throw new Error(text || ('the engine answered ' + response.status));
+  // The PC numbers its viewers; saying ours back lets it tell this device whether control is "yours".
+  viewer = response.headers.get('Debaser-Viewer');
   await connection.setRemoteDescription({ type: 'answer', sdp: text });
+}
+
+// An address on the engine that served this page: the token (when there is one) and "hold" are passed along as
+// they came, and this viewer's number is added once the PC has given it.
+function hostAddress(path) {
+  const more = new URLSearchParams(location.search);
+  if (viewer) more.set('viewer', viewer);
+  const text = more.toString();
+  return path + (text ? '?' + text : '');
 }
 
 const perFrameMs = (total, count) => (typeof total === 'number' && count > 0 ? (total / count) * 1000 : null);
@@ -295,7 +344,7 @@ async function talkToHost(options) {
   let response;
   let text;
   try {
-    response = await fetch('settings' + location.search, options);
+    response = await fetch(hostAddress('settings'), options);
     text = await response.text();
   } catch (error) {
     hostTrouble = 'The PC could not be reached for its settings.';
@@ -408,13 +457,13 @@ function showSettings() {
   if (host && !host.applied) lines.push('The PC has not made the last change yet.');
   trouble.hidden = lines.length === 0;
   trouble.textContent = lines.join('\n');
+  showControl();
 }
 
 function openPanel(open) {
   panel.hidden = !open;
-  // The panel sits where the key is, with its own [ × ]: the key steps aside while the panel is open.
-  $('open-settings').hidden = open;
   $('open-settings').setAttribute('aria-expanded', String(open));
+  $('open-settings').setAttribute('aria-pressed', String(open));
   if (open) {
     showSettings();
     readHost();
@@ -426,7 +475,8 @@ function openPanel(open) {
 
 $('open-settings').addEventListener('click', () => openPanel(panel.hidden));
 $('close-settings').addEventListener('click', () => openPanel(false));
-document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && !panel.hidden) openPanel(false); });
+// Esc closes the panel, except while this device controls the PC: then Esc, like every key, is the PC's.
+document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && !panel.hidden && !control.mine) openPanel(false); });
 
 const quietly = (promise) => promise.catch(() => { /* the reason is already shown in the panel */ });
 $('match').addEventListener('click', () => quietly(ask({ shape: $('match').getAttribute('aria-pressed') === 'true' ? wishes.shape : 'match' })));
@@ -574,7 +624,8 @@ function showUpscaling() {
     }
   }
   upscalingShown = mode;
-  stage.className = mode;
+  // (The stage also carries a mark while this device controls the PC; it is kept.)
+  stage.className = mode + (control.mine ? ' controlling' : '');
   const ratio = window.devicePixelRatio || 1;
   const haveSize = video.videoWidth > 0 && video.videoHeight > 0;
 
@@ -639,6 +690,8 @@ document.addEventListener('fullscreenchange', () => {
 });
 
 async function draw() {
+  control.sentRate = control.sent - control.sentBefore;
+  control.sentBefore = control.sent;
   if (problem) { numbers.textContent = problem; $('readout').textContent = problem; return; }
   try {
     const s = await window.__debaserStats();
@@ -658,9 +711,325 @@ async function draw() {
       'In this browser\'s queue ' + shown(s.jitterBufferDelayMsPerFrame, 1) + ' ms a frame\n' +
       'Decoding              ' + shown(s.decodeMsPerFrame, 1) + ' ms a frame\n' +
       'Lost packets          ' + s.packetsLost + '\n' +
-      'On the PC, shown to encoded ' + pc;
+      'On the PC, shown to encoded ' + pc +
+      (control.mine ? '\nInput sent            ' + control.sentRate + ' messages a second' : '');
   } catch (error) { /* the next second tries again */ }
 }
+
+// ---------------------------------------------------------------------------------------------------------------
+// CONTROL: this device's mouse, keys and wheel driving the PC. Only when the PC was started allowing it, only one
+// device at a time, and never during a League match (the PC refuses). The messages are a few bytes each, sent on
+// two data channels; engine/src/control.rs is the one place they are written down, and the numbers here follow it.
+
+const TAKE = 0x01, RELEASE = 0x02, STILL_HERE = 0x03, ALL_UP = 0x04, KEY = 0x10, BUTTON = 0x11, WHEEL = 0x12, POINTER_AT = 0x20, POINTER_BY = 0x21, STATE = 0x80;
+// What the PC says about control, in words.
+const PC_SAYS = {
+  2: 'ANOTHER DEVICE HAS CONTROL',
+  3: 'THIS PC IS NOT ALLOWING CONTROL',
+  4: 'NOT DURING A LEAGUE MATCH',
+  5: 'REFUSED: THE PC COULD NOT SET UP ITS CUT-OFF KEY',
+  11: 'CONTROL ENDED: THIS DEVICE WENT SILENT',
+  12: 'CONTROL WAS STOPPED AT THE PC',
+  13: 'CONTROL ENDED: A LEAGUE MATCH STARTED',
+  14: 'CONTROL ENDED: THE PC\'S ENGINE IS STOPPING',
+};
+
+const control = {
+  mine: false,            // this device holds control
+  note: '',               // the last thing worth saying about it
+  heldKeys: new Set(),    // keys this device has down on the PC
+  heldButtons: new Set(),
+  sent: 0,                // input messages sent, ever
+  sentBefore: 0,          // ...as of the last readout, for "a second"
+  sentRate: 0,
+  newestAt: null,         // POINTER: the newest place not yet sent
+  owedBy: [0, 0],         // GAME: movement not yet sent
+  lastFlush: 0,
+  flushTimer: 0,
+  stillHereTimer: 0,
+  pointerLocked: false,
+  keyboardLocked: false,
+};
+
+function channelOpen(channel) { return Boolean(channel) && channel.readyState === 'open'; }
+
+function sendKeys(bytes) {
+  if (!channelOpen(keysChannel)) return false;
+  keysChannel.send(new Uint8Array(bytes));
+  control.sent += 1;
+  return true;
+}
+
+// A two-byte number, low byte first (signed ones wrap the way the PC expects).
+const two = (n) => [n & 0xff, (n >> 8) & 0xff];
+
+// Where the picture really is on this page, whichever way it is being drawn.
+function pictureBox() {
+  if (!video.videoWidth || !video.videoHeight) return null;
+  if (!canvas.hidden) return canvas.getBoundingClientRect();
+  const box = video.getBoundingClientRect();
+  if (upscalingShown === 'off') return box;
+  const fit = Math.min(box.width / video.videoWidth, box.height / video.videoHeight);
+  const width = video.videoWidth * fit;
+  const height = video.videoHeight * fit;
+  return { left: box.left + (box.width - width) / 2, top: box.top + (box.height - height) / 2, width, height };
+}
+
+// A place on this page as a place on the picture: 0 to 65535 from edge to edge, each way.
+function placeOnPicture(clientX, clientY) {
+  const box = pictureBox();
+  if (!box || box.width <= 0 || box.height <= 0) return null;
+  const share = (value) => Math.round(Math.min(1, Math.max(0, value)) * 65535);
+  return [share((clientX - box.left) / box.width), share((clientY - box.top) / box.height)];
+}
+
+// Movement goes out at most about once a millisecond: the newest place (POINTER) or the summed movement (GAME).
+function flushPointer() {
+  control.flushTimer = 0;
+  control.lastFlush = performance.now();
+  if (!control.mine || !channelOpen(pointerChannel)) { control.newestAt = null; control.owedBy = [0, 0]; return; }
+  if (control.newestAt) {
+    pointerChannel.send(new Uint8Array([POINTER_AT, ...two(control.newestAt[0]), ...two(control.newestAt[1])]));
+    control.sent += 1;
+    control.newestAt = null;
+  }
+  const dx = Math.max(-32768, Math.min(32767, Math.trunc(control.owedBy[0])));
+  const dy = Math.max(-32768, Math.min(32767, Math.trunc(control.owedBy[1])));
+  if (dx || dy) {
+    pointerChannel.send(new Uint8Array([POINTER_BY, ...two(dx), ...two(dy)]));
+    control.sent += 1;
+    control.owedBy = [control.owedBy[0] - dx, control.owedBy[1] - dy];
+  }
+}
+function pointerMoved() {
+  if (performance.now() - control.lastFlush >= 1) flushPointer();
+  else if (!control.flushTimer) control.flushTimer = setTimeout(flushPointer, 1);
+}
+
+function onPointerMove(event) {
+  if (!control.mine) return;
+  if (wishes.mouse === 'game') {
+    if (!control.pointerLocked) return;
+    // Every movement since the last event counts, not only the newest.
+    const all = event.getCoalescedEvents ? event.getCoalescedEvents() : [];
+    for (const one of all.length ? all : [event]) {
+      control.owedBy[0] += one.movementX;
+      control.owedBy[1] += one.movementY;
+    }
+  } else {
+    control.newestAt = placeOnPicture(event.clientX, event.clientY);
+  }
+  pointerMoved();
+}
+
+// The browser numbers buttons left 0, middle 1, right 2, back 3, forward 4; the PC's order is left, right, middle.
+const BUTTONS = [0, 2, 1, 3, 4];
+
+function onPointerButton(event, down) {
+  if (!control.mine) return;
+  event.preventDefault();
+  const button = BUTTONS[event.button];
+  if (button === undefined) return;
+  if (wishes.mouse === 'game' && !control.pointerLocked) {
+    // In GAME mode a click on the picture first captures the pointer; that click is not passed on.
+    if (down) lockPointer();
+    return;
+  }
+  if (down) {
+    control.heldButtons.add(button);
+    // A drag that leaves the picture still belongs to it.
+    if (wishes.mouse !== 'game' && stage.setPointerCapture) { try { stage.setPointerCapture(event.pointerId); } catch (error) { /* not this pointer */ } }
+  } else {
+    if (!control.heldButtons.has(button)) return;
+    control.heldButtons.delete(button);
+  }
+  // The place travels with the click: movement goes on the other channel and could arrive after it.
+  const place = wishes.mouse === 'game' ? null : placeOnPicture(event.clientX, event.clientY);
+  control.newestAt = null;
+  sendKeys([BUTTON, button, down ? 1 : 0, place ? 1 : 0, ...two(place ? place[0] : 0), ...two(place ? place[1] : 0)]);
+}
+
+function onWheel(event) {
+  if (!control.mine) return;
+  event.preventDefault();
+  // Browsers report the wheel in pixels, lines or pages; the PC wants notches, 120 to one.
+  const perNotch = event.deltaMode === 1 ? 3 : event.deltaMode === 2 ? 1 : 100;
+  const dy = Math.max(-32768, Math.min(32767, Math.round((-event.deltaY / perNotch) * 120)));
+  const dx = Math.max(-32768, Math.min(32767, Math.round((event.deltaX / perNotch) * 120)));
+  if (!dx && !dy) return;
+  const place = wishes.mouse === 'game' ? null : placeOnPicture(event.clientX, event.clientY);
+  sendKeys([WHEEL, ...two(dx), ...two(dy), place ? 1 : 0, ...two(place ? place[0] : 0), ...two(place ? place[1] : 0)]);
+}
+
+function onKey(event, down) {
+  if (!control.mine) return;
+  // The way out on this device: Ctrl+Alt+Shift+Q. It is never sent to the PC.
+  if (event.ctrlKey && event.altKey && event.shiftKey && event.code === 'KeyQ') {
+    event.preventDefault();
+    if (down) releaseControl();
+    return;
+  }
+  // While controlling, keys belong to the PC: the browser is asked not to act on them itself.
+  event.preventDefault();
+  if (!event.code) return;
+  if (down) control.heldKeys.add(event.code);
+  else control.heldKeys.delete(event.code);
+  sendKeys([KEY, down ? 1 : 0, ...new TextEncoder().encode(event.code)]);
+}
+
+// Lets go, on the PC, of everything this device is holding down (the tab lost focus or was hidden: the "up"
+// events would never arrive here, so the PC is told at once).
+function allUp() {
+  if (!control.mine) return;
+  if (control.heldKeys.size || control.heldButtons.size) sendKeys([ALL_UP]);
+  control.heldKeys.clear();
+  control.heldButtons.clear();
+}
+
+function lockPointer() {
+  if (!stage.requestPointerLock) return;
+  // "Unadjusted" movement is the mouse's own, before the system's acceleration; older browsers only do the plain kind.
+  let asked;
+  try { asked = stage.requestPointerLock({ unadjustedMovement: true }); } catch (error) { asked = null; }
+  if (asked && asked.catch) asked.catch(() => { try { const plain = stage.requestPointerLock(); if (plain && plain.catch) plain.catch(() => {}); } catch (error) { /* refused: the panel says the pointer is not captured */ } });
+}
+
+// System keys (Alt+Tab, the Windows key, Esc) only reach a page that is fullscreen and has asked to keep them.
+function lockKeyboard() {
+  const can = Boolean(navigator.keyboard && navigator.keyboard.lock);
+  if (control.mine && document.fullscreenElement && can) {
+    navigator.keyboard.lock().then(() => { control.keyboardLocked = true; showControl(); }).catch(() => { control.keyboardLocked = false; showControl(); });
+  } else {
+    if (can && control.keyboardLocked) navigator.keyboard.unlock();
+    control.keyboardLocked = false;
+  }
+}
+
+function controlBegan() {
+  control.mine = true;
+  control.note = '';
+  control.heldKeys.clear();
+  control.heldButtons.clear();
+  clearInterval(control.stillHereTimer);
+  control.stillHereTimer = setInterval(() => { if (control.mine) sendKeys([STILL_HERE]); }, 1000);
+  if (wishes.mouse === 'game') lockPointer();
+  lockKeyboard();
+  showControl();
+}
+
+function controlOver(why) {
+  control.mine = false;
+  control.note = why || '';
+  control.heldKeys.clear();
+  control.heldButtons.clear();
+  control.newestAt = null;
+  control.owedBy = [0, 0];
+  clearInterval(control.stillHereTimer);
+  if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
+  lockKeyboard();
+  showControl();
+  readHost();
+}
+
+function takeControl() {
+  if (control.mine) return;
+  if (!sendKeys([TAKE])) { control.note = 'NOT CONNECTED YET'; showControl(); }
+}
+
+function releaseControl() {
+  if (!control.mine) return;
+  // The PC lets go of everything held when it hears this; this device stops sending at once.
+  sendKeys([RELEASE]);
+  controlOver('');
+}
+
+function onPcSays(event) {
+  const bytes = new Uint8Array(event.data);
+  if (bytes[0] !== STATE) return;
+  if (bytes[1] === 1) controlBegan();
+  else if (bytes[1] === 10) { if (control.mine) controlOver(''); }
+  else if (bytes[1] >= 11) controlOver(PC_SAYS[bytes[1]] || 'CONTROL ENDED');
+  else { control.note = PC_SAYS[bytes[1]] || 'REFUSED'; showControl(); readHost(); }
+}
+
+// Draws the CONTROL key and the panel's CONTROL section from what the PC says and what is true here.
+function showControl() {
+  const standing = host ? host.control : 'off';
+  const allowed = standing !== 'off';
+  const key = $('control-key');
+  key.hidden = !allowed;
+  key.textContent = control.mine ? '[ RELEASE ]' : '[ CONTROL ]';
+  key.setAttribute('aria-pressed', String(control.mine));
+  const blocked = host && host.controlWhy;
+  const says = control.mine ? '' : (control.note || (allowed && blocked) || (standing === 'another device' ? PC_SAYS[2] : ''));
+  $('control-says').hidden = !allowed || !says;
+  $('control-says').textContent = says;
+  stage.classList.toggle('controlling', control.mine);
+
+  $('control-choices').hidden = !allowed;
+  let state;
+  if (!host) state = 'Waiting for the PC to say whether it allows control.';
+  else if (!allowed) state = 'THIS PC IS NOT ALLOWING CONTROL\nIt allows it only when its engine is started with --allow-control.';
+  else if (control.mine) state = 'THIS DEVICE HAS CONTROL of the PC\'s mouse and keys.' + (host.controlDryRun ? '\nDRY RUN: the PC is only writing down what would be done.' : '');
+  else if (blocked) state = blocked + '\nThe PC refuses control while a match runs.';
+  else if (standing === 'another device') state = PC_SAYS[2] + '\nOne device at a time; it is free again when that one lets go.';
+  else state = 'Free. [ CONTROL ] at the top takes the PC\'s mouse and keys.' + (control.note ? '\n' + control.note : '');
+  $('control-state').textContent = state;
+  press($('mouse'), 'data-mouse', wishes.mouse);
+  const canLock = Boolean(navigator.keyboard && navigator.keyboard.lock);
+  $('keys-says').textContent = control.keyboardLocked
+    ? 'System keys (Alt+Tab, the Windows key, Esc) are going to the PC.'
+    : canLock
+      ? 'System keys (Alt+Tab, the Windows key, Esc) stay with this device unless the page is fullscreen while controlling.'
+      : 'System keys (Alt+Tab, the Windows key, Esc) stay with this device: this browser cannot hand them over.';
+  $('pointer-says').hidden = !(control.mine && wishes.mouse === 'game' && !control.pointerLocked);
+}
+
+$('control-key').addEventListener('click', () => { if (control.mine) releaseControl(); else takeControl(); });
+$('mouse').addEventListener('click', (event) => {
+  const key = event.target.closest('button');
+  if (!key) return;
+  allUp();
+  wishes.mouse = key.dataset.mouse;
+  remember();
+  if (control.mine && wishes.mouse === 'game') lockPointer();
+  if (wishes.mouse !== 'game' && document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
+  showControl();
+});
+
+// The mouse's own reports where the browser gives them (up to a thousand a second), the ordinary ones elsewhere.
+stage.addEventListener('onpointerrawupdate' in window ? 'pointerrawupdate' : 'pointermove', onPointerMove);
+stage.addEventListener('pointerdown', (event) => onPointerButton(event, true));
+stage.addEventListener('pointerup', (event) => onPointerButton(event, false));
+stage.addEventListener('wheel', onWheel, { passive: false });
+// The browser's own answers to the right, back and forward buttons are held off while controlling.
+for (const kind of ['contextmenu', 'auxclick', 'mouseup', 'mousedown']) {
+  stage.addEventListener(kind, (event) => { if (control.mine) event.preventDefault(); });
+}
+window.addEventListener('keydown', (event) => onKey(event, true), true);
+window.addEventListener('keyup', (event) => onKey(event, false), true);
+window.addEventListener('blur', allUp);
+document.addEventListener('visibilitychange', () => { if (document.hidden) allUp(); });
+// A page that is closing lets go of control on its way out, when the browser still lets the message leave.
+// (When it does not, the PC notices the silence three seconds later and lets go itself.)
+window.addEventListener('pagehide', () => { if (control.mine) sendKeys([RELEASE]); });
+document.addEventListener('pointerlockchange', () => { control.pointerLocked = document.pointerLockElement === stage; showControl(); });
+document.addEventListener('fullscreenchange', lockKeyboard);
+
+// For the checks: how control stands on this device, and the same take and release the key uses. `nudge` sends
+// one relative movement (it only does anything while this device holds control); bench/control-check.cjs uses it
+// for its one real proof, a pointer moved two pixels and back.
+window.__debaserControl = {
+  state: () => ({ standing: host ? host.control : null, why: host ? host.controlWhy : null, mine: control.mine, note: control.note, mouse: wishes.mouse, sent: control.sent, heldKeys: [...control.heldKeys], pointerLocked: control.pointerLocked, keyboardLocked: control.keyboardLocked, viewer }),
+  take: takeControl,
+  release: releaseControl,
+  nudge(dx, dy) {
+    if (!control.mine || !channelOpen(pointerChannel)) return false;
+    pointerChannel.send(new Uint8Array([POINTER_BY, ...two(dx), ...two(dy)]));
+    control.sent += 1;
+    return true;
+  },
+};
 
 showSettings();
 showUpscaling();

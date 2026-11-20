@@ -227,6 +227,48 @@ was open) fell on both equally. 60 frames a second asked, "Windows showed it to 
   hand-off 0.10 ms, in the browser 0.58 ms: **about 4.6 ms from the PC showing a frame to the browser holding it
   decoded** (same PC, before the browser draws it; one run, a calm screen, so the encode was light).
 
+### 2026-11-20 evening: the first screen-to-screen number, and CONTROL
+**Screen to screen** (`bench/glass.ps1`): two small windows on the real screen, the patch flipping by itself in the
+middle (where the engine looks) and a visible Edge viewer at the left (where it does not). The rig presses nothing and
+takes no window to the front; it reads both in one grab of the screen and times the gap between the PC's own patch
+changing and the stream's copy of it changing. That gap is the whole stream, browser drawing and screen refresh
+included, on this one PC (no real network in it). Windows scales this desktop to 125%, which the runner allows for.
+
+| Asked | Flips seen | Average | Middle | Worst 5% | Least | Notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| 60 a second | 40 of 40 | **17.1 ms** | 16.7 | 28.0 | 5.7 | the PC in use, no match; `results/glass-60-20261120-205418.json` |
+| 180 a second | 40 of 40 | 30.8 ms | 23.0 | 66.2 | 11.3 | **not to be trusted**: a League match was loading during this run; the next run was stopped by the match guard before its first flip |
+
+- Against the assumed 7 ms yardstick: **not beaten. 17 ms at 60 a second.**
+- Where the 17 ms goes, from the stages measured separately: the PC's side 3 to 4 ms; the browser about 1 ms to
+  decoded. That leaves about 12 ms unaccounted for by those two. Two suspects, neither measured yet: a change on
+  screen waiting for the stream's next frame (at 60 a second the engine rests about 14 ms of every 17, so a change
+  waits about 5 to 6 ms on average: sending more frames a second removes most of it), and the browser getting a
+  decoded frame onto the screen (its own drawing step and the screen's refresh).
+- Next: clean runs at 60, 120 and 180 with no match loading; then the browser's drawing step.
+- What went wrong on the way, now fixed in the runner: Windows' 125% scaling put the windows elsewhere than
+  assumed; a browser profile that had been closed by force reopened its windows minimised (a fresh profile each run,
+  and the runner places the windows itself); pressing keys and taking the front window fought the League client for
+  it (now hands-off); a match starting mid-run now stops the rig at once.
+
+**CONTROL** (spec phase 2; `serve --allow-control`, off without it): mouse, keys, buttons and wheel from the viewer
+page drive this PC over two WebRTC data channels, one device at a time. Refused while `League of Legends.exe` is
+running and ended at once if a match starts; everything held is let go however control ends; Ctrl+Alt+Shift+End on
+the PC stops it; a text strip along the top of the PC's screen while it is held. `node bench/control-check.cjs`, run
+by me after the helper built it: **10 of 10** (`results/control-check-20261120-205252.json`), 12 unit tests, and the
+settings and stream checks still pass (stream: 3.05 ms shown to encoded, worst 5% 3.68).
+- Proved in a dry run that records what would be sent and touches nothing: pointer places within 1 pixel on two
+  shapes and however the page draws the picture, scan codes for ten keys, buttons, wheel, every way of ending,
+  one device at a time, the pretend match.
+- Proved for real: Windows accepted a 2-pixel pointer nudge and back (1927,1347 to 1929,1347 to 1927,1347); the strip
+  is up, on top, click-through and never active while controlled; the cut-off ends control when the engine is sent
+  the signal Windows sends for that key.
+- **Never done for real: a key press, a click, a wheel turn, an absolute pointer move, a real press of the cut-off
+  keys, a real League match.** Nobody has used it by hand.
+- Known gaps: killing the engine outright leaves a held key held; the stream carries no pointer, so the viewer draws
+  a plain arrow, not the PC's own pointer shape; Windows refuses injected input over an administrator's window and
+  the viewer is not told; controller and sound are not built.
+
 Next things to try for the under-load number, in order:
 1. **Top graphics priority.** Windows has a "realtime" class above the "high" one used here; it needs the engine to
    run with administrator rights (Sunshine gets it by running as a Windows service). Needs Luke's click on a

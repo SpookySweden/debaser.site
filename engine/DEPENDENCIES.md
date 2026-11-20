@@ -29,6 +29,12 @@ The stream settings (2026-11-20) added no crate either. The small JSON a viewer 
 League match is Windows' own list of programs (Toolhelp): both are called from `native/core.cpp`, like the rest.
 The viewer page's sharpening shader is written for this page (`web/viewer.html`); nothing is copied in.
 
+CONTROL (2026-11-20) added no crate and no driver. A viewer's mouse and keys are put into Windows with Windows'
+own `SendInput`; the cut-off key is Windows' own `RegisterHotKey`; the strip across the PC's screen is one ordinary
+window (`native/control.cpp`, which links Windows' `gdi32` for its one line of text). The messages travel on WebRTC
+data channels, which `str0m` already had (`sctp-proto`, listed below, is now used). The table of keys in
+`src/control.rs` was typed out from the published UI Events `code` names and PS/2 set 1 scan codes.
+
 ## Brought in by str0m (and by cc), built on this PC
 All of these came with `str0m` on 2026-11-20 except `find-msvc-tools` and `shlex`, which `cc` already brought.
 
@@ -63,7 +69,7 @@ All of these came with `str0m` on 2026-11-20 except `find-msvc-tools` and `shlex
 | rand_chacha 0.9.0 | MIT OR Apache-2.0 |
 | rand_core 0.9.5 and 0.10.1 | MIT OR Apache-2.0 |
 | rustc-hash 2.1.3 | Apache-2.0 OR MIT |
-| sctp-proto 0.10.8 (data channels; compiled in, not used yet) | MIT OR Apache-2.0 |
+| sctp-proto 0.10.8 (data channels: CONTROL travels on them) | MIT OR Apache-2.0 |
 | serde 1.0.229, serde_core 1.0.229 | MIT OR Apache-2.0 |
 | serde_derive 1.0.229 (build only) | MIT OR Apache-2.0 |
 | shlex 2.0.1 (build only) | MIT OR Apache-2.0 |
@@ -97,5 +103,5 @@ Cargo writes down what other systems would need. None of this is compiled into t
 | zerocopy-derive 0.8.63 | an optional part of `zerocopy` that is off | BSD-2-Clause OR Apache-2.0 OR MIT |
 
 ## The check scripts
-`bench/webrtc-check.cjs` and `bench/settings-check.cjs` use `playwright-core` (Apache-2.0) from the repository's
+`bench/webrtc-check.cjs`, `bench/settings-check.cjs` and `bench/control-check.cjs` use `playwright-core` (Apache-2.0) from the repository's
 own `node_modules`: already there for the site's tools, nothing added, and not part of the engine.
