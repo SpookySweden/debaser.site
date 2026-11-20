@@ -103,6 +103,53 @@ What this says:
   quiet number, is what "streaming a game" costs, and it is the biggest thing found so far.
 - The settings help by about 30% under load, which is nowhere near enough for a 7 ms target while a game runs.
 
+### 2026-11-20: shortcuts that did NOT help (Luke: "continue on optimisations with creative methods")
+Tried in a side copy of the engine, on a steady moving picture (the desktop slid sideways 8 pixels a frame, so every
+run encodes the same motion whatever is on screen), 1080p H.264, every setting in turn 6 to 8 times round. GTA V was
+still open at about 60% of the card for these, and the base figure was the same 3 ms as on the quiet PC, so the
+12 to 18 ms above belongs to what the game was doing then, not to a game merely being open.
+
+| Tried | Encode middle | against base | Verdict |
+| --- | --- | --- | --- |
+| base (the kept defaults) | 3.04 ms | | |
+| simpler bit-packing (CAVLC) | 2.98 | -0.06 | noise |
+| no edge-smoothing pass | 3.01 | -0.03 | noise |
+| one reference frame | 2.93 | -0.11 | noise |
+| four strips per frame | 3.01 | -0.03 | noise |
+| colour conversion on the card's video unit | 3.29 | +0.25 | slower |
+| no-sleep wait for the encoder (burns a core) | 3.28 against 3.29 | 0 | nothing |
+| telling the card to start the copy early | 3.10 against 3.29, but shown-to-encoded 3.23 against 3.30 | 0 | only moves time between columns |
+
+None is kept. The encode is not waiting on our code or on coding choices: it is the chip's own speed.
+
+**Where the 3 ms goes** (same moving picture, three times round):
+
+| Picture | Pixels | Encode middle |
+| --- | --- | --- |
+| 640x360 | 0.2 million | 1.7 ms |
+| 1280x720 | 0.9 million | 2.2 ms |
+| 1920x1080 | 2.1 million | 3.1 ms |
+| 2560x1440 | 3.7 million | 4.2 ms |
+| 3440x1440 (the whole screen) | 5.0 million | 5.4 ms |
+
+About **1.5 ms that every frame pays, plus 0.8 ms per million pixels**. So on the host there are only three real
+levers left, and they are where the creative work goes next:
+1. **Fewer pixels.** 720p costs 0.9 ms less than 1080p here and about half the decode on the viewer; a sharpening
+   upscale on the viewer (the trick games use to render small and show large) would hide most of the difference.
+2. **Less waiting, not faster work.** At 3 ms a frame the engine can keep up with this 180 Hz screen. A viewer that is
+   sent 180 frames a second always has a frame at most 5.6 ms old when its screen refreshes, against up to 16.7 ms at
+   60: an average of about 5 ms saved for no faster encoding. Then timing each frame to land just before the viewer's
+   refresh.
+3. **Not queueing behind a game** (below).
+
+**Rate.** Asked for 60, 120, 180 and 240 frames a second of the same moving 1080p picture, the encode stayed at 3.2 to
+3.4 ms a frame in the two undisturbed rounds (the other two were disturbed by programs starting and stopping). So the
+host can feed a 180 Hz viewer a fresh frame every refresh; lever 2 is open on this side.
+
+**This PC is never quiet.** With no game at all, the Claude app itself was using about 39% of the card's 3D unit and
+Minecraft 15% during the last runs; the kept defaults still beat no settings by about 12% (3.28 against 3.72 ms). A
+true empty-card figure has not been taken and would need the PC left alone with the apps closed.
+
 Next things to try for the under-load number, in order:
 1. **Top graphics priority.** Windows has a "realtime" class above the "high" one used here; it needs the engine to
    run with administrator rights (Sunshine gets it by running as a Windows service). Needs Luke's click on a
