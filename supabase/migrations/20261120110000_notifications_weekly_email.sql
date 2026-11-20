@@ -89,12 +89,18 @@ begin
           or (n.kind in ('comic', 'comic_reply') and o.comic)
           or (n.kind = 'invite' and o.invites))
     )
-    select w.person, w.email, w.unsubscribe_code, w.kind, w.actor_name, left(w.thread_title, 120), w.thread_id,
-           w.recommendation_id, w.invite_id, w.room_id, w.href, w.created_at, w.total::integer
-    from waiting w
-    where w.at <= 5
-    order by w.person, w.kind, w.created_at desc
-    limit 5000;
+    -- At most 100 people a call, and every one of them whole (a cap on rows could cut somebody's email in half, and they
+    -- would then be marked sent); anybody beyond is owed still and comes in the next hour's call.
+    , ranked as (
+      select w.*, dense_rank() over (order by w.person) as who
+      from waiting w
+      where w.at <= 5
+    )
+    select r.person, r.email, r.unsubscribe_code, r.kind, left(r.actor_name, 80), left(r.thread_title, 120), r.thread_id,
+           r.recommendation_id, r.invite_id, r.room_id, r.href, r.created_at, r.total::integer
+    from ranked r
+    where r.who <= 100
+    order by r.person, r.kind, r.created_at desc;
 end;
 $$;
 

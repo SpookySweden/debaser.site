@@ -76,7 +76,16 @@ export async function POST(request: Request): Promise<Response> {
 
     if (answer !== null && answer.ok) {
       sent += 1;
-      if (testPerson === null) await db.rpc('notify_digest_sent', { p_secret: lock, p_person: digest.person });
+      if (testPerson === null) {
+        // The mark is what stops a second copy next hour: tried twice, and if it still won't take, the run stops here so
+        // nobody else is sent an email that can't be marked (the database is in trouble; next hour tries again).
+        let marked = (await db.rpc('notify_digest_sent', { p_secret: lock, p_person: digest.person })).error === null;
+        if (!marked) marked = (await db.rpc('notify_digest_sent', { p_secret: lock, p_person: digest.person })).error === null;
+        if (!marked) {
+          console.warn('weekly email: a sent email could not be marked; stopping this run');
+          return json({ owed: digests.length, sent, failed, unmarked: 1, test: false }, 500);
+        }
+      }
     } else {
       failed += 1;
       // The reason only, never the address or the key: a log line someone else might read.

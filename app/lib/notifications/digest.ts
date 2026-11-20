@@ -121,7 +121,8 @@ export function buildDigests(rows: readonly DigestRow[]): Digest[] {
         label,
         lines: shown.map((row) => {
           const item = asNotification(row);
-          return { text: notificationLine(item), url: `${SITE}${notificationHref(item) ?? '/forum'}` };
+          // Names and titles are typed by people: one line each, so nobody can write extra lines into somebody's email.
+          return { text: notificationLine(item).replace(/\s+/g, ' '), url: `${SITE}${notificationHref(item) ?? '/forum'}` };
         }),
         more: Math.max(0, total - shown.length),
       });

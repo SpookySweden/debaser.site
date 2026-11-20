@@ -44,13 +44,15 @@ const rows = [
   row({ kind: 'comic', actor_name: 'DEBASER', thread_title: '5 NEW PAGES IN CHAPTER 3', href: '/comic/3/12', thread_id: null }),
   row({ kind: 'live', actor_name: '<script>x</script>', thread_title: 'LATE & LOUD', room_id: 'room-9', thread_id: null }),
   row({ kind: 'nonsense' }),
+  row({ kind: 'invite', actor_name: 'EVE', thread_title: 'CHESS\nCLICK HERE: https://example.com', invite_id: 'inv-1', thread_id: null }),
 ];
 const [one, ...others] = d.buildDigests(rows);
 assert.equal(others.length, 0, 'one email per person');
 const replySection = one.sections.find((s) => s.label === 'REPLIES AND TAGS');
 assert.equal(replySection.lines.length, 5, 'at most 5 lines a section');
 assert.equal(replySection.more, 4, 'a reply and a tag are one section: 7 replies + 2 tags, 5 shown, AND 4 MORE');
-assert.deepEqual(one.sections.map((s) => s.label), ['REPLIES AND TAGS', 'LETTERS', 'ROOMS THAT WENT LIVE', 'COMIC'], 'a fixed order; an unknown kind is left out');
+assert.deepEqual(one.sections.map((s) => s.label), ['REPLIES AND TAGS', 'LETTERS', 'ROOMS THAT WENT LIVE', 'COMIC', 'GAME INVITES'], 'a fixed order; an unknown kind is left out');
+assert.doesNotMatch(one.sections[4].lines[0].text, /\n/, 'a title typed with a line break stays one line: nobody writes extra lines into an email');
 assert.equal(one.sections[1].lines[0].text, 'CAL SENT YOU A LETTER "SUMMER SCRAPS"');
 assert.equal(one.sections[1].lines[0].url, 'https://debaser.site/recommendations?open=rec-1', 'a line is a link to the site');
 assert.equal(one.sections[3].lines[0].url, 'https://debaser.site/comic/3/12');
@@ -77,5 +79,9 @@ assert.match(sql, /n\.read_at is null/, 'only what is still unread (8A)');
 assert.doesNotMatch(sql.match(/returns table \(([\s\S]*?)\)/)[1], /\bbody\b/, "a notification's words are never handed over");
 assert.match(sql, /set weekly_email = coalesce\(p_on, false\), updated_at = now\(\) where unsubscribe_code = p_code/, 'the unsubscribe changes WEEKLY EMAIL only');
 assert.match(sql, /'23 \* \* \* 0,1'/, 'the timer: Sundays and Mondays, every hour');
+assert.match(sql, /dense_rank\(\) over \(order by w\.person\)/, 'whole people per call, never half an email');
+assert.doesNotMatch(sql, /limit 5000/);
+const route = fs.readFileSync(path.join(__dirname, '..', 'app/api/notify/digest/route.ts'), 'utf8');
+assert.match(route, /if \(!marked\)[\s\S]*return json/, 'a send that cannot be marked stops the run: no copy every hour');
 
 console.log('check-notify-digest: OK');
