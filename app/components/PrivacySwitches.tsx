@@ -1,5 +1,6 @@
 'use client';
 
+import { BannedNotice, BlockedList } from './ModerationStanding';
 import { useState, useSyncExternalStore } from 'react';
 import {
   accountSettingsLoaded,
@@ -55,6 +56,7 @@ export default function PrivacySwitches({ userId, withMade = true }: { userId: s
 
   return (
     <div className="space-y-3 text-ink">
+      {withMade ? <BannedNotice /> : null}
       <ul>
         {PRIVACY_SWITCHES.map((row) => {
           const on = profile.visibility[row.key];
@@ -80,6 +82,8 @@ export default function PrivacySwitches({ userId, withMade = true }: { userId: s
       </ul>
 
       {withMade ? <MadeSwitches /> : null}
+
+      {withMade ? <BlockedList /> : null}
 
       <p className="text-prose">YOU STAY LISTED IN THE DIRECTORY. YOUR COUNTRY FLAG SHOWS ONLY TO PEOPLE WHO ARE SIGNED IN: SET IT IN EDIT PROFILE.</p>
 

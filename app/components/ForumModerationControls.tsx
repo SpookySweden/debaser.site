@@ -4,8 +4,11 @@ import { useState } from 'react';
 import { isSiteAccount } from '../lib/auth/builtin-account';
 import type { ForumAuthor, ForumComment, ForumThread } from '../lib/forum/types';
 import { FIELD, PLATE } from '../lib/ui/controls';
+import { getModerationStore } from '../lib/moderation/repository';
 import { useAuth } from './AuthProvider';
 import { useForum } from './ForumProvider';
+import { HideControl } from './ModerationKeys';
+import { useModeration } from './ModerationProvider';
 
 /**
  * Who may edit or remove what is already on the board.
@@ -19,9 +22,8 @@ import { useForum } from './ForumProvider';
  * admin's.
  */
 export function useAdmin(): boolean {
-  const { user } = useAuth();
-
-  return user !== null && isSiteAccount(user.id);
+  // The moderator list (SPEC-moderation.md, 1A), read from the database's `moderators` table, not the house account.
+  return useModeration().role.moderator;
 }
 
 function failure(caught: unknown, fallback: string): string {
@@ -42,6 +44,7 @@ function failure(caught: unknown, fallback: string): string {
  */
 export function AuthorModeration({ author }: { author: ForumAuthor }) {
   const auth = useAuth();
+  const moderation = useModeration();
   const admin = useAdmin();
   const [naming, setNaming] = useState(false);
   const [reason, setReason] = useState('');
@@ -58,7 +61,10 @@ export function AuthorModeration({ author }: { author: ForumAuthor }) {
     setError(null);
 
     try {
-      await auth.banAccount(accountId, reason);
+      if (auth.user === null) return;
+      // Through the moderators' function, which writes the log (SPEC-moderation.md, 9A).
+      await getModerationStore().ban(auth.user.id, accountId, reason.trim());
+      moderation.refresh();
       setNaming(false);
       setReason('');
     } catch (caught) {
@@ -75,7 +81,9 @@ export function AuthorModeration({ author }: { author: ForumAuthor }) {
     setError(null);
 
     try {
-      await auth.unbanAccount(accountId);
+      if (auth.user === null) return;
+      await getModerationStore().unban(auth.user.id, accountId);
+      moderation.refresh();
     } catch (caught) {
       setError(failure(caught, 'THAT BAN COULD NOT BE LIFTED.'));
     } finally {
@@ -128,7 +136,8 @@ export function AuthorModeration({ author }: { author: ForumAuthor }) {
 /** The admin's controls for a post: rewrite it, or take it off the board. */
 export function ThreadModeration({ thread }: { thread: ForumThread }) {
   const forum = useForum();
-  const admin = useAdmin();
+  const moderation = useModeration();
+  const admin = moderation.role.moderator;
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [title, setTitle] = useState(thread.title);
@@ -183,6 +192,8 @@ export function ThreadModeration({ thread }: { thread: ForumThread }) {
           {busy ? '[ WORKING... ]' : confirming ? '[ CONFIRM REMOVE ]' : '[ REMOVE POST ]'}
         </button>
 
+        <HideControl kind="thread" id={thread.id} authorId={thread.author.id} text={`${thread.title} :: ${thread.body}`} mark={moderation.markFor('thread', thread.id, thread.hidden)} />
+
         <AuthorModeration author={thread.author} />
       </div>
 
@@ -223,7 +234,8 @@ export function ThreadModeration({ thread }: { thread: ForumThread }) {
 /** The same controls for a reply - its text, and taking it off the board. */
 export function CommentModeration({ comment }: { comment: ForumComment }) {
   const forum = useForum();
-  const admin = useAdmin();
+  const moderation = useModeration();
+  const admin = moderation.role.moderator;
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [body, setBody] = useState(comment.body);
@@ -276,6 +288,8 @@ export function CommentModeration({ comment }: { comment: ForumComment }) {
         <button type="button" onClick={() => void remove()} disabled={busy} className={PLATE}>
           {busy ? '[ WORKING... ]' : confirming ? '[ CONFIRM REMOVE ]' : '[ REMOVE REPLY ]'}
         </button>
+
+        <HideControl kind="reply" id={comment.id} authorId={comment.author.id} text={comment.body} mark={moderation.markFor('reply', comment.id, comment.hidden)} />
 
         <AuthorModeration author={comment.author} />
 

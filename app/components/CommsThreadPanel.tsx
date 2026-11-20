@@ -10,6 +10,7 @@ import { EVENT_LABELS, gameTitle } from '../lib/games/events';
 import AsciiEmoticonPicker from './AsciiEmoticonPicker';
 import ProfileName from './ProfileName';
 import TimeStamp from './TimeStamp';
+import { ReportKey } from './ModerationKeys';
 import { PLATE, PLATE_MAIN } from '../lib/ui/controls';
 
 type CommsThreadPanelProps = {
@@ -143,7 +144,16 @@ export default function CommsThreadPanel({
                   <ProfileName author={resolveAuthor(message, nameById)} />
                   {message.authorId === userId ? <span className="text-ink">[ YOU ]</span> : null}
                 </span>
-                <TimeStamp at={message.createdAt} />
+                <span className="inline-flex items-center gap-1">
+                  <TimeStamp at={message.createdAt} />
+                  {/* REPORT the writer, carrying this one line (SPEC-moderation.md, 8A): the moderator sees nothing else of the conversation. */}
+                  {message.event === undefined ? (
+                    <ReportKey
+                      target={{ accountId: message.authorId, name: resolveAuthor(message, nameById).displayName, context: { kind: 'message', id: message.id, text: message.body, private: true } }}
+                      label="⚑"
+                    />
+                  ) : null}
+                </span>
               </div>
 
               {/*

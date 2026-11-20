@@ -89,6 +89,8 @@ export type ForumAuthor = {
 export type ForumComment = {
   id: string;
   threadId: string;
+  /** A moderator hid it (SPEC-moderation.md): only its author and the moderators are ever sent it, and they see this mark. */
+  hidden?: { reason: string };
   body: string;
   author: ForumAuthor;
   createdAt: string;
@@ -138,6 +140,8 @@ export type ThreadPin = {
 export type ForumThread = {
   id: string;
   title: string;
+  /** A moderator hid it (SPEC-moderation.md): only its author and the moderators are ever sent it, and they see this mark. */
+  hidden?: { reason: string };
   body: string;
   author: ForumAuthor;
   createdAt: string;

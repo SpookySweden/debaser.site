@@ -43,6 +43,8 @@ import SheetImage from './SheetImage';
 import TagStrip from './TagStrip';
 import ThreadSubjectRow from './ThreadSubjectRow';
 import TimeStamp from './TimeStamp';
+import { HiddenNote, ReportKey } from './ModerationKeys';
+import { useModeration } from './ModerationProvider';
 
 type ForumThreadCardProps = {
   thread: ForumThread;
@@ -88,6 +90,7 @@ type ForumThreadCardProps = {
  */
 export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = [] }: ForumThreadCardProps) {
   const forum = useForum();
+  const moderation = useModeration();
   // The header reads the *credit's* profile, not the thread author's: an item's own
   // post is signed by the house account, so its dark blue name and its picture come
   // from that account and never from whoever commented first. `postCredit` decides
@@ -377,7 +380,14 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
 
               <AddToLetterKey thing={{ kind: 'thread', ref: thread.id, title: thread.title }} />
 
-              {/* Only drawn for the house account: rewrite the post, or take it down. */}
+              {/* REPORT its author, carrying the post (SPEC-moderation.md). Not on a profile's gathered comments, which are no post. */}
+              {thread.author.id !== null && !thread.id.includes(':') ? (
+                <ReportKey target={{ accountId: thread.author.id, name: thread.author.displayName, context: { kind: 'thread', id: thread.id, text: `${thread.title} :: ${thread.body}` } }} />
+              ) : null}
+
+              <HiddenNote mark={moderation.markFor('thread', thread.id, thread.hidden)} authorId={thread.author.id} />
+
+              {/* Only drawn for a moderator: rewrite the post, hide it, or take it down. */}
               <ThreadModeration thread={thread} />
 
               {/* ...and the moderator's pin, for the same account only. */}

@@ -1,5 +1,6 @@
 'use client';
 
+import { BannedNotice } from './ModerationStanding';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { commentDomId, findBoardPost, readBoardAddress, threadDomId, type BoardAddress } from '../lib/forum/anchors';
 import { onMainBoard, selectBoardThreads, type SortMode, type SourceFilter, type TagMatchMode } from '../lib/forum/board-query';
@@ -1304,7 +1305,11 @@ export default function ForumBoard() {
 
       {/* Composer only appears when asked for */}
       {composerOpen ? (
-        <NewPostForm onClose={() => setComposerOpen(false)} onCreated={handleCreated} />
+        <>
+          {/* A banned account is told why, and may appeal (SPEC-moderation.md, 10A). */}
+          <BannedNotice />
+          <NewPostForm onClose={() => setComposerOpen(false)} onCreated={handleCreated} />
+        </>
       ) : null}
 
       {/* The whole tag index, and the board's music, in a window of its own (`[ TAG INDEX... ]` in the
