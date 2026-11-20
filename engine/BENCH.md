@@ -189,6 +189,28 @@ costs a few frames a second. At 120 and 180 asked it changed nothing: there the 
 fast as it can finish them. **To tune it fairly it needs a steady moving picture on the real screen** (a small
 animated window for 15 seconds a run), which I have not opened on a PC in use.
 
+### 2026-11-20: the fresh-frame rule tuned with a steady moving window (Luke: "Yes, go ahead")
+A small window with a sliding bar was opened on the real screen for each 15-second run and closed after it; runs
+alternated one-for-one between the two versions, so whatever else the PC was doing (a helper was compiling, Minecraft
+was open) fell on both equally. 60 frames a second asked, "Windows showed it to encoded", middle value of each run:
+
+| | Runs | Middle, each run (ms) | Average | Frames a second |
+| --- | --- | --- | --- | --- |
+| no rule (as on the branch) | 8 | 8.46 8.54 7.80 7.98 8.00 7.68 7.72 7.42 | **7.95** | 60 to 61 |
+| **rule, waking 3 ms early, waiting up to 4 ms** | 10 | 5.41 5.86 5.37 5.36 5.46 5.38 5.32 5.44 5.24 5.37 | **5.42** | 57 to 63 |
+| waking 3 ms early without the rule | 2 | 7.67 8.05 | 7.86 | 70 (overshoots) |
+| rule, waking 5 ms early, waiting up to 6 ms | 2 | 4.95 4.64 | 4.80 | 59 to 65 (less steady) |
+
+- **About 2.5 ms (a third) off the PC's side, every pair, with the frame rate kept.** What made the first versions
+  fail: the engine rested until just before the next frame was due, woke a little late (Windows' sleeps are not exact)
+  and so found the frame already waiting. Now it wakes 3 ms early and blocks inside Windows' own "next frame" call,
+  which wakes it the instant the frame is shown.
+- Waking early alone does nothing: it is the waiting-for-the-fresh-frame that pays.
+- The worst 5% did not move (12 to 15 ms in both): that tail is something else, not yet found.
+- Not shown: the rule on a screen that truly changes slowly. My window redrawing every second or third refresh gave
+  the same numbers as every refresh, so something else on the desktop was changing every refresh anyway.
+- **Kept: the rule becomes a default (waking 3 ms early, waiting up to 4 ms).**
+
 Next things to try for the under-load number, in order:
 1. **Top graphics priority.** Windows has a "realtime" class above the "high" one used here; it needs the engine to
    run with administrator rights (Sunshine gets it by running as a Windows service). Needs Luke's click on a
