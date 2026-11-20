@@ -588,7 +588,8 @@ ok('a mark for each kind of news, in text: ! for a reply, VS for a game invite, 
   // A browser on older code reads a kind it does not know as none: a plain hop, no mark, nothing broken.
   assert.equal(wire.parseCompanionWire({ x: 0.5, m: 'stand', r: 3, k: 'some-newer-kind' }).k, null);
   const reactions = read('app/components/CompanionReactions.tsx');
-  assert.match(reactions, /pokeCompanion\(kinds\.has\('invite'\) \? 'invite' : kinds\.has\('recommend'\) \? 'recommend' : 'reply'\);/, 'the feed says which kind arrived');
+  // A letter is a recommendation that carries its canvas (SPEC-notifications.md, 2026-11-20): the same heart.
+  assert.match(reactions, /pokeCompanion\(kinds\.has\('invite'\) \? 'invite' : kinds\.has\('recommend'\) \|\| kinds\.has\('letter'\) \? 'recommend' : 'reply'\);/, 'the feed says which kind arrived');
   const strip = read('app/components/Companion.tsx');
   assert.match(strip, /if \(mark\.textContent !== text\) mark\.textContent = text;/, 'the mark is text, set as text');
   assert.doesNotMatch(strip, /innerHTML/, 'never markup');

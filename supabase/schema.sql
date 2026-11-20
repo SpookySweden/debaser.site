@@ -1695,6 +1695,12 @@ create table if not exists public.forum_notifications (
 -- A recommendation sent to this account ('recommend', 2026-11-10): the column only. The recommendations tables, their
 -- link to it, and the kind itself are in supabase/migrations/20261110210717_recommendations.sql.
 alter table public.forum_notifications add column if not exists recommendation_id uuid;
+-- Notifications phase 1 (SPEC-notifications.md, 2026-11-20): where a database-filed line opens, a live room's id, and a
+-- key so one event is filed once. The columns only: the new kinds, notification_prefs, live_watches, the gate and the
+-- room trigger are in supabase/migrations/20261120014611_notifications_phase1.sql.
+alter table public.forum_notifications add column if not exists href text;
+alter table public.forum_notifications add column if not exists room_id uuid;
+alter table public.forum_notifications add column if not exists ref text;
 
 create index if not exists forum_notifications_user_idx
   on public.forum_notifications (user_id, created_at desc);

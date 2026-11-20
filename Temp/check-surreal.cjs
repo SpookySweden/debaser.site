@@ -533,7 +533,8 @@ assert.match(
 // and the window reads them through `arcadeFocusFromSearch`. A component that wrote one by hand would
 // be a second opinion about what an address means, and it would be the one that drifts.
 assert.match(
-  read('app/components/NotificationMenu.tsx'),
+  // Since SPEC-notifications.md (2026-11-20) every screen asks app/lib/notifications/links.ts where a line opens.
+  read('app/lib/notifications/links.ts'),
   /arcadeHref\(\{ kind: 'invite'/,
   'the bell builds an invitation through `arcadeHref`',
 );

@@ -115,8 +115,9 @@ Nothing existing is deleted. No existing notification row changes.
   `p_ref = 'comic:release:<comic_releases.id>'` and `p_href` = the first new page, `/comic/<chapter>/<page>` (chapters
   numbered across the whole comic). No timer. Unreleased pages never reach it. COMIC's spec: `SPEC-comic.md`.
 - Later phase: replies to a reader's panel comment arrive as `comic_reply` with an href to the page and panel.
-- FOLLOW: NOTIFY ships `app/components/ComicFollowKey.tsx` (`[ FOLLOW ]` / `[ ✓ FOLLOWING ]`, the COMIC NEW PAGES switch,
-  `notification_prefs.comic`, off by default); COMIC places it in the reader.
+- FOLLOW: COMIC's reader key flips the COMIC NEW PAGES switch (`notification_prefs.comic`, off by default) through
+  NOTIFY's store, `app/lib/notifications/notify-settings-store.ts`: `useNotifySettings(me).prefs.comic` to read,
+  `setNotifySwitch('comic', on)` to change (mock and Supabase alike).
 
 ## MODERATION (SPEC-moderation.md, not built yet)
 - Blocking is one way: the gate files nothing for somebody who has blocked whoever did it, once MODERATION's
