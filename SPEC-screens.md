@@ -30,8 +30,8 @@ driving another. **The relay** is Cloudflare's live-video service that copies on
 1. **Our own engine is the long road.** Sunshine is years of work by many people. Ours can be much smaller because it
    only has to do your case (Windows, an NVIDIA card first, a browser on the other end), but it is still the biggest
    thing this project has taken on: a second program, in a second language, outside the site's build and checks.
-   My honest size: **25 to 40 sessions over several weeks**, and the engine needs a programming toolchain installed on
-   the PC (your OK, and C: is short of space).
+   My honest size: **25 to 40 sessions over several weeks**, and the engine is built with a programming toolchain
+   (Rust, already on the PC).
 2. **"Surpass Sunshine" is real in some places and not in others.** See the table below. The video chip is the same
    chip whoever drives it, so the win is not there. It is in what Sunshine doesn't do at all.
 3. **"Signed in is enough" makes your site account the key to your PC**, and the PC is the site's server: database,
@@ -158,8 +158,8 @@ Nothing counts as faster until it is measured faster. One measuring stick for ev
   cannot be passed in a browser tab, I say so with the numbers.
 
 ## Phases (each proved before the next; each its own session or few)
-0. **Yardstick and go/no-go.** L: install Sunshine on the PC and Moonlight on the laptop (measuring only), OK the
-   toolchain install. C: the rig; the baseline numbers; what streaming costs League in frames (Practice Tool, Ctrl+F);
+0. **Yardstick and go/no-go.** L: Moonlight on the laptop (Sunshine is already on the PC). C: the rig (written
+   2026-11-20: `engine/bench/`, steps in `engine/BENCH.md`); the baseline numbers; what streaming costs League in frames (Practice Tool, Ctrl+F);
    confirm the Vanguard finding on your own machine by trying to move the pointer in a Practice Tool game through
    Moonlight (nothing is worked around). *Proof: `engine/BENCH.md` with the yardstick's numbers.*
 1. **The engine shows a screen.** Grab, encode, send to a plain test page on the laptop, home network, watch-only.
@@ -204,7 +204,8 @@ needs a second encoder path).
   from tables that exist). If the monthly tally must survive a restart: one small table.
 
 ## What Luke has to do
-- Phase 0: install Sunshine and Moonlight; OK the Rust toolchain (and where it goes, since C: has little room).
+- Phase 0: Moonlight on the laptop, and the measuring steps in `engine/BENCH.md`. (Found 2026-11-20: Sunshine, its
+  controller driver and the Rust toolchain are already on the PC, so nothing is installed there.)
 - Phase 3: press LINK on each device once.
 - Phase 4: make a Cloudflare Realtime app and paste its two keys into the PC's settings file yourself.
 - Everything else is mine.
