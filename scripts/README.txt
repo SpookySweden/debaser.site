@@ -190,6 +190,10 @@ key and reports from inside Twitch's player: its error text, whether its video a
 `--block` refuses matching requests as a blocking extension would: refusing Twitch's stream server (usher.ttvnw.net) is what
 makes Twitch show #2000. `--recover` then checks the room's note (top, lets presses through, links to Twitch), unblocks, presses
 Twitch's own RELOAD and play, and expects the stream to play and the note to go. `--jitless` stands in for Edge's enhanced security.
+`--fake-gate` makes our live list say the channel needs a Twitch sign-in while the stream really plays (a viewer signed in to Twitch):
+the room's sign-in note must show first and be gone once it plays. `--q <words>` searches Twitch under LIVE for a stream that embeds
+(the most-watched list is often 18+ lives that ask for a sign-in, or streams whose owners turned embedding off); `--row N` picks
+the Nth row that needs no sign-in.
 
 drive-visualiser.cjs
 --------------------
