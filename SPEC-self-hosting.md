@@ -238,6 +238,11 @@ it). The cause of the stop itself is not known (Docker quit, or crashed without 
 
 
 
+**After the move (2026-11-20):** the asleep page and the down alert are in `cloudflare/asleep/README.txt` (a Cloudflare
+Worker in front of debaser.site, fail open; Cloudflare's tunnel-health email for debaser-home, filed to Luke's main
+inbox by a Gmail filter). Storage's global cap on one file is 500 MB, not 50 MB, set in our override
+`G:\DEBASER-HOST\supabase\docker-compose.debaser.yml` (Luke, for COMIC: "Yes, both"); each bucket keeps its own limit.
+
 ## The way back (rollback)
 - Nothing on the cloud is deleted or changed: the Supabase project and the Vercel project stay exactly as they are for
   at least a month. Once the block lifts, the Vercel site works again with the data as it was on the night of the export.
