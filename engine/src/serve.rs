@@ -5,13 +5,21 @@
 //!   finished frame straight to the network itself, so a frame never waits for another thread to wake up;
 //! - one listens on the UDP socket for what viewers send back (the handshake, "I lost a packet", "send a full
 //!   picture") and keeps each connection's clock running;
-//! - one answers the two web requests: the viewer page, and the "hello" (the browser's offer in, our answer out).
+//! - one answers the web requests: the viewer page, the "hello" (the browser's offer in, our answer out), and the
+//!   stream's settings (read, and asked for).
+//!
+//! A fourth, tiny one looks once a second for a League match on the PC, which caps what the stream may cost.
+//!
+//! Settings (settings.rs) can change while the stream runs. This thread works out what should be sent from what
+//! was asked and what the PC allows; when that differs from what is being sent, it closes the native session and
+//! opens it again with the new piece of screen, size, rate and bitrate. The WebRTC connections stay up: viewers
+//! just get a full picture in the new size.
 //!
 //! WebRTC is the `str0m` crate, which does no networking or timing of its own: it is told the time and handed
 //! packets, and it says what to send. Its one rule is kept everywhere here: after anything is done to a
 //! connection, everything it wants to send is drained before the next thing is done to it (`pump`).
 //!
-//! Not done yet, on purpose: the bitrate is fixed (`--bitrate`), nothing watches the line and adjusts it.
+//! Not done yet, on purpose: nothing watches the line and adjusts the bitrate to it; it is whatever was asked for.
 
 use std::collections::HashMap;
 use std::io::{ErrorKind, Read, Write};
@@ -30,9 +38,10 @@ use str0m::rtp::Extension;
 use str0m::{Candidate, Event, IceConnectionState, Input, Output, Rtc};
 
 use crate::native;
+use crate::settings::{self, Asked, Limits, Plan, Shape};
 use crate::{json, line, stats};
 
-pub const USAGE: &str = "[--width 1920 --height 1080] [--fps 60] [--bitrate 20000] [--preset 1] [--tweaks 13] [--intra-refresh] [--port 8478] [--udp-port 0] [--listen 127.0.0.1] [--token text] [--seconds N]";
+pub const USAGE: &str = "[--shape 16:9] [--lines 1080] [--fps 60] [--bitrate 20000] [--max-lines N] [--max-fps N] [--max-bitrate 50000] [--width W --height H] [--preset 1] [--tweaks 29] [--intra-refresh] [--port 8478] [--udp-port 0] [--listen 127.0.0.1] [--token text] [--seconds N]";
 
 const VIEWER_PAGE: &str = include_str!("../web/viewer.html");
 
@@ -60,10 +69,18 @@ unsafe extern "system" fn on_console_event(_kind: u32) -> i32 {
 }
 
 struct Args {
+    /// `--width`/`--height`: start as a piece of this size cut from the middle and sent as it is (0 = not given).
+    /// The measuring runs use it; without it the stream starts as `--shape` and `--lines` say.
     width: i32,
     height: i32,
+    shape: Shape,
+    lines: i32,
     fps: i32,
     bitrate: i32,
+    /// The most a viewer can ask this PC for. None = the screen's own height and refresh rate.
+    max_lines: Option<i32>,
+    max_fps: Option<i32>,
+    max_bitrate: i32,
     preset: i32,
     tweaks: i32,
     intra: bool,
@@ -76,10 +93,15 @@ struct Args {
 
 fn parse(args: &[String]) -> Result<Args, String> {
     let mut a = Args {
-        width: 1920,
-        height: 1080,
+        width: 0,
+        height: 0,
+        shape: Shape::Wide16x9,
+        lines: 1080,
         fps: 60,
         bitrate: 20000,
+        max_lines: None,
+        max_fps: None,
+        max_bitrate: 50000,
         preset: 1,
         tweaks: native::DEFAULT_TWEAKS,
         intra: false,
@@ -99,8 +121,19 @@ fn parse(args: &[String]) -> Result<Args, String> {
         match key {
             "--width" => a.width = value()?.parse().map_err(|_| "--width is a number")?,
             "--height" => a.height = value()?.parse().map_err(|_| "--height is a number")?,
+            "--shape" => {
+                let name = value()?;
+                a.shape = Shape::parse(&name).filter(|shape| *shape != Shape::Match).ok_or("--shape is one of native, 16:9, 16:10, 21:9, 4:3 (a viewer asks for \"match\" itself, with its own screen's size)")?;
+            }
+            "--lines" => {
+                let text = value()?;
+                a.lines = if text == "native" { 0 } else { text.parse().ok().filter(|n| settings::LINES_CHOICES.contains(n)).ok_or("--lines is one of 720, 1080, 1440, native")? };
+            }
             "--fps" => a.fps = value()?.parse().map_err(|_| "--fps is a number")?,
             "--bitrate" => a.bitrate = value()?.parse().map_err(|_| "--bitrate is a number (kbit/s)")?,
+            "--max-lines" => a.max_lines = Some(value()?.parse().ok().filter(|n| *n >= 360).ok_or("--max-lines is a number, 360 or more")?),
+            "--max-fps" => a.max_fps = Some(value()?.parse().ok().filter(|n| *n >= 1).ok_or("--max-fps is a number, 1 or more")?),
+            "--max-bitrate" => a.max_bitrate = value()?.parse().ok().filter(|n| *n >= 1000).ok_or("--max-bitrate is a number (kbit/s), 1000 or more")?,
             "--preset" => a.preset = value()?.parse().map_err(|_| "--preset is 1 to 7")?,
             "--tweaks" => a.tweaks = value()?.parse().map_err(|_| "--tweaks is a number")?,
             "--port" => a.port = value()?.parse().map_err(|_| "--port is a number from 1 to 65535")?,
@@ -115,6 +148,9 @@ fn parse(args: &[String]) -> Result<Args, String> {
     }
     if a.fps < 1 || a.fps > 240 {
         return Err("--fps must be between 1 and 240".into());
+    }
+    if (a.width > 0) != (a.height > 0) || a.width < 0 || a.height < 0 {
+        return Err("--width and --height go together (a piece of that size cut from the middle of the screen)".into());
     }
     if a.port == 0 {
         return Err("--port must be between 1 and 65535".into());
@@ -134,6 +170,58 @@ fn parse(args: &[String]) -> Result<Args, String> {
         return Err(format!("--listen {} would show this screen to other devices: it is only allowed together with --token <text>", a.listen));
     }
     Ok(a)
+}
+
+/// What is really being sent, as the native session reported it when it opened.
+#[derive(Clone, Copy)]
+struct Sending {
+    region: native::Region,
+    width: i32,
+    height: i32,
+    scaled: bool,
+    fps: i32,
+    bitrate_kbps: i32,
+}
+
+/// What the last full second of sending measured.
+#[derive(Clone, Copy)]
+struct Measured {
+    frames_per_second: f64,
+    new_frames_per_second: f64,
+    kbit_per_second: f64,
+    /// The middle time from Windows showing a frame to its being encoded; None when the screen was still.
+    shown_to_encoded_ms: Option<f64>,
+}
+
+/// The stream's settings and state, shared between the web requests and the thread that encodes.
+struct Stream {
+    asked: Asked,
+    /// How many requests have been taken in, and how many of them the encoding thread has acted on.
+    asks: u64,
+    acted_on: u64,
+    /// The PC's own limits (`--max-lines`, `--max-fps`, `--max-bitrate`).
+    host_limits: Limits,
+    /// A League match is running on the PC (or the check is pretending one is): the match cap is in force.
+    capped: bool,
+    /// The cap state the encoding thread last acted on. While it differs from `capped`, a change is on its way.
+    acted_capped: bool,
+    /// The screen: width, height, refresh rate.
+    screen: (i32, i32, i32),
+    sending: Option<Sending>,
+    /// Why the last change could not be made, when the encoder would not take it.
+    refused: Option<String>,
+    measured: Option<Measured>,
+}
+
+impl Stream {
+    /// The limits in force now.
+    fn limits(&self) -> Limits {
+        if self.capped { self.host_limits.within(settings::MATCH_CAP) } else { self.host_limits }
+    }
+
+    fn plan(&self) -> Plan {
+        settings::plan(&self.asked, &self.limits(), self.screen.0, self.screen.1)
+    }
 }
 
 /// One browser watching.
@@ -168,6 +256,7 @@ struct Shared {
     viewers_ever: AtomicU64,
     token: Option<String>,
     listen: IpAddr,
+    stream: Mutex<Stream>,
 }
 
 impl Shared {
@@ -520,6 +609,24 @@ fn handle_request(mut stream: TcpStream, shared: &Shared) {
         }
     }
 
+    // The body of a request that has one, when it is no longer than `most`.
+    let body_of = |stream: &mut TcpStream, most: usize| -> Option<Vec<u8>> {
+        if content_length == 0 || content_length > most {
+            refuse(stream, "413 Payload Too Large", &format!("The body must be between 1 byte and {most} bytes"));
+            return None;
+        }
+        let mut body = data[head_end + 4..].to_vec();
+        let mut chunk = [0u8; 4096];
+        while body.len() < content_length {
+            match stream.read(&mut chunk) {
+                Ok(0) | Err(_) => return None,
+                Ok(n) => body.extend_from_slice(&chunk[..n]),
+            }
+        }
+        body.truncate(content_length);
+        Some(body)
+    };
+
     match (method, path) {
         ("GET", "/") => respond(&mut stream, "200 OK", "text/html; charset=utf-8", VIEWER_PAGE.as_bytes()),
         ("POST", "/offer") => {
@@ -528,25 +635,99 @@ fn handle_request(mut stream: TcpStream, shared: &Shared) {
             if !content_type.starts_with("application/sdp") {
                 return refuse(&mut stream, "415 Unsupported Media Type", "Send the offer as application/sdp");
             }
-            if content_length == 0 || content_length > 64 * 1024 {
-                return refuse(&mut stream, "413 Payload Too Large", "An offer is between 1 byte and 64 KB");
-            }
-            let mut body = data[head_end + 4..].to_vec();
-            while body.len() < content_length {
-                match stream.read(&mut chunk) {
-                    Ok(0) | Err(_) => return,
-                    Ok(n) => body.extend_from_slice(&chunk[..n]),
-                }
-            }
-            body.truncate(content_length);
+            let Some(body) = body_of(&mut stream, 64 * 1024) else { return };
             match hello(shared, &String::from_utf8_lossy(&body)) {
                 Ok(answer) => respond(&mut stream, "201 Created", "application/sdp", answer.as_bytes()),
                 Err((status, why)) => refuse(&mut stream, status, &why),
             }
         }
-        (_, "/") | (_, "/offer") => refuse(&mut stream, "405 Method Not Allowed", "GET / for the page, POST /offer for the hello"),
+        ("GET", "/settings") => respond(&mut stream, "200 OK", "application/json", settings_json(shared).as_bytes()),
+        ("POST", "/settings") => {
+            // The same guard as the offer: this content type cannot be sent from another website's page unasked.
+            if !content_type.starts_with("application/json") {
+                return refuse(&mut stream, "415 Unsupported Media Type", "Send the settings as application/json");
+            }
+            let Some(body) = body_of(&mut stream, 4 * 1024) else { return };
+            let taken = settings::parse_flat(&String::from_utf8_lossy(&body)).and_then(|pairs| {
+                let mut stream_state = shared.stream.lock().unwrap();
+                let next = settings::take_request(&stream_state.asked, &pairs)?;
+                stream_state.asked = next;
+                stream_state.asks += 1;
+                Ok(stream_state.asks)
+            });
+            let mine = match taken {
+                Ok(mine) => mine,
+                Err(why) => return refuse(&mut stream, "400 Bad Request", &why),
+            };
+            // The encoding thread makes the change (it owns the encoder). The answer waits for it, so that it
+            // says what is really being sent and not what was hoped for. (If it takes too long the answer goes
+            // anyway, and says the change has not been made yet.)
+            let asked_at = Instant::now();
+            while shared.stream.lock().unwrap().acted_on < mine && asked_at.elapsed() < Duration::from_secs(5) && !STOP.load(Ordering::SeqCst) {
+                thread::sleep(Duration::from_millis(5));
+            }
+            respond(&mut stream, "200 OK", "application/json", settings_json(shared).as_bytes());
+        }
+        (_, "/") | (_, "/offer") | (_, "/settings") => refuse(&mut stream, "405 Method Not Allowed", "GET / for the page, POST /offer for the hello, GET or POST /settings"),
         _ => refuse(&mut stream, "404 Not Found", "Nothing here"),
     }
+}
+
+/// The stream's settings as the viewer page reads them: what was asked, what is really being sent, what the last
+/// second measured, the screen, the limits in force and the PC's own, and whether a cap is on and why.
+/// "applied" is false for the moment between a change being due (asked for, or a cap coming on or lifting) and the
+/// encoding thread having made it: until then "sending" is still the old picture.
+fn settings_json(shared: &Shared) -> String {
+    let watching = {
+        let now = Instant::now();
+        shared.viewers.lock().unwrap().iter().filter(|v| v.watching(now)).count()
+    };
+    let stream = shared.stream.lock().unwrap();
+    let number_or_null = |n: i32| if n > 0 { n.to_string() } else { "null".to_string() };
+    let limits_json = |l: Limits| format!("{{\"maxLines\": {}, \"maxFps\": {}, \"maxBitrateKbps\": {}}}", l.max_lines, l.max_fps, l.max_bitrate_kbps);
+    let asked = &stream.asked;
+    let asked_json = format!(
+        "{{\"shape\": {}, \"viewWidth\": {}, \"viewHeight\": {}, \"lines\": {}, \"fps\": {}, \"bitrateKbps\": {}}}",
+        settings::quoted(asked.shape.name()),
+        number_or_null(asked.view_width),
+        number_or_null(asked.view_height),
+        if asked.lines > 0 { asked.lines.to_string() } else { "\"native\"".to_string() },
+        asked.fps,
+        asked.bitrate_kbps
+    );
+    let sending_json = match &stream.sending {
+        Some(s) => format!(
+            "{{\"x\": {}, \"y\": {}, \"regionWidth\": {}, \"regionHeight\": {}, \"width\": {}, \"height\": {}, \"scaled\": {}, \"fps\": {}, \"bitrateKbps\": {}, \"codec\": \"H.264\"}}",
+            s.region.x, s.region.y, s.region.width, s.region.height, s.width, s.height, s.scaled, s.fps, s.bitrate_kbps
+        ),
+        None => "null".to_string(),
+    };
+    let measured_json = match &stream.measured {
+        Some(m) => format!(
+            "{{\"framesPerSecond\": {:.1}, \"newFramesPerSecond\": {:.1}, \"kbitPerSecond\": {:.0}, \"shownToEncodedMs\": {}}}",
+            m.frames_per_second,
+            m.new_frames_per_second,
+            m.kbit_per_second,
+            m.shown_to_encoded_ms.map_or("null".to_string(), |ms| format!("{ms:.2}"))
+        ),
+        None => "null".to_string(),
+    };
+    format!(
+        "{{\"asked\": {}, \"sending\": {}, \"measured\": {}, \"screen\": {{\"width\": {}, \"height\": {}, \"hz\": {}}}, \"limits\": {}, \"hostLimits\": {}, \"cap\": {}, \"capWhy\": {}, \"applied\": {}, \"refused\": {}, \"viewers\": {}}}",
+        asked_json,
+        sending_json,
+        measured_json,
+        stream.screen.0,
+        stream.screen.1,
+        stream.screen.2,
+        limits_json(stream.limits()),
+        limits_json(stream.host_limits),
+        if stream.capped { settings::quoted(settings::MATCH_CAP_NAME) } else { "null".to_string() },
+        if stream.capped { settings::quoted(&format!("{} is running on the PC", settings::MATCH_PROCESS)) } else { "null".to_string() },
+        stream.acted_on >= stream.asks && stream.acted_capped == stream.capped,
+        stream.refused.as_deref().map_or("null".to_string(), settings::quoted),
+        watching
+    )
 }
 
 /// This PC's address on the home network: the one Windows would use to reach the wider world. Nothing is sent to
@@ -559,6 +740,76 @@ fn lan_address() -> Option<Ipv4Addr> {
         IpAddr::V4(ip) if !ip.is_loopback() && !ip.is_unspecified() && !ip.is_link_local() => Some(ip),
         _ => None,
     }
+}
+
+/// Opens the native session that carries out a plan.
+fn open_session(a: &Args, plan: &Plan) -> Result<native::Session, String> {
+    let options = native::Options {
+        region: plan.region,
+        width: plan.width,
+        height: plan.height,
+        fps: plan.fps,
+        bitrate_kbps: plan.bitrate_kbps,
+        hevc: false,
+        intra_refresh: a.intra,
+        preset: a.preset,
+        tweaks: a.tweaks,
+        skip_pointer_only: true,
+    };
+    // Windows can take a moment to let go of a screen share that was only just closed, so a refusal is tried again.
+    let mut last = String::new();
+    for attempt in 0..4 {
+        if attempt > 0 {
+            thread::sleep(Duration::from_millis(100));
+        }
+        match native::Session::open(&options) {
+            Ok(session) => return Ok(session),
+            Err(why) => last = why,
+        }
+    }
+    Err(last)
+}
+
+/// What an open session is really sending (the native side may have trimmed the plan to fit the screen).
+fn sending_of(info: &native::Info, plan: &Plan) -> Sending {
+    Sending { region: info.region, width: info.encode_width, height: info.encode_height, scaled: info.scaled, fps: plan.fps, bitrate_kbps: plan.bitrate_kbps }
+}
+
+/// The same in words, for the console.
+fn describe(s: &Sending, screen: (i32, i32, i32)) -> String {
+    let piece = if s.region.width + 1 >= screen.0 && s.region.height + 1 >= screen.1 { "the whole screen".to_string() } else { format!("the middle {}x{} of the screen", s.region.width, s.region.height) };
+    format!("{}x{} at up to {} fps, {} kbit/s: {}, {}", s.width, s.height, s.fps, s.bitrate_kbps, piece, if s.scaled { "shrunk on the card" } else { "as it is" })
+}
+
+/// For bench/settings-check.cjs only, so the cap can be proved without a game being started: how the engine may
+/// be told to behave as if a League match were running. `DEBASER_PRETEND_MATCH=1` in the environment: always.
+/// `DEBASER_PRETEND_MATCH_FILE=<path>`: for as long as a file exists at that path (the check makes and removes
+/// it, to see the cap come on and lift while a stream runs).
+struct Pretend {
+    always: bool,
+    while_file: Option<std::path::PathBuf>,
+}
+
+impl Pretend {
+    fn from_environment() -> Pretend {
+        Pretend {
+            always: std::env::var("DEBASER_PRETEND_MATCH").is_ok_and(|value| value == "1"),
+            while_file: std::env::var_os("DEBASER_PRETEND_MATCH_FILE").filter(|path| !path.is_empty()).map(std::path::PathBuf::from),
+        }
+    }
+
+    fn asked_for(&self) -> bool {
+        self.always || self.while_file.is_some()
+    }
+
+    fn now(&self) -> bool {
+        self.always || self.while_file.as_ref().is_some_and(|path| path.exists())
+    }
+}
+
+/// Whether the match cap applies: a League match is running on the PC (or the check is pretending one is).
+fn match_running(pretend: &Pretend) -> bool {
+    pretend.now() || native::process_running(settings::MATCH_PROCESS) == Some(true)
 }
 
 pub fn serve(args: &[String]) -> ExitCode {
@@ -599,23 +850,47 @@ pub fn serve(args: &[String]) -> ExitCode {
         candidates.push(SocketAddr::new(a.listen, udp_port));
     }
 
-    let mut session = match native::Session::open(&native::Options {
-        width: a.width,
-        height: a.height,
+    // The screen as it is now (only read: the engine never changes the PC's display mode), the PC's limits, and
+    // how the stream starts before any viewer has asked for anything.
+    let Some((screen_width, screen_height, screen_hz)) = native::screen() else {
+        eprintln!("NOT SERVING. No main screen found");
+        return ExitCode::from(2);
+    };
+    let screen_hz = if screen_hz > 0 { screen_hz } else { 60 };
+    let host_limits = Limits {
+        max_lines: a.max_lines.unwrap_or(screen_height).min(screen_height),
+        max_fps: a.max_fps.unwrap_or(screen_hz).min(screen_hz),
+        max_bitrate_kbps: a.max_bitrate,
+    };
+    let cut = a.width > 0;
+    let asked = Asked {
+        shape: if cut { Shape::Cut } else { a.shape },
+        view_width: 0,
+        view_height: 0,
+        cut_width: a.width,
+        cut_height: a.height,
+        lines: if cut { 0 } else { a.lines },
         fps: a.fps,
         bitrate_kbps: a.bitrate,
-        hevc: false,
-        intra_refresh: a.intra,
-        preset: a.preset,
-        tweaks: a.tweaks,
-        skip_pointer_only: true,
-    }) {
-        Ok(session) => session,
+    };
+    let pretend = Pretend::from_environment();
+    let pretending = pretend.asked_for();
+    let capped_at_start = match_running(&pretend);
+    let mut stream = Stream { asked, asks: 0, acted_on: 0, host_limits, capped: capped_at_start, acted_capped: capped_at_start, screen: (screen_width, screen_height, screen_hz), sending: None, refused: None, measured: None };
+
+    let mut current = stream.plan();
+    let mut session = match open_session(&a, &current) {
+        Ok(session) => Some(session),
         Err(why) => {
             eprintln!("NOT SERVING. {why}");
             return ExitCode::from(2);
         }
     };
+    let ticks_per_second = session.as_ref().map_or(1, |s| s.info.ticks_per_second);
+    let first = sending_of(&session.as_ref().expect("just opened").info, &current);
+    stream.sending = Some(first);
+    let mut current_capped = stream.capped;
+    let mut current_screen = stream.screen;
 
     // The encryption WebRTC requires comes from Windows itself (str0m's "wincrypto").
     str0m::crypto::from_feature_flags().install_process_default();
@@ -631,6 +906,7 @@ pub fn serve(args: &[String]) -> ExitCode {
         viewers_ever: AtomicU64::new(0),
         token: a.token.clone(),
         listen: a.listen,
+        stream: Mutex::new(stream),
     });
     {
         let shared = shared.clone();
@@ -645,25 +921,35 @@ pub fn serve(args: &[String]) -> ExitCode {
             }
         });
     }
+    {
+        // Looking through the list of running programs takes a few milliseconds, so it has a thread of its own
+        // and never holds a frame up.
+        let shared = shared.clone();
+        thread::spawn(move || {
+            while !STOP.load(Ordering::SeqCst) {
+                thread::sleep(Duration::from_secs(1));
+                let running = match_running(&pretend);
+                shared.stream.lock().unwrap().capped = running;
+            }
+        });
+    }
 
-    let info = &session.info;
-    let (encode_width, encode_height) = (info.encode_width, info.encode_height);
-    let ticks_per_second = info.ticks_per_second;
     println!();
     println!("DEBASER ENGINE :: serve");
-    println!(
-        "  screen {}x{} at {} Hz; sending {}x{} H.264 at up to {} fps, {} kbit/s (fixed), preset P{}{}, tweaks {}",
-        info.screen_width,
-        info.screen_height,
-        info.screen_hz,
-        encode_width,
-        encode_height,
-        a.fps,
-        a.bitrate,
-        a.preset,
-        if a.intra { ", gradual repair on" } else { "" },
-        a.tweaks
-    );
+    println!("  screen {}x{} at {} Hz; H.264, preset P{}{}, tweaks {}", screen_width, screen_height, screen_hz, a.preset, if a.intra { ", gradual repair on" } else { "" }, a.tweaks);
+    println!("  now sending {} (as started)", describe(&first, current_screen));
+    println!("  a viewer may ask for up to {} lines, {} fps, {} kbit/s", host_limits.max_lines, host_limits.max_fps, host_limits.max_bitrate_kbps);
+    if current_capped {
+        println!(
+            "  {} is running{}: the {} cap is on ({} lines, {} fps, {} kbit/s at most)",
+            settings::MATCH_PROCESS,
+            if pretending { " (pretended, for the check)" } else { "" },
+            settings::MATCH_CAP_NAME,
+            settings::MATCH_CAP.max_lines,
+            settings::MATCH_CAP.max_fps,
+            settings::MATCH_CAP.max_bitrate_kbps
+        );
+    }
     let shown_host = if a.listen.is_unspecified() { shared.candidates.last().map_or("127.0.0.1".to_string(), |c| c.ip().to_string()) } else { a.listen.to_string() };
     println!("  open http://{}:{}/{} in Chrome or Edge", shown_host, a.port, if a.token.is_some() { "?token=<your token>" } else { "" });
     println!("  video leaves from {}", shared.candidates.iter().map(|c| c.to_string()).collect::<Vec<_>>().join(" and "));
@@ -673,8 +959,8 @@ pub fn serve(args: &[String]) -> ExitCode {
     println!("  waiting for a viewer (Ctrl+C stops)");
 
     let started = Instant::now();
-    let interval = (ticks_per_second / a.fps as i64).max(1);
-    let wait_ms = (1000 / a.fps).max(1);
+    let mut interval = (ticks_per_second / current.fps as i64).max(1);
+    let mut wait_ms = (1000 / current.fps).max(1);
     let ms = |from: i64, to: i64| (to - from) as f64 * 1000.0 / ticks_per_second as f64;
 
     // Whole-run numbers for the summary, and the same for the second being printed.
@@ -695,11 +981,77 @@ pub fn serve(args: &[String]) -> ExitCode {
     let mut last_keyframe: Option<Instant> = None;
     let mut profile: Option<u8> = None;
     let mut failure: Option<String> = None;
+    // Settings: the request count last acted on, a plan the encoder refused (not tried again until something new
+    // is asked), how many times what is sent has changed, and when the screen share last had to be restarted.
+    let mut asks_seen = 0u64;
+    let mut refused_plan: Option<Plan> = None;
+    let mut changes = 0u64;
+    let mut last_restart: Option<Instant> = None;
 
     loop {
         if STOP.load(Ordering::SeqCst) || a.seconds.is_some_and(|s| started.elapsed() >= Duration::from_secs(s)) {
             break;
         }
+
+        // What should be sent now, from what was asked and what the PC allows. When that is not what is being
+        // sent, the native session is closed and opened again as the new plan says. Its first frame is a full
+        // picture in the new size, and the viewers' connections carry on.
+        let (wanted, asks, capped_now, screen_now) = {
+            let stream = shared.stream.lock().unwrap();
+            (stream.plan(), stream.asks, stream.capped, stream.screen)
+        };
+        if asks != asks_seen {
+            refused_plan = None;
+        }
+        if wanted != current && refused_plan != Some(wanted) {
+            let why = if capped_now != current_capped {
+                if capped_now { format!("{} is running: the {} cap is on", settings::MATCH_PROCESS, settings::MATCH_CAP_NAME) } else { format!("the {} cap is lifted", settings::MATCH_CAP_NAME) }
+            } else if screen_now != current_screen {
+                "the PC's screen changed".to_string()
+            } else {
+                "a viewer asked".to_string()
+            };
+            let began = Instant::now();
+            // The old session lets go of the screen and the encoder before the new one asks for them.
+            session = None;
+            match open_session(&a, &wanted) {
+                Ok(opened) => {
+                    let now_sending = sending_of(&opened.info, &wanted);
+                    session = Some(opened);
+                    current = wanted;
+                    changes += 1;
+                    interval = (ticks_per_second / current.fps as i64).max(1);
+                    wait_ms = (1000 / current.fps).max(1);
+                    println!("  now sending {} ({why}; the change took {} ms)", describe(&now_sending, screen_now), began.elapsed().as_millis());
+                    let mut stream = shared.stream.lock().unwrap();
+                    stream.sending = Some(now_sending);
+                    stream.refused = None;
+                }
+                Err(why_not) => {
+                    println!("  could NOT change to {}x{} at {} fps, {} kbit/s ({why}): {why_not}. Staying as it was.", wanted.width, wanted.height, wanted.fps, wanted.bitrate_kbps);
+                    refused_plan = Some(wanted);
+                    match open_session(&a, &current) {
+                        Ok(opened) => session = Some(opened),
+                        Err(why) => {
+                            failure = Some(format!("After a refused change the stream could not be opened again as it was: {why}"));
+                            break;
+                        }
+                    }
+                    shared.stream.lock().unwrap().refused = Some(why_not);
+                }
+            }
+            next_due = 0;
+        }
+        if asks != asks_seen || capped_now != current_capped {
+            // Whatever was due has now been dealt with, and the settings routes may say so.
+            let mut stream = shared.stream.lock().unwrap();
+            stream.acted_on = asks;
+            stream.acted_capped = capped_now;
+        }
+        asks_seen = asks;
+        current_capped = capped_now;
+        current_screen = screen_now;
+
         // Nobody watching: nothing is grabbed or encoded, so the graphics card is left alone.
         let watching = {
             let now = Instant::now();
@@ -708,6 +1060,7 @@ pub fn serve(args: &[String]) -> ExitCode {
         if watching == 0 {
             if !idle {
                 println!("  waiting for a viewer");
+                shared.stream.lock().unwrap().measured = None;
             }
             idle = true;
             thread::sleep(Duration::from_millis(20));
@@ -715,12 +1068,12 @@ pub fn serve(args: &[String]) -> ExitCode {
             continue;
         }
 
-        // No faster than `--fps` (give or take 5%), however fast the screen changes: after a new frame, the next
-        // is not looked for until almost one frame's time has passed. "Almost", so that when the screen changes at
-        // about `--fps` itself we are already waiting when its next frame arrives and take it at once; a strict
-        // beat of our own would leave every frame sitting for up to a whole frame's time first. A screen that
-        // changes faster than that gives up its newest picture each time, which is then up to one of its own
-        // frames old.
+        // No faster than the frames a second asked for (give or take 5%), however fast the screen changes: after
+        // a new frame, the next is not looked for until almost one frame's time has passed. "Almost", so that when
+        // the screen changes at about that rate itself we are already waiting when its next frame arrives and take
+        // it at once; a strict beat of our own would leave every frame sitting for up to a whole frame's time
+        // first. A screen that changes faster than that gives up its newest picture each time, which is then up to
+        // one of its own frames old.
         let before = native::now();
         if before < next_due {
             thread::sleep(Duration::from_secs_f64((next_due - before) as f64 / ticks_per_second as f64));
@@ -735,16 +1088,56 @@ pub fn serve(args: &[String]) -> ExitCode {
             shared.want_keyframe.store(false, Ordering::SeqCst);
         }
 
-        let frame = match session.next_frame(wait_ms, force) {
+        let frame = match session.as_mut().expect("a session is open whenever frames are asked for").next_frame(wait_ms, force) {
             Ok(frame) => frame,
             Err(why) => {
-                failure = Some(why);
-                break;
+                // The screen share broke for good (the PC's screen changed size, say). The screen is looked at
+                // afresh and the stream started again on it, once; a second break straight after ends the run.
+                if last_restart.is_some_and(|at| at.elapsed() < Duration::from_secs(2)) {
+                    failure = Some(why);
+                    break;
+                }
+                last_restart = Some(Instant::now());
+                println!("  the screen share broke ({why}): starting it again");
+                session = None;
+                let plan_again = {
+                    let mut stream = shared.stream.lock().unwrap();
+                    if let Some((width, height, hz)) = native::screen() {
+                        stream.screen = (width, height, if hz > 0 { hz } else { stream.screen.2 });
+                    }
+                    current_screen = stream.screen;
+                    stream.plan()
+                };
+                match open_session(&a, &plan_again) {
+                    Ok(opened) => {
+                        let now_sending = sending_of(&opened.info, &plan_again);
+                        session = Some(opened);
+                        current = plan_again;
+                        changes += 1;
+                        interval = (ticks_per_second / current.fps as i64).max(1);
+                        wait_ms = (1000 / current.fps).max(1);
+                        next_due = 0;
+                        println!("  now sending {} (the screen share was started again)", describe(&now_sending, current_screen));
+                        shared.stream.lock().unwrap().sending = Some(now_sending);
+                        continue;
+                    }
+                    Err(why_not) => {
+                        failure = Some(why_not);
+                        break;
+                    }
+                }
             }
         };
         // After a repeat nothing is held back: the next real change is taken the moment it shows, so a still screen
         // answers a key press at once. (The wait inside `next_frame` already spaces repeats out.)
-        next_due = if frame.fresh { frame.acquired_time + interval * 95 / 100 } else { 0 };
+        //
+        // With the fresh-frame rule on (switch 16; BENCH.md, 2026-11-20), the rest ends 3 ms before the next frame's
+        // time (a fifth of a frame's time when that is shorter), not just before it: Windows' sleeps overrun by a
+        // millisecond or so, and waking late means the screen's next frame is already waiting and already stale.
+        // Waking early, the engine then waits inside Windows' own "next frame" call, which returns the moment the
+        // frame is shown. Measured: 5.4 ms from shown to encoded against 8.0 ms, the frames a second unchanged.
+        let rest = if a.tweaks & 16 != 0 { interval - (ticks_per_second * 3 / 1000).min(interval / 5) } else { interval * 95 / 100 };
+        next_due = if frame.fresh { frame.acquired_time + rest } else { 0 };
         if frame.keyframe {
             last_keyframe = Some(Instant::now());
             if profile.is_none() {
@@ -798,6 +1191,7 @@ pub fn serve(args: &[String]) -> ExitCode {
                 Some(s) => format!("middle {:>5.2} ms, worst 5% {:>5.2} ms", s.p50, s.p95),
                 None => "no frames".to_string(),
             };
+            let kbit_per_second = second_bytes as f64 * 8.0 / 1000.0 / took.as_secs_f64();
             println!(
                 "  {:>4} s  {:>3} frames sent ({} new)   shown -> encoded {}   encoded -> network {}   {:>6.0} kbit/s",
                 started.elapsed().as_secs(),
@@ -805,8 +1199,15 @@ pub fn serve(args: &[String]) -> ExitCode {
                 second_fresh,
                 part(&second_shown),
                 part(&second_handed),
-                second_bytes as f64 * 8.0 / 1000.0 / took.as_secs_f64()
+                kbit_per_second
             );
+            // The same second, for the viewers' settings panels.
+            shared.stream.lock().unwrap().measured = Some(Measured {
+                frames_per_second: second_frames as f64 / took.as_secs_f64(),
+                new_frames_per_second: second_fresh as f64 / took.as_secs_f64(),
+                kbit_per_second,
+                shown_to_encoded_ms: stats(&second_shown).map(|s| s.p50),
+            });
             second_shown.clear();
             second_handed.clear();
             (second_frames, second_fresh, second_bytes) = (0, 0, 0);
@@ -816,6 +1217,7 @@ pub fn serve(args: &[String]) -> ExitCode {
     if !idle {
         sending_time += second_started.elapsed();
     }
+    drop(session);
 
     let s_shown = stats(&all_shown);
     let s_handed = stats(&all_handed);
@@ -829,17 +1231,17 @@ pub fn serve(args: &[String]) -> ExitCode {
         println!("  STOPPED EARLY. {why}");
     }
     println!("  ran {:.1} s; {} viewer(s) said hello; {} frames sent ({} from real changes on screen, the rest repeats)", started.elapsed().as_secs_f64(), viewers, frames_sent, fresh_sent);
-    println!("  full pictures sent {}; times a browser asked for one {}", keyframes_sent, requests);
+    println!("  full pictures sent {}; times a browser asked for one {}; times what is sent was changed {}", keyframes_sent, requests, changes);
     println!("{}", line("encode, changed frames only", &s_encode));
     println!("{}", line("Windows showed it -> encoded", &s_shown));
     println!("{}", line("encoded -> handed to the network", &s_handed));
-    println!("  {:.0} kbit/s of video on average while sending (asked for {}); bitrate is fixed, nothing adjusts it to the line yet", kbps, a.bitrate);
+    println!("  {:.0} kbit/s of video on average while sending (asked for {} at the end); nothing adjusts the bitrate to the line yet", kbps, current.bitrate_kbps);
     println!(
-        "  json: {{\"kind\": \"serve\", \"encode\": \"{}x{}\", \"fps\": {}, \"bitrateKbps\": {}, \"tweaks\": {}, \"seconds\": {:.1}, \"viewers\": {}, \"framesSent\": {}, \"freshFrames\": {}, \"keyframesSent\": {}, \"keyframeRequests\": {}, \"sentKbps\": {:.0}, {}, {}, {}}}",
-        encode_width,
-        encode_height,
-        a.fps,
-        a.bitrate,
+        "  json: {{\"kind\": \"serve\", \"encode\": \"{}x{}\", \"fps\": {}, \"bitrateKbps\": {}, \"tweaks\": {}, \"seconds\": {:.1}, \"viewers\": {}, \"framesSent\": {}, \"freshFrames\": {}, \"keyframesSent\": {}, \"keyframeRequests\": {}, \"settingsChanges\": {}, \"sentKbps\": {:.0}, {}, {}, {}}}",
+        current.width,
+        current.height,
+        current.fps,
+        current.bitrate_kbps,
         a.tweaks,
         started.elapsed().as_secs_f64(),
         viewers,
@@ -847,6 +1249,7 @@ pub fn serve(args: &[String]) -> ExitCode {
         fresh_sent,
         keyframes_sent,
         requests,
+        changes,
         kbps,
         json("encodeChangedOnly", &s_encode),
         json("presentToEncoded", &s_shown),

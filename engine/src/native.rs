@@ -16,6 +16,10 @@ struct DbeOptions {
     preset: i32,
     tweaks: i32,
     skip_pointer_only: i32,
+    region_x: i32,
+    region_y: i32,
+    region_width: i32,
+    region_height: i32,
 }
 
 #[repr(C)]
@@ -29,6 +33,11 @@ struct DbeInfo {
     header_api: u32,
     driver_api: u32,
     ticks_per_second: i64,
+    region_x: i32,
+    region_y: i32,
+    region_width: i32,
+    region_height: i32,
+    scaled: i32,
 }
 
 #[repr(C)]
@@ -55,14 +64,28 @@ extern "C" {
     fn dbe_last_error(session: *mut DbeSession) -> *const c_char;
     fn dbe_now() -> i64;
     fn dbe_close(session: *mut DbeSession);
+    fn dbe_screen(width: *mut i32, height: *mut i32, hz: *mut i32) -> i32;
+    fn dbe_process_running(name: *const u16) -> i32;
 }
 
 /// The switches kept after the fair comparisons in BENCH.md (2026-11-20): graphics priority (1), the encoder's
-/// event mode (4) and one-pass encoding (8). The fine timer (2) changed nothing and is left off.
-pub const DEFAULT_TWEAKS: i32 = 13;
+/// event mode (4), one-pass encoding (8), and the fresh-frame rule (16: wait a sliver for the screen's next frame
+/// instead of taking one that has been sitting). The fine timer (2) changed nothing and is left off.
+pub const DEFAULT_TWEAKS: i32 = 29;
 
-/// What to grab and how to encode it. `width`/`height` 0 mean the whole screen; smaller cuts a piece from its middle.
+/// A piece of the screen, in screen pixels. A `width` or `height` of 0 means the whole screen.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub struct Region {
+    pub x: i32,
+    pub y: i32,
+    pub width: i32,
+    pub height: i32,
+}
+
+/// What to grab and how to encode it. `width`/`height` are the picture that is sent (0 = the region's own size).
+/// The same size as the region: the piece is copied as it is. Smaller: the card shrinks the region to it.
 pub struct Options {
+    pub region: Region,
     pub width: i32,
     pub height: i32,
     pub fps: i32,
@@ -83,6 +106,10 @@ pub struct Info {
     pub screen_hz: i32,
     pub encode_width: i32,
     pub encode_height: i32,
+    /// The piece of the screen really taken.
+    pub region: Region,
+    /// The piece is shrunk to the picture's size on the card (false: copied as it is).
+    pub scaled: bool,
     pub header_api: u32,
     pub driver_api: u32,
     /// How many ticks of Windows' fine clock make a second: the unit of every `*_time` below and of `now()`.
@@ -130,6 +157,10 @@ impl Session {
             preset: o.preset,
             tweaks: o.tweaks,
             skip_pointer_only: o.skip_pointer_only as i32,
+            region_x: o.region.x,
+            region_y: o.region.y,
+            region_width: o.region.width,
+            region_height: o.region.height,
         };
         let mut info = DbeInfo::default();
         let mut error = [0 as c_char; 512];
@@ -146,6 +177,8 @@ impl Session {
                 screen_hz: info.screen_hz,
                 encode_width: info.encode_width,
                 encode_height: info.encode_height,
+                region: Region { x: info.region_x, y: info.region_y, width: info.region_width, height: info.region_height },
+                scaled: info.scaled != 0,
                 header_api: info.header_api,
                 driver_api: info.driver_api,
                 ticks_per_second: info.ticks_per_second.max(1),
@@ -191,4 +224,43 @@ impl Drop for Session {
 /// Windows' fine clock now, in the same ticks as a frame's times.
 pub fn now() -> i64 {
     unsafe { dbe_now() }
+}
+
+/// The main screen's width, height and refresh rate (Hz, 0 when Windows does not say), without opening anything.
+/// It only reads Windows' current display mode.
+pub fn screen() -> Option<(i32, i32, i32)> {
+    let (mut width, mut height, mut hz) = (0, 0, 0);
+    let failed = unsafe { dbe_screen(&mut width, &mut height, &mut hz) };
+    (failed == 0 && width > 0 && height > 0).then_some((width, height, hz))
+}
+
+/// Whether a program with this file name (any letter case) is running now. None when Windows would not say.
+pub fn process_running(name: &str) -> Option<bool> {
+    let wide: Vec<u16> = name.encode_utf16().chain(std::iter::once(0)).collect();
+    // The native side reads the zero-ended name and keeps nothing.
+    match unsafe { dbe_process_running(wide.as_ptr()) } {
+        1 => Some(true),
+        0 => Some(false),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_screen_is_found_without_opening_anything() {
+        let (width, height, _hz) = screen().expect("a main screen");
+        assert!(width >= 640 && height >= 480, "{width}x{height}");
+    }
+
+    #[test]
+    fn running_programs_are_found_by_file_name() {
+        // This test is itself a running program, so its own file name must be found, in any letter case.
+        let me = std::env::current_exe().unwrap().file_name().unwrap().to_string_lossy().into_owned();
+        assert_eq!(process_running(&me), Some(true));
+        assert_eq!(process_running(&me.to_uppercase()), Some(true));
+        assert_eq!(process_running("no such program here 7f3a.exe"), Some(false));
+    }
 }

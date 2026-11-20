@@ -90,8 +90,9 @@ async function main() {
   }
 
   // 1. The engine. `--tweaks 12` leaves its graphics-priority switch off, so a game running on this PC is not
-  // pushed aside by a test.
-  const engineArgs = ['serve', '--seconds', String(ENGINE_SECONDS), '--tweaks', option('--tweaks', '12'), '--port', port, '--bitrate', option('--bitrate', '20000'), '--fps', option('--fps', '60')];
+  // pushed aside by a test. `--width 1920 --height 1080` is the piece this check has always measured: that many
+  // pixels cut from the middle of the screen and sent as they are, with no scaling.
+  const engineArgs = ['serve', '--seconds', String(ENGINE_SECONDS), '--tweaks', option('--tweaks', '12'), '--port', port, '--bitrate', option('--bitrate', '20000'), '--fps', option('--fps', '60'), '--width', option('--width', '1920'), '--height', option('--height', '1080')];
   result.engineCommand = `debaser-engine ${engineArgs.join(' ')}`;
   const engine = spawn(ENGINE, engineArgs, { cwd: ENGINE_DIR, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
   // Whatever goes wrong in this script, the engine it started does not outlive it.
@@ -150,7 +151,9 @@ async function main() {
   const asked = new Set();
   page.on('request', (request) => asked.add(new URL(request.url()).origin));
 
-  const url = `http://127.0.0.1:${port}/`;
+  // "hold=1" keeps the viewer page from asking the PC for its own settings (the shape of this headless screen),
+  // so that what is measured stays what the engine was started with. bench/settings-check.cjs covers the settings.
+  const url = `http://127.0.0.1:${port}/?hold=1`;
   const opened = Date.now();
   try {
     await page.goto(url, { waitUntil: 'load', timeout: 8000 });

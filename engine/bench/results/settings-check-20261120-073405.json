@@ -1,0 +1,166 @@
+{
+  "kind": "settings-check",
+  "when": "2026-11-20T07:33:42.605Z",
+  "pass": true,
+  "parts": [
+    {
+      "letter": "a",
+      "verdict": "PASS",
+      "what": "MATCH THIS SCREEN applies itself when the page opens",
+      "seen": "the page reported a 1280x800 screen; the browser decoded 1280x800 (the PC took the middle 2304x1440 of its 3440x1440 screen)"
+    },
+    {
+      "letter": "b",
+      "verdict": "PASS",
+      "what": "ask({shape:'16:9', lines:720}) gives 1280x720",
+      "seen": "the PC answered 1280x720; the browser decoded 1280x720",
+      "answeredMs": 334.59999999403954,
+      "settledMs": 399.5
+    },
+    {
+      "letter": "c",
+      "verdict": "PASS",
+      "what": "ask({shape:'match', viewWidth:1920, viewHeight:1200}) gives a 16:10 picture no taller than 1200",
+      "seen": "the PC answered 1728x1080 from the middle 2304x1440; the browser decoded 1728x1080",
+      "answeredMs": 307.79999999701977,
+      "settledMs": 377.70000000298023
+    },
+    {
+      "letter": "d",
+      "verdict": "PASS",
+      "what": "ask({shape:'native', lines:'native'}) gives the whole 3440x1440 screen",
+      "seen": "the PC answered 3440x1440 (as it is); the browser decoded 3440x1440",
+      "answeredMs": 347.40000000596046,
+      "settledMs": 389.90000000596046
+    },
+    {
+      "letter": "e",
+      "verdict": "PASS",
+      "what": "ask({fps:30}) brings the frames a second near 30",
+      "seen": "at 60 asked the browser decoded 57.0 frames a second; at 30 asked, 30.9 (the PC says it is sending up to 30)",
+      "answeredMs": 390.5
+    },
+    {
+      "letter": "f",
+      "verdict": "PASS",
+      "what": "with a match running, native lines at 180 frames a second is answered with the cap",
+      "seen": "asked for native lines, 180 frames a second, 40 Mbit/s; the PC answered cap \"LEAGUE MATCH\", sending 2580x1080 at up to 60 frames a second, 12000 kbit/s; the browser decoded 2580x1080; the panel says \"CAPPED BY THE PC: LEAGUE MATCH\"",
+      "answeredMs": 295.40000000596046,
+      "settledMs": 359.70000000298023
+    },
+    {
+      "letter": "g",
+      "verdict": "PASS",
+      "what": "the stream survives every change without reconnecting",
+      "seen": "one peer connection throughout, \"connected\" after every change (a: connected, b: connected, e: connected, c: connected, d: connected, h: connected). From the ask to the first decoded frame at the new size: (b) 400 ms, (c) 378 ms, (d) 390 ms"
+    },
+    {
+      "letter": "h",
+      "verdict": "PASS",
+      "what": "the panel's own keys do what they say",
+      "seen": "yes: [ SETTINGS ] opens the panel\n      yes: the panel says what the PC is really sending\n      yes: pressing [ 16:9 ] and [ 1080 ] changed the picture (decoded 1920x1080)\n      yes: the [ 16:9 ] key shows as pressed\n      yes: OFF shows the picture at its real size (1920x1080 drawn 1920x1080)\n      yes: SHARP draws in hard squares (image-rendering: pixelated)\n      yes: SMOOTH fills the window\n      yes: SHARPENED draws a 1280x720 canvas, 38 frames so far, 97% of the sampled points lit, and on average 2.06 levels (of 255) away from the plain picture (most 52)\n      yes: [ NUMBERS ] takes the corner readout away\n      yes: and puts it back\n      yes: the READOUT shows the stream\n      yes: [ FULLSCREEN ] took the page fullscreen\n      yes: the choices are remembered on this device ({\"match\":false,\"shape\":\"16:9\",\"lines\":1080,\"fps\":60,\"bitrateKbps\":20000,\"upscaling\":\"smooth\",\"numbers\":true})\n      yes: Esc closes the panel"
+    },
+    {
+      "letter": "i",
+      "verdict": "PASS",
+      "what": "on a new visit the remembered settings are sent to the PC again",
+      "seen": "after a reload the PC was asked for 16:9 at 1080 lines; the browser decoded 1920x1080"
+    },
+    {
+      "letter": "j",
+      "verdict": "PASS",
+      "what": "a match starting mid-stream caps it, and what was asked for comes back when the match ends",
+      "seen": "before: 2560x1440 at 30000 kbit/s; match \"started\": 1920x1080 at 12000 kbit/s, cap \"LEAGUE MATCH\", seen by the page 2236 ms later; match \"ended\": 2560x1440 at 30000 kbit/s, seen 3010 ms later; connection connected, 1 made (the engine looks for the game once a second and the page reads the PC's settings every 3 s, so a few seconds is expected)"
+    }
+  ],
+  "browser": {
+    "path": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "version": "157.0.8103.79",
+    "headless": true,
+    "pretendScreen": "1280x800"
+  },
+  "screen": {
+    "width": 3440,
+    "height": 1440,
+    "hz": 180
+  },
+  "hostLimits": {
+    "maxLines": 1440,
+    "maxFps": 180,
+    "maxBitrateKbps": 50000
+  },
+  "realMatchRunning": false,
+  "fps": {
+    "before": 56.9645333862541,
+    "after": 30.851910827964474,
+    "hostMeasured": {
+      "framesPerSecond": 30.5,
+      "newFramesPerSecond": 30.5,
+      "kbitPerSecond": 8695,
+      "shownToEncodedMs": 8.87
+    }
+  },
+  "sharpened": {
+    "running": true,
+    "width": 1280,
+    "height": 720,
+    "framesDrawn": 38,
+    "points": 5544,
+    "litShare": 0.974025974025974,
+    "meanDifference": 2.0551948051948132,
+    "largestDifference": 52
+  },
+  "requestsOutsideTheEngine": [],
+  "pageErrors": [],
+  "engineOutput": [
+    "--- first run ---",
+    "DEBASER ENGINE :: serve",
+    "screen 3440x1440 at 180 Hz; H.264, preset P1, tweaks 12",
+    "now sending 1920x1080 at up to 60 fps, 20000 kbit/s: the middle 2560x1440 of the screen, shrunk on the card (as started)",
+    "a viewer may ask for up to 1440 lines, 180 fps, 50000 kbit/s",
+    "open http://127.0.0.1:8479/ in Chrome or Edge",
+    "video leaves from 127.0.0.1:53566",
+    "waiting for a viewer (Ctrl+C stops)",
+    "viewer 1 connected 92 ms after its hello",
+    "now sending 1280x800 at up to 60 fps, 20000 kbit/s: the middle 2304x1440 of the screen, shrunk on the card (a viewer asked; the change took 345 ms)",
+    "viewer 1 starts from a full picture, 459 ms after its hello",
+    "now sending 1280x720 at up to 60 fps, 20000 kbit/s: the middle 2560x1440 of the screen, shrunk on the card (a viewer asked; the change took 315 ms)",
+    "now sending 1280x720 at up to 30 fps, 20000 kbit/s: the middle 2560x1440 of the screen, shrunk on the card (a viewer asked; the change took 363 ms)",
+    "now sending 1280x720 at up to 60 fps, 20000 kbit/s: the middle 2560x1440 of the screen, shrunk on the card (a viewer asked; the change took 320 ms)",
+    "now sending 1728x1080 at up to 60 fps, 20000 kbit/s: the middle 2304x1440 of the screen, shrunk on the card (a viewer asked; the change took 295 ms)",
+    "now sending 3440x1440 at up to 60 fps, 20000 kbit/s: the whole screen, as it is (a viewer asked; the change took 329 ms)",
+    "now sending 2560x1440 at up to 60 fps, 20000 kbit/s: the middle 2560x1440 of the screen, as it is (a viewer asked; the change took 347 ms)",
+    "now sending 1920x1080 at up to 60 fps, 20000 kbit/s: the middle 2560x1440 of the screen, shrunk on the card (a viewer asked; the change took 342 ms)",
+    "viewer 1 gone",
+    "waiting for a viewer",
+    "viewer 2 connected 79 ms after its hello",
+    "viewer 2 starts from a full picture, 96 ms after its hello",
+    "--- second run (DEBASER_PRETEND_MATCH=1) ---",
+    "DEBASER ENGINE :: serve",
+    "screen 3440x1440 at 180 Hz; H.264, preset P1, tweaks 12",
+    "now sending 1920x1080 at up to 60 fps, 12000 kbit/s: the middle 2560x1440 of the screen, shrunk on the card (as started)",
+    "a viewer may ask for up to 1440 lines, 180 fps, 50000 kbit/s",
+    "League of Legends.exe is running (pretended, for the check): the LEAGUE MATCH cap is on (1080 lines, 60 fps, 12000 kbit/s at most)",
+    "open http://127.0.0.1:8479/ in Chrome or Edge",
+    "video leaves from 127.0.0.1:51473",
+    "waiting for a viewer (Ctrl+C stops)",
+    "viewer 1 connected 93 ms after its hello",
+    "now sending 1280x800 at up to 60 fps, 12000 kbit/s: the middle 2304x1440 of the screen, shrunk on the card (a viewer asked; the change took 239 ms)",
+    "viewer 1 starts from a full picture, 347 ms after its hello",
+    "now sending 2580x1080 at up to 60 fps, 12000 kbit/s: the whole screen, shrunk on the card (a viewer asked; the change took 272 ms)",
+    "--- third run (DEBASER_PRETEND_MATCH_FILE, made then removed) ---",
+    "DEBASER ENGINE :: serve",
+    "screen 3440x1440 at 180 Hz; H.264, preset P1, tweaks 12",
+    "now sending 1920x1080 at up to 60 fps, 20000 kbit/s: the middle 2560x1440 of the screen, shrunk on the card (as started)",
+    "a viewer may ask for up to 1440 lines, 180 fps, 50000 kbit/s",
+    "open http://127.0.0.1:8479/ in Chrome or Edge",
+    "video leaves from 127.0.0.1:53748",
+    "waiting for a viewer (Ctrl+C stops)",
+    "viewer 1 connected 73 ms after its hello",
+    "now sending 1280x800 at up to 60 fps, 20000 kbit/s: the middle 2304x1440 of the screen, shrunk on the card (a viewer asked; the change took 259 ms)",
+    "viewer 1 starts from a full picture, 355 ms after its hello",
+    "now sending 2560x1440 at up to 60 fps, 30000 kbit/s: the middle 2560x1440 of the screen, as it is (a viewer asked; the change took 293 ms)",
+    "now sending 1920x1080 at up to 60 fps, 12000 kbit/s: the middle 2560x1440 of the screen, shrunk on the card (League of Legends.exe is running: the LEAGUE MATCH cap is on; the change took 314 ms)",
+    "now sending 2560x1440 at up to 60 fps, 30000 kbit/s: the middle 2560x1440 of the screen, as it is (the LEAGUE MATCH cap is lifted; the change took 273 ms)"
+  ]
+}

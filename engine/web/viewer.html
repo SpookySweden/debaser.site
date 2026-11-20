@@ -2,7 +2,11 @@
 <!--
   The engine's viewer page (SPEC-screens.md), served by `debaser-engine serve` at "/".
   Plain HTML and script: no libraries, no artwork, and nothing is asked of any other server (the rule below
-  forbids it outright; the only request is the "hello" back to the engine that served this page).
+  forbids it outright; the only requests are the "hello" and the settings, back to the engine that served this page).
+
+  The address may carry two things: "token=..." when the engine asks for one (passed along as it is), and
+  "hold=1", which leaves the stream's settings as the PC started them (the measuring runs use it, so that opening
+  the page does not change what is being measured).
 -->
 <html lang="en">
 <head>
@@ -11,33 +15,173 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'">
 <title>DEBASER ENGINE VIEWER</title>
 <style>
+  /* Neutral greys only, and nothing eases or fades: every change is instant. */
   html, body { margin: 0; height: 100%; background: #111111; overflow: hidden; }
-  video { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #111111; }
+  body, button, input { font: 12px/1.4 Consolas, "Courier New", monospace; color: #d0d0d0; }
+
+  /* The viewport: the picture, and (for SHARPENED) the canvas it is redrawn on. */
+  #stage { position: fixed; inset: 0; overflow: hidden; background: #111111; }
+  #screen { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: contain; background: #111111; }
+  #stage.sharp #screen { image-rendering: pixelated; }
+  /* OFF: the picture at its real size (set in the script, one stream pixel to one screen pixel), in the middle. */
+  #stage.off #screen { left: 50%; top: 50%; transform: translate(-50%, -50%); object-fit: fill; }
+  #sharpened { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: #111111; }
+
   #numbers {
-    position: fixed; left: 8px; top: 8px; margin: 0; padding: 6px 8px;
-    font: 12px/1.4 Consolas, "Courier New", monospace; white-space: pre;
-    color: #d0d0d0; background: rgba(32, 32, 32, 0.8); border: 1px solid #555555;
-    pointer-events: none;
+    position: fixed; left: 8px; top: 8px; margin: 0; padding: 6px 8px; white-space: pre;
+    background: rgba(32, 32, 32, 0.8); border: 1px solid #555555; pointer-events: none;
   }
+
+  .key {
+    margin: 0 4px 4px 0; padding: 4px 6px; min-height: 26px; text-transform: uppercase; white-space: nowrap;
+    background: #2a2a2a; border: 1px solid #555555; border-radius: 0; cursor: pointer;
+  }
+  .key:hover { border-color: #aaaaaa; }
+  .key:focus-visible { outline: 2px solid #ffffff; outline-offset: 1px; }
+  .key[aria-pressed="true"] { background: #d0d0d0; color: #111111; border-color: #d0d0d0; }
+  #open-settings { position: fixed; right: 8px; top: 8px; margin: 0; background: rgba(32, 32, 32, 0.8); }
+
+  #panel {
+    position: fixed; right: 0; top: 0; box-sizing: border-box; width: 430px; max-width: 100%; max-height: 100%;
+    overflow-y: auto; padding: 10px 12px 14px; background: rgba(24, 24, 24, 0.95); border-left: 1px solid #555555;
+    border-bottom: 1px solid #555555;
+  }
+  #panel header { display: flex; justify-content: space-between; align-items: flex-start; }
+  #panel h1, #panel h2, #panel h3 { margin: 0; font-size: 12px; font-weight: normal; }
+  #panel h1 { color: #ffffff; }
+  #panel h2 { margin-top: 14px; padding-top: 8px; border-top: 1px solid #555555; color: #ffffff; }
+  #panel h3 { margin-top: 8px; color: #9a9a9a; }
+  #panel p, #panel ul { margin: 4px 0 0; color: #9a9a9a; }
+  #panel ul { padding-left: 16px; }
+  #panel .says { color: #d0d0d0; white-space: pre-wrap; }
+  #panel .row { margin-top: 4px; }
+  #panel input[type="range"] { width: 240px; vertical-align: middle; accent-color: #d0d0d0; }
+  #readout { margin: 4px 0 6px; white-space: pre-wrap; }
+  [hidden] { display: none !important; }
 </style>
 </head>
 <body>
-<video id="screen" muted autoplay playsinline></video>
+<div id="stage" class="smooth">
+  <video id="screen" muted autoplay playsinline></video>
+  <canvas id="sharpened" hidden></canvas>
+</div>
 <pre id="numbers">connecting</pre>
+<button id="open-settings" class="key" type="button" aria-expanded="false" aria-controls="panel">[ SETTINGS ]</button>
+
+<section id="panel" hidden aria-label="Stream settings">
+  <header>
+    <h1>SETTINGS</h1>
+    <button id="close-settings" class="key" type="button" aria-label="Close settings">[ &times; ]</button>
+  </header>
+
+  <h2>PICTURE</h2>
+  <div class="row"><button id="match" class="key" type="button" aria-pressed="true">[ MATCH THIS SCREEN ]</button></div>
+  <p id="match-says"></p>
+  <div id="by-hand" hidden>
+    <h3>SHAPE</h3>
+    <div class="row" id="shapes">
+      <button class="key" type="button" data-shape="native">[ NATIVE ]</button>
+      <button class="key" type="button" data-shape="16:9">[ 16:9 ]</button>
+      <button class="key" type="button" data-shape="16:10">[ 16:10 ]</button>
+      <button class="key" type="button" data-shape="21:9">[ 21:9 ]</button>
+      <button class="key" type="button" data-shape="4:3">[ 4:3 ]</button>
+    </div>
+    <p>A shape narrower than the PC's screen cuts its sides off. NATIVE shows all of it, with bars above and below on a narrower screen.</p>
+  </div>
+  <h3>SIZE (LINES, AT MOST)</h3>
+  <div class="row" id="lines">
+    <button class="key" type="button" data-lines="720">[ 720 ]</button>
+    <button class="key" type="button" data-lines="1080">[ 1080 ]</button>
+    <button class="key" type="button" data-lines="1440">[ 1440 ]</button>
+    <button class="key" type="button" data-lines="native">[ NATIVE ]</button>
+  </div>
+  <h3>FRAMES A SECOND</h3>
+  <div class="row" id="rates">
+    <button class="key" type="button" data-fps="30">[ 30 ]</button>
+    <button class="key" type="button" data-fps="60">[ 60 ]</button>
+    <button class="key" type="button" data-fps="120">[ 120 ]</button>
+    <button class="key" type="button" data-fps="180">[ 180 ]</button>
+  </div>
+  <h3><label for="bitrate">BITRATE</label></h3>
+  <div class="row"><input id="bitrate" type="range" min="2" max="50" step="1" value="20"> <span id="bitrate-says">20 Mbit/s</span></div>
+  <p class="says" id="really">Waiting for the PC to say what it is sending.</p>
+  <p class="says" id="cap" hidden></p>
+  <p class="says" id="trouble" hidden></p>
+
+  <h2>UPSCALING</h2>
+  <div class="row" id="upscaling">
+    <button class="key" type="button" data-upscaling="off">[ OFF ]</button>
+    <button class="key" type="button" data-upscaling="smooth">[ SMOOTH ]</button>
+    <button class="key" type="button" data-upscaling="sharp">[ SHARP ]</button>
+    <button class="key" type="button" data-upscaling="sharpened">[ SHARPENED ]</button>
+  </div>
+  <p>Only on this device: nothing here is sent to the PC. OFF shows the picture at its real size, not stretched. SMOOTH lets the browser stretch it to fill. SHARP stretches it in hard squares (for pixel art). SHARPENED redraws every frame on this device with a sharpening pass, which may add delay: that has not been measured.</p>
+  <p class="says" id="upscaling-says" hidden></p>
+
+  <h2>READOUT</h2>
+  <pre id="readout">No picture yet.</pre>
+  <div class="row"><button id="numbers-key" class="key" type="button" aria-pressed="true">[ NUMBERS ]</button></div>
+  <p>NUMBERS keeps the small readout in the corner of the picture.</p>
+
+  <h2>WINDOW</h2>
+  <div class="row"><button id="fullscreen" class="key" type="button" aria-pressed="false">[ FULLSCREEN ]</button></div>
+
+  <h2>NOT BUILT YET</h2>
+  <ul>
+    <li>Control from this device: mouse, keys, controller.</li>
+    <li>Sound.</li>
+    <li>HEVC and AV1 video (this PC's graphics card cannot encode AV1).</li>
+    <li>Changing the PC's real screen mode, or a virtual screen, so that games draw themselves in this screen's shape instead of having their sides cut off.</li>
+  </ul>
+</section>
+
 <script>
 'use strict';
 
-const video = document.getElementById('screen');
-const numbers = document.getElementById('numbers');
+const $ = (id) => document.getElementById(id);
+const stage = $('stage');
+const video = $('screen');
+const canvas = $('sharpened');
+const numbers = $('numbers');
+const panel = $('panel');
+
+const address = new URLSearchParams(location.search);
+// "hold=1": leave the stream as the PC started it (see the note at the top of this file).
+const hold = address.get('hold') === '1';
+
 let connection = null;
+let connectionsMade = 0;
 let problem = '';
 // When each step of connecting happened, in milliseconds since the page began loading.
 const steps = { offerSent: null, answerBack: null, connected: null, firstFrameShown: null };
 
-// The "hello": our offer goes to the engine, its answer comes back, and the video then travels directly.
+// What this device last chose, remembered between visits. The page works the same when the browser refuses to
+// remember (private windows, blocked storage): it then starts from these every time.
+const STORE = 'debaser-engine-viewer';
+const wishes = { match: true, shape: '16:9', lines: 1080, fps: 60, bitrateKbps: 20000, upscaling: 'smooth', numbers: true };
+try {
+  const kept = JSON.parse(localStorage.getItem(STORE) || 'null');
+  if (kept && typeof kept === 'object') {
+    if (typeof kept.match === 'boolean') wishes.match = kept.match;
+    if (['native', '16:9', '16:10', '21:9', '4:3'].includes(kept.shape)) wishes.shape = kept.shape;
+    if ([720, 1080, 1440, 'native'].includes(kept.lines)) wishes.lines = kept.lines;
+    if ([30, 60, 120, 180].includes(kept.fps)) wishes.fps = kept.fps;
+    if (Number.isFinite(kept.bitrateKbps) && kept.bitrateKbps >= 1000) wishes.bitrateKbps = Math.round(kept.bitrateKbps);
+    if (['off', 'smooth', 'sharp', 'sharpened'].includes(kept.upscaling)) wishes.upscaling = kept.upscaling;
+    if (typeof kept.numbers === 'boolean') wishes.numbers = kept.numbers;
+  }
+} catch (error) { /* nothing remembered, or not allowed to look */ }
+function remember() {
+  try { localStorage.setItem(STORE, JSON.stringify(wishes)); } catch (error) { /* not allowed to remember: carry on */ }
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// The stream. The "hello": our offer goes to the engine, its answer comes back, and the video then travels directly.
+
 async function start() {
   // No outside helpers (STUN or TURN servers): the engine tells us its own address in its answer.
   connection = new RTCPeerConnection({ iceServers: [] });
+  connectionsMade += 1;
   const transceiver = connection.addTransceiver('video', { direction: 'recvonly' });
 
   // Ask for H.264 first, since that is what the engine's video chip makes.
@@ -57,7 +201,12 @@ async function start() {
     if (video.requestVideoFrameCallback) video.requestVideoFrameCallback(() => { steps.firstFrameShown = performance.now(); });
   };
   connection.onconnectionstatechange = () => {
-    if (connection.connectionState === 'connected' && steps.connected === null) steps.connected = performance.now();
+    if (connection.connectionState === 'connected' && steps.connected === null) {
+      steps.connected = performance.now();
+      // Now that the picture is on its way, tell the PC what this device wants of it (unless asked to hold off).
+      if (hold) readHost();
+      else ask(wishesForThePc()).catch(() => { /* shown in the panel by ask itself */ });
+    }
     if (connection.connectionState === 'failed') problem = 'the connection failed (reload to try again)';
     if (connection.connectionState === 'closed' || connection.connectionState === 'disconnected') problem = 'the engine stopped sending (reload to try again)';
   };
@@ -78,10 +227,11 @@ async function start() {
 
 const perFrameMs = (total, count) => (typeof total === 'number' && count > 0 ? (total / count) * 1000 : null);
 
-// The receiver's own numbers, for the overlay and for engine/bench/webrtc-check.cjs.
+// The receiver's own numbers, for the readouts and for the checks in engine/bench.
 window.__debaserStats = async function () {
   const result = {
     connectionState: connection ? connection.connectionState : 'none',
+    connectionsMade,
     problem,
     framesDecoded: 0, framesReceived: 0, framesDropped: 0, keyFramesDecoded: 0,
     framesPerSecond: null, frameWidth: null, frameHeight: null,
@@ -92,6 +242,7 @@ window.__debaserStats = async function () {
     jitterBufferDelay: null, jitterBufferEmittedCount: null, totalProcessingDelay: null, totalDecodeTime: null,
     roundTripMs: null,
     stepsMs: { ...steps },
+    upscaling: { asked: wishes.upscaling, shown: upscalingShown, note: upscalingNote },
   };
   if (!connection) return result;
   const report = await connection.getStats();
@@ -117,23 +268,407 @@ window.__debaserStats = async function () {
   return result;
 };
 
+// ---------------------------------------------------------------------------------------------------------------
+// The stream's settings. They belong to the stream, not to this viewer: one encoder on the PC serves everyone
+// watching, so the last change wins, and this page always shows what the PC says it is really sending.
+
+let host = null;        // the PC's last answer about its settings
+let hostTrouble = '';   // why the PC could not be asked, when it could not
+let asking = 0;         // changes of ours the PC has not answered yet
+let lastAnswered = 0;   // when the PC last answered a change of ours
+
+// This device's screen in real pixels, which is what MATCH THIS SCREEN sends.
+function thisScreen() {
+  const ratio = window.devicePixelRatio || 1;
+  return { viewWidth: Math.round(screen.width * ratio), viewHeight: Math.round(screen.height * ratio) };
+}
+
+// Everything this device wants of the PC, from what it remembers.
+function wishesForThePc() {
+  return { shape: wishes.match ? 'match' : wishes.shape, lines: wishes.lines, fps: wishes.fps, bitrateKbps: wishes.bitrateKbps };
+}
+
+async function talkToHost(options) {
+  const changing = options.method === 'POST';
+  const began = performance.now();
+  if (changing) asking += 1;
+  let response;
+  let text;
+  try {
+    response = await fetch('settings' + location.search, options);
+    text = await response.text();
+  } catch (error) {
+    hostTrouble = 'The PC could not be reached for its settings.';
+    showSettings();
+    throw new Error(hostTrouble);
+  } finally {
+    if (changing) {
+      asking -= 1;
+      lastAnswered = performance.now();
+    }
+  }
+  // A plain reading that set off before a change of ours was answered is old news by now: it is dropped, so the
+  // panel never steps back to what was being sent before the change.
+  if (!changing && (asking > 0 || began < lastAnswered)) return host;
+  if (!response.ok) {
+    hostTrouble = 'The PC would not take that: ' + (text || response.status);
+    showSettings();
+    throw new Error(hostTrouble);
+  }
+  hostTrouble = '';
+  host = JSON.parse(text);
+  showSettings();
+  return host;
+}
+
+// Reads what the PC is sending now (also done every few seconds, so a change made from another device shows here).
+function readHost() {
+  return talkToHost({ method: 'GET' }).catch(() => null);
+}
+
+// Asks the PC for a change. `partial` names only what changes: shape ('match', 'native', '16:9', '16:10', '21:9',
+// '4:3'), lines (720, 1080, 1440, 'native'), fps (30, 60, 120, 180), bitrateKbps. Every key in the panel goes
+// through here, and so can a check. It answers with what the PC says it is really sending afterwards.
+async function ask(partial) {
+  const request = { ...partial };
+  if (request.shape === 'match') {
+    // The shape of this screen, unless the caller names another screen's size.
+    const here = thisScreen();
+    if (!request.viewWidth) request.viewWidth = here.viewWidth;
+    if (!request.viewHeight) request.viewHeight = here.viewHeight;
+  }
+  if ('shape' in request) {
+    wishes.match = request.shape === 'match';
+    if (!wishes.match) wishes.shape = request.shape;
+  }
+  if ('lines' in request) wishes.lines = request.lines;
+  if ('fps' in request) wishes.fps = request.fps;
+  if ('bitrateKbps' in request) wishes.bitrateKbps = request.bitrateKbps;
+  remember();
+  return talkToHost({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(request) });
+}
+
+window.__debaserSettings = { get: () => host, ask };
+
+const megabits = (kbps) => (kbps / 1000).toFixed(kbps % 1000 === 0 ? 0 : 1) + ' Mbit/s';
+
+function press(row, attribute, value) {
+  for (const key of row.querySelectorAll('button')) key.setAttribute('aria-pressed', String(key.getAttribute(attribute) === String(value)));
+}
+
+// Draws the panel from what the PC says. Until it has said anything, from what this device remembers.
+function showSettings() {
+  const asked = host ? host.asked : { shape: wishes.match ? 'match' : wishes.shape, lines: wishes.lines, fps: wishes.fps, bitrateKbps: wishes.bitrateKbps };
+  const matching = asked.shape === 'match';
+  $('match').setAttribute('aria-pressed', String(matching));
+  $('by-hand').hidden = matching;
+  const here = thisScreen();
+  $('match-says').textContent =
+    'The PC sends the middle of its screen in the shape of this screen (' + here.viewWidth + 'x' + here.viewHeight +
+    '), so on an ultrawide PC the two sides are cut off. Nothing on the PC itself changes: its own screen, and whatever is running on it, stay as they are.';
+  press($('shapes'), 'data-shape', asked.shape);
+  press($('lines'), 'data-lines', asked.lines);
+  press($('rates'), 'data-fps', asked.fps);
+
+  // Choices the PC could never give (more frames a second than its screen shows, more lines than it has) are
+  // not offered at all.
+  if (host) {
+    for (const key of $('rates').querySelectorAll('button')) key.hidden = Number(key.dataset.fps) > host.hostLimits.maxFps;
+    for (const key of $('lines').querySelectorAll('button')) key.hidden = key.dataset.lines !== 'native' && Number(key.dataset.lines) > host.hostLimits.maxLines;
+    $('bitrate').max = String(Math.max(2, Math.floor(host.hostLimits.maxBitrateKbps / 1000)));
+  }
+  if (document.activeElement !== $('bitrate')) {
+    $('bitrate').value = String(Math.round(asked.bitrateKbps / 1000));
+    $('bitrate-says').textContent = megabits(asked.bitrateKbps);
+  }
+
+  const really = $('really');
+  const cap = $('cap');
+  const trouble = $('trouble');
+  if (host && host.sending) {
+    const s = host.sending;
+    const whole = s.regionWidth + 1 >= host.screen.width && s.regionHeight + 1 >= host.screen.height;
+    really.textContent =
+      'REALLY SENDING: ' + s.width + 'x' + s.height + ', up to ' + s.fps + ' frames a second, ' + megabits(s.bitrateKbps) + ', ' + s.codec + '\n' +
+      (whole ? 'All of the PC\'s ' + host.screen.width + 'x' + host.screen.height + ' screen' : 'The middle ' + s.regionWidth + 'x' + s.regionHeight + ' of the PC\'s ' + host.screen.width + 'x' + host.screen.height + ' screen') +
+      (s.scaled ? ', made smaller on the PC.' : ', as it is.') +
+      (host.measured ? '\nLast second: ' + host.measured.framesPerSecond.toFixed(0) + ' frames (' + host.measured.newFramesPerSecond.toFixed(0) + ' of them new), ' + megabits(Math.round(host.measured.kbitPerSecond)) + '.' : '');
+    cap.hidden = !host.cap;
+    if (host.cap) {
+      cap.textContent = 'CAPPED BY THE PC: ' + host.cap + '\n' + host.capWhy + '. While it is, the PC sends at most ' + host.limits.maxLines + ' lines, ' +
+        host.limits.maxFps + ' frames a second, ' + megabits(host.limits.maxBitrateKbps) + '. What was asked for comes back when it ends.';
+    }
+  } else {
+    really.textContent = 'Waiting for the PC to say what it is sending.';
+    cap.hidden = true;
+  }
+  const lines = [];
+  if (hostTrouble) lines.push(hostTrouble);
+  if (host && host.refused) lines.push('The PC\'s encoder refused the last change and carried on as before: ' + host.refused);
+  if (host && !host.applied) lines.push('The PC has not made the last change yet.');
+  trouble.hidden = lines.length === 0;
+  trouble.textContent = lines.join('\n');
+}
+
+function openPanel(open) {
+  panel.hidden = !open;
+  // The panel sits where the key is, with its own [ × ]: the key steps aside while the panel is open.
+  $('open-settings').hidden = open;
+  $('open-settings').setAttribute('aria-expanded', String(open));
+  if (open) {
+    showSettings();
+    readHost();
+    $('close-settings').focus();
+  } else {
+    $('open-settings').focus();
+  }
+}
+
+$('open-settings').addEventListener('click', () => openPanel(panel.hidden));
+$('close-settings').addEventListener('click', () => openPanel(false));
+document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && !panel.hidden) openPanel(false); });
+
+const quietly = (promise) => promise.catch(() => { /* the reason is already shown in the panel */ });
+$('match').addEventListener('click', () => quietly(ask({ shape: $('match').getAttribute('aria-pressed') === 'true' ? wishes.shape : 'match' })));
+$('shapes').addEventListener('click', (event) => { const key = event.target.closest('button'); if (key) quietly(ask({ shape: key.dataset.shape })); });
+$('lines').addEventListener('click', (event) => { const key = event.target.closest('button'); if (key) quietly(ask({ lines: key.dataset.lines === 'native' ? 'native' : Number(key.dataset.lines) })); });
+$('rates').addEventListener('click', (event) => { const key = event.target.closest('button'); if (key) quietly(ask({ fps: Number(key.dataset.fps) })); });
+// The slider says its number while it moves and asks the PC once, when it is let go.
+$('bitrate').addEventListener('input', () => { $('bitrate-says').textContent = megabits(Number($('bitrate').value) * 1000); });
+$('bitrate').addEventListener('change', () => { $('bitrate').blur(); quietly(ask({ bitrateKbps: Number($('bitrate').value) * 1000 })); });
+
+// ---------------------------------------------------------------------------------------------------------------
+// Upscaling: how this device draws the picture it is sent. Nothing here reaches the PC.
+
+let upscalingShown = 'smooth';   // what is really in use (SHARPENED falls back to SMOOTH where it cannot run)
+let upscalingNote = '';
+
+// SHARPENED: every frame is drawn again on a canvas through a small shader. It reads the pixel and its four
+// neighbours, looks at how much contrast is already there, and pushes the pixel away from its neighbours' average
+// by an amount that shrinks where the contrast is already strong (so edges gain bite without bright halos).
+const VERTEX = `#version 300 es
+out vec2 at;
+void main() {
+  // One triangle that covers the whole canvas, made from the corner's number alone.
+  vec2 corner = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2));
+  at = vec2(corner.x, 1.0 - corner.y);
+  gl_Position = vec4(corner * 2.0 - 1.0, 0.0, 1.0);
+}`;
+const FRAGMENT = `#version 300 es
+precision mediump float;
+uniform sampler2D frame;
+uniform vec2 pixel;     // one pixel of the stream, in the picture's own 0-to-1 measure
+uniform float strength; // the most that is taken from each neighbour
+in vec2 at;
+out vec4 colour;
+void main() {
+  vec3 here = texture(frame, at).rgb;
+  vec3 up = texture(frame, at - vec2(0.0, pixel.y)).rgb;
+  vec3 down = texture(frame, at + vec2(0.0, pixel.y)).rgb;
+  vec3 left = texture(frame, at - vec2(pixel.x, 0.0)).rgb;
+  vec3 right = texture(frame, at + vec2(pixel.x, 0.0)).rgb;
+  vec3 darkest = min(here, min(min(up, down), min(left, right)));
+  vec3 brightest = max(here, max(max(up, down), max(left, right)));
+  // The room left before black or white would clip, as a share of the brightest: little room, little sharpening.
+  vec3 room = clamp(min(darkest, 1.0 - brightest) / max(brightest, vec3(0.001)), 0.0, 1.0);
+  vec3 pull = -sqrt(room) * strength;
+  colour = vec4(clamp((here + pull * (up + down + left + right)) / (1.0 + 4.0 * pull), 0.0, 1.0), 1.0);
+}`;
+
+const sharpen = { gl: null, pixel: null, running: false, framesDrawn: 0 };
+
+// Sets the shader up once. Returns '' when it can run, or why it cannot.
+function prepareSharpen() {
+  if (sharpen.gl) return '';
+  if (!('requestVideoFrameCallback' in HTMLVideoElement.prototype)) return 'this browser does not hand video frames to a page';
+  const gl = canvas.getContext('webgl2', { alpha: false, antialias: false, depth: false, powerPreference: 'high-performance' });
+  if (!gl) return 'this browser has no WebGL2';
+  const compile = (kind, source) => {
+    const shader = gl.createShader(kind);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    return gl.getShaderParameter(shader, gl.COMPILE_STATUS) ? shader : null;
+  };
+  const vertex = compile(gl.VERTEX_SHADER, VERTEX);
+  const fragment = compile(gl.FRAGMENT_SHADER, FRAGMENT);
+  const program = gl.createProgram();
+  if (vertex && fragment) {
+    gl.attachShader(program, vertex);
+    gl.attachShader(program, fragment);
+    gl.linkProgram(program);
+  }
+  if (!vertex || !fragment || !gl.getProgramParameter(program, gl.LINK_STATUS)) return 'this device\'s graphics would not take the sharpening shader';
+  gl.useProgram(program);
+  gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.uniform1i(gl.getUniformLocation(program, 'frame'), 0);
+  gl.uniform1f(gl.getUniformLocation(program, 'strength'), 0.2);
+  sharpen.pixel = gl.getUniformLocation(program, 'pixel');
+  sharpen.gl = gl;
+  // If the device takes the graphics away (a driver restart, too many tabs), go back to the plain picture.
+  canvas.addEventListener('webglcontextlost', () => { sharpen.gl = null; if (wishes.upscaling === 'sharpened') showUpscaling(); });
+  return '';
+}
+
+function drawSharpened() {
+  const gl = sharpen.gl;
+  if (!gl || !video.videoWidth) return false;
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+  gl.uniform2f(sharpen.pixel, 1 / video.videoWidth, 1 / video.videoHeight);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  sharpen.framesDrawn += 1;
+  return true;
+}
+
+function sharpenEveryFrame() {
+  if (!sharpen.running) return;
+  drawSharpened();
+  video.requestVideoFrameCallback(sharpenEveryFrame);
+}
+
+// For engine/bench/settings-check.cjs, which cannot look at the picture: draws the frame now and compares what
+// the shader made with the same frame drawn plainly, at a few thousand points.
+window.__debaserSharpened = {
+  probe() {
+    if (upscalingShown !== 'sharpened' || !drawSharpened()) return { running: false, note: upscalingNote };
+    const gl = sharpen.gl;
+    const width = canvas.width;
+    const height = canvas.height;
+    const made = new Uint8Array(width * height * 4);
+    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, made);
+    const plainCanvas = document.createElement('canvas');
+    plainCanvas.width = width;
+    plainCanvas.height = height;
+    const plain2d = plainCanvas.getContext('2d');
+    plain2d.drawImage(video, 0, 0, width, height);
+    const plain = plain2d.getImageData(0, 0, width, height).data;
+    let points = 0, lit = 0, total = 0, most = 0;
+    for (let y = 3; y < height; y += 13) {
+      for (let x = 3; x < width; x += 13) {
+        const a = ((height - 1 - y) * width + x) * 4;   // the canvas is read bottom row first
+        const b = (y * width + x) * 4;
+        if (made[a] + made[a + 1] + made[a + 2] > 24) lit += 1;
+        const difference = (Math.abs(made[a] - plain[b]) + Math.abs(made[a + 1] - plain[b + 1]) + Math.abs(made[a + 2] - plain[b + 2])) / 3;
+        total += difference;
+        most = Math.max(most, difference);
+        points += 1;
+      }
+    }
+    return { running: true, width, height, framesDrawn: sharpen.framesDrawn, points, litShare: lit / points, meanDifference: total / points, largestDifference: most };
+  },
+};
+
+// Puts the chosen way of drawing into effect, and sizes whatever it needs sizing.
+function showUpscaling() {
+  let mode = wishes.upscaling;
+  upscalingNote = '';
+  if (mode === 'sharpened') {
+    const why = prepareSharpen();
+    if (why) {
+      mode = 'smooth';
+      upscalingNote = 'SHARPENED cannot run here (' + why + '), so the picture is drawn SMOOTH instead.';
+    }
+  }
+  upscalingShown = mode;
+  stage.className = mode;
+  const ratio = window.devicePixelRatio || 1;
+  const haveSize = video.videoWidth > 0 && video.videoHeight > 0;
+
+  // OFF: one pixel of the stream on one pixel of this screen.
+  video.style.width = mode === 'off' && haveSize ? (video.videoWidth / ratio) + 'px' : '';
+  video.style.height = mode === 'off' && haveSize ? (video.videoHeight / ratio) + 'px' : '';
+
+  // SHARPENED: the canvas takes the place the picture would fill, with one canvas pixel per screen pixel.
+  const sharpening = mode === 'sharpened' && haveSize;
+  canvas.hidden = !sharpening;
+  if (sharpening) {
+    const fit = Math.min(stage.clientWidth / video.videoWidth, stage.clientHeight / video.videoHeight);
+    const shownWidth = video.videoWidth * fit;
+    const shownHeight = video.videoHeight * fit;
+    canvas.style.width = shownWidth + 'px';
+    canvas.style.height = shownHeight + 'px';
+    canvas.width = Math.max(2, Math.round(shownWidth * ratio));
+    canvas.height = Math.max(2, Math.round(shownHeight * ratio));
+  }
+  if (sharpening && !sharpen.running) {
+    sharpen.running = true;
+    video.requestVideoFrameCallback(sharpenEveryFrame);
+  }
+  if (!sharpening) sharpen.running = false;
+
+  press($('upscaling'), 'data-upscaling', wishes.upscaling);
+  $('upscaling-says').hidden = !upscalingNote;
+  $('upscaling-says').textContent = upscalingNote;
+}
+
+$('upscaling').addEventListener('click', (event) => {
+  const key = event.target.closest('button');
+  if (!key) return;
+  wishes.upscaling = key.dataset.upscaling;
+  remember();
+  showUpscaling();
+});
+// The stream changes size when its settings change, and the window can be resized: both move the picture.
+video.addEventListener('resize', showUpscaling);
+window.addEventListener('resize', showUpscaling);
+
+// ---------------------------------------------------------------------------------------------------------------
+// The readouts, the corner numbers, and fullscreen.
+
 const shown = (value, digits) => (typeof value === 'number' ? value.toFixed(digits) : '-');
 
+function showNumbersKey() {
+  $('numbers-key').setAttribute('aria-pressed', String(wishes.numbers));
+  numbers.hidden = !wishes.numbers;
+}
+$('numbers-key').addEventListener('click', () => { wishes.numbers = !wishes.numbers; remember(); showNumbersKey(); });
+
+$('fullscreen').addEventListener('click', () => {
+  // The key press is the "user gesture" a browser wants before it will go fullscreen.
+  const going = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+  if (going && going.catch) going.catch(() => { /* refused by the browser: the key simply stays unpressed */ });
+});
+document.addEventListener('fullscreenchange', () => {
+  const full = Boolean(document.fullscreenElement);
+  $('fullscreen').setAttribute('aria-pressed', String(full));
+  $('fullscreen').textContent = full ? '[ LEAVE FULLSCREEN ]' : '[ FULLSCREEN ]';
+});
+
 async function draw() {
-  if (problem) { numbers.textContent = problem; return; }
+  if (problem) { numbers.textContent = problem; $('readout').textContent = problem; return; }
   try {
     const s = await window.__debaserStats();
-    if (!s.framesDecoded) { numbers.textContent = 'connecting (' + s.connectionState + ')'; return; }
+    if (!s.framesDecoded) {
+      numbers.textContent = 'connecting (' + s.connectionState + ')';
+      $('readout').textContent = 'No picture yet (' + s.connectionState + ').';
+      return;
+    }
     numbers.textContent =
       s.frameWidth + 'x' + s.frameHeight + '  ' + shown(s.framesPerSecond, 0) + ' frames/s  ' + (s.mimeType || '') + '\n' +
       'wait in buffer ' + shown(s.jitterBufferDelayMsPerFrame, 1) + ' ms  decode ' + shown(s.decodeMsPerFrame, 1) + ' ms  arrival to ready ' + shown(s.processingDelayMsPerFrame, 1) + ' ms\n' +
       'frames ' + s.framesDecoded + '  dropped ' + s.framesDropped + '  packets lost ' + s.packetsLost + '  resends asked ' + s.nackCount + '  full pictures asked ' + s.pliCount + '\n' +
       'decoder ' + (s.decoderImplementation || '-');
+    const pc = host && host.measured && typeof host.measured.shownToEncodedMs === 'number' ? host.measured.shownToEncodedMs.toFixed(1) + ' ms' : 'not known (a still screen, or no answer yet)';
+    $('readout').textContent =
+      'The stream            ' + s.frameWidth + 'x' + s.frameHeight + ', ' + shown(s.framesPerSecond, 0) + ' frames a second\n' +
+      'In this browser\'s queue ' + shown(s.jitterBufferDelayMsPerFrame, 1) + ' ms a frame\n' +
+      'Decoding              ' + shown(s.decodeMsPerFrame, 1) + ' ms a frame\n' +
+      'Lost packets          ' + s.packetsLost + '\n' +
+      'On the PC, shown to encoded ' + pc;
   } catch (error) { /* the next second tries again */ }
 }
 
+showSettings();
+showUpscaling();
+showNumbersKey();
 start().catch((error) => { problem = 'could not connect: ' + (error && error.message ? error.message : error); draw(); });
 setInterval(draw, 1000);
+// What the PC is really sending can change under us (another viewer, a cap coming on), so it is read again often.
+setInterval(() => { if (steps.connected !== null) readHost(); }, 3000);
 </script>
 </body>
 </html>

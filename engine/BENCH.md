@@ -211,6 +211,22 @@ was open) fell on both equally. 60 frames a second asked, "Windows showed it to 
   the same numbers as every refresh, so something else on the desktop was changing every refresh anyway.
 - **Kept: the rule becomes a default (waking 3 ms early, waiting up to 4 ms).**
 
+### 2026-11-20: settings in the viewport, and the rule in the engine
+- **Settings** (Luke: "it needs a settings button in the viewport ..."): the engine now takes a piece of the screen in
+  any asked shape and shrinks it on the card, changes shape, size, frames a second and bitrate while the stream runs
+  (`GET`/`POST /settings`), keeps to its own limits, and caps the stream while `League of Legends.exe` is running. The
+  viewer page has the `[ SETTINGS ]` panel. `node bench/settings-check.cjs`, run by me: **10 of 10 parts pass**
+  (`results/settings-check-20261120-073405.json`): MATCH THIS SCREEN on a pretend 1280x800 screen gives 1280x800 from
+  the middle 2304x1440; 16:9 at 720 gives 1280x720; a 1920x1200 viewer gets 1728x1080; NATIVE gives 3440x1440; 30
+  asked gives 30.8 a second; the pretend match caps it and what was asked comes back after; one connection throughout.
+  A change freezes the picture for about 0.3 to 0.45 s (the encoder is reopened).
+- Not judged by anyone's eyes: how the shrunk picture, SHARP and SHARPENED look; SHARPENED's added delay; the cap with
+  the real game (only with a pretend switch); two viewers changing settings against each other.
+- **The fresh-frame rule is now a default** (switch 16, waking 3 ms early, waiting up to 4 ms). Stream check with the
+  defaults on a calm screen: 60.0 frames a second, Windows showed it to encoded **middle 3.88 ms, worst 5% 4.68 ms**,
+  hand-off 0.10 ms, in the browser 0.58 ms: **about 4.6 ms from the PC showing a frame to the browser holding it
+  decoded** (same PC, before the browser draws it; one run, a calm screen, so the encode was light).
+
 Next things to try for the under-load number, in order:
 1. **Top graphics priority.** Windows has a "realtime" class above the "high" one used here; it needs the engine to
    run with administrator rights (Sunshine gets it by running as a Windows service). Needs Luke's click on a

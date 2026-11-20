@@ -3,8 +3,9 @@
 // Written from Microsoft's Desktop Duplication documentation and NVIDIA's own encoder header (vendor/nvEncodeAPI.h,
 // MIT-style notice). No code from Sunshine, Moonlight or any GPL project is copied here.
 //
-// The picture never leaves the graphics card: Windows hands over a texture, it is copied card-side into the
-// encoder's own texture, and NVIDIA's encoder reads that texture directly.
+// The picture never leaves the graphics card: Windows hands over a texture, the wanted piece of it is copied
+// card-side into the engine's own texture, and NVIDIA's encoder reads that texture directly. When a smaller
+// picture is asked for than the piece taken, the card's video unit shrinks it on the way (see "scale step").
 //
 // A session (core.h) is opened once and then asked for one encoded frame at a time, so the same code serves the
 // bench (`bench-encode`) and the live stream (`serve`).
@@ -16,6 +17,7 @@
 #include <dxgi1_2.h>
 #include <wrl/client.h>
 #include <mmsystem.h>
+#include <tlhelp32.h>
 
 #include <algorithm>
 #include <cstdio>
@@ -44,7 +46,27 @@ const double kLostScreenPatienceMs = 5000.0;
 // A frame Windows showed longer ago than this was already waiting when it was picked up (tweak 16).
 const double kStaleFrameMs = 0.75;
 // ...and the longest it is worth waiting for the screen's next frame instead of taking the one in hand.
-const double kChaseWaitMs = 1.5;
+const double kChaseWaitMs = 4.0;
+
+// The main screen (the one whose corner is 0,0) and the graphics card it hangs off.
+bool find_main_screen(ComPtr<IDXGIAdapter1>& adapter, ComPtr<IDXGIOutput>& output, DXGI_OUTPUT_DESC& desc) {
+  ComPtr<IDXGIFactory1> factory;
+  if (FAILED(CreateDXGIFactory1(IID_PPV_ARGS(&factory)))) return false;
+  for (UINT a = 0;; ++a) {
+    ComPtr<IDXGIAdapter1> candidate;
+    if (factory->EnumAdapters1(a, &candidate) == DXGI_ERROR_NOT_FOUND) return false;
+    for (UINT i = 0;; ++i) {
+      ComPtr<IDXGIOutput> screen;
+      if (candidate->EnumOutputs(i, &screen) == DXGI_ERROR_NOT_FOUND) break;
+      screen->GetDesc(&desc);
+      if (desc.AttachedToDesktop && desc.DesktopCoordinates.left == 0 && desc.DesktopCoordinates.top == 0) {
+        adapter = candidate;
+        output = screen;
+        return true;
+      }
+    }
+  }
+}
 
 }  // namespace
 
@@ -54,7 +76,18 @@ struct DbeSession {
   ComPtr<ID3D11DeviceContext> context;
   ComPtr<IDXGIOutput1> output1;
   ComPtr<IDXGIOutputDuplication> duplication;
-  ComPtr<ID3D11Texture2D> picture;
+  ComPtr<ID3D11Texture2D> picture;  // the piece of the screen, as Windows drew it (BGRA)
+
+  // The scale step, only made when the picture sent is smaller than the piece taken: the card's video unit
+  // shrinks `picture` into `shrunk_picture`, in the encoder's own colour layout (NV12), and the encoder reads that.
+  ComPtr<ID3D11VideoDevice> video_device;
+  ComPtr<ID3D11VideoContext> video_context;
+  ComPtr<ID3D11VideoProcessorEnumerator> scaler_kind;
+  ComPtr<ID3D11VideoProcessor> scaler;
+  ComPtr<ID3D11VideoProcessorInputView> scaler_in;
+  ComPtr<ID3D11VideoProcessorOutputView> scaler_out;
+  ComPtr<ID3D11Texture2D> shrunk_picture;
+  bool shrunk_filled = false;     // `shrunk_picture` holds a picture (before the first one it is empty)
 
   // NVIDIA's encoder.
   HMODULE dll = nullptr;
@@ -75,8 +108,9 @@ struct DbeSession {
   NV_ENC_CONFIG config;
 
   int32_t screen_width = 0, screen_height = 0;
-  int32_t width = 0, height = 0;
-  D3D11_BOX middle = {};
+  int32_t width = 0, height = 0;                // the picture that is sent
+  int32_t region_width = 0, region_height = 0;  // the piece of the screen it is made from
+  D3D11_BOX piece = {};                         // that piece, as the card's copy wants it described
   uint64_t count = 0;            // frames encoded so far
   LONGLONG lost_since = 0;       // when Windows stopped sharing the screen; 0 while it shares
   char error[512] = {0};
@@ -111,8 +145,72 @@ struct DbeSession {
   }
 
   bool open(const DbeOptions* o, DbeInfo* info);
+  bool make_scaler(int32_t fps);
   bool next(int32_t wait_ms, bool force_keyframe, DbeFrame* frame);
 };
+
+// The scale step's parts: the video unit told the two sizes, the two textures it works between, and the colours.
+bool DbeSession::make_scaler(int32_t fps) {
+  HRESULT hr = device.As(&video_device);
+  if (SUCCEEDED(hr)) hr = context.As(&video_context);
+  if (FAILED(hr)) return fail("This graphics card has no video unit to shrink the picture with", hr);
+
+  D3D11_VIDEO_PROCESSOR_CONTENT_DESC content = {};
+  content.InputFrameFormat = D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE;
+  content.InputFrameRate.Numerator = (UINT)fps;
+  content.InputFrameRate.Denominator = 1;
+  content.InputWidth = (UINT)region_width;
+  content.InputHeight = (UINT)region_height;
+  content.OutputFrameRate.Numerator = (UINT)fps;
+  content.OutputFrameRate.Denominator = 1;
+  content.OutputWidth = (UINT)width;
+  content.OutputHeight = (UINT)height;
+  content.Usage = D3D11_VIDEO_USAGE_OPTIMAL_SPEED;
+  hr = video_device->CreateVideoProcessorEnumerator(&content, &scaler_kind);
+  if (SUCCEEDED(hr)) hr = video_device->CreateVideoProcessor(scaler_kind.Get(), 0, &scaler);
+  if (FAILED(hr)) return fail("The card's video unit would not shrink the picture to this size", hr);
+
+  D3D11_TEXTURE2D_DESC wanted = {};
+  wanted.Width = (UINT)width;
+  wanted.Height = (UINT)height;
+  wanted.MipLevels = 1;
+  wanted.ArraySize = 1;
+  wanted.Format = DXGI_FORMAT_NV12;
+  wanted.SampleDesc.Count = 1;
+  wanted.Usage = D3D11_USAGE_DEFAULT;
+  wanted.BindFlags = D3D11_BIND_RENDER_TARGET;
+  hr = device->CreateTexture2D(&wanted, nullptr, &shrunk_picture);
+  if (FAILED(hr)) return fail("Could not make the shrunk picture's texture", hr);
+
+  D3D11_VIDEO_PROCESSOR_INPUT_VIEW_DESC in = {};
+  in.ViewDimension = D3D11_VPIV_DIMENSION_TEXTURE2D;
+  hr = video_device->CreateVideoProcessorInputView(picture.Get(), scaler_kind.Get(), &in, &scaler_in);
+  if (FAILED(hr)) return fail("The card's video unit would not read the screen's picture", hr);
+  D3D11_VIDEO_PROCESSOR_OUTPUT_VIEW_DESC out = {};
+  out.ViewDimension = D3D11_VPOV_DIMENSION_TEXTURE2D;
+  hr = video_device->CreateVideoProcessorOutputView(shrunk_picture.Get(), scaler_kind.Get(), &out, &scaler_out);
+  if (FAILED(hr)) return fail("The card's video unit would not write the shrunk picture", hr);
+
+  // The whole piece in, the whole picture out, and none of the driver's own "improvements" on the way.
+  const RECT from = {0, 0, region_width, region_height};
+  const RECT to = {0, 0, width, height};
+  video_context->VideoProcessorSetStreamFrameFormat(scaler.Get(), 0, D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE);
+  video_context->VideoProcessorSetStreamSourceRect(scaler.Get(), 0, TRUE, &from);
+  video_context->VideoProcessorSetStreamDestRect(scaler.Get(), 0, TRUE, &to);
+  video_context->VideoProcessorSetOutputTargetRect(scaler.Get(), TRUE, &to);
+  video_context->VideoProcessorSetStreamAutoProcessingMode(scaler.Get(), 0, FALSE);
+  // Colours: the screen is full-range RGB; video is BT.709 with the usual narrowed range (16 to 235).
+  D3D11_VIDEO_PROCESSOR_COLOR_SPACE screen_colours = {};
+  screen_colours.RGB_Range = 0;       // 0 to 255
+  screen_colours.YCbCr_Matrix = 1;    // BT.709
+  screen_colours.Nominal_Range = D3D11_VIDEO_PROCESSOR_NOMINAL_RANGE_0_255;
+  D3D11_VIDEO_PROCESSOR_COLOR_SPACE video_colours = {};
+  video_colours.YCbCr_Matrix = 1;     // BT.709
+  video_colours.Nominal_Range = D3D11_VIDEO_PROCESSOR_NOMINAL_RANGE_16_235;
+  video_context->VideoProcessorSetStreamColorSpace(scaler.Get(), 0, &screen_colours);
+  video_context->VideoProcessorSetOutputColorSpace(scaler.Get(), &video_colours);
+  return true;
+}
 
 bool DbeSession::open(const DbeOptions* o, DbeInfo* info) {
   LARGE_INTEGER frequency;
@@ -123,32 +221,13 @@ bool DbeSession::open(const DbeOptions* o, DbeInfo* info) {
   chase_fresh = (o->tweaks & 16) != 0;
 
   // 1. The main screen (the one whose corner is 0,0) and the graphics card it hangs off.
-  ComPtr<IDXGIFactory1> factory;
-  HRESULT hr = CreateDXGIFactory1(IID_PPV_ARGS(&factory));
-  if (FAILED(hr)) return fail("Could not reach Windows' graphics layer", hr);
-
   ComPtr<IDXGIAdapter1> adapter;
   ComPtr<IDXGIOutput> output;
-  bool found = false;
-  for (UINT a = 0; !found; ++a) {
-    ComPtr<IDXGIAdapter1> candidate;
-    if (factory->EnumAdapters1(a, &candidate) == DXGI_ERROR_NOT_FOUND) break;
-    for (UINT i = 0; !found; ++i) {
-      ComPtr<IDXGIOutput> screen;
-      if (candidate->EnumOutputs(i, &screen) == DXGI_ERROR_NOT_FOUND) break;
-      DXGI_OUTPUT_DESC desc;
-      screen->GetDesc(&desc);
-      if (desc.AttachedToDesktop && desc.DesktopCoordinates.left == 0 && desc.DesktopCoordinates.top == 0) {
-        adapter = candidate;
-        output = screen;
-        found = true;
-      }
-    }
-  }
-  if (!found) return fail("No main screen found", 0);
+  DXGI_OUTPUT_DESC described;
+  if (!find_main_screen(adapter, output, described)) return fail("No main screen found", 0);
 
   const D3D_FEATURE_LEVEL levels[] = {D3D_FEATURE_LEVEL_11_0};
-  hr = D3D11CreateDevice(adapter.Get(), D3D_DRIVER_TYPE_UNKNOWN, nullptr, 0, levels, 1, D3D11_SDK_VERSION, &device,
+  HRESULT hr = D3D11CreateDevice(adapter.Get(), D3D_DRIVER_TYPE_UNKNOWN, nullptr, 0, levels, 1, D3D11_SDK_VERSION, &device,
                          nullptr, &context);
   if (FAILED(hr)) return fail("Could not open the graphics card", hr);
 
@@ -191,18 +270,40 @@ bool DbeSession::open(const DbeOptions* o, DbeInfo* info) {
   if (shared.ModeDesc.Format != DXGI_FORMAT_B8G8R8A8_UNORM)
     return fail("The screen is not in the ordinary 8-bit format (HDR on?): not handled yet", shared.ModeDesc.Format);
 
-  width = o->encode_width > 0 ? std::min(o->encode_width, screen_width) : screen_width;
-  height = o->encode_height > 0 ? std::min(o->encode_height, screen_height) : screen_height;
-  width &= ~1;
-  height &= ~1;
+  // The piece of the screen to take (kept inside the screen, even numbers), and the picture to make from it
+  // (never larger than the piece, even numbers).
+  int32_t region_x = o->region_x, region_y = o->region_y;
+  region_width = o->region_width;
+  region_height = o->region_height;
+  if (region_width <= 0 || region_height <= 0) {
+    region_x = 0;
+    region_y = 0;
+    region_width = screen_width;
+    region_height = screen_height;
+  }
+  region_x = std::max(0, std::min(region_x, screen_width - 2));
+  region_y = std::max(0, std::min(region_y, screen_height - 2));
+  region_width = std::min(region_width, screen_width - region_x) & ~1;
+  region_height = std::min(region_height, screen_height - region_y) & ~1;
+  if (region_width < 2 || region_height < 2) return fail("The piece of the screen asked for is empty", 0);
+  width = (o->encode_width > 0 ? std::min(o->encode_width, region_width) : region_width) & ~1;
+  height = (o->encode_height > 0 ? std::min(o->encode_height, region_height) : region_height) & ~1;
+  if (width < 2 || height < 2) return fail("The picture asked for is empty", 0);
+  const bool scaled = width != region_width || height != region_height;
   info->encode_width = width;
   info->encode_height = height;
+  info->region_x = region_x;
+  info->region_y = region_y;
+  info->region_width = region_width;
+  info->region_height = region_height;
+  info->scaled = scaled ? 1 : 0;
   const int32_t fps = std::max(1, o->fps);
 
-  // 2. The encoder's own texture: frames are copied into it card-side, and the encoder reads it in place.
+  // 2. The engine's own texture: the piece of each frame is copied into it card-side. Unscaled, the encoder
+  // reads it in place; scaled, the video unit reads it and the encoder reads what that makes (`shrunk_picture`).
   D3D11_TEXTURE2D_DESC wanted = {};
-  wanted.Width = (UINT)width;
-  wanted.Height = (UINT)height;
+  wanted.Width = (UINT)region_width;
+  wanted.Height = (UINT)region_height;
   wanted.MipLevels = 1;
   wanted.ArraySize = 1;
   wanted.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
@@ -211,6 +312,7 @@ bool DbeSession::open(const DbeOptions* o, DbeInfo* info) {
   wanted.BindFlags = D3D11_BIND_RENDER_TARGET;
   hr = device->CreateTexture2D(&wanted, nullptr, &picture);
   if (FAILED(hr)) return fail("Could not make the encoder's texture", hr);
+  if (scaled && !make_scaler(fps)) return false;
 
   // 3. NVIDIA's encoder. It lives in the graphics driver; nothing of NVIDIA's is shipped with the engine.
   dll = LoadLibraryA("nvEncodeAPI64.dll");
@@ -277,6 +379,18 @@ bool DbeSession::open(const DbeOptions* o, DbeInfo* info) {
   } else {
     config.encodeCodecConfig.h264Config.idrPeriod = NVENC_INFINITE_GOPLENGTH;
     config.encodeCodecConfig.h264Config.repeatSPSPPS = 1;
+    if (scaled) {
+      // The shrunk picture arrives already in video colours, so the stream says which ones (BT.709, narrowed
+      // range) instead of leaving the viewer's decoder to guess.
+      NV_ENC_CONFIG_H264_VUI_PARAMETERS& says = config.encodeCodecConfig.h264Config.h264VUIParameters;
+      says.videoSignalTypePresentFlag = 1;
+      says.videoFormat = NV_ENC_VUI_VIDEO_FORMAT_UNSPECIFIED;
+      says.videoFullRangeFlag = 0;
+      says.colourDescriptionPresentFlag = 1;
+      says.colourPrimaries = NV_ENC_VUI_COLOR_PRIMARIES_BT709;
+      says.transferCharacteristics = NV_ENC_VUI_TRANSFER_CHARACTERISTIC_BT709;
+      says.colourMatrix = NV_ENC_VUI_MATRIX_COEFFS_BT709;
+    }
     if (o->intra_refresh) {
       config.encodeCodecConfig.h264Config.enableIntraRefresh = 1;
       config.encodeCodecConfig.h264Config.intraRefreshPeriod = (uint32_t)fps * 5;
@@ -324,22 +438,22 @@ bool DbeSession::open(const DbeOptions* o, DbeInfo* info) {
   NV_ENC_REGISTER_RESOURCE reg = {};
   reg.version = NV_ENC_REGISTER_RESOURCE_VER;
   reg.resourceType = NV_ENC_INPUT_RESOURCE_TYPE_DIRECTX;
-  reg.resourceToRegister = picture.Get();
+  reg.resourceToRegister = scaled ? shrunk_picture.Get() : picture.Get();
   reg.width = (uint32_t)width;
   reg.height = (uint32_t)height;
-  reg.bufferFormat = NV_ENC_BUFFER_FORMAT_ARGB;
+  reg.bufferFormat = scaled ? NV_ENC_BUFFER_FORMAT_NV12 : NV_ENC_BUFFER_FORMAT_ARGB;
   reg.bufferUsage = NV_ENC_INPUT_IMAGE;
   status = fn.nvEncRegisterResource(session, &reg);
   if (status != NV_ENC_SUCCESS) return nvfail("The NVIDIA encoder would not take the texture", status);
   registered = reg.registeredResource;
 
-  // The piece of the screen that is encoded: its middle.
-  middle.left = (UINT)((screen_width - width) / 2);
-  middle.top = (UINT)((screen_height - height) / 2);
-  middle.right = middle.left + (UINT)width;
-  middle.bottom = middle.top + (UINT)height;
-  middle.front = 0;
-  middle.back = 1;
+  // The piece of the screen that is copied out of every frame.
+  piece.left = (UINT)region_x;
+  piece.top = (UINT)region_y;
+  piece.right = piece.left + (UINT)region_width;
+  piece.bottom = piece.top + (UINT)region_height;
+  piece.front = 0;
+  piece.back = 1;
   return true;
 }
 
@@ -394,7 +508,7 @@ bool DbeSession::next(int32_t wait_ms, bool force_keyframe, DbeFrame* frame) {
       if (info.LastPresentTime.QuadPart != 0) {
         ComPtr<ID3D11Texture2D> texture;
         if (SUCCEEDED(resource.As(&texture))) {
-          context->CopySubresourceRegion(picture.Get(), 0, 0, 0, 0, texture.Get(), 0, &middle);
+          context->CopySubresourceRegion(picture.Get(), 0, 0, 0, 0, texture.Get(), 0, &piece);
           real = true;
           fresh = true;
           best = info;
@@ -439,6 +553,17 @@ bool DbeSession::next(int32_t wait_ms, bool force_keyframe, DbeFrame* frame) {
     if (fresh) info = best;
   }
   if (!acquired) acquired = now();
+
+  // The scale step: one pass of the card's video unit from the piece taken to the smaller picture. Only when
+  // there is a new picture to shrink (a repeat encodes the one already there).
+  if (scaler && (fresh || !shrunk_filled)) {
+    D3D11_VIDEO_PROCESSOR_STREAM stream = {};
+    stream.Enable = TRUE;
+    stream.pInputSurface = scaler_in.Get();
+    HRESULT blt = video_context->VideoProcessorBlt(scaler.Get(), scaler_out.Get(), 0, 1, &stream);
+    if (FAILED(blt)) return fail("The card's video unit failed to shrink a frame", blt);
+    shrunk_filled = true;
+  }
   const LONGLONG copied = now();
 
   NV_ENC_MAP_INPUT_RESOURCE map = {};
@@ -506,6 +631,44 @@ int32_t dbe_next_frame(DbeSession* session, int32_t wait_ms, int32_t force_keyfr
 }
 
 const char* dbe_last_error(DbeSession* session) { return session->error; }
+
+int32_t dbe_screen(int32_t* width, int32_t* height, int32_t* hz) {
+  ComPtr<IDXGIAdapter1> adapter;
+  ComPtr<IDXGIOutput> output;
+  DXGI_OUTPUT_DESC desc;
+  if (!find_main_screen(adapter, output, desc)) return 1;
+  // Windows' current mode for that screen: its real pixels and refresh rate. Read only.
+  DEVMODEW mode = {};
+  mode.dmSize = sizeof mode;
+  if (EnumDisplaySettingsW(desc.DeviceName, ENUM_CURRENT_SETTINGS, &mode)) {
+    *width = (int32_t)mode.dmPelsWidth;
+    *height = (int32_t)mode.dmPelsHeight;
+    *hz = (int32_t)mode.dmDisplayFrequency;
+  } else {
+    *width = desc.DesktopCoordinates.right - desc.DesktopCoordinates.left;
+    *height = desc.DesktopCoordinates.bottom - desc.DesktopCoordinates.top;
+    *hz = 0;
+  }
+  return 0;
+}
+
+int32_t dbe_process_running(const wchar_t* name) {
+  HANDLE list = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+  if (list == INVALID_HANDLE_VALUE) return -1;
+  PROCESSENTRY32W entry = {};
+  entry.dwSize = sizeof entry;
+  int32_t running = 0;
+  if (Process32FirstW(list, &entry)) {
+    do {
+      if (_wcsicmp(entry.szExeFile, name) == 0) {
+        running = 1;
+        break;
+      }
+    } while (Process32NextW(list, &entry));
+  }
+  CloseHandle(list);
+  return running;
+}
 
 int64_t dbe_now(void) { return now(); }
 

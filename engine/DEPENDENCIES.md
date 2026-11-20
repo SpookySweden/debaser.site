@@ -21,8 +21,13 @@ Regenerate the list with, from this folder:
 `str0m`'s default encryption (`aws-lc-rs`, a large C library) and its example web server are switched off. The
 `wincrypto` feature uses the encryption built into Windows instead, so nothing in C is built for it.
 
-The engine's own web server (the viewer page and the "hello") is written by hand on Rust's standard library: no
-crate. Stopping on Ctrl+C is one Windows call declared in `src/serve.rs`: no crate.
+The engine's own web server (the viewer page, the "hello" and the settings) is written by hand on Rust's standard
+library: no crate. Stopping on Ctrl+C is one Windows call declared in `src/serve.rs`: no crate.
+
+The stream settings (2026-11-20) added no crate either. The small JSON a viewer sends is read by a few lines in
+`src/settings.rs`. Shrinking the picture is Windows' own video processor (Direct3D 11), and looking for a running
+League match is Windows' own list of programs (Toolhelp): both are called from `native/core.cpp`, like the rest.
+The viewer page's sharpening shader is written for this page (`web/viewer.html`); nothing is copied in.
 
 ## Brought in by str0m (and by cc), built on this PC
 All of these came with `str0m` on 2026-11-20 except `find-msvc-tools` and `shlex`, which `cc` already brought.
@@ -91,6 +96,6 @@ Cargo writes down what other systems would need. None of this is compiled into t
 | time-macros 0.2.32 | an optional part of `time` that is off | MIT OR Apache-2.0 |
 | zerocopy-derive 0.8.63 | an optional part of `zerocopy` that is off | BSD-2-Clause OR Apache-2.0 OR MIT |
 
-## The check script
-`bench/webrtc-check.cjs` uses `playwright-core` (Apache-2.0) from the repository's own `node_modules`: already
-there for the site's tools, nothing added, and not part of the engine.
+## The check scripts
+`bench/webrtc-check.cjs` and `bench/settings-check.cjs` use `playwright-core` (Apache-2.0) from the repository's
+own `node_modules`: already there for the site's tools, nothing added, and not part of the engine.

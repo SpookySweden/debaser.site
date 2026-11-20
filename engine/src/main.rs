@@ -11,6 +11,7 @@ use std::process::ExitCode;
 
 mod native;
 mod serve;
+mod settings;
 
 use crate::native::DEFAULT_TWEAKS;
 
@@ -124,9 +125,16 @@ fn bench_encode(args: &[String]) -> ExitCode {
         eprintln!("NOT MEASURED. {why}");
         ExitCode::from(2)
     };
+    // `--width`/`--height` mean a piece of that size cut from the middle of the screen, sent as it is (no scaling).
+    let Some((screen_width, screen_height, _)) = native::screen() else {
+        return not_measured("No main screen found".into());
+    };
+    let width = (if a.width > 0 { a.width.min(screen_width) } else { screen_width }) & !1;
+    let height = (if a.height > 0 { a.height.min(screen_height) } else { screen_height }) & !1;
     let mut session = match native::Session::open(&native::Options {
-        width: a.width,
-        height: a.height,
+        region: native::Region { x: (screen_width - width) / 2, y: (screen_height - height) / 2, width, height },
+        width,
+        height,
         fps: a.fps,
         bitrate_kbps: a.bitrate,
         hevc: a.hevc,
