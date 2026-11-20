@@ -1,7 +1,7 @@
 /**
  * COMIC (SPEC-comic.md, phase 1): Luke's comic as volumes > chapters > pages, released by hand, panels on pages, lore pages
  * tagged on panels. The database's Row Level Security decides what a reader sees: an unreleased page never reaches anyone but
- * the house account, so nothing here filters for safety.
+ * the admin (a moderator), so nothing here filters for safety.
  */
 
 export type ComicVolume = { id: string; number: number; title: string };
@@ -77,7 +77,7 @@ export interface ComicRepository {
   appearances(docId: string): Promise<Appearance[]>;
   isCharacter(docId: string): Promise<boolean>;
 
-  // The studio (the house account only; the database refuses anyone else).
+  // The studio (the admin (a moderator) only; the database refuses anyone else).
   addVolume(input: { number: number; title: string }): Promise<void>;
   updateVolume(id: string, input: { number?: number; title?: string }): Promise<void>;
   deleteVolume(id: string): Promise<void>;

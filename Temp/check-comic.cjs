@@ -110,8 +110,8 @@ function stub(file, exports) {
   assert.ok(visitor.pages.length > 0 && visitor.pages.every((p) => p.releasedAt !== null), 'a visitor sees released pages only');
   const unreleasedChapterIds = new Set(visitor.chapters.map((c) => c.id));
   assert.ok(visitor.pages.every((p) => unreleasedChapterIds.has(p.chapterId)));
-  await assert.rejects(store.release(['mock-p-2-3']), /ONLY THE HOUSE ACCOUNT/, 'a visitor cannot release');
-  await assert.rejects(store.addVolume({ number: 9, title: '' }), /ONLY THE HOUSE ACCOUNT/, 'a visitor cannot write');
+  await assert.rejects(store.release(['mock-p-2-3']), /ONLY A MODERATOR/, 'a visitor cannot release');
+  await assert.rejects(store.addVolume({ number: 9, title: '' }), /ONLY A MODERATOR/, 'a visitor cannot write');
   assert.equal((await store.panels(['mock-p-2-3'])).length, 0, "an unreleased page's panels are hidden from a visitor");
   assert.equal(await store.findPanel('mock-p-2-3-a'), null, "and a board thread can't find them either");
 

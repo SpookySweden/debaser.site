@@ -23,7 +23,7 @@ type Props = {
  * jumps as pages arrive.
  *
  *   - A released page is a plain picture from the file route: cached by the browser and by Cloudflare.
- *   - An unreleased page (only the house account ever sees one) is fetched with its session and shown from memory, never cached.
+ *   - An unreleased page (only the admin (a moderator) ever sees one) is fetched with its session and shown from memory, never cached.
  *   - A page whose file is missing (the mock store's seeded pages) is a blank dithered sheet with its words: a tile pattern
  *     and text, never drawn art.
  */

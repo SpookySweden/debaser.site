@@ -4,7 +4,7 @@ import type { Appearance, ComicChapter, ComicContents, ComicPage, ComicPanel, Co
 
 /**
  * COMIC in the database (supabase/migrations/20261120015329_comic.sql). Row Level Security decides what comes back: a visitor
- * gets released pages only, the house account everything; only the house account may write, and a page is released only
+ * gets released pages only, the admin (a moderator) everything; only the admin (a moderator) may write, and a page is released only
  * through `comic_release`. Nothing here filters for safety.
  */
 

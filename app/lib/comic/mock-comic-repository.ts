@@ -4,7 +4,7 @@ import type { Appearance, ComicChapter, ComicContents, ComicPage, ComicPanel, Co
 
 /**
  * COMIC in this browser only (no database): for local work and checks. It keeps the database's rules itself: an unreleased
- * page is seen only by the house account (`setComicViewerAdmin`), and only the house account changes anything. Kept in this
+ * page is seen only by the admin (a moderator) (`setComicViewerAdmin`), and only the admin (a moderator) changes anything. Kept in this
  * browser's storage so the studio's work survives a reload; a storage that throws (a private window) just starts fresh.
  *
  * The seeded pages have no files: the reader shows each as a blank dithered sheet with its number (text and a tile pattern,
@@ -101,7 +101,7 @@ function save(store: Store): void {
 }
 
 function mustBeAdmin(): void {
-  if (!viewerIsAdmin) throw new Error('ONLY THE HOUSE ACCOUNT CAN CHANGE THE COMIC.');
+  if (!viewerIsAdmin) throw new Error('ONLY A MODERATOR CAN CHANGE THE COMIC.');
 }
 
 function visiblePages(store: Store): ComicPage[] {

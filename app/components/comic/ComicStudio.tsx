@@ -19,7 +19,7 @@ const TABS = [
 type Tab = (typeof TABS)[number]['id'];
 
 /**
- * Luke's studio (`/comic/studio`, SPEC-comic.md): the house account only, here and in every database policy. PAGES holds the
+ * Luke's studio (`/comic/studio`, SPEC-comic.md): the admin (a moderator) only, here and in every database policy. PAGES holds the
  * volumes, chapters and pages (dropped in, put in order, marked SPREAD, given WORDS); PANELS fixes the guessed boxes; LORE
  * tags panels with lore pages and marks CHARACTERS; RELEASE sends the queued pages out, by hand, as one batch.
  */
@@ -33,7 +33,7 @@ export default function ComicStudio() {
   if (!comic.admin) {
     return (
       <div className="flex flex-col gap-2 p-4">
-        <p className="text-label text-ink">ONLY THE HOUSE ACCOUNT OPENS THE STUDIO.</p>
+        <p className="text-label text-ink">ONLY A MODERATOR OPENS THE STUDIO.</p>
         <Link href={COMIC_HOME} className={PLATE_LINK}>
           [ CONTENTS ]
         </Link>

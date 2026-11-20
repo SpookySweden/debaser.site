@@ -36,8 +36,8 @@ function whole(value: string | null, max: number): number | null {
 
 export async function POST(request: Request): Promise<Response> {
   if (!piecesPerAddress.allow(clientAddress(request.headers))) return answer({ error: 'TOO MANY PIECES AT ONCE: WAIT A MINUTE.' }, 429);
-  if (IS_MOCK && process.env.NODE_ENV === 'production') return answer({ error: 'ONLY THE HOUSE ACCOUNT CAN ADD PAGES.' }, 403);
-  if (!IS_MOCK && !(await isAdminToken(bearer(request)))) return answer({ error: 'ONLY THE HOUSE ACCOUNT CAN ADD PAGES.' }, 403);
+  if (IS_MOCK && process.env.NODE_ENV === 'production') return answer({ error: 'ONLY A MODERATOR CAN ADD PAGES.' }, 403);
+  if (!IS_MOCK && !(await isAdminToken(bearer(request)))) return answer({ error: 'ONLY A MODERATOR CAN ADD PAGES.' }, 403);
 
   const uploadId = request.headers.get('x-comic-upload') ?? '';
   const pageId = request.headers.get('x-comic-page') ?? '';

@@ -5,7 +5,7 @@ import type { UploadedPage } from './types';
 
 /**
  * The studio's side of a page upload (SPEC-comic.md, "Page files"): the file goes to `/api/comic/upload` in pieces, in order,
- * under the house account's session; the last piece's answer says what the server made and stored. A piece that fails is
+ * under an admin's session (a moderator's); the last piece's answer says what the server made and stored. A piece that fails is
  * tried twice more before the page is given up.
  */
 

@@ -114,7 +114,7 @@ assert.equal(count(html, 'PREVIEW: NOT RELEASED'), 1, 'the house account preview
 
 // ---------- the studio ----------
 comicState = { ...comicState, contents: everything, admin: false };
-assert.ok(draw(el(ComicStudio)).includes('ONLY THE HOUSE ACCOUNT OPENS THE STUDIO.'), 'the studio refuses anyone else');
+assert.ok(draw(el(ComicStudio)).includes('ONLY A MODERATOR OPENS THE STUDIO.'), 'the studio refuses anyone else');
 comicState = { ...comicState, contents: everything, admin: true };
 html = draw(el(ComicStudio));
 for (const tab of ['[ PAGES ]', '[ PANELS ]', '[ LORE ]', '[ RELEASE ]']) assert.ok(html.includes(tab), `the studio has ${tab}`);

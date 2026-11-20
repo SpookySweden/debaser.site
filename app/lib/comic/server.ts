@@ -15,7 +15,7 @@ import type { UploadedPage } from './types';
  *   - Luke's original is kept as he uploaded it; the site makes a READING copy (READING_WIDTH wide) and a ZOOM copy
  *     (ZOOM_LONG_SIDE on the long side), high-quality JPEG with full colour detail, so line art stays crisp.
  *   - The first guess at the panels is read from the reading copy (`panel-guess.ts`).
- *   - On the database: the private `comic` bucket, written under the house account's own session (the bucket's policies
+ *   - On the database: the private `comic` bucket, written under an admin's own session (the bucket's policies
  *     check it). The original goes up in 6 MB pieces (Supabase Storage's resumable upload), so neither Cloudflare's 100 MB
  *     request cap nor a single slow request stops a big page.
  *   - On the mock store: files in `.comic-mock/` under the project folder, on this computer only.
@@ -47,10 +47,10 @@ export function clientFor(token: string | null): SupabaseClient {
   });
 }
 
-/** Tokens already checked as the house account's, for a few minutes, so a 50-piece upload asks once. */
+/** Tokens already checked as an admin's, for a few minutes, so a 50-piece upload asks once. */
 const admins = new Map<string, number>();
 
-/** True when this token is the house account's (the database's own `is_admin()` decides). */
+/** True when this token is an admin's (the database's own `is_admin()` decides). */
 export async function isAdminToken(token: string | null): Promise<boolean> {
   if (token === null) return false;
   const known = admins.get(token);
