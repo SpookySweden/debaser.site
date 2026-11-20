@@ -22,8 +22,9 @@ import { useModeration } from './ModerationProvider';
  * admin's.
  */
 export function useAdmin(): boolean {
-  // The moderator list (SPEC-moderation.md, 1A), read from the database's `moderators` table, not the house account.
-  return useModeration().role.moderator;
+  // The moderator list (SPEC-moderation.md, 1A), read from the database's `moderators` table, not the house account; and only while
+  // the moderator has their tools showing (the `[ MOD ]` key after their name: hidden by default, Luke 2026-11-20).
+  return useModeration().toolsOn;
 }
 
 function failure(caught: unknown, fallback: string): string {
@@ -137,7 +138,7 @@ export function AuthorModeration({ author }: { author: ForumAuthor }) {
 export function ThreadModeration({ thread }: { thread: ForumThread }) {
   const forum = useForum();
   const moderation = useModeration();
-  const admin = moderation.role.moderator;
+  const admin = moderation.toolsOn;
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [title, setTitle] = useState(thread.title);
@@ -235,7 +236,7 @@ export function ThreadModeration({ thread }: { thread: ForumThread }) {
 export function CommentModeration({ comment }: { comment: ForumComment }) {
   const forum = useForum();
   const moderation = useModeration();
-  const admin = moderation.role.moderator;
+  const admin = moderation.toolsOn;
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [body, setBody] = useState(comment.body);

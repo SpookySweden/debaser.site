@@ -27,6 +27,13 @@ type ModerationContextValue = {
   standing: Standing;
   blocked: ReadonlySet<string>;
   version: number;
+  /**
+   * The moderator tools on the page (the ADMIN and MOD rows, HIDE, the pin panel) are drawn only while this is on (Luke, 2026-11-20:
+   * "make the settings hidden by default instead of covering the page"). Off by default; the `[ MOD ]` key after the reader's name
+   * turns it on. Kept in this browser, per person. Always false for somebody who isn't a moderator.
+   */
+  toolsOn: boolean;
+  setToolsShown(shown: boolean): void;
   isBlocked(person: string | null | undefined): boolean;
   block(person: string): Promise<void>;
   unblock(person: string): Promise<void>;
@@ -43,6 +50,8 @@ const NOBODY: ModerationContextValue = {
   standing: GOOD_STANDING,
   blocked: new Set(),
   version: 0,
+  toolsOn: false,
+  setToolsShown: () => undefined,
   isBlocked: () => false,
   block: async () => undefined,
   unblock: async () => undefined,
@@ -51,6 +60,29 @@ const NOBODY: ModerationContextValue = {
   shows: () => true,
 };
 
+/** This browser's memory of whose moderator tools are showing: `{ <account id>: true }`. Shown is never the default. */
+export const MOD_TOOLS_KEY = 'debaser.moderation.tools-shown.v1';
+
+function readToolsShown(person: string): boolean {
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(MOD_TOOLS_KEY) ?? '{}') as Record<string, unknown>;
+    return saved[person] === true;
+  } catch {
+    return false;
+  }
+}
+
+function writeToolsShown(person: string, shown: boolean): void {
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(MOD_TOOLS_KEY) ?? '{}') as Record<string, unknown>;
+    if (shown) saved[person] = true;
+    else delete saved[person];
+    window.localStorage.setItem(MOD_TOOLS_KEY, JSON.stringify(saved));
+  } catch {
+    // Storage off: the choice lasts until the page is left.
+  }
+}
+
 const ModerationContext = createContext<ModerationContextValue>(NOBODY);
 
 export function ModerationProvider({ children }: { children: ReactNode }) {
@@ -58,7 +90,7 @@ export function ModerationProvider({ children }: { children: ReactNode }) {
   const me = user?.id ?? null;
   // What was read, and for whom: a different reader (or nobody) reads as no role, good standing, nobody blocked, until their own
   // answer lands.
-  const [read, setRead] = useState<{ me: string; role: ModerationRole; standing: Standing; blocked: ReadonlySet<string> } | null>(null);
+  const [read, setRead] = useState<{ me: string; role: ModerationRole; standing: Standing; blocked: ReadonlySet<string>; toolsShown: boolean } | null>(null);
   const current = read !== null && read.me === me ? read : null;
   const role = current?.role ?? NO_ROLE;
   const standing = current?.standing ?? GOOD_STANDING;
@@ -89,7 +121,7 @@ export function ModerationProvider({ children }: { children: ReactNode }) {
       store.listBlocks(me).catch(() => [] as string[]),
     ]).then(([nextRole, nextStanding, nextBlocks]) => {
       if (cancelled) return;
-      setRead({ me, role: nextRole, standing: nextStanding, blocked: new Set(nextBlocks) });
+      setRead({ me, role: nextRole, standing: nextStanding, blocked: new Set(nextBlocks), toolsShown: readToolsShown(me) });
       setMarks(store.hiddenMarks());
     });
     return () => {
@@ -131,11 +163,23 @@ export function ModerationProvider({ children }: { children: ReactNode }) {
     [me, setBlocked],
   );
 
+  const toolsOn = role.moderator && current?.toolsShown === true;
+  const setToolsShown = useCallback(
+    (shown: boolean) => {
+      if (me === null) return;
+      writeToolsShown(me, shown);
+      setRead((was) => (was === null || was.me !== me ? was : { ...was, toolsShown: shown }));
+    },
+    [me],
+  );
+
   const value = useMemo<ModerationContextValue>(() => {
     const markFor = (kind: ModTargetKind, id: string, own?: HiddenMark | null) => own ?? marks[hiddenKey(kind, id)] ?? null;
     const isBlocked = (person: string | null | undefined) => person !== null && person !== undefined && blocked.has(person);
     return {
       role,
+      toolsOn,
+      setToolsShown,
       standing,
       blocked,
       version,
@@ -151,7 +195,7 @@ export function ModerationProvider({ children }: { children: ReactNode }) {
         return role.moderator || (me !== null && authorId === me);
       },
     };
-  }, [role, standing, blocked, version, block, unblock, refresh, marks, me]);
+  }, [role, standing, blocked, version, block, unblock, refresh, marks, me, toolsOn, setToolsShown]);
 
   return <ModerationContext.Provider value={value}>{children}</ModerationContext.Provider>;
 }

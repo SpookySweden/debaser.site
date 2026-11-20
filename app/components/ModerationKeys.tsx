@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { openReport, type ReportTarget } from '../lib/moderation/moderation-windows';
 import { getModerationStore } from '../lib/moderation/repository';
 import { MODERATION_TEXT_MAX, type HiddenMark, type ModTargetKind } from '../lib/moderation/types';
-import { FIELD, PLATE } from '../lib/ui/controls';
+import { FIELD, PLATE, PLATE_PRESSED } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import { useModeration } from './ModerationProvider';
 
@@ -66,7 +66,8 @@ export function HideControl({ kind, id, authorId, text, mark }: { kind: ModTarge
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (user === null || !moderation.role.moderator) return null;
+  // Only while the moderator's tools are showing (the `[ MOD ]` key after their name).
+  if (user === null || !moderation.toolsOn) return null;
   const me = user.id;
 
   async function run(task: () => Promise<void>) {
@@ -119,5 +120,28 @@ export function HideControl({ kind, id, authorId, text, mark }: { kind: ModTarge
       ) : null}
       {error !== null ? <span className="bg-bubble-pale px-1 text-ink-bar">{error}</span> : null}
     </span>
+  );
+}
+
+/**
+ * The moderator badge after the reader's own name, top right (Luke, 2026-11-20: "show and hide button is at the end of username
+ * with a badge icon"): it shows and hides the moderator tools on the page, which start hidden. A text mark, no drawn badge.
+ * Nothing for somebody who isn't a moderator.
+ */
+export function ModToolsKey() {
+  const { role, toolsOn, setToolsShown } = useModeration();
+  if (!role.moderator) return null;
+  return (
+    <button
+      type="button"
+      aria-pressed={toolsOn}
+      onClick={() => setToolsShown(!toolsOn)}
+      title={toolsOn ? 'Hide moderator tools' : 'Show moderator tools'}
+      aria-label={toolsOn ? 'Hide moderator tools' : 'Show moderator tools'}
+      className={`${toolsOn ? PLATE_PRESSED : PLATE} ml-1 shrink-0`}
+      data-mod-tools-key
+    >
+      {toolsOn ? '⛨ MOD' : '[ ⛨ MOD ]'}
+    </button>
   );
 }

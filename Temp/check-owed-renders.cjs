@@ -262,6 +262,9 @@ stub('./owed-render/components/ModerationProvider.js', {
     const moderator = auth?.user?.id === 'debaser-site';
     return {
       role: { moderator, owner: moderator },
+      // The moderator tools start hidden (Luke, 2026-11-20); the `[ MOD ]` key shows them. Shown here unless a test says.
+      toolsOn: moderator,
+      setToolsShown: () => undefined,
       standing: { banned: false, reason: '', appealOpen: false },
       blocked: new Set(),
       version: 0,

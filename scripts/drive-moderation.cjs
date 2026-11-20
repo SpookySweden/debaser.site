@@ -124,7 +124,8 @@ const mockModeration = (page) => page.evaluate(() => JSON.parse(window.localStor
     assert.equal(afterReport.reports[0].accountId, B);
     pass('C reports B: SPAM, with a line, and sees REPORT SENT');
     assert.equal(await page.locator('[data-reports-key]').count(), 0, 'REPORTS is not on the bar for somebody who is not a moderator');
-    pass('C (not a moderator) has no REPORTS key');
+    assert.equal(await page.locator('[data-mod-tools-key]').count(), 0, 'no MOD badge for somebody who is not a moderator');
+    pass('C (not a moderator) has no REPORTS key and no MOD badge');
 
     /* --- C blocks B, then unblocks from PRIVACY -------------------------------------------------------------------- */
     await open(page, '/forum');
@@ -168,7 +169,22 @@ const mockModeration = (page) => page.evaluate(() => JSON.parse(window.localStor
     pass('DISMISS empties OPEN, and the LOG has it');
     await reportsKey.click();
 
+    // The moderator tools start hidden (Luke, 2026-11-20: "make the settings hidden by default instead of covering the page");
+    // the [ ⛨ MOD ] key after the name, top right, shows and hides them, and the choice is remembered.
     await openPost(page);
+    assert.equal(await page.getByText('[ ADMIN ]', { exact: true }).count(), 0, 'no ADMIN row while the tools are hidden');
+    assert.equal(await page.locator('[data-hide-key]').count(), 0, 'no HIDE key while the tools are hidden');
+    const modKey = page.locator('[data-mod-tools-key]');
+    assert.equal(await modKey.getAttribute('aria-pressed'), 'false');
+    await shot(page, '5a-tools-hidden');
+    pass('the moderator tools start hidden: no ADMIN row, no HIDE; [ ⛨ MOD ] sits after the name');
+    await modKey.click();
+    await page.locator('[data-hide-key]').first().waitFor({ timeout: 10000 });
+    assert.equal(await modKey.getAttribute('aria-pressed'), 'true');
+    await openPost(page);
+    await page.locator('[data-hide-key]').first().waitFor({ timeout: 10000 });
+    pass('[ ⛨ MOD ] shows them, and they stay shown after a reload');
+
     await page.locator('[data-hide-key]').first().click();
     await page.locator('input[id^="hide-reason-thread-"]').fill('off topic');
     await page.getByRole('button', { name: '[ CONFIRM HIDE ]' }).click();

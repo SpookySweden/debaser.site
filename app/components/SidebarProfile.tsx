@@ -1,5 +1,6 @@
 'use client';
 
+import { ModToolsKey } from './ModerationKeys';
 import Link from 'next/link';
 import { useState, useSyncExternalStore } from 'react';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
@@ -113,10 +114,14 @@ export default function SidebarProfile() {
             </ProfileLink>
 
             <div className="min-w-0 flex-1 space-y-1 text-label font-bold text-ink">
-              <p className="truncate">
-                <ProfileLink author={{ id: user.id, displayName: user.displayName }}>
-                  <ProfileName author={{ id: user.id, displayName: user.displayName }} />
-                </ProfileLink>
+              <p className="flex min-w-0 items-center">
+                <span className="min-w-0 truncate">
+                  <ProfileLink author={{ id: user.id, displayName: user.displayName }}>
+                    <ProfileName author={{ id: user.id, displayName: user.displayName }} />
+                  </ProfileLink>
+                </span>
+                {/* A moderator's badge: shows and hides the moderator tools on the page (hidden by default). */}
+                <ModToolsKey />
               </p>
 
               {/* What they wrote, not when they joined. A join date is a fact that never moves, so it
