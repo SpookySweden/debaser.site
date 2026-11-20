@@ -1,13 +1,13 @@
 /*
  * FORUMFIX (review fixes, 2026-11-17: findings from a Claude review run, Luke's answers). On a LOCAL dev server only
  * (core.md, "Test locally"): every data switch on mock, sign-in pointed at an address nothing answers, so a visitor
- * is signed out and nothing reaches the live project (`Temp/browse/dev-mock-forumfix.cjs`). The live hosts are
+ * is signed out and nothing reaches the live project (`scripts/dev-mock-signed-out.cjs`). The live hosts are
  * blocked and the run fails if anything asked them.
  *
  *   node scripts/drive-forumfix.cjs --base http://localhost:<port> [--out Temp/browse/forumfix] [--measure]
  *
- *   1. "HAD AN ACCOUNT?": [ NOT NOW ] is remembered across pages and reloads; /account never opens it over the
- *      login form (a one-line way back sits in the LOG IN box instead).
+ *   1. "HAD AN ACCOUNT?" never opens by itself (FIRSTVISIT, 2026-11-20: a first visit gets the desktop tour): a quiet line in
+ *      the board's PROFILE panel and in the LOG IN box opens it; /account never opens it over the login form.
  *   2. Every forum key has a hit area of at least 24px each way (measured by asking the page what is under the
  *      pointer across a 24px square around each key's centre).
  *   3. Auto-made STREAM records stay off the main board; [ STREAMS ] lists them; a record with a reply is back.
@@ -85,26 +85,28 @@ function streamThreads() {
   ];
 }
 
-async function newPage(browser, { seedStreams = false, neverHadOne = false } = {}) {
+async function newPage(browser, { seedStreams = false, neverHadOne = false, tour = false } = {}) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   let live = 0;
-  await context.route(/supabase\.(co|in)\/|debaser-site\.vercel\.app/, (route) => {
+  await context.route(/supabase\.(co|in)\/|debaser-site\.vercel\.app|api\.debaser\.site|\/\/debaser\.site/, (route) => {
     live += 1;
     return route.abort();
   });
   await context.addInitScript(
-    ({ seed, never, forumKey, neverKey }) => {
+    ({ seed, never, forumKey, neverKey, tour }) => {
       try {
         if (window.sessionStorage.getItem('fx-seeded') === null) {
           window.sessionStorage.setItem('fx-seeded', '1');
           if (seed !== null) window.localStorage.setItem(forumKey, JSON.stringify({ version: 2, threads: seed, pins: [] }));
           if (never) window.localStorage.setItem(neverKey, '1');
+          // FIRSTVISIT (2026-11-20): the desktop tour holds the page on a first visit; only item 1 is about it.
+          if (!tour) window.localStorage.setItem('debaser.tour.v1', 'skipped');
         }
       } catch {
         // no storage
       }
     },
-    { seed: seedStreams ? streamThreads() : null, never: neverHadOne, forumKey: FORUM_KEY, neverKey: LOST_NEVER },
+    { seed: seedStreams ? streamThreads() : null, never: neverHadOne, forumKey: FORUM_KEY, neverKey: LOST_NEVER, tour },
   );
   const page = await context.newPage();
   const missing = [];
@@ -132,17 +134,32 @@ async function lostWindowOpen(page, wait = 4000) {
 }
 
 async function item1(browser) {
-  console.log('1. HAD AN ACCOUNT? remembered, never over the login form');
-  const { context, page, liveHits } = await newPage(browser);
+  // Changed on purpose 2026-11-20 (FIRSTVISIT, Luke: "replace the full-page 'HAD AN ACCOUNT?' pop-up with a short guided tour of
+  // the desktop"): a first visit is toured, never asked; the offer is a quiet line in the board's PROFILE panel that opens the window.
+  console.log('1. HAD AN ACCOUNT? never by itself: a quiet line on the board, never over the login form');
+  const { context, page, liveHits } = await newPage(browser, { tour: true });
   await page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded' });
-  const first = await lostWindowOpen(page, 60000);
-  check(first, 'a first visit is asked once on /forum');
-  if (first) await lostWindow(page).getByRole('button', { name: '[ NOT NOW ]' }).click();
+  const toured = await page.locator('[data-tour-card]').waitFor({ timeout: 60000 }).then(() => true, () => false);
+  check(toured, 'a first visit on /forum gets the desktop tour');
+  check(!(await lostWindowOpen(page, 3000)), 'and no HAD AN ACCOUNT? pop-up');
+  if (toured) await page.locator('[data-tour-skip]').click();
+  const line = page.getByRole('button', { name: '[ GET IT BACK ]' });
+  const hasLine = await line.first().waitFor({ timeout: 30000 }).then(() => true, () => false);
+  check(hasLine, "the board's PROFILE panel carries the quiet line: HAD AN ACCOUNT BEFORE 6 NOVEMBER? [ GET IT BACK ]");
+  await page.screenshot({ path: join(OUT, 'board-quiet-line.png') });
+  if (hasLine) {
+    await line.first().click();
+    const opened = await lostWindowOpen(page, 10000);
+    check(opened, 'pressing it opens the window (asked for)');
+    if (opened) await lostWindow(page).getByRole('button', { name: '[ NOT NOW ]' }).click();
+    check(!(await lostWindowOpen(page, 2000)), 'NOT NOW closes it');
+  }
   for (const path of ['/media', '/stream', '/forum']) {
     await page.goto(`${BASE}${path}`, { waitUntil: 'domcontentloaded' });
     await page.locator('[data-top-bar]').waitFor({ timeout: 60000 });
-    check(!(await lostWindowOpen(page)), `after NOT NOW it stays away on ${path} (a fresh page load)`);
+    check(!(await lostWindowOpen(page)), `it stays away on ${path} (a fresh page load)`);
   }
+  check((await page.getByRole('button', { name: '[ GET IT BACK ]' }).count()) > 0, 'the quiet line is still there after NOT NOW: the way back, not a nag');
   await context.close();
 
   // A new browser, straight to /account: the window must not sit on the login form.

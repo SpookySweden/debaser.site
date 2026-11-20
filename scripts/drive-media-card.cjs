@@ -41,7 +41,7 @@ const check = (ok, what) => {
 
 const PERSON = 'mock-test-account';
 const signIn = (person) => {
-  window.localStorage.setItem('debaser.lost-account.never.v1', '1');
+  (window.localStorage.setItem('debaser.lost-account.never.v1', '1'), window.localStorage.setItem('debaser.tour.v1', 'skipped'));
   window.localStorage.setItem(
     'debaser.auth.mock.v1',
     JSON.stringify({ users: [{ id: person, email: 'test-mock@debaser.site', displayName: 'TEST ACCOUNT (MOCK)', createdAt: '2026-11-14T00:00:00.000Z', salt: '', secretHash: '', hidden: true }], sessionUserId: person, bannedIds: [] }),

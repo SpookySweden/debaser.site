@@ -45,11 +45,13 @@ ok('NOT NOW is kept for the case it was said about, and a new case asks again', 
   assert.equal(lost.saidNotNowTo('asking'), true, 'said for the first question');
   assert.equal(lost.saidNotNowTo(JSON.stringify({ email: 'a@b.c', name: 'A' })), false, 'a lost account found later asks again');
 });
-ok('the window reads the kept NOT NOW and keeps off /account', () => {
+// Updated on purpose 2026-11-20 (FIRSTVISIT, Luke: "replace the full-page 'HAD AN ACCOUNT?' pop-up with a short guided tour"):
+// the window no longer opens by itself on any page, so it never sits on the login form; it waits to be asked
+// (Temp/check-first-visit.cjs holds that). NOT NOW is still written down.
+ok('the window waits to be asked, so it keeps off /account, and NOT NOW is written down', () => {
   const source = read('app/components/LostAccountWindow.tsx');
-  assert.match(source, /saidNotNowTo\(/, 'the window asks whether NOT NOW was said');
+  assert.match(source, /if \(!asked\) return null;/, 'the window opens only when asked');
   assert.match(source, /rememberNotNow\(/, 'NOT NOW is written down');
-  assert.match(source, /'\/account'/, 'the window knows the login page');
 });
 
 // --- 3. STREAM records off the main board ----------------------------------------------------------------

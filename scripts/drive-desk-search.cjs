@@ -33,7 +33,7 @@ function seed({ me, other, signedIn }) {
   window.localStorage.setItem('ds-seeded', '1');
   const now = Date.now();
   const at = (minutes) => new Date(now - minutes * 60000).toISOString();
-  window.localStorage.setItem('debaser.lost-account.never.v1', '1');
+  (window.localStorage.setItem('debaser.lost-account.never.v1', '1'), window.localStorage.setItem('debaser.tour.v1', 'skipped'));
   if (signedIn) {
     const user = (person) => ({ id: person.id, email: `${person.id}@debaser.site`, displayName: person.name, createdAt: at(1000), salt: '', secretHash: '', hidden: true });
     window.localStorage.setItem('debaser.auth.mock.v1', JSON.stringify({ users: [user(me), user(other)], sessionUserId: me.id, bannedIds: [] }));

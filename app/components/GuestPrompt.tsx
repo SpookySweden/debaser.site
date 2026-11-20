@@ -78,6 +78,7 @@ export default function GuestPrompt() {
         <Link
           href="/account"
           className={`shrink-0 ${PLATE_ON_BLACK}`}
+          data-tour="login"
         >
           [ LOG IN ]
         </Link>

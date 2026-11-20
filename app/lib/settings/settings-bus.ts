@@ -20,6 +20,8 @@ export const SYNCED_KEYS = {
   mediaFolds: 'debaser.media.filter-folds.v1',
   mediaView: 'debaser.media.view.v1',
   playerBar: 'debaser.audio.bar.v1',
+  // FIRSTVISIT: the desktop tour seen, skipped or owed (`../ui/first-visit-tour.ts`), so a second computer doesn't tour again.
+  tour: 'debaser.tour.v1',
 } as const;
 
 export type SyncedName = keyof typeof SYNCED_KEYS;

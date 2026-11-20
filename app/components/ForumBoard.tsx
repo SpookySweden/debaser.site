@@ -859,7 +859,7 @@ export default function ForumBoard() {
   }, []);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" data-tour="board">
       {/* The wire: the board as one line that crawls past. It is the shape this page can
           afford - a strip across the window - and it reads the same rows the profile
           threads read, so a post or a reply looks like a comment looks. A pinned post leads

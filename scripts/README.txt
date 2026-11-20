@@ -170,6 +170,19 @@ drive-watch-in-room.cjs
 `[ WATCH IN ROOM ]` and `[ ADD TO ROOM ]` in a real browser (SPEC-floating-player.md, part 3). Live it starts two rooms as A
 and ends them, and prints their ids: each leaves an ended record and a board thread to delete, so ask Luke.
 
+drive-first-visit.cjs and dev-mock-signed-out.cjs
+-------------------------------------------------
+    node scripts/dev-mock-live.cjs 3351                                                 a local server, every switch on mock
+    node scripts/drive-first-visit.cjs --base http://localhost:3351                     the desktop tour (FIRSTVISIT)
+    node scripts/dev-mock-signed-out.cjs 3352                                           mock data, real sign-in pointed nowhere
+    node scripts/drive-forumfix.cjs --base http://localhost:3352                        the lost-account quiet line and window
+
+The first-visit tour of the board (2026-11-20): seven steps outlined in turn, SKIP / Esc / DONE remembered, the TOUR key in
+MODULOS, reduced motion, a new account after PRIVACY. A first visit to /forum in ANY fresh browser now gets the tour, which
+holds the page: a drive or check that opens the board as a new visitor seeds `debaser.tour.v1` = 'skipped' (beside
+`debaser.lost-account.never.v1`), and a signed-out `npm run shot` of /forum shows it unless you add --click "[ SKIP ]".
+The lost-account window only shows with real (non-mock) sign-in, hence dev-mock-signed-out.cjs.
+
 drive-live.cjs and dev-mock-live.cjs
 ------------------------------------
     node scripts/dev-mock-live.cjs 3317                                                 a local server, every switch on mock

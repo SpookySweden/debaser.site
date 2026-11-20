@@ -29,7 +29,7 @@ const ok = (what) => console.log(`  ok  ${what}`);
 
 const PERSON = 'mock-test-account';
 function seed() {
-  window.localStorage.setItem('debaser.lost-account.never.v1', '1');
+  (window.localStorage.setItem('debaser.lost-account.never.v1', '1'), window.localStorage.setItem('debaser.tour.v1', 'skipped'));
   window.localStorage.setItem('debaser-companion', JSON.stringify({ computer: true, phone: false }));
   if (window.localStorage.getItem('debaser.auth.mock.v1') === null) {
     window.localStorage.setItem(

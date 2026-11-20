@@ -25,6 +25,7 @@ import LostAccountWindow from './components/LostAccountWindow';
 import ModulesWindow from './components/ModulesWindow';
 import PreferencesWindow from './components/PreferencesWindow';
 import PrivacyFirstLook from './components/PrivacyFirstLook';
+import FirstVisitTour from './components/FirstVisitTour';
 import PresenceProvider from './components/PresenceProvider';
 import ThemeHost from './components/ThemeHost';
 import CatCursor from './components/CatCursor';
@@ -175,6 +176,9 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
 
                       {/* The PRIVACY window, once per account (SPEC-privacy-phase-1.md). */}
                       <PrivacyFirstLook />
+
+                      {/* FIRSTVISIT: the short tour of the desktop, for a first visit and a new account (`first-visit-tour.ts`). */}
+                      <FirstVisitTour />
 
                       {/* Saved characters: also addressless, and for a stronger reason - a saved figure
                           is one account's own work in one browser, so there is nobody for a link to

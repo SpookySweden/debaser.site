@@ -71,7 +71,7 @@ const PERSON = 'mock-test-account';
 const PLAYED = 'internet_archive:principlesofscientificmanagement_2610_librivox';
 const TURNED_DOWN = 'peertube:75458950-1377-42fb-be1c-34a2c5b9f98c';
 function seedSignedIn({ person, played, turnedDown, now }) {
-  window.localStorage.setItem('debaser.lost-account.never.v1', '1');
+  (window.localStorage.setItem('debaser.lost-account.never.v1', '1'), window.localStorage.setItem('debaser.tour.v1', 'skipped'));
   window.localStorage.setItem(
     'debaser.auth.mock.v1',
     JSON.stringify({ users: [{ id: person, email: 'test-mock@debaser.site', displayName: 'TEST ACCOUNT (MOCK)', createdAt: '2026-11-14T00:00:00.000Z', salt: '', secretHash: '', hidden: true }], sessionUserId: person, bannedIds: [] }),

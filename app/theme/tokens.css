@@ -317,6 +317,8 @@
   --animate-flash: flash 260ms steps(2, jump-none) 1;
   --animate-marquee: marquee 16s linear infinite;
   --animate-blip: blip 1s steps(2, jump-none) infinite;
+  /* The first-visit tour's outline: two inks swapped in whole frames, no fade. */
+  --animate-tour-blink: tour-blink 1.2s steps(1, end) infinite;
   /* A RADI-OH face perking up under the pointer. */
   --animate-hop: hop 320ms steps(2, jump-none) infinite;
   /* A dancing character's music notes: each rises and drifts off to one side in eight stepped frames, then is gone. */

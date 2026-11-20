@@ -1059,6 +1059,39 @@ img {
   }
 }
 
+/* FIRSTVISIT, the desktop tour (`FirstVisitTour.tsx`): the page round the thing shown is dimmed by the desktop's own
+   4px dither, half its pixels let through, never a soft shade; the thing itself wears a thick outline that swaps
+   Brilliant Pink and the accent ink in whole frames. Under reduced motion it stays pink. */
+.tour-scrim {
+  background-image:
+    linear-gradient(45deg, var(--color-desktop-dither) 25%, transparent 25%, transparent 75%, var(--color-desktop-dither) 75%),
+    linear-gradient(45deg, var(--color-desktop-dither) 25%, transparent 25%, transparent 75%, var(--color-desktop-dither) 75%);
+  background-position: 0 0, 2px 2px;
+  background-size: 4px 4px;
+}
+
+.tour-outline {
+  outline: calc(var(--border-width-line) * 2) solid var(--color-bubble);
+  outline-offset: var(--border-width-line);
+  animation: var(--animate-tour-blink);
+}
+
+@keyframes tour-blink {
+  0% {
+    outline-color: var(--color-bubble);
+  }
+
+  50% {
+    outline-color: var(--color-accent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tour-outline {
+    animation: none;
+  }
+}
+
 /* A RADI-OH face perking up under the pointer: a two-frame hop, the size of the text's own pixels. */
 @keyframes hop {
   0%,

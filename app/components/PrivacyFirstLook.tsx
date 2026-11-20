@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { ProfileVisibility } from '../lib/profile/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { PLATE, PLATE_MAIN } from '../lib/ui/controls';
+import { owedAfterPrivacy } from '../lib/ui/first-visit-tour';
 import { useAuth } from './AuthProvider';
 import DockWindow from './DockWindow';
 import PrivacySwitches, { PRIVACY_SWITCHES } from './PrivacySwitches';
@@ -29,6 +30,8 @@ export default function PrivacyFirstLook() {
   function finish(visibility?: Partial<ProfileVisibility>) {
     if (userId === null) return;
     setClosedFor(userId);
+    // FIRSTVISIT: a new account is toured round the desktop next, unless this browser already saw or skipped the tour.
+    owedAfterPrivacy(userId);
     // The same switch again next visit is the worst a failure here costs.
     void repository
       .saveProfile(userId, { privacySeen: true, ...(visibility === undefined ? {} : { visibility }) })

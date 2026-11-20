@@ -349,7 +349,7 @@ export default function DesktopSidebar({ foldedOnThisPage = false }: { foldedOnT
             middle-click still work - and so the Start menu's shelves, a post's plates and the bell's
             invitation, which are *links* into the same two windows, are unaffected. See `SIDE_ARCADE`
             and `SIDE_MUSIC` in ./SiteNav.tsx. */}
-        <section>
+        <section data-tour="shelf">
           {/* No count beside the name: the three keys under it are the count. */}
           <div className={TITLE_BAR_INACTIVE}>
             <span>SHELF</span>

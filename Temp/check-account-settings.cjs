@@ -174,6 +174,8 @@ function loadSync() {
     mediaView: 'app/lib/web/media-view.ts',
     playerBar: 'app/components/MusicPlayer.tsx',
     hideMade: 'app/components/ForumBoard.tsx',
+    // FIRSTVISIT (2026-11-20): the desktop tour seen, skipped or owed.
+    tour: 'app/lib/ui/first-visit-tour.ts',
   };
   const usedBy = { forumPlace: 'app/components/ForumBoard.tsx', forumSort: 'app/components/ForumBoard.tsx' };
   assert.deepEqual(Object.keys(owners).sort(), Object.keys(SYNCED_KEYS).sort(), 'every synced setting has an owner here');

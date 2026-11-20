@@ -1,20 +1,18 @@
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { USING_MOCK_AUTH } from '../lib/auth/auth-repository';
 import {
   askForLostAccount,
   askedForLostAccount,
   forgetLostAccount,
-  loginFormShown,
   parseLostAccount,
   readLostAccountRaw,
   rememberLostAccount,
   rememberNeverHadOne,
   rememberNotNow,
   saidNeverHadOne,
-  saidNotNowTo,
   showingLoginForm,
   stopAskingForLostAccount,
   subscribeToLostAccount,
@@ -30,9 +28,6 @@ const onServer = () => null;
 const hiddenOnServer = () => true;
 const notAskedOnServer = () => false;
 
-/** The login page: the window never opens over its form unless the reader asked (`LostAccountLine` is the offer there). */
-const LOGIN_PAGE = '/account';
-
 /**
  * The moment anybody signed out enters the site (Luke, 2026-11-06: "it needs to be urgent"): their old address, unless their browser still
  * knows it (`lost-account.ts`), then a new password, then their profile to edit. It's their own sign-up, under their old address, which brings
@@ -41,6 +36,11 @@ const LOGIN_PAGE = '/account';
  * Review fixes (2026-11-17): "it came back on Forum, Media, Stream, Read and Account, where it sits on top of the login
  * form". NOT NOW is now kept in this browser (`rememberNotNow`) until something changes (a lost address turns up),
  * and on /account the window waits to be asked: the LOG IN box carries a one-line offer instead (`LostAccountLine`).
+ *
+ * FIRSTVISIT (Luke, 2026-11-20: "Gentler first visits: replace the full-page 'HAD AN ACCOUNT?' pop-up with a short guided
+ * tour of the desktop"): it no longer opens by itself anywhere. It waits to be asked, by the quiet line
+ * (`LostAccountLine`: the board's PROFILE panel for a visitor, the LOG IN box) or by logging in with an address that is
+ * waiting to come back. A first visit gets the desktop tour instead (`FirstVisitTour.tsx`).
  */
 export default function LostAccountWindow() {
   const raw = useSyncExternalStore(subscribeToLostAccount, readLostAccountRaw, onServer);
@@ -49,15 +49,8 @@ export default function LostAccountWindow() {
   const [address, setAddress] = useState('');
   const { status, signUp } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
   const said = raw ?? 'asking';
-  // NOT NOW, kept in this browser for this case; a new case (another address) asks again.
-  const notNow = useSyncExternalStore(subscribeToLostAccount, () => saidNotNowTo(said), hiddenOnServer);
   const asked = useSyncExternalStore(subscribeToLostAccount, askedForLostAccount, notAskedOnServer);
-  // A login form on screen (the STREAM page's guest window carries one too): wait to be asked there as well.
-  const formShown = useSyncExternalStore(subscribeToLostAccount, loginFormShown, notAskedOnServer);
-  // The same for this page, in a browser whose storage refuses writes.
-  const [dismissed, setDismissed] = useState<string | null>(null);
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [errors, setErrors] = useState<CredentialErrors>({});
@@ -67,7 +60,8 @@ export default function LostAccountWindow() {
   // The mock accounts have nothing to lose.
   if (USING_MOCK_AUTH || status !== 'anonymous') return null;
   if (lost === null && neverHadOne) return null;
-  if (pathname === LOGIN_PAGE || formShown ? !asked : notNow || dismissed === said) return null;
+  // Only when asked (FIRSTVISIT): never by itself, on any page.
+  if (!asked) return null;
 
   const find = async () => {
     setMessage(null);
@@ -106,7 +100,6 @@ export default function LostAccountWindow() {
   };
 
   const away = () => {
-    setDismissed(said);
     rememberNotNow(said);
     stopAskingForLostAccount();
   };

@@ -102,7 +102,7 @@ async function open(browser, { reduced = false } = {}) {
   const account = await signInTestAccount('A');
   if (account.error) throw new Error(`sign-in A: ${account.error}`);
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: reduced ? 'reduce' : 'no-preference' });
-  await context.addInitScript(() => window.localStorage.setItem('debaser.lost-account.never.v1', '1'));
+  await context.addInitScript(() => (window.localStorage.setItem('debaser.lost-account.never.v1', '1'), window.localStorage.setItem('debaser.tour.v1', 'skipped')));
   const page = await context.newPage();
   page.on('pageerror', (error) => console.log(`  page error: ${String(error).slice(0, 200)}`));
   await installSession(page, account);

@@ -17,6 +17,7 @@ import ProfileLink from './ProfileLink';
 import ProfileName from './ProfileName';
 import { PLATE, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
 import { displayCrop } from '../lib/profile/avatar-crop';
+import { LostAccountLine } from './LostAccountWindow';
 
 /** One row of the settings menu. Full width, flat until the pointer is on it. */
 const MENU_ROW =
@@ -181,6 +182,10 @@ export default function SidebarProfile() {
         // The Google key only: the top banner's `[ LOG IN ]` is the guest's one call to the account page.
         <div className="p-2">
           <GoogleSignInButton />
+          {/* FIRSTVISIT: the lost-account offer, a quiet line here instead of a pop-up over the whole page. */}
+          <div className="pt-2 empty:hidden">
+            <LostAccountLine />
+          </div>
         </div>
       )}
 

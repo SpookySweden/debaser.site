@@ -59,6 +59,8 @@ async function open(browser, width, height, { hash = '', storage = {}, standIn =
   await page.addInitScript(
     ({ storage: seeded, standIn: seedAccount }) => {
       for (const [key, value] of Object.entries(seeded)) if (localStorage.getItem(key) === null) localStorage.setItem(key, value);
+      // FIRSTVISIT (2026-11-20): a first visit is toured round the board, which holds the page; this check is not about it.
+      if (localStorage.getItem('debaser.tour.v1') === null) localStorage.setItem('debaser.tour.v1', 'skipped');
       if (seedAccount && localStorage.getItem('debaser.auth.mock.v1') === null) {
         // A stand-in account in this browser's own storage, for a local mock build. It reaches no server.
         localStorage.setItem(

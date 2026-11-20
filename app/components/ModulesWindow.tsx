@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { replayTour, TOUR_PAGE } from '../lib/ui/first-visit-tour';
 import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
 import { inkOnNameColour } from '../lib/profile/name-colours';
 import { KEY_FOCUS } from '../lib/ui/controls';
@@ -108,6 +110,8 @@ export default function ModulesWindow() {
   const { id: themeId } = useSyncExternalStore(subscribeToTheme, themeState, themeState);
   const { user, status } = useAuth();
   const person = status === 'signed-in' && user !== null ? user.id : null;
+  const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (status !== 'loading') void setModulesAccount(person);
@@ -158,6 +162,19 @@ export default function ModulesWindow() {
             <Link href="/files" className={SMALL_KEY}>
               [ FILES ]
             </Link>
+            {/* FIRSTVISIT (Luke's A, 2026-11-20): the desktop tour again, on the board. */}
+            <button
+              type="button"
+              onClick={() => {
+                closeModulesWindow();
+                replayTour();
+                if (pathname !== TOUR_PAGE) router.push(TOUR_PAGE);
+              }}
+              className={SMALL_KEY}
+              data-tour-replay
+            >
+              [ TOUR ]
+            </button>
           </p>
         </section>
       </div>

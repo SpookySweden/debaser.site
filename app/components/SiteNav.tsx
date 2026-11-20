@@ -286,7 +286,7 @@ export default function SiteNav({ active, endKey }: { active?: NavKey; /** A key
         if (module.href === null) {
           // MODULOS (Luke, 2026-11-16: "a word like the others"): the same word key, the same ink and hover, last on the bar.
           return (
-            <button key={module.key} type="button" aria-expanded={listOpen} onClick={toggleModulesWindow} className={`${wordClass(false)} module-key cursor-pointer`} {...hover}>
+            <button key={module.key} type="button" aria-expanded={listOpen} onClick={toggleModulesWindow} className={`${wordClass(false)} module-key cursor-pointer`} {...hover} data-tour="modulos">
               {module.label}
             </button>
           );

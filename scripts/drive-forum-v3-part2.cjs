@@ -36,7 +36,7 @@ function seed({ me, other, signedIn, browser, row, extra, marks }) {
   window.localStorage.setItem('v3-seeded', '1');
   const now = Date.now();
   const at = (minutes) => new Date(now - minutes * 60000).toISOString();
-  window.localStorage.setItem('debaser.lost-account.never.v1', '1');
+  (window.localStorage.setItem('debaser.lost-account.never.v1', '1'), window.localStorage.setItem('debaser.tour.v1', 'skipped'));
   const today = new Date();
   const pad = (n) => String(n).padStart(2, '0');
   // The DESK has opened by itself today already, so it does not cover the board.

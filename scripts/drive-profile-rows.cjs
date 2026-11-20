@@ -47,7 +47,7 @@ async function open(browser, account) {
       : { viewport: { width: 1440, height: 900 } },
   );
   await context.addInitScript((bright) => {
-    window.localStorage.setItem('debaser.lost-account.never.v1', '1');
+    (window.localStorage.setItem('debaser.lost-account.never.v1', '1'), window.localStorage.setItem('debaser.tour.v1', 'skipped'));
     if (bright) window.localStorage.setItem('debaser.site.theme.v2', 'default');
   }, BRIGHT);
   const page = await context.newPage();

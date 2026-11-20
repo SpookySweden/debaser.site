@@ -676,7 +676,7 @@ function DockedBar({ roomId, onHide, onSettings }: BarControls) {
   }, [loop, playing, player]);
 
   return (
-    <div ref={strip} className="fixed bottom-0 left-0 right-0 z-50 border-t-line border-ink bg-sun-pale px-2 py-1 font-mono text-ink">
+    <div ref={strip} className="fixed bottom-0 left-0 right-0 z-50 border-t-line border-ink bg-sun-pale px-2 py-1 font-mono text-ink" data-tour="music">
       <BarrNotice anchor={strip} />
       <div className="mx-auto flex max-w-[95vw] flex-wrap items-center gap-2">
           {/* The player's own name, and its fold, together: they are the same thing said twice - what

@@ -322,7 +322,7 @@ async function room() {
   const b = await open({ size: [1440, 1000], profile: path.join(OUT, 'profile-room-b') });
   await installSession(a.page, accountA);
   await installSession(b.page, accountB);
-  for (const s of [a, b]) await s.page.addInitScript(() => window.localStorage.setItem('debaser.lost-account.never.v1', '1'));
+  for (const s of [a, b]) await s.page.addInitScript(() => (window.localStorage.setItem('debaser.lost-account.never.v1', '1'), window.localStorage.setItem('debaser.tour.v1', 'skipped')));
   let live = null;
   try {
     const rooms = [];
