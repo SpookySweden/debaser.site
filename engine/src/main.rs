@@ -1,54 +1,18 @@
 //! DEBASER_OS's own screen engine (SPEC-screens.md). So far: `bench-encode`, which grabs the main screen, encodes it
-//! on the NVIDIA chip with the low-delay recipe, and reports how long each step takes on this PC.
+//! on the NVIDIA chip with the low-delay recipe, and reports how long each step takes on this PC; and `serve`
+//! (serve.rs), which sends that live to a web browser over WebRTC.
 
 use std::env;
-use std::ffi::CString;
 use std::fmt::Write as _;
 use std::fs;
-use std::os::raw::c_char;
+use std::io::Write as _;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-#[repr(C)]
-struct DbeBenchOptions {
-    encode_width: i32,
-    encode_height: i32,
-    fps: i32,
-    bitrate_kbps: i32,
-    frames: i32,
-    hevc: i32,
-    intra_refresh: i32,
-    preset: i32,
-    tweaks: i32,
-    dump_path: *const c_char,
-}
+mod native;
+mod serve;
 
-#[repr(C)]
-struct DbeBenchResult {
-    ok: i32,
-    error: [c_char; 512],
-    screen_width: i32,
-    screen_height: i32,
-    screen_hz: i32,
-    encode_width: i32,
-    encode_height: i32,
-    header_api: u32,
-    driver_api: u32,
-    encoded: i32,
-    fresh: i32,
-    copy_ms: *mut f64,
-    encode_ms: *mut f64,
-    present_to_encoded_ms: *mut f64,
-    bytes: *mut i32,
-}
-
-extern "C" {
-    fn dbe_bench_encode(options: *const DbeBenchOptions, result: *mut DbeBenchResult) -> i32;
-}
-
-/// The switches kept after the fair comparisons in BENCH.md (2026-11-20): graphics priority (1), the encoder's
-/// event mode (4) and one-pass encoding (8). The fine timer (2) changed nothing and is left off.
-const DEFAULT_TWEAKS: i32 = 13;
+use crate::native::DEFAULT_TWEAKS;
 
 struct Stats {
     count: usize,
@@ -156,46 +120,51 @@ fn bench_encode(args: &[String]) -> ExitCode {
     let mut encode = vec![0f64; frames];
     let mut present = vec![0f64; frames];
     let mut bytes = vec![0i32; frames];
-    let dump = a.dump.as_ref().map(|p| CString::new(p.as_str()).expect("a path without a zero byte"));
-    let options = DbeBenchOptions {
-        encode_width: a.width,
-        encode_height: a.height,
+    let not_measured = |why: String| {
+        eprintln!("NOT MEASURED. {why}");
+        ExitCode::from(2)
+    };
+    let mut session = match native::Session::open(&native::Options {
+        width: a.width,
+        height: a.height,
         fps: a.fps,
         bitrate_kbps: a.bitrate,
-        frames: a.frames,
-        hevc: a.hevc as i32,
-        intra_refresh: a.intra as i32,
+        hevc: a.hevc,
+        intra_refresh: a.intra,
         preset: a.preset,
         tweaks: a.tweaks,
-        dump_path: dump.as_ref().map_or(std::ptr::null(), |p| p.as_ptr()),
+        skip_pointer_only: false,
+    }) {
+        Ok(session) => session,
+        Err(why) => return not_measured(why),
     };
-    let mut result = DbeBenchResult {
-        ok: 0,
-        error: [0; 512],
-        screen_width: 0,
-        screen_height: 0,
-        screen_hz: 0,
-        encode_width: 0,
-        encode_height: 0,
-        header_api: 0,
-        driver_api: 0,
-        encoded: 0,
-        fresh: 0,
-        copy_ms: copy.as_mut_ptr(),
-        encode_ms: encode.as_mut_ptr(),
-        present_to_encoded_ms: present.as_mut_ptr(),
-        bytes: bytes.as_mut_ptr(),
-    };
-    // The native side fills at most `frames` values in each list, all of which outlive the call.
-    unsafe { dbe_bench_encode(&options, &mut result) };
+    let mut dump = a.dump.as_ref().and_then(|path| fs::File::create(path).ok());
 
-    if result.ok == 0 {
-        let message: Vec<u8> = result.error.iter().take_while(|c| **c != 0).map(|c| *c as u8).collect();
-        eprintln!("NOT MEASURED. {}", String::from_utf8_lossy(&message));
-        return ExitCode::from(2);
+    // The loop: wait for the screen to change (or one frame's time), copy, encode, time each step.
+    let wait_ms = (1000 / a.fps.max(1)).max(1);
+    let ticks_per_ms = session.info.ticks_per_second as f64 / 1000.0;
+    let mut n = 0usize;
+    let mut fresh = 0i32;
+    for i in 0..frames {
+        let frame = match session.next_frame(if i == 0 { 500 } else { wait_ms }, i == 0) {
+            Ok(frame) => frame,
+            Err(why) => return not_measured(why),
+        };
+        if let Some(file) = dump.as_mut() {
+            let _ = file.write_all(frame.data);
+        }
+        copy[i] = frame.copy_ms;
+        encode[i] = frame.encode_ms;
+        present[i] = if frame.fresh { (frame.encoded_time - frame.present_time) as f64 / ticks_per_ms } else { -1.0 };
+        bytes[i] = frame.data.len() as i32;
+        n = i + 1;
+        if frame.fresh {
+            fresh += 1;
+        }
     }
+    drop(dump);
+    let info = &session.info;
 
-    let n = result.encoded as usize;
     // The first frame is a full picture and the encoder is still warming up: left out of the timings.
     let skip = 1.min(n);
     let grab_and_encode: Vec<f64> = (skip..n).map(|i| copy[i] + encode[i]).collect();
@@ -215,11 +184,11 @@ fn bench_encode(args: &[String]) -> ExitCode {
     println!("DEBASER ENGINE :: bench-encode :: {}", a.name);
     println!(
         "  screen {}x{} at {} Hz; encoding {}x{} {} at {} fps, {} kbit/s, preset P{}{}, tweaks {}",
-        result.screen_width,
-        result.screen_height,
-        result.screen_hz,
-        result.encode_width,
-        result.encode_height,
+        info.screen_width,
+        info.screen_height,
+        info.screen_hz,
+        info.encode_width,
+        info.encode_height,
         codec,
         a.fps,
         a.bitrate,
@@ -227,8 +196,8 @@ fn bench_encode(args: &[String]) -> ExitCode {
         if a.intra { ", gradual repair on" } else { "" },
         a.tweaks
     );
-    println!("  NVIDIA encoder interface: engine {}.{}, driver {}.{}", result.header_api >> 4, result.header_api & 0xf, result.driver_api >> 4, result.driver_api & 0xf);
-    println!("  frames encoded {} ({} from real changes on screen, the rest repeats)", n, result.fresh);
+    println!("  NVIDIA encoder interface: engine {}.{}, driver {}.{}", info.header_api >> 4, info.header_api & 0xf, info.driver_api >> 4, info.driver_api & 0xf);
+    println!("  frames encoded {} ({} from real changes on screen, the rest repeats)", n, fresh);
     println!("{}", line("take the frame + copy on the card", &s_copy));
     println!("{}", line("encode (to finished frame in memory)", &s_encode));
     println!("{}", line("encode, changed frames only", &s_encode_fresh));
@@ -245,11 +214,11 @@ fn bench_encode(args: &[String]) -> ExitCode {
             text,
             "{{\n  \"name\": \"{}\",\n  \"kind\": \"bench-encode\",\n  \"screen\": \"{}x{}@{}\",\n  \"encode\": \"{}x{}\",\n  \"codec\": \"{}\",\n  \"fps\": {},\n  \"bitrateKbps\": {},\n  \"preset\": {},\n  \"intraRefresh\": {},\n  \"tweaks\": {},\n  \"framesEncoded\": {},\n  \"freshFrames\": {},\n  {},\n  {},\n  {},\n  {},\n  {},\n  \"firstFrameBytes\": {},\n  \"medianFrameBytes\": {}\n}}\n",
             a.name.replace('"', ""),
-            result.screen_width,
-            result.screen_height,
-            result.screen_hz,
-            result.encode_width,
-            result.encode_height,
+            info.screen_width,
+            info.screen_height,
+            info.screen_hz,
+            info.encode_width,
+            info.encode_height,
             codec,
             a.fps,
             a.bitrate,
@@ -257,7 +226,7 @@ fn bench_encode(args: &[String]) -> ExitCode {
             a.intra,
             a.tweaks,
             n,
-            result.fresh,
+            fresh,
             json("copy", &s_copy),
             json("encode", &s_encode),
             json("encodeChangedOnly", &s_encode_fresh),
@@ -278,8 +247,10 @@ fn main() -> ExitCode {
     let args: Vec<String> = env::args().skip(1).collect();
     match args.first().map(String::as_str) {
         Some("bench-encode") => bench_encode(&args[1..]),
+        Some("serve") => serve::serve(&args[1..]),
         _ => {
             eprintln!("debaser-engine bench-encode [--name x] [--width W --height H] [--fps 60] [--bitrate 20000] [--frames 600] [--preset 1] [--hevc] [--intra-refresh] [--dump file] [--out folder]");
+            eprintln!("debaser-engine serve {}", serve::USAGE);
             ExitCode::from(2)
         }
     }

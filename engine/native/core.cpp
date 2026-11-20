@@ -5,6 +5,9 @@
 //
 // The picture never leaves the graphics card: Windows hands over a texture, it is copied card-side into the
 // encoder's own texture, and NVIDIA's encoder reads that texture directly.
+//
+// A session (core.h) is opened once and then asked for one encoded frame at a time, so the same code serves the
+// bench (`bench-encode`) and the live stream (`serve`).
 
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -35,52 +38,94 @@ LONGLONG now() {
 
 double ms_between(LONGLONG from, LONGLONG to) { return (double)(to - from) / g_ticks_per_ms; }
 
-int32_t fail(DbeBenchResult* r, const char* what, long code) {
-  snprintf(r->error, sizeof r->error, "%s (0x%08lx)", what, (unsigned long)code);
-  r->ok = 0;
-  return 1;
-}
+// How long Windows may refuse to share the screen (a game switching to full screen, a permission prompt) before
+// the session gives up. Until then the last picture is sent again and sharing is asked for anew on every frame.
+const double kLostScreenPatienceMs = 5000.0;
+// A frame Windows showed longer ago than this was already waiting when it was picked up (tweak 16).
+const double kStaleFrameMs = 0.75;
+// ...and the longest it is worth waiting for the screen's next frame instead of taking the one in hand.
+const double kChaseWaitMs = 1.5;
 
-struct Encoder {
+}  // namespace
+
+struct DbeSession {
+  // The card and the screen. Declared before the encoder's handles and released after them (see the destructor).
+  ComPtr<ID3D11Device> device;
+  ComPtr<ID3D11DeviceContext> context;
+  ComPtr<IDXGIOutput1> output1;
+  ComPtr<IDXGIOutputDuplication> duplication;
+  ComPtr<ID3D11Texture2D> picture;
+
+  // NVIDIA's encoder.
   HMODULE dll = nullptr;
   NV_ENCODE_API_FUNCTION_LIST fn = {};
   void* session = nullptr;
   NV_ENC_REGISTERED_PTR registered = nullptr;
   NV_ENC_OUTPUT_PTR bitstream = nullptr;
+  HANDLE done = nullptr;         // tweak 4: the encoder's "frame finished" signal
+  bool event_registered = false;
+  bool holding = false;          // the last frame's bytes are still lent to the caller
+  bool fine_timer = false;       // tweak 2 is on and has to be handed back
+  bool skip_pointer_only = false;  // see DbeOptions
+  bool chase_fresh = false;      // tweak 16: see next()
+  double refresh_ms = 16.7;      // one refresh of the shared screen
+  LONGLONG prev_present = 0;     // when Windows showed the last frame taken
+  double source_ms = 0;          // how often the screen is really changing, 0 = not known (still, or just started)
+  NV_ENC_PRESET_CONFIG preset_config;
+  NV_ENC_CONFIG config;
 
-  ~Encoder() {
+  int32_t screen_width = 0, screen_height = 0;
+  int32_t width = 0, height = 0;
+  D3D11_BOX middle = {};
+  uint64_t count = 0;            // frames encoded so far
+  LONGLONG lost_since = 0;       // when Windows stopped sharing the screen; 0 while it shares
+  char error[512] = {0};
+
+  ~DbeSession() {
     if (session) {
+      if (holding) fn.nvEncUnlockBitstream(session, bitstream);
+      if (event_registered) {
+        NV_ENC_EVENT_PARAMS event = {};
+        event.version = NV_ENC_EVENT_PARAMS_VER;
+        event.completionEvent = done;
+        fn.nvEncUnregisterAsyncEvent(session, &event);
+      }
       if (registered) fn.nvEncUnregisterResource(session, registered);
       if (bitstream) fn.nvEncDestroyBitstreamBuffer(session, bitstream);
       fn.nvEncDestroyEncoder(session);
     }
+    if (done) CloseHandle(done);
     if (dll) FreeLibrary(dll);
+    if (fine_timer) timeEndPeriod(1);
   }
 
-  int32_t nvfail(DbeBenchResult* r, const char* what, NVENCSTATUS status) {
-    const char* detail = session ? fn.nvEncGetLastErrorString(session) : "";
-    snprintf(r->error, sizeof r->error, "%s (NVENC status %d) %s", what, (int)status, detail ? detail : "");
-    r->ok = 0;
-    return 1;
+  bool fail(const char* what, long code) {
+    snprintf(error, sizeof error, "%s (0x%08lx)", what, (unsigned long)code);
+    return false;
   }
+
+  bool nvfail(const char* what, NVENCSTATUS status) {
+    const char* detail = session ? fn.nvEncGetLastErrorString(session) : "";
+    snprintf(error, sizeof error, "%s (NVENC status %d) %s", what, (int)status, detail ? detail : "");
+    return false;
+  }
+
+  bool open(const DbeOptions* o, DbeInfo* info);
+  bool next(int32_t wait_ms, bool force_keyframe, DbeFrame* frame);
 };
 
-}  // namespace
-
-int32_t dbe_bench_encode(const DbeBenchOptions* o, DbeBenchResult* r) {
-  r->ok = 0;
-  r->error[0] = 0;
-  r->encoded = 0;
-  r->fresh = 0;
-
+bool DbeSession::open(const DbeOptions* o, DbeInfo* info) {
   LARGE_INTEGER frequency;
   QueryPerformanceFrequency(&frequency);
   g_ticks_per_ms = (double)frequency.QuadPart / 1000.0;
+  info->ticks_per_second = frequency.QuadPart;
+  skip_pointer_only = o->skip_pointer_only != 0;
+  chase_fresh = (o->tweaks & 16) != 0;
 
   // 1. The main screen (the one whose corner is 0,0) and the graphics card it hangs off.
   ComPtr<IDXGIFactory1> factory;
   HRESULT hr = CreateDXGIFactory1(IID_PPV_ARGS(&factory));
-  if (FAILED(hr)) return fail(r, "Could not reach Windows' graphics layer", hr);
+  if (FAILED(hr)) return fail("Could not reach Windows' graphics layer", hr);
 
   ComPtr<IDXGIAdapter1> adapter;
   ComPtr<IDXGIOutput> output;
@@ -100,14 +145,12 @@ int32_t dbe_bench_encode(const DbeBenchOptions* o, DbeBenchResult* r) {
       }
     }
   }
-  if (!found) return fail(r, "No main screen found", 0);
+  if (!found) return fail("No main screen found", 0);
 
-  ComPtr<ID3D11Device> device;
-  ComPtr<ID3D11DeviceContext> context;
   const D3D_FEATURE_LEVEL levels[] = {D3D_FEATURE_LEVEL_11_0};
   hr = D3D11CreateDevice(adapter.Get(), D3D_DRIVER_TYPE_UNKNOWN, nullptr, 0, levels, 1, D3D11_SDK_VERSION, &device,
                          nullptr, &context);
-  if (FAILED(hr)) return fail(r, "Could not open the graphics card", hr);
+  if (FAILED(hr)) return fail("Could not open the graphics card", hr);
 
   // Tweak 1: ask Windows to schedule this program's graphics work ahead of others (a game, the browser), so a
   // frame to encode does not sit in a queue behind them.
@@ -125,31 +168,35 @@ int32_t dbe_bench_encode(const DbeBenchOptions* o, DbeBenchResult* r) {
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
   }
   // Tweak 2: Windows' waits are 15.6 ms coarse unless a program asks for 1 ms.
-  if (o->tweaks & 2) timeBeginPeriod(1);
+  if (o->tweaks & 2) {
+    timeBeginPeriod(1);
+    fine_timer = true;
+  }
 
-  ComPtr<IDXGIOutput1> output1;
   hr = output.As(&output1);
-  if (FAILED(hr)) return fail(r, "This Windows has no Desktop Duplication", hr);
-  ComPtr<IDXGIOutputDuplication> duplication;
+  if (FAILED(hr)) return fail("This Windows has no Desktop Duplication", hr);
   hr = output1->DuplicateOutput(device.Get(), &duplication);
-  if (FAILED(hr)) return fail(r, "Windows refused to share the screen (another program may hold it)", hr);
+  if (FAILED(hr)) return fail("Windows refused to share the screen (another program may hold it)", hr);
 
   DXGI_OUTDUPL_DESC shared;
   duplication->GetDesc(&shared);
-  r->screen_width = (int32_t)shared.ModeDesc.Width;
-  r->screen_height = (int32_t)shared.ModeDesc.Height;
-  r->screen_hz = shared.ModeDesc.RefreshRate.Denominator
-                     ? (int32_t)(shared.ModeDesc.RefreshRate.Numerator / shared.ModeDesc.RefreshRate.Denominator)
-                     : 0;
+  screen_width = (int32_t)shared.ModeDesc.Width;
+  screen_height = (int32_t)shared.ModeDesc.Height;
+  info->screen_width = screen_width;
+  info->screen_height = screen_height;
+  info->screen_hz = shared.ModeDesc.RefreshRate.Denominator
+                        ? (int32_t)(shared.ModeDesc.RefreshRate.Numerator / shared.ModeDesc.RefreshRate.Denominator)
+                        : 0;
+  if (info->screen_hz > 0) refresh_ms = 1000.0 / info->screen_hz;
   if (shared.ModeDesc.Format != DXGI_FORMAT_B8G8R8A8_UNORM)
-    return fail(r, "The screen is not in the ordinary 8-bit format (HDR on?): not handled yet", shared.ModeDesc.Format);
+    return fail("The screen is not in the ordinary 8-bit format (HDR on?): not handled yet", shared.ModeDesc.Format);
 
-  int32_t width = o->encode_width > 0 ? std::min(o->encode_width, r->screen_width) : r->screen_width;
-  int32_t height = o->encode_height > 0 ? std::min(o->encode_height, r->screen_height) : r->screen_height;
+  width = o->encode_width > 0 ? std::min(o->encode_width, screen_width) : screen_width;
+  height = o->encode_height > 0 ? std::min(o->encode_height, screen_height) : screen_height;
   width &= ~1;
   height &= ~1;
-  r->encode_width = width;
-  r->encode_height = height;
+  info->encode_width = width;
+  info->encode_height = height;
   const int32_t fps = std::max(1, o->fps);
 
   // 2. The encoder's own texture: frames are copied into it card-side, and the encoder reads it in place.
@@ -162,37 +209,35 @@ int32_t dbe_bench_encode(const DbeBenchOptions* o, DbeBenchResult* r) {
   wanted.SampleDesc.Count = 1;
   wanted.Usage = D3D11_USAGE_DEFAULT;
   wanted.BindFlags = D3D11_BIND_RENDER_TARGET;
-  ComPtr<ID3D11Texture2D> picture;
   hr = device->CreateTexture2D(&wanted, nullptr, &picture);
-  if (FAILED(hr)) return fail(r, "Could not make the encoder's texture", hr);
+  if (FAILED(hr)) return fail("Could not make the encoder's texture", hr);
 
   // 3. NVIDIA's encoder. It lives in the graphics driver; nothing of NVIDIA's is shipped with the engine.
-  Encoder e;
-  e.dll = LoadLibraryA("nvEncodeAPI64.dll");
-  if (!e.dll) return fail(r, "No NVIDIA encoder on this PC (nvEncodeAPI64.dll not found)", GetLastError());
+  dll = LoadLibraryA("nvEncodeAPI64.dll");
+  if (!dll) return fail("No NVIDIA encoder on this PC (nvEncodeAPI64.dll not found)", GetLastError());
   typedef NVENCSTATUS(NVENCAPI * MaxVersion)(uint32_t*);
   typedef NVENCSTATUS(NVENCAPI * CreateInstance)(NV_ENCODE_API_FUNCTION_LIST*);
-  MaxVersion max_version = (MaxVersion)GetProcAddress(e.dll, "NvEncodeAPIGetMaxSupportedVersion");
-  CreateInstance create_instance = (CreateInstance)GetProcAddress(e.dll, "NvEncodeAPICreateInstance");
-  if (!max_version || !create_instance) return fail(r, "The NVIDIA encoder library is missing its entry points", 0);
+  MaxVersion max_version = (MaxVersion)GetProcAddress(dll, "NvEncodeAPIGetMaxSupportedVersion");
+  CreateInstance create_instance = (CreateInstance)GetProcAddress(dll, "NvEncodeAPICreateInstance");
+  if (!max_version || !create_instance) return fail("The NVIDIA encoder library is missing its entry points", 0);
 
   uint32_t driver = 0;
   max_version(&driver);
-  r->driver_api = driver;
-  r->header_api = (NVENCAPI_MAJOR_VERSION << 4) | NVENCAPI_MINOR_VERSION;
-  if (driver < r->header_api) return fail(r, "The graphics driver's encoder is older than the engine expects", driver);
+  info->driver_api = driver;
+  info->header_api = (NVENCAPI_MAJOR_VERSION << 4) | NVENCAPI_MINOR_VERSION;
+  if (driver < info->header_api) return fail("The graphics driver's encoder is older than the engine expects", driver);
 
-  e.fn.version = NV_ENCODE_API_FUNCTION_LIST_VER;
-  NVENCSTATUS status = create_instance(&e.fn);
-  if (status != NV_ENC_SUCCESS) return e.nvfail(r, "Could not start the NVIDIA encoder", status);
+  fn.version = NV_ENCODE_API_FUNCTION_LIST_VER;
+  NVENCSTATUS status = create_instance(&fn);
+  if (status != NV_ENC_SUCCESS) return nvfail("Could not start the NVIDIA encoder", status);
 
   NV_ENC_OPEN_ENCODE_SESSION_EX_PARAMS open = {};
   open.version = NV_ENC_OPEN_ENCODE_SESSION_EX_PARAMS_VER;
   open.device = device.Get();
   open.deviceType = NV_ENC_DEVICE_TYPE_DIRECTX;
   open.apiVersion = NVENCAPI_VERSION;
-  status = e.fn.nvEncOpenEncodeSessionEx(&open, &e.session);
-  if (status != NV_ENC_SUCCESS) return e.nvfail(r, "The NVIDIA encoder would not open a session", status);
+  status = fn.nvEncOpenEncodeSessionEx(&open, &session);
+  if (status != NV_ENC_SUCCESS) return nvfail("The NVIDIA encoder would not open a session", status);
 
   const GUID codec = o->hevc ? NV_ENC_CODEC_HEVC_GUID : NV_ENC_CODEC_H264_GUID;
   const GUID presets[] = {NV_ENC_PRESET_P1_GUID, NV_ENC_PRESET_P2_GUID, NV_ENC_PRESET_P3_GUID, NV_ENC_PRESET_P4_GUID,
@@ -201,15 +246,13 @@ int32_t dbe_bench_encode(const DbeBenchOptions* o, DbeBenchResult* r) {
 
   // The fastest tuning NVIDIA offers, then the low-delay recipe on top: no frame waits for a later one, no
   // looking ahead, full pictures only when asked for, every frame given one frame's worth of data.
-  static NV_ENC_PRESET_CONFIG preset_config;
   memset(&preset_config, 0, sizeof preset_config);
   preset_config.version = NV_ENC_PRESET_CONFIG_VER;
   preset_config.presetCfg.version = NV_ENC_CONFIG_VER;
-  status = e.fn.nvEncGetEncodePresetConfigEx(e.session, codec, preset, NV_ENC_TUNING_INFO_ULTRA_LOW_LATENCY,
-                                             &preset_config);
-  if (status != NV_ENC_SUCCESS) return e.nvfail(r, "The NVIDIA encoder has no such preset", status);
+  status = fn.nvEncGetEncodePresetConfigEx(session, codec, preset, NV_ENC_TUNING_INFO_ULTRA_LOW_LATENCY,
+                                           &preset_config);
+  if (status != NV_ENC_SUCCESS) return nvfail("The NVIDIA encoder has no such preset", status);
 
-  static NV_ENC_CONFIG config;
   config = preset_config.presetCfg;
   const uint32_t bits_per_second = (uint32_t)std::max(500, o->bitrate_kbps) * 1000u;
   config.gopLength = NVENC_INFINITE_GOPLENGTH;
@@ -257,25 +300,25 @@ int32_t dbe_bench_encode(const DbeBenchOptions* o, DbeBenchResult* r) {
   init.enablePTD = 1;
   init.encodeConfig = &config;
   // Tweak 4: the encoder signals an event when a frame is done, instead of this thread asking and waiting.
-  HANDLE done = nullptr;
   if (o->tweaks & 4) {
     done = CreateEventA(nullptr, FALSE, FALSE, nullptr);
     init.enableEncodeAsync = 1;
   }
-  status = e.fn.nvEncInitializeEncoder(e.session, &init);
-  if (status != NV_ENC_SUCCESS) return e.nvfail(r, "The NVIDIA encoder refused these settings", status);
+  status = fn.nvEncInitializeEncoder(session, &init);
+  if (status != NV_ENC_SUCCESS) return nvfail("The NVIDIA encoder refused these settings", status);
 
   NV_ENC_CREATE_BITSTREAM_BUFFER out = {};
   out.version = NV_ENC_CREATE_BITSTREAM_BUFFER_VER;
-  status = e.fn.nvEncCreateBitstreamBuffer(e.session, &out);
-  if (status != NV_ENC_SUCCESS) return e.nvfail(r, "No output buffer from the NVIDIA encoder", status);
-  e.bitstream = out.bitstreamBuffer;
+  status = fn.nvEncCreateBitstreamBuffer(session, &out);
+  if (status != NV_ENC_SUCCESS) return nvfail("No output buffer from the NVIDIA encoder", status);
+  bitstream = out.bitstreamBuffer;
   if (done) {
     NV_ENC_EVENT_PARAMS event = {};
     event.version = NV_ENC_EVENT_PARAMS_VER;
     event.completionEvent = done;
-    status = e.fn.nvEncRegisterAsyncEvent(e.session, &event);
-    if (status != NV_ENC_SUCCESS) return e.nvfail(r, "The NVIDIA encoder has no event mode here", status);
+    status = fn.nvEncRegisterAsyncEvent(session, &event);
+    if (status != NV_ENC_SUCCESS) return nvfail("The NVIDIA encoder has no event mode here", status);
+    event_registered = true;
   }
 
   NV_ENC_REGISTER_RESOURCE reg = {};
@@ -286,107 +329,184 @@ int32_t dbe_bench_encode(const DbeBenchOptions* o, DbeBenchResult* r) {
   reg.height = (uint32_t)height;
   reg.bufferFormat = NV_ENC_BUFFER_FORMAT_ARGB;
   reg.bufferUsage = NV_ENC_INPUT_IMAGE;
-  status = e.fn.nvEncRegisterResource(e.session, &reg);
-  if (status != NV_ENC_SUCCESS) return e.nvfail(r, "The NVIDIA encoder would not take the texture", status);
-  e.registered = reg.registeredResource;
+  status = fn.nvEncRegisterResource(session, &reg);
+  if (status != NV_ENC_SUCCESS) return nvfail("The NVIDIA encoder would not take the texture", status);
+  registered = reg.registeredResource;
 
-  FILE* dump = nullptr;
-  if (o->dump_path && o->dump_path[0]) dump = fopen(o->dump_path, "wb");
-
-  // 4. The loop: wait for the screen to change (or one frame's time), copy, encode, time each step.
-  D3D11_BOX middle;
-  middle.left = (UINT)((r->screen_width - width) / 2);
-  middle.top = (UINT)((r->screen_height - height) / 2);
+  // The piece of the screen that is encoded: its middle.
+  middle.left = (UINT)((screen_width - width) / 2);
+  middle.top = (UINT)((screen_height - height) / 2);
   middle.right = middle.left + (UINT)width;
   middle.bottom = middle.top + (UINT)height;
   middle.front = 0;
   middle.back = 1;
-  const UINT wait_ms = (UINT)std::max(1, 1000 / fps);
+  return true;
+}
 
-  for (int32_t i = 0; i < o->frames; ++i) {
-    DXGI_OUTDUPL_FRAME_INFO info = {};
-    ComPtr<IDXGIResource> resource;
-    hr = duplication->AcquireNextFrame(i == 0 ? 500 : wait_ms, &info, &resource);
-    const LONGLONG acquired = now();
-    bool fresh = false;
-    if (hr == DXGI_ERROR_WAIT_TIMEOUT) {
-      // Nothing on screen changed: the last picture is encoded again.
-    } else if (FAILED(hr)) {
-      if (dump) fclose(dump);
-      return fail(r, "Windows stopped sharing the screen part-way", hr);
+// One frame: wait for the screen to change (or `wait_ms`), copy, encode, time each step.
+bool DbeSession::next(int32_t wait_ms, bool force_keyframe, DbeFrame* frame) {
+  // The bytes lent out by the last call go back to the encoder before it is asked for more.
+  if (holding) {
+    fn.nvEncUnlockBitstream(session, bitstream);
+    holding = false;
+  }
+
+  DXGI_OUTDUPL_FRAME_INFO info = {};
+  bool fresh = false;
+
+  // Windows withdraws the share when the screen changes hands (a game going full screen, a permission prompt).
+  // It is asked for again here; until it comes back the last picture is encoded again.
+  if (!duplication) {
+    HRESULT again = output1->DuplicateOutput(device.Get(), &duplication);
+    if (SUCCEEDED(again)) {
+      DXGI_OUTDUPL_DESC shared;
+      duplication->GetDesc(&shared);
+      if ((int32_t)shared.ModeDesc.Width != screen_width || (int32_t)shared.ModeDesc.Height != screen_height ||
+          shared.ModeDesc.Format != DXGI_FORMAT_B8G8R8A8_UNORM)
+        return fail("The screen changed size or format while it was shared: start again", shared.ModeDesc.Format);
+      lost_since = 0;
     } else {
+      duplication.Reset();
+      if (ms_between(lost_since, now()) > kLostScreenPatienceMs)
+        return fail("Windows stopped sharing the screen and did not give it back", again);
+      Sleep((DWORD)std::max(1, std::min(wait_ms, 50)));
+    }
+  }
+
+  LONGLONG acquired = 0;
+  if (duplication) {
+    UINT wait = (UINT)std::max(0, wait_ms);
+    LONGLONG give_up = now() + (LONGLONG)(wait * g_ticks_per_ms);
+    DXGI_OUTDUPL_FRAME_INFO best = {};  // the newest real frame taken in this call
+    bool chasing = false;
+    for (;;) {
+      ComPtr<IDXGIResource> resource;
+      HRESULT hr = duplication->AcquireNextFrame(wait, &info, &resource);
+      acquired = now();
+      if (hr == DXGI_ERROR_WAIT_TIMEOUT) break;  // nothing (more) changed: what is in hand is encoded
+      if (hr == DXGI_ERROR_ACCESS_LOST) {
+        duplication.Reset();
+        lost_since = now();
+        break;
+      }
+      if (FAILED(hr)) return fail("Windows stopped sharing the screen part-way", hr);
+      bool real = false;
       if (info.LastPresentTime.QuadPart != 0) {
-        ComPtr<ID3D11Texture2D> frame;
-        if (SUCCEEDED(resource.As(&frame))) {
-          context->CopySubresourceRegion(picture.Get(), 0, 0, 0, 0, frame.Get(), 0, &middle);
+        ComPtr<ID3D11Texture2D> texture;
+        if (SUCCEEDED(resource.As(&texture))) {
+          context->CopySubresourceRegion(picture.Get(), 0, 0, 0, 0, texture.Get(), 0, &middle);
+          real = true;
           fresh = true;
+          best = info;
         }
       }
       resource.Reset();
       duplication->ReleaseFrame();
+      // How often the screen is really changing, learnt from the frames themselves: the time since the last one
+      // taken, shared between however many Windows piled up meanwhile. A long gap means the screen was still.
+      if (real && !chasing) {
+        if (prev_present != 0 && info.AccumulatedFrames > 0) {
+          const double each = ms_between(prev_present, info.LastPresentTime.QuadPart) / info.AccumulatedFrames;
+          if (each > 0.5 && each < 100.0) source_ms = source_ms > 0 ? 0.8 * source_ms + 0.2 * each : each;
+          else source_ms = 0;
+        }
+      }
+      if (real) prev_present = info.LastPresentTime.QuadPart;
+      // Tweak 16, the fresh-frame rule. When this call came to look, a frame was already waiting, so it is some
+      // milliseconds old before any work starts. If the screen's own rhythm says its next frame is due within a
+      // sliver of time, waiting that sliver means the frame that gets encoded is one Windows has only just shown.
+      // If the next one is further off than that, the frame in hand is taken: waiting would slow the stream down
+      // for the sake of freshness. Once one frame has been caught fresh, the ones after it fall into step.
+      if (real && chase_fresh && !chasing && source_ms > 0) {
+        const double age = ms_between(info.LastPresentTime.QuadPart, acquired);
+        const double until_next = std::max(0.0, source_ms - age);
+        if (age > kStaleFrameMs && until_next <= kChaseWaitMs) {
+          chasing = true;
+          give_up = acquired + (LONGLONG)((until_next + 1.0) * g_ticks_per_ms);
+          wait = (UINT)(until_next + 1.9);
+          continue;
+        }
+      }
+      if (real) break;
+      // Windows also answers when only the mouse pointer moved, with the same picture as before. The bench has
+      // always counted that as a frame. The live stream asks to keep waiting for a real change instead, until
+      // the wait is used up, so a moving mouse does not turn into hundreds of identical frames a second.
+      if (!chasing && !skip_pointer_only) break;
+      const LONGLONG left = give_up - acquired;
+      if (left <= 0) break;
+      wait = (UINT)((double)left / g_ticks_per_ms);
     }
-    const LONGLONG copied = now();
+    if (fresh) info = best;
+  }
+  if (!acquired) acquired = now();
+  const LONGLONG copied = now();
 
-    NV_ENC_MAP_INPUT_RESOURCE map = {};
-    map.version = NV_ENC_MAP_INPUT_RESOURCE_VER;
-    map.registeredResource = e.registered;
-    status = e.fn.nvEncMapInputResource(e.session, &map);
-    if (status != NV_ENC_SUCCESS) {
-      if (dump) fclose(dump);
-      return e.nvfail(r, "The NVIDIA encoder could not read the texture", status);
-    }
+  NV_ENC_MAP_INPUT_RESOURCE map = {};
+  map.version = NV_ENC_MAP_INPUT_RESOURCE_VER;
+  map.registeredResource = registered;
+  NVENCSTATUS status = fn.nvEncMapInputResource(session, &map);
+  if (status != NV_ENC_SUCCESS) return nvfail("The NVIDIA encoder could not read the texture", status);
 
-    NV_ENC_PIC_PARAMS pic = {};
-    pic.version = NV_ENC_PIC_PARAMS_VER;
-    pic.inputBuffer = map.mappedResource;
-    pic.bufferFmt = map.mappedBufferFmt;
-    pic.inputWidth = (uint32_t)width;
-    pic.inputHeight = (uint32_t)height;
-    pic.outputBitstream = e.bitstream;
-    pic.pictureStruct = NV_ENC_PIC_STRUCT_FRAME;
-    pic.inputTimeStamp = (uint64_t)i;
-    if (i == 0) pic.encodePicFlags = NV_ENC_PIC_FLAG_FORCEIDR | NV_ENC_PIC_FLAG_OUTPUT_SPSPPS;
-    pic.completionEvent = done;
-    status = e.fn.nvEncEncodePicture(e.session, &pic);
-    if (status != NV_ENC_SUCCESS) {
-      e.fn.nvEncUnmapInputResource(e.session, map.mappedResource);
-      if (dump) fclose(dump);
-      return e.nvfail(r, "The NVIDIA encoder failed on a frame", status);
-    }
-
-    if (done) WaitForSingleObject(done, 200);
-    NV_ENC_LOCK_BITSTREAM lock = {};
-    lock.version = NV_ENC_LOCK_BITSTREAM_VER;
-    lock.outputBitstream = e.bitstream;
-    status = e.fn.nvEncLockBitstream(e.session, &lock);
-    const LONGLONG encoded = now();
-    if (status != NV_ENC_SUCCESS) {
-      e.fn.nvEncUnmapInputResource(e.session, map.mappedResource);
-      if (dump) fclose(dump);
-      return e.nvfail(r, "The NVIDIA encoder gave no finished frame", status);
-    }
-    if (dump) fwrite(lock.bitstreamBufferPtr, 1, lock.bitstreamSizeInBytes, dump);
-    const int32_t size = (int32_t)lock.bitstreamSizeInBytes;
-    e.fn.nvEncUnlockBitstream(e.session, e.bitstream);
-    e.fn.nvEncUnmapInputResource(e.session, map.mappedResource);
-
-    r->copy_ms[i] = ms_between(acquired, copied);
-    r->encode_ms[i] = ms_between(copied, encoded);
-    r->present_to_encoded_ms[i] = fresh ? ms_between(info.LastPresentTime.QuadPart, encoded) : -1.0;
-    r->bytes[i] = size;
-    r->encoded = i + 1;
-    if (fresh) r->fresh += 1;
+  NV_ENC_PIC_PARAMS pic = {};
+  pic.version = NV_ENC_PIC_PARAMS_VER;
+  pic.inputBuffer = map.mappedResource;
+  pic.bufferFmt = map.mappedBufferFmt;
+  pic.inputWidth = (uint32_t)width;
+  pic.inputHeight = (uint32_t)height;
+  pic.outputBitstream = bitstream;
+  pic.pictureStruct = NV_ENC_PIC_STRUCT_FRAME;
+  pic.inputTimeStamp = count;
+  if (count == 0 || force_keyframe) pic.encodePicFlags = NV_ENC_PIC_FLAG_FORCEIDR | NV_ENC_PIC_FLAG_OUTPUT_SPSPPS;
+  pic.completionEvent = done;
+  status = fn.nvEncEncodePicture(session, &pic);
+  if (status != NV_ENC_SUCCESS) {
+    fn.nvEncUnmapInputResource(session, map.mappedResource);
+    return nvfail("The NVIDIA encoder failed on a frame", status);
   }
 
-  if (dump) fclose(dump);
-  if (done) {
-    NV_ENC_EVENT_PARAMS event = {};
-    event.version = NV_ENC_EVENT_PARAMS_VER;
-    event.completionEvent = done;
-    e.fn.nvEncUnregisterAsyncEvent(e.session, &event);
-    CloseHandle(done);
+  if (done) WaitForSingleObject(done, 200);
+  NV_ENC_LOCK_BITSTREAM lock = {};
+  lock.version = NV_ENC_LOCK_BITSTREAM_VER;
+  lock.outputBitstream = bitstream;
+  status = fn.nvEncLockBitstream(session, &lock);
+  const LONGLONG encoded = now();
+  if (status != NV_ENC_SUCCESS) {
+    fn.nvEncUnmapInputResource(session, map.mappedResource);
+    return nvfail("The NVIDIA encoder gave no finished frame", status);
   }
-  if (o->tweaks & 2) timeEndPeriod(1);
-  r->ok = 1;
-  return 0;
+  // The encoded bytes stay lent to the caller until the next call (no copy is made of them here).
+  holding = true;
+  fn.nvEncUnmapInputResource(session, map.mappedResource);
+
+  frame->data = (const uint8_t*)lock.bitstreamBufferPtr;
+  frame->size = (int32_t)lock.bitstreamSizeInBytes;
+  frame->keyframe = (lock.pictureType == NV_ENC_PIC_TYPE_IDR || lock.pictureType == NV_ENC_PIC_TYPE_I) ? 1 : 0;
+  frame->fresh = fresh ? 1 : 0;
+  frame->present_time = fresh ? info.LastPresentTime.QuadPart : 0;
+  frame->acquired_time = acquired;
+  frame->encoded_time = encoded;
+  frame->copy_ms = ms_between(acquired, copied);
+  frame->encode_ms = ms_between(copied, encoded);
+  count += 1;
+  return true;
 }
+
+DbeSession* dbe_open(const DbeOptions* options, DbeInfo* info, char* error, int32_t error_len) {
+  DbeSession* s = new DbeSession();
+  memset(info, 0, sizeof *info);
+  if (s->open(options, info)) return s;
+  if (error && error_len > 0) snprintf(error, (size_t)error_len, "%s", s->error);
+  delete s;
+  return nullptr;
+}
+
+int32_t dbe_next_frame(DbeSession* session, int32_t wait_ms, int32_t force_keyframe, DbeFrame* frame) {
+  memset(frame, 0, sizeof *frame);
+  return session->next(wait_ms, force_keyframe != 0, frame) ? 0 : 1;
+}
+
+const char* dbe_last_error(DbeSession* session) { return session->error; }
+
+int64_t dbe_now(void) { return now(); }
+
+void dbe_close(DbeSession* session) { delete session; }

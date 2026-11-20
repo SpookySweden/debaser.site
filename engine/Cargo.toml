@@ -6,6 +6,9 @@ description = "DEBASER_OS's own screen engine (SPEC-screens.md): grabs a screen,
 publish = false
 
 [dependencies]
+# WebRTC that takes ready-encoded video (SPEC-screens.md). Its encryption comes from Windows itself ("wincrypto"),
+# so nothing in C has to be built. Every crate this pulls in is listed with its licence in DEPENDENCIES.md.
+str0m = { version = "0.25", default-features = false, features = ["wincrypto"] }
 
 [build-dependencies]
 cc = "1"

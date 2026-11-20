@@ -1,4 +1,8 @@
 // The engine's native core, as the Rust side sees it (SPEC-screens.md).
+//
+// One "session" is one screen being grabbed and encoded. Open it, ask it for frames one at a time, close it.
+// Everything on one session must be called from the thread that opened it: the graphics-priority switch raises
+// that thread, and the card's drawing context belongs to it.
 #pragma once
 #include <stdint.h>
 
@@ -6,36 +10,55 @@
 extern "C" {
 #endif
 
-typedef struct DbeBenchOptions {
+typedef struct DbeOptions {
   int32_t encode_width;   // 0 = the screen's own width; smaller = a piece cut from the middle of the screen
   int32_t encode_height;  // 0 = the screen's own height
-  int32_t fps;            // the rate asked of the encoder, and how long to wait for a new frame
+  int32_t fps;            // the rate the encoder is told to expect (it sizes each frame's share of the bitrate)
   int32_t bitrate_kbps;
-  int32_t frames;         // how many frames to encode
   int32_t hevc;           // 0 = H.264, 1 = HEVC
   int32_t intra_refresh;  // 1 = gradual repair on (no full pictures after the first)
   int32_t preset;         // 1 (fastest) to 7
   int32_t tweaks;         // switches to try, added together: 1 graphics priority, 2 fine timer, 4 event mode, 8 one pass
-  const char* dump_path;  // write the encoded stream here (may be null)
-} DbeBenchOptions;
+  int32_t skip_pointer_only;  // 1 = the mouse pointer moving over an unchanged picture does not end a wait for
+                              // a frame (the live stream); 0 = it does, as the bench has always counted it
+} DbeOptions;
 
-typedef struct DbeBenchResult {
-  int32_t ok;
-  char error[512];
+typedef struct DbeInfo {
   int32_t screen_width, screen_height, screen_hz;
   int32_t encode_width, encode_height;
-  uint32_t header_api, driver_api;
-  int32_t encoded;     // frames encoded
-  int32_t fresh;       // frames that came from a real change on screen
-  // One value per frame, filled up to `frames`. Memory is the caller's.
-  double* copy_ms;                // taking the frame and copying it on the graphics card
-  double* encode_ms;              // handing it to the encoder until the finished frame is in memory
-  double* present_to_encoded_ms;  // from Windows showing the frame to the encoded frame in memory; -1 for a repeat
-  int32_t* bytes;                 // size of each encoded frame
-} DbeBenchResult;
+  uint32_t header_api, driver_api;  // NVIDIA's encoder interface: the engine's header, and the driver's
+  int64_t ticks_per_second;         // how many ticks of Windows' fine clock make a second (for the times below)
+} DbeInfo;
 
-// Grabs the main screen and encodes it; fills `result`. Returns 0 when it ran.
-int32_t dbe_bench_encode(const DbeBenchOptions* options, DbeBenchResult* result);
+typedef struct DbeFrame {
+  const uint8_t* data;   // the encoded frame, Annex-B (start codes); valid until the next call on this session
+  int32_t size;          // its length in bytes
+  int32_t keyframe;      // 1 = a full picture (a viewer can start from it)
+  int32_t fresh;         // 1 = the screen really changed; 0 = nothing new came in time, the last picture again
+  int64_t present_time;  // when Windows showed the frame, on Windows' fine clock; 0 for a repeat
+  int64_t acquired_time; // when Windows handed the frame over (or the wait ran out)
+  int64_t encoded_time;  // when the encoded frame was in memory
+  double copy_ms;        // taking the frame and copying it on the graphics card
+  double encode_ms;      // handing it to the encoder until the finished frame is in memory
+} DbeFrame;
+
+typedef struct DbeSession DbeSession;
+
+// Opens the main screen and the encoder. Returns null on failure, with the reason in `error`.
+DbeSession* dbe_open(const DbeOptions* options, DbeInfo* info, char* error, int32_t error_len);
+
+// Waits up to `wait_ms` for the screen to change, then encodes: the new frame, or the last picture again when
+// nothing changed in time. `force_keyframe` 1 asks for a full picture (the first frame always is one).
+// Returns 0 and fills `frame`, or 1 on failure (the reason is in dbe_last_error).
+int32_t dbe_next_frame(DbeSession* session, int32_t wait_ms, int32_t force_keyframe, DbeFrame* frame);
+
+// Why the last call on this session failed.
+const char* dbe_last_error(DbeSession* session);
+
+// Windows' fine clock now, in the same ticks as the frame times.
+int64_t dbe_now(void);
+
+void dbe_close(DbeSession* session);
 
 #ifdef __cplusplus
 }

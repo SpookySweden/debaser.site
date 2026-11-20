@@ -150,6 +150,45 @@ host can feed a 180 Hz viewer a fresh frame every refresh; lever 2 is open on th
 Minecraft 15% during the last runs; the kept defaults still beat no settings by about 12% (3.28 against 3.72 ms). A
 true empty-card figure has not been taken and would need the PC left alone with the apps closed.
 
+### 2026-11-20: the engine reaches a browser (`debaser-engine serve`, `node bench/webrtc-check.cjs`)
+The engine now sends its frames over WebRTC to a page it serves itself (this PC only unless a token is set), and a
+check opens that page in a hidden Chrome and reads the browser's own counts. Run by me after the helper built it,
+1080p, real screen content, the PC in use (Minecraft and the Claude app on the card), engine graphics priority off:
+
+| Asked for | Got | In the browser's queue | Decoding | Arrival to decoded | Lost / dropped |
+| --- | --- | --- | --- | --- | --- |
+| 60 a second | 60.4 | 0.65 ms a frame | 0.73 ms | 1.45 ms | 0 / 0 |
+| 120 | 112.8 | 0.32 | 0.73 | 1.12 | 0 / 0 |
+| 180 | 160.0 | 0.28 | 0.78 | 1.10 | 0 / 5 at start-up |
+
+- The browser decodes on the graphics card (`D3D11VideoDecoder`), and the "show at once" marker works: without it one
+  run held frames 3.85 ms in the queue, with it 0.1 to 0.65 ms.
+- From the engine having a frame encoded to handing it to the network: 0.3 to 0.7 ms.
+- **The stages added up, same PC, before the browser draws anything:** Windows showing a frame to encoded 5 to 6 ms
+  (see below), hand-off 0.3 to 0.7, loopback about 0, browser 1.1 to 1.5: **about 6.5 to 8 ms from the PC showing a
+  frame to the browser holding it decoded.** This is not the glass-to-glass number the 7 ms yardstick means: the
+  browser's drawing and the viewer's screen refresh come on top, and a real network sits in the middle. That needs
+  the rig with a visible window, and the laptop.
+- Not checked: any address but this PC's own, real packet loss, Edge and Firefox, a visible window.
+
+### 2026-11-20: frames were stale when picked up, and the fresh-frame rule (switch 16, not a default yet)
+In the live stream "Windows showed it to encoded" is 5 to 6 ms, against 3.3 ms in the bench. The difference is age:
+at 60 frames a second on a 180 Hz screen, the engine rests between frames and then takes the newest one waiting,
+which is on average half a refresh old before any work starts.
+
+The rule: learn how often the screen is really changing; when a frame is found waiting and the next is due within
+1.5 ms, wait for that one, so what gets encoded was shown a moment ago.
+
+| Run (60 a second asked) | Without | With | Frames a second with |
+| --- | --- | --- | --- |
+| screen changing every refresh, first version of the rule | middle 5.08 and 6.13 ms, worst 5% 9.3 and 9.8 | **3.90 and 4.26, worst 5% 4.4 and 5.0** | 51 (too slow: it waited a whole refresh) |
+| screen changing slower and unevenly, final version | middle 7.7, 7.7, 8.1, worst 5% about 15 | 6.7, 6.2, 4.5, worst 5% 12 to 15 | 54 to 56 |
+
+Real, but not settled: what was on screen changed between runs (it was whatever the PC was showing), and the rule
+costs a few frames a second. At 120 and 180 asked it changed nothing: there the engine is already taking frames as
+fast as it can finish them. **To tune it fairly it needs a steady moving picture on the real screen** (a small
+animated window for 15 seconds a run), which I have not opened on a PC in use.
+
 Next things to try for the under-load number, in order:
 1. **Top graphics priority.** Windows has a "realtime" class above the "high" one used here; it needs the engine to
    run with administrator rights (Sunshine gets it by running as a Windows service). Needs Luke's click on a

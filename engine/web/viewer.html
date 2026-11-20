@@ -1,0 +1,139 @@
+<!doctype html>
+<!--
+  The engine's viewer page (SPEC-screens.md), served by `debaser-engine serve` at "/".
+  Plain HTML and script: no libraries, no artwork, and nothing is asked of any other server (the rule below
+  forbids it outright; the only request is the "hello" back to the engine that served this page).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'">
+<title>DEBASER ENGINE VIEWER</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #111111; overflow: hidden; }
+  video { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #111111; }
+  #numbers {
+    position: fixed; left: 8px; top: 8px; margin: 0; padding: 6px 8px;
+    font: 12px/1.4 Consolas, "Courier New", monospace; white-space: pre;
+    color: #d0d0d0; background: rgba(32, 32, 32, 0.8); border: 1px solid #555555;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<video id="screen" muted autoplay playsinline></video>
+<pre id="numbers">connecting</pre>
+<script>
+'use strict';
+
+const video = document.getElementById('screen');
+const numbers = document.getElementById('numbers');
+let connection = null;
+let problem = '';
+// When each step of connecting happened, in milliseconds since the page began loading.
+const steps = { offerSent: null, answerBack: null, connected: null, firstFrameShown: null };
+
+// The "hello": our offer goes to the engine, its answer comes back, and the video then travels directly.
+async function start() {
+  // No outside helpers (STUN or TURN servers): the engine tells us its own address in its answer.
+  connection = new RTCPeerConnection({ iceServers: [] });
+  const transceiver = connection.addTransceiver('video', { direction: 'recvonly' });
+
+  // Ask for H.264 first, since that is what the engine's video chip makes.
+  try {
+    const all = RTCRtpReceiver.getCapabilities('video').codecs;
+    const isH264 = (codec) => codec.mimeType.toLowerCase() === 'video/h264';
+    const h264 = all.filter(isH264);
+    if (h264.length) transceiver.setCodecPreferences([...h264, ...all.filter((codec) => !isH264(codec))]);
+  } catch (error) { /* an older browser: it still offers H.264, just not first */ }
+
+  connection.ontrack = (event) => {
+    // Ask the browser to keep no waiting queue: show each frame as soon as it is decoded.
+    try { event.receiver.jitterBufferTarget = 0; } catch (error) { /* not in this browser */ }
+    try { event.receiver.playoutDelayHint = 0; } catch (error) { /* not in this browser */ }
+    video.srcObject = event.streams[0] || new MediaStream([event.track]);
+    video.play().catch(() => { /* muted autoplay is allowed; if a browser still refuses, a click starts it */ });
+    if (video.requestVideoFrameCallback) video.requestVideoFrameCallback(() => { steps.firstFrameShown = performance.now(); });
+  };
+  connection.onconnectionstatechange = () => {
+    if (connection.connectionState === 'connected' && steps.connected === null) steps.connected = performance.now();
+    if (connection.connectionState === 'failed') problem = 'the connection failed (reload to try again)';
+    if (connection.connectionState === 'closed' || connection.connectionState === 'disconnected') problem = 'the engine stopped sending (reload to try again)';
+  };
+
+  await connection.setLocalDescription(await connection.createOffer());
+  // The token, when the engine asks for one, is in this page's own address and is passed along as it is.
+  steps.offerSent = performance.now();
+  const response = await fetch('offer' + location.search, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/sdp' },
+    body: connection.localDescription.sdp,
+  });
+  const text = await response.text();
+  steps.answerBack = performance.now();
+  if (!response.ok) throw new Error(text || ('the engine answered ' + response.status));
+  await connection.setRemoteDescription({ type: 'answer', sdp: text });
+}
+
+const perFrameMs = (total, count) => (typeof total === 'number' && count > 0 ? (total / count) * 1000 : null);
+
+// The receiver's own numbers, for the overlay and for engine/bench/webrtc-check.cjs.
+window.__debaserStats = async function () {
+  const result = {
+    connectionState: connection ? connection.connectionState : 'none',
+    problem,
+    framesDecoded: 0, framesReceived: 0, framesDropped: 0, keyFramesDecoded: 0,
+    framesPerSecond: null, frameWidth: null, frameHeight: null,
+    jitterBufferDelayMsPerFrame: null, processingDelayMsPerFrame: null, decodeMsPerFrame: null,
+    packetsReceived: 0, packetsLost: 0, bytesReceived: 0, nackCount: 0, pliCount: 0, firCount: 0, freezeCount: 0,
+    decoderImplementation: null, powerEfficientDecoder: null, mimeType: null,
+    // The raw running totals, so a caller can work out the same averages over any stretch of time.
+    jitterBufferDelay: null, jitterBufferEmittedCount: null, totalProcessingDelay: null, totalDecodeTime: null,
+    roundTripMs: null,
+    stepsMs: { ...steps },
+  };
+  if (!connection) return result;
+  const report = await connection.getStats();
+  let inbound = null;
+  let pair = null;
+  report.forEach((entry) => {
+    if (entry.type === 'inbound-rtp' && entry.kind === 'video') inbound = entry;
+    if (entry.type === 'candidate-pair' && entry.nominated && entry.state === 'succeeded') pair = entry;
+  });
+  if (pair && typeof pair.currentRoundTripTime === 'number') result.roundTripMs = pair.currentRoundTripTime * 1000;
+  if (!inbound) return result;
+  const codec = inbound.codecId ? report.get(inbound.codecId) : null;
+  for (const key of ['framesDecoded', 'framesReceived', 'framesDropped', 'keyFramesDecoded', 'packetsReceived', 'packetsLost', 'bytesReceived', 'nackCount', 'pliCount', 'firCount', 'freezeCount']) {
+    if (typeof inbound[key] === 'number') result[key] = inbound[key];
+  }
+  for (const key of ['framesPerSecond', 'frameWidth', 'frameHeight', 'decoderImplementation', 'powerEfficientDecoder', 'jitterBufferDelay', 'jitterBufferEmittedCount', 'totalProcessingDelay', 'totalDecodeTime']) {
+    if (inbound[key] !== undefined) result[key] = inbound[key];
+  }
+  result.jitterBufferDelayMsPerFrame = perFrameMs(inbound.jitterBufferDelay, inbound.jitterBufferEmittedCount);
+  result.processingDelayMsPerFrame = perFrameMs(inbound.totalProcessingDelay, inbound.framesDecoded);
+  result.decodeMsPerFrame = perFrameMs(inbound.totalDecodeTime, inbound.framesDecoded);
+  result.mimeType = codec ? codec.mimeType : null;
+  return result;
+};
+
+const shown = (value, digits) => (typeof value === 'number' ? value.toFixed(digits) : '-');
+
+async function draw() {
+  if (problem) { numbers.textContent = problem; return; }
+  try {
+    const s = await window.__debaserStats();
+    if (!s.framesDecoded) { numbers.textContent = 'connecting (' + s.connectionState + ')'; return; }
+    numbers.textContent =
+      s.frameWidth + 'x' + s.frameHeight + '  ' + shown(s.framesPerSecond, 0) + ' frames/s  ' + (s.mimeType || '') + '\n' +
+      'wait in buffer ' + shown(s.jitterBufferDelayMsPerFrame, 1) + ' ms  decode ' + shown(s.decodeMsPerFrame, 1) + ' ms  arrival to ready ' + shown(s.processingDelayMsPerFrame, 1) + ' ms\n' +
+      'frames ' + s.framesDecoded + '  dropped ' + s.framesDropped + '  packets lost ' + s.packetsLost + '  resends asked ' + s.nackCount + '  full pictures asked ' + s.pliCount + '\n' +
+      'decoder ' + (s.decoderImplementation || '-');
+  } catch (error) { /* the next second tries again */ }
+}
+
+start().catch((error) => { problem = 'could not connect: ' + (error && error.message ? error.message : error); draw(); });
+setInterval(draw, 1000);
+</script>
+</body>
+</html>
