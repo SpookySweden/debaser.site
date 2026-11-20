@@ -43,7 +43,7 @@ Moonlight for every run, and write them in the Notes column.
 ## Results
 | Date | Contender | Line | p50 ms | p95 ms | Seen / pressed | Read every | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| | floor (patch page on the PC, no stream) | none | | | | | not measured yet: the PC's desktop was in use during the self-test |
+| 2026-11-20 | floor (patch page on the PC, no stream) | none | 8.4 | 13.9 | 200 / 200 | 5.5 ms | Edge, 3440x1440 at 180 Hz; fastest 4.4, slowest 16.2; `results/floor-pc-20261120-034325.json` |
 | | **yardstick: Sunshine to Moonlight** | home network | | | | | |
 | | yardstick | bad line (loss and jitter added) | | | | | phase 5 |
 
@@ -51,8 +51,11 @@ Moonlight for every run, and write them in the Notes column.
 One line per change: what changed, the numbers before and after, kept or dropped. None yet.
 
 ## Not yet measured, and why
-- The floor and the yardstick: the rig was proved to refuse wrongly-set-up runs, and saw the square flip in its trial
-  presses, but a full run on the PC was cut short by its own guard (another window came to the front: the PC was in
-  use). No number is claimed.
+- The yardstick: needs the laptop. The floor above is the PC's own share of every number: about a frame and a half
+  of its 180 Hz screen (the browser draws the flip on its next frame, Windows composes it, the rig reads it). The rig
+  can only read the screen once per refresh of the screen it runs on, so on a 60 Hz laptop its fineness will be about
+  17 ms; the middle value over 200 presses is still fair between contenders, since the presses are spread unevenly.
+- With `-Window` the rig takes the front back when another app pulls itself forward (the Claude app did, twice in
+  the first tries) and says how many times; without it, it stops and keeps only what was measured in front.
 - Delay without input (a moving clock): the rig's second mode, not written yet; the key-press round trip comes first
   because CONTROL is the point.

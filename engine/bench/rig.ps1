@@ -202,11 +202,14 @@ public static class Rig {
    * The whole run. First two presses are a trial: if the box doesn't change for either, nothing is measured and
    * Problem says why, instead of a table of timeouts.
    */
-  public static double[] Run(int samples, int vk, int timeoutMs) {
+  public static int Interruptions;
+  public static string Stopped = "";
+
+  public static double[] Run(int samples, int vk, int timeoutMs, string window) {
     List<double> results = new List<double>();
     Random random = new Random();
     long polls = 0; double pollTime = 0;
-    Timeouts = 0; Problem = "";
+    Timeouts = 0; Problem = ""; Interruptions = 0; Stopped = "";
     const double threshold = 30;
 
     double first = One(vk, timeoutMs, threshold, ref polls, ref pollTime);
@@ -222,10 +225,21 @@ public static class Rig {
     for (int i = 0; i < samples; i++) {
       // An uneven wait, so presses don't fall in step with either screen's refresh.
       Thread.Sleep(180 + random.Next(220));
-      // Keys go to whatever is in front: if that changes, the rest would measure the wrong window.
+      // Keys go to whatever is in front: if that changes, the rest would measure the wrong window. With -Window the
+      // rig takes the front back and carries on (some apps pull themselves forward by themselves); without it, it
+      // stops and keeps only what was measured while the right window was in front.
       if (GetForegroundWindow() != front) {
-        Problem = "Another window came to the front after " + i + " presses: \"" + FrontWindow() + "\".";
-        return new double[0];
+        string thief = FrontWindow();
+        if (window != "" && Interruptions < 20 && Bring(window)) {
+          Interruptions++;
+          front = GetForegroundWindow();
+          Thread.Sleep(300);
+          i--;
+          continue;
+        }
+        Stopped = "Another window came to the front after " + i + " presses: \"" + thief + "\".";
+        if (results.Count < 20) { Problem = Stopped; return new double[0]; }
+        break;
       }
       double ms = One(vk, timeoutMs, threshold, ref polls, ref pollTime);
       if (ms < 0) Timeouts++; else results.Add(ms);
@@ -259,7 +273,7 @@ if ($Window -ne '') {
 }
 try {
   $front = [Rig]::FrontWindow()
-  $values = [Rig]::Run($Samples, $Key, $TimeoutMs)
+  $values = [Rig]::Run($Samples, $Key, $TimeoutMs, $Window)
 } finally {
   [Rig]::Close()
 }
@@ -289,6 +303,8 @@ $summary = [ordered]@{
   p99Ms = [math]::Round((Get-Percentile $sorted 99), 1)
   maxMs = [math]::Round($sorted[$sorted.Count - 1], 1)
   readEveryMs = [math]::Round([Rig]::PollMs, 2)
+  tookFrontBack = [Rig]::Interruptions
+  stoppedEarly = [Rig]::Stopped
 }
 
 Write-Host ""
@@ -299,6 +315,8 @@ Write-Host ("  middle (p50)   {0} ms" -f $summary.p50Ms)
 Write-Host ("  worst 5% (p95) {0} ms" -f $summary.p95Ms)
 Write-Host ("  fastest {0} ms, average {1} ms, p99 {2} ms, slowest {3} ms" -f $summary.minMs, $summary.meanMs, $summary.p99Ms, $summary.maxMs)
 Write-Host ("  the screen was read every {0} ms (the stick's own fineness)" -f $summary.readEveryMs)
+if ($summary.tookFrontBack -gt 0) { Write-Host ("  another window took the front {0} time(s); the rig took it back and carried on" -f $summary.tookFrontBack) }
+if ($summary.stoppedEarly -ne '') { Write-Host ("  STOPPED EARLY. {0}" -f $summary.stoppedEarly) }
 
 if ($OutDir -eq '') { $OutDir = Join-Path $PSScriptRoot 'results' }
 if (-not (Test-Path $OutDir)) { New-Item -ItemType Directory -Force $OutDir | Out-Null }
