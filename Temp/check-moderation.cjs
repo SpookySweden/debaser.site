@@ -88,6 +88,7 @@ begin
   ${as('c')}
   select count(*) into n from public.forum_threads where id = t;
   ${expect('a hidden post is gone for everybody else', 'n = 0')}
+  ${refused('a report copied a hidden line its reporter cannot read', "perform public.file_report(b, 'spam', '', 'thread', t::text)")}
   ${back}
   set local role anon;
   perform set_config('request.jwt.claims', '{"role":"anon"}', true);
@@ -103,12 +104,17 @@ begin
 
   ${as('a')}
   perform public.moderate_unhide('thread', t::text);
+  perform public.block_account(b);
+  select count(*) into n from public.forum_threads where id = t;
+  ${expect('a block by a moderator hides nothing they moderate', 'n = 1')}
+  perform public.unblock_account(b);
   ${refused('a moderator was banned', "perform public.ban_account(a, 'x')")}
   ${back}
 
   -- C blocks B.
   ${as('c')}
   ${refused('somebody blocked themselves', 'perform public.block_account(c)')}
+  ${refused('an account asked about a block between two other people', 'perform public.has_blocked(a, b)')}
   perform public.block_account(b);
   select count(*) into n from public.forum_threads where id = t;
   ${expect("the blocker no longer reads the blocked person's post", 'n = 0')}

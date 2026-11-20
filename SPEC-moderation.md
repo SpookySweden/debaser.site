@@ -100,6 +100,9 @@ One way: what you block disappears for you. The blocked person is never told, an
     handled by moderators only.
   - `moderation_log`, written only by those functions. Readable by moderators. No update or delete for anyone.
   - Bans move from writing the profile row directly to `ban_account(person, reason)` / `unban_account(person)`, which log.
+  - `moderation_pulse`: one row whose time every hide and unhide moves, so open boards and rooms read again at once (a row that just
+    became unreadable sends no live change of its own). `my_standing()`: a person reads their own ban, its reason and whether their
+    appeal waits (the reason column is not readable to accounts).
 - **App:** both stores (mock and Supabase) for blocks, reports, hides and the moderator list. `useAdmin()` reads "am I a moderator" from
   the store instead of comparing with the house account's id. New: the REPORTS window, its top-bar key, the report form, the BLOCK key and
   card, PRIVACY's BLOCKED list, the hidden/banned/appeal marks.

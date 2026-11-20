@@ -245,9 +245,12 @@ create table if not exists public.blocks (
   blocker uuid not null references auth.users (id) on delete cascade,
   blocked uuid not null references auth.users (id) on delete cascade,
   created_at timestamptz not null default now(),
+  -- The rooms the block took them out of, so unblocking lets them back into those and no others (a REMOVE by hand stays).
+  removed_from uuid[] not null default '{}',
   primary key (blocker, blocked),
   check (blocker <> blocked)
 );
+alter table public.blocks add column if not exists removed_from uuid[] not null default '{}';
 create index if not exists blocks_by_blocked on public.blocks (blocked);
 alter table public.blocks enable row level security;
 revoke all on public.blocks from anon, authenticated;
@@ -280,6 +283,20 @@ set search_path = ''
 as $$
   select person is not null and exists (select 1 from public.blocks b where b.blocker = person and b.blocked = auth.uid());
 $$;
+-- The general question, for the database's own definer functions only (the notifications' gate drops a notification to somebody
+-- from a person they blocked, SPEC-notifications): nobody signed in can call it, so nobody can ask about two other people.
+create or replace function public.has_blocked(blocker uuid, blocked uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (select 1 from public.blocks b where b.blocker = $1 and b.blocked = $2);
+$$;
+revoke all on function public.has_blocked(uuid, uuid) from public, anon, authenticated;
+grant execute on function public.has_blocked(uuid, uuid) to service_role;
+
 revoke all on function public.blocked_by_me(uuid) from public, anon;
 revoke all on function public.blocks_me(uuid) from public, anon;
 grant execute on function public.blocked_by_me(uuid) to authenticated, service_role;
@@ -293,6 +310,7 @@ set search_path = ''
 as $$
 declare
   caller uuid := auth.uid();
+  taken uuid[];
 begin
   if caller is null or public.is_guest() or person is null or person = caller then
     raise exception 'not allowed' using errcode = '42501';
@@ -306,9 +324,15 @@ begin
   insert into public.blocks (blocker, blocked) values (caller, person) on conflict do nothing;
 
   -- Out of the rooms the blocker is hosting now, as REMOVE does.
-  update public.watch_members m set removed_at = now(), removed_by = caller
-   where m.user_id = person and m.removed_at is null
-     and m.room_id in (select r.id from public.watch_rooms r where r.host_id = caller and r.ended_at is null);
+  with gone as (
+    update public.watch_members m set removed_at = now(), removed_by = caller
+     where m.user_id = person and m.removed_at is null
+       and m.room_id in (select r.id from public.watch_rooms r where r.host_id = caller and r.ended_at is null)
+    returning m.room_id
+  )
+  select coalesce(array_agg(room_id), '{}') into taken from gone;
+  update public.blocks b set removed_from = (select array(select distinct unnest(b.removed_from || taken)))
+   where b.blocker = caller and b.blocked = person;
   delete from public.watch_crowns c
    where c.user_id = person and c.room_id in (select r.id from public.watch_rooms r where r.host_id = caller and r.ended_at is null);
 end;
@@ -322,12 +346,13 @@ set search_path = ''
 as $$
 declare
   caller uuid := auth.uid();
+  taken uuid[];
 begin
   if caller is null or public.is_guest() then raise exception 'not allowed' using errcode = '42501'; end if;
-  delete from public.blocks b where b.blocker = caller and b.blocked = person;
-  -- Back as it was: the blocker's own removals of them from rooms the blocker still hosts are lifted.
+  delete from public.blocks b where b.blocker = caller and b.blocked = person returning b.removed_from into taken;
+  -- Back as it was: only the rooms the block took them out of, and only while the blocker still hosts them.
   update public.watch_members m set removed_at = null, removed_by = null
-   where m.user_id = person and m.removed_by = caller
+   where m.user_id = person and m.removed_by = caller and m.room_id = any (coalesce(taken, '{}'))
      and m.room_id in (select r.id from public.watch_rooms r where r.host_id = caller);
 end;
 $$;
@@ -336,19 +361,20 @@ revoke all on function public.unblock_account(uuid) from public, anon;
 grant execute on function public.block_account(uuid) to authenticated, service_role;
 grant execute on function public.unblock_account(uuid) to authenticated, service_role;
 
--- What the blocker no longer reads. Restrictive, so these sit on top of every existing read rule.
+-- What the blocker no longer reads. Restrictive, so these sit on top of every existing read rule. A moderator's own block never
+-- hides what they moderate (SPEC: a block never hides anything from the moderator view), or REMOVE could not find the row.
 drop policy if exists "blocked authors hidden" on public.forum_threads;
 create policy "blocked authors hidden" on public.forum_threads
-  as restrictive for select to authenticated using (author_id is null or not public.blocked_by_me(author_id));
+  as restrictive for select to authenticated using (author_id is null or not public.blocked_by_me(author_id) or public.is_admin());
 drop policy if exists "blocked authors hidden" on public.forum_comments;
 create policy "blocked authors hidden" on public.forum_comments
-  as restrictive for select to authenticated using (author_id is null or not public.blocked_by_me(author_id));
+  as restrictive for select to authenticated using (author_id is null or not public.blocked_by_me(author_id) or public.is_admin());
 drop policy if exists "blocked authors hidden" on public.profile_comments;
 create policy "blocked authors hidden" on public.profile_comments
-  as restrictive for select to authenticated using (author_id is null or not public.blocked_by_me(author_id));
+  as restrictive for select to authenticated using (author_id is null or not public.blocked_by_me(author_id) or public.is_admin());
 drop policy if exists "blocked authors hidden" on public.watch_messages;
 create policy "blocked authors hidden" on public.watch_messages
-  as restrictive for select to authenticated using (author_id is null or not public.blocked_by_me(author_id));
+  as restrictive for select to authenticated using (author_id is null or not public.blocked_by_me(author_id) or public.is_admin());
 drop policy if exists "blocked authors hidden" on public.comms_messages;
 create policy "blocked authors hidden" on public.comms_messages
   as restrictive for select to authenticated using (author_id is null or not public.blocked_by_me(author_id));
@@ -445,11 +471,13 @@ begin
           into author, copied, private
           from public.forum_threads t
          where t.id = ctx_id::uuid
-           and (t.privacy_at_write = 'open' or public.is_room_member(t.watch_room_id) or t.author_id = caller);
+           and (t.privacy_at_write = 'open' or public.is_room_member(t.watch_room_id) or t.author_id = caller)
+           and (t.hidden_at is null or t.author_id = caller) and (t.author_id is null or not public.is_banned(t.author_id));
       elsif ctx_kind = 'reply' then
         select c.author_id, c.body, c.privacy_at_write <> 'open' into author, copied, private
           from public.forum_comments c
-         where c.id = ctx_id::uuid and (c.privacy_at_write = 'open' or public.forum_thread_is_member(c.thread_id));
+         where c.id = ctx_id::uuid and (c.privacy_at_write = 'open' or public.forum_thread_is_member(c.thread_id))
+           and (c.hidden_at is null or c.author_id = caller) and (c.author_id is null or not public.is_banned(c.author_id));
       elsif ctx_kind = 'profile_comment' then
         select c.author_id, c.body, false into author, copied, private
           from public.profile_comments c join public.profiles p on p.id = c.user_id
@@ -457,11 +485,13 @@ begin
            and (c.user_id = caller or c.author_id = caller
              or (c.kind = 'profile' and p.show_profile_comments)
              or (c.kind = 'avatar' and p.show_avatar_comments)
-             or (c.kind = 'song' and p.show_song_comments));
+             or (c.kind = 'song' and p.show_song_comments))
+           and (c.hidden_at is null or c.author_id = caller);
       elsif ctx_kind = 'room_line' then
         select m.author_id, m.body, m.privacy_at_write <> 'open' into author, copied, private
           from public.watch_messages m
-         where m.id = ctx_id::uuid and (m.privacy_at_write = 'open' or public.is_room_member(m.room_id));
+         where m.id = ctx_id::uuid and (m.privacy_at_write = 'open' or public.is_room_member(m.room_id))
+           and (m.hidden_at is null or m.author_id = caller);
       elsif ctx_kind = 'message' then
         select m.author_id, m.body, true into author, copied, private
           from public.comms_messages m join public.comms_threads t on t.id = m.thread_id

@@ -145,7 +145,8 @@ export function ModerationProvider({ children }: { children: ReactNode }) {
       refresh,
       markFor,
       shows: (kind, id, authorId, own) => {
-        if (isBlocked(authorId)) return false;
+        // A moderator's own block never hides what they moderate (SPEC-moderation.md).
+        if (!role.moderator && isBlocked(authorId)) return false;
         if (markFor(kind, id, own) === null) return true;
         return role.moderator || (me !== null && authorId === me);
       },
