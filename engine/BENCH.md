@@ -289,6 +289,36 @@ Same hands-off set-up, 60 flips a run, every flip seen in every run, one after a
 - Earlier tonight the measurement also refused to see the patch when run in a row from one command and worked when
   each run was its own job; why is not known. It is run as its own job now.
 
+### 2026-11-20 22:35: the browser's drawing step (Luke: "Drawing step")
+The question: of the two screen refreshes the stream's copy lags by, can the browser be made to give one back? Two
+experimental ways of drawing were added to the viewer, asked for in its address and not yet keys: `draw=fast` (each
+frame taken straight off the stream as it is decoded and put on a low-latency 2D canvas) and `draw=fastgl` (the same
+onto a low-latency WebGL canvas), against NORMAL (the `<video>` element). 180 a second, the piece rule on, two runs
+of 50 flips each way, taken in turn, every flip seen, none disturbed. The viewer here is Chrome.
+
+| Drawing | Average | Shown after 1 refresh or less | after 2 | after 3 or more |
+| --- | --- | --- | --- | --- |
+| NORMAL (`<video>`) | 10.99 ms (12.0, 9.97) | 9% | 81% | 10% |
+| fast, 2D canvas | 10.46 ms (11.37, 9.55) | 12% | 83% | 5% |
+| **fast, WebGL canvas** | **9.64 ms** (9.94, 9.34) | **28%** | 67% | 5% |
+
+- **A modest, real gain from the WebGL way: about 1.3 ms on average**, by getting more than a quarter of frames onto
+  the screen one refresh sooner (against a tenth), and none later than three. The 2D way is no better than NORMAL
+  beyond what two runs can tell.
+- **Most frames still take two refreshes whatever the browser does.** To be on the very next refresh of a 180 Hz
+  screen, capture, encode, the hop, decode and drawing together have to finish in about 4 ms, and they take about
+  4.5 to 5. On a 60 Hz screen (a laptop) one refresh is 16.7 ms, so the same chain would make the very next refresh
+  every time: the viewer's own screen then sets the delay, not the stream. That cannot be measured without the laptop.
+- **Best measured so far: 9.3 ms average** (one run), about 9.6 over two. The assumed 7 ms is not beaten on this PC's
+  180 Hz screen.
+- Not done: the WebGL way as a proper key. As an experiment it ignores the UPSCALING choice, and CONTROL's pointer
+  mapping was not checked with it.
+
+**What kept making runs fail tonight, found:** a fresh Edge profile signs itself in to the Windows account and puts
+a box saying so over the page, which covered the patch. The test windows now open in Chrome (fresh profile, sync
+off), and all six runs above worked first time. Every throwaway test profile is deleted after its run, and the
+leftover ones from earlier tests were deleted too.
+
 **Switch 32, written before those runs (kept for the record):** a change somewhere else on the screen is no longer treated as a new
 frame of the piece being sent (Windows says which rectangles changed). It should stop identical frames being
 encoded, and stop the engine resting just before the piece itself changes. It builds and the stream check still

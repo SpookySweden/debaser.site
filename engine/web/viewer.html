@@ -174,6 +174,66 @@ const address = new URLSearchParams(location.search);
 // "hold=1": leave the stream as the PC started it (see the note at the top of this file).
 const hold = address.get('hold') === '1';
 
+// An experiment, asked for in the address ("draw=fast" or "draw=fastgl"; BENCH.md, the drawing step): each frame is
+// taken straight off the stream the moment it is decoded and put on a canvas that asks the browser to skip its own
+// drawing queue, instead of going through the <video> element. Measured with bench/glass.ps1 before it earns a key.
+const drawWish = ['fast', 'fastgl'].includes(address.get('draw')) ? address.get('draw') : 'normal';
+let fastNote = '';
+const fast = { frames: 0, lowLatency: null, kind: '' };
+
+function startFastDrawing(track, kind) {
+  if (!('MediaStreamTrackProcessor' in window)) return 'this browser does not hand decoded frames to a page';
+  const surface = document.createElement('canvas');
+  surface.id = 'fast';
+  surface.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;object-fit:contain;background:#111111';
+  let put = null;
+  if (kind === 'fastgl') {
+    const gl = surface.getContext('webgl2', { desynchronized: true, alpha: false, antialias: false, depth: false, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
+    if (!gl) return 'no WebGL2 here';
+    const shader = (type, source) => { const s = gl.createShader(type); gl.shaderSource(s, source); gl.compileShader(s); return s; };
+    const program = gl.createProgram();
+    gl.attachShader(program, shader(gl.VERTEX_SHADER, '#version 300 es\nout vec2 at;void main(){vec2 p=vec2(float((gl_VertexID<<1)&2),float(gl_VertexID&2));at=vec2(p.x,1.0-p.y);gl_Position=vec4(p*2.0-1.0,0.0,1.0);}'));
+    gl.attachShader(program, shader(gl.FRAGMENT_SHADER, '#version 300 es\nprecision mediump float;uniform sampler2D picture;in vec2 at;out vec4 colour;void main(){colour=vec4(texture(picture,at).rgb,1.0);}'));
+    gl.linkProgram(program);
+    gl.useProgram(program);
+    gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    fast.lowLatency = Boolean(gl.getContextAttributes().desynchronized);
+    put = (frame) => {
+      gl.viewport(0, 0, surface.width, surface.height);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, frame);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      gl.flush();
+    };
+  } else {
+    const flat = surface.getContext('2d', { desynchronized: true, alpha: false });
+    fast.lowLatency = Boolean(flat.getContextAttributes && flat.getContextAttributes().desynchronized);
+    put = (frame) => flat.drawImage(frame, 0, 0);
+  }
+  fast.kind = kind;
+  stage.appendChild(surface);
+  video.style.visibility = 'hidden';
+  const reader = new MediaStreamTrackProcessor({ track }).readable.getReader();
+  (async () => {
+    for (;;) {
+      const { value: frame, done } = await reader.read();
+      if (done) break;
+      if (surface.width !== frame.displayWidth || surface.height !== frame.displayHeight) {
+        surface.width = frame.displayWidth;
+        surface.height = frame.displayHeight;
+      }
+      put(frame);
+      frame.close();
+      fast.frames += 1;
+    }
+  })().catch(() => { /* the stream ended */ });
+  return '';
+}
+window.__debaserFast = () => ({ wish: drawWish, kind: fast.kind, frames: fast.frames, lowLatency: fast.lowLatency, note: fastNote });
+
 let connection = null;
 let connectionsMade = 0;
 // CONTROL's two channels (see the CONTROL section below), and the number the PC gave this viewer.
@@ -237,6 +297,7 @@ async function start() {
     video.srcObject = event.streams[0] || new MediaStream([event.track]);
     video.play().catch(() => { /* muted autoplay is allowed; if a browser still refuses, a click starts it */ });
     if (video.requestVideoFrameCallback) video.requestVideoFrameCallback(() => { steps.firstFrameShown = performance.now(); });
+    if (drawWish !== 'normal') fastNote = startFastDrawing(event.track, drawWish);
   };
   connection.onconnectionstatechange = () => {
     if (connection.connectionState === 'connected' && steps.connected === null) {

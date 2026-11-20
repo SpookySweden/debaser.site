@@ -19,7 +19,9 @@ param(
   [int]$Height = 720,
   [int]$Port = 8495,
   [int]$Tweaks = -1,
-  [string]$PageOptions = 'hold=1'
+  [string]$PageOptions = 'hold=1',
+  # How the viewer draws the picture: '' (the <video> element), 'fast' or 'fastgl' (see web/viewer.html).
+  [string]$Draw = ''
 )
 $ErrorActionPreference = 'Stop'
 $here = $PSScriptRoot
@@ -73,28 +75,34 @@ $viewW = [int](($regionLeft - 40) / $scale) - $viewX; $viewH = [int]($viewW * 0.
 $mirrorX = [int](($viewX + $viewW / 2) * $scale); $mirrorY = [int](($viewY + 31 + ($viewH - 39) / 2) * $scale)
 Write-Host ("screen {0}x{1}, Windows scaling {2:P0}; patch read at {3},{4}; the stream's copy read at {5},{6}" -f $screenW, $screenH, $scale, $sourceX, $sourceY, $mirrorX, $mirrorY)
 
-$edge = 'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'
-if (-not (Test-Path $edge)) { $edge = 'C:\Program Files\Microsoft\Edge\Application\msedge.exe' }
+# Chrome, not Edge: in a fresh profile Edge signs itself in to the Windows account and puts a box saying so over
+# the page, which covered the patch (seen 2026-11-20). Chrome opens a fresh profile with nothing on top.
+$edge = 'C:\Program Files\Google\Chrome\Application\chrome.exe'
+if (-not (Test-Path $edge)) { $edge = 'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe' }
+if (-not (Test-Path $edge)) { Write-Host 'NOT MEASURED. This measurement needs Chrome (Edge covers the test page with its own sign-in box).'; exit 2 }
+$browserName = 'chrome'
 # A fresh browser profile each run, removed afterwards: a profile whose browser was closed by force can reopen its
 # windows minimised.
 $profile = Join-Path $env:TEMP ('debaser-glass-profile-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
 $log = Join-Path $env:TEMP 'debaser-glass-engine.log'
 
+$query = $PageOptions
+if ($Draw -ne '' -and $Draw -ne 'normal') { $query = $query + '&draw=' + $Draw }
 $engineArgs = @('serve', '--width', $Width, '--height', $Height, '--fps', $Fps, '--port', $Port, '--seconds', '120')
 if ($Tweaks -ge 0) { $engineArgs += @('--tweaks', $Tweaks) }
 $engineProcess = Start-Process -FilePath $engine -ArgumentList $engineArgs -WindowStyle Hidden -PassThru -RedirectStandardOutput $log
 try {
   Start-Sleep -Milliseconds 800
   $patchPage = 'file:///' + ((Join-Path $here 'patch.html') -replace '\\', '/') + '?full=1&auto=1'
-  Start-Process -FilePath $edge -ArgumentList "--user-data-dir=`"$profile`"", '--no-first-run', '--no-default-browser-check', "--window-position=$viewX,$viewY", "--window-size=$viewW,$viewH", "--app=http://127.0.0.1:$Port/?$PageOptions"
+  Start-Process -FilePath $edge -ArgumentList "--user-data-dir=`"$profile`"", '--no-first-run', '--no-default-browser-check', '--disable-search-engine-choice-screen', '--disable-sync', "--window-position=$viewX,$viewY", "--window-size=$viewW,$viewH", "--app=http://127.0.0.1:$Port/?$query"
   Start-Sleep -Seconds 2
-  Start-Process -FilePath $edge -ArgumentList "--user-data-dir=`"$profile-patch`"", '--no-first-run', '--no-default-browser-check', "--window-position=$patchX,$patchY", "--window-size=$patchW,$patchH", "--app=$patchPage"
+  Start-Process -FilePath $edge -ArgumentList "--user-data-dir=`"$profile-patch`"", '--no-first-run', '--no-default-browser-check', '--disable-search-engine-choice-screen', '--disable-sync', "--window-position=$patchX,$patchY", "--window-size=$patchW,$patchH", "--app=$patchPage"
   Start-Sleep -Seconds 5
   # Where the two windows really are (a browser may not put a window exactly where it was asked to).
-  $patchWindow = Get-Process msedge -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -like 'DEBASER BENCH PATCH*' } | Select-Object -First 1
-  $viewWindow = Get-Process msedge -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -like 'DEBASER ENGINE VIEWER*' } | Select-Object -First 1
+  $patchWindow = Get-Process $browserName -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -like 'DEBASER BENCH PATCH*' } | Select-Object -First 1
+  $viewWindow = Get-Process $browserName -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -like 'DEBASER ENGINE VIEWER*' } | Select-Object -First 1
   if (-not $patchWindow -or -not $viewWindow) {
-    $open = (Get-Process msedge -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -ne '' } | ForEach-Object { "'$($_.MainWindowTitle)'" }) -join ', '
+    $open = (Get-Process $browserName -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -ne '' } | ForEach-Object { "'$($_.MainWindowTitle)'" }) -join ', '
     Write-Host "NOT MEASURED. One of the two test windows did not open. Edge windows found: $open"
     exit 2
   }
@@ -111,8 +119,23 @@ try {
   Write-Host ("patch window {0},{1} to {2},{3} (read at {4},{5}); viewer window {6},{7} to {8},{9} (read at {10},{11}); the engine sends x {12} to {13}" -f $pr[0], $pr[1], $pr[2], $pr[3], $sourceX, $sourceY, $vr[0], $vr[1], $vr[2], $vr[3], $mirrorX, $mirrorY, $regionLeft, ($regionLeft + $Width))
   & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $here 'rig.ps1') -Name $Name -Samples $Samples -Passive -X $sourceX -Y $sourceY -X2 $mirrorX -Y2 $mirrorY -CountdownSeconds 0
   $code = $LASTEXITCODE
+  if ($code -ne 0) {
+    # When a run could not measure, keep one small picture of the two test windows as they were, to see why.
+    try {
+      Add-Type -AssemblyName System.Drawing
+      foreach ($shot in @(@('patch', $pr), @('viewer', $vr))) {
+        $r = $shot[1]; $w = $r[2] - $r[0]; $h = $r[3] - $r[1]
+        $bitmap = New-Object System.Drawing.Bitmap $w, $h
+        $g = [System.Drawing.Graphics]::FromImage($bitmap)
+        $g.CopyFromScreen($r[0], $r[1], 0, 0, (New-Object System.Drawing.Size $w, $h))
+        $small = New-Object System.Drawing.Bitmap $bitmap, ([int]($w / 2)), ([int]($h / 2))
+        $small.Save((Join-Path $env:TEMP ("debaser-glass-fail-" + $shot[0] + ".png")), [System.Drawing.Imaging.ImageFormat]::Png)
+        $g.Dispose(); $bitmap.Dispose(); $small.Dispose()
+      }
+    } catch { }
+  }
 } finally {
-  Get-CimInstance Win32_Process -Filter "Name = 'msedge.exe'" | Where-Object { $_.CommandLine -like '*debaser-glass-profile*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+  Get-CimInstance Win32_Process -Filter "Name = '$browserName.exe'" | Where-Object { $_.CommandLine -like '*debaser-glass-profile*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
   if ($engineProcess -and -not $engineProcess.HasExited) { Stop-Process -Id $engineProcess.Id -Force -ErrorAction SilentlyContinue }
   Start-Sleep -Milliseconds 500
   foreach ($used in @($profile, "$profile-patch")) { if (Test-Path $used) { Remove-Item -Recurse -Force $used -Confirm:$false -ErrorAction SilentlyContinue } }
