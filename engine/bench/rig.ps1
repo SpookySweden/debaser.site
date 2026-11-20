@@ -462,6 +462,17 @@ if ($X2 -ge 0 -and $Y2 -ge 0) {
     Write-Host "NOT MEASURED. $([Rig]::Problem)"
     exit 2
   }
+  # A value below zero (the stream's copy changed BEFORE the PC's own patch) or far above anything a stream on one PC
+  # could take means something else changed one of the two spots: a pointer passing over, a window moved or clicked.
+  # Those flips are set aside and counted; when more than a quarter are like that, the run is not a measurement.
+  $allPairs = @($pairs)
+  $pairs = @($allPairs | Where-Object { $_ -ge 0 -and $_ -le 150 })
+  $disturbed = $allPairs.Count - $pairs.Count
+  if ($allPairs.Count -gt 0 -and ($disturbed / $allPairs.Count) -gt 0.25) {
+    Write-Host ""
+    Write-Host "NOT MEASURED. $disturbed of $($allPairs.Count) flips were disturbed: something else was changing the two spots being watched (a pointer over them, a window moved or clicked)."
+    exit 2
+  }
   $sortedPairs = [double[]]($pairs | Sort-Object)
   $sortedSource = [double[]]([Rig]::SourceMs | Sort-Object)
   $pairSummary = [ordered]@{
@@ -472,6 +483,7 @@ if ($X2 -ge 0 -and $Y2 -ge 0) {
     screen = "$([Rig]::ScreenWidth)x$([Rig]::ScreenHeight)"
     samples = $sortedPairs.Count
     missed = [Rig]::Timeouts
+    disturbedSetAside = $disturbed
     averageMs = [math]::Round(($sortedPairs | Measure-Object -Average).Average, 2)
     p50Ms = [math]::Round((Get-Percentile $sortedPairs 50), 1)
     p95Ms = [math]::Round((Get-Percentile $sortedPairs 95), 1)
@@ -484,7 +496,7 @@ if ($X2 -ge 0 -and $Y2 -ge 0) {
   }
   Write-Host ""
   Write-Host "RESULT :: $Name :: SCREEN TO SCREEN"
-  Write-Host ("  presses seen on both   {0} of {1} ({2} missed)" -f $pairSummary.samples, $Samples, $pairSummary.missed)
+  Write-Host ("  flips seen on both   {0} of {1} ({2} missed, {3} disturbed and set aside)" -f $pairSummary.samples, $Samples, $pairSummary.missed, $pairSummary.disturbedSetAside)
   Write-Host ("  the PC's screen -> the stream's copy:  average {0} ms, middle {1} ms, worst 5% {2} ms (least {3}, most {4})" -f $pairSummary.averageMs, $pairSummary.p50Ms, $pairSummary.p95Ms, $pairSummary.minMs, $pairSummary.maxMs)
   Write-Host ("  the screen was read every {0} ms: single values come in steps of that, so the average is the figure to use" -f $pairSummary.readEveryMs)
   Write-Host ("  (key press -> the PC's own screen: middle {0} ms)" -f $pairSummary.keyToOwnScreenP50Ms)

@@ -257,7 +257,39 @@ change at all, because with nobody at the PC its screen was off and nothing is d
 screen on and no match running, which means Luke at the PC and willing to have two small windows up for half a
 minute a run. The spoiled runs' files are not kept.
 
-**Switch 32, not a default and not proved:** a change somewhere else on the screen is no longer treated as a new
+### 2026-11-20 22:10: clean screen-to-screen runs (Luke at the PC: "Now is fine")
+Same hands-off set-up, 60 flips a run, every flip seen in every run, one after another within five minutes:
+
+| Asked | Switches | Average | Middle | Worst 5% | Least | Most | File |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 60 a second | defaults then (29) | **17.0 ms** | 16.3 | 26.3 | 5.4 | 45.4 | `glass-60-t29-20261120-221148.json` |
+| 120 | 29 | **11.5 ms** | 11.0 | 16.7 | 9.4 | 17.9 | `glass-120-t29-20261120-221234.json` |
+| 180 | 29 | 14.7 ms | 16.2 | 17.0 | 9.9 | 17.6 | `glass-180-t29-20261120-221316.json` |
+| 60 | 29 + the piece rule (61) | **12.0 ms** | 9.9 | 20.8 | 8.2 | 27.9 | `glass-60-t61-20261120-221359.json` |
+| 180 | 61 | **10.8 ms** | 10.6 | 12.1 | 9.4 | 17.0 | `glass-180-t61-20261120-221443.json` |
+
+- **Best so far: 10.8 ms screen to screen, worst 5% 12.1 ms** (180 a second with the piece rule). The assumed 7 ms
+  yardstick is still not beaten.
+- **More frames a second is the biggest single lever**, as predicted: 17.0 at 60 against 11.5 at 120.
+- **The piece rule (switch 32) is worth 4 to 5 ms in this set-up** (17.0 to 12.0 at 60; 14.7 to 10.8 at 180), one
+  clean pair at each rate. In this set-up the viewer window sits on the PC's own screen, outside the piece being
+  sent, and keeps changing; without the rule every one of those changes was encoded as a frame and the engine was
+  resting when the patch flipped. On a second device the viewer is not on the PC's screen, so the gain there will be
+  smaller: it applies to anything changing outside the piece (the cut-off sides of an ultrawide, a second monitor).
+  **Kept: it is now a default.**
+- **The floor of this set-up is two refreshes of the screen (about 11 ms)**: the least in the good runs is 9.4 to
+  9.9 ms and the rig reads in steps of 5.6 ms. Getting under it means the browser showing a decoded frame one refresh
+  sooner (its own drawing step), which is the next thing to look at; the PC's side and the network on one PC together
+  are about 4 ms of it.
+- A second series ten minutes later was thrown away: values below zero and above two seconds, which means something
+  else was changing the two spots being watched (a pointer passing over them, a window moved or clicked while the PC
+  was in use). The rig now sets such flips aside and refuses to report when more than a quarter are like that. Of that
+  series only the middle values of two runs with the rule on looked sane (10.5 ms at 120, 11.0 ms at 180), which
+  agrees with the table but is not counted.
+- Earlier tonight the measurement also refused to see the patch when run in a row from one command and worked when
+  each run was its own job; why is not known. It is run as its own job now.
+
+**Switch 32, written before those runs (kept for the record):** a change somewhere else on the screen is no longer treated as a new
 frame of the piece being sent (Windows says which rectangles changed). It should stop identical frames being
 encoded, and stop the engine resting just before the piece itself changes. It builds and the stream check still
 passes with it on, but the only runs so far were on a still screen, where it has nothing to do.

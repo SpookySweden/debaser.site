@@ -70,8 +70,9 @@ extern "C" {
 
 /// The switches kept after the fair comparisons in BENCH.md (2026-11-20): graphics priority (1), the encoder's
 /// event mode (4), one-pass encoding (8), and the fresh-frame rule (16: wait a sliver for the screen's next frame
-/// instead of taking one that has been sitting). The fine timer (2) changed nothing and is left off.
-pub const DEFAULT_TWEAKS: i32 = 29;
+/// instead of taking one that has been sitting), and the piece rule (32: a change elsewhere on the screen is not a
+/// frame of the piece being sent). The fine timer (2) changed nothing and is left off.
+pub const DEFAULT_TWEAKS: i32 = 61;
 
 /// A piece of the screen, in screen pixels. A `width` or `height` of 0 means the whole screen.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]

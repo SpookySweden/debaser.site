@@ -43,7 +43,7 @@ use crate::native;
 use crate::settings::{self, Asked, Limits, Plan, Shape};
 use crate::{json, line, stats};
 
-pub const USAGE: &str = "[--shape 16:9] [--lines 1080] [--fps 60] [--bitrate 20000] [--max-lines N] [--max-fps N] [--max-bitrate 50000] [--width W --height H] [--allow-control [--control-dry-run]] [--preset 1] [--tweaks 29] [--intra-refresh] [--port 8478] [--udp-port 0] [--listen 127.0.0.1] [--token text] [--seconds N]";
+pub const USAGE: &str = "[--shape 16:9] [--lines 1080] [--fps 60] [--bitrate 20000] [--max-lines N] [--max-fps N] [--max-bitrate 50000] [--width W --height H] [--allow-control [--control-dry-run]] [--preset 1] [--tweaks 61] [--intra-refresh] [--port 8478] [--udp-port 0] [--listen 127.0.0.1] [--token text] [--seconds N]";
 
 const VIEWER_PAGE: &str = include_str!("../web/viewer.html");
 
