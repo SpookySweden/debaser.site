@@ -95,6 +95,49 @@ Estimates until the yardstick is measured on your own two machines (phase 0). "F
 - Works on the home network, and from anywhere else: the two devices try a direct line first and fall back to a
   relayed one (slower, about 0.1 to 0.3 s).
 
+### Settings in the viewport
+Luke, 2026-11-20: "it needs a settings button in the viewport for the low latency desktop control streaming feature we
+are working on. include everything necessary such as upscaling settings and the ability to switch the aspect ratio the
+streaming display is rendering and sending, for example if its ultrawide it turns to 16:9 when streaming to my laptop
+or whatever size of the screen being streamed to with a toggle."
+
+A `[ SETTINGS ]` key in the corner of the picture (words: the room already has a cog of its own) opens a panel over it.
+Built first in the engine's own viewer page (it is the only viewport that exists yet); the room's SCREEN tab gets the
+same panel, in the site's tokens, in phase 3.
+
+- **PICTURE**
+  - `MATCH THIS SCREEN` (on by default): the PC sends its picture in the shape and size of the screen you are watching
+    on. Your ultrawide sends 16:9 to the laptop, 16:10 to a 16:10 screen, and so on.
+  - Off: SHAPE (NATIVE, 16:9, 16:10, 21:9, 4:3), SIZE (720, 1080, 1440, NATIVE), FRAMES A SECOND (30, 60, 120, 180),
+    BITRATE.
+  - The panel shows what the PC is **really** sending, and says so when the PC has capped it.
+- **How the PC changes shape, and what each way costs** (said plainly because they are different features):
+  1. **Send a piece of the screen** (built now). The PC sends the middle of its screen in the asked shape, scaled on
+     the graphics card. Instant, nothing on the PC changes. On an ultrawide the two sides are cut off: a game is not
+     re-drawn narrower, you see its middle.
+  2. **Change the PC's real screen mode** while a device is controlling it (not built). The PC switches to a 16:9
+     resolution, so games and the desktop really re-draw in that shape, and switches back after. A second or two of
+     black on the PC's own monitor each way, windows get rearranged, and it is a Windows setting being changed, so it
+     would be its own switch, off by default, tested only with Luke watching.
+  3. **A virtual screen** made at exactly the viewer's size (not built). The best: the real monitor is untouched and
+     the game draws for the viewer. Needs a screen driver installed and signed: the last item in the loop.
+- **UPSCALING** (on the watching device only): OFF (real size, not stretched), SMOOTH (the browser's own), SHARP
+  (hard pixels, for pixel art), SHARPENED (a sharpening pass drawn on the watching device's graphics card, the trick
+  games use to render small and show large; it redraws every frame and may add delay, to be measured). The stream's
+  real resolution is always shown.
+- **READOUT**: resolution, frames a second, time in the browser's queue, decode time, lost packets, the PC's own time
+  from showing a frame to having it encoded.
+- **FULLSCREEN.**
+- **Comes with CONTROL (phase 2), shown as "not built yet" until then, never as dead keys:** mouse mode (pointer or
+  game-style), keyboard capture, controller. **Sound** likewise. **HEVC and AV1** when the pieces allow (this PC's card
+  cannot encode AV1).
+- **Remembered per watching device** (in that browser's own storage, nowhere else).
+- **The PC's own limits win.** Whoever is watching cannot ask for more than the PC allows (size, frames a second,
+  bitrate), and **while a League match is running the PC caps the stream** (1080 lines, 60 frames a second, 12 Mbit/s)
+  whatever is asked; the panel says CAPPED BY THE PC: LEAGUE MATCH, and the asked-for settings come back when the match
+  ends. One encoder serves everyone, so settings belong to the stream: the last change wins and every viewer's panel
+  shows what is really being sent. In a room, only the sharer and their own devices may change them (phase 4).
+
 ### Not in this spec
 - Anyone controlling a device that isn't their own (no controller hand-over to friends).
 - Phones as sharers or controllers (they can watch). Mac and Linux engines. Recording or replays.
