@@ -17,7 +17,7 @@ const ROOT = path.join(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(ROOT, file), 'utf8').replace(/\r\n/g, '\n');
 
 // The moderation migration, then its report alerts on the bell (both re-runnable).
-const MIGRATION = ['supabase/migrations/20261120090000_moderation.sql', 'supabase/migrations/20261120100000_moderation_report_alerts.sql'].map(read).join('\n');
+const MIGRATION = ['supabase/migrations/20261120090000_moderation.sql', 'supabase/migrations/20261120034700_moderation_report_alerts.sql'].map(read).join('\n');
 assert.ok(!MIGRATION.includes('$migration_text$'), 'the migration must not use the dollar tag this check wraps it in');
 assert.doesNotMatch(MIGRATION, /@[a-z0-9.-]+\.[a-z]+/i, 'the migration names no address (the first moderator is a write by account id, outside the repository)');
 
