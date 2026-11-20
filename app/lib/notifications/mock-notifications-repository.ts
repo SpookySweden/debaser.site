@@ -1,6 +1,8 @@
 import { createLocalId } from '../forum/ids';
 import { dedupeTargets, snippet, sortNotificationsNewestFirst } from './feed';
-import type { AppNotification, NotificationsRepository, NotifyInput } from './types';
+import { mockPrefsFor } from './mock-notify-settings-repository';
+import { kindAllowed } from './prefs';
+import { isNotificationKind, type AppNotification, type NotificationsRepository, type NotifyInput } from './types';
 
 /**
  * The notification feed used while Supabase is not wired up.
@@ -39,7 +41,7 @@ function isNotificationShaped(value: unknown): value is AppNotification {
   return (
     typeof row.id === 'string' &&
     typeof row.userId === 'string' &&
-    (row.kind === 'tag' || row.kind === 'reply') &&
+    isNotificationKind(row.kind) &&
     typeof row.actorName === 'string' &&
     typeof row.threadTitle === 'string' &&
     typeof row.body === 'string' &&
@@ -65,6 +67,11 @@ function loadItems(): AppNotification[] {
       ...row,
       actorId: typeof row.actorId === 'string' ? row.actorId : null,
       threadId: typeof row.threadId === 'string' ? row.threadId : null,
+      gameId: row.gameId ?? null,
+      inviteId: typeof row.inviteId === 'string' ? row.inviteId : null,
+      recommendationId: typeof row.recommendationId === 'string' ? row.recommendationId : null,
+      href: typeof row.href === 'string' ? row.href : null,
+      roomId: typeof row.roomId === 'string' ? row.roomId : null,
       readAt: typeof row.readAt === 'string' ? row.readAt : null,
     }));
   } catch {
@@ -98,6 +105,21 @@ function emit(): void {
   for (const entry of listeners) entry.listener(feedFor(entry.userId));
 }
 
+/**
+ * Another tab of this browser wrote the feed (the mock's stand-in for realtime): read it again and tell the listeners,
+ * so a notification filed elsewhere lights the bell and the balloon here, as the database's channel does.
+ */
+let listeningToOtherTabs = false;
+function listenToOtherTabs(): void {
+  if (listeningToOtherTabs || typeof window === 'undefined') return;
+  listeningToOtherTabs = true;
+  window.addEventListener('storage', (event) => {
+    if (event.key !== STORAGE_KEY) return;
+    state = loadItems();
+    emit();
+  });
+}
+
 class MockNotificationsRepository implements NotificationsRepository {
   readonly source = 'mock' as const;
 
@@ -106,7 +128,8 @@ class MockNotificationsRepository implements NotificationsRepository {
   }
 
   async notify(input: NotifyInput): Promise<void> {
-    const targets = dedupeTargets(input.targets, input.actorId);
+    // A switched-off kind is not filed, as the database's gate does (SPEC-notifications.md, 5B).
+    const targets = dedupeTargets(input.targets, input.actorId).filter((target) => kindAllowed(mockPrefsFor(target.userId), target.kind));
     if (targets.length === 0) return;
 
     const createdAt = new Date().toISOString();
@@ -155,6 +178,7 @@ class MockNotificationsRepository implements NotificationsRepository {
   subscribe(userId: string, listener: Listener): () => void {
     const entry = { userId, listener };
     listeners.add(entry);
+    listenToOtherTabs();
     listener(feedFor(userId));
 
     return () => {

@@ -110,9 +110,20 @@ Nothing existing is deleted. No existing notification row changes.
 - `public.notify_comic_page(p_ref text, p_title text, p_body text, p_href text)`: security definer, revoked from
   browsers, idempotent on `p_ref` (one alert per release batch, ever). Fans out one `comic` row per person with COMIC NEW
   PAGES on.
-- COMIC calls it from its own pg_cron release timer: `p_ref = 'comic:release:<batch id>'`, `p_href` = the first new
-  page (`/comic/<chapter>/<page>`, route to be confirmed by COMIC). Unreleased pages never reach it.
+- Release is by hand (COMIC, from Luke's answers): Luke ticks pages in the studio and presses RELEASE; COMIC's
+  `comic_release(page_ids)` (security definer, admin only) calls it once per press with
+  `p_ref = 'comic:release:<comic_releases.id>'` and `p_href` = the first new page, `/comic/<chapter>/<page>` (chapters
+  numbered across the whole comic). No timer. Unreleased pages never reach it. COMIC's spec: `SPEC-comic.md`.
 - Later phase: replies to a reader's panel comment arrive as `comic_reply` with an href to the page and panel.
+- FOLLOW: NOTIFY ships `app/components/ComicFollowKey.tsx` (`[ FOLLOW ]` / `[ ✓ FOLLOWING ]`, the COMIC NEW PAGES switch,
+  `notification_prefs.comic`, off by default); COMIC places it in the reader.
+
+## MODERATION (SPEC-moderation.md, not built yet)
+- Blocking is one way: the gate files nothing for somebody who has blocked whoever did it, once MODERATION's
+  `has_blocked(blocker, blocked)` exists (the gate looks for it, so no change is needed when it ships). That covers
+  replies, tags, letters, invites and rooms going live, since every one of them names who did it.
+- A "new report" alert for moderators is MODERATION's own kind, added by its migration (the kind list and the gate's
+  database-only list gain it there).
 - If Luke gives COMIC a separate follows list, `notify_comic_page` reads that instead; COMIC will say.
 
 ## Phases

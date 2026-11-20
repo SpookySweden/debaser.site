@@ -13,6 +13,10 @@ export function notificationLabel(kind: AppNotification['kind']): string {
   if (kind === 'tag') return 'TAGGED YOU';
   if (kind === 'reply') return 'REPLIED TO YOU';
   if (kind === 'recommend') return 'RECOMMENDED YOU SOMETHING';
+  if (kind === 'letter') return 'SENT YOU A LETTER';
+  if (kind === 'live') return 'WENT LIVE';
+  if (kind === 'comic') return 'NEW COMIC PAGES';
+  if (kind === 'comic_reply') return 'REPLIED ON THE COMIC';
 
   return 'INVITED YOU TO A GAME';
 }
@@ -20,10 +24,46 @@ export function notificationLabel(kind: AppNotification['kind']): string {
 /** Shorter verb for a cramped row. */
 export function notificationVerb(kind: AppNotification['kind']): string {
   if (kind === 'tag') return 'TAGGED';
-  if (kind === 'reply') return 'REPLIED';
+  if (kind === 'reply' || kind === 'comic_reply') return 'REPLIED';
   if (kind === 'recommend') return 'RECOMMENDED';
+  if (kind === 'letter') return 'SENT A LETTER';
+  if (kind === 'live') return 'WENT LIVE';
+  if (kind === 'comic') return 'NEW PAGES';
 
   return 'INVITED';
+}
+
+/**
+ * The menu row's second line starts with what the title names: the post, the game, the letter, the room, the comic.
+ */
+export function notificationPlaceWord(kind: AppNotification['kind']): string {
+  if (kind === 'invite') return 'GAME';
+  if (kind === 'letter') return 'LETTER';
+  if (kind === 'live') return 'ROOM';
+  if (kind === 'comic' || kind === 'comic_reply') return 'COMIC';
+
+  return 'ON';
+}
+
+/**
+ * The one line a balloon and DESK say (SPEC-notifications.md): who and what, then the title in quotes.
+ * A comic alert has no person behind it, so its title (`5 NEW PAGES IN CHAPTER 3`) is the whole line. A live room is
+ * IS LIVE while it is on and WAS LIVE after (`liveNow`: is that room on now, or unknown).
+ */
+export function notificationLine(item: AppNotification, liveNow?: boolean): string {
+  if (item.kind === 'comic') return item.threadTitle.length > 0 ? item.threadTitle : 'NEW COMIC PAGES';
+
+  const verb =
+    item.kind === 'live'
+      ? liveNow === false
+        ? 'WAS LIVE'
+        : liveNow === true
+          ? 'IS LIVE'
+          : 'WENT LIVE'
+      : notificationLabel(item.kind);
+  const title = item.threadTitle.trim();
+
+  return title.length > 0 ? `${item.actorName} ${verb} "${title}"` : `${item.actorName} ${verb}`;
 }
 
 /** One line of the post, as much as fits, with the line breaks taken out of it. */
@@ -100,7 +140,7 @@ export function notificationKindCounts(items: AppNotification[]): { tag: number;
   const tag = items.filter((item) => item.kind === 'tag').length;
   const invite = items.filter((item) => item.kind === 'invite').length;
 
-  return { tag, reply: items.length - tag - invite, invite };
+  return { tag, reply: items.filter((item) => item.kind === 'reply').length, invite };
 }
 
 /** The same counts as words: `2 TAGS :: 1 REPLY`, or nothing at all when the feed is empty. */

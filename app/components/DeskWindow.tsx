@@ -22,7 +22,8 @@ import {
 } from '../lib/desk/desk-window';
 import { commentDomId, threadDomId } from '../lib/forum/anchors';
 import { displayTitle } from '../lib/forum/site-author';
-import { notificationVerb, snippet } from '../lib/notifications/feed';
+import { notificationLine, notificationVerb, snippet } from '../lib/notifications/feed';
+import { notificationHref } from '../lib/notifications/links';
 import { useUnreadRecommendations } from '../lib/recommendations/store';
 import { useLiveRooms } from '../lib/watch/use-music-room';
 import { watchHref } from '../lib/watch/watch-window';
@@ -212,8 +213,12 @@ export function DeskBody({ me, onLeave }: { me: string; onLeave: () => void }) {
     return rows.sort((a, b) => b.at.localeCompare(a.at)).slice(0, 4);
   }, [close, forum.threads, me]);
 
-  // WAITING FOR YOU: recommendations sent to you and messages not yet read.
+  // WAITING FOR YOU: recommendations sent to you and messages not yet read; letters and new comic pages from the bell's
+  // feed (SPEC-notifications.md). RECOMMENDATIONS keeps RECOMMENDED's own count (letters included): the bell's and
+  // RECOMMENDED's read marks are separate, so subtracting one from the other could hide a recommendation.
   const recommendations = useUnreadRecommendations(me, true);
+  const letters = useMemo(() => items.filter((item) => item.kind === 'letter' && item.readAt === null), [items]);
+  const comic = useMemo(() => items.find((item) => item.kind === 'comic' && item.readAt === null) ?? null, [items]);
 
   const sections: { id: SectionKey; title: string; body: ReactNode }[] = [];
   if (reading.length > 0)
@@ -271,12 +276,22 @@ export function DeskBody({ me, onLeave }: { me: string; onLeave: () => void }) {
         </p>
       )),
     });
-  if (recommendations > 0 || unreadTotal > 0)
+  if (recommendations > 0 || unreadTotal > 0 || letters.length > 0 || comic !== null)
     sections.push({
       id: 'waiting',
       title: 'WAITING FOR YOU',
       body: (
         <>
+          {comic !== null ? (
+            <Link href={notificationHref(comic) ?? '/forum'} onClick={onLeave} className={LINE}>
+              {notificationLine(comic)}
+            </Link>
+          ) : null}
+          {letters.length > 0 ? (
+            <Link href={(letters.length === 1 ? notificationHref(letters[0]) : null) ?? '/recommendations'} onClick={onLeave} className={LINE}>
+              {letters.length === 1 ? notificationLine(letters[0]) : `${letters.length} LETTERS`}
+            </Link>
+          ) : null}
           {unreadTotal > 0 ? (
             <Link href="/comms" onClick={onLeave} className={LINE}>
               {`${unreadTotal} ${unreadTotal === 1 ? 'MESSAGE' : 'MESSAGES'}`}

@@ -35,7 +35,8 @@ export default function CompanionReactions() {
     // One hop, with the mark of what arrived (Luke, 2026-11-14): `VS` for a game invite, a heart for a recommendation,
     // `!` for a reply or a tag. Several at once: the invite first, then the recommendation.
     const kinds = new Set(fresh.map((item) => item.kind));
-    pokeCompanion(kinds.has('invite') ? 'invite' : kinds.has('recommend') ? 'recommend' : 'reply');
+    // A letter is a recommendation that carries its canvas (SPEC-notifications.md): the same heart.
+    pokeCompanion(kinds.has('invite') ? 'invite' : kinds.has('recommend') || kinds.has('letter') ? 'recommend' : 'reply');
   }, [feedReady, items]);
 
   // The theme changed: it looks round at the new colours. On your own screen only.

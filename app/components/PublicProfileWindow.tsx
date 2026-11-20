@@ -22,6 +22,7 @@ import { HYPER_ARROW } from '../lib/ui/hypertext';
 import { PLATE } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import AddToLetterKey from './AddToLetterKey';
+import LiveWatchKey from './LiveWatchKey';
 import CommentRow, { commentRowData } from './CommentRow';
 import CommentSlider from './CommentSlider';
 import CountryFlag from './CountryFlag';
@@ -158,7 +159,11 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
               [ EDIT PROFILE ]
             </button>
           ) : (
-            <AddToLetterKey thing={{ kind: 'profile', ref: userId, title: displayName }} />
+            <span className="flex flex-wrap items-center gap-1">
+              {/* SPEC-notifications.md, 2C: their room going live tells you. */}
+              <LiveWatchKey host={userId} />
+              <AddToLetterKey thing={{ kind: 'profile', ref: userId, title: displayName }} />
+            </span>
           )}
         </div>
 

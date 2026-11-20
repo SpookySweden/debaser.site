@@ -1,18 +1,20 @@
 'use client';
 
 import Link from 'next/link';
-import { threadDomId } from '../lib/forum/anchors';
-import { arcadeHref, openArcade } from '../lib/games/arcade-window';
+import { useMemo } from 'react';
+import { openArcade } from '../lib/games/arcade-window';
 import {
   notificationLabel,
+  notificationPlaceWord,
   splitNotifications,
   unreadNotificationCount,
 } from '../lib/notifications/feed';
+import { notificationHref } from '../lib/notifications/links';
 import type { AppNotification } from '../lib/notifications/types';
+import { useLiveRooms } from '../lib/watch/use-music-room';
 import { useNotifications } from './NotificationsProvider';
 import ProfileName from './ProfileName';
 import TimeStamp from './TimeStamp';
-import { recommendationHref } from '../lib/recommendations/address';
 import { PLATE_LINK, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
 
 /**
@@ -29,6 +31,11 @@ const KIND_BADGE: Record<AppNotification['kind'], string> = {
   reply: 'bg-bubble-pale',
   invite: 'bg-ena-deep',
   recommend: 'bg-ena',
+  // SPEC-notifications.md: the same three colours, so no new pair to prove readable.
+  letter: 'bg-ena',
+  live: 'bg-bubble-pale',
+  comic: 'bg-ena-deep',
+  comic_reply: 'bg-bubble-pale',
 };
 
 /** The three letters on that badge. */
@@ -37,6 +44,10 @@ const KIND_TAG: Record<AppNotification['kind'], string> = {
   reply: 'REPLY',
   invite: 'GAME',
   recommend: 'REC',
+  letter: 'LETTER',
+  live: 'LIVE',
+  comic: 'COMIC',
+  comic_reply: 'REPLY',
 };
 
 /** A group heading inside the list: the flat grey bar a Win95 list view headed a section with. */
@@ -61,10 +72,13 @@ const GROUP_HEAD = 'border-y border-ink bg-bubble-pale px-1 py-0.5 text-label fo
  */
 function NotificationRow({
   item,
+  liveRooms,
   onOpen,
   onDismiss,
 }: {
   item: AppNotification;
+  /** The rooms on now (null until known), so a live line says IS LIVE or WAS LIVE. */
+  liveRooms: Set<string> | null;
   onOpen: (item: AppNotification) => void;
   onDismiss: () => void;
 }) {
@@ -72,22 +86,22 @@ function NotificationRow({
   // A row written before the arcade exists has no `inviteId` at all, so absence means "no game".
   const inviteId = item.inviteId ?? null;
   const isInvite = item.kind === 'invite' && inviteId !== null;
-  // Where the row goes: an invitation is the arcade's own address, built by the module that owns it
-  // (`arcadeHref`) rather than spelled out here, so the bell cannot drift from the window that reads
-  // it - and anything else is the post itself, via the same `#thread-<id>` anchor the board's own
-  // links use.
-  const target =
-    inviteId !== null
-      ? arcadeHref({ kind: 'invite', inviteId })
-      : item.kind === 'recommend' && item.recommendationId
-        ? recommendationHref(item.recommendationId)
-        : item.threadId === null
-        ? null
-        : `/forum#${threadDomId(item.threadId)}`;
+  // Where the row goes, asked of the one place every screen asks (`notificationHref`): an invitation is the arcade's
+  // own address, a letter or recommendation opens on RECOMMENDED, a live room or comic page the address the database
+  // filed, anything else the post itself.
+  const target = notificationHref(item);
+  const label =
+    item.kind === 'live' && item.roomId && liveRooms !== null
+      ? liveRooms.has(item.roomId)
+        ? 'IS LIVE'
+        : 'WAS LIVE'
+      : notificationLabel(item.kind);
+  // A live room or a comic alert carries no words of anybody's: no quoted line for them.
+  const quiet = (item.kind === 'live' || item.kind === 'comic') && item.body.length === 0;
 
   const body = (
     <>
-      <span className="flex items-center gap-1">
+      <span className="flex flex-wrap items-center gap-x-1">
         {/* The marker: filled navy while unread, flat grey once seen. */}
         <span
           {...(unread ? { 'aria-label': 'Unread', title: 'Unread' } : { 'aria-hidden': true })}
@@ -101,21 +115,31 @@ function NotificationRow({
         >
           {KIND_TAG[item.kind]}
         </span>
-        <ProfileName author={{ id: item.actorId, displayName: item.actorName }} />
-        <span className={unread ? 'text-ink' : 'text-ink'}>{notificationLabel(item.kind)}</span>
+        {item.kind === 'comic' ? null : <ProfileName author={{ id: item.actorId, displayName: item.actorName }} />}
+        <span className={unread ? 'text-ink' : 'text-ink'}>{label}</span>
         <span className="ml-auto shrink-0 font-normal text-ink">
           <TimeStamp at={item.createdAt} />
         </span>
       </span>
 
-      <span className={`mt-1 block truncate ${unread ? 'text-ink' : 'font-normal text-ink'}`}>
-        {item.body.length === 0 ? '...' : `"${item.body}"`}
-      </span>
+      {quiet ? null : (
+        <span className={`mt-1 block truncate ${unread ? 'text-ink' : 'font-normal text-ink'}`}>
+          {item.body.length === 0 ? '...' : `"${item.body}"`}
+        </span>
+      )}
 
       <span className="mt-0.5 flex items-center gap-2 font-normal text-ink">
         <span className="truncate">
-          {item.kind === 'invite' ? 'GAME: ' : 'ON: '}
-          {item.threadTitle.length === 0 ? (item.kind === 'invite' ? 'A GAME' : 'A POST') : item.threadTitle}
+          {`${notificationPlaceWord(item.kind)}: `}
+          {item.threadTitle.length === 0
+            ? item.kind === 'invite'
+              ? 'A GAME'
+              : item.kind === 'live'
+                ? 'THEIR ROOM'
+                : item.kind === 'letter'
+                  ? 'A LETTER'
+                  : 'A POST'
+            : item.threadTitle}
         </span>
         {isInvite ? (
           <span className="ml-auto shrink-0 key px-0.5 py-0.5 text-label font-bold">
@@ -177,11 +201,13 @@ function NotificationRow({
 function NotificationGroup({
   label,
   items,
+  liveRooms,
   onOpen,
   onClose,
 }: {
   label: string;
   items: AppNotification[];
+  liveRooms: Set<string> | null;
   onOpen: (item: AppNotification) => void;
   onClose: () => void;
 }) {
@@ -194,7 +220,7 @@ function NotificationGroup({
       </p>
       <ul className="space-y-1 p-1">
         {items.map((item) => (
-          <NotificationRow key={item.id} item={item} onOpen={onOpen} onDismiss={onClose} />
+          <NotificationRow key={item.id} item={item} liveRooms={liveRooms} onOpen={onOpen} onDismiss={onClose} />
         ))}
       </ul>
     </section>
@@ -224,19 +250,23 @@ type NotificationMenuProps = {
  */
 export default function NotificationMenu({ onClose, chrome = true }: NotificationMenuProps) {
   const notifications = useNotifications();
-  const { userId, items, summary, error, ready, markRead, markAllRead, retry } = notifications;
+  const { userId, items, error, ready, markRead, markAllRead, retry } = notifications;
   const unread = unreadNotificationCount(items);
   // What is waiting, then what has been seen: the two groups the list is drawn in.
   const { fresh, earlier } = splitNotifications(items);
   const open = (opened: AppNotification) => {
     void markRead(opened.id);
   };
+  // The rooms on now, read while the menu is open, so a picked person's line says IS LIVE or WAS LIVE.
+  const { rooms } = useLiveRooms();
+  const liveRooms = useMemo(() => (rooms === null ? null : new Set(rooms.map(({ room }) => room.id))), [rooms]);
 
   return (
     <div className={chrome ? 'w-full frame bg-sun-pale' : 'w-full'}>
       {!chrome ? null : (
         <div className={TITLE_BAR}>
-          <span>NOTIFICATIONS :: {summary}</span>
+          {/* The count is on the bell under it already; the panel is too narrow for both and the close key. */}
+          <span>NOTIFICATIONS</span>
           <button
             type="button"
             onClick={onClose}
@@ -273,9 +303,9 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
         <p className="p-2 text-label font-bold text-ink">NOTHING YET.</p>
       ) : (
         // One scrolling pane for both groups, so the headings stay with their rows.
-        <div className="max-h-80 overflow-y-auto">
-          <NotificationGroup label="[ NEW ]" items={fresh} onOpen={open} onClose={onClose} />
-          <NotificationGroup label="[ EARLIER ]" items={earlier} onOpen={open} onClose={onClose} />
+        <div className="max-h-64 overflow-y-auto">
+          <NotificationGroup label="[ NEW ]" items={fresh} liveRooms={liveRooms} onOpen={open} onClose={onClose} />
+          <NotificationGroup label="[ EARLIER ]" items={earlier} liveRooms={liveRooms} onOpen={open} onClose={onClose} />
         </div>
       )}
 

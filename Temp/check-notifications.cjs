@@ -257,7 +257,9 @@ assert.equal(notificationVerb('reply'), 'REPLIED');
   const noop = () => undefined;
 
   const menu = render(element(NotificationMenu, { onClose: noop }));
-  assert.match(menu, /NOTIFICATIONS :: 1 NEW/, 'the chrome counts what is waiting');
+  // The count left the menu's title on 2026-11-20 (SPEC-notifications.md): the side panel is too narrow for it and the
+  // close key, and the bell under the menu says it already. The [ NEW ] group's own line still counts (below).
+  assert.match(menu, />NOTIFICATIONS</, 'the chrome names the menu');
   assert.match(menu, /TAGGED YOU/, 'a tag says so');
   assert.match(menu, /REPLIED TO YOU/, 'and so does a reply');
   assert.match(menu, /amy/, 'signed with who did it');

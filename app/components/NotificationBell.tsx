@@ -1,12 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { isUnread } from '../lib/notifications/feed';
 import { TITLE_BAR_BUTTON } from '../lib/ui/controls';
 import { ICON_BELL } from '../lib/ui/icons';
 import NotificationMenu from './NotificationMenu';
 import PopoutWindow from './PopoutWindow';
 import { useNotifications } from './NotificationsProvider';
+
+const OPEN_MENU_EVENT = 'debaser:open-notifications';
+
+/** Opens the bell's menu from elsewhere (the balloon's `+2 MORE`). */
+export function openNotificationMenu(): void {
+  window.dispatchEvent(new Event(OPEN_MENU_EVENT));
+}
 
 /** The square that says "there is something here you have not read". */
 function UnreadDot() {
@@ -46,6 +53,12 @@ const BELL_BUTTON = `${TITLE_BAR_BUTTON} inline-flex items-center gap-1`;
 export default function NotificationBell() {
   const notifications = useNotifications();
   const [open, setOpen] = useState(false);
+  // The balloon's `+2 MORE` opens this menu (openNotificationMenu, below).
+  useEffect(() => {
+    const show = () => setOpen(true);
+    window.addEventListener(OPEN_MENU_EVENT, show);
+    return () => window.removeEventListener(OPEN_MENU_EVENT, show);
+  }, []);
   const unread = notifications.items.filter(isUnread).length;
   const signedIn = notifications.userId !== null;
 
@@ -79,7 +92,8 @@ export default function NotificationBell() {
 
           {/* Opening *upward* and to the left: this key is at the foot of a narrow column, so a menu
               below it would run off the bottom of the window. */}
-          <span className="absolute bottom-full left-0 z-40 mb-1 block w-72">
+          {/* Anchored by its right edge: the key sits near the panel's right side, so a menu running right was cut off. */}
+          <span className="absolute bottom-full right-0 z-40 mb-1 block w-64">
             <NotificationMenu onClose={() => setOpen(false)} />
           </span>
         </>

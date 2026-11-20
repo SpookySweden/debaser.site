@@ -20,7 +20,35 @@ import type { GameId } from '../games/types';
  * for a game. The three share one feed because they share one question - what do I owe somebody - and
  * one place to answer it from.
  */
-export type NotificationKind = 'tag' | 'reply' | 'invite' | 'recommend';
+export type NotificationKind =
+  | 'tag'
+  | 'reply'
+  | 'invite'
+  | 'recommend'
+  // SPEC-notifications.md (2026-11-20): filed only by the database itself, never by a browser.
+  /** A letter sent through RECOMMEND (the canvas, "like a photo album or letter"). */
+  | 'letter'
+  /** A person this account picked (TELL ME WHEN LIVE) made their room live. */
+  | 'live'
+  /** A batch of comic pages released (COMIC's `notify_comic_page`). */
+  | 'comic'
+  /** Reserved for COMIC's panel comments: a reply to yours. */
+  | 'comic_reply';
+
+export const NOTIFICATION_KINDS: readonly NotificationKind[] = [
+  'tag',
+  'reply',
+  'invite',
+  'recommend',
+  'letter',
+  'live',
+  'comic',
+  'comic_reply',
+];
+
+export function isNotificationKind(value: unknown): value is NotificationKind {
+  return typeof value === 'string' && (NOTIFICATION_KINDS as readonly string[]).includes(value);
+}
 
 /** How much of the post a notification carries into the menu. */
 export const MAX_NOTIFICATION_SNIPPET = 120;
@@ -54,6 +82,10 @@ export type AppNotification = {
   inviteId: string | null;
   /** A recommendation sent to this account (SPEC-recommendations.md): written by the database's send, never by a browser. */
   recommendationId: string | null;
+  /** Where the line opens, a site address, when the database filed one (a live room, a comic page); else null. */
+  href?: string | null;
+  /** A live room's id ('live' only), so the line can say IS LIVE or WAS LIVE. */
+  roomId?: string | null;
   createdAt: string;
   /** Null until the recipient has seen it: that is what the unread dot is. */
   readAt: string | null;

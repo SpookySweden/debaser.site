@@ -9,6 +9,7 @@ import AccountSettingsKeeper from './components/AccountSettingsKeeper';
 import AuthProvider from './components/AuthProvider';
 import CharacterBrowserWindow from './components/CharacterBrowserWindow';
 import CommsNotifier from './components/CommsNotifier';
+import NotificationBalloon from './components/NotificationBalloon';
 import CommsProvider from './components/CommsProvider';
 import ForumProvider from './components/ForumProvider';
 import MusicPlayer from './components/MusicPlayer';
@@ -117,6 +118,8 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
                       {children}
                       {/* Any page: a message that arrives pops up (desktop) or opens comms (mobile). */}
                       <CommsNotifier />
+                      {/* ...and a notification that arrives pops up as a balloon at the bottom right (SPEC-notifications.md). */}
+                      <NotificationBalloon />
                       {/* ...and the player's bar sits over every page, docked to the bottom. */}
                       <MusicPlayer />
                       {/* The keys above it: [ ▲ ROOM ] and [ ▲ WINDOW ] (CornerShelf.tsx). */}

@@ -35,6 +35,7 @@ import { backdropDef } from '../lib/backdrops/registry';
 import { openBackdropWindow } from '../lib/backdrops/store';
 import { BACKDROPS, backdropState, setBackdrop, subscribeToBackdrop } from '../lib/ui/backdrop-slot';
 import CompanionPreferences from './CompanionPreferences';
+import NotificationSwitches from './NotificationSwitches';
 import DockWindow from './DockWindow';
 
 /** The lamp on a theme's row: filled with the field it would give you, inked with that theme's prose. */
@@ -322,6 +323,9 @@ export default function PreferencesWindow() {
 
       {/* Your companion along the bottom of the site (SPEC-companion.md): on phones too, where it has its own switch. */}
       <CompanionPreferences />
+
+      {/* What tells you (SPEC-notifications.md): one key per kind, BALLOONS, and TELL ME WHEN LIVE's picks. Saved to the account. */}
+      <NotificationSwitches />
 
       {/* Pictures from outside the site in a queue (SPEC-rooms-queues.md, section 6): loading one tells its server
           that this browser asked, so each viewer says whether theirs may. Kept in this browser only. */}

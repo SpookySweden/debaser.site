@@ -2,7 +2,7 @@ import { isGameId } from '../games/types';
 import { getSupabaseBrowserClient } from '../supabase/client';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { dedupeTargets, snippet, sortNotificationsNewestFirst } from './feed';
-import type { AppNotification, NotificationKind, NotificationsRepository, NotifyInput } from './types';
+import { isNotificationKind, type AppNotification, type NotificationKind, type NotificationsRepository, type NotifyInput } from './types';
 
 /**
  * The notification feed in Supabase - the production implementation of
@@ -73,6 +73,9 @@ type NotificationRow = {
   game_id?: string | null;
   invite_id?: string | null;
   recommendation_id?: string | null;
+  /** 20261120014611_notifications_phase1.sql: where a database-filed line opens, and a live room's id. */
+  href?: string | null;
+  room_id?: string | null;
   created_at: string;
   read_at: string | null;
 };
@@ -83,7 +86,7 @@ function toNotification(row: NotificationRow): AppNotification {
   return {
     id: row.id,
     userId: row.user_id,
-    kind: row.kind === 'reply' ? 'reply' : row.kind === 'invite' ? 'invite' : row.kind === 'recommend' ? 'recommend' : 'tag',
+    kind: isNotificationKind(row.kind) ? row.kind : 'tag',
     actorId: row.actor_id,
     actorName: row.actor_name,
     threadId: row.thread_id,
@@ -92,6 +95,8 @@ function toNotification(row: NotificationRow): AppNotification {
     gameId: isGameId(row.game_id) ? row.game_id : null,
     inviteId: row.invite_id ?? null,
     recommendationId: row.recommendation_id ?? null,
+    href: row.href ?? null,
+    roomId: row.room_id ?? null,
     createdAt: row.created_at,
     readAt: row.read_at,
   };
