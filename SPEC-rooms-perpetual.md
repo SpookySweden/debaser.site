@@ -279,7 +279,11 @@ Then the house loop once per batch (League mode: one heavy step at a time, low p
   2026-11-20 (Luke: "make stream room 'fit' by default as if fit button was pressed each time media changes or is opened")
   it fits by itself, exactly as FIT, each time the room opens or is unfolded with a picture on and each time what is on
   changes (the same shape again too), even after a hand resize; not while maximised; folded or fullscreen, it fits once the
-  window is seen again (`room-fit.ts`). The window starts at 920x580.
+  window is seen again (`room-fit.ts`). The window starts at 920x580. `[ □ ]` (2026-11-20, Luke: "the fill the page button
+  needs to fill the whole page now, in the room, except the bottom bar") covers the whole page from the very top down to the
+  bar, over the site window, its top bar and its side panel, even with companions out (it leaves them no room above itself
+  while filled; they are under it until `[ ❐ ]` or a double press on the title line puts it back). A guest's sign-in strip
+  stays above it. Escape is not wired (it closes the room's own windows first).
   Proof: `scripts/drive-roomui.cjs` on a mock server.
 - **ROOMPOLISH (Luke, 2026-11-17):** WHO CAN JOIN (GO LIVE; SAVE and GO PRIVATE once live) and `[ END ROOM ]` (two presses)
   are in the room's cog, as sections 4 and 5 always had END ROOM: "the ability to make your room public or private again etc

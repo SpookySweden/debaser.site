@@ -17,6 +17,8 @@
  *      after a hand resize it still fits whatever comes on next (a new shape, the same shape again) and when it is unfolded,
  *      as if [ FIT ] were pressed (Luke, 2026-11-20); a maximised window stays so; one jump under reduced motion. The 4:3
  *      clip is made in the browser at the start.
+ *   7. [ □ ] fills the whole page down to the bar, even with a companion out (it asks the room for room above itself), at
+ *      Luke's 3440x1440 and a laptop's 1366x768; the bar still works; [ ❐ ] puts it back.
  *
  *   node scripts/drive-roomui.cjs --base http://localhost:3317 [--only 1,3,2,4,5,6]
  *
@@ -609,6 +611,61 @@ async function queueLink(page, url) {
       assert.ok(still.length === 2 && Math.abs(stillShape.shape - 4 / 3) < 0.04, `under reduced motion, [ FIT ] is one jump (${still.join(' -> ')})`);
       await page.emulateMedia({ reducedMotion: null });
       pass('under reduced motion the fit is one jump, no steps');
+    }
+
+    if (wants(7)) {
+      console.log('7. FILL THE PAGE: THE WHOLE PAGE DOWN TO THE BAR, WITH A COMPANION OUT, AT 3440x1440 AND 1366x768');
+      // Luke, 2026-11-20: "the fill the page button needs to fill the whole page now, in the room, except the bottom bar". A
+      // companion out asks the room for room above itself to stand on (`ledge.ts`); filled, the room leaves none.
+      await page.evaluate(() => localStorage.setItem('debaser-companion', JSON.stringify({ computer: true, phone: false })));
+      for (const size of [{ width: 3440, height: 1440 }, { width: 1366, height: 768 }]) {
+        await page.setViewportSize(size);
+        await open(page, '/files?kind=video');
+        await pressPlay(page);
+        await page.waitForSelector('[data-main-room-live]', { timeout: 30000 });
+        if ((await page.locator(ROOM).getAttribute('data-minimized')) === 'true') await page.locator('[data-room-shelf-key] button').click();
+        await page.waitForSelector('[data-companion="own"]', { timeout: 20000 });
+        if (await page.locator(`${ROOM} [data-window-maximise="on"]`).count()) await page.locator(`${ROOM} [data-window-maximise="on"]`).click();
+        await sleep(600);
+        const before = await rectOf(page, ROOM);
+        await page.locator(`${ROOM} [data-window-maximise="off"]`).click();
+        await page.waitForSelector(`${ROOM} [data-window-maximise="on"]`, { timeout: 5000 });
+        await page.waitForFunction((room) => Number(document.querySelector(room).getAttribute('data-headroom')) > 0, ROOM, { timeout: 10000 }).catch(() => undefined);
+        await sleep(500);
+        const filled = await page.evaluate((room) => {
+          const box = document.querySelector(room).getBoundingClientRect();
+          const bar = document.querySelector('[data-stream-bar]').getBoundingClientRect();
+          const covered = (x, y) => document.elementFromPoint(x, y)?.closest(room) !== null;
+          return {
+            box: { left: box.left, top: box.top, width: box.width, bottom: box.bottom },
+            barTop: bar.top,
+            headroom: Number(document.querySelector(room).getAttribute('data-headroom')),
+            corners: [covered(2, 2), covered(innerWidth - 3, 2), covered(innerWidth / 2, 1), covered(2, box.bottom - 3)],
+          };
+        }, ROOM);
+        await page.screenshot({ path: join(SHOTS, `7-filled-${size.width}x${size.height}.png`) });
+        assert.ok(filled.headroom > 0, `a companion is out and asks the room for room above it (${filled.headroom}px)`);
+        assert.ok(filled.box.top <= 0.5 && filled.box.left <= 0.5 && filled.box.width >= size.width - 1, `${size.width}x${size.height}: filled, the room starts at the very top and is the page's whole width (${JSON.stringify(filled.box)})`);
+        assert.ok(filled.box.bottom <= filled.barTop + 0.5 && filled.box.bottom >= filled.barTop - 8, `and reaches down to the bar, not under it (foot ${Math.round(filled.box.bottom)}, bar ${Math.round(filled.barTop)})`);
+        assert.deepEqual(filled.corners, [true, true, true, true], 'nothing of the page shows at its corners or along its top');
+        // The bar stays in sight and in use. (The mock's first-visit PRIVACY window, a docked window under the filled room, can
+        // hang over the bar's end at this size: kept as it is, pressed in the page because the room covers its key.)
+        await page.evaluate(() => [...document.querySelectorAll('button')].find((key) => key.textContent.includes('KEEP THESE SETTINGS'))?.click());
+        await page.waitForFunction(() => ![...document.querySelectorAll('button')].some((key) => key.textContent.includes('KEEP THESE SETTINGS')), null, { timeout: 5000 }).catch(() => undefined);
+        await page.locator('[data-stream-bar-queue]').click();
+        await page.waitForSelector('#stream-queue-search', { timeout: 10000 });
+        await page.keyboard.press('Escape');
+        await page.waitForFunction(() => document.querySelector('#stream-queue-search') === null, null, { timeout: 10000 });
+        // The same key puts it back.
+        await page.locator(`${ROOM} [data-window-maximise="on"]`).click();
+        await page.waitForSelector(`${ROOM} [data-window-maximise="off"]`, { timeout: 5000 });
+        await sleep(400);
+        const back = await rectOf(page, ROOM);
+        assert.ok(['left', 'top', 'width', 'height'].every((side) => Math.abs(back[side] - before[side]) < 3), `pressed again, it is back where it was (${Math.round(before.width)}x${Math.round(before.height)} -> ${Math.round(back.width)}x${Math.round(back.height)})`);
+        pass(`${size.width}x${size.height}: [ □ ] fills the whole page down to the bar (a companion out), the bar works, [ ❐ ] puts it back`);
+      }
+      await page.evaluate(() => localStorage.removeItem('debaser-companion'));
+      await page.setViewportSize({ width: 1440, height: 900 });
     }
 
     assert.deepEqual(errors, [], `no page errors (${errors.join(' | ')})`);

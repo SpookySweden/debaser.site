@@ -165,8 +165,8 @@ export function fitRoom(auto = false): void {
   const steps = still ? 1 : STEPS;
   // Four hard steps, evenly apart and each one held: the site's snapping, not an easing.
   const step = (index: number) => {
-    // The reader took hold of a window meanwhile: theirs, not the fit's.
-    if (handMoving()) {
+    // The reader took hold of a window meanwhile, or filled the page with it: theirs, not the fit's.
+    if (handMoving() || (index > 1 && liveWindow(ROOM)?.restore !== null)) {
       stepping = null;
       return;
     }
