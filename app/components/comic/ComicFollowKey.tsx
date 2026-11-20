@@ -1,10 +1,27 @@
+'use client';
+
+import { setNotifySwitch, useNotifySettings } from '../../lib/notifications/notify-settings-store';
+import { PLATE, PLATE_PRESSED } from '../../lib/ui/controls';
+import { useAuth } from '../AuthProvider';
+
 /**
- * Where COMIC's `[ FOLLOW ]` key goes (SPEC-comic.md, Q12): on the contents page and at the end of each chapter.
- *
- * The key itself is NOTIFY's (SPEC-notifications.md, "COMIC interface"): `app/components/ComicFollowKey.tsx`, the COMIC NEW
- * PAGES switch (`notification_prefs.comic`, off by default), shipped with NOTIFY's part. Until that lands there is nothing to
- * switch, so this draws nothing; when it lands, this renders NOTIFY's key in its place.
+ * COMIC's `[ FOLLOW ]` (SPEC-comic.md, Q12), on the contents page and at the end of each chapter. Following the comic IS
+ * NOTIFY's COMIC NEW PAGES switch (SPEC-notifications.md, `notification_prefs.comic`, off by default), so one alert per
+ * release reaches the bell. Nothing signed out (the guest banner carries the one LOG IN).
  */
 export default function ComicFollowKey() {
-  return null;
+  const me = useAuth().user?.id ?? null;
+  const { ready, prefs } = useNotifySettings(me);
+  if (me === null) return null;
+  return (
+    <button
+      type="button"
+      aria-pressed={prefs.comic}
+      disabled={!ready}
+      onClick={() => void setNotifySwitch('comic', !prefs.comic)}
+      className={prefs.comic ? PLATE_PRESSED : PLATE}
+    >
+      {prefs.comic ? '[ ✓ FOLLOWING ]' : '[ FOLLOW ]'}
+    </button>
+  );
 }
