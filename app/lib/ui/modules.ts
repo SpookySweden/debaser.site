@@ -35,8 +35,9 @@ export const MODULES: readonly ModuleDef[] = [
   // (modules-slot.ts's new storage key) gives everyone the same.
   { key: 'forum', label: 'FORUM', href: '/forum', group: 'site', startsOn: true, defaultColour: 'emerald' },
   { key: 'web', label: 'MEDIA', href: '/media', group: 'site', startsOn: true, defaultColour: 'teal' },
-  // Luke's comic (SPEC-comic.md, 2026-11-20, Q1A: on the bar for first visits): the reader at /comic, his studio at /comic/studio.
-  { key: 'comic', label: 'COMIC', href: '/comic', group: 'site', startsOn: true, defaultColour: 'flavine' },
+  // Luke's comic (SPEC-comic.md): the reader at /comic, his studio at /comic/studio. On the bar for first visits from 2026-11-20 (Q1A)
+  // until 2026-11-21 (Luke: "make comic no longer always on"): an ordinary module now, off until ticked. Its colour stays.
+  { key: 'comic', label: 'COMIC', href: '/comic', group: 'site', startsOn: false, defaultColour: 'flavine' },
   // The reader (Luke, 2026-11-13: "a new module for reading"): your books, and your own PDFs and EPUBs matched to their book.
   // (2026-11-14) Off by default: READ lives on the side panel's shelf under ARCADE instead (DesktopSidebar's ReadKey).
   { key: 'read', label: 'READ', href: '/read', group: 'site', startsOn: false },

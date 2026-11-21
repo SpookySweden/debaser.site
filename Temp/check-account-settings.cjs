@@ -178,6 +178,8 @@ function loadSync() {
     tour2: 'app/lib/ui/first-visit-tour.ts',
     // COMIC (2026-11-20, SPEC-comic.md): where a reader stopped, for CONTINUE.
     comicPlace: 'app/lib/comic/place.ts',
+    // DESK (2026-11-21, Luke: "in the top right include an auto pop up toggle"): the AUTO POP-UP switch.
+    deskAuto: 'app/lib/desk/desk-window.ts',
   };
   const usedBy = { forumPlace: 'app/components/ForumBoard.tsx', forumSort: 'app/components/ForumBoard.tsx' };
   assert.deepEqual(Object.keys(owners).sort(), Object.keys(SYNCED_KEYS).sort(), 'every synced setting has an owner here');

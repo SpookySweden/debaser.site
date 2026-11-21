@@ -31,7 +31,7 @@ const check = (ok, what, detail = '') => {
 };
 
 const VISITOR_STEPS = ['board', 'modules', 'search', 'login', 'modulos', 'shelf', 'music'];
-const ACCOUNT_STEPS = ['board', 'modules', 'search', 'desk', 'modulos', 'shelf', 'music'];
+const ACCOUNT_STEPS = ['board', 'modules', 'search', 'modulos', 'shelf', 'desk', 'music'];
 
 /** Runs before every page: the seeded mock account (or none), once per context. */
 function seed({ account, oldMarks, accountSaid, optIn }) {
@@ -242,7 +242,7 @@ async function outlineFits(page) {
     if (privacyShown) await window.getByRole('button', { name: /KEEP (IT PRIVATE|THESE SETTINGS)/ }).dispatchEvent('click');
     check(await waitForCard(page), 'the tour starts once PRIVACY is closed');
     const sidebarShown = await page.evaluate(() => [...document.querySelectorAll('[data-tour="shelf"]')].some((el) => el.getBoundingClientRect().width > 0));
-    const expected = ACCOUNT_STEPS.filter((id) => id !== 'shelf' || sidebarShown);
+    const expected = ACCOUNT_STEPS.filter((id) => (id !== 'shelf' && id !== 'desk') || sidebarShown);
     const seen = [];
     for (let i = 0; i < 9; i += 1) {
       const id = await cardId(page);

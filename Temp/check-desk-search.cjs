@@ -1,6 +1,6 @@
 /*
  * SPEC-forum-v3.md part 1: YOUR DESK and the one SEARCH box, rendered, and their plain rules.
- *   npx tsc app/components/DeskWindow.tsx app/components/SearchWindow.tsx app/lib/desk/desk-window.ts app/lib/search/site-search.ts --rootDir app --outDir Temp/desk-search-out --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
+ *   npx tsc app/components/DeskWindow.tsx app/components/SearchWindow.tsx app/lib/desk/desk-window.ts app/lib/search/site-search.ts app/lib/settings/settings-bus.ts --rootDir app --outDir Temp/desk-search-out --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
  *   node Temp/check-desk-search.cjs
  *
  * The windows' own behaviour (opening once a day, folds, Ctrl+K, results that open their thing, a visitor with no desk) is
@@ -42,11 +42,13 @@ stub(path.join(OUT, 'lib/audio/repository.js'), { getMusicRepository: () => ({ f
 stub(path.join(OUT, 'lib/docs/repository.js'), { getDocsRepository: () => ({ listDocs: async () => [] }) });
 stub(path.join(OUT, 'lib/media/catalogue.js'), { useCatalogue: () => ({ items: [], entries: [], answered: true, loading: false }) });
 stub(path.join(OUT, 'lib/web/everywhere-client.js'), { searchEverywhere: async () => ({ items: [], problems: [], nextCursor: null, link: null }) });
+stub(path.join(OUT, 'lib/settings/account-settings.js'), { accountSettingsLoaded: () => true, serverAccountSettingsLoaded: () => false, subscribeToAccountSettingsLoaded: () => () => undefined });
 stub('next/navigation', { useSearchParams: () => new URLSearchParams(''), usePathname: () => '/forum', useRouter: () => ({ replace: () => undefined, push: () => undefined }) });
 
-const { default: DeskWindow, DeskBody } = require('./desk-search-out/components/DeskWindow.js');
+const { default: DeskWindow, DeskBody, deskFitRect } = require('./desk-search-out/components/DeskWindow.js');
 const { default: SearchWindow, SearchBody } = require('./desk-search-out/components/SearchWindow.js');
-const { localDay, opensByItself, deskRequested } = require('./desk-search-out/lib/desk/desk-window.js');
+const { localDay, opensByItself, deskRequested, deskAutoFrom, DESK_AUTO_KEY } = require('./desk-search-out/lib/desk/desk-window.js');
+const { SYNCED_KEYS } = require('./desk-search-out/lib/settings/settings-bus.js');
 const { searchWords, matchesWords, resultLine, searchRequested } = require('./desk-search-out/lib/search/site-search.js');
 
 /* The rules -------------------------------------------------------------------------------------------- */
@@ -56,6 +58,20 @@ assert.equal(opensByItself({ signedIn: true, onForum: true, lastDay: '2026-11-17
 assert.equal(opensByItself({ signedIn: true, onForum: true, lastDay: '2026-11-16', today: '2026-11-17' }), true, 'and again the next day');
 assert.equal(opensByItself({ signedIn: false, onForum: true, lastDay: null, today: '2026-11-17' }), false, 'a visitor has no desk');
 assert.equal(opensByItself({ signedIn: true, onForum: false, lastDay: null, today: '2026-11-17' }), false, 'only on the forum');
+// AUTO POP-UP (Luke, 2026-11-21: "in the top right include an auto pop up toggle"): off, it never opens by itself.
+assert.equal(opensByItself({ signedIn: true, onForum: true, lastDay: null, today: '2026-11-17', auto: false }), false, 'AUTO POP-UP off: never by itself');
+assert.equal(opensByItself({ signedIn: true, onForum: true, lastDay: null, today: '2026-11-17', auto: true }), true, 'AUTO POP-UP on: the first visit of the day');
+assert.equal(deskAutoFrom(null), true, 'never set: on');
+assert.equal(deskAutoFrom('0'), false, 'stored 0: off');
+assert.equal(deskAutoFrom('1'), true);
+assert.equal(deskAutoFrom('junk'), true, 'a junk value keeps the default');
+assert.equal(SYNCED_KEYS.deskAuto, DESK_AUTO_KEY, "the switch follows the account with the other settings (user_settings)");
+// Calmer (2026-11-21): set down just left of the side panel, as tall as its sections, never past the music bar.
+const fresh = deskFitRect({ current: { x: 1032, y: 64, w: 400, h: 360 }, fresh: true, panel: { left: 1070, top: 91 }, contentHeight: 212, top: 40, floor: 800 });
+assert.deepEqual(fresh, { x: 662, y: 99, w: 400, h: 212 }, 'fresh: beside the panel, its top level with it, as tall as what it holds');
+const moved = deskFitRect({ current: { x: 300, y: 200, w: 380, h: 360 }, fresh: false, panel: { left: 1070, top: 91 }, contentHeight: 900, top: 40, floor: 800 });
+assert.deepEqual(moved, { x: 300, y: 200, w: 380, h: 592 }, 'already placed: it stays put and grows only to the bar');
+assert.equal(deskFitRect({ current: { x: 0, y: 64, w: 400, h: 360 }, fresh: true, panel: null, contentHeight: 20, top: 40, floor: 800 }).h, 140, 'never shorter than its least size');
 assert.equal(deskRequested('?view=gallery&desk=1'), true);
 assert.equal(searchRequested('?search=1'), true);
 assert.deepEqual(searchWords('  Glass   CORRIDOR '), ['glass', 'corridor']);
@@ -68,8 +84,11 @@ assert.equal(resultLine('a\n  b'), 'a b');
 assert.equal(renderToStaticMarkup(el(DeskWindow)), '', 'shut, the desk draws nothing');
 assert.equal(renderToStaticMarkup(el(SearchWindow)), '', 'shut, the search draws nothing');
 const desk = renderToStaticMarkup(el(DeskBody, { me: 'me', onLeave: () => undefined }));
-assert.match(desk, /REPLIES TO YOU \(1 NEW\)/, 'REPLIES TO YOU, with how many are new');
-assert.match(desk, /JO REPLIED &quot;Panel thumbnails&quot;/, 'who replied, and where');
+// Updated on purpose 2026-11-21 (DESK rework, Luke: "significantly more palatable"): the new count is a chip on the section's line,
+// and a reply reads as two lines, who did what, then where and what they said.
+assert.match(desk, /REPLIES TO YOU<span[^>]*>1 NEW<\/span>/, 'REPLIES TO YOU, with how many are new');
+assert.match(desk, /JO<\/span> REPLIED[\s\S]*Panel thumbnails · &quot;the third one&quot;/, 'who replied, and where');
+assert.match(desk, /aria-expanded="true"[^>]*>\[ − \]/, 'each section folds from a key at the end of its line');
 assert.match(desk, /href="\/forum#thread-t1"/, 'a reply line opens its post');
 assert.match(desk, /LIVE NOW/, 'LIVE NOW, for the person whose lamp is on');
 assert.match(desk, /WAITING FOR YOU[\s\S]*2 MESSAGES[\s\S]*1 RECOMMENDATION/, 'WAITING FOR YOU, messages and recommendations');

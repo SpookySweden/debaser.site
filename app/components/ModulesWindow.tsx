@@ -24,6 +24,7 @@ import {
 import { subscribeToTheme, themeState, THEMES } from '../lib/ui/theme-slot';
 import { useAuth } from './AuthProvider';
 import DockWindow from './DockWindow';
+import { useModeration } from './ModerationProvider';
 
 const TICK = `${KEY_FOCUS} key inline-flex min-h-7 w-full items-center gap-2 px-1 text-sm font-bold leading-none disabled:cursor-not-allowed pointer-coarse:min-h-tap`;
 const SWATCH = `${KEY_FOCUS} inline-flex h-7 w-7 items-center justify-center border-line border-ink text-key leading-none cursor-pointer pointer-coarse:min-h-tap pointer-coarse:min-w-tap`;
@@ -151,6 +152,7 @@ export default function ModulesWindow() {
             <ModuleRow key={module.key} module={module} bar={bar} />
           ))}
         </Group>
+        <AlwaysOn signedIn={person !== null} />
         {/* The two places only the START menu led to on a computer, which went on 2026-11-14: the projects map (its shelves, CONCEPTS,
             LORE, NOTES and LINKS, hang off it) and the catalogue of the site's own files. PROJECTS is a module too, off until ticked. */}
         <section className="pb-2">
@@ -179,5 +181,37 @@ export default function ModulesWindow() {
         </section>
       </div>
     </DockWindow>
+  );
+}
+
+/**
+ * The keys that are always there, listed so nobody hunts for a tick that isn't (Luke, 2026-11-21: "in modulos show the other
+ * 'always ons' such as 'search, desk, reports if applicable'"). Locked on, like MODULOS's own row: each is the one door to what
+ * it opens (the arrows are the site's undo, SEARCH the one box, REPORTS a moderator's duty, DESK what is waiting, the window
+ * keys the way back to a normal window), so hiding one would only lose it. Who sees which follows the bar: REPORTS for
+ * moderators, DESK for an account.
+ */
+function AlwaysOn({ signedIn }: { signedIn: boolean }) {
+  const { role } = useModeration();
+  const rows: { key: string; label: string; where: string }[] = [
+    { key: 'arrows', label: '◄ ► UNDO / REDO', where: 'START OF THE BAR' },
+    { key: 'search', label: '⌕ SEARCH', where: 'ON THE BAR · CTRL+K' },
+    ...(role.moderator ? [{ key: 'reports', label: 'REPORTS', where: 'ON THE BAR · MODERATORS' }] : []),
+    ...(signedIn ? [{ key: 'desk', label: '▭ DESK', where: 'SIDE PANEL, ABOVE THE BELL' }] : []),
+    { key: 'window', label: 'HIDE / FILL WINDOW', where: 'END OF THE BAR' },
+  ];
+  return (
+    <Group title="ALWAYS ON">
+      {rows.map((row) => (
+        <li key={row.key} className="rule-pixel py-1.5" data-always-on={row.key}>
+          <button type="button" role="checkbox" aria-checked disabled className={TICK}>
+            <span aria-hidden="true">[ ✓ ]</span>
+            <span>{row.label}</span>
+            <span className="text-label">ALWAYS ON</span>
+          </button>
+          <p className="px-1 pt-1 text-label text-ink">{row.where}</p>
+        </li>
+      ))}
+    </Group>
   );
 }

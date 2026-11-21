@@ -31,9 +31,8 @@ import {
 } from '../lib/ui/icons';
 import { QUEUES_HREF } from '../lib/audio/queue-window';
 import { HISTORY_HREF } from '../lib/history/history-window';
-import { DESK_HREF, deskWindowServerState, deskWindowState, subscribeToDeskWindow, toggleDesk } from '../lib/desk/desk-window';
+import { DESK_HREF } from '../lib/desk/desk-window';
 import { SEARCH_HREF, searchWindowServerState, searchWindowState, subscribeToSearchWindow, toggleSearch } from '../lib/search/site-search';
-import { useAuth } from './AuthProvider';
 import { useModeration } from './ModerationProvider';
 import { reportsWindowServerState, reportsWindowState, subscribeToReportsWindow, toggleReports } from '../lib/moderation/moderation-windows';
 import { getModerationStore } from '../lib/moderation/repository';
@@ -194,21 +193,15 @@ export const SIDE_DESK: NavItem = { key: 'desk', label: 'DESK', mark: '▭', hre
 export const SIDE_SEARCH: NavItem = { key: 'search', label: 'SEARCH', mark: '⌕', href: SEARCH_HREF };
 
 /**
- * The top bar's two window keys, after the modules: DESK (signed in only: a visitor has no desk) and ⌕ SEARCH (Ctrl+K too).
- * Word keys like the modules, with the hover a module with no colour of its own wears; `aria-expanded` gives them the one
- * "this is open" look while their window is up.
+ * The top bar's window key, after the modules: ⌕ SEARCH (Ctrl+K too). A word key like the modules, with the hover a module
+ * with no colour of its own wears; `aria-expanded` gives it the one "this is open" look while its window is up. DESK sat here
+ * too until 2026-11-21, when Luke asked for it "near where notifications are accessible": it is the side panel's shelf's last
+ * key now, above the bell (`DesktopSidebar.tsx`), and a key in the bell's menu.
  */
 function TopBarWindowKeys({ hover }: { hover: CSSProperties }) {
-  const { user } = useAuth();
-  const desk = useSyncExternalStore(subscribeToDeskWindow, deskWindowState, deskWindowServerState);
   const find = useSyncExternalStore(subscribeToSearchWindow, searchWindowState, searchWindowServerState);
   return (
     <>
-      {user === null ? null : (
-        <button type="button" aria-expanded={desk.open} onClick={toggleDesk} title="What is waiting for you" className={`${wordClass(false)} module-key cursor-pointer`} style={hover} data-desk-key>
-          DESK
-        </button>
-      )}
       <button type="button" aria-expanded={find.open} onClick={toggleSearch} title="Search the whole site (Ctrl+K)" className={`${wordClass(false)} module-key cursor-pointer`} style={hover} data-search-key>
         ⌕ SEARCH
       </button>

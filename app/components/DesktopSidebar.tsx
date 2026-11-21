@@ -7,7 +7,7 @@ import { useForum } from './ForumProvider';
 import SidebarComms from './SidebarComms';
 import SidebarProfile from './SidebarProfile';
 import UserDirectory from './UserDirectory';
-import { ARCADE_KEY_SHOWN, SIDE_ARCADE, SIDE_HISTORY, SIDE_MUSIC, SIDE_QUEUES } from './SiteNav';
+import { ARCADE_KEY_SHOWN, SIDE_ARCADE, SIDE_DESK, SIDE_HISTORY, SIDE_MUSIC, SIDE_QUEUES } from './SiteNav';
 import type { NavItem } from './SiteNav';
 import {
   arcadeAddressSpentByClose,
@@ -29,6 +29,7 @@ import {
   toggleQueues,
 } from '../lib/audio/queue-window';
 import type { AccountUser } from '../lib/auth/types';
+import { deskWindowServerState, deskWindowState, subscribeToDeskWindow, toggleDesk } from '../lib/desk/desk-window';
 import { historyAddressSpentByClose, historyWindowServerState, historyWindowState, subscribeToHistoryWindow, toggleHistory } from '../lib/history/history-window';
 import { TITLE_BAR_BUTTON, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import { pagePanelOpen, setPagePanelOpen, subscribeToPagePanel } from '../lib/ui/side-panel-page';
@@ -109,15 +110,19 @@ function ShelfKey({
   item,
   isOpen,
   onPress,
+  deskKey = false,
 }: {
   item: NavItem;
   isOpen: boolean;
   onPress: () => void;
+  /** The DESK's key, marked for the first-visit tour and the drives (`data-desk-key`). */
+  deskKey?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onPress}
+      data-desk-key={deskKey ? '' : undefined}
       aria-haspopup="dialog"
       aria-pressed={isOpen}
       className={`flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-label ${
@@ -215,6 +220,7 @@ export default function DesktopSidebar({ foldedOnThisPage = false }: { foldedOnT
   const queueState = useSyncExternalStore(subscribeToQueueWindow, queueWindowState, queueWindowState);
   const queuesOpen = queueState.open;
   const historyOpen = useSyncExternalStore(subscribeToHistoryWindow, historyWindowState, historyWindowServerState).open;
+  const deskOpen = useSyncExternalStore(subscribeToDeskWindow, deskWindowState, deskWindowServerState).open;
   const { user } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
@@ -289,6 +295,9 @@ export default function DesktopSidebar({ foldedOnThisPage = false }: { foldedOnT
 
   /** The panel's HISTORY key (SPEC-history.md): the same switch as QUEUE's, for the log window. */
   const pressHistory = useCallback(() => pressShelf(historyWindowState().open, historyAddressSpentByClose, toggleHistory), [pressShelf]);
+  // Never `replace(pathname)` here: the DESK spends only `?desk=1` itself when it shuts (DeskWindow.tsx), so the board keeps
+  // its tab and tags.
+  const pressDesk = useCallback(() => pressShelf(deskWindowState().open, () => false, toggleDesk), [pressShelf]);
 
 
   if (!isOpen && foldedOnThisPage) {
@@ -321,7 +330,7 @@ export default function DesktopSidebar({ foldedOnThisPage = false }: { foldedOnT
     // third of a 700px one. Both the rail and the panel open from `md`, not `lg` - below `md` the
     // phone rule holds (the picture in the title bar is the only door), and from `md` the archive and
     // the arcade would otherwise be unreachable, since `SiteNav`'s keys do not carry them.
-    <aside className="hidden w-60 shrink-0 flex-col border-l-line border-ink bg-sun-pale md:flex lg:w-72">
+    <aside className="hidden w-60 shrink-0 flex-col border-l-line border-ink bg-sun-pale md:flex lg:w-72" data-side-panel>
       {/* No `SIDE PANEL` title (SPEC-efficiency.md): the panel is plainly the panel. The fold key keeps
           the top right corner on its own, where the title line used to end. */}
       <div className="flex justify-end px-2 pt-1">
@@ -376,6 +385,9 @@ export default function DesktopSidebar({ foldedOnThisPage = false }: { foldedOnT
             <ShelfKey item={SIDE_MUSIC} isOpen={musicOpen} onPress={pressMusic} />
             <ShelfKey item={SIDE_QUEUES} isOpen={queuesOpen} onPress={pressQueues} />
             <ShelfKey item={SIDE_HISTORY} isOpen={historyOpen} onPress={pressHistory} />
+            {/* DESK (Luke, 2026-11-21: "have the desk be accessible near where notifications are accessible"): the shelf's last
+                key, straight above the COMMS line that carries the bell. Signed in only: a visitor has no desk. */}
+            {user === null ? null : <ShelfKey item={SIDE_DESK} isOpen={deskOpen} onPress={pressDesk} deskKey />}
           </div>
         </section>
 

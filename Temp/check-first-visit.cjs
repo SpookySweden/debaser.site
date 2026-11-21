@@ -47,7 +47,9 @@ assert.equal(owed('done', { replaying: true, where: '/media' }), false, 'a repla
 const all = () => true;
 const ids = (signedIn, shown = all) => tour.stepsFor(signedIn, shown).map((step) => step.id);
 assert.deepEqual(ids(false), ['board', 'modules', 'search', 'login', 'modulos', 'shelf', 'music'], 'a visitor: seven steps with LOG IN');
-assert.deepEqual(ids(true), ['board', 'modules', 'search', 'desk', 'modulos', 'shelf', 'music'], 'an account: seven steps with DESK');
+// Updated on purpose 2026-11-21 (DESK rework, Luke: "have the desk be accessible near where notifications are accessible"): the
+// DESK key moved from the top bar to the shelf's foot, above the bell, so its step follows THE SHELF.
+assert.deepEqual(ids(true), ['board', 'modules', 'search', 'modulos', 'shelf', 'desk', 'music'], 'an account: seven steps with DESK');
 assert.deepEqual(ids(false, (target) => !target.includes('shelf')), ['board', 'modules', 'search', 'login', 'modulos', 'music'], 'a folded sidebar: no SHELF step');
 for (const step of tour.TOUR_STEPS) {
   assert.ok(step.title.length > 0 && step.line.length <= 48, `${step.id}: a few words, the outline does the showing`);
@@ -60,7 +62,7 @@ const marked = {
   modules: ['app/components/SiteNav.tsx', 'aria-label="Modules"'],
   search: ['app/components/SiteNav.tsx', 'data-search-key'],
   login: ['app/components/GuestPrompt.tsx', 'data-tour="login"'],
-  desk: ['app/components/SiteNav.tsx', 'data-desk-key'],
+  desk: ['app/components/DesktopSidebar.tsx', 'data-desk-key'],
   modulos: ['app/components/SiteNav.tsx', 'data-tour="modulos"'],
   shelf: ['app/components/DesktopSidebar.tsx', 'data-tour="shelf"'],
   music: ['app/components/MusicPlayer.tsx', 'data-tour="music"'],

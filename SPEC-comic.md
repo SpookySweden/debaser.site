@@ -42,6 +42,7 @@ building session's chat, with a plain-English description, a dry run and `npm ru
 ### Where it lives (Q1, Q15)
 - A new module, **COMIC**, at `/comic`, on the top bar for first visits (`startsOn: true` in `app/lib/ui/modules.ts`,
   next to FORUM, MEDIA and STREAM). Its default hover colour is picked from the existing module colours at build time.
+  Changed 2026-11-21 (Luke: "make comic no longer always on"): `startsOn: false`, an ordinary module off until ticked in MODULOS.
 - Luke's studio is at `/comic/studio`. It is not on the bar: he reaches it from a `[ STUDIO ]` key that only he sees
   on `/comic`.
 - FIRSTVISIT's guided tour may want a COMIC stop. The coordinator passes that on; this SPEC doesn't touch the tour.

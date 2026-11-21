@@ -25,6 +25,8 @@ export const SYNCED_KEYS = {
   tour2: 'debaser.tour.v2',
   // Where a reader stopped in the comic, `<chapter>/<page>` (SPEC-comic.md, CONTINUE).
   comicPlace: 'debaser.site.comic.place',
+  // The DESK's AUTO POP-UP switch, `0` off (Luke, 2026-11-21; `../desk/desk-window.ts`).
+  deskAuto: 'debaser.desk.auto.v1',
 } as const;
 
 export type SyncedName = keyof typeof SYNCED_KEYS;

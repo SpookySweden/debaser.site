@@ -42,9 +42,10 @@ export const TOUR_STEPS: readonly TourStep[] = [
   { id: 'modules', target: 'nav[aria-label="Modules"]', title: 'THE BAR', line: 'EACH WORD IS A PAGE: MEDIA, STREAM...' },
   { id: 'search', target: '[data-search-key]', title: '⌕ SEARCH', line: 'THE WHOLE SITE. CTRL+K.' },
   { id: 'login', target: '[data-tour="login"]', title: 'LOG IN', line: 'TO POST, TALK AND KEEP THINGS.', who: 'visitor' },
-  { id: 'desk', target: '[data-desk-key]', title: 'DESK', line: 'WHAT IS WAITING FOR YOU.', who: 'account' },
   { id: 'modulos', target: '[data-tour="modulos"]', title: 'MODULOS', line: 'PICK THE PAGES ON YOUR BAR.' },
   { id: 'shelf', target: '[data-tour="shelf"]', title: 'THE SHELF', line: 'WINDOWS: MUSIC, QUEUE, HISTORY.' },
+  // DESK after the shelf since 2026-11-21: its key is the shelf's last, above the bell (it was on the top bar).
+  { id: 'desk', target: '[data-desk-key]', title: 'DESK', line: 'WHAT IS WAITING FOR YOU.', who: 'account' },
   { id: 'music', target: '[data-tour="music"]', title: 'THE MUSIC BAR', line: 'WHAT PLAYS FOLLOWS YOU ROUND THE SITE.' },
 ];
 

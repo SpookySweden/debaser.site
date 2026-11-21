@@ -36,6 +36,13 @@ Nothing here is built yet.
   CONTINUE READING, REPLIES TO YOU, LIVE NOW (rooms and people online), FROM PEOPLE YOU TALK TO (their newest posts and
   MADE things, by the closeness VANITY already works out), WAITING FOR YOU (unread letters and recommendations).
 - D3A. Fixed order; each section folds and stays folded in this browser. No database change.
+- Reworked 2026-11-21 (Luke: "make it significantly more palatable and less intrusive, in the top right include an auto pop
+  up toggle and have the desk be accessible near where notifications are accessible"): a 400-wide window as tall as its
+  sections, set down just left of the side panel (never over it, never over + NEW POST) until the reader moves it; quiet
+  section lines with a `N NEW` chip and a `[ − ]` fold key; `[ AUTO POP-UP: ON/OFF ]` in its title line (off: it never opens
+  by itself), which follows the account (`deskAuto` in `user_settings`, no database change); its key is the side panel's
+  shelf's last, straight above the COMMS line with the bell, and `[ ▭ DESK ]` in the bell's menu. The top bar's DESK key is
+  gone (the Start menu entry stays, not drawn).
 
 **ONE SEARCH BOX**
 - S1B. The site's own things and the outside platforms' results in one list. Default taken: the site's groups first
