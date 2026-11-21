@@ -31,6 +31,7 @@ import PresenceProvider from './components/PresenceProvider';
 import { ModerationProvider } from './components/ModerationProvider';
 import ReportWindow from './components/ReportWindow';
 import ReportsWindow, { ReportsAddress } from './components/ReportsWindow';
+import ScreenKeyGate from './components/ScreenKeyGate';
 import ThemeHost from './components/ThemeHost';
 import CatCursor from './components/CatCursor';
 import Companion from './components/Companion';
@@ -89,6 +90,8 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
         <script dangerouslySetInnerHTML={{ __html: themeBootScript() + cursorBootScript() + backdropBootScript() + siteFillBootScript() + siteHiddenBootScript() }} />
       </head>
       <body className="min-h-full flex flex-col">
+        {/* The keyboard's first listener, for CONTROL of the PC from a room (SPEC-screens.md): first here, so it is first to hear. Draws nothing. */}
+        <ScreenKeyGate />
         {/* The reader's theme, written onto <html> before anything else the client does. It draws
             nothing: a theme is CSS custom properties, not markup. */}
         <ThemeHost />

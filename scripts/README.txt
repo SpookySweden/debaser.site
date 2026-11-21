@@ -231,7 +231,11 @@ and reads that a room has no `[ SCREEN ]` key and the routes give nothing away; 
 local-proof exception in `app/lib/screens/host-server.ts`) and reads frames decoding in the room from the browser's own receiver
 statistics, 16:9 and 720 making the picture 1280x720, the pointer and a letter arriving at the engine as the right screen pixel and
 scan code (the engine's own `GET /control-log`) however the picture is drawn, Ctrl+Alt+Shift+Q letting go, and the connection
-closing when the room's own picture comes back. It refuses to run during a League match (exit 3). Its pictures of the room
+closing when the room's own picture comes back. Since the engine gained them: SOUND (not offered on the PC itself; with the drive's
+test-only mark standing in for a device that is not the PC, Opus packets arriving from the engine's test tone and stopping again), a
+made-up CONTROLLER reaching the engine's record only while control is held, the picture's pointer taking the PC's pretended shape at
+the picture's scale, and Esc typed to the PC closing nothing of the site's. It never uses port 8478 (the engine that is live on this
+PC) and refuses to start when its own ports already answer. It refuses to run during a League match (exit 3). Its pictures of the room
 (`Temp/browse/screens/`) leave the PC's own screen out. The rules themselves are held by `Temp/check-screens.cjs`.
 
 drive-queue-filters.cjs

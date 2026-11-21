@@ -1,7 +1,9 @@
 import { ScreenConnection, type StreamStats } from './connection';
 import { ScreenControl, canLockKeyboard } from './control';
 import { ScreenDrawing } from './drawing';
-import { screenHostNow, talkToSettings, type SettingsAnswer } from './host-client';
+import { pretendNotThisPc, screenHostNow, talkToSettings, type SettingsAnswer } from './host-client';
+import { ScreenPointerShape } from './pointer-shape';
+import { soundMessage } from './wire';
 import {
   DEFAULT_WISHES,
   RATE_GAPS,
@@ -12,9 +14,13 @@ import {
   wishesAfter,
   wishesForThePc,
   askedNow,
+  soundOffered,
+  SOUND_NOT_SENT,
+  SOUND_WANTS_A_PRESS,
   type Drawing,
   type HostSettings,
   type Mouse,
+  type PadSeen,
   type SettingsRequest,
   type ThisScreen,
   type Upscaling,
@@ -38,6 +44,8 @@ export type ScreenParts = {
   /** The picture's box: where it is fitted, where the pointer is read, what holds the keyboard while controlling. */
   stage: HTMLElement;
   video: HTMLVideoElement;
+  /** The PC's sound: an element of its own, apart from the picture and from everything else the site plays. */
+  audio: HTMLAudioElement;
   fastCanvas: HTMLCanvasElement;
   sharpCanvas: HTMLCanvasElement;
 };
@@ -66,6 +74,14 @@ export type ScreenState = {
   problem: string;
   fullscreen: boolean;
   control: { mine: boolean; note: string; pointerLocked: boolean; keyboardLocked: boolean; canLockKeyboard: boolean };
+  /** Whether this device is the PC itself (the engine was reached on its own machine). Null until the connection says. */
+  thisPc: boolean | null;
+  /** The PC's sound on this device: playing or not, and why not when it was wanted and could not be. */
+  sound: { on: boolean; note: string };
+  /** This device's game controller. */
+  pad: PadSeen;
+  /** Why the plain arrow is shown while controlling, when the PC's own pointer shape cannot be; '' otherwise. */
+  pointerWhy: string;
 };
 
 /** How long a closing connection is kept for "I am letting go" of control to reach the PC. */
@@ -86,6 +102,10 @@ const FIRST_STATE: ScreenState = {
   problem: '',
   fullscreen: false,
   control: { mine: false, note: '', pointerLocked: false, keyboardLocked: false, canLockKeyboard: false },
+  thisPc: null,
+  sound: { on: false, note: '' },
+  pad: { supported: false, name: '', odd: false, pcSays: null },
+  pointerWhy: '',
 };
 
 function thisScreen(): ThisScreen {
@@ -141,6 +161,15 @@ export class ScreenSession {
   private connection: ScreenConnection | null = null;
   private drawing: ScreenDrawing | null = null;
   private control: ScreenControl | null = null;
+  private pointerShape: ScreenPointerShape | null = null;
+  /** SOUND: the stream's sound line once it has arrived, whether it is playing here, and why not. */
+  private soundTrack: MediaStreamTrack | null = null;
+  private soundOn = false;
+  private soundNote = '';
+  /** Sound left on at the last visit is asked for again once, when the PC can be told and this device is known not to be the PC. */
+  private soundResumed = false;
+  private keysOpen = false;
+  private thisPc: boolean | null = null;
   private resizeWatch: ResizeObserver | null = null;
   private readoutTimer = 0;
   private hostTimer = 0;
@@ -178,6 +207,10 @@ export class ScreenSession {
         keyboardLocked: control?.keyboardLocked ?? false,
         canLockKeyboard: this.parts !== null && canLockKeyboard(),
       },
+      thisPc: this.thisPc,
+      sound: { on: this.soundOn, note: this.soundNote },
+      pad: control?.padSeen() ?? FIRST_STATE.pad,
+      pointerWhy: this.pointerShape?.use === 'arrow' ? this.pointerShape.why : '',
     };
     for (const listener of this.listeners) listener();
   };
@@ -201,8 +234,28 @@ export class ScreenSession {
     this.lastAnswered = 0;
     this.numbers = FIRST_STATE.numbers;
     this.readout = FIRST_STATE.readout;
+    this.soundTrack = null;
+    this.soundOn = false;
+    this.soundNote = '';
+    this.soundResumed = false;
+    this.keysOpen = false;
+    this.thisPc = null;
 
-    this.drawing = new ScreenDrawing(parts, this.emit, () => undefined);
+    // The PC's pointer is drawn at the picture's scale, so it is set again whenever the picture moves or changes size.
+    this.drawing = new ScreenDrawing(
+      parts,
+      () => {
+        this.pointerShape?.show();
+        this.emit();
+      },
+      () => undefined,
+    );
+    this.pointerShape = new ScreenPointerShape({
+      stage: parts.stage,
+      pointing: () => (this.control?.mine ?? false) && this.wishes.mouse === 'pointer',
+      pictureBox: () => this.drawing?.pictureBox() ?? null,
+      regionWidth: () => this.host?.sending?.regionWidth ?? 0,
+    });
     this.control = new ScreenControl({
       stage: parts.stage,
       sendKeys: (bytes) => this.connection?.sendKeys(bytes) ?? false,
@@ -211,6 +264,16 @@ export class ScreenSession {
       mouse: () => this.wishes.mouse,
       onChange: this.emit,
       onStanding: () => void this.readHost(),
+      onPointing: () => this.pointerShape?.show(),
+      onPointerShown: (shown) => {
+        this.pointerShape?.heardShown(shown);
+        this.emit();
+      },
+      onPointerShape: (shape) => {
+        this.pointerShape?.heardShape(shape);
+        this.emit();
+      },
+      onSoundSays: (what) => this.pcSaysSound(what),
     });
     this.control.attach();
     this.drawing.show(this.wishes.drawing, this.wishes.upscaling);
@@ -253,7 +316,15 @@ export class ScreenSession {
     document.removeEventListener('fullscreenchange', this.onFullscreen);
     screenEvents()?.removeEventListener('change', this.onScreenChange);
     // Control first, while its channel is still open, so the PC hears "I am letting go" (and is given a moment to).
-    const held = this.control?.mine ?? false;
+    const held = (this.control?.mine ?? false) || this.soundOn;
+    // The PC stops reading its own sound when the last listener says it no longer wants it.
+    if (this.soundOn) this.connection?.sendKeys(soundMessage(false));
+    this.soundOn = false;
+    parts.audio.pause();
+    parts.audio.srcObject = null;
+    this.soundTrack = null;
+    this.pointerShape?.stop();
+    this.pointerShape = null;
     this.control?.detach();
     this.connection?.stop(held ? LAST_WORDS_MS : 0);
     this.drawing?.stop();
@@ -281,12 +352,25 @@ export class ScreenSession {
         });
         this.drawing?.setTrack(track);
       },
+      onSound: (track, stream) => {
+        if (!this.alive(life)) return;
+        this.soundTrack = track;
+        parts.audio.srcObject = stream;
+        this.resumeSound();
+      },
+      onKeysOpen: () => {
+        if (!this.alive(life)) return;
+        this.keysOpen = true;
+        this.resumeSound();
+      },
       onConnected: () => {
         // Now that the picture is on its way, tell the PC what this device wants of it. AUTO needs this screen's
         // own rate, so a measuring of it that is still going is waited for first.
         void (this.measuringHz ?? Promise.resolve()).then(() => {
           if (this.alive(life)) quietly(this.ask(wishesForThePc(this.wishes)));
         });
+        // The connection has chosen its path: whether this device is the PC itself can be read from it now.
+        void this.showReadout();
       },
       onProblem: (why) => {
         if (!this.alive(life)) return;
@@ -404,6 +488,9 @@ export class ScreenSession {
     }
     this.hostTrouble = '';
     this.host = answer.settings;
+    // The piece of the PC's screen being sent may have changed, and with it the scale its pointer is drawn at.
+    this.pointerShape?.show();
+    this.resumeSound();
     this.emit();
     return this.host;
   }
@@ -489,6 +576,7 @@ export class ScreenSession {
       return; /* the next second tries again */
     }
     if (!this.alive(life)) return;
+    this.learnWhetherThisIsThePc(s.reachedOnThisMachine);
     const drawing = this.drawing;
     const way = (drawing?.shown ?? 'normal').toUpperCase();
     if (!s.framesDecoded) {
@@ -511,7 +599,107 @@ export class ScreenSession {
       `Lost packets          ${s.packetsLost}\n` +
       `Drawn                 ${way}${drawing?.shown === 'fast' ? (drawing.lowLatency ? ", skipping the browser's drawing queue" : ', but this browser kept its drawing queue') : ''}\n` +
       `On the PC, shown to encoded ${pc}` +
+      (this.soundOn ? `\nSound                 ${s.sound.mimeType ?? 'on'}, ${shown(s.sound.jitterBufferDelayMsPerSample, 0)} ms in this browser's queue, ${s.sound.packetsLost} packets lost` : '') +
       (control.mine ? `\nInput sent            ${control.sentRate} messages a second` : '');
+    this.emit();
+  }
+
+  /* --- SOUND: what the PC is playing -------------------------------------------------------------- */
+  //
+  // Off until this device asks: the PC does not even read its own sound until a viewer wants it. The sound is
+  // everything the PC plays (its Windows cannot leave one program out). It has an element and a volume of its own:
+  // it is never joined to the room's own players, the music bar or the sound graph, which carry on untouched.
+  // On the PC itself it is not offered, because the PC would hear this page and send that too, round and round.
+
+  /**
+   * Whether this device is the PC itself. The engine's own page reads its address for this; in a room the browser
+   * never has the engine's address, so the connection says: when its far end is on this very machine, this is the PC.
+   * (`pretendNotThisPc` is the local drive's one way round it, and does nothing on a real server.)
+   */
+  private learnWhetherThisIsThePc(reachedOnThisMachine: boolean | null): void {
+    const now = reachedOnThisMachine === null ? null : reachedOnThisMachine && !pretendNotThisPc();
+    if (now === null || now === this.thisPc) return;
+    this.thisPc = now;
+    if (now && this.soundOn) this.turnSound(false, false);
+    this.resumeSound();
+  }
+
+  /** Sound that was left on at the last visit is asked for again, once, as soon as the PC can be told. */
+  private resumeSound(): void {
+    if (this.soundResumed || !this.wishes.sound || !this.keysOpen || this.soundTrack === null) return;
+    if (!soundOffered(this.host, this.thisPc)) return;
+    this.soundResumed = true;
+    this.turnSound(true, false);
+  }
+
+  private tellPcSound(on: boolean): void {
+    this.connection?.sendKeys(soundMessage(on));
+  }
+
+  /**
+   * Turns the sound on or off. `byPress` is true when a person pressed a key for it: that is remembered on this
+   * device, and it is also what a browser wants before it will play anything.
+   */
+  private turnSound(on: boolean, byPress: boolean): void {
+    const parts = this.parts;
+    if (parts === null) return;
+    if (on && !soundOffered(this.host, this.thisPc)) return;
+    if (byPress) {
+      this.keep({ ...this.wishes, sound: on });
+      this.soundResumed = true;
+    }
+    this.soundNote = '';
+    if (!on) {
+      this.soundOn = false;
+      parts.audio.pause();
+      this.tellPcSound(false);
+      this.emit();
+      return;
+    }
+    if (this.soundTrack === null) {
+      this.soundNote = 'NOT CONNECTED YET';
+      this.emit();
+      return;
+    }
+    const life = this.life;
+    parts.audio.volume = this.wishes.volume;
+    this.soundOn = true;
+    this.tellPcSound(true);
+    this.emit();
+    parts.audio.play().catch(() => {
+      if (!this.alive(life) || !this.soundOn) return;
+      // The browser will not play sound that nobody pressed a key for (sound left on at the last visit): the PC
+      // is told to stop, and the key waits to be pressed.
+      this.soundOn = false;
+      this.soundNote = SOUND_WANTS_A_PRESS;
+      this.tellPcSound(false);
+      this.emit();
+    });
+  }
+
+  /** The PC's answer to being asked: 0 off, 1 on its way, 2 it is not sending sound. */
+  private pcSaysSound(what: number): void {
+    if (what !== 2) return;
+    this.soundOn = false;
+    this.parts?.audio.pause();
+    this.soundNote = SOUND_NOT_SENT;
+    this.emit();
+  }
+
+  /** `[ SOUND ]`, `[ SOUND ON ]`, `[ SOUND OFF ]`. */
+  setSound(on: boolean): void {
+    this.turnSound(on, true);
+  }
+
+  toggleSound(): void {
+    this.turnSound(!this.soundOn, true);
+  }
+
+  /** The volume is this device's own: it changes how loud the sound's element plays, and nothing on the PC. */
+  setVolume(volume: number): void {
+    const to = Math.min(1, Math.max(0, volume));
+    this.keep({ ...this.wishes, volume: to });
+    if (this.parts !== null) this.parts.audio.volume = to;
     this.emit();
   }
 
@@ -528,6 +716,7 @@ export class ScreenSession {
   setMouse(mouse: Mouse): void {
     this.keep({ ...this.wishes, mouse });
     this.control?.mouseChanged();
+    this.pointerShape?.show();
     this.emit();
   }
 }
