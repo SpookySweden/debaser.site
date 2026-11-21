@@ -169,7 +169,7 @@ async function up() {
     await page.reload({ waitUntil: 'domcontentloaded' });
     await nav.waitFor({ state: 'visible' });
     await page.waitForTimeout(800);
-    assert.deepEqual(await keys(), ['FORUM', 'COMIC', 'BEATBOX WIP', 'STREAM', 'MODULOS'], 'choices survive a reload');
+    assert.deepEqual(await keys(), ['FORUM', 'BEATBOX WIP', 'STREAM', 'MODULOS'], 'choices survive a reload');
     console.log('  ok    choices survive a reload');
 
     // The page you are on. Changed on purpose 2026-11-14, twice the same day. First it was a filled block with a halo (Luke: "make sure a

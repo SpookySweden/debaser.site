@@ -127,7 +127,8 @@ const nav = withProviders(element(SiteNav, { active: 'forum' }));
 // (2026-11-13) And READ, the reader's module (Luke: "a new module for reading"), on from a first visit too: six.
 // (2026-11-14) Only FORUM, MEDIA and STREAM start on (Luke: "only on modules by default being now, forum, media, steam"): three.
 // (2026-11-20) And COMIC, Luke's comic, on from a first visit (SPEC-comic.md, Q1A): four.
-assert.equal((nav.match(/<a\b/g) ?? []).length, 4, 'four keys on a first draw, each one a link: FORUM, MEDIA, COMIC and STREAM start on, everything else starts off, and MODULOS is a button (Luke, 2026-11-14 and 2026-11-20)');
+// Updated on purpose 2026-11-21 (Luke: "make comic no longer always on", then "A: start off"): COMIC starts off again: three.
+assert.equal((nav.match(/<a\b/g) ?? []).length, 3, 'three keys on a first draw, each one a link: FORUM, MEDIA and STREAM start on, everything else (COMIC too) starts off, and MODULOS is a button (Luke, 2026-11-14 and 2026-11-21)');
 assert.doesNotMatch(nav, /CONCEPTS/, 'concepts is not a key: it is a shelf of the project');
 assert.doesNotMatch(nav, /href="\/concepts"/);
 
