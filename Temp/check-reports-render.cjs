@@ -84,7 +84,13 @@ const visible = (html) =>
 
 const ME = 'mod-1';
 const auth = { user: { id: ME } };
-const moderation = { role: { moderator: true, owner: true }, refresh: () => undefined };
+const moderation = {
+  role: { moderator: true, owner: true },
+  refresh: () => undefined,
+  isBlocked: () => false,
+  block: async (...args) => void calls.push(['block', ...args]),
+  unblock: async (...args) => void calls.push(['unblock', ...args]),
+};
 const windows = { reportsOpen: true, target: null };
 
 const calls = [];
@@ -168,6 +174,32 @@ assert.match(page, /MORE \(OPTIONAL\)/);
   page = visible(draw(el(ReportWindow), { ReportForm: [null, '', false, true] }));
   assert.match(page, /REPORT SENT\./, 'once sent, it says so');
   assert.deepEqual(keys(), ['[ CLOSE ]']);
+
+  /* --- REPORT / BLOCK: the red [ ! ] on somebody's profile opens one window for both (Luke, 2026-11-21: "the report and
+     block features should be a red exclamation mark which then opens the encompassing reporting/ block pop up") ---------- */
+  windows.target = { accountId: 'acct-9', name: 'TROLLFACE', block: true };
+  calls.length = 0;
+  page = visible(draw(el(ReportWindow)));
+  assert.match(page, /^REPORT \/ BLOCK /, 'opened from a profile, the window is REPORT / BLOCK');
+  assert.deepEqual(keys(), ['[ SPAM ]', '[ HARASSMENT ]', '[ NASTY ]', '[ OTHER ]', 'SEND REPORT', '[ BLOCK ]'], 'the report form, then BLOCK');
+  assert.match(page, /THEY ARE NEVER TOLD/, 'BLOCK says what it does');
+  await press('[ BLOCK ]');
+  assert.deepEqual(calls, [], 'the first press only asks to confirm: blocking still takes two presses');
+  draw(el(ReportWindow), { BlockPart: [true] });
+  await press('[ CONFIRM BLOCK ]');
+  assert.deepEqual(calls, [['block', 'acct-9']], 'the second press blocks them');
+  moderation.isBlocked = (person) => person === 'acct-9';
+  calls.length = 0;
+  page = visible(draw(el(ReportWindow)));
+  assert.match(page, /YOU BLOCKED TROLLFACE\./, 'blocked: the window says so');
+  assert.ok(keys().includes('[ UNBLOCK ]') && !keys().includes('[ BLOCK ]'), 'and offers UNBLOCK instead');
+  await press('[ UNBLOCK ]');
+  assert.deepEqual(calls, [['unblock', 'acct-9']], 'UNBLOCK unblocks them');
+  moderation.isBlocked = () => false;
+  windows.target = { accountId: 'acct-9', name: 'TROLLFACE', context: { kind: 'reply', id: 'reply-3', text: 'a rude line' } };
+  page = visible(draw(el(ReportWindow)));
+  assert.match(page, /^REPORT TROLLFACE/, 'opened from a line, it is REPORT alone');
+  assert.ok(!keys().includes('[ BLOCK ]'), 'with no BLOCK in it');
 
   /* --- REPORTS: the moderators' window ------------------------------------------------------------- */
 

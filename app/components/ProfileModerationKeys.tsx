@@ -7,46 +7,33 @@ import { useAuth } from './AuthProvider';
 import { useModeration } from './ModerationProvider';
 
 /**
- * BLOCK and REPORT on somebody else's profile (SPEC-moderation.md, 4B and 6B). Blocking takes two presses, like anything started
- * from the board. It is one way: what they write disappears for you, they can't message you, comment on your profile or join your
- * room, and they are never told.
+ * REPORT and BLOCK on somebody else's profile (SPEC-moderation.md, 4B and 6B): one red `[ ! ]` that opens the REPORT / BLOCK
+ * window (ReportWindow.tsx), where the report form and the two-press BLOCK sit together. Luke, 2026-11-21: "the report and block
+ * features should be a red exclamation mark which then opens the encompassing reporting/ block pop up".
+ *
+ * Red is the theme's own red ink (`queue-played-ink`: deep red on the light windows, light red on the dark ones, 4.5:1 or better
+ * on the window in every theme, held by Temp/check-profile-keys.cjs), set through the key's one dial, `--key-ink`, so under the
+ * pointer it fills red with the window's colour on it, the same pair the other way round.
  */
+const ALARM_KEY = `${PLATE} [--key-ink:var(--color-queue-played-ink)]`;
+
 export function ProfileModerationKeys({ userId, name }: { userId: string; name: string }) {
   const { user } = useAuth();
-  const { block } = useModeration();
-  const [confirming, setConfirming] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   if (user === null || user.id === userId) return null;
 
-  async function press() {
-    if (!confirming) {
-      setConfirming(true);
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      await block(userId);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'THEY COULD NOT BE BLOCKED.');
-      setConfirming(false);
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
-    <>
-      <button type="button" disabled={busy} onClick={() => void press()} onBlur={() => setConfirming(false)} className={PLATE} data-block-key>
-        {busy ? '[ BLOCKING... ]' : confirming ? '[ CONFIRM BLOCK ]' : '[ BLOCK ]'}
-      </button>
-      <button type="button" onClick={() => openReport({ accountId: userId, name })} className={PLATE} data-report-key>
-        [ REPORT ]
-      </button>
-      {error !== null ? <span className="bg-bubble-pale px-1 text-label text-ink-bar">{error}</span> : null}
-    </>
+    <button
+      type="button"
+      onClick={() => openReport({ accountId: userId, name, block: true })}
+      aria-haspopup="dialog"
+      aria-label={`Report or block ${name}`}
+      title="REPORT OR BLOCK"
+      className={ALARM_KEY}
+      data-moderation-key
+    >
+      [ ! ]
+    </button>
   );
 }
 

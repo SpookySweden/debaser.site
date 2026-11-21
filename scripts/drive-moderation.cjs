@@ -111,9 +111,18 @@ const mockModeration = (page) => page.evaluate(() => JSON.parse(window.localStor
 
     /* --- C reports B from B's profile ------------------------------------------------------------------------------- */
     await open(page, `/profile/${B}`);
-    await page.locator('[data-block-key]').first().waitFor({ timeout: 30000 });
-    pass("C sees [ BLOCK ] and [ REPORT ] on B's profile");
-    await page.locator('[data-report-key]').first().click();
+    // Luke, 2026-11-21: one red [ ! ] where BLOCK and REPORT were, opening REPORT / BLOCK.
+    await page.locator('[data-moderation-key]').first().waitFor({ timeout: 30000 });
+    assert.equal(await page.locator('[data-moderation-key]').first().innerText(), '[ ! ]');
+    assert.equal(await page.locator('[data-block-key]').count(), 0, 'no BLOCK key on the profile itself any more');
+    const bangInk = await page.locator('[data-moderation-key]').first().evaluate((node) => getComputedStyle(node).color);
+    const [r, g, b] = bangInk.match(/\d+/g).map(Number);
+    assert.ok(r > g * 1.6 && r > b * 1.6, `the [ ! ] is red (${bangInk})`);
+    pass(`C sees one red [ ! ] on B's profile (${bangInk})`);
+    await page.locator('[data-moderation-key]').first().click();
+    await page.getByText('REPORT / BLOCK', { exact: true }).first().waitFor({ timeout: 10000 });
+    await page.locator('[data-block-part="open"]').waitFor({ timeout: 10000 });
+    pass('it opens one REPORT / BLOCK window: the report form with BLOCK under it');
     await page.getByRole('radio', { name: /SPAM/ }).click();
     await page.locator('textarea').last().fill('drive: posting the same thing everywhere');
     await page.getByRole('button', { name: 'SEND REPORT' }).click();
@@ -131,11 +140,24 @@ const mockModeration = (page) => page.evaluate(() => JSON.parse(window.localStor
     await open(page, '/forum');
     await page.getByText(POST_TITLE, { exact: false }).first().waitFor({ timeout: 30000 });
     await open(page, `/profile/${B}`);
-    await page.locator('[data-block-key]').first().click();
-    await page.locator('[data-block-key]').first().click();
+    await page.locator('[data-moderation-key]').first().click();
+    const blockKey = page.locator('[data-block-key]').first();
+    await blockKey.click();
+    assert.equal(await blockKey.innerText(), '[ CONFIRM BLOCK ]', 'the first press only asks');
+    assert.equal(await page.locator('[data-blocked-card]').count(), 0, 'and blocks nobody yet');
+    await blockKey.click();
     await page.locator('[data-blocked-card]').waitFor({ timeout: 10000 });
+    await page.locator('[data-block-part="blocked"]').waitFor({ timeout: 10000 });
     await shot(page, '2-blocked-card');
-    pass("blocking takes two presses, and B's profile becomes YOU BLOCKED THIS PERSON");
+    pass("blocking takes two presses in the window, B's profile becomes YOU BLOCKED THIS PERSON, and the window offers UNBLOCK");
+    await page.locator('[data-block-key]').first().click();
+    await page.locator('[data-block-part="open"]').waitFor({ timeout: 10000 });
+    assert.equal(await page.locator('[data-blocked-card]').count(), 0, "unblocked from the window, B's profile is back");
+    pass("UNBLOCK in the window brings B's profile back");
+    // The window is still open over the profile: block again from it, for PRIVACY's list below.
+    await blockKey.click();
+    await blockKey.click();
+    await page.locator('[data-blocked-card]').waitFor({ timeout: 10000 });
     await open(page, '/forum');
     await sleep(1500);
     assert.equal(await page.getByText(POST_TITLE, { exact: false }).count(), 0, "B's post is gone from C's board");

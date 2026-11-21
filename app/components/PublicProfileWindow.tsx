@@ -172,10 +172,10 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
             </button>
           ) : (
             <span className="flex flex-wrap items-center gap-1">
-              {/* SPEC-notifications.md, 2C: their room going live tells you. */}
+              {/* The notification key (SPEC-notifications.md, 2C): lit, their room going live tells you. */}
               <LiveWatchKey host={userId} />
               <AddToLetterKey thing={{ kind: 'profile', ref: userId, title: displayName }} />
-              {/* BLOCK and REPORT (SPEC-moderation.md). */}
+              {/* The red [ ! ]: REPORT and BLOCK in one window (SPEC-moderation.md; Luke, 2026-11-21). */}
               <ProfileModerationKeys userId={userId} name={displayName} />
             </span>
           )}
