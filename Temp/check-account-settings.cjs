@@ -180,6 +180,8 @@ function loadSync() {
     comicPlace: 'app/lib/comic/place.ts',
     // DESK (2026-11-21, Luke: "in the top right include an auto pop up toggle"): the AUTO POP-UP switch.
     deskAuto: 'app/lib/desk/desk-window.ts',
+    // ROOMBARS (2026-11-21, Luke: "add a toggle ... Off by default but on for moldavius figtree"): KEYS IN THE PICTURE.
+    keysInPicture: 'app/lib/watch/keys-in-picture.ts',
   };
   const usedBy = { forumPlace: 'app/components/ForumBoard.tsx', forumSort: 'app/components/ForumBoard.tsx' };
   assert.deepEqual(Object.keys(owners).sort(), Object.keys(SYNCED_KEYS).sort(), 'every synced setting has an owner here');

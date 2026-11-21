@@ -7,7 +7,7 @@
  *   1. In the room the bar of keys is under the picture and stays: no timer there. The look's frame is drawn.
  *   2. Fullscreen with the JUNGLE look (Emerald lines, the green Luke saw): the stage draws no outline (0 border, no stripes).
  *   3. Fullscreen, the bar lies over the foot of the picture; a still pointer for 3 s: it goes (clear, keys take no press);
- *      a move: back at once; resting on the bar keeps it; moving to the foot of the screen wakes it; leaving: gone at once.
+ *      a move: back at once; resting still on the bar does not keep it (ROOMBARS, 2026-11-21); moving to the foot of the screen wakes it; leaving: gone at once.
  *   4. Out of fullscreen: the bar under the picture again, showing, and the frame back.
  *
  *   node scripts/drive-fullscreen-bar.cjs --base http://localhost:3320
@@ -170,9 +170,10 @@ const outline = (page) =>
 
     const keys = await page.locator(BAR).boundingBox();
     await page.mouse.move(keys.x + keys.width / 2, keys.y + keys.height / 2);
-    await sleep(4500);
-    assert.equal((await barState(page)).awake, 'awake', 'resting on the bar keeps it');
-    pass('the pointer resting on the bar for 4.5 s keeps it');
+    // ROOMBARS (Luke, 2026-11-21: "goes away after a few seconds of no mouse movement"): resting still on the bar no longer keeps it.
+    await sleep(3600);
+    assert.equal((await barState(page)).awake, 'asleep', 'resting still on the bar does not keep it');
+    pass('the pointer resting still on the bar for 3.6 s: gone all the same (ROOMBARS)');
 
     await page.mouse.move(700, 400);
     await sleep(3600);

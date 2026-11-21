@@ -27,6 +27,8 @@ export const SYNCED_KEYS = {
   comicPlace: 'debaser.site.comic.place',
   // The DESK's AUTO POP-UP switch, `0` off (Luke, 2026-11-21; `../desk/desk-window.ts`).
   deskAuto: 'debaser.desk.auto.v1',
+  // `[ KEYS IN THE PICTURE ]`, `1` on and `0` off (ROOMBARS, Luke 2026-11-21; `../watch/keys-in-picture.ts`).
+  keysInPicture: 'debaser.room.keys-in-picture.v1',
 } as const;
 
 export type SyncedName = keyof typeof SYNCED_KEYS;

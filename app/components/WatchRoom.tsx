@@ -42,6 +42,7 @@ import {
   ROOM_BAR_ASLEEP,
   ROOM_BAR_OVER,
   ROOM_BAR_PLACE,
+  ROOM_PICTURE_KEYS,
   ROOM_COG,
   ROOM_COLUMNS,
   ROOM_FULL_MARK,
@@ -56,7 +57,8 @@ import {
   roomSide,
 } from '../lib/watch/room-frame';
 import { useRoomSideWidth } from '../lib/watch/room-side-width';
-import { useFullscreenBar } from '../lib/watch/use-fullscreen-bar';
+import { useFullscreenBar, useIdleBar } from '../lib/watch/use-fullscreen-bar';
+import { useKeysInPicture } from '../lib/watch/keys-in-picture';
 import RoomSideGrip from './RoomSideGrip';
 import { stillBars, watchVideoBars, type FrameBars } from '../lib/watch/bar-watch';
 import { hasTrim, NO_TRIM, trimmedShape, type Trim } from '../lib/watch/video-bars';
@@ -1364,6 +1366,12 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   const barTarget = useSyncExternalStore(subscribeToStreamBar, () => streamBarState().target, () => null);
   const keysOnMusicBar = barTarget !== null && !fullscreen;
   const barAwake = useFullscreenBar(stageRef, barRef, fullscreen);
+  // `[ KEYS IN THE PICTURE ]` (ROOMBARS, Luke 2026-11-21; `keys-in-picture.ts`): the playback keys along the foot of the picture
+  // as well. Not over a fullscreen stage, where the bar itself already lies over the picture's foot.
+  const keysInPicture = useKeysInPicture(user?.id ?? null);
+  const pictureBarRef = useRef<HTMLDivElement>(null);
+  const pictureBarOn = keysInPicture && !fullscreen && !blank && song === null && !pictureOn && !(needsPress && live);
+  const pictureBarAwake = useIdleBar(pictureBox, pictureBarRef, pictureBarOn);
 
   // The keys, each drawn in whichever of the two bars is showing them.
   const playKey =
@@ -1475,6 +1483,25 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
         {`[ ${ROOM_PIP_MARK} ]`}
       </button>
     ) : null;
+  const pipKey = canPip ? (
+    <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Picture in picture" title="Picture in picture" onClick={togglePip} data-room-pip>
+      {`[ ${ROOM_PIP_MARK} ]`}
+    </button>
+  ) : floatKey;
+  // As most video players mark them (Luke, 2026-11-17); the words stay in the name and the tooltip. The floating picture's own
+  // fullscreen counts too (`staged`), for the key on the picture's own bar.
+  const fullKey = (
+    <button
+      type="button"
+      className={`${PLATE_ON_BLACK} shrink-0`}
+      aria-label={staged ? 'Leave fullscreen' : 'Fullscreen'}
+      title={staged ? 'Leave full screen' : 'Full screen'}
+      onClick={toggleFullscreen}
+      data-room-full={staged ? 'leave' : 'enter'}
+    >
+      {`[ ${staged ? ROOM_LEAVE_FULL_MARK : ROOM_FULL_MARK} ]`}
+    </button>
+  );
   const pictureKeys = officialOn ? floatKey : hasTransport && song === null ? (
     <>
       <SpeakerKey muted={muted} volume={volume} onMuted={setMuted} onVolume={setVolume} />
@@ -1487,22 +1514,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
         textAudio={archiveList?.language ?? detectLanguage(subtitleTitle)}
         burnedIn={burnedInSubtitles(subtitleTitle)}
       />
-      {canPip ? (
-        <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Picture in picture" title="Picture in picture" onClick={togglePip} data-room-pip>
-          {`[ ${ROOM_PIP_MARK} ]`}
-        </button>
-      ) : floatKey}
-      {/* As most video players mark them (Luke, 2026-11-17); the words stay in the name and the tooltip. */}
-      <button
-        type="button"
-        className={`${PLATE_ON_BLACK} shrink-0`}
-        aria-label={fullscreen ? 'Leave fullscreen' : 'Fullscreen'}
-        title={fullscreen ? 'Leave full screen' : 'Full screen'}
-        onClick={toggleFullscreen}
-        data-room-full={fullscreen ? 'leave' : 'enter'}
-      >
-        {`[ ${fullscreen ? ROOM_LEAVE_FULL_MARK : ROOM_FULL_MARK} ]`}
-      </button>
+      {pipKey}
+      {fullKey}
     </>
   ) : null;
   // Fullscreen with no FULL key among the picture's keys (the blank screen's BOOKS / VIDEO / MUSIC, a song, another site's
@@ -1583,6 +1596,50 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     </div>
   ) : null;
 
+  // The keys along the foot of the picture (ROOMBARS, `[ KEYS IN THE PICTURE ]`): play/pause, back, skip and loop (host), where it
+  // is, the sound, PIP and FULL; QUALITY, SUBS and the host's END stay on the player bar. Over the picture it goes after a few
+  // seconds without the pointer moving, or at once when the pointer leaves, and comes back on a move or a key (`useIdleBar`); its
+  // strip still feels the pointer while it is gone, so moving over the picture's foot wakes it over another site's player too.
+  const pictureBar = pictureBarOn && (hasTransport || hostKeys || pipKey !== null) ? (
+    <div
+      ref={pictureBarRef}
+      role="toolbar"
+      aria-label="Playback keys"
+      // A double press on the bar is two presses of a key, never the picture's FULL.
+      onDoubleClick={(event) => event.stopPropagation()}
+      className={`${ROOM_PICTURE_KEYS} ${pictureBarAwake ? '' : ROOM_BAR_ASLEEP}`}
+      data-room-picture-keys={pictureBarAwake ? 'awake' : 'asleep'}
+    >
+      {playKey}
+      {serverOn ? (
+        <span className="flex min-w-0 flex-1 items-center">
+          <ServerClock room={room} />
+        </span>
+      ) : !hasTransport ? (
+        <span className="flex-1" />
+      ) : (
+        <span className={ROOM_BAR_PLACE}>
+          {seekLine}
+          {timeMark}
+        </span>
+      )}
+      {skipKey}
+      {officialOn ? (
+        <>
+          {pipKey}
+          {/* Another site's own player: no FULL key under it, but the way out of the floating picture's fullscreen is here. */}
+          {staged ? fullKey : null}
+        </>
+      ) : hasTransport ? (
+        <>
+          <SpeakerKey muted={muted} volume={volume} onMuted={setMuted} onVolume={setVolume} />
+          {pipKey}
+          {fullKey}
+        </>
+      ) : null}
+    </div>
+  ) : null;
+
   /** On a desktop the picture takes the column's height; on a phone (and in fullscreen there) its own shape. */
   const pictureFit = fullscreen || pictureFloats ? 'h-full w-full' : ROOM_PICTURE_FIT;
   /** Fullscreen, a video is its own shape with the background round it; a song's cover, a held picture and the blank screen fill the box as before. */
@@ -1658,7 +1715,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   const stage = (
     <div className={ROOM_STAGE}>
       {/* The picture with its bar under it: the two go fullscreen together. */}
-      <div ref={stageRef} className={`${ROOM_SCREEN} ${look === null ? '' : `frame ${lookLines} ${NO_FRAME_FULLSCREEN}`}`}>
+      {/* Fullscreen, the pointer goes with the bar while it is still, as most players do (ROOMBARS). */}
+      <div ref={stageRef} className={`${ROOM_SCREEN} ${look === null ? '' : `frame ${lookLines} ${NO_FRAME_FULLSCREEN}`} ${fullscreen && !barAwake ? 'cursor-none' : ''}`}>
       {/* Floating, the box leaves the folded window's invisible frame by staying in it: `visible` and `fixed`. Its top is kept for
           its title strip, deeper on a phone where the strip's keys are the tap size, so nothing sits over the picture (2026-11-08). */}
       <div ref={pictureBox} onDoubleClick={fullOnDoublePress} {...(pictureFloats ? floatDrag.picture : {})} className={`${pictureFloats ? `fixed visible frame bg-ink-plate pt-10 max-sm:pt-14 [&:fullscreen]:pt-0 ${NO_FRAME_FULLSCREEN} select-none` : 'relative'} ${ROOM_PICTURE_BOX} ${dressed ? 'stage-surround' : ''}`} data-room-picture={pictureFloats ? 'floating' : 'in-room'} data-backdrop-press={dressed ? '' : undefined} data-companion-avoid={pictureFloats ? '' : undefined}>
@@ -1823,6 +1881,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
           {visitorRoom ? null : <CanvasToggle roomId={roomId} audio={canvasAudio} />}
           <ScreenToggle roomId={roomId} audio={canvasAudio && !visitorRoom} />
         </RoomCornerKeys>
+        {/* Only over the picture itself, never over the canvas or the PC's screen in its place. */}
+        {screen === 'picture' ? pictureBar : null}
         {pictureFloats ? <RoomFloatChrome host={pictureBox} drag={floatDrag} title={entryTitle ?? (music ? 'ROOM' : 'STREAM')} /> : null}
         {/* Fullscreen: the chosen background, live, under everything in this box. Last in the box, so nothing before it is moved. */}
         {dressed ? <StageBackdrop /> : null}

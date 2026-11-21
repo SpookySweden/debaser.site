@@ -259,7 +259,7 @@ export default function MusicPlayer() {
     <>
       <LoveBuzzOnArrival />
       {roomId !== null && streamOn ? (
-        <StreamStrip roomId={roomId} onHide={() => setBarOpen(false)} />
+        <StreamStrip roomId={roomId} onHide={() => setBarOpen(false)} onSettings={() => setSettingsOpen(true)} />
       ) : compact ? (
         <CompactBar
           roomId={roomId}
@@ -336,7 +336,7 @@ function PlayerName({ roomId, className }: { roomId: string | null; className: s
  * and a press turns the bar back to the music player - then the fold, then the box the room draws the rest into:
  * the black screen (what is on, the host, what is next, the time) and the stream's keys (./WatchRoom.tsx).
  */
-function StreamStrip({ roomId, onHide }: { roomId: string; onHide: () => void }) {
+function StreamStrip({ roomId, onHide, onSettings }: { roomId: string; onHide: () => void; onSettings: () => void }) {
   const strip = useRef<HTMLDivElement>(null);
   // The room's broadcaster look (SPEC-cytube.md): the strip, its top rule, its words and keys; none, the site's theme.
   const look = useOpenRoomLook();
@@ -369,6 +369,12 @@ function StreamStrip({ roomId, onHide }: { roomId: string; onHide: () => void })
 
           <button type="button" onClick={onHide} className={PLATE_HARDWARE}>
             [ HIDE ]
+          </button>
+
+          {/* The player's options here too (ROOMBARS, Luke 2026-11-21: "in the settings cog at the bottom of the player bar"):
+              while a room has the bar, its `[ KEYS IN THE PICTURE ]` is wanted most. */}
+          <button type="button" onClick={onSettings} className={PLATE_HARDWARE} aria-label="Player options" title="Player options" data-stream-bar-options>
+            [ ⚙ ]
           </button>
         </span>
 
