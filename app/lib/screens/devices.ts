@@ -155,7 +155,8 @@ export function useOtherDevices(): State {
 
 /* --- which screen REMOTE shows: the PC's engine, or one of the owner's other devices ------------------------------ */
 
-export type RemoteSource = { kind: 'engine' } | { kind: 'device'; id: string; name: string };
+/** `rdp`: the server, by Windows Remote Desktop through the PC's gateway (RoomRdpScreen). */
+export type RemoteSource = { kind: 'engine' } | { kind: 'rdp' } | { kind: 'device'; id: string; name: string };
 let source: RemoteSource = { kind: 'engine' };
 const sourceListeners = new Set<() => void>();
 

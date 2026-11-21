@@ -1,4 +1,5 @@
 import { ScreenConnection, type StreamStats } from './connection';
+import { type NetRoute } from './net-route';
 import { ScreenControl, canLockKeyboard } from './control';
 import { ScreenDrawing } from './drawing';
 import { pretendNotThisPc, screenHostNow, talkToSettings, type SettingsAnswer } from './host-client';
@@ -76,6 +77,8 @@ export type ScreenState = {
   control: { mine: boolean; note: string; pointerLocked: boolean; keyboardLocked: boolean; canLockKeyboard: boolean; escHolding: boolean };
   /** Whether this device is the PC itself (the engine was reached on its own machine). Null until the connection says. */
   thisPc: boolean | null;
+  /** Which way the picture travels: this PC, the home network, the internet (net-route.ts). Null until chosen. */
+  route: NetRoute | null;
   /** The PC's sound on this device: playing or not, and why not when it was wanted and could not be. */
   sound: { on: boolean; note: string };
   /** This device's game controller. */
@@ -103,6 +106,7 @@ const FIRST_STATE: ScreenState = {
   fullscreen: false,
   control: { mine: false, note: '', pointerLocked: false, keyboardLocked: false, canLockKeyboard: false, escHolding: false },
   thisPc: null,
+  route: null,
   sound: { on: false, note: '' },
   pad: { supported: false, name: '', odd: false, pcSays: null },
   pointerWhy: '',
@@ -170,6 +174,7 @@ export class ScreenSession {
   private soundResumed = false;
   private keysOpen = false;
   private thisPc: boolean | null = null;
+  private route: NetRoute | null = null;
   private resizeWatch: ResizeObserver | null = null;
   private readoutTimer = 0;
   private hostTimer = 0;
@@ -209,6 +214,7 @@ export class ScreenSession {
         canLockKeyboard: this.parts !== null && canLockKeyboard(),
       },
       thisPc: this.thisPc,
+      route: this.route,
       sound: { on: this.soundOn, note: this.soundNote },
       pad: control?.padSeen() ?? FIRST_STATE.pad,
       pointerWhy: this.pointerShape?.use === 'arrow' ? this.pointerShape.why : '',
@@ -241,6 +247,7 @@ export class ScreenSession {
     this.soundResumed = false;
     this.keysOpen = false;
     this.thisPc = null;
+    this.route = null;
 
     // The PC's pointer is drawn at the picture's scale, so it is set again whenever the picture moves or changes size.
     this.drawing = new ScreenDrawing(
@@ -593,6 +600,10 @@ export class ScreenSession {
     }
     if (!this.alive(life)) return;
     this.learnWhetherThisIsThePc(s.reachedOnThisMachine);
+    if (s.route !== null && s.route !== this.route) {
+      this.route = s.route;
+      this.emit();
+    }
     const drawing = this.drawing;
     const way = (drawing?.shown ?? 'normal').toUpperCase();
     if (!s.framesDecoded) {

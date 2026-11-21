@@ -112,6 +112,47 @@ Estimates until the yardstick is measured on your own two machines (phase 0). "F
 - Works on the home network, and from anywhere else: the two devices try a direct line first and fall back to a
   relayed one (slower, about 0.1 to 0.3 s).
 
+### The server: Remote Desktop (Luke, 2026-11-21)
+Luke's server has no keyboard or mouse of its own: "remove the prompt to share the screen ... I need the control to
+engage automatically too ... I need to control it now". Nothing installed on the server ("find a way without the need
+for downloads"); Windows Remote Desktop already works to it. A page can never share its screen or move its own mouse
+without somebody pressing something on that device, so the way in is Windows' own Remote Desktop, turned into a
+picture in the room on the PC: "since remote desktop is likely less efficient than our solution make it a clear toggle".
+- `[ REMOTE ]` lists `THE SERVER :: CONTROL BY REMOTE DESKTOP (SLOWER THAN OUR ENGINE)` (alone, it goes straight there).
+- In the view: a WAY IN switch, `[ REMOTE DESKTOP ]` (pressed) beside `[ OUR ENGINE: NOT ON THE SERVER YET ]` (shown,
+  not pressable until the engine runs on the server, which needs its AMD/Intel encoder path). Control is on from the
+  start; holding Esc a second or `[ RELEASE ]` lets go, a click takes it back; a short Esc is the server's. The
+  server's desktop starts at the size of the viewer's own screen, drawn whole (nothing cropped or stretched);
+  `[ FIT THE SERVER TO THIS VIEW ]`, a separate switch (off at first, remembered in that browser), makes it the view's
+  size and has it follow the view, as FIT does for the PC.
+- How: guacd (Apache Guacamole's translator, Apache-2.0) in Docker on the PC (`debaser-guacd`, 127.0.0.1:4822) speaks
+  Remote Desktop to the server; the gateway (`scripts/host/rdp-gateway.cjs`, 127.0.0.1:8479) carries it as a websocket
+  at `debaser.site/api/screens/rdp-socket` (one tunnel route); the browser draws it with Guacamole's own client
+  (`vendor/guacamole-common-js/`). The site (owner only, `/api/screens/rdp`) hands the browser a pass signed with a
+  secret it shares with the gateway, good for 60 seconds, once. The server's address and Windows sign-in are only in
+  `G:\DEBASER-HOST\rdp.env`, typed by Luke; the site and the browser never see them.
+- Set up on the PC by `node scripts/host/server-remote.cjs on|off|status`.
+- Its own switch (Luke, 2026-11-21: "make sure it is a toggle since it is a separate thing to our tech"): off until he
+  switches it on. `[ REMOTE ]` lists `[ SERVER REMOTE (WINDOWS REMOTE DESKTOP THROUGH GUACAMOLE): OFF ]`; on, THE SERVER
+  becomes a choice, labelled `WINDOWS REMOTE DESKTOP THROUGH GUACAMOLE, NOT OUR ENGINE (SLOWER)`. The view carries
+  `[ SERVER REMOTE: ON ]` to switch it off. The switch is kept by the gateway on the PC (`rdp-switch.json`), set
+  through the site (owner only, signed with the shared secret): off, the gateway opens nothing.
+- The extra lock, his choice: Cloudflare Access (a one-time code sent to his email) in front of the route, on top of
+  the site's sign-in. The gateway checks Access's signed token itself on everything that came through Cloudflare, so a
+  route left unguarded by mistake still opens nothing; until `RDP_ACCESS_TEAM` and `RDP_ACCESS_AUD` are in rdp.env the
+  server is never opened over the internet. Locked, the view shows `[ UNLOCK WITH AN EMAIL CODE ]`: Cloudflare's own
+  page in a small window; once through, it closes itself and the room connects.
+- Desktop-grade, not gaming: Remote Desktop's picture is pictures and screen updates, not a video stream.
+
+### Which way each connection goes (Luke, 2026-11-21)
+"Make sure its clear when something is done over lan vs port forwarding or whatever its technically called." Nothing
+in SCREENS uses port forwarding: no port is opened on the router. Every REMOTE choice says its way, with a one-line tip:
+- THE PC (our engine) and other devices: `HOME NETWORK (LAN, DIRECT)`, the only way they are reached today.
+- THE SERVER: `OVER THE INTERNET (CLOUDFLARE TUNNEL)`: out to Cloudflare and back through the tunnel the PC dials out
+  to, then across the home network to the server; over the internet even from home.
+- Once connected, the view reads the real route from the connection itself (`app/lib/screens/net-route.ts`):
+  `ON THIS PC`, `HOME NETWORK (LAN, DIRECT)`, `OVER THE INTERNET (DIRECT)` or `OVER THE INTERNET (RELAYED)`.
+
 ### Settings in the viewport
 Luke, 2026-11-20: "it needs a settings button in the viewport for the low latency desktop control streaming feature we
 are working on. include everything necessary such as upscaling settings and the ability to switch the aspect ratio the

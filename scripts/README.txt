@@ -221,7 +221,7 @@ mock but the board is real, so each run leaves one real board thread by TEST ACC
 
 drive-screens.cjs
 -----------------
-    node scripts/drive-screens.cjs [--port 3391] [--engine-port 8491] [--only closed|open] [--console]
+    node scripts/drive-screens.cjs [--port 3391] [--engine-port 8491] [--only closed|open|rdp] [--console]
 
 SCREENS in a room (SPEC-screens.md, phase 3): the owner's PC screen on the room's screen, its settings panel and CONTROL, in a
 hidden browser. It starts and stops everything itself: the engine (`engine/target/release/debaser-engine.exe`, in its DRY RUN: what
@@ -237,6 +237,19 @@ made-up CONTROLLER reaching the engine's record only while control is held, the 
 the picture's scale, and Esc typed to the PC closing nothing of the site's. It never uses port 8478 (the engine that is live on this
 PC) and refuses to start when its own ports already answer. It refuses to run during a League match (exit 3). Its pictures of the room
 (`Temp/browse/screens/`) leave the PC's own screen out. The rules themselves are held by `Temp/check-screens.cjs`.
+Part 3 (`--only rdp`, needs no engine) is THE SERVER BY REMOTE DESKTOP: the real gateway (`scripts/host/rdp-gateway.cjs`) on
+127.0.0.1:8492 with a pretend guacd on 8493 that draws a red screen and writes down what reaches it: REMOTE goes straight to the
+server, control is on from the start, a short Esc is the server's, holding Esc lets go, and the FIT switch sizes the server.
+
+host/server-remote.cjs and host/rdp-gateway.cjs
+-----------------------------------------------
+    node scripts/host/server-remote.cjs status | on | off   [--host <folder>] [--no-start] [--no-restart]
+
+The server by Windows Remote Desktop (SPEC-screens.md, "The server: Remote Desktop"). ON makes the secret the site and the gateway
+share (never printed), makes `G:\DEBASER-HOST\rdp.env` for Luke to fill in (the server's address and a Windows sign-in; never read
+back or printed by any tool), copies the gateway into the host folder, lists it in services.json, starts it, adds the one tunnel
+route (`debaser.site/api/screens/rdp-socket` -> 127.0.0.1:8479) and restarts the tunnel and the site. guacd runs in Docker as
+`debaser-guacd` (127.0.0.1:4822). OFF undoes all but rdp.env and guacd.
 
 drive-queue-filters.cjs
 -----------------------

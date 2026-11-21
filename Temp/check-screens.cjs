@@ -1,7 +1,7 @@
 /*
  * SCREENS in the site (SPEC-screens.md, phase 3, first slice): the owner's PC screen in his own room. Offline: the
  * only server it talks to is a pretend engine it starts itself on 127.0.0.1.
- *   npx tsc app/api/screens/host/route.ts app/api/screens/offer/route.ts app/api/screens/settings/route.ts app/api/screens/devices/route.ts app/api/screens/mail/route.ts app/lib/screens/device-mail.ts app/components/RoomDeviceScreen.tsx app/components/DeviceShareGate.tsx app/lib/screens/wishes.ts app/lib/screens/wire.ts app/lib/screens/key-gate.ts app/components/ScreenKeyGate.tsx app/lib/watch/canvas.ts node_modules/next/types/global.d.ts --outDir Temp/out-screens --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop --moduleResolution node --jsx react-jsx
+ *   npx tsc app/api/screens/host/route.ts app/api/screens/offer/route.ts app/api/screens/settings/route.ts app/api/screens/devices/route.ts app/api/screens/mail/route.ts app/api/screens/rdp/route.ts app/lib/screens/rdp-server.ts app/lib/screens/keysyms.ts app/lib/screens/net-route.ts app/lib/screens/device-mail.ts app/components/RoomDeviceScreen.tsx app/components/DeviceShareGate.tsx app/lib/screens/wishes.ts app/lib/screens/wire.ts app/lib/screens/key-gate.ts app/components/ScreenKeyGate.tsx app/lib/watch/canvas.ts node_modules/next/types/global.d.ts --outDir Temp/out-screens --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop --moduleResolution node --jsx react-jsx
  *   node Temp/check-screens.cjs
  *
  * - WHERE THE ENGINE IS: `SCREENS_ENGINE_URL` is taken only when it is a plain http address on this PC itself; anything
@@ -625,17 +625,102 @@ async function main() {
   same(canvas.screenShown({ view: 'screen', audio: false }, true), 'screen', 'stays chosen when the room goes on to a song');
   same(canvas.screenShown({ view: 'screen', audio: true }, false), 'screen', 'and on to a video');
 
+  /* ---------------------------------------------------------------- the server by Remote Desktop: owner only, a pass the gateway takes */
+  {
+    const rdp = require(path.join(OUT, 'lib/screens/rdp-server.js'));
+    const keys = require(path.join(OUT, 'lib/screens/keysyms.js'));
+    const gateway = require(path.join(ROOT, 'scripts/host/rdp-gateway.cjs'));
+    const SECRET = 'a'.repeat(24) + 'b'.repeat(24);
+    const switches = [];
+    let gatewayOn = true;
+    const healthy = async (input, init = {}) => {
+      if (input.endsWith('/switch')) {
+        switches.push({ headers: init.headers, body: init.body });
+        return new Response(JSON.stringify({ on: JSON.parse(init.body).on }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ ok: true, serverSet: true, passesSet: true, on: gatewayOn, locked: true }), { status: 200 });
+    };
+    const env = { ...live, SCREENS_RDP_SECRET: SECRET };
+    for (const [who, how] of strangers) {
+      const w = world(env, { accounts, engine: healthy });
+      same(JSON.parse((await read(await rdp.rdpAnswer(ask('/api/screens/rdp', how), w.deps))).text), { available: false }, `Remote Desktop, ${who}: not available`);
+      same((await read(await rdp.rdpAnswer(ask('/api/screens/rdp', { ...how, method: 'POST', type: 'application/json', body: '{}' }), w.deps))).status, 403, `Remote Desktop, ${who}: no pass`);
+      same(w.seen.engine.length, 0, `and the gateway is never asked for ${who}`);
+    }
+    const w = world(env, { accounts, engine: healthy });
+    const said = await read(await rdp.rdpAnswer(ask('/api/screens/rdp', { token: liveOwner }), w.deps));
+    same(JSON.parse(said.text), { available: true, serverSet: true, on: true, locked: true, route: 'tunnel', socket: '/api/screens/rdp-socket', door: '/api/screens/rdp-door' }, 'the owner: there, switched on, locked, through the tunnel route on the site itself');
+    same(said.kept, 'private, no-store', 'never kept');
+    same(w.seen.engine[0].url, 'http://127.0.0.1:8479/health', 'the gateway asked on this PC');
+    const passed1 = JSON.parse((await read(await rdp.rdpAnswer(ask('/api/screens/rdp', { token: liveOwner, method: 'POST', type: 'application/json', body: '{"width":3440,"height":1440,"dpi":120}' }), w.deps))).text);
+    same(gateway.passIsGood(passed1.pass, SECRET, world.now), { width: 3440, height: 1440, dpi: 120 }, "the gateway takes the owner's pass, with the view's size");
+    same(gateway.passIsGood(passed1.pass, SECRET, world.now), null, 'once');
+    const passed2 = JSON.parse((await read(await rdp.rdpAnswer(ask('/api/screens/rdp', { token: liveOwner, method: 'POST', type: 'application/json', body: '{}' }), w.deps))).text);
+    same(gateway.passIsGood(passed2.pass, SECRET, world.now + 61_000), null, 'and not after a minute');
+    same(gateway.passIsGood(passed2.pass, 'c'.repeat(48), world.now), null, 'nor with another secret');
+    same(gateway.passIsGood(passed2.pass.replace(/^./, (c) => (c === 'e' ? 'f' : 'e')), SECRET, world.now), null, 'nor changed');
+    same(JSON.parse((await read(await rdp.rdpAnswer(ask('/api/screens/rdp', { token: liveOwner }), world({ ...live, SCREENS_RDP_SECRET: 'short' }, { accounts, engine: healthy }).deps))).text), { available: false }, 'a secret too short to trust: off');
+    same(JSON.parse((await read(await rdp.rdpAnswer(ask('/api/screens/rdp', { token: liveOwner }), world(env, { accounts }).deps))).text), { available: false }, 'no gateway answering: not there');
+    // The server remote's own switch, through the site, signed with the shared secret.
+    const switchedOff = JSON.parse((await read(await rdp.rdpAnswer(ask('/api/screens/rdp', { token: liveOwner, method: 'POST', type: 'application/json', body: '{"switch":false}' }), w.deps))).text);
+    same(switchedOff.on, false, 'the owner switches the server remote off');
+    const sent = switches[switches.length - 1];
+    ok(gateway.switchIsSigned({ headers: { 'x-debaser-at': sent.headers['X-Debaser-At'], 'x-debaser-sign': sent.headers['X-Debaser-Sign'] } }, false, SECRET, world.now), 'and the gateway takes the signed switch');
+    same(gateway.switchIsSigned({ headers: { 'x-debaser-at': sent.headers['X-Debaser-At'], 'x-debaser-sign': sent.headers['X-Debaser-Sign'] } }, true, SECRET, world.now), false, 'but not the same signature for the other way');
+    same(gateway.switchIsSigned({ headers: { 'x-debaser-at': sent.headers['X-Debaser-At'], 'x-debaser-sign': sent.headers['X-Debaser-Sign'] } }, false, SECRET, world.now + 61_000), false, 'nor a minute later');
+    for (const [who, how] of strangers) {
+      const before = switches.length;
+      same((await read(await rdp.rdpAnswer(ask('/api/screens/rdp', { ...how, method: 'POST', type: 'application/json', body: '{"switch":true}' }), world(env, { accounts, engine: healthy }).deps))).status, 403, `${who} cannot switch it`);
+      same(switches.length, before, `and nothing reached the gateway for ${who}`);
+    }
+    gatewayOn = false;
+    same((await read(await rdp.rdpAnswer(ask('/api/screens/rdp', { token: liveOwner, method: 'POST', type: 'application/json', body: '{}' }), w.deps))).status, 409, 'switched off: no pass, even for the owner');
+    gatewayOn = true;
+
+    // The extra lock: Cloudflare Access's token, checked by the gateway with the team's key (a made-up key here).
+    const crypto = require('node:crypto');
+    const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+    const jwk = { ...publicKey.export({ format: 'jwk' }), kid: 'k1' };
+    const lock = { team: 'debaser', aud: 'a'.repeat(64) };
+    const token = (claims, key = privateKey, kid = 'k1') => {
+      const head = Buffer.from(JSON.stringify({ alg: 'RS256', kid })).toString('base64url');
+      const body = Buffer.from(JSON.stringify(claims)).toString('base64url');
+      return `${head}.${body}.${crypto.sign('RSA-SHA256', Buffer.from(`${head}.${body}`), key).toString('base64url')}`;
+    };
+    const accessKeys = async () => [jwk];
+    const good = { aud: [lock.aud], iss: 'https://debaser.cloudflareaccess.com', exp: world.now / 1000 + 600 };
+    same(await gateway.accessIsGood(token(good), lock, world.now, accessKeys), true, "Access's own token lets the request through");
+    same(await gateway.accessIsGood(token({ ...good, aud: ['another-app'] }), lock, world.now, accessKeys), false, "not another application's");
+    same(await gateway.accessIsGood(token({ ...good, iss: 'https://elsewhere.cloudflareaccess.com' }), lock, world.now, accessKeys), false, "not another team's");
+    same(await gateway.accessIsGood(token({ ...good, exp: world.now / 1000 - 1 }), lock, world.now, accessKeys), false, 'not an expired one');
+    same(await gateway.accessIsGood(token(good, crypto.generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey), lock, world.now, accessKeys), false, 'not one signed by any other key');
+    same(await gateway.accessIsGood('', lock, world.now, accessKeys), false, 'not none');
+    same(gateway.viaCloudflare({ headers: { 'cf-connecting-ip': '203.0.113.9' } }), true, 'a request through the tunnel is known by the header Cloudflare adds');
+    same(gateway.viaCloudflare({ headers: {} }), false, 'and one without it came from this PC itself');
+
+    // Which way each connection goes, said plainly.
+    const route = require(path.join(OUT, 'lib/screens/net-route.js'));
+    same(['192.168.1.20', '10.0.0.4', '172.20.1.1', '127.0.0.1', '203.0.113.9', 'fd12:3456::1'].map((a) => route.routeOfCandidate(a, 'host')), ['lan', 'lan', 'lan', 'this-pc', 'internet', 'lan'], 'home addresses read as the home network, the PC itself as this PC, others as the internet');
+    same(route.routeOfCandidate('203.0.113.9', 'relay'), 'relay', 'a relayed path says so');
+    ok(/HOME NETWORK/.test(route.ROUTE_WORDS.lan.label) && /CLOUDFLARE TUNNEL/.test(route.ROUTE_WORDS.tunnel.label) && /no port/.test(route.ROUTE_WORDS.tunnel.tip), 'the words name the home network and the tunnel, and say no port is opened');
+
+    same(rdp.gatewayOrigin({ SCREENS_RDP_GATEWAY_URL: 'http://192.168.1.20:8479' }), null, 'a gateway on another machine is refused');
+    same(rdp.socketAddress({ SCREENS_RDP_SOCKET_URL: 'javascript:alert(1)' }), '/api/screens/rdp-socket', 'a socket address that is not one is ignored');
+    same(rdp.sizeFrom('{"width":99999,"height":-4}'), { width: 7680, height: 240, dpi: 96 }, 'the size asked for is kept to what a screen can be');
+    same([keys.keysymOf({ key: 'a', code: 'KeyA' }), keys.keysymOf({ key: 'A', code: 'KeyA' }), keys.keysymOf({ key: 'Escape', code: 'Escape' }), keys.keysymOf({ key: 'Shift', code: 'ShiftRight' }), keys.keysymOf({ key: 'F12', code: 'F12' }), keys.keysymOf({ key: '€', code: 'KeyE' }), keys.keysymOf({ key: '7', code: 'Numpad7' }), keys.keysymOf({ key: 'Unidentified', code: '' })], [0x61, 0x41, 0xff1b, 0xffe2, 0xffc9, 0x010020ac, 0xffb7, null], 'keys as the numbers Guacamole sends');
+  }
+
   /* ---------------------------------------------------------------- the wall between the server's file and the browser's */
   const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => (entry.isDirectory() ? walk(path.join(dir, entry.name)) : /\.(ts|tsx)$/.test(entry.name) ? [path.join(dir, entry.name)] : []));
   const files = walk(path.join(ROOT, 'app')).map((file) => ({ file: path.relative(ROOT, file).replace(/\\/g, '/'), text: fs.readFileSync(file, 'utf8') }));
   const importers = files.filter(({ text }) => /from\s+['"][^'"]*screens\/host-server['"]/.test(text) || /from\s+['"]\.\/host-server['"]/.test(text)).map(({ file }) => file);
-  same(importers.sort(), ['app/api/screens/host/route.ts', 'app/api/screens/offer/route.ts', 'app/api/screens/settings/route.ts', 'app/lib/screens/device-mail.ts'], 'only the three routes and the devices\' mailbox (itself only for its two routes) import the server file');
+  same(importers.sort(), ['app/api/screens/host/route.ts', 'app/api/screens/offer/route.ts', 'app/api/screens/settings/route.ts', 'app/lib/screens/device-mail.ts', 'app/lib/screens/rdp-server.ts'], 'only the three routes, the devices\' mailbox and the Remote Desktop rules (each only for its own routes) import the server file');
   const naming = files.filter(({ text }) => /SCREENS_(OWNER_ID|ENGINE_URL|DEV_OPEN)/.test(text.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, ''))).map(({ file }) => file);
   same(naming, ['app/lib/screens/host-server.ts'], 'and the settings are read in that file alone');
   ok(!files.some(({ text }) => /NEXT_PUBLIC_SCREENS/.test(text)), 'none of it is a NEXT_PUBLIC value');
   const serverText = files.find(({ file }) => file === 'app/lib/screens/host-server.ts').text;
   ok(!/['"]use client['"]/.test(serverText), 'the server file is not a browser file');
-  for (const client of ['app/lib/screens/host-client.ts', 'app/lib/screens/session.ts', 'app/lib/screens/connection.ts', 'app/components/RoomScreen.tsx', 'app/components/ScreenToggle.tsx']) {
+  for (const client of ['app/lib/screens/host-client.ts', 'app/lib/screens/session.ts', 'app/lib/screens/connection.ts', 'app/components/RoomScreen.tsx', 'app/components/ScreenToggle.tsx', 'app/components/RoomRdpScreen.tsx', 'app/lib/screens/rdp-client.ts']) {
     const text = files.find(({ file }) => file === client).text.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '');
     ok(!/8478|127\.0\.0\.1|localhost/.test(text), `${client} never names the engine's own address: the browser only ever asks the site`);
   }

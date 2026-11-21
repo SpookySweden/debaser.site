@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { DEVICE_RTC, beBusy, callBody, gathered, newCall, sendDeviceMessage, takeDeviceMessages, type RemoteSource } from '../lib/screens/devices';
+import { ROUTE_WORDS, routeOfConnection, type NetRoute } from '../lib/screens/net-route';
 import { PLATE_ON_BLACK } from '../lib/ui/controls';
 
 /**
@@ -15,6 +16,7 @@ export default function RoomDeviceScreen({ source }: { source: Extract<RemoteSou
   const [state, setState] = useState<'asking' | 'connecting' | 'showing' | 'ended'>('asking');
   const [why, setWhy] = useState('');
   const [tries, setTries] = useState(0);
+  const [route, setRoute] = useState<NetRoute | null>(null);
 
   useEffect(() => {
     let connection: RTCPeerConnection | null = null;
@@ -58,6 +60,8 @@ export default function RoomDeviceScreen({ source }: { source: Extract<RemoteSou
           setState('showing');
         };
         here.onconnectionstatechange = () => {
+          // Which way it travels, once the two have found each other (net-route.ts).
+          if (here.connectionState === 'connected') void routeOfConnection(here).then((r) => { if (!over && connection === here) setRoute(r); }).catch(() => undefined);
           if (here.connectionState === 'failed') {
             setWhy('THE TWO DEVICES COULD NOT REACH EACH OTHER (THEY HAVE TO BE ON THE SAME HOME NETWORK FOR NOW)');
             setState('ended');
@@ -94,19 +98,20 @@ export default function RoomDeviceScreen({ source }: { source: Extract<RemoteSou
       <video ref={video} muted autoPlay playsInline className="absolute left-0 top-0 h-full w-full max-w-none bg-ink-plate object-contain" />
       <div className="absolute right-1 top-8 z-30 flex flex-col items-end gap-1 max-sm:top-14">
         <div className="flex max-w-full flex-wrap items-center justify-end gap-1 bg-ink-plate px-1 font-mono">
-          <span data-room-device-says>
+          <span data-room-device-says title={state === 'showing' && route ? ROUTE_WORDS[route].tip : undefined} data-room-device-route={route ?? ''}>
             {state === 'asking'
               ? `ASKING ${source.name}: SOMEBODY THERE PRESSES SHARE`
               : state === 'connecting'
                 ? `CONNECTING TO ${source.name}`
                 : state === 'showing'
-                  ? `${source.name} :: WATCH ONLY`
+                  ? `${source.name} :: WATCH ONLY${route ? ` :: ${ROUTE_WORDS[route].label}` : ''}`
                   : why || 'ENDED'}
           </span>
           {state === 'ended' ? (
             <button type="button" className={PLATE_ON_BLACK} onClick={() => {
                 setState('asking');
                 setWhy('');
+                setRoute(null);
                 setTries((n) => n + 1);
               }} data-room-device-again>
               [ ASK AGAIN ]

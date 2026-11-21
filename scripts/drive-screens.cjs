@@ -5,7 +5,14 @@
  * would do with the mouse and keys and does none of it). Not in `npm run checks`: it needs the engine, a dev server
  * and a browser.
  *
- *   node scripts/drive-screens.cjs [--port 3391] [--engine-port 8491] [--only closed|open]
+ *   node scripts/drive-screens.cjs [--port 3391] [--engine-port 8491] [--only closed|open|rdp]
+ *
+ * PART 3 (--only rdp), THE SERVER BY REMOTE DESKTOP: the real gateway (scripts/host/rdp-gateway.cjs) on 127.0.0.1, with
+ *   a pretend guacd in this script in place of Guacamole's translator (no Remote Desktop server is needed): it draws a
+ *   red screen of the size it was asked for and writes down every key and press that reaches it. The room's REMOTE
+ *   goes straight to THE SERVER; the picture is drawn; control is on from the start (a key and a click reach the
+ *   server); a short Esc is the server's and closes nothing here; holding Esc lets go (keys then stay on the page);
+ *   a click takes control back; a smaller room tells the server its new size.
  *
  * It starts everything itself and stops it again:
  *   - the engine: engine/target/release/debaser-engine.exe serve --allow-control --control-dry-run --tweaks 76
@@ -152,10 +159,11 @@ async function startEngine() {
 }
 
 /** The site's dev server on mock data, cut off from the live site, with or without the local-proof switch. */
-async function startSite(devOpen) {
+async function startSite(devOpen, extraEnv = {}) {
   const switches = 'AQUARIUM BEATBOX BOOKS COMMS DOCS FORUM GAMES HISTORY LETTERS LORE MEDIA MUSIC NOTIFICATIONS PROFILE_CHARACTER PROFILE RECOMMENDATIONS WATCH WEB WINDOWS'.split(' ');
   const env = { ...process.env, NEXT_PUBLIC_SUPABASE_URL: '', NEXT_PUBLIC_SUPABASE_ANON_KEY: '', NEXT_PUBLIC_AUTH_BACKEND: 'mock', SCREENS_ENGINE_URL: ENGINE_AT, SCREENS_OWNER_ID: '', SCREENS_DEV_OPEN: devOpen ? '1' : '' };
   for (const name of switches) env[`NEXT_PUBLIC_${name}_DATA_SOURCE`] = 'mock';
+  Object.assign(env, extraEnv);
   delete env.NODE_ENV;
   const child = spawn(process.execPath, [NEXT, 'dev', '-p', String(PORT)], { cwd: ROOT, env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
   started.push(child);
@@ -908,6 +916,186 @@ async function partOpen(browser) {
   }
 }
 
+/* --- PART 3: the server by Remote Desktop ------------------------------------------------------- */
+
+const RDP_GATEWAY_PORT = 8492;
+const RDP_GUACD_PORT = 8493;
+
+/** Guacamole's instructions: LENGTH.VALUE,...; (the gateway's own reader, borrowed). */
+const guac = require('./host/rdp-gateway.cjs');
+
+/** A pretend guacd: answers the handshake, draws a red screen of the asked size, and writes down what reaches it. */
+function pretendGuacd() {
+  const seen = [];
+  const server = net.createServer((socket) => {
+    socket.setEncoding('utf8');
+    let rest = '';
+    let size = [0, 0];
+    socket.on('data', (text) => {
+      const found = guac.whole(rest + text);
+      rest = found.rest;
+      for (const one of found.done) {
+        const [op, ...parts] = guac.elements(one);
+        seen.push([op, parts]);
+        if (op === 'select') socket.write(guac.instruction('args', 'VERSION_1_5_0', 'hostname', 'port', 'username', 'password'));
+        else if (op === 'size' && size[0] === 0) size = [Number(parts[0]), Number(parts[1])];
+        else if (op === 'connect') {
+          socket.write(guac.instruction('ready', '$drive'));
+          socket.write(guac.instruction('size', '0', size[0], size[1]));
+          socket.write(guac.instruction('rect', '0', '0', '0', size[0], size[1]));
+          socket.write(guac.instruction('cfill', '14', '0', '255', '0', '0', '255'));
+          socket.write(guac.instruction('sync', String(Date.now())));
+        }
+      }
+    });
+    socket.on('error', () => undefined);
+  });
+  return new Promise((resolve) => server.listen(RDP_GUACD_PORT, '127.0.0.1', () => resolve({ seen, close: () => server.close() })));
+}
+
+async function partRdp(browser) {
+  console.log('\nPART 3: THE SERVER BY REMOTE DESKTOP (THE REAL GATEWAY, A PRETEND GUACD)');
+  const blocked = [];
+  const errors = [];
+  let site = null;
+  let context = null;
+  let guacd = null;
+  let gateway = null;
+  const secret = require('node:crypto').randomBytes(32).toString('hex');
+  const settings = path.join(os.tmpdir(), `debaser-drive-rdp-${process.pid}.env`);
+  const switchFile = path.join(os.tmpdir(), `debaser-drive-rdp-switch-${process.pid}.json`);
+  try {
+    fs.writeFileSync(settings, `SCREENS_RDP_SECRET=${secret}\nRDP_HOST=pretend-server\nRDP_USER=pretend\nRDP_PASSWORD=pretend\n`);
+    guacd = await pretendGuacd();
+    gateway = spawn(process.execPath, [path.join(__dirname, 'host', 'rdp-gateway.cjs')], {
+      env: { ...process.env, DEBASER_RDP_SETTINGS: settings, DEBASER_RDP_SWITCH: switchFile, DEBASER_RDP_GATEWAY_PORT: String(RDP_GATEWAY_PORT), DEBASER_GUACD_PORT: String(RDP_GUACD_PORT) },
+      windowsHide: true,
+      stdio: 'ignore',
+    });
+    started.push(gateway);
+    site = await startSite(true, {
+      SCREENS_RDP_SECRET: secret,
+      SCREENS_RDP_GATEWAY_URL: `http://127.0.0.1:${RDP_GATEWAY_PORT}`,
+      SCREENS_RDP_SOCKET_URL: `ws://127.0.0.1:${RDP_GATEWAY_PORT}/api/screens/rdp-socket`,
+    });
+    const first = await newPage(browser, blocked, errors);
+    context = first.context;
+    const page = first.page;
+    await openRoom(page);
+    const room = page.locator('[data-dock-window="stream"]');
+    const toggle = room.locator('[data-screen-toggle]');
+    await toggle.waitFor({ timeout: 30000 });
+    // Off until switched on (Luke: "a toggle since it is a separate thing to our tech"): the list opens with its switch.
+    await toggle.click();
+    await page.waitForSelector('[data-remote-server-switch="off"]', { timeout: 10000 });
+    assert.equal(await page.locator('[data-remote-choice="rdp"]').count(), 0, 'switched off, THE SERVER is not a choice');
+    const switchWords = await page.locator('[data-remote-server-switch]').innerText();
+    await page.locator('[data-remote-server-switch]').click();
+    await page.waitForSelector('[data-remote-choice="rdp"]', { timeout: 10000 });
+    assert.equal(JSON.parse(fs.readFileSync(switchFile, 'utf8')).on, true, "the gateway's own switch file says on");
+    const choiceWords = await page.locator('[data-remote-choice="rdp"]').innerText();
+    const choiceTip = await page.locator('[data-remote-choice="rdp"]').getAttribute('title');
+    assert.ok(/WINDOWS REMOTE DESKTOP THROUGH GUACAMOLE, NOT OUR ENGINE/.test(choiceWords), choiceWords);
+    pass('the server remote is off until switched on: REMOTE lists its own switch, and switched on, THE SERVER is a choice that says what it is and which way it goes', `"${switchWords}" -> "${choiceWords}" (tip: ${choiceTip})`);
+    await page.locator('[data-remote-choice="rdp"]').click();
+    await page.waitForSelector('[data-room-rdp-screen="showing"]', { timeout: 30000 });
+    const red = await waitFor(() => page.evaluate(() => {
+      const canvas = document.querySelector('[data-room-rdp-display] canvas');
+      if (!canvas) return null;
+      const [r, g, b] = canvas.getContext('2d').getImageData(5, 5, 1, 1).data;
+      return r === 255 && g === 0 && b === 0 ? `${canvas.width}x${canvas.height}` : null;
+    }), 10000);
+    assert.ok(red, 'the server\'s picture is drawn');
+    const ways = await room.locator('[data-room-rdp-way]').evaluateAll((keys) => keys.map((k) => `${k.innerText.trim()} ${k.getAttribute('aria-pressed')}${k.disabled ? ' disabled' : ''}`));
+    assert.deepEqual(ways, ['[ REMOTE DESKTOP ] true', '[ OUR ENGINE: NOT ON THE SERVER YET ] false disabled'], 'the way-in switch');
+    // The drive's gateway is reached straight on this PC (a real one goes through the tunnel: OVER THE INTERNET).
+    const routeSays = await room.locator('[data-room-rdp-route]').innerText();
+    assert.equal(await room.locator('[data-room-rdp-route]').getAttribute('data-room-rdp-route'), 'this-pc', `the way it goes: ${routeSays}`);
+    const connect = guacd.seen.find(([op]) => op === 'connect');
+    pass('THE SERVER chosen: the gateway takes the site\'s pass and the server\'s picture is drawn in the room', `drawn ${red}; the way-in switch reads ${ways.join(' | ')}; guacd was asked for "${connect[1][1]}" from the gateway's settings file`);
+
+    const keysOf = () => guacd.seen.filter(([op]) => op === 'key').map(([, p]) => p.join(':'));
+    const before = keysOf().length;
+    await page.keyboard.press('a');
+    const sent = await waitFor(() => (keysOf().slice(before).join(' ') === '97:1 97:0' ? true : null), 5000);
+    assert.ok(sent, `a key reaches the server at once, control on from the start: ${keysOf().slice(before).join(' ')}`);
+    const box = await page.locator('[data-room-rdp-display]').boundingBox();
+    const mouseBefore = guacd.seen.filter(([op]) => op === 'mouse').length;
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    const presses = await waitFor(() => {
+      const mice = guacd.seen.filter(([op]) => op === 'mouse').slice(mouseBefore).map(([, p]) => p);
+      return mice.some((m) => m[2] === '1') && mice.some((m, i) => i > 0 && m[2] === '0') ? mice : null;
+    }, 5000);
+    assert.ok(presses, 'a click reaches the server');
+    const at = presses.find((m) => m[2] === '1');
+    pass('control is on from the start: a key and a click go to the server', `keys 97 down and up; the click landed at ${at[0]},${at[1]} on a screen of ${connect ? guacd.seen.find(([op]) => op === 'size')[1].slice(0, 2).join('x') : '?'}`);
+
+    const escBefore = keysOf().length;
+    await page.keyboard.press('Escape');
+    const esc = await waitFor(() => (keysOf().slice(escBefore).join(' ') === '65307:1 65307:0' ? true : null), 5000);
+    assert.ok(esc, `a short Esc is the server's: ${keysOf().slice(escBefore).join(' ')}`);
+    assert.equal(await page.locator('[data-dock-window="stream"]').count(), 1, 'the room is still open');
+    assert.equal(await page.locator('[data-room-rdp-control]').getAttribute('data-room-rdp-control'), 'on', 'control still on');
+    pass('a short Esc goes to the server and closes nothing here', 'Esc down and up reached the server; the room stayed open, control on');
+
+    await page.keyboard.down('Escape');
+    await sleep(1300);
+    await page.keyboard.up('Escape');
+    assert.equal(await page.locator('[data-room-rdp-control]').getAttribute('data-room-rdp-control'), 'off', 'holding Esc lets go');
+    const offBefore = keysOf().length;
+    await page.keyboard.press('b');
+    await sleep(500);
+    assert.deepEqual(keysOf().slice(offBefore), [], 'keys stay on the page once let go');
+    const offWords = await page.locator('[data-room-rdp-control]').innerText();
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    assert.equal(await page.locator('[data-room-rdp-control]').getAttribute('data-room-rdp-control'), 'on', 'a click takes it back');
+    pass('holding Esc a second lets go, and a click on the picture takes control back', `let go, it read "${offWords.replace(/\s+/g, ' ')}" and a key reached nothing`);
+
+    const sizes = () => guacd.seen.filter(([op]) => op === 'size').map(([, p]) => p.slice(0, 2).join('x'));
+    assert.equal(sizes()[0], `${VIEW.width}x${VIEW.height}`, "normally the server's desktop is the size of this device's screen");
+    assert.equal(await page.locator('[data-room-rdp-fit]').getAttribute('data-room-rdp-fit'), 'off', 'FIT is off at first');
+    const viewSize = await page.locator('[data-room-rdp-screen] > [tabindex]').evaluate((el) => `${el.clientWidth}x${el.clientHeight}`);
+    const nextSize = async (before) => waitFor(() => (sizes().length > before ? sizes().slice(-1)[0] : null), 8000);
+    let sizesAt = sizes().length;
+    // The room is a window of its own size, not the browser's: the view itself is made narrower, as a resized room would.
+    await page.evaluate(() => { document.querySelector('[data-room-rdp-screen] > [tabindex]').style.right = '120px'; });
+    await sleep(1000);
+    assert.equal(sizes().length, sizesAt, 'with FIT off, a smaller view leaves the server as it is (drawn smaller, whole)');
+    await page.evaluate(() => { document.querySelector('[data-room-rdp-screen] > [tabindex]').style.right = ''; });
+    sizesAt = sizes().length;
+    await page.locator('[data-room-rdp-fit]').click();
+    const fitted = await nextSize(sizesAt);
+    assert.equal(fitted, viewSize, 'FIT makes the server the size of the view');
+    sizesAt = sizes().length;
+    await page.evaluate(() => { document.querySelector('[data-room-rdp-screen] > [tabindex]').style.right = '120px'; });
+    const followed = await nextSize(sizesAt);
+    assert.ok(followed && followed !== fitted, 'and it follows the view');
+    sizesAt = sizes().length;
+    await page.locator('[data-room-rdp-fit]').click();
+    const back = await nextSize(sizesAt);
+    assert.equal(back, `${VIEW.width}x${VIEW.height}`, "FIT off: back to this screen's size");
+    pass("the server starts at this screen's size, drawn whole; FIT THE SERVER TO THIS VIEW, a separate switch, sizes it to the view and follows it", `${sizes()[0]} at first; a narrower view with FIT off asked nothing; FIT on ${fitted}, narrower ${followed}; FIT off ${back}`);
+
+    assert.deepEqual(blocked, [], 'nothing went to the live database');
+    assert.deepEqual(errors, [], `no errors on the page: ${errors.join(' | ')}`);
+    // The server remote's own switch, from the view: off, and the gateway refuses the next pass.
+    await page.locator('[data-room-rdp-switch]').click();
+    await page.waitForSelector('[data-room-rdp-screen="off"]', { timeout: 10000 });
+    const offSays = await page.locator('[data-room-rdp-says]').innerText();
+    assert.equal(JSON.parse(fs.readFileSync(switchFile, 'utf8')).on, false, "the gateway's own switch file says off");
+    pass("the view's [ SERVER REMOTE: ON ] switches it off on the PC itself", `it then read "${offSays}"`);
+
+    pass('nothing went to the live database and the page threw no errors');
+  } finally {
+    if (context) await context.close().catch(() => undefined);
+    if (site) await site.stop();
+    if (gateway) stopTree(gateway);
+    if (guacd) guacd.close();
+    fs.rmSync(settings, { force: true });
+    fs.rmSync(switchFile, { force: true });
+  }
+}
+
 async function main() {
   if (leagueRunning()) {
     console.log('NOT RUN. A League match is running on this PC: nothing is built, started or sent while it is.');
@@ -923,7 +1111,7 @@ async function main() {
       return 1;
     }
   }
-  if (!fs.existsSync(ENGINE)) {
+  if (ONLY !== 'rdp' && !fs.existsSync(ENGINE)) {
     console.log(`FAIL. The engine is not built: ${ENGINE} is missing.`);
     return 1;
   }
@@ -932,9 +1120,12 @@ async function main() {
   const browser = await chromium.launch({ executablePath: findChrome(), headless: true, args: ['--autoplay-policy=no-user-gesture-required', '--no-first-run', '--mute-audio', '--auto-select-desktop-capture-source=Entire screen'] });
   let failure = null;
   try {
-    if (ONLY !== 'open') await partClosed(browser);
-    if (leagueRunning()) throw new Error('a League match started: stopped before the second part');
-    if (ONLY !== 'closed') await partOpen(browser);
+    if (ONLY === 'rdp') await partRdp(browser);
+    else {
+      if (ONLY !== 'open') await partClosed(browser);
+      if (leagueRunning()) throw new Error('a League match started: stopped before the second part');
+      if (ONLY !== 'closed') await partOpen(browser);
+    }
   } catch (error) {
     failure = error;
   } finally {

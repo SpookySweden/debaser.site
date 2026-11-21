@@ -32,6 +32,8 @@ import {
 } from '../lib/screens/wishes';
 import { useRemoteSource } from '../lib/screens/devices';
 import RoomDeviceScreen from './RoomDeviceScreen';
+import RoomRdpScreen from './RoomRdpScreen';
+import { ROUTE_WORDS } from '../lib/screens/net-route';
 import { PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED } from '../lib/ui/controls';
 import { chooseScreen } from '../lib/watch/canvas-view';
 
@@ -55,6 +57,7 @@ import { chooseScreen } from '../lib/watch/canvas-view';
 export default function RoomScreen(props: { roomId: string; /** As the room's screen keys': what kind of thing plays. */ audio: boolean }) {
   const source = useRemoteSource();
   if (source.kind === 'device') return <RoomDeviceScreen key={source.id} source={source} />;
+  if (source.kind === 'rdp') return <RoomRdpScreen />;
   return <EngineScreen {...props} />;
 }
 
@@ -176,6 +179,12 @@ function EngineScreen({ roomId, audio }: { roomId: string; audio: boolean }) {
             </button>
           </span>
         </div>
+        {/* Which way the picture travels, read from the connection itself (Luke, 2026-11-21: clear when it is the home network). */}
+        {view.route ? (
+          <span className="w-fit bg-ink-plate px-1 font-mono text-label text-ink-bar" title={ROUTE_WORDS[view.route].tip} data-screen-route={view.route}>
+            {`OUR ENGINE :: ${ROUTE_WORDS[view.route].label}`}
+          </span>
+        ) : null}
         {/* While this device controls the PC, the way out is always in sight (Luke, 2026-11-21: "we need an easier way of
             ending control"): this bar with its own [ RELEASE ], and holding Esc for a second lets go too. It sits here,
             under the keys, because the top left of a narrow room picture belongs to the room's own corner keys. */}

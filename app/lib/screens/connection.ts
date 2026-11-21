@@ -1,4 +1,5 @@
 import { sendOffer } from './host-client';
+import { routeFromStats, type NetRoute } from './net-route';
 import { isLoopbackAddress } from './wire';
 
 /**
@@ -48,6 +49,8 @@ export type StreamStats = {
    * device IS the PC. Null until the connection has chosen its path.
    */
   reachedOnThisMachine: boolean | null;
+  /** Which way the picture travels (net-route.ts). Null until the connection has chosen. */
+  route: NetRoute | null;
 };
 
 const perFrameMs = (total: unknown, count: unknown): number | null => (typeof total === 'number' && typeof count === 'number' && count > 0 ? (total / count) * 1000 : null);
@@ -220,6 +223,7 @@ export class ScreenConnection {
       mimeType: null,
       sound: { packetsReceived: 0, packetsLost: 0, jitterBufferDelayMsPerSample: null, mimeType: null },
       reachedOnThisMachine: null,
+      route: null,
     };
     if (connection === null) return result;
     const report = await connection.getStats();
@@ -244,6 +248,7 @@ export class ScreenConnection {
     const far = pair !== undefined && typeof pair.remoteCandidateId === 'string' ? byId.get(pair.remoteCandidateId) : undefined;
     const address = far === undefined ? null : (textOf(far.address) ?? textOf(far.ip));
     if (address !== null && address !== '') result.reachedOnThisMachine = isLoopbackAddress(address);
+    result.route = routeFromStats(byId);
     if (heard.length > 0) {
       const sound = heard[heard.length - 1];
       const soundCodec = typeof sound.codecId === 'string' ? codecs.get(sound.codecId) : undefined;
