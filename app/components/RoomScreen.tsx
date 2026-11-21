@@ -1,0 +1,360 @@
+'use client';
+
+import { useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useScreenHost } from '../lib/screens/host-client';
+import { ScreenSession } from '../lib/screens/session';
+import {
+  BITRATE_MIN_MBIT,
+  DRAWINGS,
+  LINES,
+  MICE,
+  RATES,
+  SHAPES,
+  UPSCALINGS,
+  askedNow,
+  bitrateMaxMbit,
+  capSays,
+  controlKeySays,
+  controlStateSays,
+  keysSay,
+  linesOffered,
+  matchSays,
+  megabits,
+  rateOffered,
+  rateSays,
+  reallySending,
+  troubleLines,
+} from '../lib/screens/wishes';
+import { PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED } from '../lib/ui/controls';
+import { chooseScreen } from '../lib/watch/canvas-view';
+
+/**
+ * The PC's screen on a room's screen (SPEC-screens.md, phase 3, first slice), in the place the room's canvas takes:
+ * for the PC's owner only, and only while the room's `[ SCREEN ]` key is on. The room's queue and players carry on
+ * underneath, untouched; nothing here is synced or stored.
+ *
+ * It is the engine's own viewer page (`engine/web/viewer.html`) in the site's dress: the picture, the small readout in
+ * its corner, `[ CONTROL ]` and `[ SETTINGS ]`, and the settings panel over it, with the engine's own labels. The work
+ * is in `app/lib/screens/`; this file only draws how things stand and passes presses on.
+ *
+ * It connects when it is drawn and lets go of everything (the connection, control, every listener) when it is not:
+ * the room draws it only while the screen is the chosen view. The picture's box sits on Black in every theme, so its
+ * keys and words take the bar's inks (the canvas's tools and the visualiser's sliders do the same).
+ */
+export default function RoomScreen({ roomId, audio }: { roomId: string; /** As the room's screen keys': what kind of thing plays. */ audio: boolean }) {
+  const host = useScreenHost();
+  const root = useRef<HTMLDivElement>(null);
+  const stage = useRef<HTMLDivElement>(null);
+  const video = useRef<HTMLVideoElement>(null);
+  const fastCanvas = useRef<HTMLCanvasElement>(null);
+  const sharpCanvas = useRef<HTMLCanvasElement>(null);
+  const [session] = useState(() => new ScreenSession());
+  const view = useSyncExternalStore(session.subscribe, session.getState, session.getState);
+  const [panelOpen, setPanelOpen] = useState(false);
+  /** The bitrate slider says its number while it moves and asks the PC once, when it is let go. */
+  const [sliding, setSliding] = useState<number | null>(null);
+  const panelId = useId();
+  const bitrateId = useId();
+
+  useEffect(() => {
+    if (root.current === null || stage.current === null || video.current === null || fastCanvas.current === null || sharpCanvas.current === null) return;
+    session.attach({ root: root.current, stage: stage.current, video: video.current, fastCanvas: fastCanvas.current, sharpCanvas: sharpCanvas.current });
+    return () => session.detach();
+  }, [session]);
+
+  // The PC's screen is no longer there for this reader (signed out, say): back to the room's own picture.
+  useEffect(() => {
+    if (!host.available) chooseScreen(roomId, 'picture', audio);
+  }, [host.available, roomId, audio]);
+
+  // Esc closes the panel, except while the PC has the keyboard: then Esc, like every key, never reaches here.
+  useEffect(() => {
+    if (!panelOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setPanelOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [panelOpen]);
+
+  const { wishes, control } = view;
+  const asked = askedNow(view.host, wishes);
+  const matching = asked.shape === 'match';
+  const standing = view.host === null ? 'off' : view.host.control;
+  const controlAllowed = standing !== 'off';
+  const controlSays = controlKeySays(view.host, control.mine, control.note);
+  const cap = capSays(view.host);
+  const trouble = troubleLines(view.host, view.hostTrouble);
+  const mbit = sliding ?? Math.round(asked.bitrateKbps / 1000);
+  const letGoOfSlider = () => {
+    if (sliding === null) return;
+    session.change({ bitrateKbps: sliding * 1000 });
+    setSliding(null);
+  };
+  const openPanel = (open: boolean) => {
+    setPanelOpen(open);
+    if (open) void session.readHost();
+  };
+  const key = (on: boolean) => (on ? PLATE_ON_BLACK_PRESSED : PLATE_ON_BLACK);
+
+  return (
+    <div ref={root} className="absolute inset-0 z-10 bg-ink-plate text-label text-ink-bar" data-room-screen={view.problem ? 'problem' : 'shown'} data-screen-drawing={view.drawingShown} data-screen-fit={view.upscalingShown}>
+      {/* The picture. While this device controls the PC it holds the keyboard, and its own pointer is the pointer. */}
+      <div
+        ref={stage}
+        tabIndex={-1}
+        role="application"
+        aria-label="Your PC's screen"
+        className={`absolute inset-0 overflow-hidden bg-ink-plate outline-none ${control.mine ? 'touch-none select-none' : ''}`}
+        data-screen-stage={control.mine ? 'controlling' : 'watching'}
+      >
+        {/* `max-w-none`: the site's base styles keep a video no wider than its box, and OFF shows the picture at its real size. */}
+        <video ref={video} muted autoPlay playsInline className="absolute left-0 top-0 h-full w-full max-w-none bg-ink-plate object-contain" />
+        <canvas ref={fastCanvas} hidden className="absolute left-0 top-0 h-full w-full bg-ink-plate object-contain" />
+        <canvas ref={sharpCanvas} hidden className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-ink-plate" />
+      </div>
+
+      {wishes.numbers ? (
+        // At the foot, clear of the keys in the top corner, and wrapping: a room's picture is often a narrow box.
+        <pre className="pointer-events-none absolute bottom-1 left-1 z-20 max-w-[calc(100%-0.5rem)] whitespace-pre-wrap bg-ink-plate px-1 py-0.5 font-mono text-label text-ink-bar" data-screen-numbers>
+          {view.numbers}
+        </pre>
+      ) : null}
+
+      {/* Under the room's own corner keys (VIS, CANVAS, SCREEN). They stay where they are whether the panel is open or not; it opens under them. */}
+      <div className="absolute right-1 top-8 z-30 flex flex-wrap items-center justify-end gap-1 max-sm:top-14" data-screen-keys>
+        {view.problem ? (
+          <span className="bg-ink-plate">
+            <button type="button" className={PLATE_ON_BLACK} onClick={() => session.tryAgain()} data-screen-try-again>
+              [ TRY AGAIN ]
+            </button>
+          </span>
+        ) : null}
+        {controlAllowed && controlSays ? (
+          <span className="w-fit bg-bubble-pale px-1 font-bold text-ink-bar" role="status" data-screen-control-says>
+            {controlSays}
+          </span>
+        ) : null}
+        {controlAllowed ? (
+          <span className="bg-ink-plate">
+            <button type="button" className={key(control.mine)} aria-pressed={control.mine} onClick={() => session.toggleControl()} data-screen-control-key={control.mine ? 'mine' : 'free'}>
+              {control.mine ? '[ RELEASE ]' : '[ CONTROL ]'}
+            </button>
+          </span>
+        ) : null}
+        <span className="bg-ink-plate">
+          {/* Open, it is pressed in by the site's one "this is open" look, in this Black surface's own inks (globals.css). */}
+          <button type="button" className={PLATE_ON_BLACK} aria-expanded={panelOpen} aria-controls={panelId} onClick={() => openPanel(!panelOpen)} data-screen-settings-key>
+            [ SETTINGS ]
+          </button>
+        </span>
+      </div>
+
+      {panelOpen ? (
+        <section
+          id={panelId}
+          aria-label="Stream settings"
+          className="absolute bottom-0 right-0 top-16 z-30 flex w-[27rem] max-w-full flex-col gap-1 overflow-y-auto border border-ink-bar bg-ink-plate px-3 pb-3 pt-2 text-label text-ink-bar max-sm:top-24"
+          data-screen-panel
+        >
+          <header className="flex items-start justify-between gap-2">
+            <h2 className="text-sun">SETTINGS</h2>
+            <button type="button" className={PLATE_ON_BLACK} aria-label="Close settings" onClick={() => openPanel(false)} autoFocus>
+              [ × ]
+            </button>
+          </header>
+
+          <Part title="PICTURE">
+            <div className="flex flex-wrap items-start gap-1">
+              <button type="button" className={key(matching)} aria-pressed={matching} onClick={() => session.toggleMatch()} data-screen-match={matching ? 'on' : 'off'}>
+                [ MATCH THIS SCREEN ]
+              </button>
+            </div>
+            <Why topic="MATCH THIS SCREEN">{matchSays(view.here)}</Why>
+            {matching ? null : (
+              <>
+                <Sub>SHAPE</Sub>
+                <div className="flex flex-wrap items-start gap-1" role="group" aria-label="Shape">
+                  {SHAPES.map((shape) => (
+                    <button key={shape} type="button" className={key(asked.shape === shape)} aria-pressed={asked.shape === shape} onClick={() => session.change({ shape })} data-screen-shape={shape}>
+                      {`[ ${shape.toUpperCase()} ]`}
+                    </button>
+                  ))}
+                </div>
+                <Why topic="SHAPE">A shape narrower than the PC&apos;s screen cuts its sides off. NATIVE shows all of it, with bars above and below on a narrower screen.</Why>
+              </>
+            )}
+            <Sub>SIZE (LINES, AT MOST)</Sub>
+            <div className="flex flex-wrap gap-1" role="group" aria-label="Size, in lines at most">
+              {LINES.filter((lines) => linesOffered(lines, view.host)).map((lines) => (
+                <button key={lines} type="button" className={key(asked.lines === lines)} aria-pressed={asked.lines === lines} onClick={() => session.change({ lines })} data-screen-lines={lines}>
+                  {`[ ${String(lines).toUpperCase()} ]`}
+                </button>
+              ))}
+            </div>
+            <Sub>FRAMES A SECOND</Sub>
+            <div className="flex flex-wrap gap-1" role="group" aria-label="Frames a second">
+              {RATES.filter((rate) => rateOffered(rate, view.host)).map((rate) => (
+                <button key={rate} type="button" className={key(asked.fps === rate)} aria-pressed={asked.fps === rate} onClick={() => session.change({ fps: rate })} data-screen-fps={rate}>
+                  {`[ ${String(rate).toUpperCase()} ]`}
+                </button>
+              ))}
+            </div>
+            <p>{rateSays(asked.fps, view.screenHz)}</p>
+            <Sub>
+              <label htmlFor={bitrateId}>BITRATE</label>
+            </Sub>
+            <div className="flex items-center gap-2">
+              <input
+                id={bitrateId}
+                type="range"
+                className="vis-slider min-w-0 flex-1"
+                min={BITRATE_MIN_MBIT}
+                max={bitrateMaxMbit(view.host)}
+                step={1}
+                value={mbit}
+                aria-valuetext={megabits(mbit * 1000)}
+                onChange={(event) => setSliding(Number(event.target.value))}
+                onPointerUp={letGoOfSlider}
+                onKeyUp={letGoOfSlider}
+                onBlur={letGoOfSlider}
+                data-screen-bitrate
+              />
+              <span className="w-24 shrink-0 text-right">{megabits(mbit * 1000)}</span>
+            </div>
+            <p className="whitespace-pre-wrap" data-screen-really>
+              {reallySending(view.host)}
+            </p>
+            {cap === null ? null : (
+              <p className="whitespace-pre-wrap text-sun" data-screen-cap>
+                {cap}
+              </p>
+            )}
+            {trouble.length === 0 ? null : <Fault>{trouble.join('\n')}</Fault>}
+          </Part>
+
+          <Part title="DRAWING">
+            <div className="flex flex-wrap items-start gap-1" role="group" aria-label="Drawing">
+              {DRAWINGS.map((drawing) => (
+                <button key={drawing} type="button" className={key(wishes.drawing === drawing)} aria-pressed={wishes.drawing === drawing} onClick={() => session.setDrawing(drawing)} data-screen-drawing-key={drawing}>
+                  {`[ ${drawing.toUpperCase()} ]`}
+                </button>
+              ))}
+            </div>
+            <Why topic="DRAWING">
+              Only on this device. FAST takes each frame straight off the stream and puts it on a canvas that skips the browser&apos;s own drawing queue, so it reaches the screen sooner. NORMAL is the browser&apos;s own video player.
+            </Why>
+            {view.drawingNote ? <Fault>{view.drawingNote}</Fault> : null}
+          </Part>
+
+          <Part title="UPSCALING">
+            <div className="flex flex-wrap items-start gap-1" role="group" aria-label="Upscaling">
+              {UPSCALINGS.map((upscaling) => (
+                <button key={upscaling} type="button" className={key(wishes.upscaling === upscaling)} aria-pressed={wishes.upscaling === upscaling} onClick={() => session.setUpscaling(upscaling)} data-screen-upscaling={upscaling}>
+                  {`[ ${upscaling.toUpperCase()} ]`}
+                </button>
+              ))}
+            </div>
+            <Why topic="UPSCALING">
+              Only on this device: nothing here is sent to the PC. OFF shows the picture at its real size, not stretched. SMOOTH stretches it to fill, softly. SHARP stretches it in hard squares (for pixel art). SHARPENED adds a sharpening pass on
+              this device&apos;s graphics to every frame, which may add delay: that has not been measured.
+            </Why>
+            {view.upscalingNote ? <Fault>{view.upscalingNote}</Fault> : null}
+          </Part>
+
+          <Part title="READOUT">
+            <pre className="whitespace-pre-wrap font-mono" data-screen-readout>
+              {view.readout}
+            </pre>
+            <div className="flex flex-wrap items-start gap-1">
+              <button type="button" className={key(wishes.numbers)} aria-pressed={wishes.numbers} onClick={() => session.toggleNumbers()}>
+                [ NUMBERS ]
+              </button>
+            </div>
+            <Why topic="NUMBERS">NUMBERS keeps the small readout in the corner of the picture.</Why>
+          </Part>
+
+          <Part title="WINDOW">
+            <div>
+              <button type="button" className={key(view.fullscreen)} aria-pressed={view.fullscreen} onClick={() => session.toggleFullscreen()} data-screen-fullscreen>
+                {view.fullscreen ? '[ LEAVE FULLSCREEN ]' : '[ FULLSCREEN ]'}
+              </button>
+            </div>
+          </Part>
+
+          <Part title="CONTROL">
+            <p className="whitespace-pre-wrap" data-screen-control-state>
+              {controlStateSays(view.host, control.mine, control.note)}
+            </p>
+            {controlAllowed ? (
+              <>
+                <Sub>MOUSE</Sub>
+                <div className="flex flex-wrap items-start gap-1" role="group" aria-label="Mouse">
+                  {MICE.map((mouse) => (
+                    <button key={mouse} type="button" className={key(wishes.mouse === mouse)} aria-pressed={wishes.mouse === mouse} onClick={() => session.setMouse(mouse)} data-screen-mouse={mouse}>
+                      {`[ ${mouse.toUpperCase()} ]`}
+                    </button>
+                  ))}
+                </div>
+                <Why topic="MOUSE">
+                  POINTER: this device&apos;s own pointer is the pointer, drawn here with no delay; the stream itself carries no pointer. GAME: the pointer is captured and its raw movement is sent, for games that turn the view with the mouse.
+                </Why>
+                {control.mine && wishes.mouse === 'game' && !control.pointerLocked ? <Fault>The pointer is not captured: click the picture to capture it (Esc gives it back).</Fault> : null}
+                <p>{keysSay(control.keyboardLocked, control.canLockKeyboard)}</p>
+                <p>
+                  Keys go to the PC while the picture is the last thing pressed; press anywhere else on the site to type there. To let go: [ RELEASE ], or Ctrl+Alt+Shift+Q on this device (that is never sent to the PC). On the PC itself,
+                  Ctrl+Alt+Shift+End stops it. If this tab loses focus, every key held is let go at once.
+                </p>
+              </>
+            ) : null}
+          </Part>
+
+          <Part title="NOT BUILT YET">
+            <ul className="list-disc pl-4">
+              <li>A controller (gamepad) from this device.</li>
+              <li>Sound.</li>
+              <li>HEVC and AV1 video (this PC&apos;s graphics card cannot encode AV1).</li>
+              <li>Changing the PC&apos;s real screen mode, or a virtual screen, so that games draw themselves in this screen&apos;s shape instead of having their sides cut off.</li>
+            </ul>
+          </Part>
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
+/** One section of the panel: its title line, then what belongs to it. */
+function Part({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="mt-2 flex flex-col gap-1 border-t border-ink-bar pt-2">
+      <h3 className="text-sun">{title}</h3>
+      {children}
+    </div>
+  );
+}
+
+function Sub({ children }: { children: ReactNode }) {
+  return <h4 className="mt-1 font-bold">{children}</h4>;
+}
+
+/** Something that could not be done as asked: a Rose chip, as faults are everywhere on the site. */
+function Fault({ children }: { children: ReactNode }) {
+  return (
+    <p className="w-fit whitespace-pre-wrap bg-bubble-pale px-1 text-ink-bar" role="status">
+      {children}
+    </p>
+  );
+}
+
+/** A sentence a reader may want, behind `[ ? ]` (as `InfoFold`, in the inks of a Black surface). */
+function Why({ topic, children }: { topic: string; children: ReactNode }) {
+  return (
+    <details className="group">
+      <summary className={`${PLATE_ON_BLACK} inline-block`} aria-label={`About ${topic}`}>
+        <span className="group-open:hidden">[ ? ]</span>
+        <span className="hidden group-open:inline">[ × ]</span>
+      </summary>
+      <p className="mt-1">{children}</p>
+    </details>
+  );
+}

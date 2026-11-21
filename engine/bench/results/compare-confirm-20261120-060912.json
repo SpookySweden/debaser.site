@@ -1,0 +1,43 @@
+﻿{
+    "name":  "confirm",
+    "when":  "2026-11-20 06:09:12",
+    "encode":  "1920x1080",
+    "fps":  60,
+    "bitrateKbps":  20000,
+    "rounds":  8,
+    "framesPerRun":  240,
+    "rows":  [
+                 {
+                     "tweaks":  0,
+                     "encodeP50":  16.37,
+                     "encodeP95":  33.76,
+                     "shownP50":  17.7,
+                     "shownP95":  39.69,
+                     "rounds":  8
+                 },
+                 {
+                     "tweaks":  8,
+                     "encodeP50":  13.41,
+                     "encodeP95":  29.53,
+                     "shownP50":  16.69,
+                     "shownP95":  37.26,
+                     "rounds":  8
+                 },
+                 {
+                     "tweaks":  9,
+                     "encodeP50":  14.25,
+                     "encodeP95":  32.12,
+                     "shownP50":  17.27,
+                     "shownP95":  37.46,
+                     "rounds":  8
+                 },
+                 {
+                     "tweaks":  13,
+                     "encodeP50":  11.57,
+                     "encodeP95":  29.37,
+                     "shownP50":  12.72,
+                     "shownP95":  32.98,
+                     "rounds":  8
+                 }
+             ]
+}

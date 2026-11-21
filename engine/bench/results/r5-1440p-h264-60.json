@@ -1,0 +1,19 @@
+{
+  "name": "r5-1440p-h264-60",
+  "kind": "bench-encode",
+  "screen": "3440x1440@180",
+  "encode": "2560x1440",
+  "codec": "H.264",
+  "fps": 60,
+  "bitrateKbps": 30000,
+  "preset": 1,
+  "intraRefresh": false,
+  "framesEncoded": 400,
+  "freshFrames": 277,
+  "copy": {"frames": 399, "p50Ms": 0.075, "p95Ms": 0.132, "p99Ms": 0.265, "maxMs": 0.443, "meanMs": 0.065},
+  "encode": {"frames": 399, "p50Ms": 7.333, "p95Ms": 9.550, "p99Ms": 11.664, "maxMs": 13.493, "meanMs": 6.472},
+  "copyAndEncode": {"frames": 399, "p50Ms": 7.424, "p95Ms": 9.619, "p99Ms": 11.770, "maxMs": 13.573, "meanMs": 6.537},
+  "presentToEncoded": {"frames": 276, "p50Ms": 8.639, "p95Ms": 15.265, "p99Ms": 16.544, "maxMs": 18.199, "meanMs": 8.452},
+  "firstFrameBytes": 60599,
+  "medianFrameBytes": 7002
+}

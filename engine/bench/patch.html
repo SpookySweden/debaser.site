@@ -1,0 +1,77 @@
+<!doctype html>
+<!--
+  The patch (SPEC-screens.md, "The loop"). Open this on the PC being streamed, full screen, and leave it focused.
+  Every key press or mouse press flips the square in the middle between two greys. The rig on the other device
+  (rig.ps1) presses a key and times how long the flip takes to show up on its own screen.
+  Greys, not black and white, and a square, not the whole screen: a gentle change is kinder to eyes and gives the
+  video encoder an ordinary frame to send instead of a worst case.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>DEBASER BENCH PATCH</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #101010;
+        overflow: hidden;
+        cursor: default;
+      }
+      #patch {
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        width: 40vmin;
+        height: 40vmin;
+        transform: translate(-50%, -50%);
+        background: #303030;
+      }
+      #patch.on {
+        background: #c8c8c8;
+      }
+      #note {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 12px;
+        text-align: center;
+        font: 14px/1.4 monospace;
+        color: #808080;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="patch"></div>
+    <div id="note">DEBASER BENCH PATCH :: KEEP THIS WINDOW FOCUSED :: FLIPS <span id="count">0</span></div>
+    <script>
+      // ?full=1: the whole window flips, not a square in its middle (for a small window, see glass.ps1).
+      if (new URLSearchParams(location.search).get('full') === '1') {
+        document.getElementById('patch').style.cssText = 'left:0;top:0;width:100%;height:100%;transform:none';
+        document.getElementById('note').style.display = 'none';
+      }
+      const patch = document.getElementById('patch');
+      const count = document.getElementById('count');
+      let flips = 0;
+      function flip() {
+        patch.classList.toggle('on');
+        flips += 1;
+        count.textContent = String(flips);
+      }
+      // A held key repeats; only the press itself counts.
+      window.addEventListener('keydown', (event) => {
+        if (!event.repeat) flip();
+      });
+      window.addEventListener('mousedown', flip);
+      // ?auto=1: flips by itself at uneven moments, so a measurement needs no key presses and no window in front.
+      if (new URLSearchParams(location.search).get('auto') === '1') {
+        const again = () => {
+          flip();
+          setTimeout(again, 350 + Math.random() * 300);
+        };
+        setTimeout(again, 500);
+      }
+    </script>
+  </body>
+</html>

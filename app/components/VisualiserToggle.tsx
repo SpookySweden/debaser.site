@@ -24,7 +24,8 @@ export default function VisualiserToggle({
   className?: string;
 }) {
   const showing = useVisualiserOn(roomId);
-  const onCanvas = useScreenView(roomId, audio) === 'canvas';
+  // The canvas, or the owner's PC screen (SPEC-screens.md): either way the visualiser would lie over it.
+  const onCanvas = useScreenView(roomId, audio) !== 'picture';
   return (
     <button
       type="button"

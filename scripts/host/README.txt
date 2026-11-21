@@ -32,3 +32,8 @@ copy-cloud-files.cjs                Stage 6: copies files the PC lacks from the 
                                     checked by size and MD5, no database change. --dry-run, --only <bucket>/<name>.
 set-file-notes.js                   run inside the storage container by copy-cloud-files.cjs: gives hand-placed files their
                                     type and cache time (extended attributes), or they're served as octet-stream.
+screens.cjs  status | on --owner <id> [--lan] | off
+                                     SCREENS (SPEC-screens.md) on the PC: ON names the owner in site.env and in the build being
+                                     served, copies the screen engine to G:\DEBASER-HOST\engine, lists it in services.json, starts
+                                     it and restarts the site; OFF undoes all of it. Without --lan only a browser on this PC gets
+                                     the picture. Luke runs it. --host <folder> --no-start --no-restart prove it on a pretend host.

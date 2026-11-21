@@ -1,0 +1,59 @@
+﻿{
+    "name":  "tweaks",
+    "when":  "2026-11-20 06:06:23",
+    "encode":  "1920x1080",
+    "fps":  60,
+    "bitrateKbps":  20000,
+    "rounds":  6,
+    "framesPerRun":  240,
+    "rows":  [
+                 {
+                     "tweaks":  0,
+                     "encodeP50":  3.03,
+                     "encodeP95":  4.38,
+                     "shownP50":  3.66,
+                     "shownP95":  5.23,
+                     "rounds":  6
+                 },
+                 {
+                     "tweaks":  1,
+                     "encodeP50":  3.26,
+                     "encodeP95":  4.09,
+                     "shownP50":  3.9,
+                     "shownP95":  4.41,
+                     "rounds":  6
+                 },
+                 {
+                     "tweaks":  4,
+                     "encodeP50":  3.5,
+                     "encodeP95":  4.25,
+                     "shownP50":  3.98,
+                     "shownP95":  5.02,
+                     "rounds":  6
+                 },
+                 {
+                     "tweaks":  8,
+                     "encodeP50":  2.74,
+                     "encodeP95":  3.57,
+                     "shownP50":  3.25,
+                     "shownP95":  3.99,
+                     "rounds":  6
+                 },
+                 {
+                     "tweaks":  5,
+                     "encodeP50":  3.18,
+                     "encodeP95":  3.89,
+                     "shownP50":  3.7,
+                     "shownP95":  4.36,
+                     "rounds":  6
+                 },
+                 {
+                     "tweaks":  13,
+                     "encodeP50":  2.79,
+                     "encodeP95":  3.51,
+                     "shownP50":  3.26,
+                     "shownP95":  3.82,
+                     "rounds":  6
+                 }
+             ]
+}

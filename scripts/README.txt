@@ -219,6 +219,21 @@ paused, playing again), that each slider is named and BRIGHTNESS and REACT chang
 "reduce motion" one still picture shows. Run it locally, not on the live site (core.md, "Test locally"): on a dev server the room is a
 mock but the board is real, so each run leaves one real board thread by TEST ACCOUNT A: list them for Luke. It records no sound.
 
+drive-screens.cjs
+-----------------
+    node scripts/drive-screens.cjs [--port 3391] [--engine-port 8491] [--only closed|open] [--console]
+
+SCREENS in a room (SPEC-screens.md, phase 3): the owner's PC screen on the room's screen, its settings panel and CONTROL, in a
+hidden browser. It starts and stops everything itself: the engine (`engine/target/release/debaser-engine.exe`, in its DRY RUN: what
+the mouse and keys would do is written down and nothing reaches Windows; 127.0.0.1 only, 120 seconds) and the site's dev server on
+mock data with the Supabase address empty, so nothing reaches the live site. Part 1 starts the server without `SCREENS_DEV_OPEN`
+and reads that a room has no `[ SCREEN ]` key and the routes give nothing away; part 2 starts it with `SCREENS_DEV_OPEN=1` (the one
+local-proof exception in `app/lib/screens/host-server.ts`) and reads frames decoding in the room from the browser's own receiver
+statistics, 16:9 and 720 making the picture 1280x720, the pointer and a letter arriving at the engine as the right screen pixel and
+scan code (the engine's own `GET /control-log`) however the picture is drawn, Ctrl+Alt+Shift+Q letting go, and the connection
+closing when the room's own picture comes back. It refuses to run during a League match (exit 3). Its pictures of the room
+(`Temp/browse/screens/`) leave the PC's own screen out. The rules themselves are held by `Temp/check-screens.cjs`.
+
 drive-queue-filters.cjs
 -----------------------
     node scripts/drive-queue-filters.cjs [base]   the stream queue's filters, MEDIA and FILES, in a real browser

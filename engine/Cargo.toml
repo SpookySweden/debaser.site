@@ -1,0 +1,18 @@
+[package]
+name = "debaser-engine"
+version = "0.0.1"
+edition = "2021"
+description = "DEBASER_OS's own screen engine (SPEC-screens.md): grabs a screen, encodes it on the graphics card, and later sends it and takes input back."
+publish = false
+
+[dependencies]
+# WebRTC that takes ready-encoded video (SPEC-screens.md). Its encryption comes from Windows itself ("wincrypto"),
+# so nothing in C has to be built. Every crate this pulls in is listed with its licence in DEPENDENCIES.md.
+str0m = { version = "0.25", default-features = false, features = ["wincrypto"] }
+
+[build-dependencies]
+cc = "1"
+
+[profile.release]
+opt-level = 3
+debug = false
