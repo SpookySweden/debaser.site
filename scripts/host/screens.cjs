@@ -104,15 +104,14 @@ const engineArgs = (lan) => (lan ? ['serve', '--allow-control', '--lan'] : ['ser
 
 /** Stops the site the way an update does: keep-running sees the note and starts it again at once. */
 function restartSite() {
-  const r = spawnSync('powershell', ['-NoProfile', '-Command',
-    '(Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1).OwningProcess'],
-  { encoding: 'utf8', windowsHide: true });
-  const pid = Number((r.stdout || '').trim());
-  if (!pid) return 'the site was not found on port 3000, so it was not restarted: it reads the setting at its next start';
+  // Exactly what self-update.cjs does at a switch: the note first, then the site's own program and its children.
+  const find = "Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Where-Object { $_.CommandLine -like '*next*start*-p*3000*' }";
+  const found = spawnSync('powershell.exe', ['-NoProfile', '-Command', `@(${find}).Count`], { encoding: 'utf8', windowsHide: true });
+  if (!(Number((found.stdout || '').trim()) > 0)) return 'the site\'s program was not found running, so it was not restarted: it reads the setting at its next start';
   if (!existsSync(LOGS)) mkdirSync(LOGS, { recursive: true });
   writeFileSync(join(LOGS, 'site.switching'), 'screens.cjs\n');
-  try { process.kill(pid); } catch (e) { return `the site could not be stopped (${e.message}): it reads the setting at its next start`; }
-  return 'the site was restarted (a few seconds\' blip)';
+  spawnSync('powershell.exe', ['-NoProfile', '-Command', `${find} | ForEach-Object { taskkill /PID $_.ProcessId /T /F | Out-Null }`], { windowsHide: true });
+  return 'the site was restarted the way an update restarts it (a few seconds\' blip)';
 }
 
 function status() {
