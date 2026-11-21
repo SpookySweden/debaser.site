@@ -44,6 +44,12 @@ void remember_key(int32_t scan, int32_t extended, int32_t virtual_key, bool down
 
 // ---- The guard: the cut-off key and the strip. Both belong to one small thread, because Windows delivers a
 // hotkey and a window's messages to the thread that asked for them.
+//
+// The guard has two users. CONTROL (a viewer has this PC's mouse and keys): the cut-off key ends it, and the strip
+// shows while it lasts. FIT (the PC's screen has been changed to a viewer's shape, src/fit.rs): the same key puts
+// the screen back; no strip shows for it. The key is held for as long as either needs it, and a press is told to
+// both. The strip's window exists (not shown) whenever the key is held, because it is how another program finds
+// the guard's thread (see dbe_post_cut_off_to).
 
 const wchar_t kStripClass[] = L"DebaserControlStrip";
 const wchar_t kStripText[] = L"CONTROLLED FROM ANOTHER DEVICE :: CTRL+ALT+SHIFT+END STOPS IT";
@@ -52,6 +58,9 @@ const int kCutOffId = 0x0DBE;
 const UINT kCutOffKeys = MOD_CONTROL | MOD_ALT | MOD_SHIFT | 0x4000 /* MOD_NOREPEAT: holding it down counts once */;
 const UINT kBegin = WM_APP + 1;
 const UINT kEnd = WM_APP + 2;
+// The guard's two users (sent with kBegin and kEnd).
+const int kControl = 1;
+const int kFit = 2;
 // SetWindowDisplayAffinity's "leave this window out of screen captures" (Windows 10 2004 and later).
 const DWORD kLeftOutOfCaptures = 0x00000011;
 
@@ -59,10 +68,14 @@ HANDLE g_thread = nullptr;
 DWORD g_thread_id = 0;
 HANDLE g_answered = nullptr;  // set by the guard's thread each time it has done what it was asked
 std::atomic<int> g_answer{0};
-std::atomic<int> g_cut{0};
-// Only the guard's thread touches these two.
+std::atomic<int> g_cut{0};      // the cut-off key was pressed while CONTROL was a user
+std::atomic<int> g_cut_fit{0};  // ...while FIT was a user
+// One request to the guard's thread at a time (control asks from one thread, fit from another).
+std::mutex g_ask_lock;
+// Only the guard's thread touches these three.
 HWND g_strip = nullptr;
 bool g_key_held = false;
+int g_users = 0;
 
 // The strip: a dark grey band with one line of light grey text in the system's own font. Text only.
 LRESULT CALLBACK strip_proc(HWND window, UINT message, WPARAM wide, LPARAM longer) {
@@ -83,6 +96,10 @@ LRESULT CALLBACK strip_proc(HWND window, UINT message, WPARAM wide, LPARAM longe
       EndPaint(window, &paint);
       return 0;
     }
+    case WM_DISPLAYCHANGE:
+      // The screen changed size (FIT does that): the strip stays as wide as the screen now is.
+      SetWindowPos(window, nullptr, 0, 0, (int)LOWORD(longer), kStripHeight, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+      return 0;
     case WM_NCHITTEST:
       return HTTRANSPARENT;  // clicks go to whatever is underneath
     case WM_MOUSEACTIVATE:
@@ -91,7 +108,8 @@ LRESULT CALLBACK strip_proc(HWND window, UINT message, WPARAM wide, LPARAM longe
   return DefWindowProcW(window, message, wide, longer);
 }
 
-void show_strip() {
+// Makes the strip's window, not yet shown.
+void make_strip() {
   if (g_strip) return;
   static bool known = false;
   if (!known) {
@@ -110,7 +128,11 @@ void show_strip() {
   SetLayeredWindowAttributes(g_strip, 0, 235, LWA_ALPHA);
   // The viewer does not need to be told it is controlling: the strip is left out of the picture that is streamed.
   SetWindowDisplayAffinity(g_strip, kLeftOutOfCaptures);
-  ShowWindow(g_strip, SW_SHOWNOACTIVATE);
+}
+
+void show_strip() {
+  make_strip();
+  if (g_strip) ShowWindow(g_strip, SW_SHOWNOACTIVATE);
 }
 
 DWORD WINAPI guard_thread(void*) {
@@ -120,19 +142,32 @@ DWORD WINAPI guard_thread(void*) {
   SetEvent(g_answered);
   while (GetMessageW(&message, nullptr, 0, 0) > 0) {
     if (message.hwnd == nullptr && message.message == kBegin) {
-      g_cut = 0;
+      const int user = (int)message.wParam;
+      if (user == kControl) g_cut = 0;
+      if (user == kFit) g_cut_fit = 0;
       if (!g_key_held) g_key_held = RegisterHotKey(nullptr, kCutOffId, kCutOffKeys, VK_END) != 0;
-      if (g_key_held) show_strip();
+      if (g_key_held) {
+        g_users |= user;
+        make_strip();
+        if (user == kControl) show_strip();
+      }
       g_answer = g_key_held ? 0 : 1;
       SetEvent(g_answered);
     } else if (message.hwnd == nullptr && message.message == kEnd) {
-      if (g_key_held) UnregisterHotKey(nullptr, kCutOffId);
-      g_key_held = false;
-      if (g_strip) DestroyWindow(g_strip);
-      g_strip = nullptr;
+      const int user = (int)message.wParam;
+      g_users &= ~user;
+      if (user == kControl && g_strip) ShowWindow(g_strip, SW_HIDE);
+      // The key and the window go when neither user needs them any more.
+      if (g_users == 0) {
+        if (g_key_held) UnregisterHotKey(nullptr, kCutOffId);
+        g_key_held = false;
+        if (g_strip) DestroyWindow(g_strip);
+        g_strip = nullptr;
+      }
       SetEvent(g_answered);
     } else if (message.message == WM_HOTKEY && (int)message.wParam == kCutOffId) {
-      g_cut = 1;
+      if (g_users & kControl) g_cut = 1;
+      if (g_users & kFit) g_cut_fit = 1;
     } else {
       TranslateMessage(&message);
       DispatchMessageW(&message);
@@ -141,8 +176,9 @@ DWORD WINAPI guard_thread(void*) {
   return 0;
 }
 
-// Asks the guard's thread to do one thing and waits (briefly) for it to say it has.
-bool ask_guard(UINT what) {
+// Asks the guard's thread to do one thing for one of its users and waits (briefly) for it to say it has.
+bool ask_guard(UINT what, int user) {
+  std::lock_guard<std::mutex> one_at_a_time(g_ask_lock);
   if (!g_thread) {
     g_answered = CreateEventW(nullptr, FALSE, FALSE, nullptr);
     if (!g_answered) return false;
@@ -150,7 +186,7 @@ bool ask_guard(UINT what) {
     if (!g_thread || WaitForSingleObject(g_answered, 2000) != WAIT_OBJECT_0) return false;
   }
   ResetEvent(g_answered);
-  if (!PostThreadMessageW(g_thread_id, what, 0, 0)) return false;
+  if (!PostThreadMessageW(g_thread_id, what, (WPARAM)user, 0)) return false;
   return WaitForSingleObject(g_answered, 2000) == WAIT_OBJECT_0;
 }
 
@@ -266,15 +302,26 @@ int32_t dbe_pointer_where(int32_t* x, int32_t* y) {
 }
 
 int32_t dbe_guard_begin(void) {
-  if (!ask_guard(kBegin)) return 2;
+  if (!ask_guard(kBegin, kControl)) return 2;
   return g_answer.load();
 }
 
 void dbe_guard_end(void) {
-  if (g_thread) ask_guard(kEnd);
+  if (g_thread) ask_guard(kEnd, kControl);
 }
 
 int32_t dbe_guard_cut(void) { return g_cut.exchange(0); }
+
+int32_t dbe_guard_fit_begin(void) {
+  if (!ask_guard(kBegin, kFit)) return 2;
+  return g_answer.load();
+}
+
+void dbe_guard_fit_end(void) {
+  if (g_thread) ask_guard(kEnd, kFit);
+}
+
+int32_t dbe_guard_fit_cut(void) { return g_cut_fit.exchange(0); }
 
 void dbe_strip_seen(DbeStripSeen* seen) {
   memset(seen, 0, sizeof *seen);
@@ -303,12 +350,18 @@ int32_t dbe_cut_off_key_free(void) {
   return 1;
 }
 
-int32_t dbe_post_cut_off(void) {
-  HWND strip = FindWindowW(kStripClass, nullptr);
-  if (!strip) return 0;
-  const DWORD thread = GetWindowThreadProcessId(strip, nullptr);
-  if (!thread) return 0;
-  return PostThreadMessageW(thread, WM_HOTKEY, (WPARAM)kCutOffId, MAKELPARAM(MOD_CONTROL | MOD_ALT | MOD_SHIFT, VK_END)) ? 1 : 0;
+int32_t dbe_post_cut_off(void) { return dbe_post_cut_off_to(0); }
+
+int32_t dbe_post_cut_off_to(uint32_t process) {
+  // Every guard on this PC has a strip window (shown or not); the one belonging to the program asked for is found.
+  HWND strip = nullptr;
+  while ((strip = FindWindowExW(nullptr, strip, kStripClass, nullptr)) != nullptr) {
+    DWORD owner = 0;
+    const DWORD thread = GetWindowThreadProcessId(strip, &owner);
+    if (!thread || (process != 0 && owner != process)) continue;
+    return PostThreadMessageW(thread, WM_HOTKEY, (WPARAM)kCutOffId, MAKELPARAM(MOD_CONTROL | MOD_ALT | MOD_SHIFT, VK_END)) ? 1 : 0;
+  }
+  return 0;
 }
 
 int32_t dbe_pads_seen(DbePadSeen seen[4]) {

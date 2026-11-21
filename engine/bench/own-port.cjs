@@ -16,7 +16,7 @@ const { execFileSync } = require('node:child_process');
 const LIVE_PORT = 8478;
 
 /** Each check's own default port. */
-const PORTS = { webrtc: 8610, settings: 8611, control: 8612, still: 8613, sound: 8614, pointer: 8615 };
+const PORTS = { webrtc: 8610, settings: 8611, control: 8612, still: 8613, sound: 8614, pointer: 8615, fit: 8616 };
 
 /** Whether anything on this PC accepts a connection on that port. Nothing is sent to it. */
 function answering(port) {

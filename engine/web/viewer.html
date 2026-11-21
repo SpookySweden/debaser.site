@@ -47,6 +47,12 @@
      is not shown. */
   #stage.fast #screen { visibility: hidden; }
 
+  /* One line at the top of the picture, while this device's mouse is (or is waiting to be) captured. */
+  #mouse-says {
+    position: fixed; left: 50%; top: 8px; transform: translateX(-50%); padding: 4px 6px; white-space: nowrap;
+    background: rgba(32, 32, 32, 0.8); border: 1px solid #555555; pointer-events: none;
+  }
+
   #numbers {
     position: fixed; left: 8px; top: 8px; margin: 0; padding: 6px 8px; white-space: pre;
     background: rgba(32, 32, 32, 0.8); border: 1px solid #555555; pointer-events: none;
@@ -94,6 +100,7 @@
 </div>
 <audio id="sound"></audio>
 <pre id="numbers">connecting</pre>
+<div id="mouse-says" hidden></div>
 <div id="corner">
   <span id="control-says" hidden></span>
   <button id="sound-key" class="key" type="button" aria-pressed="false" hidden>[ SOUND ]</button>
@@ -108,7 +115,12 @@
   </header>
 
   <h2>PICTURE</h2>
-  <div class="row"><button id="match" class="key" type="button" aria-pressed="true">[ MATCH THIS SCREEN ]</button></div>
+  <div id="fit-part" hidden>
+    <div class="row"><button id="fit" class="key" type="button" aria-pressed="false">[ FIT THE PC TO THIS SCREEN ]</button></div>
+    <p>The PC changes its own screen to this screen's shape while you are connected, and changes it back when you leave. Its monitor goes black for a second or two each way, and windows on it may move.</p>
+    <p class="says" id="fit-says"></p>
+  </div>
+  <div class="row"><button id="match" class="key" type="button" aria-pressed="false">[ MATCH THIS SCREEN ]</button></div>
   <p id="match-says"></p>
   <div id="by-hand" hidden>
     <h3>SHAPE</h3>
@@ -187,12 +199,14 @@
   <div id="control-choices" hidden>
     <h3>MOUSE</h3>
     <div class="row" id="mouse">
-      <button class="key" type="button" data-mouse="pointer">[ POINTER ]</button>
-      <button class="key" type="button" data-mouse="game">[ GAME ]</button>
+      <button class="key" type="button" data-mouse="pointer">[ POINT AND CLICK ]</button>
+      <button class="key" type="button" data-mouse="game">[ CAPTURED, FOR 3D GAMES ]</button>
     </div>
-    <p>POINTER: this device's own pointer is the pointer, drawn here with no delay, in the shape the PC's own pointer has at that moment (an arrow, a text bar, a hand); it hides when the PC hides its pointer. The stream itself carries no pointer. GAME: the pointer is captured and its raw movement is sent, for games that turn the view with the mouse.</p>
+    <p id="mouse-point-says">POINT AND CLICK: The PC's pointer goes where yours is. For the desktop and most games.</p>
+    <p id="mouse-captured-says">CAPTURED, FOR 3D GAMES: Your pointer vanishes and every movement turns the view, like playing a first-person game at the PC itself. Esc gives your pointer back.</p>
+    <p>In POINT AND CLICK your pointer takes the shape the PC's own pointer has at that moment (an arrow, a text bar, a hand), and hides when the PC hides its own.</p>
     <p class="says" id="shape-says" hidden></p>
-    <p class="says" id="pointer-says" hidden>The pointer is not captured: click the picture to capture it (Esc gives it back).</p>
+    <p class="says" id="pointer-says" hidden>CLICK THE PICTURE TO CAPTURE THE MOUSE</p>
     <p id="keys-says"></p>
     <p>To let go: [ RELEASE ], or Ctrl+Alt+Shift+Q on this device (that is never sent to the PC). On the PC itself, Ctrl+Alt+Shift+End stops it. If this tab loses focus, every key held is let go at once.</p>
     <h3>CONTROLLER</h3>
@@ -233,8 +247,10 @@ const onThisPc = address.get('thispc') === '1' || (address.get('thispc') !== '0'
 
 // What this device last chose, remembered between visits. The page works the same when the browser refuses to
 // remember (private windows, blocked storage): it then starts from these every time.
-const STORE = 'debaser-engine-viewer';
-const wishes = { match: true, shape: '16:9', lines: 1080, fps: 'auto', bitrateKbps: 20000, drawing: 'fast', upscaling: 'smooth', numbers: true, mouse: 'pointer', sound: false, volume: 1 };
+// (The name ends in "v2" since the picture began starting as the PC's whole screen: a device that remembered the
+// older start, with the sides cut off, begins again from the new one, once.)
+const STORE = 'debaser-engine-viewer-v2';
+const wishes = { match: false, shape: 'native', fit: false, lines: 1080, fps: 'auto', bitrateKbps: 20000, drawing: 'fast', upscaling: 'smooth', numbers: true, mouse: 'pointer', sound: false, volume: 1 };
 try {
   const kept = JSON.parse(localStorage.getItem(STORE) || 'null');
   if (kept && typeof kept === 'object') {
@@ -247,6 +263,7 @@ try {
     if (['off', 'smooth', 'sharp', 'sharpened'].includes(kept.upscaling)) wishes.upscaling = kept.upscaling;
     if (typeof kept.numbers === 'boolean') wishes.numbers = kept.numbers;
     if (['pointer', 'game'].includes(kept.mouse)) wishes.mouse = kept.mouse;
+    if (typeof kept.fit === 'boolean') wishes.fit = kept.fit;
     if (typeof kept.sound === 'boolean') wishes.sound = kept.sound;
     if (Number.isFinite(kept.volume) && kept.volume >= 0 && kept.volume <= 1) wishes.volume = kept.volume;
   }
@@ -327,7 +344,7 @@ async function start() {
       // Now that the picture is on its way, tell the PC what this device wants of it (unless asked to hold off).
       // AUTO needs this screen's own rate, so a measuring of it that is still going is waited for first.
       if (hold) readHost();
-      else (measuringHz || Promise.resolve()).then(() => quietly(ask(wishesForThePc())));
+      else (measuringHz || Promise.resolve()).then(() => quietly(ask(wishesForThePc()).then(fitAgain)));
     }
     if (connection.connectionState === 'failed') problem = 'the connection failed (reload to try again)';
     if (connection.connectionState === 'closed' || connection.connectionState === 'disconnected') problem = 'the engine stopped sending (reload to try again)';
@@ -522,6 +539,14 @@ async function talkToHost(options) {
   return host;
 }
 
+// FIT THE PC TO THIS SCREEN, left on at the last visit: asked for again, once the PC has said that it allows it.
+// (It is asked on its own, after the rest, so that a PC that does not know of it is never sent it.)
+function fitAgain() {
+  const pc = host && host.pcScreen;
+  if (wishes.fit && pc && pc.allowed && !pc.yours) return ask({ pcScreen: 'fit' });
+  return host;
+}
+
 // Reads what the PC is sending now (also done every few seconds, so a change made from another device shows here).
 function readHost() {
   return talkToHost({ method: 'GET' }).catch(() => null);
@@ -532,7 +557,7 @@ function readHost() {
 // goes through here, and so can a check. It answers with what the PC says it is really sending afterwards.
 async function ask(partial) {
   const request = { ...partial };
-  if (request.shape === 'match') {
+  if (request.shape === 'match' || request.pcScreen === 'fit') {
     // The shape of this screen, unless the caller names another screen's size.
     const here = thisScreen();
     if (!request.viewWidth) request.viewWidth = here.viewWidth;
@@ -562,9 +587,22 @@ function showSettings() {
   $('match').setAttribute('aria-pressed', String(matching));
   $('by-hand').hidden = matching;
   const here = thisScreen();
+  // FIT: shown only when the PC allows its own screen to be changed. The key shows what the PC says of this
+  // device's wish, and the line under it is the PC's own account of its screen.
+  const pc = host && host.pcScreen;
+  const fitOffered = Boolean(pc && pc.allowed);
+  $('fit-part').hidden = !fitOffered;
+  if (fitOffered) {
+    const mode = (m) => m.width + 'x' + m.height + ' AT ' + m.hz;
+    $('fit').setAttribute('aria-pressed', String(Boolean(pc.yours)));
+    $('fit-says').textContent = pc.fitted
+      ? 'THE PC\'S SCREEN IS NOW ' + mode(pc.now) + ' (ITS OWN: ' + mode(pc.own) + ')' + (pc.why ? '\n' + pc.why : '')
+      : (pc.why ? pc.why + '\n' : '') + 'THE PC\'S SCREEN IS ITS OWN: ' + mode(pc.own);
+  }
   $('match-says').textContent =
     'The PC sends the middle of its screen in the shape of this screen (' + here.viewWidth + 'x' + here.viewHeight +
-    '), so on an ultrawide PC the two sides are cut off. Nothing on the PC itself changes: its own screen, and whatever is running on it, stay as they are.';
+    '), so on an ultrawide PC the two sides are cut off.' +
+    (pc && pc.fitted ? '' : ' Nothing on the PC itself changes: its own screen, and whatever is running on it, stay as they are.');
   press($('shapes'), 'data-shape', asked.shape);
   press($('lines'), 'data-lines', asked.lines);
   press($('rates'), 'data-fps', asked.fps);
@@ -633,6 +671,14 @@ $('close-settings').addEventListener('click', () => openPanel(false));
 // Esc closes the panel, except while this device controls the PC: then Esc, like every key, is the PC's.
 document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && !panel.hidden && !control.mine) openPanel(false); });
 
+// FIT: pressed, this device asks the PC to change its own screen to this screen's shape; pressed again, to give
+// it back. The wish is remembered on this device; what the key then shows is what the PC answers.
+$('fit').addEventListener('click', () => {
+  const on = !(host && host.pcScreen && host.pcScreen.yours);
+  wishes.fit = on;
+  remember();
+  quietly(ask({ pcScreen: on ? 'fit' : 'own' }));
+});
 $('match').addEventListener('click', () => quietly(ask({ shape: $('match').getAttribute('aria-pressed') === 'true' ? wishes.shape : 'match' })));
 $('shapes').addEventListener('click', (event) => { const key = event.target.closest('button'); if (key) quietly(ask({ shape: key.dataset.shape })); });
 $('lines').addEventListener('click', (event) => { const key = event.target.closest('button'); if (key) quietly(ask({ lines: key.dataset.lines === 'native' ? 'native' : Number(key.dataset.lines) })); });
@@ -1223,7 +1269,7 @@ const control = {
   sentBefore: 0,          // ...as of the last readout, for "a second"
   sentRate: 0,
   newestAt: null,         // POINTER: the newest place not yet sent
-  owedBy: [0, 0],         // GAME: movement not yet sent
+  owedBy: [0, 0],         // CAPTURED: movement not yet sent
   lastFlush: 0,
   flushTimer: 0,
   stillHereTimer: 0,
@@ -1251,7 +1297,9 @@ function placeOnPicture(clientX, clientY) {
   return [share((clientX - box.left) / box.width), share((clientY - box.top) / box.height)];
 }
 
-// Movement goes out at most about once a millisecond: the newest place (POINTER) or the summed movement (GAME).
+// Movement goes out at most about once a millisecond: the newest place (POINT AND CLICK) or the summed movement
+// (CAPTURED). In the script, and in what this device remembers, the two kinds of mouse keep their first names,
+// 'pointer' and 'game'.
 function flushPointer() {
   control.flushTimer = 0;
   control.lastFlush = performance.now();
@@ -1299,7 +1347,7 @@ function onPointerButton(event, down) {
   const button = BUTTONS[event.button];
   if (button === undefined) return;
   if (wishes.mouse === 'game' && !control.pointerLocked) {
-    // In GAME mode a click on the picture first captures the pointer; that click is not passed on.
+    // With the mouse CAPTURED, a click on the picture first captures the pointer; that click is not passed on.
     if (down) lockPointer();
     return;
   }
@@ -1460,6 +1508,11 @@ function showControl() {
       ? 'System keys (Alt+Tab, the Windows key, Esc) stay with this device unless the page is fullscreen while controlling.'
       : 'System keys (Alt+Tab, the Windows key, Esc) stay with this device: this browser cannot hand them over.';
   $('pointer-says').hidden = !(control.mine && wishes.mouse === 'game' && !control.pointerLocked);
+  // The same on the picture itself, where it is seen with the panel closed: what to do to capture the mouse,
+  // and, once it is captured, how to get it back.
+  const capturing = control.mine && wishes.mouse === 'game';
+  $('mouse-says').hidden = !capturing;
+  $('mouse-says').textContent = !capturing ? '' : control.pointerLocked ? 'MOUSE CAPTURED :: ESC GIVES IT BACK' : 'CLICK THE PICTURE TO CAPTURE THE MOUSE';
   showPcPointer();
   showPad();
 }

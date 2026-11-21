@@ -274,7 +274,9 @@ export async function hostAnswer(request: Request, deps: ScreensDeps = realDeps(
   try {
     const settings: unknown = JSON.parse(answer.text);
     if (typeof settings !== 'object' || settings === null) return notAvailable();
-    return json(200, { available: true, settings });
+    // `drive: true` only on a server opened for the local drive (never in production: `devOpen`). It lets the drive's
+    // page be told to behave as a device that is NOT the PC, which a browser on the PC otherwise always is.
+    return json(200, devOpen(deps.env) ? { available: true, settings, drive: true } : { available: true, settings });
   } catch {
     return notAvailable();
   }

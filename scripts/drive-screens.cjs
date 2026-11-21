@@ -25,6 +25,21 @@
  *      the site itself never hears that key; Ctrl+Alt+Shift+Q lets go, and is never sent
  *   d. back to the room's ordinary picture: control is let go of and the connection is closed
  *
+ *   e. (added with the engine's SOUND, CONTROLLER and POINTER SHAPE) on this PC the browser reaches the engine on its
+ *      own machine, so SOUND is not offered and the panel warns; told to stand in for a device that is NOT the PC (the
+ *      test-only mark a server opened for the drive honours, never a production one), [ SOUND ] makes Opus packets
+ *      arrive with a level above nothing (the engine sends a test tone, DEBASER_PRETEND_TONE=1) and [ SOUND OFF ]
+ *      stops them, the picture decoding all the while and nothing else on the page that plays being touched
+ *   f. a made-up controller in the page reaches the engine's record with the right buttons and sticks only while
+ *      control is held, and is set to nothing pressed and unplugged when control ends
+ *   g. the picture's pointer takes the PC's (pretended) shape at the picture's scale while controlling, hides when
+ *      the PC hides its own, and is left alone otherwise
+ *   h. Esc typed to the PC reaches the engine's record and closes nothing of the site's that was open before
+ *      control was taken (the room's queue window, and a listener on the whole window like the ones the site has)
+ *
+ * It never uses port 8478 (the engine that is live on this PC) and refuses to start when anything already answers
+ * on its own ports. It stops only the engine it started itself (by that process, under engine\target).
+ *
  * The statistics are the browser's own: the page's RTCPeerConnection is watched from outside the site's code.
  * Exit 0: every part passed. Exit 1: something failed. Exit 3: not run, because a League match is running on this PC.
  */
@@ -32,6 +47,8 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const net = require('node:net');
+const os = require('node:os');
 const path = require('node:path');
 const { spawn, execFileSync } = require('node:child_process');
 const { chromium } = require('playwright-core');
@@ -51,6 +68,22 @@ const BASE = `http://localhost:${PORT}`;
 const ENGINE_AT = `http://127.0.0.1:${ENGINE_PORT}`;
 const VIEW = { width: 1440, height: 900 };
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+/** The engine that is live on this PC, serving the real site. Never used, never spoken to, never stopped. */
+const LIVE_ENGINE_PORT = 8478;
+/** The word in this file is the pointer the engine pretends the PC has (DEBASER_PRETEND_POINTER_FILE, as engine/bench/pointer-check.cjs does). */
+const POINTER_FILE = path.join(os.tmpdir(), `debaser-drive-screens-pointer-${process.pid}`);
+
+/** Whether anything on this PC accepts a connection on that port. Nothing is sent to it. */
+function answering(port) {
+  return new Promise((resolve) => {
+    const socket = net.connect({ host: '127.0.0.1', port });
+    const done = (yes) => { socket.destroy(); resolve(yes); };
+    socket.setTimeout(700);
+    socket.once('connect', () => done(true));
+    socket.once('timeout', () => done(false));
+    socket.once('error', () => done(false));
+  });
+}
 
 const results = [];
 const pass = (what, seen) => {
@@ -93,7 +126,10 @@ process.on('exit', () => started.forEach(stopTree));
 
 async function startEngine() {
   const engineArgs = ['serve', '--allow-control', '--control-dry-run', '--tweaks', '76', '--port', String(ENGINE_PORT), '--seconds', '120'];
-  const child = spawn(ENGINE, engineArgs, { cwd: path.join(ROOT, 'engine'), windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  fs.writeFileSync(POINTER_FILE, 'block\n');
+  // A steady test tone in place of the PC's sound, and a pretended pointer in place of the real one: both the engine's own test switches.
+  const env = { ...process.env, DEBASER_PRETEND_MATCH: '', DEBASER_PRETEND_MATCH_FILE: '', DEBASER_PRETEND_STILL: '', DEBASER_PRETEND_TONE: '1', DEBASER_PRETEND_POINTER_FILE: POINTER_FILE };
+  const child = spawn(ENGINE, engineArgs, { cwd: path.join(ROOT, 'engine'), windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], env });
   started.push(child);
   const engine = { child, text: '', began: Date.now() };
   child.stdout.on('data', (chunk) => { engine.text += chunk; });
@@ -159,6 +195,24 @@ const SEED = `(() => {
   Watched.prototype = Real.prototype;
   Object.setPrototypeOf(Watched, Real);
   window.RTCPeerConnection = Watched;
+  // A made-up game controller the drive can connect and "press" (as engine/bench/control-check.cjs has): the page asks the
+  // browser for its controllers in the ordinary way and is given this one, in the layout browsers call "standard".
+  const pad = { id: 'Made-up controller for the drive (STANDARD GAMEPAD)', index: 0, connected: false, mapping: 'standard', timestamp: 0, axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, touched: false, value: 0 })) };
+  window.__madeUpController = pad;
+  Object.defineProperty(navigator, 'getGamepads', { configurable: true, value: () => (pad.connected ? [pad, null, null, null] : [null, null, null, null]) });
+  // Everything else on the page that plays sound, and every time the page takes a copy of an element's sound to listen to it
+  // (the room's sound graph and visualiser do): the PC's sound must touch none of it.
+  window.__audios = [];
+  const RealAudio = window.Audio;
+  window.Audio = function (...args) { const made = new RealAudio(...args); window.__audios.push(made); return made; };
+  window.Audio.prototype = RealAudio.prototype;
+  window.__listens = 0;
+  for (const name of ['createMediaStreamSource', 'createMediaElementSource']) {
+    const make = AudioContext.prototype[name];
+    AudioContext.prototype[name] = function (...args) { window.__listens += 1; return make.apply(this, args); };
+  }
+  const capture = HTMLMediaElement.prototype.captureStream;
+  if (capture) HTMLMediaElement.prototype.captureStream = function (...args) { window.__listens += 1; return capture.apply(this, args); };
   // Every key press that reaches the page's own listeners (the site's shortcuts listen there or later).
   window.__keysHeard = [];
   document.addEventListener('keydown', (event) => window.__keysHeard.push(event.code));
@@ -173,10 +227,13 @@ const receiver = (page) =>
   page.evaluate(async () => {
     const connection = window.__connections[window.__connections.length - 1];
     if (!connection) return { connections: 0, state: 'none', framesDecoded: 0 };
-    const out = { connections: window.__connections.length, state: connection.connectionState, framesDecoded: 0, frameWidth: null, frameHeight: null, framesPerSecond: null, decoder: null, codec: null };
+    const out = { connections: window.__connections.length, state: connection.connectionState, framesDecoded: 0, frameWidth: null, frameHeight: null, framesPerSecond: null, decoder: null, codec: null, sound: { packets: 0, lost: 0, level: null, energy: null, codec: null } };
     if (connection.connectionState === 'closed') return out;
     const report = await connection.getStats();
     report.forEach((entry) => {
+      if (entry.type === 'inbound-rtp' && entry.kind === 'audio') {
+        out.sound = { packets: entry.packetsReceived ?? 0, lost: entry.packetsLost ?? 0, level: entry.audioLevel ?? null, energy: entry.totalAudioEnergy ?? null, codec: entry.codecId ? (report.get(entry.codecId) || {}).mimeType ?? null : null };
+      }
       if (entry.type !== 'inbound-rtp' || entry.kind !== 'video') return;
       out.framesDecoded = entry.framesDecoded ?? 0;
       out.frameWidth = entry.frameWidth ?? null;
@@ -228,6 +285,29 @@ async function openRoom(page) {
   }
   await page.waitForSelector('[data-dock-window="stream"] [data-visualiser-toggle]', { timeout: 30000 });
 }
+
+/** Sets the made-up controller: connected or not, which buttons are down (the browser's numbers), the triggers (0 to 1), the sticks (-1 to 1). */
+const setController = (page, state) =>
+  page.evaluate((to) => {
+    const one = window.__madeUpController;
+    if ('connected' in to) one.connected = to.connected;
+    const down = to.buttons || [];
+    one.buttons.forEach((button, index) => {
+      const value = index === 6 ? to.leftTrigger || 0 : index === 7 ? to.rightTrigger || 0 : down.includes(index) ? 1 : 0;
+      button.value = value;
+      button.pressed = value > 0;
+    });
+    one.axes = to.axes || [0, 0, 0, 0];
+    one.timestamp = performance.now();
+  }, state);
+
+/** Everything on the page that plays, apart from the PC's own sound: each one's state, and how often the page has taken a copy of a sound to listen to. */
+const otherPlayers = (page) =>
+  page.evaluate(() => {
+    const elements = [...document.querySelectorAll('audio, video')].filter((element) => element.closest('[data-room-screen]') === null);
+    const say = (element) => `${element.tagName} ${element.paused ? 'paused' : 'playing'} volume ${element.volume} ${element.muted ? 'muted' : 'unmuted'} ${element.currentSrc ? 'with a source' : 'empty'}`;
+    return { players: [...elements, ...window.__audios].map(say), listens: window.__listens, blank: document.querySelector('[data-watch-blank]')?.getAttribute('data-watch-blank') ?? null };
+  });
 
 /** The room's corner keys, each by its words (or by what it is read as, when it wears a drawn mark). */
 const cornerKeys = (page) => page.locator('[data-room-corner-keys] button').evaluateAll((keys) => keys.map((key) => key.innerText.trim() || `(${key.getAttribute('aria-label')})`));
@@ -281,7 +361,7 @@ async function partClosed(browser) {
     assert.ok((await page.locator('[data-room-corner-keys] [data-visualiser-toggle]').count()) === 1, `the room's corner keys are there: ${keys.join(' ')}`);
     assert.equal(await page.locator('[data-screen-toggle]').count(), 0, 'no [ SCREEN ] key');
     assert.ok(!keys.some((text) => text.includes('SCREEN')), 'by its words either');
-    pass('a visitor of a server started without SCREENS_DEV_OPEN sees no [ SCREEN ] key in a room', `the engine was running all the while (asked directly, it said control is "${there.control}"); the room's corner keys read: ${keys.join(' ')}`);
+    pass('a visitor of a server started without SCREENS_DEV_OPEN sees no [ REMOTE ] key in a room', `the engine was running all the while (asked directly, it said control is "${there.control}"); the room's corner keys read: ${keys.join(' ')}`);
 
     const said = await page.evaluate(async () => {
       const host = await fetch('/api/screens/host', { cache: 'no-store' });
@@ -319,8 +399,13 @@ async function partOpen(browser) {
     context = first.context;
     page = first.page;
     await openRoom(page);
-    assert.equal(await page.locator('[data-screen-toggle]').count(), 0, 'with no engine running there is no [ SCREEN ] key, even here');
-    pass('with the engine not running, the room has no [ SCREEN ] key (the site says "not available")');
+    assert.equal(await page.locator('[data-screen-toggle]').count(), 0, 'with no engine running there is no [ REMOTE ] key, even here');
+    pass('with the engine not running, the room has no [ REMOTE ] key (the site says "not available")');
+    // The room's queue window is opened once before the engine is started, so the dev server has built it (part h needs it at once).
+    await page.locator('[data-dock-window="stream"] [data-watch-queue-key]').first().click();
+    await page.waitForSelector('#stream-queue-search', { timeout: 120000 });
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => document.querySelector('#stream-queue-search') === null, null, { timeout: 10000 });
 
     engine = await startEngine();
     await page.reload({ waitUntil: 'domcontentloaded' });
@@ -331,7 +416,7 @@ async function partOpen(browser) {
     // a. The key, and the picture.
     await toggle.waitFor({ timeout: 15000 });
     const keys = await cornerKeys(page);
-    assert.equal((await toggle.innerText()).trim(), '[ SCREEN ]', 'the key reads [ SCREEN ]');
+    assert.equal((await toggle.innerText()).trim(), '[ REMOTE ]', 'the key reads [ REMOTE ]');
     assert.equal(await toggle.locator('img, svg').count(), 0, 'words only: no picture on the key');
     assert.equal((await receiver(page)).connections, 0, 'nothing is connected before the key is pressed');
     await toggle.click();
@@ -345,7 +430,7 @@ async function partOpen(browser) {
     assert.equal(later.state, 'connected');
     const drawn = await page.locator('[data-room-screen]').getAttribute('data-screen-drawing');
     pass(
-      "the room shows [ SCREEN ] beside VIS and CANVAS; pressed, the PC's screen is decoded in the room's picture",
+      "the room shows [ REMOTE ] beside VIS and CANVAS; pressed, the PC's screen is decoded in the room's picture",
       `corner keys: ${keys.join(' ')}; the browser's own receiver: ${flowing.framesDecoded} frames decoded, then ${later.framesDecoded} a second later, ${later.frameWidth}x${later.frameHeight}, ${later.codec}, decoder ${later.decoder}; drawn ${String(drawn).toUpperCase()}`,
     );
 
@@ -355,7 +440,7 @@ async function partOpen(browser) {
     await page.waitForSelector('[data-screen-panel]', { timeout: 5000 });
     assert.equal(await settingsKey.getAttribute('aria-expanded'), 'true', 'the SETTINGS key says it is open');
     const headings = await page.locator('[data-screen-panel] h3').allInnerTexts();
-    assert.deepEqual(headings, ['PICTURE', 'DRAWING', 'UPSCALING', 'READOUT', 'WINDOW', 'CONTROL', 'NOT BUILT YET'], "the panel has the engine page's sections");
+    assert.deepEqual(headings, ['PICTURE', 'DRAWING', 'UPSCALING', 'READOUT', 'WINDOW', 'SOUND', 'CONTROL', 'NOT BUILT YET'], "the panel has the engine page's sections");
     await shot(page, 'panel');
     const match = page.locator('[data-screen-match]');
     if ((await match.getAttribute('data-screen-match')) === 'on') await match.click();
@@ -373,6 +458,80 @@ async function partOpen(browser) {
     pass('[ SETTINGS ], MATCH THIS SCREEN off, [ 16:9 ] and [ 720 ]: the decoded picture becomes 1280x720', `the browser's own receiver: ${small.frameWidth}x${small.frameHeight}; the panel: "${really}"; the engine: the screen's ${sending.regionWidth}x${sending.regionHeight} from ${sending.x},${sending.y}`);
     await settingsKey.click();
     await page.waitForFunction(() => document.querySelector('[data-screen-panel]') === null, null, { timeout: 5000 });
+
+    // e. SOUND. This browser is on the PC, so it reaches the engine on its own machine: no key, and the warning.
+    {
+      const hostSound = async () => (await engine.settings()).sound;
+      assert.ok((await hostSound()).allowed, `the engine sends sound: ${JSON.stringify(await hostSound())}`);
+      await settingsKey.click();
+      await page.waitForSelector('[data-screen-panel]', { timeout: 5000 });
+      await page.waitForFunction(() => /this device is the PC itself/.test(document.querySelector('[data-screen-sound-state]')?.textContent ?? ''), null, { timeout: 8000 });
+      const onPc = await page.locator('[data-screen-panel]').innerText();
+      assert.ok(onPc.includes('ON THIS PC THE SOUND WOULD FEED BACK INTO ITSELF'), 'the panel warns');
+      assert.equal(await page.locator('[data-screen-sound-key]').count(), 0, 'no [ SOUND ] key on the PC itself');
+      assert.equal(await page.locator('[data-screen-sound-choice]').count(), 0, 'nor [ SOUND ON ] in the panel');
+      assert.equal((await receiver(page)).sound.packets, 0, 'and no sound has arrived');
+      assert.equal((await hostSound()).listeners, 0, 'the PC has no listener');
+      pass('on the PC itself (the browser reached the engine on its own machine) SOUND is not offered, and the panel says why', `the panel: "${(await page.locator('[data-screen-sound-state]').innerText()).trim()}" and "ON THIS PC THE SOUND WOULD FEED BACK INTO ITSELF"; [ SOUND ] keys shown: 0; sound packets received: 0`);
+
+      // TEST ONLY: this browser stands in for a device that is not the PC (a mark only a server opened for the drive honours).
+      await page.evaluate(() => localStorage.setItem('debaser.screens.drive.not-this-pc', '1'));
+      const soundKey = page.locator('[data-screen-sound-key]');
+      await soundKey.waitFor({ timeout: 6000 });
+      assert.equal((await soundKey.innerText()).trim(), '[ SOUND ]', 'the key reads [ SOUND ]');
+      assert.equal(await soundKey.getAttribute('aria-pressed'), 'false', 'and is off');
+      const keyRow = await page.locator('[data-screen-keys] button').evaluateAll((keys) => keys.map((key) => ({ text: key.innerText.trim(), top: Math.round(key.getBoundingClientRect().top), left: key.getBoundingClientRect().left, right: key.getBoundingClientRect().right })));
+      const box = await page.locator('[data-room-screen]').boundingBox();
+      assert.deepEqual(keyRow.map((key) => key.text), ['[ CONTROL ]', '[ SOUND ]', '[ SETTINGS ]'], 'the three keys, in order');
+      assert.ok(keyRow.every((key) => key.top === keyRow[0].top && key.left >= box.x && key.right <= box.x + box.width), `the three keys sit on one line inside the picture's box (${Math.round(box.width)} wide): ${JSON.stringify(keyRow)}`);
+      await shot(page, 'sound');
+      const quiet = await otherPlayers(page);
+      const framesBefore = (await receiver(page)).framesDecoded;
+      await sleep(1200);
+      assert.equal((await receiver(page)).sound.packets, 0, 'offered, but nothing travels until it is asked for');
+      assert.equal((await hostSound()).capturing, false, 'and the PC is not reading its sound');
+
+      await soundKey.click();
+      const flowing = await waitFor(async () => { const r = await receiver(page); return r.sound.packets >= 150 && (r.sound.level > 0 || r.sound.energy > 0) ? r : null; }, 8000);
+      assert.ok(flowing, `sound packets arrive, with a level: ${JSON.stringify((await receiver(page)).sound)}`);
+      assert.equal(flowing.sound.codec, 'audio/opus', 'as Opus');
+      const hostOn = (await waitFor(async () => { const h = await hostSound(); return h.heard ? h : null; }, 3000)) || (await hostSound());
+      assert.deepEqual([hostOn.listeners, hostOn.capturing, hostOn.source, hostOn.heard], [1, true, 'a test tone', 'sound'], 'the PC says one listener, reading, a test tone, sound');
+      assert.equal(await soundKey.getAttribute('aria-pressed'), 'true', 'the key says it is on');
+      const element = await page.evaluate(() => { const audio = document.querySelector('[data-room-screen] audio'); return { paused: audio.paused, volume: audio.volume, tracks: audio.srcObject.getTracks().map((track) => track.kind), videoTracks: document.querySelector('[data-room-screen] video').srcObject.getTracks().map((track) => track.kind) }; });
+      assert.deepEqual([element.paused, element.tracks, element.videoTracks], [false, ['audio'], ['video']], 'it plays in its own element, with the sound and the picture each in a stream of its own');
+      await page.waitForFunction(() => /^ON\./.test(document.querySelector('[data-screen-sound-state]')?.textContent ?? '') && /\nSound /.test(document.querySelector('[data-screen-readout]')?.textContent ?? ''), null, { timeout: 6000 });
+      const soundLine = (await page.locator('[data-screen-readout]').innerText()).split('\n').find((line) => line.startsWith('Sound'));
+      // The volume is this device's own.
+      await page.locator('[data-screen-volume]').focus();
+      for (let presses = 0; presses < 30; presses += 1) await page.keyboard.press('ArrowLeft');
+      const quieter = await page.evaluate(() => ({ volume: document.querySelector('[data-room-screen] audio').volume, kept: JSON.parse(localStorage.getItem('debaser.screens.viewer.v2')) }));
+      assert.ok(Math.abs(quieter.volume - 0.7) < 0.011, `the volume range sets the element's own volume: ${quieter.volume}`);
+      assert.deepEqual([quieter.kept.sound, Math.round(quieter.kept.volume * 100)], [true, 70], 'sound and volume are remembered on the device');
+      const during = await receiver(page);
+      assert.ok(during.framesDecoded > framesBefore && during.state === 'connected', 'the picture goes on decoding');
+      const loud = await otherPlayers(page);
+      assert.deepEqual([loud.players, loud.listens, loud.blank], [quiet.players, quiet.listens, quiet.blank], "nothing else that plays was touched, and the page took no copy of any sound to listen to (the room's sound graph is not fed)");
+      pass(
+        '[ SOUND ] (standing in for a device that is not the PC): Opus packets arrive with a level above nothing, in an element of their own, and nothing else on the page is touched',
+        `the browser's own receiver: ${flowing.sound.packets} sound packets, ${flowing.sound.lost} lost, ${flowing.sound.codec}, level ${flowing.sound.level}, energy ${typeof flowing.sound.energy === 'number' ? flowing.sound.energy.toFixed(4) : flowing.sound.energy}; the PC: listeners ${hostOn.listeners}, reading ${hostOn.capturing}, source "${hostOn.source}", it heard "${hostOn.heard}"; the readout: "${soundLine}"; volume ${quieter.volume}; frames ${framesBefore} -> ${during.framesDecoded}; other players before and after: ${JSON.stringify(loud.players)}, copies of a sound taken ${quiet.listens} -> ${loud.listens}; keys: ${keyRow.map((key) => key.text).join(' ')} on one line`,
+      );
+
+      await page.locator('[data-screen-sound-choice="off"]').click();
+      await sleep(600);
+      const offA = await receiver(page);
+      await sleep(1500);
+      const offB = await receiver(page);
+      const hostOff = (await waitFor(async () => { const h = await hostSound(); return !h.capturing && h.listeners === 0 ? h : null; }, 4000)) || (await hostSound());
+      assert.equal(offB.sound.packets, offA.sound.packets, `no more sound packets arrive: ${offA.sound.packets} then ${offB.sound.packets}`);
+      assert.deepEqual([hostOff.listeners, hostOff.capturing], [0, false], 'the PC has no listener and has stopped reading its sound');
+      assert.ok(offB.framesDecoded > offA.framesDecoded, 'the picture still decodes');
+      assert.equal(await page.evaluate(() => document.querySelector('[data-room-screen] audio').paused), true, 'the element is paused');
+      assert.ok((await page.locator('[data-screen-sound-state]').innerText()).startsWith('OFF.'), 'the panel says OFF');
+      pass('[ SOUND OFF ] stops it: no more packets, the PC stops reading its sound, the picture goes on', `sound packets ${offA.sound.packets} then ${offB.sound.packets} a second and a half later; the PC: listeners ${hostOff.listeners}, reading ${hostOff.capturing}; frames ${offA.framesDecoded} -> ${offB.framesDecoded}`);
+      await settingsKey.click();
+      await page.waitForFunction(() => document.querySelector('[data-screen-panel]') === null, null, { timeout: 5000 });
+    }
 
     // c. CONTROL: the pointer and a letter.
     const controlKey = page.locator('[data-screen-control-key]');
@@ -496,6 +655,146 @@ async function partOpen(browser) {
     assert.equal((await engine.log()).entries.filter((entry) => entry.n > afterMark).length, 0, 'of which the engine hears nothing at all');
     pass('Ctrl+Alt+Shift+Q lets go of control: Q is never sent, what was held is let go, and keys belong to the site again', `the engine was sent: ${chord.join(', ')}; then "ended: ${ended.why}"`);
 
+    // f. CONTROLLER: a made-up one, pressed before control is held (nothing may reach the PC), then while it is.
+    {
+      const padEntries = async (after) => (await engine.log()).entries.filter((entry) => entry.n > after && (entry.what === 'pad' || entry.what === 'controller' || entry.what === 'ended'));
+      const before = (await engine.log()).everLogged;
+      await setController(page, { connected: true, buttons: [0, 3], rightTrigger: 1, axes: [1, 1, 0, 0] });
+      await sleep(700);
+      assert.deepEqual(await padEntries(before), [], 'a controller pressed while this device does not hold control reaches nothing');
+      await setController(page, { connected: true });
+      await controlKey.click();
+      await page.waitForSelector('[data-screen-control-key="mine"]', { timeout: 5000 });
+      const plugged = await waitFor(async () => ((await padEntries(before)).some((entry) => entry.what === 'controller' && entry.event === 'plugged in') ? true : null), 3000);
+      assert.ok(plugged, `control given: the PC plugs its pretend controller in: ${JSON.stringify(await padEntries(before))}`);
+      const pressMark = (await engine.log()).everLogged;
+      await setController(page, { connected: true, buttons: [5, 0], rightTrigger: 0.5, axes: [-1, -1, 0, 0] });
+      const pressed = await waitFor(async () => (await padEntries(pressMark)).filter((entry) => entry.what === 'pad' && entry.buttons !== 0).pop() ?? null, 3000);
+      assert.ok(pressed, 'the state reached the engine');
+      assert.deepEqual([pressed.buttons, pressed.pressed, pressed.leftTrigger, pressed.rightTrigger, pressed.leftX, pressed.leftY, pressed.rightX, pressed.rightY], [4608, 'RB A', 0, 128, -32767, 32767, 0, 0], 'RB and A, the right trigger half way, the left stick hard left and UP');
+      await setController(page, { connected: true, buttons: [12, 9], leftTrigger: 1, axes: [0, 0, 0.5, 1] });
+      const second = await waitFor(async () => (await padEntries(pressMark)).filter((entry) => entry.what === 'pad' && entry.leftTrigger === 255).pop() ?? null, 3000);
+      assert.ok(second, 'a second state reached the engine');
+      assert.deepEqual([second.buttons, second.rightX, second.rightY], [0x0011, 16384, -32767], 'UP and START (bits 0001 and 0010), the right stick half right and hard DOWN');
+      await settingsKey.click();
+      await page.waitForFunction(() => /IT IS DRIVING A PRETEND XBOX 360 CONTROLLER ON THE PC/.test(document.querySelector('[data-screen-pad]')?.textContent ?? ''), null, { timeout: 5000 });
+      const padLine = (await page.locator('[data-screen-pad]').innerText()).replace(/\n/g, ' / ');
+      assert.ok(!(await page.locator('[data-screen-panel]').innerText()).includes('A controller (gamepad) from this device'), 'the controller is no longer listed as not built');
+      await settingsKey.click();
+      await page.waitForFunction(() => document.querySelector('[data-screen-panel]') === null, null, { timeout: 5000 });
+
+      // g. THE PC'S POINTER: this device's pointer over the picture takes the PC's (pretended) shape, at the picture's scale.
+      const cursorNow = () => page.evaluate(() => document.querySelector('[data-screen-stage]').style.cursor);
+      const scale = picture.width / sending.regionWidth;
+      const want = { width: Math.max(1, Math.round(24 * scale)), height: Math.max(1, Math.round(32 * scale)), hotX: 0, hotY: 0 };
+      want.hotX = Math.min(want.width - 1, Math.round(3 * scale));
+      want.hotY = Math.min(want.height - 1, Math.round(5 * scale));
+      const shaped = await waitFor(async () => { const css = await cursorNow(); return css.startsWith('url(') ? css : null; }, 5000);
+      assert.ok(shaped, `while controlling in POINTER mode the picture's pointer is a picture: "${(await cursorNow()).slice(0, 60)}"`);
+      const drawn = await page.evaluate(async (css) => { const address = /url\(["']?(data:image\/png;base64,[^"')]+)/.exec(css)[1]; const image = new Image(); image.src = address; await image.decode(); const hot = /\)\s+(\d+)\s+(\d+)\s*,\s*default$/.exec(css); return { width: image.naturalWidth, height: image.naturalHeight, hotX: Number(hot[1]), hotY: Number(hot[2]) }; }, shaped);
+      assert.deepEqual(drawn, want, `the PC's 24 by 32 pointer at the picture's scale (${scale.toFixed(4)})`);
+      fs.writeFileSync(POINTER_FILE, 'hidden\n');
+      const hidden = await waitFor(async () => ((await cursorNow()) === 'none' ? true : null), 5000);
+      assert.ok(hidden, `the PC hides its pointer: this device's pointer over the picture hides too ("${(await cursorNow()).slice(0, 40)}")`);
+      fs.writeFileSync(POINTER_FILE, 'block\n');
+      assert.ok(await waitFor(async () => ((await cursorNow()).startsWith('url(') ? true : null), 5000), 'and comes back with it');
+
+      // Control ends (the key): the PC sets its pretend controller to nothing pressed and unplugs it; the pointer is left alone again.
+      const endMark = (await engine.log()).everLogged;
+      await controlKey.click();
+      await page.waitForSelector('[data-screen-control-key="free"]', { timeout: 5000 });
+      const ending = await waitFor(async () => { const list = await padEntries(endMark); return list.some((entry) => entry.what === 'ended') ? list : null; }, 4000);
+      assert.ok(ending, 'control ended at the engine');
+      const tail = ending.slice(-3).map((entry) => (entry.what === 'pad' ? `pad buttons ${entry.buttons} triggers ${entry.leftTrigger},${entry.rightTrigger} sticks ${entry.leftX},${entry.leftY},${entry.rightX},${entry.rightY}` : entry.what === 'controller' ? `controller ${entry.event}` : `ended: ${entry.why}`));
+      assert.deepEqual(tail, ['pad buttons 0 triggers 0,0 sticks 0,0,0,0', 'controller unplugged', 'ended: the viewer let go'], 'nothing pressed, then unplugged, then control ends');
+      assert.equal(await cursorNow(), '', "not controlling, the picture's pointer is the site's own again");
+      const afterEnd = (await engine.log()).everLogged;
+      await setController(page, { connected: true, buttons: [1], axes: [1, 0, 0, 0] });
+      await sleep(600);
+      assert.deepEqual(await padEntries(afterEnd), [], 'and a controller pressed after control ended reaches nothing');
+      await setController(page, { connected: false });
+      pass(
+        'CONTROLLER: a made-up controller reaches the engine with the right buttons and sticks only while control is held, and ends neutral and unplugged',
+        `pressed before control: 0 entries; with control: "controller plugged in", then buttons ${pressed.buttons} (${pressed.pressed}), triggers ${pressed.leftTrigger},${pressed.rightTrigger}, left stick ${pressed.leftX},${pressed.leftY}; then buttons ${second.buttons} (${second.pressed}), right stick ${second.rightX},${second.rightY}; the panel: "${padLine}"; on release: ${tail.join(', ')}; pressed after: 0 entries`,
+      );
+      pass(
+        "POINTER SHAPE: while controlling, the picture's pointer is the PC's own shape at the picture's scale, hides when the PC hides its pointer, and is left alone otherwise",
+        `the PC's pretended 24 by 32 pointer (hot spot 3,5) on a picture ${picture.width.toFixed(0)} page pixels wide showing ${sending.regionWidth} of the PC's: drawn ${drawn.width} by ${drawn.height}, hot spot ${drawn.hotX},${drawn.hotY} (wanted ${want.width} by ${want.height}, ${want.hotX},${want.hotY}); hidden on the PC: "cursor: none"; after control: "${await cursorNow()}" (the site's own)`,
+      );
+    }
+
+    // h. Esc typed to the PC closes nothing of the site's that was open before control was taken.
+    {
+      await page.locator('[data-dock-window="stream"] [data-watch-queue-key]').first().click();
+      await page.waitForSelector('#stream-queue-search', { timeout: 30000 });
+      // A listener on the whole window, added before control is taken, as the site's own windows add theirs.
+      await page.evaluate(() => { window.__escEarly = 0; window.addEventListener('keydown', (event) => { if (event.key === 'Escape') window.__escEarly += 1; }, true); });
+      // The queue's window covers the page, so control is taken without a press of the mouse (which would close it).
+      await page.evaluate(() => document.querySelector('[data-screen-control-key]').click());
+      await page.waitForSelector('[data-screen-control-key="mine"]', { timeout: 5000 });
+      await sleep(300);
+      const escMark = (await engine.log()).everLogged;
+      await page.keyboard.press('Escape');
+      const esc = await waitFor(async () => { const list = (await engine.log()).entries.filter((entry) => entry.n > escMark && entry.what === 'key'); return list.length >= 2 ? list : null; }, 3000);
+      assert.ok(esc, 'the engine heard Esc');
+      assert.deepEqual(esc.map((entry) => `${entry.code} ${entry.scan} ${entry.down ? 'down' : 'up'}`), ['Escape 1 down', 'Escape 1 up'], 'Esc arrives as scan code 1, down then up');
+      await sleep(400);
+      assert.equal(await page.locator('#stream-queue-search').count(), 1, "the room's queue window is still open");
+      assert.equal(await page.evaluate(() => window.__escEarly), 0, 'and a listener on the whole window, added before control, heard nothing');
+      // Let go (the chord works from anywhere): now Esc is the site's again, and closes the queue.
+      for (const code of ['ControlLeft', 'AltLeft', 'ShiftLeft', 'KeyQ']) await page.keyboard.down(code);
+      for (const code of ['KeyQ', 'ShiftLeft', 'AltLeft', 'ControlLeft']) await page.keyboard.up(code);
+      await page.waitForSelector('[data-screen-control-key="free"]', { timeout: 5000 });
+      const afterMark = (await engine.log()).everLogged;
+      await page.keyboard.press('Escape');
+      await page.waitForFunction(() => document.querySelector('#stream-queue-search') === null, null, { timeout: 5000 });
+      assert.equal(await page.evaluate(() => window.__escEarly), 1, 'the same listener hears Esc once control is let go');
+      assert.equal((await engine.log()).entries.filter((entry) => entry.n > afterMark && entry.what === 'key').length, 0, 'and the engine does not');
+      pass("Esc typed to the PC reaches the engine and closes nothing of the site's opened before control; let go, Esc closes the room's queue window again", `the engine would press: ${esc.map((entry) => `${entry.code} scan ${entry.scan} ${entry.down ? 'down' : 'up'}`).join(', ')}; the queue window stayed open; a whole-window Esc listener added before control heard 0, then 1 after control was let go`);
+    }
+
+    // i. The easier way out (Luke, 2026-11-21): the bar under the keys while controlling, its [ RELEASE ],
+    //    and holding Esc for a second. A quick Esc stays the PC's (part h).
+    {
+      await controlKey.click({ timeout: 5000 });
+      await page.waitForSelector('[data-screen-control-key="mine"]', { timeout: 5000 });
+      const bar = page.locator('[data-screen-control-bar]');
+      assert.equal(await bar.count(), 1, 'a bar under the keys while controlling');
+      const barSays = (await page.locator('[data-screen-control-bar-says]').innerText()).trim();
+      assert.ok(barSays.includes('HOLD ESC TO LET GO'), `the bar says how to let go: "${barSays}"`);
+      // Its own [ RELEASE ]. If something of the room's lies over it, say what, rather than time out.
+      const onTop = await page.evaluate(() => {
+        const key = document.querySelector('[data-screen-control-bar-release]');
+        const box = key.getBoundingClientRect();
+        const top = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+        return { box: [Math.round(box.left), Math.round(box.top), Math.round(box.width), Math.round(box.height)], mine: top === key || key.contains(top), top: top ? `${top.tagName.toLowerCase()}${top.id ? '#' + top.id : ''}.${String(top.className).slice(0, 80)}` : 'nothing' };
+      });
+      assert.ok(onTop.mine, `the bar's [ RELEASE ] can be pressed: at ${onTop.box.join(',')} the top thing is ${onTop.top}`);
+      await page.locator('[data-screen-control-bar-release]').click({ timeout: 5000 });
+      await page.waitForSelector('[data-screen-control-key="free"]', { timeout: 5000 });
+      assert.equal(await bar.count(), 0, 'and it goes when control is let go');
+      // Holding Esc.
+      await controlKey.click();
+      await page.waitForSelector('[data-screen-control-key="mine"]', { timeout: 5000 });
+      await page.locator('[data-room-screen] video, [data-room-screen] canvas').first().click({ position: { x: 5, y: 5 }, force: true }).catch(() => {});
+      await sleep(300);
+      const holdMark = (await engine.log()).everLogged;
+      await page.keyboard.down('Escape');
+      await sleep(300);
+      const holding = (await page.locator('[data-screen-control-bar-says]').innerText().catch(() => '')).trim();
+      await sleep(1100);
+      const stillMine = await controlKey.getAttribute('data-screen-control-key');
+      await page.keyboard.up('Escape');
+      await page.waitForSelector('[data-screen-control-key="free"]', { timeout: 3000 });
+      const heard = (await engine.log()).entries.filter((entry) => entry.n > holdMark && entry.what === 'key').map((entry) => `${entry.code} ${entry.down ? 'down' : 'up'}`);
+      const ended = (await engine.log()).entries.find((entry) => entry.n > holdMark && entry.what === 'ended');
+      assert.equal(holding, 'KEEP HOLDING ESC TO LET GO', `while Esc is held the bar says so: "${holding}"`);
+      assert.equal(stillMine, 'free', 'held for a second, control was let go before Esc came up');
+      assert.ok(ended, 'the engine heard control end');
+      assert.ok(heard.filter((line) => line === 'Escape down').length <= 1, `the PC saw at most one Esc press, not its repeats: ${heard.join(', ')}`);
+      pass('the way out is in sight: a bar under the keys with [ RELEASE ], and holding Esc for a second lets go', `the bar said "${barSays}"; its [ RELEASE ] let go; with Esc held it said "${holding}", and control was let go (engine: "ended: ${ended.why ?? ended.reason ?? 'yes'}"); the PC saw ${heard.join(', ') || 'no key'}`);
+    }
+
     // d. Back to the room's ordinary picture, while holding control.
     await controlKey.click();
     await page.waitForSelector('[data-screen-control-key="mine"]', { timeout: 5000 });
@@ -532,12 +831,22 @@ async function main() {
     console.log('NOT RUN. A League match is running on this PC: nothing is built, started or sent while it is.');
     return 3;
   }
+  if (ENGINE_PORT === LIVE_ENGINE_PORT || PORT === LIVE_ENGINE_PORT) {
+    console.log(`NOT RUN. Port ${LIVE_ENGINE_PORT} belongs to the engine that is live on this PC. This drive never uses it: leave --engine-port out, or give another.`);
+    return 1;
+  }
+  for (const port of [ENGINE_PORT, PORT]) {
+    if (await answering(port)) {
+      console.log(`NOT RUN. Something is already answering on port ${port}, and it is not anything this drive started. Nothing was started. Stop that program, or give another port.`);
+      return 1;
+    }
+  }
   if (!fs.existsSync(ENGINE)) {
     console.log(`FAIL. The engine is not built: ${ENGINE} is missing.`);
     return 1;
   }
   console.log(`DRIVE-SCREENS: the site on ${BASE} (mock data), the engine on ${ENGINE_AT} (dry run), a hidden browser. Nothing leaves this PC.`);
-  const browser = await chromium.launch({ executablePath: findChrome(), headless: true, args: ['--autoplay-policy=no-user-gesture-required', '--no-first-run', '--mute-audio', '--disable-audio-output'] });
+  const browser = await chromium.launch({ executablePath: findChrome(), headless: true, args: ['--autoplay-policy=no-user-gesture-required', '--no-first-run', '--mute-audio'] });
   let failure = null;
   try {
     if (ONLY !== 'open') await partClosed(browser);
@@ -548,6 +857,7 @@ async function main() {
   } finally {
     await browser.close().catch(() => undefined);
     started.forEach(stopTree);
+    fs.rmSync(POINTER_FILE, { force: true });
   }
   console.log('\nDRIVE-SCREENS RESULT');
   for (const result of results) console.log(`  PASS  ${result.what}`);

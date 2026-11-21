@@ -39,9 +39,32 @@ async function wordsOf(response: Response, fallback: string): Promise<string> {
 
 /* --- is the PC's screen there? ------------------------------------------------------------------- */
 
-export type ScreenHost = { available: boolean; settings: HostSettings | null };
+export type ScreenHost = {
+  available: boolean;
+  settings: HostSettings | null;
+  /** TEST ONLY: the site's server was opened for the local drive (never a production one). See `pretendNotThisPc`. */
+  drive: boolean;
+};
 
-const NOT_THERE: ScreenHost = { available: false, settings: null };
+const NOT_THERE: ScreenHost = { available: false, settings: null, drive: false };
+
+/** Where the local drive leaves its mark (`scripts/drive-screens.cjs`). */
+const DRIVE_NOT_THIS_PC = 'debaser.screens.drive.not-this-pc';
+
+/**
+ * TEST ONLY. The drive's browser runs on the PC, so it always reaches the engine on its own machine and is always
+ * "the PC itself", where SOUND is never offered. To prove SOUND, the drive marks its own browser, and that mark is
+ * honoured only when the site's server says it was opened for the drive (`drive: true`), which a production server
+ * cannot say (`devOpen` in host-server.ts is compiled out of a production build).
+ */
+export function pretendNotThisPc(): boolean {
+  if (!host.drive) return false;
+  try {
+    return window.localStorage.getItem(DRIVE_NOT_THIS_PC) === '1';
+  } catch {
+    return false;
+  }
+}
 /** A room opening asks again, but never more often than this. */
 const ASK_AGAIN_AFTER_MS = 10_000;
 
@@ -68,7 +91,7 @@ async function readHost(): Promise<ScreenHost> {
     if (!response.ok) return NOT_THERE;
     const body: unknown = await response.json();
     if (typeof body !== 'object' || body === null || (body as { available?: unknown }).available !== true) return NOT_THERE;
-    return { available: true, settings: hostSettingsFrom((body as { settings?: unknown }).settings) };
+    return { available: true, settings: hostSettingsFrom((body as { settings?: unknown }).settings), drive: (body as { drive?: unknown }).drive === true };
   } catch {
     return NOT_THERE;
   }

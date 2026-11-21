@@ -209,25 +209,27 @@ async function main() {
     };
     let reconnects = 0;
 
-    // (a) Left alone, the page asks the PC to match its screen once the picture is flowing.
+    // (a) Left alone, the page shows the PC's WHOLE screen, nothing cut off (Luke, 2026-11-21: "have it render normally to
+    // start with, not cropped either"): it asks for the shape NATIVE; MATCH THIS SCREEN is a choice, off at first.
     {
       const began = Date.now();
       let seen = null;
       while (Date.now() - began < SETTLE_MS + 4000) {
         seen = await waitForPicture(page, 500);
-        if (seen.settled && seen.host.asked.shape === 'match') break;
+        if (seen.settled && seen.host.asked.shape === 'native') break;
       }
       const host = seen && seen.host;
       result.screen = host ? host.screen : null;
       result.hostLimits = host ? host.hostLimits : null;
       result.realMatchRunning = Boolean(host && host.cap);
-      if (!seen || !seen.settled || !host || host.asked.shape !== 'match') {
-        part('a', 'FAIL', 'MATCH THIS SCREEN applies itself when the page opens', `after ${((Date.now() - began) / 1000).toFixed(1)} s the PC was asked for "${host ? host.asked.shape : 'nothing'}" and the browser was decoding ${seen && seen.stats ? `${seen.stats.frameWidth}x${seen.stats.frameHeight}` : 'nothing'}${viewer.errors.length ? `; page errors: ${viewer.errors.join(' | ')}` : ''}`);
-        throw new Error('The stream never settled on the matched picture, so the rest could not be tried.');
+      if (!seen || !seen.settled || !host || host.asked.shape !== 'native') {
+        part('a', 'FAIL', 'the page starts with the PC\'s whole screen, nothing cut off', `after ${((Date.now() - began) / 1000).toFixed(1)} s the PC was asked for "${host ? host.asked.shape : 'nothing'}" and the browser was decoding ${seen && seen.stats ? `${seen.stats.frameWidth}x${seen.stats.frameHeight}` : 'nothing'}${viewer.errors.length ? `; page errors: ${viewer.errors.join(' | ')}` : ''}`);
+        throw new Error('The stream never settled on the whole picture, so the rest could not be tried.');
       }
       const s = seen.stats;
-      const good = host.asked.viewWidth === VIEW.width && host.asked.viewHeight === VIEW.height && sameShape(s.frameWidth, s.frameHeight, VIEW.width, VIEW.height) && s.frameHeight <= VIEW.height;
-      part('a', good ? 'PASS' : 'FAIL', 'MATCH THIS SCREEN applies itself when the page opens', `the page reported a ${host.asked.viewWidth}x${host.asked.viewHeight} screen; the browser decoded ${s.frameWidth}x${s.frameHeight} (the PC took the middle ${host.sending.regionWidth}x${host.sending.regionHeight} of its ${host.screen.width}x${host.screen.height} screen)`);
+      const whole = host.sending.x === 0 && host.sending.y === 0 && host.sending.regionWidth === host.screen.width && host.sending.regionHeight === host.screen.height;
+      const good = whole && sameShape(s.frameWidth, s.frameHeight, host.screen.width, host.screen.height);
+      part('a', good ? 'PASS' : 'FAIL', 'the page starts with the PC\'s whole screen, nothing cut off', `the PC sends its whole ${host.screen.width}x${host.screen.height} screen (from ${host.sending.x},${host.sending.y}, ${host.sending.regionWidth}x${host.sending.regionHeight}); the browser decoded ${s.frameWidth}x${s.frameHeight}`);
       if (!(await stillConnected('a'))) reconnects += 1;
     }
     const screen = result.screen;
@@ -404,7 +406,7 @@ async function main() {
       const full = await page.evaluate(() => Boolean(document.fullscreenElement));
       if (full) { notes.push('yes: [ FULLSCREEN ] took the page fullscreen'); await page.click('#fullscreen'); await sleep(200); } else notes.push('COULD NOT TELL: [ FULLSCREEN ] did nothing in this headless browser (a headless browser has no screen to fill)');
 
-      const kept = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('debaser-engine-viewer')); } catch (error) { return null; } });
+      const kept = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('debaser-engine-viewer-v2')); } catch (error) { return null; } });
       check(Boolean(kept) && kept.match === false && kept.shape === '16:9' && kept.lines === 1080 && kept.drawing === 'fast' && kept.upscaling === 'smooth', `the choices are remembered on this device (${JSON.stringify(kept)})`);
       await page.keyboard.press('Escape');
       check(!(await page.isVisible('#panel')), 'Esc closes the panel');

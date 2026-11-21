@@ -1,4 +1,5 @@
 import { sendOffer } from './host-client';
+import { isLoopbackAddress } from './wire';
 
 /**
  * SCREENS: the stream itself, ported from the engine's own viewer page (`engine/web/viewer.html`, its CONNECT part).
@@ -8,8 +9,12 @@ import { sendOffer } from './host-client';
  */
 
 export type ConnectionHooks = {
-  /** The stream's video has arrived. */
+  /** The stream's video has arrived, in a stream of its own. */
   onTrack: (track: MediaStreamTrack, stream: MediaStream) => void;
+  /** The stream's sound line has arrived, in a stream of its own (silent until this device asks for sound). */
+  onSound: (track: MediaStreamTrack, stream: MediaStream) => void;
+  /** The `keys` channel is open: the PC can be told things now. */
+  onKeysOpen: () => void;
   /** The picture is on its way: the moment to tell the PC what this device wants of it. */
   onConnected: () => void;
   /** The connection failed or the engine stopped sending, said in plain words; '' when it is flowing (again). */
@@ -36,6 +41,13 @@ export type StreamStats = {
   decodeMsPerFrame: number | null;
   decoderImplementation: string | null;
   mimeType: string | null;
+  /** The browser's own numbers for the sound it has received. */
+  sound: { packetsReceived: number; packetsLost: number; jitterBufferDelayMsPerSample: number | null; mimeType: string | null };
+  /**
+   * Whether the engine was reached on this very machine (the connection's far end is 127.0.0.1 or ::1): then this
+   * device IS the PC. Null until the connection has chosen its path.
+   */
+  reachedOnThisMachine: boolean | null;
 };
 
 const perFrameMs = (total: unknown, count: unknown): number | null => (typeof total === 'number' && typeof count === 'number' && count > 0 ? (total / count) * 1000 : null);
@@ -60,6 +72,8 @@ export class ScreenConnection {
     const connection = new RTCPeerConnection({ iceServers: [] });
     this.connection = connection;
     const transceiver = connection.addTransceiver('video', { direction: 'recvonly' });
+    // SOUND has a line of its own in the same hello. Nothing travels on it until this device asks.
+    connection.addTransceiver('audio', { direction: 'recvonly' });
 
     // CONTROL's two channels are part of the offer. Keys, buttons and the wheel must all arrive, in order.
     // Pointer movement must be NEW: a position that was lost is not sent again, the next one replaces it.
@@ -72,6 +86,9 @@ export class ScreenConnection {
     };
     keys.onclose = () => {
       if (!this.stopped) this.hooks.onKeysClosed();
+    };
+    keys.onopen = () => {
+      if (!this.stopped) this.hooks.onKeysOpen();
     };
 
     // Ask for H.264 first, since that is what the engine's video chip makes.
@@ -97,7 +114,10 @@ export class ScreenConnection {
       } catch {
         /* not in this browser */
       }
-      this.hooks.onTrack(event.track, event.streams[0] ?? new MediaStream([event.track]));
+      // The sound and the picture are kept apart on purpose, each in a stream of its own: a browser that knew the
+      // two belonged together would hold the picture back to keep it in step with the sound's queue.
+      if (event.track.kind === 'audio') this.hooks.onSound(event.track, new MediaStream([event.track]));
+      else this.hooks.onTrack(event.track, new MediaStream([event.track]));
     };
     connection.onconnectionstatechange = () => {
       if (this.stopped) return;
@@ -198,15 +218,43 @@ export class ScreenConnection {
       decodeMsPerFrame: null,
       decoderImplementation: null,
       mimeType: null,
+      sound: { packetsReceived: 0, packetsLost: 0, jitterBufferDelayMsPerSample: null, mimeType: null },
+      reachedOnThisMachine: null,
     };
     if (connection === null) return result;
     const report = await connection.getStats();
     const inbound: Record<string, unknown>[] = [];
+    const heard: Record<string, unknown>[] = [];
     const codecs = new Map<string, Record<string, unknown>>();
+    const byId = new Map<string, Record<string, unknown>>();
     report.forEach((entry: Record<string, unknown>) => {
+      if (typeof entry.id === 'string') byId.set(entry.id, entry);
       if (entry.type === 'inbound-rtp' && entry.kind === 'video') inbound.push(entry);
+      if (entry.type === 'inbound-rtp' && entry.kind === 'audio') heard.push(entry);
       if (entry.type === 'codec' && typeof entry.id === 'string') codecs.set(entry.id, entry);
     });
+    // The path the connection chose: the transport names its pair, the pair its far end, the far end its address.
+    let pair: Record<string, unknown> | undefined;
+    for (const entry of byId.values()) {
+      if (entry.type === 'transport' && typeof entry.selectedCandidatePairId === 'string') pair = byId.get(entry.selectedCandidatePairId);
+    }
+    if (pair === undefined) {
+      for (const entry of byId.values()) if (entry.type === 'candidate-pair' && entry.nominated === true && entry.state === 'succeeded') pair = entry;
+    }
+    const far = pair !== undefined && typeof pair.remoteCandidateId === 'string' ? byId.get(pair.remoteCandidateId) : undefined;
+    const address = far === undefined ? null : (textOf(far.address) ?? textOf(far.ip));
+    if (address !== null && address !== '') result.reachedOnThisMachine = isLoopbackAddress(address);
+    if (heard.length > 0) {
+      const sound = heard[heard.length - 1];
+      const soundCodec = typeof sound.codecId === 'string' ? codecs.get(sound.codecId) : undefined;
+      result.sound = {
+        packetsReceived: numberOf(sound.packetsReceived) ?? 0,
+        packetsLost: numberOf(sound.packetsLost) ?? 0,
+        // How long, on average, a sample of sound waits in this browser before it is played.
+        jitterBufferDelayMsPerSample: perFrameMs(sound.jitterBufferDelay, sound.jitterBufferEmittedCount),
+        mimeType: soundCodec === undefined ? null : textOf(soundCodec.mimeType),
+      };
+    }
     if (inbound.length === 0) return result;
     const seen = inbound[inbound.length - 1];
     result.framesDecoded = numberOf(seen.framesDecoded) ?? 0;

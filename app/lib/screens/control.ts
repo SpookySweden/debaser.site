@@ -4,7 +4,7 @@ import {
   buttonMessage,
   isLetGoChord,
   keyMessage,
-  pcSaid,
+  pcMessage,
   placeOnPicture,
   pointerAtMessage,
   pointerByMessage,
@@ -16,7 +16,10 @@ import {
   wholeMove,
   type PictureBox,
 } from './wire';
-import type { Mouse } from './wishes';
+import { leaveKeys, takeKeys, type KeyTaker } from './key-gate';
+import { ScreenPad } from './pad';
+import type { Mouse, PadSeen } from './wishes';
+import type { PointerShape } from './wire';
 
 /**
  * SCREENS' CONTROL (SPEC-screens.md, phase 2): this device's mouse, keys and wheel driving the PC, ported from the
@@ -43,12 +46,21 @@ export type ControlLinks = {
   onChange: () => void;
   /** Control ended or was refused: the PC's settings are worth reading again. */
   onStanding: () => void;
+  /** Control began or ended, or the kind of mouse changed: the picture's pointer is to be set again. */
+  onPointing: () => void;
+  /** What else the PC says on the keys channel: its pointer showing or hidden, a new pointer shape, its word on sound. */
+  onPointerShown: (shown: boolean) => void;
+  onPointerShape: (shape: PointerShape) => void;
+  onSoundSays: (what: number) => void;
 };
 
 /** `navigator.keyboard` (Chrome and Edge), which hands a fullscreen page the system keys. Not in TypeScript's list. */
 type KeyboardLock = { lock?: (keys?: string[]) => Promise<void>; unlock?: () => void };
 const keyboardLock = (): KeyboardLock | undefined => (navigator as Navigator & { keyboard?: KeyboardLock }).keyboard;
 export const canLockKeyboard = (): boolean => typeof keyboardLock()?.lock === 'function';
+
+/** How long Esc is held on this device to let go of control. */
+export const LET_GO_HOLD_MS = 1000;
 
 /** The kinds of press the browser would answer itself (menus, back, forward, the room's own double press): held off while controlling. */
 const HELD_OFF = ['contextmenu', 'auxclick', 'mouseup', 'mousedown', 'click', 'dblclick'] as const;
@@ -60,8 +72,11 @@ export class ScreenControl {
   note = '';
   pointerLocked = false;
   keyboardLocked = false;
+  /** Esc is being held down on this device: held for LET_GO_HOLD_MS, control is let go (the room shows a line while it is). */
+  escHolding = false;
   /** Input messages sent in the last whole second. */
   sentRate = 0;
+  private escTimer = 0;
 
   private readonly heldKeys = new Set<string>();
   private readonly heldButtons = new Set<number>();
@@ -77,7 +92,27 @@ export class ScreenControl {
   private attached = false;
   private readonly moveEvent: string = 'onpointerrawupdate' in window ? 'pointerrawupdate' : 'pointermove';
 
-  constructor(private readonly links: ControlLinks) {}
+  /** This device's game controller, driving a pretend one on the PC while control is held. */
+  private readonly pad: ScreenPad;
+
+  constructor(private readonly links: ControlLinks) {
+    this.pad = new ScreenPad({
+      sendKeys: (bytes) => this.sendKeys(bytes),
+      sendPointer: (bytes) => {
+        const went = links.sendPointer(bytes);
+        if (went) this.sent += 1;
+        return went;
+      },
+      mine: () => this.mine,
+      onChange: links.onChange,
+      onStanding: links.onStanding,
+    });
+  }
+
+  /** What this device knows of its game controller, for the panel. */
+  padSeen(): PadSeen {
+    return this.pad.seen();
+  }
 
   /* --- listening ------------------------------------------------------------------------------- */
 
@@ -92,8 +127,10 @@ export class ScreenControl {
     stage.addEventListener('wheel', this.onWheel, { passive: false });
     for (const kind of HELD_OFF) stage.addEventListener(kind, this.holdOff);
     stage.addEventListener('blur', this.allUp);
-    window.addEventListener('keydown', this.onKeyDown, true);
-    window.addEventListener('keyup', this.onKeyUp, true);
+    // The keyboard's first listener (key-gate.ts), so that a key typed to the PC is stopped before any window of the
+    // site hears it, whenever that window was opened.
+    takeKeys(this.onKey);
+    this.pad.attach();
     window.addEventListener('blur', this.allUp);
     window.addEventListener('pagehide', this.onPageHide);
     document.addEventListener('visibilitychange', this.onVisibility);
@@ -117,8 +154,8 @@ export class ScreenControl {
     stage.removeEventListener('wheel', this.onWheel);
     for (const kind of HELD_OFF) stage.removeEventListener(kind, this.holdOff);
     stage.removeEventListener('blur', this.allUp);
-    window.removeEventListener('keydown', this.onKeyDown, true);
-    window.removeEventListener('keyup', this.onKeyUp, true);
+    leaveKeys(this.onKey);
+    this.pad.detach();
     window.removeEventListener('blur', this.allUp);
     window.removeEventListener('pagehide', this.onPageHide);
     document.removeEventListener('visibilitychange', this.onVisibility);
@@ -255,10 +292,7 @@ export class ScreenControl {
     event.stopPropagation();
   };
 
-  private readonly onKeyDown = (event: KeyboardEvent) => this.onKey(event, true);
-  private readonly onKeyUp = (event: KeyboardEvent) => this.onKey(event, false);
-
-  private onKey(event: KeyboardEvent, down: boolean): void {
+  private readonly onKey: KeyTaker = (event, down) => {
     if (!this.mine) return;
     // The way out on this device: Ctrl+Alt+Shift+Q, from anywhere on the page. It is never sent to the PC.
     if (isLetGoChord(event)) {
@@ -273,10 +307,39 @@ export class ScreenControl {
     event.preventDefault();
     event.stopImmediatePropagation();
     if (!event.code) return;
+    // The easy way out (Luke, 2026-11-21: "we need an easier way of ending control"): hold Esc for a second. A quick
+    // press is still an ordinary Esc for the PC; while it is held, its repeats are not sent, so the PC sees one press.
+    if (event.code === 'Escape') {
+      if (down && event.repeat) return;
+      if (down) this.startEscHold();
+      else this.stopEscHold();
+    }
     if (down) this.heldKeys.add(event.code);
     // A key let go that was pressed before the picture had the keyboard (the Enter that pressed [ CONTROL ]) is not the PC's.
     else if (!this.heldKeys.delete(event.code)) return;
     this.sendKeys(keyMessage(down, event.code));
+  };
+
+  private startEscHold(): void {
+    this.stopEscHold();
+    this.escHolding = true;
+    this.links.onChange();
+    this.escTimer = window.setTimeout(() => {
+      this.escTimer = 0;
+      this.escHolding = false;
+      // The Esc going down already reached the PC; release() lets go of it there with everything else.
+      if (this.mine) this.release();
+      else this.links.onChange();
+    }, LET_GO_HOLD_MS);
+  }
+
+  private stopEscHold(): void {
+    if (this.escTimer) window.clearTimeout(this.escTimer);
+    this.escTimer = 0;
+    if (this.escHolding) {
+      this.escHolding = false;
+      this.links.onChange();
+    }
   }
 
   /**
@@ -284,10 +347,13 @@ export class ScreenControl {
    * lost the keyboard: the "up" events would never arrive here, so the PC is told at once).
    */
   readonly allUp = () => {
+    this.stopEscHold();
     if (!this.mine) return;
     if (this.heldKeys.size > 0 || this.heldButtons.size > 0) this.sendKeys(allUpMessage());
     this.heldKeys.clear();
     this.heldButtons.clear();
+    // The controller too: a browser may stop reading it while the tab is away, so the PC's is set to "nothing pressed".
+    this.pad.letGo();
   };
 
   private readonly onVisibility = () => {
@@ -364,6 +430,7 @@ export class ScreenControl {
     this.allUp();
     if (this.mine && this.links.mouse() === 'game') this.lockPointer();
     if (this.links.mouse() !== 'game') this.exitPointerLock();
+    this.links.onPointing();
     this.links.onChange();
   }
 
@@ -382,6 +449,8 @@ export class ScreenControl {
     this.links.stage.focus({ preventScroll: true });
     if (this.links.mouse() === 'game') this.lockPointer();
     this.lockKeyboard();
+    this.pad.begin();
+    this.links.onPointing();
     this.links.onChange();
   }
 
@@ -396,6 +465,9 @@ export class ScreenControl {
     this.stillHereTimer = 0;
     this.exitPointerLock();
     this.lockKeyboard();
+    // (The PC has already unplugged its pretend controller: it does that however control ends.)
+    this.pad.end();
+    this.links.onPointing();
     if (!tell) return;
     this.links.onChange();
     this.links.onStanding();
@@ -421,10 +493,15 @@ export class ScreenControl {
     if (this.mine) this.over('CONTROL ENDED: THE CONNECTION CLOSED');
   }
 
-  /** What the PC says about control. */
+  /** What the PC says on the keys channel: about control, and four other things passed on to whoever they are for. */
   heard(bytes: Uint8Array): void {
-    const said = pcSaid(bytes);
-    if (said === null) return;
+    const message = pcMessage(bytes);
+    if (message === null) return;
+    if (message.kind === 'pointerShown') return this.links.onPointerShown(message.shown);
+    if (message.kind === 'pointerShape') return this.links.onPointerShape(message.shape);
+    if (message.kind === 'sound') return this.links.onSoundSays(message.what);
+    if (message.kind === 'pad') return this.pad.heard(message.what);
+    const said = message.said;
     if (said.kind === 'yours') this.began();
     else if (said.kind === 'released') {
       if (this.mine) this.over('');

@@ -11,6 +11,8 @@ export type ReportTarget = {
   name: string;
   /** The line it was opened from, which the report carries (the database copies it itself). */
   context?: { kind: ReportContextKind; id: string; text: string; private?: boolean };
+  /** Opened from the red `[ ! ]` on their profile: the window is REPORT / BLOCK, with BLOCK (or UNBLOCK) under the form. */
+  block?: boolean;
 };
 
 export type ReportWindowState = { target: ReportTarget | null };

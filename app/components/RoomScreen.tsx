@@ -10,6 +10,7 @@ import {
   MICE,
   RATES,
   SHAPES,
+  SOUND_ON_THIS_PC,
   UPSCALINGS,
   askedNow,
   bitrateMaxMbit,
@@ -20,9 +21,12 @@ import {
   linesOffered,
   matchSays,
   megabits,
+  padSays,
   rateOffered,
   rateSays,
   reallySending,
+  soundOffered,
+  soundStateSays,
   troubleLines,
 } from '../lib/screens/wishes';
 import { PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED } from '../lib/ui/controls';
@@ -48,6 +52,7 @@ export default function RoomScreen({ roomId, audio }: { roomId: string; /** As t
   const video = useRef<HTMLVideoElement>(null);
   const fastCanvas = useRef<HTMLCanvasElement>(null);
   const sharpCanvas = useRef<HTMLCanvasElement>(null);
+  const sound = useRef<HTMLAudioElement>(null);
   const [session] = useState(() => new ScreenSession());
   const view = useSyncExternalStore(session.subscribe, session.getState, session.getState);
   const [panelOpen, setPanelOpen] = useState(false);
@@ -55,10 +60,11 @@ export default function RoomScreen({ roomId, audio }: { roomId: string; /** As t
   const [sliding, setSliding] = useState<number | null>(null);
   const panelId = useId();
   const bitrateId = useId();
+  const volumeId = useId();
 
   useEffect(() => {
-    if (root.current === null || stage.current === null || video.current === null || fastCanvas.current === null || sharpCanvas.current === null) return;
-    session.attach({ root: root.current, stage: stage.current, video: video.current, fastCanvas: fastCanvas.current, sharpCanvas: sharpCanvas.current });
+    if (root.current === null || stage.current === null || video.current === null || fastCanvas.current === null || sharpCanvas.current === null || sound.current === null) return;
+    session.attach({ root: root.current, stage: stage.current, video: video.current, audio: sound.current, fastCanvas: fastCanvas.current, sharpCanvas: sharpCanvas.current });
     return () => session.detach();
   }, [session]);
 
@@ -85,6 +91,8 @@ export default function RoomScreen({ roomId, audio }: { roomId: string; /** As t
   const controlSays = controlKeySays(view.host, control.mine, control.note);
   const cap = capSays(view.host);
   const trouble = troubleLines(view.host, view.hostTrouble);
+  const soundKey = soundOffered(view.host, view.thisPc);
+  const volume = Math.round(wishes.volume * 100);
   const mbit = sliding ?? Math.round(asked.bitrateKbps / 1000);
   const letGoOfSlider = () => {
     if (sliding === null) return;
@@ -113,6 +121,8 @@ export default function RoomScreen({ roomId, audio }: { roomId: string; /** As t
         <canvas ref={fastCanvas} hidden className="absolute left-0 top-0 h-full w-full bg-ink-plate object-contain" />
         <canvas ref={sharpCanvas} hidden className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-ink-plate" />
       </div>
+      {/* The PC's sound has an element of its own: never the room's players, the music bar or the sound graph. Silent until [ SOUND ]. */}
+      <audio ref={sound} data-screen-sound={view.sound.on ? 'on' : 'off'} />
 
       {wishes.numbers ? (
         // At the foot, clear of the keys in the top corner, and wrapping: a room's picture is often a narrow box.
@@ -121,33 +131,54 @@ export default function RoomScreen({ roomId, audio }: { roomId: string; /** As t
         </pre>
       ) : null}
 
-      {/* Under the room's own corner keys (VIS, CANVAS, SCREEN). They stay where they are whether the panel is open or not; it opens under them. */}
-      <div className="absolute right-1 top-8 z-30 flex flex-wrap items-center justify-end gap-1 max-sm:top-14" data-screen-keys>
-        {view.problem ? (
+      {/* Under the room's own corner keys (VIS, CANVAS, REMOTE). They stay where they are whether the panel is open or not; it opens under them. */}
+      <div className="absolute right-1 top-8 z-30 flex flex-col items-end gap-1 max-sm:top-14" data-screen-keys>
+        <div className="flex items-center gap-1">
+          {view.problem ? (
+            <span className="bg-ink-plate">
+              <button type="button" className={PLATE_ON_BLACK} onClick={() => session.tryAgain()} data-screen-try-again>
+                [ TRY AGAIN ]
+              </button>
+            </span>
+          ) : null}
+          {controlAllowed ? (
+            <span className="bg-ink-plate">
+              <button type="button" className={key(control.mine)} aria-pressed={control.mine} onClick={() => session.toggleControl()} data-screen-control-key={control.mine ? 'mine' : 'free'}>
+                {control.mine ? '[ RELEASE ]' : '[ CONTROL ]'}
+              </button>
+            </span>
+          ) : null}
+          {/* Only when the PC sends sound, and never on the PC itself. */}
+          {soundKey ? (
+            <span className="bg-ink-plate">
+              <button type="button" className={key(view.sound.on)} aria-pressed={view.sound.on} onClick={() => session.toggleSound()} data-screen-sound-key={view.sound.on ? 'on' : 'off'}>
+                [ SOUND ]
+              </button>
+            </span>
+          ) : null}
           <span className="bg-ink-plate">
-            <button type="button" className={PLATE_ON_BLACK} onClick={() => session.tryAgain()} data-screen-try-again>
-              [ TRY AGAIN ]
+            {/* Open, it is pressed in by the site's one "this is open" look, in this Black surface's own inks (globals.css). */}
+            <button type="button" className={PLATE_ON_BLACK} aria-expanded={panelOpen} aria-controls={panelId} onClick={() => openPanel(!panelOpen)} data-screen-settings-key>
+              [ SETTINGS ]
             </button>
           </span>
+        </div>
+        {/* While this device controls the PC, the way out is always in sight (Luke, 2026-11-21: "we need an easier way of
+            ending control"): this bar with its own [ RELEASE ], and holding Esc for a second lets go too. It sits here,
+            under the keys, because the top left of a narrow room picture belongs to the room's own corner keys. */}
+        {control.mine ? (
+          <div className="flex max-w-full flex-wrap items-center justify-end gap-1 bg-ink-plate px-1 font-mono text-label text-ink-bar" role="status" data-screen-control-bar>
+            <span data-screen-control-bar-says>{controlBarSays(control.escHolding, wishes.mouse, control.pointerLocked)}</span>
+            <button type="button" className={PLATE_ON_BLACK} onClick={() => session.toggleControl()} data-screen-control-bar-release>
+              [ RELEASE ]
+            </button>
+          </div>
         ) : null}
         {controlAllowed && controlSays ? (
           <span className="w-fit bg-bubble-pale px-1 font-bold text-ink-bar" role="status" data-screen-control-says>
             {controlSays}
           </span>
         ) : null}
-        {controlAllowed ? (
-          <span className="bg-ink-plate">
-            <button type="button" className={key(control.mine)} aria-pressed={control.mine} onClick={() => session.toggleControl()} data-screen-control-key={control.mine ? 'mine' : 'free'}>
-              {control.mine ? '[ RELEASE ]' : '[ CONTROL ]'}
-            </button>
-          </span>
-        ) : null}
-        <span className="bg-ink-plate">
-          {/* Open, it is pressed in by the site's one "this is open" look, in this Black surface's own inks (globals.css). */}
-          <button type="button" className={PLATE_ON_BLACK} aria-expanded={panelOpen} aria-controls={panelId} onClick={() => openPanel(!panelOpen)} data-screen-settings-key>
-            [ SETTINGS ]
-          </button>
-        </span>
       </div>
 
       {panelOpen ? (
@@ -282,6 +313,47 @@ export default function RoomScreen({ roomId, audio }: { roomId: string; /** As t
             </div>
           </Part>
 
+          <Part title="SOUND">
+            <p className="whitespace-pre-wrap" data-screen-sound-state>
+              {soundStateSays(view.host, view.thisPc, view.sound.on, view.sound.note)}
+            </p>
+            {view.thisPc === true ? <Fault>{SOUND_ON_THIS_PC}</Fault> : null}
+            {soundKey ? (
+              <>
+                <div className="flex flex-wrap items-start gap-1" role="group" aria-label="Sound">
+                  <button type="button" className={key(view.sound.on)} aria-pressed={view.sound.on} onClick={() => session.setSound(true)} data-screen-sound-choice="on">
+                    [ SOUND ON ]
+                  </button>
+                  <button type="button" className={key(!view.sound.on)} aria-pressed={!view.sound.on} onClick={() => session.setSound(false)} data-screen-sound-choice="off">
+                    [ SOUND OFF ]
+                  </button>
+                </div>
+                <Sub>
+                  <label htmlFor={volumeId}>VOLUME</label>
+                </Sub>
+                <div className="flex items-center gap-2">
+                  <input
+                    id={volumeId}
+                    type="range"
+                    className="vis-slider min-w-0 flex-1"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={volume}
+                    aria-valuetext={`${volume}%`}
+                    onChange={(event) => session.setVolume(Number(event.target.value) / 100)}
+                    data-screen-volume
+                  />
+                  <span className="w-24 shrink-0 text-right">{`${volume}%`}</span>
+                </div>
+              </>
+            ) : null}
+            <Why topic="SOUND">
+              This is everything the PC is playing, not one program: its Windows cannot leave one out. The PC does not read its sound at all until a viewer turns this on, and stops when the last one turns it off. It is apart from the
+              room&apos;s own music, with its own volume here.
+            </Why>
+          </Part>
+
           <Part title="CONTROL">
             <p className="whitespace-pre-wrap" data-screen-control-state>
               {controlStateSays(view.host, control.mine, control.note)}
@@ -292,18 +364,30 @@ export default function RoomScreen({ roomId, audio }: { roomId: string; /** As t
                 <div className="flex flex-wrap items-start gap-1" role="group" aria-label="Mouse">
                   {MICE.map((mouse) => (
                     <button key={mouse} type="button" className={key(wishes.mouse === mouse)} aria-pressed={wishes.mouse === mouse} onClick={() => session.setMouse(mouse)} data-screen-mouse={mouse}>
-                      {`[ ${mouse.toUpperCase()} ]`}
+                      {`[ ${MOUSE_NAMES[mouse] ?? mouse.toUpperCase()} ]`}
                     </button>
                   ))}
                 </div>
-                <Why topic="MOUSE">
-                  POINTER: this device&apos;s own pointer is the pointer, drawn here with no delay; the stream itself carries no pointer. GAME: the pointer is captured and its raw movement is sent, for games that turn the view with the mouse.
-                </Why>
-                {control.mine && wishes.mouse === 'game' && !control.pointerLocked ? <Fault>The pointer is not captured: click the picture to capture it (Esc gives it back).</Fault> : null}
+                {/* In plain sight, not behind [ ? ]: Luke found the old names confusing. */}
+                <p data-screen-mouse-says>
+                  POINT AND CLICK: the PC&apos;s pointer goes where yours is. For the desktop and most games.
+                  <br />
+                  CAPTURED, FOR 3D GAMES: your pointer vanishes and every movement turns the view, like playing a first-person game at the PC itself. Esc gives your pointer back.
+                </p>
+                {view.pointerWhy ? <Fault>{`A PLAIN ARROW IS SHOWN: ${view.pointerWhy}.`}</Fault> : null}
+                {control.mine && wishes.mouse === 'game' && !control.pointerLocked ? <Fault>CLICK THE PICTURE TO CAPTURE THE MOUSE.</Fault> : null}
                 <p>{keysSay(control.keyboardLocked, control.canLockKeyboard)}</p>
+                <Sub>CONTROLLER</Sub>
+                <p className="whitespace-pre-wrap" data-screen-pad>
+                  {padSays(view.pad, control.mine, view.host)}
+                </p>
+                <Why topic="CONTROLLER">
+                  A game controller on this device drives a pretend Xbox 360 controller on the PC, for as long as this device holds control. The PC unplugs it the moment control ends. One controller, in the layout browsers call standard; no
+                  vibration comes back.
+                </Why>
                 <p>
-                  Keys go to the PC while the picture is the last thing pressed; press anywhere else on the site to type there. To let go: [ RELEASE ], or Ctrl+Alt+Shift+Q on this device (that is never sent to the PC). On the PC itself,
-                  Ctrl+Alt+Shift+End stops it. If this tab loses focus, every key held is let go at once.
+                  To let go: hold Esc for a second, or press [ RELEASE ] (in the bar under the keys, or here). A quick press of Esc is still an ordinary Esc for the PC. Ctrl+Alt+Shift+Q on this device lets go too, and on the PC itself
+                  Ctrl+Alt+Shift+End stops it. Keys go to the PC while the picture is the last thing pressed; press anywhere else on the site to type there. If this tab loses focus, every key held is let go at once.
                 </p>
               </>
             ) : null}
@@ -311,8 +395,7 @@ export default function RoomScreen({ roomId, audio }: { roomId: string; /** As t
 
           <Part title="NOT BUILT YET">
             <ul className="list-disc pl-4">
-              <li>A controller (gamepad) from this device.</li>
-              <li>Sound.</li>
+              <li>Vibration from the PC back to this device&apos;s controller.</li>
               <li>HEVC and AV1 video (this PC&apos;s graphics card cannot encode AV1).</li>
               <li>Changing the PC&apos;s real screen mode, or a virtual screen, so that games draw themselves in this screen&apos;s shape instead of having their sides cut off.</li>
             </ul>
@@ -324,6 +407,20 @@ export default function RoomScreen({ roomId, audio }: { roomId: string; /** As t
 }
 
 /** One section of the panel: its title line, then what belongs to it. */
+/** The line in the bar under the keys while this device controls the PC. */
+function controlBarSays(escHolding: boolean, mouse: string, pointerLocked: boolean): string {
+  if (escHolding) return 'KEEP HOLDING ESC TO LET GO';
+  if (mouse === 'game') {
+    return pointerLocked
+      ? 'CONTROLLING YOUR PC :: MOUSE CAPTURED, ESC GIVES IT BACK :: HOLD ESC TO LET GO'
+      : 'CONTROLLING YOUR PC :: CLICK THE PICTURE TO CAPTURE THE MOUSE :: HOLD ESC TO LET GO';
+  }
+  return 'CONTROLLING YOUR PC :: HOLD ESC TO LET GO';
+}
+
+/** The two mouse choices, named for what they are for (Luke found "GAME" confusing, 2026-11-21). Stored names unchanged. */
+const MOUSE_NAMES: Record<string, string> = { pointer: 'POINT AND CLICK', game: 'CAPTURED, FOR 3D GAMES' };
+
 function Part({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="mt-2 flex flex-col gap-1 border-t border-ink-bar pt-2">

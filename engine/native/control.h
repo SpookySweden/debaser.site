@@ -47,6 +47,14 @@ void dbe_guard_end(void);
 // 1, once, after the cut-off key was pressed.
 int32_t dbe_guard_cut(void);
 
+// The same cut-off key held for a second reason: the PC's screen has been changed to a viewer's shape (FIT,
+// src/fit.rs), and the key puts it back. No strip shows for this. Begin returns as dbe_guard_begin does; the key
+// stays held while either control or fit needs it.
+int32_t dbe_guard_fit_begin(void);
+void dbe_guard_fit_end(void);
+// 1, once, after the cut-off key was pressed while fit held it.
+int32_t dbe_guard_fit_cut(void);
+
 // For `debaser-engine pointer-where` (the check's eyes): what can be seen of the guard from another program.
 typedef struct DbeStripSeen {
   int32_t present;        // a strip window exists
@@ -64,6 +72,9 @@ int32_t dbe_cut_off_key_free(void);
 // Tells a running engine's guard that the cut-off key was pressed, without any key being pressed: the message
 // Windows itself would send is posted to it. Returns 1 when there was a guard to tell.
 int32_t dbe_post_cut_off(void);
+// The same, but only to the guard of the program with this process number (0 = whichever is found first), so
+// that a check can never tell another engine on the same PC.
+int32_t dbe_post_cut_off_to(uint32_t process);
 
 // For `debaser-engine pointer-where` too: the game controllers Windows itself reports (the four "XInput" places a
 // game looks in), so the check can see the pretend controller appear and go, and that nothing on it is pressed.
