@@ -52,7 +52,7 @@ async function up() {
 
     const page = await browser.newPage();
     // Signed-out pages open the lost-account window (LostAccountWindow.tsx), which this check is not about.
-    await page.addInitScript(() => (window.localStorage.setItem('debaser.lost-account.never.v1', '1'), window.localStorage.setItem('debaser.tour.v1', 'skipped')));
+    await page.addInitScript(() => (window.localStorage.setItem('debaser.lost-account.never.v1', '1'), window.localStorage.setItem('debaser.tour.v2', 'skipped')));
     let signUpCalls = 0;
 
     // The reply GoTrue sends when confirmation is required: the user, and no access token - so

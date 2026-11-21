@@ -178,9 +178,10 @@ drive-first-visit.cjs and dev-mock-signed-out.cjs
     node scripts/drive-forumfix.cjs --base http://localhost:3352                        the lost-account quiet line and window
 
 The first-visit tour of the board (2026-11-20): seven steps outlined in turn, SKIP / Esc / DONE remembered, the TOUR key in
-MODULOS, reduced motion, a new account after PRIVACY. A first visit to /forum in ANY fresh browser now gets the tour, which
-holds the page: a drive or check that opens the board as a new visitor seeds `debaser.tour.v1` = 'skipped' (beside
-`debaser.lost-account.never.v1`), and a signed-out `npm run shot` of /forum shows it unless you add --click "[ SKIP ]".
+MODULOS, reduced motion, a new account after PRIVACY. Since Luke's "everyone once more" (same day) the key is
+`debaser.tour.v2` and EVERY reader not toured under v2 gets it on /forum, signed in or out, which holds the page: a drive or
+check that opens the board seeds `debaser.tour.v2` = 'skipped' (beside `debaser.lost-account.never.v1`). A fresh
+`npm run shot` (browser.cjs `open`) seeds it too, signed in or out; add --tour to see the tour.
 The lost-account window only shows with real (non-mock) sign-in, hence dev-mock-signed-out.cjs.
 
 drive-live.cjs and dev-mock-live.cjs

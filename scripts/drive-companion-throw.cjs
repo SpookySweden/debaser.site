@@ -72,7 +72,7 @@ const AUTH = {
 };
 
 function seed({ auth, shown }) {
-  (window.localStorage.setItem('debaser.lost-account.never.v1', '1'), window.localStorage.setItem('debaser.tour.v1', 'skipped'));
+  (window.localStorage.setItem('debaser.lost-account.never.v1', '1'), window.localStorage.setItem('debaser.tour.v2', 'skipped'));
   window.localStorage.setItem('debaser.auth.mock.v1', JSON.stringify(auth));
   if (shown !== null) window.localStorage.setItem('debaser.profile-character.v1', JSON.stringify(shown));
 }

@@ -4,6 +4,9 @@ import { profileContext } from '../lib/audio/track-context';
 import { getMusicRepository } from '../lib/audio/repository';
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { BlockedProfileCard, ProfileModerationKeys } from './ProfileModerationKeys';
+import { HiddenNote, HideControl, ReportKey } from './ModerationKeys';
+import { useModeration } from './ModerationProvider';
 import { authorFromAccount } from '../lib/auth/author';
 import { elementAsTrack } from '../lib/audio/profile-track';
 import {
@@ -69,6 +72,7 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
   const forum = useForum();
   const player = useMusicPlayer();
   const { profile, repository } = usePublicProfile(userId);
+  const moderation = useModeration();
 
   const owner = user !== null && user.id === userId;
   const visitorId = user?.id ?? null;
@@ -113,11 +117,16 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
   const [customising, setCustomising] = useState(false);
   // A comment asked for from elsewhere on the page (a character's speech bubble in the room): the comments open at it.
   const [askedComment, setAskedComment] = useState<{ id: string; at: number } | null>(null);
-  const comments = owner ? profileComments(profile) : visibleProfileComments(profile);
+  // A blocked person's comments and other people's hidden ones are left out (SPEC-moderation.md); the database does it too.
+  const comments = (owner ? profileComments(profile) : visibleProfileComments(profile)).filter((comment) =>
+    moderation.shows('profile_comment', comment.id, comment.author.id, comment.hidden),
+  );
   // The feed carries the whole page rather than one list of it - the profile's own remarks, the
   // picture's and the track's - so it is read through its own selector: each kind gated by the
   // owner's switch for that thread, and the owner's own view unfiltered.
-  const feedComments = owner ? profile.comments : visibleFeedComments(profile);
+  const feedComments = (owner ? profile.comments : visibleFeedComments(profile)).filter((comment) =>
+    moderation.shows('profile_comment', comment.id, comment.author.id, comment.hidden),
+  );
   const commentOptions: ProfileCommentOption[] = [
     {
       kind: 'avatar',
@@ -142,6 +151,9 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
   // Whether the track on show is playing: the owner's character (SPEC-profile-characters.md) dances to it in their room.
   const trackPlaying = player.playing && track !== undefined && player.track?.src === track.src;
 
+  // Somebody the reader blocked (SPEC-moderation.md, 4B): a plain card in place of the profile, with the way back.
+  if (!owner && moderation.isBlocked(userId)) return <BlockedProfileCard userId={userId} />;
+
   return (
     <div className="space-y-3">
       <section>
@@ -163,6 +175,8 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
               {/* SPEC-notifications.md, 2C: their room going live tells you. */}
               <LiveWatchKey host={userId} />
               <AddToLetterKey thing={{ kind: 'profile', ref: userId, title: displayName }} />
+              {/* BLOCK and REPORT (SPEC-moderation.md). */}
+              <ProfileModerationKeys userId={userId} name={displayName} />
             </span>
           )}
         </div>
@@ -393,6 +407,7 @@ function CommentsSection({
 }: CommentsSectionProps) {
   const [open, setOpen] = useState(false);
   const list = useRef<HTMLUListElement | null>(null);
+  const moderation = useModeration();
 
   /** The full list opened at one comment: in view, and wearing the mark a jump on the board wears. */
   const openAt = useCallback(
@@ -500,18 +515,30 @@ function CommentsSection({
                   key={comment.id}
                   data={commentRowData(comment)}
                   {...(comment.pinned === true ? { pinnedLabel: PROFILE_PIN_LABEL } : {})}
-                  {...(owner
-                    ? {
-                        action: (
-                          <ProfileCommentPin
-                            userId={userId}
-                            commentId={comment.id}
-                            pinned={comment.pinned === true}
-                            repository={repository}
-                          />
-                        ),
-                      }
-                    : {})}
+                  action={
+                    <span className="inline-flex flex-wrap items-center gap-1">
+                      {owner ? (
+                        <ProfileCommentPin userId={userId} commentId={comment.id} pinned={comment.pinned === true} repository={repository} />
+                      ) : null}
+                      <HiddenNote mark={moderation.markFor('profile_comment', comment.id, comment.hidden)} authorId={comment.author.id} />
+                      <HideControl
+                        kind="profile_comment"
+                        id={comment.id}
+                        authorId={comment.author.id}
+                        text={comment.body}
+                        mark={moderation.markFor('profile_comment', comment.id, comment.hidden)}
+                      />
+                      {comment.author.id !== null ? (
+                        <ReportKey
+                          target={{
+                            accountId: comment.author.id,
+                            name: comment.author.displayName,
+                            context: { kind: 'profile_comment', id: comment.id, text: comment.body },
+                          }}
+                        />
+                      ) : null}
+                    </span>
+                  }
                 />
               ))}
             </ul>

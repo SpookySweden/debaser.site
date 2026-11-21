@@ -125,6 +125,9 @@ type CommentRow = {
    */
   pinned?: boolean | null;
   pinned_at?: string | null;
+  /** A moderator's hide (20261120090000_moderation.sql). */
+  hidden_at?: string | null;
+  hidden_reason?: string | null;
 };
 
 type ProfileRow = {
@@ -262,6 +265,7 @@ function toProfile(row: ProfileRow): PublicProfile {
           ...(attachedSong === undefined
             ? {}
             : { songVersionId: attachedSong.id, songVersionNumber: attachedSong.version }),
+          ...(comment.hidden_at == null ? {} : { hidden: { reason: comment.hidden_reason ?? '' } }),
           ...(comment.pinned === true ? { pinned: true } : {}),
           ...(comment.pinned_at === null || comment.pinned_at === undefined
             ? {}
@@ -714,6 +718,7 @@ class SupabaseProfileRepository implements ProfileRepository {
                   ...(version === undefined ? {} : { avatarVersionNumber: version }),
                 }),
             ...(row.song_version_id == null ? {} : { songVersionId: row.song_version_id }),
+            ...(row.hidden_at == null ? {} : { hidden: { reason: row.hidden_reason ?? '' } }),
             ...(row.pinned === true ? { pinned: true } : {}),
             ...(row.pinned_at == null ? {} : { pinnedAt: row.pinned_at }),
           },

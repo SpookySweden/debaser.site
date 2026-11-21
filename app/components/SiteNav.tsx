@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useSyncExternalStore, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from 'react';
 import { moduleBarColour, WipTag } from './ModulesWindow';
 import SiteArrows from './SiteArrows';
 import { MODULES, moduleColour, moduleHoverInk, moduleIsOn, moduleMark } from '../lib/ui/modules';
@@ -34,6 +34,9 @@ import { HISTORY_HREF } from '../lib/history/history-window';
 import { DESK_HREF, deskWindowServerState, deskWindowState, subscribeToDeskWindow, toggleDesk } from '../lib/desk/desk-window';
 import { SEARCH_HREF, searchWindowServerState, searchWindowState, subscribeToSearchWindow, toggleSearch } from '../lib/search/site-search';
 import { useAuth } from './AuthProvider';
+import { useModeration } from './ModerationProvider';
+import { reportsWindowServerState, reportsWindowState, subscribeToReportsWindow, toggleReports } from '../lib/moderation/moderation-windows';
+import { getModerationStore } from '../lib/moderation/repository';
 import { LIBRARY_HREF } from '../lib/audio/music-window';
 
 /**
@@ -43,7 +46,7 @@ import { LIBRARY_HREF } from '../lib/audio/music-window';
  * the home page is what opens it. Pages under a project (or otherwise off the taskbar) pass no
  * `active` key, which leaves every key unlit rather than lighting one that does not own the page.
  */
-export type NavKey = 'home' | 'forum' | 'media' | 'web' | 'read' | 'tagstation' | 'recommendations' | 'beatbox' | 'cytube' | 'animate' | 'leaguebot' | 'games' | 'music' | 'queues' | 'history' | 'desk' | 'search' | 'users' | 'comms' | 'account';
+export type NavKey = 'home' | 'forum' | 'media' | 'web' | 'comic' | 'read' | 'tagstation' | 'recommendations' | 'beatbox' | 'cytube' | 'animate' | 'leaguebot' | 'games' | 'music' | 'queues' | 'history' | 'desk' | 'search' | 'users' | 'comms' | 'account';
 
 /**
  * A key: a glyph, and the word a screen reader reads it as.
@@ -209,7 +212,43 @@ function TopBarWindowKeys({ hover }: { hover: CSSProperties }) {
       <button type="button" aria-expanded={find.open} onClick={toggleSearch} title="Search the whole site (Ctrl+K)" className={`${wordClass(false)} module-key cursor-pointer`} style={hover} data-search-key>
         ⌕ SEARCH
       </button>
+      <ReportsKey hover={hover} />
     </>
+  );
+}
+
+/** How often the REPORTS key asks again how many are waiting, besides when a moderator acts or the window closes. */
+const REPORTS_COUNT_MS = 5 * 60 * 1000;
+
+/** REPORTS (SPEC-moderation.md, 7A): moderators only, with how many reports and appeals are waiting. */
+function ReportsKey({ hover }: { hover: CSSProperties }) {
+  const { role, version } = useModeration();
+  const reports = useSyncExternalStore(subscribeToReportsWindow, reportsWindowState, reportsWindowServerState);
+  const [waiting, setWaiting] = useState(0);
+
+  useEffect(() => {
+    if (!role.moderator) return;
+    let cancelled = false;
+    const count = () =>
+      void getModerationStore()
+        .listReports('open')
+        .then((rows) => {
+          if (!cancelled) setWaiting(rows.length);
+        })
+        .catch(() => undefined);
+    count();
+    const timer = window.setInterval(count, REPORTS_COUNT_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [role.moderator, version, reports.open]);
+
+  if (!role.moderator) return null;
+  return (
+    <button type="button" aria-expanded={reports.open} onClick={toggleReports} title="What people reported" className={`${wordClass(false)} module-key cursor-pointer`} style={hover} data-reports-key>
+      REPORTS{waiting > 0 ? <span className="ml-1 bg-bubble-pale px-1 text-ink-bar">{waiting}</span> : null}
+    </button>
   );
 }
 

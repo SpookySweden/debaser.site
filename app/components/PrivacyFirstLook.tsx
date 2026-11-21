@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ProfileVisibility } from '../lib/profile/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { PLATE, PLATE_MAIN } from '../lib/ui/controls';
-import { owedAfterPrivacy } from '../lib/ui/first-visit-tour';
+import { holdTour } from '../lib/ui/first-visit-tour';
 import { useAuth } from './AuthProvider';
 import DockWindow from './DockWindow';
 import PrivacySwitches, { PRIVACY_SWITCHES } from './PrivacySwitches';
@@ -21,6 +21,10 @@ export default function PrivacyFirstLook() {
   const userId = user?.id ?? null;
   const { profile, read, repository, refresh } = usePublicProfile(userId);
   const [closedFor, setClosedFor] = useState<string | null>(null);
+  // FIRSTVISIT: the desktop tour waits while this window may still come (the profile not read yet) and while it is open, so a
+  // new account sees PRIVACY first and the tour once it closes (`first-visit-tour.ts`).
+  const holding = userId !== null && closedFor !== userId && (!read || !profile.privacySeen);
+  useEffect(() => (holding ? holdTour() : undefined), [holding]);
 
   // `read`, not ready: after a failed read the profile is an empty shell, and this window would say everything is off.
   if (userId === null || !read || profile.privacySeen || closedFor === userId) return null;
@@ -30,8 +34,6 @@ export default function PrivacyFirstLook() {
   function finish(visibility?: Partial<ProfileVisibility>) {
     if (userId === null) return;
     setClosedFor(userId);
-    // FIRSTVISIT: a new account is toured round the desktop next, unless this browser already saw or skipped the tour.
-    owedAfterPrivacy(userId);
     // The same switch again next visit is the worst a failure here costs.
     void repository
       .saveProfile(userId, { privacySeen: true, ...(visibility === undefined ? {} : { visibility }) })

@@ -105,7 +105,10 @@ const measure = (page) =>
     const widths = cards.map((c) => c.width);
     console.log(`window ${width}: ${cards.length} cards, ${Math.min(...widths)}-${Math.max(...widths)}px wide`);
     const bad = (key) => cards.filter(key);
-    const factsBad = bad((c) => c.factsSpread > 3);
+    // Updated on purpose 2026-11-20 (MEDIADETAILS): Twitch's `18+ · SIGN IN` beside ● LIVE (e82f80fe) is too long for a narrow
+    // card's line, so it takes the next one whole, as a series mark does; the card's lines are shared across its row, so the
+    // keys still line up.
+    const factsBad = bad((c) => c.factsSpread > 3 && !/SERIES ::|SIGN IN/.test(c.facts));
     check(factsBad.length === 0, `facts on one line in every card${factsBad.length ? `: ${factsBad.slice(0, 3).map((c) => `"${c.facts}" (${c.width}px)`).join(', ')}` : ''}`);
     const playCards = cards.filter((c) => c.split && c.shut);
     const keysBad = playCards.filter((c) => c.keysSpread > 3);

@@ -122,6 +122,8 @@ export type GivenTag = {
 export type ProfileComment = {
   id: string;
   kind: 'profile' | 'avatar' | 'song';
+  /** A moderator hid it (SPEC-moderation.md): only its author and the moderators are ever sent it. */
+  hidden?: { reason: string };
   author: ForumAuthor;
   body: string;
   createdAt: string;

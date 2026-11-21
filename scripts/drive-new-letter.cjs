@@ -38,7 +38,7 @@ function seed({ me, other }) {
   if (!/^localhost$|^127\.0\.0\.1$/.test(window.location.hostname)) return;
   if (window.localStorage.getItem('debaser.auth.mock.v1') !== null) return;
   const user = (person) => ({ id: person.id, email: `${person.id}@debaser.site`, displayName: person.name, createdAt: new Date().toISOString(), salt: '', secretHash: '', hidden: true });
-  (window.localStorage.setItem('debaser.lost-account.never.v1', '1'), window.localStorage.setItem('debaser.tour.v1', 'skipped'));
+  (window.localStorage.setItem('debaser.lost-account.never.v1', '1'), window.localStorage.setItem('debaser.tour.v2', 'skipped'));
   window.localStorage.setItem('debaser.auth.mock.v1', JSON.stringify({ users: [user(me), user(other)], sessionUserId: me.id, bannedIds: [] }));
   // Profiles that have already seen the first-visit PRIVACY window, which would otherwise sit over the page.
   const profile = (person) => ({ userId: person.id, displayName: person.name, bio: '', tags: [], comments: [], updatedAt: new Date().toISOString(), privacySeen: true });

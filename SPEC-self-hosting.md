@@ -210,6 +210,22 @@ through the PC's file service, put each record's original owner back, and downlo
 the same fingerprint; all 26 owners in those buckets now equal the cloud's. Still missing until the block lifts (~20 Nov):
 26 files (6 avatars, 3 pictures, 7 songs, 3 profile-character strips, 8 stream-art drawings; 2 of them are test probes).
 
+**Stage 6 result (2026-11-20, the cloud answering again):** `scripts/host/copy-cloud-files.cjs` copied the 934 files whose
+bytes the PC lacked (911 MEDIA pool pieces, 7 songs, 4 avatars, 1 picture, 3 profile-character strips, 8 stream-art
+drawings; 101.7 MB) with NO database change: every record (and its owner) came across in Stage 4, so each file was read
+from the cloud (public folders by their public address, private ones with the cloud's service key, asked of the
+Management API and held in memory only; GET only, nothing written there), checked by size and MD5 against its record, and
+written to the exact path the PC's file service expects for that record. Files re-made on the PC since (Good morning's
+avatar and stamp, the re-uploaded strips) were already there and left alone. One trap: the file service serves a file
+with the type it keeps as a note on the file itself (an extended attribute), so a hand-placed file went out as
+`application/octet-stream`; `set-file-notes.js`, run inside the storage container, now gives each file its record's type
+and cache time before it is moved into place (songs serve as audio/mpeg). The first file copied (Moldavius figtree's
+avatar) was fetched once before that, so Cloudflare keeps an octet-stream copy of its bare address for up to 4 hours;
+the site's resized copy was right throughout. Proved: all 957 records whole on disk (956 by MD5, one multipart eTag by
+size), 166.8 MB; songs, a .wav and avatars answer through api.debaser.site with their real types; Moldavius's Punpun
+avatar (his current version) answers through the site's image resizer; no row on the PC points at the cloud any more;
+check-media-visitors passes in full again (its pool file was one of the 911).
+
 **Stage 7 result (2026-11-18, Luke: "start stage seven but dont do back ups to google drive for now"):** `backup.cjs`
 (task `DebaserBackup`, 04:00, now running `G:\DEBASER-HOST\backup.cjs` instead of the old JSON copy) writes
 `I:\DEBASER\backups\<date>\`: the whole database (pg_dump), its roles, the uploaded files, the server's settings and keys,
@@ -237,6 +253,11 @@ came up once Docker was stopped, `wsl --shutdown` run and WSL given ~20 s to let
 it). The cause of the stop itself is not known (Docker quit, or crashed without a log line).
 
 
+
+**After the move (2026-11-20):** the asleep page and the down alert are in `cloudflare/asleep/README.txt` (a Cloudflare
+Worker in front of debaser.site, fail open; Cloudflare's tunnel-health email for debaser-home, filed to Luke's main
+inbox by a Gmail filter). Storage's global cap on one file is 500 MB, not 50 MB, set in our override
+`G:\DEBASER-HOST\supabase\docker-compose.debaser.yml` (Luke, for COMIC: "Yes, both"); each bucket keeps its own limit.
 
 ## The way back (rollback)
 - Nothing on the cloud is deleted or changed: the Supabase project and the Vercel project stay exactly as they are for

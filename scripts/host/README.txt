@@ -28,3 +28,7 @@ backup.cjs                           (copied to G:\DEBASER-HOST, run at 04:00 by
 find-missing-files.cjs   <folders>  reads drives for exact copies (size + MD5) of files still locked in the cloud project.
 find-in-browser-caches.cjs          the same, inside Chrome/Edge/Firefox/Electron caches; saves matches to G:\DEBASER-HOST\recovered.
 restore-found-files.cjs             uploads the matches through the PC's file service, restores each record's owner, re-checks.
+copy-cloud-files.cjs                Stage 6: copies files the PC lacks from the old cloud (read only) to their records' paths,
+                                    checked by size and MD5, no database change. --dry-run, --only <bucket>/<name>.
+set-file-notes.js                   run inside the storage container by copy-cloud-files.cjs: gives hand-placed files their
+                                    type and cache time (extended attributes), or they're served as octet-stream.

@@ -35,7 +35,7 @@ const ROOM_COLUMNS =
   'id, original_host_id, original_host_label, host_id, forum_thread_id, current_entry_id, position_seconds, is_playing, started_at, updated_at, ended_at, origin, is_public, cleared_at, name, topic, add_mode, privacy, guests_can_talk, chat_on_discuss';
 const QUEUE_COLUMNS =
   'id, room_id, position, in_queue, media_item_id, source_url, source_kind, source_title, series_id, series_title, series_episode, added_by, added_at, played_at, play_index, web_ref';
-const MESSAGE_COLUMNS = 'id, room_id, queue_entry_id, media_item_id, author_id, author_label, body, media_seconds, created_at';
+const MESSAGE_COLUMNS = 'id, room_id, queue_entry_id, media_item_id, author_id, author_label, body, media_seconds, created_at, hidden_at, hidden_reason';
 const CROWN_COLUMNS = 'room_id, user_id, given_by, given_at';
 
 /** Enough for a long night; the window draws the newest of them. */
@@ -114,6 +114,9 @@ type MessageRow = {
   body: string;
   media_seconds: number | string;
   created_at: string;
+  /** A moderator's hide (20261120090000_moderation.sql). */
+  hidden_at?: string | null;
+  hidden_reason?: string | null;
 };
 
 type MemberRow = { room_id: string; user_id: string; label: string; removed_at: string | null };
@@ -189,6 +192,7 @@ function toMessage(row: MessageRow): WatchMessage {
     body: row.body,
     mediaSeconds: Number(row.media_seconds) || 0,
     createdAt: row.created_at,
+    ...(row.hidden_at === null || row.hidden_at === undefined ? {} : { hidden: { reason: row.hidden_reason ?? '' } }),
   };
 }
 

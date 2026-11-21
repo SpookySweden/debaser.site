@@ -50,7 +50,7 @@ async function person(browser, letter, { phone = false } = {}) {
       ? { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }
       : { viewport: { width: 1440, height: 900 } },
   );
-  await context.addInitScript(() => (window.localStorage.setItem('debaser.lost-account.never.v1', '1'), window.localStorage.setItem('debaser.tour.v1', 'skipped')));
+  await context.addInitScript(() => (window.localStorage.setItem('debaser.lost-account.never.v1', '1'), window.localStorage.setItem('debaser.tour.v2', 'skipped')));
   const page = await context.newPage();
   page.on('pageerror', (error) => console.log(`  page error (${letter}): ${String(error).slice(0, 200)}`));
   await installSession(page, account);

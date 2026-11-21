@@ -69,7 +69,7 @@ const ratio = (a, b) => { const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x
         const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
         await context.addInitScript(([key, theme]) => {
           window.localStorage.setItem(key, theme);
-          (window.localStorage.setItem('debaser.lost-account.never.v1', '1'), window.localStorage.setItem('debaser.tour.v1', 'skipped'));
+          (window.localStorage.setItem('debaser.lost-account.never.v1', '1'), window.localStorage.setItem('debaser.tour.v2', 'skipped'));
         }, [STORAGE_KEY, id]);
         // Nothing leaves for the live database, whatever the server's settings.
         await context.route(/supabase\.(co|in)\//, (route) => route.abort());

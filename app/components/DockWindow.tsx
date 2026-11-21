@@ -237,10 +237,14 @@ export default function DockWindow({
 
   // Asked to leave room above itself, it is drawn that much lower when it would sit nearer the top of the screen than
   // that, and shorter by the same, so its foot stays where it was. Its saved box is left as it is.
-  const drop = managed && headroom !== undefined ? Math.max(0, headroom - live.rect.y) : 0;
+  // Maximised (`[ □ ]`, a double press on the title line), it fills the whole page down to the bar and leaves no room above
+  // itself: the companions step off its top edge until it is its own size again (Luke, 2026-11-20: "the fill the page button
+  // needs to fill the whole page now, in the room, except the bottom bar").
+  const filled = managed && live.restore !== null;
+  const drop = managed && headroom !== undefined && !filled ? Math.max(0, headroom - live.rect.y) : 0;
   // Kept above the bar: a foot under it is lifted to it whole, the window moving up rather than getting shorter, and only
   // one taller than all the room above the bar is shortened (Luke, 2026-11-16: "must not shrink"; `rectAboveBar`'s sum).
-  const highest = Math.max(layoutTop(), headroom ?? 0);
+  const highest = Math.max(layoutTop(), filled ? 0 : (headroom ?? 0));
   const foot = 'calc(100vh - var(--music-top, 0px) - 0.25rem';
   const style = managed
     ? {

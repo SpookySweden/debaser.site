@@ -28,6 +28,7 @@ import type {
   ThreadPin,
 } from '../lib/forum/types';
 import { useAuth } from './AuthProvider';
+import { useModeration } from './ModerationProvider';
 import { noteHistory } from '../lib/recommender/history';
 import { cheerCompanion } from '../lib/companion/events';
 
@@ -312,10 +313,44 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
    * the source filter, the tag filter, the search, the sort, the wire, the account pages - without
    * any of those knowing where a profile comment is stored.
    */
+  // Moderation (SPEC-moderation.md): a blocked person's posts, replies and comments, and other people's hidden ones, are left out
+  // here for the mock store and for rows that arrived before a block (the database already leaves them out of every read).
+  const moderation = useModeration();
+  const { shows } = moderation;
   const boardThreads = useMemo(
-    () => [...profileCommentThreads(profileComments), ...threads],
-    [profileComments, threads],
+    () => [
+      ...profileCommentThreads(profileComments.filter((entry) => shows('profile_comment', entry.comment.id, entry.comment.author.id, entry.comment.hidden))),
+      ...threads
+        .filter((thread) => shows('thread', thread.id, thread.author.id, thread.hidden))
+        .map((thread) => {
+          const comments = thread.comments.filter((comment) => shows('reply', comment.id, comment.author.id, comment.hidden));
+          return comments.length === thread.comments.length ? thread : { ...thread, comments };
+        }),
+    ],
+    [profileComments, threads, shows],
   );
+
+  // A block, an unblock or a moderator's hide anywhere: read the board and the profile comments again.
+  const moderationVersion = moderation.version;
+  useEffect(() => {
+    if (moderationVersion === 0) return;
+    let cancelled = false;
+    void getForumRepository()
+      .listThreads()
+      .then((next) => {
+        if (!cancelled) setThreads(next);
+      })
+      .catch(() => undefined);
+    void getProfileRepository()
+      .listCommentFeed()
+      .then((next) => {
+        if (!cancelled) setProfileComments(next);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [moderationVersion]);
 
   const tagVocabulary = useMemo(() => buildTagVocabulary(boardThreads, tagColours), [boardThreads, tagColours]);
 

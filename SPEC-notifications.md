@@ -127,6 +127,19 @@ Nothing existing is deleted. No existing notification row changes.
   database-only list gain it there).
 - If Luke gives COMIC a separate follows list, `notify_comic_page` reads that instead; COMIC will say.
 
+## Phase 2 as built (Luke 2026-11-20: "Key is in", then "A: set up debaser.site")
+- `20261120110000_notifications_weekly_email.sql`: a lock made at random in the database's vault; `notify_digest_due`,
+  `notify_digest_sent` (both need the lock), `notify_unsubscribe(code, on)`; the timer `notify-digest`, minute 23 of
+  every hour on Sundays and Mondays (UTC), posting to `https://debaser.site/api/notify/digest`.
+- `app/api/notify/digest/route.ts` sends through Resend's API only inside Sunday 18:00 to Monday 18:00 UK time
+  (`digestWindow`, `app/lib/notifications/digest.ts`), two a second at most; it sends nothing without `RESEND_API_KEY`.
+  A test run (`{"test": true, "person": "<id>"}`, made from the database so the lock never leaves it) sends one person's
+  email at once and doesn't count as their week's.
+- The email: the whole text in a `<pre>` (no pictures, no colours), each line a link, and the one-click unsubscribe as a
+  link and as the List-Unsubscribe headers. `/unsubscribe` and `POST /api/notify/unsubscribe` turn it off (or back on).
+- PREFERENCES: `[ WEEKLY EMAIL ]` beside the other switches, off to start.
+- Before the first real Sunday: debaser.site verified in Resend (DNS) and `RESEND_API_KEY` in `G:\DEBASER-HOST\site.env`.
+
 ## Phases
 1. On the site: the new kinds, letters, TELL ME WHEN LIVE, the switches, the balloon, COMIC's function. Needs only the
    migration OK.

@@ -842,8 +842,6 @@ type Resize = {
   pointerY: number;
   /** As a drag's: how far down a window kept above the bar may reach, or null. */
   floor: number | null;
-  /** The grabbed window's box as the press began: a resize that changed it was made by hand. */
-  from: WindowRect;
 };
 let resize: Resize | null = null;
 
@@ -853,7 +851,7 @@ export function beginResize(id: string, edges: ResizeEdges, x: number, y: number
   bringToFront(id);
   const starts: Record<string, WindowRect> = {};
   for (const other of Object.keys(state.windows)) starts[other] = startRect(other, floor);
-  resize = { id, edges, starts, pointerX: x, pointerY: y, floor, from: state.windows[id].rect };
+  resize = { id, edges, starts, pointerX: x, pointerY: y, floor };
 }
 
 export function resizeTo(x: number, y: number): void {
@@ -892,16 +890,11 @@ export function resizeTo(x: number, y: number): void {
 
 export function endResize(): void {
   if (resize === null) return;
-  const { id, from } = resize;
   resize = null;
-  // Sized by hand: an automatic fit (the room's, list 4) leaves it alone from now on.
-  if (state.windows[id] !== undefined && !sameRect(state.windows[id].rect, from)) for (const listener of handResized) listener(id);
   scheduleSave();
 }
 
 /* --- a box set from outside (the room's FIT, list 4) ----------------------------------------------- */
-
-const handResized = new Set<(id: string) => void>();
 
 /** A window is being dragged or resized by hand just now: nothing else moves it meanwhile. */
 export function handMoving(): boolean {
@@ -911,14 +904,6 @@ export function handMoving(): boolean {
 /** A window's least size, as it described itself; null for one never drawn. */
 export function windowMinSize(id: string): WindowSize | null {
   return specs[id]?.min ?? null;
-}
-
-/** Told each time a window is resized by hand (its grips): the room remembers it so its automatic fit stands back. */
-export function onHandResize(listener: (id: string) => void): () => void {
-  handResized.add(listener);
-  return () => {
-    handResized.delete(listener);
-  };
 }
 
 /**

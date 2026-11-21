@@ -410,6 +410,7 @@ async function open({
   keepProfile = false,
   attach = false,
   reducedMotion = false,
+  tour = false,
 } = {}) {
   const [width, height] = size;
   const log = { console: [], errors: [], failed: [], bad: [] };
@@ -451,6 +452,17 @@ async function open({
     });
 
     browser = context.browser();
+    // FIRSTVISIT (2026-11-20): a scripted browser is not shown the desktop tour (app/lib/ui/first-visit-tour.ts,
+    // `automatedWithoutTour`) unless it asks: `npm run shot -- --tour` does.
+    if (tour) {
+      await context.addInitScript(() => {
+        try {
+          window.localStorage.setItem('debaser.tour.drive', '1');
+        } catch {
+          // no storage: no tour
+        }
+      });
+    }
     page = context.pages()[0] ?? (await context.newPage());
     owned = true;
   }

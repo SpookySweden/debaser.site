@@ -100,7 +100,8 @@ async function newPage(browser, { seedStreams = false, neverHadOne = false, tour
           if (seed !== null) window.localStorage.setItem(forumKey, JSON.stringify({ version: 2, threads: seed, pins: [] }));
           if (never) window.localStorage.setItem(neverKey, '1');
           // FIRSTVISIT (2026-11-20): the desktop tour holds the page on a first visit; only item 1 is about it.
-          if (!tour) window.localStorage.setItem('debaser.tour.v1', 'skipped');
+          if (!tour) window.localStorage.setItem('debaser.tour.v2', 'skipped');
+          else window.localStorage.setItem('debaser.tour.drive', '1');
         }
       } catch {
         // no storage

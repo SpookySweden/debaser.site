@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { getWatchRepository } from '../lib/watch/repository';
 import type { DiscussLine, DiscussQuery } from '../lib/watch/types';
 import TimeStamp from './TimeStamp';
+import { useModeration } from './ModerationProvider';
 
 /**
  * Room chat on a thing's DISCUSS page (SPEC-room-chat-discuss.md, Luke 2026-11-16): the lines said in any room while it was on
@@ -39,7 +40,9 @@ export function useDiscussChat(query: DiscussQuery | undefined): DiscussLine[] {
       live = false;
     };
   }, [key]);
-  return lines;
+  // A blocked person's lines are left out (SPEC-moderation.md); the database leaves them out of the read too.
+  const { isBlocked } = useModeration();
+  return lines.filter((line) => !isBlocked(line.authorId));
 }
 
 export function RoomChatLine({ line }: { line: DiscussLine }) {

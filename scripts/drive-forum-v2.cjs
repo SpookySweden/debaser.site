@@ -118,7 +118,7 @@ async function newContext(browser, { width = 1440, height = 900, reducedMotion =
         window.localStorage.setItem('v2-seeded', '1');
         window.localStorage.setItem('debaser.forum.ugc.v2', JSON.stringify(forum));
         window.localStorage.setItem('debaser.watch.v1', JSON.stringify(watch));
-        (window.localStorage.setItem('debaser.lost-account.never.v1', '1'), window.localStorage.setItem('debaser.tour.v1', 'skipped'));
+        (window.localStorage.setItem('debaser.lost-account.never.v1', '1'), window.localStorage.setItem('debaser.tour.v2', 'skipped'));
       }
     } catch {
       // no storage

@@ -20,8 +20,11 @@ export const SYNCED_KEYS = {
   mediaFolds: 'debaser.media.filter-folds.v1',
   mediaView: 'debaser.media.view.v1',
   playerBar: 'debaser.audio.bar.v1',
-  // FIRSTVISIT: the desktop tour seen, skipped or owed (`../ui/first-visit-tour.ts`), so a second computer doesn't tour again.
-  tour: 'debaser.tour.v1',
+  // FIRSTVISIT: the desktop tour seen or skipped (`../ui/first-visit-tour.ts`), so a second computer doesn't tour again. `tour2`,
+  // not the first day's `tour`, so an account's mark from before no longer counts (Luke, 2026-11-20: everyone once more).
+  tour2: 'debaser.tour.v2',
+  // Where a reader stopped in the comic, `<chapter>/<page>` (SPEC-comic.md, CONTINUE).
+  comicPlace: 'debaser.site.comic.place',
 } as const;
 
 export type SyncedName = keyof typeof SYNCED_KEYS;

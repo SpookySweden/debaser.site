@@ -41,7 +41,7 @@ const check = (ok, what) => {
 
 const PERSON = 'mock-test-account';
 const signIn = (person) => {
-  (window.localStorage.setItem('debaser.lost-account.never.v1', '1'), window.localStorage.setItem('debaser.tour.v1', 'skipped'));
+  (window.localStorage.setItem('debaser.lost-account.never.v1', '1'), window.localStorage.setItem('debaser.tour.v2', 'skipped'));
   window.localStorage.setItem(
     'debaser.auth.mock.v1',
     JSON.stringify({ users: [{ id: person, email: 'test-mock@debaser.site', displayName: 'TEST ACCOUNT (MOCK)', createdAt: '2026-11-14T00:00:00.000Z', salt: '', secretHash: '', hidden: true }], sessionUserId: person, bannedIds: [] }),
@@ -49,9 +49,8 @@ const signIn = (person) => {
 };
 
 /**
- * Every result with an arrow, measured in the page. `phase` is 'shut' or 'open'. The source is read from the picture's
- * OPEN key, whose name says "on <SOURCE> (new tab)"; a reading row (a paper, news...) names its outlet on its own key, so
- * it is measured for its keys only.
+ * Every result with an arrow, measured in the page. `phase` is 'shut' or 'open'. The source is the platform its title's id
+ * names; a reading row (a paper, news...) names its outlet on its own key, so it is measured for its keys only.
  */
 const measure = (page, phase) =>
   page.$$eval(
@@ -73,8 +72,11 @@ const measure = (page, phase) =>
         .filter((li) => li.querySelector('[data-more-keys]') && li.offsetParent !== null)
         .map((li) => {
           const card = li.getBoundingClientRect();
-          const open = li.querySelector('[data-thumb-open]');
-          const source = (open?.getAttribute('aria-label') ?? '').match(/ on (.+) \(new tab\)$/)?.[1] ?? null;
+          // The platform, from the title's id (`web-row-<platform>-<id>`, rowTitleId), named as the site names it. It was read
+          // from the picture's ↗, which is the `i` of DETAILS since MEDIADETAILS (2026-11-20).
+          const LABELS = { internet_archive: 'INTERNET ARCHIVE', peertube: 'PEERTUBE', openverse: 'OPENVERSE', podcast: 'PODCAST', youtube: 'YOUTUBE', wikimedia_commons: 'WIKIMEDIA COMMONS', vimeo: 'VIMEO', twitch: 'TWITCH', audiobooks: 'AUDIOBOOKS', ipfs: 'IPFS' };
+          const platform = (li.querySelector('p[id^="web-row-"]')?.id ?? '').slice('web-row-'.length).split('-')[0];
+          const source = LABELS[platform] ?? null;
           const facts = li.querySelector('[data-row-facts]');
           const more = li.querySelector('[data-row-more]');
           const sourceLine = li.querySelector('[data-row-source]');
@@ -165,6 +167,9 @@ const say = (list) => list.slice(0, 3).map((c) => `"${c.title}" (${c.view} ${c.w
     for (const view of VIEWS) {
       for (const width of WIDTHS) {
         await page.evaluate(({ view, theme }) => {
+          // Signed in, the account's saved settings win over the browser's (SPEC-forum-v3.md, F2A; mock: this browser's
+          // storage): none saved, so the view set here is the one the page reads.
+          window.localStorage.removeItem('debaser.user-settings.mock.v1');
           window.localStorage.setItem('debaser.media.view.v1', view);
           window.localStorage.setItem('debaser.site.theme.v2', theme);
         }, { view, theme });
@@ -181,7 +186,8 @@ const say = (list) => list.slice(0, 3).map((c) => `"${c.title}" (${c.view} ${c.w
         const cut = shut.filter((c) => c.factsCut);
         check(cut.length === 0, `folded: facts whole, never cut${cut.length ? `: ${say(cut)} "${cut[0].facts}"` : ''}`);
         if (view === 'grid') {
-          const twoLines = shut.filter((c) => c.factsLines > 1 && !/SERIES ::/.test(c.facts));
+          // A series mark, and Twitch's `18+ · SIGN IN` (e82f80fe), are too long for a narrow card's line: each takes the next whole.
+          const twoLines = shut.filter((c) => c.factsLines > 1 && !/SERIES ::|SIGN IN/.test(c.facts));
           check(twoLines.length === 0, `folded: facts on one line${twoLines.length ? `: ${say(twoLines)} "${twoLines[0].facts}"` : ''}`);
         }
         const shutBroken = shut.filter((c) => c.broken.length);

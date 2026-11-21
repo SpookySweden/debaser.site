@@ -3,7 +3,7 @@
  * a more thumbnail view like youtube has"), read from the files:
  *   node Temp/check-media-view.cjs
  *
- * - four views, LIST the default, kept in this browser only (guarded), and previews made of text characters
+ * - four views, GRID the default (LIST until 2026-11-20), kept in this browser only (guarded), and previews made of text characters
  * - every MEDIA result list follows it; GRID is a 4-across grid that narrows where a card would be too narrow for its keys
  * - a row changes its picture box and what it shows, never how it plays: a video still goes through playFloating
  * - KINO and media-server cards keep their own card, the whole width of a GRID
@@ -14,9 +14,11 @@ const fs = require('node:fs');
 
 const store = fs.readFileSync('app/lib/web/media-view.ts', 'utf8').replace(/\r\n/g, '\n');
 assert.deepEqual([...store.matchAll(/value: '(\w+)', label: '(\w+)'/g)].map((m) => m[2]), ['LIST', 'GRID', 'LARGE', 'COMPACT'], 'the four views, in order');
-assert.match(store, /: 'list';\n  \} catch \{\n    return 'list';/, 'LIST when nothing is kept or storage refuses');
+// Updated on purpose 2026-11-20 (MEDIADETAILS, Luke: "make grid view default view in media page too"): GRID, not LIST.
+assert.match(store, /const DEFAULT_VIEW: MediaView = 'grid';/, 'GRID is the default');
+assert.match(store, /: DEFAULT_VIEW;\n  \} catch \{\n    return DEFAULT_VIEW;/, 'GRID when nothing is kept or storage refuses');
 assert.match(store, /try \{\n    window\.localStorage\.setItem\(KEY, view\);\n  \} catch/, 'keeping it is guarded');
-assert.match(store, /\(\) => 'list',\n  \);/, "the server's draw is LIST, so the page and the browser agree");
+assert.match(store, /\(\) => DEFAULT_VIEW,\n  \);/, "the server's draw is GRID too, so a reader who never chose sees nothing change as the page wakes");
 assert.doesNotMatch(store, /supabase|fetch\(/, 'no database or network: this browser only');
 // Updated on purpose 2026-11-17 (list 4, MEDIACARD): the columns follow the room the list has (the side panel takes some), not
 // the screen's width, so a card is never narrower than its PLAY / QUEUE key (156px) and no key breaks inside its brackets.
@@ -34,7 +36,8 @@ for (const list of ['listClass={viewListClass(view)}','<ul className={viewListCl
 }
 assert.ok(fs.readFileSync('app/components/WebYouTubeHome.tsx', 'utf8').includes('<ul aria-label="From your YouTube" className={listClass}>'), "YOUR YOUTUBE's list follows the view");
 // Updated on purpose 2026-11-14 (Luke's list M8): the box is `relative`, for OPEN in its corner.
-assert.match(stream, /<span className=\{`relative block \$\{THUMB_BOX\[view\]\} shrink-0 overflow-hidden border border-ink-plate bg-paper`\}>/, 'the picture box is fixed per view, so a slow picture never moves the row');
+// Updated on purpose 2026-11-20 (MEDIADETAILS): its corner holds DETAILS' `i` now, and in GRID it takes the card's first line.
+assert.match(stream, /<span className=\{`relative block \$\{THUMB_BOX\[view\]\} shrink-0 overflow-hidden border border-ink-plate bg-paper \$\{slot\.thumb\}`\}>/, 'the picture box is fixed per view, so a slow picture never moves the row');
 assert.match(stream, /grid: 'aspect-video w-full'/, 'GRID pictures are 16:9');
 assert.match(stream, /grid: 'text-sm line-clamp-2'/, 'GRID titles are two lines, then cut');
 assert.match(stream, /item\.description && full && view !== 'grid'/, 'GRID and COMPACT leave the description out; LARGE shows more of it');

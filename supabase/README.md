@@ -1024,3 +1024,9 @@ Guests
 ------
 
 `20261106194444_guests_in_streams.sql` (SPEC-guests.md, Luke's OK 2026-11-06): guests in streams are Supabase's anonymous sign-in, and to Postgres they are ordinary signed-in people. A gate runs before every request (`guest_request_gate`), and a new table needs a `guests stay out` rule unless guests are meant to read it. The spec has the undo; `Temp/check-guests.cjs` fails on a table left open.
+
+
+Moderation
+----------
+
+`20261120090000_moderation.sql` (SPEC-moderation.md, Luke 2026-11-20): `moderators` (`is_admin()` now reads it, so every power the house account had goes to the list; the first row, Luke's account, is a separate write by id), `blocks` (one way; restrictive read rules hide the blocked person's rows from the blocker, restrictive write rules stop them messaging, commenting on or joining the blocker), `reports` (filed only through `file_report`, which copies the reported line itself when the reporter can read it), `moderation_log` (append-only: a trigger refuses every update and delete), `moderation_pulse` (one row; hides move it so open pages read again), and `hidden_at/hidden_by/hidden_reason` on board posts, replies, profile comments and room chat lines (only the moderators' functions may write them). `watch_join`/`watch_join_link` refuse somebody the host blocked. `Temp/check-moderation.cjs` is the proof, rolled back.

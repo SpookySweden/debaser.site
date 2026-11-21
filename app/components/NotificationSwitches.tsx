@@ -8,7 +8,7 @@ import { useComms } from './CommsProvider';
 import ProfileName from './ProfileName';
 
 /**
- * PREFERENCES' NOTIFICATIONS section (SPEC-notifications.md, answer 5B): one key per kind, pressed in while on, covering
+ * PREFERENCES' NOTIFICATIONS section (SPEC-notifications.md, answers 5B and 6A): one key per kind, pressed in while on, covering
  * the bell, DESK, the balloon and (in phase 2) the weekly email alike; BALLOONS for the pop-up alone; and the people
  * picked with TELL ME WHEN LIVE, each with `[ × ]`. Saved to the account. Signed out there is nothing to switch.
  */
@@ -52,6 +52,18 @@ export default function NotificationSwitches() {
           data-notify-switch="balloons"
         >
           [ BALLOONS ]
+        </button>
+        {/* 6A: off until each person turns it on. Sunday 18:00 UK time, only what is still unread, never anybody's words. */}
+        <button
+          type="button"
+          aria-pressed={prefs.weeklyEmail}
+          disabled={!ready}
+          onClick={() => void setNotifySwitch('weeklyEmail', !prefs.weeklyEmail)}
+          className={prefs.weeklyEmail ? PLATE_PRESSED : PLATE}
+          title="SUNDAY EVENINGS: WHAT YOU HAVEN'T READ YET"
+          data-notify-switch="weeklyEmail"
+        >
+          [ WEEKLY EMAIL ]
         </button>
       </div>
 

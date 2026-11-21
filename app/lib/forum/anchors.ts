@@ -287,6 +287,9 @@ const KIND_DEFAULT_HREF: Record<ForumAnchor['kind'], string> = {
   web: '/media',
   // A document's thread carries its own address (`docAnchor`); the file browser is the fallback.
   doc: '/docs',
+  // A comic panel's thread (SPEC-comic.md): the database keeps no address, so `resolveAnchorTarget` sends it through /comic?panel=<id>,
+  // which finds the panel's page.
+  comic: '/comic',
 };
 
 export function allKnownAnchors(): ForumAnchor[] {
@@ -308,7 +311,10 @@ export function resolveAnchorTarget(anchor: ForumAnchor): {
   );
 
   return {
-    href: anchor.href ?? known?.href ?? KIND_DEFAULT_HREF[anchor.kind],
+    href:
+      anchor.href ??
+      known?.href ??
+      (anchor.kind === 'comic' ? `/comic?panel=${encodeURIComponent(anchor.id)}` : KIND_DEFAULT_HREF[anchor.kind]),
     preview: anchor.preview ?? known?.preview,
   };
 }

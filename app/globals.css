@@ -861,6 +861,25 @@ details[open]:not(:has(> summary.key)) {
   box-shadow: -3px 0 0 0 var(--color-ink);
 }
 
+/* COMIC's panels (SPEC-comic.md, Q11): with [ COMMENTS ] on, each panel of a page is a press laid over Luke's art. Only an outline
+   in the site's own inks, never a fill, so the art stays as drawn: dotted under the pointer, solid accent ink where the panel has
+   comments or lore links, a thick Brilliant Pink line round the open one. The studio's boxes wear the same outline. */
+.comic-panel {
+  background: transparent;
+  outline: 2px dotted transparent;
+  outline-offset: -2px;
+}
+.comic-panel:hover,
+.comic-panel:focus-visible {
+  outline-color: var(--color-ink);
+}
+.comic-panel-lit {
+  outline: 2px solid var(--color-accent-ink);
+}
+.comic-panel-open {
+  outline: 3px solid var(--color-bubble);
+}
+
 /* A line of text that crawls past, the way the information bar along the foot of a news
    channel does. The track holds the same run twice and slides by exactly half its width,
    so the second copy lands where the first began and the loop has no seam. The duration is
@@ -1285,6 +1304,49 @@ img {
   display: grid;
   column-gap: calc(var(--spacing) * 3);
   grid-template-columns: repeat(auto-fill, minmax(max(calc(var(--spacing) * 39), calc((100% - var(--spacing) * 9) / 4)), 1fr));
+}
+
+/* A GRID card on its row's lines (MEDIADETAILS, Luke 2026-11-20: "make all the "play queue" interactable buttons align across
+   each row on grid view"): seven lines, shared by every card in the row (picture, title, creator, facts, keys, what the arrow
+   opens, the player), so each part stands at one height across the row (GRID_SLOTS in WebStream.tsx puts each on its line).
+   One column no wider than the card, so a line that will not wrap can never widen it. */
+.media-grid > .media-card {
+  display: grid;
+  grid-row: span 7;
+  grid-template-rows: subgrid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* RECOMMENDED and DISCOVER (WebPickedList.tsx) wrap each card with the people who picked it: the wrapper takes the row's lines
+   too, its people on an eighth line above the card's seven, so the keys still line up across the row. */
+.media-grid > li:has(> ul > .media-card) {
+  display: grid;
+  grid-row: span 8;
+  grid-template-rows: subgrid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.media-grid > li > ul:has(> .media-card) {
+  display: contents;
+}
+
+.media-grid > li > ul > .media-card {
+  display: grid;
+  grid-row: 2 / span 7;
+  grid-template-rows: subgrid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Each wrapped card is the only row of its own list, which `.rule-pixel:last-child` would leave with no dotted line under it:
+   in GRID it keeps the line, as the feed's cards do. */
+.media-grid > li > ul > .media-card.rule-pixel::after {
+  display: block;
+}
+
+/* Any other row in a GRID list (a film with no player here, NoPlayerRow) takes a whole line of its own, so the cards after it
+   still start their lines together. */
+.media-grid > li:not(.media-card):not(:has(> ul > .media-card)) {
+  grid-column: 1 / -1;
 }
 
 /* The visualiser's sliders (RoomVisualiser.tsx; Luke, 2026-11-14: "accessable sliders"). They sit on the picture, which

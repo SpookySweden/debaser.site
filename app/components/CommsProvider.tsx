@@ -10,6 +10,7 @@ import type { CommsEvent, CommsThread } from '../lib/comms/types';
 import { commsEventBody } from '../lib/games/events';
 import { formatStamp } from '../lib/forum/format';
 import { useAuth } from './AuthProvider';
+import { useModeration } from './ModerationProvider';
 
 export type CommsContextValue = {
   /** False until the read lands. */
@@ -191,9 +192,21 @@ export default function CommsProvider({ children }: { children: React.ReactNode 
   const retry = useCallback(() => setAttempt((current) => current + 1), []);
 
   // Derived rather than stored, so signing out empties the list with no write.
+  // Moderation (SPEC-moderation.md, 4B): a conversation with somebody the reader blocked goes, and a blocked person's lines in a
+  // group are left out. The database does the same; this is for the mock store and for a block made a moment ago.
+  const { isBlocked } = useModeration();
   const mineForUser = useMemo(
-    () => (userId === null ? [] : mine.filter((thread) => thread.participants.includes(userId))),
-    [mine, userId],
+    () =>
+      userId === null
+        ? []
+        : mine
+            .filter((thread) => thread.participants.includes(userId))
+            .filter((thread) => thread.kind !== 'dm' || !thread.participants.some((person) => person !== userId && isBlocked(person)))
+            .map((thread) => {
+              const messages = thread.messages.filter((message) => !isBlocked(message.authorId));
+              return messages.length === thread.messages.length ? thread : { ...thread, messages };
+            }),
+    [mine, userId, isBlocked],
   );
   const threads = useMemo(() => sortThreadsNewestFirst(mineForUser), [mineForUser]);
   const accounts = useMemo(() => listedAccounts(allAccounts), [allAccounts]);

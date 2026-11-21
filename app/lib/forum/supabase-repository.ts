@@ -115,6 +115,9 @@ type CommentRow = {
   /** The comment this replies to, null for a reply to the post itself. */
   parent_id?: string | null;
   created_at: string;
+  /** Set by a moderator's hide (20261120090000_moderation.sql); only the author and the moderators receive such a row. */
+  hidden_at?: string | null;
+  hidden_reason?: string | null;
 };
 
 type ThreadRow = {
@@ -134,8 +137,15 @@ type ThreadRow = {
   /** The MP3 filed with the post, as jsonb (`null` when there is none). */
   track?: ForumTrack | null;
   created_at: string;
+  hidden_at?: string | null;
+  hidden_reason?: string | null;
   forum_comments?: CommentRow[] | null;
 };
+
+/** The hidden mark for an object literal's spread, or nothing. */
+function withHidden(row: { hidden_at?: string | null; hidden_reason?: string | null }): { hidden?: { reason: string } } {
+  return row.hidden_at === null || row.hidden_at === undefined ? {} : { hidden: { reason: row.hidden_reason ?? '' } };
+}
 
 /** A pin row, as `forum_pins` has it. `expires_at` null is a pin that never runs out. */
 type PinRow = {
@@ -207,6 +217,7 @@ function toComment(row: CommentRow, threadId: string, banned: ReadonlySet<string
     createdAt: row.created_at,
     tags: row.tags ?? deriveTags({ text: row.body, maxTags: 3 }),
     ...(row.parent_id === null || row.parent_id === undefined ? {} : { parentId: row.parent_id }),
+    ...withHidden(row),
     ...withTrack(row.track),
     ...(row.media_src === null || row.media_src === undefined
       ? {}
@@ -235,6 +246,7 @@ function toThread(row: ThreadRow, banned: ReadonlySet<string> = new Set()): Foru
     anchor: { kind: row.anchor_kind, id: row.anchor_id, label: row.anchor_label },
     tags: row.tags ?? deriveTags({ text: `${row.title}\n${row.body}`, maxTags: 6 }),
     comments,
+    ...withHidden(row),
     ...withTrack(row.track),
     ...(row.media_src === null || row.media_src === undefined
       ? {}

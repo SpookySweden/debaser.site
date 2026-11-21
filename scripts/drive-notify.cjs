@@ -145,12 +145,25 @@ const balloon = (page) => page.locator('[data-notification-balloon]');
     check((await pressed('balloons')) === 'false', 'BALLOONS goes off');
     const stored = await page.evaluate((key) => JSON.parse(window.localStorage.getItem(key) ?? '{}'), SETTINGS);
     check(stored[ME.id]?.prefs?.balloons === false, 'and is saved to the account', JSON.stringify(stored[ME.id] ?? {}).slice(0, 160));
+    check((await pressed('weeklyEmail')) === 'false', 'WEEKLY EMAIL starts off (6A)');
+    await page.locator('[data-notify-switch="weeklyEmail"]').click();
+    await sleep(500);
+    const weekly = await page.evaluate((key) => JSON.parse(window.localStorage.getItem(key) ?? '{}'), SETTINGS);
+    check((await pressed('weeklyEmail')) === 'true' && weekly[ME.id]?.prefs?.weeklyEmail === true, 'pressed, it is on and saved');
     await page.locator('[data-notification-switches]').screenshot({ path: join(OUT, 'switches.png') });
     await file(other, { id: 'n-quiet', userId: ME.id, kind: 'reply', actorId: OTHER.id, actorName: OTHER.name, threadTitle: 'QUIET', body: 'shh' });
     await sleep(2500);
     check((await balloon(page).count()) === 0, 'with BALLOONS off nothing pops up');
     const bell = (await page.getByRole('button', { name: /Notifications:/ }).first().getAttribute('aria-label').catch(() => '')) ?? '';
     check(/NEW/.test(bell), 'the bell still has it', bell);
+
+    console.log('3b. THE UNSUBSCRIBE PAGE (10A)');
+    // A local mock server has no database behind it, so the page must say plainly that it didn't go through.
+    await page.goto(`${BASE}/unsubscribe?t=11111111-2222-3333-4444-555555555555`, { waitUntil: 'domcontentloaded' });
+    await page.locator('[data-unsubscribe="error"], [data-unsubscribe="off"]').first().waitFor({ timeout: 120000 }).catch(() => undefined);
+    const shown = (await page.locator('[data-unsubscribe]').textContent().catch(() => '')) ?? '';
+    check(/WEEKLY EMAIL/.test(shown) && /NOT SET UP|DID NOT|OFF/.test(shown), 'the unsubscribe page opens and answers', shown.slice(0, 120));
+    await page.screenshot({ path: join(OUT, 'unsubscribe.png') });
 
     console.log('4. TELL ME WHEN LIVE (2C)');
     await page.goto(`${BASE}/profile/${OTHER.id}`, { waitUntil: 'domcontentloaded' });

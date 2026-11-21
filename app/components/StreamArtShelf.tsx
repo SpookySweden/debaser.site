@@ -12,7 +12,7 @@ import { getCanvasRepository, type CanvasSnapshot, type CanvasTimelineInput, typ
 import { useAuth } from './AuthProvider';
 import ArtMark from './ArtMark';
 import CanvasPicture from './CanvasPicture';
-import { useAdmin } from './ForumModerationControls';
+import { useModTools } from './ForumModerationControls';
 import PopoutWindow from './PopoutWindow';
 import ProfileAvatar from './ProfileAvatar';
 import { isGuestLabel } from '../lib/watch/rules';
@@ -42,7 +42,7 @@ const REPLAY_STEP_MAX_MS = 250;
  * into the archive's stream.
  */
 export default function StreamArtShelf() {
-  const admin = useAdmin();
+  const admin = useModTools();
   const [pieces, setPieces] = useState<StreamArtPiece[] | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [open, setOpen] = useState<StreamArtPiece | null>(null);

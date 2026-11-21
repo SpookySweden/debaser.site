@@ -369,31 +369,14 @@ class SupabaseAuthRepository implements AuthRepository {
    * RLS refuses by touching nothing, which is otherwise silent.
    */
   async banAccount(userId: string, reason: string): Promise<void> {
-    const viewer = await this.getCurrentUser();
-
-    const { data, error } = await this.client()
-      .from('profiles')
-      .update({ banned_at: new Date().toISOString(), banned_reason: reason.trim(), banned_by: viewer?.id ?? null })
-      .eq('id', userId)
-      .select('id');
-
-    if (error !== null) throw new Error(error.message.toUpperCase());
-    if ((data ?? []).length === 0) {
-      throw new Error('ONLY THE HOUSE ACCOUNT CAN BAN.');
-    }
+    // Through the moderators' function (SPEC-moderation.md), which checks the moderator list and writes the log.
+    const { error } = await this.client().rpc('ban_account', { person: userId, why: reason.trim() });
+    if (error !== null) throw new Error(/give a reason/i.test(error.message) ? 'GIVE A REASON.' : 'ONLY A MODERATOR CAN BAN.');
   }
 
   async unbanAccount(userId: string): Promise<void> {
-    const { data, error } = await this.client()
-      .from('profiles')
-      .update({ banned_at: null, banned_reason: '', banned_by: null })
-      .eq('id', userId)
-      .select('id');
-
-    if (error !== null) throw new Error(error.message.toUpperCase());
-    if ((data ?? []).length === 0) {
-      throw new Error('ONLY THE HOUSE ACCOUNT CAN LIFT A BAN.');
-    }
+    const { error } = await this.client().rpc('unban_account', { person: userId });
+    if (error !== null) throw new Error('ONLY A MODERATOR CAN LIFT A BAN.');
   }
 
   /** Every banned account id, for the `[ BANNED ]` marks on the board and directory. */

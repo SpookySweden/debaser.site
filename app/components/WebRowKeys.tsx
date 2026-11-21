@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useState, type ReactNode, type Ref } from 'react';
 import type { PlaylistThing } from '../lib/audio/playlist-adding';
 import { PLATE } from '../lib/ui/controls';
 import type { LetterThing } from '../lib/letters/types';
@@ -35,6 +35,34 @@ export function ThumbOpen({ href, label }: { href: string; label: string }) {
         ↗
       </span>
     </a>
+  );
+}
+
+/**
+ * DETAILS (MEDIADETAILS, Luke 2026-11-20: "only visible with an "i" icon on the top right of a thumbnail replacing the go to
+ * arrow. the i icon shows a pop up window with video details, recommendation details, description, go to etc."): a small `i`
+ * in the picture's top right, on a square of the window's own colour as OPEN's `↗` was, in the site's own face (a plain
+ * letter every reader has, where ⓘ would come from whatever symbol font a system happens to carry). The press opens the
+ * row's DETAILS window; the window's GO TO is the way out to the platform now. Its box is a full 24px each way (`min-h-hit`), the
+ * square sitting in that box's top right, so it is easy to press without covering more of the picture.
+ */
+export function ThumbInfo({ label, open, onPress, ref }: { label: string; open: boolean; onPress: () => void; ref?: Ref<HTMLButtonElement> }) {
+  return (
+    <button
+      ref={ref}
+      type="button"
+      onClick={onPress}
+      aria-haspopup="dialog"
+      aria-expanded={open}
+      aria-label={label}
+      title="Details"
+      className="group absolute right-0 top-0 flex min-h-hit min-w-hit cursor-pointer items-start justify-end focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble max-sm:min-h-tap max-sm:min-w-tap"
+      data-thumb-info
+    >
+      <span className="block bg-paper px-1 py-0.5 text-label font-strong leading-none text-accent-ink group-hover:bg-accent-ink group-hover:text-paper group-active:bg-bubble group-active:text-ink-plate">
+        i
+      </span>
+    </button>
   );
 }
 

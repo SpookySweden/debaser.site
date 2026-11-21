@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import ComicLoreLinks from '../../components/comic/ComicLoreLinks';
 import DocView from '../../components/DocView';
 import ProjectSectionNav from '../../components/ProjectSectionNav';
 import SiteWindow from '../../components/SiteWindow';
@@ -34,7 +35,10 @@ export default async function LorePage({ params }: LorePageProps) {
 
       <ProjectSectionNav current="lore" />
 
+      {/* COMIC (SPEC-comic.md): a CHARACTER's first panel above the page, and where the page APPEARS IN below it. */}
+      <ComicLoreLinks slug={address} part="portrait" />
       <DocView target={{ slug: address }} />
+      <ComicLoreLinks slug={address} part="appearances" />
       {/* FOR YOU's private history (SPEC-recommender.md): a lore page read, by its title. */}
       <HistoryNote kind="lore" refName={address} title={titleFromSlug(address)} words={address.split('-').filter((word) => word.length > 3)} />
     </SiteWindow>

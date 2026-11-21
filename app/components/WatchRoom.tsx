@@ -103,6 +103,8 @@ import { steadyInterval } from '../lib/watch/steady-timer';
 import { UP_NEXT_EVERY_MS, notInStepId, notInStepNote, upNextRepeats, type RoomNote } from '../lib/watch/room-notes';
 import { attachStream, playsDirectly, type StreamHandle } from '../lib/watch/stream-player';
 import { applyLocalChange } from '../lib/watch/use-watch-room';
+import { HiddenNote, HideControl, ReportKey } from './ModerationKeys';
+import { useModeration } from './ModerationProvider';
 import { officialEmbedUrl, WEB_EMBED_SANDBOX } from '../lib/web/official-embed';
 import { useArchiveRoomFile } from '../lib/watch/archive-room-file';
 import { setRoomPicture } from '../lib/watch/room-fit';
@@ -1610,9 +1612,10 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
           : fileShape !== null && fileShape.file === (src ?? null)
             ? fileShape.shape
             : null;
+  // Which play is on, too: each new one fits the window again, the same shape included (Luke, 2026-11-20).
   useEffect(() => {
-    setRoomPicture(pictureFloats ? null : pictureBox.current, roomShape);
-  }, [roomShape, pictureFloats]);
+    setRoomPicture(pictureFloats ? null : pictureBox.current, roomShape, entryId);
+  }, [roomShape, pictureFloats, entryId]);
   useEffect(() => () => setRoomPicture(null, null), []);
   /** A double press on the picture is the FULL key (Luke, 2026-11-05). Keys on the picture and a canvas being drawn on keep theirs. */
   const fullOnDoublePress = (event: MouseEvent<HTMLDivElement>) => {
@@ -2082,11 +2085,19 @@ function ChatPanel({
     return () => window.clearTimeout(timer);
   }, [stepEntry, stepText]);
 
+  // A blocked person's lines and other people's hidden ones are left out (SPEC-moderation.md); a moderator's hide anywhere, or a
+  // block, reads the room again, since a line that just became unreadable sends no live change of its own.
+  const moderation = useModeration();
+  const { shows, version: moderationVersion } = moderation;
+  const roomIdForModeration = read.room.id;
+  useEffect(() => {
+    if (moderationVersion > 0) applyLocalChange(roomIdForModeration, { kind: 'refresh' });
+  }, [moderationVersion, roomIdForModeration]);
   const lines = useMemo(() => {
-    const said = read.messages.map((message) => ({ at: message.createdAt, message, note: null }));
+    const said = read.messages.filter((message) => shows('room_line', message.id, message.authorId, message.hidden)).map((message) => ({ at: message.createdAt, message, note: null }));
     const told = notes.map((note) => ({ at: note.at, message: null, note }));
     return [...said, ...told].sort((a, b) => a.at.localeCompare(b.at));
-  }, [read.messages, notes]);
+  }, [read.messages, notes, shows]);
   const count = lines.length;
 
   // The newest line stays in view as lines arrive.
@@ -2455,6 +2466,7 @@ function MessageBody({ message, roomId = null, viewerGuest = true }: { message: 
  */
 function ChatLine({ message, roomId, viewerGuest }: { message: WatchMessage; roomId: string; /** Not an account: an outside picture is always asked first (`outside-pictures.ts`). */ viewerGuest: boolean }) {
   const author = messageAuthor(message);
+  const moderation = useModeration();
   // While the canvas is on screen, a line can be dragged onto it (SPEC-stream-art.md).
   const drag = useChatLineDrag(message);
   return (
@@ -2466,8 +2478,16 @@ function ChatLine({ message, roomId, viewerGuest }: { message: WatchMessage; roo
             <ProfileName author={author} />
           </span>
           <span className="shrink-0 text-label text-ink-quiet">{formatMediaTime(message.mediaSeconds)}</span>
+          {/* REPORT the speaker, carrying the line (SPEC-moderation.md): a small flag, for accounts only. */}
+          <ReportKey
+            target={{ accountId: message.authorId, name: author.displayName, context: { kind: 'room_line', id: message.id, text: message.body } }}
+            label="⚑"
+            className={`${PLATE} shrink-0`}
+          />
         </span>
         <MessageBody message={message} roomId={roomId} viewerGuest={viewerGuest} />
+        <HiddenNote mark={moderation.markFor('room_line', message.id, message.hidden)} authorId={message.authorId} />
+        <HideControl kind="room_line" id={message.id} authorId={message.authorId} text={message.body} mark={moderation.markFor('room_line', message.id, message.hidden)} />
       </span>
     </li>
   );

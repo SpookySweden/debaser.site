@@ -24,7 +24,7 @@ export type ForumTag = {
  * Where a thread came from: the board itself, a hand-drawn asset, a text box, a profile, a track, or an
  * item in the WEB stream (`web`, keyed by `web_items.id`; app/lib/web/bridges.ts).
  */
-export type ForumAnchorKind = 'board' | 'asset' | 'text-box' | 'profile' | 'track' | 'web' | 'doc';
+export type ForumAnchorKind = 'board' | 'asset' | 'text-box' | 'profile' | 'track' | 'web' | 'doc' | 'comic';
 
 /** Artwork preview shown when hovering a link back to the item. */
 export type ForumPreview = {
@@ -89,6 +89,8 @@ export type ForumAuthor = {
 export type ForumComment = {
   id: string;
   threadId: string;
+  /** A moderator hid it (SPEC-moderation.md): only its author and the moderators are ever sent it, and they see this mark. */
+  hidden?: { reason: string };
   body: string;
   author: ForumAuthor;
   createdAt: string;
@@ -138,6 +140,8 @@ export type ThreadPin = {
 export type ForumThread = {
   id: string;
   title: string;
+  /** A moderator hid it (SPEC-moderation.md): only its author and the moderators are ever sent it, and they see this mark. */
+  hidden?: { reason: string };
   body: string;
   author: ForumAuthor;
   createdAt: string;

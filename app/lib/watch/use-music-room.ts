@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useModeration } from '../../components/ModerationProvider';
 import { getWatchRepository } from './repository';
 import { showMusicOnBar } from './stream-bar';
 import type { LiveRoom, RoomOrigin } from './types';
@@ -50,5 +51,9 @@ export function useLiveRooms(): { rooms: LiveRoom[] | null; error: string | null
     };
   }, [repository]);
 
-  return { rooms, error };
+  // A room hosted by somebody the reader blocked drops out of every list (SPEC-moderation.md, 4B); the database leaves it out too.
+  const { blocked } = useModeration();
+  const shown = useMemo(() => (rooms === null || blocked.size === 0 ? rooms : rooms.filter((live) => !blocked.has(live.room.hostId))), [rooms, blocked]);
+
+  return { rooms: shown, error };
 }

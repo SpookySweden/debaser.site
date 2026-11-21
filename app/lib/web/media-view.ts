@@ -6,7 +6,8 @@ import { noteSettingChanged, subscribeToAccountSettings } from '../settings/sett
 /**
  * MEDIA's VIEW setting (Luke, 2026-11-14: "settings for the media ui that show the current view and a few others such
  * as a more thumbnail view like youtube has"): how a list of results is laid out. Kept in this browser only; a browser
- * that won't keep it gets LIST, today's view. No database.
+ * that won't keep it, or never chose, gets GRID (MEDIADETAILS, Luke 2026-11-20: "make grid view default view in media page
+ * too"; it was LIST). A reader's own choice still wins, signed in from their account (settings-bus.ts). No database here.
  */
 
 export type MediaView = 'list' | 'grid' | 'large' | 'compact';
@@ -20,14 +21,16 @@ export const MEDIA_VIEWS: readonly { value: MediaView; label: string; line: stri
 ];
 
 const KEY = 'debaser.media.view.v1';
+/** What a reader who never chose sees (MEDIADETAILS, 2026-11-20). */
+const DEFAULT_VIEW: MediaView = 'grid';
 const listeners = new Set<() => void>();
 
 function read(): MediaView {
   try {
     const kept = window.localStorage.getItem(KEY);
-    return MEDIA_VIEWS.some((view) => view.value === kept) ? (kept as MediaView) : 'list';
+    return MEDIA_VIEWS.some((view) => view.value === kept) ? (kept as MediaView) : DEFAULT_VIEW;
   } catch {
-    return 'list';
+    return DEFAULT_VIEW;
   }
 }
 
@@ -59,17 +62,17 @@ function subscribe(listener: () => void): () => void {
   };
 }
 
-/** The view this browser chose; LIST on the server's draw and until the browser has been read. */
+/** The view this browser chose; GRID, the default, on the server's draw and until the browser has been read. */
 export function useMediaView(): MediaView {
   return useSyncExternalStore(
     subscribe,
     () => (memo ??= read()),
-    () => 'list',
+    () => DEFAULT_VIEW,
   );
 }
 
 export function viewLabel(view: MediaView): string {
-  return MEDIA_VIEWS.find((one) => one.value === view)?.label ?? 'LIST';
+  return MEDIA_VIEWS.find((one) => one.value === view)?.label ?? 'GRID';
 }
 
 /**

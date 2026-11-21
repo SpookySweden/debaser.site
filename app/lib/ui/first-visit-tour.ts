@@ -4,21 +4,24 @@
  * window); seven steps; "entirely visual tour with text" (the real thing outlined on screen, a few words beside it); every
  * step can SKIP, and a TOUR key in MODULOS plays it again.
  *
- * What this browser said, one key in its storage that follows the account (`settings-bus.ts`, `tour`), so an account that
+ * Everyone, once more (Luke, 2026-11-20, the same day: "make it so the tutorial plays for any user who returns to the site again
+ * for the first time starting now"): the key went to `.v2` and its name in the account's saved settings to `tour2`, so no
+ * mark from before counts, in a browser or on an account, and no database row had to change. Every reader not toured under
+ * v2 is toured once on the board, signed in or not; a new account's PRIVACY window holds it until it closes (`holdTour`).
+ *
+ * What this browser said, one key in its storage that follows the account (`settings-bus.ts`, `tour2`), so an account that
  * finished on one computer is not toured on the next:
- *   (none)       never toured: a signed-out visitor is toured on the board;
- *   'due:<id>'   that new account owes the tour (set when its PRIVACY window closes, only if nothing was said before). It
- *                names the account, so a leftover in a shared browser never tours somebody else who signs in there;
+ *   (none)               not toured since v2: toured on the board;
  *   'done' / 'skipped'   never again, unless replayed.
- * An account that never saw PRIVACY before (one made before it existed) counts as new here: it is toured once too.
  * Kept free of React and the database: the check compiles it on its own.
  */
 
 import { noteSettingChanged, subscribeToAccountSettings } from '../settings/settings-bus';
 
-export const TOUR_KEY = 'debaser.tour.v1';
+/** `.v1` (the first day's marks) no longer counts: Luke's "everyone once more". A later "again" is `.v3` here and a new synced name. */
+export const TOUR_KEY = 'debaser.tour.v2';
 
-export type TourSaid = `due:${string}` | 'done' | 'skipped' | null;
+export type TourSaid = 'done' | 'skipped' | null;
 
 /** The one page the tour plays on: the board is the desktop. */
 export const TOUR_PAGE = '/forum';
@@ -50,16 +53,14 @@ export function stepsFor(signedIn: boolean, shown: (target: string) => boolean):
   return TOUR_STEPS.filter((step) => (step.who === undefined || step.who === (signedIn ? 'account' : 'visitor')) && shown(step.target));
 }
 
-/** Whether the tour plays now. `userId` is the signed-in account, or null for a visitor. Pure. */
-export function tourOwed(input: { said: TourSaid; userId: string | null; replaying: boolean; path: string | null }): boolean {
-  if (input.path !== TOUR_PAGE) return false;
-  if (input.replaying) return true;
-  return input.userId === null ? input.said === null : input.said === `due:${input.userId}`;
+/** Whether the tour plays now: on the board, nothing holding it, and replayed or not yet toured since v2. Pure. */
+export function tourOwed(input: { said: TourSaid; held: boolean; replaying: boolean; path: string | null }): boolean {
+  if (input.path !== TOUR_PAGE || input.held) return false;
+  return input.replaying || input.said === null;
 }
 
 export function parseTourSaid(raw: string | null): TourSaid {
-  if (raw === 'done' || raw === 'skipped') return raw;
-  return raw !== null && raw.startsWith('due:') && raw.length > 4 ? (raw as `due:${string}`) : null;
+  return raw === 'done' || raw === 'skipped' ? raw : null;
 }
 
 const listeners = new Set<() => void>();
@@ -89,7 +90,7 @@ export const serverTourSaid = (): TourSaid => 'done';
 function writeTourSaid(said: Exclude<TourSaid, null>): void {
   try {
     window.localStorage.setItem(TOUR_KEY, said);
-    noteSettingChanged('tour');
+    noteSettingChanged('tour2');
   } catch {
     // No storage: the tour still ends for this page (`replaying` and the component's own state).
   }
@@ -113,7 +114,33 @@ export function endTour(how: 'done' | 'skipped'): void {
   writeTourSaid(how);
 }
 
-/** A new account's PRIVACY window closed: it owes the tour, unless this browser already saw or skipped it. */
-export function owedAfterPrivacy(userId: string): void {
-  if (readTourSaid() === null) writeTourSaid(`due:${userId}`);
+/** An automated browser's way in: the tour drive (scripts/drive-first-visit.cjs) and `npm run shot -- --tour` set it. */
+export const TOUR_DRIVE_KEY = 'debaser.tour.drive';
+
+/**
+ * A browser driven by a script (drives, checks, screenshots: `navigator.webdriver`) is not toured unless it asks, so the
+ * tour never holds the board in front of a test that is about something else. A person's browser never says webdriver.
+ */
+export function automatedWithoutTour(): boolean {
+  try {
+    return window.navigator.webdriver === true && window.localStorage.getItem(TOUR_DRIVE_KEY) === null;
+  } catch {
+    return false;
+  }
+}
+
+/** Windows that come first (a new account's PRIVACY window) hold the tour while they are open. */
+let holds = 0;
+
+export const tourHeld = (): boolean => holds > 0;
+export const serverTourHeld = (): boolean => false;
+
+/** Hold the tour; the returned function lets it go. */
+export function holdTour(): () => void {
+  holds += 1;
+  tell();
+  return () => {
+    holds -= 1;
+    tell();
+  };
 }

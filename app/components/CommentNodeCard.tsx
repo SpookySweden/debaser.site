@@ -21,6 +21,14 @@ import TagStrip from './TagStrip';
 import TimeStamp from './TimeStamp';
 
 import { PLATE, ROW_READ, ROW_UNREAD } from '../lib/ui/controls';
+import { HiddenNote, ReportKey } from './ModerationKeys';
+import { useModeration } from './ModerationProvider';
+
+/** The line a reply's REPORT carries: a reply, or a profile's comment the board gathered (`profile-comment:<id>`). */
+function reportedLine(id: string, text: string): { kind: 'reply' | 'profile_comment'; id: string; text: string } {
+  const PROFILE_COMMENT = 'profile-comment:';
+  return id.startsWith(PROFILE_COMMENT) ? { kind: 'profile_comment', id: id.slice(PROFILE_COMMENT.length), text } : { kind: 'reply', id, text };
+}
 
 type CommentNodeCardProps = {
   comment: ForumComment;
@@ -107,7 +115,8 @@ export default function CommentNodeCard({
   onSubmit,
   children,
 }: CommentNodeCardProps) {
-  const indent = depth === 0 ? '' : depth <= maxIndentDepth ? 'ml-4 border-l-line border-ink pl-2' : 'ml-2';
+  const moderation = useModeration();
+  const indent =depth === 0 ? '' : depth <= maxIndentDepth ? 'ml-4 border-l-line border-ink pl-2' : 'ml-2';
   // A matched reply is ringed, so the eye finds it once the post it answers is open. `scroll-mt`
   // keeps the marker clear of the window's own chrome when the board scrolls to it.
   const marker = matched ? ' scroll-mt-24 outline-2 outline-ena outline-offset-2' : '';
@@ -184,7 +193,12 @@ export default function CommentNodeCard({
             </button>
           )}
           <AddToLetterKey thing={{ kind: 'post', ref: comment.id, title: postTitle(comment.body) }} />
+          {/* REPORT its author, carrying the reply (a profile's comment gathered onto the board reports as that comment). */}
+          {comment.author.id !== null ? (
+            <ReportKey target={{ accountId: comment.author.id, name: comment.author.displayName, context: reportedLine(comment.id, comment.body) }} />
+          ) : null}
         </div>
+        <HiddenNote mark={moderation.markFor('reply', comment.id, comment.hidden)} authorId={comment.author.id} />
 
         {/* Only drawn for the house account: rewrite the reply, or take it down. */}
         <CommentModeration comment={comment} />

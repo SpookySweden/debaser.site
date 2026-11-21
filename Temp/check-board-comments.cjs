@@ -87,6 +87,34 @@ stub('./board-render/components/AuthProvider.js', {
   }),
 });
 
+/**
+ * Who moderates is the moderator list since SPEC-moderation.md (Luke, 2026-11-20, 1A), not the house account: read from the
+ * database's `moderators` table through ModerationProvider. The mock store's moderator is the house account, so it stands in here.
+ */
+const MODERATORS = new Set(['debaser-site']);
+const MOD_TOOLS_SHOWN = { on: true };
+stub('./board-render/components/ModerationProvider.js', {
+  ModerationProvider: ({ children }) => children,
+  useModeration: () => {
+    const moderator = viewer !== null && MODERATORS.has(viewer.id);
+    return {
+      role: { moderator, owner: moderator },
+      // The moderator tools start hidden (Luke, 2026-11-20); the `[ MOD ]` key shows them. Shown here unless a test says.
+      toolsOn: moderator && MOD_TOOLS_SHOWN.on,
+      setToolsShown: () => undefined,
+      standing: { banned: false, reason: '', appealOpen: false },
+      blocked: new Set(),
+      version: 0,
+      isBlocked: () => false,
+      block: async () => undefined,
+      unblock: async () => undefined,
+      refresh: () => undefined,
+      markFor: (_kind, _id, own) => own ?? null,
+      shows: () => true,
+    };
+  },
+});
+
 stub('./board-render/components/PresenceProvider.js', {
   default: ({ children }) => children,
   usePresence: () => ({ ready: true, status: 'offline', record: undefined }),
@@ -262,7 +290,7 @@ const closedBox = render(element(CommentNodeCard, { ...cardProps, replyCount: 0,
 assert.match(closedBox, /\[ REPLY \]/, 'a closed one offers to answer');
 assert.doesNotMatch(closedBox, /REPL(Y|IES) [▴▾] \]/, 'and offers no fold when it has no replies');
 
-// 4. Permissions: the moderation controls belong to the house account and to nobody else -
+// 4. Permissions: the moderation controls belong to a moderator (the list; the house account in the mock) and to nobody else -
 //    not a guest, and not the account that wrote the post.
 const asGuest = render(element(moderation.ThreadModeration, { thread: THREAD }));
 assert.doesNotMatch(asGuest, /\[ ADMIN \]|EDIT POST|REMOVE POST|BAN/, 'a guest is handed no controls');
@@ -273,7 +301,12 @@ assert.doesNotMatch(asAuthor, /\[ ADMIN \]|REMOVE POST/, 'the poster is not the 
 
 viewer = { id: 'debaser-site', displayName: 'debaser.site' };
 const asAdmin = render(element(moderation.ThreadModeration, { thread: THREAD }));
-assert.match(asAdmin, /\[ ADMIN \]/, 'the house account is');
+assert.match(asAdmin, /\[ ADMIN \]/, 'a moderator is');
+assert.match(asAdmin, /\[ HIDE \]/, 'and may hide a post (SPEC-moderation.md)');
+// Hidden until the `[ MOD ]` key after their name shows them (Luke, 2026-11-20: "make the settings hidden by default").
+MOD_TOOLS_SHOWN.on = false;
+assert.doesNotMatch(render(element(moderation.ThreadModeration, { thread: THREAD })), /\[ ADMIN \]|REMOVE POST|\[ HIDE \]/, 'a moderator with the tools hidden is handed none');
+MOD_TOOLS_SHOWN.on = true;
 assert.match(asAdmin, /REMOVE POST/, 'and may take a post down');
 assert.match(asAdmin, /BAN/, 'and ban the account behind a reply');
 
