@@ -1,7 +1,7 @@
 /*
  * SCREENS in the site (SPEC-screens.md, phase 3, first slice): the owner's PC screen in his own room. Offline: the
  * only server it talks to is a pretend engine it starts itself on 127.0.0.1.
- *   npx tsc app/api/screens/host/route.ts app/api/screens/offer/route.ts app/api/screens/settings/route.ts app/lib/screens/wishes.ts app/lib/screens/wire.ts app/lib/screens/key-gate.ts app/components/ScreenKeyGate.tsx app/lib/watch/canvas.ts node_modules/next/types/global.d.ts --outDir Temp/out-screens --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop --moduleResolution node --jsx react-jsx
+ *   npx tsc app/api/screens/host/route.ts app/api/screens/offer/route.ts app/api/screens/settings/route.ts app/api/screens/devices/route.ts app/api/screens/mail/route.ts app/lib/screens/device-mail.ts app/components/RoomDeviceScreen.tsx app/components/DeviceShareGate.tsx app/lib/screens/wishes.ts app/lib/screens/wire.ts app/lib/screens/key-gate.ts app/components/ScreenKeyGate.tsx app/lib/watch/canvas.ts node_modules/next/types/global.d.ts --outDir Temp/out-screens --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop --moduleResolution node --jsx react-jsx
  *   node Temp/check-screens.cjs
  *
  * - WHERE THE ENGINE IS: `SCREENS_ENGINE_URL` is taken only when it is a plain http address on this PC itself; anything
@@ -522,6 +522,59 @@ async function main() {
   ok(wishes.padSays({ ...seen, pcSays: 2 }, true, withSound).endsWith('THE PC HAS NO CONTROLLER DRIVER'), 'the PC has no driver: said');
   same(wishes.padSays({ ...seen, supported: false }, false, withSound), 'THIS BROWSER GIVES NO CONTROLLERS TO THIS PAGE', 'a browser with no controllers at all');
 
+  /* ---------------------------------------------------------------- REMOTE from another of the owner's devices */
+  {
+    const mail = require(path.join(OUT, 'lib/screens/device-mail.js'));
+    const store = new mail.DeviceMail();
+    const t = 5_000_000;
+    same(store.hereIAm('aaaaaaaa1', 'WINDOWS · CHROME · 3440x1440', t).devices, [], 'the first device on: nobody else listed');
+    same(store.hereIAm('bbbbbbbb2', 'WINDOWS · EDGE · 1920x1080', t + 100).devices, [{ id: 'aaaaaaaa1', name: 'WINDOWS · CHROME · 3440x1440' }], 'the second sees the first');
+    same(store.hereIAm('aaaaaaaa1', 'WINDOWS · CHROME · 3440x1440', t + 200).devices.map((d) => d.id), ['bbbbbbbb2'], 'and the first the second, never itself');
+    same(store.send('aaaaaaaa1', 'bbbbbbbb2', 'ask', '', t + 300), null, 'a message for a device on the site now is taken');
+    same(store.hereIAm('bbbbbbbb2', 'x', t + 400).mail.map((m) => `${m.from} ${m.kind}`), ['aaaaaaaa1 ask'], 'and handed to it with its next "here I am"');
+    same(store.hereIAm('bbbbbbbb2', 'x', t + 500).mail, [], 'once only');
+    ok(/not on the site/.test(store.send('aaaaaaaa1', 'cccccccc3', 'ask', '', t + 600)), 'a device not seen lately is refused');
+    ok(/itself/.test(store.send('aaaaaaaa1', 'aaaaaaaa1', 'ask', '', t + 600)), 'and a device sending to itself');
+    for (let i = 0; i < mail.MAX_WAITING; i += 1) store.send('aaaaaaaa1', 'bbbbbbbb2', 'stop', '', t + 700);
+    ok(/too many/.test(store.send('aaaaaaaa1', 'bbbbbbbb2', 'stop', '', t + 700)), 'a full mailbox refuses more');
+    same(store.hereIAm('aaaaaaaa1', 'a', t + 200 + mail.DEVICE_FRESH_MS + 1000).devices, [], 'a device silent longer than it stays fresh is not listed');
+    const old = new mail.DeviceMail();
+    old.hereIAm('aaaaaaaa1', 'a', t);
+    old.hereIAm('bbbbbbbb2', 'b', t);
+    old.send('aaaaaaaa1', 'bbbbbbbb2', 'ask', '', t);
+    same(old.hereIAm('bbbbbbbb2', 'b', t + mail.MAIL_KEPT_MS + 1).mail, [], 'a message not collected within a minute is dropped');
+    same([mail.cleanName('A\u0000B\n  C'), mail.cleanName(''), mail.cleanName(7), mail.cleanName('x'.repeat(90)).length], ['A B C', 'A DEVICE', 'A DEVICE', 60], "a device's name is one plain line, at most 60 characters");
+    same([mail.isDeviceId('abc12345'), mail.isDeviceId('ABC12345'), mail.isDeviceId('a b'), mail.isDeviceId('<script>')], [true, false, false, false], 'device names for the mailbox are short lower-case letters and digits only');
+
+    // The routes: owner only, the same refusal for everybody else; the size and kind rules.
+    const OPEN = { NODE_ENV: 'development', NEXT_PUBLIC_AUTH_BACKEND: 'mock', SCREENS_DEV_OPEN: '1' };
+    const CLOSED = { ...SUPABASE, SCREENS_OWNER_ID: OWNER };
+    const routes = new mail.DeviceMail();
+    const post = (url, value, token) => ask(url, { method: 'POST', type: 'application/json', body: JSON.stringify(value), token });
+    const stranger = await read(await mail.devicesAnswer(post('/api/screens/devices', { id: 'aaaaaaaa1', name: 'x' }, tokenFor(OTHER)), world(CLOSED, { accounts: { [tokenFor(OTHER)]: OTHER } }).deps, routes, t));
+    const nobody = await read(await mail.devicesAnswer(post('/api/screens/devices', { id: 'aaaaaaaa1', name: 'x' }), world(CLOSED).deps, routes, t));
+    same([stranger.status, stranger.text, nobody.status, nobody.text], [403, '{"error":"Not available."}', 403, '{"error":"Not available."}'], 'another account and nobody at all get the same refusal');
+    same(routes.devices.size, 0, 'and nothing of theirs is noted');
+    const mine = await read(await mail.devicesAnswer(post('/api/screens/devices', { id: 'aaaaaaaa1', name: 'MINE' }, tokenFor(OWNER)), world(CLOSED, { accounts: { [tokenFor(OWNER)]: OWNER } }).deps, routes, t));
+    same([mine.status, JSON.parse(mine.text)], [200, { devices: [], mail: [] }], 'the owner is noted and answered');
+    same(mine.kept, 'private, no-store', 'never kept in a cache');
+    await mail.devicesAnswer(post('/api/screens/devices', { id: 'bbbbbbbb2', name: 'OTHER' }), world(OPEN).deps, routes, t);
+    const badKind = await read(await mail.mailAnswer(post('/api/screens/mail', { from: 'aaaaaaaa1', to: 'bbbbbbbb2', kind: 'run', body: '' }), world(OPEN).deps, routes, t));
+    const tooBig = await read(await mail.mailAnswer(post('/api/screens/mail', { from: 'aaaaaaaa1', to: 'bbbbbbbb2', kind: 'offer', body: 'x'.repeat(mail.MAX_MAIL_BYTES + 1) }), world(OPEN).deps, routes, t));
+    const gone = await read(await mail.mailAnswer(post('/api/screens/mail', { from: 'aaaaaaaa1', to: 'zzzzzzzz9', kind: 'ask', body: '' }), world(OPEN).deps, routes, t));
+    const fine = await read(await mail.mailAnswer(post('/api/screens/mail', { from: 'aaaaaaaa1', to: 'bbbbbbbb2', kind: 'ask', body: '' }), world(OPEN).deps, routes, t));
+    same([badKind.status, tooBig.status, gone.status, fine.status], [400, 413, 409, 204], 'the mailbox refuses an unknown kind, a too-large message and a device not on the site, and takes a good one');
+    const strangerMail = await read(await mail.mailAnswer(post('/api/screens/mail', { from: 'aaaaaaaa1', to: 'bbbbbbbb2', kind: 'ask', body: '' }), world(CLOSED).deps, routes, t));
+    same(strangerMail.status, 403, 'and refuses everybody but the owner');
+
+    // The picture for another device draws its first words before anything is asked (nothing runs on the server).
+    const RoomDeviceScreen = require('./out-screens/components/RoomDeviceScreen.js').default;
+    const drawn = require('react-dom/server').renderToStaticMarkup(require('react').createElement(RoomDeviceScreen, { source: { kind: 'device', id: 'bbbbbbbb2', name: 'WINDOWS · EDGE · 1920x1080' } }));
+    const DeviceShareGate = require('./out-screens/components/DeviceShareGate.js').default;
+    same(require('react-dom/server').renderToStaticMarkup(require('react').createElement(DeviceShareGate)), '', "the share gate every page carries draws nothing until one of the owner's devices asks");
+    ok(drawn.includes('ASKING WINDOWS · EDGE · 1920x1080: SOMEBODY THERE PRESSES SHARE'), "the other device's picture says it is asking, and that somebody there must press SHARE");
+  }
+
   /* ---------------------------------------------------------------- the keyboard's first listener */
   {
     const listeners = [];
@@ -576,7 +629,7 @@ async function main() {
   const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => (entry.isDirectory() ? walk(path.join(dir, entry.name)) : /\.(ts|tsx)$/.test(entry.name) ? [path.join(dir, entry.name)] : []));
   const files = walk(path.join(ROOT, 'app')).map((file) => ({ file: path.relative(ROOT, file).replace(/\\/g, '/'), text: fs.readFileSync(file, 'utf8') }));
   const importers = files.filter(({ text }) => /from\s+['"][^'"]*screens\/host-server['"]/.test(text) || /from\s+['"]\.\/host-server['"]/.test(text)).map(({ file }) => file);
-  same(importers.sort(), ['app/api/screens/host/route.ts', 'app/api/screens/offer/route.ts', 'app/api/screens/settings/route.ts'], 'only the three routes import the server file');
+  same(importers.sort(), ['app/api/screens/host/route.ts', 'app/api/screens/offer/route.ts', 'app/api/screens/settings/route.ts', 'app/lib/screens/device-mail.ts'], 'only the three routes and the devices\' mailbox (itself only for its two routes) import the server file');
   const naming = files.filter(({ text }) => /SCREENS_(OWNER_ID|ENGINE_URL|DEV_OPEN)/.test(text.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, ''))).map(({ file }) => file);
   same(naming, ['app/lib/screens/host-server.ts'], 'and the settings are read in that file alone');
   ok(!files.some(({ text }) => /NEXT_PUBLIC_SCREENS/.test(text)), 'none of it is a NEXT_PUBLIC value');

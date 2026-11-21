@@ -16,7 +16,7 @@ import { hostSettingsFrom, type HostSettings, type SettingsRequest } from './wis
  * The session to show the routes: an account's token, `{}` on the mock accounts (the server then says no, unless it
  * is a local server opened for a drive), null when signed out or a stream-room guest: nothing is asked at all.
  */
-async function sessionHeaders(): Promise<Record<string, string> | null> {
+export async function sessionHeaders(): Promise<Record<string, string> | null> {
   if (USING_MOCK_AUTH) return {};
   const client = getSupabaseBrowserClient();
   if (client === null) return null;

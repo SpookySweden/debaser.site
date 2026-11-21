@@ -237,7 +237,7 @@ function engineWords(text: string, fallback: string): string {
 }
 
 /** A request's body as text when it is no longer than `most` bytes; null when it is longer. */
-async function bodyText(request: Request, most: number): Promise<string | null> {
+export async function bodyText(request: Request, most: number): Promise<string | null> {
   const declared = Number(request.headers.get('content-length') ?? '');
   if (Number.isFinite(declared) && declared > most) return null;
   const reader = request.body?.getReader();

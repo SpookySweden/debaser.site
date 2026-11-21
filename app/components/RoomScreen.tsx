@@ -30,6 +30,8 @@ import {
   troubleLines,
   type HostPcScreen,
 } from '../lib/screens/wishes';
+import { useRemoteSource } from '../lib/screens/devices';
+import RoomDeviceScreen from './RoomDeviceScreen';
 import { PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED } from '../lib/ui/controls';
 import { chooseScreen } from '../lib/watch/canvas-view';
 
@@ -46,7 +48,17 @@ import { chooseScreen } from '../lib/watch/canvas-view';
  * the room draws it only while the screen is the chosen view. The picture's box sits on Black in every theme, so its
  * keys and words take the bar's inks (the canvas's tools and the visualiser's sliders do the same).
  */
-export default function RoomScreen({ roomId, audio }: { roomId: string; /** As the room's screen keys': what kind of thing plays. */ audio: boolean }) {
+/**
+ * REMOTE's picture: the PC's own screen through its engine, or (chosen on the REMOTE key) another of the owner's
+ * devices, watch only, with nothing installed on it.
+ */
+export default function RoomScreen(props: { roomId: string; /** As the room's screen keys': what kind of thing plays. */ audio: boolean }) {
+  const source = useRemoteSource();
+  if (source.kind === 'device') return <RoomDeviceScreen key={source.id} source={source} />;
+  return <EngineScreen {...props} />;
+}
+
+function EngineScreen({ roomId, audio }: { roomId: string; audio: boolean }) {
   const host = useScreenHost();
   const root = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDivElement>(null);

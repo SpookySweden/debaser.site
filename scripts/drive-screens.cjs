@@ -837,9 +837,64 @@ async function partOpen(browser) {
     const roomShows = await page.evaluate(() => (document.querySelector('[data-room-canvas="shown"]') ? 'its canvas' : document.querySelector('[data-watch-blank="shown"]') ? 'its own empty screen' : 'its own picture'));
     const gone = await waitFor(async () => ((await engine.settings()).viewers === 0 ? true : null), 8000, 250);
     pass(
-      '[ SCREEN ] pressed again: back to the room\'s own picture, control let go of, the connection closed',
+      '[ REMOTE ] pressed again: back to the room\'s own picture, control let go of, the connection closed',
       `the room shows ${roomShows}; the browser's connection went from "${before.state}" to "${closed.state}" (${closed.connections} made in all); the engine: "ended: ${letGo.why}", holder ${(await engine.log()).holder}, viewers ${gone ? 0 : (await engine.settings()).viewers}`,
     );
+
+    // k. REMOTE from another of the owner's devices, nothing installed (Luke, 2026-11-21: "a selection option of which
+    //    signed in device to stream from when you click remote"). A second browser stands for the other device: it
+    //    has the site open; REMOTE lists it beside THE PC; chosen, it is asked, somebody there presses SHARE (this
+    //    browser picks its screen by itself: a switch of the drive's), and the room shows its picture, watch only.
+    {
+      const second = await newPage(browser, blocked, errors);
+      try {
+        await second.page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+        const listed = await waitFor(async () => {
+          if ((await page.locator('[data-remote-choices]').count()) === 0) await toggle.click();
+          return (await page.locator('[data-remote-choice]').count()) >= 2 ? true : null;
+        }, 20000, 1500);
+        assert.ok(listed, 'pressed, REMOTE lists the devices to choose from');
+        const choices = await page.locator('[data-remote-choice]').evaluateAll((keys) => keys.map((k) => ({ id: k.getAttribute('data-remote-choice'), text: k.textContent.trim() })));
+        const pcChoice = choices.find((c) => c.id === 'engine');
+        const deviceChoice = choices.find((c) => c.id !== 'engine');
+        assert.ok(pcChoice && deviceChoice, `THE PC and the other device are both listed: ${JSON.stringify(choices)}`);
+        await page.locator(`[data-remote-choice="${deviceChoice.id}"]`).click({ timeout: 5000 });
+        await second.page.waitForSelector('[data-device-share-asks]', { timeout: 10000 });
+        const asks = (await second.page.locator('[data-device-share-asks]').innerText()).trim();
+        const waiting = (await page.locator('[data-room-device-says]').innerText()).trim();
+        const yesOnTop = await second.page.evaluate(() => {
+          const key = document.querySelector('[data-device-share-yes]');
+          const box = key.getBoundingClientRect();
+          const top = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+          return { box: [Math.round(box.left), Math.round(box.top), Math.round(box.width), Math.round(box.height)], mine: top === key || key.contains(top), top: top ? `${top.tagName.toLowerCase()}.${String(top.className).slice(0, 90)} ${[...top.attributes].filter((a) => a.name.startsWith('data-')).map((a) => a.name).join(',')}` : 'nothing' };
+        });
+        assert.ok(yesOnTop.mine, `[ SHARE THIS SCREEN ] can be pressed: at ${yesOnTop.box.join(',')} the top thing is ${yesOnTop.top}`);
+        await second.page.locator('[data-device-share-yes]').click({ timeout: 5000 });
+        const shown = await waitFor(async () => ((await page.locator('[data-room-device-screen="showing"]').count()) === 1 ? true : null), 15000);
+        if (!shown) {
+          const roomSays = await page.locator('[data-room-device-says]').innerText().catch(() => '(nothing)');
+          const otherSays = await second.page.locator('[data-device-share]').innerText().catch(() => '(nothing)');
+          throw new Error(`the other device's picture did not come: the room says "${roomSays.trim()}"; the other device shows "${otherSays.replace(/\s+/g, ' ').trim()}"`);
+        }
+        const frames = await waitFor(async () => {
+          const size = await page.evaluate(() => { const v = document.querySelector('[data-room-device-screen] video'); return v ? { w: v.videoWidth, h: v.videoHeight, t: v.currentTime } : null; });
+          return size && size.w > 0 && size.t > 0.3 ? size : null;
+        }, 10000);
+        assert.ok(frames, "the other device's screen is playing in the room");
+        const showing = (await page.locator('[data-room-device-says]').innerText()).trim();
+        assert.equal(await second.page.locator('[data-device-sharing]').count(), 1, 'the other device says it is sharing, with STOP');
+        await second.page.locator('[data-device-share-stop]').click();
+        const ended = await waitFor(async () => { const t = (await page.locator('[data-room-device-says]').innerText()).trim(); return t.includes('STOPPED SHARING') ? t : null; }, 10000);
+        assert.ok(ended, 'STOP on the other device ends it, and the room says so');
+        await toggle.click();
+        await page.waitForFunction(() => document.querySelector('[data-room-screen]') === null, null, { timeout: 5000 });
+        pass("REMOTE lists the owner's other device beside THE PC; chosen, that device is asked, SHARE there shows its screen in the room (watch only), and STOP there ends it",
+          `the choices: ${choices.map((c) => c.text).join(' | ')}; the room said "${waiting}", the other device said "${asks}"; then "${showing}", playing ${frames.w}x${frames.h}; after STOP: "${ended}"`);
+      } finally {
+        await second.context.close().catch(() => undefined);
+      }
+    }
+
     assert.deepEqual(blocked, [], 'nothing went to the live database');
     assert.deepEqual(errors, [], 'no page errors');
     pass('nothing was asked of the live site or its database, and the page raised no errors', `the engine had ${engine.secondsLeft().toFixed(0)} of its 120 seconds left`);
@@ -873,7 +928,8 @@ async function main() {
     return 1;
   }
   console.log(`DRIVE-SCREENS: the site on ${BASE} (mock data), the engine on ${ENGINE_AT} (dry run), a hidden browser. Nothing leaves this PC.`);
-  const browser = await chromium.launch({ executablePath: findChrome(), headless: true, args: ['--autoplay-policy=no-user-gesture-required', '--no-first-run', '--mute-audio'] });
+  // The last switch lets the second browser (part k's other device) share a screen without a picker: the drive's own stand-in for a press.
+  const browser = await chromium.launch({ executablePath: findChrome(), headless: true, args: ['--autoplay-policy=no-user-gesture-required', '--no-first-run', '--mute-audio', '--auto-select-desktop-capture-source=Entire screen'] });
   let failure = null;
   try {
     if (ONLY !== 'open') await partClosed(browser);
