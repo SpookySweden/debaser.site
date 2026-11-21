@@ -86,10 +86,25 @@ function engineProcesses() {
   return (r.stdout || '').split(/\s+/).filter((t) => /^\d+$/.test(t)).map(Number);
 }
 
+/** Stops the engine and waits until Windows has really let go of it (its file cannot be replaced before that). */
 function stopEngine() {
   const running = engineProcesses();
   for (const pid of running) { try { process.kill(pid); } catch { /* already gone */ } }
+  for (let tries = 0; running.length > 0 && tries < 20 && engineProcesses().length > 0; tries += 1) {
+    spawnSync('powershell', ['-NoProfile', '-Command', 'Start-Sleep -Milliseconds 300'], { windowsHide: true });
+  }
   return running.length;
+}
+
+/** Copies the engine's program into the host folder, trying again for a few seconds while Windows still holds the old one. */
+function copyEngine() {
+  for (let tries = 0; ; tries += 1) {
+    try { copyFileSync(BUILT, ENGINE); return; } catch (error) {
+      if (error.code !== 'EBUSY' && error.code !== 'EPERM') throw error;
+      if (tries >= 20) throw error;
+      spawnSync('powershell', ['-NoProfile', '-Command', 'Start-Sleep -Milliseconds 300'], { windowsHide: true });
+    }
+  }
 }
 
 function startEngine(lan) {
@@ -104,15 +119,14 @@ const engineArgs = (lan) => (lan ? ['serve', '--allow-control', '--lan'] : ['ser
 
 /** Stops the site the way an update does: keep-running sees the note and starts it again at once. */
 function restartSite() {
-  const r = spawnSync('powershell', ['-NoProfile', '-Command',
-    '(Get-NetTCPConnection -LocalPort 3000 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1).OwningProcess'],
-  { encoding: 'utf8', windowsHide: true });
-  const pid = Number((r.stdout || '').trim());
-  if (!pid) return 'the site was not found on port 3000, so it was not restarted: it reads the setting at its next start';
+  // Exactly what self-update.cjs does at a switch: the note first, then the site's own program and its children.
+  const find = "Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Where-Object { $_.CommandLine -like '*next*start*-p*3000*' }";
+  const found = spawnSync('powershell.exe', ['-NoProfile', '-Command', `@(${find}).Count`], { encoding: 'utf8', windowsHide: true });
+  if (!(Number((found.stdout || '').trim()) > 0)) return 'the site\'s program was not found running, so it was not restarted: it reads the setting at its next start';
   if (!existsSync(LOGS)) mkdirSync(LOGS, { recursive: true });
   writeFileSync(join(LOGS, 'site.switching'), 'screens.cjs\n');
-  try { process.kill(pid); } catch (e) { return `the site could not be stopped (${e.message}): it reads the setting at its next start`; }
-  return 'the site was restarted (a few seconds\' blip)';
+  spawnSync('powershell.exe', ['-NoProfile', '-Command', `${find} | ForEach-Object { taskkill /PID $_.ProcessId /T /F | Out-Null }`], { windowsHide: true });
+  return 'the site was restarted the way an update restarts it (a few seconds\' blip)';
 }
 
 function status() {
@@ -148,7 +162,7 @@ function on() {
   }
   const wasRunning = stopEngine();
   if (!existsSync(ENGINE_HOME)) mkdirSync(ENGINE_HOME, { recursive: true });
-  copyFileSync(BUILT, ENGINE);
+  copyEngine();
   say(`2. engine copied to ${ENGINE}${wasRunning ? ' (the one that was running was stopped first)' : ''}`);
 
   // 3. Listed, so it starts with the PC.
