@@ -2065,3 +2065,16 @@ end $$;
 --     where pubname = 'supabase_realtime' and tablename = 'game_invites';
 
 
+
+-- Moderation's HIDE columns (migration 20261120090000_moderation.sql, SPEC-moderation.md): who hid a board post, reply
+-- or profile comment, when and why. The migration also adds them to watch_messages, and holds the rules for who may write
+-- and read them; this reference keeps the columns so a fresh project matches the code.
+alter table public.forum_threads add column if not exists hidden_at timestamptz;
+alter table public.forum_threads add column if not exists hidden_by uuid;
+alter table public.forum_threads add column if not exists hidden_reason text not null default '';
+alter table public.forum_comments add column if not exists hidden_at timestamptz;
+alter table public.forum_comments add column if not exists hidden_by uuid;
+alter table public.forum_comments add column if not exists hidden_reason text not null default '';
+alter table public.profile_comments add column if not exists hidden_at timestamptz;
+alter table public.profile_comments add column if not exists hidden_by uuid;
+alter table public.profile_comments add column if not exists hidden_reason text not null default '';
