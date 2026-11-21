@@ -2,7 +2,7 @@
 //! on the NVIDIA chip with the low-delay recipe, and reports how long each step takes on this PC; and `serve`
 //! (serve.rs), which sends that live to a web browser over WebRTC, with the stream's settings (settings.rs), control
 //! of the PC from the viewer (control.rs: mouse, keys, a game controller), the PC's own pointer shape (pointer.rs)
-//! and the PC's sound (sound.rs).
+//! the PC's sound (sound.rs), and the PC's own screen changed to a viewer's shape for a while (fit.rs).
 
 use std::env;
 use std::fmt::Write as _;
@@ -12,6 +12,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 mod control;
+mod fit;
 mod native;
 mod pointer;
 mod serve;
@@ -266,7 +267,7 @@ fn main() -> ExitCode {
         _ => {
             eprintln!("debaser-engine bench-encode [--name x] [--width W --height H] [--fps 60] [--bitrate 20000] [--frames 600] [--preset 1] [--hevc] [--intra-refresh] [--dump file] [--out folder]");
             eprintln!("debaser-engine serve {}", serve::USAGE);
-            eprintln!("debaser-engine pointer-where [--cut-off]   (for bench/control-check.cjs: where the real pointer is, what can be seen of the control strip, and the game controllers Windows lists)");
+            eprintln!("debaser-engine pointer-where [--cut-off [--of <process number>]]   (for bench/control-check.cjs: where the real pointer is, what can be seen of the control strip, and the game controllers Windows lists)");
             ExitCode::from(2)
         }
     }

@@ -12,6 +12,10 @@
 //! A fifth carries SOUND (sound.rs): it does nothing at all until a viewer asks for the PC's sound, and stops
 //! again when the last one that asked has gone.
 //!
+//! FIT (fit.rs) is the one thing here that changes the PC itself: with `--allow-fit`, while a viewer wants it,
+//! the PC's own screen is put into a mode of the viewer's shape. This thread carries that out too, between
+//! closing the screen share and opening it again on the screen as it then is.
+//!
 //! Besides the picture, three smaller things travel on the same connection: CONTROL (control.rs: a viewer's mouse,
 //! keys and game controller), the PC's own pointer shape (pointer.rs), and the sound.
 //!
@@ -44,13 +48,14 @@ use str0m::rtp::Extension;
 use str0m::{Candidate, Event, IceConnectionState, Input, Output, Rtc};
 
 use crate::control::{self, Control, Lane};
+use crate::fit::Fit;
 use crate::native;
 use crate::pointer;
 use crate::settings::{self, Asked, Limits, Plan, Shape};
 use crate::sound;
 use crate::{json, line, stats};
 
-pub const USAGE: &str = "[--shape 16:9] [--lines 1080] [--fps 60] [--bitrate 20000] [--max-lines N] [--max-fps N] [--max-bitrate 50000] [--width W --height H] [--allow-control [--control-dry-run]] [--no-sound] [--preset 1] [--tweaks 125] [--intra-refresh] [--port 8478] [--udp-port 0] [--lan] [--trust-host name]... [--listen 127.0.0.1] [--token text] [--seconds N]";
+pub const USAGE: &str = "[--shape native] [--lines 1080] [--fps 60] [--bitrate 20000] [--max-lines N] [--max-fps N] [--max-bitrate 50000] [--width W --height H] [--allow-control [--control-dry-run]] [--allow-fit] [--no-sound] [--preset 1] [--tweaks 125] [--intra-refresh] [--port 8478] [--udp-port 0] [--lan] [--trust-host name]... [--listen 127.0.0.1] [--token text] [--seconds N]";
 
 const VIEWER_PAGE: &str = include_str!("../web/viewer.html");
 
@@ -109,6 +114,9 @@ struct Args {
     /// `--control-dry-run`, for bench/control-check.cjs only: what a viewer does is written to a record that
     /// `GET /control-log` shows, and NOTHING is put into Windows.
     control_dry_run: bool,
+    /// `--allow-fit`: a viewer may have this PC's own screen changed to its screen's shape for as long as it is
+    /// connected (fit.rs). Never without it.
+    allow_fit: bool,
     /// `--no-sound`: the PC's sound is never sent, whoever asks.
     no_sound: bool,
     port: u16,
@@ -128,7 +136,8 @@ fn parse(args: &[String]) -> Result<Args, String> {
     let mut a = Args {
         width: 0,
         height: 0,
-        shape: Shape::Wide16x9,
+        // Before any viewer asks: the whole of the PC's screen, made no taller than `lines`.
+        shape: Shape::Native,
         lines: 1080,
         fps: 60,
         bitrate: 20000,
@@ -140,6 +149,7 @@ fn parse(args: &[String]) -> Result<Args, String> {
         intra: false,
         allow_control: false,
         control_dry_run: false,
+        allow_fit: false,
         no_sound: false,
         port: 8478,
         udp_port: 0,
@@ -190,6 +200,7 @@ fn parse(args: &[String]) -> Result<Args, String> {
             "--intra-refresh" => a.intra = true,
             "--allow-control" => a.allow_control = true,
             "--control-dry-run" => a.control_dry_run = true,
+            "--allow-fit" => a.allow_fit = true,
             "--no-sound" => a.no_sound = true,
             other => return Err(format!("unknown option {other}")),
         }
@@ -301,6 +312,8 @@ struct Viewer {
     audio_mid: Option<Mid>,
     audio_pt: Option<Pt>,
     wants_sound: bool,
+    /// FIT: this viewer wants the PC's own screen changed to its screen's shape; its screen's width and height.
+    wants_fit: Option<(i32, i32)>,
     /// The PC's pointer: the number of the last shape this viewer was sent, and whether it was last told the
     /// pointer is showing.
     shape_told: u16,
@@ -350,6 +363,9 @@ struct Shared {
     sound: Mutex<SoundState>,
     /// For bench/sound-check.cjs only (`DEBASER_PRETEND_TONE=1`): a steady tone is sent in place of the PC's sound.
     pretend_tone: bool,
+    /// FIT (fit.rs): the PC's own screen and whether it has been changed for a viewer. Never held while another
+    /// of these locks is asked for.
+    fit: Mutex<Fit>,
 }
 
 impl Shared {
@@ -1022,6 +1038,7 @@ fn hello(shared: &Shared, offer_text: &str) -> Result<(String, u64), (&'static s
         audio_mid: None,
         audio_pt: None,
         wants_sound: false,
+        wants_fit: None,
         shape_told: 0,
         shown_told: None,
     });
@@ -1139,7 +1156,10 @@ fn handle_request(mut stream: TcpStream, shared: &Shared) {
                 return refuse(&mut stream, "415 Unsupported Media Type", "Send the settings as application/json");
             }
             let Some(body) = body_of(&mut stream, 4 * 1024) else { return };
-            let taken = settings::parse_flat(&String::from_utf8_lossy(&body)).and_then(|pairs| {
+            let taken = settings::parse_flat(&String::from_utf8_lossy(&body)).and_then(|mut pairs| {
+                // "pcScreen" is not one of the stream's settings: it is this one viewer's wish for the PC's own
+                // screen (fit.rs). It is taken out and noted against the viewer before the rest is read.
+                take_fit_wish(shared, viewer, &mut pairs)?;
                 let mut stream_state = shared.stream.lock().unwrap();
                 let next = settings::take_request(&stream_state.asked, &pairs)?;
                 stream_state.asked = next;
@@ -1164,6 +1184,44 @@ fn handle_request(mut stream: TcpStream, shared: &Shared) {
     }
 }
 
+/// Takes "pcScreen" out of a settings request, when it is there, and notes the wish against the viewer that sent
+/// it: "fit" (with viewWidth and viewHeight: change the PC's own screen to my screen's shape while I am
+/// connected) or "own" (I no longer want that). A PC that does not allow it notes nothing; `/settings` says why.
+fn take_fit_wish(shared: &Shared, viewer: Option<u64>, pairs: &mut Vec<(String, settings::Value)>) -> Result<(), String> {
+    let Some(at) = pairs.iter().position(|(name, _)| name == "pcScreen") else { return Ok(()) };
+    let (_, value) = pairs.remove(at);
+    let fit_wanted = match &value {
+        settings::Value::Text(text) if text == "fit" => true,
+        settings::Value::Text(text) if text == "own" => false,
+        _ => return Err("\"pcScreen\" is \"fit\" or \"own\"".into()),
+    };
+    let side = |name: &str| pairs.iter().find(|(key, _)| key == name).and_then(|(_, value)| match value {
+        settings::Value::Number(n) if n.fract() == 0.0 && *n >= 1.0 && *n <= 16384.0 => Some(*n as i32),
+        _ => None,
+    });
+    let wish = if fit_wanted {
+        match (side("viewWidth"), side("viewHeight")) {
+            (Some(width), Some(height)) => Some((width, height)),
+            _ => return Err("\"pcScreen\": \"fit\" needs viewWidth and viewHeight (the viewer's screen in real pixels)".into()),
+        }
+    } else {
+        None
+    };
+    let Some(id) = viewer else { return Err("\"pcScreen\" needs the viewer's number in the address (?viewer=...), as its hello was answered".into()) };
+    let allowed = shared.fit.lock().unwrap().allowed;
+    let mut viewers = shared.viewers.lock().unwrap();
+    let Some(v) = viewers.iter_mut().find(|v| v.id == id && v.rtc.is_alive()) else { return Err(format!("no viewer {id} is connected")) };
+    let before = v.wants_fit;
+    v.wants_fit = if allowed { wish } else { None };
+    if v.wants_fit != before {
+        match v.wants_fit {
+            Some((width, height)) => println!("  viewer {id} asked for this PC's screen to be fitted to its own ({width}x{height})"),
+            None => println!("  viewer {id} no longer wants this PC's screen fitted to its own"),
+        }
+    }
+    Ok(())
+}
+
 /// The stream's settings as the viewer page reads them: what was asked, what is really being sent, what the last
 /// second measured, the screen, the limits in force and the PC's own, and whether a cap is on and why.
 /// "applied" is false for the moment between a change being due (asked for, or a cap coming on or lifting) and the
@@ -1175,6 +1233,8 @@ fn handle_request(mut stream: TcpStream, shared: &Shared) {
 /// "sound" is how sound stands: whether this PC sends it at all, how many viewers are listening, whether the PC's
 /// sound is being read now, what the last second of it held ("sound" or "silence"), and why not when it failed.
 /// "pointer" is the PC's own pointer: whether it is showing, and the number and size of its newest shape.
+/// "pcScreen" is FIT (fit.rs): whether this PC allows its own screen to be changed, its own mode and the mode it
+/// is in now, whether it is fitted, how many viewers want that and whether the one asking does, and why not.
 fn settings_json(shared: &Shared, viewer: Option<u64>) -> String {
     let watching = {
         let now = Instant::now();
@@ -1205,6 +1265,10 @@ fn settings_json(shared: &Shared, viewer: Option<u64>) -> String {
             state.packets_sent,
             state.problem.as_deref().map_or("null".to_string(), settings::quoted)
         )
+    };
+    let fit_json = {
+        let yours = viewer.is_some_and(|id| shared.viewers.lock().unwrap().iter().any(|v| v.id == id && v.wants_fit.is_some()));
+        format!("\"pcScreen\": {}", shared.fit.lock().unwrap().json(yours))
     };
     let pointer_json = {
         let news = shared.pointer.lock().unwrap();
@@ -1255,7 +1319,7 @@ fn settings_json(shared: &Shared, viewer: Option<u64>) -> String {
         None => "null".to_string(),
     };
     format!(
-        "{{\"asked\": {}, \"sending\": {}, \"measured\": {}, \"screen\": {{\"width\": {}, \"height\": {}, \"hz\": {}}}, \"limits\": {}, \"hostLimits\": {}, \"cap\": {}, \"capWhy\": {}, \"applied\": {}, \"refused\": {}, \"viewers\": {}, \"control\": \"{}\", \"controlWhy\": {}, \"controlDryRun\": {}, {}, {}, {}}}",
+        "{{\"asked\": {}, \"sending\": {}, \"measured\": {}, \"screen\": {{\"width\": {}, \"height\": {}, \"hz\": {}}}, \"limits\": {}, \"hostLimits\": {}, \"cap\": {}, \"capWhy\": {}, \"applied\": {}, \"refused\": {}, \"viewers\": {}, \"control\": \"{}\", \"controlWhy\": {}, \"controlDryRun\": {}, {}, {}, {}, {}}}",
         asked_json,
         sending_json,
         measured_json,
@@ -1274,7 +1338,8 @@ fn settings_json(shared: &Shared, viewer: Option<u64>) -> String {
         control_dry_run,
         controller_json,
         sound_json,
-        pointer_json
+        pointer_json,
+        fit_json
     )
 }
 
@@ -1320,8 +1385,14 @@ fn video_addresses(listen: IpAddr, lan: bool, own: &[Ipv4Addr], port: u16) -> Ve
     offered
 }
 
-/// Opens the native session that carries out a plan.
-fn open_session(a: &Args, plan: &Plan) -> Result<native::Session, String> {
+/// The most a viewer can ask this PC for, with the screen as it now is.
+fn host_limits_for(a: &Args, screen: (i32, i32, i32)) -> Limits {
+    Limits { max_lines: a.max_lines.unwrap_or(screen.1).min(screen.1), max_fps: a.max_fps.unwrap_or(screen.2).min(screen.2), max_bitrate_kbps: a.max_bitrate }
+}
+
+/// Opens the native session that carries out a plan. `patient`: the PC's screen has just changed mode (FIT), and
+/// Windows can take a few seconds before it will share the screen again, so a refusal is tried again for longer.
+fn open_session(a: &Args, plan: &Plan, patient: bool) -> Result<native::Session, String> {
     let options = native::Options {
         region: plan.region,
         width: plan.width,
@@ -1340,7 +1411,7 @@ fn open_session(a: &Args, plan: &Plan) -> Result<native::Session, String> {
     };
     // Windows can take a moment to let go of a screen share that was only just closed, so a refusal is tried again.
     let mut last = String::new();
-    for attempt in 0..4 {
+    for attempt in 0..if patient { 50 } else { 4 } {
         if attempt > 0 {
             thread::sleep(Duration::from_millis(100));
         }
@@ -1434,11 +1505,18 @@ pub fn serve(args: &[String]) -> ExitCode {
         return ExitCode::from(2);
     };
     let screen_hz = if screen_hz > 0 { screen_hz } else { 60 };
-    let host_limits = Limits {
-        max_lines: a.max_lines.unwrap_or(screen_height).min(screen_height),
-        max_fps: a.max_fps.unwrap_or(screen_hz).min(screen_hz),
-        max_bitrate_kbps: a.max_bitrate,
+    // FIT: the mode found now is "the PC's own". (For bench/fit-check.cjs the screen and its modes can be
+    // pretended; the engine then carries on as if the screen had the pretended size.)
+    let fit = match Fit::start(a.allow_fit, (screen_width, screen_height, screen_hz)) {
+        Ok(fit) => fit,
+        Err(why) => {
+            eprintln!("NOT SERVING. {why}");
+            return ExitCode::from(2);
+        }
     };
+    let fit_pretended = fit.pretended();
+    let (screen_width, screen_height, screen_hz) = fit.pretended_screen().map_or((screen_width, screen_height, screen_hz), |mode| (mode.width, mode.height, mode.hz));
+    let host_limits = host_limits_for(&a, (screen_width, screen_height, screen_hz));
     let cut = a.width > 0;
     let asked = Asked {
         shape: if cut { Shape::Cut } else { a.shape },
@@ -1458,7 +1536,7 @@ pub fn serve(args: &[String]) -> ExitCode {
     let mut stream = Stream { asked, asks: 0, acted_on: 0, host_limits, capped: capped_at_start, acted_capped: capped_at_start, screen: (screen_width, screen_height, screen_hz), sending: None, refused: None, measured: None };
 
     let mut current = stream.plan();
-    let mut session = match open_session(&a, &current) {
+    let mut session = match open_session(&a, &current, false) {
         Ok(session) => Some(session),
         Err(why) => {
             eprintln!("NOT SERVING. {why}");
@@ -1494,6 +1572,7 @@ pub fn serve(args: &[String]) -> ExitCode {
         sound_allowed: !a.no_sound,
         sound: Mutex::new(SoundState::default()),
         pretend_tone: std::env::var("DEBASER_PRETEND_TONE").is_ok_and(|value| value == "1"),
+        fit: Mutex::new(fit),
     });
     if a.allow_control && !a.control_dry_run {
         // If the engine itself fails, whatever a viewer was holding down is let go before it goes.
@@ -1566,6 +1645,13 @@ pub fn serve(args: &[String]) -> ExitCode {
     if shared.pretend_tone {
         println!("  SOUND IS PRETENDED, for the check: a steady test tone in place of the PC's sound (DEBASER_PRETEND_TONE=1)");
     }
+    if a.allow_fit {
+        println!("  FIT IS ALLOWED: while a viewer wants it, this PC's own screen is changed to that viewer's shape, and changed back when it leaves.");
+        println!("  Ctrl+Alt+Shift+End on this PC puts it back. It is never changed while {} is running.", settings::MATCH_PROCESS);
+    }
+    if fit_pretended {
+        println!("  THIS PC'S SCREEN AND ITS MODES ARE PRETENDED, for the check (DEBASER_PRETEND_MODES): no display call is ever made");
+    }
     if shared.pretend_pointer.is_some() {
         println!("  THE PC'S POINTER IS PRETENDED, for the check (DEBASER_PRETEND_POINTER_FILE): the real one is ignored");
     }
@@ -1615,23 +1701,64 @@ pub fn serve(args: &[String]) -> ExitCode {
     // The PC's pointer: how many shapes the open session had handed over when last looked at (a newly opened
     // session starts again from none).
     let mut shapes_seen = 0u32;
+    // FIT: when this engine last changed the PC's screen itself. For a while after, Windows may withdraw the
+    // screen share more than once, and that is not taken for the share breaking for good.
+    let mut own_switch: Option<Instant> = None;
 
     loop {
         if STOP.load(Ordering::SeqCst) || a.seconds.is_some_and(|s| started.elapsed() >= Duration::from_secs(s)) {
             break;
         }
 
+        // How many requests had been taken in before anything below was looked at: those are the ones this turn
+        // of the loop deals with (one that arrives while it runs is dealt with on the next).
+        let asks = shared.stream.lock().unwrap().asks;
+
+        // FIT (fit.rs): is the PC's own screen to be changed for a viewer, or given back? Looked at every turn,
+        // watched or not, so that the PC gets its own screen back when the last viewer that wanted the fit has gone.
+        {
+            let wishes = || {
+                let now = Instant::now();
+                let viewers = shared.viewers.lock().unwrap();
+                let wanting: Vec<(i32, i32)> = viewers.iter().filter(|v| v.rtc.is_alive() && v.watching(now)).filter_map(|v| v.wants_fit).collect();
+                // The viewer that has been connected longest decides the shape.
+                (wanting.first().copied(), wanting.len())
+            };
+            let match_now = shared.match_running.load(Ordering::SeqCst);
+            let (mut wanted_shape, mut wanted_by) = wishes();
+            if shared.fit.lock().unwrap().cut_off_pressed() {
+                // Put back from the PC's own keyboard: every viewer's wish is forgotten, or it would be fitted again at once.
+                for v in shared.viewers.lock().unwrap().iter_mut() {
+                    v.wants_fit = None;
+                }
+                (wanted_shape, wanted_by) = (None, 0);
+            }
+            let mut fit = shared.fit.lock().unwrap();
+            if let Some(step) = fit.decide(wanted_shape, wanted_by, match_now) {
+                // The screen share is closed before the change (Windows withdraws it at a change of mode anyway),
+                // and opened again further down, on the screen as it then is.
+                session = None;
+                let mode = fit.carry_out(step);
+                drop(fit);
+                own_switch = Some(Instant::now());
+                let mut stream = shared.stream.lock().unwrap();
+                stream.screen = (mode.width, mode.height, if mode.hz > 0 { mode.hz } else { stream.screen.2 });
+                stream.host_limits = host_limits_for(&a, stream.screen);
+            }
+        }
+        let after_own_switch = own_switch.is_some_and(|at| at.elapsed() < Duration::from_secs(10));
+
         // What should be sent now, from what was asked and what the PC allows. When that is not what is being
         // sent, the native session is closed and opened again as the new plan says. Its first frame is a full
         // picture in the new size, and the viewers' connections carry on.
-        let (wanted, asks, capped_now, screen_now) = {
+        let (wanted, capped_now, screen_now) = {
             let stream = shared.stream.lock().unwrap();
-            (stream.plan(), stream.asks, stream.capped, stream.screen)
+            (stream.plan(), stream.capped, stream.screen)
         };
         if asks != asks_seen {
             refused_plan = None;
         }
-        if wanted != current && refused_plan != Some(wanted) {
+        if session.is_none() || (wanted != current && refused_plan != Some(wanted)) {
             let why = if capped_now != current_capped {
                 if capped_now { format!("{} is running: the {} cap is on", settings::MATCH_PROCESS, settings::MATCH_CAP_NAME) } else { format!("the {} cap is lifted", settings::MATCH_CAP_NAME) }
             } else if screen_now != current_screen {
@@ -1642,7 +1769,7 @@ pub fn serve(args: &[String]) -> ExitCode {
             let began = Instant::now();
             // The old session lets go of the screen and the encoder before the new one asks for them.
             session = None;
-            match open_session(&a, &wanted) {
+            match open_session(&a, &wanted, after_own_switch) {
                 Ok(opened) => {
                     let now_sending = sending_of(&opened.info, &wanted);
                     session = Some(opened);
@@ -1660,7 +1787,7 @@ pub fn serve(args: &[String]) -> ExitCode {
                 Err(why_not) => {
                     println!("  could NOT change to {}x{} at {} fps, {} kbit/s ({why}): {why_not}. Staying as it was.", wanted.width, wanted.height, wanted.fps, wanted.bitrate_kbps);
                     refused_plan = Some(wanted);
-                    match open_session(&a, &current) {
+                    match open_session(&a, &current, after_own_switch) {
                         Ok(opened) => {
                             session = Some(opened);
                             shapes_seen = 0;
@@ -1787,22 +1914,31 @@ pub fn serve(args: &[String]) -> ExitCode {
             Err(why) => {
                 // The screen share broke for good (the PC's screen changed size, say). The screen is looked at
                 // afresh and the stream started again on it, once; a second break straight after ends the run.
-                if last_restart.is_some_and(|at| at.elapsed() < Duration::from_secs(2)) {
+                // (Not in the seconds after this engine changed the PC's mode itself, for FIT: Windows may then
+                // withdraw the share more than once while the new mode settles, and each time it is started again.)
+                if last_restart.is_some_and(|at| at.elapsed() < Duration::from_secs(2)) && !after_own_switch {
                     failure = Some(why);
                     break;
                 }
                 last_restart = Some(Instant::now());
                 println!("  the screen share broke ({why}): starting it again");
                 session = None;
+                // The screen as it now is. (When the check is pretending the screen, that is the pretended one.)
+                let pretended_screen = shared.fit.lock().unwrap().pretended_screen();
+                let screen_as_it_is = match pretended_screen {
+                    Some(mode) => Some((mode.width, mode.height, mode.hz)),
+                    None => native::screen(),
+                };
                 let plan_again = {
                     let mut stream = shared.stream.lock().unwrap();
-                    if let Some((width, height, hz)) = native::screen() {
+                    if let Some((width, height, hz)) = screen_as_it_is {
                         stream.screen = (width, height, if hz > 0 { hz } else { stream.screen.2 });
+                        stream.host_limits = host_limits_for(&a, stream.screen);
                     }
                     current_screen = stream.screen;
                     stream.plan()
                 };
-                match open_session(&a, &plan_again) {
+                match open_session(&a, &plan_again, after_own_switch) {
                     Ok(opened) => {
                         let now_sending = sending_of(&opened.info, &plan_again);
                         session = Some(opened);
@@ -1917,6 +2053,8 @@ pub fn serve(args: &[String]) -> ExitCode {
         sending_time += second_started.elapsed();
     }
     drop(session);
+    // FIT: the PC gets its own screen back before anything else is done about stopping.
+    shared.fit.lock().unwrap().stop();
 
     let s_shown = stats(&all_shown);
     let s_handed = stats(&all_handed);

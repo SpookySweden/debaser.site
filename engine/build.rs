@@ -11,6 +11,8 @@ fn main() {
     println!("cargo:rerun-if-changed=native/lan.cpp");
     println!("cargo:rerun-if-changed=native/sound.cpp");
     println!("cargo:rerun-if-changed=native/sound.h");
+    println!("cargo:rerun-if-changed=native/modes.cpp");
+    println!("cargo:rerun-if-changed=native/modes.h");
     println!("cargo:rerun-if-changed=vendor/nvEncodeAPI.h");
     cc::Build::new()
         .cpp(true)
@@ -18,6 +20,7 @@ fn main() {
         .file("native/control.cpp")
         .file("native/lan.cpp")
         .file("native/sound.cpp")
+        .file("native/modes.cpp")
         .flag_if_supported("/std:c++17")
         .flag_if_supported("/EHsc")
         .warnings(false)

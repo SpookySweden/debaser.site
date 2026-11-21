@@ -476,7 +476,7 @@ async function main() {
         check(keys ? true : null, `fullscreen while controlling (fullscreen ${full}): the browser ${keys ? 'handed over the system keys (Keyboard Lock)' : 'did not hand over the system keys here; the panel says: "' + (await page.textContent('#keys-says')) + '"'}`);
         if (full) await page.click('#fullscreen');
         await panel(false);
-        const kept = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('debaser-engine-viewer')).mouse; } catch (error) { return null; } });
+        const kept = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('debaser-engine-viewer-v2')).mouse; } catch (error) { return null; } });
         check(kept === 'pointer', `the MOUSE choice is remembered on the device ("${kept}")`);
         await page.click('#control-key');
         await waitFor(async () => !(await controlState(page)).mine, 3000);

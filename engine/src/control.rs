@@ -79,7 +79,7 @@ extern "C" {
     fn dbe_guard_cut() -> i32;
     fn dbe_strip_seen(seen: *mut StripSeen);
     fn dbe_cut_off_key_free() -> i32;
-    fn dbe_post_cut_off() -> i32;
+    fn dbe_post_cut_off_to(process: u32) -> i32;
     fn dbe_pads_seen(seen: *mut PadSeen) -> i32;
 }
 
@@ -907,7 +907,7 @@ pub fn pointer_where() -> Option<(i32, i32)> {
     (unsafe { dbe_pointer_where(&mut x, &mut y) } == 0).then_some((x, y))
 }
 
-/// `debaser-engine pointer-where [--cut-off]`: the check's eyes on the PC. It prints, as one line of JSON, where
+/// `debaser-engine pointer-where [--cut-off [--of <process number>]]`: the check's eyes on the PC. It prints, as one line of JSON, where
 /// the real pointer is, what can be seen of the control strip from outside the engine, whether the cut-off
 /// key is free, and the game controllers Windows itself reports (so a pretend one can be seen to come and go). With `--cut-off` it also tells a running engine's guard that the cut-off key was pressed (by
 /// posting the message Windows would send; no key is pressed). It never moves or presses anything.
@@ -915,7 +915,10 @@ pub fn pointer_where_command(args: &[String]) -> std::process::ExitCode {
     let mut seen = StripSeen { present: 0, visible: 0, left: 0, top: 0, right: 0, bottom: 0, topmost: 0, click_through: 0, no_activate: 0, in_front: 0, text: [0; 160] };
     unsafe { dbe_strip_seen(&mut seen) };
     let key_free = unsafe { dbe_cut_off_key_free() } != 0;
-    let posted = args.iter().any(|a| a == "--cut-off") && unsafe { dbe_post_cut_off() } != 0;
+    // `--of` names the one engine to tell (by its process number), so a check can never tell another engine on
+    // the same PC. Without it, whichever guard is found first is told.
+    let of: u32 = args.iter().position(|a| a == "--of").and_then(|at| args.get(at + 1)).and_then(|number| number.parse().ok()).unwrap_or(0);
+    let posted = args.iter().any(|a| a == "--cut-off") && unsafe { dbe_post_cut_off_to(of) } != 0;
     let text: String = String::from_utf16_lossy(&seen.text[..seen.text.iter().position(|c| *c == 0).unwrap_or(seen.text.len())]);
     let (x, y) = pointer_where().unwrap_or((-1, -1));
     let strip = if seen.present != 0 {

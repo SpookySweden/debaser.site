@@ -84,7 +84,7 @@ async function startEngine(port, more, environment) {
 /** Opens the viewer page and waits until its picture is flowing and the PC has said how its settings stand. */
 async function openViewer(browser, port, query, remembered) {
   const context = await browser.newContext({ viewport: VIEW, screen: VIEW, deviceScaleFactor: 1 });
-  if (remembered) await context.addInitScript((kept) => { try { localStorage.setItem('debaser-engine-viewer', JSON.stringify(kept)); } catch (error) { /* carry on */ } }, remembered);
+  if (remembered) await context.addInitScript((kept) => { try { localStorage.setItem('debaser-engine-viewer-v2', JSON.stringify(kept)); } catch (error) { /* carry on */ } }, remembered);
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (error) => errors.push(String(error && error.message ? error.message : error)));
@@ -217,7 +217,7 @@ async function main() {
       const panelOn = await page.textContent('#sound-state');
       await page.evaluate(() => { const slider = document.getElementById('volume'); slider.value = '40'; slider.dispatchEvent(new Event('input', { bubbles: true })); slider.dispatchEvent(new Event('change', { bubbles: true })); });
       const afterVolume = await read(page);
-      const kept = await page.evaluate(() => { try { const k = JSON.parse(localStorage.getItem('debaser-engine-viewer')); return { sound: k.sound, volume: k.volume }; } catch (error) { return null; } });
+      const kept = await page.evaluate(() => { try { const k = JSON.parse(localStorage.getItem('debaser-engine-viewer-v2')); return { sound: k.sound, volume: k.volume }; } catch (error) { return null; } });
       const volumeSays = await page.textContent('#volume-says');
       const plain = await page.evaluate(() => document.getElementById('panel').textContent.includes('This is everything the PC is playing, not one program'));
       const warningHidden = !(await page.isVisible('#sound-warning'));
@@ -279,7 +279,7 @@ async function main() {
         // The page is opened and then left entirely alone for three seconds: anything this script asks of a page
         // counts, to the browser, as a person having pressed something on it.
         const visit = { context: await strict.newContext({ viewport: VIEW, screen: VIEW, deviceScaleFactor: 1 }) };
-        await visit.context.addInitScript((kept) => { try { localStorage.setItem('debaser-engine-viewer', JSON.stringify(kept)); } catch (error) { /* carry on */ } }, { sound: true, volume: 0.7 });
+        await visit.context.addInitScript((kept) => { try { localStorage.setItem('debaser-engine-viewer-v2', JSON.stringify(kept)); } catch (error) { /* carry on */ } }, { sound: true, volume: 0.7 });
         const visitPage = await visit.context.newPage();
         await visitPage.goto(`http://127.0.0.1:${port}/?hold=1&thispc=0`, { waitUntil: 'load', timeout: 8000 });
         await sleep(3000);
