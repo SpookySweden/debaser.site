@@ -86,10 +86,25 @@ function engineProcesses() {
   return (r.stdout || '').split(/\s+/).filter((t) => /^\d+$/.test(t)).map(Number);
 }
 
+/** Stops the engine and waits until Windows has really let go of it (its file cannot be replaced before that). */
 function stopEngine() {
   const running = engineProcesses();
   for (const pid of running) { try { process.kill(pid); } catch { /* already gone */ } }
+  for (let tries = 0; running.length > 0 && tries < 20 && engineProcesses().length > 0; tries += 1) {
+    spawnSync('powershell', ['-NoProfile', '-Command', 'Start-Sleep -Milliseconds 300'], { windowsHide: true });
+  }
   return running.length;
+}
+
+/** Copies the engine's program into the host folder, trying again for a few seconds while Windows still holds the old one. */
+function copyEngine() {
+  for (let tries = 0; ; tries += 1) {
+    try { copyFileSync(BUILT, ENGINE); return; } catch (error) {
+      if (error.code !== 'EBUSY' && error.code !== 'EPERM') throw error;
+      if (tries >= 20) throw error;
+      spawnSync('powershell', ['-NoProfile', '-Command', 'Start-Sleep -Milliseconds 300'], { windowsHide: true });
+    }
+  }
 }
 
 function startEngine(lan) {
@@ -147,7 +162,7 @@ function on() {
   }
   const wasRunning = stopEngine();
   if (!existsSync(ENGINE_HOME)) mkdirSync(ENGINE_HOME, { recursive: true });
-  copyFileSync(BUILT, ENGINE);
+  copyEngine();
   say(`2. engine copied to ${ENGINE}${wasRunning ? ' (the one that was running was stopped first)' : ''}`);
 
   // 3. Listed, so it starts with the PC.
