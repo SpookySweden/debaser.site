@@ -43,7 +43,7 @@ use crate::native;
 use crate::settings::{self, Asked, Limits, Plan, Shape};
 use crate::{json, line, stats};
 
-pub const USAGE: &str = "[--shape 16:9] [--lines 1080] [--fps 60] [--bitrate 20000] [--max-lines N] [--max-fps N] [--max-bitrate 50000] [--width W --height H] [--allow-control [--control-dry-run]] [--preset 1] [--tweaks 61] [--intra-refresh] [--port 8478] [--udp-port 0] [--listen 127.0.0.1] [--token text] [--seconds N]";
+pub const USAGE: &str = "[--shape 16:9] [--lines 1080] [--fps 60] [--bitrate 20000] [--max-lines N] [--max-fps N] [--max-bitrate 50000] [--width W --height H] [--allow-control [--control-dry-run]] [--preset 1] [--tweaks 125] [--intra-refresh] [--port 8478] [--udp-port 0] [--lan] [--trust-host name]... [--listen 127.0.0.1] [--token text] [--seconds N]";
 
 const VIEWER_PAGE: &str = include_str!("../web/viewer.html");
 
@@ -104,6 +104,12 @@ struct Args {
     control_dry_run: bool,
     port: u16,
     udp_port: u16,
+    /// `--lan`: the VIDEO may also travel to devices on the home network (the web address stays as `--listen`
+    /// says, on this PC only by default).
+    lan: bool,
+    /// `--trust-host`: names besides this PC's own that a request may be addressed to, when it arrives from this
+    /// PC itself (the website's own server passing a visitor's request on).
+    trust_hosts: Vec<String>,
     listen: IpAddr,
     token: Option<String>,
     seconds: Option<u64>,
@@ -127,6 +133,8 @@ fn parse(args: &[String]) -> Result<Args, String> {
         control_dry_run: false,
         port: 8478,
         udp_port: 0,
+        lan: false,
+        trust_hosts: Vec::new(),
         listen: IpAddr::V4(Ipv4Addr::LOCALHOST),
         token: None,
         seconds: None,
@@ -158,6 +166,14 @@ fn parse(args: &[String]) -> Result<Args, String> {
             "--tweaks" => a.tweaks = value()?.parse().map_err(|_| "--tweaks is a number")?,
             "--port" => a.port = value()?.parse().map_err(|_| "--port is a number from 1 to 65535")?,
             "--udp-port" => a.udp_port = value()?.parse().map_err(|_| "--udp-port is a number from 0 (any) to 65535")?,
+            "--lan" => a.lan = true,
+            "--trust-host" => {
+                let name = value()?.to_ascii_lowercase();
+                if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-') {
+                    return Err("--trust-host takes a plain host name, such as debaser.site".into());
+                }
+                a.trust_hosts.push(name);
+            }
             "--listen" => a.listen = value()?.parse().map_err(|_| "--listen is an IPv4 address, such as 127.0.0.1 or 0.0.0.0")?,
             "--token" => a.token = Some(value()?),
             "--seconds" => a.seconds = Some(value()?.parse().map_err(|_| "--seconds is a number")?),
@@ -284,6 +300,7 @@ struct Shared {
     viewers_ever: AtomicU64,
     token: Option<String>,
     listen: IpAddr,
+    trust_hosts: Vec<String>,
     stream: Mutex<Stream>,
     /// CONTROL (control.rs). When both are wanted, `viewers` is locked before this, never the other way round.
     control: Mutex<Control>,
@@ -690,9 +707,8 @@ fn handle_request(mut stream: TcpStream, shared: &Shared) {
         // Without one we are on this PC only. The address the browser thinks it is talking to must then be this
         // PC's own, or another website could point its own name at 127.0.0.1 and read the stream through it.
         None => {
-            let name = host.rsplit_once(':').map_or(host.as_str(), |(name, _port)| name);
-            let ours = name == "localhost" || name.parse::<IpAddr>().map_or(false, |ip| ip.is_loopback() || ip == shared.listen);
-            if !ours {
+            let from_this_pc = stream.peer_addr().is_ok_and(|peer| peer.ip().is_loopback());
+            if !host_is_ours(&host, shared.listen, &shared.trust_hosts, from_this_pc) {
                 return refuse(&mut stream, "403 Forbidden", "This page is only served under this PC's own address");
             }
         }
@@ -800,12 +816,13 @@ fn settings_json(shared: &Shared, viewer: Option<u64>) -> String {
     let limits_json = |l: Limits| format!("{{\"maxLines\": {}, \"maxFps\": {}, \"maxBitrateKbps\": {}}}", l.max_lines, l.max_fps, l.max_bitrate_kbps);
     let asked = &stream.asked;
     let asked_json = format!(
-        "{{\"shape\": {}, \"viewWidth\": {}, \"viewHeight\": {}, \"lines\": {}, \"fps\": {}, \"bitrateKbps\": {}}}",
+        "{{\"shape\": {}, \"viewWidth\": {}, \"viewHeight\": {}, \"lines\": {}, \"fps\": {}, \"viewHz\": {}, \"bitrateKbps\": {}}}",
         settings::quoted(asked.shape.name()),
         number_or_null(asked.view_width),
         number_or_null(asked.view_height),
         if asked.lines > 0 { asked.lines.to_string() } else { "\"native\"".to_string() },
-        asked.fps,
+        if asked.fps_auto { "\"auto\"".to_string() } else { asked.fps.to_string() },
+        number_or_null(asked.view_hz),
         asked.bitrate_kbps
     );
     let sending_json = match &stream.sending {
@@ -846,16 +863,46 @@ fn settings_json(shared: &Shared, viewer: Option<u64>) -> String {
     )
 }
 
-/// This PC's address on the home network: the one Windows would use to reach the wider world. Nothing is sent to
-/// find it ("connecting" a UDP socket only picks the route). None when the PC has no network.
-fn lan_address() -> Option<Ipv4Addr> {
-    let probe = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0)).ok()?;
-    // 192.0.2.1 is an address reserved for examples: nobody is there, and nothing is sent to it anyway.
-    probe.connect((Ipv4Addr::new(192, 0, 2, 1), 9)).ok()?;
-    match probe.local_addr().ok()?.ip() {
-        IpAddr::V4(ip) if !ip.is_loopback() && !ip.is_unspecified() && !ip.is_link_local() => Some(ip),
-        _ => None,
+/// Whether a request's `Host` (the name the browser thinks it is talking to) is one this engine answers to when no
+/// token is set. This PC's own names always are: "localhost", a loopback address, the address listened on. A name
+/// given with `--trust-host` is too, but only when the request arrived from this PC itself: that is the website's
+/// own server passing a visitor's request on. Anything else is refused, or another website could point a name of
+/// its own at 127.0.0.1 and read the stream through a visitor's browser.
+fn host_is_ours(host: &str, listen: IpAddr, trusted: &[String], from_this_pc: bool) -> bool {
+    let host = host.trim().to_ascii_lowercase();
+    // The port, when there is one, is not part of the name.
+    let name = match host.rsplit_once(':') {
+        Some((name, port)) if !port.is_empty() && port.chars().all(|c| c.is_ascii_digit()) => name,
+        _ => host.as_str(),
+    };
+    if name.is_empty() {
+        return false;
     }
+    name == "localhost" || name.parse::<IpAddr>().is_ok_and(|ip| ip.is_loopback() || ip == listen) || (from_this_pc && trusted.iter().any(|trusted| trusted == name))
+}
+
+/// Where the video socket is opened: on every IPv4 address with `--lan` (or when the web address is), otherwise
+/// only where the web address is.
+fn video_socket_address(listen: IpAddr, lan: bool) -> IpAddr {
+    if lan || listen.is_unspecified() { IpAddr::V4(Ipv4Addr::UNSPECIFIED) } else { listen }
+}
+
+/// The addresses a browser is told it can reach the video at. Without `--lan`: the one address listened on.
+/// With it: this PC itself (127.0.0.1) first, then each of the PC's own addresses that is a home-network one.
+/// "Home network" means the three private ranges (10.x.x.x, 172.16-31.x.x, 192.168.x.x): an address the wider
+/// internet can reach is never offered, whatever cards the PC has.
+fn video_addresses(listen: IpAddr, lan: bool, own: &[Ipv4Addr], port: u16) -> Vec<SocketAddr> {
+    if !lan && !listen.is_unspecified() {
+        return vec![SocketAddr::new(listen, port)];
+    }
+    let mut offered = vec![SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), port)];
+    for address in own {
+        let offer = SocketAddr::new(IpAddr::V4(*address), port);
+        if address.is_private() && !offered.contains(&offer) {
+            offered.push(offer);
+        }
+    }
+    offered
 }
 
 /// Opens the native session that carries out a plan.
@@ -871,6 +918,10 @@ fn open_session(a: &Args, plan: &Plan) -> Result<native::Session, String> {
         preset: a.preset,
         tweaks: a.tweaks,
         skip_pointer_only: true,
+        // For bench/still-check.cjs only: `DEBASER_PRETEND_STILL=1` in the environment makes the engine behave as
+        // if the screen stopped changing after the first picture, so the still-screen rule can be proved on a PC
+        // whose screen is busy.
+        pretend_still: std::env::var("DEBASER_PRETEND_STILL").is_ok_and(|value| value == "1"),
     };
     // Windows can take a moment to let go of a screen share that was only just closed, so a refusal is tried again.
     let mut last = String::new();
@@ -946,25 +997,20 @@ pub fn serve(args: &[String]) -> ExitCode {
             return ExitCode::from(2);
         }
     };
-    // One UDP socket carries every viewer. It follows `--listen`: on this PC only by default.
-    let socket = match UdpSocket::bind((a.listen, a.udp_port)) {
+    // One UDP socket carries every viewer. It follows `--listen` (on this PC only by default), unless `--lan`
+    // opens it to the home network while the web address stays where it is.
+    let video_at = video_socket_address(a.listen, a.lan);
+    let socket = match UdpSocket::bind((video_at, a.udp_port)) {
         Ok(socket) => socket,
         Err(why) => {
-            eprintln!("NOT SERVING. Could not open the video socket on {}:{} ({why})", a.listen, a.udp_port);
+            eprintln!("NOT SERVING. Could not open the video socket on {}:{} ({why})", video_at, a.udp_port);
             return ExitCode::from(2);
         }
     };
     let udp_port = socket.local_addr().map(|address| address.port()).unwrap_or(a.udp_port);
     // The addresses a browser is told it can reach us at.
-    let mut candidates = Vec::new();
-    if a.listen.is_unspecified() {
-        candidates.push(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), udp_port));
-        if let Some(lan) = lan_address() {
-            candidates.push(SocketAddr::new(IpAddr::V4(lan), udp_port));
-        }
-    } else {
-        candidates.push(SocketAddr::new(a.listen, udp_port));
-    }
+    let own_addresses = if video_at.is_unspecified() { native::local_ipv4() } else { Vec::new() };
+    let candidates = video_addresses(a.listen, a.lan, &own_addresses, udp_port);
 
     // The screen as it is now (only read: the engine never changes the PC's display mode), the PC's limits, and
     // how the stream starts before any viewer has asked for anything.
@@ -987,6 +1033,8 @@ pub fn serve(args: &[String]) -> ExitCode {
         cut_height: a.height,
         lines: if cut { 0 } else { a.lines },
         fps: a.fps,
+        fps_auto: false,
+        view_hz: 0,
         bitrate_kbps: a.bitrate,
     };
     let pretend = Pretend::from_environment();
@@ -1022,6 +1070,7 @@ pub fn serve(args: &[String]) -> ExitCode {
         viewers_ever: AtomicU64::new(0),
         token: a.token.clone(),
         listen: a.listen,
+        trust_hosts: a.trust_hosts.clone(),
         stream: Mutex::new(stream),
         control: Mutex::new(Control::new(a.allow_control, a.control_dry_run, first.region, (screen_width, screen_height))),
         match_running: AtomicBool::new(capped_at_start),
@@ -1089,6 +1138,12 @@ pub fn serve(args: &[String]) -> ExitCode {
         println!("  CONTROL IS ALLOWED: one viewer at a time may use this PC's mouse and keys. Ctrl+Alt+Shift+End on this PC stops it.");
         println!("  It is refused while {} is running.", settings::MATCH_PROCESS);
     }
+    if a.lan {
+        println!("  --lan: the VIDEO can reach devices on the home network; the web address is still {} only", a.listen);
+    }
+    if !a.trust_hosts.is_empty() {
+        println!("  also answering to {} when the request comes from this PC itself", a.trust_hosts.join(", "));
+    }
     println!("  waiting for a viewer (Ctrl+C stops)");
 
     let started = Instant::now();
@@ -1104,6 +1159,12 @@ pub fn serve(args: &[String]) -> ExitCode {
     let mut second_shown: Vec<f64> = Vec::new();
     let mut second_handed: Vec<f64> = Vec::new();
     let (mut second_frames, mut second_fresh, mut second_bytes) = (0u64, 0u64, 0u64);
+    // The still-screen rule: repeats sent since the screen last changed, when the last frame of either kind was
+    // taken, and how many repeats the rule has spared this second.
+    let resting_rule = a.tweaks & 64 != 0;
+    let mut repeats_in_a_row = 0u32;
+    let mut last_frame_at = 0i64;
+    let mut second_spared = 0u64;
     let mut second_started = Instant::now();
     let mut sending_time = Duration::ZERO;
 
@@ -1222,8 +1283,45 @@ pub fn serve(args: &[String]) -> ExitCode {
             shared.want_keyframe.store(false, Ordering::SeqCst);
         }
 
-        let frame = match session.as_mut().expect("a session is open whenever frames are asked for").next_frame(wait_ms, force) {
-            Ok(frame) => frame,
+        // The still-screen rule (switch 64). While the screen is not changing there is nothing new to send, and a
+        // repeat every frame's time (about 32 a second, measured) is waste. So the gaps between repeats grow. The
+        // first repeat comes exactly when it always did, the rest after a frame plus one frame's time of waiting
+        // (which makes sure the last real frame is followed up quickly: a viewer only learns that its last packets
+        // were lost when something comes after them; and a screen that is merely changing slower than the rate
+        // asked for is not given repeats it never used to get). Then 100 ms, 200 ms, and from then on every 500 ms.
+        // The waiting is all done inside Windows' own "next frame" call, a frame's time at a go, so a real change
+        // is taken the moment it shows and a viewer asking for a full picture is answered within one such look.
+        let rest = if a.tweaks & 16 != 0 { interval - (ticks_per_second * 3 / 1000).min(interval / 5) } else { interval * 95 / 100 };
+        let taken = {
+            let session = session.as_mut().expect("a session is open whenever frames are asked for");
+            if !resting_rule {
+                session.next_frame(wait_ms, force).map(Some)
+            } else if force {
+                session.next_frame(0, true).map(Some)
+            } else {
+                let gap = match repeats_in_a_row {
+                    0 => rest + interval,
+                    1 => ticks_per_second / 10,
+                    2 => ticks_per_second / 5,
+                    _ => ticks_per_second / 2,
+                };
+                let left_ms = (last_frame_at + gap - native::now()) * 1000 / ticks_per_second;
+                if idle || left_ms <= 0 {
+                    session.next_frame(0, false).map(Some)
+                } else {
+                    let look_ms = left_ms.min(wait_ms as i64) as i32;
+                    let looked = session.next_frame_if_changed(look_ms);
+                    // A full look that found nothing is one repeat the old way would have sent.
+                    if matches!(looked, Ok(None)) && look_ms >= wait_ms {
+                        second_spared += 1;
+                    }
+                    looked
+                }
+            }
+        };
+        let frame = match taken {
+            Ok(Some(frame)) => frame,
+            Ok(None) => continue,
             Err(why) => {
                 // The screen share broke for good (the PC's screen changed size, say). The screen is looked at
                 // afresh and the stream started again on it, once; a second break straight after ends the run.
@@ -1271,8 +1369,9 @@ pub fn serve(args: &[String]) -> ExitCode {
         // millisecond or so, and waking late means the screen's next frame is already waiting and already stale.
         // Waking early, the engine then waits inside Windows' own "next frame" call, which returns the moment the
         // frame is shown. Measured: 5.4 ms from shown to encoded against 8.0 ms, the frames a second unchanged.
-        let rest = if a.tweaks & 16 != 0 { interval - (ticks_per_second * 3 / 1000).min(interval / 5) } else { interval * 95 / 100 };
         next_due = if frame.fresh { frame.acquired_time + rest } else { 0 };
+        repeats_in_a_row = if frame.fresh { 0 } else { repeats_in_a_row + 1 };
+        last_frame_at = frame.acquired_time;
         if frame.keyframe {
             last_keyframe = Some(Instant::now());
             if profile.is_none() {
@@ -1328,13 +1427,14 @@ pub fn serve(args: &[String]) -> ExitCode {
             };
             let kbit_per_second = second_bytes as f64 * 8.0 / 1000.0 / took.as_secs_f64();
             println!(
-                "  {:>4} s  {:>3} frames sent ({} new)   shown -> encoded {}   encoded -> network {}   {:>6.0} kbit/s",
+                "  {:>4} s  {:>3} frames sent ({} new)   shown -> encoded {}   encoded -> network {}   {:>6.0} kbit/s{}",
                 started.elapsed().as_secs(),
                 second_frames,
                 second_fresh,
                 part(&second_shown),
                 part(&second_handed),
-                kbit_per_second
+                kbit_per_second,
+                if second_spared > 0 { format!("   still screen: about {} repeats spared", second_spared) } else { String::new() }
             );
             // The same second, for the viewers' settings panels.
             shared.stream.lock().unwrap().measured = Some(Measured {
@@ -1346,6 +1446,7 @@ pub fn serve(args: &[String]) -> ExitCode {
             second_shown.clear();
             second_handed.clear();
             (second_frames, second_fresh, second_bytes) = (0, 0, 0);
+            second_spared = 0;
             second_started = Instant::now();
         }
     }
@@ -1421,4 +1522,55 @@ pub fn serve(args: &[String]) -> ExitCode {
         return ExitCode::from(2);
     }
     ExitCode::SUCCESS
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn v4(a: u8, b: u8, c: u8, d: u8) -> Ipv4Addr {
+        Ipv4Addr::new(a, b, c, d)
+    }
+
+    #[test]
+    fn only_home_network_addresses_are_offered_for_video() {
+        let loopback = IpAddr::V4(Ipv4Addr::LOCALHOST);
+        // Without --lan nothing changes: the one address listened on, and the socket only there.
+        assert_eq!(video_socket_address(loopback, false), loopback);
+        assert_eq!(video_addresses(loopback, false, &[v4(192, 168, 1, 20)], 5000), vec!["127.0.0.1:5000".parse().unwrap()]);
+        // With --lan the socket is on every address, and what is offered is this PC itself and its private
+        // addresses: never a public one, a link-local one, or the same one twice.
+        assert_eq!(video_socket_address(loopback, true), IpAddr::V4(Ipv4Addr::UNSPECIFIED));
+        let own = [v4(127, 0, 0, 1), v4(192, 168, 1, 20), v4(81, 2, 69, 142), v4(10, 8, 0, 3), v4(169, 254, 7, 7), v4(172, 16, 5, 5), v4(172, 32, 0, 1), v4(100, 64, 0, 9), v4(192, 168, 1, 20)];
+        let offered: Vec<String> = video_addresses(loopback, true, &own, 5000).iter().map(|a| a.to_string()).collect();
+        assert_eq!(offered, ["127.0.0.1:5000", "192.168.1.20:5000", "10.8.0.3:5000", "172.16.5.5:5000"]);
+        // A PC with no network still offers itself.
+        assert_eq!(video_addresses(loopback, true, &[], 5000), vec!["127.0.0.1:5000".parse().unwrap()]);
+    }
+
+    #[test]
+    fn the_host_guard() {
+        let loopback = IpAddr::V4(Ipv4Addr::LOCALHOST);
+        let none: [String; 0] = [];
+        let site = ["debaser.site".to_string()];
+        // This PC's own names, with or without a port, in any letter case.
+        for ours in ["127.0.0.1:8478", "127.0.0.1", "localhost:8478", "LOCALHOST", "127.0.0.2:1"] {
+            assert!(host_is_ours(ours, loopback, &none, true), "{ours}");
+            assert!(host_is_ours(ours, loopback, &none, false), "{ours}");
+        }
+        // Anything else is refused: another site's name, an address that is not this PC's, nothing at all.
+        for theirs in ["evil.example:8478", "debaser.site", "192.168.1.20:8478", "", "localhost.evil.example", "127.0.0.1.evil.example:80"] {
+            assert!(!host_is_ours(theirs, loopback, &none, true), "{theirs}");
+        }
+        // A trusted name is answered only when the request came from this PC itself.
+        assert!(host_is_ours("debaser.site", loopback, &site, true));
+        assert!(host_is_ours("Debaser.Site:443", loopback, &site, true));
+        assert!(!host_is_ours("debaser.site", loopback, &site, false));
+        assert!(!host_is_ours("evil.debaser.site", loopback, &site, true));
+        assert!(!host_is_ours("debaser.site.evil.example", loopback, &site, true));
+        // The address listened on is one of this PC's own names too.
+        let lan = IpAddr::V4(v4(192, 168, 1, 20));
+        assert!(host_is_ours("192.168.1.20:8478", lan, &none, false));
+        assert!(!host_is_ours("192.168.1.21:8478", lan, &none, false));
+    }
 }

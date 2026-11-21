@@ -143,6 +143,7 @@ fn bench_encode(args: &[String]) -> ExitCode {
         preset: a.preset,
         tweaks: a.tweaks,
         skip_pointer_only: false,
+        pretend_still: false,
     }) {
         Ok(session) => session,
         Err(why) => return not_measured(why),

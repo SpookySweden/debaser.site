@@ -7,16 +7,18 @@ fn main() {
     println!("cargo:rerun-if-changed=native/core.h");
     println!("cargo:rerun-if-changed=native/control.cpp");
     println!("cargo:rerun-if-changed=native/control.h");
+    println!("cargo:rerun-if-changed=native/lan.cpp");
     println!("cargo:rerun-if-changed=vendor/nvEncodeAPI.h");
     cc::Build::new()
         .cpp(true)
         .file("native/core.cpp")
         .file("native/control.cpp")
+        .file("native/lan.cpp")
         .flag_if_supported("/std:c++17")
         .flag_if_supported("/EHsc")
         .warnings(false)
         .compile("debaser_core");
-    for lib in ["d3d11", "dxgi", "user32", "gdi32", "kernel32", "winmm"] {
+    for lib in ["d3d11", "dxgi", "user32", "gdi32", "kernel32", "winmm", "iphlpapi"] {
         println!("cargo:rustc-link-lib={lib}");
     }
 }

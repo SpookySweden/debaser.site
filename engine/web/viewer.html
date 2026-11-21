@@ -5,9 +5,17 @@
   forbids it outright; the only requests are the "hello" and the settings, back to the engine that served this page).
   CONTROL (this device's mouse and keys driving the PC) travels on the same direct connection as the picture.
 
-  The address may carry two things: "token=..." when the engine asks for one (passed along as it is), and
-  "hold=1", which leaves the stream's settings as the PC started them (the measuring runs use it, so that opening
-  the page does not change what is being measured).
+  The script is in six parts, in this order, each under its own heading: BASICS (the page's parts, the address,
+  what is remembered), CONNECT (the stream), SETTINGS (what the PC sends), DRAWING (how this device draws it),
+  READOUT, CONTROL. The last lines start everything.
+
+  What the address may carry:
+    token=...          when the engine asks for one; passed along as it is.
+    hold=1             leave the stream's settings as the PC started them (the measuring runs use it, so that
+                       opening the page does not change what is being measured).
+    drawing=fast       draw this way whatever this device remembers (for measuring one against the other);
+    drawing=normal     it is not remembered.
+    fast=refused       for the checks only: behave as if this browser could not draw FAST.
 -->
 <html lang="en">
 <head>
@@ -20,13 +28,18 @@
   html, body { margin: 0; height: 100%; background: #111111; overflow: hidden; }
   body, button, input { font: 12px/1.4 Consolas, "Courier New", monospace; color: #d0d0d0; }
 
-  /* The viewport: the picture, and (for SHARPENED) the canvas it is redrawn on. */
+  /* The viewport. The picture is drawn one of two ways: FAST, on the #fast canvas, or NORMAL, by the <video>
+     element (with the #sharpened canvas over it when NORMAL is asked to sharpen). */
   #stage { position: fixed; inset: 0; overflow: hidden; background: #111111; }
-  #screen { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: contain; background: #111111; }
-  #stage.sharp #screen { image-rendering: pixelated; }
-  /* OFF: the picture at its real size (set in the script, one stream pixel to one screen pixel), in the middle. */
-  #stage.off #screen { left: 50%; top: 50%; transform: translate(-50%, -50%); object-fit: fill; }
+  #screen, #fast { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: contain; background: #111111; }
+  #stage.sharp #screen, #stage.sharp #fast { image-rendering: pixelated; }
+  /* OFF: the picture at its real size (set in the script, one stream pixel to one screen pixel), in the middle.
+     SHARPENED on the FAST canvas: the canvas is exactly the size the picture is shown at, in the middle. */
+  #stage.off #screen, #stage.off #fast, #stage.sharpened #fast { left: 50%; top: 50%; transform: translate(-50%, -50%); object-fit: fill; }
   #sharpened { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: #111111; }
+  /* In FAST the <video> element still receives the stream (it is what the browser's own numbers hang off) but
+     is not shown. */
+  #stage.fast #screen { visibility: hidden; }
 
   #numbers {
     position: fixed; left: 8px; top: 8px; margin: 0; padding: 6px 8px; white-space: pre;
@@ -70,6 +83,7 @@
 <body>
 <div id="stage" class="smooth">
   <video id="screen" muted autoplay playsinline></video>
+  <canvas id="fast" hidden></canvas>
   <canvas id="sharpened" hidden></canvas>
 </div>
 <pre id="numbers">connecting</pre>
@@ -108,16 +122,26 @@
   </div>
   <h3>FRAMES A SECOND</h3>
   <div class="row" id="rates">
+    <button class="key" type="button" data-fps="auto">[ AUTO ]</button>
     <button class="key" type="button" data-fps="30">[ 30 ]</button>
     <button class="key" type="button" data-fps="60">[ 60 ]</button>
     <button class="key" type="button" data-fps="120">[ 120 ]</button>
     <button class="key" type="button" data-fps="180">[ 180 ]</button>
   </div>
+  <p id="rate-says"></p>
   <h3><label for="bitrate">BITRATE</label></h3>
   <div class="row"><input id="bitrate" type="range" min="2" max="50" step="1" value="20"> <span id="bitrate-says">20 Mbit/s</span></div>
   <p class="says" id="really">Waiting for the PC to say what it is sending.</p>
   <p class="says" id="cap" hidden></p>
   <p class="says" id="trouble" hidden></p>
+
+  <h2>DRAWING</h2>
+  <div class="row" id="drawing">
+    <button class="key" type="button" data-drawing="fast">[ FAST ]</button>
+    <button class="key" type="button" data-drawing="normal">[ NORMAL ]</button>
+  </div>
+  <p>Only on this device. FAST takes each frame straight off the stream and puts it on a canvas that skips the browser's own drawing queue, so it reaches the screen sooner. NORMAL is the browser's own video player.</p>
+  <p class="says" id="drawing-says" hidden></p>
 
   <h2>UPSCALING</h2>
   <div class="row" id="upscaling">
@@ -126,7 +150,7 @@
     <button class="key" type="button" data-upscaling="sharp">[ SHARP ]</button>
     <button class="key" type="button" data-upscaling="sharpened">[ SHARPENED ]</button>
   </div>
-  <p>Only on this device: nothing here is sent to the PC. OFF shows the picture at its real size, not stretched. SMOOTH lets the browser stretch it to fill. SHARP stretches it in hard squares (for pixel art). SHARPENED redraws every frame on this device with a sharpening pass, which may add delay: that has not been measured.</p>
+  <p>Only on this device: nothing here is sent to the PC. OFF shows the picture at its real size, not stretched. SMOOTH stretches it to fill, softly. SHARP stretches it in hard squares (for pixel art). SHARPENED adds a sharpening pass on this device's graphics to every frame, which may add delay: that has not been measured.</p>
   <p class="says" id="upscaling-says" hidden></p>
 
   <h2>READOUT</h2>
@@ -163,99 +187,36 @@
 <script>
 'use strict';
 
+// ===============================================================================================================
+// BASICS: the page's parts, what the address asks for, and what this device remembers.
+
 const $ = (id) => document.getElementById(id);
 const stage = $('stage');
 const video = $('screen');
-const canvas = $('sharpened');
+const fastCanvas = $('fast');
+const sharpCanvas = $('sharpened');
 const numbers = $('numbers');
 const panel = $('panel');
 
+// What the address asks for (the note at the top of this file lists it).
 const address = new URLSearchParams(location.search);
-// "hold=1": leave the stream as the PC started it (see the note at the top of this file).
 const hold = address.get('hold') === '1';
-
-// An experiment, asked for in the address ("draw=fast" or "draw=fastgl"; BENCH.md, the drawing step): each frame is
-// taken straight off the stream the moment it is decoded and put on a canvas that asks the browser to skip its own
-// drawing queue, instead of going through the <video> element. Measured with bench/glass.ps1 before it earns a key.
-const drawWish = ['fast', 'fastgl'].includes(address.get('draw')) ? address.get('draw') : 'normal';
-let fastNote = '';
-const fast = { frames: 0, lowLatency: null, kind: '' };
-
-function startFastDrawing(track, kind) {
-  if (!('MediaStreamTrackProcessor' in window)) return 'this browser does not hand decoded frames to a page';
-  const surface = document.createElement('canvas');
-  surface.id = 'fast';
-  surface.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;object-fit:contain;background:#111111';
-  let put = null;
-  if (kind === 'fastgl') {
-    const gl = surface.getContext('webgl2', { desynchronized: true, alpha: false, antialias: false, depth: false, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
-    if (!gl) return 'no WebGL2 here';
-    const shader = (type, source) => { const s = gl.createShader(type); gl.shaderSource(s, source); gl.compileShader(s); return s; };
-    const program = gl.createProgram();
-    gl.attachShader(program, shader(gl.VERTEX_SHADER, '#version 300 es\nout vec2 at;void main(){vec2 p=vec2(float((gl_VertexID<<1)&2),float(gl_VertexID&2));at=vec2(p.x,1.0-p.y);gl_Position=vec4(p*2.0-1.0,0.0,1.0);}'));
-    gl.attachShader(program, shader(gl.FRAGMENT_SHADER, '#version 300 es\nprecision mediump float;uniform sampler2D picture;in vec2 at;out vec4 colour;void main(){colour=vec4(texture(picture,at).rgb,1.0);}'));
-    gl.linkProgram(program);
-    gl.useProgram(program);
-    gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    fast.lowLatency = Boolean(gl.getContextAttributes().desynchronized);
-    put = (frame) => {
-      gl.viewport(0, 0, surface.width, surface.height);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, frame);
-      gl.drawArrays(gl.TRIANGLES, 0, 3);
-      gl.flush();
-    };
-  } else {
-    const flat = surface.getContext('2d', { desynchronized: true, alpha: false });
-    fast.lowLatency = Boolean(flat.getContextAttributes && flat.getContextAttributes().desynchronized);
-    put = (frame) => flat.drawImage(frame, 0, 0);
-  }
-  fast.kind = kind;
-  stage.appendChild(surface);
-  video.style.visibility = 'hidden';
-  const reader = new MediaStreamTrackProcessor({ track }).readable.getReader();
-  (async () => {
-    for (;;) {
-      const { value: frame, done } = await reader.read();
-      if (done) break;
-      if (surface.width !== frame.displayWidth || surface.height !== frame.displayHeight) {
-        surface.width = frame.displayWidth;
-        surface.height = frame.displayHeight;
-      }
-      put(frame);
-      frame.close();
-      fast.frames += 1;
-    }
-  })().catch(() => { /* the stream ended */ });
-  return '';
-}
-window.__debaserFast = () => ({ wish: drawWish, kind: fast.kind, frames: fast.frames, lowLatency: fast.lowLatency, note: fastNote });
-
-let connection = null;
-let connectionsMade = 0;
-// CONTROL's two channels (see the CONTROL section below), and the number the PC gave this viewer.
-let keysChannel = null;
-let pointerChannel = null;
-let viewer = null;
-let problem = '';
-// When each step of connecting happened, in milliseconds since the page began loading.
-const steps = { offerSent: null, answerBack: null, connected: null, firstFrameShown: null };
+const drawingForced = ['fast', 'normal'].includes(address.get('drawing')) ? address.get('drawing') : null;
+const fastRefused = address.get('fast') === 'refused';
 
 // What this device last chose, remembered between visits. The page works the same when the browser refuses to
 // remember (private windows, blocked storage): it then starts from these every time.
 const STORE = 'debaser-engine-viewer';
-const wishes = { match: true, shape: '16:9', lines: 1080, fps: 60, bitrateKbps: 20000, upscaling: 'smooth', numbers: true, mouse: 'pointer' };
+const wishes = { match: true, shape: '16:9', lines: 1080, fps: 'auto', bitrateKbps: 20000, drawing: 'fast', upscaling: 'smooth', numbers: true, mouse: 'pointer' };
 try {
   const kept = JSON.parse(localStorage.getItem(STORE) || 'null');
   if (kept && typeof kept === 'object') {
     if (typeof kept.match === 'boolean') wishes.match = kept.match;
     if (['native', '16:9', '16:10', '21:9', '4:3'].includes(kept.shape)) wishes.shape = kept.shape;
     if ([720, 1080, 1440, 'native'].includes(kept.lines)) wishes.lines = kept.lines;
-    if ([30, 60, 120, 180].includes(kept.fps)) wishes.fps = kept.fps;
+    if (['auto', 30, 60, 120, 180].includes(kept.fps)) wishes.fps = kept.fps;
     if (Number.isFinite(kept.bitrateKbps) && kept.bitrateKbps >= 1000) wishes.bitrateKbps = Math.round(kept.bitrateKbps);
+    if (['fast', 'normal'].includes(kept.drawing)) wishes.drawing = kept.drawing;
     if (['off', 'smooth', 'sharp', 'sharpened'].includes(kept.upscaling)) wishes.upscaling = kept.upscaling;
     if (typeof kept.numbers === 'boolean') wishes.numbers = kept.numbers;
     if (['pointer', 'game'].includes(kept.mouse)) wishes.mouse = kept.mouse;
@@ -265,8 +226,26 @@ function remember() {
   try { localStorage.setItem(STORE, JSON.stringify(wishes)); } catch (error) { /* not allowed to remember: carry on */ }
 }
 
-// ---------------------------------------------------------------------------------------------------------------
-// The stream. The "hello": our offer goes to the engine, its answer comes back, and the video then travels directly.
+// Marks the one key of a row that is the current choice.
+function press(row, attribute, value) {
+  for (const key of row.querySelectorAll('button')) key.setAttribute('aria-pressed', String(key.getAttribute(attribute) === String(value)));
+}
+const quietly = (promise) => promise.catch(() => { /* the reason is already shown in the panel */ });
+
+// ===============================================================================================================
+// CONNECT: the stream. The "hello": our offer goes to the engine, its answer comes back, and the video then
+// travels directly.
+
+let connection = null;
+let connectionsMade = 0;
+let track = null;          // the stream's video, once it has arrived
+// CONTROL's two channels (see the CONTROL part below), and the number the PC gave this viewer.
+let keysChannel = null;
+let pointerChannel = null;
+let viewer = null;
+let problem = '';
+// When each step of connecting happened, in milliseconds since the page began loading.
+const steps = { offerSent: null, answerBack: null, connected: null, firstFrameShown: null };
 
 async function start() {
   // No outside helpers (STUN or TURN servers): the engine tells us its own address in its answer.
@@ -294,17 +273,19 @@ async function start() {
     // Ask the browser to keep no waiting queue: show each frame as soon as it is decoded.
     try { event.receiver.jitterBufferTarget = 0; } catch (error) { /* not in this browser */ }
     try { event.receiver.playoutDelayHint = 0; } catch (error) { /* not in this browser */ }
+    track = event.track;
     video.srcObject = event.streams[0] || new MediaStream([event.track]);
     video.play().catch(() => { /* muted autoplay is allowed; if a browser still refuses, a click starts it */ });
-    if (video.requestVideoFrameCallback) video.requestVideoFrameCallback(() => { steps.firstFrameShown = performance.now(); });
-    if (drawWish !== 'normal') fastNote = startFastDrawing(event.track, drawWish);
+    if (video.requestVideoFrameCallback) video.requestVideoFrameCallback(() => { if (steps.firstFrameShown === null) steps.firstFrameShown = performance.now(); });
+    showDrawing();
   };
   connection.onconnectionstatechange = () => {
     if (connection.connectionState === 'connected' && steps.connected === null) {
       steps.connected = performance.now();
       // Now that the picture is on its way, tell the PC what this device wants of it (unless asked to hold off).
+      // AUTO needs this screen's own rate, so a measuring of it that is still going is waited for first.
       if (hold) readHost();
-      else ask(wishesForThePc()).catch(() => { /* shown in the panel by ask itself */ });
+      else (measuringHz || Promise.resolve()).then(() => quietly(ask(wishesForThePc())));
     }
     if (connection.connectionState === 'failed') problem = 'the connection failed (reload to try again)';
     if (connection.connectionState === 'closed' || connection.connectionState === 'disconnected') problem = 'the engine stopped sending (reload to try again)';
@@ -326,8 +307,8 @@ async function start() {
   await connection.setRemoteDescription({ type: 'answer', sdp: text });
 }
 
-// An address on the engine that served this page: the token (when there is one) and "hold" are passed along as
-// they came, and this viewer's number is added once the PC has given it.
+// An address on the engine that served this page: what this page's own address carries (the token, "hold") is
+// passed along as it came, and this viewer's number is added once the PC has given it.
 function hostAddress(path) {
   const more = new URLSearchParams(location.search);
   if (viewer) more.set('viewer', viewer);
@@ -352,7 +333,14 @@ window.__debaserStats = async function () {
     jitterBufferDelay: null, jitterBufferEmittedCount: null, totalProcessingDelay: null, totalDecodeTime: null,
     roundTripMs: null,
     stepsMs: { ...steps },
+    // How this device is drawing the picture: what is really in use, and why when that is not what was asked.
+    drawing: drawingShown,
+    drawingAsked: drawingWanted(),
+    drawingNote,
+    lowLatencyCanvas: fast.lowLatency,
+    framesDrawnFast: fast.frames,
     upscaling: { asked: wishes.upscaling, shown: upscalingShown, note: upscalingNote },
+    screenHz,
   };
   if (!connection) return result;
   const report = await connection.getStats();
@@ -378,9 +366,9 @@ window.__debaserStats = async function () {
   return result;
 };
 
-// ---------------------------------------------------------------------------------------------------------------
-// The stream's settings. They belong to the stream, not to this viewer: one encoder on the PC serves everyone
-// watching, so the last change wins, and this page always shows what the PC says it is really sending.
+// ===============================================================================================================
+// SETTINGS: what the PC sends. The settings belong to the stream, not to this viewer: one encoder on the PC serves
+// everyone watching, so the last change wins, and this page always shows what the PC says it is really sending.
 
 let host = null;        // the PC's last answer about its settings
 let hostTrouble = '';   // why the PC could not be asked, when it could not
@@ -391,6 +379,50 @@ let lastAnswered = 0;   // when the PC last answered a change of ours
 function thisScreen() {
   const ratio = window.devicePixelRatio || 1;
   return { viewWidth: Math.round(screen.width * ratio), viewHeight: Math.round(screen.height * ratio) };
+}
+
+// How many frames a second this device's own screen shows, which is what AUTO sends. A browser does not say, so
+// it is measured: the page asks to be called once per screen refresh a few dozen times, finds the middle gap,
+// and averages the gaps near it (a browser's clock is coarse, and one late call must not count). A screen's rate
+// is nearly always one of a few well-known ones, so a measurement within 1% of one of those is taken to be it.
+const KNOWN_RATES = [24, 25, 30, 48, 50, 60, 72, 75, 85, 90, 100, 120, 144, 165, 170, 175, 180, 200, 240, 280, 300, 360, 480, 500, 540];
+let screenHz = null;      // the last measurement (null until the first is done)
+let measuringHz = null;   // a measurement under way
+let screenWas = '';       // which screen the window was on at the last measurement
+const whichScreen = () => [screen.width, screen.height, screen.availLeft, screen.availTop, window.devicePixelRatio].join(' ');
+
+function measureScreenHz() {
+  if (measuringHz) return measuringHz;
+  screenWas = whichScreen();
+  measuringHz = new Promise((resolve) => {
+    const gaps = [];
+    let before = 0;
+    // A hidden tab is not called at all: give up after a while and keep what was known.
+    const giveUp = setTimeout(() => resolve(null), 2500);
+    const tick = (now) => {
+      if (before) gaps.push(now - before);
+      before = now;
+      if (gaps.length < 60) return requestAnimationFrame(tick);
+      clearTimeout(giveUp);
+      gaps.sort((a, b) => a - b);
+      const middle = gaps[gaps.length >> 1];
+      const near = gaps.filter((gap) => Math.abs(gap - middle) <= middle * 0.2);
+      if (!(middle > 0) || !near.length) return resolve(null);
+      const rate = 1000 / (near.reduce((sum, gap) => sum + gap, 0) / near.length);
+      const known = KNOWN_RATES.find((one) => Math.abs(rate - one) <= one * 0.01);
+      resolve(Math.max(24, Math.round(known || rate)));
+    };
+    requestAnimationFrame(tick);
+  }).then((hz) => {
+    measuringHz = null;
+    const changed = hz !== null && hz !== screenHz;
+    if (hz !== null) screenHz = hz;
+    showSettings();
+    // On AUTO, a screen with a different rate (the window moved to another screen) is a new request to the PC.
+    if (changed && wishes.fps === 'auto' && steps.connected !== null && !hold) quietly(ask({ fps: 'auto' }));
+    return screenHz;
+  });
+  return measuringHz;
 }
 
 // Everything this device wants of the PC, from what it remembers.
@@ -437,8 +469,8 @@ function readHost() {
 }
 
 // Asks the PC for a change. `partial` names only what changes: shape ('match', 'native', '16:9', '16:10', '21:9',
-// '4:3'), lines (720, 1080, 1440, 'native'), fps (30, 60, 120, 180), bitrateKbps. Every key in the panel goes
-// through here, and so can a check. It answers with what the PC says it is really sending afterwards.
+// '4:3'), lines (720, 1080, 1440, 'native'), fps ('auto', 30, 60, 120, 180), bitrateKbps. Every key in the panel
+// goes through here, and so can a check. It answers with what the PC says it is really sending afterwards.
 async function ask(partial) {
   const request = { ...partial };
   if (request.shape === 'match') {
@@ -447,6 +479,8 @@ async function ask(partial) {
     if (!request.viewWidth) request.viewWidth = here.viewWidth;
     if (!request.viewHeight) request.viewHeight = here.viewHeight;
   }
+  // AUTO goes with this screen's own rate, unless the caller names another (60 until it has been measured).
+  if (request.fps === 'auto' && !request.viewHz) request.viewHz = screenHz || 60;
   if ('shape' in request) {
     wishes.match = request.shape === 'match';
     if (!wishes.match) wishes.shape = request.shape;
@@ -462,10 +496,6 @@ window.__debaserSettings = { get: () => host, ask };
 
 const megabits = (kbps) => (kbps / 1000).toFixed(kbps % 1000 === 0 ? 0 : 1) + ' Mbit/s';
 
-function press(row, attribute, value) {
-  for (const key of row.querySelectorAll('button')) key.setAttribute('aria-pressed', String(key.getAttribute(attribute) === String(value)));
-}
-
 // Draws the panel from what the PC says. Until it has said anything, from what this device remembers.
 function showSettings() {
   const asked = host ? host.asked : { shape: wishes.match ? 'match' : wishes.shape, lines: wishes.lines, fps: wishes.fps, bitrateKbps: wishes.bitrateKbps };
@@ -479,9 +509,13 @@ function showSettings() {
   press($('shapes'), 'data-shape', asked.shape);
   press($('lines'), 'data-lines', asked.lines);
   press($('rates'), 'data-fps', asked.fps);
+  const measured = screenHz ? 'This screen shows ' + screenHz + ' frames a second (measured here).' : 'This screen\'s own rate is still being measured.';
+  $('rate-says').textContent = asked.fps === 'auto'
+    ? 'AUTO follows this screen. ' + measured + ' The PC sends that many when its own screen and its limits allow.'
+    : measured;
 
   // Choices the PC could never give (more frames a second than its screen shows, more lines than it has) are
-  // not offered at all.
+  // not offered at all. AUTO always is.
   if (host) {
     for (const key of $('rates').querySelectorAll('button')) key.hidden = Number(key.dataset.fps) > host.hostLimits.maxFps;
     for (const key of $('lines').querySelectorAll('button')) key.hidden = key.dataset.lines !== 'native' && Number(key.dataset.lines) > host.hostLimits.maxLines;
@@ -539,33 +573,59 @@ $('close-settings').addEventListener('click', () => openPanel(false));
 // Esc closes the panel, except while this device controls the PC: then Esc, like every key, is the PC's.
 document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && !panel.hidden && !control.mine) openPanel(false); });
 
-const quietly = (promise) => promise.catch(() => { /* the reason is already shown in the panel */ });
 $('match').addEventListener('click', () => quietly(ask({ shape: $('match').getAttribute('aria-pressed') === 'true' ? wishes.shape : 'match' })));
 $('shapes').addEventListener('click', (event) => { const key = event.target.closest('button'); if (key) quietly(ask({ shape: key.dataset.shape })); });
 $('lines').addEventListener('click', (event) => { const key = event.target.closest('button'); if (key) quietly(ask({ lines: key.dataset.lines === 'native' ? 'native' : Number(key.dataset.lines) })); });
-$('rates').addEventListener('click', (event) => { const key = event.target.closest('button'); if (key) quietly(ask({ fps: Number(key.dataset.fps) })); });
+$('rates').addEventListener('click', (event) => { const key = event.target.closest('button'); if (key) quietly(ask({ fps: key.dataset.fps === 'auto' ? 'auto' : Number(key.dataset.fps) })); });
 // The slider says its number while it moves and asks the PC once, when it is let go.
 $('bitrate').addEventListener('input', () => { $('bitrate-says').textContent = megabits(Number($('bitrate').value) * 1000); });
 $('bitrate').addEventListener('change', () => { $('bitrate').blur(); quietly(ask({ bitrateKbps: Number($('bitrate').value) * 1000 })); });
 
-// ---------------------------------------------------------------------------------------------------------------
-// Upscaling: how this device draws the picture it is sent. Nothing here reaches the PC.
+// A different screen may show a different number of frames a second: measured again when the page goes
+// fullscreen or comes back, when the browser says the screen changed, and (looked at every few seconds, with the
+// PC's settings) when the window has moved to another screen.
+document.addEventListener('fullscreenchange', measureScreenHz);
+if (screen.addEventListener) screen.addEventListener('change', measureScreenHz);
 
-let upscalingShown = 'smooth';   // what is really in use (SHARPENED falls back to SMOOTH where it cannot run)
+// ===============================================================================================================
+// DRAWING: how this device draws the picture it is sent. Nothing here reaches the PC.
+//
+// Two ways. FAST: each frame is taken straight off the stream the moment it is decoded and drawn on ONE canvas
+// (#fast) that asks the browser to skip its own drawing queue. NORMAL: the browser's own <video> element.
+// FAST is used wherever the browser can do it; where it cannot, the page draws NORMAL and says why in one line.
+//
+// Four ways of fitting the picture to the window (UPSCALING), each of which works either way of drawing:
+// OFF (real size, in the middle), SMOOTH (stretched softly), SHARP (stretched in hard squares), SHARPENED
+// (stretched, then sharpened by a small shader).
+
+let drawingShown = 'normal';     // what is really in use: 'fast' or 'normal'
+let drawingNote = '';            // why FAST is not in use, when it was wanted
+let upscalingShown = 'smooth';   // what is really in use (in NORMAL, SHARPENED falls back to SMOOTH where it cannot run)
 let upscalingNote = '';
 
-// SHARPENED: every frame is drawn again on a canvas through a small shader. It reads the pixel and its four
-// neighbours, looks at how much contrast is already there, and pushes the pixel away from its neighbours' average
-// by an amount that shrinks where the contrast is already strong (so edges gain bite without bright halos).
+const drawingWanted = () => drawingForced || wishes.drawing;
+
+// One triangle that covers the whole canvas, made from the corner's number alone; both shaders below sit on it.
 const VERTEX = `#version 300 es
 out vec2 at;
 void main() {
-  // One triangle that covers the whole canvas, made from the corner's number alone.
   vec2 corner = vec2(float((gl_VertexID << 1) & 2), float(gl_VertexID & 2));
   at = vec2(corner.x, 1.0 - corner.y);
   gl_Position = vec4(corner * 2.0 - 1.0, 0.0, 1.0);
 }`;
-const FRAGMENT = `#version 300 es
+// The frame as it is.
+const PLAIN = `#version 300 es
+precision mediump float;
+uniform sampler2D frame;
+in vec2 at;
+out vec4 colour;
+void main() {
+  colour = vec4(texture(frame, at).rgb, 1.0);
+}`;
+// SHARPENED: reads the pixel and its four neighbours, looks at how much contrast is already there, and pushes the
+// pixel away from its neighbours' average by an amount that shrinks where the contrast is already strong (so
+// edges gain bite without bright halos).
+const SHARPEN = `#version 300 es
 precision mediump float;
 uniform sampler2D frame;
 uniform vec2 pixel;     // one pixel of the stream, in the picture's own 0-to-1 measure
@@ -586,14 +646,8 @@ void main() {
   colour = vec4(clamp((here + pull * (up + down + left + right)) / (1.0 + 4.0 * pull), 0.0, 1.0), 1.0);
 }`;
 
-const sharpen = { gl: null, pixel: null, running: false, framesDrawn: 0 };
-
-// Sets the shader up once. Returns '' when it can run, or why it cannot.
-function prepareSharpen() {
-  if (sharpen.gl) return '';
-  if (!('requestVideoFrameCallback' in HTMLVideoElement.prototype)) return 'this browser does not hand video frames to a page';
-  const gl = canvas.getContext('webgl2', { alpha: false, antialias: false, depth: false, powerPreference: 'high-performance' });
-  if (!gl) return 'this browser has no WebGL2';
+// Builds one of the shaders above on a canvas's graphics. Null when the device will not take it.
+function makeProgram(gl, fragmentSource) {
   const compile = (kind, source) => {
     const shader = gl.createShader(kind);
     gl.shaderSource(shader, source);
@@ -601,83 +655,238 @@ function prepareSharpen() {
     return gl.getShaderParameter(shader, gl.COMPILE_STATUS) ? shader : null;
   };
   const vertex = compile(gl.VERTEX_SHADER, VERTEX);
-  const fragment = compile(gl.FRAGMENT_SHADER, FRAGMENT);
+  const fragment = compile(gl.FRAGMENT_SHADER, fragmentSource);
+  if (!vertex || !fragment) return null;
   const program = gl.createProgram();
-  if (vertex && fragment) {
-    gl.attachShader(program, vertex);
-    gl.attachShader(program, fragment);
-    gl.linkProgram(program);
-  }
-  if (!vertex || !fragment || !gl.getProgramParameter(program, gl.LINK_STATUS)) return 'this device\'s graphics would not take the sharpening shader';
+  gl.attachShader(program, vertex);
+  gl.attachShader(program, fragment);
+  gl.linkProgram(program);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) return null;
   gl.useProgram(program);
+  gl.uniform1i(gl.getUniformLocation(program, 'frame'), 0);
+  const strength = gl.getUniformLocation(program, 'strength');
+  if (strength) gl.uniform1f(strength, 0.2);
+  return program;
+}
+
+// The one texture a canvas's graphics keep the newest frame in.
+function makeFrameTexture(gl) {
   gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  gl.uniform1i(gl.getUniformLocation(program, 'frame'), 0);
-  gl.uniform1f(gl.getUniformLocation(program, 'strength'), 0.2);
-  sharpen.pixel = gl.getUniformLocation(program, 'pixel');
-  sharpen.gl = gl;
-  // If the device takes the graphics away (a driver restart, too many tabs), go back to the plain picture.
-  canvas.addEventListener('webglcontextlost', () => { sharpen.gl = null; if (wishes.upscaling === 'sharpened') showUpscaling(); });
+}
+
+// ---- FAST
+
+const fast = {
+  gl: null,
+  plain: null,        // the two shaders, built once
+  sharpen: null,
+  sharpenPixel: null,
+  reader: null,       // the stream of decoded frames being read, while FAST is in use
+  wide: 0,            // the size of the newest frame
+  tall: 0,
+  frames: 0,          // frames drawn
+  lowLatency: null,   // whether the browser gave the canvas its "skip the queue" kind (null: FAST never set up)
+  broken: '',         // why FAST can no longer run on this device, once it cannot
+  probe: null,        // a check waiting to look at the next frame drawn
+};
+
+// Sets FAST up once. Returns '' when it can run, or why it cannot.
+function prepareFast() {
+  if (fastRefused) return 'this browser was told to refuse it, as a test';
+  if (fast.broken) return fast.broken;
+  if (fast.gl) return '';
+  if (!('MediaStreamTrackProcessor' in window)) return 'this browser does not hand decoded frames to a page';
+  // "desynchronized" is the request to skip the browser's own drawing queue; a browser may say no and still draw.
+  const gl = fastCanvas.getContext('webgl2', { desynchronized: true, alpha: false, antialias: false, depth: false, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
+  if (!gl) return 'this browser has no WebGL2';
+  fast.plain = makeProgram(gl, PLAIN);
+  fast.sharpen = makeProgram(gl, SHARPEN);
+  if (!fast.plain || !fast.sharpen) return 'this device\'s graphics would not take the drawing shaders';
+  fast.sharpenPixel = gl.getUniformLocation(fast.sharpen, 'pixel');
+  makeFrameTexture(gl);
+  fast.lowLatency = Boolean(gl.getContextAttributes().desynchronized);
+  fast.gl = gl;
+  // If the device takes the graphics away (a driver restart, too many tabs), the browser's own player takes over.
+  fastCanvas.addEventListener('webglcontextlost', () => {
+    fast.gl = null;
+    fast.broken = 'this device took the graphics away';
+    showDrawing();
+  });
+  return '';
+}
+
+function drawFast(frame) {
+  const gl = fast.gl;
+  if (!gl) return;
+  if (frame.displayWidth !== fast.wide || frame.displayHeight !== fast.tall) {
+    // The stream changed size (its settings changed): the canvas is laid out again before this frame is drawn.
+    fast.wide = frame.displayWidth;
+    fast.tall = frame.displayHeight;
+    layOutPicture();
+  }
+  gl.viewport(0, 0, fastCanvas.width, fastCanvas.height);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, frame);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  if (fast.probe) {
+    const answer = fast.probe;
+    fast.probe = null;
+    answer(compareWithPlain(gl, fastCanvas, frame));
+  }
+  gl.flush();
+  fast.frames += 1;
+  if (steps.firstFrameShown === null) steps.firstFrameShown = performance.now();
+}
+
+// Starts taking frames straight off the stream. Each is drawn and given back at once.
+function startFastReader() {
+  if (fast.reader || !track) return;
+  let reader;
+  try {
+    reader = new MediaStreamTrackProcessor({ track }).readable.getReader();
+  } catch (error) {
+    fast.broken = 'this browser would not hand over the stream\'s frames';
+    showDrawing();
+    return;
+  }
+  fast.reader = reader;
+  (async () => {
+    for (;;) {
+      const { value: frame, done } = await reader.read();
+      if (done) break;
+      if (fast.reader === reader) drawFast(frame);
+      frame.close();
+    }
+  })().catch(() => { /* the stream ended */ });
+}
+
+function stopFastReader() {
+  if (!fast.reader) return;
+  const reader = fast.reader;
+  fast.reader = null;
+  reader.cancel().catch(() => { /* already over */ });
+}
+
+// ---- NORMAL's sharpening: a second canvas over the <video> element, redrawn from it at every frame it shows.
+
+const sharp = { gl: null, pixel: null, running: false, framesDrawn: 0 };
+
+// Sets it up once. Returns '' when it can run, or why it cannot.
+function prepareSharpen() {
+  if (sharp.gl) return '';
+  if (!('requestVideoFrameCallback' in HTMLVideoElement.prototype)) return 'this browser does not hand video frames to a page';
+  const gl = sharpCanvas.getContext('webgl2', { alpha: false, antialias: false, depth: false, powerPreference: 'high-performance' });
+  if (!gl) return 'this browser has no WebGL2';
+  const program = makeProgram(gl, SHARPEN);
+  if (!program) return 'this device\'s graphics would not take the sharpening shader';
+  makeFrameTexture(gl);
+  sharp.pixel = gl.getUniformLocation(program, 'pixel');
+  sharp.gl = gl;
+  sharpCanvas.addEventListener('webglcontextlost', () => { sharp.gl = null; if (wishes.upscaling === 'sharpened') showDrawing(); });
   return '';
 }
 
 function drawSharpened() {
-  const gl = sharpen.gl;
+  const gl = sharp.gl;
   if (!gl || !video.videoWidth) return false;
-  gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.viewport(0, 0, sharpCanvas.width, sharpCanvas.height);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
-  gl.uniform2f(sharpen.pixel, 1 / video.videoWidth, 1 / video.videoHeight);
+  gl.uniform2f(sharp.pixel, 1 / video.videoWidth, 1 / video.videoHeight);
   gl.drawArrays(gl.TRIANGLES, 0, 3);
-  sharpen.framesDrawn += 1;
+  sharp.framesDrawn += 1;
   return true;
 }
 
 function sharpenEveryFrame() {
-  if (!sharpen.running) return;
+  if (!sharp.running) return;
   drawSharpened();
   video.requestVideoFrameCallback(sharpenEveryFrame);
 }
 
-// For engine/bench/settings-check.cjs, which cannot look at the picture: draws the frame now and compares what
-// the shader made with the same frame drawn plainly, at a few thousand points.
-window.__debaserSharpened = {
-  probe() {
-    if (upscalingShown !== 'sharpened' || !drawSharpened()) return { running: false, note: upscalingNote };
-    const gl = sharpen.gl;
-    const width = canvas.width;
-    const height = canvas.height;
-    const made = new Uint8Array(width * height * 4);
-    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, made);
-    const plainCanvas = document.createElement('canvas');
-    plainCanvas.width = width;
-    plainCanvas.height = height;
-    const plain2d = plainCanvas.getContext('2d');
-    plain2d.drawImage(video, 0, 0, width, height);
-    const plain = plain2d.getImageData(0, 0, width, height).data;
-    let points = 0, lit = 0, total = 0, most = 0;
-    for (let y = 3; y < height; y += 13) {
-      for (let x = 3; x < width; x += 13) {
-        const a = ((height - 1 - y) * width + x) * 4;   // the canvas is read bottom row first
-        const b = (y * width + x) * 4;
-        if (made[a] + made[a + 1] + made[a + 2] > 24) lit += 1;
-        const difference = (Math.abs(made[a] - plain[b]) + Math.abs(made[a + 1] - plain[b + 1]) + Math.abs(made[a + 2] - plain[b + 2])) / 3;
-        total += difference;
-        most = Math.max(most, difference);
-        points += 1;
-      }
-    }
-    return { running: true, width, height, framesDrawn: sharpen.framesDrawn, points, litShare: lit / points, meanDifference: total / points, largestDifference: most };
-  },
-};
+// ---- Both ways
 
-// Puts the chosen way of drawing into effect, and sizes whatever it needs sizing.
-function showUpscaling() {
+// The size of the picture as it arrives.
+function pictureSize() {
+  if (drawingShown === 'fast' && fast.wide) return { wide: fast.wide, tall: fast.tall };
+  return { wide: video.videoWidth, tall: video.videoHeight };
+}
+
+// Sizes whatever is drawing the picture, for the way of fitting in use.
+function layOutPicture() {
+  const ratio = window.devicePixelRatio || 1;
+  const size = pictureSize();
+  const have = size.wide > 0 && size.tall > 0;
+  const fit = have ? Math.min(stage.clientWidth / size.wide, stage.clientHeight / size.tall) : 0;
+  const px = (value) => value + 'px';
+  const isFast = drawingShown === 'fast';
+  const mode = upscalingShown;
+
+  // NORMAL, OFF: the <video> element at one stream pixel to one screen pixel.
+  video.style.width = !isFast && mode === 'off' && have ? px(size.wide / ratio) : '';
+  video.style.height = !isFast && mode === 'off' && have ? px(size.tall / ratio) : '';
+
+  // NORMAL, SHARPENED: its canvas takes the place the picture would fill, one canvas pixel per screen pixel.
+  const sharpening = !isFast && mode === 'sharpened' && have;
+  sharpCanvas.hidden = !sharpening;
+  if (sharpening) {
+    sharpCanvas.style.width = px(size.wide * fit);
+    sharpCanvas.style.height = px(size.tall * fit);
+    sharpCanvas.width = Math.max(2, Math.round(size.wide * fit * ratio));
+    sharpCanvas.height = Math.max(2, Math.round(size.tall * fit * ratio));
+  }
+
+  // FAST: the one canvas. For OFF, SMOOTH and SHARP it holds the frame at its own size and the page places it
+  // (real size in the middle, or stretched to fit, softly or in hard squares). For SHARPENED it is exactly the
+  // size the picture is shown at, and the shader does the stretching and the sharpening in one go.
+  fastCanvas.hidden = !(isFast && have);
+  if (isFast && have && fast.gl) {
+    const shaded = mode === 'sharpened';
+    const wide = shaded ? Math.max(2, Math.round(size.wide * fit * ratio)) : size.wide;
+    const tall = shaded ? Math.max(2, Math.round(size.tall * fit * ratio)) : size.tall;
+    // (Setting a canvas's size wipes it, so it is only set when it changes.)
+    if (fastCanvas.width !== wide) fastCanvas.width = wide;
+    if (fastCanvas.height !== tall) fastCanvas.height = tall;
+    fastCanvas.style.width = shaded ? px(size.wide * fit) : mode === 'off' ? px(size.wide / ratio) : '';
+    fastCanvas.style.height = shaded ? px(size.tall * fit) : mode === 'off' ? px(size.tall / ratio) : '';
+    fast.gl.useProgram(shaded ? fast.sharpen : fast.plain);
+    if (shaded) fast.gl.uniform2f(fast.sharpenPixel, 1 / size.wide, 1 / size.tall);
+  }
+}
+
+// Where the picture really is on this page, whichever way it is being drawn (CONTROL's pointer needs to know).
+function pictureBox() {
+  const size = pictureSize();
+  if (!size.wide || !size.tall) return null;
+  const element = drawingShown === 'fast' ? fastCanvas : sharpCanvas.hidden ? video : sharpCanvas;
+  const box = element.getBoundingClientRect();
+  // At its real size, or on a canvas made exactly as large as the picture is shown: the element IS the picture.
+  if (upscalingShown === 'off' || (upscalingShown === 'sharpened' && element !== video)) return { left: box.left, top: box.top, width: box.width, height: box.height };
+  // Otherwise the picture is fitted inside the element, in its middle.
+  const fit = Math.min(box.width / size.wide, box.height / size.tall);
+  const width = size.wide * fit;
+  const height = size.tall * fit;
+  return { left: box.left + (box.width - width) / 2, top: box.top + (box.height - height) / 2, width, height };
+}
+
+// Puts the chosen ways of drawing and fitting into effect. Called whenever anything they depend on changes.
+function showDrawing() {
+  let way = drawingWanted();
+  drawingNote = '';
+  if (way === 'fast') {
+    const why = prepareFast();
+    if (why) {
+      way = 'normal';
+      drawingNote = 'FAST cannot run here (' + why + '), so the picture is drawn NORMAL instead.';
+    }
+  }
+  drawingShown = way;
+
   let mode = wishes.upscaling;
   upscalingNote = '';
-  if (mode === 'sharpened') {
+  if (mode === 'sharpened' && way === 'normal') {
     const why = prepareSharpen();
     if (why) {
       mode = 'smooth';
@@ -685,51 +894,95 @@ function showUpscaling() {
     }
   }
   upscalingShown = mode;
+
   // (The stage also carries a mark while this device controls the PC; it is kept.)
-  stage.className = mode + (control.mine ? ' controlling' : '');
-  const ratio = window.devicePixelRatio || 1;
-  const haveSize = video.videoWidth > 0 && video.videoHeight > 0;
+  stage.className = mode + (way === 'fast' ? ' fast' : '') + (control.mine ? ' controlling' : '');
+  layOutPicture();
 
-  // OFF: one pixel of the stream on one pixel of this screen.
-  video.style.width = mode === 'off' && haveSize ? (video.videoWidth / ratio) + 'px' : '';
-  video.style.height = mode === 'off' && haveSize ? (video.videoHeight / ratio) + 'px' : '';
-
-  // SHARPENED: the canvas takes the place the picture would fill, with one canvas pixel per screen pixel.
-  const sharpening = mode === 'sharpened' && haveSize;
-  canvas.hidden = !sharpening;
-  if (sharpening) {
-    const fit = Math.min(stage.clientWidth / video.videoWidth, stage.clientHeight / video.videoHeight);
-    const shownWidth = video.videoWidth * fit;
-    const shownHeight = video.videoHeight * fit;
-    canvas.style.width = shownWidth + 'px';
-    canvas.style.height = shownHeight + 'px';
-    canvas.width = Math.max(2, Math.round(shownWidth * ratio));
-    canvas.height = Math.max(2, Math.round(shownHeight * ratio));
-  }
-  if (sharpening && !sharpen.running) {
-    sharpen.running = true;
+  if (way === 'fast') startFastReader();
+  else stopFastReader();
+  const sharpening = way === 'normal' && mode === 'sharpened' && !sharpCanvas.hidden;
+  if (sharpening && !sharp.running) {
+    sharp.running = true;
     video.requestVideoFrameCallback(sharpenEveryFrame);
   }
-  if (!sharpening) sharpen.running = false;
+  if (!sharpening) sharp.running = false;
 
+  press($('drawing'), 'data-drawing', drawingWanted());
+  $('drawing-says').hidden = !drawingNote && !drawingForced;
+  $('drawing-says').textContent = drawingNote || (drawingForced ? 'This page\'s address asks for ' + drawingForced.toUpperCase() + ' (drawing=' + drawingForced + '), so that is used whatever is chosen here.' : '');
   press($('upscaling'), 'data-upscaling', wishes.upscaling);
   $('upscaling-says').hidden = !upscalingNote;
   $('upscaling-says').textContent = upscalingNote;
 }
 
+$('drawing').addEventListener('click', (event) => {
+  const key = event.target.closest('button');
+  if (!key) return;
+  wishes.drawing = key.dataset.drawing;
+  remember();
+  showDrawing();
+});
 $('upscaling').addEventListener('click', (event) => {
   const key = event.target.closest('button');
   if (!key) return;
   wishes.upscaling = key.dataset.upscaling;
   remember();
-  showUpscaling();
+  showDrawing();
 });
 // The stream changes size when its settings change, and the window can be resized: both move the picture.
-video.addEventListener('resize', showUpscaling);
-window.addEventListener('resize', showUpscaling);
+video.addEventListener('resize', showDrawing);
+window.addEventListener('resize', showDrawing);
 
-// ---------------------------------------------------------------------------------------------------------------
-// The readouts, the corner numbers, and fullscreen.
+// Compares what a canvas's graphics have just drawn with the same frame drawn plainly at the same size, at a few
+// thousand points. (Must be called straight after the drawing, before the browser takes the picture away.)
+function compareWithPlain(gl, surface, source) {
+  const width = surface.width;
+  const height = surface.height;
+  const made = new Uint8Array(width * height * 4);
+  gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, made);
+  const plainCanvas = document.createElement('canvas');
+  plainCanvas.width = width;
+  plainCanvas.height = height;
+  const plain2d = plainCanvas.getContext('2d');
+  plain2d.drawImage(source, 0, 0, width, height);
+  const plain = plain2d.getImageData(0, 0, width, height).data;
+  let points = 0, lit = 0, total = 0, most = 0;
+  for (let y = 3; y < height; y += 13) {
+    for (let x = 3; x < width; x += 13) {
+      const a = ((height - 1 - y) * width + x) * 4;   // the canvas is read bottom row first
+      const b = (y * width + x) * 4;
+      if (made[a] + made[a + 1] + made[a + 2] > 24) lit += 1;
+      const difference = (Math.abs(made[a] - plain[b]) + Math.abs(made[a + 1] - plain[b + 1]) + Math.abs(made[a + 2] - plain[b + 2])) / 3;
+      total += difference;
+      most = Math.max(most, difference);
+      points += 1;
+    }
+  }
+  return { width, height, points, litShare: lit / points, meanDifference: total / points, largestDifference: most };
+}
+
+// For the checks in engine/bench, which cannot look at the picture: where it is on the page, and (for the two
+// canvases) whether what was drawn is lit and close to the plain frame.
+window.__debaserDrawing = {
+  box: pictureBox,
+  async probe() {
+    const said = { drawing: drawingShown, upscaling: upscalingShown, note: drawingNote || upscalingNote, box: pictureBox() };
+    if (drawingShown === 'fast') {
+      // The next frame FAST draws is looked at (it may be half a second away on a still screen).
+      const seen = await new Promise((resolve) => { fast.probe = resolve; setTimeout(() => resolve(null), 2500); });
+      fast.probe = null;
+      const shown = fastCanvas.getBoundingClientRect();
+      return { ...said, looked: Boolean(seen), ...(seen || {}), framesDrawn: fast.frames, shownWidth: shown.width, shownHeight: shown.height, lowLatencyCanvas: fast.lowLatency };
+    }
+    if (upscalingShown === 'sharpened' && drawSharpened()) return { ...said, looked: true, ...compareWithPlain(sharp.gl, sharpCanvas, video), framesDrawn: sharp.framesDrawn };
+    // The browser's own player draws the rest; there is nothing of this page's to look at.
+    return { ...said, looked: false };
+  },
+};
+
+// ===============================================================================================================
+// READOUT: the numbers in the panel and in the corner, and fullscreen.
 
 const shown = (value, digits) => (typeof value === 'number' ? value.toFixed(digits) : '-');
 
@@ -750,7 +1003,8 @@ document.addEventListener('fullscreenchange', () => {
   $('fullscreen').textContent = full ? '[ LEAVE FULLSCREEN ]' : '[ FULLSCREEN ]';
 });
 
-async function draw() {
+// Once a second.
+async function showReadout() {
   control.sentRate = control.sent - control.sentBefore;
   control.sentBefore = control.sent;
   if (problem) { numbers.textContent = problem; $('readout').textContent = problem; return; }
@@ -765,19 +1019,20 @@ async function draw() {
       s.frameWidth + 'x' + s.frameHeight + '  ' + shown(s.framesPerSecond, 0) + ' frames/s  ' + (s.mimeType || '') + '\n' +
       'wait in buffer ' + shown(s.jitterBufferDelayMsPerFrame, 1) + ' ms  decode ' + shown(s.decodeMsPerFrame, 1) + ' ms  arrival to ready ' + shown(s.processingDelayMsPerFrame, 1) + ' ms\n' +
       'frames ' + s.framesDecoded + '  dropped ' + s.framesDropped + '  packets lost ' + s.packetsLost + '  resends asked ' + s.nackCount + '  full pictures asked ' + s.pliCount + '\n' +
-      'decoder ' + (s.decoderImplementation || '-');
+      'decoder ' + (s.decoderImplementation || '-') + '  drawn ' + s.drawing.toUpperCase();
     const pc = host && host.measured && typeof host.measured.shownToEncodedMs === 'number' ? host.measured.shownToEncodedMs.toFixed(1) + ' ms' : 'not known (a still screen, or no answer yet)';
     $('readout').textContent =
       'The stream            ' + s.frameWidth + 'x' + s.frameHeight + ', ' + shown(s.framesPerSecond, 0) + ' frames a second\n' +
       'In this browser\'s queue ' + shown(s.jitterBufferDelayMsPerFrame, 1) + ' ms a frame\n' +
       'Decoding              ' + shown(s.decodeMsPerFrame, 1) + ' ms a frame\n' +
       'Lost packets          ' + s.packetsLost + '\n' +
+      'Drawn                 ' + s.drawing.toUpperCase() + (s.drawing === 'fast' ? (s.lowLatencyCanvas ? ', skipping the browser\'s drawing queue' : ', but this browser kept its drawing queue') : '') + '\n' +
       'On the PC, shown to encoded ' + pc +
       (control.mine ? '\nInput sent            ' + control.sentRate + ' messages a second' : '');
   } catch (error) { /* the next second tries again */ }
 }
 
-// ---------------------------------------------------------------------------------------------------------------
+// ===============================================================================================================
 // CONTROL: this device's mouse, keys and wheel driving the PC. Only when the PC was started allowing it, only one
 // device at a time, and never during a League match (the PC refuses). The messages are a few bytes each, sent on
 // two data channels; engine/src/control.rs is the one place they are written down, and the numbers here follow it.
@@ -823,18 +1078,6 @@ function sendKeys(bytes) {
 
 // A two-byte number, low byte first (signed ones wrap the way the PC expects).
 const two = (n) => [n & 0xff, (n >> 8) & 0xff];
-
-// Where the picture really is on this page, whichever way it is being drawn.
-function pictureBox() {
-  if (!video.videoWidth || !video.videoHeight) return null;
-  if (!canvas.hidden) return canvas.getBoundingClientRect();
-  const box = video.getBoundingClientRect();
-  if (upscalingShown === 'off') return box;
-  const fit = Math.min(box.width / video.videoWidth, box.height / video.videoHeight);
-  const width = video.videoWidth * fit;
-  const height = video.videoHeight * fit;
-  return { left: box.left + (box.width - width) / 2, top: box.top + (box.height - height) / 2, width, height };
-}
 
 // A place on this page as a place on the picture: 0 to 65535 from edge to edge, each way.
 function placeOnPicture(clientX, clientY) {
@@ -1092,13 +1335,21 @@ window.__debaserControl = {
   },
 };
 
+// ===============================================================================================================
+// START: draw the panel from what is remembered, measure this screen, connect, and keep the readouts fresh.
+
 showSettings();
-showUpscaling();
+showDrawing();
 showNumbersKey();
-start().catch((error) => { problem = 'could not connect: ' + (error && error.message ? error.message : error); draw(); });
-setInterval(draw, 1000);
-// What the PC is really sending can change under us (another viewer, a cap coming on), so it is read again often.
-setInterval(() => { if (steps.connected !== null) readHost(); }, 3000);
+measureScreenHz();
+start().catch((error) => { problem = 'could not connect: ' + (error && error.message ? error.message : error); showReadout(); });
+setInterval(showReadout, 1000);
+// What the PC is really sending can change under us (another viewer, a cap coming on), so it is read again often;
+// and a window that has moved to another screen has this screen's rate measured again.
+setInterval(() => {
+  if (steps.connected !== null) readHost();
+  if (whichScreen() !== screenWas) measureScreenHz();
+}, 3000);
 </script>
 </body>
 </html>

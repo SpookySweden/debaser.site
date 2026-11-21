@@ -103,6 +103,7 @@ struct DbeSession {
   bool skip_pointer_only = false;  // see DbeOptions
   bool chase_fresh = false;      // tweak 16: see next()
   bool region_only = false;      // tweak 32: see next()
+  bool pretend_still = false;    // the still-screen check's switch: see DbeOptions
   std::vector<BYTE> changed;     // Windows' list of what changed in a frame
   double refresh_ms = 16.7;      // one refresh of the shared screen
   LONGLONG prev_present = 0;     // when Windows showed the last frame taken
@@ -149,7 +150,7 @@ struct DbeSession {
 
   bool open(const DbeOptions* o, DbeInfo* info);
   bool make_scaler(int32_t fps);
-  bool next(int32_t wait_ms, bool force_keyframe, DbeFrame* frame);
+  bool next(int32_t wait_ms, bool force_keyframe, DbeFrame* frame, bool only_if_changed = false);
   bool touches_piece(const DXGI_OUTDUPL_FRAME_INFO& info);
 };
 
@@ -224,6 +225,7 @@ bool DbeSession::open(const DbeOptions* o, DbeInfo* info) {
   skip_pointer_only = o->skip_pointer_only != 0;
   chase_fresh = (o->tweaks & 16) != 0;
   region_only = (o->tweaks & 32) != 0;
+  pretend_still = o->pretend_still != 0;
 
   // 1. The main screen (the one whose corner is 0,0) and the graphics card it hangs off.
   ComPtr<IDXGIAdapter1> adapter;
@@ -487,7 +489,7 @@ bool DbeSession::touches_piece(const DXGI_OUTDUPL_FRAME_INFO& info) {
 }
 
 // One frame: wait for the screen to change (or `wait_ms`), copy, encode, time each step.
-bool DbeSession::next(int32_t wait_ms, bool force_keyframe, DbeFrame* frame) {
+bool DbeSession::next(int32_t wait_ms, bool force_keyframe, DbeFrame* frame, bool only_if_changed) {
   // The bytes lent out by the last call go back to the encoder before it is asked for more.
   if (holding) {
     fn.nvEncUnlockBitstream(session, bitstream);
@@ -538,7 +540,8 @@ bool DbeSession::next(int32_t wait_ms, bool force_keyframe, DbeFrame* frame) {
       // which rectangles changed; when none of them touches the piece in hand, the frame is passed over like a
       // pointer-only one. Nothing identical is encoded, and the engine is not left resting when the piece itself
       // changes a moment later.
-      if (info.LastPresentTime.QuadPart != 0 && (!region_only || touches_piece(info))) {
+      // (The still-screen check's switch passes over every frame after the first picture, changed or not.)
+      if (info.LastPresentTime.QuadPart != 0 && !(pretend_still && count > 0) && (!region_only || touches_piece(info))) {
         ComPtr<ID3D11Texture2D> texture;
         if (SUCCEEDED(resource.As(&texture))) {
           context->CopySubresourceRegion(picture.Get(), 0, 0, 0, 0, texture.Get(), 0, &piece);
@@ -586,6 +589,12 @@ bool DbeSession::next(int32_t wait_ms, bool force_keyframe, DbeFrame* frame) {
     if (fresh) info = best;
   }
   if (!acquired) acquired = now();
+
+  // Asked only to look, and nothing new came in time: nothing is encoded, and the caller gets an empty frame.
+  if (only_if_changed && !fresh) {
+    frame->acquired_time = acquired;
+    return true;
+  }
 
   // The scale step: one pass of the card's video unit from the piece taken to the smaller picture. Only when
   // there is a new picture to shrink (a repeat encodes the one already there).
@@ -656,6 +665,11 @@ DbeSession* dbe_open(const DbeOptions* options, DbeInfo* info, char* error, int3
   if (error && error_len > 0) snprintf(error, (size_t)error_len, "%s", s->error);
   delete s;
   return nullptr;
+}
+
+int32_t dbe_next_frame_if_changed(DbeSession* session, int32_t wait_ms, DbeFrame* frame) {
+  memset(frame, 0, sizeof *frame);
+  return session->next(wait_ms, false, frame, true) ? 0 : 1;
 }
 
 int32_t dbe_next_frame(DbeSession* session, int32_t wait_ms, int32_t force_keyframe, DbeFrame* frame) {

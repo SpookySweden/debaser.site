@@ -52,7 +52,11 @@ pub struct Asked {
     pub cut_width: i32,
     pub cut_height: i32,
     pub lines: i32,
+    /// Frames a second, when a fixed number was asked for.
     pub fps: i32,
+    /// AUTO: as many frames a second as the viewer's own screen shows (`view_hz`, which it measures and sends).
+    pub fps_auto: bool,
+    pub view_hz: i32,
     pub bitrate_kbps: i32,
 }
 
@@ -78,6 +82,8 @@ pub const MATCH_PROCESS: &str = "League of Legends.exe";
 
 pub const LINES_CHOICES: [i32; 3] = [720, 1080, 1440];
 pub const FPS_CHOICES: [i32; 4] = [30, 60, 120, 180];
+/// AUTO takes any whole rate a screen may have (144, 165, 240...), but never less than this.
+pub const SLOWEST_AUTO: i32 = 24;
 /// H.264 pictures are at most this wide; a wider piece of screen is shrunk to it.
 const WIDEST: i32 = 4096;
 /// No picture is made shorter than this (unless the piece of screen itself is): the encoder has a smallest size.
@@ -148,7 +154,8 @@ pub fn plan(asked: &Asked, limits: &Limits, screen_width: i32, screen_height: i3
         region,
         width: width.clamp(2, region_width),
         height: height.clamp(2, region_height),
-        fps: asked.fps.min(limits.max_fps).max(1),
+        // AUTO is the viewer's own rate; either way, never more than the PC's screen shows or a cap allows.
+        fps: (if asked.fps_auto && asked.view_hz > 0 { asked.view_hz.max(SLOWEST_AUTO) } else { asked.fps }).min(limits.max_fps).max(1),
         bitrate_kbps: asked.bitrate_kbps.min(limits.max_bitrate_kbps).max(1000),
     }
 }
@@ -272,15 +279,21 @@ pub fn take_request(asked: &Asked, pairs: &[(String, Value)]) -> Result<Asked, S
                     _ => return Err("\"lines\" is one of 720, 1080, 1440 or \"native\"".into()),
                 }
             }
-            "fps" => {
-                next.fps = whole(name, value)?;
-                if !FPS_CHOICES.contains(&next.fps) {
-                    return Err("\"fps\" is one of 30, 60, 120, 180".into());
+            "fps" => match value {
+                Value::Text(text) if text == "auto" => next.fps_auto = true,
+                Value::Number(_) if FPS_CHOICES.contains(&whole(name, value)?) => {
+                    next.fps = whole(name, value)?;
+                    next.fps_auto = false;
                 }
-            }
+                _ => return Err("\"fps\" is one of 30, 60, 120, 180 or \"auto\"".into()),
+            },
+            "viewHz" => next.view_hz = whole(name, value)?.clamp(SLOWEST_AUTO, 1000),
             "bitrateKbps" => next.bitrate_kbps = whole(name, value)?.max(1000),
-            other => return Err(format!("\"{other}\" is not a setting (shape, viewWidth, viewHeight, lines, fps, bitrateKbps)")),
+            other => return Err(format!("\"{other}\" is not a setting (shape, viewWidth, viewHeight, lines, fps, viewHz, bitrateKbps)")),
         }
+    }
+    if next.fps_auto && next.view_hz <= 0 {
+        return Err("\"fps\": \"auto\" needs viewHz (how many frames a second the viewer's own screen shows)".into());
     }
     if next.shape == Shape::Match && (next.view_width <= 0 || next.view_height <= 0) {
         return Err("\"shape\": \"match\" needs viewWidth and viewHeight (the viewer's screen in real pixels)".into());
@@ -311,7 +324,7 @@ mod tests {
     const OPEN: Limits = Limits { max_lines: 1440, max_fps: 180, max_bitrate_kbps: 50000 };
 
     fn asked(shape: Shape, lines: i32) -> Asked {
-        Asked { shape, view_width: 0, view_height: 0, cut_width: 0, cut_height: 0, lines, fps: 60, bitrate_kbps: 20000 }
+        Asked { shape, view_width: 0, view_height: 0, cut_width: 0, cut_height: 0, lines, fps: 60, fps_auto: false, view_hz: 0, bitrate_kbps: 20000 }
     }
 
     fn sizes(p: Plan) -> (i32, i32, i32, i32, i32, i32) {
@@ -362,6 +375,32 @@ mod tests {
         assert_eq!((p.width, p.height, p.fps, p.bitrate_kbps), (2580, 1080, 60, 12000));
         let p = plan(&a, &Limits { max_lines: 1440, max_fps: 144, max_bitrate_kbps: 50000 }, 3440, 1440);
         assert_eq!((p.width, p.height, p.fps, p.bitrate_kbps), (3440, 1440, 144, 40000));
+    }
+
+    #[test]
+    fn frames_a_second_on_auto() {
+        // A 180 Hz PC: the viewer's own rate, whatever whole number it is, up to the PC's.
+        let mut a = asked(Shape::Wide16x9, 1080);
+        a.fps_auto = true;
+        for (view_hz, sent) in [(144, 144), (165, 165), (60, 60), (240, 180), (30, 30), (10, 24)] {
+            a.view_hz = view_hz;
+            assert_eq!(plan(&a, &OPEN, 3440, 1440).fps, sent, "a {view_hz} Hz viewer");
+        }
+        // A slower PC screen, a host limit and the match cap all still win.
+        a.view_hz = 144;
+        assert_eq!(plan(&a, &Limits { max_lines: 1440, max_fps: 120, max_bitrate_kbps: 50000 }, 3440, 1440).fps, 120);
+        assert_eq!(plan(&a, &OPEN.within(MATCH_CAP), 3440, 1440).fps, 60);
+        // AUTO before any viewer has said its rate falls back on the fixed number.
+        a.view_hz = 0;
+        assert_eq!(plan(&a, &OPEN, 3440, 1440).fps, 60);
+        // Asking: AUTO needs the rate; a fixed number switches AUTO off again.
+        let start = asked(Shape::Wide16x9, 1080);
+        assert!(take_request(&start, &parse_flat(r#"{"fps":"auto"}"#).unwrap()).is_err());
+        let auto = take_request(&start, &parse_flat(r#"{"fps":"auto","viewHz":144}"#).unwrap()).unwrap();
+        assert_eq!((auto.fps_auto, auto.view_hz, auto.fps), (true, 144, 60));
+        let fixed = take_request(&auto, &parse_flat(r#"{"fps":120}"#).unwrap()).unwrap();
+        assert_eq!((fixed.fps_auto, fixed.fps), (false, 120));
+        assert!(take_request(&start, &parse_flat(r#"{"fps":"fast"}"#).unwrap()).is_err());
     }
 
     #[test]

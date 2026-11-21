@@ -84,7 +84,7 @@ async function startEngine(port, environment) {
 }
 
 /** Opens the viewer page as a 1280x800 screen would. */
-async function openViewer(browser, port) {
+async function openViewer(browser, port, query = '') {
   const context = await browser.newContext({ viewport: VIEW, screen: VIEW, deviceScaleFactor: 1 });
   const page = await context.newPage();
   const errors = [];
@@ -92,7 +92,7 @@ async function openViewer(browser, port) {
   page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
   const outside = new Set();
   page.on('request', (request) => { const origin = new URL(request.url()).origin; if (origin !== `http://127.0.0.1:${port}`) outside.add(origin); });
-  await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'load', timeout: 8000 });
+  await page.goto(`http://127.0.0.1:${port}/${query}`, { waitUntil: 'load', timeout: 8000 });
   return { context, page, errors, outside };
 }
 
@@ -220,6 +220,32 @@ async function main() {
     }
     const screen = result.screen;
 
+    // (l) FRAMES A SECOND, AUTO: the viewer's own screen rate, up to what the PC's screen shows.
+    {
+      const mine = await page.evaluate(async () => ({ host: window.__debaserSettings.get(), hz: (await window.__debaserStats()).screenHz }));
+      const most = mine.host.hostLimits.maxFps;
+      const notes = [];
+      let good = true;
+      const check = (ok, note) => { notes.push(`${ok ? 'yes' : 'NO'}: ${note}`); if (!ok) good = false; };
+      check(mine.host.asked.fps === 'auto' && mine.host.asked.viewHz === mine.hz && mine.host.sending.fps === Math.min(mine.hz, mine.host.limits.maxFps),
+        `left alone, the page measured its own screen at ${mine.hz} frames a second and asked for AUTO with it (the PC was asked for "${mine.host.asked.fps}" at ${mine.host.asked.viewHz}); the PC is sending up to ${mine.host.sending.fps}`);
+      for (const viewHz of [144, 240]) {
+        const r = await askAndWait(page, { fps: 'auto', viewHz }, SETTLE_MS);
+        const want = Math.min(viewHz, most);
+        check(Boolean(r.answer) && r.answer.sending.fps === want && (await page.evaluate(async () => (await window.__debaserStats()).connectionState)) === 'connected',
+          r.refused ? `a pretended ${viewHz} Hz viewer was refused: ${r.refused}` : `a pretended ${viewHz} Hz viewer on AUTO: the PC (whose own screen shows ${mine.host.screen.hz}) sends up to ${r.answer.sending.fps} (wanted ${want})`);
+      }
+      await page.click('#open-settings');
+      const says = await page.textContent('#rate-says');
+      const pressed = await page.getAttribute('#rates button[data-fps="auto"]', 'aria-pressed');
+      check(pressed === 'true' && says.includes('AUTO follows this screen') && says.includes(`${mine.hz} frames a second`), `the panel shows [ AUTO ] pressed and says: "${says}"`);
+      await page.keyboard.press('Escape');
+      const back = await askAndWait(page, { fps: 'auto', viewHz: mine.hz }, SETTLE_MS);
+      if (back.refused) throw new Error(`The PC refused to go back to AUTO: ${back.refused}`);
+      part('l', good ? 'PASS' : 'FAIL', 'FRAMES A SECOND on AUTO follows the viewer\'s screen, up to the PC\'s own', notes.join('\n      '));
+      if (!(await stillConnected('l'))) reconnects += 1;
+    }
+
     // (b) A named shape and size.
     {
       const r = await askAndWait(page, { shape: '16:9', lines: 720 }, SETTLE_MS);
@@ -231,6 +257,9 @@ async function main() {
 
     // (e) Frames a second. Only a changing screen can show it: a still one sends too few frames to tell.
     {
+      const sixty = await askAndWait(page, { fps: 60 }, SETTLE_MS);
+      if (sixty.refused) throw new Error(`The PC refused 60 frames a second: ${sixty.refused}`);
+      await sleep(400);
       const before = await decodedRate(page, 2000);
       const r = await askAndWait(page, { fps: 30 }, SETTLE_MS);
       await sleep(500);
@@ -284,27 +313,73 @@ async function main() {
       check(pressed.settled && pressed.host.asked.shape === '16:9' && pressed.host.asked.lines === 1080 && (!wantWide || pressed.host.cap || (pressed.stats.frameWidth === 1920 && pressed.stats.frameHeight === 1080)), `pressing [ 16:9 ] and [ 1080 ] changed the picture (decoded ${pressed.stats ? `${pressed.stats.frameWidth}x${pressed.stats.frameHeight}` : 'nothing'})`);
       check((await page.getAttribute('#shapes button[data-shape="16:9"]', 'aria-pressed')) === 'true', 'the [ 16:9 ] key shows as pressed');
 
-      // Upscaling, which never leaves this device.
+      // Drawing and upscaling, which never leave this device. FAST first (it is the default), then NORMAL.
+      const drawnAs = () => page.evaluate(async () => { const s = await window.__debaserStats(); return { drawing: s.drawing, lowLatency: s.lowLatencyCanvas, note: s.drawingNote, drawn: s.framesDrawnFast, decoded: s.framesDecoded }; });
+      const probeNow = () => page.evaluate(() => window.__debaserDrawing.probe());
+      const size = { wide: pressed.stats.frameWidth, tall: pressed.stats.frameHeight };
+      const fit = Math.min(VIEW.width / size.wide, VIEW.height / size.tall);
+      const fitted = { wide: Math.round(size.wide * fit), tall: Math.round(size.tall * fit) };
+      const about = (box) => (box ? `${box.width.toFixed(0)}x${box.height.toFixed(0)}` : 'nowhere');
+      const boxIs = (box, want) => Boolean(box) && Math.abs(box.width - want.wide) <= 1 && Math.abs(box.height - want.tall) <= 1;
+      result.drawing = {};
+
+      const first = await drawnAs();
+      result.lowLatencyCanvas = first.lowLatency;
+      check(first.drawing === 'fast' && (await page.isVisible('#fast')) && (await page.getAttribute('#drawing button[data-drawing="fast"]', 'aria-pressed')) === 'true',
+        `FAST is in use by default (drawing "${first.drawing}"${first.note ? `: ${first.note}` : ''}); the browser ${first.lowLatency ? 'gave' : 'did NOT give'} its canvas the skip-the-queue kind`);
+      if (first.drawing === 'fast') {
+        for (const mode of ['off', 'smooth', 'sharp', 'sharpened']) {
+          await page.click(`#upscaling button[data-upscaling="${mode}"]`);
+          await sleep(300);
+          const a = await drawnAs();
+          await sleep(1000);
+          const b = await drawnAs();
+          const probe = await probeNow();
+          result.drawing[`fast ${mode}`] = probe;
+          // OFF, SMOOTH and SHARP keep the frame at its own size on the canvas; SHARPENED makes the canvas the
+          // size the picture is shown at. On the page the picture is its real size for OFF and fitted otherwise.
+          const sized = probe.looked && probe.width === (mode === 'sharpened' ? fitted : size).wide && probe.height === (mode === 'sharpened' ? fitted : size).tall && boxIs(probe.box, mode === 'off' ? size : fitted);
+          const drawn = b.drawn - a.drawn;
+          const decoded = b.decoded - a.decoded;
+          const everyFrame = decoded > 0 && drawn >= decoded - 3 && drawn <= decoded + 3;
+          const right = probe.looked && probe.litShare > 0.02 && probe.meanDifference < (mode === 'sharpened' ? 16 : 6);
+          const hard = (await page.evaluate(() => getComputedStyle(document.getElementById('fast')).imageRendering)) === 'pixelated';
+          check(sized && everyFrame && right && hard === (mode === 'sharp'),
+            `FAST, ${mode.toUpperCase()}: the canvas holds ${probe.width}x${probe.height}, the picture is ${about(probe.box)} on the page, ${drawn} frames were drawn while ${decoded} were decoded` +
+            (probe.looked ? `, ${(probe.litShare * 100).toFixed(0)}% of the sampled points are lit, and it is on average ${probe.meanDifference.toFixed(2)} levels (of 255) from the plain frame (most ${probe.largestDifference.toFixed(0)})` : ', and NO frame could be looked at') +
+            (mode === 'sharp' ? `; hard squares: ${hard}` : ''));
+        }
+      }
+
+      await page.click('#drawing button[data-drawing="normal"]');
+      await sleep(300);
+      check((await drawnAs()).drawing === 'normal' && !(await page.isVisible('#fast')), '[ NORMAL ] hands the picture to the browser\'s own player (the FAST canvas is gone)');
+      const boxNow = () => page.evaluate(() => window.__debaserDrawing.box());
       await page.click('#upscaling button[data-upscaling="off"]');
-      const off = await page.evaluate(() => { const v = document.getElementById('screen'); const box = v.getBoundingClientRect(); return { width: box.width, height: box.height, videoWidth: v.videoWidth, videoHeight: v.videoHeight }; });
-      check(Math.abs(off.width - off.videoWidth) < 1 && Math.abs(off.height - off.videoHeight) < 1, `OFF shows the picture at its real size (${off.videoWidth}x${off.videoHeight} drawn ${off.width.toFixed(0)}x${off.height.toFixed(0)})`);
+      await sleep(150);
+      const off = await boxNow();
+      check(boxIs(off, size), `NORMAL, OFF shows the picture at its real size (${size.wide}x${size.tall} drawn ${about(off)})`);
       await page.click('#upscaling button[data-upscaling="sharp"]');
-      check((await page.evaluate(() => getComputedStyle(document.getElementById('screen')).imageRendering)) === 'pixelated', 'SHARP draws in hard squares (image-rendering: pixelated)');
+      check((await page.evaluate(() => getComputedStyle(document.getElementById('screen')).imageRendering)) === 'pixelated', 'NORMAL, SHARP draws in hard squares (image-rendering: pixelated)');
       await page.click('#upscaling button[data-upscaling="smooth"]');
-      const smooth = await page.evaluate(() => { const v = document.getElementById('screen'); const box = v.getBoundingClientRect(); return { width: box.width, height: box.height, rendering: getComputedStyle(v).imageRendering }; });
-      check(Math.abs(smooth.width - VIEW.width) < 1 && smooth.rendering !== 'pixelated', 'SMOOTH fills the window');
+      await sleep(150);
+      const smooth = await boxNow();
+      check(boxIs(smooth, fitted) && (await page.evaluate(() => getComputedStyle(document.getElementById('screen')).imageRendering)) !== 'pixelated', `NORMAL, SMOOTH fits the window (${about(smooth)})`);
       await page.click('#upscaling button[data-upscaling="sharpened"]');
       await sleep(600);
-      const probe = await page.evaluate(() => window.__debaserSharpened.probe());
-      result.sharpened = probe;
-      if (!probe.running) {
-        notes.push(`COULD NOT TELL: SHARPENED did not run in this headless browser (${probe.note || 'no reason given'}); it fell back to SMOOTH`);
+      const probe = await probeNow();
+      result.drawing['normal sharpened'] = probe;
+      if (!probe.looked) {
+        notes.push(`COULD NOT TELL: NORMAL, SHARPENED did not run in this headless browser (${probe.note || 'no reason given'}); it fell back to SMOOTH`);
         const shownAs = await page.evaluate(async () => (await window.__debaserStats()).upscaling);
         check(shownAs.shown === 'smooth' && Boolean(shownAs.note), 'and the panel says it fell back');
       } else {
-        check(probe.width > 100 && probe.framesDrawn > 2 && probe.litShare > 0.02 && probe.meanDifference < 16, `SHARPENED draws a ${probe.width}x${probe.height} canvas, ${probe.framesDrawn} frames so far, ${(probe.litShare * 100).toFixed(0)}% of the sampled points lit, and on average ${probe.meanDifference.toFixed(2)} levels (of 255) away from the plain picture (most ${probe.largestDifference.toFixed(0)})`);
+        check(probe.width === fitted.wide && probe.framesDrawn > 2 && probe.litShare > 0.02 && probe.meanDifference < 16, `NORMAL, SHARPENED draws a ${probe.width}x${probe.height} canvas, ${probe.framesDrawn} frames so far, ${(probe.litShare * 100).toFixed(0)}% of the sampled points lit, and on average ${probe.meanDifference.toFixed(2)} levels (of 255) away from the plain picture (most ${probe.largestDifference.toFixed(0)})`);
       }
       await page.click('#upscaling button[data-upscaling="smooth"]');
+      await page.click('#drawing button[data-drawing="fast"]');
+      await sleep(300);
+      check((await drawnAs()).drawing === 'fast', '[ FAST ] takes it back');
 
       await page.click('#numbers-key');
       check(!(await page.isVisible('#numbers')), '[ NUMBERS ] takes the corner readout away');
@@ -318,7 +393,7 @@ async function main() {
       if (full) { notes.push('yes: [ FULLSCREEN ] took the page fullscreen'); await page.click('#fullscreen'); await sleep(200); } else notes.push('COULD NOT TELL: [ FULLSCREEN ] did nothing in this headless browser (a headless browser has no screen to fill)');
 
       const kept = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('debaser-engine-viewer')); } catch (error) { return null; } });
-      check(Boolean(kept) && kept.match === false && kept.shape === '16:9' && kept.lines === 1080, `the choices are remembered on this device (${JSON.stringify(kept)})`);
+      check(Boolean(kept) && kept.match === false && kept.shape === '16:9' && kept.lines === 1080 && kept.drawing === 'fast' && kept.upscaling === 'smooth', `the choices are remembered on this device (${JSON.stringify(kept)})`);
       await page.keyboard.press('Escape');
       check(!(await page.isVisible('#panel')), 'Esc closes the panel');
       part('h', good ? 'PASS' : 'FAIL', 'the panel\'s own keys do what they say', notes.join('\n      '));
@@ -344,8 +419,32 @@ async function main() {
       const good = Boolean(seen && seen.settled && seen.host.asked.shape === '16:9' && seen.host.asked.lines === 1080);
       part('i', good ? 'PASS' : 'FAIL', 'on a new visit the remembered settings are sent to the PC again', seen && seen.host ? `after a reload the PC was asked for ${seen.host.asked.shape} at ${seen.host.asked.lines} lines; the browser decoded ${seen.stats ? `${seen.stats.frameWidth}x${seen.stats.frameHeight}` : 'nothing'}` : 'the page did not come back');
     }
+    // (k) Where FAST cannot run the page says so and draws NORMAL; and the address can ask for one way or the other.
+    {
+      const notes = [];
+      let good = true;
+      const check = (ok, note) => { notes.push(`${ok ? 'yes' : 'NO'}: ${note}`); if (!ok) good = false; };
+      for (const [query, want, saying] of [['?fast=refused&hold=1', 'normal', 'FAST cannot run here'], ['?drawing=normal&hold=1', 'normal', 'address asks for NORMAL'], ['?drawing=fast&hold=1', 'fast', 'address asks for FAST']]) {
+        const other = await openViewer(browser, port, query);
+        const began = Date.now();
+        let s = null;
+        while (Date.now() - began < 8000) {
+          s = await other.page.evaluate(() => window.__debaserStats());
+          if (s.framesDecoded > 5) break;
+          await sleep(100);
+        }
+        await other.page.click('#open-settings');
+        const line = (await other.page.isVisible('#drawing-says')) ? await other.page.textContent('#drawing-says') : '';
+        const canvasShown = await other.page.isVisible('#fast');
+        check(s.framesDecoded > 5 && s.drawing === want && line.includes(saying) && canvasShown === (want === 'fast'),
+          `opened with "${query}": ${s.framesDecoded} frames decoded, drawn ${s.drawing.toUpperCase()}, and the panel says "${line}"`);
+        result.pageErrors = [...(result.pageErrors || []), ...other.errors];
+        await other.context.close();
+      }
+      part('k', good ? 'PASS' : 'FAIL', 'where FAST cannot run the page says so and draws NORMAL; the address can ask for either', notes.join('\n      '));
+    }
     result.requestsOutsideTheEngine = [...viewer.outside];
-    result.pageErrors = [...viewer.errors];
+    result.pageErrors = [...(result.pageErrors || []), ...viewer.errors];
     await viewer.context.close();
     await engine.stop();
     engineOutput.push('--- first run ---', ...engine.lines());
@@ -365,8 +464,11 @@ async function main() {
       await page.click('#open-settings');
       const says = (await page.isVisible('#cap')) ? await page.textContent('#cap') : '';
       const a = r.answer;
-      const good = Boolean(a) && a.cap === 'LEAGUE MATCH' && r.settled && r.stats.frameHeight <= 1080 && a.sending.height <= 1080 && a.sending.fps <= 60 && a.sending.bitrateKbps <= 12000 && a.asked.fps === 180 && says.includes('CAPPED BY THE PC: LEAGUE MATCH');
-      part('f', good ? 'PASS' : 'FAIL', 'with a match running, native lines at 180 frames a second is answered with the cap', r.refused ? `the PC refused: ${r.refused}` : `asked for native lines, 180 frames a second, 40 Mbit/s; the PC answered cap "${a.cap}", sending ${a.sending.width}x${a.sending.height} at up to ${a.sending.fps} frames a second, ${a.sending.bitrateKbps} kbit/s; the browser decoded ${r.stats ? `${r.stats.frameWidth}x${r.stats.frameHeight}` : 'nothing'}; the panel says "${says.split('\n')[0]}"`, { answeredMs: r.answeredMs, settledMs: r.settledMs });
+      // AUTO from a 144 Hz viewer is held to the cap as well.
+      const auto = await askAndWait(page, { fps: 'auto', viewHz: 144 }, SETTLE_MS);
+      const autoCapped = Boolean(auto.answer) && auto.answer.asked.fps === 'auto' && auto.answer.sending.fps === 60 && auto.answer.cap === 'LEAGUE MATCH';
+      const good = autoCapped && Boolean(a) && a.cap === 'LEAGUE MATCH' && r.settled && r.stats.frameHeight <= 1080 && a.sending.height <= 1080 && a.sending.fps <= 60 && a.sending.bitrateKbps <= 12000 && a.asked.fps === 180 && says.includes('CAPPED BY THE PC: LEAGUE MATCH');
+      part('f', good ? 'PASS' : 'FAIL', 'with a match running, native lines at 180 frames a second is answered with the cap', r.refused ? `the PC refused: ${r.refused}` : `asked for native lines, 180 frames a second, 40 Mbit/s; the PC answered cap "${a.cap}", sending ${a.sending.width}x${a.sending.height} at up to ${a.sending.fps} frames a second, ${a.sending.bitrateKbps} kbit/s; the browser decoded ${r.stats ? `${r.stats.frameWidth}x${r.stats.frameHeight}` : 'nothing'}; the panel says "${says.split('\n')[0]}"; AUTO from a pretended 144 Hz viewer is then sent at up to ${auto.answer ? auto.answer.sending.fps : '?'}`, { answeredMs: r.answeredMs, settledMs: r.settledMs });
     }
     result.pageErrors.push(...viewer.errors);
     await viewer.context.close();
@@ -420,11 +522,11 @@ async function main() {
     fs.rmSync(pretendFile, { force: true });
   }
 
-  const order = 'abcdefghij';
+  const order = 'abcdefghijkl';
   parts.sort((x, y) => order.indexOf(x.letter) - order.indexOf(y.letter));
   const failed = parts.filter((p) => p.verdict === 'FAIL');
   const unsure = parts.filter((p) => p.verdict === 'COULD NOT TELL');
-  result.pass = !result.failure && failed.length === 0 && parts.length >= 10;
+  result.pass = !result.failure && failed.length === 0 && parts.length >= 12;
   result.engineOutput = engineOutput.filter((line) => !/^\d+ s\s/.test(line));
 
   console.log();

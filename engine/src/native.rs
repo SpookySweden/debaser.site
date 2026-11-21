@@ -20,6 +20,7 @@ struct DbeOptions {
     region_y: i32,
     region_width: i32,
     region_height: i32,
+    pretend_still: i32,
 }
 
 #[repr(C)]
@@ -61,6 +62,8 @@ struct DbeSession {
 extern "C" {
     fn dbe_open(options: *const DbeOptions, info: *mut DbeInfo, error: *mut c_char, error_len: i32) -> *mut DbeSession;
     fn dbe_next_frame(session: *mut DbeSession, wait_ms: i32, force_keyframe: i32, frame: *mut DbeFrame) -> i32;
+    fn dbe_next_frame_if_changed(session: *mut DbeSession, wait_ms: i32, frame: *mut DbeFrame) -> i32;
+    fn dbe_local_ipv4(addresses: *mut u32, most: i32) -> i32;
     fn dbe_last_error(session: *mut DbeSession) -> *const c_char;
     fn dbe_now() -> i64;
     fn dbe_close(session: *mut DbeSession);
@@ -72,7 +75,10 @@ extern "C" {
 /// event mode (4), one-pass encoding (8), and the fresh-frame rule (16: wait a sliver for the screen's next frame
 /// instead of taking one that has been sitting), and the piece rule (32: a change elsewhere on the screen is not a
 /// frame of the piece being sent). The fine timer (2) changed nothing and is left off.
-pub const DEFAULT_TWEAKS: i32 = 61;
+/// 64 is the still-screen rule, which lives in serve.rs: on a screen that is not changing, the gaps between
+/// repeats grow (the first when it always came, then 100 ms, 200 ms, then every 500 ms) instead of a repeat
+/// every frame's time.
+pub const DEFAULT_TWEAKS: i32 = 125;
 
 /// A piece of the screen, in screen pixels. A `width` or `height` of 0 means the whole screen.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
@@ -98,6 +104,8 @@ pub struct Options {
     /// The mouse pointer moving over an unchanged picture does not end a wait for a frame. On for the live stream;
     /// off for the bench, which has always counted such a moment as a (repeated) frame.
     pub skip_pointer_only: bool,
+    /// For bench/still-check.cjs only: after the first picture, behave as if the screen never changed again.
+    pub pretend_still: bool,
 }
 
 /// What the session found when it opened.
@@ -158,6 +166,7 @@ impl Session {
             preset: o.preset,
             tweaks: o.tweaks,
             skip_pointer_only: o.skip_pointer_only as i32,
+            pretend_still: o.pretend_still as i32,
             region_x: o.region.x,
             region_y: o.region.y,
             region_width: o.region.width,
@@ -190,8 +199,25 @@ impl Session {
     /// Waits up to `wait_ms` for the screen to change, then encodes it (or the last picture again).
     /// The borrow on `self` keeps the frame's bytes from outliving the next call.
     pub fn next_frame(&mut self, wait_ms: i32, force_keyframe: bool) -> Result<Frame<'_>, String> {
+        self.take(wait_ms, force_keyframe, false)
+    }
+
+    /// Waits up to `wait_ms` for the screen to change. When it does, that frame is encoded and returned. When it
+    /// does not, nothing is encoded at all and the answer is None: the screen is still.
+    pub fn next_frame_if_changed(&mut self, wait_ms: i32) -> Result<Option<Frame<'_>>, String> {
+        let frame = self.take(wait_ms, false, true)?;
+        Ok((!frame.data.is_empty()).then_some(frame))
+    }
+
+    fn take(&mut self, wait_ms: i32, force_keyframe: bool, only_if_changed: bool) -> Result<Frame<'_>, String> {
         let mut f = DbeFrame { data: std::ptr::null(), size: 0, keyframe: 0, fresh: 0, present_time: 0, acquired_time: 0, encoded_time: 0, copy_ms: 0.0, encode_ms: 0.0 };
-        let failed = unsafe { dbe_next_frame(self.raw, wait_ms, force_keyframe as i32, &mut f) };
+        let failed = unsafe {
+            if only_if_changed {
+                dbe_next_frame_if_changed(self.raw, wait_ms, &mut f)
+            } else {
+                dbe_next_frame(self.raw, wait_ms, force_keyframe as i32, &mut f)
+            }
+        };
         if failed != 0 {
             // The reason is a zero-ended text inside the session, good until the next call on it.
             let why = unsafe { std::ffi::CStr::from_ptr(dbe_last_error(self.raw)) };
@@ -235,6 +261,13 @@ pub fn screen() -> Option<(i32, i32, i32)> {
     (failed == 0 && width > 0 && height > 0).then_some((width, height, hz))
 }
 
+/// This PC's own IPv4 addresses on network cards that are up. Only read from Windows' list: nothing is opened.
+pub fn local_ipv4() -> Vec<std::net::Ipv4Addr> {
+    let mut numbers = [0u32; 64];
+    let count = unsafe { dbe_local_ipv4(numbers.as_mut_ptr(), numbers.len() as i32) }.clamp(0, numbers.len() as i32) as usize;
+    numbers[..count].iter().map(|n| std::net::Ipv4Addr::from(*n)).collect()
+}
+
 /// Whether a program with this file name (any letter case) is running now. None when Windows would not say.
 pub fn process_running(name: &str) -> Option<bool> {
     let wide: Vec<u16> = name.encode_utf16().chain(std::iter::once(0)).collect();
@@ -254,6 +287,14 @@ mod tests {
     fn the_screen_is_found_without_opening_anything() {
         let (width, height, _hz) = screen().expect("a main screen");
         assert!(width >= 640 && height >= 480, "{width}x{height}");
+    }
+
+    #[test]
+    fn this_pcs_own_addresses_are_listed() {
+        // Every PC has at least its loopback address, and the list holds no "no address at all".
+        let all = local_ipv4();
+        assert!(all.iter().any(|a| a.is_loopback()), "{all:?}");
+        assert!(all.iter().all(|a| !a.is_unspecified()), "{all:?}");
     }
 
     #[test]

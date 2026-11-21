@@ -20,7 +20,7 @@ param(
   [int]$Port = 8495,
   [int]$Tweaks = -1,
   [string]$PageOptions = 'hold=1',
-  # How the viewer draws the picture: '' (the <video> element), 'fast' or 'fastgl' (see web/viewer.html).
+  # How the viewer draws the picture: 'fast' or 'normal' (see DRAWING in web/viewer.html); '' leaves it to the page.
   [string]$Draw = ''
 )
 $ErrorActionPreference = 'Stop'
@@ -87,7 +87,7 @@ $profile = Join-Path $env:TEMP ('debaser-glass-profile-' + [guid]::NewGuid().ToS
 $log = Join-Path $env:TEMP 'debaser-glass-engine.log'
 
 $query = $PageOptions
-if ($Draw -ne '' -and $Draw -ne 'normal') { $query = $query + '&draw=' + $Draw }
+if ($Draw -ne '') { $query = $query + '&drawing=' + $Draw }
 $engineArgs = @('serve', '--width', $Width, '--height', $Height, '--fps', $Fps, '--port', $Port, '--seconds', '120')
 if ($Tweaks -ge 0) { $engineArgs += @('--tweaks', $Tweaks) }
 $engineProcess = Start-Process -FilePath $engine -ArgumentList $engineArgs -WindowStyle Hidden -PassThru -RedirectStandardOutput $log

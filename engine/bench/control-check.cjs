@@ -372,31 +372,44 @@ async function main() {
         const panel = async (open) => { if ((await page.isVisible('#panel')) !== open) await page.click('#open-settings'); };
         const upscaling = async (mode) => { await panel(true); await page.click(`#upscaling button[data-upscaling="${mode}"]`); await panel(false); await sleep(250); };
 
-        // OFF: the picture at its real size, so it overflows this 1280x800 page; the middle of the page is its middle.
-        await upscaling('off');
-        let after = await mark();
-        await page.mouse.move(VIEW.width / 2, VIEW.height / 2);
-        let got = await lastPointer(after);
-        let want = [sending.x + sending.regionWidth / 2, sending.y + sending.regionHeight / 2];
-        check(near(got, want[0], want[1]), `drawn OFF (real size), the middle of the page is the middle of the picture: wanted ${want[0].toFixed(0)},${want[1].toFixed(0)}, got ${got ? `${got.x},${got.y}` : 'nothing'}`);
-        after = await mark();
-        await page.mouse.move(300, 200);
-        got = await lastPointer(after);
-        want = [sending.x + ((300 + (sending.width - VIEW.width) / 2) / sending.width) * sending.regionWidth, sending.y + ((200 + (sending.height - VIEW.height) / 2) / sending.height) * sending.regionHeight];
-        check(near(got, want[0], want[1]), `drawn OFF, the page's point 300,200: wanted ${want[0].toFixed(0)},${want[1].toFixed(0)}, got ${got ? `${got.x},${got.y}` : 'nothing'}`);
-
-        // SHARPENED: the picture is a canvas over the video.
-        await upscaling('sharpened');
-        const sharp = await page.evaluate(async () => (await window.__debaserStats()).upscaling.shown);
-        const box = await pictureBox(page);
-        after = await mark();
-        await page.mouse.move(box.left + 0.25 * box.width, box.top + 0.25 * box.height);
-        got = await lastPointer(after);
-        want = [sending.x + 0.25 * sending.regionWidth, sending.y + 0.25 * sending.regionHeight];
-        check(sharp === 'sharpened' ? near(got, want[0], want[1]) : null, `drawn SHARPENED (${sharp === 'sharpened' ? 'running' : 'it fell back to SMOOTH here'}), 25% across and down: wanted ${want[0].toFixed(0)},${want[1].toFixed(0)}, got ${got ? `${got.x},${got.y}` : 'nothing'}`);
+        // Both ways of drawing (FAST, on its one canvas; NORMAL, the browser's own player) and all four ways of
+        // fitting the picture to the window. Each time the pointer is put on known places of the PICTURE and the
+        // record must show the matching pixel of the PC's screen.
+        const fitted = await pictureBox(page);
+        for (const way of ['fast', 'normal']) {
+          await panel(true);
+          await page.click(`#drawing button[data-drawing="${way}"]`);
+          await panel(false);
+          await sleep(300);
+          for (const mode of ['off', 'smooth', 'sharp', 'sharpened']) {
+            await upscaling(mode);
+            const drawn = await page.evaluate(async () => { const st = await window.__debaserStats(); return { drawing: st.drawing, upscaling: st.upscaling.shown }; });
+            const asWanted = drawn.drawing === way && drawn.upscaling === mode;
+            // OFF draws the picture at its real size, so it overflows this 1280x800 page with its middle in the
+            // page's middle; the others fit it to the page.
+            const places = mode === 'off'
+              ? [[VIEW.width / 2, VIEW.height / 2, 0.5, 0.5], [300, 200, (300 + (sending.width - VIEW.width) / 2) / sending.width, (200 + (sending.height - VIEW.height) / 2) / sending.height]]
+              : [[fitted.left + 0.25 * fitted.width, fitted.top + 0.25 * fitted.height, 0.25, 0.25], [fitted.left + 0.8 * fitted.width, fitted.top + 0.6 * fitted.height, 0.8, 0.6]];
+            const seen = [];
+            let right = true;
+            for (const [x, y, fx, fy] of places) {
+              const after = await mark();
+              await page.mouse.move(x, y);
+              const got = await lastPointer(after);
+              const want = [sending.x + fx * sending.regionWidth, sending.y + fy * sending.regionHeight];
+              if (!near(got, want[0], want[1])) right = false;
+              seen.push(`wanted ${want[0].toFixed(0)},${want[1].toFixed(0)} got ${got ? `${got.x},${got.y}` : 'nothing'}`);
+            }
+            check(asWanted ? right : null, `drawn ${way.toUpperCase()}, ${mode.toUpperCase()}${asWanted ? '' : ` (this browser drew ${drawn.drawing.toUpperCase()}, ${drawn.upscaling.toUpperCase()} instead)`}: ${seen.join('; ')}`);
+          }
+        }
         await upscaling('smooth');
+        await panel(true);
+        await page.click('#drawing button[data-drawing="fast"]');
+        await panel(false);
 
         // GAME: the pointer is captured and its movement is sent as it is.
+        let after;
         await panel(true);
         await page.click('#mouse button[data-mouse="game"]');
         const locked = await waitFor(async () => (await controlState(page)).pointerLocked, 1500);
@@ -433,7 +446,7 @@ async function main() {
         check(kept === 'pointer', `the MOUSE choice is remembered on the device ("${kept}")`);
         await page.click('#control-key');
         await waitFor(async () => !(await controlState(page)).mine, 3000);
-        part('i', good ? 'PASS' : 'FAIL', 'the pointer is right however the page draws the picture, and GAME sends movement', lines.join('\n      '));
+        part('i', good ? 'PASS' : 'FAIL', 'the pointer is right however the page draws the picture (FAST and NORMAL, every way of fitting), and GAME sends movement', lines.join('\n      '));
       }
       frameMarks.push(await frames(page));
       result.framesFirstHalf = [framesAtStart, ...frameMarks];

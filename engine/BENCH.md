@@ -319,6 +319,25 @@ a box saying so over the page, which covered the patch. The test windows now ope
 off), and all six runs above worked first time. Every throwaway test profile is deleted after its run, and the
 leftover ones from earlier tests were deleted too.
 
+### 2026-11-21: the efficiency round (Luke: "get it implemented into the site at its best efficiency")
+Built by the helper, every check run again by me (16 unit tests; settings 12 of 12; control 9 of 9 dry-run parts,
+the real nudge not re-run by me this time; stream check passes):
+- **FAST drawing is now a real choice and the default** (DRAWING: FAST / NORMAL): frames straight onto one
+  low-latency WebGL canvas, every UPSCALING choice drawn by it, CONTROL's pointer places right in all of them
+  (checked for each), falling back to NORMAL with a line saying so. This is the 9.64 ms way from the drawing-step
+  table. Its delay was not re-measured after becoming a key.
+- **FRAMES A SECOND has AUTO, the default**: the page measures its own screen's rate and the PC sends
+  min(that, its own screen's rate, its limits, the match cap). Checked: a pretended 144 Hz viewer gets 144, a 240 Hz
+  one gets 180, the match cap still gives 60. So a viewer on this PC now asks for 180.
+- **A still screen costs a fifth** (switch 64, a default; defaults are now 125): `node bench/still-check.cjs`, run by
+  me: 34.6 frames and 982 kbit a second before; **2.0 frames and 177 kbit a second** with the rule (18%); the picture
+  stays up; a viewer joining mid-rest got its full picture 14 ms after connecting (helper's run). Not shown: that a
+  busy screen keeps full speed (both runs fell on a nearly still screen and said "could not tell"); the code path
+  for a changing screen is the one the other checks use.
+- **The home-network link**: `--lan` (video reachable from the home network while the web address stays on this PC)
+  and `--trust-host` (so the site's own server may pass requests on). **Never run**: binding the home network makes
+  Windows show its firewall prompt, which is Luke's to answer. Unit tests only.
+
 **Switch 32, written before those runs (kept for the record):** a change somewhere else on the screen is no longer treated as a new
 frame of the piece being sent (Windows says which rectangles changed). It should stop identical frames being
 encoded, and stop the engine resting just before the piece itself changes. It builds and the stream check still

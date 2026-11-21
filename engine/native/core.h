@@ -26,6 +26,9 @@ typedef struct DbeOptions {
   // When the region and the picture are the same size the piece is copied as it is (the fastest way). When the
   // picture is smaller, the card's video unit shrinks the region to it on the way to the encoder.
   int32_t region_x, region_y, region_width, region_height;
+  // For bench/still-check.cjs only: 1 = after the first picture, behave as if the screen never changed again
+  // (every frame Windows hands over is passed over). It lets a perfectly still screen be tested on a busy one.
+  int32_t pretend_still;
 } DbeOptions;
 
 typedef struct DbeInfo {
@@ -59,6 +62,11 @@ DbeSession* dbe_open(const DbeOptions* options, DbeInfo* info, char* error, int3
 // Returns 0 and fills `frame`, or 1 on failure (the reason is in dbe_last_error).
 int32_t dbe_next_frame(DbeSession* session, int32_t wait_ms, int32_t force_keyframe, DbeFrame* frame);
 
+// The same wait, but only to look: when the screen changes in time the new frame is encoded as above; when it
+// does not, NOTHING is encoded and `frame->size` comes back 0. The live stream uses it to rest on a still screen
+// without sleeping through a change. Returns 0, or 1 on failure.
+int32_t dbe_next_frame_if_changed(DbeSession* session, int32_t wait_ms, DbeFrame* frame);
+
 // Why the last call on this session failed.
 const char* dbe_last_error(DbeSession* session);
 
@@ -72,6 +80,10 @@ int32_t dbe_screen(int32_t* width, int32_t* height, int32_t* hz);
 // Whether a program with this file name (such as L"League of Legends.exe", any letter case) is running now:
 // 1 yes, 0 no, -1 could not look. Safe to call from any thread.
 int32_t dbe_process_running(const wchar_t* name);
+
+// This PC's own IPv4 addresses on network cards that are up, each as one number (first part in the highest
+// byte). Fills at most `most` and returns how many. It only reads Windows' list: nothing is opened or sent.
+int32_t dbe_local_ipv4(uint32_t* addresses, int32_t most);
 
 void dbe_close(DbeSession* session);
 

@@ -35,6 +35,10 @@ window (`native/control.cpp`, which links Windows' `gdi32` for its one line of t
 data channels, which `str0m` already had (`sctp-proto`, listed below, is now used). The table of keys in
 `src/control.rs` was typed out from the published UI Events `code` names and PS/2 set 1 scan codes.
 
+The efficiency round (2026-11-20) added no crate either. `--lan` lists this PC's own addresses with Windows' own
+`GetAdaptersAddresses` (`native/lan.cpp`, which links Windows' `iphlpapi`); drawing FAST in the viewer page uses
+the browser's own `MediaStreamTrackProcessor` and WebGL2, with shaders written for this page.
+
 ## Brought in by str0m (and by cc), built on this PC
 All of these came with `str0m` on 2026-11-20 except `find-msvc-tools` and `shlex`, which `cc` already brought.
 
@@ -103,5 +107,5 @@ Cargo writes down what other systems would need. None of this is compiled into t
 | zerocopy-derive 0.8.63 | an optional part of `zerocopy` that is off | BSD-2-Clause OR Apache-2.0 OR MIT |
 
 ## The check scripts
-`bench/webrtc-check.cjs`, `bench/settings-check.cjs` and `bench/control-check.cjs` use `playwright-core` (Apache-2.0) from the repository's
+`bench/webrtc-check.cjs`, `bench/settings-check.cjs`, `bench/control-check.cjs` and `bench/still-check.cjs` use `playwright-core` (Apache-2.0) from the repository's
 own `node_modules`: already there for the site's tools, nothing added, and not part of the engine.
