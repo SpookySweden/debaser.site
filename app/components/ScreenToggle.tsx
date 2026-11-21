@@ -82,9 +82,9 @@ export default function ScreenToggle({
       chooseScreen(roomId, 'picture', audio);
       return;
     }
-    // Straight there when there is one choice and nothing to switch; otherwise the list.
-    if (choices.length === 1 && !(switchShown && !rdp.on)) show(choices[0].source);
-    else setChoosing((open) => !open);
+    // Always the list, even with one device on (Luke, 2026-11-21: "I also want the device selection option to always
+    // show even if it's just one device on").
+    setChoosing((open) => !open);
   };
   const named = (s: RemoteSource) => (s.kind === 'engine' ? 'THE PC' : s.kind === 'rdp' ? 'THE SERVER' : s.name);
   const keyOf = (s: RemoteSource) => (s.kind === 'device' ? s.id : s.kind);
@@ -95,7 +95,7 @@ export default function ScreenToggle({
         type="button"
         className={`${onScreen || choosing ? PLATE_ON_BLACK_PRESSED : PLATE_ON_BLACK} ${className ?? ''}`}
         aria-pressed={onScreen}
-        aria-expanded={choices.length > 1 || switchShown ? choosing : undefined}
+        aria-expanded={choosing}
         aria-label={onScreen ? `Back to the room's picture (showing ${named(source)})` : 'Remote: show one of your devices'}
         title={onScreen ? 'Picture' : 'Remote'}
         onClick={onPress}
@@ -135,6 +135,10 @@ export default function ScreenToggle({
               {switchTrouble ? <span role="status">{switchTrouble}</span> : null}
             </span>
           ) : null}
+          {/* How another device joins the list (nothing to install, the site open on it, signed in). Last and short, so a small room keeps the switch above in sight. */}
+          <span className="max-w-full font-mono text-label text-ink-bar" data-remote-add-device>
+            {devices.others.length === 0 ? 'ADD A DEVICE: OPEN DEBASER.SITE ON IT, SIGNED IN.' : 'MORE: OPEN DEBASER.SITE ON EACH, SIGNED IN.'}
+          </span>
         </span>
       ) : null}
     </span>

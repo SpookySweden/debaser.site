@@ -431,9 +431,15 @@ async function partOpen(browser) {
     assert.equal(await toggle.locator('img, svg').count(), 0, 'words only: no picture on the key');
     assert.equal((await receiver(page)).connections, 0, 'nothing is connected before the key is pressed');
     await toggle.click();
+    // The list always opens now, even with THE PC alone (Luke, 2026-11-21); it says how to add another device.
+    await page.waitForSelector('[data-remote-add-device]', { timeout: 5000 });
+    await page.locator('[data-remote-choice="engine"]').click();
     await page.waitForSelector('[data-dock-window="stream"] [data-room-picture] [data-room-screen]', { timeout: 10000 });
     assert.equal(await toggle.getAttribute('aria-pressed'), 'true', 'the key says it is on');
     const flowing = await waitFor(async () => { const r = await receiver(page); return r.framesDecoded > 5 ? r : null; }, 20000);
+    // Which way the picture goes, read from the connection (Luke, 2026-11-21): this browser is on the PC itself.
+    const routeSaid = await waitFor(async () => (await page.locator('[data-screen-route]').count()) ? page.locator('[data-screen-route]').evaluate((el) => `${el.getAttribute('data-screen-route')} ${el.textContent}`) : null, 8000);
+    assert.ok(routeSaid && routeSaid.startsWith('this-pc'), `the engine's route label: ${routeSaid}`);
     assert.ok(flowing, `frames are decoded: ${JSON.stringify(await receiver(page))}`);
     await sleep(1000);
     const later = await receiver(page);
