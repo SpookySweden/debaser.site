@@ -13,6 +13,7 @@ import { MODERATION_TEXT_MAX, REPORT_REASONS, type ReportReason } from '../lib/m
 import { FIELD, PLATE, PLATE_MAIN, PLATE_PRESSED } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import DockWindow from './DockWindow';
+import { useModeration } from './ModerationProvider';
 
 /**
  * REPORT (SPEC-moderation.md, 6B and 8A): a report is about a person, with a reason and a line of the reporter's own. Opened from
@@ -98,25 +99,89 @@ function ReportForm({ target, me }: { target: ReportTarget; me: string }) {
   );
 }
 
+/**
+ * BLOCK, under the report form when the window was opened from the red `[ ! ]` on a profile (Luke, 2026-11-21: "the encompassing
+ * reporting/ block pop up"). Blocking takes two presses, like anything started from the board. It is one way: what they write
+ * disappears for you, they can't message you, comment on your profile or join your room, and they are never told. Once blocked,
+ * their profile behind becomes YOU BLOCKED THIS PERSON and this part offers UNBLOCK.
+ */
+function BlockPart({ target }: { target: ReportTarget }) {
+  const { isBlocked, block, unblock } = useModeration();
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const blocked = isBlocked(target.accountId);
+
+  async function press() {
+    if (!blocked && !confirming) {
+      setConfirming(true);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      if (blocked) await unblock(target.accountId);
+      else await block(target.accountId);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : blocked ? 'THEY COULD NOT BE UNBLOCKED.' : 'THEY COULD NOT BE BLOCKED.');
+    } finally {
+      setBusy(false);
+      setConfirming(false);
+    }
+  }
+
+  const label = blocked
+    ? busy
+      ? '[ UNBLOCKING... ]'
+      : '[ UNBLOCK ]'
+    : busy
+      ? '[ BLOCKING... ]'
+      : confirming
+        ? '[ CONFIRM BLOCK ]'
+        : '[ BLOCK ]';
+
+  return (
+    <section aria-label="Block" className="flex flex-col items-start gap-2 border-t border-ink p-2" data-block-part={blocked ? 'blocked' : 'open'}>
+      <p className="text-sm font-bold text-ink">BLOCK</p>
+      <p className="text-sm text-ink">
+        {blocked
+          ? `YOU BLOCKED ${target.name}.`
+          : 'WHAT THEY WRITE DISAPPEARS FOR YOU, AND THEY CAN’T MESSAGE YOU, COMMENT ON YOUR PROFILE OR JOIN YOUR ROOM. THEY ARE NEVER TOLD.'}
+      </p>
+      <button type="button" disabled={busy} onClick={() => void press()} onBlur={() => setConfirming(false)} className={PLATE} data-block-key>
+        {label}
+      </button>
+      {error !== null ? (
+        <p role="alert" className="w-fit bg-bubble-pale px-1 text-label text-ink-bar">
+          {error}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
 export default function ReportWindow() {
   const { target } = useSyncExternalStore(subscribeToReportWindow, reportWindowState, reportWindowServerState);
   const { user } = useAuth();
 
   if (target === null || user === null) return null;
 
+  const both = target.block === true;
+
   return (
     <DockWindow
-      title="REPORT"
+      title={both ? 'REPORT / BLOCK' : 'REPORT'}
       onClose={closeReport}
       status=""
       dock="top"
       id="report"
       layoutId="report"
-      defaultSize={{ w: 420, h: 420 }}
+      defaultSize={{ w: 420, h: both ? 560 : 420 }}
       minSize={{ w: 280, h: 240 }}
     >
       {/* A new form for each person or line, so nothing typed for one carries over to the next. */}
       <ReportForm key={`${target.accountId}:${target.context?.id ?? ''}`} target={target} me={user.id} />
+      {both ? <BlockPart key={target.accountId} target={target} /> : null}
     </DockWindow>
   );
 }
