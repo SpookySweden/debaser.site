@@ -445,14 +445,18 @@ export function autosaveDue(input: { saved: boolean; changedSinceSnapshot: boole
 
 /* --- the screen --------------------------------------------------------------------------------- */
 
-/** What a viewer's screen shows: the picture (the video, or the song's card) or the canvas. */
-export type ScreenView = 'picture' | 'canvas';
+/**
+ * What a viewer's screen shows: the picture (the video, or the song's card), the canvas, or the PC's own screen
+ * (`screen`, SPEC-screens.md phase 3: offered to that PC's owner only, `ScreenToggle`).
+ */
+export type ScreenView = 'picture' | 'canvas' | 'screen';
 
 /**
  * The screen a viewer sees: their own choice, made while the same kind of thing was playing; otherwise the canvas
- * while audio plays and the picture with a video.
+ * while audio plays and the picture with a video. The PC's screen is not a view of what plays, so it stays chosen
+ * whatever the room goes on to play, until its key is pressed again.
  */
 export function screenShown(choice: { view: ScreenView; audio: boolean } | null, audio: boolean): ScreenView {
-  if (choice !== null && choice.audio === audio) return choice.view;
+  if (choice !== null && (choice.audio === audio || choice.view === 'screen')) return choice.view;
   return audio ? 'canvas' : 'picture';
 }

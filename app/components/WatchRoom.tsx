@@ -148,6 +148,9 @@ import dynamic from 'next/dynamic';
 /** Loaded on its own, in the browser only: the room's code keeps clear of the floating player's (a9b6af9). */
 const SoundGraph = dynamic(() => import('./SoundGraph'), { ssr: false });
 import RoomCanvas, { CanvasSaveAsk } from './RoomCanvas';
+/** The owner's PC screen (SPEC-screens.md): loaded only when its key is pressed, so nobody else's room carries its code. */
+const RoomScreen = dynamic(() => import('./RoomScreen'), { ssr: false });
+import ScreenToggle from './ScreenToggle';
 import { canvasDraggable, useCanvasOpen } from '../lib/watch/canvas-drag';
 import { useScreenView } from '../lib/watch/canvas-view';
 import { useChatLineDrag } from '../lib/watch/use-chat-line-drag';
@@ -1660,7 +1663,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
           its title strip, deeper on a phone where the strip's keys are the tap size, so nothing sits over the picture (2026-11-08). */}
       <div ref={pictureBox} onDoubleClick={fullOnDoublePress} {...(pictureFloats ? floatDrag.picture : {})} className={`${pictureFloats ? `fixed visible frame bg-ink-plate pt-10 max-sm:pt-14 [&:fullscreen]:pt-0 ${NO_FRAME_FULLSCREEN} select-none` : 'relative'} ${ROOM_PICTURE_BOX} ${dressed ? 'stage-surround' : ''}`} data-room-picture={pictureFloats ? 'floating' : 'in-room'} data-backdrop-press={dressed ? '' : undefined} data-companion-avoid={pictureFloats ? '' : undefined}>
         {blank ? (
-          <BlankScreen fit={pictureFit} onPick={(key) => openQueue(key)} hidden={screen === 'canvas'} />
+          <BlankScreen fit={pictureFit} onPick={(key) => openQueue(key)} hidden={screen !== 'picture'} />
         ) : src === undefined ? (
           <div className={`flex items-center justify-center text-label font-bold text-ink-bar ${pictureFit}`}>
             {catalogue.loading ? 'READING THE CATALOGUE...' : 'THIS FILE IS NOT IN THE CATALOGUE.'}
@@ -1813,9 +1816,12 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
           <RoomVisualiser roomId={roomId} element={song !== null ? player.audioElement() : videoElement instanceof HTMLMediaElement ? videoElement : null} />
         ) : null}
         {visitorRoom ? null : <RoomCanvas roomId={roomId} context={canvasContext} visible={screen === 'canvas'} />}
+        {/* The owner's own PC screen (SPEC-screens.md, phase 3): drawn, and connected, only while it is the chosen view. */}
+        {screen === 'screen' ? <RoomScreen roomId={roomId} audio={canvasAudio && !visitorRoom} /> : null}
         <RoomCornerKeys box={pictureBox}>
           <VisualiserToggle roomId={roomId} audio={canvasAudio} />
           {visitorRoom ? null : <CanvasToggle roomId={roomId} audio={canvasAudio} />}
+          <ScreenToggle roomId={roomId} audio={canvasAudio && !visitorRoom} />
         </RoomCornerKeys>
         {pictureFloats ? <RoomFloatChrome host={pictureBox} drag={floatDrag} title={entryTitle ?? (music ? 'ROOM' : 'STREAM')} /> : null}
         {/* Fullscreen: the chosen background, live, under everything in this box. Last in the box, so nothing before it is moved. */}

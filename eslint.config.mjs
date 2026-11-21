@@ -27,6 +27,9 @@ const eslintConfig = defineConfig([
     "scripts/**",
     // Claude Code's hook script: plain CommonJS for the same reason.
     ".claude/**",
+    // The screen engine (SPEC-screens.md): a separate program with its own proofs, kept out of the site's build and
+    // checks. Its measuring scripts (engine/bench/*.cjs) are plain CommonJS like the tools in scripts/.
+    "engine/**",
   ]),
 ]);
 

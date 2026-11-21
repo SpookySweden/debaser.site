@@ -12,6 +12,23 @@ and controller from another device. **A share** is one screen being shown in a r
 driving another. **The relay** is Cloudflare's live-video service that copies one stream to many watchers.
 **The yardstick** is Sunshine (on the PC) to the Moonlight app (on the laptop), the thing to beat.
 
+## Where it stands (2026-11-21)
+Everything below is on the branch `claude/sunshine-research-8a2591`, not on main, and not live. The numbers and what
+is and is not proved are in `engine/BENCH.md`.
+- **The engine** (`engine/`): grabs the screen, encodes on the NVIDIA chip, sends to a browser by WebRTC, changes
+  shape, size, rate and bitrate while streaming, caps itself during a League match, takes mouse and keys from the
+  viewer (`--allow-control`; refused during a match). Best measured on this PC: about 9.6 ms from its screen to the
+  stream's copy of it.
+- **In the site** (phase 3, first slice): `[ SCREEN ]` beside `[ VIS ]` and `[ CANVAS ]` in any room, shown to the
+  PC's owner only, with `[ SETTINGS ]` and `[ CONTROL ]`. The site's server on the PC checks the sign-in and passes
+  the "hello" to the engine on the same PC; no database change. Proved locally (`npm run verify`,
+  `Temp/check-screens.cjs`, `scripts/drive-screens.cjs` 11 of 11). **Nobody has looked at it.**
+- **Works today only in a browser on the PC itself.** The laptop needs the engine started with `--lan` (Windows will
+  ask Luke about its firewall); away from home is phase 5; friends watching in a room is phase 4 (needs the
+  Cloudflare key).
+- **To go live it needs from Luke:** his OK for main; one line in the PC's site settings naming his account
+  (`SCREENS_OWNER_ID`); the engine added to what the PC keeps running.
+
 ## Luke's answers (interviewed 2026-11-20, twelve questions)
 | Question | Answer, in his words where he added any |
 | --- | --- |

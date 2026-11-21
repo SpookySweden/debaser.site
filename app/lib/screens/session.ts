@@ -1,0 +1,533 @@
+import { ScreenConnection, type StreamStats } from './connection';
+import { ScreenControl, canLockKeyboard } from './control';
+import { ScreenDrawing } from './drawing';
+import { screenHostNow, talkToSettings, type SettingsAnswer } from './host-client';
+import {
+  DEFAULT_WISHES,
+  RATE_GAPS,
+  rateFromGaps,
+  readWishes,
+  rememberWishes,
+  requestFor,
+  wishesAfter,
+  wishesForThePc,
+  askedNow,
+  type Drawing,
+  type HostSettings,
+  type Mouse,
+  type SettingsRequest,
+  type ThisScreen,
+  type Upscaling,
+  type Wishes,
+} from './wishes';
+
+/**
+ * SCREENS in a room (SPEC-screens.md, phase 3): one viewing of the PC's screen, from the moment the room's SCREEN key
+ * is pressed until it is pressed again. It ties the ported parts of the engine's own viewer page together (the
+ * connection, the settings, the drawing, CONTROL, the readout: `engine/web/viewer.html`, whose START part this is)
+ * and hands a component one plain picture of how things stand (`ScreenState`) to draw the keys and the panel from.
+ *
+ * `attach` connects and starts listening; `detach` lets go of everything: the connection, control (the PC is told),
+ * every listener and timer. Nothing is kept anywhere but this browser's own storage (the wishes).
+ */
+
+/** The parts of the page a viewing works on. */
+export type ScreenParts = {
+  /** The whole view: what goes fullscreen. */
+  root: HTMLElement;
+  /** The picture's box: where it is fitted, where the pointer is read, what holds the keyboard while controlling. */
+  stage: HTMLElement;
+  video: HTMLVideoElement;
+  fastCanvas: HTMLCanvasElement;
+  sharpCanvas: HTMLCanvasElement;
+};
+
+/** How things stand, for the component to draw. A new one is made whenever anything in it changes. */
+export type ScreenState = {
+  wishes: Wishes;
+  /** The PC's last answer about its settings. */
+  host: HostSettings | null;
+  /** Why the PC could not be asked, when it could not. */
+  hostTrouble: string;
+  /** This device's screen in real pixels, which is what MATCH THIS SCREEN sends. */
+  here: ThisScreen;
+  /** How many frames a second this screen shows, once measured. */
+  screenHz: number | null;
+  /** What is really in use on this device, and why when that is not what was chosen. */
+  drawingShown: Drawing;
+  drawingNote: string;
+  upscalingShown: Upscaling;
+  upscalingNote: string;
+  /** The small readout in the corner of the picture. */
+  numbers: string;
+  /** The panel's READOUT. */
+  readout: string;
+  /** Why there is no picture, when the connection has failed. */
+  problem: string;
+  fullscreen: boolean;
+  control: { mine: boolean; note: string; pointerLocked: boolean; keyboardLocked: boolean; canLockKeyboard: boolean };
+};
+
+/** How long a closing connection is kept for "I am letting go" of control to reach the PC. */
+const LAST_WORDS_MS = 200;
+const NO_SCREEN: ThisScreen = { viewWidth: 0, viewHeight: 0 };
+const FIRST_STATE: ScreenState = {
+  wishes: DEFAULT_WISHES,
+  host: null,
+  hostTrouble: '',
+  here: NO_SCREEN,
+  screenHz: null,
+  drawingShown: 'normal',
+  drawingNote: '',
+  upscalingShown: 'smooth',
+  upscalingNote: '',
+  numbers: 'connecting',
+  readout: 'No picture yet.',
+  problem: '',
+  fullscreen: false,
+  control: { mine: false, note: '', pointerLocked: false, keyboardLocked: false, canLockKeyboard: false },
+};
+
+function thisScreen(): ThisScreen {
+  const ratio = window.devicePixelRatio || 1;
+  return { viewWidth: Math.round(window.screen.width * ratio), viewHeight: Math.round(window.screen.height * ratio) };
+}
+
+/** Which screen the window is on, so that a window moved to another screen has its rate measured again. */
+function whichScreen(): string {
+  const screen = window.screen as Screen & { availLeft?: number; availTop?: number };
+  return [screen.width, screen.height, screen.availLeft, screen.availTop, window.devicePixelRatio].join(' ');
+}
+
+/** Whether the view fills the screen: by its own FULLSCREEN key, or inside the room's own fullscreen (its FULL key, a double press). */
+function inFullscreen(root: HTMLElement): boolean {
+  const full = document.fullscreenElement;
+  return full !== null && full.contains(root);
+}
+
+/** The browser's `screen` says when it changes, where it can (TypeScript's list does not know it as something that speaks). */
+function screenEvents(): EventTarget | null {
+  const screen: unknown = window.screen;
+  return screen instanceof EventTarget ? screen : null;
+}
+
+const shown = (value: number | null, digits: number): string => (typeof value === 'number' ? value.toFixed(digits) : '-');
+const quietly = (promise: Promise<unknown>): void => {
+  promise.catch(() => {
+    /* the reason is already shown in the panel */
+  });
+};
+
+export class ScreenSession {
+  private state: ScreenState = FIRST_STATE;
+  private readonly listeners = new Set<() => void>();
+
+  private parts: ScreenParts | null = null;
+  /** Each `attach` is a new life: work begun in an earlier one is dropped when it comes back. */
+  private life = 0;
+  private wishes: Wishes = { ...DEFAULT_WISHES };
+  private host: HostSettings | null = null;
+  private hostTrouble = '';
+  /** Changes of ours the PC has not answered yet, and when it last answered one. */
+  private asking = 0;
+  private lastAnswered = 0;
+  private screenHz: number | null = null;
+  private measuringHz: Promise<void> | null = null;
+  private screenWas = '';
+  private problem = '';
+  private numbers = FIRST_STATE.numbers;
+  private readout = FIRST_STATE.readout;
+
+  private connection: ScreenConnection | null = null;
+  private drawing: ScreenDrawing | null = null;
+  private control: ScreenControl | null = null;
+  private resizeWatch: ResizeObserver | null = null;
+  private readoutTimer = 0;
+  private hostTimer = 0;
+
+  /* --- for the component ------------------------------------------------------------------------ */
+
+  readonly subscribe = (listener: () => void): (() => void) => {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  };
+
+  readonly getState = (): ScreenState => this.state;
+
+  private readonly emit = (): void => {
+    const drawing = this.drawing;
+    const control = this.control;
+    this.state = {
+      wishes: this.wishes,
+      host: this.host,
+      hostTrouble: this.hostTrouble,
+      here: this.parts === null ? NO_SCREEN : thisScreen(),
+      screenHz: this.screenHz,
+      drawingShown: drawing?.shown ?? 'normal',
+      drawingNote: drawing?.note ?? '',
+      upscalingShown: drawing?.upscalingShown ?? 'smooth',
+      upscalingNote: drawing?.upscalingNote ?? '',
+      numbers: this.numbers,
+      readout: this.readout,
+      problem: this.problem,
+      fullscreen: this.parts !== null && inFullscreen(this.parts.root),
+      control: {
+        mine: control?.mine ?? false,
+        note: control?.note ?? '',
+        pointerLocked: control?.pointerLocked ?? false,
+        keyboardLocked: control?.keyboardLocked ?? false,
+        canLockKeyboard: this.parts !== null && canLockKeyboard(),
+      },
+    };
+    for (const listener of this.listeners) listener();
+  };
+
+  private alive(life: number): boolean {
+    return this.parts !== null && this.life === life;
+  }
+
+  /* --- START: draw from what is remembered, measure this screen, connect, keep the readouts fresh -- */
+
+  attach(parts: ScreenParts): void {
+    if (this.parts !== null) this.detach();
+    this.life += 1;
+    this.parts = parts;
+    this.wishes = readWishes();
+    // What the site said when it offered the SCREEN key, until the PC is asked again.
+    this.host = screenHostNow().settings;
+    this.hostTrouble = '';
+    this.problem = '';
+    this.asking = 0;
+    this.lastAnswered = 0;
+    this.numbers = FIRST_STATE.numbers;
+    this.readout = FIRST_STATE.readout;
+
+    this.drawing = new ScreenDrawing(parts, this.emit, () => undefined);
+    this.control = new ScreenControl({
+      stage: parts.stage,
+      sendKeys: (bytes) => this.connection?.sendKeys(bytes) ?? false,
+      sendPointer: (bytes) => this.connection?.sendPointer(bytes) ?? false,
+      pictureBox: () => this.drawing?.pictureBox() ?? null,
+      mouse: () => this.wishes.mouse,
+      onChange: this.emit,
+      onStanding: () => void this.readHost(),
+    });
+    this.control.attach();
+    this.drawing.show(this.wishes.drawing, this.wishes.upscaling);
+
+    // The stream changes size when its settings change, and the picture's box can change size (the window, the
+    // room's side column, fullscreen): each moves the picture.
+    parts.video.addEventListener('resize', this.redraw);
+    window.addEventListener('resize', this.redraw);
+    this.resizeWatch = new ResizeObserver(this.redraw);
+    this.resizeWatch.observe(parts.stage);
+    // A different screen may show a different number of frames a second: measured again when the picture goes
+    // fullscreen or comes back, when the browser says the screen changed, and (looked at every few seconds, with
+    // the PC's settings) when the window has moved to another screen.
+    document.addEventListener('fullscreenchange', this.onFullscreen);
+    screenEvents()?.addEventListener('change', this.onScreenChange);
+
+    void this.measureScreenHz();
+    this.connect();
+    this.readoutTimer = window.setInterval(() => void this.showReadout(), 1000);
+    // What the PC is really sending can change under us (a cap coming on, another of the owner's devices), so it is
+    // read again often.
+    this.hostTimer = window.setInterval(() => {
+      if (this.connection?.connected) void this.readHost();
+      if (whichScreen() !== this.screenWas) void this.measureScreenHz();
+    }, 3000);
+    this.emit();
+  }
+
+  /** Lets go of everything: control (the PC is told), the connection, the drawing, every listener and timer. */
+  detach(): void {
+    const parts = this.parts;
+    if (parts === null) return;
+    this.life += 1;
+    window.clearInterval(this.readoutTimer);
+    window.clearInterval(this.hostTimer);
+    parts.video.removeEventListener('resize', this.redraw);
+    window.removeEventListener('resize', this.redraw);
+    this.resizeWatch?.disconnect();
+    this.resizeWatch = null;
+    document.removeEventListener('fullscreenchange', this.onFullscreen);
+    screenEvents()?.removeEventListener('change', this.onScreenChange);
+    // Control first, while its channel is still open, so the PC hears "I am letting go" (and is given a moment to).
+    const held = this.control?.mine ?? false;
+    this.control?.detach();
+    this.connection?.stop(held ? LAST_WORDS_MS : 0);
+    this.drawing?.stop();
+    parts.video.srcObject = null;
+    if (document.fullscreenElement === parts.root) void document.exitFullscreen().catch(() => undefined);
+    this.control = null;
+    this.connection = null;
+    this.drawing = null;
+    this.measuringHz = null;
+    this.parts = null;
+    this.emit();
+  }
+
+  private connect(): void {
+    const parts = this.parts;
+    if (parts === null) return;
+    const life = this.life;
+    this.problem = '';
+    const connection = new ScreenConnection({
+      onTrack: (track, stream) => {
+        if (!this.alive(life)) return;
+        parts.video.srcObject = stream;
+        parts.video.play().catch(() => {
+          /* muted autoplay is allowed; if a browser still refuses, a click starts it */
+        });
+        this.drawing?.setTrack(track);
+      },
+      onConnected: () => {
+        // Now that the picture is on its way, tell the PC what this device wants of it. AUTO needs this screen's
+        // own rate, so a measuring of it that is still going is waited for first.
+        void (this.measuringHz ?? Promise.resolve()).then(() => {
+          if (this.alive(life)) quietly(this.ask(wishesForThePc(this.wishes)));
+        });
+      },
+      onProblem: (why) => {
+        if (!this.alive(life)) return;
+        this.problem = why;
+        void this.showReadout();
+      },
+      onPcSays: (bytes) => this.control?.heard(bytes),
+      onKeysClosed: () => this.control?.channelClosed(),
+    });
+    this.connection = connection;
+    connection.start().catch((error: unknown) => {
+      if (!this.alive(life) || this.connection !== connection) return;
+      this.problem = `could not connect: ${error instanceof Error && error.message ? error.message : String(error)}`;
+      void this.showReadout();
+    });
+  }
+
+  /** `[ TRY AGAIN ]`, after the connection failed: everything is let go of and begun afresh. */
+  tryAgain(): void {
+    const parts = this.parts;
+    if (parts === null) return;
+    this.detach();
+    this.attach(parts);
+  }
+
+  private readonly redraw = (): void => {
+    this.drawing?.show(this.wishes.drawing, this.wishes.upscaling);
+  };
+
+  private readonly onFullscreen = (): void => {
+    void this.measureScreenHz();
+    this.emit();
+  };
+
+  private readonly onScreenChange = (): void => {
+    void this.measureScreenHz();
+  };
+
+  /* --- SETTINGS: what the PC sends -------------------------------------------------------------- */
+
+  /**
+   * How many frames a second this device's own screen shows, which is what AUTO sends. A browser does not say, so
+   * it is measured: the page asks to be called once per screen refresh a few dozen times (`rateFromGaps` does the sum).
+   */
+  private measureScreenHz(): Promise<void> {
+    if (this.measuringHz !== null) return this.measuringHz;
+    const life = this.life;
+    this.screenWas = whichScreen();
+    const measuring = new Promise<number | null>((resolve) => {
+      const gaps: number[] = [];
+      let before = 0;
+      let over = false;
+      // A hidden tab is not called at all: give up after a while and keep what was known.
+      const giveUp = window.setTimeout(() => {
+        over = true;
+        resolve(null);
+      }, 2500);
+      const tick = (now: number) => {
+        if (over) return;
+        if (!this.alive(life)) {
+          window.clearTimeout(giveUp);
+          resolve(null);
+          return;
+        }
+        if (before) gaps.push(now - before);
+        before = now;
+        if (gaps.length < RATE_GAPS) {
+          window.requestAnimationFrame(tick);
+          return;
+        }
+        window.clearTimeout(giveUp);
+        resolve(rateFromGaps(gaps));
+      };
+      window.requestAnimationFrame(tick);
+    }).then((hz) => {
+      if (!this.alive(life)) return;
+      this.measuringHz = null;
+      const changed = hz !== null && hz !== this.screenHz;
+      if (hz !== null) this.screenHz = hz;
+      this.emit();
+      // On AUTO, a screen with a different rate (the window moved to another screen) is a new request to the PC.
+      if (changed && this.wishes.fps === 'auto' && this.connection?.connected) quietly(this.ask({ fps: 'auto' }));
+    });
+    this.measuringHz = measuring;
+    return measuring;
+  }
+
+  private async talkToHost(change: SettingsRequest | null): Promise<HostSettings | null> {
+    const life = this.life;
+    const changing = change !== null;
+    const began = performance.now();
+    if (changing) this.asking += 1;
+    let answer: SettingsAnswer;
+    try {
+      answer = await talkToSettings(this.connection?.viewer ?? null, change);
+    } catch {
+      if (!this.alive(life)) return null;
+      this.hostTrouble = 'The PC could not be reached for its settings.';
+      this.emit();
+      throw new Error(this.hostTrouble);
+    } finally {
+      if (changing && this.alive(life)) {
+        this.asking -= 1;
+        this.lastAnswered = performance.now();
+      }
+    }
+    if (!this.alive(life)) return null;
+    // A plain reading that set off before a change of ours was answered is old news by now: it is dropped, so the
+    // panel never steps back to what was being sent before the change.
+    if (!changing && (this.asking > 0 || began < this.lastAnswered)) return this.host;
+    if (!answer.ok) {
+      this.hostTrouble = `The PC would not take that: ${answer.why}`;
+      this.emit();
+      throw new Error(this.hostTrouble);
+    }
+    this.hostTrouble = '';
+    this.host = answer.settings;
+    this.emit();
+    return this.host;
+  }
+
+  /** Reads what the PC is sending now (also done every few seconds, so a change made elsewhere shows here). */
+  readHost(): Promise<HostSettings | null> {
+    return this.talkToHost(null).catch(() => null);
+  }
+
+  /**
+   * Asks the PC for a change. `partial` names only what changes. Every key in the panel goes through here. It
+   * answers with what the PC says it is really sending afterwards.
+   */
+  private ask(partial: SettingsRequest): Promise<HostSettings | null> {
+    const request = requestFor(partial, thisScreen(), this.screenHz);
+    this.wishes = wishesAfter(this.wishes, request);
+    rememberWishes(this.wishes);
+    this.emit();
+    return this.talkToHost(request);
+  }
+
+  /** A key in the panel: a change asked of the PC. Why it could not be made, when it could not, shows in the panel. */
+  change(partial: SettingsRequest): void {
+    if (this.parts !== null) quietly(this.ask(partial));
+  }
+
+  /** `[ MATCH THIS SCREEN ]`: on, the PC sends this screen's shape; off, the shape last chosen by hand. */
+  toggleMatch(): void {
+    this.change({ shape: askedNow(this.host, this.wishes).shape === 'match' ? this.wishes.shape : 'match' });
+  }
+
+  /* --- DRAWING, READOUT, WINDOW: only on this device -------------------------------------------- */
+
+  private keep(next: Wishes): void {
+    this.wishes = next;
+    rememberWishes(next);
+  }
+
+  setDrawing(drawing: Drawing): void {
+    this.keep({ ...this.wishes, drawing });
+    this.redraw();
+    this.emit();
+  }
+
+  setUpscaling(upscaling: Upscaling): void {
+    this.keep({ ...this.wishes, upscaling });
+    this.redraw();
+    this.emit();
+  }
+
+  toggleNumbers(): void {
+    this.keep({ ...this.wishes, numbers: !this.wishes.numbers });
+    this.emit();
+  }
+
+  toggleFullscreen(): void {
+    const parts = this.parts;
+    if (parts === null) return;
+    // The key press is the "user gesture" a browser wants before it will go fullscreen.
+    const going = inFullscreen(parts.root) ? document.exitFullscreen() : parts.root.requestFullscreen();
+    going.catch(() => {
+      /* refused by the browser: the key simply stays unpressed */
+    });
+  }
+
+  // Once a second.
+  private async showReadout(): Promise<void> {
+    const life = this.life;
+    const control = this.control;
+    const connection = this.connection;
+    if (control === null || connection === null) return;
+    control.tick();
+    if (this.problem) {
+      this.numbers = this.problem;
+      this.readout = this.problem;
+      this.emit();
+      return;
+    }
+    let s: StreamStats;
+    try {
+      s = await connection.stats();
+    } catch {
+      return; /* the next second tries again */
+    }
+    if (!this.alive(life)) return;
+    const drawing = this.drawing;
+    const way = (drawing?.shown ?? 'normal').toUpperCase();
+    if (!s.framesDecoded) {
+      this.numbers = `connecting (${s.connectionState})`;
+      this.readout = `No picture yet (${s.connectionState}).`;
+      this.emit();
+      return;
+    }
+    this.numbers =
+      `${s.frameWidth}x${s.frameHeight}  ${shown(s.framesPerSecond, 0)} frames/s  ${s.mimeType ?? ''}\n` +
+      `wait in buffer ${shown(s.jitterBufferDelayMsPerFrame, 1)} ms  decode ${shown(s.decodeMsPerFrame, 1)} ms  arrival to ready ${shown(s.processingDelayMsPerFrame, 1)} ms\n` +
+      `frames ${s.framesDecoded}  dropped ${s.framesDropped}  packets lost ${s.packetsLost}  resends asked ${s.nackCount}  full pictures asked ${s.pliCount}\n` +
+      `decoder ${s.decoderImplementation ?? '-'}  drawn ${way}`;
+    const measured = this.host?.measured ?? null;
+    const pc = measured !== null && typeof measured.shownToEncodedMs === 'number' ? `${measured.shownToEncodedMs.toFixed(1)} ms` : 'not known (a still screen, or no answer yet)';
+    this.readout =
+      `The stream            ${s.frameWidth}x${s.frameHeight}, ${shown(s.framesPerSecond, 0)} frames a second\n` +
+      `In this browser's queue ${shown(s.jitterBufferDelayMsPerFrame, 1)} ms a frame\n` +
+      `Decoding              ${shown(s.decodeMsPerFrame, 1)} ms a frame\n` +
+      `Lost packets          ${s.packetsLost}\n` +
+      `Drawn                 ${way}${drawing?.shown === 'fast' ? (drawing.lowLatency ? ", skipping the browser's drawing queue" : ', but this browser kept its drawing queue') : ''}\n` +
+      `On the PC, shown to encoded ${pc}` +
+      (control.mine ? `\nInput sent            ${control.sentRate} messages a second` : '');
+    this.emit();
+  }
+
+  /* --- CONTROL ----------------------------------------------------------------------------------- */
+
+  /** `[ CONTROL ]` / `[ RELEASE ]`. */
+  toggleControl(): void {
+    const control = this.control;
+    if (control === null) return;
+    if (control.mine) control.release();
+    else control.take();
+  }
+
+  setMouse(mouse: Mouse): void {
+    this.keep({ ...this.wishes, mouse });
+    this.control?.mouseChanged();
+    this.emit();
+  }
+}
