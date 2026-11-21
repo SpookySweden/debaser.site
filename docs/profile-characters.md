@@ -72,6 +72,21 @@ Read this before touching the motions, the bake or the profile walker. The spec 
 - **In a stream room** each person's companion says what that person types in the room's chat: `docs/companion.md`,
   "Talking".
 
+## Friends (Luke, 2026-11-21)
+- "make it so that moldavius figtree and swedens characters like eachother and hang out with eachother in a jovial manner".
+  `app/lib/character/friends.ts` holds the pairs (`FRIEND_PAIRS`, seeded with sweden and moldavius figtree; add a pair
+  there for more) and the pure rules.
+- **In a ROOM** (the owner, a guest, your visiting companion) a friend's walker heads for the spot halfway between the two
+  (`meetingSpot`, so two friends walking to each other never cross), turns a walk away from its friend round, stays to
+  hang out once together, faces its friend there, and now and then waves, hops or cheers (`befriend`, after
+  `stepWalker` each tick). The walkers share where each stands through a map `ProfileRoom` hands them (`spots`).
+- **They swap cheerful noises** in their own blip voices: each friend gets three of `FRIEND_NOISES` in its bag of lines,
+  and a noise is answered by the other friend a moment later (`friendAnswer`; an answer is not answered again). Noises
+  and text faces only, never words: a character still never says a sentence its person did not write.
+- Reduced motion: nothing moves or speaks by itself, as before. Checked by `Temp/check-character-friends.cjs` and
+  `scripts/drive-character-friends.cjs` (local mock server; sweden's profile with moldavius figtree and a stranger
+  visiting).
+
 ## Rules that came from the spec
 - **Motion isn't artwork** (core.md, Asset Rules). Code only turns the joints of shapes someone built by hand. It never
   adds a shape or changes a shape's size, colour or kind. `check-profile-character` holds that for every frame.

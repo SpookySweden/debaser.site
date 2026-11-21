@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
+import { areFriends, FRIEND_CHEER_MS, meetingSpot, nearFriend } from '../lib/character/friends';
 import { DANCES, type MotionId } from '../lib/character/motion';
 import { useShownCharacter } from '../lib/character/use-shown-character';
 import { fallStep, spanFor, startBrain, think, throwOf, type BrainScene, type BrainState, type Fall, type Span } from '../lib/companion/brain';
@@ -601,6 +602,8 @@ type OwnProps = {
   userId: string | null;
   /** The other companions in the room just now, as their keys joined up: it waves at a new one. */
   roomKeys: string;
+  /** A friend's companion in the room (`../lib/character/friends.ts`): where along the floor it is headed, else null. */
+  friendShare: number | null;
   musicPlaying: boolean;
   track: string | null;
   still: boolean;
@@ -608,7 +611,7 @@ type OwnProps = {
   lookRef: string | null;
 };
 
-function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, look, lookRef }: OwnProps) {
+function OwnCompanion({ label, userId, roomKeys, friendShare, musicPlaying, track, still, look, lookRef }: OwnProps) {
   const placeRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLSpanElement>(null);
   const markRef = useRef<HTMLSpanElement>(null);
@@ -618,10 +621,10 @@ function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, loo
   useEffect(() => {
     music.current = { playing: musicPlaying, track };
   }, [musicPlaying, track]);
-  const company = useRef({ userId, keys: roomKeys });
+  const company = useRef({ userId, keys: roomKeys, friendShare });
   useEffect(() => {
-    company.current = { userId, keys: roomKeys };
-  }, [userId, roomKeys]);
+    company.current = { userId, keys: roomKeys, friendShare };
+  }, [userId, roomKeys, friendShare]);
   useEffect(() => {
     wearing.current = { look, ref: lookRef };
   }, [look, lookRef]);
@@ -659,6 +662,8 @@ function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, loo
     const greeted = new Set<string>();
     let greetedKeys = '';
     let lastGreet = 0;
+    /** When it may next cheer at a friend it stands with (0: at once, the moment they are together). */
+    let nextCheer = 0;
     /** It types along until then: a moment after the last key typed into a text box. */
     let typingUntil = 0;
     /** A press on it, and the fall after it is let go. */
@@ -1068,6 +1073,11 @@ function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, loo
       // What you are doing that it can join in with: typing (it hears the keys itself), a game, a book, a video
       // (`../lib/companion/scene.ts`; a video in the floating player counts as one being watched).
       const scene: BrainScene | null = now < typingUntil ? 'type' : (companionScene() ?? (floatingState().entry !== null ? 'watch' : null));
+      // A friend's companion in the room (Luke, 2026-11-21): where it is along this floor, the spot beside it, and
+      // whether the two already stand together.
+      const friendShareNow = company.current.friendShare;
+      const friendX = friendShareNow === null ? null : Math.round(floor.left + friendShareNow * floorRoom(floor, size));
+      const friend = friendX === null ? null : { spot: meetingSpot(x, friendX, size.w), near: nearFriend(x, friendX, size.w) };
       brain = think(brain, {
         now,
         lastActivity,
@@ -1078,6 +1088,7 @@ function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, loo
         random: Math.random,
         hour: new Date(now).getHours(),
         scene,
+        friend,
       });
       if (was.mood === 'sleep' && brain.mood !== 'sleep') {
         // Awake: a stretch, and after a long sleep a wave for whoever came back.
@@ -1086,6 +1097,13 @@ function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, loo
       }
       // Bored: the brain asks for a stretch or a spin, once.
       if (brain.act !== null && act === null) act = { motion: brain.act, tick: 0 };
+      // Standing about with a friend: now and then a cheer with a note over its head, which the room sees too.
+      if (friend === null || !friend.near) nextCheer = 0;
+      // (Only while just hanging out: typing, a game, a book or a video along with you is not broken off for it.)
+      else if (act === null && brain.pose === null && (brain.mood === 'stand' || brain.mood === 'sit') && now >= nextCheer) {
+        react('friend');
+        nextCheer = now + FRIEND_CHEER_MS[0] + Math.random() * (FRIEND_CHEER_MS[1] - FRIEND_CHEER_MS[0]);
+      }
       // Somebody's companion new to the room (or you new to theirs): a wave, which they see, and theirs waves too.
       const keys = company.current.keys;
       if (keys !== greetedKeys) {
@@ -1131,6 +1149,8 @@ function OwnCompanion({ label, userId, roomKeys, musicPlaying, track, still, loo
       posing = COMPANION_POSES.includes(loop) ? loop : null;
       // Watching, it sits facing what it watches.
       if (loop === 'watch') facing = facingFocus(x, size, facing);
+      // With a friend, standing about, it faces them.
+      else if (friendX !== null && friend !== null && friend.near && !walking && act === null && brain.pose === null) facing = friendX >= x ? 1 : -1;
       if (act !== null) {
         motion = act.motion;
         motionTick = act.tick;
@@ -1692,6 +1712,7 @@ export default function Companion() {
             label={user?.displayName ?? 'YOU'}
             userId={userId}
             roomKeys={drawn.map((companion) => companion.key).join(',')}
+            friendShare={drawn.find((companion) => areFriends(userId, companion.userId))?.wire.x ?? null}
             musicPlaying={music.playing}
             track={music.track}
             still={still}

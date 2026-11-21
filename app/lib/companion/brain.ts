@@ -1,4 +1,5 @@
 import type { MotionId } from '../character/motion';
+import { FRIEND_PULL } from '../character/friends';
 import type { CompanionMood } from './wire';
 
 /**
@@ -52,6 +53,11 @@ export type BrainInput = {
   hour?: number;
   /** What the reader is doing that it can join in with (`scene.ts`, and typing, which it hears itself). Missing: nothing. */
   scene?: BrainScene | null;
+  /**
+   * A friend's companion in the room (`../character/friends.ts`; Luke, 2026-11-21: "hang out with eachother in a jovial
+   * manner"): the spot beside it to head for, and whether the two already stand together. Missing: no friend here.
+   */
+  friend?: { spot: number; near: boolean } | null;
 };
 
 /** What it joins in with: typing along, watching a game, reading along, watching a video. */
@@ -142,6 +148,17 @@ export function think(state: BrainState, input: BrainInput): BrainState {
 
   const roll = input.random();
   const width = span.right - span.left;
+  // A friend here: apart, it mostly heads over to them; together, it mostly stays to hang out (stands, or sits a while).
+  const friend = input.friend ?? null;
+  if (friend !== null && roll < FRIEND_PULL) {
+    const spot = clamp(friend.spot, span);
+    if (!friend.near && Math.abs(spot - input.x) >= 1) return { mood: 'walk', target: spot, until: now + 20_000, chaseUntil: 0, ...REST };
+    if (friend.near) {
+      return roll < FRIEND_PULL / 4
+        ? { mood: 'sit', target: null, until: now + between(input.random, 6_000, 12_000), chaseUntil: 0, ...REST }
+        : { mood: 'stand', target: null, until: now + between(input.random, 4_000, 9_000), chaseUntil: 0, ...REST };
+    }
+  }
   if (roll < 0.5 && width > 8) {
     const target = clamp(between(input.random, span.left, span.right), span);
     // A walk gives up after a while, so a stretch that shrank under it cannot hold it walking forever.

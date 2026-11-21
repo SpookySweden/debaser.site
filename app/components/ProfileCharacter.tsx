@@ -19,6 +19,7 @@ import {
   type Lane,
   type WalkerState,
 } from '../lib/character/walker';
+import { befriend } from '../lib/character/friends';
 import { onCompanionCatch } from '../lib/companion/events';
 import type { Sample } from '../lib/companion/throw';
 import CharacterSprite from './CharacterSprite';
@@ -161,6 +162,8 @@ export function RoomWalker({
   person,
   speech,
   onPress,
+  friendId,
+  spots,
 }: {
   look: RoomLook;
   mood: Mood;
@@ -181,6 +184,10 @@ export function RoomWalker({
   speech?: ((at: { x: number; w: number; h: number }) => ReactNode) | undefined;
   /** It was pressed (besides its own wave or hop): under reduced motion this is how it is asked to speak. */
   onPress?: () => void;
+  /** A friend of its person is in the room too (`../lib/character/friends.ts`): it drifts over to hang out with them. */
+  friendId?: string | null;
+  /** Where each figure in the room stands, by whose it is (left edges): it writes its own, and reads its friend's. */
+  spots?: Map<string, number>;
 }) {
   const reduced = useSyncExternalStore(subscribeReduced, reducedNow, reducedOnServer);
   const { w, h } = roomFigureSize(look);
@@ -270,19 +277,34 @@ export function RoomWalker({
     if (reduced || width === 0) return;
     const every = Math.round(1000 / (look?.sheet.fps ?? 10));
     const timer = setInterval(() => {
-      setState((current) =>
+      setState((current) => {
         // Talking: it stays where it stands. A one-off under way is stepped to its end first.
-        hasSpeech.current && breaksOffFor(current.motion)
-          ? current
-          : stepWalker(current, { mood, music, room, step: WALK_BLOCKS_PER_TICK * ROOM_SCALE, ticksOf, random: Math.random }),
-      );
+        if (hasSpeech.current && breaksOffFor(current.motion)) return current;
+        const next = stepWalker(current, { mood, music, room, step: WALK_BLOCKS_PER_TICK * ROOM_SCALE, ticksOf, random: Math.random });
+        // A friend in the room (Luke, 2026-11-21: "hang out with eachother in a jovial manner"): over it goes.
+        const friendX = friendId && spots ? (spots.get(friendId) ?? null) : null;
+        return befriend(current, next, { friendX, w, room, random: Math.random });
+      });
     }, every);
     return () => clearInterval(timer);
-  }, [reduced, width, look, mood, music, room, ticksOf]);
+  }, [reduced, width, look, mood, music, room, ticksOf, friendId, spots, w]);
 
   useEffect(() => {
     if (onSpot !== undefined && figure.current !== null) onSpot(figure.current);
   });
+
+  // Where it stands, for a friend in the room to come and stand beside it; forgotten when it leaves.
+  const spotNow = Math.min(Math.max(0, state.x), room);
+  useEffect(() => {
+    if (spots === undefined || person === undefined) return;
+    spots.set(person, spotNow);
+  }, [spots, person, spotNow]);
+  useEffect(() => {
+    if (spots === undefined || person === undefined) return;
+    return () => {
+      spots.delete(person);
+    };
+  }, [spots, person]);
 
   const out = loose !== null;
   const talking = !out && speech !== undefined && (reduced || breaksOffFor(state.motion));

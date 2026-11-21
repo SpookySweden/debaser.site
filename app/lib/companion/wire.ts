@@ -39,7 +39,9 @@ export type CompanionReaction =
   // Catching something handed to it (a letter dropped on it).
   | 'catch'
   // Thrown hard into the edge of the screen and down again: seeing stars (`./throw.ts`).
-  | 'dizzy';
+  | 'dizzy'
+  // Hanging out with a friend's companion (`../character/friends.ts`, Luke 2026-11-21): a cheer with a note over its head.
+  | 'friend';
 
 export const COMPANION_REACTIONS: readonly CompanionReaction[] = [
   'reply',
@@ -59,6 +61,7 @@ export const COMPANION_REACTIONS: readonly CompanionReaction[] = [
   'spoke',
   'catch',
   'dizzy',
+  'friend',
 ];
 
 /**
@@ -80,6 +83,8 @@ export function reactionMark(kind: CompanionReaction | null): string | null {
       return '...';
     case 'dizzy':
       return '✶';
+    case 'friend':
+      return '♪';
     default:
       return null;
   }
@@ -121,6 +126,7 @@ const REACTION_MOTIONS: Record<CompanionReaction, MotionId> = {
   spoke: 'hop',
   catch: 'catch',
   dizzy: 'dizzy',
+  friend: 'cheer',
 };
 export function reactionMotion(kind: CompanionReaction | null): MotionId {
   return kind === null ? 'hop' : REACTION_MOTIONS[kind];

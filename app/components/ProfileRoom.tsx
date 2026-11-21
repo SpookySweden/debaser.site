@@ -13,6 +13,7 @@ import {
   subscribeToCompanionVisit,
   wholeIn,
 } from '../lib/companion/visit';
+import { FRIEND_REPLY_MS, friendAnswer, friendIn, friendLines, wantsAnswer } from '../lib/character/friends';
 import type { ForumThread } from '../lib/forum/types';
 import type { ProfileComment } from '../lib/profile/types';
 import { blip } from '../lib/speech/blip';
@@ -142,13 +143,27 @@ export default function ProfileRoom({
     return here;
   }, [drawOwner, visitorHere, viewerId, own, userId, displayName, user?.displayName, guests]);
 
-  // What each of them may say: only their own words, out of what this reader's page already holds.
+  // Friends here together (`../lib/character/friends.ts`; Luke, 2026-11-21): whose friend is in the room, by whose it is.
+  const friends = useMemo(() => {
+    const ids = people.map((person) => person.id);
+    const found: Record<string, string | null> = {};
+    for (const id of ids) found[id] = friendIn(id, ids);
+    return found;
+  }, [people]);
+  /** Where each figure stands, shared by the walkers so a friend can come and stand beside another. */
+  const [spots] = useState(() => new Map<string, number>());
+
+  // What each of them may say: only their own words, out of what this reader's page already holds; and, with a friend
+  // here, a few cheerful noises of its own for them (never words: see `friends.ts`).
   const lines = useMemo(() => {
     const owner = { id: userId, name: displayName };
     const all: Record<string, SpeechLine[]> = {};
-    for (const person of people) all[person.id] = linesFor({ owner, speakerId: person.id, present: people, comments, threads });
+    for (const person of people) {
+      const own = linesFor({ owner, speakerId: person.id, present: people, comments, threads });
+      all[person.id] = friends[person.id] ? [...own, ...friendLines(person.id)] : own;
+    }
     return all;
-  }, [people, userId, displayName, comments, threads]);
+  }, [people, userId, displayName, comments, threads, friends]);
   const talkers = people.filter((person) => (lines[person.id]?.length ?? 0) > 0);
   // A change in who can talk, or in how much they have to say, starts the wait again; a redraw of the board does not.
   const talkersKey = talkers.map((person) => `${person.id}:${lines[person.id].length}`).join('|');
@@ -176,8 +191,21 @@ export default function ProfileRoom({
   // The talk: one speaker at a time, at random, a few seconds apart (Luke: "randomly semi frequently"), only while the
   // room is on screen and the tab is in front. Nothing here runs under reduced motion.
   const [again, setAgain] = useState(0);
+  /** A friend about to answer a cheerful noise: whose character answers. */
+  const [answer, setAnswer] = useState<string | null>(null);
   useEffect(() => {
-    if (reduced || !inView || said !== null || talkersKey.length === 0) return;
+    if (reduced || !inView || said !== null || answer === null) return;
+    const wait = waitWithin(FRIEND_REPLY_MS, Math.random);
+    const timer = window.setTimeout(() => {
+      setAnswer(null);
+      if (!document.hidden && material.current.talkers.some((person) => person.id === answer)) {
+        setSaying({ speakerId: answer, line: friendAnswer(answer, Math.random) });
+      }
+    }, wait);
+    return () => window.clearTimeout(timer);
+  }, [reduced, inView, said, answer]);
+  useEffect(() => {
+    if (reduced || !inView || said !== null || answer !== null || talkersKey.length === 0) return;
     const wait = waitWithin(spokeOnce.current ? SPEECH_PACE.gapMs : SPEECH_PACE.firstMs, Math.random);
     const timer = window.setTimeout(() => {
       const able = material.current.talkers;
@@ -190,7 +218,7 @@ export default function ProfileRoom({
       if (sayNext(speaker.id)) spokeOnce.current = true;
     }, wait);
     return () => window.clearTimeout(timer);
-  }, [reduced, inView, said, talkersKey, again, sayNext]);
+  }, [reduced, inView, said, answer, talkersKey, again, sayNext]);
 
   /** Reduced motion: a press on a character shows its next line, whole; a second press puts it away. */
   const pressed = useCallback(
@@ -253,7 +281,11 @@ export default function ProfileRoom({
             at={at}
             within={width}
             whole={reduced}
-            onDone={() => setSaying(null)}
+            onDone={() => {
+              setSaying(null);
+              // A cheerful noise to a friend: the friend answers it a moment later (not under reduced motion).
+              if (wantsAnswer(said.line) && !reduced) setAnswer(friends[id] ?? null);
+            }}
             onLetter={(letter) => blip(voiceFor(id, heightOf(id)), letter)}
             onOpenHere={(commentId) => onOpenComment?.(commentId)}
           />
@@ -290,6 +322,8 @@ export default function ProfileRoom({
             person={userId}
             speech={speechOf(userId)}
             onPress={() => pressed(userId)}
+            friendId={friends[userId] ?? null}
+            spots={spots}
           />
         ) : null}
         {guests.map((guest) => (
@@ -304,6 +338,8 @@ export default function ProfileRoom({
             person={guest.person.id}
             speech={speechOf(guest.person.id)}
             onPress={() => pressed(guest.person.id)}
+            friendId={friends[guest.person.id] ?? null}
+            spots={spots}
           />
         ))}
         {visit.out && visit.inRoom ? (
@@ -318,6 +354,8 @@ export default function ProfileRoom({
             label="YOUR COMPANION"
             person={user?.id}
             onSpot={noteSpot}
+            friendId={viewerId === null ? null : (friends[viewerId] ?? null)}
+            spots={spots}
             {...(viewerId === null ? {} : { speech: speechOf(viewerId), onPress: () => pressed(viewerId) })}
           />
         ) : null}

@@ -104,6 +104,11 @@ bake.
   invite, a heart a recommendation, `...` speaking in a room's chat. `...` also shows while it types along.
 - **Hellos.** It waves at a companion new to its room (once each, at most every few seconds) and theirs waves at it. In a
   profile's ROOM it waves as it steps in and the room's own character waves back (`walker.ts` `greet`).
+- **Friends** (Luke, 2026-11-21; `app/lib/character/friends.ts`, and `docs/profile-characters.md`, "Friends"). With a
+  friend's companion in the room, your companion's wander mostly heads for the spot beside it (the brain's `friend`
+  input), stays to hang out once there, faces it, and every 5 to 12 seconds cheers at it with a `♪` over its head (the
+  `friend` reaction: sent, so everyone in the room sees it; older tabs play a hop). Each friend's own browser does this
+  for its own companion, so two friends both online drift together. The pointer, the music and joining in still win.
 - **Chat.** A line of stream chat hops the companion of whoever said it. Every browser has the line already, so each
   works it out for itself from `companionSpoke` (one line in `use-watch-room.ts`); nothing is sent.
 - It climbs to and from a profile's ROOM on its `climb` frames, and walks along the strip to get under it.
