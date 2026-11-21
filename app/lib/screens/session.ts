@@ -73,7 +73,7 @@ export type ScreenState = {
   /** Why there is no picture, when the connection has failed. */
   problem: string;
   fullscreen: boolean;
-  control: { mine: boolean; note: string; pointerLocked: boolean; keyboardLocked: boolean; canLockKeyboard: boolean };
+  control: { mine: boolean; note: string; pointerLocked: boolean; keyboardLocked: boolean; canLockKeyboard: boolean; escHolding: boolean };
   /** Whether this device is the PC itself (the engine was reached on its own machine). Null until the connection says. */
   thisPc: boolean | null;
   /** The PC's sound on this device: playing or not, and why not when it was wanted and could not be. */
@@ -101,7 +101,7 @@ const FIRST_STATE: ScreenState = {
   readout: 'No picture yet.',
   problem: '',
   fullscreen: false,
-  control: { mine: false, note: '', pointerLocked: false, keyboardLocked: false, canLockKeyboard: false },
+  control: { mine: false, note: '', pointerLocked: false, keyboardLocked: false, canLockKeyboard: false, escHolding: false },
   thisPc: null,
   sound: { on: false, note: '' },
   pad: { supported: false, name: '', odd: false, pcSays: null },
@@ -204,6 +204,7 @@ export class ScreenSession {
         mine: control?.mine ?? false,
         note: control?.note ?? '',
         pointerLocked: control?.pointerLocked ?? false,
+        escHolding: control?.escHolding ?? false,
         keyboardLocked: control?.keyboardLocked ?? false,
         canLockKeyboard: this.parts !== null && canLockKeyboard(),
       },

@@ -361,7 +361,7 @@ async function partClosed(browser) {
     assert.ok((await page.locator('[data-room-corner-keys] [data-visualiser-toggle]').count()) === 1, `the room's corner keys are there: ${keys.join(' ')}`);
     assert.equal(await page.locator('[data-screen-toggle]').count(), 0, 'no [ SCREEN ] key');
     assert.ok(!keys.some((text) => text.includes('SCREEN')), 'by its words either');
-    pass('a visitor of a server started without SCREENS_DEV_OPEN sees no [ SCREEN ] key in a room', `the engine was running all the while (asked directly, it said control is "${there.control}"); the room's corner keys read: ${keys.join(' ')}`);
+    pass('a visitor of a server started without SCREENS_DEV_OPEN sees no [ REMOTE ] key in a room', `the engine was running all the while (asked directly, it said control is "${there.control}"); the room's corner keys read: ${keys.join(' ')}`);
 
     const said = await page.evaluate(async () => {
       const host = await fetch('/api/screens/host', { cache: 'no-store' });
@@ -399,8 +399,8 @@ async function partOpen(browser) {
     context = first.context;
     page = first.page;
     await openRoom(page);
-    assert.equal(await page.locator('[data-screen-toggle]').count(), 0, 'with no engine running there is no [ SCREEN ] key, even here');
-    pass('with the engine not running, the room has no [ SCREEN ] key (the site says "not available")');
+    assert.equal(await page.locator('[data-screen-toggle]').count(), 0, 'with no engine running there is no [ REMOTE ] key, even here');
+    pass('with the engine not running, the room has no [ REMOTE ] key (the site says "not available")');
     // The room's queue window is opened once before the engine is started, so the dev server has built it (part h needs it at once).
     await page.locator('[data-dock-window="stream"] [data-watch-queue-key]').first().click();
     await page.waitForSelector('#stream-queue-search', { timeout: 120000 });
@@ -416,7 +416,7 @@ async function partOpen(browser) {
     // a. The key, and the picture.
     await toggle.waitFor({ timeout: 15000 });
     const keys = await cornerKeys(page);
-    assert.equal((await toggle.innerText()).trim(), '[ SCREEN ]', 'the key reads [ SCREEN ]');
+    assert.equal((await toggle.innerText()).trim(), '[ REMOTE ]', 'the key reads [ REMOTE ]');
     assert.equal(await toggle.locator('img, svg').count(), 0, 'words only: no picture on the key');
     assert.equal((await receiver(page)).connections, 0, 'nothing is connected before the key is pressed');
     await toggle.click();
@@ -430,7 +430,7 @@ async function partOpen(browser) {
     assert.equal(later.state, 'connected');
     const drawn = await page.locator('[data-room-screen]').getAttribute('data-screen-drawing');
     pass(
-      "the room shows [ SCREEN ] beside VIS and CANVAS; pressed, the PC's screen is decoded in the room's picture",
+      "the room shows [ REMOTE ] beside VIS and CANVAS; pressed, the PC's screen is decoded in the room's picture",
       `corner keys: ${keys.join(' ')}; the browser's own receiver: ${flowing.framesDecoded} frames decoded, then ${later.framesDecoded} a second later, ${later.frameWidth}x${later.frameHeight}, ${later.codec}, decoder ${later.decoder}; drawn ${String(drawn).toUpperCase()}`,
     );
 
@@ -751,6 +751,48 @@ async function partOpen(browser) {
       assert.equal(await page.evaluate(() => window.__escEarly), 1, 'the same listener hears Esc once control is let go');
       assert.equal((await engine.log()).entries.filter((entry) => entry.n > afterMark && entry.what === 'key').length, 0, 'and the engine does not');
       pass("Esc typed to the PC reaches the engine and closes nothing of the site's opened before control; let go, Esc closes the room's queue window again", `the engine would press: ${esc.map((entry) => `${entry.code} scan ${entry.scan} ${entry.down ? 'down' : 'up'}`).join(', ')}; the queue window stayed open; a whole-window Esc listener added before control heard 0, then 1 after control was let go`);
+    }
+
+    // i. The easier way out (Luke, 2026-11-21): the bar under the keys while controlling, its [ RELEASE ],
+    //    and holding Esc for a second. A quick Esc stays the PC's (part h).
+    {
+      await controlKey.click({ timeout: 5000 });
+      await page.waitForSelector('[data-screen-control-key="mine"]', { timeout: 5000 });
+      const bar = page.locator('[data-screen-control-bar]');
+      assert.equal(await bar.count(), 1, 'a bar under the keys while controlling');
+      const barSays = (await page.locator('[data-screen-control-bar-says]').innerText()).trim();
+      assert.ok(barSays.includes('HOLD ESC TO LET GO'), `the bar says how to let go: "${barSays}"`);
+      // Its own [ RELEASE ]. If something of the room's lies over it, say what, rather than time out.
+      const onTop = await page.evaluate(() => {
+        const key = document.querySelector('[data-screen-control-bar-release]');
+        const box = key.getBoundingClientRect();
+        const top = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+        return { box: [Math.round(box.left), Math.round(box.top), Math.round(box.width), Math.round(box.height)], mine: top === key || key.contains(top), top: top ? `${top.tagName.toLowerCase()}${top.id ? '#' + top.id : ''}.${String(top.className).slice(0, 80)}` : 'nothing' };
+      });
+      assert.ok(onTop.mine, `the bar's [ RELEASE ] can be pressed: at ${onTop.box.join(',')} the top thing is ${onTop.top}`);
+      await page.locator('[data-screen-control-bar-release]').click({ timeout: 5000 });
+      await page.waitForSelector('[data-screen-control-key="free"]', { timeout: 5000 });
+      assert.equal(await bar.count(), 0, 'and it goes when control is let go');
+      // Holding Esc.
+      await controlKey.click();
+      await page.waitForSelector('[data-screen-control-key="mine"]', { timeout: 5000 });
+      await page.locator('[data-room-screen] video, [data-room-screen] canvas').first().click({ position: { x: 5, y: 5 }, force: true }).catch(() => {});
+      await sleep(300);
+      const holdMark = (await engine.log()).everLogged;
+      await page.keyboard.down('Escape');
+      await sleep(300);
+      const holding = (await page.locator('[data-screen-control-bar-says]').innerText().catch(() => '')).trim();
+      await sleep(1100);
+      const stillMine = await controlKey.getAttribute('data-screen-control-key');
+      await page.keyboard.up('Escape');
+      await page.waitForSelector('[data-screen-control-key="free"]', { timeout: 3000 });
+      const heard = (await engine.log()).entries.filter((entry) => entry.n > holdMark && entry.what === 'key').map((entry) => `${entry.code} ${entry.down ? 'down' : 'up'}`);
+      const ended = (await engine.log()).entries.find((entry) => entry.n > holdMark && entry.what === 'ended');
+      assert.equal(holding, 'KEEP HOLDING ESC TO LET GO', `while Esc is held the bar says so: "${holding}"`);
+      assert.equal(stillMine, 'free', 'held for a second, control was let go before Esc came up');
+      assert.ok(ended, 'the engine heard control end');
+      assert.ok(heard.filter((line) => line === 'Escape down').length <= 1, `the PC saw at most one Esc press, not its repeats: ${heard.join(', ')}`);
+      pass('the way out is in sight: a bar under the keys with [ RELEASE ], and holding Esc for a second lets go', `the bar said "${barSays}"; its [ RELEASE ] let go; with Esc held it said "${holding}", and control was let go (engine: "ended: ${ended.why ?? ended.reason ?? 'yes'}"); the PC saw ${heard.join(', ') || 'no key'}`);
     }
 
     // d. Back to the room's ordinary picture, while holding control.

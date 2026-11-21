@@ -59,6 +59,9 @@ type KeyboardLock = { lock?: (keys?: string[]) => Promise<void>; unlock?: () => 
 const keyboardLock = (): KeyboardLock | undefined => (navigator as Navigator & { keyboard?: KeyboardLock }).keyboard;
 export const canLockKeyboard = (): boolean => typeof keyboardLock()?.lock === 'function';
 
+/** How long Esc is held on this device to let go of control. */
+export const LET_GO_HOLD_MS = 1000;
+
 /** The kinds of press the browser would answer itself (menus, back, forward, the room's own double press): held off while controlling. */
 const HELD_OFF = ['contextmenu', 'auxclick', 'mouseup', 'mousedown', 'click', 'dblclick'] as const;
 
@@ -69,8 +72,11 @@ export class ScreenControl {
   note = '';
   pointerLocked = false;
   keyboardLocked = false;
+  /** Esc is being held down on this device: held for LET_GO_HOLD_MS, control is let go (the room shows a line while it is). */
+  escHolding = false;
   /** Input messages sent in the last whole second. */
   sentRate = 0;
+  private escTimer = 0;
 
   private readonly heldKeys = new Set<string>();
   private readonly heldButtons = new Set<number>();
@@ -301,17 +307,47 @@ export class ScreenControl {
     event.preventDefault();
     event.stopImmediatePropagation();
     if (!event.code) return;
+    // The easy way out (Luke, 2026-11-21: "we need an easier way of ending control"): hold Esc for a second. A quick
+    // press is still an ordinary Esc for the PC; while it is held, its repeats are not sent, so the PC sees one press.
+    if (event.code === 'Escape') {
+      if (down && event.repeat) return;
+      if (down) this.startEscHold();
+      else this.stopEscHold();
+    }
     if (down) this.heldKeys.add(event.code);
     // A key let go that was pressed before the picture had the keyboard (the Enter that pressed [ CONTROL ]) is not the PC's.
     else if (!this.heldKeys.delete(event.code)) return;
     this.sendKeys(keyMessage(down, event.code));
   };
 
+  private startEscHold(): void {
+    this.stopEscHold();
+    this.escHolding = true;
+    this.links.onChange();
+    this.escTimer = window.setTimeout(() => {
+      this.escTimer = 0;
+      this.escHolding = false;
+      // The Esc going down already reached the PC; release() lets go of it there with everything else.
+      if (this.mine) this.release();
+      else this.links.onChange();
+    }, LET_GO_HOLD_MS);
+  }
+
+  private stopEscHold(): void {
+    if (this.escTimer) window.clearTimeout(this.escTimer);
+    this.escTimer = 0;
+    if (this.escHolding) {
+      this.escHolding = false;
+      this.links.onChange();
+    }
+  }
+
   /**
    * Lets go, on the PC, of everything this device is holding down (the tab lost focus or was hidden, or the picture
    * lost the keyboard: the "up" events would never arrive here, so the PC is told at once).
    */
   readonly allUp = () => {
+    this.stopEscHold();
     if (!this.mine) return;
     if (this.heldKeys.size > 0 || this.heldButtons.size > 0) this.sendKeys(allUpMessage());
     this.heldKeys.clear();

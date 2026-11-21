@@ -131,7 +131,7 @@ export default function RoomScreen({ roomId, audio }: { roomId: string; /** As t
         </pre>
       ) : null}
 
-      {/* Under the room's own corner keys (VIS, CANVAS, SCREEN). They stay where they are whether the panel is open or not; it opens under them. */}
+      {/* Under the room's own corner keys (VIS, CANVAS, REMOTE). They stay where they are whether the panel is open or not; it opens under them. */}
       <div className="absolute right-1 top-8 z-30 flex flex-col items-end gap-1 max-sm:top-14" data-screen-keys>
         <div className="flex items-center gap-1">
           {view.problem ? (
@@ -163,6 +163,17 @@ export default function RoomScreen({ roomId, audio }: { roomId: string; /** As t
             </button>
           </span>
         </div>
+        {/* While this device controls the PC, the way out is always in sight (Luke, 2026-11-21: "we need an easier way of
+            ending control"): this bar with its own [ RELEASE ], and holding Esc for a second lets go too. It sits here,
+            under the keys, because the top left of a narrow room picture belongs to the room's own corner keys. */}
+        {control.mine ? (
+          <div className="flex max-w-full flex-wrap items-center justify-end gap-1 bg-ink-plate px-1 font-mono text-label text-ink-bar" role="status" data-screen-control-bar>
+            <span data-screen-control-bar-says>{controlBarSays(control.escHolding, wishes.mouse, control.pointerLocked)}</span>
+            <button type="button" className={PLATE_ON_BLACK} onClick={() => session.toggleControl()} data-screen-control-bar-release>
+              [ RELEASE ]
+            </button>
+          </div>
+        ) : null}
         {controlAllowed && controlSays ? (
           <span className="w-fit bg-bubble-pale px-1 font-bold text-ink-bar" role="status" data-screen-control-says>
             {controlSays}
@@ -353,15 +364,18 @@ export default function RoomScreen({ roomId, audio }: { roomId: string; /** As t
                 <div className="flex flex-wrap items-start gap-1" role="group" aria-label="Mouse">
                   {MICE.map((mouse) => (
                     <button key={mouse} type="button" className={key(wishes.mouse === mouse)} aria-pressed={wishes.mouse === mouse} onClick={() => session.setMouse(mouse)} data-screen-mouse={mouse}>
-                      {`[ ${mouse.toUpperCase()} ]`}
+                      {`[ ${MOUSE_NAMES[mouse] ?? mouse.toUpperCase()} ]`}
                     </button>
                   ))}
                 </div>
-                <Why topic="MOUSE">
-                  POINTER: this device&apos;s own pointer is the pointer, drawn here with no delay, in the shape the PC&apos;s own pointer has at that moment (an arrow, a text bar, a hand); it hides when the PC hides its pointer. The stream itself carries no pointer. GAME: the pointer is captured and its raw movement is sent, for games that turn the view with the mouse.
-                </Why>
+                {/* In plain sight, not behind [ ? ]: Luke found the old names confusing. */}
+                <p data-screen-mouse-says>
+                  POINT AND CLICK: the PC&apos;s pointer goes where yours is. For the desktop and most games.
+                  <br />
+                  CAPTURED, FOR 3D GAMES: your pointer vanishes and every movement turns the view, like playing a first-person game at the PC itself. Esc gives your pointer back.
+                </p>
                 {view.pointerWhy ? <Fault>{`A PLAIN ARROW IS SHOWN: ${view.pointerWhy}.`}</Fault> : null}
-                {control.mine && wishes.mouse === 'game' && !control.pointerLocked ? <Fault>The pointer is not captured: click the picture to capture it (Esc gives it back).</Fault> : null}
+                {control.mine && wishes.mouse === 'game' && !control.pointerLocked ? <Fault>CLICK THE PICTURE TO CAPTURE THE MOUSE.</Fault> : null}
                 <p>{keysSay(control.keyboardLocked, control.canLockKeyboard)}</p>
                 <Sub>CONTROLLER</Sub>
                 <p className="whitespace-pre-wrap" data-screen-pad>
@@ -372,8 +386,8 @@ export default function RoomScreen({ roomId, audio }: { roomId: string; /** As t
                   vibration comes back.
                 </Why>
                 <p>
-                  Keys go to the PC while the picture is the last thing pressed; press anywhere else on the site to type there. To let go: [ RELEASE ], or Ctrl+Alt+Shift+Q on this device (that is never sent to the PC). On the PC itself,
-                  Ctrl+Alt+Shift+End stops it. If this tab loses focus, every key held is let go at once.
+                  To let go: hold Esc for a second, or press [ RELEASE ] (in the bar under the keys, or here). A quick press of Esc is still an ordinary Esc for the PC. Ctrl+Alt+Shift+Q on this device lets go too, and on the PC itself
+                  Ctrl+Alt+Shift+End stops it. Keys go to the PC while the picture is the last thing pressed; press anywhere else on the site to type there. If this tab loses focus, every key held is let go at once.
                 </p>
               </>
             ) : null}
@@ -393,6 +407,20 @@ export default function RoomScreen({ roomId, audio }: { roomId: string; /** As t
 }
 
 /** One section of the panel: its title line, then what belongs to it. */
+/** The line in the bar under the keys while this device controls the PC. */
+function controlBarSays(escHolding: boolean, mouse: string, pointerLocked: boolean): string {
+  if (escHolding) return 'KEEP HOLDING ESC TO LET GO';
+  if (mouse === 'game') {
+    return pointerLocked
+      ? 'CONTROLLING YOUR PC :: MOUSE CAPTURED, ESC GIVES IT BACK :: HOLD ESC TO LET GO'
+      : 'CONTROLLING YOUR PC :: CLICK THE PICTURE TO CAPTURE THE MOUSE :: HOLD ESC TO LET GO';
+  }
+  return 'CONTROLLING YOUR PC :: HOLD ESC TO LET GO';
+}
+
+/** The two mouse choices, named for what they are for (Luke found "GAME" confusing, 2026-11-21). Stored names unchanged. */
+const MOUSE_NAMES: Record<string, string> = { pointer: 'POINT AND CLICK', game: 'CAPTURED, FOR 3D GAMES' };
+
 function Part({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="mt-2 flex flex-col gap-1 border-t border-ink-bar pt-2">
