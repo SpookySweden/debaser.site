@@ -28,8 +28,8 @@
  * For proving it without touching the real host: --host <folder> points it at a pretend host folder, and
  * --no-start / --no-restart skip steps 4 and 5.
  */
-const { execFileSync, spawn, spawnSync } = require('node:child_process');
-const { copyFileSync, existsSync, mkdirSync, openSync, readFileSync, writeFileSync } = require('node:fs');
+const { execFileSync, spawnSync } = require('node:child_process');
+const { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } = require('node:fs');
 const { join, resolve } = require('node:path');
 
 const args = process.argv.slice(2);
@@ -107,12 +107,27 @@ function copyEngine() {
   }
 }
 
+/**
+ * Starts the engine through Windows itself (its process-creating service), not as a child of whatever ran this
+ * script. A child dies with its parent: the engine started the plain way on 2026-11-21 was gone a few hours later,
+ * when the session that had started it ended. Started this way it belongs to nobody and runs until it is stopped or
+ * the PC restarts (when keep-running starts it from the list).
+ */
 function startEngine(lan) {
   if (!existsSync(LOGS)) mkdirSync(LOGS, { recursive: true });
-  const out = openSync(join(LOGS, 'engine.log'), 'a');
-  const child = spawn(ENGINE, engineArgs(lan), { cwd: ENGINE_HOME, detached: true, windowsHide: true, stdio: ['ignore', out, out] });
-  child.unref();
-  return child.pid;
+  const log = join(LOGS, 'engine.log');
+  const line = `cmd.exe /d /c ""${ENGINE}" ${engineArgs(lan).join(' ')} >> "${log}" 2>&1"`;
+  const quoted = (text) => `'${text.replace(/'/g, "''")}'`;
+  const made = spawnSync('powershell', ['-NoProfile', '-Command',
+    `(Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = ${quoted(line)}; CurrentDirectory = ${quoted(ENGINE_HOME)} }).ReturnValue`],
+  { encoding: 'utf8', windowsHide: true });
+  if ((made.stdout || '').trim() !== '0') return `not started: Windows answered "${(made.stdout || made.stderr || '').trim()}"`;
+  for (let tries = 0; tries < 20; tries += 1) {
+    const running = engineProcesses();
+    if (running.length > 0) return running[0];
+    spawnSync('powershell', ['-NoProfile', '-Command', 'Start-Sleep -Milliseconds 300'], { windowsHide: true });
+  }
+  return 'asked of Windows, but not seen running after six seconds: see logs\\engine.log';
 }
 
 const engineArgs = (lan) => (lan ? ['serve', '--allow-control', '--lan'] : ['serve', '--allow-control']);
