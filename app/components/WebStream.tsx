@@ -1913,6 +1913,9 @@ export function WebRow({
             data: 'play',
           }
         : null;
+  // The picture's press (ROOMBARS): PLAY's, for a video or a sound that is not playing yet; a playing one stays as it is (the
+  // picture never closes it), and a book, a picture or a reading row keeps a plain picture.
+  const thumbPlay = floats && !playing && playHalf !== null && playHalf.press !== undefined && playHalf.disabled !== true && playHalf.draw === undefined ? playHalf.press : null;
   // GRID (Luke, 2026-11-17: "fitting the < . > on the end of the play and queue buttons"): the arrow is the last part of the
   // PLAY / QUEUE key, so a card about 160px wide keeps them on one line. Other views keep the arrow as its own key.
   const keyHoldsArrow: { label: string; first: Half; second: Half | null } | null =
@@ -1995,6 +1998,20 @@ export function WebRow({
               fallback={<span aria-hidden="true" className="flex h-full w-full items-center justify-center text-label font-bold text-ink">NO IMAGE</span>}
             />
           )}
+          {/* ROOMBARS (Luke, 2026-11-21: "Allowing clicking on the thumbnail in media tab to auto open the video in the room"): a
+              press on the picture is PLAY, into your room as PLAY goes. Under the `i`, which keeps its own press. A pointer's way
+              only: the PLAY key beside it is the keyboard's and a screen reader's, so this one is not a second stop for them. */}
+          {thumbPlay !== null ? (
+            <button
+              type="button"
+              tabIndex={-1}
+              aria-hidden="true"
+              onClick={thumbPlay}
+              title="Play"
+              className="absolute inset-0 cursor-pointer"
+              data-thumb-play
+            />
+          ) : null}
           <ThumbInfo ref={infoKey} label={`Details of "${item.title}"`} open={detailsOpen} onPress={() => setDetailsOpen(true)} />
         </span>
 

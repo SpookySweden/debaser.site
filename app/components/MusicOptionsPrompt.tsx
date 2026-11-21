@@ -1,6 +1,8 @@
 'use client';
 
 import { ACCENT_COLOUR, PLATE, PLATE_LARGE } from '../lib/ui/controls';
+import { setKeysInPicture, useKeysInPicture } from '../lib/watch/keys-in-picture';
+import { useOptionalAuth } from './AuthProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import PopoutWindow from './PopoutWindow';
 
@@ -14,6 +16,8 @@ import PopoutWindow from './PopoutWindow';
  */
 export default function MusicOptionsPrompt({ onClose }: { onClose: () => void }) {
   const player = useMusicPlayer();
+  const user = useOptionalAuth()?.user ?? null;
+  const keysInPicture = useKeysInPicture(user?.id ?? null);
 
   return (
     <PopoutWindow
@@ -41,6 +45,19 @@ export default function MusicOptionsPrompt({ onClose }: { onClose: () => void })
 
         <button type="button" onClick={() => player.setPlayByDefault(!player.playByDefault)} className={PLATE_LARGE}>
           {player.playByDefault ? '[ AUTOPLAY PROFILES: ON ]' : '[ AUTOPLAY PROFILES: OFF ]'}
+        </button>
+
+        {/* ROOMBARS (Luke, 2026-11-21): a room's playback keys also along the foot of its picture (`keys-in-picture.ts`). */}
+        <button
+          type="button"
+          onClick={() => setKeysInPicture(!keysInPicture)}
+          aria-pressed={keysInPicture}
+          aria-label="Keys in the picture: play, skip, back, seek, sound, full screen and picture in picture also along the foot of a room's picture"
+          title="Also along the foot of a room's picture"
+          className={PLATE_LARGE}
+          data-keys-in-picture-toggle={keysInPicture ? 'on' : 'off'}
+        >
+          {keysInPicture ? '[ KEYS IN THE PICTURE: ON ]' : '[ KEYS IN THE PICTURE: OFF ]'}
         </button>
 
         <div className="flex flex-wrap items-center gap-2 border-t border-ink pt-2">

@@ -78,6 +78,11 @@ export const ROOM_BAR_AWAKE_MS = 3 * 1000;
 export const ROOM_BAR_OVER = '[:fullscreen_&]:absolute [:fullscreen_&]:inset-x-0 [:fullscreen_&]:bottom-0 [:fullscreen_&]:z-30';
 export const ROOM_BAR_ASLEEP = 'opacity-0 *:pointer-events-none';
 /**
+ * `[ KEYS IN THE PICTURE ]` (ROOMBARS, Luke 2026-11-21): the room bar's look, lying along the foot of the picture. ROOM_BAR's own
+ * `relative` is left out, as it would outrank `absolute` here.
+ */
+export const ROOM_PICTURE_KEYS = 'absolute inset-x-0 bottom-0 z-30 flex flex-wrap items-center gap-x-2 gap-y-1 bg-ink-plate px-2 py-1 text-label text-sun max-sm:gap-x-1';
+/**
  * No frame round whatever is fullscreen: a room look's lines ran round the whole screen (Luke, 2026-11-19: "the green outline
  * of the entire screen its a bit jarring" - JUNGLE's Emerald). `.frame` draws its outline as a 2px border holding four
  * background stripes, so both go. `[&:fullscreen]`, the element itself: this Tailwind has no `fullscreen:` variant (a
