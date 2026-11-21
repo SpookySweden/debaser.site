@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo } from 'react';
+import { openDesk } from '../lib/desk/desk-window';
 import { openArcade } from '../lib/games/arcade-window';
 import {
   notificationLabel,
@@ -329,6 +330,20 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
         >
           [ BOARD ]
         </Link>
+        {/* The DESK from where the notifications are (Luke, 2026-11-21): what is waiting, gathered. Signed in only. */}
+        {userId === null ? null : (
+          <button
+            type="button"
+            onClick={() => {
+              openDesk();
+              onClose();
+            }}
+            className="cursor-pointer key px-1 py-1 text-label font-bold"
+            data-bell-desk
+          >
+            [ ▭ DESK ]
+          </button>
+        )}
       </div>
     </div>
   );

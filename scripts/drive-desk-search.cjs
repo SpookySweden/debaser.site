@@ -28,7 +28,7 @@ const check = (ok, what, detail = '') => {
 const ME = { id: 'desk-me', name: 'DESKREADER' };
 const OTHER = { id: 'desk-other', name: 'ZEPHYRFRIEND' };
 
-function seed({ me, other, signedIn }) {
+function seed({ me, other, signedIn, accountDeskOff = false }) {
   if (window.localStorage.getItem('ds-seeded') !== null) return;
   window.localStorage.setItem('ds-seeded', '1');
   const now = Date.now();
@@ -37,6 +37,8 @@ function seed({ me, other, signedIn }) {
   if (signedIn) {
     const user = (person) => ({ id: person.id, email: `${person.id}@debaser.site`, displayName: person.name, createdAt: at(1000), salt: '', secretHash: '', hidden: true });
     window.localStorage.setItem('debaser.auth.mock.v1', JSON.stringify({ users: [user(me), user(other)], sessionUserId: me.id, bannedIds: [] }));
+    // The account's settings row (forum v3 part 2) with AUTO POP-UP off, as another computer would have saved it.
+    if (accountDeskOff) window.localStorage.setItem('debaser.user-settings.mock.v1', JSON.stringify({ [me.id]: { settings: { keys: { deskAuto: '0' } } } }));
     const profile = (person) => ({ userId: person.id, displayName: person.name, bio: '', tags: [], comments: [], updatedAt: at(1), privacySeen: true });
     window.localStorage.setItem('debaser.profile.mock.v1', JSON.stringify({ version: 1, profiles: { [me.id]: profile(me), [other.id]: profile(other) } }));
     window.localStorage.setItem('debaser.notifications.mock.v1', JSON.stringify({ version: 1, items: [
@@ -58,14 +60,14 @@ function seed({ me, other, signedIn }) {
   window.localStorage.setItem('debaser.watch.v1', JSON.stringify({ rooms: [room], queue: [], messages: [], crowns: [], members: [], passwords: {}, attempts: [], privateRows: [] }));
 }
 
-async function newContext(browser, signedIn) {
+async function newContext(browser, signedIn, accountDeskOff = false) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   let live = 0;
-  await context.route(/supabase\.(co|in)\/|debaser-site\.vercel\.app/, (route) => {
+  await context.route(/supabase\.(co|in)\/|debaser-site\.vercel\.app|api\.debaser\.site/, (route) => {
     live += 1;
     return route.abort();
   });
-  await context.addInitScript(seed, { me: ME, other: OTHER, signedIn });
+  await context.addInitScript(seed, { me: ME, other: OTHER, signedIn, accountDeskOff });
   return { context, liveHits: () => live };
 }
 
@@ -74,6 +76,13 @@ async function forumReady(page) {
   await sleep(2500);
 }
 const desk = (page) => page.locator('[data-desk]');
+const deskDay = 'debaser.desk.opened-day.v1';
+/** Yesterday as the last day the desk opened by itself, so the next visit is the first of a new day. */
+const newDay = (page) => page.evaluate((key) => window.localStorage.setItem(key, '2000-01-01'), deskDay);
+const closeDeskWindow = async (page) => {
+  await page.locator('[data-dock-window="desk"] [aria-label="Close DESK"]').click({ timeout: 5000 });
+  await sleep(400);
+};
 
 (async () => {
   const browser = await chromium.launch({ executablePath: findChrome(), headless: true });
@@ -82,6 +91,8 @@ const desk = (page) => page.locator('[data-desk]');
     console.log('1. YOUR DESK (D1A+, D2A, D3A)');
     let { context, liveHits } = await newContext(browser, true);
     let page = await context.newPage();
+    // A stop inside part 1 is counted and the account part still runs.
+    try {
     page.on('pageerror', (error) => console.log(`  ..  page error: ${error.message.slice(0, 160)}`));
     await page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded' });
     await forumReady(page);
@@ -89,27 +100,96 @@ const desk = (page) => page.locator('[data-desk]');
     const sections = await page.locator('[data-desk-section]').evaluateAll((nodes) => nodes.map((n) => n.getAttribute('data-desk-section')));
     check(sections.includes('replies'), 'REPLIES TO YOU is there (a reply is waiting)', sections.join(','));
     check(sections.includes('live'), 'LIVE NOW is there (a room is on)', sections.join(','));
-    const replyText = await page.locator('[data-desk-section="replies"]').textContent();
-    check(/ZEPHYRFRIEND REPLIED "Panel thumbnails"/.test(replyText) && /1 NEW/.test(replyText), 'it says who replied, where, and that it is new', replyText.replace(/\s+/g, ' ').slice(0, 120));
+    const replyText = (await page.locator('[data-desk-section="replies"]').textContent()).replace(/\s+/g, ' ');
+    check(/ZEPHYRFRIEND REPLIED/.test(replyText) && /Panel thumbnails/.test(replyText) && /1 NEW/.test(replyText), 'it says who replied, where, and that it is new', replyText.slice(0, 120));
     check(/IS STREAMING/.test(await page.locator('[data-desk-section="live"]').textContent()), 'LIVE NOW names the stream');
     check(!sections.includes('reading'), 'an empty section is not drawn (no book started)', sections.join(','));
+    // Calmer (Luke, 2026-11-21): beside the side panel, not over it, small, and never over + NEW POST.
+    const deskBox = await page.locator('[data-dock-window="desk"]').boundingBox();
+    const panelBox = await page.locator('[data-side-panel]').boundingBox().catch(() => null);
+    const postBox = await page.getByRole('button', { name: '+ NEW POST' }).first().boundingBox();
+    check(deskBox !== null && panelBox !== null && deskBox.x + deskBox.width <= panelBox.x + 1, 'the DESK sits beside the side panel, not over it', JSON.stringify({ deskBox, panelBox }));
+    check(deskBox !== null && deskBox.width <= 420, 'and it is small (no wider than 420)', String(deskBox?.width));
+    const overPost = deskBox !== null && postBox !== null && deskBox.x < postBox.x + postBox.width && deskBox.x + deskBox.width > postBox.x && deskBox.y < postBox.y + postBox.height && deskBox.y + deskBox.height > postBox.y;
+    check(!overPost, 'and it leaves + NEW POST in sight');
+    check((await page.locator('[data-dock-window="desk"] [data-desk-auto="on"]').count()) === 1, 'its title line carries AUTO POP-UP, on by default');
     await page.screenshot({ path: join(OUT, 'desk.png') });
-    await page.locator('[data-desk-section="replies"] > summary').click();
+    await page.locator('[data-desk-section="replies"] [aria-controls]').click({ timeout: 5000 });
     await sleep(300);
-    await page.locator('.dock-window [aria-label*="Close"], [role="dialog"] button:has-text("×")').first().click().catch(() => null);
-    await page.keyboard.press('Escape');
-    await sleep(300);
+    await closeDeskWindow(page);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await forumReady(page);
     check((await desk(page).count()) === 0, 'a second visit the same day does not open it again');
-    await page.locator('[data-desk-key]').click();
+    check((await page.locator('nav [data-desk-key]').count()) === 0, 'the top bar has no DESK key now');
+    check((await page.locator('[data-side-panel] [data-desk-key]').count()) === 1, 'the side panel has it, on the shelf above the bell');
+    await page.locator('[data-side-panel] [data-desk-key]').click({ timeout: 5000 });
     await sleep(800);
-    check((await desk(page).count()) === 1, 'the top bar\'s DESK key opens it');
-    check((await page.locator('[data-desk-section="replies"][open]').count()) === 0, 'and the folded section stays folded');
-    await page.locator('[data-desk-section="live"] a').first().click();
+    check((await desk(page).count()) === 1, 'the DESK key by the bell opens it');
+    check((await page.locator('[data-desk-section="replies"]:not([data-folded])').count()) === 0, 'and the folded section stays folded');
+    await page.locator('[data-desk-section="replies"] [aria-controls]').click({ timeout: 5000 });
+    await closeDeskWindow(page);
+    await page.locator('[data-side-panel] button[aria-label^="Notifications:"]').click({ timeout: 5000 });
+    await sleep(400);
+    await page.locator('[data-bell-desk]').click({ timeout: 5000 });
+    await sleep(800);
+    check((await desk(page).count()) === 1, "the bell's menu opens it too ([ ▭ DESK ])");
+    // Shut from the shelf's key, it spends only `?desk=1`: the board keeps its own address (code-reviewer, 2026-11-21).
+    await closeDeskWindow(page);
+    await page.goto(`${BASE}/forum?view=gallery&desk=1`, { waitUntil: 'domcontentloaded' });
+    await forumReady(page);
+    await page.locator('[data-side-panel] [data-desk-key]').click({ timeout: 5000 });
+    await sleep(1500);
+    const kept = new URL(page.url()).searchParams;
+    check((await desk(page).count()) === 0 && kept.get('view') === 'gallery' && kept.get('desk') === null, "shut from the shelf, it drops ?desk=1 and keeps the board's view", page.url());
+    await page.locator('[data-side-panel] [data-desk-key]').click({ timeout: 5000 });
+    await sleep(800);
+
+    // AUTO POP-UP off: the next day's first visit does not open it, and the choice goes to the account's settings.
+    await page.locator('[data-dock-window="desk"] [data-desk-auto]').click({ timeout: 5000 });
+    await sleep(1800);
+    check((await page.locator('[data-desk-auto="off"]').count()) === 1, 'AUTO POP-UP turns off');
+    const saved = await page.evaluate(() => JSON.parse(window.localStorage.getItem('debaser.user-settings.mock.v1') ?? '{}')['desk-me']?.settings?.keys?.deskAuto ?? null);
+    check(saved === '0', "and it is saved with the account's settings", String(saved));
+    await closeDeskWindow(page);
+    await newDay(page);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await forumReady(page);
+    check((await desk(page).count()) === 0, 'AUTO POP-UP off: the first visit of a new day does not open it');
+    await page.locator('[data-side-panel] [data-desk-key]').click({ timeout: 5000 });
+    await sleep(800);
+    check((await desk(page).count()) === 1, 'but its key still opens it');
+    await page.locator('[data-dock-window="desk"] [data-desk-auto]').click({ timeout: 5000 });
+    await sleep(300);
+    await closeDeskWindow(page);
+    await newDay(page);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await forumReady(page);
+    check((await desk(page).count()) === 1, 'AUTO POP-UP back on: the next new day opens it again');
+    await page.locator('[data-desk-section="live"] a').first().click({ timeout: 5000 });
     await sleep(1500);
     check((await desk(page).count()) === 0, 'pressing a line goes there and closes the desk');
-    check(new URL(page.url()).searchParams.get('watch') === 'room-live', 'LIVE NOW\'s line joins the room', page.url());
+    check(new URL(page.url()).searchParams.get('watch') === 'room-live', "LIVE NOW's line joins the room", page.url());
+    } catch (error) {
+      failed += 1;
+      console.log(`  FAIL part 1 stopped: ${error.message.split('\n')[0]}`);
+    }
+    liveTotal += liveHits();
+    await context.close();
+
+    console.log('1b. AUTO POP-UP follows the account');
+    ({ context, liveHits } = await newContext(browser, true, true));
+    page = await context.newPage();
+    await page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded' });
+    await forumReady(page);
+    check((await desk(page).count()) === 0, "a browser that never had the desk: the account's AUTO POP-UP off holds, nothing opens by itself");
+    await page.locator('[data-side-panel] [data-desk-key]').click({ timeout: 5000 }).catch(() => null);
+    await sleep(800);
+    check((await page.locator('[data-desk-auto="off"]').count()) === 1, 'and its switch reads OFF here too');
+    liveTotal += liveHits();
+    await context.close();
+    ({ context, liveHits } = await newContext(browser, true));
+    page = await context.newPage();
+    page.on('pageerror', (error) => console.log(`  ..  page error: ${error.message.slice(0, 160)}`));
 
     console.log('2. ONE SEARCH BOX (S1B, S2A)');
     await page.goto(`${BASE}/forum?view=gallery`, { waitUntil: 'domcontentloaded' });
