@@ -1,7 +1,7 @@
 /*
  * SCREENS in the site (SPEC-screens.md, phase 3, first slice): the owner's PC screen in his own room. Offline: the
  * only server it talks to is a pretend engine it starts itself on 127.0.0.1.
- *   npx tsc app/api/screens/host/route.ts app/api/screens/offer/route.ts app/api/screens/settings/route.ts app/lib/screens/wishes.ts app/lib/screens/wire.ts app/lib/watch/canvas.ts node_modules/next/types/global.d.ts --outDir Temp/out-screens --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop --moduleResolution node
+ *   npx tsc app/api/screens/host/route.ts app/api/screens/offer/route.ts app/api/screens/settings/route.ts app/lib/screens/wishes.ts app/lib/screens/wire.ts app/lib/screens/key-gate.ts app/components/ScreenKeyGate.tsx app/lib/watch/canvas.ts node_modules/next/types/global.d.ts --outDir Temp/out-screens --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop --moduleResolution node --jsx react-jsx
  *   node Temp/check-screens.cjs
  *
  * - WHERE THE ENGINE IS: `SCREENS_ENGINE_URL` is taken only when it is a plain http address on this PC itself; anything
@@ -19,6 +19,11 @@
  *   what the PC is really sending.
  * - CONTROL'S MESSAGES byte for byte as engine/src/control.rs writes them down, and where a pointer on the page is on
  *   the picture.
+ * - SOUND, THE CONTROLLER AND THE PC'S POINTER (added with the engine's): the two new messages to the PC, the
+ *   controller's whole state packed with the right button bits and stick signs, a pointer shape read in each of its
+ *   three ways and scaled to the picture, sound offered only away from the PC itself, and the words for each.
+ * - THE KEYBOARD'S FIRST LISTENER: one listener, there from the start, that does nothing until CONTROL takes it.
+ * - THE DRIVE'S MARK (`drive: true`) is only ever said by a server opened for the local drive, never a production one.
  * - THE ROOM: the screen is a choice that stays whatever the room goes on to play.
  * - THE WALL: no browser file imports the server's file, and the two settings are named nowhere else.
  * The picture, the panel and CONTROL in a real room: scripts/drive-screens.cjs.
@@ -45,6 +50,7 @@ const OUT = path.join(__dirname, 'out-screens');
 const server = require(path.join(OUT, 'lib/screens/host-server.js'));
 const wishes = require(path.join(OUT, 'lib/screens/wishes.js'));
 const wire = require(path.join(OUT, 'lib/screens/wire.js'));
+const gate = require(path.join(OUT, 'lib/screens/key-gate.js'));
 const canvas = require(path.join(OUT, 'lib/watch/canvas.js'));
 const hostRoute = require(path.join(OUT, 'api/screens/host/route.js'));
 const offerRoute = require(path.join(OUT, 'api/screens/offer/route.js'));
@@ -310,7 +316,7 @@ async function main() {
 
     set({ NODE_ENV: 'development', NEXT_PUBLIC_AUTH_BACKEND: 'mock', SCREENS_DEV_OPEN: '1', SCREENS_ENGINE_URL: engineHere });
     const open = await read(await hostRoute.GET(ask('/api/screens/host')));
-    same(JSON.parse(open.text), { available: true, settings: ENGINE_SAYS }, 'a dev server opened for the drive: the real route reaches the pretend engine');
+    same(JSON.parse(open.text), { available: true, settings: ENGINE_SAYS, drive: true }, 'a dev server opened for the drive: the real route reaches the pretend engine, and says it is the drive\'s (updated on purpose: SOUND needs the drive to stand in for a device that is not the PC)');
     same(reached, 1, 'once');
 
     set({ NODE_ENV: 'production', NEXT_PUBLIC_AUTH_BACKEND: 'mock', SCREENS_DEV_OPEN: '1', SCREENS_ENGINE_URL: engineHere });
@@ -337,19 +343,19 @@ async function main() {
   /* ---------------------------------------------------------------- the settings model */
   same(wishes.wishesFrom(null), wishes.DEFAULT_WISHES, 'nothing remembered: the defaults');
   same(wishes.wishesFrom('x'), wishes.DEFAULT_WISHES, 'rubbish remembered: the defaults');
-  same(wishes.DEFAULT_WISHES, { match: true, shape: '16:9', lines: 1080, fps: 'auto', bitrateKbps: 20000, drawing: 'fast', upscaling: 'smooth', numbers: true, mouse: 'pointer' }, "the defaults are the engine page's");
+  same(wishes.DEFAULT_WISHES, { match: false, shape: 'native', lines: 1080, fps: 'auto', bitrateKbps: 20000, drawing: 'fast', upscaling: 'smooth', numbers: true, mouse: 'pointer', sound: false, volume: 1 }, "the defaults are the engine page's");
   same(
-    wishes.wishesFrom({ match: 'yes', shape: 'cut', lines: 900, fps: 75, bitrateKbps: 12, drawing: 'quick', upscaling: 'ai', numbers: 0, mouse: 'pen', extra: '<script>' }),
+    wishes.wishesFrom({ match: 'yes', shape: 'cut', lines: 900, fps: 75, bitrateKbps: 12, drawing: 'quick', upscaling: 'ai', numbers: 0, mouse: 'pen', sound: 'yes', volume: 7, extra: '<script>' }),
     wishes.DEFAULT_WISHES,
     'each wish is taken only when it is one of the choices',
   );
   same(
-    wishes.wishesFrom({ match: false, shape: '21:9', lines: 'native', fps: 120, bitrateKbps: 30500.4, drawing: 'normal', upscaling: 'sharpened', numbers: false, mouse: 'game' }),
-    { match: false, shape: '21:9', lines: 'native', fps: 120, bitrateKbps: 30500, drawing: 'normal', upscaling: 'sharpened', numbers: false, mouse: 'game' },
+    wishes.wishesFrom({ match: false, shape: '21:9', lines: 'native', fps: 120, bitrateKbps: 30500.4, drawing: 'normal', upscaling: 'sharpened', numbers: false, mouse: 'game', sound: true, volume: 0.4 }),
+    { match: false, shape: '21:9', lines: 'native', fps: 120, bitrateKbps: 30500, drawing: 'normal', upscaling: 'sharpened', numbers: false, mouse: 'game', sound: true, volume: 0.4 },
     'and kept when it is',
   );
   const here = { viewWidth: 1920, viewHeight: 1200 };
-  same(wishes.wishesForThePc(wishes.DEFAULT_WISHES), { shape: 'match', lines: 1080, fps: 'auto', bitrateKbps: 20000 }, 'what is asked of the PC from the defaults');
+  same(wishes.wishesForThePc(wishes.DEFAULT_WISHES), { shape: 'native', lines: 1080, fps: 'auto', bitrateKbps: 20000 }, 'what is asked of the PC from the defaults');
   same(wishes.wishesForThePc({ ...wishes.DEFAULT_WISHES, match: false, shape: '4:3' }).shape, '4:3', 'with MATCH off, the shape chosen by hand');
   same(wishes.requestFor({ shape: 'match', fps: 'auto' }, here, 144), { shape: 'match', fps: 'auto', viewWidth: 1920, viewHeight: 1200, viewHz: 144 }, "MATCH goes with this screen's size and AUTO with its measured rate");
   same(wishes.requestFor({ fps: 'auto' }, here, null), { fps: 'auto', viewHz: 60 }, 'AUTO before the rate is measured: 60');
@@ -381,7 +387,7 @@ async function main() {
   same(wishes.RATES.filter((rate) => wishes.rateOffered(rate, null)), ['auto', 30, 60, 120, 180], 'before the PC has said anything, everything is offered');
   same(wishes.bitrateMaxMbit(host), 12, "the slider ends at the PC's own limit");
   same(wishes.askedNow(host, wishes.DEFAULT_WISHES).shape, '16:9', 'the panel shows what the PC says is asked');
-  same(wishes.askedNow(null, wishes.DEFAULT_WISHES).shape, 'match', 'and what this device remembers until it has said anything');
+  same(wishes.askedNow(null, wishes.DEFAULT_WISHES).shape, 'native', 'and what this device remembers until it has said anything');
   same(
     wishes.reallySending(host),
     "REALLY SENDING: 1280x720, up to 60 frames a second, 20 Mbit/s, H.264\nThe middle 2560x1440 of the PC's 3440x1440 screen, made smaller on the PC.\nLast second: 60 frames (12 of them new), 1.8 Mbit/s.",
@@ -432,6 +438,122 @@ async function main() {
   same(wire.isLetGoChord({ ctrlKey: true, altKey: true, shiftKey: true, code: 'KeyQ' }), true, 'Ctrl+Alt+Shift+Q lets go');
   same(wire.isLetGoChord({ ctrlKey: true, altKey: true, shiftKey: false, code: 'KeyQ' }), false, 'nothing less does');
 
+  /* ---------------------------------------------------------------- SOUND, the controller, the PC's pointer */
+  same([bytes(wire.soundMessage(true)), bytes(wire.soundMessage(false))], [[0x30, 1], [0x30, 0]], 'SOUND: wanted, not wanted');
+  same([bytes(wire.padPresentMessage(true)), bytes(wire.padPresentMessage(false))], [[0x13, 1], [0x13, 0]], 'CONTROLLER: this device has one, it has gone');
+  const button = (pressed, value = pressed ? 1 : 0) => ({ pressed, value });
+  const controller = (down, more = {}) => ({ buttons: Array.from({ length: 17 }, (_, index) => (index === 6 ? button(false, more.lt ?? 0) : index === 7 ? button(false, more.rt ?? 0) : button(down.includes(index)))), axes: more.axes ?? [0, 0, 0, 0] });
+  same(wire.padState(controller([])), [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 'a controller with nothing pressed is twelve noughts');
+  same(wire.padState(controller([])), [...wire.PAD_NEUTRAL], 'which is what "nothing pressed" is sent as');
+  // The engine's own example (engine/src/control.rs): RB and A, the right trigger half way, the left stick hard left and up.
+  same(wire.padState(controller([5, 0], { rt: 0.5, axes: [-1, -1, 0, 0] })), [0x00, 0x12, 0, 128, 0x01, 0x80, 0xff, 0x7f, 0, 0, 0, 0], 'RB and A are bits 0200 and 1000; a trigger is 0 to 255; left is negative and UP is positive (a browser says up is negative)');
+  same(wire.padState(controller([], { axes: [1, 1, -0.5, 0.25] })), [0, 0, 0, 0, 0xff, 0x7f, 0x01, 0x80, 0x01, 0xc0, 0x00, 0xe0], 'right is positive, down is negative, and a half is half (-16383, as the engine page rounds it)');
+  same(wire.padState(controller([], { lt: 1, rt: 7, axes: [9, -9, 0, 0] })).slice(2, 8), [255, 255, 0xff, 0x7f, 0xff, 0x7f], 'nothing goes past its ends');
+  const bits = Object.fromEntries([[12, 0x0001], [13, 0x0002], [14, 0x0004], [15, 0x0008], [9, 0x0010], [8, 0x0020], [10, 0x0040], [11, 0x0080], [4, 0x0100], [5, 0x0200], [16, 0x0400], [0, 0x1000], [1, 0x2000], [2, 0x4000], [3, 0x8000]]);
+  for (const [number, bit] of Object.entries(bits)) {
+    const state = wire.padState(controller([Number(number)]));
+    same(state[0] | (state[1] << 8), bit, `the browser's button ${number} is the PC's bit ${bit.toString(16).padStart(4, '0')}`);
+  }
+  same(wire.padState(controller([6, 7])).slice(0, 2), [0, 0], "the browser's buttons 6 and 7 are the triggers: amounts, never bits");
+  same(wire.padState(controller(Object.keys(bits).map(Number))).slice(0, 2), [0xff, 0xf7], 'every button at once');
+  same(wire.padState({ buttons: [], axes: [] }), [...wire.PAD_NEUTRAL], 'a controller that says nothing is nothing pressed');
+  same(bytes(wire.padStateMessage(0x0102, wire.padState(controller([0])))), [0x22, 0x02, 0x01, 0x00, 0x10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 'CONTROLLER STATE: fifteen bytes, the counter first, low byte first');
+
+  const shapeHead = (number, width, height, hotX, hotY, how) => [0x82, ...wire.two(number), ...wire.two(width), ...wire.two(height), ...wire.two(hotX), ...wire.two(hotY), how];
+  const asItIs = wire.pointerShapeFrom(new Uint8Array([...shapeHead(7, 2, 1, 1, 0, 0), 255, 0, 0, 255, 0, 0, 255, 128]));
+  same([asItIs.number, asItIs.width, asItIs.height, asItIs.hotX, asItIs.hotY, [...asItIs.pixels]], [7, 2, 1, 1, 0, [255, 0, 0, 255, 0, 0, 255, 128]], 'a shape sent as it is (how 0): its number, size, hot spot and pixels');
+  const inRuns = wire.pointerShapeFrom(new Uint8Array([...shapeHead(300, 3, 2, 0, 1, 1), 4, 255, 255, 255, 255, 2, 0, 0, 0, 0]));
+  same([inRuns.number, [...inRuns.pixels]], [300, [255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0]], 'a shape sent in runs (how 1): four white pixels, then two see-through ones');
+  same(wire.pointerShapeFrom(new Uint8Array([...shapeHead(8, 3, 2, 0, 0, 1), 4, 255, 255, 255, 255])).pixels, null, 'runs that do not fill the shape are no picture');
+  same(wire.pointerShapeFrom(new Uint8Array([...shapeHead(8, 2, 1, 0, 0, 0), 1, 2, 3, 4])).pixels, null, 'nor are too few pixels');
+  const tooLarge = wire.pointerShapeFrom(new Uint8Array(shapeHead(9, 200, 200, 100, 100, 2)));
+  same([tooLarge.number, tooLarge.width, tooLarge.height, tooLarge.pixels], [9, 200, 200, null], 'a shape too large to be sent (how 2): its size, and no pixels');
+  same(wire.pointerShapeFrom(new Uint8Array([0x81, 1])), null, 'another message is not a shape');
+  const block = { number: 1, width: 24, height: 32, hotX: 3, hotY: 5, pixels: new Uint8ClampedArray(24 * 32 * 4) };
+  same(wire.pointerLook(block, 1), { use: 'shape', width: 24, height: 32, hotX: 3, hotY: 5 }, 'at the PC\'s own scale the pointer is its own size');
+  same(wire.pointerLook(block, 0.5), { use: 'shape', width: 12, height: 16, hotX: 2, hotY: 3 }, 'at half scale it is half the size, its hot spot with it');
+  same(wire.pointerLook(block, 500 / 2560), { use: 'shape', width: 5, height: 6, hotX: 1, hotY: 1 }, 'in a narrow room box it is small, and never smaller than one pixel');
+  same(wire.pointerLook(block, 8).use, 'arrow', 'past 128 page pixels a browser shows no pointer picture: the plain arrow');
+  ok(wire.pointerLook(block, 8).why.includes('192 by 256') && wire.pointerLook(block, 8).why.includes('128'), 'and the one line says why');
+  ok(wire.pointerLook({ ...block, pixels: null }, 1).why.includes('too large to be sent'), 'a shape that came without pixels: the plain arrow, and why');
+  ok(wire.pointerLook(null, 1).why.includes('has not sent'), 'no shape yet: the plain arrow, and why');
+  same(wire.pcMessage(new Uint8Array([0x81, 0])), { kind: 'pointerShown', shown: false }, 'the PC: its pointer is hidden');
+  same(wire.pcMessage(new Uint8Array([0x81, 1])), { kind: 'pointerShown', shown: true }, 'the PC: its pointer is showing');
+  same(wire.pcMessage(new Uint8Array([0x83, 2])), { kind: 'pad', what: 2 }, 'the PC: it has no controller driver');
+  same(wire.pcMessage(new Uint8Array([0x84, 2])), { kind: 'sound', what: 2 }, 'the PC: it is not sending sound');
+  same(wire.pcMessage(new Uint8Array([0x80, 1])), { kind: 'control', said: { kind: 'yours' } }, 'the PC: control is yours, as before');
+  same(wire.pcMessage(new Uint8Array(shapeHead(9, 200, 200, 100, 100, 2))).kind, 'pointerShape', 'the PC: a new pointer shape');
+  same(wire.pcMessage(new Uint8Array([0x99, 1])), null, 'anything else is nothing');
+
+  // Is this device the PC itself? The connection's far end says.
+  for (const address of ['127.0.0.1', '127.8.9.10', '::1', '[::1]', '::ffff:127.0.0.1']) same(wire.isLoopbackAddress(address), true, `${address} is this very machine`);
+  for (const address of ['192.168.1.20', '10.0.0.5', '1127.0.0.1', '127.0.0.1.example', 'fe80::1', '::2', '']) same(wire.isLoopbackAddress(address), false, `${address} is not`);
+
+  const withSound = wishes.hostSettingsFrom({ ...ENGINE_SAYS, controller: 'none', controllerWhy: null, sound: { allowed: true, listeners: 1, capturing: true, source: 'a test tone', heard: 'sound', packetsSent: 400, problem: null }, pointer: { shown: true, shape: 3, width: 24, height: 32 } });
+  same([withSound.controller, withSound.sound.allowed, withSound.sound.heard, withSound.pointer.width], ['none', true, 'sound', 24], "the engine's new answers are read");
+  const older = wishes.hostSettingsFrom(ENGINE_SAYS);
+  same([older.controller, older.sound, older.pointer], ['off', null, null], 'an older engine that says none of it is read too');
+  same(wishes.soundOffered(withSound, false), true, 'sound is offered on a device that is not the PC, when the PC sends it');
+  same(wishes.soundOffered(withSound, true), false, 'never on the PC itself (it would feed back into itself)');
+  same(wishes.soundOffered(withSound, null), false, 'and not until the connection has said which this device is');
+  same(wishes.soundOffered({ ...withSound, sound: { ...withSound.sound, allowed: false } }, false), false, 'not when the PC was started without sound');
+  same(wishes.soundOffered(older, false), false, 'not from an older engine');
+  same(wishes.soundOffered(null, false), false, 'not before the PC has said anything');
+  same(wishes.SOUND_ON_THIS_PC, 'ON THIS PC THE SOUND WOULD FEED BACK INTO ITSELF', "the warning is the engine page's");
+  same(wishes.soundStateSays(withSound, true, false, ''), 'Not offered here: this device is the PC itself.', 'the panel on the PC itself');
+  same(wishes.soundStateSays(withSound, false, true, ''), 'ON. The PC is playing sound.', 'the panel with sound on');
+  same(wishes.soundStateSays({ ...withSound, sound: { ...withSound.sound, heard: 'silence' } }, false, true, ''), 'ON. The PC is playing nothing at the moment.', 'and when the PC is silent');
+  ok(wishes.soundStateSays(withSound, false, false, wishes.SOUND_WANTS_A_PRESS).endsWith('PRESS [ SOUND ]'), 'a browser that wants a press first is told so');
+  ok(wishes.soundStateSays(older, false, false, '').startsWith('THIS PC IS NOT SENDING SOUND'), 'an older engine sends none, and the panel says so');
+  const seen = { supported: true, name: 'Made-up controller (STANDARD GAMEPAD)', odd: false, pcSays: null };
+  ok(wishes.padSays({ ...seen, name: '' }, false, withSound).startsWith('NO CONTROLLER ON THIS DEVICE'), 'no controller: said');
+  ok(wishes.padSays({ ...seen, name: '', odd: true }, false, withSound).startsWith('A CONTROLLER IS CONNECTED, BUT THIS BROWSER DOES NOT KNOW ITS LAYOUT'), 'a controller in a layout the browser does not know: said, and not used');
+  ok(wishes.padSays(seen, false, withSound).includes('while this device holds control'), 'a controller, not controlling: what it will do');
+  ok(wishes.padSays({ ...seen, pcSays: 1 }, true, withSound).endsWith('IT IS DRIVING A PRETEND XBOX 360 CONTROLLER ON THE PC.'), 'a controller, controlling, plugged in on the PC');
+  ok(wishes.padSays({ ...seen, pcSays: 2 }, true, withSound).endsWith('THE PC HAS NO CONTROLLER DRIVER'), 'the PC has no driver: said');
+  same(wishes.padSays({ ...seen, supported: false }, false, withSound), 'THIS BROWSER GIVES NO CONTROLLERS TO THIS PAGE', 'a browser with no controllers at all');
+
+  /* ---------------------------------------------------------------- the keyboard's first listener */
+  {
+    const listeners = [];
+    global.window = { addEventListener: (kind, listener, capture) => listeners.push({ kind, listener, capture }) };
+    same(listeners.length, 0, 'nothing listens before the layout\'s gate component has loaded');
+    // The component the layout draws first: its one job is to open the gate as its file loads, and to draw nothing.
+    const ScreenKeyGate = require('./out-screens/components/ScreenKeyGate.js').default;
+    same(listeners.length, 2, 'loading the gate component opens the gate at once, before any window of the site can listen');
+    same(require('react-dom/server').renderToStaticMarkup(require('react').createElement(ScreenKeyGate)), '', 'and it draws nothing');
+    gate.openKeyGate();
+    gate.openKeyGate();
+    same(listeners.map(({ kind, capture }) => `${kind} ${capture}`), ['keydown true', 'keyup true'], 'one listener for keys going down and one for keys coming up, before any other, added once');
+    const heardKeys = [];
+    const taker = (event, down) => heardKeys.push(`${event.code} ${down ? 'down' : 'up'}`);
+    listeners[0].listener({ code: 'Escape' });
+    same(heardKeys, [], 'until CONTROL takes it, it does nothing at all');
+    gate.takeKeys(taker);
+    listeners[0].listener({ code: 'Escape' });
+    listeners[1].listener({ code: 'Escape' });
+    same(heardKeys, ['Escape down', 'Escape up'], 'taken, every key goes to CONTROL first');
+    gate.leaveKeys(() => undefined);
+    listeners[0].listener({ code: 'KeyA' });
+    same(heardKeys.length, 3, 'only the taker itself can give it back');
+    gate.leaveKeys(taker);
+    listeners[0].listener({ code: 'KeyB' });
+    same(heardKeys.length, 3, 'given back, it does nothing again');
+    same(listeners.length, 2, 'and no listener was ever added twice');
+    delete global.window;
+  }
+
+  /* ---------------------------------------------------------------- the drive's mark */
+  {
+    const open = world(MOCK_OPEN, { engine: engineUp });
+    same(JSON.parse((await read(await server.hostAnswer(ask('/api/screens/host'), open.deps))).text).drive, true, 'a server opened for the local drive says so');
+    const real = world(live, { accounts, engine: engineUp });
+    const answer = JSON.parse((await read(await server.hostAnswer(ask('/api/screens/host', { token: liveOwner }), real.deps))).text);
+    same([answer.available, 'drive' in answer], [true, false], 'the real site, to its real owner, never does');
+    const clientText = fs.readFileSync(path.join(ROOT, 'app/lib/screens/host-client.ts'), 'utf8');
+    ok(/if \(!host\.drive\) return false;/.test(clientText), "and the browser honours the drive's mark only when the server said so");
+  }
+
   /* ---------------------------------------------------------------- the room's screen choice */
   same(canvas.screenShown(null, false), 'picture', 'no choice, a video: the picture');
   same(canvas.screenShown(null, true), 'canvas', 'no choice, a song: the canvas');
@@ -456,7 +578,7 @@ async function main() {
     ok(!/8478|127\.0\.0\.1|localhost/.test(text), `${client} never names the engine's own address: the browser only ever asks the site`);
   }
 
-  console.log(`ok: ${passed} assertions (SCREENS: owner only, this PC only, the dev switch dead in production, the settings sums, CONTROL's bytes)`);
+  console.log(`ok: ${passed} assertions (SCREENS: owner only, this PC only, the dev switch dead in production, the settings sums, CONTROL's bytes, sound, the controller, the PC's pointer, the first key listener)`);
   process.exitCode = 0;
 }
 

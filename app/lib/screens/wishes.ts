@@ -32,9 +32,12 @@ export type Wishes = {
   upscaling: Upscaling;
   numbers: boolean;
   mouse: Mouse;
+  /** The PC's sound, wanted on this device or not, and how loud this device plays it (0 to 1). */
+  sound: boolean;
+  volume: number;
 };
 
-export const DEFAULT_WISHES: Wishes = { match: true, shape: '16:9', lines: 1080, fps: 'auto', bitrateKbps: 20000, drawing: 'fast', upscaling: 'smooth', numbers: true, mouse: 'pointer' };
+export const DEFAULT_WISHES: Wishes = { match: false, shape: 'native', lines: 1080, fps: 'auto', bitrateKbps: 20000, drawing: 'fast', upscaling: 'smooth', numbers: true, mouse: 'pointer', sound: false, volume: 1 };
 
 const among = <T>(list: readonly T[], value: unknown): value is T => list.includes(value as T);
 
@@ -52,11 +55,15 @@ export function wishesFrom(kept: unknown): Wishes {
   if (among(UPSCALINGS, was.upscaling)) wishes.upscaling = was.upscaling;
   if (typeof was.numbers === 'boolean') wishes.numbers = was.numbers;
   if (among(MICE, was.mouse)) wishes.mouse = was.mouse;
+  if (typeof was.sound === 'boolean') wishes.sound = was.sound;
+  if (typeof was.volume === 'number' && Number.isFinite(was.volume) && was.volume >= 0 && was.volume <= 1) wishes.volume = was.volume;
   return wishes;
 }
 
 /** Where this browser keeps them. Remembered per watching device, in that browser's own storage and nowhere else. */
-export const WISHES_STORE = 'debaser.screens.viewer.v1';
+// v2 (2026-11-21, Luke: "have it render normally to start with, not cropped either"): the picture starts as the PC's
+// whole screen, and what a device remembered under v1 (where it started cut to this screen's shape) is left behind.
+export const WISHES_STORE = 'debaser.screens.viewer.v2';
 
 /** The page works the same when the browser refuses to remember (private windows, blocked storage): the defaults, every time. */
 export function readWishes(): Wishes {
@@ -168,9 +175,26 @@ export type HostSettings = {
   control: string;
   controlWhy: string | null;
   controlDryRun: boolean;
+  /** The pretend controller on the PC: "off" (control is not allowed), "none" or "plugged in"; and why not, when it could not be. */
+  controller: string;
+  controllerWhy: string | null;
+  /** The PC's sound; null from an older engine that sends none. */
+  sound: HostSound | null;
+  /** The PC's own pointer; null from an older engine. */
+  pointer: { shown: boolean; shape: number; width: number; height: number } | null;
 };
 
+/** What the PC says of its sound (`/settings`, "sound"). `heard` is "sound", "silence" or nothing yet. */
+export type HostSound = { allowed: boolean; listeners: number; capturing: boolean; source: string | null; heard: string | null; packetsSent: number; problem: string | null };
+
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
+
+function hostSoundFrom(value: unknown): HostSound | null {
+  if (!isRecord(value)) return null;
+  const text = (name: string): string | null => (typeof value[name] === 'string' ? (value[name] as string) : null);
+  const count = (name: string): number => (typeof value[name] === 'number' ? (value[name] as number) : 0);
+  return { allowed: value.allowed === true, listeners: count('listeners'), capturing: value.capturing === true, source: text('source'), heard: text('heard'), packetsSent: count('packetsSent'), problem: text('problem') };
+}
 const numbersIn = (value: unknown, names: readonly string[]): boolean => isRecord(value) && names.every((name) => typeof value[name] === 'number' && Number.isFinite(value[name] as number));
 const LIMIT_NAMES = ['maxLines', 'maxFps', 'maxBitrateKbps'] as const;
 
@@ -201,6 +225,10 @@ export function hostSettingsFrom(value: unknown): HostSettings | null {
     control: value.control,
     controlWhy: text('controlWhy'),
     controlDryRun: value.controlDryRun === true,
+    controller: typeof value.controller === 'string' ? value.controller : 'off',
+    controllerWhy: text('controllerWhy'),
+    sound: hostSoundFrom(value.sound),
+    pointer: numbersIn(value.pointer, ['shape', 'width', 'height']) ? { ...(value.pointer as { shape: number; width: number; height: number }), shown: (value.pointer as { shown?: unknown }).shown !== false } : null,
   };
 }
 
@@ -282,6 +310,60 @@ export function controlStateSays(host: HostSettings | null, mine: boolean, note:
 export function controlKeySays(host: HostSettings | null, mine: boolean, note: string): string {
   if (host === null || host.control === 'off' || mine) return '';
   return note || host.controlWhy || (host.control === 'another device' ? ANOTHER_DEVICE : '');
+}
+
+/* --- SOUND and CONTROLLER, in words ---------------------------------------------------------------- */
+
+export const SOUND_ON_THIS_PC = 'ON THIS PC THE SOUND WOULD FEED BACK INTO ITSELF';
+export const SOUND_WANTS_A_PRESS = 'THIS BROWSER WANTS A PRESS BEFORE IT PLAYS SOUND: PRESS [ SOUND ]';
+export const SOUND_NOT_SENT = 'THIS PC IS NOT SENDING SOUND';
+
+/**
+ * Whether SOUND can be offered on this device: only when the PC sends it, and never on the PC itself (it would
+ * hear this page and send that too, round and round). `thisPc` is null until the connection has said which it is,
+ * and nothing is offered until then.
+ */
+export function soundOffered(host: HostSettings | null, thisPc: boolean | null): boolean {
+  return thisPc === false && host !== null && host.sound !== null && host.sound.allowed;
+}
+
+/** The panel's line about the PC's sound. */
+export function soundStateSays(host: HostSettings | null, thisPc: boolean | null, on: boolean, note: string): string {
+  if (thisPc === true) return 'Not offered here: this device is the PC itself.';
+  if (host === null) return 'Waiting for the PC to say whether it sends sound.';
+  if (host.sound === null) return `${SOUND_NOT_SENT}\nIts engine is an older one that cannot.`;
+  if (!host.sound.allowed) return `${SOUND_NOT_SENT}\nIts engine was started with --no-sound.`;
+  if (thisPc === null) return 'Waiting for the connection to say whether this device is the PC itself.';
+  if (on) {
+    if (host.sound.problem) return `ON.\nTHE PC COULD NOT READ ITS OWN SOUND: ${host.sound.problem}`;
+    return `ON.${host.sound.heard === 'silence' ? ' The PC is playing nothing at the moment.' : host.sound.heard === 'sound' ? ' The PC is playing sound.' : ''}`;
+  }
+  return `OFF. [ SOUND ] at the top turns it on.${note ? `\n${note}` : ''}`;
+}
+
+/** What this device knows of its own game controller. */
+export type PadSeen = {
+  /** The browser gives controllers to pages at all. */
+  supported: boolean;
+  /** The one in use, by the name the browser gives it; '' when there is none. */
+  name: string;
+  /** One is connected, but in a layout the browser does not understand, so it is not used. */
+  odd: boolean;
+  /** The PC's word on its pretend controller: 1 plugged in, 2 no driver, 3 the driver refused; null before it has said. */
+  pcSays: number | null;
+};
+
+/** The CONTROLLER line of the panel. */
+export function padSays(pad: PadSeen, mine: boolean, host: HostSettings | null): string {
+  if (!pad.supported) return 'THIS BROWSER GIVES NO CONTROLLERS TO THIS PAGE';
+  if (pad.name === '') {
+    return `${pad.odd ? 'A CONTROLLER IS CONNECTED, BUT THIS BROWSER DOES NOT KNOW ITS LAYOUT, SO IT IS NOT USED' : 'NO CONTROLLER ON THIS DEVICE'}\nIf one is plugged in, press a button on it: a browser only shows a controller to a page after that.`;
+  }
+  const first = `CONTROLLER CONNECTED: ${pad.name}\n`;
+  if (!mine) return `${first}It drives a pretend Xbox 360 controller on the PC while this device holds control.`;
+  if (pad.pcSays === 1) return `${first}IT IS DRIVING A PRETEND XBOX 360 CONTROLLER ON THE PC.`;
+  if (pad.pcSays !== null && pad.pcSays >= 2) return `${first}${host?.controllerWhy ?? (pad.pcSays === 2 ? 'THE PC HAS NO CONTROLLER DRIVER' : "THE PC'S CONTROLLER DRIVER REFUSED")}`;
+  return `${first}The PC is plugging its pretend controller in.`;
 }
 
 export function keysSay(keyboardLocked: boolean, canLock: boolean): string {
