@@ -9,6 +9,11 @@ publish = false
 # WebRTC that takes ready-encoded video (SPEC-screens.md). Its encryption comes from Windows itself ("wincrypto"),
 # so nothing in C has to be built. Every crate this pulls in is listed with its licence in DEPENDENCIES.md.
 str0m = { version = "0.25", default-features = false, features = ["wincrypto"] }
+# SOUND: the Opus encoder. This crate is the reference Opus library itself, turned from C into Rust by a tool, so
+# it builds with cargo alone (this PC has no cmake, which the crates that wrap the C library need).
+unsafe-libopus = "0.2"
+# CONTROLLER: talks to the ViGEmBus driver (already installed on the PC) to plug in a pretend Xbox 360 controller.
+vigem-client = "0.1"
 
 [build-dependencies]
 cc = "1"

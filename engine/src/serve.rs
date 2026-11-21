@@ -9,6 +9,11 @@
 //!   stream's settings (read, and asked for).
 //!
 //! A fourth, tiny one looks once a second for a League match on the PC, which caps what the stream may cost.
+//! A fifth carries SOUND (sound.rs): it does nothing at all until a viewer asks for the PC's sound, and stops
+//! again when the last one that asked has gone.
+//!
+//! Besides the picture, three smaller things travel on the same connection: CONTROL (control.rs: a viewer's mouse,
+//! keys and game controller), the PC's own pointer shape (pointer.rs), and the sound.
 //!
 //! Settings (settings.rs) can change while the stream runs. This thread works out what should be sent from what
 //! was asked and what the PC allows; when that differs from what is being sent, it closes the native session and
@@ -33,17 +38,19 @@ use std::time::{Duration, Instant};
 use str0m::change::SdpOffer;
 use str0m::channel::ChannelId;
 use str0m::format::Codec;
-use str0m::media::{MediaKind, MediaTime, Mid, Pt, Writer};
+use str0m::media::{Frequency, MediaKind, MediaTime, Mid, Pt, Writer};
 use str0m::net::{Protocol, Receive};
 use str0m::rtp::Extension;
 use str0m::{Candidate, Event, IceConnectionState, Input, Output, Rtc};
 
 use crate::control::{self, Control, Lane};
 use crate::native;
+use crate::pointer;
 use crate::settings::{self, Asked, Limits, Plan, Shape};
+use crate::sound;
 use crate::{json, line, stats};
 
-pub const USAGE: &str = "[--shape 16:9] [--lines 1080] [--fps 60] [--bitrate 20000] [--max-lines N] [--max-fps N] [--max-bitrate 50000] [--width W --height H] [--allow-control [--control-dry-run]] [--preset 1] [--tweaks 125] [--intra-refresh] [--port 8478] [--udp-port 0] [--lan] [--trust-host name]... [--listen 127.0.0.1] [--token text] [--seconds N]";
+pub const USAGE: &str = "[--shape 16:9] [--lines 1080] [--fps 60] [--bitrate 20000] [--max-lines N] [--max-fps N] [--max-bitrate 50000] [--width W --height H] [--allow-control [--control-dry-run]] [--no-sound] [--preset 1] [--tweaks 125] [--intra-refresh] [--port 8478] [--udp-port 0] [--lan] [--trust-host name]... [--listen 127.0.0.1] [--token text] [--seconds N]";
 
 const VIEWER_PAGE: &str = include_str!("../web/viewer.html");
 
@@ -102,6 +109,8 @@ struct Args {
     /// `--control-dry-run`, for bench/control-check.cjs only: what a viewer does is written to a record that
     /// `GET /control-log` shows, and NOTHING is put into Windows.
     control_dry_run: bool,
+    /// `--no-sound`: the PC's sound is never sent, whoever asks.
+    no_sound: bool,
     port: u16,
     udp_port: u16,
     /// `--lan`: the VIDEO may also travel to devices on the home network (the web address stays as `--listen`
@@ -131,6 +140,7 @@ fn parse(args: &[String]) -> Result<Args, String> {
         intra: false,
         allow_control: false,
         control_dry_run: false,
+        no_sound: false,
         port: 8478,
         udp_port: 0,
         lan: false,
@@ -180,6 +190,7 @@ fn parse(args: &[String]) -> Result<Args, String> {
             "--intra-refresh" => a.intra = true,
             "--allow-control" => a.allow_control = true,
             "--control-dry-run" => a.control_dry_run = true,
+            "--no-sound" => a.no_sound = true,
             other => return Err(format!("unknown option {other}")),
         }
         i += 1;
@@ -285,6 +296,29 @@ struct Viewer {
     /// The two channels control travels on (control.rs), once the page has opened them.
     keys: Option<ChannelId>,
     pointer: Option<ChannelId>,
+    /// SOUND: the sound line agreed in the "hello" (when the page offered one), the payload number agreed for
+    /// Opus, and whether this viewer has asked for the PC's sound.
+    audio_mid: Option<Mid>,
+    audio_pt: Option<Pt>,
+    wants_sound: bool,
+    /// The PC's pointer: the number of the last shape this viewer was sent, and whether it was last told the
+    /// pointer is showing.
+    shape_told: u16,
+    shown_told: Option<bool>,
+}
+
+/// How SOUND stands, for `/settings` and the console.
+#[derive(Default)]
+struct SoundState {
+    /// Viewers that have asked for sound and are watching.
+    listeners: usize,
+    /// The copy of the PC's sound is open and being encoded.
+    capturing: bool,
+    /// What the last second held: Some(true) sound, Some(false) silence, None nothing listened to yet.
+    heard: Option<bool>,
+    packets_sent: u64,
+    /// Why the PC's sound could not be opened, when it could not.
+    problem: Option<String>,
 }
 
 struct Shared {
@@ -307,6 +341,15 @@ struct Shared {
     /// A League match is running on the PC (or the check pretends one is): kept here as well as in `stream` so
     /// the control path can read it without waiting for anything.
     match_running: AtomicBool,
+    /// The PC's own pointer, as viewers are to be told of it (pointer.rs). Locked last, and never for long.
+    pointer: Mutex<pointer::News>,
+    /// For bench/pointer-check.cjs only: the file whose one word names a pretended pointer (pointer.rs).
+    pretend_pointer: Option<std::path::PathBuf>,
+    /// SOUND: false with `--no-sound`. And how it stands.
+    sound_allowed: bool,
+    sound: Mutex<SoundState>,
+    /// For bench/sound-check.cjs only (`DEBASER_PRETEND_TONE=1`): a steady tone is sent in place of the PC's sound.
+    pretend_tone: bool,
 }
 
 impl Shared {
@@ -346,9 +389,53 @@ impl Viewer {
 
 /// Says something about control to a viewer, on its keys channel.
 fn say(v: &mut Viewer, what: u8) {
+    say_as(v, control::STATE, what);
+}
+
+/// Says one of the PC's two-byte messages to a viewer, on its keys channel (control.rs lists them).
+fn say_as(v: &mut Viewer, kind: u8, what: u8) {
     if let Some(id) = v.keys {
         if let Some(mut channel) = v.rtc.channel(id) {
-            let _ = channel.write(true, &[control::STATE, what]);
+            let _ = channel.write(true, &[kind, what]);
+        }
+    }
+}
+
+/// The first byte of the page's "I want the PC's sound" / "I do not" (control.rs lists it with the rest), and
+/// of the PC's answer.
+const SOUND_ASKED: u8 = 0x30;
+const SOUND_SAYS: u8 = 0x84;
+
+/// Sends a viewer whatever it has not yet been told about the PC's pointer: the newest shape, and whether the
+/// pointer is showing. Returns whether anything was written (the caller then runs the connection forward).
+fn tell_pointer(v: &mut Viewer, news: &pointer::News) -> bool {
+    let Some(id) = v.keys else { return false };
+    let Some(mut channel) = v.rtc.channel(id) else { return false };
+    let mut wrote = false;
+    if let Some(message) = &news.message {
+        // A write that is not taken (the channel is still opening, or is full) is simply tried again next time.
+        if v.shape_told != news.number && matches!(channel.write(true, message), Ok(true)) {
+            v.shape_told = news.number;
+            wrote = true;
+        }
+    }
+    if let Some(shown) = news.shown {
+        if v.shown_told != Some(shown) && matches!(channel.write(true, &pointer::shown_message(shown)), Ok(true)) {
+            v.shown_told = Some(shown);
+            wrote = true;
+        }
+    }
+    wrote
+}
+
+/// Tells every viewer that is behind about the PC's pointer, now.
+fn tell_everyone_pointer(shared: &Shared) {
+    let mut viewers = shared.viewers.lock().unwrap();
+    let news = shared.pointer.lock().unwrap();
+    let now = Instant::now();
+    for v in viewers.iter_mut() {
+        if v.rtc.is_alive() && tell_pointer(v, &news) {
+            pump(v, shared, now);
         }
     }
 }
@@ -369,6 +456,14 @@ fn on_event(v: &mut Viewer, shared: &Shared, event: Event) {
             } else {
                 return;
             };
+            // SOUND on or off is not about control: any viewer may listen, whoever holds control.
+            if lane == Lane::Keys && data.data.first() == Some(&SOUND_ASKED) {
+                let wanted = data.data.get(1) == Some(&1);
+                v.wants_sound = wanted && shared.sound_allowed && v.audio_mid.is_some();
+                say_as(v, SOUND_SAYS, if !wanted { 0 } else if v.wants_sound { 1 } else { 2 });
+                println!("  viewer {} {}", v.id, if v.wants_sound { "asked for the PC's sound" } else if wanted { "asked for sound, which this PC is not sending" } else { "turned the sound off" });
+                return;
+            }
             // Acted on here and now, on whichever thread the packet arrived: an input never waits for a frame.
             let answer = shared.control.lock().unwrap().message(v.id, lane, &data.data, Instant::now(), shared.match_running.load(Ordering::SeqCst));
             if let Some(what) = answer {
@@ -393,6 +488,9 @@ fn on_event(v: &mut Viewer, shared: &Shared, event: Event) {
         Event::MediaAdded(media) => {
             if media.kind == MediaKind::Video && v.mid.is_none() {
                 v.mid = Some(media.mid);
+            }
+            if media.kind == MediaKind::Audio && v.audio_mid.is_none() {
+                v.audio_mid = Some(media.mid);
             }
         }
         // The browser lost its place (a packet never came, or it has just joined) and asks for a full picture.
@@ -441,7 +539,27 @@ fn pump(v: &mut Viewer, shared: &Shared, now: Instant) {
 /// The thread that listens: whatever arrives on the socket goes to the connection it belongs to.
 fn network_loop(shared: Arc<Shared>) {
     let mut buf = vec![0u8; 2000];
+    // For bench/pointer-check.cjs only: the pretended pointer's word, looked at ten times a second.
+    let mut pretended = String::new();
+    let mut pretend_looked = Instant::now();
     while !STOP.load(Ordering::SeqCst) {
+        if let Some(file) = &shared.pretend_pointer {
+            if pretend_looked.elapsed() >= Duration::from_millis(100) {
+                pretend_looked = Instant::now();
+                let word = std::fs::read_to_string(file).unwrap_or_default().trim().to_string();
+                if word != pretended {
+                    if let Some((shape, shown)) = pointer::pretend(&word) {
+                        let mut news = shared.pointer.lock().unwrap();
+                        if let Some(shape) = shape {
+                            news.take_shape(&shape);
+                        }
+                        news.shown = Some(shown);
+                        println!("  the PC's pointer (pretended, for the check): \"{word}\", shape number {}, {}x{}, {}", news.number, news.size.0, news.size.1, if shown { "showing" } else { "hidden" });
+                    }
+                    pretended = word;
+                }
+            }
+        }
         // Sleep on the socket until a packet comes or a connection wants the time, and never longer than 10 ms
         // (a frame written by the other thread can bring a connection's next deadline forward).
         let mut wait = Duration::from_millis(10);
@@ -494,11 +612,31 @@ fn network_loop(shared: Arc<Shared>) {
         }
         // CONTROL: has anything happened that ends it (a match starting, the cut-off key on the PC, the holder
         // gone or silent)? Whoever held it is told, and everything they held down has already been let go.
-        let ended = shared.control.lock().unwrap().watch(now, shared.match_running.load(Ordering::SeqCst), |id| viewers.iter().any(|v| v.id == id && v.rtc.is_alive() && v.keys.is_some()));
+        let (ended, pad_news) = {
+            let mut control = shared.control.lock().unwrap();
+            let ended = control.watch(now, shared.match_running.load(Ordering::SeqCst), |id| viewers.iter().any(|v| v.id == id && v.rtc.is_alive() && v.keys.is_some()));
+            // CONTROLLER: whoever holds control is told when the pretend controller is plugged in, or why not.
+            (ended, control.pad_news())
+        };
         if let Some((id, what)) = ended {
             if let Some(v) = viewers.iter_mut().find(|v| v.id == id && v.rtc.is_alive()) {
                 say(v, what);
                 pump(v, &shared, now);
+            }
+        }
+        if let Some((id, what)) = pad_news {
+            if let Some(v) = viewers.iter_mut().find(|v| v.id == id && v.rtc.is_alive()) {
+                say_as(v, control::PAD_SAYS, what);
+                pump(v, &shared, now);
+            }
+        }
+        // The PC's pointer: a viewer whose channel has just opened, or that missed a shape, is brought up to date.
+        {
+            let news = shared.pointer.lock().unwrap();
+            for v in viewers.iter_mut() {
+                if v.rtc.is_alive() && tell_pointer(v, &news) {
+                    pump(v, &shared, now);
+                }
             }
         }
         viewers.retain(|v| {
@@ -594,6 +732,224 @@ fn send_frame(shared: &Shared, data: &Arc<[u8]>, keyframe: bool, profile: Option
     sent
 }
 
+/// Hands one Opus packet (10 ms of sound) to every viewer that asked for sound. Returns how many it went to.
+fn send_sound(shared: &Shared, packet: &Arc<[u8]>, samples_before: u64) -> usize {
+    let mut viewers = shared.viewers.lock().unwrap();
+    let now = Instant::now();
+    let mut sent = 0;
+    for v in viewers.iter_mut() {
+        if !v.wants_sound || !v.watching(now) {
+            continue;
+        }
+        let Some(mid) = v.audio_mid else { continue };
+        let Some(writer) = v.rtc.writer(mid) else { continue };
+        let pt = match v.audio_pt.or_else(|| writer.payload_params().find(|params| params.spec().codec == Codec::Opus).map(|params| params.pt())) {
+            Some(pt) => pt,
+            None => {
+                // Its browser did not agree to Opus (every browser does): it simply gets no sound.
+                v.wants_sound = false;
+                continue;
+            }
+        };
+        v.audio_pt = Some(pt);
+        // Sound's place in time is counted in samples, 48,000 to the second.
+        if writer.write(pt, now, MediaTime::new(samples_before, Frequency::FORTY_EIGHT_KHZ), packet.clone()).is_err() {
+            v.wants_sound = false;
+            continue;
+        }
+        sent += 1;
+        pump(v, shared, now);
+    }
+    sent
+}
+
+/// Where the sound thread's sound comes from.
+enum SoundSource {
+    ThePc(sound::Loopback),
+    Tone(sound::Tone),
+}
+
+/// The thread that carries SOUND. While nobody has asked for it, it only looks, twenty times a second, whether
+/// anybody has: the copy of the PC's sound is not open and nothing is encoded. When a viewer asks, the copy is
+/// opened and each 10 ms of it is encoded and sent, until the last viewer that asked has gone.
+///
+/// While the PC is playing something, Windows itself sets the beat: it signals as each 10 ms arrives. When the PC
+/// plays nothing, Windows hands over nothing at all, and silence is sent in its place on a 10 ms beat of our own
+/// (a few bytes a packet), so that the viewer's browser keeps a steady, short queue and real sound, when it
+/// comes back, is played at once.
+fn sound_loop(shared: Arc<Shared>) {
+    let beat = Duration::from_millis(10);
+    let frame = sound::FRAME * 2;
+    let mut source: Option<SoundSource> = None;
+    let mut encoder: Option<sound::Encoder> = None;
+    let mut waiting: Vec<f32> = Vec::new();
+    let mut taken = vec![0f32; frame * 20];
+    let mut packet = [0u8; 1500];
+    // Sound's place in time, counted in samples. It follows the real clock: when nothing is sent for a while
+    // (nobody listening, or the moment it takes to notice the PC has gone quiet) the count skips ahead by the time
+    // that passed, so the viewer's browser sees a pause as a pause and not as packets arriving late.
+    let mut samples_sent = 0u64;
+    let mut last_packet: Option<Instant> = None;
+    let mut last_arrival = Instant::now();
+    // The PC is silent: when the next frame of silence is due.
+    let mut quiet_due: Option<Instant> = None;
+    let mut tone_due = Instant::now();
+    let mut failed_at: Option<Instant> = None;
+    let mut second_began = Instant::now();
+    let mut second_loudest = 0f32;
+
+    while !STOP.load(Ordering::SeqCst) {
+        let listeners = {
+            let now = Instant::now();
+            shared.viewers.lock().unwrap().iter().filter(|v| v.wants_sound && v.audio_mid.is_some() && v.watching(now)).count()
+        };
+        shared.sound.lock().unwrap().listeners = listeners;
+        if listeners == 0 {
+            if source.is_some() {
+                source = None;
+                encoder = None;
+                waiting.clear();
+                let mut state = shared.sound.lock().unwrap();
+                state.capturing = false;
+                state.heard = None;
+                println!("  SOUND: nobody is listening now: the copy of the PC's sound is closed");
+            }
+            thread::sleep(Duration::from_millis(50));
+            continue;
+        }
+
+        if source.is_none() {
+            // After a failure (no playback device, say) it is tried again once a second, not in a tight loop.
+            if failed_at.is_some_and(|at| at.elapsed() < Duration::from_secs(1)) {
+                thread::sleep(Duration::from_millis(50));
+                continue;
+            }
+            let opened = if shared.pretend_tone { Ok(SoundSource::Tone(sound::Tone::new())) } else { sound::Loopback::open().map(SoundSource::ThePc) };
+            match opened.and_then(|opened| sound::Encoder::new().map(|encoder| (opened, encoder))) {
+                Ok((opened, made)) => {
+                    println!(
+                        "  SOUND: {listeners} viewer(s) asked for it: sending {} as Opus, 48 kHz stereo, 10 ms frames, about {} kbit/s",
+                        if shared.pretend_tone { "a TEST TONE (pretended, for the check)" } else { "everything this PC is playing" },
+                        sound::BITRATE / 1000
+                    );
+                    source = Some(opened);
+                    encoder = Some(made);
+                    failed_at = None;
+                    let now = Instant::now();
+                    if let Some(last) = last_packet {
+                        samples_sent += (now.duration_since(last).as_millis() as u64 / 10) * sound::FRAME as u64;
+                    }
+                    last_arrival = now;
+                    quiet_due = None;
+                    tone_due = now;
+                    second_began = now;
+                    second_loudest = 0.0;
+                    let mut state = shared.sound.lock().unwrap();
+                    state.capturing = true;
+                    state.problem = None;
+                }
+                Err(why) => {
+                    let mut state = shared.sound.lock().unwrap();
+                    if state.problem.as_deref() != Some(why.as_str()) {
+                        println!("  SOUND: could not be sent. {why}");
+                    }
+                    state.problem = Some(why);
+                    failed_at = Some(Instant::now());
+                    continue;
+                }
+            }
+        }
+
+        // Gather what there is to send.
+        let mut gone: Option<String> = None;
+        match source.as_mut().expect("opened above") {
+            SoundSource::Tone(tone) => {
+                let now = Instant::now();
+                if tone_due > now {
+                    thread::sleep(tone_due - now);
+                }
+                tone.frame(&mut waiting);
+                tone_due += beat;
+                if tone_due + Duration::from_millis(100) < Instant::now() {
+                    tone_due = Instant::now();
+                }
+            }
+            SoundSource::ThePc(loopback) => match loopback.read(&mut taken, if quiet_due.is_some() { 0 } else { 15 }) {
+                Err(why) => gone = Some(why),
+                Ok(0) => {
+                    let now = Instant::now();
+                    // Nothing for 25 ms: the PC has gone quiet. Silence takes over from now, one frame every 10 ms.
+                    // (The few frames' time that passed while finding that out is not sent afterwards: a burst
+                    // of packets would only lengthen the queue the viewer's browser keeps.)
+                    if quiet_due.is_none() && now.duration_since(last_arrival) >= Duration::from_millis(25) {
+                        quiet_due = Some(now);
+                        // The frames' time that went by unsent (all but the one about to be sent).
+                        samples_sent += (now.duration_since(last_arrival).as_millis() as u64 / 10).saturating_sub(1) * sound::FRAME as u64;
+                    }
+                    if let Some(mut due) = quiet_due {
+                        if due > now {
+                            thread::sleep(due - now);
+                        }
+                        // The frame that is due (two, at most, when this thread was held up a moment; if it was held
+                        // up for longer the beat simply starts again from now).
+                        let now = Instant::now();
+                        let mut owed = 0;
+                        while due <= now && owed < 2 {
+                            // A part-frame of real sound left over is finished off with silence first.
+                            let fill = frame - waiting.len() % frame;
+                            waiting.resize(waiting.len() + fill, 0.0);
+                            due += beat;
+                            owed += 1;
+                        }
+                        quiet_due = Some(if due <= now { now + beat } else { due });
+                    }
+                }
+                Ok(frames) => {
+                    waiting.extend_from_slice(&taken[..frames * 2]);
+                    last_arrival = Instant::now();
+                    quiet_due = None;
+                }
+            },
+        }
+        if let Some(why) = gone {
+            // The playback device went away (unplugged, or Windows switched to another): opened again shortly.
+            println!("  SOUND: the playback device changed ({why}): opening it again");
+            source = None;
+            encoder = None;
+            waiting.clear();
+            failed_at = Some(Instant::now());
+            shared.sound.lock().unwrap().capturing = false;
+            continue;
+        }
+
+        // Encode and send every whole frame.
+        let mut packets = 0u64;
+        while waiting.len() >= frame {
+            second_loudest = second_loudest.max(sound::loudest(&waiting[..frame]));
+            match encoder.as_mut().expect("made with the source").encode(&waiting[..frame], &mut packet) {
+                Ok(size) => {
+                    let data: Arc<[u8]> = Arc::from(&packet[..size]);
+                    if send_sound(&shared, &data, samples_sent) > 0 {
+                        packets += 1;
+                    }
+                }
+                Err(why) => eprintln!("  SOUND: {why}"),
+            }
+            samples_sent += sound::FRAME as u64;
+            last_packet = Some(Instant::now());
+            waiting.drain(..frame);
+        }
+        let mut state = shared.sound.lock().unwrap();
+        state.packets_sent += packets;
+        if second_began.elapsed() >= Duration::from_secs(1) {
+            // Anything above the faintest whisper counts as sound.
+            state.heard = Some(second_loudest > 0.0005);
+            second_loudest = 0.0;
+            second_began = Instant::now();
+        }
+    }
+}
+
 fn respond(stream: &mut TcpStream, status: &str, content_type: &str, body: &[u8]) {
     respond_with(stream, status, content_type, "", body);
 }
@@ -631,9 +987,11 @@ fn hello(shared: &Shared, offer_text: &str) -> Result<(String, u64), (&'static s
     let mut rtc = Rtc::builder()
         // We only ever answer: the browser finds us at the addresses below, we never go looking for it.
         .set_ice_lite(true)
-        // H.264 only, since that is what the encoder makes.
+        // H.264 only, since that is what the encoder makes; and Opus for the PC's sound (no doubled-up packets:
+        // a lost one is 10 ms of sound, which the browser covers over).
         .clear_codecs()
         .enable_h264(true)
+        .enable_opus(true, false)
         // Lets each frame carry "show this at once" (http://www.webrtc.org/experiments/rtp-hdrext/playout-delay).
         .set_extension(5, Extension::PlayoutDelay)
         .set_stats_interval(None)
@@ -649,7 +1007,24 @@ fn hello(shared: &Shared, offer_text: &str) -> Result<(String, u64), (&'static s
         return Err(("503 Service Unavailable", format!("{MAX_VIEWERS} viewers are already watching")));
     }
     let id = shared.viewers_ever.fetch_add(1, Ordering::Relaxed) + 1;
-    viewers.push(Viewer { id, rtc, mid: None, pt: None, connected: false, started: false, since: now, last_heard: now, next_timeout: now, keys: None, pointer: None });
+    viewers.push(Viewer {
+        id,
+        rtc,
+        mid: None,
+        pt: None,
+        connected: false,
+        started: false,
+        since: now,
+        last_heard: now,
+        next_timeout: now,
+        keys: None,
+        pointer: None,
+        audio_mid: None,
+        audio_pt: None,
+        wants_sound: false,
+        shape_told: 0,
+        shown_told: None,
+    });
     Ok((answer.to_sdp_string(), id))
 }
 
@@ -795,14 +1170,51 @@ fn handle_request(mut stream: TcpStream, shared: &Shared) {
 /// encoding thread having made it: until then "sending" is still the old picture.
 /// "control" is how control stands for the viewer asking: "off" (the PC was not started with --allow-control),
 /// "free", "yours" or "another device"; "controlWhy" says why it cannot be taken when it cannot.
+/// "controller" is the pretend game controller on the PC: "off" (no control at all), "none" or "plugged in";
+/// "controllerWhy" is the PC's reason when one was asked for and could not be plugged in.
+/// "sound" is how sound stands: whether this PC sends it at all, how many viewers are listening, whether the PC's
+/// sound is being read now, what the last second of it held ("sound" or "silence"), and why not when it failed.
+/// "pointer" is the PC's own pointer: whether it is showing, and the number and size of its newest shape.
 fn settings_json(shared: &Shared, viewer: Option<u64>) -> String {
     let watching = {
         let now = Instant::now();
         shared.viewers.lock().unwrap().iter().filter(|v| v.watching(now)).count()
     };
-    let (control_stands, control_allowed, control_dry_run) = {
+    let (control_stands, control_allowed, control_dry_run, pad) = {
         let control = shared.control.lock().unwrap();
-        (control.standing(viewer), control.allowed, control.dry_run)
+        (control.standing(viewer), control.allowed, control.dry_run, control.pad_report())
+    };
+    let controller_json = format!(
+        "\"controller\": \"{}\", \"controllerWhy\": {}",
+        if !control_allowed { "off" } else if pad.plugged { "plugged in" } else { "none" },
+        pad.why_not.as_deref().map_or("null".to_string(), settings::quoted)
+    );
+    let sound_json = {
+        let state = shared.sound.lock().unwrap();
+        format!(
+            "\"sound\": {{\"allowed\": {}, \"listeners\": {}, \"capturing\": {}, \"source\": {}, \"heard\": {}, \"packetsSent\": {}, \"problem\": {}}}",
+            shared.sound_allowed,
+            state.listeners,
+            state.capturing,
+            settings::quoted(if shared.pretend_tone { "a test tone" } else { "everything the PC is playing" }),
+            match state.heard {
+                Some(true) => "\"sound\"",
+                Some(false) => "\"silence\"",
+                None => "null",
+            },
+            state.packets_sent,
+            state.problem.as_deref().map_or("null".to_string(), settings::quoted)
+        )
+    };
+    let pointer_json = {
+        let news = shared.pointer.lock().unwrap();
+        format!(
+            "\"pointer\": {{\"shown\": {}, \"shape\": {}, \"width\": {}, \"height\": {}}}",
+            news.shown.map_or("null".to_string(), |shown| shown.to_string()),
+            news.number,
+            news.size.0,
+            news.size.1
+        )
     };
     let control_why = if !control_allowed {
         settings::quoted("THIS PC IS NOT ALLOWING CONTROL")
@@ -843,7 +1255,7 @@ fn settings_json(shared: &Shared, viewer: Option<u64>) -> String {
         None => "null".to_string(),
     };
     format!(
-        "{{\"asked\": {}, \"sending\": {}, \"measured\": {}, \"screen\": {{\"width\": {}, \"height\": {}, \"hz\": {}}}, \"limits\": {}, \"hostLimits\": {}, \"cap\": {}, \"capWhy\": {}, \"applied\": {}, \"refused\": {}, \"viewers\": {}, \"control\": \"{}\", \"controlWhy\": {}, \"controlDryRun\": {}}}",
+        "{{\"asked\": {}, \"sending\": {}, \"measured\": {}, \"screen\": {{\"width\": {}, \"height\": {}, \"hz\": {}}}, \"limits\": {}, \"hostLimits\": {}, \"cap\": {}, \"capWhy\": {}, \"applied\": {}, \"refused\": {}, \"viewers\": {}, \"control\": \"{}\", \"controlWhy\": {}, \"controlDryRun\": {}, {}, {}, {}}}",
         asked_json,
         sending_json,
         measured_json,
@@ -859,7 +1271,10 @@ fn settings_json(shared: &Shared, viewer: Option<u64>) -> String {
         watching,
         control_stands,
         control_why,
-        control_dry_run
+        control_dry_run,
+        controller_json,
+        sound_json,
+        pointer_json
     )
 }
 
@@ -1074,6 +1489,11 @@ pub fn serve(args: &[String]) -> ExitCode {
         stream: Mutex::new(stream),
         control: Mutex::new(Control::new(a.allow_control, a.control_dry_run, first.region, (screen_width, screen_height))),
         match_running: AtomicBool::new(capped_at_start),
+        pointer: Mutex::new(pointer::News::default()),
+        pretend_pointer: std::env::var_os("DEBASER_PRETEND_POINTER_FILE").filter(|path| !path.is_empty()).map(std::path::PathBuf::from),
+        sound_allowed: !a.no_sound,
+        sound: Mutex::new(SoundState::default()),
+        pretend_tone: std::env::var("DEBASER_PRETEND_TONE").is_ok_and(|value| value == "1"),
     });
     if a.allow_control && !a.control_dry_run {
         // If the engine itself fails, whatever a viewer was holding down is let go before it goes.
@@ -1095,6 +1515,10 @@ pub fn serve(args: &[String]) -> ExitCode {
                 thread::spawn(move || handle_request(stream, &shared));
             }
         });
+    }
+    if shared.sound_allowed {
+        let shared = shared.clone();
+        thread::spawn(move || sound_loop(shared));
     }
     {
         // Looking through the list of running programs takes a few milliseconds, so it has a thread of its own
@@ -1137,6 +1561,13 @@ pub fn serve(args: &[String]) -> ExitCode {
     } else if a.allow_control {
         println!("  CONTROL IS ALLOWED: one viewer at a time may use this PC's mouse and keys. Ctrl+Alt+Shift+End on this PC stops it.");
         println!("  It is refused while {} is running.", settings::MATCH_PROCESS);
+    }
+    println!("  SOUND: {}", if a.no_sound { "never sent (--no-sound)" } else { "sent to a viewer that asks for it (everything this PC is playing); not read at all until one does" });
+    if shared.pretend_tone {
+        println!("  SOUND IS PRETENDED, for the check: a steady test tone in place of the PC's sound (DEBASER_PRETEND_TONE=1)");
+    }
+    if shared.pretend_pointer.is_some() {
+        println!("  THE PC'S POINTER IS PRETENDED, for the check (DEBASER_PRETEND_POINTER_FILE): the real one is ignored");
     }
     if a.lan {
         println!("  --lan: the VIDEO can reach devices on the home network; the web address is still {} only", a.listen);
@@ -1181,6 +1612,9 @@ pub fn serve(args: &[String]) -> ExitCode {
     let mut refused_plan: Option<Plan> = None;
     let mut changes = 0u64;
     let mut last_restart: Option<Instant> = None;
+    // The PC's pointer: how many shapes the open session had handed over when last looked at (a newly opened
+    // session starts again from none).
+    let mut shapes_seen = 0u32;
 
     loop {
         if STOP.load(Ordering::SeqCst) || a.seconds.is_some_and(|s| started.elapsed() >= Duration::from_secs(s)) {
@@ -1212,6 +1646,7 @@ pub fn serve(args: &[String]) -> ExitCode {
                 Ok(opened) => {
                     let now_sending = sending_of(&opened.info, &wanted);
                     session = Some(opened);
+                    shapes_seen = 0;
                     current = wanted;
                     changes += 1;
                     interval = (ticks_per_second / current.fps as i64).max(1);
@@ -1226,7 +1661,10 @@ pub fn serve(args: &[String]) -> ExitCode {
                     println!("  could NOT change to {}x{} at {} fps, {} kbit/s ({why}): {why_not}. Staying as it was.", wanted.width, wanted.height, wanted.fps, wanted.bitrate_kbps);
                     refused_plan = Some(wanted);
                     match open_session(&a, &current) {
-                        Ok(opened) => session = Some(opened),
+                        Ok(opened) => {
+                            session = Some(opened);
+                            shapes_seen = 0;
+                        }
                         Err(why) => {
                             failure = Some(format!("After a refused change the stream could not be opened again as it was: {why}"));
                             break;
@@ -1261,6 +1699,30 @@ pub fn serve(args: &[String]) -> ExitCode {
             thread::sleep(Duration::from_millis(20));
             second_started = Instant::now();
             continue;
+        }
+
+        // The PC's own pointer: when Windows has handed over a new shape, or the pointer has been hidden or shown,
+        // the viewers are told (the frame calls below are what hear it from Windows; this only passes it on).
+        if shared.pretend_pointer.is_none() {
+            if let Some(open) = session.as_ref() {
+                let heard = open.pointer_heard();
+                let mut news = shared.pointer.lock().unwrap();
+                let mut changed = false;
+                if heard.shape_count != shapes_seen {
+                    shapes_seen = heard.shape_count;
+                    if let Some(shape) = open.pointer_shape() {
+                        changed |= news.take_shape(&shape);
+                    }
+                }
+                if heard.visible.is_some() && heard.visible != news.shown {
+                    news.shown = heard.visible;
+                    changed = true;
+                }
+                drop(news);
+                if changed {
+                    tell_everyone_pointer(&shared);
+                }
+            }
         }
 
         // No faster than the frames a second asked for (give or take 5%), however fast the screen changes: after
@@ -1344,6 +1806,7 @@ pub fn serve(args: &[String]) -> ExitCode {
                     Ok(opened) => {
                         let now_sending = sending_of(&opened.info, &plan_again);
                         session = Some(opened);
+                        shapes_seen = 0;
                         current = plan_again;
                         changes += 1;
                         interval = (ticks_per_second / current.fps as i64).max(1);
@@ -1503,6 +1966,8 @@ pub fn serve(args: &[String]) -> ExitCode {
             }
         }
     }
+    // The pretend controller, when one was ever plugged in, is unplugged before the engine goes.
+    shared.control.lock().unwrap().pad_finish();
     if a.allow_control && !a.control_dry_run {
         control::emergency_all_up();
     }

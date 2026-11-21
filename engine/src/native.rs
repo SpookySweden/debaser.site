@@ -55,6 +55,20 @@ struct DbeFrame {
 }
 
 #[repr(C)]
+struct DbePointer {
+    shape_count: u32,
+    kind: i32,
+    width: i32,
+    height: i32,
+    pitch: i32,
+    hot_x: i32,
+    hot_y: i32,
+    data: *const u8,
+    size: i32,
+    visible: i32,
+}
+
+#[repr(C)]
 struct DbeSession {
     _private: [u8; 0],
 }
@@ -64,6 +78,7 @@ extern "C" {
     fn dbe_next_frame(session: *mut DbeSession, wait_ms: i32, force_keyframe: i32, frame: *mut DbeFrame) -> i32;
     fn dbe_next_frame_if_changed(session: *mut DbeSession, wait_ms: i32, frame: *mut DbeFrame) -> i32;
     fn dbe_local_ipv4(addresses: *mut u32, most: i32) -> i32;
+    fn dbe_pointer(session: *mut DbeSession, pointer: *mut DbePointer);
     fn dbe_last_error(session: *mut DbeSession) -> *const c_char;
     fn dbe_now() -> i64;
     fn dbe_close(session: *mut DbeSession);
@@ -143,6 +158,29 @@ pub struct Frame<'a> {
     pub encode_ms: f64,
 }
 
+/// The PC's own mouse pointer as Windows last described it to a session: how many shapes it has handed over so
+/// far (0 = none yet), and whether the pointer is showing (None = Windows has not said).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct PointerHeard {
+    pub shape_count: u32,
+    pub visible: Option<bool>,
+}
+
+/// A pointer shape exactly as Windows hands it over (pointer.rs turns it into plain pixels).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct RawPointerShape {
+    /// Windows' three kinds: 1 one-bit, 2 colour, 4 colour with a mask byte.
+    pub kind: i32,
+    pub width: i32,
+    /// As Windows gives it: for the one-bit kind, double the pointer's own height.
+    pub height: i32,
+    /// Bytes in one row of `data`.
+    pub pitch: i32,
+    pub hot_x: i32,
+    pub hot_y: i32,
+    pub data: Vec<u8>,
+}
+
 pub struct Session {
     raw: *mut DbeSession,
     pub info: Info,
@@ -207,6 +245,30 @@ impl Session {
     pub fn next_frame_if_changed(&mut self, wait_ms: i32) -> Result<Option<Frame<'_>>, String> {
         let frame = self.take(wait_ms, false, true)?;
         Ok((!frame.data.is_empty()).then_some(frame))
+    }
+
+    fn pointer_raw(&self) -> DbePointer {
+        let mut p = DbePointer { shape_count: 0, kind: 0, width: 0, height: 0, pitch: 0, hot_x: 0, hot_y: 0, data: std::ptr::null(), size: 0, visible: -1 };
+        // The native side only fills in what the frame calls already read.
+        unsafe { dbe_pointer(self.raw, &mut p) };
+        p
+    }
+
+    /// What Windows last said about the PC's own pointer. Cheap: nothing is asked of Windows here.
+    pub fn pointer_heard(&self) -> PointerHeard {
+        let p = self.pointer_raw();
+        PointerHeard { shape_count: p.shape_count, visible: match p.visible { 1 => Some(true), 0 => Some(false), _ => None } }
+    }
+
+    /// A copy of the newest pointer shape Windows handed over, when it has handed one over.
+    pub fn pointer_shape(&self) -> Option<RawPointerShape> {
+        let p = self.pointer_raw();
+        if p.shape_count == 0 || p.data.is_null() || p.size <= 0 {
+            return None;
+        }
+        // `size` bytes at `data` are good until the next call on the session, and are copied before then.
+        let data = unsafe { std::slice::from_raw_parts(p.data, p.size as usize) }.to_vec();
+        Some(RawPointerShape { kind: p.kind, width: p.width, height: p.height, pitch: p.pitch, hot_x: p.hot_x, hot_y: p.hot_y, data })
     }
 
     fn take(&mut self, wait_ms: i32, force_keyframe: bool, only_if_changed: bool) -> Result<Frame<'_>, String> {

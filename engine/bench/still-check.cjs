@@ -16,13 +16,16 @@
  *
  * Exit 0: every part passed (a part that "could not tell" does not fail it). Exit 1: something failed.
  * Exit 3: not run at all, because a League match is running on this PC.
+ * Exit 4: not run, because its port is taken (bench/own-port.cjs: a check never uses the live engine's port, nor
+ * one that something already answers on).
  */
 'use strict';
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { spawn, execFileSync } = require('node:child_process');
+const { spawn } = require('node:child_process');
 const { chromium } = require('playwright-core');
+const { PORTS, portProblem, leagueRunning } = require('./own-port.cjs');
 
 const ENGINE_DIR = path.join(__dirname, '..');
 const ENGINE = path.join(ENGINE_DIR, 'target', 'release', 'debaser-engine.exe');
@@ -47,15 +50,6 @@ function option(name, fallback) {
 function stamp(date) {
   const two = (n) => String(n).padStart(2, '0');
   return `${date.getFullYear()}${two(date.getMonth() + 1)}${two(date.getDate())}-${two(date.getHours())}${two(date.getMinutes())}${two(date.getSeconds())}`;
-}
-
-/** The owner plays League on this PC. While a match runs, nothing here is started. */
-function leagueRunning() {
-  try {
-    return /League of Legends\.exe/i.test(execFileSync('tasklist', { encoding: 'utf8', windowsHide: true }));
-  } catch (error) {
-    return false;
-  }
 }
 
 async function startEngine(port, tweaks, pretendStill) {
@@ -108,7 +102,7 @@ async function rate(page, forMs) {
 }
 
 async function main() {
-  const port = Number(option('--port', '8481'));
+  const port = Number(option('--port', String(PORTS.still)));
   const result = { kind: 'still-check', when: new Date().toISOString(), pass: false, parts: [] };
   const parts = result.parts;
   const part = (letter, verdict, what, seen) => { parts.push({ letter, verdict, what, seen }); };
@@ -116,6 +110,11 @@ async function main() {
   if (leagueRunning()) {
     console.log('NOT RUN. A League match is running on this PC: nothing is built, started or sent while it is.');
     return 3;
+  }
+  const portTrouble = await portProblem(port);
+  if (portTrouble) {
+    console.log(`NOT RUN. ${portTrouble}`);
+    return 4;
   }
   if (!fs.existsSync(ENGINE)) {
     console.log(`FAIL. The engine is not built: ${ENGINE} is missing. Run "cargo build --release" in the engine folder first.`);

@@ -65,6 +65,18 @@ int32_t dbe_cut_off_key_free(void);
 // Windows itself would send is posted to it. Returns 1 when there was a guard to tell.
 int32_t dbe_post_cut_off(void);
 
+// For `debaser-engine pointer-where` too: the game controllers Windows itself reports (the four "XInput" places a
+// game looks in), so the check can see the pretend controller appear and go, and that nothing on it is pressed.
+// It only reads. Fills four entries and returns how many are connected, or -1 when this Windows has no XInput.
+typedef struct DbePadSeen {
+  int32_t connected;
+  int32_t changes;                  // Windows' count of how many times this controller's state has changed
+  int32_t buttons;                  // Windows' own button bits; 0 = nothing pressed
+  int32_t left_trigger, right_trigger;
+  int32_t left_x, left_y, right_x, right_y;
+} DbePadSeen;
+int32_t dbe_pads_seen(DbePadSeen seen[4]);
+
 #ifdef __cplusplus
 }
 #endif

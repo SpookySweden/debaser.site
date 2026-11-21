@@ -119,6 +119,12 @@ struct DbeSession {
   LONGLONG lost_since = 0;       // when Windows stopped sharing the screen; 0 while it shares
   char error[512] = {0};
 
+  // The PC's own mouse pointer, as Windows last described it (see note_pointer and DbePointer).
+  std::vector<BYTE> pointer_shape;
+  DXGI_OUTDUPL_POINTER_SHAPE_INFO pointer_info = {};
+  uint32_t pointer_count = 0;
+  int32_t pointer_visible = -1;
+
   ~DbeSession() {
     if (session) {
       if (holding) fn.nvEncUnlockBitstream(session, bitstream);
@@ -152,7 +158,24 @@ struct DbeSession {
   bool make_scaler(int32_t fps);
   bool next(int32_t wait_ms, bool force_keyframe, DbeFrame* frame, bool only_if_changed = false);
   bool touches_piece(const DXGI_OUTDUPL_FRAME_INFO& info);
+  void note_pointer(const DXGI_OUTDUPL_FRAME_INFO& info);
 };
+
+// What a frame says about the PC's own mouse pointer is kept: whether it is showing, and its shape when Windows
+// hands a new one over (it does that only when the shape changes: an arrow becoming a text bar, a hand, a resize
+// arrow). Asked of Windows while the frame is still held. The picture itself never has the pointer in it.
+void DbeSession::note_pointer(const DXGI_OUTDUPL_FRAME_INFO& info) {
+  if (info.LastMouseUpdateTime.QuadPart == 0) return;  // this frame says nothing about the pointer
+  pointer_visible = info.PointerPosition.Visible ? 1 : 0;
+  if (info.PointerShapeBufferSize == 0) return;        // the same shape as before
+  std::vector<BYTE> fresh(info.PointerShapeBufferSize);
+  UINT needed = 0;
+  DXGI_OUTDUPL_POINTER_SHAPE_INFO described = {};
+  if (FAILED(duplication->GetFramePointerShape((UINT)fresh.size(), fresh.data(), &needed, &described))) return;
+  pointer_shape.swap(fresh);
+  pointer_info = described;
+  pointer_count += 1;
+}
 
 // The scale step's parts: the video unit told the two sizes, the two textures it works between, and the colours.
 bool DbeSession::make_scaler(int32_t fps) {
@@ -535,6 +558,7 @@ bool DbeSession::next(int32_t wait_ms, bool force_keyframe, DbeFrame* frame, boo
         break;
       }
       if (FAILED(hr)) return fail("Windows stopped sharing the screen part-way", hr);
+      note_pointer(info);
       bool real = false;
       // Tweak 32: a change somewhere else on the screen is not a change to the picture being sent. Windows says
       // which rectangles changed; when none of them touches the piece in hand, the frame is passed over like a
@@ -678,6 +702,21 @@ int32_t dbe_next_frame(DbeSession* session, int32_t wait_ms, int32_t force_keyfr
 }
 
 const char* dbe_last_error(DbeSession* session) { return session->error; }
+
+void dbe_pointer(DbeSession* session, DbePointer* pointer) {
+  memset(pointer, 0, sizeof *pointer);
+  pointer->shape_count = session->pointer_count;
+  pointer->visible = session->pointer_visible;
+  if (session->pointer_count == 0) return;
+  pointer->kind = (int32_t)session->pointer_info.Type;
+  pointer->width = (int32_t)session->pointer_info.Width;
+  pointer->height = (int32_t)session->pointer_info.Height;
+  pointer->pitch = (int32_t)session->pointer_info.Pitch;
+  pointer->hot_x = session->pointer_info.HotSpot.x;
+  pointer->hot_y = session->pointer_info.HotSpot.y;
+  pointer->data = session->pointer_shape.data();
+  pointer->size = (int32_t)session->pointer_shape.size();
+}
 
 int32_t dbe_screen(int32_t* width, int32_t* height, int32_t* hz) {
   ComPtr<IDXGIAdapter1> adapter;

@@ -1,0 +1,92 @@
+{
+  "kind": "pointer-check",
+  "when": "2026-11-21T05:54:58.150Z",
+  "pass": true,
+  "parts": [
+    {
+      "letter": "a",
+      "verdict": "PASS",
+      "what": "while this device is not controlling, nothing changes: no pointer is put on the picture",
+      "seen": "the PC's shape number 1 arrived (24x32, hot spot 3,5); the page is using \"none\", has put the style \"\" on the picture, and the browser's own pointer there is \"auto\""
+    },
+    {
+      "letter": "b",
+      "verdict": "PASS",
+      "what": "controlling in POINTER mode: this device's pointer over the picture takes each new shape, with its size and hot spot at the picture's scale",
+      "seen": "yes: \"block\" (a colour pointer): the PC's pointer is 24x32 with its hot spot at 3,5 (wanted 24x32 at 3,5); one PC pixel is 0.500 page pixels here, so it should be drawn 12x16 with the hot spot at 2,3; the page made a 12x16 picture and the browser's pointer style is \"url(\"data:image/png;base64,iVBORw0KGgoAA...ABJRU5ErkJggg==\") 2 3, default\"\n      yes: its pixels, read back from the picture the page made: the left half [255,255,255,255] (wanted solid white), the right half [255,0,0,128] (wanted half-solid red)\n      yes: \"bar\" (a one-bit pointer whose pixels invert what is under them: sent as a white bar with a black edge): the PC's pointer is 10x22 with its hot spot at 5,11 (wanted 10x22 at 5,11); one PC pixel is 0.500 page pixels here, so it should be drawn 5x11 with the hot spot at 3,6; the page made a 5x11 picture and the browser's pointer style is \"url(\"data:image/png;base64,iVBORw0KGgoAA...ABJRU5ErkJggg==\") 3 6, default\"\n      yes: \"mask\" (the masked kind): the PC's pointer is 18x18 with its hot spot at 9,9 (wanted 18x18 at 9,9); one PC pixel is 0.500 page pixels here, so it should be drawn 9x9 with the hot spot at 5,5; the page made a 9x9 picture and the browser's pointer style is \"url(\"data:image/png;base64,iVBORw0KGgoAA...ABJRU5ErkJggg==\") 5 5, default\""
+    },
+    {
+      "letter": "c",
+      "verdict": "PASS",
+      "what": "the shape survives a settings change, and follows the picture's scale",
+      "seen": "yes: the stream was changed to all of the PC's screen (3440x1440, sent as 3440x1440): the pointer is still the same shape (number 4, was 4), and one PC pixel went from 0.500 to 0.372 page pixels\n      yes: after that change: the PC's pointer is 24x32 with its hot spot at 3,5 (wanted 24x32 at 3,5); one PC pixel is 0.372 page pixels here, so it should be drawn 9x12 with the hot spot at 1,2; the page made a 9x12 picture and the browser's pointer style is \"url(\"data:image/png;base64,iVBORw0KGgoAA...ABJRU5ErkJggg==\") 1 2, default\"\n      yes: the picture at its real size (UPSCALING OFF): the PC's pointer is 24x32 with its hot spot at 3,5 (wanted 24x32 at 3,5); one PC pixel is 1.000 page pixels here, so it should be drawn 24x32 with the hot spot at 3,5; the page made a 24x32 picture and the browser's pointer style is \"url(\"data:image/png;base64,iVBORw0KGgoAA...ABJRU5ErkJggg==\") 3 5, default\"\n      yes: at real size the pointer is drawn exactly as the PC has it: 24x32, hot spot 3,5"
+    },
+    {
+      "letter": "d",
+      "verdict": "PASS",
+      "what": "a pointer larger than a browser will show falls back to the plain arrow",
+      "seen": "\"large\" (200x200) with the picture at its real size: the page uses \"arrow\", the style is \"default\" and the browser's pointer is \"default\"; the panel says \"A PLAIN ARROW IS SHOWN: the PC's pointer would be 200 by 200 here, and a browser shows none larger than 128.\" (shown: true); the limit the page uses is 128\n      the same pointer with the picture fitted to the page (one PC pixel = 0.372 page pixels): \"shape\", drawn 74x74 (wanted 74x74)"
+    },
+    {
+      "letter": "e",
+      "verdict": "PASS",
+      "what": "it hides when the PC hides its pointer, and is only there while controlling in POINTER mode",
+      "seen": "yes: the PC hides its pointer: the page uses \"hidden\", the style is \"none\", the browser's pointer over the picture is \"none\"\n      yes: the PC shows it again (as \"block\"): \"shape\", \"url(\"data:image/png;base64,iVBORw0KGgoAA...ABJRU5ErkJggg==\") 1 2, default\"\n      yes: GAME mode (the pointer is captured, so there is none to shape): the page uses \"none\" and the style is \"\"\n      yes: back to POINTER mode: \"shape\"\n      yes: control let go: the page uses \"none\", the style is \"\", the browser's pointer over the picture is \"auto\""
+    },
+    {
+      "letter": "f",
+      "verdict": "PASS",
+      "what": "a device that joins later is told the current shape, and the stream kept running",
+      "seen": "a second page, opened after everything above: shape number 6 (the first page has 6), 24x32, showing true; /settings says the PC's pointer is {\"shown\":true,\"shape\":6,\"width\":24,\"height\":32}; the first page decoded 8 frames at the start and 104 now, its connection is \"connected\"; errors on the page: none"
+    },
+    {
+      "letter": "r",
+      "verdict": "PASS",
+      "what": "REAL: Windows hands the engine the PC's real pointer shape, and the page receives it",
+      "seen": "Windows handed over shape number 1: 48x48 once turned into pixels, the pointer showing: true; the page received the same (48x48, hot spot 1,0)"
+    }
+  ],
+  "browser": {
+    "path": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "version": "157.0.8103.79",
+    "headless": true
+  },
+  "engineOutput": [
+    "--- run 1: the pretended pointer ---",
+    "DEBASER ENGINE :: serve",
+    "screen 3440x1440 at 180 Hz; H.264, preset P1, tweaks 12",
+    "now sending 1920x1080 at up to 60 fps, 20000 kbit/s: the middle 2560x1440 of the screen, shrunk on the card (as started)",
+    "a viewer may ask for up to 1440 lines, 180 fps, 50000 kbit/s",
+    "open http://127.0.0.1:8615/ in Chrome or Edge",
+    "video leaves from 127.0.0.1:57811",
+    "CONTROL: DRY RUN. What a viewer does is only written down (GET /control-log); nothing reaches Windows.",
+    "SOUND: sent to a viewer that asks for it (everything this PC is playing); not read at all until one does",
+    "THE PC'S POINTER IS PRETENDED, for the check (DEBASER_PRETEND_POINTER_FILE): the real one is ignored",
+    "waiting for a viewer (Ctrl+C stops)",
+    "the PC's pointer (pretended, for the check): \"block\", shape number 1, 24x32, showing",
+    "viewer 1 connected 80 ms after its hello",
+    "viewer 1 starts from a full picture, 95 ms after its hello",
+    "viewer 1 took CONTROL of this PC (dry run: nothing reaches Windows)",
+    "the PC's pointer (pretended, for the check): \"bar\", shape number 2, 10x22, showing",
+    "the PC's pointer (pretended, for the check): \"mask\", shape number 3, 18x18, showing",
+    "the PC's pointer (pretended, for the check): \"block\", shape number 4, 24x32, showing",
+    "now sending 3440x1440 at up to 60 fps, 20000 kbit/s: the whole screen, as it is (a viewer asked; the change took 216 ms)",
+    "the PC's pointer (pretended, for the check): \"large\", shape number 5, 200x200, showing",
+    "the PC's pointer (pretended, for the check): \"hidden\", shape number 5, 200x200, hidden",
+    "the PC's pointer (pretended, for the check): \"block\", shape number 6, 24x32, showing",
+    "CONTROL ended: the viewer let go",
+    "viewer 2 connected 63 ms after its hello",
+    "viewer 2 starts from a full picture, 124 ms after its hello",
+    "--- run 2: REAL (no pretending) ---",
+    "DEBASER ENGINE :: serve",
+    "screen 3440x1440 at 180 Hz; H.264, preset P1, tweaks 12",
+    "now sending 1920x1080 at up to 60 fps, 20000 kbit/s: the middle 2560x1440 of the screen, shrunk on the card (as started)",
+    "a viewer may ask for up to 1440 lines, 180 fps, 50000 kbit/s",
+    "open http://127.0.0.1:8615/ in Chrome or Edge",
+    "video leaves from 127.0.0.1:52930",
+    "SOUND: sent to a viewer that asks for it (everything this PC is playing); not read at all until one does",
+    "waiting for a viewer (Ctrl+C stops)",
+    "viewer 1 connected 71 ms after its hello",
+    "viewer 1 starts from a full picture, 91 ms after its hello"
+  ]
+}

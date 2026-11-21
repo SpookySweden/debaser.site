@@ -11,12 +11,16 @@ Regenerate the list with, from this folder:
 | --- | --- | --- |
 | `vendor/nvEncodeAPI.h` | NVIDIA's encoder interface, as it came (see `vendor/README.txt`) | MIT-style notice in the file |
 | NVIDIA's encoder, Windows' Desktop Duplication, Windows' encryption (CNG) | parts of the driver and of Windows, called at run time | nothing of theirs is shipped |
+| Windows' sound system (WASAPI), Windows' list of game controllers (XInput) | parts of Windows, called at run time (SOUND; the check's look at the controllers) | nothing of theirs is shipped |
+| The ViGEmBus driver (Nefarius) | a driver ALREADY INSTALLED on the PC, which makes pretend game controllers; the engine only talks to it, and works without it (then there is simply no controller) | BSD-3-Clause; not shipped with the engine and not installed by it |
 
 ## Asked for by name (Cargo.toml)
 | Crate | Why | Licence |
 | --- | --- | --- |
 | `str0m` 0.25.0 (features: `wincrypto` only) | WebRTC that takes ready-encoded video; does no networking or timing itself | MIT OR Apache-2.0 |
 | `cc` 1.11.2 (build only, here before) | compiles `native/core.cpp` | MIT OR Apache-2.0 |
+| `unsafe-libopus` 0.2.0 | SOUND: the Opus encoder. It is the Opus project's own library (libopus 1.3.1, BSD-3-Clause, with the Opus patent holders' royalty-free grants) turned from C into Rust by a tool, so it builds with cargo alone | BSD-3-Clause |
+| `vigem-client` 0.1.4 | CONTROLLER: talks to the ViGEmBus driver to plug in, drive and unplug a pretend Xbox 360 controller. Pure Rust, no code of the driver's | MIT |
 
 `str0m`'s default encryption (`aws-lc-rs`, a large C library) and its example web server are switched off. The
 `wincrypto` feature uses the encryption built into Windows instead, so nothing in C is built for it.
@@ -38,6 +42,23 @@ data channels, which `str0m` already had (`sctp-proto`, listed below, is now use
 The efficiency round (2026-11-20) added no crate either. `--lan` lists this PC's own addresses with Windows' own
 `GetAdaptersAddresses` (`native/lan.cpp`, which links Windows' `iphlpapi`); drawing FAST in the viewer page uses
 the browser's own `MediaStreamTrackProcessor` and WebGL2, with shaders written for this page.
+
+SOUND, CONTROLLER and the PC's pointer shape (2026-11-21) added the two crates above and nothing else by name.
+Why `unsafe-libopus` and not the usual wrappers of the C library (`opus`, `audiopus`, `opusic-sys`): those build
+libopus with cmake, and this PC has no cmake (nor nasm or clang); nothing may be installed for the engine. Reading
+back what the PC is playing is Windows' own WASAPI loopback (`native/sound.cpp`, which links Windows' `ole32`).
+The pointer's shape comes from Desktop Duplication, already in use (`native/core.cpp`); turning it into pixels and
+the small run-length packing are a few lines in `src/pointer.rs`. The check's look at Windows' game controllers
+is XInput, found by name at run time (`native/control.cpp`): nothing is linked for it.
+
+## Brought in by unsafe-libopus and vigem-client, built on this PC
+| Crate | Licence |
+| --- | --- |
+| arrayref 0.3.9 (with `unsafe-libopus`) | BSD-2-Clause |
+| num-complex 0.4.6 (with `unsafe-libopus`) | MIT OR Apache-2.0 |
+| num-traits 0.2.19 (with `unsafe-libopus`) | MIT OR Apache-2.0 |
+| autocfg 1.5.1 (build only, with `num-traits`) | Apache-2.0 OR MIT |
+| winapi 0.3.9 (with `vigem-client`: an older set of bindings to Windows) | MIT/Apache-2.0 |
 
 ## Brought in by str0m (and by cc), built on this PC
 All of these came with `str0m` on 2026-11-20 except `find-msvc-tools` and `shlex`, which `cc` already brought.
@@ -105,7 +126,10 @@ Cargo writes down what other systems would need. None of this is compiled into t
 | wasip2 1.0.4, wit-bindgen 0.57.1 | WebAssembly targets | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |
 | time-macros 0.2.32 | an optional part of `time` that is off | MIT OR Apache-2.0 |
 | zerocopy-derive 0.8.63 | an optional part of `zerocopy` that is off | BSD-2-Clause OR Apache-2.0 OR MIT |
+| winapi-i686-pc-windows-gnu 0.4.0, winapi-x86_64-pc-windows-gnu 0.4.0 | `winapi` built with the GNU tools instead of Microsoft's (this PC uses Microsoft's) | MIT/Apache-2.0 |
 
 ## The check scripts
-`bench/webrtc-check.cjs`, `bench/settings-check.cjs`, `bench/control-check.cjs` and `bench/still-check.cjs` use `playwright-core` (Apache-2.0) from the repository's
+`bench/webrtc-check.cjs`, `bench/settings-check.cjs`, `bench/control-check.cjs`, `bench/still-check.cjs`,
+`bench/sound-check.cjs` and `bench/pointer-check.cjs` use `playwright-core` (Apache-2.0) from the repository's
 own `node_modules`: already there for the site's tools, nothing added, and not part of the engine.
+`bench/own-port.cjs` (which port each check may use) uses only what comes with Node.

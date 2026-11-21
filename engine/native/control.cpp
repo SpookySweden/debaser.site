@@ -310,3 +310,40 @@ int32_t dbe_post_cut_off(void) {
   if (!thread) return 0;
   return PostThreadMessageW(thread, WM_HOTKEY, (WPARAM)kCutOffId, MAKELPARAM(MOD_CONTROL | MOD_ALT | MOD_SHIFT, VK_END)) ? 1 : 0;
 }
+
+int32_t dbe_pads_seen(DbePadSeen seen[4]) {
+  memset(seen, 0, 4 * sizeof(DbePadSeen));
+  // XInput is part of Windows; it is looked up by name so that the engine still starts on a PC without it.
+  HMODULE dll = LoadLibraryA("xinput1_4.dll");
+  if (!dll) dll = LoadLibraryA("xinput9_1_0.dll");
+  if (!dll) return -1;
+  // One controller's state, as Microsoft's XINPUT_STATE lays it out.
+  struct State {
+    DWORD packet;
+    WORD buttons;
+    BYTE left_trigger, right_trigger;
+    SHORT left_x, left_y, right_x, right_y;
+  };
+  typedef DWORD(WINAPI * GetState)(DWORD, State*);
+  GetState get_state = (GetState)GetProcAddress(dll, "XInputGetState");
+  int32_t connected = -1;
+  if (get_state) {
+    connected = 0;
+    for (DWORD place = 0; place < 4; ++place) {
+      State state = {};
+      if (get_state(place, &state) != ERROR_SUCCESS) continue;
+      connected += 1;
+      seen[place].connected = 1;
+      seen[place].changes = (int32_t)state.packet;
+      seen[place].buttons = state.buttons;
+      seen[place].left_trigger = state.left_trigger;
+      seen[place].right_trigger = state.right_trigger;
+      seen[place].left_x = state.left_x;
+      seen[place].left_y = state.left_y;
+      seen[place].right_x = state.right_x;
+      seen[place].right_y = state.right_y;
+    }
+  }
+  FreeLibrary(dll);
+  return connected;
+}

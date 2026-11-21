@@ -11,10 +11,12 @@
  * is never touched.
  *
  *     node bench/settings-check.cjs            (from the engine folder, after `cargo build --release`)
- *     node bench/settings-check.cjs --port 8479
+ *     node bench/settings-check.cjs --port 8611
  *
  * Exit 0: every part passed (a part that "could not tell" does not fail it, and is said plainly).
  * Exit 1: something failed, with the reason.
+ * Exit 3: not run at all, because a League match is running on this PC. Exit 4: not run, because its port is
+ * taken (bench/own-port.cjs: a check never uses the live engine's port, nor one that something already answers on).
  *
  * What it cannot say: how the picture LOOKS. It checks sizes, rates, that the same connection carried on, and for
  * the SHARPENED mode that the canvas holds a lit picture close to the plain one; nobody has looked at it.
@@ -26,6 +28,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { chromium } = require('playwright-core');
+const { PORTS, portProblem, leagueRunning } = require('./own-port.cjs');
 
 const ENGINE_DIR = path.join(__dirname, '..');
 const ENGINE = path.join(ENGINE_DIR, 'target', 'release', 'debaser-engine.exe');
@@ -161,12 +164,21 @@ async function decodedRate(page, forMs) {
 }
 
 async function main() {
-  const port = Number(option('--port', '8479'));
+  const port = Number(option('--port', String(PORTS.settings)));
   const result = { kind: 'settings-check', when: new Date().toISOString(), pass: false, parts: [] };
   const parts = result.parts;
   // One line of the result: 'PASS', 'FAIL' or 'COULD NOT TELL', what was being proved, and what was seen.
   const part = (letter, verdict, what, seen, extra = {}) => { parts.push({ letter, verdict, what, seen, ...extra }); };
 
+  if (leagueRunning()) {
+    console.log('NOT RUN. A League match is running on this PC: nothing is built, started or sent while it is.');
+    return 3;
+  }
+  const portTrouble = await portProblem(port);
+  if (portTrouble) {
+    console.log(`NOT RUN. ${portTrouble}`);
+    return 4;
+  }
   if (!fs.existsSync(ENGINE)) {
     console.log(`FAIL. The engine is not built: ${ENGINE} is missing. Run "cargo build --release" in the engine folder first.`);
     return 1;

@@ -3,11 +3,13 @@
   The engine's viewer page (SPEC-screens.md), served by `debaser-engine serve` at "/".
   Plain HTML and script: no libraries, no artwork, and nothing is asked of any other server (the rule below
   forbids it outright; the only requests are the "hello" and the settings, back to the engine that served this page).
-  CONTROL (this device's mouse and keys driving the PC) travels on the same direct connection as the picture.
+  CONTROL (this device's mouse, keys and game controller driving the PC) and SOUND (what the PC is playing)
+  travel on the same direct connection as the picture.
 
-  The script is in six parts, in this order, each under its own heading: BASICS (the page's parts, the address,
+  The script is in seven parts, in this order, each under its own heading: BASICS (the page's parts, the address,
   what is remembered), CONNECT (the stream), SETTINGS (what the PC sends), DRAWING (how this device draws it),
-  READOUT, CONTROL. The last lines start everything.
+  READOUT, SOUND, CONTROL (which ends with two smaller parts of its own: THE PC'S POINTER, the shape this
+  device's pointer takes while it controls, and CONTROLLER). The last lines start everything.
 
   What the address may carry:
     token=...          when the engine asks for one; passed along as it is.
@@ -16,12 +18,16 @@
     drawing=fast       draw this way whatever this device remembers (for measuring one against the other);
     drawing=normal     it is not remembered.
     fast=refused       for the checks only: behave as if this browser could not draw FAST.
+    thispc=1           this device IS the PC (a website that carries this page says so when it knows). The page
+                       works that out for itself when it was loaded from 127.0.0.1 or localhost. On the PC itself
+                       SOUND is not offered: it would feed back into itself.
+    thispc=0           for the checks only: behave as if this device were not the PC, though the address says it is.
 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src data:">
 <title>DEBASER ENGINE VIEWER</title>
 <style>
   /* Neutral greys only, and nothing eases or fades: every change is instant. */
@@ -86,9 +92,11 @@
   <canvas id="fast" hidden></canvas>
   <canvas id="sharpened" hidden></canvas>
 </div>
+<audio id="sound"></audio>
 <pre id="numbers">connecting</pre>
 <div id="corner">
   <span id="control-says" hidden></span>
+  <button id="sound-key" class="key" type="button" aria-pressed="false" hidden>[ SOUND ]</button>
   <button id="control-key" class="key" type="button" aria-pressed="false" hidden>[ CONTROL ]</button>
   <button id="open-settings" class="key" type="button" aria-expanded="false" aria-pressed="false" aria-controls="panel">[ SETTINGS ]</button>
 </div>
@@ -161,6 +169,19 @@
   <h2>WINDOW</h2>
   <div class="row"><button id="fullscreen" class="key" type="button" aria-pressed="false">[ FULLSCREEN ]</button></div>
 
+  <h2>SOUND</h2>
+  <p class="says" id="sound-state">Waiting for the PC to say whether it sends sound.</p>
+  <p class="says" id="sound-warning" hidden>ON THIS PC THE SOUND WOULD FEED BACK INTO ITSELF</p>
+  <div id="sound-choices" hidden>
+    <div class="row" id="sound-keys">
+      <button class="key" type="button" data-sound="on">[ SOUND ON ]</button>
+      <button class="key" type="button" data-sound="off">[ SOUND OFF ]</button>
+    </div>
+    <h3><label for="volume">VOLUME</label></h3>
+    <div class="row"><input id="volume" type="range" min="0" max="100" step="1" value="100"> <span id="volume-says">100%</span></div>
+  </div>
+  <p>This is everything the PC is playing, not one program: its Windows cannot leave one out. The PC does not read its sound at all until a viewer turns this on, and stops when the last one turns it off.</p>
+
   <h2>CONTROL</h2>
   <p class="says" id="control-state">Waiting for the PC to say whether it allows control.</p>
   <div id="control-choices" hidden>
@@ -169,16 +190,19 @@
       <button class="key" type="button" data-mouse="pointer">[ POINTER ]</button>
       <button class="key" type="button" data-mouse="game">[ GAME ]</button>
     </div>
-    <p>POINTER: this device's own pointer is the pointer, drawn here with no delay; the stream itself carries no pointer. GAME: the pointer is captured and its raw movement is sent, for games that turn the view with the mouse.</p>
+    <p>POINTER: this device's own pointer is the pointer, drawn here with no delay, in the shape the PC's own pointer has at that moment (an arrow, a text bar, a hand); it hides when the PC hides its pointer. The stream itself carries no pointer. GAME: the pointer is captured and its raw movement is sent, for games that turn the view with the mouse.</p>
+    <p class="says" id="shape-says" hidden></p>
     <p class="says" id="pointer-says" hidden>The pointer is not captured: click the picture to capture it (Esc gives it back).</p>
     <p id="keys-says"></p>
     <p>To let go: [ RELEASE ], or Ctrl+Alt+Shift+Q on this device (that is never sent to the PC). On the PC itself, Ctrl+Alt+Shift+End stops it. If this tab loses focus, every key held is let go at once.</p>
+    <h3>CONTROLLER</h3>
+    <p class="says" id="pad-says">NO CONTROLLER ON THIS DEVICE</p>
+    <p>A game controller on this device drives a pretend Xbox 360 controller on the PC, for as long as this device holds control. The PC unplugs it the moment control ends. One controller; no vibration comes back.</p>
   </div>
 
   <h2>NOT BUILT YET</h2>
   <ul>
-    <li>A controller (gamepad) from this device.</li>
-    <li>Sound.</li>
+    <li>Vibration from the PC back to this device's controller.</li>
     <li>HEVC and AV1 video (this PC's graphics card cannot encode AV1).</li>
     <li>Changing the PC's real screen mode, or a virtual screen, so that games draw themselves in this screen's shape instead of having their sides cut off.</li>
   </ul>
@@ -195,6 +219,7 @@ const stage = $('stage');
 const video = $('screen');
 const fastCanvas = $('fast');
 const sharpCanvas = $('sharpened');
+const audio = $('sound');
 const numbers = $('numbers');
 const panel = $('panel');
 
@@ -203,11 +228,13 @@ const address = new URLSearchParams(location.search);
 const hold = address.get('hold') === '1';
 const drawingForced = ['fast', 'normal'].includes(address.get('drawing')) ? address.get('drawing') : null;
 const fastRefused = address.get('fast') === 'refused';
+// Whether this device is the PC itself (its sound would then feed back into itself).
+const onThisPc = address.get('thispc') === '1' || (address.get('thispc') !== '0' && ['127.0.0.1', 'localhost', '[::1]', '::1'].includes(location.hostname));
 
 // What this device last chose, remembered between visits. The page works the same when the browser refuses to
 // remember (private windows, blocked storage): it then starts from these every time.
 const STORE = 'debaser-engine-viewer';
-const wishes = { match: true, shape: '16:9', lines: 1080, fps: 'auto', bitrateKbps: 20000, drawing: 'fast', upscaling: 'smooth', numbers: true, mouse: 'pointer' };
+const wishes = { match: true, shape: '16:9', lines: 1080, fps: 'auto', bitrateKbps: 20000, drawing: 'fast', upscaling: 'smooth', numbers: true, mouse: 'pointer', sound: false, volume: 1 };
 try {
   const kept = JSON.parse(localStorage.getItem(STORE) || 'null');
   if (kept && typeof kept === 'object') {
@@ -220,6 +247,8 @@ try {
     if (['off', 'smooth', 'sharp', 'sharpened'].includes(kept.upscaling)) wishes.upscaling = kept.upscaling;
     if (typeof kept.numbers === 'boolean') wishes.numbers = kept.numbers;
     if (['pointer', 'game'].includes(kept.mouse)) wishes.mouse = kept.mouse;
+    if (typeof kept.sound === 'boolean') wishes.sound = kept.sound;
+    if (Number.isFinite(kept.volume) && kept.volume >= 0 && kept.volume <= 1) wishes.volume = kept.volume;
   }
 } catch (error) { /* nothing remembered, or not allowed to look */ }
 function remember() {
@@ -239,6 +268,7 @@ const quietly = (promise) => promise.catch(() => { /* the reason is already show
 let connection = null;
 let connectionsMade = 0;
 let track = null;          // the stream's video, once it has arrived
+let soundTrack = null;     // the stream's sound line, once it has arrived (silent until SOUND is turned on)
 // CONTROL's two channels (see the CONTROL part below), and the number the PC gave this viewer.
 let keysChannel = null;
 let pointerChannel = null;
@@ -252,6 +282,8 @@ async function start() {
   connection = new RTCPeerConnection({ iceServers: [] });
   connectionsMade += 1;
   const transceiver = connection.addTransceiver('video', { direction: 'recvonly' });
+  // SOUND has a line of its own in the same hello. Nothing travels on it until this device asks (see SOUND).
+  connection.addTransceiver('audio', { direction: 'recvonly' });
 
   // CONTROL's two channels are part of the offer. Keys, buttons and the wheel must all arrive, in order.
   // Pointer movement must be NEW: a position that was lost is not sent again, the next one replaces it.
@@ -259,6 +291,8 @@ async function start() {
   pointerChannel = connection.createDataChannel('pointer', { ordered: false, maxRetransmits: 0 });
   keysChannel.binaryType = 'arraybuffer';
   keysChannel.onmessage = onPcSays;
+  // SOUND that was left on at the last visit is asked for again as soon as the PC can be told.
+  keysChannel.onopen = () => { if (wishes.sound) turnSound(true, false); };
   keysChannel.onclose = () => { if (control.mine) controlOver('CONTROL ENDED: THE CONNECTION CLOSED'); };
 
   // Ask for H.264 first, since that is what the engine's video chip makes.
@@ -270,11 +304,19 @@ async function start() {
   } catch (error) { /* an older browser: it still offers H.264, just not first */ }
 
   connection.ontrack = (event) => {
-    // Ask the browser to keep no waiting queue: show each frame as soon as it is decoded.
+    // Ask the browser to keep no waiting queue: show each frame as soon as it is decoded. (For sound the same
+    // request means "the shortest queue you can play smoothly from"; a browser keeps a few hundredths of a second.)
     try { event.receiver.jitterBufferTarget = 0; } catch (error) { /* not in this browser */ }
     try { event.receiver.playoutDelayHint = 0; } catch (error) { /* not in this browser */ }
+    if (event.track.kind === 'audio') {
+      // Kept apart from the picture on purpose: a browser that knew the two belonged together would hold the
+      // picture back to keep it in step with the sound's queue.
+      soundTrack = event.track;
+      audio.srcObject = new MediaStream([event.track]);
+      return;
+    }
     track = event.track;
-    video.srcObject = event.streams[0] || new MediaStream([event.track]);
+    video.srcObject = new MediaStream([event.track]);
     video.play().catch(() => { /* muted autoplay is allowed; if a browser still refuses, a click starts it */ });
     if (video.requestVideoFrameCallback) video.requestVideoFrameCallback(() => { if (steps.firstFrameShown === null) steps.firstFrameShown = performance.now(); });
     showDrawing();
@@ -341,12 +383,29 @@ window.__debaserStats = async function () {
     framesDrawnFast: fast.frames,
     upscaling: { asked: wishes.upscaling, shown: upscalingShown, note: upscalingNote },
     screenHz,
+    // SOUND: whether it is on here, and the browser's own numbers for the sound it has received.
+    sound: {
+      on: sound.on, offered: soundOffered(), note: sound.note, volume: wishes.volume,
+      packetsReceived: 0, packetsLost: 0, bytesReceived: 0,
+      jitterBufferDelayMsPerSample: null, jitterBufferDelay: null, jitterBufferEmittedCount: null,
+      audioLevel: null, totalAudioEnergy: null, totalSamplesReceived: null, concealedSamples: null, mimeType: null,
+    },
   };
   if (!connection) return result;
   const report = await connection.getStats();
   let inbound = null;
   let pair = null;
   report.forEach((entry) => {
+    if (entry.type === 'inbound-rtp' && entry.kind === 'audio') {
+      const heard = result.sound;
+      for (const key of ['packetsReceived', 'packetsLost', 'bytesReceived', 'jitterBufferDelay', 'jitterBufferEmittedCount', 'audioLevel', 'totalAudioEnergy', 'totalSamplesReceived', 'concealedSamples']) {
+        if (typeof entry[key] === 'number') heard[key] = entry[key];
+      }
+      // How long, on average, a sample of sound waits in this browser before it is played.
+      heard.jitterBufferDelayMsPerSample = perFrameMs(entry.jitterBufferDelay, entry.jitterBufferEmittedCount);
+      const codec = entry.codecId ? report.get(entry.codecId) : null;
+      heard.mimeType = codec ? codec.mimeType : null;
+    }
     if (entry.type === 'inbound-rtp' && entry.kind === 'video') inbound = entry;
     if (entry.type === 'candidate-pair' && entry.nominated && entry.state === 'succeeded') pair = entry;
   });
@@ -552,6 +611,7 @@ function showSettings() {
   if (host && !host.applied) lines.push('The PC has not made the last change yet.');
   trouble.hidden = lines.length === 0;
   trouble.textContent = lines.join('\n');
+  showSound();
   showControl();
 }
 
@@ -854,6 +914,8 @@ function layOutPicture() {
     fast.gl.useProgram(shaded ? fast.sharpen : fast.plain);
     if (shaded) fast.gl.uniform2f(fast.sharpenPixel, 1 / size.wide, 1 / size.tall);
   }
+  // The PC's pointer is drawn at the picture's scale, which may just have changed.
+  showPcPointer();
 }
 
 // Where the picture really is on this page, whichever way it is being drawn (CONTROL's pointer needs to know).
@@ -1028,16 +1090,118 @@ async function showReadout() {
       'Lost packets          ' + s.packetsLost + '\n' +
       'Drawn                 ' + s.drawing.toUpperCase() + (s.drawing === 'fast' ? (s.lowLatencyCanvas ? ', skipping the browser\'s drawing queue' : ', but this browser kept its drawing queue') : '') + '\n' +
       'On the PC, shown to encoded ' + pc +
+      (s.sound.on ? '\nSound                 ' + (s.sound.mimeType || 'on') + ', ' + shown(s.sound.jitterBufferDelayMsPerSample, 0) + ' ms in this browser\'s queue, ' + s.sound.packetsLost + ' packets lost' : '') +
       (control.mine ? '\nInput sent            ' + control.sentRate + ' messages a second' : '');
+    showPad();
   } catch (error) { /* the next second tries again */ }
 }
+
+// ===============================================================================================================
+// SOUND: what the PC is playing. Off until this device asks: the PC does not even read its own sound until a
+// viewer wants it. The sound is everything the PC plays (its Windows cannot leave one program out). On the PC
+// itself it is not offered, because the PC would hear this page and send that too, round and round.
+//
+// Turning it on or off tells the PC (one small message on the `keys` channel; engine/src/control.rs lists it),
+// and starts or stops this page's <audio> element, which is where the sound line of the stream is played.
+
+const SOUND = 0x30, SOUND_SAYS = 0x84;
+
+const sound = {
+  on: false,    // this device is playing the PC's sound
+  note: '',     // why it is not, when it was wanted and could not be
+};
+
+// Whether SOUND can be offered on this device at all: not on the PC itself, and only when the PC sends it.
+function soundOffered() {
+  return !onThisPc && Boolean(host && host.sound && host.sound.allowed);
+}
+
+function tellPcSound(on) {
+  if (channelOpen(keysChannel)) keysChannel.send(new Uint8Array([SOUND, on ? 1 : 0]));
+}
+
+// Turns the sound on or off. `byPress` is true when a person pressed a key for it: that is remembered on this
+// device, and it is also what a browser wants before it will play anything.
+function turnSound(on, byPress) {
+  if (on && onThisPc) return;
+  if (byPress) { wishes.sound = on; remember(); }
+  sound.note = '';
+  if (!on) {
+    sound.on = false;
+    audio.pause();
+    tellPcSound(false);
+    showSound();
+    return;
+  }
+  if (!soundTrack) { sound.note = 'NOT CONNECTED YET'; showSound(); return; }
+  audio.volume = wishes.volume;
+  const playing = audio.play();
+  sound.on = true;
+  tellPcSound(true);
+  showSound();
+  if (playing && playing.catch) {
+    playing.catch(() => {
+      // The browser will not play sound that nobody pressed a key for (sound left on at the last visit): the
+      // PC is told to stop, and the key waits to be pressed.
+      sound.on = false;
+      sound.note = 'THIS BROWSER WANTS A PRESS BEFORE IT PLAYS SOUND: PRESS [ SOUND ]';
+      tellPcSound(false);
+      showSound();
+    });
+  }
+}
+
+// The PC's answer to being asked: 0 off, 1 on its way, 2 it is not sending sound.
+function onPcSaysSound(what) {
+  if (what === 2) {
+    sound.on = false;
+    audio.pause();
+    sound.note = 'THIS PC IS NOT SENDING SOUND';
+    showSound();
+  }
+}
+
+// Draws the SOUND key and the panel's SOUND section.
+function showSound() {
+  const offered = soundOffered();
+  const key = $('sound-key');
+  key.hidden = !offered;
+  key.setAttribute('aria-pressed', String(sound.on));
+  $('sound-warning').hidden = !onThisPc;
+  $('sound-choices').hidden = !offered;
+  press($('sound-keys'), 'data-sound', sound.on ? 'on' : 'off');
+  if (document.activeElement !== $('volume')) $('volume').value = String(Math.round(wishes.volume * 100));
+  $('volume-says').textContent = Math.round(wishes.volume * 100) + '%';
+  let state;
+  if (onThisPc) state = 'Not offered here: this device is the PC itself.';
+  else if (!host) state = 'Waiting for the PC to say whether it sends sound.';
+  else if (!host.sound) state = 'THIS PC IS NOT SENDING SOUND\nIts engine is an older one that cannot.';
+  else if (!host.sound.allowed) state = 'THIS PC IS NOT SENDING SOUND\nIts engine was started with --no-sound.';
+  else if (sound.on) {
+    state = 'ON.' + (host.sound.problem ? '\nTHE PC COULD NOT READ ITS OWN SOUND: ' + host.sound.problem
+      : host.sound.heard === 'silence' ? ' The PC is playing nothing at the moment.'
+        : host.sound.heard === 'sound' ? ' The PC is playing sound.' : '');
+  } else state = 'OFF. [ SOUND ] at the top turns it on.' + (sound.note ? '\n' + sound.note : '');
+  $('sound-state').textContent = state;
+}
+
+$('sound-key').addEventListener('click', () => turnSound(!sound.on, true));
+$('sound-keys').addEventListener('click', (event) => { const key = event.target.closest('button'); if (key) turnSound(key.dataset.sound === 'on', true); });
+// The volume is this device's own: it changes how loud the <audio> element plays, and nothing on the PC.
+$('volume').addEventListener('input', () => {
+  wishes.volume = Number($('volume').value) / 100;
+  audio.volume = wishes.volume;
+  $('volume-says').textContent = $('volume').value + '%';
+});
+$('volume').addEventListener('change', () => { $('volume').blur(); remember(); });
 
 // ===============================================================================================================
 // CONTROL: this device's mouse, keys and wheel driving the PC. Only when the PC was started allowing it, only one
 // device at a time, and never during a League match (the PC refuses). The messages are a few bytes each, sent on
 // two data channels; engine/src/control.rs is the one place they are written down, and the numbers here follow it.
 
-const TAKE = 0x01, RELEASE = 0x02, STILL_HERE = 0x03, ALL_UP = 0x04, KEY = 0x10, BUTTON = 0x11, WHEEL = 0x12, POINTER_AT = 0x20, POINTER_BY = 0x21, STATE = 0x80;
+const TAKE = 0x01, RELEASE = 0x02, STILL_HERE = 0x03, ALL_UP = 0x04, KEY = 0x10, BUTTON = 0x11, WHEEL = 0x12, PAD = 0x13, POINTER_AT = 0x20, POINTER_BY = 0x21, PAD_STATE = 0x22;
+const STATE = 0x80, POINTER_SHOWN = 0x81, POINTER_SHAPE = 0x82, PAD_SAYS = 0x83;
 // What the PC says about control, in words.
 const PC_SAYS = {
   2: 'ANOTHER DEVICE HAS CONTROL',
@@ -1188,6 +1352,8 @@ function allUp() {
   if (control.heldKeys.size || control.heldButtons.size) sendKeys([ALL_UP]);
   control.heldKeys.clear();
   control.heldButtons.clear();
+  // The controller too: a browser may stop reading it while the tab is away, so the PC's is set to "nothing pressed".
+  padLetGo();
 }
 
 function lockPointer() {
@@ -1216,6 +1382,7 @@ function controlBegan() {
   control.heldButtons.clear();
   clearInterval(control.stillHereTimer);
   control.stillHereTimer = setInterval(() => { if (control.mine) sendKeys([STILL_HERE]); }, 1000);
+  padBegin();
   if (wishes.mouse === 'game') lockPointer();
   lockKeyboard();
   showControl();
@@ -1229,6 +1396,7 @@ function controlOver(why) {
   control.newestAt = null;
   control.owedBy = [0, 0];
   clearInterval(control.stillHereTimer);
+  padEnd();
   if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
   lockKeyboard();
   showControl();
@@ -1249,6 +1417,11 @@ function releaseControl() {
 
 function onPcSays(event) {
   const bytes = new Uint8Array(event.data);
+  // Besides control itself, the PC says three other things on this channel.
+  if (bytes[0] === POINTER_SHOWN) return onPcPointerShown(bytes[1] === 1);
+  if (bytes[0] === POINTER_SHAPE) return onPcPointerShape(bytes);
+  if (bytes[0] === PAD_SAYS) return onPcSaysPad(bytes[1]);
+  if (bytes[0] === SOUND_SAYS) return onPcSaysSound(bytes[1]);
   if (bytes[0] !== STATE) return;
   if (bytes[1] === 1) controlBegan();
   else if (bytes[1] === 10) { if (control.mine) controlOver(''); }
@@ -1287,6 +1460,8 @@ function showControl() {
       ? 'System keys (Alt+Tab, the Windows key, Esc) stay with this device unless the page is fullscreen while controlling.'
       : 'System keys (Alt+Tab, the Windows key, Esc) stay with this device: this browser cannot hand them over.';
   $('pointer-says').hidden = !(control.mine && wishes.mouse === 'game' && !control.pointerLocked);
+  showPcPointer();
+  showPad();
 }
 
 $('control-key').addEventListener('click', () => { if (control.mine) releaseControl(); else takeControl(); });
@@ -1324,7 +1499,11 @@ document.addEventListener('fullscreenchange', lockKeyboard);
 // one relative movement (it only does anything while this device holds control); bench/control-check.cjs uses it
 // for its one real proof, a pointer moved two pixels and back.
 window.__debaserControl = {
-  state: () => ({ standing: host ? host.control : null, why: host ? host.controlWhy : null, mine: control.mine, note: control.note, mouse: wishes.mouse, sent: control.sent, heldKeys: [...control.heldKeys], pointerLocked: control.pointerLocked, keyboardLocked: control.keyboardLocked, viewer }),
+  state: () => ({
+    standing: host ? host.control : null, why: host ? host.controlWhy : null, mine: control.mine, note: control.note, mouse: wishes.mouse, sent: control.sent,
+    heldKeys: [...control.heldKeys], pointerLocked: control.pointerLocked, keyboardLocked: control.keyboardLocked, viewer,
+    pad: { name: pad.name, toldPc: pad.toldPc, pcSays: pad.pcSays, statesSent: pad.statesSent, says: $('pad-says').textContent },
+  }),
   take: takeControl,
   release: releaseControl,
   nudge(dx, dy) {
@@ -1334,6 +1513,258 @@ window.__debaserControl = {
     return true;
   },
 };
+
+// ---------------------------------------------------------------------------------------------------------------
+// THE PC'S POINTER: while this device holds control in POINTER mode, its own pointer over the picture takes the
+// shape the PC's pointer has (an arrow, a text bar, a hand, a resize arrow), and hides when the PC hides its own.
+// The stream carries no pointer; the PC sends each new shape as pixels on the `keys` channel
+// (engine/src/pointer.rs has the message). When this device is not controlling, nothing here changes anything.
+
+// A browser will not show a pointer picture larger than this (in page pixels); beyond it the plain arrow is used.
+const POINTER_LIMIT = 128;
+
+const pcPointer = {
+  shown: true,       // the PC is showing its pointer (false: a game or a film has hidden it)
+  number: 0,         // the number of the newest shape; 0 = none has arrived
+  width: 0, height: 0, hotX: 0, hotY: 0,
+  picture: null,     // the shape at its own size, on a canvas (null: none yet, or too large to be sent)
+  made: '',          // which scaled picture `address` holds: "number width height"
+  address: '',       // that picture as a "data:" address
+  css: '',           // the pointer style last put on the picture
+  use: 'none',       // what this device's pointer is over the picture now: 'none' (not controlling; the
+                     // browser's own), 'shape', 'arrow' (the plain arrow, and `why`), 'hidden'
+  why: '',
+  drawn: null,       // the size and hot spot the shape was drawn at, and the scale used
+};
+
+function onPcPointerShown(shown) {
+  pcPointer.shown = shown;
+  showPcPointer();
+}
+
+// `82 n n w w h h x x y y how pixels...`
+function onPcPointerShape(bytes) {
+  const word = (at) => bytes[at] | (bytes[at + 1] << 8);
+  const width = word(3), height = word(5), how = bytes[11];
+  let pixels = null;
+  if (how === 0 && bytes.length === 12 + width * height * 4) {
+    pixels = new Uint8ClampedArray(bytes.subarray(12));
+  } else if (how === 1) {
+    // Runs: `count red green blue solid`, that pixel `count` times.
+    pixels = new Uint8ClampedArray(width * height * 4);
+    let to = 0;
+    for (let at = 12; at + 4 < bytes.length; at += 5) {
+      for (let n = bytes[at]; n > 0 && to < pixels.length; n -= 1) {
+        pixels[to] = bytes[at + 1]; pixels[to + 1] = bytes[at + 2]; pixels[to + 2] = bytes[at + 3]; pixels[to + 3] = bytes[at + 4];
+        to += 4;
+      }
+    }
+    if (to !== pixels.length) pixels = null;
+  }
+  pcPointer.number = word(1);
+  pcPointer.width = width;
+  pcPointer.height = height;
+  pcPointer.hotX = word(7);
+  pcPointer.hotY = word(9);
+  pcPointer.picture = null;
+  if (pixels && width > 0 && height > 0) {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext('2d').putImageData(new ImageData(pixels, width, height), 0, 0);
+    pcPointer.picture = canvas;
+  }
+  showPcPointer();
+}
+
+// Sets this device's pointer over the picture. Called whenever anything it depends on changes: a new shape, the
+// PC hiding or showing its pointer, control beginning or ending, the kind of mouse, the picture moving or changing size.
+function showPcPointer() {
+  let use = 'none', css = '', why = '', drawn = null;
+  if (control.mine && wishes.mouse === 'pointer') {
+    if (!pcPointer.shown) {
+      use = 'hidden';
+      css = 'none';
+    } else if (!pcPointer.picture) {
+      use = 'arrow';
+      css = 'default';
+      why = pcPointer.number ? 'the PC\'s pointer was too large to be sent' : 'the PC has not sent its pointer\'s shape yet';
+    } else {
+      // One pixel of the PC's screen is this many page pixels, the way the picture is being shown now.
+      const box = pictureBox();
+      const across = host && host.sending ? host.sending.regionWidth : 0;
+      const scale = box && across > 0 ? box.width / across : 1;
+      const width = Math.max(1, Math.round(pcPointer.width * scale));
+      const height = Math.max(1, Math.round(pcPointer.height * scale));
+      if (width > POINTER_LIMIT || height > POINTER_LIMIT) {
+        use = 'arrow';
+        css = 'default';
+        why = 'the PC\'s pointer would be ' + width + ' by ' + height + ' here, and a browser shows none larger than ' + POINTER_LIMIT;
+      } else {
+        const made = pcPointer.number + ' ' + width + ' ' + height;
+        if (pcPointer.made !== made) {
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const pen = canvas.getContext('2d');
+          // At its own size the pixels are copied as they are; at any other they are smoothed.
+          pen.imageSmoothingEnabled = width !== pcPointer.width || height !== pcPointer.height;
+          pen.imageSmoothingQuality = 'high';
+          pen.drawImage(pcPointer.picture, 0, 0, width, height);
+          pcPointer.address = canvas.toDataURL('image/png');
+          pcPointer.made = made;
+        }
+        const hotX = Math.min(width - 1, Math.round(pcPointer.hotX * scale));
+        const hotY = Math.min(height - 1, Math.round(pcPointer.hotY * scale));
+        use = 'shape';
+        css = 'url(' + pcPointer.address + ') ' + hotX + ' ' + hotY + ', default';
+        drawn = { width, height, hotX, hotY, scale };
+      }
+    }
+  }
+  if (css !== pcPointer.css) {
+    stage.style.cursor = css;
+    pcPointer.css = css;
+  }
+  pcPointer.use = use;
+  pcPointer.why = why;
+  pcPointer.drawn = drawn;
+  $('shape-says').hidden = use !== 'arrow';
+  $('shape-says').textContent = use === 'arrow' ? 'A PLAIN ARROW IS SHOWN: ' + why + '.' : '';
+}
+
+// For the checks: what this device's pointer over the picture is now.
+window.__debaserPointer = {
+  state: () => ({
+    shown: pcPointer.shown, number: pcPointer.number, width: pcPointer.width, height: pcPointer.height, hotX: pcPointer.hotX, hotY: pcPointer.hotY,
+    use: pcPointer.use, why: pcPointer.why, drawn: pcPointer.drawn, address: pcPointer.use === 'shape' ? pcPointer.address : '',
+    style: stage.style.cursor, limit: POINTER_LIMIT,
+  }),
+};
+
+// ---------------------------------------------------------------------------------------------------------------
+// CONTROLLER: a game controller on this device driving a pretend Xbox 360 controller on the PC, while this device
+// holds control. The browser is asked for the controller's state every few milliseconds; the whole state (buttons,
+// triggers, both sticks) is sent when anything changed, on the channel where a newer message replaces an older
+// one, and once a second whether or not it changed, so a lost message cannot leave a button held on the PC.
+
+// Where each button of a controller the browser understands (its "standard" layout) goes on an Xbox 360 one:
+// the browser's button number, then Windows' bit for it. Buttons 6 and 7 are the triggers, sent as amounts.
+const PAD_BUTTONS = [[0, 0x1000], [1, 0x2000], [2, 0x4000], [3, 0x8000], [4, 0x0100], [5, 0x0200], [8, 0x0020], [9, 0x0010], [10, 0x0040], [11, 0x0080], [12, 0x0001], [13, 0x0002], [14, 0x0004], [15, 0x0008], [16, 0x0400]];
+const PAD_NEUTRAL = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+const PC_SAYS_PAD = { 2: 'THE PC HAS NO CONTROLLER DRIVER', 3: 'THE PC\'S CONTROLLER DRIVER REFUSED' };
+
+const pad = {
+  name: '',          // the controller in use on this device ('' = none)
+  odd: false,        // a controller is connected, but in a layout the browser does not understand
+  toldPc: false,     // the PC has been told this device has a controller
+  pcSays: null,      // the PC's answer: 1 plugged in, 2 no driver, 3 the driver refused
+  number: 0,         // counts the state messages, so the PC can drop one that arrives late
+  last: '',          // the last state sent
+  lastAt: 0,
+  statesSent: 0,
+  timer: 0,
+};
+
+// The one controller in use: the first the browser lists that is connected and in the standard layout.
+function findPad() {
+  pad.odd = false;
+  let all = [];
+  try { all = navigator.getGamepads ? navigator.getGamepads() : []; } catch (error) { return null; }
+  for (const one of all) {
+    if (!one || !one.connected) continue;
+    if (one.mapping === 'standard') return one;
+    pad.odd = true;
+  }
+  return null;
+}
+
+function sendPadState(state) {
+  if (!channelOpen(pointerChannel)) return;
+  pad.number = (pad.number + 1) & 0xffff;
+  pointerChannel.send(new Uint8Array([PAD_STATE, ...two(pad.number), ...state]));
+  pad.last = state.join(' ');
+  pad.lastAt = performance.now();
+  pad.statesSent += 1;
+  control.sent += 1;
+}
+
+// Every few milliseconds while this device holds control.
+function readPad() {
+  if (!control.mine) return;
+  const one = findPad();
+  if (!one) {
+    // It has gone (unplugged, or switched off): the PC unplugs its pretend one.
+    if (pad.toldPc) { sendKeys([PAD, 0]); pad.toldPc = false; pad.pcSays = null; pad.name = ''; showPad(); }
+    return;
+  }
+  if (!pad.toldPc) {
+    if (!sendKeys([PAD, 1])) return;
+    pad.toldPc = true;
+    pad.pcSays = null;
+    pad.name = one.id;
+    pad.number = 0;
+    pad.last = '';
+    showPad();
+  }
+  let buttons = 0;
+  for (const [button, bit] of PAD_BUTTONS) if (one.buttons[button] && one.buttons[button].pressed) buttons |= bit;
+  const trigger = (button) => Math.round(Math.min(1, Math.max(0, one.buttons[button] ? one.buttons[button].value : 0)) * 255);
+  // A stick as Windows wants it: -32767 to 32767, right and UP positive (a browser's "up" is negative).
+  const stick = (value) => Math.round(Math.min(1, Math.max(-1, value || 0)) * 32767);
+  const state = [...two(buttons), trigger(6), trigger(7), ...two(stick(one.axes[0])), ...two(stick(-one.axes[1])), ...two(stick(one.axes[2])), ...two(stick(-one.axes[3]))];
+  if (state.join(' ') !== pad.last || performance.now() - pad.lastAt >= 1000) sendPadState(state);
+}
+
+// Sets the PC's pretend controller to "nothing pressed" now (the tab lost focus). The next reading sends the
+// real state again if the browser is still giving one.
+function padLetGo() {
+  if (control.mine && pad.toldPc && pad.last !== PAD_NEUTRAL.join(' ')) sendPadState(PAD_NEUTRAL);
+}
+
+function padBegin() {
+  clearInterval(pad.timer);
+  pad.toldPc = false;
+  pad.pcSays = null;
+  pad.timer = setInterval(readPad, 4);
+  readPad();
+}
+
+// Control is over: the PC has already unplugged its pretend controller (it does that however control ends).
+function padEnd() {
+  clearInterval(pad.timer);
+  pad.timer = 0;
+  pad.toldPc = false;
+  pad.pcSays = null;
+}
+
+// The PC's word on its pretend controller: 0 not plugged in, 1 plugged in, 2 no driver, 3 the driver refused.
+function onPcSaysPad(what) {
+  pad.pcSays = what;
+  if (what >= 2) readHost();
+  showPad();
+}
+
+// The CONTROLLER line of the panel.
+function showPad() {
+  const one = findPad();
+  if (!control.mine) pad.name = one ? one.id : '';
+  let says;
+  if (!navigator.getGamepads) says = 'THIS BROWSER GIVES NO CONTROLLERS TO THIS PAGE';
+  else if (!one) says = (pad.odd ? 'A CONTROLLER IS CONNECTED, BUT THIS BROWSER DOES NOT KNOW ITS LAYOUT, SO IT IS NOT USED' : 'NO CONTROLLER ON THIS DEVICE') + '\nIf one is plugged in, press a button on it: a browser only shows a controller to a page after that.';
+  else {
+    says = 'CONTROLLER CONNECTED: ' + one.id + '\n';
+    if (!control.mine) says += 'It drives a pretend Xbox 360 controller on the PC while this device holds control.';
+    else if (pad.pcSays === 1) says += 'IT IS DRIVING A PRETEND XBOX 360 CONTROLLER ON THE PC.';
+    else if (pad.pcSays >= 2) says += (host && host.controllerWhy) || PC_SAYS_PAD[pad.pcSays];
+    else says += 'The PC is plugging its pretend controller in.';
+  }
+  $('pad-says').textContent = says;
+}
+
+// A controller coming or going is shown at once (the panel is also redrawn every second).
+window.addEventListener('gamepadconnected', showPad);
+window.addEventListener('gamepaddisconnected', showPad);
 
 // ===============================================================================================================
 // START: draw the panel from what is remembered, measure this screen, connect, and keep the readouts fresh.

@@ -7,9 +7,11 @@
  * No window opens and nothing is clicked or typed.
  *
  *     node bench/webrtc-check.cjs            (from the engine folder, after `cargo build --release`)
- *     node bench/webrtc-check.cjs --port 8479 --bitrate 20000 --fps 60 --frames 120
+ *     node bench/webrtc-check.cjs --port 8610 --bitrate 20000 --fps 60 --frames 120
  *
  * Exit 0: the frames arrived and were decoded. Exit 1: they did not, with the reason.
+ * Exit 3: not run at all, because a League match is running on this PC. Exit 4: not run, because its port is
+ * taken (bench/own-port.cjs: a check never uses the live engine's port, nor one that something already answers on).
  *
  * What it cannot say: how long a frame takes from the PC's screen to the viewer's screen. That needs the rig
  * (BENCH.md). These are the browser's own counts of what it received and how long each frame spent inside it.
@@ -20,6 +22,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { chromium } = require('playwright-core');
+const { PORTS, portProblem, leagueRunning } = require('./own-port.cjs');
 
 const ENGINE_DIR = path.join(__dirname, '..');
 const ENGINE = path.join(ENGINE_DIR, 'target', 'release', 'debaser-engine.exe');
@@ -74,10 +77,20 @@ function between(a, b) {
 }
 
 async function main() {
-  const port = option('--port', '8478');
+  const port = option('--port', String(PORTS.webrtc));
   const target = Number(option('--frames', '120'));
   const result = { kind: 'webrtc-check', when: new Date().toISOString(), pass: false, framesTarget: target };
   const say = (text = '') => console.log(text);
+
+  if (leagueRunning()) {
+    console.log('NOT RUN. A League match is running on this PC: nothing is built, started or sent while it is.');
+    return 3;
+  }
+  const portTrouble = await portProblem(port);
+  if (portTrouble) {
+    console.log(`NOT RUN. ${portTrouble}`);
+    return 4;
+  }
 
   if (!fs.existsSync(ENGINE)) {
     say(`FAIL. The engine is not built: ${ENGINE} is missing. Run "cargo build --release" in the engine folder first.`);

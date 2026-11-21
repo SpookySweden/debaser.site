@@ -1,0 +1,158 @@
+{
+  "kind": "still-check",
+  "when": "2026-11-21T05:56:39.145Z",
+  "pass": true,
+  "parts": [
+    {
+      "letter": "a",
+      "verdict": "PASS",
+      "what": "on a still screen the repeats thin out to about two a second",
+      "seen": "the old way: 32.2 frames and 3598 kbit a second; with the rule, after the first second: 2.0 frames and 259 kbit a second (7.2% of the data)"
+    },
+    {
+      "letter": "b",
+      "verdict": "PASS",
+      "what": "the picture is still showing while the stream rests",
+      "seen": "connection \"connected\", picture 1920x1080, drawn FAST; a frame that arrived during the rest was drawn 1920x1080 with 100% of the sampled points lit"
+    },
+    {
+      "letter": "c",
+      "verdict": "PASS",
+      "what": "a full picture is still sent at once when a viewer needs one",
+      "seen": "a second viewer joined mid-rest: its full picture left 15 ms after it connected; the first viewer decoded it too (1 full pictures before, 2 after)"
+    },
+    {
+      "letter": "d",
+      "verdict": "COULD NOT TELL",
+      "what": "on the real screen, a picture that is changing is sent at full speed",
+      "seen": "the PC says 0 new frames a second were there to send (up to 60 allowed); the browser decoded 2.7 a second. The real screen was nearly still during this run, so there was no full speed to keep."
+    }
+  ],
+  "browser": {
+    "path": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "version": "157.0.8103.79",
+    "headless": true
+  },
+  "oldWay": {
+    "framesPerSecond": 32.216173018306776,
+    "kbitPerSecond": 3598.117976122391,
+    "picture": "1920x1080",
+    "state": "connected",
+    "keyFramesDecoded": 1
+  },
+  "rule": {
+    "framesPerSecond": 1.9929747639563113,
+    "kbitPerSecond": 259.47136344376406,
+    "picture": "1920x1080",
+    "state": "connected",
+    "keyFramesDecoded": 1
+  },
+  "picture": {
+    "drawing": "fast",
+    "upscaling": "smooth",
+    "note": "",
+    "box": {
+      "left": 0,
+      "top": 0,
+      "width": 1280,
+      "height": 720
+    },
+    "looked": true,
+    "width": 1920,
+    "height": 1080,
+    "points": 12284,
+    "litShare": 0.9999185932920873,
+    "meanDifference": 0,
+    "largestDifference": 0,
+    "framesDrawn": 14,
+    "shownWidth": 1280,
+    "shownHeight": 720,
+    "lowLatencyCanvas": true
+  },
+  "sparedLines": [
+    "2 s    6 frames sent (0 new)   shown -> encoded no frames   encoded -> network middle  0.19 ms, worst 5%  0.22 ms      504 kbit/s   still screen: about 45 repeats spared",
+    "3 s    2 frames sent (0 new)   shown -> encoded no frames   encoded -> network middle  0.22 ms, worst 5%  0.25 ms      221 kbit/s   still screen: about 33 repeats spared",
+    "4 s    2 frames sent (0 new)   shown -> encoded no frames   encoded -> network middle  0.27 ms, worst 5%  0.28 ms      253 kbit/s   still screen: about 37 repeats spared",
+    "5 s    2 frames sent (0 new)   shown -> encoded no frames   encoded -> network middle  0.23 ms, worst 5%  0.32 ms      292 kbit/s   still screen: about 34 repeats spared",
+    "6 s    2 frames sent (0 new)   shown -> encoded no frames   encoded -> network middle  0.21 ms, worst 5%  0.26 ms      267 kbit/s   still screen: about 34 repeats spared",
+    "7 s    3 frames sent (0 new)   shown -> encoded no frames   encoded -> network middle  0.42 ms, worst 5%  0.94 ms      549 kbit/s   still screen: about 38 repeats spared"
+  ],
+  "realScreen": {
+    "framesPerSecond": 2.7454699745409847,
+    "kbitPerSecond": 390.202166425253,
+    "picture": "1920x1080",
+    "state": "connected",
+    "keyFramesDecoded": 1,
+    "hostMeasured": {
+      "framesPerSecond": 1.9,
+      "newFramesPerSecond": 0,
+      "kbitPerSecond": 278,
+      "shownToEncodedMs": null
+    },
+    "sending": {
+      "x": 440,
+      "y": 0,
+      "regionWidth": 2560,
+      "regionHeight": 1440,
+      "width": 1920,
+      "height": 1080,
+      "scaled": true,
+      "fps": 60,
+      "bitrateKbps": 20000,
+      "codec": "H.264"
+    }
+  },
+  "engineOutput": [
+    "--- run 1: a pretended still screen, the old way (--tweaks 12) ---",
+    "DEBASER ENGINE :: serve",
+    "screen 3440x1440 at 180 Hz; H.264, preset P1, tweaks 12",
+    "now sending 1920x1080 at up to 60 fps, 20000 kbit/s: the middle 2560x1440 of the screen, shrunk on the card (as started)",
+    "a viewer may ask for up to 1440 lines, 180 fps, 50000 kbit/s",
+    "open http://127.0.0.1:8613/ in Chrome or Edge",
+    "video leaves from 127.0.0.1:52925",
+    "SOUND: sent to a viewer that asks for it (everything this PC is playing); not read at all until one does",
+    "waiting for a viewer (Ctrl+C stops)",
+    "viewer 1 connected 81 ms after its hello",
+    "viewer 1 starts from a full picture, 97 ms after its hello",
+    "2 s   33 frames sent (0 new)   shown -> encoded no frames   encoded -> network middle  0.24 ms, worst 5%  0.45 ms     5312 kbit/s",
+    "3 s   33 frames sent (0 new)   shown -> encoded no frames   encoded -> network middle  0.21 ms, worst 5%  0.40 ms     3585 kbit/s",
+    "4 s   33 frames sent (0 new)   shown -> encoded no frames   encoded -> network middle  0.21 ms, worst 5%  0.36 ms     3575 kbit/s",
+    "5 s   33 frames sent (0 new)   shown -> encoded no frames   encoded -> network middle  0.22 ms, worst 5%  0.30 ms     3573 kbit/s",
+    "6 s   33 frames sent (0 new)   shown -> encoded no frames   encoded -> network middle  0.22 ms, worst 5%  0.30 ms     3585 kbit/s",
+    "--- run 2: a pretended still screen, with the rule (--tweaks 76) ---",
+    "DEBASER ENGINE :: serve",
+    "screen 3440x1440 at 180 Hz; H.264, preset P1, tweaks 76",
+    "now sending 1920x1080 at up to 60 fps, 20000 kbit/s: the middle 2560x1440 of the screen, shrunk on the card (as started)",
+    "a viewer may ask for up to 1440 lines, 180 fps, 50000 kbit/s",
+    "open http://127.0.0.1:8613/ in Chrome or Edge",
+    "video leaves from 127.0.0.1:59506",
+    "SOUND: sent to a viewer that asks for it (everything this PC is playing); not read at all until one does",
+    "waiting for a viewer (Ctrl+C stops)",
+    "viewer 1 connected 69 ms after its hello",
+    "viewer 1 starts from a full picture, 94 ms after its hello",
+    "2 s    6 frames sent (0 new)   shown -> encoded no frames   encoded -> network middle  0.19 ms, worst 5%  0.22 ms      504 kbit/s   still screen: about 45 repeats spared",
+    "3 s    2 frames sent (0 new)   shown -> encoded no frames   encoded -> network middle  0.22 ms, worst 5%  0.25 ms      221 kbit/s   still screen: about 33 repeats spared",
+    "4 s    2 frames sent (0 new)   shown -> encoded no frames   encoded -> network middle  0.27 ms, worst 5%  0.28 ms      253 kbit/s   still screen: about 37 repeats spared",
+    "5 s    2 frames sent (0 new)   shown -> encoded no frames   encoded -> network middle  0.23 ms, worst 5%  0.32 ms      292 kbit/s   still screen: about 34 repeats spared",
+    "6 s    2 frames sent (0 new)   shown -> encoded no frames   encoded -> network middle  0.21 ms, worst 5%  0.26 ms      267 kbit/s   still screen: about 34 repeats spared",
+    "viewer 2 connected 79 ms after its hello",
+    "viewer 2 starts from a full picture, 94 ms after its hello",
+    "7 s    3 frames sent (0 new)   shown -> encoded no frames   encoded -> network middle  0.42 ms, worst 5%  0.94 ms      549 kbit/s   still screen: about 38 repeats spared",
+    "--- run 3: the real screen, with the rule (--tweaks 76) ---",
+    "DEBASER ENGINE :: serve",
+    "screen 3440x1440 at 180 Hz; H.264, preset P1, tweaks 76",
+    "now sending 1920x1080 at up to 60 fps, 20000 kbit/s: the middle 2560x1440 of the screen, shrunk on the card (as started)",
+    "a viewer may ask for up to 1440 lines, 180 fps, 50000 kbit/s",
+    "open http://127.0.0.1:8613/ in Chrome or Edge",
+    "video leaves from 127.0.0.1:53325",
+    "SOUND: sent to a viewer that asks for it (everything this PC is playing); not read at all until one does",
+    "waiting for a viewer (Ctrl+C stops)",
+    "viewer 1 connected 68 ms after its hello",
+    "viewer 1 starts from a full picture, 82 ms after its hello",
+    "2 s    6 frames sent (0 new)   shown -> encoded no frames   encoded -> network middle  0.21 ms, worst 5%  0.23 ms      510 kbit/s   still screen: about 47 repeats spared",
+    "3 s    2 frames sent (0 new)   shown -> encoded no frames   encoded -> network middle  0.22 ms, worst 5%  0.26 ms      219 kbit/s   still screen: about 35 repeats spared",
+    "4 s    2 frames sent (0 new)   shown -> encoded no frames   encoded -> network middle  0.23 ms, worst 5%  0.36 ms      251 kbit/s   still screen: about 36 repeats spared",
+    "5 s    5 frames sent (1 new)   shown -> encoded middle 14.06 ms, worst 5% 14.06 ms   encoded -> network middle  0.27 ms, worst 5%  0.43 ms      762 kbit/s   still screen: about 34 repeats spared",
+    "6 s    2 frames sent (0 new)   shown -> encoded no frames   encoded -> network middle  0.24 ms, worst 5%  0.32 ms      278 kbit/s   still screen: about 36 repeats spared"
+  ]
+}

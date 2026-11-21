@@ -67,6 +67,27 @@ int32_t dbe_next_frame(DbeSession* session, int32_t wait_ms, int32_t force_keyfr
 // without sleeping through a change. Returns 0, or 1 on failure.
 int32_t dbe_next_frame_if_changed(DbeSession* session, int32_t wait_ms, DbeFrame* frame);
 
+// The PC's own mouse pointer, as Windows last described it while frames were being asked for. Windows only says
+// something about the pointer when it moves or changes, so this is "the last thing heard".
+typedef struct DbePointer {
+  uint32_t shape_count;  // goes up by one each time Windows hands over a new shape; 0 = none handed over yet
+  int32_t kind;          // Windows' own three kinds: 1 one-bit (black, white, see-through, inverted),
+                         // 2 colour with see-through, 4 colour with a mask byte
+  int32_t width;         // in pixels
+  int32_t height;        // as Windows gives it: for the one-bit kind this is DOUBLE the pointer's height
+                         // (two one-bit pictures, one above the other)
+  int32_t pitch;         // bytes in one row of `data`
+  int32_t hot_x, hot_y;  // the pixel of the shape that is "the pointer's place"
+  const uint8_t* data;   // the shape's bytes as Windows gave them; valid until the next call on this session
+  int32_t size;
+  int32_t visible;       // 1 Windows is showing the pointer on this screen, 0 it is hidden (games hide it) or on
+                         // another screen, -1 Windows has not said yet
+} DbePointer;
+
+// Fills `pointer` with the last shape and visibility heard. Costs nothing: it only hands over what the frame
+// calls above already read.
+void dbe_pointer(DbeSession* session, DbePointer* pointer);
+
 // Why the last call on this session failed.
 const char* dbe_last_error(DbeSession* session);
 

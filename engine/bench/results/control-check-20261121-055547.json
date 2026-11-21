@@ -1,0 +1,194 @@
+{
+  "kind": "control-check",
+  "when": "2026-11-21T05:55:08.840Z",
+  "pass": true,
+  "parts": [
+    {
+      "letter": "a",
+      "verdict": "PASS",
+      "what": "without --allow-control there is no control at all",
+      "seen": "the [ CONTROL ] key is absent; /settings says control is \"off\"; asking anyway got \"THIS PC IS NOT ALLOWING CONTROL\" and control was not given; the panel says \"THIS PC IS NOT ALLOWING CONTROL\"; GET /control-log answered 403"
+    },
+    {
+      "letter": "b",
+      "verdict": "PASS",
+      "what": "taking control, then the pointer lands on the right pixel of the PC's screen (within 2) for two shapes",
+      "seen": "[ CONTROL ] was pressed and became \"[ RELEASE ]\"\n      yes: 1920x1080 picture (the screen's 2560x1440 from 440,0), pointer at 25% across and 25% down: wanted screen pixel 1080,360, the engine would move to 1080,360\n      yes: 1920x1080 picture (the screen's 2560x1440 from 440,0), pointer at 50% across and 50% down: wanted screen pixel 1720,720, the engine would move to 1720,720\n      yes: 1920x1080 picture (the screen's 2560x1440 from 440,0), pointer at 10% across and 90% down: wanted screen pixel 696,1296, the engine would move to 696,1296\n      yes: 1920x1080 picture (the screen's 2560x1440 from 440,0), pointer at 70% across and 60% down: wanted screen pixel 2232,864, the engine would move to 2232,864\n      yes: 3440x1440 picture (the screen's 3440x1440 from 0,0), pointer at 25% across and 25% down: wanted screen pixel 860,360, the engine would move to 860,360\n      yes: 3440x1440 picture (the screen's 3440x1440 from 0,0), pointer at 50% across and 50% down: wanted screen pixel 1720,720, the engine would move to 1720,720\n      yes: 3440x1440 picture (the screen's 3440x1440 from 0,0), pointer at 10% across and 90% down: wanted screen pixel 344,1296, the engine would move to 344,1295\n      yes: 3440x1440 picture (the screen's 3440x1440 from 0,0), pointer at 70% across and 60% down: wanted screen pixel 2408,864, the engine would move to 2408,864"
+    },
+    {
+      "letter": "c",
+      "verdict": "PASS",
+      "what": "keys arrive as the right scan codes, extended where due, down then up, in order",
+      "seen": "pressed in the page: KeyA, Digit5, ShiftLeft, ShiftRight, Enter, ArrowLeft, F5, NumpadEnter, Delete, ControlRight\n      the engine would press: KeyA 30 down, KeyA 30 up, Digit5 6 down, Digit5 6 up, ShiftLeft 42 down, ShiftLeft 42 up, ShiftRight 54 down, ShiftRight 54 up, Enter 28 down, Enter 28 up, ArrowLeft 75+E0 down, ArrowLeft 75+E0 up, F5 63 down, F5 63 up, NumpadEnter 28+E0 down, NumpadEnter 28+E0 up, Delete 83+E0 down, Delete 83+E0 up, ControlRight 29+E0 down, ControlRight 29+E0 up\n      an unknown key (\"WibbleKey\") down and up: ignored and counted 2 times"
+    },
+    {
+      "letter": "d",
+      "verdict": "PASS",
+      "what": "mouse buttons and the wheel",
+      "seen": "buttons the engine would press: left down, left up, right down, right up, middle down, middle up, back down, back up, forward down, forward up\n      each press is preceded by a move to its place: true\n      wheel (120 a notch, up and right positive): dy -120 dx 0; dy 240 dx 0; dy 0 dx 120"
+    },
+    {
+      "letter": "e",
+      "verdict": "PASS",
+      "what": "however control ends, what was held is let go (the record shows the ups)",
+      "seen": "yes: [ RELEASE ] with W and Shift held: KeyW 17 down, ShiftLeft 42 down, ShiftLeft 42 up, KeyW 17 up, ended: the viewer let go\n      yes: Ctrl+Alt+Shift+Q on the viewer with the left button held (Q itself is never sent): left down, ControlLeft 29 down, AltLeft 56 down, ShiftLeft 42 down, ShiftLeft 42 up, AltLeft 56 up, ControlLeft 29 up, left up, ended: the viewer let go\n      yes: silence (the page's \"still here\" stopped) with S held: KeyS 31 down, KeyS 31 up, ended: the viewer went silent for 3 seconds (6790 ms after the silence began); the page was then told \"CONTROL ENDED: THIS DEVICE WENT SILENT\"\n      yes: the page closed with D held: KeyD 32 down, KeyD 32 up, ended: the viewer let go (9 ms after it closed)"
+    },
+    {
+      "letter": "f",
+      "verdict": "PASS",
+      "what": "one device at a time",
+      "seen": "while the first page held control, the second pressed [ CONTROL ]: it was told \"ANOTHER DEVICE HAS CONTROL\", shows \"ANOTHER DEVICE HAS CONTROL\", and /settings told it \"another device\"; a key it pressed reached the record 0 times; after the first let go, the second was given control and the first was told \"another device\""
+    },
+    {
+      "letter": "g",
+      "verdict": "PASS",
+      "what": "a League match (pretended) refuses control, and ends control that is held, with everything let go",
+      "seen": "during the match, [ CONTROL ] was answered \"NOT DURING A LEAGUE MATCH\" and /settings said \"NOT DURING A LEAGUE MATCH\"; after it, control was given; with E and the right button held the match \"started\": KeyE 18 down, right down, KeyE 18 up, right up, ended: a League match started (748 ms later); the page was told \"CONTROL ENDED: A LEAGUE MATCH STARTED\""
+    },
+    {
+      "letter": "h",
+      "verdict": "PASS",
+      "what": "the stream keeps running throughout",
+      "seen": "frames decoded, read between the parts: first half 20 -> 46 -> 66 -> 578; second half 8 -> 108 -> 328; the connection stayed \"connected\""
+    },
+    {
+      "letter": "i",
+      "verdict": "PASS",
+      "what": "the pointer is right however the page draws the picture (FAST and NORMAL, every way of fitting), and GAME sends movement",
+      "seen": "yes: drawn FAST, OFF: wanted 1720,720 got 1720,720; wanted 1267,453 got 1266,453\n      yes: drawn FAST, SMOOTH: wanted 1080,360 got 1080,360; wanted 2488,864 got 2488,864\n      yes: drawn FAST, SHARP: wanted 1080,360 got 1080,360; wanted 2488,864 got 2488,864\n      yes: drawn FAST, SHARPENED: wanted 1080,360 got 1080,360; wanted 2488,864 got 2488,864\n      yes: drawn NORMAL, OFF: wanted 1720,720 got 1720,720; wanted 1267,453 got 1266,453\n      yes: drawn NORMAL, SMOOTH: wanted 1080,360 got 1080,360; wanted 2488,864 got 2488,864\n      yes: drawn NORMAL, SHARP: wanted 1080,360 got 1080,360; wanted 2488,864 got 2488,864\n      yes: drawn NORMAL, SHARPENED: wanted 1080,360 got 1080,360; wanted 2488,864 got 2488,864\n      yes: GAME (pointer captured): moving the page's mouse 17 right and 1 down in two steps sent movement adding up to 17,1 in 2 messages, and 0 absolute positions; the click that followed carried no position\n      yes: fullscreen while controlling (fullscreen true): the browser handed over the system keys (Keyboard Lock)\n      yes: the MOUSE choice is remembered on the device (\"pointer\")"
+    },
+    {
+      "letter": "j",
+      "verdict": "PASS",
+      "what": "CONTROLLER (dry run): a pretend Xbox 360 controller is plugged in on take, gets the right buttons, triggers and sticks, and is set to nothing-pressed and unplugged however control ends",
+      "seen": "yes: a controller with A held on a device that does not hold control: 0 entries in the PC's record; the panel says \"CONTROLLER CONNECTED: Made-up controller for the check (STANDARD GAMEPAD)\"; /settings says the PC's controller is \"none\"\n      yes: the panel no longer lists a controller under NOT BUILT YET, and does list vibration there\n      yes: [ CONTROL ] pressed with the controller connected: the record shows taken, controller plugged in; the PC told the page \"plugged in\" (true); /settings says \"plugged in\"; the panel says \"CONTROLLER CONNECTED: Made-up controller for the check (STANDARD GAMEPAD) / IT IS DRIVING A PRETEND XBOX 360 CONTROLLER ON THE PC.\"\n      yes: each button pressed alone, in the browser's order 0 1 2 3 4 5 8 9 10 11 12 13 14 15 16: the PC would press A, B, X, Y, LB, RB, BACK, START, LEFT STICK, RIGHT STICK, UP, DOWN, LEFT, RIGHT, GUIDE, (none)\n      yes: A and RB held, the left trigger fully in, the right one half-way, the left stick hard up-left, the right stick a quarter right and three quarters down: pad [RB A] LT 255 RT 128 L -32767,32767 R 8192,-24575 (wanted pad [RB A] LT 255 RT 128 L -32767,32767 R 8192,-24575)\n      yes: the same state held for 2.6 s: the page sent it 2 more times (once a second), and the PC's record grew by 0\n      yes: [ RELEASE ] with buttons held: pad [] LT 0 RT 0 L 0,0 R 0,0, controller unplugged, ended: the viewer let go; /settings then says \"none\"\n      yes: the controller disconnected from the viewer's device with X and the left trigger held: pad [] LT 0 RT 0 L 0,0 R 0,0, controller unplugged, and control carried on (true); connected again: controller plugged in\n      yes: a match (pretended) starting with Y and the right trigger held: pad [] LT 0 RT 0 L 0,0 R 0,0, controller unplugged, ended: a League match started\n      yes: [ CONTROL ] during the match, with the controller connected: the record shows only refused; /settings says \"none\"\n      yes: the page gone silent with B held: pad [] LT 0 RT 0 L 0,0 R 0,0, controller unplugged, ended: the viewer went silent for 3 seconds\n      yes: the page closed with A held and the left stick hard right: pad [] LT 0 RT 0 L 0,0 R 0,0, controller unplugged, ended: the viewer let go"
+    },
+    {
+      "letter": "r",
+      "verdict": "COULD NOT TELL",
+      "what": "REAL: Windows accepts the engine's input (the pointer nudged 2 right and 2 back), the strip is up while controlled, and the cut-off ends it",
+      "seen": "skipped: --no-real was given"
+    },
+    {
+      "letter": "p",
+      "verdict": "COULD NOT TELL",
+      "what": "REAL: a pretend Xbox 360 controller really appears in Windows while controlled, with nothing on it pressed, and goes when control ends",
+      "seen": "skipped: --no-real was given"
+    }
+  ],
+  "browser": {
+    "path": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "version": "157.0.8103.79",
+    "headless": true
+  },
+  "framesFirstHalf": [
+    20,
+    46,
+    66,
+    578
+  ],
+  "letGo": {
+    "notes": [
+      "yes: [ RELEASE ] with W and Shift held: KeyW 17 down, ShiftLeft 42 down, ShiftLeft 42 up, KeyW 17 up, ended: the viewer let go",
+      "yes: Ctrl+Alt+Shift+Q on the viewer with the left button held (Q itself is never sent): left down, ControlLeft 29 down, AltLeft 56 down, ShiftLeft 42 down, ShiftLeft 42 up, AltLeft 56 up, ControlLeft 29 up, left up, ended: the viewer let go",
+      "yes: silence (the page's \"still here\" stopped) with S held: KeyS 31 down, KeyS 31 up, ended: the viewer went silent for 3 seconds (6790 ms after the silence began); the page was then told \"CONTROL ENDED: THIS DEVICE WENT SILENT\"",
+      "yes: the page closed with D held: KeyD 32 down, KeyD 32 up, ended: the viewer let go (9 ms after it closed)"
+    ],
+    "good": true
+  },
+  "streamFirstHalf": true,
+  "streamSecondHalf": true,
+  "framesSecondHalf": [
+    8,
+    108,
+    328
+  ],
+  "engineOutput": [
+    "--- run 1: no --allow-control ---",
+    "DEBASER ENGINE :: serve",
+    "screen 3440x1440 at 180 Hz; H.264, preset P1, tweaks 12",
+    "now sending 1920x1080 at up to 60 fps, 20000 kbit/s: the middle 2560x1440 of the screen, shrunk on the card (as started)",
+    "a viewer may ask for up to 1440 lines, 180 fps, 50000 kbit/s",
+    "open http://127.0.0.1:8612/ in Chrome or Edge",
+    "video leaves from 127.0.0.1:62418",
+    "SOUND: sent to a viewer that asks for it (everything this PC is playing); not read at all until one does",
+    "waiting for a viewer (Ctrl+C stops)",
+    "viewer 1 connected 68 ms after its hello",
+    "viewer 1 starts from a full picture, 81 ms after its hello",
+    "--- run 2: dry run, first half ---",
+    "DEBASER ENGINE :: serve",
+    "screen 3440x1440 at 180 Hz; H.264, preset P1, tweaks 12",
+    "now sending 1920x1080 at up to 60 fps, 20000 kbit/s: the middle 2560x1440 of the screen, shrunk on the card (as started)",
+    "a viewer may ask for up to 1440 lines, 180 fps, 50000 kbit/s",
+    "open http://127.0.0.1:8612/ in Chrome or Edge",
+    "video leaves from 127.0.0.1:56352",
+    "CONTROL: DRY RUN. What a viewer does is only written down (GET /control-log); nothing reaches Windows.",
+    "SOUND: sent to a viewer that asks for it (everything this PC is playing); not read at all until one does",
+    "waiting for a viewer (Ctrl+C stops)",
+    "viewer 1 connected 90 ms after its hello",
+    "viewer 1 starts from a full picture, 110 ms after its hello",
+    "now sending 1280x800 at up to 180 fps, 20000 kbit/s: the middle 2304x1440 of the screen, shrunk on the card (a viewer asked; the change took 224 ms)",
+    "now sending 1920x1080 at up to 180 fps, 20000 kbit/s: the middle 2560x1440 of the screen, shrunk on the card (a viewer asked; the change took 217 ms)",
+    "viewer 1 took CONTROL of this PC (dry run: nothing reaches Windows)",
+    "now sending 3440x1440 at up to 180 fps, 20000 kbit/s: the whole screen, as it is (a viewer asked; the change took 206 ms)",
+    "now sending 1920x1080 at up to 180 fps, 20000 kbit/s: the middle 2560x1440 of the screen, shrunk on the card (a viewer asked; the change took 232 ms)",
+    "CONTROL ended: the viewer let go",
+    "viewer 1 took CONTROL of this PC (dry run: nothing reaches Windows)",
+    "CONTROL ended: the viewer let go",
+    "viewer 2 connected 92 ms after its hello",
+    "viewer 2 starts from a full picture, 118 ms after its hello",
+    "now sending 1280x800 at up to 180 fps, 20000 kbit/s: the middle 2304x1440 of the screen, shrunk on the card (a viewer asked; the change took 228 ms)",
+    "viewer 1 took CONTROL of this PC (dry run: nothing reaches Windows)",
+    "CONTROL ended: the viewer let go",
+    "viewer 2 took CONTROL of this PC (dry run: nothing reaches Windows)",
+    "CONTROL ended: the viewer let go",
+    "now sending 1920x1080 at up to 180 fps, 20000 kbit/s: the middle 2560x1440 of the screen, shrunk on the card (a viewer asked; the change took 200 ms)",
+    "viewer 1 took CONTROL of this PC (dry run: nothing reaches Windows)",
+    "viewer 2 has gone quiet: nothing is sent to it until it is heard from",
+    "CONTROL ended: the viewer let go",
+    "--- run 3: dry run, second half ---",
+    "DEBASER ENGINE :: serve",
+    "screen 3440x1440 at 180 Hz; H.264, preset P1, tweaks 12",
+    "now sending 1920x1080 at up to 60 fps, 20000 kbit/s: the middle 2560x1440 of the screen, shrunk on the card (as started)",
+    "a viewer may ask for up to 1440 lines, 180 fps, 50000 kbit/s",
+    "open http://127.0.0.1:8612/ in Chrome or Edge",
+    "video leaves from 127.0.0.1:55644",
+    "CONTROL: DRY RUN. What a viewer does is only written down (GET /control-log); nothing reaches Windows.",
+    "SOUND: sent to a viewer that asks for it (everything this PC is playing); not read at all until one does",
+    "waiting for a viewer (Ctrl+C stops)",
+    "viewer 1 connected 72 ms after its hello",
+    "viewer 1 starts from a full picture, 78 ms after its hello",
+    "now sending 1920x1080 at up to 60 fps, 12000 kbit/s: the middle 2560x1440 of the screen, shrunk on the card (League of Legends.exe is running: the LEAGUE MATCH cap is on; the change took 208 ms)",
+    "viewer 1 took CONTROL of this PC (dry run: nothing reaches Windows)",
+    "now sending 1920x1080 at up to 60 fps, 20000 kbit/s: the middle 2560x1440 of the screen, shrunk on the card (the LEAGUE MATCH cap is lifted; the change took 203 ms)",
+    "CONTROL ended: a League match started",
+    "now sending 1920x1080 at up to 60 fps, 12000 kbit/s: the middle 2560x1440 of the screen, shrunk on the card (League of Legends.exe is running: the LEAGUE MATCH cap is on; the change took 215 ms)",
+    "viewer 1 took CONTROL of this PC (dry run: nothing reaches Windows)",
+    "now sending 1920x1080 at up to 60 fps, 20000 kbit/s: the middle 2560x1440 of the screen, shrunk on the card (the LEAGUE MATCH cap is lifted; the change took 209 ms)",
+    "CONTROL ended: the viewer went silent for 3 seconds",
+    "viewer 1 took CONTROL of this PC (dry run: nothing reaches Windows)",
+    "CONTROL ended: the viewer let go",
+    "--- run 4: dry run, the controller ---",
+    "DEBASER ENGINE :: serve",
+    "screen 3440x1440 at 180 Hz; H.264, preset P1, tweaks 12",
+    "now sending 1920x1080 at up to 60 fps, 20000 kbit/s: the middle 2560x1440 of the screen, shrunk on the card (as started)",
+    "a viewer may ask for up to 1440 lines, 180 fps, 50000 kbit/s",
+    "open http://127.0.0.1:8612/ in Chrome or Edge",
+    "video leaves from 127.0.0.1:59599",
+    "CONTROL: DRY RUN. What a viewer does is only written down (GET /control-log); nothing reaches Windows.",
+    "SOUND: sent to a viewer that asks for it (everything this PC is playing); not read at all until one does",
+    "waiting for a viewer (Ctrl+C stops)",
+    "viewer 1 connected 73 ms after its hello",
+    "viewer 1 starts from a full picture, 85 ms after its hello",
+    "viewer 1 took CONTROL of this PC (dry run: nothing reaches Windows)",
+    "CONTROL ended: the viewer let go",
+    "viewer 1 took CONTROL of this PC (dry run: nothing reaches Windows)",
+    "CONTROL ended: a League match started",
+    "now sending 1920x1080 at up to 60 fps, 12000 kbit/s: the middle 2560x1440 of the screen, shrunk on the card (League of Legends.exe is running: the LEAGUE MATCH cap is on; the change took 226 ms)",
+    "viewer 1 took CONTROL of this PC (dry run: nothing reaches Windows)",
+    "now sending 1920x1080 at up to 60 fps, 20000 kbit/s: the middle 2560x1440 of the screen, shrunk on the card (the LEAGUE MATCH cap is lifted; the change took 221 ms)",
+    "CONTROL ended: the viewer went silent for 3 seconds",
+    "viewer 1 took CONTROL of this PC (dry run: nothing reaches Windows)",
+    "CONTROL ended: the viewer let go"
+  ]
+}
