@@ -28,6 +28,7 @@ import {
   soundOffered,
   soundStateSays,
   troubleLines,
+  type HostPcScreen,
 } from '../lib/screens/wishes';
 import { PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED } from '../lib/ui/controls';
 import { chooseScreen } from '../lib/watch/canvas-view';
@@ -196,6 +197,22 @@ export default function RoomScreen({ roomId, audio }: { roomId: string; /** As t
           </header>
 
           <Part title="PICTURE">
+            {/* A separate switch, off at first (Luke, 2026-11-21: "have the display monitor resolution fit be a separate switch"). Only when the PC allows it. */}
+            {view.host?.pcScreen?.allowed ? (
+              <>
+                <div className="flex flex-wrap items-start gap-1">
+                  <button type="button" className={key(wishes.fit)} aria-pressed={wishes.fit} onClick={() => session.toggleFit()} data-screen-pc-fit={wishes.fit ? 'on' : 'off'}>
+                    [ FIT THE PC TO THIS SCREEN ]
+                  </button>
+                </div>
+                <p>
+                  The PC changes its own screen to this screen&apos;s shape while you are connected, and changes it back when you leave. Its monitor goes black for a second or two each way, and windows on it may move.
+                </p>
+                <p className="whitespace-pre-wrap" role="status" data-screen-pc-fit-says>
+                  {fitSays(view.host.pcScreen)}
+                </p>
+              </>
+            ) : null}
             <div className="flex flex-wrap items-start gap-1">
               <button type="button" className={key(matching)} aria-pressed={matching} onClick={() => session.toggleMatch()} data-screen-match={matching ? 'on' : 'off'}>
                 [ MATCH THIS SCREEN ]
@@ -397,7 +414,7 @@ export default function RoomScreen({ roomId, audio }: { roomId: string; /** As t
             <ul className="list-disc pl-4">
               <li>Vibration from the PC back to this device&apos;s controller.</li>
               <li>HEVC and AV1 video (this PC&apos;s graphics card cannot encode AV1).</li>
-              <li>Changing the PC&apos;s real screen mode, or a virtual screen, so that games draw themselves in this screen&apos;s shape instead of having their sides cut off.</li>
+              <li>A virtual screen made at exactly this screen&apos;s size (FIT changes the PC&apos;s real screen instead, where its engine allows it).</li>
             </ul>
           </Part>
         </section>
@@ -407,6 +424,13 @@ export default function RoomScreen({ roomId, audio }: { roomId: string; /** As t
 }
 
 /** One section of the panel: its title line, then what belongs to it. */
+/** FIT's status line: the PC's own account of its screen, and why it is not fitted when it is not. */
+function fitSays(pc: HostPcScreen): string {
+  const mode = (m: HostPcScreen['own']) => `${m.width}x${m.height} AT ${m.hz}`;
+  if (pc.fitted) return `THE PC'S SCREEN IS NOW ${mode(pc.now)} (ITS OWN: ${mode(pc.own)})${pc.why ? `\n${pc.why}` : ''}`;
+  return `${pc.why ? `${pc.why}\n` : ''}THE PC'S SCREEN IS ITS OWN: ${mode(pc.own)}`;
+}
+
 /** The line in the bar under the keys while this device controls the PC. */
 function controlBarSays(escHolding: boolean, mouse: string, pointerLocked: boolean): string {
   if (escHolding) return 'KEEP HOLDING ESC TO LET GO';

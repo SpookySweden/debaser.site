@@ -281,6 +281,9 @@ async function main() {
         await second.context.close();
         const back = await until((h) => !h.pcScreen.fitted, a.id, 9000);
         const tookMs = Date.now() - closedAt;
+        // The stream is re-planned on the engine's next turn after the screen is given back: wait for that before
+        // reading the picture (reading at once could catch the old plan still applied).
+        await until((h) => h.applied && h.sending && h.screen.width === 3440 && h.sending.regionWidth === 3440, a.id, 8000);
         const after = await decoding(page, a.id);
         note(!back.pcScreen.fitted && back.pcScreen.now.width === 3440 && back.pcScreen.now.hz === 180 && back.pcScreen.record.length === 2 && back.pcScreen.record[1].what === 'given back' && after.host.screen.width === 3440 && after.host.sending.regionWidth === 3440,
           `the second viewer's page closes: the PC's screen is given back (${mode(back.pcScreen.now)}) ${tookMs} ms later; the record: ${recorded(back.pcScreen)}; the stream is the PC's ${piece(after.host.sending)} again`);
@@ -337,7 +340,7 @@ async function main() {
         fs.writeFileSync(matchFile, 'the fit check is pretending a match is running\n');
         await until((h) => h.cap === 'LEAGUE MATCH', a.id, 5000);
         await pressFit(page);
-        const refused = await until((h) => h.pcScreen.why, a.id, 4000);
+        const refused = await until((h) => h.pcScreen.why === 'NOT DURING A LEAGUE MATCH', a.id, 4000);
         const said = await shown(page);
         note(!refused.pcScreen.fitted && refused.pcScreen.why === 'NOT DURING A LEAGUE MATCH' && refused.pcScreen.record.length === before && said.says.includes('NOT DURING A LEAGUE MATCH'),
           `during the match the key is pressed: fitted ${refused.pcScreen.fitted}, why "${refused.pcScreen.why}", nothing added to the record (${refused.pcScreen.record.length - before}); the page's line reads "${said.says.replace(/\n/g, ' / ')}"`);

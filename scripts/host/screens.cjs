@@ -130,7 +130,8 @@ function startEngine(lan) {
   return 'asked of Windows, but not seen running after six seconds: see logs\\engine.log';
 }
 
-const engineArgs = (lan) => (lan ? ['serve', '--allow-control', '--lan'] : ['serve', '--allow-control']);
+// --allow-fit: the room's FIT THE PC TO THIS SCREEN switch is offered (off until a viewer turns it on; Luke, 2026-11-21).
+const engineArgs = (lan) => (lan ? ['serve', '--allow-control', '--allow-fit', '--lan'] : ['serve', '--allow-control', '--allow-fit']);
 
 /** Stops the site the way an update does: keep-running sees the note and starts it again at once. */
 function restartSite() {

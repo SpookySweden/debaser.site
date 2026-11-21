@@ -173,6 +173,7 @@ impl Fit {
         self.pretended().then_some(self.now)
     }
 
+    #[allow(dead_code)]
     pub fn fitted(&self) -> bool {
         self.fitted.is_some()
     }

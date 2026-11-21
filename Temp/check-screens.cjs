@@ -343,15 +343,15 @@ async function main() {
   /* ---------------------------------------------------------------- the settings model */
   same(wishes.wishesFrom(null), wishes.DEFAULT_WISHES, 'nothing remembered: the defaults');
   same(wishes.wishesFrom('x'), wishes.DEFAULT_WISHES, 'rubbish remembered: the defaults');
-  same(wishes.DEFAULT_WISHES, { match: false, shape: 'native', lines: 1080, fps: 'auto', bitrateKbps: 20000, drawing: 'fast', upscaling: 'smooth', numbers: true, mouse: 'pointer', sound: false, volume: 1 }, "the defaults are the engine page's");
+  same(wishes.DEFAULT_WISHES, { match: false, shape: 'native', lines: 1080, fps: 'auto', bitrateKbps: 20000, drawing: 'fast', upscaling: 'smooth', numbers: true, mouse: 'pointer', fit: false, sound: false, volume: 1 }, "the defaults are the engine page's");
   same(
     wishes.wishesFrom({ match: 'yes', shape: 'cut', lines: 900, fps: 75, bitrateKbps: 12, drawing: 'quick', upscaling: 'ai', numbers: 0, mouse: 'pen', sound: 'yes', volume: 7, extra: '<script>' }),
     wishes.DEFAULT_WISHES,
     'each wish is taken only when it is one of the choices',
   );
   same(
-    wishes.wishesFrom({ match: false, shape: '21:9', lines: 'native', fps: 120, bitrateKbps: 30500.4, drawing: 'normal', upscaling: 'sharpened', numbers: false, mouse: 'game', sound: true, volume: 0.4 }),
-    { match: false, shape: '21:9', lines: 'native', fps: 120, bitrateKbps: 30500, drawing: 'normal', upscaling: 'sharpened', numbers: false, mouse: 'game', sound: true, volume: 0.4 },
+    wishes.wishesFrom({ match: false, shape: '21:9', lines: 'native', fps: 120, bitrateKbps: 30500.4, drawing: 'normal', upscaling: 'sharpened', numbers: false, mouse: 'game', sound: true, volume: 0.4, fit: true }),
+    { match: false, shape: '21:9', lines: 'native', fps: 120, bitrateKbps: 30500, drawing: 'normal', upscaling: 'sharpened', numbers: false, mouse: 'game', fit: true, sound: true, volume: 0.4 },
     'and kept when it is',
   );
   const here = { viewWidth: 1920, viewHeight: 1200 };
@@ -363,6 +363,11 @@ async function main() {
   same(wishes.requestFor({ shape: 'match', viewWidth: 1280, viewHeight: 800 }, here, 60), { shape: 'match', viewWidth: 1280, viewHeight: 800 }, "a caller's own screen size is kept");
   const after = wishes.wishesAfter(wishes.DEFAULT_WISHES, { shape: '16:10', lines: 720, fps: 60, bitrateKbps: 8000 });
   same([after.match, after.shape, after.lines, after.fps, after.bitrateKbps], [false, '16:10', 720, 60, 8000], 'a change asked for is what this device then wishes for');
+  // FIT (Luke, 2026-11-21): a separate switch, off at first; asking for it carries this screen's size.
+  same(wishes.requestFor({ pcScreen: 'fit' }, here, 60), { pcScreen: 'fit', viewWidth: 1920, viewHeight: 1200 }, "FIT goes with this screen's size");
+  same(wishes.requestFor({ pcScreen: 'own' }, here, 60), { pcScreen: 'own' }, 'giving the PC its screen back carries nothing extra');
+  same([wishes.wishesAfter(wishes.DEFAULT_WISHES, { pcScreen: 'fit' }).fit, wishes.wishesAfter({ ...wishes.DEFAULT_WISHES, fit: true }, { pcScreen: 'own' }).fit], [true, false], 'asking for FIT, or giving it back, is what this device then wishes for');
+  same(wishes.wishesFrom({ fit: 'yes' }).fit, false, 'a FIT wish is taken only when it is true or false');
   same(wishes.wishesAfter(after, { shape: 'match' }).shape, '16:10', 'MATCH on keeps the shape last chosen by hand, for when it goes off again');
   same(wishes.wishesAfter(after, { shape: 'match' }).match, true, 'and marks MATCH on');
 
@@ -381,6 +386,10 @@ async function main() {
   const host = wishes.hostSettingsFrom({ ...ENGINE_SAYS, hostLimits: { maxLines: 1080, maxFps: 60, maxBitrateKbps: 12999 }, sending: { x: 440, y: 0, regionWidth: 2560, regionHeight: 1440, width: 1280, height: 720, scaled: true, fps: 60, bitrateKbps: 20000, codec: 'H.264' }, measured: { framesPerSecond: 59.6, newFramesPerSecond: 12.2, kbitPerSecond: 1840, shownToEncodedMs: 3.21 } });
   ok(host !== null, "the engine's answer is read");
   same(wishes.hostSettingsFrom({ available: true }), null, 'something else is not');
+  // FIT's part of the answer: read when it is whole, nothing when it is missing or broken (an older engine).
+  const fitSaid = wishes.hostSettingsFrom({ ...ENGINE_SAYS, pcScreen: { allowed: true, own: { width: 3440, height: 1440, hz: 180 }, now: { width: 2560, height: 1440, hz: 144 }, fitted: true, wantedBy: 1, yours: true, why: null } });
+  same(fitSaid.pcScreen, { allowed: true, own: { width: 3440, height: 1440, hz: 180 }, now: { width: 2560, height: 1440, hz: 144 }, fitted: true, wantedBy: 1, yours: true, why: null }, "the PC's FIT answer is read");
+  same([wishes.hostSettingsFrom(ENGINE_SAYS).pcScreen, wishes.hostSettingsFrom({ ...ENGINE_SAYS, pcScreen: { allowed: true, own: 'big' } }).pcScreen], [null, null], 'and is nothing from an older engine, or when broken');
   same(wishes.hostSettingsFrom({ ...ENGINE_SAYS, screen: { width: '3440' } }), null, 'nor an answer with a part missing');
   same(wishes.LINES.filter((lines) => wishes.linesOffered(lines, host)), [720, 1080, 'native'], 'more lines than the PC has are not offered; NATIVE always is');
   same(wishes.RATES.filter((rate) => wishes.rateOffered(rate, host)), ['auto', 30, 60], 'more frames a second than the PC shows are not offered; AUTO always is');

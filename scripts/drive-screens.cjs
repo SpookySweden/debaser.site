@@ -72,6 +72,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const LIVE_ENGINE_PORT = 8478;
 /** The word in this file is the pointer the engine pretends the PC has (DEBASER_PRETEND_POINTER_FILE, as engine/bench/pointer-check.cjs does). */
 const POINTER_FILE = path.join(os.tmpdir(), `debaser-drive-screens-pointer-${process.pid}`);
+const MODES_FILE = path.join(os.tmpdir(), `debaser-drive-screens-modes-${process.pid}`);
 
 /** Whether anything on this PC accepts a connection on that port. Nothing is sent to it. */
 function answering(port) {
@@ -125,10 +126,12 @@ function stopTree(child) {
 process.on('exit', () => started.forEach(stopTree));
 
 async function startEngine() {
-  const engineArgs = ['serve', '--allow-control', '--control-dry-run', '--tweaks', '76', '--port', String(ENGINE_PORT), '--seconds', '120'];
+  const engineArgs = ['serve', '--allow-control', '--control-dry-run', '--allow-fit', '--tweaks', '76', '--port', String(ENGINE_PORT), '--seconds', '120'];
   fs.writeFileSync(POINTER_FILE, 'block\n');
+  // FIT is a dry run: the engine pretends this monitor's modes (as engine/bench/fit-check.cjs does) and never makes a display call.
+  fs.writeFileSync(MODES_FILE, ['3440x1440@180', '3440x1440@144', '2560x1440@144', '2560x1440@60', '1920x1080@144', '1920x1080@60'].join('\n') + '\n');
   // A steady test tone in place of the PC's sound, and a pretended pointer in place of the real one: both the engine's own test switches.
-  const env = { ...process.env, DEBASER_PRETEND_MATCH: '', DEBASER_PRETEND_MATCH_FILE: '', DEBASER_PRETEND_STILL: '', DEBASER_PRETEND_TONE: '1', DEBASER_PRETEND_POINTER_FILE: POINTER_FILE };
+  const env = { ...process.env, DEBASER_PRETEND_MATCH: '', DEBASER_PRETEND_MATCH_FILE: '', DEBASER_PRETEND_STILL: '', DEBASER_PRETEND_TONE: '1', DEBASER_PRETEND_POINTER_FILE: POINTER_FILE, DEBASER_PRETEND_MODES: MODES_FILE };
   const child = spawn(ENGINE, engineArgs, { cwd: path.join(ROOT, 'engine'), windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], env });
   started.push(child);
   const engine = { child, text: '', began: Date.now() };
@@ -602,7 +605,7 @@ async function partOpen(browser) {
           await page.locator(`[data-screen-upscaling="${fitting}"]`).click();
           await panel(false);
           await sleep(350);
-          const shown = await page.locator('[data-room-screen]').evaluate((element) => `${element.getAttribute('data-screen-drawing')} ${element.getAttribute('data-screen-fit')}`);
+          const shown = await page.locator('[data-room-screen]').evaluate((element) => `${element.getAttribute('data-screen-drawing')} ${element.getAttribute('data-screen-pc-fit')}`);
           const places = fitting === 'off'
             ? [[stage.x + stage.width / 2, stage.y + stage.height / 2, 0.5, 0.5], [stage.x + stage.width / 2 - 128, stage.y + stage.height / 2 + 72, 0.4, 0.6]]
             : [[picture.left + 0.25 * picture.width, picture.top + 0.6 * picture.height, 0.25, 0.6], [picture.left + 0.5 * picture.width, picture.top + 0.9 * picture.height, 0.5, 0.9]];
@@ -793,6 +796,30 @@ async function partOpen(browser) {
       assert.ok(ended, 'the engine heard control end');
       assert.ok(heard.filter((line) => line === 'Escape down').length <= 1, `the PC saw at most one Esc press, not its repeats: ${heard.join(', ')}`);
       pass('the way out is in sight: a bar under the keys with [ RELEASE ], and holding Esc for a second lets go', `the bar said "${barSays}"; its [ RELEASE ] let go; with Esc held it said "${holding}", and control was let go (engine: "ended: ${ended.why ?? ended.reason ?? 'yes'}"); the PC saw ${heard.join(', ') || 'no key'}`);
+    }
+
+    // j. FIT THE PC TO THIS SCREEN (Luke, 2026-11-21): a separate switch, off at first; a dry run here (the engine
+    //    pretends the monitor's modes and never changes the screen). This browser's screen is 16:9, so the PC's
+    //    pretended 3440x1440 is fitted to 2560x1440, and given back when the switch goes off.
+    {
+      if (!(await page.locator('[data-screen-panel]').count())) await page.locator('[data-screen-settings-key]').click();
+      const fitKey = page.locator('[data-screen-pc-fit]');
+      await fitKey.waitFor({ timeout: 8000 });
+      assert.equal(await fitKey.getAttribute('data-screen-pc-fit'), 'off', 'the FIT switch starts off');
+      const startSays = (await page.locator('[data-screen-pc-fit-says]').innerText()).trim();
+      await fitKey.click();
+      const fitted = await waitFor(async () => { const s = await engine.settings(); return s.pcScreen && s.pcScreen.fitted ? s : null; }, 8000);
+      assert.ok(fitted, `the PC (pretended) is fitted: ${JSON.stringify((await engine.settings()).pcScreen)}`);
+      assert.equal(`${fitted.pcScreen.now.width}x${fitted.pcScreen.now.height}`, '2560x1440', 'to the 16:9 mode nearest this screen');
+      assert.ok(fitted.pcScreen.pretended, 'and only pretended: no display call was made');
+      const fittedSays = await waitFor(async () => { const t = (await page.locator('[data-screen-pc-fit-says]').innerText()).trim(); return t.startsWith("THE PC'S SCREEN IS NOW 2560x1440") ? t : null; }, 6000);
+      assert.ok(fittedSays, 'the switch says what the PC now is');
+      await fitKey.click();
+      const back = await waitFor(async () => { const s = await engine.settings(); return s.pcScreen && !s.pcScreen.fitted ? s : null; }, 8000);
+      assert.ok(back, 'pressed again, the PC gets its own screen back');
+      assert.equal(await fitKey.getAttribute('data-screen-pc-fit'), 'off', 'and the switch reads off');
+      pass("[ FIT THE PC TO THIS SCREEN ] is its own switch, off at first; on, the PC (pretended) changes to this screen's shape, off gives it back", `at first: "${startSays}"; on: "${fittedSays}"; off: the PC's own ${back.pcScreen.now.width}x${back.pcScreen.now.height} again`);
+      await page.keyboard.press('Escape');
     }
 
     // d. Back to the room's ordinary picture, while holding control.

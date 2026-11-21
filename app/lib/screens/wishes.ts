@@ -35,9 +35,11 @@ export type Wishes = {
   /** The PC's sound, wanted on this device or not, and how loud this device plays it (0 to 1). */
   sound: boolean;
   volume: number;
+  /** FIT THE PC TO THIS SCREEN: the PC's own screen changed to this screen's shape while connected (a separate switch, off at first). */
+  fit: boolean;
 };
 
-export const DEFAULT_WISHES: Wishes = { match: false, shape: 'native', lines: 1080, fps: 'auto', bitrateKbps: 20000, drawing: 'fast', upscaling: 'smooth', numbers: true, mouse: 'pointer', sound: false, volume: 1 };
+export const DEFAULT_WISHES: Wishes = { match: false, shape: 'native', lines: 1080, fps: 'auto', bitrateKbps: 20000, drawing: 'fast', upscaling: 'smooth', numbers: true, mouse: 'pointer', fit: false, sound: false, volume: 1 };
 
 const among = <T>(list: readonly T[], value: unknown): value is T => list.includes(value as T);
 
@@ -56,6 +58,7 @@ export function wishesFrom(kept: unknown): Wishes {
   if (typeof was.numbers === 'boolean') wishes.numbers = was.numbers;
   if (among(MICE, was.mouse)) wishes.mouse = was.mouse;
   if (typeof was.sound === 'boolean') wishes.sound = was.sound;
+  if (typeof was.fit === 'boolean') wishes.fit = was.fit;
   if (typeof was.volume === 'number' && Number.isFinite(was.volume) && was.volume >= 0 && was.volume <= 1) wishes.volume = was.volume;
   return wishes;
 }
@@ -90,6 +93,8 @@ export type SettingsRequest = {
   lines?: Lines;
   fps?: Fps;
   bitrateKbps?: number;
+  /** FIT: change the PC's own screen to this screen's shape ("fit") or give it back ("own"). Needs viewWidth and viewHeight with "fit". */
+  pcScreen?: 'fit' | 'own';
   /** This screen in real pixels, for `match`. */
   viewWidth?: number;
   viewHeight?: number;
@@ -110,7 +115,7 @@ export function wishesForThePc(wishes: Wishes): SettingsRequest {
  */
 export function requestFor(partial: SettingsRequest, here: ThisScreen, screenHz: number | null): SettingsRequest {
   const request = { ...partial };
-  if (request.shape === 'match') {
+  if (request.shape === 'match' || request.pcScreen === 'fit') {
     if (!request.viewWidth) request.viewWidth = here.viewWidth;
     if (!request.viewHeight) request.viewHeight = here.viewHeight;
   }
@@ -121,6 +126,7 @@ export function requestFor(partial: SettingsRequest, here: ThisScreen, screenHz:
 /** What this device wishes for once it has asked for `request`. */
 export function wishesAfter(wishes: Wishes, request: SettingsRequest): Wishes {
   const next = { ...wishes };
+  if (request.pcScreen !== undefined) next.fit = request.pcScreen === 'fit';
   if (request.shape !== undefined) {
     next.match = request.shape === 'match';
     if (request.shape !== 'match') next.shape = request.shape;
@@ -180,9 +186,27 @@ export type HostSettings = {
   controllerWhy: string | null;
   /** The PC's sound; null from an older engine that sends none. */
   sound: HostSound | null;
+  /** FIT: whether the PC allows its own screen to be changed, its own mode and the mode now; null from an older engine. */
+  pcScreen: HostPcScreen | null;
   /** The PC's own pointer; null from an older engine. */
   pointer: { shown: boolean; shape: number; width: number; height: number } | null;
 };
+
+/** What the PC says of FIT (`/settings`, "pcScreen"). `yours` is whether the device asking is one that wants it. */
+export type HostPcScreen = { allowed: boolean; own: { width: number; height: number; hz: number }; now: { width: number; height: number; hz: number }; fitted: boolean; wantedBy: number; yours: boolean; why: string | null };
+
+function hostPcScreenFrom(value: unknown): HostPcScreen | null {
+  if (!isRecord(value) || !numbersIn(value.own, ['width', 'height', 'hz']) || !numbersIn(value.now, ['width', 'height', 'hz'])) return null;
+  return {
+    allowed: value.allowed === true,
+    own: value.own as HostPcScreen['own'],
+    now: value.now as HostPcScreen['now'],
+    fitted: value.fitted === true,
+    wantedBy: typeof value.wantedBy === 'number' ? value.wantedBy : 0,
+    yours: value.yours === true,
+    why: typeof value.why === 'string' ? value.why : null,
+  };
+}
 
 /** What the PC says of its sound (`/settings`, "sound"). `heard` is "sound", "silence" or nothing yet. */
 export type HostSound = { allowed: boolean; listeners: number; capturing: boolean; source: string | null; heard: string | null; packetsSent: number; problem: string | null };
@@ -228,6 +252,7 @@ export function hostSettingsFrom(value: unknown): HostSettings | null {
     controller: typeof value.controller === 'string' ? value.controller : 'off',
     controllerWhy: text('controllerWhy'),
     sound: hostSoundFrom(value.sound),
+    pcScreen: hostPcScreenFrom(value.pcScreen),
     pointer: numbersIn(value.pointer, ['shape', 'width', 'height']) ? { ...(value.pointer as { shape: number; width: number; height: number }), shown: (value.pointer as { shown?: unknown }).shown !== false } : null,
   };
 }

@@ -535,6 +535,12 @@ async function talkToHost(options) {
   }
   hostTrouble = '';
   host = JSON.parse(text);
+  // The PC put its screen back from its own keyboard and forgot every wish: so does this device, or the next press
+  // of the key would take the wish away instead of asking again.
+  if (host.pcScreen && !host.pcScreen.yours && wishes.fit && /PUT BACK AT THE PC/.test(host.pcScreen.why || '')) {
+    wishes.fit = false;
+    remember();
+  }
   showSettings();
   return host;
 }
@@ -674,7 +680,9 @@ document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && 
 // FIT: pressed, this device asks the PC to change its own screen to this screen's shape; pressed again, to give
 // it back. The wish is remembered on this device; what the key then shows is what the PC answers.
 $('fit').addEventListener('click', () => {
-  const on = !(host && host.pcScreen && host.pcScreen.yours);
+  // This device's own wish decides, not the PC's last answer, which may be a few seconds old: a press after the PC put
+  // its screen back (Ctrl+Alt+Shift+End) must ask again, not give back what is already back.
+  const on = !wishes.fit;
   wishes.fit = on;
   remember();
   quietly(ask({ pcScreen: on ? 'fit' : 'own' }));

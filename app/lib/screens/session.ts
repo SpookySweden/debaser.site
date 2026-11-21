@@ -368,7 +368,13 @@ export class ScreenSession {
         // Now that the picture is on its way, tell the PC what this device wants of it. AUTO needs this screen's
         // own rate, so a measuring of it that is still going is waited for first.
         void (this.measuringHz ?? Promise.resolve()).then(() => {
-          if (this.alive(life)) quietly(this.ask(wishesForThePc(this.wishes)));
+          if (!this.alive(life)) return;
+          // FIT, left on at the last visit, is asked for on its own, once the PC has said it allows it, so a PC that
+          // does not know of it is never sent it.
+          quietly(this.ask(wishesForThePc(this.wishes)).then((host) => {
+            if (this.alive(life) && this.wishes.fit && host?.pcScreen?.allowed && !host.pcScreen.yours) return this.ask({ pcScreen: 'fit' });
+            return host;
+          }));
         });
         // The connection has chosen its path: whether this device is the PC itself can be read from it now.
         void this.showReadout();
@@ -489,6 +495,10 @@ export class ScreenSession {
     }
     this.hostTrouble = '';
     this.host = answer.settings;
+    // The PC put its own screen back from its keyboard and forgot every wish for a fit: so does this device, or the
+    // next press of the switch would take the wish away instead of asking again.
+    const pc = this.host.pcScreen;
+    if (pc && !pc.yours && this.wishes.fit && (pc.why ?? '').includes('PUT BACK AT THE PC')) this.keep({ ...this.wishes, fit: false });
     // The piece of the PC's screen being sent may have changed, and with it the scale its pointer is drawn at.
     this.pointerShape?.show();
     this.resumeSound();
@@ -516,6 +526,11 @@ export class ScreenSession {
   /** A key in the panel: a change asked of the PC. Why it could not be made, when it could not, shows in the panel. */
   change(partial: SettingsRequest): void {
     if (this.parts !== null) quietly(this.ask(partial));
+  }
+
+  /** `[ FIT THE PC TO THIS SCREEN ]`: this device's own wish decides (the PC's last answer may be seconds old). */
+  toggleFit(): void {
+    this.change({ pcScreen: this.wishes.fit ? 'own' : 'fit' });
   }
 
   /** `[ MATCH THIS SCREEN ]`: on, the PC sends this screen's shape; off, the shape last chosen by hand. */
