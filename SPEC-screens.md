@@ -132,6 +132,14 @@ picture in the room on the PC: "since remote desktop is likely less efficient th
   secret it shares with the gateway, good for 60 seconds, once. The server's address and Windows sign-in are only in
   `G:\DEBASER-HOST\rdp.env`, typed by Luke; the site and the browser never see them.
 - Set up on the PC by `node scripts/host/server-remote.cjs on|off|status`.
+- SERVER SIGN-IN (Luke could not edit the settings file himself, and Claude never types his passwords): a form in the
+  view, shown by itself while no server is named and behind `[ OPTIONS ]` after. Address, user and password go once
+  through the site (owner only) to the gateway (signed over the exact body) into rdp.env; the fields start empty every
+  time, an empty field keeps its line, a line break is refused, and nothing is answered back or logged.
+- The view's corner stays short so a small room's picture stays clickable: the WAY IN row
+  (`[ WINDOWS REMOTE DESKTOP (GUACAMOLE) ]`, `[ OUR ENGINE: NOT ON THE SERVER YET ]`, `[ OPTIONS ]`), the route, and
+  one status or control line. The server switch, FIT and SERVER SIGN-IN are under OPTIONS, which opens by itself when
+  the remote is off or the server is not named.
 - Its own switch (Luke, 2026-11-21: "make sure it is a toggle since it is a separate thing to our tech"): off until he
   switches it on. `[ REMOTE ]` lists `[ SERVER REMOTE (WINDOWS REMOTE DESKTOP THROUGH GUACAMOLE): OFF ]`; on, THE SERVER
   becomes a choice, labelled `WINDOWS REMOTE DESKTOP THROUGH GUACAMOLE, NOT OUR ENGINE (SLOWER)`. The view carries

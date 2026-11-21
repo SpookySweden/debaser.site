@@ -386,6 +386,47 @@ function switchIsSigned(request, on, secret, now = Date.now()) {
   return signature.length === expected.length && crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
 }
 
+/** Whether a setup request carries the shared secret's signature over its exact body, made in the last minute. */
+function setupIsSigned(request, body, secret, now = Date.now()) {
+  const at = Number(request.headers['x-debaser-at']);
+  const signature = String(request.headers['x-debaser-sign'] || '');
+  if (!secret || !Number.isFinite(at) || Math.abs(now - at) > PASS_SECONDS * 1000) return false;
+  const digest = crypto.createHash('sha256').update(body).digest('base64url');
+  const expected = crypto.createHmac('sha256', secret).update(`setup:${at}:${digest}`).digest('base64url');
+  return signature.length === expected.length && crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+}
+
+/** The lines a setup may change: { RDP_HOST, RDP_USER, RDP_PASSWORD }, each only when given; null when any is not plain. */
+function setupLines(body) {
+  let asked;
+  try {
+    asked = JSON.parse(body);
+  } catch {
+    return null;
+  }
+  const out = {};
+  for (const [field, name, most] of [['host', 'RDP_HOST', 253], ['user', 'RDP_USER', 256], ['password', 'RDP_PASSWORD', 256]]) {
+    const value = asked[field];
+    if (value === undefined || value === '') continue;
+    if (typeof value !== 'string' || value.length > most || /[\r\n\0]/.test(value)) return null;
+    if (field === 'host' && !/^[A-Za-z0-9.:\-\[\]]+$/.test(value)) return null;
+    out[name] = value;
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+/** A settings file with one line set; every other line kept as it was. */
+function withSetting(text, name, value) {
+  const lines = text.split(/\r?\n/);
+  const at = lines.findIndex((l) => l.startsWith(`${name}=`));
+  if (at >= 0) lines[at] = `${name}=${value}`;
+  else {
+    while (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
+    lines.push(`${name}=${value}`);
+  }
+  return `${lines.join('\n').replace(/\n+$/, '')}\n`;
+}
+
 const server = http.createServer((request, response) => {
   const url = new URL(request.url, 'http://gateway');
   const config = settings();
@@ -409,6 +450,31 @@ const server = http.createServer((request, response) => {
       fs.writeFileSync(SWITCH, JSON.stringify({ on, at: new Date().toISOString() }) + '\n');
       console.log(`${new Date().toISOString()} the server remote switched ${on ? 'ON' : 'OFF'}`);
       return answer(response, 200, { on });
+    });
+    return;
+  }
+  if (url.pathname === '/setup' && request.method === 'POST' && !viaCloudflare(request)) {
+    // The server's sign-in, typed by Luke into the room's SERVER SIGN-IN form and passed on by the site's server,
+    // signed with the shared secret. Written into rdp.env; never logged, never answered back.
+    let body = '';
+    request.on('data', (chunk) => {
+      body += chunk;
+      if (body.length > 2000) request.destroy();
+    });
+    request.on('end', () => {
+      if (!setupIsSigned(request, body, config.SCREENS_RDP_SECRET)) return answer(response, 403, { error: 'Not available.' });
+      const lines = setupLines(body);
+      if (lines === null) return answer(response, 400, { error: 'Those cannot be saved.' });
+      let text = '';
+      try {
+        text = fs.readFileSync(SETTINGS, 'utf8');
+      } catch {
+        /* made below */
+      }
+      for (const [name, value] of Object.entries(lines)) text = withSetting(text, name, value);
+      fs.writeFileSync(SETTINGS, text);
+      console.log(`${new Date().toISOString()} the server's sign-in was saved (${Object.keys(lines).join(', ').toLowerCase()})`);
+      return answer(response, 200, { serverSet: Boolean(settings().RDP_HOST) });
     });
     return;
   }
@@ -455,7 +521,7 @@ server.on('upgrade', (request, socket) => {
   });
 });
 
-module.exports = { passIsGood, whole, elements, instruction, accessIsGood, switchIsSigned, notLetIn, viaCloudflare };
+module.exports = { passIsGood, whole, elements, instruction, accessIsGood, switchIsSigned, setupIsSigned, setupLines, withSetting, notLetIn, viaCloudflare };
 
 if (require.main === module) {
   server.listen(PORT, '127.0.0.1', () => console.log(`${new Date().toISOString()} the Remote Desktop gateway listens on 127.0.0.1:${PORT}`));

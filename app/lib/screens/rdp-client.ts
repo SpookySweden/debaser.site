@@ -114,6 +114,21 @@ export async function doorIsOpen(door: string): Promise<boolean> {
   }
 }
 
+/**
+ * The server's sign-in, typed into the room's SERVER SIGN-IN form: sent once to the site, which passes it to the PC's
+ * settings file, and never kept or shown in the browser. The plain reason when it was not saved.
+ */
+export async function saveServerSignIn(setup: { host?: string; user?: string; password?: string }): Promise<string | null> {
+  try {
+    const got = await post({ setup });
+    if (!got.ok) return typeof got.body.error === 'string' ? got.body.error.toUpperCase() : 'IT WAS NOT SAVED';
+    setWay(wayFrom(got.body));
+    return null;
+  } catch {
+    return 'THE SITE COULD NOT BE ASKED';
+  }
+}
+
 /** A pass for the websocket and where to open it; or the plain reason why not. */
 export async function askRdpPass(size: { width: number; height: number; dpi: number }): Promise<{ pass: string; socket: string } | { why: string }> {
   try {

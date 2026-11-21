@@ -673,6 +673,32 @@ async function main() {
       same((await read(await rdp.rdpAnswer(ask('/api/screens/rdp', { ...how, method: 'POST', type: 'application/json', body: '{"switch":true}' }), world(env, { accounts, engine: healthy }).deps))).status, 403, `${who} cannot switch it`);
       same(switches.length, before, `and nothing reached the gateway for ${who}`);
     }
+    // The SERVER SIGN-IN form: owner only, passed on signed over its exact body, nothing kept by the site.
+    const setups = [];
+    const savingGateway = async (input, init = {}) => {
+      if (input.endsWith('/setup')) {
+        setups.push({ headers: init.headers, body: init.body });
+        return new Response(JSON.stringify({ serverSet: true }), { status: 200 });
+      }
+      return healthy(input, init);
+    };
+    const formBody = '{"setup":{"host":"192.168.0.129","user":"someone","password":"not-a-real-one"}}';
+    const savedAnswer = await read(await rdp.rdpAnswer(ask('/api/screens/rdp', { token: liveOwner, method: 'POST', type: 'application/json', body: formBody }), world(env, { accounts, engine: savingGateway }).deps));
+    same(savedAnswer.status, 200, 'the owner saves the server sign-in');
+    ok(!savedAnswer.text.includes('not-a-real-one'), 'the answer never carries the password back');
+    const passedOn = setups[setups.length - 1];
+    ok(gateway.setupIsSigned({ headers: { 'x-debaser-at': passedOn.headers['X-Debaser-At'], 'x-debaser-sign': passedOn.headers['X-Debaser-Sign'] } }, passedOn.body, SECRET, world.now), 'the gateway takes the signed sign-in');
+    same(gateway.setupIsSigned({ headers: { 'x-debaser-at': passedOn.headers['X-Debaser-At'], 'x-debaser-sign': passedOn.headers['X-Debaser-Sign'] } }, passedOn.body.replace('someone', 'someone-else'), SECRET, world.now), false, 'but not a changed body under the same signature');
+    for (const [who, how] of strangers) {
+      const before = setups.length;
+      same((await read(await rdp.rdpAnswer(ask('/api/screens/rdp', { ...how, method: 'POST', type: 'application/json', body: formBody }), world(env, { accounts, engine: savingGateway }).deps))).status, 403, `${who} cannot set the server sign-in`);
+      same(setups.length, before, `and nothing reached the gateway for ${who}`);
+    }
+    same(gateway.setupLines('{"password":"x\\nRDP_HOST=evil"}'), null, 'a password with a line break is refused (it could not slip in another setting)');
+    same(gateway.setupLines('{"host":"a b"}'), null, 'an address is a name or a number');
+    same(gateway.setupLines('{"user":"u","password":""}'), { RDP_USER: 'u' }, 'an empty field leaves that line as it was');
+    same(gateway.withSetting('A=1\nRDP_USER=old\nB=2\n', 'RDP_USER', 'new'), 'A=1\nRDP_USER=new\nB=2\n', 'a line is changed where it stands, the others kept');
+
     gatewayOn = false;
     same((await read(await rdp.rdpAnswer(ask('/api/screens/rdp', { token: liveOwner, method: 'POST', type: 'application/json', body: '{}' }), w.deps))).status, 409, 'switched off: no pass, even for the owner');
     gatewayOn = true;

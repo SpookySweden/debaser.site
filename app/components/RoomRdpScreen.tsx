@@ -5,7 +5,7 @@ import { GUAC_STATE, KEYSYM_ESCAPE, loadGuacamole, type GuacClient } from '../li
 import { keysymOf } from '../lib/screens/keysyms';
 import { leaveKeys, takeKeys, type KeyTaker } from '../lib/screens/key-gate';
 import { ROUTE_WORDS, type NetRoute } from '../lib/screens/net-route';
-import { askRdpPass, doorIsOpen, readRdpWayNow, switchRdp } from '../lib/screens/rdp-client';
+import { askRdpPass, doorIsOpen, readRdpWayNow, saveServerSignIn, switchRdp } from '../lib/screens/rdp-client';
 import { PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED } from '../lib/ui/controls';
 
 /** Holding Esc this long lets go of the server, as with the PC's engine (control.ts, LET_GO_HOLD_MS). */
@@ -15,7 +15,66 @@ const RESIZE_SETTLE_MS = 300;
 /** Where this browser remembers the FIT THE SERVER TO THIS VIEW switch. */
 const FIT_KEY = 'debaser.screens.rdp.fit.v1';
 
-type State = 'starting' | 'off' | 'locked' | 'connecting' | 'showing' | 'ended';
+type State = 'starting' | 'off' | 'setup' | 'locked' | 'connecting' | 'showing' | 'ended';
+
+/**
+ * The server's sign-in (Luke, 2026-11-21: he could not edit the settings file himself, and Claude never types his
+ * passwords). Typed here once, sent to the site, passed to the PC's rdp.env, and never kept or shown again: the
+ * fields start empty every time, and an empty field leaves that line as it was.
+ */
+function ServerSignIn({ onSaved, onClose }: { onSaved: () => void; onClose: (() => void) | null }) {
+  const [host, setHost] = useState('');
+  const [user, setUser] = useState('');
+  const [password, setPassword] = useState('');
+  const [saying, setSaying] = useState('');
+  const [busy, setBusy] = useState(false);
+  const field = 'w-56 max-w-full border border-ink-bar bg-ink-plate px-1 font-mono text-label text-ink-bar';
+  return (
+    <form
+      className="flex max-w-full flex-col items-end gap-1 bg-ink-plate p-1 font-mono"
+      autoComplete="off"
+      onSubmit={(event) => {
+        event.preventDefault();
+        setBusy(true);
+        void saveServerSignIn({ host: host.trim(), user: user.trim(), password }).then((trouble) => {
+          setBusy(false);
+          setPassword('');
+          if (trouble) setSaying(trouble);
+          else {
+            setSaying('SAVED ON THE PC');
+            onSaved();
+          }
+        });
+      }}
+      data-room-rdp-signin
+    >
+      <span>SERVER SIGN-IN :: SAVED IN rdp.env ON THE PC, NEVER SHOWN AGAIN</span>
+      <label className="flex items-center gap-1">
+        <span>ADDRESS</span>
+        <input className={field} value={host} onChange={(e) => setHost(e.target.value)} placeholder="its name or 192.168.0.x" spellCheck={false} data-room-rdp-signin-host />
+      </label>
+      <label className="flex items-center gap-1">
+        <span>USER</span>
+        <input className={field} value={user} onChange={(e) => setUser(e.target.value)} placeholder="leave empty to keep" spellCheck={false} data-room-rdp-signin-user />
+      </label>
+      <label className="flex items-center gap-1">
+        <span>PASSWORD</span>
+        <input className={field} type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="the account's password, not a PIN" data-room-rdp-signin-password />
+      </label>
+      <span className="flex items-center gap-1">
+        {saying ? <span role="status">{saying}</span> : null}
+        {onClose ? (
+          <button type="button" className={PLATE_ON_BLACK} onClick={onClose}>
+            [ CLOSE ]
+          </button>
+        ) : null}
+        <button type="submit" className={PLATE_ON_BLACK} disabled={busy} data-room-rdp-signin-save>
+          [ SAVE ON THE PC ]
+        </button>
+      </span>
+    </form>
+  );
+}
 
 /** Guacamole's status numbers, in words. */
 function troubleWords(code: number, message: string | undefined): string {
@@ -52,6 +111,10 @@ export default function RoomRdpScreen() {
   const [route, setRoute] = useState<NetRoute | null>(null);
   const [door, setDoor] = useState<string | null>(null);
   const [switchWhy, setSwitchWhy] = useState('');
+  const [signInOpen, setSignInOpen] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  // Off, the switch to turn it on must be in sight; not named yet, the form is.
+  const optionsShown = optionsOpen || state === 'off' || state === 'setup';
   const [fitView, setFitView] = useState(false);
 
   const again = () => {
@@ -231,6 +294,11 @@ export default function RoomRdpScreen() {
         setState('off');
         return;
       }
+      // No server named yet: the SERVER SIGN-IN form, before anything else.
+      if (!now.serverSet) {
+        setState('setup');
+        return;
+      }
       if (now.route === 'tunnel') {
         if (!now.locked) {
           setWhy('THE EXTRA LOCK (CLOUDFLARE ACCESS) IS NOT SET UP YET, SO THE SERVER IS NOT OPENED OVER THE INTERNET');
@@ -307,7 +375,9 @@ export default function RoomRdpScreen() {
   const says =
     state === 'starting'
       ? 'ASKING THE PC FOR THE WAY IN'
-      : state === 'locked'
+      : state === 'setup'
+        ? 'THE SERVER IS NOT NAMED YET: ITS ADDRESS AND WINDOWS SIGN-IN GO IN THE FORM ABOVE'
+        : state === 'locked'
         ? 'LOCKED: THE EXTRA LOCK (CLOUDFLARE ACCESS) WANTS A ONE-TIME CODE SENT TO YOUR EMAIL'
         : state === 'connecting'
           ? 'CONNECTING TO THE SERVER BY WINDOWS REMOTE DESKTOP'
@@ -326,11 +396,19 @@ export default function RoomRdpScreen() {
       >
         <div ref={holder} data-room-rdp-display />
       </div>
+      {/* Kept short, so a small room's picture stays clickable: the way in always in sight, the rest behind OPTIONS,
+          which opens by itself when the remote is off or the server is not named yet. */}
       <div className="absolute right-1 top-8 z-30 flex flex-col items-end gap-1 max-sm:top-14">
         <div className="flex max-w-full flex-wrap items-center justify-end gap-1 bg-ink-plate px-1 font-mono">
           <span>WAY IN</span>
-          <button type="button" className={PLATE_ON_BLACK_PRESSED} aria-pressed="true" data-room-rdp-way="rdp">
-            [ REMOTE DESKTOP ]
+          <button
+            type="button"
+            className={PLATE_ON_BLACK_PRESSED}
+            aria-pressed="true"
+            title="Windows' own Remote Desktop, turned into a picture by Apache Guacamole on the PC: a separate thing from our engine, and slower"
+            data-room-rdp-way="rdp"
+          >
+            [ WINDOWS REMOTE DESKTOP (GUACAMOLE) ]
           </button>
           <button
             type="button"
@@ -342,64 +420,79 @@ export default function RoomRdpScreen() {
           >
             [ OUR ENGINE: NOT ON THE SERVER YET ]
           </button>
-          <button
-            type="button"
-            className={state === 'off' ? PLATE_ON_BLACK : PLATE_ON_BLACK_PRESSED}
-            aria-pressed={state !== 'off'}
-            onClick={() => void flipRemote(state === 'off')}
-            title="The server remote's own switch, on the PC: off, nothing reaches the server this way"
-            data-room-rdp-switch={state === 'off' ? 'off' : 'on'}
-          >
-            {state === 'off' ? '[ SERVER REMOTE: OFF ]' : '[ SERVER REMOTE: ON ]'}
+          <button type="button" className={optionsShown ? PLATE_ON_BLACK_PRESSED : PLATE_ON_BLACK} aria-expanded={optionsShown} onClick={() => setOptionsOpen((open) => !open)} data-room-rdp-options>
+            [ OPTIONS ]
           </button>
-          {switchWhy ? <span role="status">{switchWhy}</span> : null}
         </div>
+        {optionsShown ? (
+          <div className="flex max-w-full flex-wrap items-center justify-end gap-1 bg-ink-plate px-1 font-mono" data-room-rdp-options-panel>
+            <button
+              type="button"
+              className={state === 'off' ? PLATE_ON_BLACK : PLATE_ON_BLACK_PRESSED}
+              aria-pressed={state !== 'off'}
+              onClick={() => void flipRemote(state === 'off')}
+              title="The server remote's own switch, on the PC: off, nothing reaches the server this way"
+              data-room-rdp-switch={state === 'off' ? 'off' : 'on'}
+            >
+              {state === 'off' ? '[ SERVER REMOTE: OFF ]' : '[ SERVER REMOTE: ON ]'}
+            </button>
+            {state === 'showing' ? (
+              <button
+                type="button"
+                className={fitView ? PLATE_ON_BLACK_PRESSED : PLATE_ON_BLACK}
+                aria-pressed={fitView}
+                onClick={toggleFit}
+                title={fitView ? "The server's desktop follows this view's size" : "The server's desktop is this screen's size, drawn whole"}
+                data-room-rdp-fit={fitView ? 'on' : 'off'}
+              >
+                [ FIT THE SERVER TO THIS VIEW ]
+              </button>
+            ) : null}
+            {state !== 'setup' && state !== 'off' ? (
+              <button type="button" className={signInOpen ? PLATE_ON_BLACK_PRESSED : PLATE_ON_BLACK} aria-expanded={signInOpen} onClick={() => setSignInOpen((open) => !open)} data-room-rdp-signin-key>
+                [ SERVER SIGN-IN ]
+              </button>
+            ) : null}
+            {switchWhy ? <span role="status">{switchWhy}</span> : null}
+          </div>
+        ) : null}
+        {state === 'setup' || signInOpen ? (
+          <ServerSignIn
+            onSaved={() => {
+              setSignInOpen(false);
+              setOptionsOpen(false);
+              again();
+            }}
+            onClose={state === 'setup' ? null : () => setSignInOpen(false)}
+          />
+        ) : null}
         {routeWords ? (
           <span className="w-fit bg-ink-plate px-1 font-mono" title={routeWords.tip} data-room-rdp-route={route ?? ''}>
             {routeWords.label}
           </span>
         ) : null}
-        {state === 'showing' ? (
-          <div className="flex max-w-full flex-wrap items-center justify-end gap-1 bg-ink-plate px-1 font-mono">
-            <button
-              type="button"
-              className={fitView ? PLATE_ON_BLACK_PRESSED : PLATE_ON_BLACK}
-              aria-pressed={fitView}
-              onClick={toggleFit}
-              title={fitView ? "The server's desktop follows this view's size" : "The server's desktop is this screen's size, drawn whole"}
-              data-room-rdp-fit={fitView ? 'on' : 'off'}
-            >
-              [ FIT THE SERVER TO THIS VIEW ]
-            </button>
+        {state !== 'showing' ? (
+          <div className="flex max-w-full flex-wrap items-center justify-end gap-1 bg-ink-plate px-1 font-mono" role="status">
+            <span data-room-rdp-says>{says}</span>
+            {state === 'locked' ? (
+              <button type="button" className={PLATE_ON_BLACK} onClick={unlock} title="Opens Cloudflare's own page in a small window: type your email, then the code it sends" data-room-rdp-unlock>
+                [ UNLOCK WITH AN EMAIL CODE ]
+              </button>
+            ) : null}
+            {state === 'ended' || state === 'locked' ? (
+              <button type="button" className={PLATE_ON_BLACK} onClick={again} data-room-rdp-again>
+                [ TRY AGAIN ]
+              </button>
+            ) : null}
           </div>
-        ) : null}
-        <div className="flex max-w-full flex-wrap items-center justify-end gap-1 bg-ink-plate px-1 font-mono" role="status">
-          <span data-room-rdp-says>{says}</span>
-          {state === 'locked' ? (
-            <button type="button" className={PLATE_ON_BLACK} onClick={unlock} title="Opens Cloudflare's own page in a small window: type your email, then the code it sends" data-room-rdp-unlock>
-              [ UNLOCK WITH AN EMAIL CODE ]
-            </button>
-          ) : null}
-          {state === 'ended' || state === 'locked' ? (
-            <button type="button" className={PLATE_ON_BLACK} onClick={again} data-room-rdp-again>
-              [ TRY AGAIN ]
-            </button>
-          ) : null}
-        </div>
-        {state === 'showing' ? (
-          <div className="flex max-w-full flex-wrap items-center justify-end gap-1 bg-ink-plate px-1 font-mono" data-room-rdp-control={engaged ? 'on' : 'off'}>
-            <span>
-              {engaged
-                ? escHolding
-                  ? 'KEEP HOLDING ESC TO LET GO'
-                  : 'CONTROL ON: YOUR MOUSE AND KEYS GO TO THE SERVER · HOLD ESC TO LET GO'
-                : 'CONTROL OFF · CLICK THE PICTURE TO TAKE IT'}
-            </span>
+        ) : (
+          <div className="flex max-w-full flex-wrap items-center justify-end gap-1 bg-ink-plate px-1 font-mono" role="status" data-room-rdp-control={engaged ? 'on' : 'off'}>
+            <span>{engaged ? (escHolding ? 'KEEP HOLDING ESC TO LET GO' : 'CONTROL ON · HOLD ESC TO LET GO') : 'CONTROL OFF · CLICK THE PICTURE'}</span>
             <button type="button" className={PLATE_ON_BLACK} onClick={() => engage(!engaged)} data-room-rdp-release>
               {engaged ? '[ RELEASE ]' : '[ TAKE CONTROL ]'}
             </button>
           </div>
-        ) : null}
+        )}
       </div>
     </div>
   );

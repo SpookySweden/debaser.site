@@ -1,4 +1,4 @@
-import { createHmac, randomBytes } from 'node:crypto';
+import { createHash, createHmac, randomBytes } from 'node:crypto';
 import { bodyText, isLoopbackHost, ownerIsAsking, realDeps, type ScreensDeps, type ScreensEnv } from './host-server';
 
 /**
@@ -169,6 +169,55 @@ export async function rdpAnswer(request: Request, deps: ScreensDeps = rdpDeps())
     if (!switched) return json(502, { error: "The PC's Remote Desktop gateway did not switch." });
     return json(200, way({ ...health, on: asked }));
   }
+  const setup = setupAsked(text);
+  if (setup !== null) {
+    const status = await askSetup(deps, origin as string, secret, setup);
+    if (status === 400) return json(400, { error: 'Those cannot be saved: no line breaks, and the address is a name or a number.' });
+    if (status !== 200) return json(502, { error: "The PC's Remote Desktop gateway did not save it." });
+    return json(200, way({ ...health, serverSet: health.serverSet || typeof setup.host === 'string' }));
+  }
   if (!health.on) return json(409, { error: 'The server remote is switched off.' });
   return json(200, { pass: makePass(secret, sizeFrom(text), deps.now()), socket });
+}
+
+/** The server's sign-in from the room's form: `{ "setup": { host?, user?, password? } }`; null for anything else. */
+export function setupAsked(text: string | null): { host?: string; user?: string; password?: string } | null {
+  try {
+    const value: unknown = JSON.parse(text ?? '');
+    const setup = typeof value === 'object' && value !== null ? (value as { setup?: unknown }).setup : undefined;
+    if (typeof setup !== 'object' || setup === null) return null;
+    const out: { host?: string; user?: string; password?: string } = {};
+    for (const field of ['host', 'user', 'password'] as const) {
+      const given = (setup as Record<string, unknown>)[field];
+      if (typeof given === 'string' && given.length > 0) out[field] = given;
+    }
+    return Object.keys(out).length > 0 ? out : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The signature the gateway's /setup takes over the exact body (rdp-gateway.cjs, `setupIsSigned`). */
+export function setupSignature(secret: string, body: string, at: number): string {
+  const digest = createHash('sha256').update(body).digest('base64url');
+  return createHmac('sha256', secret).update(`setup:${at}:${digest}`).digest('base64url');
+}
+
+/** Passes the sign-in on to the gateway on this PC; nothing of it is kept or logged here. The gateway's status. */
+async function askSetup(deps: ScreensDeps, origin: string, secret: string, setup: { host?: string; user?: string; password?: string }): Promise<number> {
+  const at = deps.now();
+  const body = JSON.stringify(setup);
+  try {
+    const response = await deps.fetch(`${origin}/setup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Debaser-At': String(at), 'X-Debaser-Sign': setupSignature(secret, body, at) },
+      body,
+      cache: 'no-store',
+      redirect: 'manual',
+      signal: AbortSignal.timeout(GATEWAY_TIMEOUT_MS),
+    });
+    return response.status;
+  } catch {
+    return 0;
+  }
 }
