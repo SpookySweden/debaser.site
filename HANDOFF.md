@@ -14,6 +14,9 @@ SUNSHINE's is `local_e225015a-…`). Read them as history; new sessions get thei
   streams it (LAN key + STUN, `--internet`). Its own start after a reboot: see `sunshine-handover.md`. The PC fallback
   site is gone (Luke, 2026-11-22: "delete the fallback now"): Docker data, site builds and the DebaserHost/Update/Backup
   tasks removed, Docker Desktop no longer starts with Windows. The way back is now SERVER's backups only.
+- 2026-11-22 evening: the hourly MEDIA fetch and the weekly email were down 02:17-22:23 (vault locks unreadable after the
+  restore; new ones made with Luke's OK); SERVER's engine unreachable from the home network after the RAM restart (a
+  firewall rule named through G:; fixed with a real-path rule, Luke confirmed). Both in SPEC-self-hosting.md.
 - SERVER also runs (SPEC-self-hosting.md, "SERVER's other jobs"): SSH (key only; the gaming PC's key), Tailscale
   (`debaser-server`, nothing public; laptop/phone/gaming PC not joined yet), LibGen through a Proton WireGuard split
   tunnel plus the shadow proxy behind `https://debaser.site/shadow` (CAPTCHAs: Luke via [ REMOTE ]).
@@ -30,7 +33,7 @@ RDP through Guacamole with the Cloudflare Access lock, both machines' engines, I
 ## Waiting on Luke
 - SCREENS relay: activate Cloudflare Realtime/TURN on his account (free 1,000 GB a month, then $0.05/GB; he ticks the
   terms and authorises PayPal himself), then paste the key into the RELAY KEY form.
-- SERVER: RAM to 16 GB; VS Code + its Claude extension if he wants them; whether to skip the bypass-mode prompt there.
+- SERVER (RAM is 16 GB since 2026-11-22): VS Code + its Claude extension if he wants them; whether to skip the bypass-mode prompt there.
 - Google sign-in check on debaser.site from his own browser.
 - The gaming PC: Windows Defender real-time protection is OFF; dead startup entries left from an old infection
   (Run keys pointing at missing files in C:\tmp, C:\ESD, C:\Dell\UpdatePackage\log); `C:\tmp` holds 2021 Babuk-encrypted

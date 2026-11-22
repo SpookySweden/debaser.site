@@ -320,6 +320,13 @@ fixed drive letter for `C:\DRIVES\G`, and the database came back from `backup.cj
   `C:\DEBASER-SETUP\proton-backup-setup.ps1` (his Proton sign-in and passphrase), which turns it on (Luke: "not now").
   Owed after that: the first upload and a restore test from Proton.
 - SERVER's own `DebaserBackup` (04:00) works; its first run was `2026-11-22-04-00`.
+- **Firewall rules name programs by their real path, never through `G:`** (2026-11-22). `G:` is a DOS-device alias for
+  `C:\DRIVES\G`; a program rule naming `G:\DEBASER-HOST\engine\debaser-engine.exe` worked when made, then stopped matching
+  after SERVER restarted (RAM upgrade, 22:08): the PC and laptop got "the connection failed" from THE SERVER :: OUR ENGINE,
+  while SERVER watching itself still worked. Fixed by `C:\DEBASER-SETUP\RUN-ME-engine-firewall.cmd` (rules "DEBASER engine
+  real path (home network) TCP/UDP" for `C:\DRIVES\G\...\debaser-engine.exe`, local subnet only), run by Luke; he
+  confirmed it connects. `allow-engine-firewall.ps1` now uses the real path too.
+- RAM: 16 GB since 2026-11-22 22:08 (Windows reports 15.8).
 
 ## The way back (rollback)
 - Nothing on the cloud is deleted or changed: the Supabase project and the Vercel project stay exactly as they are for
