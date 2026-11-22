@@ -52,9 +52,11 @@ export type MediaServer = {
 // `isMediaServerId` at run time.
 export const MEDIA_SERVERS: readonly MediaServer[] = [
   // SERVERS-START
-  // (Placeholder slots)
+  { id: 'luke_server', label: 'LUKE’S SERVER', base: 'https://media.debaser.site', listPath: '*', play: { movie: '/debaser/play/movie/{tmdb}', tv: '/debaser/play/tv/{tmdb}/{season}/{episode}', series: '/debaser/play/tv/{tmdb}' }, unsandboxed: true },
 // SERVERS-END
 ];
+// luke_server (2026-11-22, Luke: "it will show for everyone"): his Jellyfin on SERVER, through the bridge in
+// G:\MEDIA-HOST\debaser-bridge. Unsandboxed because Jellyfin's sign-in is a form, and the sandbox forbids forms.
 
 export type MediaServerId = string;
 

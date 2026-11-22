@@ -60,8 +60,14 @@ Already built (SPEC-media-servers.md). Proven end to end 2026-11-06 with three f
 their list files, the real rows drew, the real ping route ran, and their player pages loaded in frames, desktop and phone. See
 `docs/media-server-fill-in.md` for what to ask each friend.
 - No code refuses a host (Luke, 2026-11-06, removed as a waste of code). The rule that a server must hold what it lists is gone
-  too (his words at the top), and a `listPath: '*'` server is allowed, though none uses it. Still out: no session adds vidsrc,
+  too (his words at the top), and a `listPath: '*'` server is allowed. Still out: no session adds vidsrc,
   2embed or similar public lookup hosts, or builds film lookups on them.
+- **LUKE'S SERVER** (2026-11-22, Luke: "it will show for everyone"): his Jellyfin on SERVER (`I:\Media`), the first
+  `listPath: '*'` server, at `https://media.debaser.site` (tunnel route to a small bridge, `G:\MEDIA-HOST\debaser-bridge`,
+  kept running by `media-keeper.cjs`). The bridge answers 404 for a TMDB number Jellyfin lacks, otherwise opens the item
+  in Jellyfin's own web player; viewers sign in to Jellyfin there. Unsandboxed: Jellyfin's sign-in is a form. Its rows
+  come from the wildcard search (a search's own row for the title, with the server under WATCH), not from
+  `web_media_titles`, so a KINO row's WATCH list doesn't name it.
 - **Not fixed, needs a database change:** a list that gives a show BOTH a whole-show line and episode lines is saved as just
   those episodes. The docs say to pick one.
 
