@@ -38,6 +38,7 @@ typedef struct DbeInfo {
   int64_t ticks_per_second;         // how many ticks of Windows' fine clock make a second (for the times below)
   int32_t region_x, region_y, region_width, region_height;  // the piece of the screen really taken
   int32_t scaled;                   // 1 = the region is shrunk to the picture's size; 0 = copied as it is
+  int32_t encoder;                  // 0 NVIDIA's encoder; 1 the card's hardware encoder through Media Foundation (mf.cpp)
 } DbeInfo;
 
 typedef struct DbeFrame {

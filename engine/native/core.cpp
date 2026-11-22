@@ -26,6 +26,7 @@
 
 #include "../vendor/nvEncodeAPI.h"
 #include "core.h"
+#include "mf.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -90,6 +91,11 @@ struct DbeSession {
   ComPtr<ID3D11Texture2D> shrunk_picture;
   bool shrunk_filled = false;     // `shrunk_picture` holds a picture (before the first one it is empty)
 
+  // The second encoder (mf.cpp): Windows' Media Foundation driving the card's own hardware encoder (Intel's on
+  // SERVER). Used when there is no NVIDIA encoder, or when DEBASER_ENCODER=mf asks for it.
+  MfEncoder* mf = nullptr;
+  std::vector<uint8_t> mf_out;
+
   // NVIDIA's encoder.
   HMODULE dll = nullptr;
   NV_ENCODE_API_FUNCTION_LIST fn = {};
@@ -126,6 +132,7 @@ struct DbeSession {
   int32_t pointer_visible = -1;
 
   ~DbeSession() {
+    if (mf) mf_close(mf);
     if (session) {
       if (holding) fn.nvEncUnlockBitstream(session, bitstream);
       if (event_registered) {
@@ -257,7 +264,8 @@ bool DbeSession::open(const DbeOptions* o, DbeInfo* info) {
   if (!find_main_screen(adapter, output, described)) return fail("No main screen found", 0);
 
   const D3D_FEATURE_LEVEL levels[] = {D3D_FEATURE_LEVEL_11_0};
-  HRESULT hr = D3D11CreateDevice(adapter.Get(), D3D_DRIVER_TYPE_UNKNOWN, nullptr, 0, levels, 1, D3D11_SDK_VERSION, &device,
+  // Video support: the card's video unit (scale step) and Media Foundation's encoder both work through it.
+  HRESULT hr = D3D11CreateDevice(adapter.Get(), D3D_DRIVER_TYPE_UNKNOWN, nullptr, D3D11_CREATE_DEVICE_VIDEO_SUPPORT, levels, 1, D3D11_SDK_VERSION, &device,
                          nullptr, &context);
   if (FAILED(hr)) return fail("Could not open the graphics card", hr);
 
@@ -342,11 +350,34 @@ bool DbeSession::open(const DbeOptions* o, DbeInfo* info) {
   wanted.BindFlags = D3D11_BIND_RENDER_TARGET;
   hr = device->CreateTexture2D(&wanted, nullptr, &picture);
   if (FAILED(hr)) return fail("Could not make the encoder's texture", hr);
-  if (scaled && !make_scaler(fps)) return false;
+
+  // Which encoder: NVIDIA's own when its library is there (the fastest, and what the engine was built around),
+  // otherwise the card's encoder through Media Foundation. DEBASER_ENCODER=mf picks the second on purpose.
+  char wanted_encoder[16] = {0};
+  GetEnvironmentVariableA("DEBASER_ENCODER", wanted_encoder, sizeof wanted_encoder);
+  bool use_mf = _stricmp(wanted_encoder, "mf") == 0;
+  if (!use_mf) {
+    dll = LoadLibraryA("nvEncodeAPI64.dll");
+    if (!dll) use_mf = true;
+  }
+  // Media Foundation's encoders take NV12, so the video unit converts even a full-size picture for them.
+  if ((scaled || use_mf) && !make_scaler(fps)) return false;
+
+  if (use_mf) {
+    int32_t kind = 0;
+    mf = mf_open(device.Get(), width, height, fps, o->bitrate_kbps, &kind, error, sizeof error);
+    if (!mf) return false;
+    info->encoder = kind;
+    piece.left = (UINT)region_x;
+    piece.top = (UINT)region_y;
+    piece.right = piece.left + (UINT)region_width;
+    piece.bottom = piece.top + (UINT)region_height;
+    piece.front = 0;
+    piece.back = 1;
+    return true;
+  }
 
   // 3. NVIDIA's encoder. It lives in the graphics driver; nothing of NVIDIA's is shipped with the engine.
-  dll = LoadLibraryA("nvEncodeAPI64.dll");
-  if (!dll) return fail("No NVIDIA encoder on this PC (nvEncodeAPI64.dll not found)", GetLastError());
   typedef NVENCSTATUS(NVENCAPI * MaxVersion)(uint32_t*);
   typedef NVENCSTATUS(NVENCAPI * CreateInstance)(NV_ENCODE_API_FUNCTION_LIST*);
   MaxVersion max_version = (MaxVersion)GetProcAddress(dll, "NvEncodeAPIGetMaxSupportedVersion");
@@ -631,6 +662,29 @@ bool DbeSession::next(int32_t wait_ms, bool force_keyframe, DbeFrame* frame, boo
     shrunk_filled = true;
   }
   const LONGLONG copied = now();
+
+  if (mf) {
+    // A hardware encoder may want a picture or two more before it hands the first frame back: the same picture
+    // is given again, a few times at most, so every call still ends with a frame.
+    bool key = false;
+    for (int tries = 0; tries < 4; ++tries) {
+      if (!mf_encode(mf, shrunk_picture.Get(), count == 0 || force_keyframe, mf_out, &key, error, sizeof error)) return false;
+      if (!mf_out.empty()) break;
+    }
+    if (mf_out.empty()) return fail("The hardware encoder gave no frame for four pictures", 0);
+    const LONGLONG encoded = now();
+    frame->data = mf_out.data();
+    frame->size = (int32_t)mf_out.size();
+    frame->keyframe = key ? 1 : 0;
+    frame->fresh = fresh ? 1 : 0;
+    frame->present_time = fresh ? info.LastPresentTime.QuadPart : 0;
+    frame->acquired_time = acquired;
+    frame->encoded_time = encoded;
+    frame->copy_ms = ms_between(acquired, copied);
+    frame->encode_ms = ms_between(copied, encoded);
+    count += 1;
+    return true;
+  }
 
   NV_ENC_MAP_INPUT_RESOURCE map = {};
   map.version = NV_ENC_MAP_INPUT_RESOURCE_VER;

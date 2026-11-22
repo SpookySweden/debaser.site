@@ -12,6 +12,8 @@ fn main() {
     println!("cargo:rerun-if-changed=native/sound.cpp");
     println!("cargo:rerun-if-changed=native/sound.h");
     println!("cargo:rerun-if-changed=native/modes.cpp");
+    println!("cargo:rerun-if-changed=native/mf.cpp");
+    println!("cargo:rerun-if-changed=native/mf.h");
     println!("cargo:rerun-if-changed=native/modes.h");
     println!("cargo:rerun-if-changed=vendor/nvEncodeAPI.h");
     cc::Build::new()
@@ -21,11 +23,12 @@ fn main() {
         .file("native/lan.cpp")
         .file("native/sound.cpp")
         .file("native/modes.cpp")
+        .file("native/mf.cpp")
         .flag_if_supported("/std:c++17")
         .flag_if_supported("/EHsc")
         .warnings(false)
         .compile("debaser_core");
-    for lib in ["d3d11", "dxgi", "user32", "gdi32", "kernel32", "winmm", "iphlpapi", "ole32"] {
+    for lib in ["d3d11", "dxgi", "user32", "gdi32", "kernel32", "winmm", "iphlpapi", "ole32", "oleaut32", "mfplat", "mfuuid"] {
         println!("cargo:rustc-link-lib={lib}");
     }
 }

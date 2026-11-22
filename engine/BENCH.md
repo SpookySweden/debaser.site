@@ -383,3 +383,12 @@ card time from the game.
   the first tries) and says how many times; without it, it stops and keeps only what was measured in front.
 - Delay without input (a moving clock): the rig's second mode, not written yet; the key-press round trip comes first
   because CONTROL is the point.
+
+## The second encoder: Windows' Media Foundation (2026-11-22)
+For SERVER (Intel UHD 630, no NVENC): native/mf.cpp drives the card's own hardware encoder through Media Foundation
+(low-latency mode, CBR, no B-frames, Baseline, the NV12 picture handed over card-side). Chosen when nvEncodeAPI64.dll
+is missing, or with DEBASER_ENCODER=mf. Measured on the gaming PC through NVIDIA's own Media Foundation encoder
+(bench-encode, 3440x1440 at 60 fps, 20 Mbit/s, 300 frames): encode middle 3.13 ms, worst 5% 5.34 ms, p99 16.4 ms;
+Windows showing it -> encoded middle 3.68 ms. Stream: AUD, SPS, PPS, IDR, then P frames; profile 66 (Baseline).
+drive-screens --only open with DEBASER_ENCODER=mf: 18 of 18 (decoded in Chrome, resized to 1280x720, control,
+sound, controller, pointer). Intel's encoder itself not measured yet (on SERVER).

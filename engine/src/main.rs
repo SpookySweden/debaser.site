@@ -211,7 +211,11 @@ fn bench_encode(args: &[String]) -> ExitCode {
         if a.intra { ", gradual repair on" } else { "" },
         a.tweaks
     );
-    println!("  NVIDIA encoder interface: engine {}.{}, driver {}.{}", info.header_api >> 4, info.header_api & 0xf, info.driver_api >> 4, info.driver_api & 0xf);
+    if info.encoder == 0 {
+        println!("  NVIDIA encoder interface: engine {}.{}, driver {}.{}", info.header_api >> 4, info.header_api & 0xf, info.driver_api >> 4, info.driver_api & 0xf);
+    } else {
+        println!("  encoder: the graphics card's own, through Windows' Media Foundation");
+    }
     println!("  frames encoded {} ({} from real changes on screen, the rest repeats)", n, fresh);
     println!("{}", line("take the frame + copy on the card", &s_copy));
     println!("{}", line("encode (to finished frame in memory)", &s_encode));

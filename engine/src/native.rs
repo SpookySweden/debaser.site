@@ -39,6 +39,7 @@ struct DbeInfo {
     region_width: i32,
     region_height: i32,
     scaled: i32,
+    encoder: i32,
 }
 
 #[repr(C)]
@@ -136,6 +137,8 @@ pub struct Info {
     pub scaled: bool,
     pub header_api: u32,
     pub driver_api: u32,
+    /// Which encoder: 0 NVIDIA's; 1 the card's hardware encoder through Media Foundation (Intel's on SERVER).
+    pub encoder: i32,
     /// How many ticks of Windows' fine clock make a second: the unit of every `*_time` below and of `now()`.
     pub ticks_per_second: i64,
 }
@@ -229,6 +232,7 @@ impl Session {
                 scaled: info.scaled != 0,
                 header_api: info.header_api,
                 driver_api: info.driver_api,
+                encoder: info.encoder,
                 ticks_per_second: info.ticks_per_second.max(1),
             },
         })
