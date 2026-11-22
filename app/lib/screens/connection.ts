@@ -2,6 +2,7 @@ import { gathered } from './devices';
 import { iceServersNow } from './relay-client';
 import { sendOffer, type EngineId } from './host-client';
 import { routeFromStats, type NetRoute } from './net-route';
+import { frameTimes, type VideoTotals } from './frame-times';
 import { isLoopbackAddress } from './wire';
 
 /**
@@ -41,9 +42,19 @@ export type StreamStats = {
   framesPerSecond: number | null;
   frameWidth: number | null;
   frameHeight: number | null;
+  /**
+   * The browser's "wait in buffer" (jitterBufferDelay), over the last few seconds. The browser starts its clock when
+   * a frame's FIRST packet arrives, so it is the two below added together.
+   */
   jitterBufferDelayMsPerFrame: number | null;
+  /** Of that: from a frame's first packet arriving to its last (the network spreading the frame out; totalAssemblyTime). */
+  arrivingMsPerFrame: number | null;
+  /** Of that: the frame held, whole, by the browser before decoding. */
+  heldMsPerFrame: number | null;
   processingDelayMsPerFrame: number | null;
   decodeMsPerFrame: number | null;
+  /** The connection's round trip, this browser to the PC and back. */
+  roundTripMs: number | null;
   decoderImplementation: string | null;
   mimeType: string | null;
   /** The browser's own numbers for the sound it has received. */
@@ -58,8 +69,7 @@ export type StreamStats = {
 };
 
 const perFrameMs = (total: unknown, count: unknown): number | null => (typeof total === 'number' && typeof count === 'number' && count > 0 ? (total / count) * 1000 : null);
-const numberOf = (value: unknown): number | null => (typeof value === 'number' ? value : null);
-const textOf = (value: unknown): string | null => (typeof value === 'string' ? value : null);
+const numberOf = (value: unknown): number | null => (typeof value === 'number' ? value : null);const textOf = (value: unknown): string | null => (typeof value === 'string' ? value : null);
 
 export class ScreenConnection {
   /** The number the PC gave this viewer. */
@@ -70,6 +80,7 @@ export class ScreenConnection {
   private keys: RTCDataChannel | null = null;
   private pointer: RTCDataChannel | null = null;
   private stopped = false;
+  private recent: VideoTotals[] = [];
 
   constructor(private readonly hooks: ConnectionHooks) {}
 
@@ -226,8 +237,11 @@ export class ScreenConnection {
       frameWidth: null,
       frameHeight: null,
       jitterBufferDelayMsPerFrame: null,
+      arrivingMsPerFrame: null,
+      heldMsPerFrame: null,
       processingDelayMsPerFrame: null,
       decodeMsPerFrame: null,
+      roundTripMs: null,
       decoderImplementation: null,
       mimeType: null,
       sound: { packetsReceived: 0, packetsLost: 0, jitterBufferDelayMsPerSample: null, mimeType: null },
@@ -262,6 +276,8 @@ export class ScreenConnection {
     const nearAddress = near === undefined ? null : (textOf(near.address) ?? textOf(near.ip));
     if (address !== null && address !== '') result.reachedOnThisMachine = isLoopbackAddress(address) || (nearAddress !== null && nearAddress === address);
     result.route = routeFromStats(byId);
+    const roundTrip = pair === undefined ? null : numberOf(pair.currentRoundTripTime);
+    result.roundTripMs = roundTrip === null ? null : roundTrip * 1000;
     if (heard.length > 0) {
       const sound = heard[heard.length - 1];
       const soundCodec = typeof sound.codecId === 'string' ? codecs.get(sound.codecId) : undefined;
@@ -284,9 +300,22 @@ export class ScreenConnection {
     result.frameWidth = numberOf(seen.frameWidth);
     result.frameHeight = numberOf(seen.frameHeight);
     result.decoderImplementation = textOf(seen.decoderImplementation);
-    result.jitterBufferDelayMsPerFrame = perFrameMs(seen.jitterBufferDelay, seen.jitterBufferEmittedCount);
-    result.processingDelayMsPerFrame = perFrameMs(seen.totalProcessingDelay, seen.framesDecoded);
-    result.decodeMsPerFrame = perFrameMs(seen.totalDecodeTime, seen.framesDecoded);
+    // Per frame over the last few seconds, not since the start (frame-times.ts).
+    const times = frameTimes(this.recent, {
+      at: performance.now(),
+      decoded: result.framesDecoded,
+      emitted: numberOf(seen.jitterBufferEmittedCount),
+      buffer: numberOf(seen.jitterBufferDelay),
+      assembly: numberOf(seen.totalAssemblyTime),
+      processing: numberOf(seen.totalProcessingDelay),
+      decode: numberOf(seen.totalDecodeTime),
+    });
+    this.recent = times.recent;
+    result.jitterBufferDelayMsPerFrame = times.bufferMs;
+    result.arrivingMsPerFrame = times.arrivingMs;
+    result.heldMsPerFrame = times.heldMs;
+    result.processingDelayMsPerFrame = times.processingMs;
+    result.decodeMsPerFrame = times.decodeMs;
     const codec = typeof seen.codecId === 'string' ? codecs.get(seen.codecId) : undefined;
     result.mimeType = codec === undefined ? null : textOf(codec.mimeType);
     return result;

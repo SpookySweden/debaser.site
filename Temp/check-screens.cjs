@@ -1,7 +1,7 @@
 /*
  * SCREENS in the site (SPEC-screens.md, phase 3, first slice): the owner's PC screen in his own room. Offline: the
  * only server it talks to is a pretend engine it starts itself on 127.0.0.1.
- *   npx tsc app/api/screens/host/route.ts app/api/screens/offer/route.ts app/api/screens/settings/route.ts app/api/screens/devices/route.ts app/api/screens/mail/route.ts app/api/screens/rdp/route.ts app/lib/screens/rdp-server.ts app/lib/screens/keysyms.ts app/lib/screens/net-route.ts app/lib/screens/relay-server.ts app/api/screens/ice/route.ts app/api/screens/relay/route.ts app/lib/screens/device-mail.ts app/components/RoomDeviceScreen.tsx app/components/DeviceShareGate.tsx app/lib/screens/wishes.ts app/lib/screens/wire.ts app/lib/screens/key-gate.ts app/components/ScreenKeyGate.tsx app/lib/watch/canvas.ts node_modules/next/types/global.d.ts --outDir Temp/out-screens --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop --moduleResolution node --jsx react-jsx
+ *   npx tsc app/api/screens/host/route.ts app/api/screens/offer/route.ts app/api/screens/settings/route.ts app/api/screens/devices/route.ts app/api/screens/mail/route.ts app/api/screens/rdp/route.ts app/lib/screens/rdp-server.ts app/lib/screens/keysyms.ts app/lib/screens/net-route.ts app/lib/screens/frame-times.ts app/lib/screens/relay-server.ts app/api/screens/ice/route.ts app/api/screens/relay/route.ts app/lib/screens/device-mail.ts app/components/RoomDeviceScreen.tsx app/components/DeviceShareGate.tsx app/lib/screens/wishes.ts app/lib/screens/wire.ts app/lib/screens/key-gate.ts app/components/ScreenKeyGate.tsx app/lib/watch/canvas.ts node_modules/next/types/global.d.ts --outDir Temp/out-screens --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop --moduleResolution node --jsx react-jsx
  *   node Temp/check-screens.cjs
  *
  * - WHERE THE ENGINE IS: `SCREENS_ENGINE_URL` is taken only when it is a plain http address on this PC itself; anything
@@ -794,6 +794,26 @@ async function main() {
     same(await gateway.accessIsGood('', lock, world.now, accessKeys), false, 'not none');
     same(gateway.viaCloudflare({ headers: { 'cf-connecting-ip': '203.0.113.9' } }), true, 'a request through the tunnel is known by the header Cloudflare adds');
     same(gateway.viaCloudflare({ headers: {} }), false, 'and one without it came from this PC itself');
+
+    // The readout's per-frame times (frame-times.ts): over the last few seconds, not since the start, and the
+    // browser's "wait in buffer" split into the frame's packets arriving and the browser holding it.
+    const times = require(path.join(OUT, 'lib/screens/frame-times.js'));
+    const reading = (at, frames, buffer, assembly) => ({ at, decoded: frames, emitted: frames, buffer, assembly, processing: frames * 0.002, decode: frames * 0.001 });
+    let kept = [];
+    let t = times.frameTimes(kept, reading(1000, 60, 1.2, 0.6)); // a slow start: 20 ms a frame, 10 of it arriving
+    kept = t.recent;
+    same([Math.round(t.bufferMs), Math.round(t.arrivingMs), Math.round(t.heldMs)], [20, 10, 10], 'the first reading is the average since the start');
+    for (let s = 2; s <= 6; s++) {
+      // From then on 2 ms a frame in the buffer, 1.5 of it the packets arriving.
+      t = times.frameTimes(kept, reading(s * 1000, 60 * s, 1.2 + 0.12 * (s - 1), 0.6 + 0.09 * (s - 1)));
+      kept = t.recent;
+    }
+    same([t.bufferMs.toFixed(1), t.arrivingMs.toFixed(1), t.heldMs.toFixed(1), t.decodeMs.toFixed(1)], ['2.0', '1.5', '0.5', '1.0'], 'a few seconds on, the slow start no longer counts: the numbers are what is happening now');
+    ok(kept.length <= 5 && kept[kept.length - 1].at - kept[0].at <= times.RECENT_MS + 1000, 'and only a few seconds of readings are kept');
+    t = times.frameTimes(kept, reading(7000, 30, 0.03, 0.015));
+    same([t.recent.length, t.bufferMs.toFixed(1)], [1, '1.0'], 'a new connection (totals smaller than before) starts the sums again');
+    t = times.frameTimes([], { ...reading(1000, 60, 0.6, null), assembly: null });
+    same([t.bufferMs.toFixed(1), t.arrivingMs, t.heldMs], ['10.0', null, null], 'a browser that does not say when the packets arrived shows only the total');
 
     // Which way each connection goes, said plainly.
     const route = require(path.join(OUT, 'lib/screens/net-route.js'));

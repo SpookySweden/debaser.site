@@ -621,14 +621,15 @@ export class ScreenSession {
     }
     this.numbers =
       `${s.frameWidth}x${s.frameHeight}  ${shown(s.framesPerSecond, 0)} frames/s  ${s.mimeType ?? ''}\n` +
-      `wait in buffer ${shown(s.jitterBufferDelayMsPerFrame, 1)} ms  decode ${shown(s.decodeMsPerFrame, 1)} ms  arrival to ready ${shown(s.processingDelayMsPerFrame, 1)} ms\n` +
+      `wait in buffer ${shown(s.jitterBufferDelayMsPerFrame, 1)} ms (frame arriving ${shown(s.arrivingMsPerFrame, 1)} + held ${shown(s.heldMsPerFrame, 1)})  decode ${shown(s.decodeMsPerFrame, 1)} ms  arrival to ready ${shown(s.processingDelayMsPerFrame, 1)} ms  round trip ${shown(s.roundTripMs, 0)} ms\n` +
       `frames ${s.framesDecoded}  dropped ${s.framesDropped}  packets lost ${s.packetsLost}  resends asked ${s.nackCount}  full pictures asked ${s.pliCount}\n` +
       `decoder ${s.decoderImplementation ?? '-'}  drawn ${way}`;
     const measured = this.host?.measured ?? null;
     const pc = measured !== null && typeof measured.shownToEncodedMs === 'number' ? `${measured.shownToEncodedMs.toFixed(1)} ms` : 'not known (a still screen, or no answer yet)';
     this.readout =
       `The stream            ${s.frameWidth}x${s.frameHeight}, ${shown(s.framesPerSecond, 0)} frames a second\n` +
-      `In this browser's queue ${shown(s.jitterBufferDelayMsPerFrame, 1)} ms a frame\n` +
+      `In this browser's queue ${shown(s.jitterBufferDelayMsPerFrame, 1)} ms a frame: ${shown(s.arrivingMsPerFrame, 1)} ms for the rest of its packets to arrive after the first (the network), ${shown(s.heldMsPerFrame, 1)} ms held by the browser\n` +
+      `Network round trip    ${shown(s.roundTripMs, 0)} ms\n` +
       `Decoding              ${shown(s.decodeMsPerFrame, 1)} ms a frame\n` +
       `Lost packets          ${s.packetsLost}\n` +
       `Drawn                 ${way}${drawing?.shown === 'fast' ? (drawing.lowLatency ? ", skipping the browser's drawing queue" : ', but this browser kept its drawing queue') : ''}\n` +

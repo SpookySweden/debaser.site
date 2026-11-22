@@ -401,3 +401,24 @@ bench-encode 1920x1080 at 60 fps, 12 Mbit/s, 300 frames, DEBASER_MF_TRACE=1, fro
 - After 9a19f64 (awake waits, ProcessPowerThrottling opt-out): low-latency mode, no settings: encode middle 6.33 ms,
   worst 5% 10.57, p99 11.70 (in -> ready 6.56 ms). Drain mode the same (6.48). At 1280x720: middle 3.81 ms, p99 7.40.
   SERVER's running engine uses this build, low-latency mode, no extra settings.
+
+## The "wait in buffer" over the home network (2026-11-22, Luke: "why is the wait in buffer so high ... 9.7ms")
+`node engine/bench/network-check.cjs` (new): a headless Edge on SERVER watches a running engine and reads the browser's
+own counts in 2-second stretches. Chrome and Edge start the "wait in buffer" clock (jitterBufferDelay) when a frame's
+FIRST packet arrives, so it includes the time the rest of the frame takes to arrive (totalAssemblyTime).
+
+| Viewer on SERVER watching | wait in buffer | of it: packets arriving | of it: held by the browser | decode | round trip |
+| --- | --- | --- | --- | --- | --- |
+| SERVER's own engine (same machine, 720p, quiet screen) | 0.3 ms | 0.3 | about 0 | 0.5 | 1 ms |
+| the gaming PC's engine over its Wi-Fi (2580x1080, 64 fps, 10.5 Mbit/s) | 9.1 ms | 8.9 | 0.2 | 0.7 | 11 to 33 ms |
+
+- The first (full) picture, about 45 to 60 KB in 50 to 60 packets: first to last packet 0.3 to 0.4 ms on the same
+  machine, 4.9 to 7.3 ms over the Wi-Fi. The engine sends a frame's packets at once (str0m's null pacer drains a frame
+  in one go); the spread is the Wi-Fi hop.
+- The playout-delay marker (least and most 0) is honoured: the browser holds a complete frame 0.1 to 0.2 ms.
+  jitterBufferTarget = 0 and playoutDelayHint = 0 can only stop the browser adding a wait; they cannot shorten the
+  network's.
+- Frames arrive unevenly over that Wi-Fi (spread of the gap between frames 8 to 10 ms at 64 fps).
+- The viewer's readout averaged since the start of the connection; it now looks at the last 3 seconds and splits the
+  number into "frame arriving" and "held", with the round trip beside it (app/lib/screens/frame-times.ts).
+- Not measured: Luke's laptop itself (the readout now shows it there); SERVER to a viewer on a cable.
