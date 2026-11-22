@@ -218,7 +218,9 @@ HRESULT take_output(MfEncoder* e, std::vector<uint8_t>& out) {
 }
 
 // Waits for the asynchronous encoder's next event of either kind; returns its type, or 0 when none came in time.
-// Short waits are spent spinning (a frame is a few milliseconds of work), longer ones resting a millisecond at a time.
+// The wait is spent awake (yielding the processor) for up to 50 ms, because a sleep of "1 ms" is really about 16 ms
+// wherever Windows does not honour this program's fine timer (Windows 11 for a program with no window, as on SERVER):
+// that alone made every frame from Intel's encoder look 16 ms slow. Only a stuck encoder gets to the 1 ms rests.
 MediaEventType next_event(MfEncoder* e, double patience_ms) {
   LARGE_INTEGER f, start, t;
   QueryPerformanceFrequency(&f);
@@ -235,7 +237,7 @@ MediaEventType next_event(MfEncoder* e, double patience_ms) {
     QueryPerformanceCounter(&t);
     const double waited = (double)(t.QuadPart - start.QuadPart) * 1000.0 / (double)f.QuadPart;
     if (waited > patience_ms) return 0;
-    if (waited < 3.0) SwitchToThread();
+    if (waited < 50.0) SwitchToThread();
     else Sleep(1);
   }
 }

@@ -291,6 +291,13 @@ bool DbeSession::open(const DbeOptions* o, DbeInfo* info) {
   if (o->tweaks & 2) {
     timeBeginPeriod(1);
     fine_timer = true;
+    // Windows 11 ignores a fine-timer request from a program with no window (the engine, run in the background) and
+    // may slow such a program down to save power: asked here to do neither. Nothing happens on Windows 10.
+    PROCESS_POWER_THROTTLING_STATE throttling = {};
+    throttling.Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
+    throttling.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED | 0x4 /* IGNORE_TIMER_RESOLUTION */;
+    throttling.StateMask = 0;
+    SetProcessInformation(GetCurrentProcess(), ProcessPowerThrottling, &throttling, sizeof throttling);
   }
 
   hr = output.As(&output1);
