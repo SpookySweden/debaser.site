@@ -85,5 +85,7 @@ export function routeFromStats(byId: Map<string, Record<string, unknown>>): NetR
   }
   const far = pair !== undefined && typeof pair.remoteCandidateId === 'string' ? byId.get(pair.remoteCandidateId) : undefined;
   if (far === undefined) return null;
+  const near = pair !== undefined && typeof pair.localCandidateId === 'string' ? byId.get(pair.localCandidateId) : undefined;
+  if (near !== undefined && text(near.candidateType) === 'relay') return 'relay';
   return routeOfCandidate(text(far.address) ?? text(far.ip), text(far.candidateType));
 }

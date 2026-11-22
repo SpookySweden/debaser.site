@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from 'react';
 import { sessionHeaders, type EngineId } from './host-client';
+import { STUN_ONLY, iceServersKept, iceServersNow } from './relay-client';
 
 /**
  * REMOTE from another of the owner's own devices, with nothing installed (SPEC-screens.md; the server side is
@@ -100,6 +101,7 @@ function schedule(): void {
 
 /** Starts saying "here I am" on this page (once; any number of callers). */
 export function startDeviceBeacon(): void {
+  void iceServersNow();
   if (started || typeof window === 'undefined') return;
   started = true;
   void hereIAm();
@@ -183,8 +185,9 @@ export function useRemoteSource(): RemoteSource {
  * behind ordinary home routers. On the home network they still go straight across it. (A device behind a strict
  * network, such as a phone on mobile data, needs a relay too: not yet.)
  */
-export const STUN_SERVERS: RTCIceServer[] = [{ urls: 'stun:stun.cloudflare.com:3478' }];
-export const DEVICE_RTC: RTCConfiguration = { iceServers: STUN_SERVERS };
+export const STUN_SERVERS: RTCIceServer[] = STUN_ONLY;
+/** The device share's setup: the helpers fetched last, Cloudflare's relay among them once its key is set. */
+export const deviceRtc = (): RTCConfiguration => ({ iceServers: iceServersKept() });
 
 /** One picture's own number, carried by every message of its handshake. */
 export function newCall(): string {

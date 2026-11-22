@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { DEVICE_RTC, beBusy, callBody, gathered, sendDeviceMessage, startDeviceBeacon, takeDeviceMessages, useOtherDevices } from '../lib/screens/devices';
+import { deviceRtc, beBusy, callBody, gathered, sendDeviceMessage, startDeviceBeacon, takeDeviceMessages, useOtherDevices } from '../lib/screens/devices';
 import { PLATE_ON_BLACK } from '../lib/ui/controls';
 
 /**
@@ -69,7 +69,7 @@ export default function DeviceShareGate() {
       return;
     }
     stop(true);
-    const connection = new RTCPeerConnection(DEVICE_RTC);
+    const connection = new RTCPeerConnection(deviceRtc());
     for (const track of stream.getVideoTracks()) {
       try {
         track.contentHint = 'motion';

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { DEVICE_RTC, beBusy, callBody, gathered, newCall, sendDeviceMessage, takeDeviceMessages, type RemoteSource } from '../lib/screens/devices';
+import { deviceRtc, beBusy, callBody, gathered, newCall, sendDeviceMessage, takeDeviceMessages, type RemoteSource } from '../lib/screens/devices';
 import { ROUTE_WORDS, routeOfConnection, type NetRoute } from '../lib/screens/net-route';
 import { PLATE_ON_BLACK } from '../lib/ui/controls';
 
@@ -44,7 +44,7 @@ export default function RoomDeviceScreen({ source }: { source: Extract<RemoteSou
       } else if (message.kind === 'offer') {
         setState('connecting');
         connection?.close();
-        const here = new RTCPeerConnection(DEVICE_RTC);
+        const here = new RTCPeerConnection(deviceRtc());
         connection = here;
         here.ontrack = (event) => {
           // Shown the moment each frame is decoded: no waiting queue (as the PC's own picture).

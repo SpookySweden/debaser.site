@@ -1,7 +1,7 @@
 /*
  * SCREENS in the site (SPEC-screens.md, phase 3, first slice): the owner's PC screen in his own room. Offline: the
  * only server it talks to is a pretend engine it starts itself on 127.0.0.1.
- *   npx tsc app/api/screens/host/route.ts app/api/screens/offer/route.ts app/api/screens/settings/route.ts app/api/screens/devices/route.ts app/api/screens/mail/route.ts app/api/screens/rdp/route.ts app/lib/screens/rdp-server.ts app/lib/screens/keysyms.ts app/lib/screens/net-route.ts app/lib/screens/device-mail.ts app/components/RoomDeviceScreen.tsx app/components/DeviceShareGate.tsx app/lib/screens/wishes.ts app/lib/screens/wire.ts app/lib/screens/key-gate.ts app/components/ScreenKeyGate.tsx app/lib/watch/canvas.ts node_modules/next/types/global.d.ts --outDir Temp/out-screens --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop --moduleResolution node --jsx react-jsx
+ *   npx tsc app/api/screens/host/route.ts app/api/screens/offer/route.ts app/api/screens/settings/route.ts app/api/screens/devices/route.ts app/api/screens/mail/route.ts app/api/screens/rdp/route.ts app/lib/screens/rdp-server.ts app/lib/screens/keysyms.ts app/lib/screens/net-route.ts app/lib/screens/relay-server.ts app/api/screens/ice/route.ts app/api/screens/relay/route.ts app/lib/screens/device-mail.ts app/components/RoomDeviceScreen.tsx app/components/DeviceShareGate.tsx app/lib/screens/wishes.ts app/lib/screens/wire.ts app/lib/screens/key-gate.ts app/components/ScreenKeyGate.tsx app/lib/watch/canvas.ts node_modules/next/types/global.d.ts --outDir Temp/out-screens --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop --moduleResolution node --jsx react-jsx
  *   node Temp/check-screens.cjs
  *
  * - WHERE THE ENGINE IS: `SCREENS_ENGINE_URL` is taken only when it is a plain http address on this PC itself; anything
@@ -656,6 +656,46 @@ async function main() {
     same(server.engineOf(new Request('https://debaser.site/api/screens/offer?engine=elsewhere')), 'pc', 'any other name is THE PC');
   }
 
+  /* ---------------------------------------------------------------- the relay for anywhere (Cloudflare TURN), owner only, the key kept on the PC */
+  {
+    const relay = require(path.join(OUT, 'lib/screens/relay-server.js'));
+    const os = require('node:os');
+    const keyFile = path.join(os.tmpdir(), `check-screens-relay-${process.pid}.env`);
+    fs.rmSync(keyFile, { force: true });
+    const KEY_ID = 'ab'.repeat(16);
+    const TOKEN = 'secret-token-' + 'x'.repeat(20);
+    const asked = [];
+    const cloudflare = async (input, init = {}) => {
+      asked.push({ url: input, auth: init.headers && init.headers.Authorization, body: init.body });
+      return new Response(JSON.stringify({ iceServers: [{ urls: ['stun:stun.cloudflare.com:3478'] }, { urls: ['turn:turn.cloudflare.com:3478?transport=udp', 'turn:turn.cloudflare.com:53?transport=udp', 'turns:turn.cloudflare.com:443?transport=tcp'], username: 'u1', credential: 'c1' }] }), { status: 201 });
+    };
+    const envWith = { ...live, SCREENS_RELAY_FILE: keyFile };
+    for (const [who, how] of strangers) {
+      const w = world(envWith, { accounts, engine: cloudflare });
+      same(JSON.parse((await read(await relay.iceAnswer(ask('/api/screens/ice', how), w.deps))).text), { iceServers: [{ urls: 'stun:stun.cloudflare.com:3478' }], relay: false }, `${who}: STUN only, never the relay`);
+      same((await read(await relay.relayAnswer(ask('/api/screens/relay', { ...how, method: 'POST', type: 'application/json', body: JSON.stringify({ keyId: KEY_ID, token: TOKEN }) }), w.deps))).status, 403, `${who} cannot set the relay key`);
+    }
+    same(asked.length, 0, 'and Cloudflare was never asked for any of them');
+    same(JSON.parse((await read(await relay.relayAnswer(ask('/api/screens/relay', { token: liveOwner }), world(live, { accounts }).deps))).text), { set: false, ready: false }, 'no place set on the PC: not ready');
+    const w = world(envWith, { accounts, engine: cloudflare });
+    same((await read(await relay.relayAnswer(ask('/api/screens/relay', { token: liveOwner, method: 'POST', type: 'application/json', body: JSON.stringify({ keyId: 'nothex', token: TOKEN }) }), w.deps))).status, 400, 'a key id that is not one is refused');
+    same(asked.length, 0, 'without asking Cloudflare');
+    const saved = await read(await relay.relayAnswer(ask('/api/screens/relay', { token: liveOwner, method: 'POST', type: 'application/json', body: JSON.stringify({ keyId: KEY_ID, token: TOKEN }) }), w.deps));
+    same(JSON.parse(saved.text), { set: true }, 'the owner sets the relay key');
+    ok(!saved.text.includes(TOKEN), 'and the answer never carries the token');
+    same([asked[0].url, asked[0].auth, JSON.parse(asked[0].body).ttl], [`https://rtc.live.cloudflare.com/v1/turn/keys/${KEY_ID}/credentials/generate-ice-servers`, `Bearer ${TOKEN}`, 60], 'it was tried with Cloudflare first (a 60-second pass)');
+    ok(fs.readFileSync(keyFile, 'utf8').includes(`RELAY_KEY_ID=${KEY_ID}`), 'and kept in the file on the PC');
+    relay.forgetPasses();
+    const ice1 = JSON.parse((await read(await relay.iceAnswer(ask('/api/screens/ice', { token: liveOwner }), w.deps))).text);
+    const ice2 = JSON.parse((await read(await relay.iceAnswer(ask('/api/screens/ice', { token: liveOwner }), w.deps))).text);
+    same(ice1.relay, true, 'the owner gets relay passes');
+    same(ice1.iceServers[1].urls, ['turn:turn.cloudflare.com:3478?transport=udp', 'turns:turn.cloudflare.com:443?transport=tcp'], 'port 53 (blocked by browsers) is left out');
+    same([asked.length, JSON.parse(asked[1].body).ttl, ice2.iceServers[1].credential], [2, 86400, 'c1'], 'one 24-hour pass from Cloudflare, kept and handed out again');
+    same(relay.iceServersFrom({ iceServers: [{ urls: ['turn:x:3478'] }] }), null, 'relay addresses without a username and credential are no passes');
+    fs.rmSync(keyFile, { force: true });
+    relay.forgetPasses();
+  }
+
   /* ---------------------------------------------------------------- the server by Remote Desktop: owner only, a pass the gateway takes */
   {
     const rdp = require(path.join(OUT, 'lib/screens/rdp-server.js'));
@@ -771,7 +811,7 @@ async function main() {
   const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => (entry.isDirectory() ? walk(path.join(dir, entry.name)) : /\.(ts|tsx)$/.test(entry.name) ? [path.join(dir, entry.name)] : []));
   const files = walk(path.join(ROOT, 'app')).map((file) => ({ file: path.relative(ROOT, file).replace(/\\/g, '/'), text: fs.readFileSync(file, 'utf8') }));
   const importers = files.filter(({ text }) => /from\s+['"][^'"]*screens\/host-server['"]/.test(text) || /from\s+['"]\.\/host-server['"]/.test(text)).map(({ file }) => file);
-  same(importers.sort(), ['app/api/screens/host/route.ts', 'app/api/screens/offer/route.ts', 'app/api/screens/settings/route.ts', 'app/lib/screens/device-mail.ts', 'app/lib/screens/rdp-server.ts'], 'only the three routes, the devices\' mailbox and the Remote Desktop rules (each only for its own routes) import the server file');
+  same(importers.sort(), ['app/api/screens/host/route.ts', 'app/api/screens/offer/route.ts', 'app/api/screens/settings/route.ts', 'app/lib/screens/device-mail.ts', 'app/lib/screens/rdp-server.ts', 'app/lib/screens/relay-server.ts'], 'only the three routes, the devices\' mailbox and the Remote Desktop rules (each only for its own routes) import the server file');
   const naming = files.filter(({ text }) => /SCREENS_(OWNER_ID|ENGINE_URL|DEV_OPEN)/.test(text.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, ''))).map(({ file }) => file);
   same(naming, ['app/lib/screens/host-server.ts'], 'and the settings are read in that file alone');
   ok(!files.some(({ text }) => /NEXT_PUBLIC_SCREENS/.test(text)), 'none of it is a NEXT_PUBLIC value');

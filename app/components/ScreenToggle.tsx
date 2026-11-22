@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { ENGINE_NAMES, askScreenHost, useScreenHost } from '../lib/screens/host-client';
 import { DIRECT_WORDS, ROUTE_WORDS } from '../lib/screens/net-route';
 import { askRdpWay, switchRdp, useRdpWay } from '../lib/screens/rdp-client';
+import { relayStatus, saveRelayKey } from '../lib/screens/relay-client';
 import { chooseRemoteSource,startDeviceBeacon, useOtherDevices, useRemoteSource, type RemoteSource } from '../lib/screens/devices';
 import { PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED } from '../lib/ui/controls';
 import { chooseScreen, useScreenView } from '../lib/watch/canvas-view';
@@ -20,6 +21,76 @@ import { setVisualiserOn } from '../lib/watch/visualiser';
  * watch and control) and each other device (watch only; somebody there presses SHARE). Like VIS and CANVAS it is
  * each viewer's own choice: nothing is synced, and the room's queue and players carry on untouched underneath.
  */
+/**
+ * The relay for anywhere (2026-11-22: a phone on mobile data got stuck connecting): whether Cloudflare's TURN relay
+ * key is set on the PC that serves the site, and a form to set it. The key id and token are typed here by Luke once,
+ * tried with Cloudflare, kept only in that PC's file, and never shown again.
+ */
+function RelayKey() {
+  const [status, setStatus] = useState<{ set: boolean; ready: boolean } | null>(null);
+  const [open, setOpen] = useState(false);
+  const [keyId, setKeyId] = useState('');
+  const [token, setToken] = useState('');
+  const [saying, setSaying] = useState('');
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    void relayStatus().then(setStatus);
+  }, []);
+  if (status === null) return null;
+  const field = 'w-56 max-w-full border border-ink-bar bg-ink-plate px-1 font-mono text-label text-ink-bar';
+  return (
+    <span className="flex flex-col items-stretch gap-1 border-t border-ink-bar pt-1 font-mono text-label text-ink-bar" data-remote-relay={status.set ? 'on' : 'off'}>
+      <button
+        type="button"
+        className={`${status.set ? PLATE_ON_BLACK_PRESSED : PLATE_ON_BLACK} text-left`}
+        aria-expanded={open}
+        onClick={() => setOpen((was) => !was)}
+        title="Cloudflare's relay carries the picture when two devices cannot reach each other directly, such as a phone on mobile data"
+        data-remote-relay-key
+      >
+        {status.set ? '[ RELAY FOR MOBILE DATA: ON (CLOUDFLARE) ]' : '[ RELAY FOR MOBILE DATA: SET UP ]'}
+      </button>
+      {open ? (
+        <form
+          className="flex flex-col items-end gap-1"
+          autoComplete="off"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setBusy(true);
+            void saveRelayKey(keyId.trim(), token.trim()).then((trouble) => {
+              setBusy(false);
+              setToken('');
+              if (trouble) setSaying(trouble);
+              else {
+                setSaying('SAVED ON THE SERVER: THE RELAY IS ON');
+                setKeyId('');
+                setStatus({ set: true, ready: true });
+              }
+            });
+          }}
+          data-remote-relay-form
+        >
+          <span>RELAY KEY :: FROM CLOUDFLARE (REALTIME, TURN), KEPT ON THE SERVER, NEVER SHOWN AGAIN</span>
+          <label className="flex items-center gap-1">
+            <span>KEY ID</span>
+            <input className={field} value={keyId} onChange={(e) => setKeyId(e.target.value)} spellCheck={false} placeholder="32 letters and digits" data-remote-relay-id />
+          </label>
+          <label className="flex items-center gap-1">
+            <span>API TOKEN</span>
+            <input className={field} type="password" autoComplete="new-password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="the long token Cloudflare shows once" data-remote-relay-token />
+          </label>
+          <span className="flex items-center gap-1">
+            {saying ? <span role="status">{saying}</span> : null}
+            <button type="submit" className={PLATE_ON_BLACK} disabled={busy || !status.ready} title={status.ready ? undefined : 'The PC that serves the site has no place set for the key yet'} data-remote-relay-save>
+              [ SAVE ON THE SERVER ]
+            </button>
+          </span>
+        </form>
+      ) : null}
+    </span>
+  );
+}
+
 export default function ScreenToggle({
   roomId,
   audio,
@@ -144,6 +215,7 @@ export default function ScreenToggle({
           <span className="max-w-full font-mono text-label text-ink-bar" data-remote-add-device>
             {devices.others.length === 0 ? 'ADD A DEVICE: OPEN DEBASER.SITE ON IT, SIGNED IN.' : 'MORE: OPEN DEBASER.SITE ON EACH, SIGNED IN.'}
           </span>
+          <RelayKey />
         </span>
       ) : null}
     </span>

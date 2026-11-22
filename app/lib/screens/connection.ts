@@ -1,4 +1,5 @@
-import { gathered, STUN_SERVERS } from './devices';
+import { gathered } from './devices';
+import { iceServersNow } from './relay-client';
 import { sendOffer, type EngineId } from './host-client';
 import { routeFromStats, type NetRoute } from './net-route';
 import { isLoopbackAddress } from './wire';
@@ -75,8 +76,9 @@ export class ScreenConnection {
   /** Connects. Rejects with the reason in plain words when the hello could not be made. */
   async start(): Promise<void> {
     // Cloudflare's public STUN server tells this browser its outside address, so an engine outside this network can
-    // reach it too (2026-11-22, "relay for anywhere"); on the home network the engine's own addresses still win.
-    const connection = new RTCPeerConnection({ iceServers: STUN_SERVERS });
+    // reach it too, and once the relay key is set Cloudflare's TURN relay carries the picture where no direct way
+    // exists (a phone on mobile data). On the home network the engine's own addresses still win.
+    const connection = new RTCPeerConnection({ iceServers: await iceServersNow() });
     this.connection = connection;
     const transceiver = connection.addTransceiver('video', { direction: 'recvonly' });
     // SOUND has a line of its own in the same hello. Nothing travels on it until this device asks.
