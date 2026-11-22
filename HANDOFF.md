@@ -1,45 +1,44 @@
-# Handoff (2026-11-18)
-Older notes: `docs/handoff-archive.md`, newest first (the 2026-11-15 handoff is at its top). Coordinator notes, briefs
-and every session's check-in lines: the shared notes folder
-`AppData\Local\Claude-Data\claude_pzs8sxrjxfjjc\side-session-notes\local_27370d78-4644-44af-a1d7-9888cfb5e583\`
-(`list3-*`, `list4-*`, `*-brief.md`, `luke-list-agent-rules.md`, `heavy-step.cjs`).
+# Handoff (2026-11-22: work moves to SERVER)
+Older notes: `docs/handoff-archive.md`, newest first. The gaming PC's session notes (every brief, check-in and
+hand-over, incl. `luke-list-agent-rules.md`, `heavy-step.cjs`, `list5-checkin.md`, `sunshine-handover.md`) are copied to
+SERVER at `I:\work-data\claude-notes\` (one folder per old notes folder; the coordinator's is `local_27370d78-…`,
+SUNSHINE's is `local_e225015a-…`). Read them as history; new sessions get their own notes folder.
 
-## The big change: the site runs from Luke's desktop PC (2026-11-18, SPEC-self-hosting.md)
-- The free Supabase cloud project was restricted on 2026-11-17 22:11 UTC (HTTP 402, file-serving quota, mostly songs).
-  The site now runs on the desktop: self-hosted Supabase in Docker (data on G:), the app built from `main` by itself,
-  behind a Cloudflare Tunnel at https://debaser.site (`api.debaser.site`). `debaser-site.vercel.app` only forwards.
-- `npm run db`, `db:push`, `db:backup`, `web:fetch` act on the PC's database (`--cloud` reaches the old blocked one:
-  write nothing there). Only the desktop reaches it, not the laptop. Worktrees made before the move: re-copy
-  `.env.local` from `G:\debaser.site\` before any live check. `deploy-status` waits for debaser.site to report the commit.
-- Backups: `DebaserBackup` (04:00) dumps the PC (database, roles, files, settings) to `I:\DEBASER\backups`, 30 kept, a
-  desktop note on failure; a restore was proved. Luke: no Google Drive copies for now (everything is on one PC).
-- Still to do (HOSTING session, kept open): Stage 6 copies songs, avatars and other files from the cloud when its block
-  lifts (~20 Nov); until then many pictures/songs show as missing (re-uploads now work, 245a399). Windows (2026-11-19):
-  automatic sign-in on, no update restarts while signed in (AUOptions=4 + NoAutoRebootWithLoggedOnUsers), active hours
-  11:00-05:00 as the fallback; Luke restarts by hand monthly. Still owed: one test restart, then check everything returns.
-- Docker stopped unnoticed 2026-11-18 18:58-22:06 UTC; `keep-running.cjs` now watches it (f09eed4). Quitting Docker on
-  purpose: create `G:\DEBASER-HOST\docker.paused` first, or the watch starts it again.
+## Where things run now
+- SERVER (HP ProDesk 600 G4, Win 11 Pro, 192.168.0.154) hosts debaser.site since 2026-11-22 01:55, and from today all
+  Claude work sessions run there too: the repo at `G:\debaser.site` (G: = `C:\DRIVES\G`), the host at
+  `G:\DEBASER-HOST`, the external drive as `I:` (backups `I:\DEBASER\backups`, 04:00 daily, 30 kept). The db tools,
+  `deploy-status`, `read` and `web:fetch` work from SERVER. SPEC-self-hosting.md has the whole setup, incl. the restore
+  trap (fresh self-hosted Supabase adds default privileges: restore schema-only into a scratch database and compare ACLs).
+- The gaming PC (Windows 10 Home, NVIDIA) is now only a SCREENS device: `G:\DEBASER-HOST\engine\debaser-engine.exe`
+  streams it (LAN key + STUN, `--internet`). Its own start after a reboot: see `sunshine-handover.md`. The PC fallback
+  site is gone (Luke, 2026-11-22: "delete the fallback now"): Docker data, site builds and the DebaserHost/Update/Backup
+  tasks removed, Docker Desktop no longer starts with Windows. The way back is now SERVER's backups only.
+- Off-site copy of the backups is still owed (SPEC-self-hosting Stage 7, deferred): the database dumps and the uploaded
+  files sit on the same external drive.
 
-## Done 2026-11-16 to 18 (all live, sessions archived; details in the check-in files)
-Lists 3 and 4 (rooms, MEDIA, fluid, background THEME switch, room window and queue, forum fixes), 14 orange/green themes
-(MARMALADE, OVERDRIVE, TIGERBREAD, CLEMENTINE), HISTORY window, livestreams (Twitch + YouTube lives in MEDIA and rooms),
-LEAGUEBOT (keyless: OP.GG/U.GG; LIVE tab works), PERF (FLUID in its own thread, 180 fps drags; lighter database load),
-FEEDALGO (PICKED FOR YOU ranked from every signal, why-lines), MEDIACARD (neat cards, source on expand), forum v2 and v3
-parts 1-2 (tabs, DESK, site-wide SEARCH + Ctrl+K, TALKED ABOUT IN, settings that follow the account, MADE posts),
-room chat anonymised for private rooms, lost canvas restored.
+## Recently done (all live; details in `list5-checkin.md`)
+List 5 (asleep page + tunnel down-alert emails, COMIC phase 1, NOTIFY phases 1-2 incl. weekly email via Resend, first-
+visit tour v2, MODERATION with Luke as owner moderator and hidden-by-default mod tools), Stage 6 (cloud files back),
+ROOMBARS (fullscreen bar hides, MEDIA picture plays, KEYS IN THE PICTURE), buddies (sweden + moldavius figtree), DESK
+rework, MODULOS always-ons, VIS/CANVAS back to words, SCREENS/SUNSHINE (own engine, REMOTE device list, FIT, server by
+RDP through Guacamole with the Cloudflare Access lock, both machines' engines, Intel Quick Sync on SERVER, relay key form).
 
-## Tooling the sessions share
-- `heavy-step.cjs`: with no League match (process `League of Legends` only) heavy steps run side by side; `--live`
-  (browser drives, 10 min apart) and `--live-check` (database checks, 2 min) queue; `verify:clean` has its own turn.
-- Sessions must keep their pinned task lists honest (Luke watches them); ONE verify:clean per push.
+## Waiting on Luke
+- SCREENS relay: activate Cloudflare Realtime/TURN on his account (free 1,000 GB a month, then $0.05/GB; he ticks the
+  terms and authorises PayPal himself), then paste the key into the RELAY KEY form.
+- SERVER: RAM to 16 GB; VS Code + its Claude extension if he wants them; whether to skip the bypass-mode prompt there.
+- Google sign-in check on debaser.site from his own browser.
+- The gaming PC: Windows Defender real-time protection is OFF; dead startup entries left from an old infection
+  (Run keys pointing at missing files in C:\tmp, C:\ESD, C:\Dell\UpdatePackage\log); `C:\tmp` holds 2021 Babuk-encrypted
+  files. Security settings are his to change. `ArcRaidersFix_CloseRazerUI` startup entry points at `G:\arc raiders fix`,
+  which moved to `I:\work-data\personal\` on SERVER: copy it back if he still plays Arc Raiders on the PC.
+- Test leftovers on TEST ACCOUNT A/B (ROOMCHAT lines, CANVAS rooms): a delete, waits for his OK. POPOUT on hold.
+- Optional private GitHub backup of the game repo (needs his clear yes).
 
-## Waiting on Luke, or left on purpose
-- Test leftovers on TEST ACCOUNT A/B (two ROOMCHAT chat lines; two ended rooms and one canvas from CANVAS): a delete,
-  so it waits for his OK. TEST ACCOUNT A's own room `8853d917-…` is kept on purpose.
-- POPOUT (dragging panels out of the browser): on hold (`popout-brief.md`).
-- The first-visit "HAD AN ACCOUNT?" pop-up covers the whole page for new visitors; offered to make it smaller.
-- Not proved by a real person: the fluid's feel, FIT, THEME switch, new themes, his own PICKED FOR YOU, LEAGUEBOT LIVE
-  in his own match, Twitch autoplay in his browser.
-
-## Known red checks
-`check-hidden-accounts` (house account, Luke's choice). See the latest full run's line in `list4-checkin.md`.
+## Tooling and rules that carry over
+- `luke-list-agent-rules.md`: FULL SPEED, live checks 2 min / live drives 10 min apart, honest task lists, SAVE USAGE
+  (checks:changed once at the end, no full suite unless asked or due, one verify:clean per push, none for docs/SQL/Temp-
+  only changes; reports stay comprehensive). `heavy-step.cjs` paces heavy steps (League match = keep load low; League is
+  played on the gaming PC, so on SERVER it matters less).
+- Known red: `check-hidden-accounts` (house account, Luke's choice).
