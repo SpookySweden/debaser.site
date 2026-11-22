@@ -429,6 +429,20 @@ bool mf_encode(MfEncoder* e, ID3D11Texture2D* nv12, bool force_keyframe, std::ve
     }
     const double t1 = ms_now();
     hr = e->mft->ProcessInput(e->in_id, sample.Get(), 0);
+    // "Not accepting" (Intel's, just after a drain): it was not really asking yet. Wait for its next request and give
+    // the picture again, a few times at most.
+    for (int again = 0; hr == MF_E_NOTACCEPTING && again < 4; ++again) {
+      e->wanted = 0;
+      while (e->wanted == 0) {
+        const MediaEventType type = next_event(e, 500);
+        if (type == METransformNeedInput) e->wanted += 1;
+        else if (type == METransformHaveOutput) {
+          std::vector<uint8_t> stray;
+          take_output(e, stray);
+        } else if (type == 0) return say(error, error_len, "The hardware encoder stopped asking for pictures", E_FAIL);
+      }
+      hr = e->mft->ProcessInput(e->in_id, sample.Get(), 0);
+    }
     if (FAILED(hr)) return say(error, error_len, "The hardware encoder would not take the picture", hr);
     e->wanted -= 1;
     double t2 = t1, t3 = t1;
@@ -438,7 +452,7 @@ bool mf_encode(MfEncoder* e, ID3D11Texture2D* nv12, bool force_keyframe, std::ve
       if (FAILED(hr)) return say(error, error_len, "The hardware encoder would not drain", hr);
       for (;;) {
         const MediaEventType type = next_event(e, 500);
-        if (type == METransformNeedInput) e->wanted += 1;
+        if (type == METransformNeedInput) {}  // a request during the drain does not count (see "not accepting" above)
         else if (type == METransformHaveOutput) {
           std::vector<uint8_t> got;
           t2 = ms_now();
@@ -447,8 +461,10 @@ bool mf_encode(MfEncoder* e, ID3D11Texture2D* nv12, bool force_keyframe, std::ve
           if (FAILED(hr) && hr != MF_E_TRANSFORM_NEED_MORE_INPUT) return say(error, error_len, "The hardware encoder gave no frame", hr);
           if (!got.empty()) out.swap(got);  // the newest frame is this picture's
         } else if (type == METransformDrainComplete) {
-          // A drained encoder waits to be told the stream goes on before it asks for the next picture.
-          e->mft->ProcessMessage(MFT_MESSAGE_NOTIFY_START_OF_STREAM, 0);
+          // A drained encoder may wait to be told the stream goes on before it asks for the next picture (NVIDIA's
+          // does); DEBASER_MF_DRAIN_RESTART=0 leaves that out, for one that does not want it.
+          e->wanted = 0;
+          if (env_number("DEBASER_MF_DRAIN_RESTART", 1) != 0) e->mft->ProcessMessage(MFT_MESSAGE_NOTIFY_START_OF_STREAM, 0);
           break;
         }
         else if (type == 0) return say(error, error_len, "The hardware encoder did not finish draining", E_FAIL);
