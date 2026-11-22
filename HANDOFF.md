@@ -14,8 +14,11 @@ SUNSHINE's is `local_e225015a-…`). Read them as history; new sessions get thei
   streams it (LAN key + STUN, `--internet`). Its own start after a reboot: see `sunshine-handover.md`. The PC fallback
   site is gone (Luke, 2026-11-22: "delete the fallback now"): Docker data, site builds and the DebaserHost/Update/Backup
   tasks removed, Docker Desktop no longer starts with Windows. The way back is now SERVER's backups only.
-- Off-site copy of the backups is still owed (SPEC-self-hosting Stage 7, deferred): the database dumps and the uploaded
-  files sit on the same external drive.
+- SERVER also runs (SPEC-self-hosting.md, "SERVER's other jobs"): SSH (key only; the gaming PC's key), Tailscale
+  (`debaser-server`, nothing public; laptop/phone/gaming PC not joined yet), LibGen through a Proton WireGuard split
+  tunnel plus the shadow proxy behind `https://debaser.site/shadow` (CAPTCHAs: Luke via [ REMOTE ]).
+- Off-site copy (Proton Drive, rclone crypt, task `DebaserOffsite` 04:30) is built but DISABLED until Luke runs
+  `C:\DEBASER-SETUP\proton-backup-setup.ps1` ("not now"); then the first upload and a restore test are owed.
 
 ## Recently done (all live; details in `list5-checkin.md`)
 List 5 (asleep page + tunnel down-alert emails, COMIC phase 1, NOTIFY phases 1-2 incl. weekly email via Resend, first-

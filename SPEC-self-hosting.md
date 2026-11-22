@@ -285,6 +285,34 @@ fixed drive letter for `C:\DRIVES\G`, and the database came back from `backup.cj
 4. Docker Desktop must start at sign-in (its own setting *and* Windows' Startup apps switch): after SERVER's first test
    restart the site and tunnel came back but Docker didn't, because the Startup apps entry was off.
 
+## SERVER's other jobs (2026-11-22, set up by the "PC setup and synchronization" session)
+- **SSH**: OpenSSH Server, starts automatically, key sign-in only (`PasswordAuthentication no`), `MaxSessions 10`, sftp on,
+  Git Bash as the shell. The gaming PC's key is in `administrators_authorized_keys`. Firewall rules "DEBASER SSH (home
+  network)" (TCP 22, LocalSubnet) and "DEBASER SSH (Tailscale)" (the Tailscale adapter). Script:
+  `C:\DEBASER-SETUP\ssh-server-on.ps1`.
+- **Tailscale**: SERVER is `debaser-server` (100.109.173.13), unattended, on Luke's account; nothing is exposed to the
+  internet. The laptop, phone and gaming PC have not joined yet (the gaming PC only between League matches). Reaching the
+  database over the tailnet has not been proposed.
+- **LibGen through a VPN** (Luke: "A: VPN for books"): the WireGuard service `WireGuardTunnel$shadow-books` runs Proton's
+  free US-FREE#81 as a split tunnel: its AllowedIPs are only the /32 addresses of annas-archive.gd/.gl/.pk, libgen.is/.li
+  and library.lol, with no DNS line, so the site and Cloudflare stay on the ordinary connection. Config
+  `G:\DEBASER-HOST\wireguard\shadow-books.conf` (Administrators and SYSTEM only); `make-shadow-conf.cjs` rebuilds it from
+  Cloudflare's DNS-over-HTTPS when those addresses change: run `C:\DEBASER-SETUP\wireguard-books-refresh.ps1` as admin.
+- **Shadow proxy**: `G:\DEBASER-HOST\shadow-proxy`, a copy of the gaming PC's with two changes: it drives Edge (SERVER has no
+  Chrome) and strips a `/shadow` prefix; its status page needs the token from outside. better-sqlite3 was dropped (only an
+  unused Chrome-cookie helper needed it, and SERVER has no MSVC). It runs from `services.json` on 127.0.0.1:8787, caching to
+  `I:\debaser-cache`. The tunnel sends `^/shadow(/|$)` on debaser.site to it; `SHADOW_PROXY_URL=https://debaser.site/shadow`
+  is in `site.env` (the token is unchanged). Proved: a cached book opens through `/api/web/book/epub?ref=shadow:…`, and a
+  "dune" search returns 5 EPUBs through the VPN. A download may stop at a CAPTCHA in the Edge window on SERVER's screen:
+  Luke solves it through SCREENS' [ REMOTE ].
+- **Off-site backup (Stage 7's owed copy)**: rclone 1.76 (`G:\DEBASER-HOST\tools\rclone.exe`).
+  `G:\DEBASER-HOST\offsite\offsite-backup.cjs` runs from task `DebaserOffsite` at 04:30 (hidden, `offsite-hidden.vbs`): the
+  newest 7 dumps (without their `files\`) plus a mirror of the files go to `proton-crypt:`, an rclone crypt (Luke's
+  passphrase) over `proton:DEBASER-backups`. **The task is disabled** until Luke runs
+  `C:\DEBASER-SETUP\proton-backup-setup.ps1` (his Proton sign-in and passphrase), which turns it on (Luke: "not now").
+  Owed after that: the first upload and a restore test from Proton.
+- SERVER's own `DebaserBackup` (04:00) works; its first run was `2026-11-22-04-00`.
+
 ## The way back (rollback)
 - Nothing on the cloud is deleted or changed: the Supabase project and the Vercel project stay exactly as they are for
   at least a month. Once the block lifts, the Vercel site works again with the data as it was on the night of the export.
@@ -292,10 +320,9 @@ fixed drive letter for `C:\DRIVES\G`, and the database came back from `backup.cj
 - After stage 4: posts made on the PC exist only there. Going back means exporting them into the cloud project (a
   database write there, with Luke's OK) and removing the forwarding commit. Practical for a few days after the switch.
 - If the PC dies: install the same setup on any machine and restore the newest backup from Google Drive.
-- Since 2026-11-22 SERVER hosts the site. The gaming PC is the fallback: its own database (the Docker volume on its `G:`)
-  is untouched since the move and still has the correct permissions, but it lacks anything posted on SERVER since, and the
-  files left with the `I:` drive. Its DebaserHost, DebaserUpdate and DebaserBackup tasks are disabled, and
-  `G:\DEBASER-HOST\docker.paused` is in place: never run both hosts on the tunnel at once.
+- Since 2026-11-22 SERVER hosts the site. The gaming PC fallback is gone (Luke, 2026-11-22: "delete the fallback now"):
+  its Docker data, site builds and host tasks were removed. The way back is now SERVER's backups only (`I:\DEBASER\backups`,
+  plus the Proton copy once `DebaserOffsite` is on).
 
 ## Costs
 - debaser.site: about 10 USD a year (Luke already bought it). Cloudflare Tunnel, Docker Desktop (personal use),
