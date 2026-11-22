@@ -19,7 +19,9 @@ import {
   collapseWatch,
   expandWatch,
   leaveRoom,
+  noteRoomWindowOpen,
   openWatch,
+  roomWindowWasOpen,
   subscribeToWatchWindow,
   watchWindowServerState,
   joinSecretFromSearch,
@@ -191,9 +193,10 @@ function writeShown(roomId: string | null): void {
 /**
  * Your own room comes back after a reload as you left it (Luke, 2026-11-16: "the old replacement for the music bar that showed
  * when you collapsed the stream room is gone, i still need that to exist and function same as it did"). Its window open or
- * folded when the page went away: it comes back folded, with its key above the player and its bar along the foot of the
- * screen. Paused: nothing starts playing out of sight, and the bar's PLAY or the room's own keys start it again. A live room
- * already comes back folded by itself (`MusicRoomKeeper.tsx`, so its beat carries on) and is left to that.
+ * folded when the page went away: it comes back as it was, open, or folded with its key above the player and its bar along
+ * the foot of the screen (Luke, 2026-11-22: "stays open on the screen if it was open"). Paused: nothing starts playing out
+ * of sight, and the bar's PLAY or the room's own keys start it again. A live room already comes back by itself
+ * (`MusicRoomKeeper.tsx`, so its beat carries on), open or folded by the same note, and is left to that.
  */
 function OwnRoomComesBack({ state, ownRoomId }: { state: ReturnType<typeof watchWindowState>; ownRoomId: string | null }) {
   const { read } = useWatchRoom(ownRoomId, { follow: false });
@@ -213,7 +216,22 @@ function OwnRoomComesBack({ state, ownRoomId }: { state: ReturnType<typeof watch
     }
   }, [shownNow, ownRoomId, state.open]);
 
-  // Once a page: your room read, nothing else open, and the note says it was shown: back, folded, paused.
+  // Its window open on screen, not folded: noted, so a reload brings it back open (Luke, 2026-11-22). Folding it, shutting it
+  // or going into somebody else's room after that forgets it; the page loading, before anything is open, forgets nothing.
+  const openNow = shownNow && !state.collapsed;
+  const openSeen = useRef(false);
+  useEffect(() => {
+    if (openNow) {
+      openSeen.current = true;
+      noteRoomWindowOpen(ownRoomId);
+    } else if (openSeen.current) {
+      openSeen.current = false;
+      noteRoomWindowOpen(null);
+    }
+  }, [openNow, ownRoomId]);
+
+  // Once a page: your room read, nothing else open, and the note says it was shown: back, paused, its window open if it was
+  // open when the page went away (`roomWindowWasOpen`), folded otherwise.
   useEffect(() => {
     if (ownRoomId === null || read === undefined || read === null || tried.current === ownRoomId) return;
     tried.current = ownRoomId;
@@ -225,7 +243,7 @@ function OwnRoomComesBack({ state, ownRoomId }: { state: ReturnType<typeof watch
     // The room's new player starts the video where it had got to, not from the top.
     if (held.currentEntryId !== null) noteRoomStart(held.currentEntryId, place);
     openWatch({ kind: 'room', roomId: ownRoomId });
-    collapseWatch();
+    if (!roomWindowWasOpen(ownRoomId)) collapseWatch();
   }, [ownRoomId, read]);
 
   return null;

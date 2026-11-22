@@ -1365,12 +1365,23 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   // while the bar shows the music it is not offered, so the keys come back under the picture.
   const barTarget = useSyncExternalStore(subscribeToStreamBar, () => streamBarState().target, () => null);
   const keysOnMusicBar = barTarget !== null && !fullscreen;
-  const barAwake = useFullscreenBar(stageRef, barRef, fullscreen);
+  // The room canvas (SPEC-stream-art.md): each viewer's own screen shows the picture or the shared canvas. While a
+  // song plays the canvas is the default; with a video, the picture.
+  const canvasAudio = song !== null;
+  // A visitor's own room has no canvas (it is shared through the site, and their room never leaves this browser): the
+  // song's cover is their screen instead.
+  const screen = useScreenView(roomId, canvasAudio && !visitorRoom);
+  // Remote controlling fullscreen (REMOTE: THE PC, THE SERVER, Remote Desktop): no player bar over the foot of the picture,
+  // nor the pointer hiding with it (Luke, 2026-11-22: "when remote controlling in the room on fullscreen, we dont need the
+  // player bar at the bottom of the screen"). Keys still go to the remote; Esc (held, while it has the keyboard) and the
+  // remote's own SETTINGS > LEAVE FULLSCREEN are the way out, and leaving fullscreen brings the bar back.
+  const remoteFull = staged && screen === 'screen';
+  const barAwake = useFullscreenBar(stageRef, barRef, fullscreen && !remoteFull);
   // `[ KEYS IN THE PICTURE ]` (ROOMBARS, Luke 2026-11-21; `keys-in-picture.ts`): the playback keys along the foot of the picture
   // as well. Not over a fullscreen stage, where the bar itself already lies over the picture's foot.
   const keysInPicture = useKeysInPicture(user?.id ?? null);
   const pictureBarRef = useRef<HTMLDivElement>(null);
-  const pictureBarOn = keysInPicture && !fullscreen && !blank && song === null && !pictureOn && !(needsPress && live);
+  const pictureBarOn = keysInPicture && !fullscreen && !remoteFull && !blank && song === null && !pictureOn && !(needsPress && live);
   const pictureBarAwake = useIdleBar(pictureBox, pictureBarRef, pictureBarOn);
 
   // The keys, each drawn in whichever of the two bars is showing them.
@@ -1565,7 +1576,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
 
   // Under the picture, left to right: play/pause (host), where it is and the time, skip (host), the sound, QUALITY,
   // PIP, FULL, END STREAM (host). The chat column's strip names the video.
-  const playerBar = !keysOnMusicBar && (hasTransport || hostKeys || floatKey !== null || exitKey !== null) ? (
+  const playerBar = !keysOnMusicBar && !remoteFull && (hasTransport || hostKeys || floatKey !== null || exitKey !== null) ? (
     // `relative`: on a phone the SUBS list opens as a sheet across the bar, just above it.
     <div
       ref={barRef}
@@ -1684,12 +1695,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     toggleFullscreen();
   };
 
-  // The room canvas (SPEC-stream-art.md): each viewer's own screen shows the picture or the shared canvas. While a
-  // song plays the canvas is the default; with a video, the picture.
-  const canvasAudio = song !== null;
-  // A visitor's own room has no canvas (it is shared through the site, and their room never leaves this browser): the
-  // song's cover is their screen instead.
-  const screen = useScreenView(roomId, canvasAudio && !visitorRoom);
+  // `canvasAudio` and `screen` (which screen this viewer has picked) are read further up, beside the bar they hide.
   const visualiserOn = useVisualiserOn(roomId);
   /** The side column's width: the frame's own, or where the reader dragged its edge (`RoomSideGrip`). */
   const sideFrame = roomSide(useRoomSideWidth());

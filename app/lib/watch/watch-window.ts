@@ -101,6 +101,33 @@ export function expandWatch(): void {
   if (current.open && current.collapsed) slot.set({ ...current, collapsed: false, pip: false });
 }
 
+/**
+ * This browser's note of the room whose window was open on screen, not folded, by the room's id (never sent anywhere). Your
+ * own room comes back after a reload (`OwnRoomComesBack` in WatchWindow.tsx, `MusicRoomKeeper.tsx` for a live one): open
+ * when this note names it, folded otherwise (Luke, 2026-11-22: "make it so that on a refresh, the open room is not collapsed
+ * and stays open on the screen if it was open"). Where and how big the window was comes back by itself (`window-layout.ts`).
+ */
+const ROOM_OPEN_KEY = 'debaser.site.room-window-open.v1';
+
+/** Whether this browser last saw `roomId`'s window open, not folded. */
+export function roomWindowWasOpen(roomId: string): boolean {
+  try {
+    return window.localStorage.getItem(ROOM_OPEN_KEY) === roomId;
+  } catch {
+    return false;
+  }
+}
+
+/** The room whose window is open on screen now, or null once it is folded or shut. */
+export function noteRoomWindowOpen(roomId: string | null): void {
+  try {
+    if (roomId === null) window.localStorage.removeItem(ROOM_OPEN_KEY);
+    else window.localStorage.setItem(ROOM_OPEN_KEY, roomId);
+  } catch {
+    // Storage refused (a private window): the room comes back folded, as before.
+  }
+}
+
 function sameFocus(a: WatchFocus, b: WatchFocus): boolean {
   if (a.kind === 'room' && b.kind === 'room') return a.roomId === b.roomId;
   if (a.kind === 'prelive' && b.kind === 'prelive') return a.mediaItemId === b.mediaItemId;

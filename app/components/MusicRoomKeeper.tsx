@@ -10,7 +10,7 @@ import { getBrowserWatchRepository } from '../lib/watch/mock-watch-repository';
 import { playInMainRoom } from '../lib/watch/main-room-play';
 import { takeUnhandledPlay } from '../lib/watch/row-handoff';
 import { roomScreenSound, subscribeToRoomScreenSound, whoGivesWay } from '../lib/audio/room-screen-sound';
-import { collapseWatch, openWatch, watchWindowState } from '../lib/watch/watch-window';
+import { collapseWatch, openWatch, roomWindowWasOpen, watchWindowState } from '../lib/watch/watch-window';
 import { OwnRoomSession, ownRoomPlace } from '../lib/watch/own-room';
 import { clearOwnRoom, ownRoomState, patchOwnRoom, setOwnRoom, sharedRoomStore, storedVisitorRoomId, subscribeToOwnRoom, visitorRoomId } from '../lib/watch/own-room-client';
 import { floatingForLink } from '../lib/watch/own-screen';
@@ -198,7 +198,7 @@ export default function MusicRoomKeeper() {
     if (held.endedAt !== null || held.origin !== 'music' || held.hostId !== ownHost) session.renew(held.id);
   }, [session, read, ownHost, visitorRoom]);
 
-  /* --- after a reload: a LIVE main room comes back folded, so its host's beat carries on ---------------- */
+  /* --- after a reload: a LIVE main room comes back (open if it was open, else folded), so its host's beat carries on --- */
   // Without its window nothing says "still here", and after 45 seconds its people would take it (SPEC-rooms-perpetual.md).
 
   const reopened = useRef<OwnRoomSession | null>(null);
@@ -209,7 +209,8 @@ export default function MusicRoomKeeper() {
     if (held.origin !== 'music' || !held.isPublic || held.endedAt !== null || held.hostId !== ownHost) return;
     if (watchWindowState().open) return;
     openWatch({ kind: 'room', roomId: held.id });
-    collapseWatch();
+    // Its window open when the page went away: it stays open (Luke, 2026-11-22: "stays open on the screen if it was open").
+    if (!roomWindowWasOpen(held.id)) collapseWatch();
   }, [session, read, ownHost, visitorRoom]);
 
   /* --- after a reload: the room is back, paused ------------------------------------------------------ */
