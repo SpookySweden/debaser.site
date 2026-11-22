@@ -11,22 +11,27 @@
  *
  * ON does five things, and says each as it does it:
  *   1. writes SCREENS_OWNER_ID=<account id> into the site's settings (G:\DEBASER-HOST\site.env, which every new
- *      build copies) and into the build being served now. No other line is read out, changed or printed.
+ *      build copies) and into the build being served now, when this PC still serves the site. No other line is read
+ *      out, changed or printed.
  *   2. copies the engine (engine\target\release\debaser-engine.exe from this copy of the repository; built first with
  *      `cargo build --release` when it is not there) to G:\DEBASER-HOST\engine\.
- *   3. lists it in services.json as "engine" (`serve --allow-control`), so it starts with the PC from now on.
- *   4. starts it now (keep-running only starts what was listed when it itself started).
- *   5. restarts the site the way an update does (a few seconds' blip), so it reads the new setting.
+ *   3. makes it start by itself each time Luke signs in to Windows (2026-11-22, when the site moved to SERVER and
+ *      keep-running went with it): engine\start-engine.cmd holds the command, and "DEBASER engine.vbs" in his Startup
+ *      folder runs it hidden. Nothing else is started with it: no site, no tunnel.
+ *   4. starts it now.
+ *   5. restarts the site the way an update does (a few seconds' blip), so it reads the new setting; not with
+ *      --site-elsewhere (the site lives on SERVER).
  *
  * Without --lan the engine can be reached only from a browser ON THIS PC: its web address and its video both stay on
  * 127.0.0.1. With --lan the video (never the web address) is also offered on the home network, which is what a
  * laptop needs; the first time, Windows asks whether to let it through its firewall, and that answer is Luke's.
  *
- * OFF takes the owner line out of both settings files, takes "engine" off the list, stops the engine and restarts
- * the site. The engine's file is left where it is.
+ * OFF takes the owner line out of the settings (when they are here), removes the start at sign-in, stops the engine
+ * and restarts the site when this PC serves it. The engine's file is left where it is.
  *
  * For proving it without touching the real host: --host <folder> points it at a pretend host folder, and
- * --no-start / --no-restart skip steps 4 and 5.
+ * --no-start / --no-restart skip steps 4 and 5 (with --host, the start-at-sign-in file goes into that folder, not the
+ * real Startup folder).
  */
 const { execFileSync, spawnSync } = require('node:child_process');
 const { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } = require('node:fs');
@@ -46,6 +51,14 @@ const ENGINE_HOME = join(HOST, 'engine');
 const ENGINE = join(ENGINE_HOME, 'debaser-engine.exe');
 const BUILT = join(REPO, 'engine', 'target', 'release', 'debaser-engine.exe');
 const OWNER_LINE = 'SCREENS_OWNER_ID';
+// The start at sign-in: Luke's own Startup folder (no administrator rights needed), or a test folder with --host.
+const STARTUP = value('--host')
+  ? join(HOST, 'startup')
+  : join(process.env.APPDATA || join(process.env.USERPROFILE || 'C:\\Users\\Public', 'AppData', 'Roaming'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup');
+const STARTUP_FILE = join(STARTUP, 'DEBASER engine.vbs');
+const START_CMD = join(ENGINE_HOME, 'start-engine.cmd');
+// The engine's key, kept beside it, so a later ON still finds it once site.env has gone from this PC.
+const KEY_FILE = join(ENGINE_HOME, 'engine.key');
 const ACCOUNT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const say = (text) => console.log(text);
@@ -70,11 +83,25 @@ function namesOwner(file) {
   return line ? line.slice(OWNER_LINE.length + 1).trim() : '';
 }
 
-function services() { return JSON.parse(readFileSync(SERVICES, 'utf8')); }
-function saveServices(list) { writeFileSync(SERVICES, `${JSON.stringify(list, null, 2)}\n`); }
+function services() { return existsSync(SERVICES) ? JSON.parse(readFileSync(SERVICES, 'utf8')) : []; }
+// Only where an old host still has its list (keep-running read it); never made anew.
+function saveServices(list) { if (existsSync(SERVICES)) writeFileSync(SERVICES, `${JSON.stringify(list, null, 2)}\n`); }
+
+/** The command that starts the engine, and the hidden launcher in the Startup folder that runs it at sign-in. */
+function writeStartAtSignIn(lan, key) {
+  if (!existsSync(LOGS)) mkdirSync(LOGS, { recursive: true });
+  writeFileSync(START_CMD, `@echo off\r\nrem Written by scripts/host/screens.cjs: starts the DEBASER screen engine (and nothing else).\r\n"${ENGINE}" ${engineArgs(lan, key).join(' ')} >> "${join(LOGS, 'engine.log')}" 2>&1\r\n`);
+  if (!existsSync(STARTUP)) mkdirSync(STARTUP, { recursive: true });
+  writeFileSync(STARTUP_FILE, `' Written by scripts/host/screens.cjs: starts the DEBASER screen engine, hidden, when Luke signs in.\r\nCreateObject("WScript.Shell").Run "cmd.exe /d /c " & Chr(34) & "${START_CMD}" & Chr(34), 0, False\r\n`);
+}
+
+function removeStartAtSignIn() {
+  for (const file of [STARTUP_FILE, START_CMD]) if (existsSync(file)) require('node:fs').rmSync(file);
+}
 
 /** The copy of the site being served now (services.json says which), where the running build reads its settings. */
 function servedSettings() {
+  if (!existsSync(SERVICES)) return null;
   const site = services().find((s) => s.name === 'site');
   return site && site.cwd ? join(site.cwd, '.env.production.local') : null;
 }
@@ -181,21 +208,23 @@ function status() {
   say(`owner named in the site's settings   ${owner === null ? 'no settings file' : owner === '' ? 'no' : `yes (${owner})`}`);
   say(`owner named in the build being served ${served === null ? 'unknown' : namesOwner(served) ? 'yes' : 'no'}`);
   say(`engine program in the host folder     ${existsSync(ENGINE) ? 'yes' : 'no'}`);
-  say(`engine listed to start with the PC    ${listed ? `yes (${(listed.args || []).join(' ').replace(/--token \S+/, '--token <key>')})` : 'no'}`);
+  say(`engine starts at sign-in              ${existsSync(STARTUP_FILE) && existsSync(START_CMD) ? `yes (${readFileSync(START_CMD, 'utf8').split(/\r?\n/)[2].replace(/--token \S+/, '--token <key>').replace(/>>.*$/, '').trim()})` : 'no'}`);
+  if (listed) say(`engine also in the old services.json  yes`);
   say(`engine running now                    ${engineProcesses().length > 0 ? 'yes' : 'no'}`);
 }
 
 function on() {
   const owner = value('--owner');
   if (!owner || !ACCOUNT_ID.test(owner)) stop('ON needs the owner\'s account id: node scripts/host/screens.cjs on --owner <the long code with four dashes>');
-  if (!existsSync(SETTINGS) || !existsSync(SERVICES)) stop(`No host found at ${HOST} (site.env and services.json are expected there).`);
   const lan = has('--lan');
   const elsewhere = has('--site-elsewhere');
-  const key = elsewhere ? engineKeyFrom(readFileSync(SETTINGS, 'utf8')) : null;
-  if (elsewhere && key === null) stop("--site-elsewhere works the engine's key out from SCREENS_RDP_SECRET in site.env, and there is none: run scripts/host/server-remote.cjs on first.");
+  if (!elsewhere && (!existsSync(SETTINGS) || !existsSync(SERVICES))) stop(`No host found at ${HOST} (site.env and services.json are expected there; with the site on another machine, use --site-elsewhere).`);
+  const kept = existsSync(KEY_FILE) ? readFileSync(KEY_FILE, 'utf8').trim() : '';
+  const key = elsewhere ? (existsSync(SETTINGS) && engineKeyFrom(readFileSync(SETTINGS, 'utf8'))) || (/^[A-Za-z0-9_-]{16,128}$/.test(kept) ? kept : null) : null;
+  if (elsewhere && key === null) stop("--site-elsewhere works the engine's key out from SCREENS_RDP_SECRET in site.env (or the key kept in engine\\engine.key), and there is neither here.");
 
-  // 1. The owner, in the settings every build copies and in the build being served now.
-  writeFileSync(SETTINGS, withOwner(readFileSync(SETTINGS, 'utf8'), owner));
+  // 1. The owner, in the settings every build copies and in the build being served now (when this PC has them).
+  if (existsSync(SETTINGS)) writeFileSync(SETTINGS, withOwner(readFileSync(SETTINGS, 'utf8'), owner));
   const served = servedSettings();
   if (served && existsSync(served)) writeFileSync(served, withOwner(readFileSync(served, 'utf8'), owner));
   say(`1. owner named: ${owner}${served && existsSync(served) ? ' (in the settings and in the build being served)' : ' (in the settings; the build being served was not found)'}`);
@@ -213,10 +242,14 @@ function on() {
   say(`2. engine copied to ${ENGINE}${wasRunning ? ' (the one that was running was stopped first)' : ''}`);
 
   // 3. Listed, so it starts with the PC.
-  const list = services().filter((s) => s.name !== 'engine');
-  list.push({ name: 'engine', cwd: ENGINE_HOME, command: ENGINE, args: engineArgs(lan, key) });
-  saveServices(list);
-  say(`3. listed to start with the PC: ${engineArgs(lan, key).join(' ').replace(/--token \S+/, '--token <key>')}`);
+  if (key) writeFileSync(KEY_FILE, `${key}\n`);
+  writeStartAtSignIn(lan, key);
+  if (existsSync(SERVICES)) {
+    const list = services().filter((s) => s.name !== 'engine');
+    list.push({ name: 'engine', cwd: ENGINE_HOME, command: ENGINE, args: engineArgs(lan, key) });
+    saveServices(list);
+  }
+  say(`3. starts at sign-in (Startup folder: DEBASER engine.vbs): ${engineArgs(lan, key).join(' ').replace(/--token \S+/, '--token <key>')}`);
 
   // 4. Started now.
   if (has('--no-start')) say('4. not started (--no-start)');
@@ -241,13 +274,13 @@ function on() {
 }
 
 function off() {
-  if (!existsSync(SETTINGS) || !existsSync(SERVICES)) stop(`No host found at ${HOST} (site.env and services.json are expected there).`);
-  writeFileSync(SETTINGS, withOwner(readFileSync(SETTINGS, 'utf8'), null));
+  if (existsSync(SETTINGS)) writeFileSync(SETTINGS, withOwner(readFileSync(SETTINGS, 'utf8'), null));
   const served = servedSettings();
   if (served && existsSync(served)) writeFileSync(served, withOwner(readFileSync(served, 'utf8'), null));
   say('1. owner line taken out of the settings and the build being served');
   saveServices(services().filter((s) => s.name !== 'engine'));
-  say('2. engine taken off the list of what starts with the PC');
+  removeStartAtSignIn();
+  say('2. engine no longer starts at sign-in');
   say(`3. engine stopped (${stopEngine()} running)`);
   if (has('--no-restart')) say('4. site not restarted (--no-restart)');
   else say(`4. ${restartSite()}`);
