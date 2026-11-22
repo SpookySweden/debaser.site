@@ -259,6 +259,32 @@ Worker in front of debaser.site, fail open; Cloudflare's tunnel-health email for
 inbox by a Gmail filter). Storage's global cap on one file is 500 MB, not 50 MB, set in our override
 `G:\DEBASER-HOST\supabase\docker-compose.debaser.yml` (Luke, for COMIC: "Yes, both"); each bucket keeps its own limit.
 
+## Restoring into a fresh self-hosted Supabase
+Learned moving the host from the gaming PC to SERVER (2026-11-22: the external drive moved over as `I:`, `G:` on SERVER is a
+fixed drive letter for `C:\DRIVES\G`, and the database came back from `backup.cjs`'s `database.dump` and `roles.sql`).
+1. Start only `db` on a fresh volume, run `roles.sql` (its "already exists" errors are expected), then
+   `pg_restore --clean --if-exists` the dump as `supabase_admin`. Compare row counts with `count-rows.cjs --pc` taken on the
+   old host before it stopped.
+2. **The permissions come back too open.** A fresh Supabase's own default privileges in `public` give `anon`,
+   `authenticated` and `service_role` everything on every new function and table. pg_restore re-creates each object under
+   those defaults, and the dump then only revokes from PUBLIC, so the extra grants stay. On 2026-11-22 that left 240 objects
+   open: visitors could run `watch_join`, the moderator and ban functions, and write or truncate 68 tables (found by
+   `check-private-streams`). The fix:
+   - restore the same dump `--schema-only` into a scratch database (`create database aclcheck`): it has no default
+     privileges, so its permissions are the old host's exactly (only pg_cron's parts fail there);
+   - compare `aclexplode` for every function, table, sequence, column, schema and default privilege in both databases;
+   - revoke the extras (`G:\DEBASER-HOST\fixes\2026-11-22-restore-acl-fix.sql`, 354 revokes);
+   - **then re-grant the column permissions**: a table-wide `revoke update`/`insert` also removes the per-column grants of
+     the same kind (143 were lost; `fixes\2026-11-22-restore-acl-fix-columns.sql` put them back from the scratch copy);
+   - compare again until there are no differences, drop the scratch database, and re-run the policy checks
+     (`check-private-streams`, `check-guests`, `check-media-visitors`, `check-moderation`, `check-room-chat-private`,
+     `check-search-and-permissions`, `check-visitor-limits`).
+   The two fix scripts hold only grant and revoke lines; they stay on SERVER as the record of that restore.
+3. Storage reads `I:/DEBASER/files`. Give the drive its letter before Docker starts: a drive re-lettered while Docker runs
+   is mounted empty until Docker Desktop and WSL are restarted.
+4. Docker Desktop must start at sign-in (its own setting *and* Windows' Startup apps switch): after SERVER's first test
+   restart the site and tunnel came back but Docker didn't, because the Startup apps entry was off.
+
 ## The way back (rollback)
 - Nothing on the cloud is deleted or changed: the Supabase project and the Vercel project stay exactly as they are for
   at least a month. Once the block lifts, the Vercel site works again with the data as it was on the night of the export.
@@ -266,6 +292,10 @@ inbox by a Gmail filter). Storage's global cap on one file is 500 MB, not 50 MB,
 - After stage 4: posts made on the PC exist only there. Going back means exporting them into the cloud project (a
   database write there, with Luke's OK) and removing the forwarding commit. Practical for a few days after the switch.
 - If the PC dies: install the same setup on any machine and restore the newest backup from Google Drive.
+- Since 2026-11-22 SERVER hosts the site. The gaming PC is the fallback: its own database (the Docker volume on its `G:`)
+  is untouched since the move and still has the correct permissions, but it lacks anything posted on SERVER since, and the
+  files left with the `I:` drive. Its DebaserHost, DebaserUpdate and DebaserBackup tasks are disabled, and
+  `G:\DEBASER-HOST\docker.paused` is in place: never run both hosts on the tunnel at once.
 
 ## Costs
 - debaser.site: about 10 USD a year (Luke already bought it). Cloudflare Tunnel, Docker Desktop (personal use),
