@@ -49,6 +49,9 @@ struct MfEncoder {
   std::vector<uint8_t> headers;   // the stream's latest SPS and PPS, put in front of a full picture that lacks them
   // DEBASER_MF_TRACE=1: where each frame's time goes, said when the session closes (for tuning on SERVER).
   bool trace = false;
+  // DEBASER_MF_DRAIN=1: after each picture the encoder is told to drain, so a pipelined encoder (Intel's with
+  // low-latency mode off) gives this picture's frame back now instead of on the next call.
+  bool drain = false;
   double t_asked = 0, t_given = 0, t_taken = 0;  // waiting to be asked for a picture; picture in -> frame ready; taking it
   int traced = 0, empties = 0;
 
@@ -299,7 +302,7 @@ MfEncoder* mf_open(ID3D11Device* device, int32_t width, int32_t height, int32_t 
       if (FAILED(e->mft.As(&e->events))) return give_up("The hardware encoder has no events to listen to", E_NOINTERFACE);
       e->async = true;
     }
-    attributes->SetUINT32(MF_LOW_LATENCY, env_number("DEBASER_MF_LOWLATENCY", 1) != 0 ? TRUE : FALSE);
+    attributes->SetUINT32(MF_LOW_LATENCY, env_number("DEBASER_MF_LLATTR", env_number("DEBASER_MF_LOWLATENCY", 1)) != 0 ? TRUE : FALSE);
   }
 
   // 3. The engine's card handed over, so the encoder reads the picture where it already is.
@@ -322,6 +325,7 @@ MfEncoder* mf_open(ID3D11Device* device, int32_t width, int32_t height, int32_t 
   const int32_t rate = std::max(1, fps);
   e->frame_100ns = 10000000LL / rate;
   e->trace = env_number("DEBASER_MF_TRACE", 0) != 0;
+  e->drain = env_number("DEBASER_MF_DRAIN", 0) != 0;
   // Settings that can be tried on a machine without rebuilding (DEBASER_MF_*): rate control (0 CBR, 1 peak-limited
   // VBR, 4 low-delay VBR...), speed against quality (0 fastest to 100), low-latency mode (1 on).
   const long rate_control = env_number("DEBASER_MF_RC", eAVEncCommonRateControlMode_CBR);
@@ -428,7 +432,36 @@ bool mf_encode(MfEncoder* e, ID3D11Texture2D* nv12, bool force_keyframe, std::ve
     if (FAILED(hr)) return say(error, error_len, "The hardware encoder would not take the picture", hr);
     e->wanted -= 1;
     double t2 = t1, t3 = t1;
-    for (;;) {
+    if (e->drain) {
+      // Drained: every frame it holds comes out now (this picture's last), then "drain complete".
+      hr = e->mft->ProcessMessage(MFT_MESSAGE_COMMAND_DRAIN, 0);
+      if (FAILED(hr)) return say(error, error_len, "The hardware encoder would not drain", hr);
+      for (;;) {
+        const MediaEventType type = next_event(e, 500);
+        if (type == METransformNeedInput) e->wanted += 1;
+        else if (type == METransformHaveOutput) {
+          std::vector<uint8_t> got;
+          t2 = ms_now();
+          hr = take_output(e, got);
+          t3 = ms_now();
+          if (FAILED(hr) && hr != MF_E_TRANSFORM_NEED_MORE_INPUT) return say(error, error_len, "The hardware encoder gave no frame", hr);
+          if (!got.empty()) out.swap(got);  // the newest frame is this picture's
+        } else if (type == METransformDrainComplete) {
+          // A drained encoder waits to be told the stream goes on before it asks for the next picture.
+          e->mft->ProcessMessage(MFT_MESSAGE_NOTIFY_START_OF_STREAM, 0);
+          break;
+        }
+        else if (type == 0) return say(error, error_len, "The hardware encoder did not finish draining", E_FAIL);
+      }
+      if (out.empty()) return say(error, error_len, "The hardware encoder drained without giving the frame", E_FAIL);
+      if (e->trace) {
+        e->t_asked += t1 - t0;
+        e->t_given += t2 - t1;
+        e->t_taken += t3 - t2;
+        e->traced += 1;
+      }
+    }
+    for (; !e->drain;) {
       const MediaEventType type = next_event(e, 500);
       if (type == METransformNeedInput) {
         e->wanted += 1;
