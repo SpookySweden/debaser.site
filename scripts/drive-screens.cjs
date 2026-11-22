@@ -967,6 +967,7 @@ async function partRdp(browser) {
   let context = null;
   let guacd = null;
   let gateway = null;
+  let serverEngine = null;
   const secret = require('node:crypto').randomBytes(32).toString('hex');
   const settings = path.join(os.tmpdir(), `debaser-drive-rdp-${process.pid}.env`);
   const switchFile = path.join(os.tmpdir(), `debaser-drive-rdp-switch-${process.pid}.json`);
@@ -980,7 +981,10 @@ async function partRdp(browser) {
       stdio: 'ignore',
     });
     started.push(gateway);
+    // SERVER's own engine, played here by the dry-run engine (as THE PC's is in part 2): the server's WAY IN switch flips between it and Remote Desktop.
+    serverEngine = await startEngine();
     site = await startSite(true, {
+      SCREENS_SERVER_ENGINE_URL: ENGINE_AT,
       SCREENS_RDP_SECRET: secret,
       SCREENS_RDP_GATEWAY_URL: `http://127.0.0.1:${RDP_GATEWAY_PORT}`,
       SCREENS_RDP_SOCKET_URL: `ws://127.0.0.1:${RDP_GATEWAY_PORT}/api/screens/rdp-socket`,
@@ -1024,7 +1028,7 @@ async function partRdp(browser) {
     }), 10000);
     assert.ok(red, 'the server\'s picture is drawn');
     const ways = await room.locator('[data-room-rdp-way]').evaluateAll((keys) => keys.map((k) => `${k.innerText.trim()} ${k.getAttribute('aria-pressed')}${k.disabled ? ' disabled' : ''}`));
-    assert.deepEqual(ways, ['[ WINDOWS REMOTE DESKTOP (GUACAMOLE) ] true', '[ OUR ENGINE: NOT ON THE SERVER YET ] false disabled'], 'the way-in switch');
+    assert.deepEqual(ways, ['[ WINDOWS REMOTE DESKTOP (GUACAMOLE) ] true', '[ OUR ENGINE ] false'], 'the way-in switch');
     // The drive's gateway is reached straight on this PC (a real one goes through the tunnel: OVER THE INTERNET).
     const routeSays = await room.locator('[data-room-rdp-route]').innerText();
     assert.equal(await room.locator('[data-room-rdp-route]').getAttribute('data-room-rdp-route'), 'this-pc', `the way it goes: ${routeSays}`);
@@ -1101,7 +1105,20 @@ async function partRdp(browser) {
 
     assert.deepEqual(blocked, [], 'nothing went to the live database');
     assert.deepEqual(errors, [], `no errors on the page: ${errors.join(' | ')}`);
-    // The server remote's own switch, from the view: off, and the gateway refuses the next pass.
+    // Both ways to the server, one switch: Remote Desktop -> our engine on the server -> back.
+    await page.locator('[data-room-rdp-options]').click().catch(() => undefined);
+    await page.locator('[data-room-rdp-way="engine"]').click();
+    await page.waitForSelector('[data-dock-window="stream"] [data-room-screen] [data-screen-way-in]', { timeout: 15000 });
+    const engineWords = await page.locator('[data-screen-way-in]').innerText();
+    const decoding = await waitFor(async () => { const r = await receiver(page); return r.framesDecoded > 5 ? r : null; }, 20000);
+    assert.ok(decoding, 'our engine on the server decodes in the room');
+    await page.locator('[data-screen-way="rdp"]').click();
+    await page.waitForSelector('[data-room-rdp-screen="showing"]', { timeout: 20000 });
+    pass("the server's WAY IN switch goes both ways: [ OUR ENGINE ] plays the server's own engine (frames decoded), and [ WINDOWS REMOTE DESKTOP (GUACAMOLE) ] goes back", `engine view read "${engineWords.replace(/\s+/g, ' ')}", ${decoding.framesDecoded} frames decoded`);
+
+    // The server remote's own switch, from the view: off, and the gateway refuses the next pass. (Coming back from
+    // our engine opened the view afresh, OPTIONS closed.)
+    if ((await page.locator('[data-room-rdp-switch]').count()) === 0) await page.locator('[data-room-rdp-options]').click();
     await page.locator('[data-room-rdp-switch]').click();
     await page.waitForSelector('[data-room-rdp-screen="off"]', { timeout: 10000 });
     const offSays = await page.locator('[data-room-rdp-says]').innerText();
@@ -1113,6 +1130,7 @@ async function partRdp(browser) {
     if (context) await context.close().catch(() => undefined);
     if (site) await site.stop();
     if (gateway) stopTree(gateway);
+    if (serverEngine) await serverEngine.stop();
     if (guacd) guacd.close();
     fs.rmSync(settings, { force: true });
     fs.rmSync(switchFile, { force: true });

@@ -63,8 +63,10 @@ export const OFFERS_PER_MINUTE = 12;
  * The engine's address, when it is a plain http address on this PC; null (refused) when it is anything else: another
  * machine, https, a path, a name and password, or not an address at all.
  */
-export function engineOrigin(env: ScreensEnv): string | null {
-  const text = (env.SCREENS_ENGINE_URL ?? '').trim() || DEFAULT_ENGINE_URL;
+export function engineOrigin(env: ScreensEnv, engine: EngineId = 'pc'): string | null {
+  // THE PC's engine keeps its old setting and default; THE SERVER's has none (off until its address is set).
+  const text = engine === 'server' ? (env.SCREENS_SERVER_ENGINE_URL ?? '').trim() : (env.SCREENS_ENGINE_URL ?? '').trim() || DEFAULT_ENGINE_URL;
+  if (text === '') return null;
   let url: URL;
   try {
     url = new URL(text);
@@ -78,16 +80,28 @@ export function engineOrigin(env: ScreensEnv): string | null {
   // Another machine on the home network (the site moved to SERVER on 2026-11-22 and the engine stayed on the gaming
   // PC): only a plain home-network number, never a name, and only with the engine's key set, which the engine then
   // demands on every request (`--listen 0.0.0.0 --token <key>`).
-  if (engineKey(env) !== null && isHomeNetworkAddress(url.hostname)) return url.origin;
+  if (engineKey(env, engine) !== null && isHomeNetworkAddress(url.hostname)) return url.origin;
   return null;
+}
+
+/**
+ * Which machine's engine (2026-11-22, Luke: "get our engine working both ways"): `pc`, the gaming PC's
+ * (SCREENS_ENGINE_URL / SCREENS_ENGINE_TOKEN, as before), or `server`, SERVER's own (SCREENS_SERVER_ENGINE_URL /
+ * SCREENS_SERVER_ENGINE_TOKEN). The browser names it with `?engine=server`; anything else is THE PC.
+ */
+export type EngineId = 'pc' | 'server';
+export const ENGINE_IDS: EngineId[] = ['pc', 'server'];
+
+export function engineOf(request: Request): EngineId {
+  return new URL(request.url).searchParams.get('engine') === 'server' ? 'server' : 'pc';
 }
 
 /**
  * SCREENS_ENGINE_TOKEN: the key an engine on another machine demands (its `--token`); 16 or more letters, digits,
  * - and _. Null when unset or not one, and then only an engine on this machine is reached.
  */
-export function engineKey(env: ScreensEnv): string | null {
-  const key = (env.SCREENS_ENGINE_TOKEN ?? '').trim();
+export function engineKey(env: ScreensEnv, engine: EngineId = 'pc'): string | null {
+  const key = ((engine === 'server' ? env.SCREENS_SERVER_ENGINE_TOKEN : env.SCREENS_ENGINE_TOKEN) ?? '').trim();
   return /^[A-Za-z0-9_-]{16,128}$/.test(key) ? key : null;
 }
 
@@ -202,6 +216,8 @@ export function realDeps(): ScreensDeps {
       NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       SCREENS_ENGINE_URL: process.env.SCREENS_ENGINE_URL,
       SCREENS_ENGINE_TOKEN: process.env.SCREENS_ENGINE_TOKEN,
+      SCREENS_SERVER_ENGINE_URL: process.env.SCREENS_SERVER_ENGINE_URL,
+      SCREENS_SERVER_ENGINE_TOKEN: process.env.SCREENS_SERVER_ENGINE_TOKEN,
       SCREENS_OWNER_ID: process.env.SCREENS_OWNER_ID,
       SCREENS_DEV_OPEN: process.env.SCREENS_DEV_OPEN,
     },
@@ -219,12 +235,12 @@ type EngineAnswer = { status: number; text: string; viewer: string | null };
  * One request to the engine on this PC. Null when it could not be asked: the address is refused, nothing answered in
  * time, or the answer was too large. No redirect is followed (the engine sends none), and nothing is kept.
  */
-async function askEngine(deps: ScreensDeps, path: '/settings' | '/offer', viewer: string | null, init: { method: 'GET' | 'POST'; contentType?: string; body?: string }, timeoutMs: number): Promise<EngineAnswer | null> {
-  const origin = engineOrigin(deps.env);
+async function askEngine(deps: ScreensDeps, path: '/settings' | '/offer', viewer: string | null, init: { method: 'GET' | 'POST'; contentType?: string; body?: string }, timeoutMs: number, engine: EngineId = 'pc'): Promise<EngineAnswer | null> {
+  const origin = engineOrigin(deps.env, engine);
   if (origin === null) return null;
   try {
     // The engine's key, when one is set, goes with every request (the engine refuses any without it).
-    const key = engineKey(deps.env);
+    const key = engineKey(deps.env, engine);
     const query = [viewer === null ? '' : `viewer=${viewer}`, key === null ? '' : `token=${key}`].filter(Boolean).join('&');
     const response = await deps.fetch(`${origin}${path}${query === '' ? '' : `?${query}`}`, {
       method: init.method,
@@ -296,7 +312,7 @@ function viewerOf(request: Request): string | null {
  */
 export async function hostAnswer(request: Request, deps: ScreensDeps = realDeps()): Promise<Response> {
   if (!(await ownerIsAsking(request, deps))) return notAvailable();
-  const answer = await askEngine(deps, '/settings', null, { method: 'GET' }, ENGINE_TIMEOUT_MS);
+  const answer = await askEngine(deps, '/settings', null, { method: 'GET' }, ENGINE_TIMEOUT_MS, engineOf(request));
   if (answer === null || answer.status !== 200) return notAvailable();
   try {
     const settings: unknown = JSON.parse(answer.text);
@@ -335,7 +351,7 @@ export async function offerAnswer(request: Request, deps: ScreensDeps = realDeps
   const offer = await bodyText(request, MAX_OFFER_BYTES);
   if (offer === null) return json(413, { error: 'That offer is too large.' });
   if (!offer.startsWith('v=0')) return json(400, { error: 'That is not a WebRTC offer.' });
-  const answer = await askEngine(deps, '/offer', null, { method: 'POST', contentType: 'application/sdp', body: offer }, ENGINE_TIMEOUT_MS);
+  const answer = await askEngine(deps, '/offer', null, { method: 'POST', contentType: 'application/sdp', body: offer }, ENGINE_TIMEOUT_MS, engineOf(request));
   if (answer === null) return engineSilent();
   if (answer.status !== 201 && answer.status !== 200) {
     // The engine says why in plain words ("4 viewers are already watching"); its own faults read as "did not answer".
@@ -363,9 +379,9 @@ export async function settingsAnswer(request: Request, deps: ScreensDeps = realD
     } catch {
       return json(400, { error: 'Send the settings as a JSON object.' });
     }
-    answer = await askEngine(deps, '/settings', viewer, { method: 'POST', contentType: 'application/json', body }, ENGINE_CHANGE_TIMEOUT_MS);
+    answer = await askEngine(deps, '/settings', viewer, { method: 'POST', contentType: 'application/json', body }, ENGINE_CHANGE_TIMEOUT_MS, engineOf(request));
   } else {
-    answer = await askEngine(deps, '/settings', viewer, { method: 'GET' }, ENGINE_TIMEOUT_MS);
+    answer = await askEngine(deps, '/settings', viewer, { method: 'GET' }, ENGINE_TIMEOUT_MS, engineOf(request));
   }
   if (answer === null) return engineSilent();
   if (answer.status !== 200) {

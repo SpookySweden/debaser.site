@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { useScreenHost } from '../lib/screens/host-client';
+import { ENGINE_NAMES, useScreenHost, type EngineId } from '../lib/screens/host-client';
+import { useRdpWay } from '../lib/screens/rdp-client';
 import { ScreenSession } from '../lib/screens/session';
 import {
   BITRATE_MIN_MBIT,
@@ -30,7 +31,7 @@ import {
   troubleLines,
   type HostPcScreen,
 } from '../lib/screens/wishes';
-import { useRemoteSource } from '../lib/screens/devices';
+import { chooseRemoteSource, useRemoteSource } from '../lib/screens/devices';
 import RoomDeviceScreen from './RoomDeviceScreen';
 import RoomRdpScreen from './RoomRdpScreen';
 import { ROUTE_WORDS } from '../lib/screens/net-route';
@@ -58,18 +59,20 @@ export default function RoomScreen(props: { roomId: string; /** As the room's sc
   const source = useRemoteSource();
   if (source.kind === 'device') return <RoomDeviceScreen key={source.id} source={source} />;
   if (source.kind === 'rdp') return <RoomRdpScreen />;
-  return <EngineScreen {...props} />;
+  // One session per machine: switching between THE PC's engine and THE SERVER's starts afresh.
+  return <EngineScreen key={source.engine} {...props} engine={source.engine} />;
 }
 
-function EngineScreen({ roomId, audio }: { roomId: string; audio: boolean }) {
-  const host = useScreenHost();
+function EngineScreen({ roomId, audio, engine }: { roomId: string; audio: boolean; engine: EngineId }) {
+  const host = useScreenHost(engine);
+  const rdp = useRdpWay();
   const root = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const fastCanvas = useRef<HTMLCanvasElement>(null);
   const sharpCanvas = useRef<HTMLCanvasElement>(null);
   const sound = useRef<HTMLAudioElement>(null);
-  const [session] = useState(() => new ScreenSession());
+  const [session] = useState(() => new ScreenSession(engine));
   const view = useSyncExternalStore(session.subscribe, session.getState, session.getState);
   const [panelOpen, setPanelOpen] = useState(false);
   /** The bitrate slider says its number while it moves and asks the PC once, when it is let go. */
@@ -182,7 +185,20 @@ function EngineScreen({ roomId, audio }: { roomId: string; audio: boolean }) {
         {/* Which way the picture travels, read from the connection itself (Luke, 2026-11-21: clear when it is the home network). */}
         {view.route ? (
           <span className="w-fit bg-ink-plate px-1 font-mono text-label text-ink-bar" title={ROUTE_WORDS[view.route].tip} data-screen-route={view.route}>
-            {`OUR ENGINE :: ${ROUTE_WORDS[view.route].label}`}
+            {`${ENGINE_NAMES[engine]} :: OUR ENGINE :: ${ROUTE_WORDS[view.route].label}`}
+          </span>
+        ) : null}
+        {/* The server's two ways in, as a switch both ways (Luke: "make it a clear toggle"): our engine, or
+            Windows Remote Desktop through Guacamole when it is switched on. */}
+        {engine === 'server' && rdp.available && rdp.on ? (
+          <span className="flex max-w-full flex-wrap items-center justify-end gap-1 bg-ink-plate px-1 font-mono text-label text-ink-bar" data-screen-way-in>
+            <span>WAY IN</span>
+            <button type="button" className={PLATE_ON_BLACK_PRESSED} aria-pressed="true" data-screen-way="engine">
+              [ OUR ENGINE ]
+            </button>
+            <button type="button" className={PLATE_ON_BLACK} aria-pressed="false" onClick={() => chooseRemoteSource({ kind: 'rdp' })} title="Windows' own Remote Desktop through Guacamole: slower, but works without our engine" data-screen-way="rdp">
+              [ WINDOWS REMOTE DESKTOP (GUACAMOLE) ]
+            </button>
           </span>
         ) : null}
         {/* While this device controls the PC, the way out is always in sight (Luke, 2026-11-21: "we need an easier way of

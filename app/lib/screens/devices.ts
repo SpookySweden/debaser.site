@@ -1,7 +1,7 @@
 'use client';
 
 import { useSyncExternalStore } from 'react';
-import { sessionHeaders } from './host-client';
+import { sessionHeaders, type EngineId } from './host-client';
 
 /**
  * REMOTE from another of the owner's own devices, with nothing installed (SPEC-screens.md; the server side is
@@ -156,8 +156,9 @@ export function useOtherDevices(): State {
 /* --- which screen REMOTE shows: the PC's engine, or one of the owner's other devices ------------------------------ */
 
 /** `rdp`: the server, by Windows Remote Desktop through the PC's gateway (RoomRdpScreen). */
-export type RemoteSource = { kind: 'engine' } | { kind: 'rdp' } | { kind: 'device'; id: string; name: string };
-let source: RemoteSource = { kind: 'engine' };
+/** `engine`: our own engine, on THE PC or THE SERVER (2026-11-22, both ways). */
+export type RemoteSource = { kind: 'engine'; engine: EngineId } | { kind: 'rdp' } | { kind: 'device'; id: string; name: string };
+let source: RemoteSource = { kind: 'engine', engine: 'pc' };
 const sourceListeners = new Set<() => void>();
 
 export function chooseRemoteSource(next: RemoteSource): void {

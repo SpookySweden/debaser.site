@@ -613,7 +613,8 @@ async function main() {
     const answer = JSON.parse((await read(await server.hostAnswer(ask('/api/screens/host', { token: liveOwner }), real.deps))).text);
     same([answer.available, 'drive' in answer], [true, false], 'the real site, to its real owner, never does');
     const clientText = fs.readFileSync(path.join(ROOT, 'app/lib/screens/host-client.ts'), 'utf8');
-    ok(/if \(!host\.drive\) return false;/.test(clientText), "and the browser honours the drive's mark only when the server said so");
+    // (Two engines since 2026-11-22: the mark counts only when the site said `drive` for one of them.)
+    ok(/if \(!hosts\.pc\.drive && !hosts\.server\.drive\) return false;/.test(clientText), "and the browser honours the drive's mark only when the server said so");
   }
 
   /* ---------------------------------------------------------------- the room's screen choice */
@@ -642,6 +643,17 @@ async function main() {
     const stranger = world({ ...live, SCREENS_ENGINE_URL: 'http://192.168.0.30:8478', SCREENS_ENGINE_TOKEN: KEY }, { accounts, engine: engineUp });
     await server.hostAnswer(ask('/api/screens/host', { token: liveOther }), stranger.deps);
     same(stranger.seen.engine.length, 0, 'and nobody else makes the site ask it');
+
+    // Both ways (2026-11-22): THE SERVER's own engine beside THE PC's, named by ?engine=server.
+    same(server.engineOrigin({}, 'server'), null, "THE SERVER's engine is off until its address is set (no default)");
+    same(server.engineOrigin({ SCREENS_SERVER_ENGINE_URL: 'http://127.0.0.1:8478' }, 'server'), 'http://127.0.0.1:8478', 'set: the engine on the same machine');
+    same(server.engineOrigin({ SCREENS_SERVER_ENGINE_URL: 'http://192.168.0.154:8478' }, 'server'), null, 'on another machine only with its own key');
+    same(server.engineOrigin({ SCREENS_SERVER_ENGINE_URL: 'http://192.168.0.154:8478', SCREENS_ENGINE_TOKEN: KEY }, 'server'), null, "and THE PC's key is not its key");
+    const both = world({ ...live, SCREENS_ENGINE_URL: 'http://192.168.0.30:8478', SCREENS_ENGINE_TOKEN: KEY, SCREENS_SERVER_ENGINE_URL: 'http://127.0.0.1:8478' }, { accounts, engine: engineUp });
+    await server.hostAnswer(ask('/api/screens/host?engine=server', { token: liveOwner }), both.deps);
+    await server.hostAnswer(ask('/api/screens/host', { token: liveOwner }), both.deps);
+    same(both.seen.engine.map((c) => c.url.replace(KEY, '<key>')), ['http://127.0.0.1:8478/settings', 'http://192.168.0.30:8478/settings?token=<key>'], "?engine=server asks THE SERVER's engine (no key on its own machine); nothing added asks THE PC's, with its key");
+    same(server.engineOf(new Request('https://debaser.site/api/screens/offer?engine=elsewhere')), 'pc', 'any other name is THE PC');
   }
 
   /* ---------------------------------------------------------------- the server by Remote Desktop: owner only, a pass the gateway takes */

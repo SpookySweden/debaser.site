@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { askScreenHost, useScreenHost } from '../lib/screens/host-client';
+import { ENGINE_NAMES, askScreenHost, useScreenHost } from '../lib/screens/host-client';
 import { ROUTE_WORDS } from '../lib/screens/net-route';
 import { askRdpWay, switchRdp, useRdpWay } from '../lib/screens/rdp-client';
 import { chooseRemoteSource,startDeviceBeacon, useOtherDevices, useRemoteSource, type RemoteSource } from '../lib/screens/devices';
@@ -30,7 +30,8 @@ export default function ScreenToggle({
   audio: boolean;
   className?: string;
 }) {
-  const host = useScreenHost();
+  const host = useScreenHost('pc');
+  const serverEngine = useScreenHost('server');
   const devices = useOtherDevices();
   const source = useRemoteSource();
   const onScreen = useScreenView(roomId, audio) === 'screen';
@@ -50,7 +51,11 @@ export default function ScreenToggle({
   const rdpRoute = ROUTE_WORDS[rdp.route === 'direct' ? 'this-pc' : 'tunnel'];
   const choices: { label: string; tip: string; source: RemoteSource }[] = [
     ...(host.available
-      ? [{ label: `THE PC :: OUR ENGINE, WATCH AND CONTROL :: ${homeOnly.label}`, tip: `${homeOnly.tip} Our engine is reached on the home network only, for now.`, source: { kind: 'engine' } as RemoteSource }]
+      ? [{ label: `THE PC :: OUR ENGINE, WATCH AND CONTROL :: ${homeOnly.label}`, tip: `${homeOnly.tip} Our engine is reached on the home network only, for now.`, source: { kind: 'engine', engine: 'pc' } as RemoteSource }]
+      : []),
+    // SERVER's own engine (Media Foundation, Intel's encoder), the low-latency way to the server (2026-11-22).
+    ...(serverEngine.available
+      ? [{ label: `THE SERVER :: OUR ENGINE, WATCH AND CONTROL :: ${homeOnly.label}`, tip: `${homeOnly.tip} Our engine on the server: much lower delay than Remote Desktop.`, source: { kind: 'engine', engine: 'server' } as RemoteSource }]
       : []),
     // A separate thing from our own engine, with its own switch (Luke: "make sure it is a toggle since it is a separate
     // thing to our tech"), and plainly the slower way in.
@@ -86,8 +91,8 @@ export default function ScreenToggle({
     // show even if it's just one device on").
     setChoosing((open) => !open);
   };
-  const named = (s: RemoteSource) => (s.kind === 'engine' ? 'THE PC' : s.kind === 'rdp' ? 'THE SERVER' : s.name);
-  const keyOf = (s: RemoteSource) => (s.kind === 'device' ? s.id : s.kind);
+  const named = (s: RemoteSource) => (s.kind === 'engine' ? ENGINE_NAMES[s.engine] : s.kind === 'rdp' ? 'THE SERVER' : s.name);
+  const keyOf = (s: RemoteSource) => (s.kind === 'device' ? s.id : s.kind === 'engine' && s.engine === 'server' ? 'engine-server' : s.kind);
 
   return (
     <span className="relative inline-block">

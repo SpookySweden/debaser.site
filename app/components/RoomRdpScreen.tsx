@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { GUAC_STATE, KEYSYM_ESCAPE, loadGuacamole, type GuacClient } from '../lib/screens/guacamole';
 import { keysymOf } from '../lib/screens/keysyms';
+import { chooseRemoteSource } from '../lib/screens/devices';
+import { useScreenHost } from '../lib/screens/host-client';
 import { leaveKeys, takeKeys, type KeyTaker } from '../lib/screens/key-gate';
 import { ROUTE_WORDS, type NetRoute } from '../lib/screens/net-route';
 import { askRdpPass, doorIsOpen, readRdpWayNow, saveServerSignIn, switchRdp } from '../lib/screens/rdp-client';
@@ -100,6 +102,7 @@ function troubleWords(code: number, message: string | undefined): string {
 export default function RoomRdpScreen() {
   const box = useRef<HTMLDivElement>(null);
   const holder = useRef<HTMLDivElement>(null);
+  const serverEngine = useScreenHost('server');
   const [state, setState] = useState<State>('starting');
   const [why, setWhy] = useState('');
   const [tries, setTries] = useState(0);
@@ -414,11 +417,12 @@ export default function RoomRdpScreen() {
             type="button"
             className={PLATE_ON_BLACK}
             aria-pressed="false"
-            disabled
-            title="Our engine is not on the server yet: it needs the engine's AMD/Intel encoder path"
+            disabled={!serverEngine.available}
+            onClick={() => chooseRemoteSource({ kind: 'engine', engine: 'server' })}
+            title={serverEngine.available ? 'Our own engine on the server: much lower delay than Remote Desktop' : "Our engine isn't running on the server right now"}
             data-room-rdp-way="engine"
           >
-            [ OUR ENGINE: NOT ON THE SERVER YET ]
+            {serverEngine.available ? '[ OUR ENGINE ]' : '[ OUR ENGINE: NOT RUNNING ON THE SERVER ]'}
           </button>
           <button type="button" className={optionsShown ? PLATE_ON_BLACK_PRESSED : PLATE_ON_BLACK} aria-expanded={optionsShown} onClick={() => setOptionsOpen((open) => !open)} data-room-rdp-options>
             [ OPTIONS ]

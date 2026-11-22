@@ -1,4 +1,4 @@
-import { sendOffer } from './host-client';
+import { sendOffer, type EngineId } from './host-client';
 import { routeFromStats, type NetRoute } from './net-route';
 import { isLoopbackAddress } from './wire';
 
@@ -10,6 +10,8 @@ import { isLoopbackAddress } from './wire';
  */
 
 export type ConnectionHooks = {
+  /** Which machine's engine the hello goes to (THE PC when not said). */
+  engine?: EngineId;
   /** The stream's video has arrived, in a stream of its own. */
   onTrack: (track: MediaStreamTrack, stream: MediaStream) => void;
   /** The stream's sound line has arrived, in a stream of its own (silent until this device asks for sound). */
@@ -141,7 +143,7 @@ export class ScreenConnection {
     // Let go of before the hello was even sent: it is not sent.
     if (this.stopped) return;
     const offer = connection.localDescription?.sdp ?? '';
-    const answer = await sendOffer(offer);
+    const answer = await sendOffer(offer, this.hooks.engine ?? 'pc');
     // Let go of while the hello was on its way: nothing more is done with its answer.
     if (this.stopped) return;
     // The PC numbers its viewers; saying ours back lets it tell this device whether control is "yours".

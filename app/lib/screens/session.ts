@@ -2,7 +2,7 @@ import { ScreenConnection, type StreamStats } from './connection';
 import { type NetRoute } from './net-route';
 import { ScreenControl, canLockKeyboard } from './control';
 import { ScreenDrawing } from './drawing';
-import { pretendNotThisPc, screenHostNow, talkToSettings, type SettingsAnswer } from './host-client';
+import { pretendNotThisPc, screenHostNow, talkToSettings, type EngineId, type SettingsAnswer } from './host-client';
 import { ScreenPointerShape } from './pointer-shape';
 import { soundMessage } from './wire';
 import {
@@ -143,6 +143,9 @@ const quietly = (promise: Promise<unknown>): void => {
 };
 
 export class ScreenSession {
+  /** Which machine's engine this session shows: THE PC's or THE SERVER's (2026-11-22). */
+  constructor(readonly engine: EngineId = 'pc') {}
+
   private state: ScreenState = FIRST_STATE;
   private readonly listeners = new Set<() => void>();
 
@@ -234,7 +237,7 @@ export class ScreenSession {
     this.parts = parts;
     this.wishes = readWishes();
     // What the site said when it offered the SCREEN key, until the PC is asked again.
-    this.host = screenHostNow().settings;
+    this.host = screenHostNow(this.engine).settings;
     this.hostTrouble = '';
     this.problem = '';
     this.asking = 0;
@@ -352,6 +355,7 @@ export class ScreenSession {
     const life = this.life;
     this.problem = '';
     const connection = new ScreenConnection({
+      engine: this.engine,
       onTrack: (track, stream) => {
         if (!this.alive(life)) return;
         parts.video.srcObject = stream;
@@ -479,7 +483,7 @@ export class ScreenSession {
     if (changing) this.asking += 1;
     let answer: SettingsAnswer;
     try {
-      answer = await talkToSettings(this.connection?.viewer ?? null, change);
+      answer = await talkToSettings(this.connection?.viewer ?? null, change, this.engine);
     } catch {
       if (!this.alive(life)) return null;
       this.hostTrouble = 'The PC could not be reached for its settings.';

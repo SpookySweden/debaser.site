@@ -119,7 +119,7 @@ for downloads"); Windows Remote Desktop already works to it. A page can never sh
 without somebody pressing something on that device, so the way in is Windows' own Remote Desktop, turned into a
 picture in the room on the PC: "since remote desktop is likely less efficient than our solution make it a clear toggle".
 - `[ REMOTE ]` lists `THE SERVER :: CONTROL BY REMOTE DESKTOP (SLOWER THAN OUR ENGINE)` (alone, it goes straight there).
-- In the view: a WAY IN switch, `[ REMOTE DESKTOP ]` (pressed) beside `[ OUR ENGINE: NOT ON THE SERVER YET ]` (shown,
+- In the view: a WAY IN switch, `[ REMOTE DESKTOP ]` (pressed) beside `[ OUR ENGINE ]` (pressable once SERVER's own engine answers) (shown,
   not pressable until the engine runs on the server, which needs its AMD/Intel encoder path). Control is on from the
   start; holding Esc a second or `[ RELEASE ]` lets go, a click takes it back; a short Esc is the server's. The
   server's desktop starts at the size of the viewer's own screen, drawn whole (nothing cropped or stretched);
@@ -137,7 +137,7 @@ picture in the room on the PC: "since remote desktop is likely less efficient th
   through the site (owner only) to the gateway (signed over the exact body) into rdp.env; the fields start empty every
   time, an empty field keeps its line, a line break is refused, and nothing is answered back or logged.
 - The view's corner stays short so a small room's picture stays clickable: the WAY IN row
-  (`[ WINDOWS REMOTE DESKTOP (GUACAMOLE) ]`, `[ OUR ENGINE: NOT ON THE SERVER YET ]`, `[ OPTIONS ]`), the route, and
+  (`[ WINDOWS REMOTE DESKTOP (GUACAMOLE) ]`, `[ OUR ENGINE ]` (pressable once SERVER's own engine answers), `[ OPTIONS ]`), the route, and
   one status or control line. The server switch, FIT and SERVER SIGN-IN are under OPTIONS, which opens by itself when
   the remote is off or the server is not named.
 - Its own switch (Luke, 2026-11-21: "make sure it is a toggle since it is a separate thing to our tech"): off until he
@@ -151,6 +151,22 @@ picture in the room on the PC: "since remote desktop is likely less efficient th
   server is never opened over the internet. Locked, the view shows `[ UNLOCK WITH AN EMAIL CODE ]`: Cloudflare's own
   page in a small window; once through, it closes itself and the room connects.
 - Desktop-grade, not gaming: Remote Desktop's picture is pictures and screen updates, not a video stream.
+
+### Our engine both ways (Luke, 2026-11-22: "get our engine working both ways")
+The site moved to SERVER (HP ProDesk, Windows 11 Pro, Intel UHD 630, no NVIDIA). Our engine now runs on either machine:
+- **The engine's second encoder**: `engine/native/mf.cpp`, Windows' own Media Foundation driving the card's hardware
+  encoder (Intel Quick Sync on SERVER): low-latency mode, CBR, no B-frames, Baseline, the picture handed over on the
+  card. Chosen when there is no NVIDIA encoder, or with `DEBASER_ENCODER=mf`. Nothing installed: it is part of Windows.
+- **The site reaches both engines**: THE PC's (`SCREENS_ENGINE_URL` + `SCREENS_ENGINE_TOKEN`, across the home network
+  since the site left the PC; the engine runs `--listen 0.0.0.0 --token <key>`, the key worked out on both machines
+  from the secret they already share) and THE SERVER's (`SCREENS_SERVER_ENGINE_URL`, on its own machine). The browser
+  names one with `?engine=server`.
+- `[ REMOTE ]` lists `THE PC :: OUR ENGINE` and `THE SERVER :: OUR ENGINE` when each answers. The server's WAY IN switch
+  goes both ways: `[ OUR ENGINE ]` / `[ WINDOWS REMOTE DESKTOP (GUACAMOLE) ]`, from either view.
+- Catches, said once: the engine captures the screen session on the physical display, so SERVER's login must be on
+  its screen (the Kamvas), not inside Remote Desktop or disconnected after it: a restart puts it back (auto sign-in), or
+  `C:\DEBASER-SETUP\back-to-screen.ps1` from inside Remote Desktop (admin). Windows' firewall on each machine must let
+  the engine in on the home network (Luke's call when asked). The gaming PC must be on the home network.
 
 ### Which way each connection goes (Luke, 2026-11-21)
 "Make sure its clear when something is done over lan vs port forwarding or whatever its technically called." Nothing

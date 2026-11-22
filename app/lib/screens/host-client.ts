@@ -58,7 +58,7 @@ const DRIVE_NOT_THIS_PC = 'debaser.screens.drive.not-this-pc';
  * cannot say (`devOpen` in host-server.ts is compiled out of a production build).
  */
 export function pretendNotThisPc(): boolean {
-  if (!host.drive) return false;
+  if (!hosts.pc.drive && !hosts.server.drive) return false;
   try {
     return window.localStorage.getItem(DRIVE_NOT_THIS_PC) === '1';
   } catch {
@@ -68,7 +68,20 @@ export function pretendNotThisPc(): boolean {
 /** A room opening asks again, but never more often than this. */
 const ASK_AGAIN_AFTER_MS = 10_000;
 
-let host: ScreenHost = NOT_THERE;
+/**
+ * Which machine's engine (2026-11-22: "our engine working both ways"): THE PC's (the gaming PC, as before) or THE
+ * SERVER's. The site's server is told with `?engine=server`; THE PC needs nothing added, so older pages still work.
+ */
+export type EngineId = 'pc' | 'server';
+export const ENGINE_IDS: EngineId[] = ['pc', 'server'];
+export const ENGINE_NAMES: Record<EngineId, string> = { pc: 'THE PC', server: 'THE SERVER' };
+const engineParam = (engine: EngineId): string => (engine === 'server' ? 'engine=server' : '');
+const withParams = (path: string, ...params: string[]): string => {
+  const query = params.filter(Boolean).join('&');
+  return query === '' ? path : `${path}?${query}`;
+};
+
+let hosts: Record<EngineId, ScreenHost> = { pc: NOT_THERE, server: NOT_THERE };
 let askedAt = 0;
 const listeners = new Set<() => void>();
 
@@ -77,17 +90,18 @@ function subscribe(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-function setHost(next: ScreenHost): void {
-  if (next.available === host.available && next.settings === host.settings) return;
-  host = next;
+function setHost(next: ScreenHost, engine: EngineId = 'pc'): void {
+  const was = hosts[engine];
+  if (next.available === was.available && next.settings === was.settings) return;
+  hosts = { ...hosts, [engine]: next };
   for (const listener of listeners) listener();
 }
 
-async function readHost(): Promise<ScreenHost> {
+async function readHost(engine: EngineId): Promise<ScreenHost> {
   try {
     const headers = await sessionHeaders();
     if (headers === null) return NOT_THERE;
-    const response = await fetch('/api/screens/host', { headers, cache: 'no-store' });
+    const response = await fetch(withParams('/api/screens/host', engineParam(engine)), { headers, cache: 'no-store' });
     if (!response.ok) return NOT_THERE;
     const body: unknown = await response.json();
     if (typeof body !== 'object' || body === null || (body as { available?: unknown }).available !== true) return NOT_THERE;
@@ -102,20 +116,20 @@ export function askScreenHost(): void {
   const now = Date.now();
   if (askedAt !== 0 && now - askedAt < ASK_AGAIN_AFTER_MS) return;
   askedAt = now;
-  void readHost().then(setHost);
+  for (const engine of ENGINE_IDS) void readHost(engine).then((next) => setHost(next, engine));
 }
 
-/** Whether the PC's screen is there for this reader: only ever true for its owner, while the engine answers. */
-export function useScreenHost(): ScreenHost {
+/** Whether that machine's screen is there for this reader: only ever true for its owner, while its engine answers. */
+export function useScreenHost(engine: EngineId = 'pc'): ScreenHost {
   return useSyncExternalStore(
     subscribe,
-    () => host,
+    () => hosts[engine],
     () => NOT_THERE,
   );
 }
 
 /** What the site last said, for code that is not a component. */
-export const screenHostNow = (): ScreenHost => host;
+export const screenHostNow = (engine: EngineId = 'pc'): ScreenHost => hosts[engine];
 
 /* --- the hello ----------------------------------------------------------------------------------- */
 
@@ -123,15 +137,15 @@ export const screenHostNow = (): ScreenHost => host;
  * Sends this browser's WebRTC offer and brings the engine's answer back, with the number the PC gave this viewer
  * (saying it back lets the PC tell this device whether control is "yours"). Throws the reason in plain words.
  */
-export async function sendOffer(sdp: string): Promise<{ sdp: string; viewer: string | null }> {
+export async function sendOffer(sdp: string, engine: EngineId = 'pc'): Promise<{ sdp: string; viewer: string | null }> {
   const headers = await sessionHeaders();
   if (headers === null) {
-    setHost(NOT_THERE);
+    setHost(NOT_THERE, engine);
     throw new Error('sign in first');
   }
-  const response = await fetch('/api/screens/offer', { method: 'POST', headers: { ...headers, 'Content-Type': 'application/sdp' }, body: sdp, cache: 'no-store' });
+  const response = await fetch(withParams('/api/screens/offer', engineParam(engine)), { method: 'POST', headers: { ...headers, 'Content-Type': 'application/sdp' }, body: sdp, cache: 'no-store' });
   // No longer this reader's to open (signed out, or signed in as somebody else, since the key was offered): the key goes.
-  if (response.status === 403) setHost(NOT_THERE);
+  if (response.status === 403) setHost(NOT_THERE, engine);
   if (!response.ok) throw new Error(await wordsOf(response, `the site answered ${response.status}`));
   return { sdp: await response.text(), viewer: response.headers.get('Debaser-Viewer') };
 }
@@ -141,10 +155,10 @@ export async function sendOffer(sdp: string): Promise<{ sdp: string; viewer: str
 export type SettingsAnswer = { ok: true; settings: HostSettings } | { ok: false; why: string };
 
 /** Reads what the PC is sending (`change` null) or asks it for a change. Throws only when it could not be asked at all. */
-export async function talkToSettings(viewer: string | null, change: SettingsRequest | null): Promise<SettingsAnswer> {
+export async function talkToSettings(viewer: string | null, change: SettingsRequest | null, engine: EngineId = 'pc'): Promise<SettingsAnswer> {
   const headers = await sessionHeaders();
   if (headers === null) throw new Error('signed out');
-  const address = `/api/screens/settings${viewer === null ? '' : `?viewer=${encodeURIComponent(viewer)}`}`;
+  const address = withParams('/api/screens/settings', viewer === null ? '' : `viewer=${encodeURIComponent(viewer)}`, engineParam(engine));
   const response = await fetch(address, change === null ? { headers, cache: 'no-store' } : { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(change), cache: 'no-store' });
   if (!response.ok) return { ok: false, why: await wordsOf(response, String(response.status)) };
   const settings = hostSettingsFrom(await response.json());
