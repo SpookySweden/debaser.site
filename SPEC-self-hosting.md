@@ -284,6 +284,14 @@ fixed drive letter for `C:\DRIVES\G`, and the database came back from `backup.cj
    is mounted empty until Docker Desktop and WSL are restarted.
 4. Docker Desktop must start at sign-in (its own setting *and* Windows' Startup apps switch): after SERVER's first test
    restart the site and tunnel came back but Docker didn't, because the Startup apps entry was off.
+5. **The vault's locks don't survive a fresh install.** `vault.secrets` comes back from the dump encrypted with the old
+   host's pgsodium root key, which a fresh Supabase doesn't have: every read of `vault.decrypted_secrets` then fails with
+   "invalid ciphertext". On 2026-11-22 that stopped the hourly MEDIA fetch (`web-ingest`) and the weekly email
+   (`notify-digest`) from 02:17 UTC until 22:23, unnoticed until `check-notify-email-live` failed (a wrong lock answered 500).
+   Both locks are used only inside the database, so new random ones are enough: each row removed and made again with its
+   name and description (`vault.update_secret` decrypts the old value first and fails the same way), in
+   `G:\DEBASER-HOST\fixes\2026-11-22-vault-relock.sql`, after a backup and with Luke's OK. After any restore, check
+   `select name from vault.decrypted_secrets` and the last `cron.job_run_details` of each job.
 
 ## SERVER's other jobs (2026-11-22, set up by the "PC setup and synchronization" session)
 - **SSH**: OpenSSH Server, starts automatically, key sign-in only (`PasswordAuthentication no`), `MaxSessions 10`, sftp on,
