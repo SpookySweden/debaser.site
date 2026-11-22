@@ -178,10 +178,13 @@ export function useRemoteSource(): RemoteSource {
 }
 
 /**
- * The WebRTC setup both sides use: no outside server at all, so two devices find each other on the home network only
- * (as the PC's engine is reached today). Two devices on different networks would need a STUN/TURN server: not yet.
+ * The WebRTC setup both sides use (2026-11-22, "relay for anywhere"): Cloudflare's public STUN server (free, no key)
+ * tells each browser its address from outside, so two devices on different networks can reach each other directly
+ * behind ordinary home routers. On the home network they still go straight across it. (A device behind a strict
+ * network, such as a phone on mobile data, needs a relay too: not yet.)
  */
-export const DEVICE_RTC: RTCConfiguration = { iceServers: [] };
+export const STUN_SERVERS: RTCIceServer[] = [{ urls: 'stun:stun.cloudflare.com:3478' }];
+export const DEVICE_RTC: RTCConfiguration = { iceServers: STUN_SERVERS };
 
 /** One picture's own number, carried by every message of its handshake. */
 export function newCall(): string {

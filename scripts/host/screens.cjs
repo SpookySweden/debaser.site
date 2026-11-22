@@ -136,7 +136,7 @@ function startEngine(lan, key = null) {
 const engineArgs = (lan, key = null) => [
   'serve', '--allow-control', '--allow-fit',
   ...(lan || key ? ['--lan'] : []),
-  ...(key ? ['--listen', '0.0.0.0', '--token', key] : []),
+  ...(key ? ['--listen', '0.0.0.0', '--token', key, '--internet'] : []),
 ];
 
 /**

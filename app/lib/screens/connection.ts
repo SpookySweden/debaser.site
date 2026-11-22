@@ -1,3 +1,4 @@
+import { gathered, STUN_SERVERS } from './devices';
 import { sendOffer, type EngineId } from './host-client';
 import { routeFromStats, type NetRoute } from './net-route';
 import { isLoopbackAddress } from './wire';
@@ -73,8 +74,9 @@ export class ScreenConnection {
 
   /** Connects. Rejects with the reason in plain words when the hello could not be made. */
   async start(): Promise<void> {
-    // No outside helpers (STUN or TURN servers): the engine tells us its own address in its answer.
-    const connection = new RTCPeerConnection({ iceServers: [] });
+    // Cloudflare's public STUN server tells this browser its outside address, so an engine outside this network can
+    // reach it too (2026-11-22, "relay for anywhere"); on the home network the engine's own addresses still win.
+    const connection = new RTCPeerConnection({ iceServers: STUN_SERVERS });
     this.connection = connection;
     const transceiver = connection.addTransceiver('video', { direction: 'recvonly' });
     // SOUND has a line of its own in the same hello. Nothing travels on it until this device asks.
@@ -140,6 +142,9 @@ export class ScreenConnection {
     };
 
     await connection.setLocalDescription(await connection.createOffer());
+    // The hello carries this browser's addresses, the outside one too, so an engine outside the home can send its
+    // checks back (both sides at once is what opens the way through routers). At most 1.5 s, once per connection.
+    await gathered(connection, 1500);
     // Let go of before the hello was even sent: it is not sent.
     if (this.stopped) return;
     const offer = connection.localDescription?.sdp ?? '';
@@ -249,7 +254,11 @@ export class ScreenConnection {
     }
     const far = pair !== undefined && typeof pair.remoteCandidateId === 'string' ? byId.get(pair.remoteCandidateId) : undefined;
     const address = far === undefined ? null : (textOf(far.address) ?? textOf(far.ip));
-    if (address !== null && address !== '') result.reachedOnThisMachine = isLoopbackAddress(address);
+    // This device is the PC itself when the far end is this machine's loopback address, or (with the engine checking
+    // both ways, --internet) when both ends of the chosen path have the same address.
+    const near = pair !== undefined && typeof pair.localCandidateId === 'string' ? byId.get(pair.localCandidateId) : undefined;
+    const nearAddress = near === undefined ? null : (textOf(near.address) ?? textOf(near.ip));
+    if (address !== null && address !== '') result.reachedOnThisMachine = isLoopbackAddress(address) || (nearAddress !== null && nearAddress === address);
     result.route = routeFromStats(byId);
     if (heard.length > 0) {
       const sound = heard[heard.length - 1];

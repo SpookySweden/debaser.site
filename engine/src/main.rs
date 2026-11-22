@@ -18,6 +18,7 @@ mod pointer;
 mod serve;
 mod settings;
 mod sound;
+mod stun;
 
 use crate::native::DEFAULT_TWEAKS;
 

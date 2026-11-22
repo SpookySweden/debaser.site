@@ -172,6 +172,8 @@ export type HostSettings = {
   screen: { width: number; height: number; hz: number };
   limits: HostLimits;
   hostLimits: HostLimits;
+  /** The engine says this viewer is on the PC itself (its packets come from the PC's own address); null until it knows. */
+  thisMachine: boolean | null;
   cap: string | null;
   capWhy: string | null;
   applied: boolean;
@@ -241,6 +243,7 @@ export function hostSettingsFrom(value: unknown): HostSettings | null {
     screen: value.screen as HostSettings['screen'],
     limits: value.limits as HostLimits,
     hostLimits: value.hostLimits as HostLimits,
+    thisMachine: typeof value.thisMachine === 'boolean' ? value.thisMachine : null,
     cap: text('cap'),
     capWhy: text('capWhy'),
     applied: value.applied !== false,

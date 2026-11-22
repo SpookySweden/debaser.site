@@ -603,9 +603,12 @@ export class ScreenSession {
       return; /* the next second tries again */
     }
     if (!this.alive(life)) return;
-    this.learnWhetherThisIsThePc(s.reachedOnThisMachine);
-    if (s.route !== null && s.route !== this.route) {
-      this.route = s.route;
+    // The engine knows best (a browser hides its own address); the connection's own path otherwise.
+    this.learnWhetherThisIsThePc(this.host?.thisMachine ?? s.reachedOnThisMachine);
+    // On the PC itself the path may still run through its home-network address: the engine's word decides.
+    const route = this.host?.thisMachine === true ? 'this-pc' : s.route;
+    if (route !== null && route !== this.route) {
+      this.route = route;
       this.emit();
     }
     const drawing = this.drawing;

@@ -55,7 +55,7 @@ use crate::settings::{self, Asked, Limits, Plan, Shape};
 use crate::sound;
 use crate::{json, line, stats};
 
-pub const USAGE: &str = "[--shape native] [--lines 1080] [--fps 60] [--bitrate 20000] [--max-lines N] [--max-fps N] [--max-bitrate 50000] [--width W --height H] [--allow-control [--control-dry-run]] [--allow-fit] [--no-sound] [--preset 1] [--tweaks 125] [--intra-refresh] [--port 8478] [--udp-port 0] [--lan] [--trust-host name]... [--listen 127.0.0.1] [--token text] [--seconds N]";
+pub const USAGE: &str = "[--shape native] [--lines 1080] [--fps 60] [--bitrate 20000] [--max-lines N] [--max-fps N] [--max-bitrate 50000] [--width W --height H] [--allow-control [--control-dry-run]] [--allow-fit] [--no-sound] [--preset 1] [--tweaks 125] [--intra-refresh] [--port 8478] [--udp-port 0] [--lan] [--internet] [--trust-host name]... [--listen 127.0.0.1] [--token text] [--seconds N]";
 
 const VIEWER_PAGE: &str = include_str!("../web/viewer.html");
 
@@ -124,6 +124,10 @@ struct Args {
     /// `--lan`: the VIDEO may also travel to devices on the home network (the web address stays as `--listen`
     /// says, on this PC only by default).
     lan: bool,
+    /// `--internet`: also reachable from outside the home: the video socket's outside address is learnt from a public
+    /// STUN server (stun.rs) and offered to browsers, and the engine sends connection checks of its own (full ICE)
+    /// so both sides open the way through their routers. Implies `--lan`.
+    internet: bool,
     /// `--trust-host`: names besides this PC's own that a request may be addressed to, when it arrives from this
     /// PC itself (the website's own server passing a visitor's request on).
     trust_hosts: Vec<String>,
@@ -154,6 +158,7 @@ fn parse(args: &[String]) -> Result<Args, String> {
         port: 8478,
         udp_port: 0,
         lan: false,
+        internet: false,
         trust_hosts: Vec::new(),
         listen: IpAddr::V4(Ipv4Addr::LOCALHOST),
         token: None,
@@ -187,6 +192,10 @@ fn parse(args: &[String]) -> Result<Args, String> {
             "--port" => a.port = value()?.parse().map_err(|_| "--port is a number from 1 to 65535")?,
             "--udp-port" => a.udp_port = value()?.parse().map_err(|_| "--udp-port is a number from 0 (any) to 65535")?,
             "--lan" => a.lan = true,
+            "--internet" => {
+                a.internet = true;
+                a.lan = true;
+            }
             "--trust-host" => {
                 let name = value()?.to_ascii_lowercase();
                 if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-') {
@@ -302,6 +311,9 @@ struct Viewer {
     since: Instant,
     /// When anything last arrived from its browser.
     last_heard: Instant,
+    /// Where its packets last came from: when that is one of this PC's own addresses, the viewer is on this PC itself
+    /// (said in the settings as `thisMachine`, since a browser hides its own address from its page).
+    last_source: Option<SocketAddr>,
     /// When str0m next wants to be told the time.
     next_timeout: Instant,
     /// The two channels control travels on (control.rs), once the page has opened them.
@@ -339,6 +351,9 @@ struct Shared {
     socket: UdpSocket,
     /// The addresses browsers are told to send to (all on the one socket).
     candidates: Vec<SocketAddr>,
+    /// `--internet`: on, and what STUN has said (stun.rs). Locked on its own, never for long.
+    internet: bool,
+    stun: Mutex<crate::stun::Stun>,
     /// For a socket on every address: which of ours a sender's packets arrive at, remembered per sender.
     routes: Mutex<HashMap<IpAddr, IpAddr>>,
     /// A viewer needs a full picture: the next frame is forced to be one.
@@ -553,6 +568,41 @@ fn pump(v: &mut Viewer, shared: &Shared, now: Instant) {
 }
 
 /// The thread that listens: whatever arrives on the socket goes to the connection it belongs to.
+/// --internet: asks the STUN server for the video socket's outside address when it is due: every 20 seconds once
+/// known (which also keeps the router's door open), every 2 seconds until then. The name is looked up again when
+/// it could not be.
+fn ask_stun(shared: &Shared) {
+    let mut stun = shared.stun.lock().unwrap();
+    let now = Instant::now();
+    let every = if stun.outside.is_some() { Duration::from_secs(20) } else { Duration::from_secs(2) };
+    if stun.asked_at.is_some_and(|at| now.duration_since(at) < every) {
+        return;
+    }
+    stun.asked_at = Some(now);
+    if stun.server.is_none() {
+        stun.server = crate::stun::server(crate::stun::DEFAULT_SERVER);
+    }
+    if let Some(server) = stun.server {
+        stun.transaction = crate::stun::new_transaction();
+        let _ = shared.socket.send_to(&crate::stun::request(&stun.transaction), server);
+    }
+}
+
+/// --internet: whether a packet is the STUN server's answer to our question; if so its address is kept.
+fn heard_stun(shared: &Shared, packet: &[u8]) -> bool {
+    let mut stun = shared.stun.lock().unwrap();
+    match crate::stun::mapped_address(packet, &stun.transaction) {
+        Some(outside) => {
+            if stun.outside != Some(outside) {
+                println!("  outside address (STUN): {outside}");
+            }
+            stun.outside = Some(outside);
+            true
+        }
+        None => false,
+    }
+}
+
 fn network_loop(shared: Arc<Shared>) {
     let mut buf = vec![0u8; 2000];
     // For bench/pointer-check.cjs only: the pretended pointer's word, looked at ten times a second.
@@ -576,6 +626,9 @@ fn network_loop(shared: Arc<Shared>) {
                 }
             }
         }
+        if shared.internet {
+            ask_stun(&shared);
+        }
         // Sleep on the socket until a packet comes or a connection wants the time, and never longer than 10 ms
         // (a frame written by the other thread can bring a connection's next deadline forward).
         let mut wait = Duration::from_millis(10);
@@ -592,6 +645,9 @@ fn network_loop(shared: Arc<Shared>) {
 
         let mut viewers = shared.viewers.lock().unwrap();
         match got {
+            Ok((length, source)) if shared.internet && heard_stun(&shared, &buf[..length]) => {
+                let _ = source;
+            }
             Ok((length, source)) => {
                 let destination = shared.arrived_at(source);
                 // Anything that is not WebRTC traffic fails to parse here and is ignored.
@@ -604,6 +660,7 @@ fn network_loop(shared: Arc<Shared>) {
                             shared.want_keyframe.store(true, Ordering::SeqCst);
                         }
                         v.last_heard = now;
+                        v.last_source = Some(source);
                         if let Err(why) = v.rtc.handle_input(input) {
                             eprintln!("  viewer {} dropped: {why}", v.id);
                             v.rtc.disconnect();
@@ -1001,8 +1058,9 @@ fn hello(shared: &Shared, offer_text: &str) -> Result<(String, u64), (&'static s
     let offer = SdpOffer::from_sdp_string(offer_text).map_err(|why| ("400 Bad Request", format!("That is not a WebRTC offer: {why}")))?;
     let now = Instant::now();
     let mut rtc = Rtc::builder()
-        // We only ever answer: the browser finds us at the addresses below, we never go looking for it.
-        .set_ice_lite(true)
+        // At home we only answer: the browser finds us at the addresses below. With --internet the engine also sends
+        // checks of its own (full ICE), which is what opens the way through both routers.
+        .set_ice_lite(!shared.internet)
         // H.264 only, since that is what the encoder makes; and Opus for the PC's sound (no doubled-up packets:
         // a lost one is 10 ms of sound, which the browser covers over).
         .clear_codecs()
@@ -1015,6 +1073,16 @@ fn hello(shared: &Shared, offer_text: &str) -> Result<(String, u64), (&'static s
     for address in &shared.candidates {
         let candidate = Candidate::host(*address, "udp").map_err(|why| ("500 Internal Server Error", format!("Bad local address {address}: {why}")))?;
         rtc.add_local_candidate(candidate);
+    }
+    // --internet: the socket's outside address too, on the home-network address it belongs to.
+    if shared.internet {
+        let outside = shared.stun.lock().unwrap().outside;
+        let base = shared.candidates.iter().copied().find(|c| c.is_ipv4() && !c.ip().is_loopback());
+        if let (Some(outside), Some(base)) = (outside, base) {
+            if let Ok(candidate) = Candidate::server_reflexive(outside, base, "udp") {
+                rtc.add_local_candidate(candidate);
+            }
+        }
     }
     let answer = rtc.sdp_api().accept_offer(offer).map_err(|why| ("400 Bad Request", format!("The offer could not be accepted: {why}")))?;
 
@@ -1032,6 +1100,7 @@ fn hello(shared: &Shared, offer_text: &str) -> Result<(String, u64), (&'static s
         started: false,
         since: now,
         last_heard: now,
+        last_source: None,
         next_timeout: now,
         keys: None,
         pointer: None,
@@ -1266,6 +1335,13 @@ fn settings_json(shared: &Shared, viewer: Option<u64>) -> String {
             state.problem.as_deref().map_or("null".to_string(), settings::quoted)
         )
     };
+    // Whether the asking viewer is on this PC itself: its packets come from this PC's loopback or one of its own
+    // addresses. Null until it has sent any (or when no viewer number was given).
+    let this_machine_json = {
+        let source = viewer.and_then(|id| shared.viewers.lock().unwrap().iter().find(|v| v.id == id).and_then(|v| v.last_source));
+        let ours = |ip: IpAddr| ip.is_loopback() || shared.candidates.iter().any(|c| c.ip() == ip);
+        format!("\"thisMachine\": {}", source.map_or("null".to_string(), |s| ours(s.ip()).to_string()))
+    };
     let fit_json = {
         let yours = viewer.is_some_and(|id| shared.viewers.lock().unwrap().iter().any(|v| v.id == id && v.wants_fit.is_some()));
         format!("\"pcScreen\": {}", shared.fit.lock().unwrap().json(yours))
@@ -1319,7 +1395,7 @@ fn settings_json(shared: &Shared, viewer: Option<u64>) -> String {
         None => "null".to_string(),
     };
     format!(
-        "{{\"asked\": {}, \"sending\": {}, \"measured\": {}, \"screen\": {{\"width\": {}, \"height\": {}, \"hz\": {}}}, \"limits\": {}, \"hostLimits\": {}, \"cap\": {}, \"capWhy\": {}, \"applied\": {}, \"refused\": {}, \"viewers\": {}, \"control\": \"{}\", \"controlWhy\": {}, \"controlDryRun\": {}, {}, {}, {}, {}}}",
+        "{{\"asked\": {}, \"sending\": {}, \"measured\": {}, \"screen\": {{\"width\": {}, \"height\": {}, \"hz\": {}}}, \"limits\": {}, \"hostLimits\": {}, \"cap\": {}, \"capWhy\": {}, \"applied\": {}, \"refused\": {}, \"viewers\": {}, \"control\": \"{}\", \"controlWhy\": {}, \"controlDryRun\": {}, {}, {}, {}, {}, {}}}",
         asked_json,
         sending_json,
         measured_json,
@@ -1339,7 +1415,8 @@ fn settings_json(shared: &Shared, viewer: Option<u64>) -> String {
         controller_json,
         sound_json,
         pointer_json,
-        fit_json
+        fit_json,
+        this_machine_json
     )
 }
 
@@ -1564,6 +1641,8 @@ pub fn serve(args: &[String]) -> ExitCode {
         token: a.token.clone(),
         listen: a.listen,
         trust_hosts: a.trust_hosts.clone(),
+        internet: a.internet,
+        stun: Mutex::new(crate::stun::Stun::new()),
         stream: Mutex::new(stream),
         control: Mutex::new(Control::new(a.allow_control, a.control_dry_run, first.region, (screen_width, screen_height))),
         match_running: AtomicBool::new(capped_at_start),
@@ -1654,6 +1733,9 @@ pub fn serve(args: &[String]) -> ExitCode {
     }
     if shared.pretend_pointer.is_some() {
         println!("  THE PC'S POINTER IS PRETENDED, for the check (DEBASER_PRETEND_POINTER_FILE): the real one is ignored");
+    }
+    if a.internet {
+        println!("  --internet: also reachable from outside the home: the outside address is asked of {} (no key), and both sides open the way through their routers", crate::stun::DEFAULT_SERVER);
     }
     if a.lan {
         println!("  --lan: the VIDEO can reach devices on the home network; the web address is still {} only", a.listen);

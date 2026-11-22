@@ -14,6 +14,12 @@ import { isLoopbackAddress } from './wire';
  * internet. relay: through a relay server. tunnel: through the Cloudflare tunnel to the PC. */
 export type NetRoute = 'this-pc' | 'lan' | 'internet' | 'relay' | 'tunnel';
 
+/** Before connecting, for our engine and other devices: which way it will go is only known once connected. */
+export const DIRECT_WORDS = {
+  label: 'DIRECT (HOME NETWORK OR INTERNET)',
+  tip: 'Straight between the two devices: across your home network when both are on it, otherwise across the internet. No relay and no port opened on the router. A phone on mobile data may not get through yet.',
+};
+
 export const ROUTE_WORDS: Record<NetRoute, { label: string; tip: string }> = {
   'this-pc': {
     label: 'ON THIS PC',

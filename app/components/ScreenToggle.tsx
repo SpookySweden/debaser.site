@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { ENGINE_NAMES, askScreenHost, useScreenHost } from '../lib/screens/host-client';
-import { ROUTE_WORDS } from '../lib/screens/net-route';
+import { DIRECT_WORDS, ROUTE_WORDS } from '../lib/screens/net-route';
 import { askRdpWay, switchRdp, useRdpWay } from '../lib/screens/rdp-client';
 import { chooseRemoteSource,startDeviceBeacon, useOtherDevices, useRemoteSource, type RemoteSource } from '../lib/screens/devices';
 import { PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED } from '../lib/ui/controls';
@@ -47,11 +47,11 @@ export default function ScreenToggle({
   // Each choice says which way it goes (Luke, 2026-11-21: "make sure its clear when something is done over lan vs port
   // forwarding"). Our engine and other devices are reached on the home network only for now; the server's Remote
   // Desktop goes through the Cloudflare tunnel. The room's view then reads the real route from the connection.
-  const homeOnly = ROUTE_WORDS.lan;
+  const homeOnly = DIRECT_WORDS;
   const rdpRoute = ROUTE_WORDS[rdp.route === 'direct' ? 'this-pc' : 'tunnel'];
   const choices: { label: string; tip: string; source: RemoteSource }[] = [
     ...(host.available
-      ? [{ label: `THE PC :: OUR ENGINE, WATCH AND CONTROL :: ${homeOnly.label}`, tip: `${homeOnly.tip} Our engine is reached on the home network only, for now.`, source: { kind: 'engine', engine: 'pc' } as RemoteSource }]
+      ? [{ label: `THE PC :: OUR ENGINE, WATCH AND CONTROL :: ${homeOnly.label}`, tip: homeOnly.tip, source: { kind: 'engine', engine: 'pc' } as RemoteSource }]
       : []),
     // SERVER's own engine (Media Foundation, Intel's encoder), the low-latency way to the server (2026-11-22).
     ...(serverEngine.available

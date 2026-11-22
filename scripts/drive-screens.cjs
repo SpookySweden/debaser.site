@@ -133,7 +133,8 @@ function stopTree(child) {
 process.on('exit', () => started.forEach(stopTree));
 
 async function startEngine() {
-  const engineArgs = ['serve', '--allow-control', '--control-dry-run', '--allow-fit', '--tweaks', '76', '--port', String(ENGINE_PORT), '--seconds', '120'];
+  const engineArgs = ['serve', '--allow-control', '--control-dry-run', '--allow-fit', '--tweaks', '76', '--port', String(ENGINE_PORT), '--seconds', '120', ...(process.env.DRIVE_ENGINE_INTERNET === '1' ? ['--internet'] : [])];
+  // DRIVE_ENGINE_INTERNET=1: the engine as it runs for the site on another machine (full ICE, its outside address from STUN).
   fs.writeFileSync(POINTER_FILE, 'block\n');
   // FIT is a dry run: the engine pretends this monitor's modes (as engine/bench/fit-check.cjs does) and never makes a display call.
   fs.writeFileSync(MODES_FILE, ['3440x1440@180', '3440x1440@144', '2560x1440@144', '2560x1440@60', '1920x1080@144', '1920x1080@60'].join('\n') + '\n');
@@ -482,7 +483,11 @@ async function partOpen(browser) {
       assert.ok((await hostSound()).allowed, `the engine sends sound: ${JSON.stringify(await hostSound())}`);
       await settingsKey.click();
       await page.waitForSelector('[data-screen-panel]', { timeout: 5000 });
-      await page.waitForFunction(() => /this device is the PC itself/.test(document.querySelector('[data-screen-sound-state]')?.textContent ?? ''), null, { timeout: 8000 });
+      const pcItself = await page.waitForFunction(() => /this device is the PC itself/.test(document.querySelector('[data-screen-sound-state]')?.textContent ?? ''), null, { timeout: 8000 }).catch(() => null);
+      if (!pcItself) {
+        const path = await page.evaluate(async () => { const c = window.__connections[window.__connections.length - 1]; const r = await c.getStats(); const by = new Map(); r.forEach((e) => by.set(e.id, e)); let pair; by.forEach((e) => { if (e.type === 'transport' && e.selectedCandidatePairId) pair = by.get(e.selectedCandidatePairId); }); const l = pair && by.get(pair.localCandidateId); const f = pair && by.get(pair.remoteCandidateId); return { near: l && [l.candidateType, l.address, l.port], far: f && [f.candidateType, f.address, f.port], says: document.querySelector('[data-screen-sound-state]')?.textContent }; });
+        assert.fail('on the PC itself, the panel should say so: ' + JSON.stringify(path));
+      }
       const onPc = await page.locator('[data-screen-panel]').innerText();
       assert.ok(onPc.includes('ON THIS PC THE SOUND WOULD FEED BACK INTO ITSELF'), 'the panel warns');
       assert.equal(await page.locator('[data-screen-sound-key]').count(), 0, 'no [ SOUND ] key on the PC itself');
