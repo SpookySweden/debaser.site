@@ -392,3 +392,12 @@ is missing, or with DEBASER_ENCODER=mf. Measured on the gaming PC through NVIDIA
 Windows showing it -> encoded middle 3.68 ms. Stream: AUD, SPS, PPS, IDR, then P frames; profile 66 (Baseline).
 drive-screens --only open with DEBASER_ENCODER=mf: 18 of 18 (decoded in Chrome, resized to 1280x720, control,
 sound, controller, pointer). Intel's encoder itself not measured yet (on SERVER).
+
+### Intel UHD 630 on SERVER (Windows 11), through Media Foundation (2026-11-22)
+bench-encode 1920x1080 at 60 fps, 12 Mbit/s, 300 frames, DEBASER_MF_TRACE=1, from the console session:
+- First builds: every way of getting a frame back took ~16 ms (low-latency mode on: 16.0 ms; off: 1 ms but one call
+  late; drain-per-frame: 16 ms), at 720p and at 30 fps too. Cause: Windows 11 ignores a windowless program's fine-timer
+  request, so the encoder wait's "Sleep(1)" was ~15.6 ms.
+- After 9a19f64 (awake waits, ProcessPowerThrottling opt-out): low-latency mode, no settings: encode middle 6.33 ms,
+  worst 5% 10.57, p99 11.70 (in -> ready 6.56 ms). Drain mode the same (6.48). At 1280x720: middle 3.81 ms, p99 7.40.
+  SERVER's running engine uses this build, low-latency mode, no extra settings.
