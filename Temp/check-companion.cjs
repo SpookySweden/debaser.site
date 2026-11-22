@@ -620,7 +620,9 @@ ok('a line of chat hops the companion of whoever said it, worked out in each bro
   assert.match(read('app/lib/watch/use-watch-room.ts'), /if \(current\.messages\.some\(\(message\) => message\.id === change\.message\.id\)\) return;\s*\{[^}]*const picture = chatPicture\(change\.message\.body, isGuestLabel\(change\.message\.authorLabel\)\);\s*if \(picture !== null\) companionHolds\(change\.message\.authorId, change\.message\.createdAt, picture\);\s*else companionSpoke\(change\.message\.authorId, change\.message\.createdAt, change\.message\.body\);/, 'one line, after a line already held is dropped; with its words, for the bubble (2026-11-15, SPEC-character-speech.md phase 3, asked for by PROFILE), unless it is a picture, which is held up');
   const strip = read('app/components/Companion.tsx');
   assert.match(strip, /if \(who === company\.current\.userId\) react\('spoke'\);/, 'yours hops when you speak');
-  assert.match(strip, /if \(who !== owner\.current\) return;\s*if \(!still\) act = \{ motion: 'hop', tick: 0 \};\s*markTimer = showMark\(mark, markTimer, '\.\.\.'\);/, "and theirs when they do, with nothing sent");
+  // (2026-11-22, "just one of each character on the screen") Not while it is up in a profile's room: the room's figure of
+  // them says the line there instead (ProfileRoom.tsx). Updated on purpose.
+  assert.match(strip, /if \(who !== owner\.current \|\| phase === 'room'\) return;\s*if \(!still\) act = \{ motion: 'hop', tick: 0 \};\s*markTimer = showMark\(mark, markTimer, '\.\.\.'\);/, "and theirs when they do, with nothing sent");
 });
 
 ok('hellos: it waves at a companion new to the room (not at every sync), and climbs on its climbing frames', () => {
@@ -674,7 +676,8 @@ ok("K2: handed something, a person's character catches it, wherever it is drawn 
   assert.equal(wire.reactionMark('catch'), null);
   const strip = read('app/components/Companion.tsx');
   assert.match(strip, /if \(who === company\.current\.userId && phase === 'strip'\) react\('catch'\);/, 'your own companion');
-  assert.match(strip, /if \(who === owner\.current && !still\) act = \{ motion: 'catch', tick: 0 \};/, "somebody else's in a room you share");
+  // (2026-11-22) Up in a profile's room, the room's figure of them catches it there (`RoomWalker`). Updated on purpose.
+  assert.match(strip, /if \(who === owner\.current && !still && phase !== 'room'\) act = \{ motion: 'catch', tick: 0 \};/, "somebody else's in a room you share");
   assert.match(strip, /data-companion-of=\{ownerId \?\? undefined\}/, 'a companion on the strip says whose it is');
   const walkerSource = read('app/components/ProfileCharacter.tsx');
   assert.match(walkerSource, /return onCompanionCatch\(\(who\) => \{\s*if \(who === person\) setState\(\(current\) => catchIt\(current\)\);\s*\}\);/, "their character in a profile's ROOM");

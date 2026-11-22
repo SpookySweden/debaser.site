@@ -84,6 +84,134 @@ export function noteRoomSpot(next: RoomSpot | null): void {
 }
 export const roomSpot = (): RoomSpot | null => spot;
 
+/* --- other people's companions climbing into their own room -------------------------------------------------------- */
+
+/*
+ * Luke, 2026-11-22: "when viewing someones profile while in a stream with them, there is one version of their character in
+ * the profile box and one above the bottom player bar ... i need it so there is just one of each character on the screen at
+ * a time and ideally have them be the same one for real as in the same little dude that carries some memory and
+ * consistency".
+ *
+ * Somebody else's companion on this screen (in a stream room you share, `RoomFigure` in `Companion.tsx`) is the same
+ * character their profile's room, or a room they visit as a commenter, would draw. So the room draws no copy of them: it
+ * calls them (`callIntoRoom`), their companion walks to under it and climbs up the way yours does, and the room carries on
+ * with it from where it stepped in and the way it faced. When the room goes, or no longer wants them, it climbs back down
+ * from where it stood (`roomSpotOf`), still the same figure on the strip, with what it had seen. Until it has climbed in
+ * (the room scrolled away, or it stands on a stream room's window, where there is no way down) the room leaves them out.
+ * A person not on this screen's strip is drawn by the room itself, as before.
+ */
+
+/** Where somebody else's companion stepped into the room: its left edge from the stage's left, and the way it faced. */
+export type OtherArrival = { x: number; facing: 1 | -1 };
+
+/** Whose companions are on this screen's strip just now, and who of them has climbed into the room on the page. */
+export type OthersHere = { onStrip: readonly string[]; inRoom: Readonly<Record<string, OtherArrival>> };
+
+const NO_OTHERS: OthersHere = { onStrip: [], inRoom: {} };
+let othersHere: OthersHere = NO_OTHERS;
+const othersListeners = new Set<() => void>();
+/** How many figures each person has on the strip (one per tab of theirs in the room). */
+const stripCounts = new Map<string, number>();
+
+function setOthersHere(next: OthersHere): void {
+  othersHere = next;
+  for (const listener of othersListeners) listener();
+}
+
+export const othersHereState = (): OthersHere => othersHere;
+export const serverOthersHere = (): OthersHere => NO_OTHERS;
+export function subscribeToOthersHere(listener: () => void): () => void {
+  othersListeners.add(listener);
+  return () => {
+    othersListeners.delete(listener);
+  };
+}
+
+/** Without `person`'s arrival in the room. */
+function withoutArrival(inRoom: OthersHere['inRoom'], person: string): OthersHere['inRoom'] {
+  if (inRoom[person] === undefined) return inRoom;
+  const next = { ...inRoom };
+  delete next[person];
+  return next;
+}
+
+/**
+ * Somebody's companion is on the strip (`already`: it is the one the room is drawing just now, so it starts in the room
+ * and the room's figure of them carries on). The function it hands back takes it off again, and out of the room.
+ */
+export function joinStrip(person: string, already: OtherArrival | null = null): () => void {
+  otherSpots.delete(person);
+  stripCounts.set(person, (stripCounts.get(person) ?? 0) + 1);
+  const onStrip = othersHere.onStrip.includes(person) ? othersHere.onStrip : [...othersHere.onStrip, person];
+  const inRoom = already === null || othersHere.inRoom[person] !== undefined ? othersHere.inRoom : { ...othersHere.inRoom, [person]: already };
+  if (onStrip !== othersHere.onStrip || inRoom !== othersHere.inRoom) setOthersHere({ onStrip, inRoom });
+  let left = false;
+  return () => {
+    if (left) return;
+    left = true;
+    const count = (stripCounts.get(person) ?? 1) - 1;
+    if (count > 0) {
+      stripCounts.set(person, count);
+      return;
+    }
+    stripCounts.delete(person);
+    otherSpots.delete(person);
+    setOthersHere({ onStrip: othersHere.onStrip.filter((one) => one !== person), inRoom: withoutArrival(othersHere.inRoom, person) });
+  };
+}
+
+/** Somebody's companion climbed into the room (where, facing which way), or left it (null). */
+export function setOtherInRoom(person: string, arrival: OtherArrival | null): void {
+  // A spot is only ever this visit's: forgotten as it climbs in (the room writes it anew) and once it has left.
+  otherSpots.delete(person);
+  const now = othersHere.inRoom[person];
+  if (arrival === null) {
+    if (now !== undefined) setOthersHere({ ...othersHere, inRoom: withoutArrival(othersHere.inRoom, person) });
+    return;
+  }
+  const next = { x: Math.round(arrival.x), facing: arrival.facing };
+  if (now !== undefined && now.x === next.x && now.facing === next.facing) return;
+  setOthersHere({ ...othersHere, inRoom: { ...othersHere.inRoom, [person]: next } });
+}
+
+/** Whether the room draws `person` itself: they are not on this screen's strip, or their companion has climbed in. Pure. */
+export function roomDraws(person: string, here: OthersHere): boolean {
+  return !here.onStrip.includes(person) || here.inRoom[person] !== undefined;
+}
+
+/** A room calling the companions of the people it would draw (its owner, its visiting commenters) up into it. */
+export type RoomCall = { stage: HTMLElement; wants: readonly string[] };
+let call: RoomCall | null = null;
+
+/** Puts a room's call on the page; the function it hands back takes it away (only if it is still that call). */
+export function callIntoRoom(next: RoomCall): () => void {
+  call = next;
+  return () => {
+    if (call === next) call = null;
+  };
+}
+export const roomCallState = (): RoomCall | null => call;
+
+/** Whether the room on the page wants `person`'s companion up in it. Pure. */
+export function roomWants(person: string, room: RoomCall | null): boolean {
+  return room !== null && room.wants.includes(person);
+}
+
+/** Where each person's figure stands in the room on screen, written by the room as it walks; read when it climbs down. */
+const otherSpots = new Map<string, RoomSpot>();
+export function noteRoomSpotOf(person: string, next: RoomSpot): void {
+  otherSpots.set(person, next);
+}
+export const roomSpotOf = (person: string): RoomSpot | null => otherSpots.get(person) ?? null;
+
+/**
+ * What the room going (or no longer wanting it) does to somebody else's companion that was in it: down from where it stood
+ * when that spot shows whole above its floor, else back over the edge of its floor from behind, as when it first came. Pure.
+ */
+export function otherLeaves(spot: RoomSpot | null, floorY: number): 'down' | 'over' {
+  return spot !== null && spot.onScreen && spot.bottom <= floorY ? 'down' : 'over';
+}
+
 /** Whether a figure's box shows whole inside `clip`. */
 export function wholeIn(box: Box, clip: Box): boolean {
   return box.left >= clip.left - 0.5 && box.right <= clip.right + 0.5 && box.top >= clip.top - 0.5 && box.bottom <= clip.bottom + 0.5;

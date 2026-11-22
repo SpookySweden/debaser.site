@@ -5,14 +5,21 @@ import type { ShownCharacter } from '../lib/character/profile-character-reposito
 import { useShownCharacter } from '../lib/character/use-shown-character';
 import {
   boxOf,
+  callIntoRoom,
   clipOf,
   companionVisitState,
   noteRoomSpot,
+  noteRoomSpotOf,
   openRoom,
+  othersHereState,
+  roomDraws,
   serverCompanionVisit,
+  serverOthersHere,
   subscribeToCompanionVisit,
+  subscribeToOthersHere,
   wholeIn,
 } from '../lib/companion/visit';
+import { onCompanionSpoke } from '../lib/companion/events';
 import { FRIEND_REPLY_MS, friendAnswer, friendIn, friendLines, wantsAnswer } from '../lib/character/friends';
 import type { ForumThread } from '../lib/forum/types';
 import type { ProfileComment } from '../lib/profile/types';
@@ -37,6 +44,12 @@ const GUEST_LOOKUPS = 6;
 function noteSpot(figure: HTMLElement): void {
   const box = boxOf(figure);
   noteRoomSpot({ left: box.left, bottom: box.bottom, onScreen: wholeIn(box, clipOf(figure)) });
+}
+
+/** The same, for somebody else's companion that climbed in from the strip: where it climbs back down from. */
+function noteSpotOf(person: string, figure: HTMLElement): void {
+  const box = boxOf(figure);
+  noteRoomSpotOf(person, { left: box.left, bottom: box.bottom, onScreen: wholeIn(box, clipOf(figure)) });
 }
 
 /** Looks up whether somebody has a character to show, and says so: it draws nothing itself. */
@@ -74,6 +87,13 @@ const NO_THREADS: ForumThread[] = [];
  * living here, so the same character is never on screen twice. With your companion switched off, the room draws the
  * owner's character itself, yours included.
  *
+ * **The same goes for everybody else on this screen** (Luke, 2026-11-22: "just one of each character on the screen at a
+ * time ... the same little dude"). When the owner, or a visiting commenter, has a companion on this screen's strip (a stream
+ * room you share), the room draws no copy of them: it calls their companion up (`callIntoRoom`), which walks to under it
+ * and climbs in, and the room carries on with it from where it stepped in; when the room goes it climbs back down from
+ * where it stood (`../lib/companion/visit.ts`, `RoomFigure` in `./Companion.tsx`). What they type in the room's chat is
+ * said up here meanwhile.
+ *
  * **The people who commented on the profile come to visit, and everybody here talks** (SPEC-character-speech.md; Luke,
  * 2026-11-14). Up to three of the newest commenters' shown characters walk in. Every so often one character stops,
  * faces the reader, and says something its own person wrote, in a bubble over its head (`./SpeechBubble.tsx`): a comment
@@ -103,6 +123,8 @@ export default function ProfileRoom({
   const player = useMusicPlayer();
   const shown = useShownCharacter(userId);
   const visit = useSyncExternalStore(subscribeToCompanionVisit, companionVisitState, serverCompanionVisit);
+  // Other people's companions on this screen (a stream room you share): theirs is the one figure of them (Luke, 2026-11-22).
+  const others = useSyncExternalStore(subscribeToOthersHere, othersHereState, serverOthersHere);
   const reduced = useReducedMotion();
   const [stage, setStage] = useState<HTMLDivElement | null>(null);
   const [width, setWidth] = useState(0);
@@ -112,7 +134,9 @@ export default function ProfileRoom({
   const own = viewerId !== null && viewerId === userId;
   const ready = shown !== undefined && visit.known;
   // Never two of the same character: on your own profile, with your companion out, your companion is the one in the room.
-  const drawOwner = ready && shown !== null && !(own && visit.out);
+  const ownerBelongs = ready && shown !== null && !(own && visit.out);
+  // And with the owner's companion on this screen's strip, it climbs up and is the one here: no figure of them till then.
+  const drawOwner = ownerBelongs && roomDraws(userId, others);
 
   // Who might come to visit, and which of them turned out to have a character to show.
   const candidates = useMemo(() => guestCandidates(comments, userId, viewerId, GUEST_LOOKUPS), [comments, userId, viewerId]);
@@ -128,8 +152,12 @@ export default function ProfileRoom({
         .slice(0, GUESTS),
     [candidates, looks],
   );
+  // A visiting commenter whose companion is on this screen's strip is drawn once it has climbed in, the same way.
+  const guestsHere = useMemo(() => guests.filter((guest) => roomDraws(guest.person.id, others)), [guests, others]);
+  // Whose companions the room calls up into it: everybody it would draw itself.
+  const wantsKey = [...(ownerBelongs ? [userId] : []), ...guests.map((guest) => guest.person.id)].join('\n');
 
-  const drawn = ready && (drawOwner || visit.out || guests.length > 0);
+  const drawn = ready && (ownerBelongs || visit.out || guests.length > 0);
   const visitorHere = visit.out && visit.inRoom && viewerId !== null;
 
   // Everybody whose character is in the room, by whose it is. Your companion on your own profile speaks as the owner.
@@ -139,9 +167,9 @@ export default function ProfileRoom({
     if (visitorHere && viewerId !== null && !here.some((person) => person.id === viewerId)) {
       here.push({ id: viewerId, name: own ? displayName : (user?.displayName ?? 'YOU') });
     }
-    for (const guest of guests) here.push(guest.person);
+    for (const guest of guestsHere) here.push(guest.person);
     return here;
-  }, [drawOwner, visitorHere, viewerId, own, userId, displayName, user?.displayName, guests]);
+  }, [drawOwner, visitorHere, viewerId, own, userId, displayName, user?.displayName, guestsHere]);
 
   // Friends here together (`../lib/character/friends.ts`; Luke, 2026-11-21): whose friend is in the room, by whose it is.
   const friends = useMemo(() => {
@@ -248,6 +276,28 @@ export default function ProfileRoom({
     return openRoom({ owner: userId, stage });
   }, [stage, visit.out, userId]);
 
+  // And it calls up the companions of the people it would draw, when they are on this screen's strip (Luke, 2026-11-22).
+  useEffect(() => {
+    if (stage === null || wantsKey.length === 0) return;
+    return callIntoRoom({ stage, wants: wantsKey.split('\n') });
+  }, [stage, wantsKey]);
+
+  // Up here, a companion from a stream room still says what its person types in the room's chat, as it did on the strip.
+  const arrived = useRef(others.inRoom);
+  useEffect(() => {
+    arrived.current = others.inRoom;
+  });
+  const chatTurns = useRef(0);
+  useEffect(
+    () =>
+      onCompanionSpoke((who, words) => {
+        if (words === undefined || words.trim().length === 0 || arrived.current[who] === undefined) return;
+        chatTurns.current += 1;
+        setSaying({ speakerId: who, line: { id: `chat:${who}:${chatTurns.current}`, speakerId: who, text: words, target: { kind: 'none' } } });
+      }),
+    [],
+  );
+
   // The lookups are drawn whether or not the room is: they are how the room learns there is somebody to draw it for.
   const lookups = candidates.map((person) => <GuestLook key={person.id} whose={person.id} onLook={noteLook} />);
 
@@ -256,7 +306,8 @@ export default function ProfileRoom({
   const ownerLook: RoomLook = shown === null || shown === undefined ? null : { stripUrl: shown.stripUrl, sheet: shown.sheet };
   const visitorLook: RoomLook = visit.look === null ? null : { stripUrl: visit.look.stripUrl, sheet: visit.look.sheet };
   const tallest = Math.max(
-    drawOwner ? roomFigureSize(ownerLook).h : 0,
+    // Room kept for those still on their way up, so nothing jumps when they step in.
+    ownerBelongs ? roomFigureSize(ownerLook).h : 0,
     visit.out ? roomFigureSize(visitorLook).h : 0,
     ...guests.map((guest) => roomFigureSize({ stripUrl: guest.shown.stripUrl, sheet: guest.shown.sheet }).h),
   );
@@ -268,6 +319,18 @@ export default function ProfileRoom({
     if (guest !== undefined) return guest.shown.sheet.floor;
     if (id === userId && drawOwner && shown) return shown.sheet.floor;
     return visit.look?.sheet.floor ?? null;
+  };
+
+  /**
+   * For somebody whose companion is on this screen's strip: it carries on from where it stepped in, the way it faced, and
+   * says where it stands, so it can climb back down from there when the room goes.
+   */
+  const fromStrip = (id: string) => {
+    const at = others.inRoom[id];
+    return {
+      ...(at === undefined ? {} : { startX: at.x, startFacing: at.facing }),
+      ...(others.onStrip.includes(id) ? { onSpot: (figure: HTMLElement) => noteSpotOf(id, figure) } : {}),
+    };
   };
 
   /** What a figure is saying just now, if it is the one speaking. */
@@ -324,9 +387,10 @@ export default function ProfileRoom({
             onPress={() => pressed(userId)}
             friendId={friends[userId] ?? null}
             spots={spots}
+            {...fromStrip(userId)}
           />
         ) : null}
-        {guests.map((guest) => (
+        {guestsHere.map((guest) => (
           <RoomWalker
             key={`guest:${guest.person.id}:${guest.shown.bakedAt}`}
             look={{ stripUrl: guest.shown.stripUrl, sheet: guest.shown.sheet }}
@@ -340,6 +404,7 @@ export default function ProfileRoom({
             onPress={() => pressed(guest.person.id)}
             friendId={friends[guest.person.id] ?? null}
             spots={spots}
+            {...fromStrip(guest.person.id)}
           />
         ))}
         {visit.out && visit.inRoom ? (

@@ -42,15 +42,25 @@ import {
   boxOf,
   clipOf,
   climbToward,
+  joinStrip,
   noteRoomSpot,
+  otherLeaves,
+  othersHereState,
   PORTAL_AFTER_MS,
   PORTAL_OPEN_MS,
   PORTAL_SIZE,
   PORTAL_STEP_OUT_MS,
+  roomCallState,
   roomFloor,
   roomSpot,
+  roomSpotOf,
+  roomWants,
+  serverOthersHere,
   setCompanionInRoom,
   setCompanionOut,
+  setOtherInRoom,
+  subscribeToOthersHere,
+  type RoomCall,
   visitRoomState,
   whenRoomGoes,
   type VisitLook,
@@ -298,6 +308,7 @@ type FigureProps = {
  */
 function CompanionSpeech({ ownerId, name, look }: { ownerId: string; name: string; look: Look }) {
   const reduced = useReducedMotion();
+  const upInRoom = useSyncExternalStore(subscribeToOthersHere, () => othersHereState().inRoom[ownerId] !== undefined, () => serverOthersHere().inRoom[ownerId] !== undefined);
   const [said, setSaid] = useState<{ turn: number; text: string } | null>(null);
   const turns = useRef(0);
   useEffect(
@@ -311,7 +322,8 @@ function CompanionSpeech({ ownerId, name, look }: { ownerId: string; name: strin
   );
   // Nothing is drawn until the browser has said whether it may move: a bubble shown whole for a moment and then typed
   // would sound a stray blip.
-  if (said === null || reduced === null) return null;
+  // Up in a profile's room, the room says it over the figure there (Luke, 2026-11-22: one of each character on screen).
+  if (said === null || reduced === null || upInRoom) return null;
   const size = sizeOf(look);
   return (
     <SpeechBubble
@@ -1551,11 +1563,122 @@ function RoomFigure({ companion, still }: { companion: RoomCompanion; still: boo
     /** Its feet, from the top of the screen: on its floor, or on the way up to or down to it. */
     let feet: number | null = null;
 
+    // Up into its person's profile room, or a room they visit as a commenter, and back (Luke, 2026-11-22: "just one of each
+    // character on the screen at a time ... the same little dude that carries some memory and consistency"). The room draws
+    // no copy of them while it is on this strip: it walks to under the room, climbs in, and the room carries on with it;
+    // when the room goes, it climbs back down from where it stood. `../lib/companion/visit.ts`.
+    let phase: 'strip' | 'up' | 'room' | 'down' = 'strip';
+    let visiting: RoomCall | null = null;
+    const person = owner.current;
+    // The room on the page is drawing them already (they came into the stream while it was open): that figure is this one.
+    const callNow = roomCallState();
+    const drawnThere = callNow === null || !roomWants(person, callNow) ? null : callNow.stage.querySelector(`[data-character-of="${CSS.escape(person)}"]`);
+    let leaveStrip: () => void;
+    if (callNow !== null && drawnThere !== null) {
+      phase = 'room';
+      visiting = callNow;
+      leaveStrip = joinStrip(person, { x: drawnThere.getBoundingClientRect().left - callNow.stage.getBoundingClientRect().left, facing: 1 });
+    } else leaveStrip = joinStrip(person);
+
+    /** The next frame of a loop: on from where it was, or from its start when it is a new one. */
+    const play = (next: MotionId) => {
+      motionTick = next === motion ? motionTick + 1 : 0;
+      motion = next;
+    };
+
     const tick = () => {
       const lookNow = wearing.current;
       const size = sizeOf(lookNow);
       const floor = floorNow(size);
       const now = wire.current;
+      const call = roomCallState();
+      const wanted = call !== null && roomWants(person, call);
+      // The same room calling again (who it wants changed: a commenter's look came in) is still the room it is in.
+      if (visiting !== null && call !== null && call.stage === visiting.stage) visiting = call;
+
+      if (still) {
+        // Reduced motion: nothing climbs. It is in the room while the room wants it, and back on its strip when not.
+        if (wanted) {
+          if (phase !== 'room' || visiting !== call) {
+            phase = 'room';
+            visiting = call;
+            setOtherInRoom(person, { x: Math.max(0, call.stage.clientWidth - size.w - 16), facing });
+          }
+          hide(place);
+          return;
+        }
+        if (phase === 'room') {
+          phase = 'strip';
+          visiting = null;
+          setOtherInRoom(person, null);
+        }
+      } else {
+        if (phase === 'room') {
+          if (wanted && call === visiting) {
+            // What it hears up there is the room's to show: nothing piles up to be played on its way back.
+            if (seen === null || now.r > seen) seen = now.r;
+            hide(place);
+            return;
+          }
+          // The room went, or wants it no more: down from where it stood in it, or back over the edge of its floor.
+          const spot = roomSpotOf(person);
+          visiting = null;
+          setOtherInRoom(person, null);
+          if (spot !== null && otherLeaves(spot, floor.y) === 'down') {
+            phase = 'down';
+            x = spot.left;
+            feet = spot.bottom;
+          } else {
+            phase = 'strip';
+            x = null;
+            feet = null;
+          }
+        }
+        // The room went (or scrolled away) while it was still climbing up: back down.
+        if (phase === 'up' && (!wanted || call !== visiting)) {
+          phase = 'down';
+          visiting = null;
+        }
+        if (phase === 'up' && visiting !== null && x !== null) {
+          const stage = boxOf(visiting.stage);
+          const into = roomFloor(stage, clipOf(visiting.stage), size, floor.y);
+          if (into === null) {
+            phase = 'down';
+            visiting = null;
+          } else {
+            // Along its strip to under the room, then up, a step a frame, as yours climbs.
+            const at = feet ?? floor.y;
+            const column = Math.min(into.right, Math.max(into.left, x));
+            const strip = spanFor(floor.spans, column);
+            const below = strip === null ? column : Math.min(strip.right, Math.max(strip.left, column));
+            const alongStrip = at >= floor.y && Math.abs(below - x) >= 1;
+            const toward = alongStrip ? below : column;
+            if (Math.abs(toward - x) >= 1) {
+              facing = toward > x ? 1 : -1;
+              x += Math.sign(toward - x) * Math.min(WALK_STEP, Math.abs(toward - x));
+            }
+            feet = alongStrip ? at : climbToward(at, into.floor);
+            if (feet === into.floor && Math.abs(column - x) < 1) {
+              phase = 'room';
+              setOtherInRoom(person, { x: x - stage.left, facing });
+              hide(place);
+              return;
+            }
+            play(feet < floor.y ? 'climb' : 'walk');
+            draw(place, bodyRef.current, lookNow, { x, floorY: feet, facing, mood: 'walk', motion, tick: motionTick, lift: 0 });
+            return;
+          }
+        }
+        if (phase === 'down' && x !== null) {
+          feet = climbToward(feet ?? floor.y, floor.y);
+          play('climb');
+          draw(place, bodyRef.current, lookNow, { x, floorY: feet, facing, mood: 'walk', motion, tick: motionTick, lift: 0 });
+          if (feet === floor.y) phase = 'strip';
+          return;
+        }
+        if (phase === 'down') phase = 'strip';
+      }
+
       const target = floor.left + now.x * floorRoom(floor, size);
       const span = spanFor(floor.spans, x ?? target);
       if (span === null) {
@@ -1594,6 +1717,20 @@ function RoomFigure({ companion, still }: { companion: RoomCompanion; still: boo
         return;
       }
 
+      // Its person's room (or one they visit) on screen and calling: up it goes, unless another tab of theirs got there
+      // first. Not from on top of a stream room's window: there is no way down from there but the window going.
+      if (
+        phase === 'strip' &&
+        wanted &&
+        !floor.ledge &&
+        act === null &&
+        othersHereState().inRoom[person] === undefined &&
+        roomFloor(boxOf(call.stage), clipOf(call.stage), size, floor.y) !== null
+      ) {
+        phase = 'up';
+        visiting = call;
+      }
+
       // As on its owner's screen: a hop goes on walking, anything longer is done standing where it is.
       const busy = act !== null && act.motion !== 'hop';
       const walking = !busy && Math.abs(goal - x) >= 1;
@@ -1628,18 +1765,19 @@ function RoomFigure({ companion, still }: { companion: RoomCompanion; still: boo
     };
 
     // Its owner speaking in the room's chat: a hop with `...`, worked out here from the chat line this browser already has.
+    // Up in a room, the room shows it there.
     const offSpoke = onCompanionSpoke((who) => {
-      if (who !== owner.current) return;
+      if (who !== owner.current || phase === 'room') return;
       if (!still) act = { motion: 'hop', tick: 0 };
       markTimer = showMark(mark, markTimer, '...');
     });
     // Something handed to its owner (a letter dropped on it here): it catches it, on this screen.
     const offCatch = onCompanionCatch((who) => {
-      if (who === owner.current && !still) act = { motion: 'catch', tick: 0 };
+      if (who === owner.current && !still && phase !== 'room') act = { motion: 'catch', tick: 0 };
     });
     // A picture its owner sent in the room's chat: it raises it, arms up (ROOMSYNC).
     const offHold = onCompanionHolds((who) => {
-      if (who === owner.current && !still) act = { motion: 'cheer', tick: 0 };
+      if (who === owner.current && !still && phase !== 'room') act = { motion: 'cheer', tick: 0 };
     });
     tick();
     const timer = setInterval(tick, TICK_MS);
@@ -1648,6 +1786,7 @@ function RoomFigure({ companion, still }: { companion: RoomCompanion; still: boo
       offSpoke();
       offCatch();
       offHold();
+      leaveStrip();
       if (markTimer !== null) clearTimeout(markTimer);
     };
   }, [still]);

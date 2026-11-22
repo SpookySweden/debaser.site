@@ -155,6 +155,7 @@ export function RoomWalker({
   music,
   width,
   startX,
+  startFacing,
   who,
   label,
   onSpot,
@@ -172,6 +173,8 @@ export function RoomWalker({
   width: number;
   /** Where its left edge starts; somewhere at random when not given. */
   startX?: number;
+  /** Which way it faces as it starts (a companion stepping in from the strip faces the way it climbed). */
+  startFacing?: 1 | -1;
   /** The owner's character, your companion visiting, or the character of somebody who commented, come to visit. */
   who: 'owner' | 'visitor' | 'guest';
   label: string;
@@ -195,7 +198,7 @@ export function RoomWalker({
   const [state, setState] = useState<WalkerState>(() => {
     const start = startWalker(room, Math.random);
     // A companion arriving (it starts where it climbed in) waves hello as it steps in.
-    return startX === undefined ? start : greet({ ...start, x: Math.round(startX) });
+    return startX === undefined ? start : greet({ ...start, x: Math.round(startX), dir: startFacing ?? start.dir });
   });
   // Something handed to its owner (a letter dropped on it): it catches it (`../lib/companion/events.ts`).
   useEffect(() => {

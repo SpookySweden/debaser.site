@@ -48,6 +48,23 @@ Read this before touching the motions, the bake or the profile walker. The spec 
   layer over the page (`LooseCharacter.tsx`), is carried and thrown with the companion's own rules, and walks and climbs
   back in by itself (`app/lib/companion/loose.ts`). `docs/companion.md` has the details.
 
+## One of each character on screen (Luke, 2026-11-22)
+- "i need it so there is just one of each character on the screen at a time and ideally have them be the same one for real
+  as in the same little dude that carries some memory and consistency". Somebody in a stream room with you has a companion
+  on your strip (`RoomFigure` in `Companion.tsx`). Open their profile (or one they commented on) and the ROOM draws no copy
+  of them: it calls their companion (`callIntoRoom` in `app/lib/companion/visit.ts`), which walks to under the ROOM and
+  climbs in on its climbing frames, and the ROOM's walker for them starts where it stepped in, facing the way it climbed,
+  with a wave. When the ROOM goes (the page changed) or stops wanting them, it climbs back down from where it stood
+  (`roomSpotOf`), or, with that spot off screen, climbs back over the edge of its floor. It is the same figure on the strip
+  all along, so it keeps what it had seen (no stale hops on its return).
+- Until it has climbed in (the ROOM scrolled away, or it stands on a stream room's window, where there is no way down) the
+  ROOM leaves them out. Somebody not on your strip is drawn by the ROOM itself, as before; if they join the stream while the
+  ROOM is open, the ROOM's figure of them becomes theirs where it stands.
+- Their chat lines are said in the ROOM while they are up there (the strip's bubble is not drawn). Reduced motion: nothing
+  climbs; it is simply in the ROOM, and back on the strip after.
+- Checked by `Temp/check-one-character.cjs` (the room drawn, the store, leaving) and `scripts/drive-one-character.cjs`
+  (a local mock dev server; a second member put into the mock stream room on its wire).
+
 ## Talking (SPEC-character-speech.md, Luke 2026-11-14)
 - **In a profile's ROOM** (`ProfileRoom.tsx`) up to three of the newest commenters' shown characters come to visit, and
   every so often one character stops, faces the reader and says something in a bubble over its head

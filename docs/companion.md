@@ -112,6 +112,9 @@ bake.
 - **Chat.** A line of stream chat hops the companion of whoever said it. Every browser has the line already, so each
   works it out for itself from `companionSpoke` (one line in `use-watch-room.ts`); nothing is sent.
 - It climbs to and from a profile's ROOM on its `climb` frames, and walks along the strip to get under it.
+- **Somebody else's companion does too** (Luke, 2026-11-22: "just one of each character on the screen at a time"): in a
+  stream room, open a member's profile (or one they commented on) and their companion climbs into that ROOM in place of
+  the ROOM's own copy, and back down when it goes. `docs/profile-characters.md`, "One of each character on screen".
 - **A ROOM's characters can be taken out** (Luke, 2026-11-16: "anyone can grab one out of its window; let go, it walks and
   climbs back in by itself"). Whoever is looking at a profile, signed in or not, can press the owner's or a visiting
   commenter's character and drag it out of the ROOM: it hangs from the pointer with the companion's lean, is thrown with
