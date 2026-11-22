@@ -162,6 +162,9 @@ struct DbeSession {
   }
 
   bool open(const DbeOptions* o, DbeInfo* info);
+  bool open_nvenc(const DbeOptions* o, DbeInfo* info, bool scaled, int32_t fps);
+  void drop_nvenc(DbeInfo* info);
+  char nvenc_said[256] = {0};    // why NVIDIA's encoder did not open, when the engine fell back to Media Foundation
   bool make_scaler(int32_t fps);
   bool next(int32_t wait_ms, bool force_keyframe, DbeFrame* frame, bool only_if_changed = false);
   bool touches_piece(const DXGI_OUTDUPL_FRAME_INFO& info);
@@ -213,7 +216,7 @@ bool DbeSession::make_scaler(int32_t fps) {
   wanted.Format = DXGI_FORMAT_NV12;
   wanted.SampleDesc.Count = 1;
   wanted.Usage = D3D11_USAGE_DEFAULT;
-  wanted.BindFlags = D3D11_BIND_RENDER_TARGET;
+  wanted.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_VIDEO_ENCODER;  // the encoder reads it where it is
   hr = device->CreateTexture2D(&wanted, nullptr, &shrunk_picture);
   if (FAILED(hr)) return fail("Could not make the shrunk picture's texture", hr);
 
@@ -360,23 +363,43 @@ bool DbeSession::open(const DbeOptions* o, DbeInfo* info) {
     dll = LoadLibraryA("nvEncodeAPI64.dll");
     if (!dll) use_mf = true;
   }
+  // NVIDIA's encoder first, where its library is there. When it does not open (an old driver's leftover library on
+  // a machine with no NVIDIA card, as on SERVER; a card without an encoder), Media Foundation instead.
+  if (!use_mf && !open_nvenc(o, info, scaled, fps)) {
+    snprintf(nvenc_said, sizeof nvenc_said, "%s", error);
+    drop_nvenc(info);
+    use_mf = true;
+  }
   // Media Foundation's encoders take NV12, so the video unit converts even a full-size picture for them.
-  if ((scaled || use_mf) && !make_scaler(fps)) return false;
+  if ((scaled || use_mf) && !scaler && !make_scaler(fps)) return false;
 
   if (use_mf) {
     int32_t kind = 0;
     mf = mf_open(device.Get(), width, height, fps, o->bitrate_kbps, &kind, error, sizeof error);
-    if (!mf) return false;
+    if (!mf) {
+      if (nvenc_said[0]) {
+        char both[512];
+        snprintf(both, sizeof both, "%s; and NVIDIA's: %s", error, nvenc_said);
+        snprintf(error, sizeof error, "%s", both);
+      }
+      return false;
+    }
     info->encoder = kind;
-    piece.left = (UINT)region_x;
-    piece.top = (UINT)region_y;
-    piece.right = piece.left + (UINT)region_width;
-    piece.bottom = piece.top + (UINT)region_height;
-    piece.front = 0;
-    piece.back = 1;
-    return true;
   }
 
+  // The piece of the screen that is copied out of every frame.
+  piece.left = (UINT)region_x;
+  piece.top = (UINT)region_y;
+  piece.right = piece.left + (UINT)region_width;
+  piece.bottom = piece.top + (UINT)region_height;
+  piece.front = 0;
+  piece.back = 1;
+  return true;
+}
+
+// NVIDIA's encoder on the engine's texture. False with the reason in `error` when it cannot be opened.
+bool DbeSession::open_nvenc(const DbeOptions* o, DbeInfo* info, bool scaled, int32_t fps) {
+  if (scaled && !scaler && !make_scaler(fps)) return false;
   // 3. NVIDIA's encoder. It lives in the graphics driver; nothing of NVIDIA's is shipped with the engine.
   typedef NVENCSTATUS(NVENCAPI * MaxVersion)(uint32_t*);
   typedef NVENCSTATUS(NVENCAPI * CreateInstance)(NV_ENCODE_API_FUNCTION_LIST*);
@@ -507,15 +530,32 @@ bool DbeSession::open(const DbeOptions* o, DbeInfo* info) {
   status = fn.nvEncRegisterResource(session, &reg);
   if (status != NV_ENC_SUCCESS) return nvfail("The NVIDIA encoder would not take the texture", status);
   registered = reg.registeredResource;
-
-  // The piece of the screen that is copied out of every frame.
-  piece.left = (UINT)region_x;
-  piece.top = (UINT)region_y;
-  piece.right = piece.left + (UINT)region_width;
-  piece.bottom = piece.top + (UINT)region_height;
-  piece.front = 0;
-  piece.back = 1;
   return true;
+}
+
+// Lets go of whatever NVIDIA's encoder got as far as opening, so Media Foundation can be tried instead.
+void DbeSession::drop_nvenc(DbeInfo* info) {
+  if (session) {
+    if (event_registered) {
+      NV_ENC_EVENT_PARAMS event = {};
+      event.version = NV_ENC_EVENT_PARAMS_VER;
+      event.completionEvent = done;
+      fn.nvEncUnregisterAsyncEvent(session, &event);
+    }
+    if (registered) fn.nvEncUnregisterResource(session, registered);
+    if (bitstream) fn.nvEncDestroyBitstreamBuffer(session, bitstream);
+    fn.nvEncDestroyEncoder(session);
+  }
+  session = nullptr;
+  registered = nullptr;
+  bitstream = nullptr;
+  event_registered = false;
+  if (done) CloseHandle(done);
+  done = nullptr;
+  if (dll) FreeLibrary(dll);
+  dll = nullptr;
+  info->header_api = 0;
+  info->driver_api = 0;
 }
 
 // Whether what changed on screen in this frame touches the piece being sent. Asked of Windows while the frame is
@@ -664,6 +704,9 @@ bool DbeSession::next(int32_t wait_ms, bool force_keyframe, DbeFrame* frame, boo
   const LONGLONG copied = now();
 
   if (mf) {
+    // The copy and the video unit's pass are only queued on this thread's card context; Media Foundation's encoder
+    // works on another thread and would wait for them to be sent on their own (several milliseconds). Sent now.
+    context->Flush();
     // A hardware encoder may want a picture or two more before it hands the first frame back: the same picture
     // is given again, a few times at most, so every call still ends with a frame.
     bool key = false;

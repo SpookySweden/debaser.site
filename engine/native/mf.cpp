@@ -47,8 +47,15 @@ struct MfEncoder {
   LONGLONG time = 0;
   int wanted = 0;                 // pictures the encoder has asked for and not been given yet
   std::vector<uint8_t> headers;   // the stream's latest SPS and PPS, put in front of a full picture that lacks them
+  // DEBASER_MF_TRACE=1: where each frame's time goes, said when the session closes (for tuning on SERVER).
+  bool trace = false;
+  double t_asked = 0, t_given = 0, t_taken = 0;  // waiting to be asked for a picture; picture in -> frame ready; taking it
+  int traced = 0, empties = 0;
 
   ~MfEncoder() {
+    if (trace && traced > 0)
+      fprintf(stderr, "  media foundation, per frame: waiting to be asked %.2f ms, picture in -> frame ready %.2f ms, taking it %.2f ms (%d frames, %d empty)\n",
+              t_asked / traced, t_given / traced, t_taken / traced, traced, empties);
     if (mft && started) {
       mft->ProcessMessage(MFT_MESSAGE_NOTIFY_END_OF_STREAM, 0);
       mft->ProcessMessage(MFT_MESSAGE_NOTIFY_END_STREAMING, 0);
@@ -63,6 +70,23 @@ struct MfEncoder {
 };
 
 namespace {
+
+double ms_now() {
+  static LARGE_INTEGER f = {};
+  if (f.QuadPart == 0) QueryPerformanceFrequency(&f);
+  LARGE_INTEGER t;
+  QueryPerformanceCounter(&t);
+  return (double)t.QuadPart * 1000.0 / (double)f.QuadPart;
+}
+
+// A whole number from the environment, or `fallback` when it is not set or not a number.
+long env_number(const char* name, long fallback) {
+  char text[32] = {0};
+  if (GetEnvironmentVariableA(name, text, sizeof text) == 0) return fallback;
+  char* end = nullptr;
+  const long value = strtol(text, &end, 10);
+  return end != text ? value : fallback;
+}
 
 bool say(char* error, int32_t error_len, const char* what, HRESULT hr) {
   if (error && error_len > 0) snprintf(error, (size_t)error_len, "%s (0x%08lx)", what, (unsigned long)hr);
@@ -275,7 +299,7 @@ MfEncoder* mf_open(ID3D11Device* device, int32_t width, int32_t height, int32_t 
       if (FAILED(e->mft.As(&e->events))) return give_up("The hardware encoder has no events to listen to", E_NOINTERFACE);
       e->async = true;
     }
-    attributes->SetUINT32(MF_LOW_LATENCY, TRUE);
+    attributes->SetUINT32(MF_LOW_LATENCY, env_number("DEBASER_MF_LOWLATENCY", 1) != 0 ? TRUE : FALSE);
   }
 
   // 3. The engine's card handed over, so the encoder reads the picture where it already is.
@@ -297,14 +321,21 @@ MfEncoder* mf_open(ID3D11Device* device, int32_t width, int32_t height, int32_t 
   const UINT32 bits_per_second = (UINT32)std::max(500, bitrate_kbps) * 1000u;
   const int32_t rate = std::max(1, fps);
   e->frame_100ns = 10000000LL / rate;
+  e->trace = env_number("DEBASER_MF_TRACE", 0) != 0;
+  // Settings that can be tried on a machine without rebuilding (DEBASER_MF_*): rate control (0 CBR, 1 peak-limited
+  // VBR, 4 low-delay VBR...), speed against quality (0 fastest to 100), low-latency mode (1 on).
+  const long rate_control = env_number("DEBASER_MF_RC", eAVEncCommonRateControlMode_CBR);
+  const long speed = env_number("DEBASER_MF_SPEED", 0);
+  const bool low_latency = env_number("DEBASER_MF_LOWLATENCY", 1) != 0;
   if (SUCCEEDED(e->mft.As(&e->codec))) {
-    set_yes(e->codec.Get(), CODECAPI_AVLowLatencyMode, true);
-    set_number(e->codec.Get(), CODECAPI_AVEncCommonRateControlMode, eAVEncCommonRateControlMode_CBR);
+    set_yes(e->codec.Get(), CODECAPI_AVLowLatencyMode, low_latency);
+    set_number(e->codec.Get(), CODECAPI_AVEncCommonRateControlMode, (ULONG)rate_control);
     set_number(e->codec.Get(), CODECAPI_AVEncCommonMeanBitRate, bits_per_second);
+    set_number(e->codec.Get(), CODECAPI_AVEncCommonMaxBitRate, bits_per_second);
     set_number(e->codec.Get(), CODECAPI_AVEncCommonBufferSize, bits_per_second / (UINT32)rate);
     set_number(e->codec.Get(), CODECAPI_AVEncMPVDefaultBPictureCount, 0);
     set_number(e->codec.Get(), CODECAPI_AVEncMPVGOPSize, (ULONG)rate * 600);  // full pictures only when asked for
-    set_number(e->codec.Get(), CODECAPI_AVEncCommonQualityVsSpeed, 0);         // the fastest it has
+    set_number(e->codec.Get(), CODECAPI_AVEncCommonQualityVsSpeed, (ULONG)speed);  // 0: the fastest it has
   }
 
   ComPtr<IMFMediaType> out;
@@ -383,6 +414,7 @@ bool mf_encode(MfEncoder* e, ID3D11Texture2D* nv12, bool force_keyframe, std::ve
     if (FAILED(hr)) return say(error, error_len, "The encoder gave no frame", hr);
   } else {
     // Wait until it asks for a picture, give it this one, then wait for the finished frame.
+    const double t0 = ms_now();
     while (e->wanted == 0) {
       const MediaEventType type = next_event(e, 500);
       if (type == METransformNeedInput) e->wanted += 1;
@@ -391,9 +423,11 @@ bool mf_encode(MfEncoder* e, ID3D11Texture2D* nv12, bool force_keyframe, std::ve
         take_output(e, stray);  // a frame left from before: not this one
       } else if (type == 0) return say(error, error_len, "The hardware encoder stopped asking for pictures", E_FAIL);
     }
+    const double t1 = ms_now();
     hr = e->mft->ProcessInput(e->in_id, sample.Get(), 0);
     if (FAILED(hr)) return say(error, error_len, "The hardware encoder would not take the picture", hr);
     e->wanted -= 1;
+    double t2 = t1, t3 = t1;
     for (;;) {
       const MediaEventType type = next_event(e, 500);
       if (type == METransformNeedInput) {
@@ -401,14 +435,27 @@ bool mf_encode(MfEncoder* e, ID3D11Texture2D* nv12, bool force_keyframe, std::ve
         continue;
       }
       if (type == METransformHaveOutput) {
+        t2 = ms_now();
         hr = take_output(e, out);
+        t3 = ms_now();
         if (FAILED(hr) && hr != MF_E_TRANSFORM_NEED_MORE_INPUT) return say(error, error_len, "The hardware encoder gave no frame", hr);
-        if (!out.empty()) break;
+        if (!out.empty()) {
+          if (e->trace) {
+            e->t_asked += t1 - t0;
+            e->t_given += t2 - t1;
+            e->t_taken += t3 - t2;
+            e->traced += 1;
+          }
+          break;
+        }
         continue;
       }
       if (type == 0) {
         // It wants more pictures before it gives this one back: an empty frame now, the bytes come next time.
-        if (e->wanted > 0) return true;
+        if (e->wanted > 0) {
+          e->empties += 1;
+          return true;
+        }
         return say(error, error_len, "The hardware encoder held the picture and gave nothing back", E_FAIL);
       }
     }
