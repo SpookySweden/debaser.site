@@ -6,7 +6,7 @@
  * engine. This is the one step that does both, and the one step that undoes both. Luke runs it; nothing else does.
  *
  *   node scripts/host/screens.cjs status
- *   node scripts/host/screens.cjs on --owner <account id>      [--lan]
+ *   node scripts/host/screens.cjs on --owner <account id>      [--lan] [--site-elsewhere]
  *   node scripts/host/screens.cjs off
  *
  * ON does five things, and says each as it does it:
@@ -113,10 +113,10 @@ function copyEngine() {
  * when the session that had started it ended. Started this way it belongs to nobody and runs until it is stopped or
  * the PC restarts (when keep-running starts it from the list).
  */
-function startEngine(lan) {
+function startEngine(lan, key = null) {
   if (!existsSync(LOGS)) mkdirSync(LOGS, { recursive: true });
   const log = join(LOGS, 'engine.log');
-  const line = `cmd.exe /d /c ""${ENGINE}" ${engineArgs(lan).join(' ')} >> "${log}" 2>&1"`;
+  const line = `cmd.exe /d /c ""${ENGINE}" ${engineArgs(lan, key).join(' ')} >> "${log}" 2>&1"`;
   const quoted = (text) => `'${text.replace(/'/g, "''")}'`;
   const made = spawnSync('powershell', ['-NoProfile', '-Command',
     `(Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = ${quoted(line)}; CurrentDirectory = ${quoted(ENGINE_HOME)} }).ReturnValue`],
@@ -131,7 +131,35 @@ function startEngine(lan) {
 }
 
 // --allow-fit: the room's FIT THE PC TO THIS SCREEN switch is offered (off until a viewer turns it on; Luke, 2026-11-21).
-const engineArgs = (lan) => (lan ? ['serve', '--allow-control', '--allow-fit', '--lan'] : ['serve', '--allow-control', '--allow-fit']);
+// --site-elsewhere (2026-11-22: the site moved to SERVER, the engine stayed on the gaming PC): the engine also listens
+// on the home network, demanding its key (`--listen 0.0.0.0 --token <key>`), so the site on SERVER can pass the hello on.
+const engineArgs = (lan, key = null) => [
+  'serve', '--allow-control', '--allow-fit',
+  ...(lan || key ? ['--lan'] : []),
+  ...(key ? ['--listen', '0.0.0.0', '--token', key] : []),
+];
+
+/**
+ * The engine's key when the site lives on another machine. Not made up here and sent across: both machines already
+ * hold SCREENS_RDP_SECRET (SERVER's settings were copied from this PC), so each works out the same key from it and
+ * nothing secret travels. SERVER's site.env gets SCREENS_ENGINE_TOKEN = this same value, worked out there the same way:
+ *   HMAC-SHA256(SCREENS_RDP_SECRET, "debaser-engine-key"), base64url.
+ */
+function engineKeyFrom(settingsText) {
+  const line = settingsText.split(/\r?\n/).find((l) => l.startsWith('SCREENS_RDP_SECRET='));
+  const secret = line ? line.slice('SCREENS_RDP_SECRET='.length).trim() : '';
+  if (secret.length < 32) return null;
+  return require('node:crypto').createHmac('sha256', secret).update('debaser-engine-key').digest('base64url');
+}
+
+/** This PC's home-network IPv4 address (Wi-Fi or Ethernet), for SERVER's SCREENS_ENGINE_URL. */
+function homeAddress() {
+  const found = [];
+  for (const list of Object.values(require('node:os').networkInterfaces())) {
+    for (const a of list || []) if (a.family === 'IPv4' && !a.internal && /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(a.address)) found.push(a.address);
+  }
+  return found.find((a) => a.startsWith('192.168.')) || found[0] || null;
+}
 
 /** Stops the site the way an update does: keep-running sees the note and starts it again at once. */
 function restartSite() {
@@ -153,7 +181,7 @@ function status() {
   say(`owner named in the site's settings   ${owner === null ? 'no settings file' : owner === '' ? 'no' : `yes (${owner})`}`);
   say(`owner named in the build being served ${served === null ? 'unknown' : namesOwner(served) ? 'yes' : 'no'}`);
   say(`engine program in the host folder     ${existsSync(ENGINE) ? 'yes' : 'no'}`);
-  say(`engine listed to start with the PC    ${listed ? `yes (${(listed.args || []).join(' ')})` : 'no'}`);
+  say(`engine listed to start with the PC    ${listed ? `yes (${(listed.args || []).join(' ').replace(/--token \S+/, '--token <key>')})` : 'no'}`);
   say(`engine running now                    ${engineProcesses().length > 0 ? 'yes' : 'no'}`);
 }
 
@@ -162,6 +190,9 @@ function on() {
   if (!owner || !ACCOUNT_ID.test(owner)) stop('ON needs the owner\'s account id: node scripts/host/screens.cjs on --owner <the long code with four dashes>');
   if (!existsSync(SETTINGS) || !existsSync(SERVICES)) stop(`No host found at ${HOST} (site.env and services.json are expected there).`);
   const lan = has('--lan');
+  const elsewhere = has('--site-elsewhere');
+  const key = elsewhere ? engineKeyFrom(readFileSync(SETTINGS, 'utf8')) : null;
+  if (elsewhere && key === null) stop("--site-elsewhere works the engine's key out from SCREENS_RDP_SECRET in site.env, and there is none: run scripts/host/server-remote.cjs on first.");
 
   // 1. The owner, in the settings every build copies and in the build being served now.
   writeFileSync(SETTINGS, withOwner(readFileSync(SETTINGS, 'utf8'), owner));
@@ -183,15 +214,23 @@ function on() {
 
   // 3. Listed, so it starts with the PC.
   const list = services().filter((s) => s.name !== 'engine');
-  list.push({ name: 'engine', cwd: ENGINE_HOME, command: ENGINE, args: engineArgs(lan) });
+  list.push({ name: 'engine', cwd: ENGINE_HOME, command: ENGINE, args: engineArgs(lan, key) });
   saveServices(list);
-  say(`3. listed to start with the PC: ${engineArgs(lan).join(' ')}`);
+  say(`3. listed to start with the PC: ${engineArgs(lan, key).join(' ').replace(/--token \S+/, '--token <key>')}`);
 
   // 4. Started now.
   if (has('--no-start')) say('4. not started (--no-start)');
-  else say(`4. engine started (process ${startEngine(lan)})${lan ? '. Windows may now ask about its firewall: allow it on PRIVATE networks only.' : ''}`);
+  else say(`4. engine started (process ${startEngine(lan, key)})${lan || key ? '. Windows may now ask about its firewall: allow it on PRIVATE networks only.' : ''}`);
 
-  // 5. The site, so it reads the owner.
+  // 5. The site, so it reads the owner (not when it lives on another machine).
+  if (elsewhere) {
+    const at = homeAddress();
+    say('5. the site lives on another machine: nothing restarted here. On that machine, its site.env needs:');
+    say(`     SCREENS_ENGINE_URL=http://${at ?? "<this PC's home-network address>"}:8478`);
+    say('     SCREENS_ENGINE_TOKEN=<worked out there from its own SCREENS_RDP_SECRET: HMAC-SHA256(secret, "debaser-engine-key"), base64url>');
+    say('   (not printed here; both machines hold the same secret, so the key never travels)');
+    return;
+  }
   if (has('--no-restart')) say('5. site not restarted (--no-restart)');
   else say(`5. ${restartSite()}`);
 
@@ -224,4 +263,4 @@ if (require.main === module) {
   else stop('node scripts/host/screens.cjs status | on --owner <account id> [--lan] | off');
 }
 
-module.exports = { withOwner };
+module.exports = { withOwner, engineKeyFrom, engineArgs };

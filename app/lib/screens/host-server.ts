@@ -10,9 +10,11 @@ import { createClient } from '@supabase/supabase-js';
  *
  * SERVER ONLY. No browser file may import this one: it reads the two settings below, which never reach a browser.
  *
- *   SCREENS_ENGINE_URL   where the engine listens. Default http://127.0.0.1:8478. Anything that is not a plain http
- *                        address on this PC itself (127.x.x.x, localhost, [::1]) is refused outright, so this can never
- *                        be pointed at another machine.
+ *   SCREENS_ENGINE_URL   where the engine listens. Default http://127.0.0.1:8478. A plain http address on this machine
+ *                        (127.x.x.x, localhost, [::1]); or, only together with SCREENS_ENGINE_TOKEN, a home-network
+ *                        number (10.x, 172.16-31.x, 192.168.x; never a name). Anything else is refused outright.
+ *   SCREENS_ENGINE_TOKEN the key the engine on another machine demands (`--listen 0.0.0.0 --token <key>`), sent with
+ *                        every request to it.
  *   SCREENS_OWNER_ID     the one account id that owns this PC's screen. Unset: the feature is off for everyone.
  *
  * Who is asking comes from the session token only (`Authorization: Bearer`, checked with `auth.getUser`, as
@@ -72,8 +74,29 @@ export function engineOrigin(env: ScreensEnv): string | null {
   if (url.protocol !== 'http:') return null;
   if (url.username !== '' || url.password !== '') return null;
   if ((url.pathname !== '/' && url.pathname !== '') || url.search !== '' || url.hash !== '') return null;
-  if (!isLoopbackHost(url.hostname)) return null;
-  return url.origin;
+  if (isLoopbackHost(url.hostname)) return url.origin;
+  // Another machine on the home network (the site moved to SERVER on 2026-11-22 and the engine stayed on the gaming
+  // PC): only a plain home-network number, never a name, and only with the engine's key set, which the engine then
+  // demands on every request (`--listen 0.0.0.0 --token <key>`).
+  if (engineKey(env) !== null && isHomeNetworkAddress(url.hostname)) return url.origin;
+  return null;
+}
+
+/**
+ * SCREENS_ENGINE_TOKEN: the key an engine on another machine demands (its `--token`); 16 or more letters, digits,
+ * - and _. Null when unset or not one, and then only an engine on this machine is reached.
+ */
+export function engineKey(env: ScreensEnv): string | null {
+  const key = (env.SCREENS_ENGINE_TOKEN ?? '').trim();
+  return /^[A-Za-z0-9_-]{16,128}$/.test(key) ? key : null;
+}
+
+/** 10.x, 172.16-31.x and 192.168.x written as four numbers; never a name (a name could be pointed anywhere). */
+export function isHomeNetworkAddress(hostname: string): boolean {
+  const parts = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(hostname);
+  if (parts === null || parts.slice(1).some((part) => Number(part) > 255)) return false;
+  const [a, b] = [Number(parts[1]), Number(parts[2])];
+  return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
 }
 
 /** 127.x.x.x, localhost or [::1], and nothing that merely starts or ends like one. */
@@ -178,6 +201,7 @@ export function realDeps(): ScreensDeps {
       NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
       NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       SCREENS_ENGINE_URL: process.env.SCREENS_ENGINE_URL,
+      SCREENS_ENGINE_TOKEN: process.env.SCREENS_ENGINE_TOKEN,
       SCREENS_OWNER_ID: process.env.SCREENS_OWNER_ID,
       SCREENS_DEV_OPEN: process.env.SCREENS_DEV_OPEN,
     },
@@ -199,7 +223,10 @@ async function askEngine(deps: ScreensDeps, path: '/settings' | '/offer', viewer
   const origin = engineOrigin(deps.env);
   if (origin === null) return null;
   try {
-    const response = await deps.fetch(`${origin}${path}${viewer === null ? '' : `?viewer=${viewer}`}`, {
+    // The engine's key, when one is set, goes with every request (the engine refuses any without it).
+    const key = engineKey(deps.env);
+    const query = [viewer === null ? '' : `viewer=${viewer}`, key === null ? '' : `token=${key}`].filter(Boolean).join('&');
+    const response = await deps.fetch(`${origin}${path}${query === '' ? '' : `?${query}`}`, {
       method: init.method,
       headers: init.contentType === undefined ? undefined : { 'Content-Type': init.contentType },
       body: init.body,

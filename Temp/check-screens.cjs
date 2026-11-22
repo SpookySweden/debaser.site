@@ -625,6 +625,25 @@ async function main() {
   same(canvas.screenShown({ view: 'screen', audio: false }, true), 'screen', 'stays chosen when the room goes on to a song');
   same(canvas.screenShown({ view: 'screen', audio: true }, false), 'screen', 'and on to a video');
 
+  /* ---------------------------------------------------------------- the engine on another machine (the site moved to SERVER, 2026-11-22) */
+  {
+    const KEY = 'k'.repeat(24);
+    same(server.engineOrigin({ SCREENS_ENGINE_URL: 'http://192.168.0.30:8478' }), null, 'a home-network engine without the key: refused, as before');
+    same(server.engineOrigin({ SCREENS_ENGINE_URL: 'http://192.168.0.30:8478', SCREENS_ENGINE_TOKEN: KEY }), 'http://192.168.0.30:8478', 'with the key: the gaming PC on the home network is reached');
+    same(server.engineOrigin({ SCREENS_ENGINE_URL: 'http://10.0.0.5:8478', SCREENS_ENGINE_TOKEN: KEY }), 'http://10.0.0.5:8478', '10.x is a home network too');
+    for (const address of ['http://gaming-pc:8478', 'http://8.8.8.8:8478', 'http://172.32.0.1:8478', 'https://192.168.0.30:8478', 'http://192.168.0.30:8478/x', 'http://u:p@192.168.0.30:8478']) {
+      same(server.engineOrigin({ SCREENS_ENGINE_URL: address, SCREENS_ENGINE_TOKEN: KEY }), null, `even with the key, not: ${address}`);
+    }
+    same(server.engineOrigin({ SCREENS_ENGINE_URL: 'http://192.168.0.30:8478', SCREENS_ENGINE_TOKEN: 'short' }), null, 'a key too short to trust is no key');
+    const far = world({ ...live, SCREENS_ENGINE_URL: 'http://192.168.0.30:8478', SCREENS_ENGINE_TOKEN: KEY }, { accounts, engine: engineUp });
+    const there = JSON.parse((await read(await server.hostAnswer(ask('/api/screens/host', { token: liveOwner }), far.deps))).text);
+    same(there.available, true, 'the owner reaches the engine on the gaming PC through the site on SERVER');
+    ok(far.seen.engine.every((call) => call.url.startsWith('http://192.168.0.30:8478/') && call.url.includes(`token=${KEY}`)), `the key goes with every request: ${far.seen.engine.map((c) => c.url.replace(KEY, '<key>')).join(' ')}`);
+    const stranger = world({ ...live, SCREENS_ENGINE_URL: 'http://192.168.0.30:8478', SCREENS_ENGINE_TOKEN: KEY }, { accounts, engine: engineUp });
+    await server.hostAnswer(ask('/api/screens/host', { token: liveOther }), stranger.deps);
+    same(stranger.seen.engine.length, 0, 'and nobody else makes the site ask it');
+  }
+
   /* ---------------------------------------------------------------- the server by Remote Desktop: owner only, a pass the gateway takes */
   {
     const rdp = require(path.join(OUT, 'lib/screens/rdp-server.js'));
