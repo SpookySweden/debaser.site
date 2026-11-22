@@ -11,7 +11,7 @@
  */
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
-const { readFileSync } = require('node:fs');
+const { existsSync, readFileSync } = require('node:fs');
 const path = require('node:path');
 const { chromium } = require('playwright-core');
 
@@ -21,7 +21,14 @@ const urlAt = process.argv.indexOf('--url');
 const BASE = urlAt === -1 ? `http://127.0.0.1:${PORT}` : process.argv[urlAt + 1].replace(/\/$/, '');
 const AT_ONCE_MS = 4000;
 
-const supabaseUrl = readFileSync(path.join(ROOT, '.env.production'), 'utf8').match(/^NEXT_PUBLIC_SUPABASE_URL=(.+)$/m)[1].trim();
+// The address the build uses, read in Next's own order (2026-11-22: only `.env.production` was read, which still names the
+// old cloud project, while the self-hosted build takes `api.debaser.site` from `.env.local`, so the stored session sat
+// under a name the page never looked up and every signed-in step failed since the move to self-hosting).
+const supabaseUrl = ['.env.production.local', '.env.local', '.env.production']
+  .map((name) => path.join(ROOT, name))
+  .filter((file) => existsSync(file))
+  .map((file) => readFileSync(file, 'utf8').match(/^NEXT_PUBLIC_SUPABASE_URL=(.+)$/m)?.[1]?.trim())
+  .find(Boolean);
 const STORAGE_KEY = `sb-${new URL(supabaseUrl).hostname.split('.')[0]}-auth-token`;
 
 const session = () => ({
@@ -101,7 +108,7 @@ async function neverSignedOut(page, ms) {
     }
   }
 
-  const browser = await chromium.launch({ channel: 'chrome', headless: true });
+  const browser = await chromium.launch({ channel: 'chrome', headless: true }).catch(() => chromium.launch({ channel: 'msedge', headless: true }));
 
   try {
     assert.ok(await up(), `nothing is serving ${BASE}/forum (run npm run build first)`);

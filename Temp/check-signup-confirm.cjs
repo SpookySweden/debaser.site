@@ -45,7 +45,7 @@ async function up() {
     }
   }
 
-  const browser = await chromium.launch({ channel: 'chrome', headless: true });
+  const browser = await chromium.launch({ channel: 'chrome', headless: true }).catch(() => chromium.launch({ channel: 'msedge', headless: true }));
 
   try {
     assert.ok(await up(), `nothing is serving ${BASE}/account (run npm run build first)`);

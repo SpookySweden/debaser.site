@@ -31,7 +31,7 @@ async function up() {
     server = spawn(process.execPath, [path.join(ROOT, 'node_modules', 'next', 'dist', 'bin', 'next'), 'start', '-p', String(PORT)], { cwd: ROOT, stdio: 'ignore' });
     for (let attempt = 0; attempt < 40 && !(await up()); attempt += 1) await new Promise((resolve) => setTimeout(resolve, 1000));
   }
-  const browser = await chromium.launch({ channel: 'chrome', headless: true });
+  const browser = await chromium.launch({ channel: 'chrome', headless: true }).catch(() => chromium.launch({ channel: 'msedge', headless: true }));
   try {
     assert.ok(await up(), `nothing is serving ${BASE}/forum (run npm run build first)`);
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
