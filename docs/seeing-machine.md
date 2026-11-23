@@ -32,7 +32,7 @@ The plan and Luke's answers are `SPEC-seeing-machine.md`. This is what was built
    `frame-src 'none'`, so a page cannot take its frame to another address; the inner's policy loads our signed files and nothing else.
 3. **What no policy in Chrome or Edge stops** is WebRTC (the `webrtc` directive is not read there) and a `<link>`'s hints (preconnect,
    dns-prefetch): each reaches another host straight from the reader's browser. So the hook takes WebRTC away, lets no frame be made (a frame
-   is a fresh window with it back) and no link element either (a stylesheet a page links to is a style that imports it). `createElement` and
+   is a fresh window with it back) and no link element either (a stylesheet a page links to is a style that imports it), nor a meta it makes (a refresh would move the frame to a page its policy refuses: it is an inert see-meta). `createElement` and
    its kin are covered, every way of writing markup goes through one Trusted Types policy the browser enforces, and addresses that are
    scripts are refused. That part runs in the page's own window, so it leans on nothing the page could put something else in place of.
    `scripts/drive-see.cjs --only eye` tries about 30 ways, then the same with each built-in taken from under it (the first version let 342

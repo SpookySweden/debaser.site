@@ -405,7 +405,9 @@ export const HOOK = String.raw`(function (config) {
   var taken = Function.prototype.bind.bind(Function.prototype.call);
   var reach_ = Reflect.apply, text_ = String, lower = taken(String.prototype.toLowerCase), codeAt = taken(String.prototype.charCodeAt), cut = taken(String.prototype.slice), find = taken(String.prototype.indexOf), findLast = taken(String.prototype.lastIndexOf);
   var define_ = Object.defineProperty;
-  var BARRED = { __proto__: null, iframe: 1, frame: 1, frameset: 1, object: 1, embed: 1, fencedframe: 1, portal: 1, link: 1 };
+  var BARRED = { __proto__: null, iframe: 1, frame: 1, frameset: 1, object: 1, embed: 1, fencedframe: 1, portal: 1, link: 1, meta: 1 };
+  // A meta a script makes could be a refresh, which would move this frame to a page its policy refuses and leave it blank: it is made as
+  // one of ours, which does nothing, its words kept as attributes. Markup the page came with was read by the rewriter, which keeps a refresh.
   // Own data properties on an object with no prototype: nothing the page defines on Object.prototype is asked.
   function barred(name) {
     name = lower(name);
@@ -453,7 +455,7 @@ export const HOOK = String.raw`(function (config) {
     window.trustedTypes.createPolicy('default', { createHTML: markup, createScript: script, createScriptURL: function (text) { return text; } });
   }
   var make = Document.prototype.createElement, makeIn = Document.prototype.createElementNS, makeDocument = DOMImplementation.prototype.createDocument, addClass = CustomElementRegistry.prototype.define;
-  function replaced(name) { if (lower(name) !== 'link') restrict(); return 'see-' + cut(lower(name), findLast(name, ':') + 1); }
+  function replaced(name) { if (lower(name) !== 'link' && lower(name) !== 'meta') restrict(); return 'see-' + cut(lower(name), findLast(name, ':') + 1); }
   // Arguments are handed on in a list made here, its places its own.
   function list(a, b, c) { var all = { __proto__: null, length: 0 }; all.length = c === undefined ? (b === undefined ? 1 : 2) : 3; all[0] = a; all[1] = b; all[2] = c; return all; }
   define_(Document.prototype, 'createElement', { __proto__: null, configurable: true, writable: true, enumerable: true, value: function createElement(name) {
@@ -461,6 +463,7 @@ export const HOOK = String.raw`(function (config) {
     if (!barred(name)) return reach_(make, this, list(name));
     var made = reach_(make, this, list(replaced(name)));
     if (lower(name) === 'link') pretendLink(made);
+    if (lower(name) === 'meta') pretendMeta(made);
     return made;
   } });
   define_(Document.prototype, 'createElementNS', { __proto__: null, configurable: true, writable: true, enumerable: true, value: function createElementNS(space, name) {
@@ -486,6 +489,11 @@ export const HOOK = String.raw`(function (config) {
       define_(element, name, { configurable: true, get: function () { return element.getAttribute(name) || ''; }, set: function (value) { element.setAttribute(name, value); } });
     });
     define_(element, 'sheet', { configurable: true, get: function () { return null; } });
+  }
+  function pretendMeta(element) {
+    [['name', 'name'], ['content', 'content'], ['httpEquiv', 'http-equiv'], ['charset', 'charset'], ['media', 'media']].forEach(function (pair) {
+      define_(element, pair[0], { configurable: true, get: function () { return element.getAttribute(pair[1]) || ''; }, set: function (value) { element.setAttribute(pair[1], value); } });
+    });
   }
   function joinLink(element) {
     var rel = element.getAttribute('rel') || '', href = element.getAttribute('href');
