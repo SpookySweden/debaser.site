@@ -24,7 +24,7 @@ One line each, the most useful first. Struck through when done, with its commit.
 - ~~While a page was asked for (and after STOP) the view was an empty box: now a dither field, the step, the address and the eye, and a stepped scan line.~~
 - ~~TRAIL with one site was a lone word in a big box: a legend now says how many places and ways, and while there are none, what draws a line.~~
 - ~~HISTORY and KEPT pushed the page keys onto a third line: they moved to the empty end of the tab line (decision 34).~~
-- ~~The TIME DIAL sat open on every outside page: now [ TIME ] until pressed, open on an old copy (decision 37).~~ The page keys still take two lines at 1366: the page group alone is about 1100px.
+- ~~The TIME DIAL sat open on every outside page: now [ TIME ] until pressed, open on an old copy (decision 37).~~ (The page keys taking two lines at 1366: settled by decision 38, two rows in all.)
 - ~~Keyboard round: the Tab order was probed (a throwaway Playwright probe) and is sensible; lenses had no key: Alt+L the next lens.~~
 - ~~After STOP the view said STOPPED and offered nothing: [ ASK AGAIN ] there now.~~
 - ~~The status line said what was reconstructed but not how long it took: "· IN 412 MS" at its end (took.ts, shared with the refusal trace).~~
@@ -36,3 +36,7 @@ One line each, the most useful first. Struck through when done, with its commit.
 - ~~HISTORY and KEPT had no keys: Alt+H and Alt+K, each a toggle, listed on the keys line.~~
 - ~~Escape did nothing to HISTORY or KEPT: it puts them away (only then; otherwise it is left alone).~~
 - ~~The hostile page now also tries a drawing's animation at the trap, in its markup and made by its script: none reaches it.~~
+- Open: while HISTORY or KEPT covers the page, the lens and tool keys still act on the page under it (nothing seen to change).
+- Open: an Internet Archive item's own page (/details/) that is a book gets no [ READ IT ]: it would need the item's kind (mediatype: texts), read from the page the machine already has.
+- Open: at 390 an outside page has about twelve rows of keys over it (phones get the desktop zoomed out, so low).
+- Open: SeeingMachine.tsx is about 710 lines; the page keys' block needs two dozen of its values, so moving it out isn't simpler yet.
