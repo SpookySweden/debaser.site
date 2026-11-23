@@ -729,6 +729,8 @@ async function eye(browser) {
     await keepPanel.getByRole('button', { name: 'KEEP', exact: true }).click();
     await keepPanel.getByRole('button', { name: '[ SEE THE COPY ]' }).waitFor({ timeout: 30000 });
     ok(/ONLY YOU, IN THIS BROWSER/.test(await keepPanel.innerText()), 'the key says who sees it');
+    // A page kept for one reader alone goes to no letter and no board thread (shared, it offers both: SeeingKeep.tsx, as the KEPT list).
+    ok(!/LETTER|BOARD THREAD/.test(await keepPanel.innerText()), 'a private page is offered to no letter and no board');
     const asksBefore = net.asked.length;
     await keepPanel.getByRole('button', { name: '[ SEE THE COPY ]' }).click();
     await say(page, 'KEPT COPY');

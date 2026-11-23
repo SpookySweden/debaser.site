@@ -1,17 +1,20 @@
 'use client';
 
 import { useState } from 'react';
-import { cleanQuote, cleanTags, copyFrom, keptAddress, NOTE_LENGTH, pageFrom, QUOTES_MOST } from '../../lib/seeing/pages';
+import { pageAnchor } from '../../lib/seeing/page-anchor';
+import { cleanQuote, cleanTags, copyFrom, keptAddress, NOTE_LENGTH, pageFrom, QUOTES_MOST, type SeenPage } from '../../lib/seeing/pages';
 import { keepPage, PAGES_ARE_SHARED } from '../../lib/seeing/pages-store';
 import { makeCopy } from '../../lib/seeing/server-engine';
 import { FIELD_TIGHT, PLATE, PLATE_MAIN, TITLE_BAR_INACTIVE } from '../../lib/ui/controls';
+import AddToLetterKey from '../AddToLetterKey';
+import CommentPopout from '../CommentPopout';
 
 /** KEEP PAGE, beside the page: your tags, your note, the passages you pick, and one key. */
 export default function SeeingKeep({ address, owner, selected, onOpen, onClose }: { address: string; owner: { id: string; label: string }; selected: string; onOpen: (address: string) => void; onClose: () => void }) {
   const [tags, setTags] = useState('');
   const [note, setNote] = useState('');
   const [quotes, setQuotes] = useState<readonly string[]>([]);
-  const [state, setState] = useState<{ words: string; fault: boolean; kept: string | null } | null>(null);
+  const [state, setState] = useState<{ words: string; fault: boolean; kept: string | null; page?: SeenPage } | null>(null);
   const [busy, setBusy] = useState(false);
 
   const keep = async () => {
@@ -37,7 +40,7 @@ export default function SeeingKeep({ address, owner, selected, onOpen, onClose }
       });
       if (page === null) throw new Error('NOT KEPT');
       await keepPage(page, copy);
-      setState({ words: copy === null ? 'KEPT, WITH NO COPY: THE PAGE IS NOT THE SAME SIGNED OUT, OR IS TOO LARGE' : 'KEPT', fault: false, kept: copy === null ? null : keptAddress(page.id) });
+      setState({ words: copy === null ? 'KEPT, WITH NO COPY: THE PAGE IS NOT THE SAME SIGNED OUT, OR IS TOO LARGE' : 'KEPT', fault: false, kept: copy === null ? null : keptAddress(page.id), page });
     } catch (failure) {
       setState({ words: failure instanceof Error ? failure.message : 'NOT KEPT', fault: true, kept: null });
     } finally {
@@ -90,6 +93,14 @@ export default function SeeingKeep({ address, owner, selected, onOpen, onClose }
             <button type="button" onClick={() => onOpen(state.kept ?? '')} className={PLATE}>
               [ SEE THE COPY ]
             </button>
+          ) : null}
+          {/* Straight on to a letter or the board, as the KEPT list offers; a private page goes nowhere. */}
+          {state.page !== undefined && !state.page.private ? (
+            <>
+              {' '}
+              <AddToLetterKey thing={{ kind: 'page', ref: state.page.id, title: state.page.title }} />{' '}
+              <CommentPopout anchor={pageAnchor(state.page)} label="BOARD THREAD" className={PLATE} />
+            </>
           ) : null}
         </p>
       ) : null}
