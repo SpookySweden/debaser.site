@@ -24,6 +24,7 @@ import PlayerBox, { PipKey, usePlayingHere } from './PlayerBox';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import TagStationFilters from './TagStationFilters';
 import { linkMapWords, LinkInput, useLinkAnswer } from './TagStationLink';
+import KeptPagesLane from './KeptPagesLane';
 import TagStationList from './TagStationList';
 import TagStationMap from './TagStationMap';
 import { FindInMedia, ItemRow, STATION_KEY, STATION_KEY_ON, Thumb, TitleLine, WordChip, WordFacets } from './TagStationParts';
@@ -467,6 +468,8 @@ export function Station({ index: mapIndex }: { index: StationIndex }) {
         {/* The neighbourhood: what's around the choice. */}
         <section aria-labelledby="ts-near" className="flex min-w-0 flex-1 basis-64 flex-col gap-3">
           <TitleLine id="ts-near">NEIGHBOURHOOD</TitleLine>
+          {/* Pages kept in BROWSER under the words chosen here. */}
+          <KeptPagesLane key={focus.words.join(' ')} tags={focus.words} />
           {/* Side by side when the panel has the width, one under another when it doesn't. */}
           <div className="flex flex-wrap items-start gap-4">
           <div className="min-w-0 flex-1 basis-64">

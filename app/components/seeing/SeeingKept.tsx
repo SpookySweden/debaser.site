@@ -5,7 +5,11 @@ import { matchesWords, searchWords } from '../../lib/search/site-search';
 import { hideSeen } from '../../lib/seeing/account';
 import { keptAddress, pageWords, type SeenPage } from '../../lib/seeing/pages';
 import { keptPages, keptPagesOnServer, removePage, subscribeToKeptPages } from '../../lib/seeing/pages-store';
+import { pageAnchor } from '../../lib/seeing/page-anchor';
+import AddToLetterKey from '../AddToLetterKey';
+import CommentPopout from '../CommentPopout';
 import { ReportKey } from '../ModerationKeys';
+import TalkedAboutIn from '../TalkedAboutIn';
 import { useModeration } from '../ModerationProvider';
 import { FIELD_TIGHT, PLATE, PLATE_PRESSED, TITLE_BAR_INACTIVE } from '../../lib/ui/controls';
 
@@ -78,6 +82,12 @@ function Card({ page, mine, onGo }: { page: SeenPage; mine: boolean; onGo: (addr
           <button type="button" onClick={() => onGo(page.address)} title={page.address} className={PLATE}>
             [ SEE THE PAGE ]
           </button>
+          {page.private ? null : (
+            <>
+              <AddToLetterKey thing={{ kind: 'page', ref: page.id, title: page.title }} />
+              <CommentPopout anchor={pageAnchor(page)} label="BOARD THREAD" className={PLATE} />
+            </>
+          )}
           {mine ? (
             <button
               type="button"
@@ -99,6 +109,7 @@ function Card({ page, mine, onGo }: { page: SeenPage; mine: boolean; onGo: (addr
             </button>
           ) : null}
         </p>
+        {page.private ? null : <TalkedAboutIn kind="page" id={page.id} links={[page.address]} />}
         {said !== null ? (
           <p role="status" className="w-fit bg-bubble-pale px-1 text-ink-bar">
             {said}

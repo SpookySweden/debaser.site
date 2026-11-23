@@ -99,6 +99,7 @@ import WebPickedList from './WebPickedList';
 import AudioSubsFlags from './AudioSubsFlags';
 import WebMediaRow, { isKinoRow, isMediaRow, KinoRow } from './WebMediaRow';
 import WebCatalogueFinds, { CatalogueLine, useCatalogueFinds } from './WebCatalogueFinds';
+import KeptPagesLane from './KeptPagesLane';
 import WebSiteFiles from './WebSiteFiles';
 import WebLiveRooms from './WebLiveRooms';
 import StreamArtShelf from './StreamArtShelf';
@@ -1525,6 +1526,10 @@ export default function WebStream() {
         <WebLiveRooms key={searchAddress({ ...shown.filters, text: shown.kind === 'search' ? shown.query : '' })} query={shown.kind === 'search' ? shown.query : ''} />
       ) : null}
       {shown.kind === 'search' && shown.filters.live !== true ? <WebSiteFiles key={searchAddress({ ...shown.filters, text: shown.query })} matches={siteFiles} /> : null}
+      {/* Pages people kept in BROWSER: those a search finds, or the newest (SPEC-seeing-machine.md, answer 13). */}
+      {(shown.kind === 'search' || (shown.kind === 'stream' && mixOn)) && shown.filters.live !== true && shown.filters.source === 'all' && (shown.filters.type === 'all' || shown.filters.type === 'text') && authorsOf(shown.filters).length === 0 ? (
+        <KeptPagesLane key={shown.kind === 'search' ? shown.query : ''} search={shown.kind === 'search' ? shown.query : null} />
+      ) : null}
 
       {emptyLine !== null ? (
         <p role="status" className="text-label font-bold text-ink wrap-anywhere">

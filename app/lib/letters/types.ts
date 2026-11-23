@@ -4,7 +4,7 @@
  * it had when added (so it shows at once, and still shows where the thing has no lookup by id), and where its card sits.
  */
 
-export const LETTER_KINDS = ['web', 'media', 'kino', 'thread', 'post', 'lore', 'file', 'song', 'profile', 'link', 'highlight'] as const;
+export const LETTER_KINDS = ['web', 'media', 'kino', 'thread', 'post', 'lore', 'file', 'song', 'profile', 'link', 'highlight', 'page'] as const;
 export type LetterKind = (typeof LETTER_KINDS)[number];
 
 export type Letter = {

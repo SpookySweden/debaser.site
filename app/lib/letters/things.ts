@@ -1,6 +1,8 @@
 import { commentDomId, threadDomId } from '../forum/anchors';
 import { LORE_PATH } from '../docs/rules';
 import { highlightHref } from '../books/types';
+import { browserHref } from '../seeing/address';
+import { isPageId, keptAddress } from '../seeing/pages';
 import type { LetterItem, LetterKind } from './types';
 
 /** What a card's key says in its pop-up (Luke: "listen, being watch or read case by case"). */
@@ -19,6 +21,7 @@ export const KIND_LABELS: Record<LetterKind, string> = {
   profile: 'PERSON',
   link: 'LINK',
   highlight: 'HIGHLIGHT',
+  page: 'KEPT PAGE',
 };
 
 /** The key a kind of thing gets, where the kind alone says it (a MEDIA row says by its own kind: see LetterItemPopout). */
@@ -33,6 +36,7 @@ export function verbOf(kind: LetterKind): LetterVerb {
     case 'post':
     case 'lore':
     case 'highlight':
+    case 'page':
       return 'READ';
     default:
       return 'OPEN';
@@ -64,6 +68,9 @@ export function hrefOf(item: Pick<LetterItem, 'kind' | 'ref' | 'title'>): string
       return '/beatbox';
     case 'profile':
       return `/profile/${encodeURIComponent(item.ref)}`;
+    case 'page':
+      // BROWSER's kept copy (SPEC-seeing-machine.md), which waits there for GO, as any link to a page does.
+      return isPageId(item.ref) ? browserHref(keptAddress(item.ref)) : '/browser';
     case 'link':
       return isWebAddress(item.ref) ? item.ref : '/';
     default:

@@ -1,8 +1,11 @@
 'use client';
 
-import { useState, type DragEvent, type FormEvent } from 'react';
+import { useEffect, useState, type DragEvent, type FormEvent } from 'react';
 import { useLetter, useLettersOf } from '../lib/letters/store';
 import { isWebAddress } from '../lib/letters/things';
+import { matchesWords, searchWords } from '../lib/search/site-search';
+import { pageWords } from '../lib/seeing/pages';
+import { keptPages, openKeptPagesOf } from '../lib/seeing/pages-store';
 import { LETTER_TITLE_MAX, type LetterThing } from '../lib/letters/types';
 import {
   RECOMMENDATION_ITEMS_MAX,
@@ -13,6 +16,7 @@ import {
 import { FIELD_TIGHT, PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR } from '../lib/ui/controls';
 import { searchEverywhere } from '../lib/web/everywhere-client';
 import { rowAddresses } from '../lib/web/row-addresses';
+import { useAuth } from './AuthProvider';
 import { useComms } from './CommsProvider';
 import LetterStamp from './LetterStamp';
 import type { Placement } from '../lib/letters/types';
@@ -441,6 +445,9 @@ function WholeLetter({
 }
 
 function FromSearch({ onAdd }: { onAdd: (thing: LetterThing) => void }) {
+  const { user } = useAuth();
+  const me = user?.id ?? null;
+  useEffect(() => void openKeptPagesOf(me), [me]);
   const [words, setWords] = useState('');
   const [found, setFound] = useState<LetterThing[]>([]);
   const [note, setNote] = useState<string | null>(null);
@@ -461,10 +468,13 @@ function FromSearch({ onAdd }: { onAdd: (thing: LetterThing) => void }) {
     setNote(null);
     try {
       const page = await searchEverywhere(asked, null);
-      setFound(
-        page.items.slice(0, 30).map((item) => ({ kind: 'web' as const, ref: item.id, title: item.title.slice(0, LETTER_TITLE_MAX), picture: rowAddresses(item).thumb ?? undefined })),
-      );
-      if (page.items.length === 0) setNote('NOTHING FOUND.');
+      // Kept pages first: they are this site's own.
+      const kept = keptPages().filter((each) => !each.private && matchesWords(searchWords(asked), ...pageWords(each))).slice(0, 10);
+      setFound([
+        ...kept.map((each) => ({ kind: 'page' as const, ref: each.id, title: each.title.slice(0, LETTER_TITLE_MAX) })),
+        ...page.items.slice(0, 30).map((item) => ({ kind: 'web' as const, ref: item.id, title: item.title.slice(0, LETTER_TITLE_MAX), picture: rowAddresses(item).thumb ?? undefined })),
+      ]);
+      if (page.items.length === 0 && kept.length === 0) setNote('NOTHING FOUND.');
     } catch {
       setNote('THE SEARCH DIDN\'T ANSWER. TRY AGAIN.');
     } finally {
@@ -483,7 +493,7 @@ function FromSearch({ onAdd }: { onAdd: (thing: LetterThing) => void }) {
           onKeyDown={(event) => {
             if (event.key === 'Enter') void find(event as unknown as FormEvent);
           }}
-          placeholder="SEARCH MEDIA OR PASTE A LINK"
+          placeholder="SEARCH MEDIA AND KEPT PAGES, OR PASTE A LINK"
           aria-label="Search MEDIA or paste a link"
           className={`${FIELD_TIGHT} min-w-0 flex-1`}
         />

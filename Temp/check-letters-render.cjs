@@ -69,6 +69,10 @@ const AddToLetterKey = require('./letters-render-out/components/AddToLetterKey.j
   /* 2. Where a thing opens ----------------------------------------------------------------- */
   assert.equal(hrefOf({ kind: 'thread', ref: 't1', title: '' }), '/forum#thread-t1');
   assert.equal(hrefOf({ kind: 'profile', ref: 'u 1', title: '' }), '/profile/u%201');
+  // A page kept in BROWSER (2026-11-23): its copy's own address, which waits there for GO; anything that is not one opens BROWSER alone.
+  assert.equal(hrefOf({ kind: 'page', ref: '0123abcd-0000-4000-8000-00000000abcd', title: '' }), `/browser#see=${encodeURIComponent('see:kept/0123abcd00004000800000000000abcd')}`);
+  for (const ref of ['javascript:alert(1)', 'https://evil.example/', '']) assert.equal(hrefOf({ kind: 'page', ref, title: '' }), '/browser');
+  assert.equal(verbOf('page'), 'READ');
   assert.equal(hrefOf({ kind: 'link', ref: 'javascript:alert(1)', title: '' }), '/', 'a link that is not a web address goes nowhere');
   assert.equal(isWebAddress('https://example.org/a'), true);
   assert.equal(isWebAddress('javascript:alert(1)'), false);

@@ -1,4 +1,6 @@
 import { MUSIC_HREF } from '../audio/music-window';
+import { browserHref } from '../seeing/address';
+import { isPageId, keptAddress } from '../seeing/pages';
 import { CONCEPT_SHEETS } from '../concepts/sheets';
 import type { ProfileCommentKind } from '../profile/types';
 import type { ForumAnchor, ForumPreview, ForumThread } from './types';
@@ -290,6 +292,8 @@ const KIND_DEFAULT_HREF: Record<ForumAnchor['kind'], string> = {
   // A comic panel's thread (SPEC-comic.md): the database keeps no address, so `resolveAnchorTarget` sends it through /comic?panel=<id>,
   // which finds the panel's page.
   comic: '/comic',
+  // A page kept in BROWSER (SPEC-seeing-machine.md): the same, by the kept page's own id.
+  page: '/browser',
 };
 
 export function allKnownAnchors(): ForumAnchor[] {
@@ -314,7 +318,7 @@ export function resolveAnchorTarget(anchor: ForumAnchor): {
     href:
       anchor.href ??
       known?.href ??
-      (anchor.kind === 'comic' ? `/comic?panel=${encodeURIComponent(anchor.id)}` : KIND_DEFAULT_HREF[anchor.kind]),
+      (anchor.kind === 'comic' ? `/comic?panel=${encodeURIComponent(anchor.id)}` : anchor.kind === 'page' && isPageId(anchor.id) ? browserHref(keptAddress(anchor.id)) : KIND_DEFAULT_HREF[anchor.kind]),
     preview: anchor.preview ?? known?.preview,
   };
 }

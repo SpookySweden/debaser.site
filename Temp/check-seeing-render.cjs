@@ -1,7 +1,7 @@
 /*
  * BROWSER on screen (SPEC-seeing-machine.md, Luke 2026-11-23): what the server draws of it. The pure parts are check-seeing.cjs, and
  * scripts/drive-see.cjs drives it in a browser.
- *   npx tsc app/components/seeing/SeeingMachine.tsx app/components/SeeKey.tsx app/components/ExtensionWindow.tsx --rootDir app --outDir Temp/seeing-render-out --module commonjs --target es2022 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop --strictNullChecks
+ *   npx tsc app/components/seeing/SeeingMachine.tsx app/components/SeeKey.tsx app/components/ExtensionWindow.tsx app/components/KeptPagesLane.tsx --rootDir app --outDir Temp/seeing-render-out --module commonjs --target es2022 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop --strictNullChecks
  *   node Temp/check-seeing-render.cjs
  *
  * - signed out: the sign-in call and nothing of the machine; signed in, before its tabs are read: neither
@@ -112,4 +112,22 @@ const engines = html(el(at('SeeingEngines'), { ownEye: false, onClose: none }));
 for (const name of ['Google ↗', 'Bing ↗', 'DuckDuckGo', 'Marginalia', 'Wikipedia', 'DEBASER.SITE', 'MEDIA']) assert.ok(engines.includes(name), name);
 assert.ok(/IN A NEW TAB/.test(engines) && /NO WORDS ARE STORED/.test(engines) && /https:\/\/example\.com\/\?q=%s/.test(engines));
 assert.match(html(el(at('SeeingEngines'), { ownEye: true, onClose: null })), /IN OWN EYE/);
+// Kept pages elsewhere: the lane draws nothing until there are some, and a thread's anchor leads to the kept copy.
+stub('lib/seeing/pages-store.js', {
+  keptPages: () => [], subscribeToKeptPages: () => none, openKeptPagesOf: async () => undefined,
+  keptPagesOnServer: () => LANE,
+});
+const LANE = [
+  { id: '0123abcd-0000-4000-8000-00000000abcd', ownerId: 'u2', ownerLabel: 'THEM', address: 'https://a.example/x', title: '<b>Fog</b> signals', description: '', site: 'a.example', picture: null, language: '', date: '', at: 1, tags: ['FOG'], note: '', quotes: [], hasCopy: true, private: false },
+  { id: '0123abcd-0000-4000-8000-00000000abce', ownerId: 'u1', ownerLabel: 'ME', address: 'https://b.example/', title: 'Private thing', description: '', site: 'b.example', picture: null, language: '', date: '', at: 1, tags: ['FOG'], note: '', quotes: [], hasCopy: false, private: true },
+];
+const lanePath = require.resolve(path.join(OUT, 'components/KeptPagesLane.js'));
+const nav = require.resolve('next/navigation');
+require.cache[nav] = { id: nav, filename: nav, loaded: true, exports: { useRouter: () => ({ push: none }) } };
+delete require.cache[lanePath];
+const Lane = require('./seeing-render-out/components/KeptPagesLane.js').default;
+const lane = (props) => html(el(Lane, props));
+assert.ok(/PAGES :: 1 KEPT/.test(lane({})) && /&lt;b&gt;Fog/.test(lane({})) && !/Private thing/.test(lane({})), 'the open ones, their titles as words');
+assert.ok(/Fog/.test(lane({ search: 'signals' })) && lane({ search: 'nothing like it' }) === '', 'those a search finds');
+assert.ok(/Fog/.test(lane({ tags: ['fog'] })) && lane({ tags: ['harbours'] }) === '' && lane({ tags: [] }) === '', "and DISCOVER's, by their keepers' own tags");
 console.log('BROWSER on screen: the sign-in call, tabs, keys, lenses and WATCHERS');

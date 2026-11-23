@@ -138,6 +138,8 @@ In OWN EYE these are your own browser's, where they answer as they always do; no
   name made for that one copy, so a page can't write itself one. Not 200, or nothing but a sign-in: a card, no copy, private.
 - **Where it is kept**: `supabase-pages-repository.ts` on the site, or `pages-repository.ts` (IndexedDB `debaser-seeing`) on a local dev server. The key
   says which: EVERYONE WILL SEE THIS, or ONLY YOU, IN THIS BROWSER.
+- **Elsewhere on the site** (answer 13): Ctrl+K's PAGES, letters and recommendations (`page`), a board thread each (`page` anchor, TALKED ABOUT IN), MEDIA's
+  PAGES lane and DISCOVER's by the tags their keepers gave (`KeptPagesLane`). A private page is in none of them.
 - A copy opens at `see:kept/<id>` in the same frame with scripts off and no files, its source's link above it. Ctrl+K has PAGES.
 - **On the site** (`NEXT_PUBLIC_SEEING_DATA_SOURCE=supabase`, migrations 20261123130000 to 130300): cards everyone reads, copies and notes for accounts,
   REPORT and a moderator's HIDE (`seen_hide`), history and tabs on the account (`account.ts`; in this browser too, so a line that is down loses nothing).
