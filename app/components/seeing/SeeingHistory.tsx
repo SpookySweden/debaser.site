@@ -48,7 +48,11 @@ export default function SeeingHistory({ onGo, onClose }: { onGo: (address: strin
       </div>
       <p className="text-ink-quiet">ONLY YOU SEE THIS. {HISTORY_DAYS} DAYS.</p>
       {failed ? <p role="status">IT COULD NOT BE CLEARED FROM YOUR ACCOUNT: TRY AGAIN.</p> : null}
-      {rows.length === 0 ? <p className="p-1">NOTHING YET.</p> : view === 'list' ? <List rows={found} onGo={onGo} /> : <TrailMap rows={found} onGo={onGo} />}
+      {rows.length === 0 ? (
+        <p className="p-1">NOTHING YET.</p>
+      ) : found.length === 0 ? (
+        <p className="p-1">NOTHING FOUND.</p>
+      ) : view === 'list' ? <List rows={found} onGo={onGo} /> : <TrailMap rows={found} onGo={onGo} />}
     </section>
   );
 }

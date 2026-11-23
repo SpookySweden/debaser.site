@@ -683,6 +683,9 @@ async function eye(browser) {
     // HISTORY and TRAIL (Phase 5): the walk so far, in this browser and nowhere else.
     await key(page, '[ HISTORY ]').click();
     ok(/An ordinary page/.test(await page.locator('[data-seeing-history]').innerText()), 'HISTORY has the page, by its title');
+    await page.getByRole('textbox', { name: 'Find in history' }).fill('zzqx nowhere');
+    ok(/NOTHING FOUND./.test(await page.locator('[data-seeing-history]').innerText()), 'words that find nothing say so');
+    await page.getByRole('textbox', { name: 'Find in history' }).fill('');
     await page.getByRole('button', { name: '[ TRAIL ]' }).click();
     ok((await page.locator('[data-seeing-trail] button').count()) === 1, 'TRAIL puts the site on the map');
     ok(/1 PLACE · 0 WAYS BETWEEN THEM. A LINE IS DRAWN/.test(await page.locator('[data-seeing-trail-legend]').innerText()), 'and says what makes a line while there is none');

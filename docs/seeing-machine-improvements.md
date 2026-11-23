@@ -32,3 +32,4 @@ One line each, the most useful first. Struck through when done, with its commit.
 - ~~The lenses had a row to themselves, half empty: lenses and tools now share their lines (decision 38); an outside page has two rows of keys, not three, and at 1366 the whole page group fits on the second.~~
 - ~~A book seen in BROWSER (Open Library, an Archive book) had no way into the site's own reader: [ READ IT ] (read-ref.ts, decision 39); the A BOOK refusal of an Archive PDF now opens it.~~
 - ~~A page popped in with no sense of the machine having made it: it now tunes in, the busy view's dither stepping off it in six jumps (decision 40).~~
+- ~~HISTORY's FIND with words that matched nothing left a blank box: NOTHING FOUND. (Empty states stay NOTHING YET. and stop, SPEC-less-text rule 1.)~~
