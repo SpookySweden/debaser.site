@@ -7,6 +7,7 @@ The plan and Luke's answers are `SPEC-seeing-machine.md`. This is what was built
 | --- | --- |
 | The page, tabs, keys, the frame's element | `app/browser/page.tsx`, `app/components/seeing/*` |
 | Addresses, tabs, the frame's documents and messages, our script in it | `app/lib/seeing/address.ts`, `tabs.ts`, `frame.ts`, `hook.ts` |
+| The status line: what was done, the eye, files and refused, the page's own size (PAGE 48 KB, decision 50), the lens, HTTP nnn at 400 and over, how long it took; one line, cut at the end when narrow | `SeeingMachine.tsx`, `took.ts` |
 | The keyboard: / the box, Alt+N a new tab, Alt+W close it, Alt+1 to 8 a tab, Alt+L the next lens, Alt+H HISTORY, Alt+K KEPT, Alt+R ask again (as ↻), Escape puts them and the engines' list away (only while one is open; none while the page has the keyboard) | `app/lib/seeing/keys.ts`, listed on a new tab (`SeeingStart.tsx`) |
 | A refusal said plainly: what it means, what may still be tried; every reason the server gives has its own words (a check reads them from its source; a file that isn't a page, "NOT SHOWN HERE: <type>", offers OPEN SOURCE only); under it the trace (EYE, ASKED, ANSWER and how long), only what this side knows | `app/lib/seeing/refusals.ts`, `SeeingRefused.tsx` |
 | Which keys show: HISTORY and KEPT at the tab line's end, always; a new tab only SCAN besides; SEAM, LOUPE, ERASE greyed until a page is drawn; the page's own keys (KEEP PAGE and on) only for an outside page | `SeeingTools.tsx`, the tool row in `SeeingMachine.tsx` |
