@@ -13,3 +13,6 @@ One line each, the most useful first. Struck through when done, with its commit.
 - ~~A [ SEE ] press from anywhere on the site, for a reader with tabs kept, opened the page and then put the old page back in front in an extra tab: the address after the # was written from a stale drawing and read back as a link. Fixed; the drive holds it.~~
 - ~~At 390 the address box was a sliver and GO/ALL broke over two lines; the second hairline dangled on built-in pages. The bar now wraps, the box first.~~
 - At 390 the page itself gets little height under five rows of keys (phones get the desktop zoomed out today, so low).
+- ~~A refusal's keys said IN YOUR OWN EYE and ON ITS OWN SITE where the bar says OWN EYE and OPEN SOURCE: the same words now.~~
+- ~~drive-see extension: the tamper case never matched (the window asks lens.js?v=...); fixed.~~
+- drive-see extension then fails at "by itself, on another page" (the keeper's update 5 s after /forum opens; 60 s timeout). Not touched by the IMPROVE runs; find whether the keeper or the pretend extension is at fault.

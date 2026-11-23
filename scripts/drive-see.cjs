@@ -1118,12 +1118,13 @@ async function extension(browser) {
   await page.getByRole('button', { name: 'CHOOSE ITS FOLDER' }).click();
   await page.waitForFunction(() => /ISN'T THE EXTENSION'S FOLDER/.test(document.querySelector('[data-extension]')?.textContent ?? ''));
   ok(Object.keys(await take('other')).length === 1, "a folder that isn't its own is not written to");
-  await page.route('**/api/extension/file/lens.js', (route) => route.fulfill({ status: 200, body: 'tampered' }));
+  // The window asks for `lens.js?v=<fingerprint>`, so the address is matched with its question.
+  await page.route(/\/api\/extension\/file\/lens\.js(\?|$)/, (route) => route.fulfill({ status: 200, body: 'tampered' }));
   await page.evaluate(() => (window.pickThis = 'picked'));
   await page.getByRole('button', { name: 'CHOOSE ITS FOLDER' }).click();
   await page.waitForFunction(() => /lens\.js IS NOT WHAT IT SHOULD BE/.test(document.querySelector('[data-extension]')?.textContent ?? ''));
   ok((await take('picked'))['worker.js'] === 'old', 'a file that is not what the build made: nothing is written');
-  await page.unroute('**/api/extension/file/lens.js');
+  await page.unroute(/\/api\/extension\/file\/lens\.js(\?|$)/);
   await page.getByRole('button', { name: 'UPDATE', exact: true }).click();
   await kind('current');
   const now = await take('picked');

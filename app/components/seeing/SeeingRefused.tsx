@@ -22,11 +22,11 @@ export default function SeeingRefused({ reason, address, canOld, ownEye, onAgain
               </button>
             ) : each === 'own' ? (
               <button key={each} type="button" title="In your own browser, where you are signed in" onClick={onOwn} className={PLATE}>
-                [ IN YOUR OWN EYE ↗ ]
+                [ OWN EYE ↗ ]
               </button>
             ) : (
               <a key={each} href={address} target="_blank" rel="noopener noreferrer" className={PLATE}>
-                [ ON ITS OWN SITE ↗ ]
+                [ OPEN SOURCE ↗ ]
               </a>
             ),
           )}
