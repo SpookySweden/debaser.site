@@ -931,7 +931,7 @@ async function lenses(browser) {
       }
       if (['dark', 'default'].includes(theme.id)) await page.screenshot({ path: join(OUT, `lens-${name.toLowerCase()}-${theme.id}.png`) });
       if (name === 'GLASS') {
-        const clear = await page.evaluate(() => [getComputedStyle(document.querySelector('[data-site-window="frame"]')).backgroundColor, getComputedStyle(document.querySelector('[data-seeing-keys]')).backgroundColor]);
+        const clear = await page.evaluate(() => [getComputedStyle(document.querySelector('[data-site-window="frame"]')).backgroundColor, getComputedStyle(document.querySelector('[data-seeing-keyrow]')).backgroundColor]);
         ok(await page.evaluate(() => document.documentElement.hasAttribute('data-see-glass') && document.querySelector('[data-page-fill]') !== null), `${theme.id}: and the background is told it can be seen`);
         ok(clear[0] === 'rgba(0, 0, 0, 0)' && clear[1] !== 'rgba(0, 0, 0, 0)', `${theme.id}: GLASS clears the window, and leaves the keys their ground`);
       }

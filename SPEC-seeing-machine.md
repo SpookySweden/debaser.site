@@ -101,7 +101,7 @@ Each can be changed later by saying so.
 35. **Alt+L turns to the next lens** (STANDARD, READER, WATCHERS ... round again), remembered for the site as a press is; listed with the other keys. Undo: the KeyL line in keys.ts.
 36. **The status line ends with how long the page took** ("· IN 412 MS"), timed on this side from the press to the drawing, as a refusal's trace is. Undo: the ms in the shown state.
 37. **The TIME DIAL is a key, [ TIME ], until pressed**; on an old copy it is open at its year. Undo: dialShown in SeeingTools.tsx back to dial !== null.
-38. **The lenses and the tools share their lines**, a hairline between them (desktop only), wrapping where they must: a built-in page has one row of keys under the address, an outside page two (it was three). Undo: the data-seeing-keys wrapper in SeeingMachine.tsx out, and the two `contents` roots in SeeingLenses.tsx and SeeingTools.tsx back to their own flex rows.
+38. **The lenses and the tools share their lines**, a hairline between them (desktop only), wrapping where they must: a built-in page has one row of keys under the address, an outside page two (it was three). Undo: the data-seeing-keyrow wrapper in SeeingMachine.tsx out, and the two `contents` roots in SeeingLenses.tsx and SeeingTools.tsx back to their own flex rows.
 
 ## Risks, said once
 1. **SERVER is beside everything.** The torrent page (no password at home), Jellyfin, the database and its dashboard, the
