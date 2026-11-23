@@ -32,8 +32,8 @@ export default function SeeingEngines({ ownEye, onClose }: { ownEye: boolean; on
             <div key={group}>
               <h3 className="title-line text-label font-bold text-ink">{group}</h3>
               <ul>
-                {mine.map((engine) => (
-                  <EngineRow key={engine.id} engine={engine} choices={choices} />
+                {mine.map((engine, at) => (
+                  <EngineRow key={engine.id} engine={engine} choices={choices} first={at === 0} last={at === mine.length - 1} />
                 ))}
               </ul>
             </div>
@@ -45,7 +45,7 @@ export default function SeeingEngines({ ownEye, onClose }: { ownEye: boolean; on
   );
 }
 
-function EngineRow({ engine, choices }: { engine: Engine; choices: SearchChoices }) {
+function EngineRow({ engine, choices, first, last }: { engine: Engine; choices: SearchChoices; first: boolean; last: boolean }) {
   const off = choices.off.includes(engine.id);
   const chosen = engineChosen(choices).id === engine.id;
   const inAll = choices.all.includes(engine.id);
@@ -70,10 +70,10 @@ function EngineRow({ engine, choices }: { engine: Engine; choices: SearchChoices
       >
         ALL
       </button>
-      <button type="button" aria-label={`Move ${engine.name} up`} title="Up" onClick={() => changeSearch(moved(choices, engine.id, -1))} className={PLATE}>
+      <button type="button" aria-label={`Move ${engine.name} up`} title="Up" disabled={first} onClick={() => changeSearch(moved(choices, engine.id, -1))} className={PLATE}>
         ▲
       </button>
-      <button type="button" aria-label={`Move ${engine.name} down`} title="Down" onClick={() => changeSearch(moved(choices, engine.id, 1))} className={PLATE}>
+      <button type="button" aria-label={`Move ${engine.name} down`} title="Down" disabled={last} onClick={() => changeSearch(moved(choices, engine.id, 1))} className={PLATE}>
         ▼
       </button>
       <button

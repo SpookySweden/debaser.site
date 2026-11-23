@@ -1242,6 +1242,12 @@ async function search(browser) {
     await page.locator('[data-seeing-tabs]').waitFor({ timeout: 60000 });
     const says = () => page.locator('[data-seeing-says]').innerText();
     ok(/Pretend one/.test(await page.locator('[data-seeing-engines]').innerText()), 'a new tab has the list under its box');
+    const arrows = await page.locator('[data-seeing-engines] ul').first().evaluate((list) => {
+      const rows = [...list.querySelectorAll('li')];
+      const key = (row, word) => row.querySelector(`button[title="${word}"]`);
+      return [key(rows[0], 'Up').disabled, key(rows[0], 'Down').disabled, key(rows[rows.length - 1], 'Down').disabled, key(rows[rows.length - 1], 'Up').disabled];
+    });
+    ok(arrows.join() === 'true,false,true,false', `the first engine of a group can't go up, nor the last down (${arrows})`);
     await box(page).fill('fog & "horns"');
     ok((await says()) === 'SEARCH PRETEND ONE FOR fog & "horns"', 'the line under the box says it will search');
     await box(page).fill('example.com');
