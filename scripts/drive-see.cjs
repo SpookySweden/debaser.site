@@ -695,7 +695,7 @@ async function eye(browser) {
     ok(drawn.colour === 'rgb(1, 2, 3)' && drawn.imported === 'rgb(4, 5, 6)', 'styles are, and what they import');
     ok(drawn.late === 'ran' && drawn.module === 'joined', 'a script put in later runs, and a module with the module it needs');
     ok(drawn.refused === null && drawn.pw[1] === 0 && drawn.pw[2] === true, 'a tracker is gone, and every password box is dead');
-    ok(drawn.frames === 0 && drawn.link === '[ FRAME: player.seeing-fixture.org ]', 'a frame in the page is a link to it');
+    ok(drawn.frames === 0 && drawn.link === '[ FRAME: player.seeing-fixture.org/embed ]', 'a frame in the page is a link to it');
     await page.screenshot({ path: join(OUT, 'eye.png') });
 
     const strangers = asked.filter((each) => each.left && !each.url.startsWith(`${BASE}/`) && !/^(?:data|blob|about|ws):/.test(each.url));

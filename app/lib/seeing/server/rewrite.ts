@@ -218,7 +218,11 @@ export function rewritePage(html: string, address: string, sign: Sign, scripts: 
         const size = (text: string | null) => (text !== null && /^\d{1,4}$/.test(text) ? Number(text) : null);
         const [width, height] = [size(value('width')), size(value('height'))];
         if (width !== null && height !== null && width >= 120 && height >= 50) out += `<span data-see-ad style="display:inline-block;max-width:100%;width:${width}px;height:${height}px"></span>`;
-      } else out += `<a data-see-frame href="${escapeValue(url.href)}">[ FRAME: ${escapeValue(url.hostname)} ]</a>`;
+      } else {
+        // Named by where it goes, so a frameset's menu and main page read apart; a frameset's frames each take a line.
+        const path = url.pathname === '/' ? '' : url.pathname.length > 40 ? `${url.pathname.slice(0, 39)}…` : url.pathname;
+        out += `<a data-see-frame href="${escapeValue(url.href)}"${name === 'frame' ? ' style="display:block"' : ''}>[ FRAME: ${escapeValue(url.hostname + path)} ]</a>`;
+      }
       continue;
     }
     if (name === 'meta') {

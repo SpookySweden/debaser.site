@@ -70,7 +70,12 @@ assert.match(p.html, /<form action="https:\/\/news\.seeing\.org\/s">/);
 assert.equal(p.title, 'A & B <i>');
 assert.equal(p.language, 'fr');
 p = write('<iframe src="https://player.video.org/embed/1" srcdoc="<script>x</script>" width=640 height=360><p>inside</p></iframe><p>after');
-assert.match(p.html, /^<a data-see-frame href="https:\/\/player\.video\.org\/embed\/1">\[ FRAME: player\.video\.org \]<\/a><p>after$/);
+assert.match(p.html, /^<a data-see-frame href="https:\/\/player\.video\.org\/embed\/1">\[ FRAME: player\.video\.org\/embed\/1 \]<\/a><p>after$/);
+// A frameset's frames are named by where they go, a line each, so the menu and the main page read apart.
+p = write('<frameset cols="200,*"><frame src="/menu" name="menu"><frame src="/main/' + 'x'.repeat(60) + '"></frameset>');
+assert.ok(p.html.includes('<a data-see-frame href="https://news.seeing.org/menu" style="display:block">[ FRAME: news.seeing.org/menu ]</a>'), p.html);
+assert.ok(p.html.includes('[ FRAME: news.seeing.org/main/' + 'x'.repeat(33) + '… ]'), 'a long path is cut');
+assert.ok(!write('<iframe src="https://a.org/"></iframe>').html.includes('display:block'), 'an iframe stays in its line');
 p = write('<video src=/v.mp4 poster=/p.jpg autoplay><source src=/v.webm type=video/webm><track src=/t.vtt></video><audio src=/a.mp3></audio>');
 assert.ok(!/\ssrc=/.test(p.html), 'video and sound never pass through');
 assert.deepEqual(signed.map((each) => each[0]), ['picture'], 'only a poster');
