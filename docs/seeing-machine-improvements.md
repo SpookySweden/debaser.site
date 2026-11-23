@@ -23,3 +23,5 @@ One line each, the most useful first. Struck through when done, with its commit.
 - ~~A slow site read ACQUIRING SOURCE and nothing else until it came or timed out: the seconds now count beside the step (SeeingElapsed.tsx, hidden from screen readers).~~
 - ~~While a page was asked for (and after STOP) the view was an empty box: now a dither field, the step, the address and the eye, and a stepped scan line.~~
 - ~~TRAIL with one site was a lone word in a big box: a legend now says how many places and ways, and while there are none, what draws a line.~~
+- ~~HISTORY and KEPT pushed the page keys onto a third line: they moved to the empty end of the tab line (decision 34).~~
+- The page keys still take two lines at 1366 on an outside page (the TIME DIAL is wide): consider the dial as a key that opens it.

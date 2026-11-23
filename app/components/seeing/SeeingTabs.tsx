@@ -1,10 +1,12 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { TABS_MOST, tabName, type Tabs } from '../../lib/seeing/tabs';
 import { PLATE, PLATE_PRESSED } from '../../lib/ui/controls';
 
 /** BROWSER's tabs: up to eight, each closed by its own key. The arrow keys move between them. */
-export default function SeeingTabs({ state, onShow, onClose, onNew }: { state: Tabs; onShow: (id: string) => void; onClose: (id: string) => void; onNew: () => void }) {
+/** `end`: what is yours whatever the page (HISTORY, KEPT), at the line's far end, where the tabs leave room. */
+export default function SeeingTabs({ state, onShow, onClose, onNew, end = null }: { state: Tabs; onShow: (id: string) => void; onClose: (id: string) => void; onNew: () => void; end?: ReactNode }) {
   return (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-1" data-seeing-tabs>
       <div
@@ -46,6 +48,7 @@ export default function SeeingTabs({ state, onShow, onClose, onNew }: { state: T
       <button type="button" aria-label="New tab" title={state.tabs.length >= TABS_MOST ? `${TABS_MOST} tabs at most` : 'New tab'} disabled={state.tabs.length >= TABS_MOST} onClick={onNew} className={PLATE}>
         [ + ]
       </button>
+      {end !== null ? <span className="ml-auto flex flex-wrap items-center gap-x-1">{end}</span> : null}
     </div>
   );
 }

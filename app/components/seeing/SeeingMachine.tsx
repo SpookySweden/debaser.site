@@ -437,6 +437,22 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
         onShow={(id) => change((all) => showTab(all, id))}
         onClose={(id) => change((all) => closeTab(all, id, freshId()))}
         onNew={() => change((all) => addTab(all, freshId()))}
+        end={
+          <>
+            <button type="button" aria-expanded={historyOpen} onClick={() => {
+                setHistoryOpen(!historyOpen);
+                setKeptOpen(false);
+              }} className={PLATE}>
+              [ HISTORY ]
+            </button>
+            <button type="button" aria-expanded={keptOpen} onClick={() => {
+                setKeptOpen(!keptOpen);
+                setHistoryOpen(false);
+              }} className={PLATE}>
+              [ KEPT {kept.length} ]
+            </button>
+          </>
+        }
       />
       <SeeingToolbar
         place={`${tab.id}:${tab.at}:${address ?? ''}:${tab.draft ?? ''}`}
@@ -507,19 +523,6 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
         }}
         onGo={go}
       >
-        <button type="button" aria-expanded={historyOpen} onClick={() => {
-            setHistoryOpen(!historyOpen);
-            setKeptOpen(false);
-          }} className={PLATE}>
-          [ HISTORY ]
-        </button>
-        <button type="button" aria-expanded={keptOpen} onClick={() => {
-            setKeptOpen(!keptOpen);
-            setHistoryOpen(false);
-          }} className={PLATE}>
-          [ KEPT {kept.length} ]
-        </button>
-        {address !== null || sent.length > 0 ? <span aria-hidden="true" className="mx-1 self-stretch border-l-line border-ink" /> : null}
         {outside ? (
           <>
             <button type="button" aria-expanded={keeping} disabled={seen === null} onClick={() => setKeeping(!keeping)} className={PLATE}>
