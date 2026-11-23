@@ -86,6 +86,8 @@ Each can be changed later by saying so.
 22. **The extension updates in its own folder**, written by the site with your leave, every file checked; a browser updates such a folder no other
     way short of its own store, which is yours alone to list it in.
 23. **Nineteen themes**, not the eighteen written below: MARMALADE has six.
+24. **SEEN TOGETHER never opens a page on its own**: whoever shows a page leads, the others see `[ SEE TOGETHER ]` and choose; following
+    moves a page already in front. Anybody in the room can say anything, so nothing said there opens anything.
 
 ## Risks, said once
 1. **SERVER is beside everything.** The torrent page (no password at home), Jellyfin, the database and its dashboard, the
