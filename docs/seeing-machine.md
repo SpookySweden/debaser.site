@@ -18,7 +18,7 @@ The plan and Luke's answers are `SPEC-seeing-machine.md`. This is what was built
 ## Settings (none needed; each read when a request arrives)
 - `SEEING_MACHINE=off`: the server's eye off for everybody at once, pages already open included.
 - `SEEING_OPEN=accounts`: opens it to everyone with an account (D2). Unset: the owner only (`SEEING_OWNER_ID`, else `SCREENS_OWNER_ID`).
-  Luke's to set, and it opens nothing for anybody else until the visit record (D3) can be written (`server/visits.ts`: its table waits for his OK).
+  Luke's to set, and it opens nothing for anybody else until the visit record (D3) can be written (`server/visits.ts`, through `browse_log_write`; the `browse_log` table is in the live database since 2026-11-23).
 - `SEEING_EXIT`: `direct` (home), the only way out built.
 - `SEEING_ASSET_ORIGIN`: `https://see.debaser.site` once that exists. Until then files come from the site itself, each answered with a
   policy that takes every right away (`assetHeaders`), so one opened by itself can do nothing.
