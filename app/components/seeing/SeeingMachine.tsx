@@ -448,6 +448,8 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
   const lateMedia = late.key === key ? late.media : NO_MEDIA;
   const tray = useMemo(() => trayOf([...sent, ...(seen?.media ?? NO_MEDIA), ...lateMedia]), [seen, lateMedia, sent]);
   const outside = address !== null && /^https?:/.test(address);
+  // A refused page keeps only the keys that may help: lenses, SCAN, TIME, READ IT, OPEN SOURCE, OWN EYE (decision 46).
+  const working = outside && now.state !== 'refused';
   const onSelect = useCallback((text: string) => setSelected({ key, text }), [key, setSelected]);
   // A kept copy in front: whose page it is, and where it came from, said above it.
   const asked = useMemo(() => (address === null ? null : askedOf(address, choices)), [address, choices]);
@@ -532,6 +534,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
       <SeeingTools
         address={address}
         ready={seen !== null}
+        refused={now.state === 'refused'}
         seam={seam}
         loupe={loupe}
         erasing={erasing}
@@ -560,7 +563,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
         }}
         onGo={go}
       >
-        {outside ? (
+        {working ? (
           <>
             <button type="button" aria-expanded={keeping} disabled={seen === null} onClick={() => setKeeping(!keeping)} className={PLATE}>
               [ KEEP PAGE ]
@@ -573,7 +576,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
             </button>
           </>
         ) : null}
-        {address !== null || sent.length > 0 ? (
+        {(address !== null && now.state !== 'refused') || sent.length > 0 ? (
           <button type="button" aria-expanded={trayOpen} disabled={seen === null && sent.length === 0} onClick={() => setTrayOpen(!trayOpen)} className={PLATE}>
           [ MEDIA {tray.length} ]
         </button>
@@ -584,17 +587,17 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
             [ FEED ]
           </button>
         ) : null}
-        {outside ? (
+        {working ? (
           <button type="button" disabled={pickedWords === ''} title="Words selected on the page, to the engine in front, in a new tab" onClick={() => ask(engineChosen(choices), pickedWords, true)} className={PLATE}>
             [ SEARCH THIS ]
           </button>
         ) : null}
-        {address !== null ? (
+        {address !== null && now.state !== 'refused' ? (
         <button type="button" disabled={seen === null} title="The page's structure as a BEATBOX loop: headings the beat, links the notes" onClick={sonify} className={PLATE}>
           [ SONIFY ]
         </button>
         ) : null}
-        {outside ? (
+        {working ? (
           <button
             type="button"
             aria-pressed={scriptsOff(address)}
@@ -608,7 +611,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
           </button>
         ) : null}
         {outside ? <span aria-hidden="true" className="mx-1 self-stretch border-l-line border-ink" /> : null}
-        {outside && roomId !== null ? (
+        {working && roomId !== null ? (
           <button
             type="button"
             aria-pressed={leading}

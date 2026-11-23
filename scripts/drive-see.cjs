@@ -1100,6 +1100,8 @@ async function lenses(browser) {
   await go(page, 'https://example.com/');
   await say(page, 'SOURCE REFUSED');
   await page.getByRole('button', { name: '[ SEE AN OLD COPY ]' }).waitFor();
+  const refusedKeys = await page.locator('[data-seeing-keyrow]').innerText();
+  ok(!/KEEP PAGE|GRAFFITI|SONIFY|SCRIPTS OFF|SEAM|ERASE/.test(refusedKeys) && /OPEN SOURCE/.test(refusedKeys) && /SCAN/.test(refusedKeys), `a refused page keeps only the keys that may help (${refusedKeys.replace(/\s+/g, ' ')})`);
   await tool('[ TIME ]').click();
   await page.locator('[data-seeing-dial]').focus();
   await page.locator('[data-seeing-dial]').evaluate((input) => {

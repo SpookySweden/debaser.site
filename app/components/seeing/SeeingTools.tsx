@@ -11,6 +11,8 @@ type Props = {
   address: string | null;
   /** A page is drawn (not busy, not refused): SEAM, LOUPE and ERASE work on one. */
   ready: boolean;
+  /** The page was refused: SEAM, LOUPE and ERASE are put away, not greyed (decision 46). */
+  refused: boolean;
   seam: LensId | null;
   loupe: Loupe | null;
   erasing: boolean;
@@ -29,9 +31,9 @@ type Props = {
 const on = (pressed: boolean): string => (pressed ? `${PLATE_PRESSED} cursor-pointer` : PLATE);
 
 /** SEAM, LOUPE, ERASE, SCAN and the TIME DIAL. */
-export default function SeeingTools({ address, ready, seam, loupe, erasing, erased, good, onSeam, onLoupe, onErasing, onBringBack, onScan, onGood, onGo, children }: Props) {
+export default function SeeingTools({ address, ready, refused, seam, loupe, erasing, erased, good, onSeam, onLoupe, onErasing, onBringBack, onScan, onGood, onGo, children }: Props) {
   // A new tab shows only what works without a page: SCAN, then HISTORY and KEPT.
-  const page = address !== null;
+  const page = address !== null && !refused;
   const outside = address !== null && /^https?:/.test(address);
   const dial = outside ? dialOf(address) : null;
   const thisYear = new Date().getFullYear();
@@ -94,7 +96,7 @@ export default function SeeingTools({ address, ready, seam, loupe, erasing, eras
       <button type="button" title="A page of the small, old web" onClick={onScan} className={PLATE}>
         [ SCAN ]
       </button>
-      {page ? (
+      {address !== null ? (
       <button type="button" aria-pressed={good} disabled={!outside} title="Keep it on the list in a new tab" onClick={() => onGood(!good)} className={on(good)}>
         [ GOOD ]
       </button>

@@ -52,3 +52,4 @@ One line each, the most useful first. Struck through when done, with its commit.
 - ~~Escape left the engines' list open: it puts that away too (drive search).~~
 - ~~An X-RAY row lit its part of the page but left it out of sight when scrolled away: pressed (or reached by the keyboard) it brings it into sight; only pointed at, the page stays still (drive lenses 72).~~
 - Open: a feed the machine draws (feed.ts) is in the browser's default look; a lens still dresses it. A house look would need a font named outside the token files.
+- ~~A refused page showed a dozen keys that could do nothing there (KEEP PAGE, NOTES, GRAFFITI, SONIFY, SCRIPTS OFF...): only the ones that may help stay (decision 46; drive lenses 73, watched fail).~~
