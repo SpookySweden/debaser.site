@@ -297,7 +297,8 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
   const { StageBackdrop } = require('./backdrops-out/components/backdrops/Backdrops.js');
   assert.equal(renderToString(React.createElement(StageBackdrop)), '', 'nor a background on a stage');
   const runtimeSource = fs.readFileSync('app/lib/backdrops/runtime.ts', 'utf8');
-  assert.match(runtimeSource, /if \(document\.fullscreenElement !== null\) return true;/, 'the page`s own background rests while something is fullscreen');
+  // Updated on purpose 2026-11-23: the whole site fullscreen (its own key) still shows the background, so only a picture's counts.
+  assert.match(runtimeSource, /if \(fullscreenBox\(\) !== null\) return true;/, 'the page`s own background rests while a picture is fullscreen');
   // The site window put away (HIDE WINDOW; Luke, 2026-11-16: the background acted as if the window were still there).
   {
     const had = { document: globalThis.document, window: globalThis.window, Element: globalThis.Element };
