@@ -71,7 +71,12 @@ export default function SeeingStage({ drawing, document, lens, settings, seam, l
     setLit(to);
     setReach((was) => (was !== null && was.at !== to ? null : was));
   }, []);
-  const reachTo = useCallback((to: string) => setReach((was) => ({ at: to, n: (was?.n ?? 0) + 1 })), []);
+  // The address's #part is brought into sight once drawn, and left alone after the first X-RAY press.
+  const [pressed, setPressed] = useState(false);
+  const reachTo = useCallback((to: string) => {
+    setPressed(true);
+    setReach((was) => ({ at: to, n: (was?.n ?? 0) + 1 }));
+  }, []);
   const stage = useRef<HTMLDivElement>(null);
   const glass = useRef<HTMLDivElement>(null);
   const moveBack = useRef<((to: FrameScroll | FrameFind) => void) | null>(null);
@@ -150,7 +155,7 @@ export default function SeeingStage({ drawing, document, lens, settings, seam, l
     <>
       <div ref={stage} className="relative min-w-0 flex-1 overflow-hidden" data-seeing-stage>
         <div className="absolute inset-0">
-          <SeeingViewport key={`${drawing}:${front.form}`} document={document} lens={front} settings={settings} tools={tools} erased={erased} lit={front.beside === 'xray' ? lit : null} bring={front.beside === 'xray' && reach !== null && reach.at === lit ? reach : part !== null ? { at: part, n: 0 } : null} scrollerRef={moveBack} onTold={told} onOpen={onOpen} onNotice={onNotice} onRestricted={onRestricted} />
+          <SeeingViewport key={`${drawing}:${front.form}`} document={document} lens={front} settings={settings} tools={tools} erased={erased} lit={front.beside === 'xray' ? lit : null} bring={front.beside === 'xray' && reach !== null && reach.at === lit ? reach : part !== null && !pressed ? { at: part, n: 0 } : null} scrollerRef={moveBack} onTold={told} onOpen={onOpen} onNotice={onNotice} onRestricted={onRestricted} />
         </div>
         {board !== null && drawOn ? (
           <SeeingGraffiti
