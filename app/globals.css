@@ -391,6 +391,33 @@ html[data-see-glass] [data-scroll-pane='page'] + * {
   }
 }
 
+/* BROWSER when a page arrives (SeeingStage.tsx, decision 40): the same dither lies over it and is cut away from the top in six jumps, a
+   third of a second, as a picture tunes in. It never takes the pointer, and under reduced motion it isn't there. */
+.seeing-arrive {
+  display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .seeing-arrive {
+    display: block;
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-conic-gradient(var(--color-ink) 0 25%, var(--color-paper) 0 50%) 0 0 / 2px 2px;
+    animation: seeing-arrive 0.36s steps(6, end) forwards;
+  }
+}
+
+@keyframes seeing-arrive {
+  from {
+    clip-path: inset(0 0 0 0);
+  }
+  to {
+    clip-path: inset(100% 0 0 0);
+    visibility: hidden;
+  }
+}
+
 @keyframes seeing-scan {
   to {
     transform: translateY(var(--seeing-scan-depth, 60vh));

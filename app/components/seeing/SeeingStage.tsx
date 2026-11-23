@@ -189,6 +189,8 @@ export default function SeeingStage({ drawing, document, lens, settings, seam, l
             />
           </>
         ) : null}
+        {/* The page tunes in: the busy view's dither steps off it, top to bottom, once (globals.css; nothing under reduced motion). */}
+        <div aria-hidden="true" className="seeing-arrive" data-seeing-arrive />
       </div>
       {front.beside === 'watchers' ? <SeeingWatchers document={document} /> : front.beside === 'xray' ? <SeeingXray point={point} census={census} /> : null}
     </>

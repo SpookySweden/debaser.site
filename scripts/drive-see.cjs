@@ -112,6 +112,12 @@ async function shell(browser) {
   await inside(page).getByRole('heading', { name: 'The test page' }).waitFor();
   ok(/LENS: STANDARD · IN \d+(\.\d)? M?S$/.test((await status(page)).trim()), `the status line says how long it took (${await status(page)})`);
   ok((await tabs(page).first().innerText()).toUpperCase().includes('THE TEST PAGE'), "a tab wears its page's title");
+  const arrive = () => page.evaluate(() => { const one = document.querySelector('[data-seeing-arrive]'); return one === null ? 'none' : `${getComputedStyle(one).display} ${getComputedStyle(one).visibility}`; });
+  await page.waitForFunction(() => getComputedStyle(document.querySelector('[data-seeing-arrive]')).visibility === 'hidden', null, { timeout: 3000 });
+  ok((await arrive()) === 'block hidden', 'the page tunes in, and the dither over it is gone once it has');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  ok((await arrive()).startsWith('none'), 'under reduced motion there is no tuning in');
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
   ok(page.url() === `${BASE}/browser#see=see%3Atest`, 'the address is after the #');
   await page.screenshot({ path: join(OUT, 'standard.png') });
 
