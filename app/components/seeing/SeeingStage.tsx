@@ -50,6 +50,8 @@ type Props = {
 
 const NO_TOOLS: FrameTools = {};
 /** A page with scripts of its own, and not a word, a picture, a link or a frame on it: it came out empty (a page that builds itself the machine can't follow). */
+/** A page with nothing on it at all, not even a script: the site sent it so (an empty answer, a page still being made). Said, never guessed at. */
+const cameBlank = (census: Census) => Object.values(census.counts).every((count) => count === 0);
 const cameOutEmpty = (census: Census) => census.counts.scripts > 0 && census.counts.words < 3 && census.counts.pictures === 0 && census.counts.links === 0 && census.counts.frames === 0;
 const nothing = () => undefined;
 
@@ -209,6 +211,10 @@ export default function SeeingStage({ drawing, document, lens, settings, seam, l
           // A page that builds itself and came out with nothing: said, over the top of it, with where it can be seen.
           <p role="status" className="absolute inset-x-0 top-0 z-20 border-b-line border-ink bg-paper px-2 py-1 text-label text-ink" data-seeing-empty>
             NOTHING CAME OUT: THIS PAGE BUILDS ITSELF IN A WAY THE MACHINE CAN&apos;T FOLLOW. OWN EYE OR OPEN SOURCE SHOWS IT.
+          </p>
+        ) : census !== null && cameBlank(census) ? (
+          <p role="status" className="absolute inset-x-0 top-0 z-20 border-b-line border-ink bg-paper px-2 py-1 text-label text-ink" data-seeing-empty>
+            THE SITE SENT A PAGE WITH NO WORDS, PICTURES OR LINKS ON IT. OPEN SOURCE ASKS IT AGAIN IN YOUR OWN BROWSER.
           </p>
         ) : null}
         {/* The page tunes in: the busy view's dither steps off it, top to bottom, once (globals.css; nothing under reduced motion). */}

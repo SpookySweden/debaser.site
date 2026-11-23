@@ -62,3 +62,5 @@ One line each, the most useful first. Struck through when done, with its commit.
 - ~~↻ had no key: Alt+R asks again (as ↻: a page in front, nothing already being asked for), listed on the keys line (check-seeing; shell 49; the press itself not driven).~~
 - ~~At phone width the hairline before OPEN SOURCE dangled alone at the start of its line: it shows from desktop width only, as the first one does (seen at 390).~~
 - ~~A new tab was mostly a wall of 24 engine rows with five keys each: it lists them to read (name, letters, three groups across), the keys behind [ ARRANGE ] (decision 49; drive search 19).~~
+- ~~A file that is not a page (a .zip, a CSV the site calls a file) was refused with "THE PAGE DID NOT COME... TRY AGAIN / AN OLD COPY": now "A FILE, NOT A PAGE", with OPEN SOURCE only (refusals.ts; check-seeing).~~
+- ~~A site that sent an empty page left a white box and no word: a line over it says so (SeeingStage cameBlank; drive eye 75). Seen too, and fine: 404/500/503/401 pages are drawn with HTTP nnn on the status line; a redirect loop is said; a hanging site counts its seconds.~~

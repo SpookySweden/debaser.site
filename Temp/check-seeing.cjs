@@ -390,6 +390,8 @@ assert.ok(serverSays.size >= 12, `the server's reasons were found (${serverSays.
 for (const reason of serverSays) assert.notEqual(R.refusalHelp(reason), general, `${reason} is said plainly`);
 for (const guarded of ['NOT A PUBLIC ADDRESS', 'KNOWN FOR MALWARE OR PHISHING']) assert.deepEqual(R.refusalHelp(guarded).tries, [], `${guarded}: nothing to try`);
 assert.ok(R.refusalHelp('THE SOURCE TOOK TOO LONG').tries.includes('again'));
+// Two the scan above can't read (built from the answer's type): a file is never told to come again, only to open in your own browser.
+for (const reason of ['NOT SHOWN HERE: APPLICATION/ZIP', "IT DOESN'T SAY WHAT IT IS"]) assert.deepEqual(R.refusalHelp(reason).tries, ['source'], `${reason} is said plainly`);
 
 /* ------------------------------------------------------------------ search: an address or words, and to whom */
 const Q = require(`${OUT}search.js`);
