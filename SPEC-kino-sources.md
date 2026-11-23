@@ -65,7 +65,9 @@ their list files, the real rows drew, the real ping route ran, and their player 
 - **LUKE'S SERVER** (2026-11-22, Luke: "it will show for everyone"): his Jellyfin on SERVER (`I:\Media`), the first
   `listPath: '*'` server, at `https://media.debaser.site` (tunnel route to a small bridge, `G:\MEDIA-HOST\debaser-bridge`,
   kept running by `media-keeper.cjs`). The bridge answers 404 for a TMDB number Jellyfin lacks, otherwise opens the item
-  in Jellyfin's own web player; viewers sign in to Jellyfin there. Unsandboxed: Jellyfin's sign-in is a form. Its rows
+  in Jellyfin's own web player with no sign-in (Luke, 2026-11-23: "i need it to require no log in"): the bridge keeps a
+  watch-only Jellyfin user "Guest" and signs viewers in as it; an empty `guest.off` beside the bridge turns that off.
+  Unsandboxed: Jellyfin's sign-in is a form. Its rows
   come from the wildcard search (a search's own row for the title, with the server under WATCH), not from
   `web_media_titles`, so a KINO row's WATCH list doesn't name it.
 - **Not fixed, needs a database change:** a list that gives a show BOTH a whole-show line and episode lines is saved as just
