@@ -635,12 +635,12 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
           </button>
         ) : null}
         {reading !== null ? (
-          <Link href={`/read/${reading}`} title="In the site's own reader" className={`${PLATE} inline-block`} data-seeing-read>
+          <Link href={`/read/${reading}`} title="In the site's own reader" className={`${PLATE} inline-flex items-center`} data-seeing-read>
             [ READ IT ]
           </Link>
         ) : null}
         {outside ? (
-          <a href={address} target="_blank" rel="noopener noreferrer" className={`${PLATE} inline-block`}>
+          <a href={address} target="_blank" rel="noopener noreferrer" className={`${PLATE} inline-flex items-center`}>
             [ OPEN SOURCE ↗ ]
           </a>
         ) : null}
