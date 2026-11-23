@@ -71,6 +71,8 @@ Pages that can't be drawn as they mean are said so over the top: one that builds
 | Instagram | blank | no | the same |
 | A 404 | shown, and the status line says so | no | |
 | A redirect | followed, the box says where it ended | | |
+| An address inside the house (localhost, 192.168.x, [::1], nas.local, a tailnet) | refused at the box, NOT A PUBLIC ADDRESS, before GO (decision 52) | | the server refuses it whatever the box says |
+| An unusual port (example.com:8080) | the line under the box says the server asks only 80 and 443; GO shows the refusal, with OWN EYE (decision 51) | | |
 | A PDF | refused: READ opens those | | |
 | Small web (danluu.com) | whole | no main text (a list) | |
 | Aozora (Shift_JIS) | whole | yes | |
