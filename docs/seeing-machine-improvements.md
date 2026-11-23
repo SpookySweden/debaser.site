@@ -36,7 +36,7 @@ One line each, the most useful first. Struck through when done, with its commit.
 - ~~HISTORY and KEPT had no keys: Alt+H and Alt+K, each a toggle, listed on the keys line.~~
 - ~~Escape did nothing to HISTORY or KEPT: it puts them away (only then; otherwise it is left alone).~~
 - ~~The hostile page now also tries a drawing's animation at the trap, in its markup and made by its script: none reaches it.~~
-- Open: while HISTORY or KEPT covers the page, the lens and tool keys still act on the page under it (nothing seen to change).
+- ~~While HISTORY or KEPT covered the page, the lens and tool keys acted on the page under it unseen: a lens or SEAM/LOUPE/ERASE now puts the cover away (drive shell).~~
 - Open: an Internet Archive item's own page (/details/) that is a book gets no [ READ IT ]: it would need the item's kind (mediatype: texts), read from the page the machine already has.
 - Open: at 390 an outside page has about twelve rows of keys over it (phones get the desktop zoomed out, so low).
 - Open: SeeingMachine.tsx is about 710 lines; the page keys' block needs two dozen of its values, so moving it out isn't simpler yet.

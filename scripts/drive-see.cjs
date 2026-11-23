@@ -296,6 +296,11 @@ async function shell(browser) {
   await back.page.keyboard.press('Escape');
   await back.page.locator('[data-seeing-history]').waitFor({ state: 'detached' });
   ok(true, 'Escape puts HISTORY away');
+  await back.page.keyboard.press('Alt+KeyK');
+  await back.page.locator('[data-seeing-kept]').waitFor();
+  await back.page.keyboard.press('Alt+KeyL');
+  await back.page.locator('[data-seeing-kept]').waitFor({ state: 'detached', timeout: 3000 });
+  ok(true, 'a lens turned while KEPT covers the page puts KEPT away, so the change is seen');
   await back.context.close();
 }
 

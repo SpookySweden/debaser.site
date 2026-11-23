@@ -374,6 +374,12 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
     setShown({ key, state: 'stopped' });
   };
 
+  // A lens or a tool pressed while HISTORY, KEPT or the engines' list covers the page puts that away, so the change is seen.
+  const uncover = () => {
+    setHistoryOpen(false);
+    setKeptOpen(false);
+    setListing(false);
+  };
   const change = (next: (all: Tabs) => Tabs) => {
     setNotice(null);
     changeTabs(next);
@@ -403,6 +409,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
       else if (asked.do === 'lens') {
         const next = LENS_NAMES[(LENS_NAMES.findIndex((each) => each.id === tab.lens) + 1) % LENS_NAMES.length].id;
         if (address !== null) rememberLens(address, next);
+        uncover();
         change((all) => withLens(all, tab.id, next));
       } else {
         const id = state.tabs[asked.index]?.id;
@@ -517,6 +524,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
         onSettings={setSettings}
         onLens={(id) => {
           if (address !== null) rememberLens(address, id);
+          uncover();
           change((all) => withLens(all, tab.id, id));
         }}
       />
@@ -532,12 +540,17 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
         onSeam={(next) => {
           setSeam(next);
           setLoupe(null);
+          uncover();
         }}
         onLoupe={(next) => {
           setLoupe(next);
           setSeam(null);
+          uncover();
         }}
-        onErasing={setErasing}
+        onErasing={(next) => {
+          setErasing(next);
+          uncover();
+        }}
         onBringBack={() => {
           if (address !== null) bringBack(address);
         }}
