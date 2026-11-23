@@ -96,7 +96,7 @@ export default function SeeingMachine() {
   }, [owner, status]);
 
   return (
-    <div className="seeing flex h-full min-h-[24rem] flex-col px-2 pt-1" data-seeing>
+    <div className="seeing flex h-full min-h-[24rem] flex-col px-2 pt-1 max-sm:overflow-y-auto" data-seeing>
       <h1 className={TITLE_BAR}>THE SEEING MACHINE</h1>
       {owner !== null && held.owner === owner ? (
         <Machine key={owner} state={held.state} owner={{ id: owner, label: user?.displayName ?? '' }} />
@@ -614,7 +614,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
           </button>
         </p>
       ) : null}
-      <div className="frame relative mt-1 flex min-h-0 flex-1" data-seeing-view>
+      <div className="frame relative mt-1 flex min-h-0 flex-1 max-sm:min-h-[22rem]" data-seeing-view>
         {historyOpen ? (
           <SeeingHistory
             onGo={(where) => {

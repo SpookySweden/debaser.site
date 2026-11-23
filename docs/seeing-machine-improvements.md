@@ -12,7 +12,7 @@ One line each, the most useful first. Struck through when done, with its commit.
 - ~~SEEN TOGETHER on a local server wrote to its channel after closing it (an effect run twice): fixed in together-store.ts.~~
 - ~~A [ SEE ] press from anywhere on the site, for a reader with tabs kept, opened the page and then put the old page back in front in an extra tab: the address after the # was written from a stale drawing and read back as a link. Fixed; the drive holds it.~~
 - ~~At 390 the address box was a sliver and GO/ALL broke over two lines; the second hairline dangled on built-in pages. The bar now wraps, the box first.~~
-- At 390 the page itself gets little height under five rows of keys (phones get the desktop zoomed out today, so low).
+- ~~At 390 the page itself got about 80px under the rows of keys: it now keeps 22rem and the machine scrolls to it.~~
 - ~~A refusal's keys said IN YOUR OWN EYE and ON ITS OWN SITE where the bar says OWN EYE and OPEN SOURCE: the same words now.~~
 - ~~drive-see extension: the tamper case never matched (the window asks lens.js?v=...); fixed.~~
 - ~~drive-see extension failed at "by itself, on another page": the keeper rightly never rewrites a version this session already wrote, and the drive reused that version. The drive now stands for a newer release; 13 pass.~~
