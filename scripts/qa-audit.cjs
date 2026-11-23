@@ -76,6 +76,8 @@ const ROUTES = [
   // LEAGUEBOT (SPEC-leaguebot.md, 2026-11-17): the FIND A PLAYER form and WHAT YOU GET before any player is looked up;
   // Temp/browse/drive-leaguebot.cjs drives every tab on the mock server.
   ['leaguebot', '/leaguebot'],
+  // BROWSER (SPEC-seeing-machine.md): its sign-in call, which is all a visitor is shown; scripts/drive-see.cjs drives the machine.
+  ['browser', '/browser'],
 ];
 
 const findings = [];

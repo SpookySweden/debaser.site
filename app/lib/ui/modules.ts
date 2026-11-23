@@ -7,7 +7,7 @@ import { DYES } from './themes';
  * turns on hover. Pure, so a check can hold it. An unticked module's address still works; only its key goes.
  */
 
-export type ModuleKey = 'home' | 'forum' | 'web' | 'comic' | 'read' | 'tagstation' | 'recommendations' | 'docs' | 'beatbox' | 'cytube' | 'animate' | 'leaguebot' | 'modules';
+export type ModuleKey = 'home' | 'forum' | 'web' | 'comic' | 'read' | 'tagstation' | 'recommendations' | 'docs' | 'beatbox' | 'cytube' | 'animate' | 'leaguebot' | 'browser' | 'modules';
 
 export type ModuleDef = {
   key: ModuleKey;
@@ -55,6 +55,8 @@ export const MODULES: readonly ModuleDef[] = [
   // League of Legends stats, scouting and advice (SPEC-leaguebot.md, Luke 2026-11-17: a top-bar key and a shelf key, 10A+B): off until
   // ticked, WIP until all three tabs are built.
   { key: 'leaguebot', label: 'LEAGUEBOT', href: '/leaguebot', group: 'site', startsOn: false, wip: true },
+  // BROWSER, the DEBASER SEEING MACHINE (SPEC-seeing-machine.md, Luke 2026-11-23): off until ticked, WIP until its phases are built.
+  { key: 'browser', label: 'BROWSER', href: '/browser', group: 'site', startsOn: false, wip: true },
   // MODULOS is the tab holding the rest of the modules, Luke's name for it (2026-11-06). The bar's own MODULES: title went on 2026-11-14.
   { key: 'modules', label: 'MODULOS', href: null, group: 'site', startsOn: true, always: true },
 ];

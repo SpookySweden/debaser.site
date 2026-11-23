@@ -409,3 +409,11 @@ The proof for a change that is meant to move nothing: a screenshot cannot prove 
 scrolls), and a source diff cannot either. Widths and positions are counted separately from the look,
 because a relative time changing its words moves a box without anything having been restyled.
 measure-beatbox-feel.cjs  How quick the beat box feels: press to change on screen, on this machine and four times slower. Run by hand before and after.
+
+drive-see.cjs
+-------------
+    node scripts/dev-mock-live.cjs 3341
+    node scripts/drive-see.cjs --base http://localhost:3341 [--only shell|frame|themes]
+
+BROWSER (SPEC-seeing-machine.md) in a real browser on a local mock dev server: the shell, the sandboxed frame with a page that tries to
+get out of it, and READER on every theme. The pure parts are Temp/check-seeing.cjs.
