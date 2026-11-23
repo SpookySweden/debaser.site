@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from 'react';
 import { shortName } from '../../lib/seeing/address';
+import { KEYS_LINE } from '../../lib/seeing/keys';
 import { recentPages } from '../../lib/seeing/history';
 import { historyRows, historyRowsOnServer, subscribeToHistory } from '../../lib/seeing/history-store';
 import { TEST_ADDRESS } from '../../lib/seeing/test-engine';
@@ -18,6 +19,9 @@ export default function SeeingStart({ good, ownEye, onGo }: { good: readonly { a
     <div className="min-w-0 flex-1 overflow-y-auto p-4 text-label text-ink" data-seeing-start>
       <p className="max-w-prose">
         AN ADDRESS OR WORDS IN THE BOX ABOVE. A LENS CHANGES HOW A PAGE IS SEEN, NEVER THE PAGE; NOTHING OF IT IS KEPT BUT WHAT YOU KEEP.
+      </p>
+      <p className="mt-1 text-ink-quiet" data-seeing-keys>
+        {KEYS_LINE}
       </p>
       <button type="button" className={`${PLATE_MAIN} mt-3`} onClick={() => onGo(TEST_ADDRESS)}>
         OPEN THE TEST PAGE

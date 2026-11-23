@@ -1,7 +1,7 @@
 /*
  * BROWSER, the DEBASER SEEING MACHINE, Phase 1 (SPEC-seeing-machine.md, Luke 2026-11-23): the pure parts of the shell.
  * (scripts/drive-see.cjs drives the page itself in a browser, on every theme.)
- *   npx tsc app/lib/seeing/address.ts app/lib/seeing/tabs.ts app/lib/seeing/frame.ts app/lib/seeing/test-engine.ts app/lib/seeing/time.ts app/lib/seeing/trail.ts app/lib/seeing/search.ts app/lib/seeing/margins.ts app/lib/seeing/sonify.ts app/lib/seeing/together.ts app/lib/seeing/pages.ts app/lib/seeing/media.ts app/lib/seeing/ask.ts app/lib/seeing/memory.ts app/lib/seeing/lenses/registry.ts app/lib/ui/modules.ts --rootDir app --outDir Temp/seeing-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
+ *   npx tsc app/lib/seeing/address.ts app/lib/seeing/tabs.ts app/lib/seeing/frame.ts app/lib/seeing/test-engine.ts app/lib/seeing/time.ts app/lib/seeing/trail.ts app/lib/seeing/search.ts app/lib/seeing/margins.ts app/lib/seeing/sonify.ts app/lib/seeing/together.ts app/lib/seeing/keys.ts app/lib/seeing/pages.ts app/lib/seeing/media.ts app/lib/seeing/ask.ts app/lib/seeing/memory.ts app/lib/seeing/lenses/registry.ts app/lib/ui/modules.ts --rootDir app --outDir Temp/seeing-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
  *   node Temp/check-seeing.cjs
  *
  * - an address: http and https only, no user names or passwords, no control characters, bare names get https, words are refused
@@ -327,6 +327,16 @@ for (const bad of [null, 'at', { see: 'at', address: 'javascript:alert(1)', y: 1
   assert.equal(G.readTogether(bad), null, `refused: ${JSON.stringify(bad)}`);
 }
 assert.deepEqual([G.samePage('https://a.example/x#a', 'https://a.example/x#b'), G.samePage('https://a.example/x', 'https://a.example/y'), G.samePage(null, null)], [true, false, false]);
+
+/* ------------------------------------------------------------------ the keys: never one the browser keeps, never while typing */
+const K = require(`${OUT}keys.js`);
+const press = (more) => ({ key: '', code: '', altKey: false, ctrlKey: false, metaKey: false, shiftKey: false, typing: false, ...more });
+assert.deepEqual(K.seeingKey(press({ key: '/' })), { do: 'box' });
+assert.equal(K.seeingKey(press({ key: '/', typing: true })), null, 'a / typed in a box is a /');
+assert.deepEqual([K.seeingKey(press({ altKey: true, code: 'KeyN', typing: true })), K.seeingKey(press({ altKey: true, code: 'KeyW' })), K.seeingKey(press({ altKey: true, code: 'Digit3' }))], [{ do: 'new' }, { do: 'close' }, { do: 'tab', index: 2 }]);
+for (const theirs of [{ ctrlKey: true, code: 'KeyW' }, { ctrlKey: true, code: 'KeyT' }, { ctrlKey: true, code: 'KeyL' }, { altKey: true, code: 'KeyD' }, { altKey: true, code: 'Digit9' }, { altKey: true, shiftKey: true, code: 'KeyN' }, { metaKey: true, key: '/' }]) {
+  assert.equal(K.seeingKey(press(theirs)), null, `the browser's own: ${JSON.stringify(theirs)}`);
+}
 
 /* ------------------------------------------------------------------ search: an address or words, and to whom */
 const Q = require(`${OUT}search.js`);

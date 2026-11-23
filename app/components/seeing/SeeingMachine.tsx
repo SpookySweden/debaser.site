@@ -46,6 +46,7 @@ import { subscribeToTheme, themeState } from '../../lib/ui/theme-slot';
 import { useAuth } from '../AuthProvider';
 import SeeingEngines from './SeeingEngines';
 import SeeingStart from './SeeingStart';
+import { seeingKey, type SeeingKey } from '../../lib/seeing/keys';
 import SeeingHistory from './SeeingHistory';
 import SeeingKeep from './SeeingKeep';
 import SeeingKept from './SeeingKept';
@@ -364,6 +365,34 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
     setNotice(null);
     changeTabs(next);
   };
+  // The keys (keys.ts): heard on the site's own page, never in the frame.
+  const keyed = useRef<(asked: SeeingKey) => void>(() => undefined);
+  useEffect(() => {
+    keyed.current = (asked) => {
+      if (asked.do === 'box') {
+        const box = document.querySelector<HTMLInputElement>('[data-seeing-address]');
+        box?.focus();
+        box?.select();
+      } else if (asked.do === 'new') change((all) => addTab(all, freshId()));
+      else if (asked.do === 'close') change((all) => closeTab(all, all.front, freshId()));
+      else {
+        const id = state.tabs[asked.index]?.id;
+        if (id !== undefined) change((all) => showTab(all, id));
+      }
+    };
+  });
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      const typing = target !== null && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
+      const asked = seeingKey({ key: event.key, code: event.code, altKey: event.altKey, ctrlKey: event.ctrlKey, metaKey: event.metaKey, shiftKey: event.shiftKey, typing });
+      if (asked === null || event.defaultPrevented) return;
+      event.preventDefault();
+      keyed.current(asked);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const line =
     notice ??

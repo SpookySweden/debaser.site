@@ -7,6 +7,7 @@ The plan and Luke's answers are `SPEC-seeing-machine.md`. This is what was built
 | --- | --- |
 | The page, tabs, keys, the frame's element | `app/browser/page.tsx`, `app/components/seeing/*` |
 | Addresses, tabs, the frame's documents and messages, our script in it | `app/lib/seeing/address.ts`, `tabs.ts`, `frame.ts`, `hook.ts` |
+| The keyboard: / the box, Alt+N a new tab, Alt+W close it, Alt+1 to 8 a tab (none while the page has the keyboard) | `app/lib/seeing/keys.ts`, listed on a new tab (`SeeingStart.tsx`) |
 | Lenses, one file each | `app/lib/seeing/lenses/` |
 | The server's eye from the browser | `app/lib/seeing/server-engine.ts` (asks `/api/see/*` and nobody else) |
 | The server's eye | `app/lib/seeing/server/` (SERVER ONLY; `scripts/check-web-types.cjs` holds that), `app/api/see/*` |

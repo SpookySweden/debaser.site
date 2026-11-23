@@ -236,6 +236,18 @@ async function shell(browser) {
   ok(/AN ADDRESS OR WORDS IN THE BOX ABOVE/.test(await start.innerText()), 'a new tab says what the machine is');
   ok((await start.locator('[data-seeing-recent] li').allInnerTexts()).map((text) => text.split('\n')[0].trim()).join('|') === 'Fog A|Horn B', 'and the pages seen last, each once, newest first');
   await back.page.screenshot({ path: join(OUT, 'start.png') });
+  // The keys, pressed: / to the box, Alt+N a new tab, Alt+1 the first, Alt+W closes the one in front.
+  await back.page.locator('h1, [data-seeing-start]').first().click({ position: { x: 2, y: 2 } });
+  await back.page.keyboard.press('/');
+  ok(await back.page.evaluate(() => document.activeElement?.hasAttribute('data-seeing-address')), '/ goes to the address box');
+  await back.page.locator('[data-seeing-start]').click({ position: { x: 2, y: 2 } });
+  await back.page.keyboard.press('Alt+KeyN');
+  await back.page.keyboard.press('Alt+KeyN');
+  ok((await tabs(back.page).count()) === 3, 'Alt+N opens a new tab');
+  await back.page.keyboard.press('Alt+Digit1');
+  ok((await tabs(back.page).first().getAttribute('aria-selected')) === 'true', 'Alt+1 brings the first to the front');
+  await back.page.keyboard.press('Alt+KeyW');
+  ok((await tabs(back.page).count()) === 2, 'Alt+W closes the one in front');
   await back.context.close();
 }
 
