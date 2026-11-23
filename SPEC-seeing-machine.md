@@ -4,7 +4,7 @@ Luke, 2026-11-23, from his master text ("THE DEBASER SEEING MACHINE") and the in
 this prompt and all your ideas an creative context on implementing the idea to the site, account for themes, browser to be a
 new module").
 
-Status: **waiting for Luke's OK and his four answers below.** Nothing is built, installed or changed. The audit behind this
+Status: **every question answered (2026-11-23), ready for a build session; Luke starting one is his OK.** Nothing is built, installed or changed. The audit behind this
 is `seeing-machine-audit.md` in the sessions' notes folder; the parts that matter are repeated here.
 
 Words used here: an **eye** is a way of getting a page (the site's server fetches it, or the reader's own browser does). A
@@ -32,37 +32,30 @@ picture on a page reports who is reading it. A **capture** is a page kept on the
 | 15 | History | **On the account, private** |
 | 16 | Bad sites | **Known malware and phishing blocked** |
 
-## Four answers still needed
-**D1. Google sign-in (answer 14).** It can't go through the site's server, and this spec won't build it that way:
+## The four last answers (Luke, 2026-11-23: "d1,a d2,a, d3,a, kept forever, d4,a")
+**D1. Google sign-in (answer 14): A, a DEBASER browser extension** (the OWN EYE, below). It can't go through the site's server:
 - Google blocks it on purpose. Its published rule refuses sign-in inside embedded or automated browsers and where the
   network path is altered, naming "man-in-the-middle" as the reason
   ([2020 rule](https://developers.googleblog.com/2020/08/guidance-for-our-effort-to-block-less-secure-browser-and-apps.html),
   [supported browsers](https://support.google.com/accounts/answer/7675428)).
 - A page at debaser.site showing Google's sign-in form and passing the password on is technically the same thing as a
-  phishing site, whoever means well. Everyone's passwords and live sessions would sit on SERVER, and the domain would
-  probably be marked dangerous.
+  phishing site, and everyone's passwords and live sessions would sit on SERVER. Never built, whatever else changes.
 
-What does give real browsing with real sign-ins:
-- **A (recommended): a DEBASER browser extension** (the OWN EYE, below). The page loads in the reader's own Chrome or Edge,
-  where they are already signed in to Google. Every script works, the lenses work on it, and no password or private page
-  passes through SERVER. Sites then see **the reader's own address, not your home's**, which also takes most of risks 2
-  and 3 away. Cost: people install it once, computers only (no phones), and a Chrome Web Store listing in your name (a
-  one-off fee, about $5) or a folder they load by hand.
-- **B: a real Chromium on SERVER, its picture streamed** (as SCREENS streams a PC). Nothing to install. But about 1 GB of
-  memory a person on a 16 GB machine that runs everything else, so two or three people at once; people's Google passwords
-  would be typed into your PC; and Google may still refuse it. Only sensible for you alone.
-- **C: no sign-ins.** The server's eye only.
+With the extension, pages load in the reader's own Chrome or Edge, where they're already signed in; no password or private
+page passes through SERVER, and those sites see the reader's own address, not the home's. One install, computers only, and a
+Chrome Web Store listing in Luke's name (a one-off fee, about $5; he makes it himself) or a folder loaded by hand.
 
-**D2. "Everyone" (answer 1).** A (recommended): everyone with an account. Without one there is nobody to limit, and it becomes
-an open proxy that bots find within days. B: visitors too.
+**D2. Everyone = everyone with an account** (A). Signed out, BROWSER shows the sign-in call and the public cards.
 
-**D3. Who went where.** What people open goes out from your house. A (recommended): keep account, site name and time (never
-the page) for 14 days, readable by you only, and say so once when somebody first opens BROWSER. Without it you can't say who
-did something. B: keep nothing.
+**D3. A record of who went where (A), "kept forever"**: account, site name and time, never the page or its address. Readable by
+Luke only. Kept with no end date, so it's in every backup too. Said once: a permanent record of which sites people visited is
+the most private thing the site would hold, and a leak of SERVER or a backup leaks it. UK data law expects a reason to keep
+such a record, for people to be told, and their own rows to be given or removed when they ask; the reason is showing who did
+something from the house's connection. So: people are told plainly, "kept forever" included, the first time they open BROWSER
+and on /privacy; a request to see or remove somebody's rows is done by hand, by Luke's OK each time. It covers the server's eye
+only: what the extension loads never passes through SERVER, so it isn't recorded.
 
-**D4. Public full copies (answers 11 and 12).** Republishing whole pages of other people's writing from your house is the
-part most likely to bring a takedown letter. A (recommended): everyone sees the card and quotes at once; the full copy opens
-for people with an account. B: everyone, visitors too, opens the full copy.
+**D4. Public full copies (A)**: everyone sees the card and quotes at once; the full copy opens for people with an account.
 
 ## Risks, said once
 1. **SERVER is beside everything.** The torrent page (no password at home), Jellyfin, the database and its dashboard, the
@@ -175,7 +168,7 @@ knows which eye is in use.
 9. **Off switch**: `SEEING_MACHINE=off`. The outgoing route is one setting too (`SEEING_EXIT`, `direct` today: home), so the
    move to his own server changes a line.
 
-### OWN EYE: the extension (if D1 is A)
+### OWN EYE: the extension (D1)
 - A Manifest V3 extension for Chrome and Edge, its own folder `extension/`. It acts only on sites the reader adds with a press
   (optional permissions asked one site at a time), and talks only to `https://debaser.site`.
 - **A day's trial first**, before anything else is built, on the test list, signed in: which sites show and stay signed in
@@ -251,12 +244,12 @@ document, a stylesheet, an overlay, its settings and its theme part. Switching i
 - History (answer 15): private to the account, one key to clear it, 90 days.
 
 ### Database changes (none now; each needs Luke's typed OK when built)
-In plain English: **one migration at Phase 5**, adding tables and widening two lists. Nothing is changed or deleted.
+In plain English: **one small migration at Phase 2 and one at Phase 5**, adding tables and widening two lists. Nothing is changed or deleted.
 - `seen_pages` (the card; everyone reads, its owner adds and deletes, moderators hide), `seen_page_copies` (the copy's words for
   search and where its file sits), `seen_notes` (quotes and MARGINALIA), `seen_media` (media found on it), `browse_tabs` and
   `browse_history` (owner only). A private storage bucket `seen` on `I:\DEBASER\files`.
 - `page` added to the forum's anchor kinds and to letters' and recommendations' kinds.
-- If D3 is A, at Phase 2: `browse_log` (account, site name, time; nobody reads it but the server for Luke; emptied past 14 days).
+- A small one at Phase 2: `browse_log` (account, site name, time; written by the server only, read by Luke only, kept forever, D3).
 Row Level Security on all; stream guests make and read nothing. Mock and Supabase repositories both.
 Until Phase 5, tabs and history live in the browser only.
 
@@ -267,14 +260,14 @@ Each is its own build session, ends live and proved, and stops for Luke to look.
 2. **The server's eye**, seen by Luke only at first: guarded fetch, rewriter, frame, signed assets, scripts on, READER,
    WATCHERS, BILLBOARD, limits, off switch, the table of what works. Opens to everyone (D2) only after the attack list passes
    and Luke has looked. **1 and 2 are the smallest first build.**
-   - 2b, beside it: the extension's trial day (D1 A). Its result is a table, not a product.
+   - 2b, beside it: the extension's trial day (D1). Its result is a table, not a product.
 3. **Lenses**: X-RAY, LOW-FI, THEME DYE, GLASS, CUSTOM, SEAM, LOUPE, ERASE, SITE MEMORY, TIME DIAL, SCAN.
 4. **OWN EYE and the Room**: the extension for real, the media tray, rungs 1 to 3, the SEE key. (Rung 4 waits for SCREENS.)
 5. **Captures** and their places, history and tabs on the account, TRAIL. The migration.
 6. **Together**: SEEN TOGETHER, MARGINALIA, GRAFFITI, SONIFY, rung 4, MEDIA's PAGES lane, DISCOVER. Polish throughout.
 
 ## Out of scope
-Logins through the server; a Chromium on SERVER (unless D1 is B); passing video or sound through the server; saving video;
+Logins through the server; a Chromium on SERVER; passing video or sound through the server; saving video;
 getting round DRM, paywalls, CAPTCHAs or bot checks; scraping pages for the feed (a page is read because a person asked for
 it); phone design; a plug-in system; friends lists; anybody's own lens code running.
 
