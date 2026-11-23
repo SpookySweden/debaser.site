@@ -491,7 +491,7 @@ document.addEventListener('DOMContentLoaded', function () {
   tell();
 });`;
 
-const HOSTILE = `<!doctype html><title>Hostile</title><div id="out"></div><svg width="2" height="2"><image width="2" height="2"><set attributeName="href" to="http://127.0.0.1:4568/escaped-smil"/></image><use><animate attributeName="href" values="http://127.0.0.1:4568/escaped-smil2#a" dur="1s"/></use></svg><meta http-equiv="refresh" content="1;url=http://127.0.0.1:4568/escaped-refresh"><base href="http://127.0.0.1:4568/">
+const HOSTILE = `<!doctype html><title>Hostile</title><div id="out"></div><svg width="2" height="2"><image width="2" height="2"><set attributeName="href" to="http://127.0.0.1:4568/escaped-smil"/></image><use><animate attributeName="href" values="http://127.0.0.1:4568/escaped-smil2#a" dur="1s"/></use></svg><meta http-equiv="refresh" content="1;url=http://127.0.0.1:4568/escaped-refresh"><base href="http://127.0.0.1:4568/"><img alt="" src="/a.png" attributionsrc="http://127.0.0.1:4568/escaped-attr-markup"><a href="/next" attributionsrc="http://127.0.0.1:4568/escaped-attr-link" id="attrlink">a</a>
 <script>
 var out = {}; function tell() { document.getElementById('out').textContent = JSON.stringify(out); }
 function attempt(name, what) { try { var v = what(); out[name] = 'done:' + v; } catch (e) { out[name] = e.name; } }
@@ -598,6 +598,10 @@ attempt('stylesheet', function () { var l = document.createElement('link'); l.re
 attempt('cssPictures', function () { var m = document.createElement('style'); m.textContent = 'html{cursor:url(http://127.0.0.1:4568/escaped-cursor),auto;list-style-image:url(http://127.0.0.1:4568/escaped-list);mask-image:url(http://127.0.0.1:4568/escaped-mask);border-image-source:url(http://127.0.0.1:4568/escaped-border)} body::before{content:url(http://127.0.0.1:4568/escaped-content)}'; document.head.appendChild(m); var d = document.createElement('div'); d.style.cssText = 'background:url(http://127.0.0.1:4568/escaped-inline);width:9px;height:9px'; document.documentElement.appendChild(d); return 'made'; });
 attempt('api', function () { w.fetch('SITE/api/see/open', { method: 'POST', body: '{}' }).then(function (r) { out.apiEnd = 'answered ' + r.status; tell(); }, function () { out.apiEnd = 'refused'; tell(); }); return 'asked'; });
 attempt('dress', function () { top.postMessage({ see: 'dress', css: 'x' }, '*'); for (var i = 0; i < 50; i += 1) top.postMessage({ see: 'open', address: 'https://spam.seeing-fixture.org/spam' + i, newTab: true }, '*'); top.postMessage({ see: 'open', address: 'javascript:alert(1)' }, '*'); return 'sent'; });
+// (IMPROVE, 2026-11-23 late) Attribution reporting (Chrome asks an attributionsrc address in the background), a keepalive fetch, history moved to another site.
+attempt('attribution', function () { var m = document.createElement('img'); Element.prototype.setAttribute.call(m, 'attributionsrc', 'http://127.0.0.1:4568/escaped-attr-img'); m.src = '/a.png'; document.documentElement.appendChild(m); if ('attributionSrc' in m) m.attributionSrc = 'http://127.0.0.1:4568/escaped-attr-prop'; var a = document.createElement('a'); a.href = '/next'; a.target = '_blank'; Element.prototype.setAttribute.call(a, 'attributionsrc', 'http://127.0.0.1:4568/escaped-attr-click'); document.documentElement.appendChild(a); try { fetch('http://127.0.0.1:4568/escaped-attr-fetch', { mode: 'no-cors', attributionReporting: { eventSourceEligible: true, triggerEligible: false } }).catch(function () {}); } catch (e) {} return 'attributionSrc' in m ? 'made' : 'made, no support'; });
+attempt('keepalive', function () { fetch('http://127.0.0.1:4568/escaped-keepalive', { mode: 'no-cors', keepalive: true, method: 'POST', body: 'x' }).catch(function () { out.keepaliveEnd = 'refused'; tell(); }); return 'asked'; });
+attempt('history', function () { history.pushState(null, '', 'http://127.0.0.1:4568/escaped-history'); return 'moved'; });
 setTimeout(function () { location.href = 'http://127.0.0.1:4568/escaped-self'; }, 300);
 setTimeout(tell, 1200); tell();
 </script>`;
@@ -906,6 +910,7 @@ async function eye(browser) {
     {
       const got = JSON.parse(hostile);
       ok(got.origin === 'done:null', 'the hostile page has no origin');
+      ok(['attribution', 'keepalive', 'history'].every((name) => got[name] !== undefined), `attribution, keepalive and history were tried (${got.attribution} ${got.keepalive} ${got.history} ${got.keepaliveEnd})`);
       ok(got.frames === 0 && Object.entries(got).filter(([name, value]) => /^make/.test(name) && !/^(?:done:0|[A-Z]\w*Error)$/.test(value)).length === 0, `no way of making a frame made one (${JSON.stringify(Object.entries(got).filter(([name, value]) => /^make/.test(name) && !/^(?:done:0|[A-Z]\w*Error)$/.test(value)))})`);
       ok(/Error/.test(got.rtc) && /Error/.test(got.freshRtc), 'so WebRTC is out of its reach');
       ok(/^done:0:/.test(got.undermine), `nor with everything the hook might lean on taken from under it (${got.undermine})`);
