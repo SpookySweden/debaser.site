@@ -7,6 +7,7 @@ import { AnySiteRefusal, safeFetchAnySite, type AnySiteWay } from '../../web/saf
 import type { SeenDocument } from '../engine';
 import { ASSET_KINDS, type AssetKind } from './assets';
 import { cache } from './cache';
+import { feedPage } from './feed';
 import { ASSET_PATH, askAnswer, assetAnswer, fileAddress, resolveOn, type FileDeps } from './files';
 import { passStands, realGate, seeingOwner, whoMaySee, type GateDeps } from './gate';
 import { escapeText, escapeValue } from './html';
@@ -106,9 +107,12 @@ export async function openAnswer(request: Request, deps: SeeDeps = realSee()): P
     const sign = (text: string, kind: AssetKind) => fileAddress(text, answer.url, kind, person, files);
     const isPage = /html/.test(answer.type);
     const words = answer.type.startsWith('image/') ? '' : wordsOf(answer.body, answer.charset);
+    const picture = answer.type.startsWith('image/');
+    // A feed (RSS, Atom) is drawn as the list it is (feed.ts, decision 42); other words as they are; a picture as itself, its one file.
+    const feed = !isPage && /xml/.test(answer.type) ? feedPage(words, answer.url) : null;
     const page = isPage
       ? rewritePage(words, answer.url, sign, scripts)
-      : { html: plainPage(answer.type, words, answer.type.startsWith('image/') ? sign(answer.url, 'picture') : null), title: null, watchers: [], media: [], files: 0, refused: 0, signIn: false, refresh: null };
+      : { html: feed?.html ?? plainPage(answer.type, words, picture ? sign(answer.url, 'picture') : null), title: feed?.title ?? null, watchers: [], media: [], files: picture ? 1 : 0, refused: 0, signIn: false, refresh: null };
     const document: SeenDocument = {
       address: answer.url,
       title: page.title ?? '',

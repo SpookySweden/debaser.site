@@ -49,7 +49,7 @@ The plan and Luke's answers are `SPEC-seeing-machine.md`. This is what was built
 `server/html.ts` reads HTML as a browser's tokenizer does and passes it through, changing tags as they go by, so a broken page stays as
 broken as it was and the browser does the building. (The spec named parse5; this needs no dependency. parse5 remains the way to go if a page
 is ever read wrongly.) The same tokens, as a plain tree, find READER's words. Scripts are changed in three ways only: module addresses are
-signed, `location` is pointed at a stand-in (the frame's own address can be neither read nor moved), and no frame tag is left in their words. A drawing's animation (SVG `set`, `animate`...) that sets an address, or whose values hold one, is taken out (`SMIL` in `rewrite.ts`).
+signed, `location` is pointed at a stand-in (the frame's own address can be neither read nor moved), and no frame tag is left in their words. A drawing's animation (SVG `set`, `animate`...) that sets an address, or whose values hold one, is taken out (`SMIL` in `rewrite.ts`). A frame is a link named by its host and path (a frameset's, a line each). A page that isn't HTML is drawn as what it is (`open.ts`): a picture, words, or a news feed as its list of links in plain text (`feed.ts`, decision 42).
 
 ## What works (server's eye, 2026-11-23, `scripts/see-table.cjs`, from home)
 | Site | STANDARD | READER | Notes |

@@ -280,6 +280,26 @@ process.on('exit', () => {
     process.exitCode = 1;
   }
 });
+// A feed (decision 42): drawn as its list, every word plain, only http(s) links, and quick however it is built.
+{
+  const { feedPage } = at('feed.js');
+  const rss = feedPage('<?xml version="1.0"?><rss version="2.0"><channel><title>Daily &amp; Example</title><description>News</description><item><title><![CDATA[Bridge <b>delayed</b>]]></title><link>/bridge</link><pubDate>Mon, 23 Nov 2026</pubDate><description>&lt;p&gt;The council &lt;script&gt;alert(1)&lt;/script&gt;met.&lt;/p&gt;</description></item><item><title>Bad</title><link>javascript:alert(1)</link></item></channel></rss>', 'https://news.org/feed');
+  assert.equal(rss.title, 'Daily & Example');
+  assert.ok(rss.html.includes('<a href="https://news.org/bridge">Bridge delayed</a>'), rss.html);
+  assert.ok(rss.html.includes('A FEED · 2 ITEMS') && rss.html.includes('Mon, 23 Nov 2026'), 'its count and dates');
+  assert.ok(rss.html.includes('The council alert(1) met.'), 'what an item says is words: its markup, even written as entities, goes');
+  assert.ok(!/<(?!\/?(?:main|h1|p|small|ul|li|a|b|br)\b)/.test(rss.html) && !rss.html.includes('<script'), 'no tag of the feed\'s own');
+  assert.ok(rss.html.includes('<b>Bad</b>') && !rss.html.includes('javascript:'), 'a link that is not http(s) is no link');
+  const atom = feedPage('<feed xmlns="http://www.w3.org/2005/Atom"><title>Blog</title><entry><title>One</title><link rel="self" href="https://x.org/self"/><link href="https://x.org/one"/><updated>2026-11-01</updated><summary>Hello</summary></entry></feed>', 'https://x.org/atom');
+  assert.ok(atom.html.includes('<a href="https://x.org/one">One</a>') && atom.html.includes('Hello'), atom.html);
+  assert.equal(feedPage('<html><p>not a feed', 'https://x.org/'), null);
+  assert.equal(feedPage('{"rss":1}', 'https://x.org/'), null);
+  const slow = performance.now();
+  feedPage('<rss>' + '<item><title><![CDATA[<link <title &#x'.repeat(200_000), 'https://x.org/');
+  feedPage('<rss><item>' + '<title'.repeat(400_000) + '</item>'.repeat(10), 'https://x.org/');
+  feedPage('<rss>' + '</title><title '.repeat(300_000) + '</item>', 'https://x.org/');
+  assert.ok(performance.now() - slow < 5_000, `feeds made to be slow to read: ${Math.round(performance.now() - slow)} ms`);
+}
 const passIn = (text) => /\/api\/see\/asset\/([\w-]+)/.exec(text)[1];
 const file = (pass, deps) => open.assetRoute(new Request(`https://debaser.site/api/see/asset/${pass}`), pass, deps);
 

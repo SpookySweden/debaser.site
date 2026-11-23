@@ -42,6 +42,7 @@ One line each, the most useful first. Struck through when done, with its commit.
 - ~~A forum thread about a MEDIA item had [ OPEN ↗ ] and no [ SEE ]: it has both now, for whoever has BROWSER on the bar (ThreadSubjectRow; no mock thread of that kind, so seen by tsc and the SeeKey check only).~~
 - ~~In the engines' list, ▲ on a group's first engine and ▼ on its last looked pressable and did nothing: greyed (drive search 18).~~
 - ~~An old frameset site drew its frames as one line of identical [ FRAME: host ] links: each is named by host and path now, a frameset's frames a line each (check-see-rewrite).~~
+- ~~A news feed (RSS/Atom) showed as raw XML: drawn as its list now, every word plain (feed.ts, decision 42; check-see-rewrite has feeds built to be slow). A picture page said 0 FILES: 1 now.~~
 - Open: at 390 an outside page has about twelve rows of keys over it (phones get the desktop zoomed out, so low).
 - Open: SeeingMachine.tsx is about 710 lines; the page keys' block needs two dozen of its values, so moving it out isn't simpler yet.
 - ~~Escape left the engines' list open: it puts that away too (drive search).~~

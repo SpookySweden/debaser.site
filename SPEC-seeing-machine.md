@@ -105,6 +105,7 @@ Each can be changed later by saying so.
 39. **A book seen in BROWSER has [ READ IT ]**, into the site's own reader: an Open Library work's page, an Internet Archive book reader (/stream/) or a PDF or EPUB in an item (/download/); on the OUT group and first on a refusal. An Archive item's page alone gets none (it may be a film). Undo: drop readerRef (read-ref.ts) from SeeingMachine.tsx and SeeingRefused.tsx.
 40. **A page tunes in when it arrives**: the busy view's dither lies over it and is cut away from the top in six jumps, a third of a second (also on a tab switch); never under reduced motion, never takes the pointer. Undo: the seeing-arrive div in SeeingStage.tsx.
 41. **Alt+H opens HISTORY and Alt+K KEPT**, each a toggle, one in the other's place; Escape puts them away (and is left alone when neither is open); listed with the other keys. Undo: the KeyH, KeyK and Escape lines in keys.ts.
+42. **A news feed (RSS, Atom) is drawn as its list**: its title, a count, then each item as a link with its date and up to 300 plain characters of what it says; nothing of the feed's own markup, only http(s) links. OPEN SOURCE still opens the feed itself on its own site. Undo: the feed line in server/open.ts (feed.ts then unused).
 
 ## Risks, said once
 1. **SERVER is beside everything.** The torrent page (no password at home), Jellyfin, the database and its dashboard, the
