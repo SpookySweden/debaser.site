@@ -19,3 +19,4 @@ One line each, the most useful first. Struck through when done, with its commit.
 - ~~A refused page was a few words in an empty box: now a trace under them (EYE, ASKED, ANSWER with the time it took), only what this side knows.~~
 - ~~SEAM, LOUPE and ERASE could be pressed on a busy or refused page, with no page under them: greyed until one is drawn.~~
 - ~~KEEP PAGE ended at SEE THE COPY: a page kept for everyone had to be found again under KEPT to go in a letter or a board thread. Both keys now sit on the KEPT line (not proved on a mock server, where every page is private; it is the KEPT list's own code).~~
+- ~~A slow site read ACQUIRING SOURCE and nothing else until it came or timed out: the seconds now count beside the step (SeeingElapsed.tsx, hidden from screen readers).~~

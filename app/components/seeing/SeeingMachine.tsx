@@ -46,6 +46,7 @@ import { subscribeToTheme, themeState } from '../../lib/ui/theme-slot';
 import { useAuth } from '../AuthProvider';
 import SeeingEngines from './SeeingEngines';
 import SeeingStart from './SeeingStart';
+import SeeingElapsed from './SeeingElapsed';
 import SeeingRefused from './SeeingRefused';
 import { seeingKey, type SeeingKey } from '../../lib/seeing/keys';
 import SeeingHistory from './SeeingHistory';
@@ -62,7 +63,7 @@ import { useLensSettings } from './use-lens-settings';
 
 /** What came of opening a page. `key` says which opening it was, so an answer to an earlier one is never drawn as this one's. */
 type Shown =
-  | { key: string; state: 'busy'; at: SeeStep | null }
+  | { key: string; state: 'busy'; at: SeeStep | null; since?: number }
   | { key: string; state: 'stopped' }
   | { key: string; state: 'shown'; document: SeenDocument }
   | { key: string; state: 'refused'; reason: string; eye: string; ms: number };
@@ -174,11 +175,12 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
     work.current = going;
     const engine = engineFor(address);
     const began = performance.now();
+    setShown({ key, state: 'busy', at: null, since: began });
     const before = tab.at > 0 ? (tab.stops[tab.at - 1]?.address ?? null) : null;
     const cameFrom = before !== null && /^https?:/.test(before) ? before : null;
     void engine
       .open(address, (at) => {
-        if (!going.signal.aborted) setShown({ key, state: 'busy', at });
+        if (!going.signal.aborted) setShown({ key, state: 'busy', at, since: began });
       }, going.signal)
       .catch(() => ({ ok: false as const, reason: 'SOMETHING WENT WRONG' }))
       .then((answer) => {
@@ -666,6 +668,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
 
       <p role="status" className={`my-1 max-w-full truncate tabular-nums ${fault ? FAULT : 'text-label text-ink'}`} data-seeing-status>
         {line}
+        {notice === null && now.state === 'busy' && now.since !== undefined ? <SeeingElapsed key={key} since={now.since} /> : null}
       </p>
     </>
   );

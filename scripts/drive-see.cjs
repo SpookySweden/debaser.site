@@ -575,6 +575,11 @@ function fixture() {
       answer.writeHead(302, { location: '/next' }).end();
       return;
     }
+    // A slow site: it answers after two and a half seconds.
+    if (request.url === '/slow') {
+      setTimeout(() => answer.writeHead(200, { 'content-type': 'text/html' }).end('<title>Slow</title><h1>Slow</h1>'), 2500);
+      return;
+    }
     answer.writeHead(pages[request.url.split('?')[0]] ? 200 : 404, { 'content-type': type, 'access-control-allow-origin': '*' }).end(String(body).replaceAll ? (Buffer.isBuffer(body) ? body : body.replaceAll('SITE', BASE)) : body);
   });
   // Nothing of ours ever speaks to 4568: one connection, or one packet, is an escape.
@@ -775,6 +780,10 @@ async function eye(browser) {
     await go(page, `${SITE}/nowhere`);
     await say(page, 'HTTP 404');
     ok(true, "a page that isn't there says so");
+    await go(page, `${SITE}/slow`);
+    await page.locator('[data-seeing-status] [data-seeing-elapsed]').filter({ hasText: /· [12] S/ }).waitFor({ timeout: 4000 });
+    await inside(page).getByRole('heading', { name: 'Slow' }).waitFor();
+    ok((await page.locator('[data-seeing-elapsed]').count()) === 0, 'a slow site is seen to be slow: the seconds count beside the step, and go when it comes');
 
     await go(page, `${SITE}/`);
     await say(page, 'DOCUMENT RECONSTRUCTED');
