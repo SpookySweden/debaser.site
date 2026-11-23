@@ -74,6 +74,12 @@ const FILE_ENDING = /\.(?:js|mjs|cjs|ts|tsx|jsx|txt|css|html?|json|xml|ya?ml|exe
 function addressIn(text: string): { ok: true; address: string } | { ok: false; reason: string } | null {
   if (/^see:/i.test(text)) return readAddress(text);
   if (/^https?:\/\//i.test(text)) return readAddress(text.replace(/ /g, '%20'));
+  // `//example.com` and `http:example.com` are addresses as a browser reads them, when what follows is a site's name.
+  const loose = /^(?:(https?):(?!\/)|\/\/(?!\/))(\S+)$/i.exec(text);
+  if (loose !== null) {
+    const read = addressIn(loose[2]);
+    return read?.ok === true && loose[1]?.toLowerCase() === 'http' ? readAddress(read.address.replace(/^https:/, 'http:')) : read;
+  }
   if (/\s/.test(text)) return null;
   // Another kind of address (`javascript:`, `file:`), typed whole: refused, and not handed to an engine either.
   if (/^(?:javascript|data|file|blob|vbscript|about|chrome|edge|ftp|mailto|tel|ws|wss|view-source|chrome-extension):/i.test(text)) return readAddress(text);

@@ -153,7 +153,8 @@ async function shell(browser) {
     ['javascript:alert(1)', 'ONLY HTTP AND HTTPS'],
     ['https://me:secret@example.com', 'NO NAME OR PASSWORD'],
     // (2026-11-23) Words are searched for now (the search drive); what is plainly an address and can't be opened is still refused.
-    ['localhost:3000', "THAT ISN'T AN ADDRESS"],
+    // (2026-11-23 late) A house computer is said to be one, in the server's own words.
+    ['localhost:3000', 'NOT A PUBLIC ADDRESS'],
   ]) {
     await go(page, typed);
     await say(page, why);

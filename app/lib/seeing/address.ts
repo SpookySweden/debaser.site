@@ -39,6 +39,8 @@ export function readAddress(text: string): ReadAddress {
   } catch {
     return refuse("THAT ISN'T AN ADDRESS");
   }
+  // `localhost:3000` is an address, of a computer in the house: said in the server's own words, which refuses it whatever this says.
+  if (/(?:^|\.)localhost\.?$/i.test(url.hostname)) return refuse('NOT A PUBLIC ADDRESS');
   // `new URL('https://hello')` is a fine URL and not an address anybody meant.
   if (scheme === undefined && !url.hostname.includes('.')) return refuse("THAT ISN'T AN ADDRESS");
   if (url.username.length > 0 || url.password.length > 0) return refuse('NO NAME OR PASSWORD IN AN ADDRESS');
