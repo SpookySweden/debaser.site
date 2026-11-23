@@ -98,6 +98,7 @@ Each can be changed later by saying so.
 32. **At phone width the page keeps a usable height** (22rem) and the machine scrolls to it, rather than squeezing it under the keys. Undo: the two max-sm classes in SeeingMachine.tsx.
 33. **While a page is asked for, the view is drawn**: a 2px dither field with a panel saying the step, the address and the eye, and a paper band stepping down it in twelve jumps (still under reduced motion and after STOP, which says STOPPED). Undo: SeeingAcquiring.tsx and .seeing-acquiring in globals.css.
 34. **HISTORY and KEPT sit at the far end of the tab line**, being yours whatever the page; the tool row under the lenses holds only what works on the page in front. Undo: the end prop of SeeingTabs back into the tool row.
+35. **Alt+L turns to the next lens** (STANDARD, READER, WATCHERS ... round again), remembered for the site as a press is; listed with the other keys. Undo: the KeyL line in keys.ts.
 
 ## Risks, said once
 1. **SERVER is beside everything.** The torrent page (no password at home), Jellyfin, the database and its dashboard, the

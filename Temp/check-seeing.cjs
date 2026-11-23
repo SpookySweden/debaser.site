@@ -334,6 +334,8 @@ const press = (more) => ({ key: '', code: '', altKey: false, ctrlKey: false, met
 assert.deepEqual(K.seeingKey(press({ key: '/' })), { do: 'box' });
 assert.equal(K.seeingKey(press({ key: '/', typing: true })), null, 'a / typed in a box is a /');
 assert.deepEqual([K.seeingKey(press({ altKey: true, code: 'KeyN', typing: true })), K.seeingKey(press({ altKey: true, code: 'KeyW' })), K.seeingKey(press({ altKey: true, code: 'Digit3' }))], [{ do: 'new' }, { do: 'close' }, { do: 'tab', index: 2 }]);
+assert.deepEqual(K.seeingKey(press({ altKey: true, code: 'KeyL' })), { do: 'lens' }, 'Alt+L the next lens');
+assert.ok(K.KEYS_LINE.includes('ALT+L'), 'and it is listed');
 for (const theirs of [{ ctrlKey: true, code: 'KeyW' }, { ctrlKey: true, code: 'KeyT' }, { ctrlKey: true, code: 'KeyL' }, { altKey: true, code: 'KeyD' }, { altKey: true, code: 'Digit9' }, { altKey: true, shiftKey: true, code: 'KeyN' }, { metaKey: true, key: '/' }]) {
   assert.equal(K.seeingKey(press(theirs)), null, `the browser's own: ${JSON.stringify(theirs)}`);
 }

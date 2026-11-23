@@ -271,6 +271,11 @@ async function shell(browser) {
   ok((await tabs(back.page).first().getAttribute('aria-selected')) === 'true', 'Alt+1 brings the first to the front');
   await back.page.keyboard.press('Alt+KeyW');
   ok((await tabs(back.page).count()) === 2, 'Alt+W closes the one in front');
+  const lensNow = () => back.page.locator('[data-seeing-lenses] [aria-pressed="true"]').first().innerText();
+  const lensBefore = await lensNow();
+  await back.page.keyboard.press('Alt+KeyL');
+  await back.page.waitForFunction((was) => document.querySelector('[data-seeing-lenses] [aria-pressed="true"]')?.textContent.trim() !== was, lensBefore);
+  ok(/READER/.test(await lensNow()) && /STANDARD/.test(lensBefore), `Alt+L turns to the next lens (${lensBefore} to ${await lensNow()})`);
   await back.context.close();
 }
 
