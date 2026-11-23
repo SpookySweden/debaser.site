@@ -49,7 +49,7 @@ The plan and Luke's answers are `SPEC-seeing-machine.md`. This is what was built
 `server/html.ts` reads HTML as a browser's tokenizer does and passes it through, changing tags as they go by, so a broken page stays as
 broken as it was and the browser does the building. (The spec named parse5; this needs no dependency. parse5 remains the way to go if a page
 is ever read wrongly.) The same tokens, as a plain tree, find READER's words. Scripts are changed in three ways only: module addresses are
-signed, `location` is pointed at a stand-in (the frame's own address can be neither read nor moved), and no frame tag is left in their words.
+signed, `location` is pointed at a stand-in (the frame's own address can be neither read nor moved), and no frame tag is left in their words. A drawing's animation (SVG `set`, `animate`...) that sets an address, or whose values hold one, is taken out (`SMIL` in `rewrite.ts`).
 
 ## What works (server's eye, 2026-11-23, `scripts/see-table.cjs`, from home)
 | Site | STANDARD | READER | Notes |
@@ -78,7 +78,7 @@ One file each in `lenses/`; a lens is a stylesheet (`css`), what it needs done t
 next dressing doesn't ask for it), and a panel. X-RAY, LOW-FI (five palettes), DYE (colours to the theme's dyes, 4.5:1 kept, pictures dithered on a
 canvas), GLASS (`html[data-see-glass]` clears the site window; the backgrounds run while it is on), CUSTOM (ten blocks, shared as `SEE:words+mono`).
 SEAM and LOUPE are a second drawing of the page, clipped. ERASE keeps selectors of one shape (`isSelector`) per site; SITE MEMORY keeps a lens per
-site (`memory.ts`, this browser only until Phase 5). TIME DIAL: the Internet Archive's copy nearest a year. SCAN: wiby.me's own random page.
+site (`memory.ts`, this browser only until Phase 5). TIME DIAL: the Internet Archive's copy nearest a year. SCAN: wiby.me's own random page. The lenses and the tools share their lines (`[data-seeing-keyrow]`). [ READ IT ] (`read-ref.ts`) opens an Open Library work, an Archive book reader or an Archive PDF/EPUB in the site's own reader at /read. A page tunes in as it arrives (`.seeing-arrive` in globals.css; none under reduced motion).
 Proof: `drive-see.cjs --only lenses` (DYE and GLASS measured on every theme, 5.51:1 or better).
 
 ## Media, SEE and the extension (Phase 4)
