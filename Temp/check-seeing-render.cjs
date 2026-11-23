@@ -66,7 +66,7 @@ assert.ok(!lenses('standard').includes('SEPIA') && lenses('reader').includes('SE
 assert.match(lenses('reader', { ...L.SETTINGS_AT_FIRST, reader: { paper: 'theme', size: 1 } }), /aria-label="Smaller words"[^>]*disabled=""/);
 assert.ok(lenses('lowfi').includes('TERMINAL') && lenses('custom').includes('COPY RECIPE') && !lenses('custom').includes('placeholder="SEE:'));
 
-const tools = (props) => html(el(at('SeeingTools'), { address: 'https://example.com/', seam: null, loupe: null, erasing: false, erased: 0, good: false, onSeam: none, onLoupe: none, onErasing: none, onBringBack: none, onScan: none, onGood: none, onGo: none, children: null, ...props }));
+const tools = (props) => html(el(at('SeeingTools'), { address: 'https://example.com/', ready: true, seam: null, loupe: null, erasing: false, erased: 0, good: false, onSeam: none, onLoupe: none, onErasing: none, onBringBack: none, onScan: none, onGood: none, onGo: none, children: null, ...props }));
 assert.ok(/aria-label="Year"/.test(tools({})) && !/aria-label="Year"/.test(tools({ address: 'see:test' })) && !/BRING BACK/.test(tools({})) && /BRING BACK 3/.test(tools({ erased: 3 })));
 // A refusal's trace: only what this side knows, the address drawn as words (IMPROVE, 2026-11-23).
 const refused = (props) => html(el(at('SeeingRefused'), { reason: 'NO SUCH SITE', eye: 'SERVER EYE', ms: 412, address: 'https://example.com/<b>', canOld: true, ownEye: false, onAgain: none, onOld: none, onOwn: none, ...props }));
@@ -75,6 +75,10 @@ assert.ok(refused({ ms: 15234 }).includes('· 15.2 S'));
 // A new tab shows only what works without a page (IMPROVE, 2026-11-23): SCAN stays, the page's own keys wait for a page.
 assert.ok(['SEAM', 'LOUPE', 'ERASE', 'GOOD'].every((name) => !tools({ address: null }).includes(`[ ${name} ]`)) && tools({ address: null }).includes('[ SCAN ]'));
 assert.ok(['SEAM', 'LOUPE', 'ERASE', 'GOOD', 'SCAN'].every((name) => tools({}).includes(`[ ${name} ]`)));
+// Busy or refused: no page to seam, loupe or erase, so those keys are greyed (but one already pressed can still be let go).
+const greyed = (markup, name) => markup.split('<button').some((each) => each.includes(`[ ${name} ]`) && each.includes('disabled=""'));
+assert.ok(['SEAM', 'LOUPE', 'ERASE'].every((name) => greyed(tools({ ready: false }), name) && !greyed(tools({}), name)));
+assert.ok(!greyed(tools({ ready: false, erasing: true }), 'ERASE') && !greyed(tools({ ready: false }), 'SCAN'));
 
 const beside = html(el(at('SeeingXray'), { point: { path: ['<b>', 'p.x'], kind: 'WORDS', size: '1 x 2', ink: 'x', ground: 'y', face: 'z', words: '<img src=x>', inside: 2 }, census: { counts: { words: 1, pictures: 2, links: 3, frames: 4, scripts: 5, forms: 6 }, rows: [{ depth: 1, name: '<script>', inside: 0 }] } }));
 assert.ok(beside.includes('&lt;b&gt;') && beside.includes('&lt;img') && beside.includes('&lt;script&gt;') && !/<script|<img/.test(beside), "a page's own words are drawn as words");

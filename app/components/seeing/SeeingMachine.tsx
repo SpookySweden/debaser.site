@@ -480,6 +480,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
       />
       <SeeingTools
         address={address}
+        ready={seen !== null}
         seam={seam}
         loupe={loupe}
         erasing={erasing}
