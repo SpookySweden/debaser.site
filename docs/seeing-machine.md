@@ -197,8 +197,8 @@ away** for sites that keep their sign-in in storage, or look thin in a frame (Yo
 and still signs you out. Not tried: any site signed in, which only Luke can do with his own account; Chrome itself (only Edge is on SERVER).
 
 ## Proof
-`npm run checks -- --only check-see` (attack list with 52 guards each watched failing, the rewriter and routes, the frame's documents, what
-is drawn); `scripts/drive-see.cjs` (shell, frame, eye, themes, on a local mock server); `scripts/see-attack-live.cjs` (once for real on
+`npm run checks -- --only check-see` (attack list with 63 guards each watched failing, the rewriter and routes, the frame's documents, what
+is drawn); `scripts/drive-see.cjs` (shell, frame, eye, lenses, extension, search, themes, one at a time with `--only`, on a local mock server); `scripts/see-attack-live.cjs` (once for real on
 SERVER, 2026-11-23: 614 ways in refused, 6 real redirects into the house not followed, every socket opened was to a public address).
 
 ## The security review (2026-11-23, over 128b12a..d44b88c, a fresh reader told to break it)
