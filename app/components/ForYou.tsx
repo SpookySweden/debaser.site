@@ -1,5 +1,6 @@
 'use client';
 
+import { mediaMarkKind } from './MediaKindMark';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { forYou } from '../lib/audio/for-you';
@@ -264,7 +265,7 @@ export default function ForYou({ index, extraHosts, onPick }: { index: StationIn
               const words = item.words.map((word) => word.word);
               return (
                 <li key={pick.key} className="rule-pixel flex items-start gap-2 py-2">
-                  <Thumb src={thumb} />
+                  <Thumb src={thumb} kind={mediaMarkKind(item as WebItem)} />
                   <div className="min-w-0 flex-1">
                     <button type="button" onClick={() => onPick(item.id)} aria-label={`Go to ${item.title}`} className={`${STATION_KEY} block w-full break-words text-left`}>
                       {item.title}
@@ -292,7 +293,7 @@ export default function ForYou({ index, extraHosts, onPick }: { index: StationIn
               const link = watchLinkForItem(item);
               return (
                 <li key={pick.key} className="rule-pixel flex items-start gap-2 py-2" data-for-you-live={item.id}>
-                  <Thumb src={thumb} />
+                  <Thumb src={thumb} kind={mediaMarkKind(item)} />
                   <div className="min-w-0 flex-1">
                     {/* WATCH puts it on in your own room, as PLAY on its MEDIA row does (main-room-play.ts). */}
                     <button
@@ -347,7 +348,7 @@ export default function ForYou({ index, extraHosts, onPick }: { index: StationIn
               const item = pick.item;
               return (
                 <li key={pick.key} className="rule-pixel flex items-start gap-2 py-2">
-                  <Thumb src={item.thumbnailUrl ?? null} />
+                  <Thumb src={item.thumbnailUrl ?? null} kind="text" />
                   <div className="min-w-0 flex-1">
                     <Link href={`/media/book/${item.id}`} className={`${STATION_KEY} block w-full break-words text-left`}>
                       {item.title}

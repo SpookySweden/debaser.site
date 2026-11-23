@@ -1,3 +1,4 @@
+import { fullscreenBox } from './whole-site-fullscreen';
 import type { WatchLink } from '../watch/types';
 import { createWindowSlot } from './window-slot';
 
@@ -152,7 +153,7 @@ export function notePlayerElement(element: HTMLElement | null): void {
  * and a float comes back exactly as it was.
  */
 export function togglePlayerFullscreen(): void {
-  if (document.fullscreenElement !== null) {
+  if (fullscreenBox() !== null) {
     void document.exitFullscreen().catch(() => undefined);
     return;
   }

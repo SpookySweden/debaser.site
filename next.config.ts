@@ -6,7 +6,12 @@ import type { NextConfig } from "next";
  * The build looks on disk and tells the browser code which of these exist (`app/lib/ui/art/on-disk.ts`), so a slot
  * shows its text stand-in without asking, and the day Luke drops his drawing in, the next build shows it.
  */
-const ART_WATCHED = ["/assets/profiles/avatar-default.png", "/assets/icons/google-retro.png"];
+const ART_WATCHED = [
+  "/assets/profiles/avatar-default.png",
+  "/assets/icons/google-retro.png",
+  // What a MEDIA result is, where it has no picture (app/components/MediaKindMark.tsx).
+  ...["video", "audio", "image", "text", "film", "live", "other"].map((kind) => `/assets/media-kinds/${kind}.png`),
+];
 
 const nextConfig: NextConfig = {
   env: {

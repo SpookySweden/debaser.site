@@ -64,6 +64,7 @@ import { stillBars, watchVideoBars, type FrameBars } from '../lib/watch/bar-watc
 import { hasTrim, NO_TRIM, trimmedShape, type Trim } from '../lib/watch/video-bars';
 import { pictureStyle, shapeFrom, stageStyle, videoShape, WIDE } from '../lib/watch/video-shape';
 import { stageBkgOn, stageBkgOnServer, subscribeToStageBkg } from '../lib/ui/stage-bkg';
+import { fullscreenBox } from '../lib/ui/whole-site-fullscreen';
 import { siteFullscreenWorks, withoutFullscreen } from '../lib/ui/floating-player';
 import { StageBackdrop } from './backdrops/Backdrops';
 import StageKey from './StageKey';
@@ -1262,7 +1263,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   function toggleFullscreen() {
     const box = stageRef.current;
     if (box === null) return;
-    if (document.fullscreenElement) {
+    if (fullscreenBox() !== null) {
       void document.exitFullscreen().catch(() => undefined);
       return;
     }

@@ -809,6 +809,17 @@ export const ART_SLOTS = [
     fallback: '"NO IMAGE" in the empty 96x72 box (`WebStream`)',
     brief: 'On /media, for an item whose platform gives no picture or whose picture fails to load, and for the site\'s own tracks and videos there. 96x72.',
   },
+  {
+    id: 'media-kind',
+    label: 'MEDIA: WHAT A RESULT IS',
+    kind: 'mark',
+    path: 'assets/media-kinds/{code}.png',
+    shown: [[24, 18]],
+    k: 1,
+    fit: 'contain',
+    fallback: 'the kind\'s character (▶ ♪ ▦ ¶ ▣ ● ◆), glowing the same way (`MediaKindMark`); no file asked for until the build finds it (`artOnDisk`)',
+    brief: 'What a MEDIA result is, where it has no picture. Seven files: video, audio, image, text, film, live, other. 24x18, one colour on clear: the drawing is a mask, as the envelope is, painted in the theme\'s accent ink with a glow and shown at 1, 2, 3 or 5 times in whole pixels.',
+  },
 ] as const satisfies readonly ArtSlot[];
 
 /**

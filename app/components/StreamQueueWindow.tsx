@@ -75,10 +75,8 @@ import PopoutWindow from './PopoutWindow';
 import ProfileAvatarLink from './ProfileAvatarLink';
 import ProfileName from './ProfileName';
 import QueueSearchFilters from './QueueSearchFilters';
-import SpriteSlot from './SpriteSlot';
+import MediaKindMark, { mediaMarkKind, type MediaMarkKind } from './MediaKindMark';
 
-/** The archive row's stand-in picture (`web-thumb-missing`), for a result whose platform gives none. */
-const MISSING_THUMB_SRC = `/${artSlot('web-thumb-missing')?.path ?? 'assets/web/thumb-missing.png'}`;
 /** The crowns (`mark-crown`, `mark-crown-filled` in app/lib/ui/art/slots.ts), shown at 16px. */
 const CROWN_SRC = `/${artSlot('mark-crown')?.path ?? 'assets/icons/crown.png'}`;
 const CROWN_HELD_SRC = `/${artSlot('mark-crown-filled')?.path ?? 'assets/icons/crown-filled.png'}`;
@@ -1768,7 +1766,7 @@ function WebResult({
     return (
       <li className="rule-pixel py-1" data-series-result={item.id}>
         <div className="flex items-center gap-2">
-          <ResultThumb thumb={thumb} onFailed={() => setThumbFailed(true)} />
+          <ResultThumb thumb={thumb} kind={mediaMarkKind(item)} onFailed={() => setThumbFailed(true)} />
           <span className="min-w-0 flex-1">
             <button type="button" onClick={toggle} aria-expanded={open} title={item.title} className="block w-full cursor-pointer truncate text-left font-bold hover:underline max-sm:min-h-tap">
               {open ? '[-]' : '[+]'} {item.title}
@@ -1807,14 +1805,7 @@ function WebResult({
           // eslint-disable-next-line @next/next/no-img-element -- hotlinked from the platform, never proxied or copied (SPEC-web.md)
           <img src={thumb} alt="" width={96} height={72} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={() => setThumbFailed(true)} className="block h-full w-full object-cover" />
         ) : (
-          <SpriteSlot
-            src={MISSING_THUMB_SRC}
-            alt=""
-            width={96}
-            height={72}
-            title="No picture"
-            fallback={<span aria-hidden="true" className="flex h-full w-full items-center justify-center text-label font-bold text-ink">NO IMAGE</span>}
-          />
+          <MediaKindMark kind={mediaMarkKind(item)} />
         )}
       </span>
       <span className="min-w-0 flex-1">
@@ -1941,21 +1932,14 @@ function QueueKey({ label, disabled = false, onAdd }: { label: string; disabled?
 }
 
 /** A result's picture box: hotlinked, a fixed box so a slow or missing picture never moves the row. */
-function ResultThumb({ thumb, onFailed }: { thumb: string | null; onFailed: () => void }) {
+function ResultThumb({ thumb, kind, onFailed }: { thumb: string | null; kind: MediaMarkKind; onFailed: () => void }) {
   return (
     <span className="block h-18 w-24 shrink-0 overflow-hidden border border-ink-plate bg-paper">
       {thumb ? (
         // eslint-disable-next-line @next/next/no-img-element -- hotlinked from the platform, never proxied or copied (SPEC-web.md)
         <img src={thumb} alt="" width={96} height={72} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={onFailed} className="block h-full w-full object-cover" />
       ) : (
-        <SpriteSlot
-          src={MISSING_THUMB_SRC}
-          alt=""
-          width={96}
-          height={72}
-          title="No picture"
-          fallback={<span aria-hidden="true" className="flex h-full w-full items-center justify-center text-label font-bold text-ink">NO IMAGE</span>}
-        />
+        <MediaKindMark kind={kind} />
       )}
     </span>
   );

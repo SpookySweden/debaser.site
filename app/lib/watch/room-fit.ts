@@ -1,5 +1,6 @@
 'use client';
 
+import { fullscreenBox } from '../ui/whole-site-fullscreen';
 import { handMoving, liveWindow, setWindowRect, windowMinSize, type WindowRect } from '../ui/window-layout';
 import { subscribeToWatchWindow, watchWindowState } from './watch-window';
 
@@ -81,7 +82,7 @@ if (typeof window !== 'undefined') {
     }
   });
   document.addEventListener('fullscreenchange', () => {
-    if (later && document.fullscreenElement === null) {
+    if (later && fullscreenBox() === null) {
       later = false;
       requestAnimationFrame(() => fitRoom(true));
     }
@@ -150,7 +151,7 @@ export function fitRoom(auto = false): void {
     return;
   }
   owed = 0;
-  if (auto && (element.dataset.minimized === 'true' || document.fullscreenElement !== null)) {
+  if (auto && (element.dataset.minimized === 'true' || fullscreenBox() !== null)) {
     later = true;
     return;
   }

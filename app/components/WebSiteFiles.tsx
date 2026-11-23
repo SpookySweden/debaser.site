@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { catalogueTrack } from '../lib/media/catalogue';
 import type { CatalogueEntry, MediaKind } from '../lib/media/types';
-import { artSlot } from '../lib/ui/art/slots';
 import { PLATE, PLATE_LINK, PLATE_PRESSED } from '../lib/ui/controls';
 import { ICON_MEDIA } from '../lib/ui/icons';
 import { WEB_HREF } from '../lib/web/bridges';
@@ -15,9 +14,9 @@ import { useMusicPlayer } from './MusicPlayerProvider';
 import PlayerBox, { PipKey, usePlayingHere } from './PlayerBox';
 import SheetImage from './SheetImage';
 import { SongMenuKey, SongMenuPanel } from './SongMenu';
-import SpriteSlot from './SpriteSlot';
 import QueuePictureKey from './QueuePictureKey';
 import WatchInRoomKey from './WatchInRoomKey';
+import MediaKindMark from './MediaKindMark';
 
 /**
  * DEBASER.SITE in an archive search: the site's own files the search finds (`siteFileMatches` in
@@ -28,7 +27,6 @@ import WatchInRoomKey from './WatchInRoomKey';
  * the file on the catalogue page, where its uses, tags and EDIT are.
  */
 
-const MISSING_THUMB_SRC = `/${artSlot('web-thumb-missing')?.path ?? 'assets/web/thumb-missing.png'}`;
 
 const KIND_WORDS: Record<MediaKind, string> = { image: 'IMAGE', audio: 'AUDIO', video: 'VIDEO' };
 
@@ -91,14 +89,7 @@ function SiteFileRow({ entry, focusFirst }: { entry: CatalogueEntry; focusFirst:
               <SheetImage src={item.src} alt="" width={96} height={72} sizes="96px" compact fit={{ mode: 'cover' }} />
             </button>
           ) : (
-            <SpriteSlot
-              src={MISSING_THUMB_SRC}
-              alt=""
-              width={96}
-              height={72}
-              title="No picture"
-              fallback={<span aria-hidden="true" className="flex h-full w-full items-center justify-center text-label font-bold text-ink">NO IMAGE</span>}
-            />
+            <MediaKindMark kind={item.kind} />
           )}
         </span>
 

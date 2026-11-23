@@ -1,15 +1,14 @@
 'use client';
 
+import MediaKindMark, { mediaMarkKind, type MediaMarkKind } from './MediaKindMark';
 import Link from 'next/link';
 import { createContext, useContext, useState, type ReactNode } from 'react';
-import { artSlot } from '../lib/ui/art/slots';
 import type { StationIndex } from '../lib/tag-station/query';
 import type { ItemWord, StationItem } from '../lib/tag-station/types';
 import { FACET_LETTERS, type Facet } from '../lib/tag-station/word-facts';
 import { eraOf } from '../lib/tag-station/words';
 import { sourceLabel } from '../lib/tag-station/query';
 import { rowAddresses, type ExtraHosts } from '../lib/web/row-addresses';
-import SpriteSlot from './SpriteSlot';
 
 /**
  * The small pieces every TAG STATION panel shares (SPEC-tag-station.md): keys at least 44px tall with a thick focus ring, word
@@ -96,10 +95,9 @@ export function WordChip({
   );
 }
 
-const MISSING_THUMB_SRC = `/${artSlot('web-thumb-missing')?.path ?? 'assets/web/thumb-missing.png'}`;
 
 /** A hotlinked picture from the platform, in a fixed box so nothing moves when it arrives or fails. */
-export function Thumb({ src, wide }: { src: string | null; wide?: boolean }) {
+export function Thumb({ src, kind, wide }: { src: string | null; kind: MediaMarkKind; wide?: boolean }) {
   const [failed, setFailed] = useState(false);
   const box = wide ? 'h-36 w-48' : 'h-12 w-16';
   return (
@@ -108,7 +106,7 @@ export function Thumb({ src, wide }: { src: string | null; wide?: boolean }) {
         // eslint-disable-next-line @next/next/no-img-element -- hotlinked from the platform, never proxied (see WebStream).
         <img src={src} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={() => setFailed(true)} className="block h-full w-full object-cover" />
       ) : (
-        <SpriteSlot src={MISSING_THUMB_SRC} alt="" width={wide ? 192 : 64} height={wide ? 144 : 48} title="No picture" fallback={<span aria-hidden="true" className="flex h-full w-full items-center justify-center text-label font-bold text-ink">{wide ? 'NO IMAGE' : ''}</span>} />
+        <MediaKindMark kind={kind} size={wide ? 'card' : 'small'} />
       )}
     </span>
   );
@@ -130,7 +128,7 @@ export function ItemRow({ item, note, extraHosts, onPick }: { item: StationItem;
   const year = Number.isFinite(Date.parse(item.publishedAt)) ? ` · ${item.publishedAt.slice(0, 4)}` : '';
   return (
     <li className="rule-pixel flex items-start gap-2 py-2">
-      <Thumb src={thumb} />
+      <Thumb src={thumb} kind={mediaMarkKind(item)} />
       <div className="min-w-0 flex-1">
         <button type="button" onClick={() => onPick(item.id)} aria-label={`Go to ${item.title}`} className={`key block min-h-tap w-full cursor-pointer break-words px-1 py-1 text-left text-label ${STATION_RING} ${PRESS}`}>
           {item.title}

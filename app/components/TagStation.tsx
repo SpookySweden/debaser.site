@@ -1,5 +1,6 @@
 'use client';
 
+import { mediaMarkKind } from './MediaKindMark';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react';
 import { edgePicks, findTag, loosenings, neighbourhood, relatedTags, sameMix, sourceLabel, suggest, tagPassesFacet, tagPassesNiche, wordItemsLine, type StationIndex } from '../lib/tag-station/query';
@@ -225,7 +226,7 @@ function ItemInput({ item, extraHosts, onPick, onAdd }: { item: StationItem; ext
   const { thumb, licence } = rowAddresses(item as WebItem, extraHosts);
   return (
     <div className="flex flex-col gap-2">
-      <Thumb src={thumb} wide />
+      <Thumb src={thumb} kind={mediaMarkKind(item as WebItem)} wide />
       <p className="break-words text-title font-bold text-ink">{item.title}</p>
       <p className="break-words text-label text-ink">
         {sourceLabel(item.platform)} · {item.kind.toUpperCase()}

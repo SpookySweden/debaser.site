@@ -2,7 +2,6 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent } from 'react';
-import { artSlot } from '../lib/ui/art/slots';
 import { FIELD_TIGHT, PLATE, PLATE_LINK, PLATE_MAIN } from '../lib/ui/controls';
 import { TwitchSignInNote } from './TwitchSignInNote';
 import { pictureLink } from '../lib/watch/pictures';
@@ -98,7 +97,6 @@ import { siteFileMatches } from '../lib/web/site-server';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import WebPickedList from './WebPickedList';
 import AudioSubsFlags from './AudioSubsFlags';
-import SpriteSlot from './SpriteSlot';
 import WebMediaRow, { isKinoRow, isMediaRow, KinoRow } from './WebMediaRow';
 import WebCatalogueFinds, { CatalogueLine, useCatalogueFinds } from './WebCatalogueFinds';
 import WebSiteFiles from './WebSiteFiles';
@@ -106,6 +104,7 @@ import WebLiveRooms from './WebLiveRooms';
 import StreamArtShelf from './StreamArtShelf';
 import { watchLinkForItem } from '../lib/web/bridges';
 import { canWatch, WebDiscussKey } from './WebBridgeKeys';
+import MediaKindMark, { mediaMarkKind } from './MediaKindMark';
 import { noteSettingChanged, subscribeToAccountSettings } from '../lib/settings/settings-bus';
 
 /**
@@ -198,7 +197,6 @@ const TITLE_CLASS: Record<MediaView, string> = {
  */
 const CREATOR_ONE_LINE = 'block max-w-full truncate';
 
-const MISSING_THUMB_SRC = `/${artSlot('web-thumb-missing')?.path ?? 'assets/web/thumb-missing.png'}`;
 
 /** The SOURCE, TYPE, `from:`, VIBE and SORT filters a list is shown under (web-filters.ts). */
 type Filters = Pick<WebSearch, 'source' | 'type' | 'authors' | 'vibe' | 'sort' | 'lang' | 'live'>;
@@ -1989,14 +1987,7 @@ export function WebRow({
               className="block h-full w-full object-cover"
             />
           ) : (
-            <SpriteSlot
-              src={MISSING_THUMB_SRC}
-              alt=""
-              width={96}
-              height={72}
-              title="No picture"
-              fallback={<span aria-hidden="true" className="flex h-full w-full items-center justify-center text-label font-bold text-ink">NO IMAGE</span>}
-            />
+            <MediaKindMark kind={mediaMarkKind(item)} size={view === 'compact' ? 'tiny' : view === 'list' ? 'row' : 'card'} />
           )}
           {/* ROOMBARS (Luke, 2026-11-21: "Allowing clicking on the thumbnail in media tab to auto open the video in the room"): a
               press on the picture is PLAY, into your room as PLAY goes. Under the `i`, which keeps its own press. A pointer's way

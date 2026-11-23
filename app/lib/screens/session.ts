@@ -1,3 +1,4 @@
+import { fullscreenBox } from '../ui/whole-site-fullscreen';
 import { ScreenConnection, type StreamStats } from './connection';
 import { type NetRoute } from './net-route';
 import { ScreenControl, canLockKeyboard } from './control';
@@ -125,7 +126,7 @@ function whichScreen(): string {
 
 /** Whether the view fills the screen: by its own FULLSCREEN key, or inside the room's own fullscreen (its FULL key, a double press). */
 function inFullscreen(root: HTMLElement): boolean {
-  const full = document.fullscreenElement;
+  const full = fullscreenBox();
   return full !== null && full.contains(root);
 }
 

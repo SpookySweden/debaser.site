@@ -3,6 +3,7 @@
 import { useSyncExternalStore, type ReactNode } from 'react';
 import DesktopSidebar from './DesktopSidebar';
 import FullWindowKey, { HideWindowKey } from './FullWindowKey';
+import SiteFullscreenKey from './SiteFullscreenKey';
 import ProfileControl from './ProfileControl';
 import SiteNav from './SiteNav';
 import type { NavKey } from './SiteNav';
@@ -101,7 +102,7 @@ export default function SiteWindow({ title, active, tip, fill = false, children 
 
         {/* The page tabs: the header, and the first thing under the title bar. FILL WINDOW sits at its far end in both states (it was in
             the title line when normal and here when filled until 2026-11-14), so it is one key in one place. */}
-        <SiteNav active={active} endKey={fill ? undefined : (<><HideWindowKey /><FullWindowKey on={chosen} /></>)} />
+        <SiteNav active={active} endKey={<>{fill ? null : (<><HideWindowKey /><FullWindowKey on={chosen} /></>)}<SiteFullscreenKey /></>} />
 
         {/* No strip along the foot (Luke, 2026-11-14: "remove the 'start' button and the extra section it occupies"): the page runs to
             the window's bottom edge. ./Taskbar.tsx and ./StartMenu.tsx are kept in the repo, not drawn. */}

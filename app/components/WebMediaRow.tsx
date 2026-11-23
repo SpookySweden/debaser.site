@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { closeFloatingIfMine, floatingState, playCount, playFloating } from '../lib/ui/floating-player';
-import { artSlot } from '../lib/ui/art/slots';
 import { PLATE_LARGE } from '../lib/ui/controls';
 import type { WebStreamItem } from '../lib/web/dedupe';
 import { mediaServer, playerSandbox, type MediaServerId } from '../lib/web/media-servers';
@@ -18,12 +17,12 @@ import { burnedInSubtitles } from '../lib/web/subtitles';
 import AudioSubsFlags from './AudioSubsFlags';
 import { useKinoSources, WATCH_PLAYER_BOX, WATCH_PLAYING_LINE, WatchList, watchCount } from './KinoSources';
 import PlayerBox, { PipKey, usePlayingHere } from './PlayerBox';
-import SpriteSlot from './SpriteSlot';
 import WatchInRoomKey from './WatchInRoomKey';
 import FindInRoomKey from './FindInRoomKey';
 import { LetterPlaylistKey, MoreKeys, ThumbOpen } from './WebRowKeys';
 import { WebDiscussKey } from './WebBridgeKeys';
 import FeedbackKey from './FeedbackKey';
+import MediaKindMark from './MediaKindMark';
 
 /**
  * One title from Luke's or a friend's media server (SPEC-media-servers.md), in the /web stream.
@@ -38,7 +37,6 @@ import FeedbackKey from './FeedbackKey';
  * Every size here is at least the 44px tap size at every width, from the theme tokens (Luke's eyesight).
  */
 
-const MISSING_THUMB_SRC = `/${artSlot('web-thumb-missing')?.path ?? 'assets/web/thumb-missing.png'}`;
 /** The 44px floor at every width, not only on a phone. */
 const BIG_KEY = `${PLATE_LARGE} min-h-tap`;
 
@@ -210,14 +208,7 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
               className="block h-full w-full object-cover"
             />
           ) : (
-            <SpriteSlot
-              src={MISSING_THUMB_SRC}
-              alt=""
-              width={96}
-              height={144}
-              title="No picture"
-              fallback={<span aria-hidden="true" className="flex h-full w-full items-center justify-center text-label font-bold text-ink">NO IMAGE</span>}
-            />
+            <MediaKindMark kind="film" />
           )}
         </span>
 
@@ -407,14 +398,7 @@ export function KinoRow({ item, titleId, action }: { item: WebItem & { media: Me
               className="block h-full w-full object-cover"
             />
           ) : (
-            <SpriteSlot
-              src={MISSING_THUMB_SRC}
-              alt=""
-              width={96}
-              height={144}
-              title="No picture"
-              fallback={<span aria-hidden="true" className="flex h-full w-full items-center justify-center text-label font-bold text-ink">NO IMAGE</span>}
-            />
+            <MediaKindMark kind="film" />
           )}
           {/* OPEN, small in the poster's corner (M8): the title's page on TMDB. */}
           {addresses.link ? <ThumbOpen href={addresses.link} label={`"${item.title}" on TMDB (opens a new tab)`} /> : null}

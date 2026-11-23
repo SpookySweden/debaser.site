@@ -69,11 +69,11 @@ export default function RoomFloatChrome({
 
   return (
     <>
-      <div {...drag.bar} className={`${WINDOW_TITLE_BAR} absolute inset-x-0 top-0 z-40 cursor-move touch-none select-none bg-sun-pale [:fullscreen_&]:hidden`} title="Drag by this line or by the picture. Pull an edge to resize. Double press for fullscreen." data-room-float>
+      <div {...drag.bar} className={`${WINDOW_TITLE_BAR} absolute inset-x-0 top-0 z-40 cursor-move touch-none select-none bg-sun-pale [:fullscreen:not(:root)_&]:hidden`} title="Drag by this line or by the picture. Pull an edge to resize. Double press for fullscreen." data-room-float>
         <span className="truncate">{title}</span>
       </div>
       {FLOAT_GRIPS.map((grip) => (
-        <div key={grip.className} aria-hidden="true" className={`absolute z-40 touch-none [:fullscreen_&]:hidden ${grip.className}`} {...drag.grip(grip.edges)} data-float-grip />
+        <div key={grip.className} aria-hidden="true" className={`absolute z-40 touch-none [:fullscreen:not(:root)_&]:hidden ${grip.className}`} {...drag.grip(grip.edges)} data-float-grip />
       ))}
     </>
   );

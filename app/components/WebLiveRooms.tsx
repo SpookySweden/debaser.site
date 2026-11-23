@@ -1,14 +1,13 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { artSlot } from '../lib/ui/art/slots';
 import { PLATE } from '../lib/ui/controls';
 import { twitchOf, youtubeIdOf } from '../lib/watch/links';
 import { enterRoom } from '../lib/watch/use-music-room';
 import type { WatchLink } from '../lib/watch/types';
 import { searchWords } from '../lib/web/search';
 import { useLiveStreams, type LiveStreamRow } from './CytubeLiveStreams';
-import SpriteSlot from './SpriteSlot';
+import MediaKindMark from './MediaKindMark';
 
 /**
  * This site's live rooms in MEDIA, first (SPEC-live-streams.md; Luke, 2026-11-17: "also shows and prioritises user rooms, same
@@ -21,7 +20,6 @@ import SpriteSlot from './SpriteSlot';
  * as the title, `<HOST>'S ROOM` where a maker goes, the LIVE mark where a date goes, ROOM where a source goes, and JOIN.
  */
 
-const MISSING_THUMB_SRC = `/${artSlot('web-thumb-missing')?.path ?? 'assets/web/thumb-missing.png'}`;
 /** How many rooms show before `[ ALL n ROOMS ]`. */
 const ROOMS_SHOWN = 3;
 
@@ -87,14 +85,7 @@ function RoomRow({ room, focusFirst }: { room: LiveStreamRow; focusFirst: boolea
             // eslint-disable-next-line @next/next/no-img-element
             <img src={picture} alt="" width={96} height={72} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={() => setThumbFailed(true)} className="block h-full w-full object-cover" />
           ) : (
-            <SpriteSlot
-              src={MISSING_THUMB_SRC}
-              alt=""
-              width={96}
-              height={72}
-              title="No picture"
-              fallback={<span aria-hidden="true" className="flex h-full w-full items-center justify-center text-label font-bold text-ink">NO IMAGE</span>}
-            />
+            <MediaKindMark kind="live" />
           )}
         </span>
         <div className="min-w-0 flex-1">

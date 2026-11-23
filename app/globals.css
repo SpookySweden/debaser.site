@@ -1042,6 +1042,17 @@ img {
 :is(a, button):is(:hover, :focus-visible) .letter-envelope canvas {
   filter: drop-shadow(0 0 2px currentColor);
 }
+/* What a MEDIA result is, where it has no picture (app/components/MediaKindMark.tsx; Luke, 2026-11-23: "in glowy pixel art style
+   similar to the letters"): his drawing is a mask painted in the mark's own colour, and it glows at rest, in that colour. */
+.media-kind-mark > * {
+  filter: drop-shadow(0 0 2px currentColor) drop-shadow(0 0 4px currentColor);
+}
+.media-kind-drawing {
+  background-color: currentColor;
+  image-rendering: pixelated;
+  mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+}
 /* The colours ---------------------------------------------------------------------------------------
    Declared in app/theme/tokens.css, generated from app/lib/ui/themes.ts: the nine dyes ("Dyacid Dyes",
    docs/design.md) are named once there, and each theme says which dye plays which part. What each colour

@@ -1,3 +1,4 @@
+import { fullscreenBox } from '../ui/whole-site-fullscreen';
 import {
   BUTTONS,
   allUpMessage,
@@ -404,11 +405,14 @@ export class ScreenControl {
     if (document.pointerLockElement === this.links.stage) document.exitPointerLock();
   }
 
-  /** System keys (Alt+Tab, the Windows key, Esc) only reach a page that is fullscreen and has asked to keep them. */
+  /**
+   * System keys (Alt+Tab, the Windows key, Esc) only reach a page that is fullscreen and has asked to keep them. Only with the view
+   * itself fullscreen: the whole site's own fullscreen is left with Esc, as Luke asked.
+   */
   private readonly lockKeyboard = () => {
     const keyboard = keyboardLock();
     const can = canLockKeyboard();
-    if (this.mine && document.fullscreenElement !== null && can && keyboard?.lock !== undefined) {
+    if (this.mine && fullscreenBox() !== null && can && keyboard?.lock !== undefined) {
       keyboard
         .lock()
         .then(() => {

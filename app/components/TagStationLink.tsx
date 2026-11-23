@@ -1,5 +1,6 @@
 'use client';
 
+import { mediaMarkKind } from './MediaKindMark';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { findTag, wordsInText, type StationIndex } from '../lib/tag-station/query';
 import type { LinkAnswer } from '../lib/tag-station/types';
@@ -91,7 +92,7 @@ export function LinkInput({
   const thumb = item ? rowAddresses(item, extraHosts).thumb : null;
   return (
     <div className="flex flex-col gap-2">
-      {item ? <Thumb src={thumb} wide /> : null}
+      {item ? <Thumb src={thumb} kind={mediaMarkKind(item)} wide /> : null}
       <p className="break-words text-title font-bold text-ink">{item?.title ?? card?.title}</p>
       <p className="break-words text-label text-ink">
         {item ? `${PLATFORM_LABELS[item.platform]} · ${item.kind.toUpperCase()}` : card?.source}

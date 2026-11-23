@@ -70,7 +70,7 @@ export function YouTubeLane({ hidden, onHide, extraHosts }: { hidden: ReadonlySe
         const { thumb, link } = rowAddresses(item, extraHosts);
         return (
           <li key={pick.key} className="rule-pixel flex items-start gap-2 py-2">
-            <Thumb src={thumb} />
+            <Thumb src={thumb} kind="video" />
             <div className="min-w-0 flex-1">
               {link ? (
                 <a href={link} target="_blank" rel="noopener noreferrer nofollow" aria-label={`Open "${item.title}" on YouTube (new tab)`} className={`${STATION_KEY} block w-full break-words text-left`}>

@@ -1,3 +1,4 @@
+import { fullscreenBox } from '../ui/whole-site-fullscreen';
 import { createWindowSlot } from '../ui/window-slot';
 import type { Reading } from './engine';
 import { bouncedPuck, clampToKnob, swayedValues, type RangeKnob, type Values } from './knobs';
@@ -46,7 +47,7 @@ export function onBareBackground(target: EventTarget | null): boolean {
 export function backgroundCovered(): boolean {
   // Something is fullscreen (a video): only what is inside it shows. The copy of the background drawn inside it
   // (`StageBackdrop`) does not ask this.
-  if (document.fullscreenElement !== null) return true;
+  if (fullscreenBox() !== null) return true;
   // The site window put away (HIDE WINDOW): the background is all there is to see, whatever FILL WINDOW says and whatever
   // page this is. (It used to rest here as if the filled window were still over it.)
   if (siteWindowAway()) return false;

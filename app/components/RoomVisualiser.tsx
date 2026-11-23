@@ -1,5 +1,6 @@
 'use client';
 
+import { fullscreenBox } from '../lib/ui/whole-site-fullscreen';
 import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import type { ButterchurnVisualizer } from 'butterchurn';
 import { soundTrack, tapSound, whyDeaf } from '../lib/watch/audio-tap';
@@ -328,7 +329,7 @@ function Visualiser({ element }: { element: HTMLMediaElement | null }) {
     setAt(0);
   };
   const fullscreen = () => {
-    if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+    if (fullscreenBox() !== null) void document.exitFullscreen().catch(() => undefined);
     else void boxRef.current?.requestFullscreen().catch(() => undefined);
   };
   const keys = (event: KeyboardEvent) => {
