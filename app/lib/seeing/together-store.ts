@@ -31,9 +31,17 @@ function openLine(roomId: string, hear: (value: unknown) => void, ready: () => v
   if (client === null) {
     if (typeof BroadcastChannel === 'undefined') return { send: () => undefined, leave: () => undefined };
     const line = new BroadcastChannel(topic);
+    let closed = false;
     line.onmessage = (event) => hear(event.data);
-    window.setTimeout(ready, 0);
-    return { send: (message) => line.postMessage(message), leave: () => line.close() };
+    window.setTimeout(() => closed || ready(), 0);
+    return {
+      // Left at once (an effect run twice), it is told nothing more.
+      send: (message) => closed || line.postMessage(message),
+      leave: () => {
+        closed = true;
+        line.close();
+      },
+    };
   }
   let channel: RealtimeChannel | null = null;
   let left = false;

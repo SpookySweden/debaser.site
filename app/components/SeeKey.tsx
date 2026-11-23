@@ -25,6 +25,32 @@ export default function SeeKey({ href, small = false }: { href: string; small?: 
   );
 }
 
+/** In the site's search: words that are an address (with a dot, no spaces) get a key to see it in BROWSER, for whoever has it on their bar. */
+export function SeeLine({ words, onLeave }: { words: string; onLeave: () => void }) {
+  const choices = useSyncExternalStore(subscribeToModules, modulesState, serverModules);
+  const browser = MODULES.find((module) => module.key === 'browser');
+  const typed = words.trim();
+  if (browser === undefined || !moduleIsOn(browser, choices) || /\s/.test(typed) || !typed.includes('.')) return null;
+  const read = readAddress(typed);
+  if (!read.ok || !/^https?:/.test(read.address)) return null;
+  return (
+    <p className="flex min-w-0 flex-wrap items-baseline gap-2 p-1 text-label text-ink" data-see-line>
+      <Link
+        href={browserHref(read.address)}
+        onClick={() => {
+          askToSee(read.address);
+          onLeave();
+        }}
+        prefetch={false}
+        className={PLATE}
+      >
+        [ SEE IT IN BROWSER ]
+      </Link>
+      <span className="min-w-0 wrap-anywhere">{read.address}</span>
+    </p>
+  );
+}
+
 const ADDRESS = /https?:\/\/[^\s<>"']{4,300}/gi;
 /** What is the sentence's and not the address's: a full stop, and a bracket the address did not open. */
 function trimmed(address: string): string {

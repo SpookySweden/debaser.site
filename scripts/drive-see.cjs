@@ -211,6 +211,23 @@ async function shell(browser) {
   await bar.getByRole('link', { name: /BROWSER/ }).waitFor();
   ok(/WIP/.test(await bar.getByRole('link', { name: /BROWSER/ }).innerText()), 'ticked in MODULOS it is on the bar, tagged WIP');
   await page.screenshot({ path: join(OUT, 'modulos.png') });
+  // The site's search (Ctrl+K), in a browser of its own with BROWSER on the bar: an address typed there is a key that opens it here at
+  // once (the press is the reader's); words are not an address.
+  const modules = await page.evaluate(() => localStorage.getItem('debaser-modules-v2'));
+  const fresh = await open(browser, { as: ANN, storage: { 'debaser-modules-v2': modules } });
+  await fresh.page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded' });
+  await fresh.page.waitForTimeout(1500);
+  await fresh.page.keyboard.press('Control+KeyK');
+  const searchBox = fresh.page.locator('#site-search-box');
+  await searchBox.waitFor({ timeout: 20000 });
+  await searchBox.fill('fog horns');
+  ok((await fresh.page.locator('[data-see-line]').count()) === 0, 'words in the site search are not an address');
+  await searchBox.fill('example.org/fog');
+  await fresh.page.locator('[data-see-line] a').click();
+  await fresh.page.waitForURL(/\/browser/);
+  await say(fresh.page, 'SOURCE REFUSED');
+  ok((await box(fresh.page).inputValue()) === 'https://example.org/fog', 'an address in the site search opens in BROWSER at once, on the press');
+  await fresh.context.close();
 
   // Another account in the same browser.
   await page.evaluate((id) => {

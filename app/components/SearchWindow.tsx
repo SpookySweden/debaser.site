@@ -13,6 +13,7 @@ import { commentDomId, threadDomId } from '../lib/forum/anchors';
 import { displayTitle } from '../lib/forum/site-author';
 import { useCatalogue } from '../lib/media/catalogue';
 import { browserHref } from '../lib/seeing/address';
+import { SeeLine } from './SeeKey';
 import { askToSee } from '../lib/seeing/ask';
 import { keptAddress, pageWords } from '../lib/seeing/pages';
 import { keptPages, keptPagesOnServer, openKeptPagesOf, subscribeToKeptPages } from '../lib/seeing/pages-store';
@@ -269,6 +270,7 @@ export function SearchBody({ initial, onLeave }: { initial: string; onLeave: () 
           [ SEARCH ]
         </button>
       </form>
+      <SeeLine words={text} onLeave={onLeave} />
 
       {groups === null ? (
         <p className="p-1 text-label text-ink">THE SITE&apos;S OWN THINGS FIRST, THEN THE OUTSIDE PLATFORMS. CTRL+K OPENS THIS FROM ANY PAGE.</p>

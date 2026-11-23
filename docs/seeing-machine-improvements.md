@@ -8,3 +8,6 @@ One line each, the most useful first. Struck through when done, with its commit.
 - ~~Keys for the keyboard: / the box, Alt+N, Alt+W, Alt+1 to 8 (keys.ts), listed on a new tab.~~
 - ~~A refused page was an empty box: now its reason, what it means, and only the keys that may help (refusals.ts, SeeingRefused.tsx).~~
 - Safety round, 2026-11-23: the attack list's 60 guards read through; no gap found by reading. Next safety round: the hostile page.
+- ~~The site search (Ctrl+K) had no way to see a typed address: [ SEE IT IN BROWSER ] (SeeLine), for whoever has BROWSER on the bar.~~
+- ~~SEEN TOGETHER on a local server wrote to its channel after closing it (an effect run twice): fixed in together-store.ts.~~
+- In drive-see shell, after the earlier steps, a [ SEE ] press landing on /browser did not open (6 tabs, a draft in front); in a clean browser it does. Worth a closer look: a press with a draft in the front tab.
