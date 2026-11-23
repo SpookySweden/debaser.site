@@ -102,6 +102,7 @@ Each can be changed later by saying so.
 36. **The status line ends with how long the page took** ("· IN 412 MS"), timed on this side from the press to the drawing, as a refusal's trace is. Undo: the ms in the shown state.
 37. **The TIME DIAL is a key, [ TIME ], until pressed**; on an old copy it is open at its year. Undo: dialShown in SeeingTools.tsx back to dial !== null.
 38. **The lenses and the tools share their lines**, a hairline between them (desktop only), wrapping where they must: a built-in page has one row of keys under the address, an outside page two (it was three). Undo: the data-seeing-keyrow wrapper in SeeingMachine.tsx out, and the two `contents` roots in SeeingLenses.tsx and SeeingTools.tsx back to their own flex rows.
+39. **A book seen in BROWSER has [ READ IT ]**, into the site's own reader: an Open Library work's page, an Internet Archive book reader (/stream/) or a PDF or EPUB in an item (/download/); on the OUT group and first on a refusal. An Archive item's page alone gets none (it may be a film). Undo: drop readerRef (read-ref.ts) from SeeingMachine.tsx and SeeingRefused.tsx.
 
 ## Risks, said once
 1. **SERVER is beside everything.** The torrent page (no password at home), Jellyfin, the database and its dashboard, the

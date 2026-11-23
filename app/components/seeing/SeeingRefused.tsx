@@ -1,22 +1,29 @@
 'use client';
 
+import Link from 'next/link';
 import { refusalHelp } from '../../lib/seeing/refusals';
 import { took } from '../../lib/seeing/took';
 import { PLATE, TITLE_BAR_INACTIVE } from '../../lib/ui/controls';
 
 /**
  * A page that didn't come: the reason, what it means, and what may still be tried, each a key. Under them the trace: only what is known on
- * this side (which eye was asked, the address, how long until it said no), never a step it can't see.
+ * this side (which eye was asked, the address, how long until it said no), never a step it can't see. A book (`read`) is offered to the site's
+ * own reader first, whatever the reason.
  */
-export default function SeeingRefused({ reason, eye, ms, address, canOld, ownEye, onAgain, onOld, onOwn }: { reason: string; eye: string; ms: number; address: string; canOld: boolean; ownEye: boolean; onAgain: () => void; onOld: () => void; onOwn: () => void }) {
+export default function SeeingRefused({ reason, eye, ms, address, canOld, ownEye, read = null, onAgain, onOld, onOwn }: { reason: string; eye: string; ms: number; address: string; canOld: boolean; ownEye: boolean; read?: string | null; onAgain: () => void; onOld: () => void; onOwn: () => void }) {
   const help = refusalHelp(reason);
   const tries = help.tries.filter((each) => (each === 'old' ? canOld : each === 'own' ? ownEye : true));
   return (
     <section aria-label="The page did not come" className="min-w-0 flex-1 overflow-y-auto p-4 text-label text-ink" data-seeing-refused>
       <h2 className={TITLE_BAR_INACTIVE}>SOURCE REFUSED: {reason}</h2>
       <p className="mt-2 max-w-prose">{help.means}</p>
-      {tries.length > 0 ? (
+      {tries.length > 0 || read !== null ? (
         <div className="mt-3 flex flex-wrap gap-2">
+          {read !== null ? (
+            <Link href={`/read/${read}`} title="In the site's own reader" className={PLATE}>
+              [ READ IT ]
+            </Link>
+          ) : null}
           {tries.map((each) =>
             each === 'again' ? (
               <button key={each} type="button" onClick={onAgain} className={PLATE}>

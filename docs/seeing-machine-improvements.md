@@ -30,3 +30,4 @@ One line each, the most useful first. Struck through when done, with its commit.
 - ~~The status line said what was reconstructed but not how long it took: "· IN 412 MS" at its end (took.ts, shared with the refusal trace).~~
 - ~~Safety round (3): a drawing's animation (SVG set/animate) could point an image or a use at another site after the rewriter had read it (the frame's policy still held it): such an animation now goes; ones that only move stay.~~
 - ~~The lenses had a row to themselves, half empty: lenses and tools now share their lines (decision 38); an outside page has two rows of keys, not three, and at 1366 the whole page group fits on the second.~~
+- ~~A book seen in BROWSER (Open Library, an Archive book) had no way into the site's own reader: [ READ IT ] (read-ref.ts, decision 39); the A BOOK refusal of an Archive PDF now opens it.~~

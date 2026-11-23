@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { addressInHash, browserHref, mediaInHash, readAddress } from '../../lib/seeing/address';
 import { subscribeToAsked, takeAsked } from '../../lib/seeing/ask';
+import { readerRef } from '../../lib/seeing/read-ref';
 import type { FoundMedia, SeenDocument, SeeStep } from '../../lib/seeing/engine';
 import { LENS_NAMES, type LensId } from '../../lib/seeing/lenses/names';
 import { noteSeen, openHistoryOf } from '../../lib/seeing/history-store';
@@ -435,6 +436,9 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
   const copyId = address === null ? null : keptId(address);
   const copyPage = copyId === null ? null : keptPage(copyId);
 
+  // A book on the page in front: the site's own reader opens it (decision 39).
+  const reading = outside && address !== null ? readerRef(dialOf(address).address) : null;
+
   return (
     <>
       <SeeingTabs
@@ -585,6 +589,11 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
             [ SHOW MY ROOM ]
           </button>
         ) : null}
+        {reading !== null ? (
+          <Link href={`/read/${reading}`} title="In the site's own reader" className={PLATE} data-seeing-read>
+            [ READ IT ]
+          </Link>
+        ) : null}
         {outside ? (
           <a href={address} target="_blank" rel="noopener noreferrer" className={PLATE}>
             [ OPEN SOURCE ↗ ]
@@ -661,6 +670,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
             ms={now.ms}
             address={address}
             canOld={outside && dialOf(address).year === null}
+            read={reading}
             ownEye={outside && extension === 'current'}
             onAgain={() => setTurn((each) => each + 1)}
             onOld={() => go(dialTo(address, new Date().getFullYear()))}

@@ -1,7 +1,7 @@
 /*
  * BROWSER, the DEBASER SEEING MACHINE, Phase 1 (SPEC-seeing-machine.md, Luke 2026-11-23): the pure parts of the shell.
  * (scripts/drive-see.cjs drives the page itself in a browser, on every theme.)
- *   npx tsc app/lib/seeing/address.ts app/lib/seeing/tabs.ts app/lib/seeing/frame.ts app/lib/seeing/test-engine.ts app/lib/seeing/time.ts app/lib/seeing/trail.ts app/lib/seeing/search.ts app/lib/seeing/margins.ts app/lib/seeing/sonify.ts app/lib/seeing/together.ts app/lib/seeing/keys.ts app/lib/seeing/refusals.ts app/lib/seeing/pages.ts app/lib/seeing/media.ts app/lib/seeing/ask.ts app/lib/seeing/memory.ts app/lib/seeing/lenses/registry.ts app/lib/ui/modules.ts --rootDir app --outDir Temp/seeing-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
+ *   npx tsc app/lib/seeing/address.ts app/lib/seeing/tabs.ts app/lib/seeing/frame.ts app/lib/seeing/test-engine.ts app/lib/seeing/time.ts app/lib/seeing/trail.ts app/lib/seeing/search.ts app/lib/seeing/margins.ts app/lib/seeing/sonify.ts app/lib/seeing/together.ts app/lib/seeing/keys.ts app/lib/seeing/refusals.ts app/lib/seeing/read-ref.ts app/lib/seeing/pages.ts app/lib/seeing/media.ts app/lib/seeing/ask.ts app/lib/seeing/memory.ts app/lib/seeing/lenses/registry.ts app/lib/ui/modules.ts --rootDir app --outDir Temp/seeing-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
  *   node Temp/check-seeing.cjs
  *
  * - an address: http and https only, no user names or passwords, no control characters, bare names get https, words are refused
@@ -28,6 +28,7 @@ const { lowFiColours } = require(`${OUT}lenses/lowfi.js`);
 const { themeDyes } = require(`${OUT}lenses/dye.js`);
 const { PAPERS, TEXT_SIZES, PALETTES, BLOCKS, SETTINGS_AT_FIRST, recipeText, recipeFrom } = require(`${OUT}lenses/lens.js`);
 const { dialOf, dialTo } = require(`${OUT}time.js`);
+const { readerRef } = require(`${OUT}read-ref.js`);
 const { trayOf, lengthText } = require(`${OUT}media.js`);
 const H = require(`${OUT}history.js`);
 const { trailOf } = require(`${OUT}trail.js`);
@@ -200,6 +201,24 @@ for (const text of ['', 'words', 'SEE:<b>', 'SEE:{}', 'SEE:words;x']) assert.equ
 assert.deepEqual(dialOf('https://web.archive.org/web/20040701000000if_/http://example.com/a'), { address: 'http://example.com/a', year: 2004 });
 assert.deepEqual(dialOf('https://web.archive.org/web/2011/https:/example.com/'), { address: 'https://example.com/', year: 2011 });
 assert.deepEqual(dialOf('https://example.com/'), { address: 'https://example.com/', year: null });
+/* ------------------------------------------------------------------ a book seen, read in the site's own reader */
+for (const [address, ref] of [
+  ['https://openlibrary.org/works/OL45804W/Fantastic_Mr_Fox', 'books:OL45804W'],
+  ['https://www.openlibrary.org/works/OL1W', 'books:OL1W'],
+  ['https://archive.org/stream/alice00carr/alice00carr_djvu.txt', 'internet_archive:alice00carr'],
+  ['https://archive.org/download/alice00carr/alice00carr.pdf', 'internet_archive:alice00carr'],
+  ['http://archive.org/download/a.b-c_d/x/A.EPUB', 'internet_archive:a.b-c_d'],
+  ['https://archive.org/details/alice00carr', null],
+  ['https://archive.org/download/film01/film01.mp4', null],
+  ['https://archive.org/download/alice00carr.pdf', null],
+  ['https://openlibrary.org/books/OL7353617M', null],
+  ['https://openlibrary.org/works/OL0W', null],
+  ['https://openlibrary.org.evil.org/works/OL1W', null],
+  ['https://evil.org/download/x/y.pdf', null],
+  ['https://archive.org/stream/..%2F..%2Fx', null],
+  ['javascript:alert(1)', null],
+  ['not an address', null],
+]) assert.equal(readerRef(address), ref, address);
 assert.equal(dialTo('https://web.archive.org/web/2004if_/http://example.com/', 1999), 'https://web.archive.org/web/19990701000000if_/http://example.com/');
 assert.equal(dialTo('https://web.archive.org/web/2004if_/http://example.com/', null), 'http://example.com/');
 for (const selector of ['#a', 'div:nth-of-type(2)', 'body:nth-of-type(1) > div:nth-of-type(2) > my-tag:nth-of-type(10)', '#a > p:nth-of-type(1)']) assert.ok(F.isSelector(selector), selector);
