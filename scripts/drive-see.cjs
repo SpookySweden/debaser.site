@@ -540,6 +540,12 @@ attempt('object', function () { var m = document.createElement('object'); m.data
 attempt('link', function () { ['prefetch', 'preload', 'dns-prefetch', 'preconnect', 'icon', 'manifest', 'modulepreload'].forEach(function (rel) { var l = document.createElement('link'); l.rel = rel; l.as = 'image'; Element.prototype.setAttribute.call(l, 'href', 'http://127.0.0.1:4568/escaped-' + rel); document.head.appendChild(l); }); return 'made'; });
 attempt('style', function () { var m = document.createElement('style'); m.textContent = 'body{background:url(http://127.0.0.1:4568/escaped-style)} @import url(http://127.0.0.1:4568/escaped-import)'; document.head.appendChild(m); return 'made'; });
 attempt('picture', function () { var m = document.createElementNS('http://www.w3.org/2000/svg', 'image'); m.setAttributeNS('http://www.w3.org/1999/xlink', 'href', 'http://127.0.0.1:4568/escaped-svg'); document.documentElement.appendChild(m); return 'made'; });
+// (IMPROVE, 2026-11-23) More ways a page reaches out by itself: each must reach nothing, the trap included.
+attempt('beacon', function () { return navigator.sendBeacon('http://127.0.0.1:4568/escaped-beacon', 'x'); });
+attempt('events', function () { var e = new EventSource('http://127.0.0.1:4568/escaped-events'); e.onerror = function () { out.eventsEnd = 'refused'; e.close(); tell(); }; return 'made'; });
+attempt('sound', function () { var m = document.createElement('audio'); Element.prototype.setAttribute.call(m, 'src', 'http://127.0.0.1:4568/escaped-audio'); m.preload = 'auto'; document.documentElement.appendChild(m); m.load(); var v = document.createElement('video'); Element.prototype.setAttribute.call(v, 'poster', 'http://127.0.0.1:4568/escaped-poster'); Element.prototype.setAttribute.call(v, 'src', 'http://127.0.0.1:4568/escaped-video'); document.documentElement.appendChild(v); return 'made'; });
+attempt('font', function () { var m = document.createElement('style'); m.textContent = '@font-face{font-family:x;src:url(http://127.0.0.1:4568/escaped-font)} body{font-family:x}'; document.head.appendChild(m); if (document.fonts) document.fonts.load('1em x').catch(function () {}); return 'made'; });
+attempt('srcset', function () { var m = document.createElement('img'); Element.prototype.setAttribute.call(m, 'srcset', 'http://127.0.0.1:4568/escaped-srcset 1x'); document.documentElement.appendChild(m); return 'made'; });
 attempt('api', function () { w.fetch('SITE/api/see/open', { method: 'POST', body: '{}' }).then(function (r) { out.apiEnd = 'answered ' + r.status; tell(); }, function () { out.apiEnd = 'refused'; tell(); }); return 'asked'; });
 attempt('dress', function () { top.postMessage({ see: 'dress', css: 'x' }, '*'); for (var i = 0; i < 50; i += 1) top.postMessage({ see: 'open', address: 'https://spam.seeing-fixture.org/spam' + i, newTab: true }, '*'); top.postMessage({ see: 'open', address: 'javascript:alert(1)' }, '*'); return 'sent'; });
 setTimeout(function () { location.href = 'http://127.0.0.1:4568/escaped-self'; }, 300);
@@ -838,6 +844,7 @@ async function eye(browser) {
       for (const name of ['parentDoc', 'topDoc', 'topStore', 'topNav', 'outerNav']) ok(got[name] === 'SecurityError', `it can't: ${name}`);
       ok(!/^done:\[object/.test(got.freshPopup ?? '') && !/^done:\[object/.test(got.popup ?? ''), 'it opened no window');
       ok(got.apiEnd !== undefined ? got.apiEnd === 'refused' : true, "it can't ask the site's own routes");
+      ok(['beacon', 'events', 'sound', 'font', 'srcset'].every((name) => got[name] !== undefined), `a beacon, an event stream, sound and a poster, a web font and a srcset were tried (${['beacon', 'events', 'sound', 'font', 'srcset'].map((name) => `${name}=${got[name]}`)})`);
     }
     ok(net.escapes.length === 0, `it reached nothing by itself, not so much as a connection (${net.escapes.slice(0, 6)})`);
     const strangers2 = asked.filter((each) => each.left && !each.url.startsWith(`${BASE}/`) && !/^(?:data|blob|about|ws|chrome-error):/.test(each.url));
