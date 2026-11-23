@@ -45,6 +45,7 @@ One line each, the most useful first. Struck through when done, with its commit.
 - ~~A news feed (RSS/Atom) showed as raw XML: drawn as its list now, every word plain (feed.ts, decision 42; check-see-rewrite has feeds built to be slow). A picture page said 0 FILES: 1 now.~~
 - ~~A page that builds itself and came out blank (archive.org collections, Instagram) said nothing: a line over it now says so and where it can be seen (decision 43; drive eye 71).~~
 - ~~A page's own news feed couldn't be found from it: [ FEED ] when the page says it has one (decision 44; check-see-rewrite).~~
+- ~~X-RAY's MADE OF was a list to read only: a row pointed at outlines its part of the page (decision 45; drive lenses 71).~~
 - For Luke: a consent box comes back on every page (the page has no origin, so it can't remember a choice). A list of the well-known consent boxes (OneTrust, Cookiebot, Didomi...) could be put away the way ERASE does, scrolling freed with :has(); not built, because STANDARD promises to leave a page alone. READER already drops them.
 - ~~At 390 an outside page has about eleven rows of keys: settled, not changed. Phones get the desktop zoomed out; a narrow window keeps the page 22rem tall and scrolls to it; a sideways strip would hide most keys.~~
 - Open: SeeingMachine.tsx is about 710 lines; the page keys' block needs two dozen of its values, so moving it out isn't simpler yet.

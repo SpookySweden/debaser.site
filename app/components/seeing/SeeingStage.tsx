@@ -59,6 +59,7 @@ export default function SeeingStage({ drawing, document, lens, settings, seam, l
   const [dragging, setDragging] = useState(false);
   const [point, setPoint] = useState<Pointed | null>(null);
   const [census, setCensus] = useState<Census | null>(null);
+  const [lit, setLit] = useState<string | null>(null);
   const stage = useRef<HTMLDivElement>(null);
   const glass = useRef<HTMLDivElement>(null);
   const moveBack = useRef<((to: FrameScroll | FrameFind) => void) | null>(null);
@@ -137,7 +138,7 @@ export default function SeeingStage({ drawing, document, lens, settings, seam, l
     <>
       <div ref={stage} className="relative min-w-0 flex-1 overflow-hidden" data-seeing-stage>
         <div className="absolute inset-0">
-          <SeeingViewport key={`${drawing}:${front.form}`} document={document} lens={front} settings={settings} tools={tools} erased={erased} scrollerRef={moveBack} onTold={told} onOpen={onOpen} onNotice={onNotice} onRestricted={onRestricted} />
+          <SeeingViewport key={`${drawing}:${front.form}`} document={document} lens={front} settings={settings} tools={tools} erased={erased} lit={front.beside === 'xray' ? lit : null} scrollerRef={moveBack} onTold={told} onOpen={onOpen} onNotice={onNotice} onRestricted={onRestricted} />
         </div>
         {board !== null && drawOn ? (
           <SeeingGraffiti
@@ -200,7 +201,7 @@ export default function SeeingStage({ drawing, document, lens, settings, seam, l
         {/* The page tunes in: the busy view's dither steps off it, top to bottom, once (globals.css; nothing under reduced motion). */}
         <div aria-hidden="true" className="seeing-arrive" data-seeing-arrive />
       </div>
-      {front.beside === 'watchers' ? <SeeingWatchers document={document} /> : front.beside === 'xray' ? <SeeingXray point={point} census={census} /> : null}
+      {front.beside === 'watchers' ? <SeeingWatchers document={document} /> : front.beside === 'xray' ? <SeeingXray point={point} census={census} lit={lit} onLit={setLit} /> : null}
     </>
   );
 }

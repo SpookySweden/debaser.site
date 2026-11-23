@@ -94,7 +94,7 @@ export type FrameAnswer =
 /** What X-RAY is pointing at. Words from a page: drawn as words. */
 export type Pointed = { path: string[]; kind: string; size: string; ink: string; ground: string; face: string; words: string; inside: number };
 /** What a page is made of. */
-export type Census = { counts: Record<'words' | 'pictures' | 'links' | 'frames' | 'scripts' | 'forms', number>; rows: { depth: number; name: string; inside: number }[] };
+export type Census = { counts: Record<'words' | 'pictures' | 'links' | 'frames' | 'scripts' | 'forms', number>; rows: { depth: number; name: string; inside: number; at: string | null }[] };
 
 /** From the frame. */
 export type FrameMessage =
@@ -155,8 +155,9 @@ function readCensus(data: Record<string, unknown>): FrameMessage | null {
     census: {
       counts: { words: number(counts.words), pictures: number(counts.pictures), links: number(counts.links), frames: number(counts.frames), scripts: number(counts.scripts), forms: number(counts.forms) },
       rows: rows.map((row: unknown) => {
-        const { depth, name, inside } = (typeof row === 'object' && row !== null ? row : {}) as Record<string, unknown>;
-        return { depth: Math.min(number(depth), 6), name: words(name, 60), inside: number(inside) };
+        const { depth, name, inside, at } = (typeof row === 'object' && row !== null ? row : {}) as Record<string, unknown>;
+        // Where it is, only in the one shape our script makes: it is put into a stylesheet when its row is lit.
+        return { depth: Math.min(number(depth), 6), name: words(name, 60), inside: number(inside), at: typeof at === 'string' && isSelector(at) ? at : null };
       }),
     },
   };

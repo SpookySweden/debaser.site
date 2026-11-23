@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
 import type { SeenDocument } from '../../lib/seeing/engine';
-import { FRAME_SANDBOX, frameDocument, readFrameMessage, type FrameAnswer, type FrameArt, type FrameDress, type FrameFind, type FrameMessage, type FrameScroll, type FrameTools } from '../../lib/seeing/frame';
+import { FRAME_SANDBOX, frameDocument, isSelector, readFrameMessage, type FrameAnswer, type FrameArt, type FrameDress, type FrameFind, type FrameMessage, type FrameScroll, type FrameTools } from '../../lib/seeing/frame';
 import type { Lens, LensSettings } from '../../lib/seeing/lenses/lens';
 import { reach, sealFiles } from '../../lib/seeing/server-engine';
 import { billboards, openBillboard } from '../../lib/seeing/billboards';
@@ -17,6 +17,8 @@ type Props = {
   tools: FrameTools;
   /** Taken out of this site by the reader, as selectors of our own shape. */
   erased: readonly string[];
+  /** One part of the page outlined (an X-RAY row pointed at), or null. */
+  lit?: string | null;
   /** How another drawing of the same page is kept where this one is. */
   scrollerRef?: RefObject<((to: FrameScroll | FrameFind) => void) | null>;
   /** What X-RAY, ERASE, the SEAM and the LOUPE are told. */
@@ -58,7 +60,7 @@ function justPressed(frame: HTMLIFrameElement | null): boolean {
  * The frame a page is drawn in (`app/lib/seeing/frame.ts` says what it may do). Drawn anew for each page and each form of it; a change of
  * lens, theme or reader's settings only sends a new stylesheet in, so the page stays where it was scrolled to.
  */
-export default function SeeingViewport({ document: page, lens, settings, tools, erased, scrollerRef, onTold, onOpen, onNotice, onRestricted }: Props) {
+export default function SeeingViewport({ document: page, lens, settings, tools, erased, lit = null, scrollerRef, onTold, onOpen, onNotice, onRestricted }: Props) {
   const frame = useRef<HTMLIFrameElement>(null);
   // Made once for this drawing of the page (the caller gives each its own key), so nothing that changes later reloads it.
   const [source] = useState(() => {
@@ -183,15 +185,16 @@ export default function SeeingViewport({ document: page, lens, settings, tools, 
     const face = window.getComputedStyle(window.document.body).fontFamily;
     const look = { tokens: theme.tokens, scheme: theme.scheme, face, settings };
     const gone = erased.length === 0 ? '' : `\n${erased.join(',\n')}{display:none!important}`;
+    const shown = lit === null || !isSelector(lit) ? '' : `\n${lit}{outline:3px solid ${theme.tokens.bubble}!important;outline-offset:-3px!important}`;
     const pointed = tools.erase ? `\n[data-see-pointed]{outline:3px solid ${theme.tokens['bubble-pale']}!important;outline-offset:-3px!important;cursor:crosshair!important}` : '';
     const marks = tools.marks === undefined ? '' : `\n::highlight(see-marks){background-color:${theme.tokens.bubble};color:${theme.tokens['ink-plate']}}`;
-    const dress: FrameDress = { see: 'dress', css: `${lens.css(look)}${gone}${pointed}${marks}`, tools: { ...lens.tools?.(look), ...tools } };
+    const dress: FrameDress = { see: 'dress', css: `${lens.css(look)}${gone}${shown}${pointed}${marks}`, tools: { ...lens.tools?.(look), ...tools } };
     try {
       frame.current?.contentWindow?.frames[0]?.postMessage(dress, '*');
     } catch {
       // The frame went as it was being dressed.
     }
-  }, [ready, lens, theme, settings, tools, erased]);
+  }, [ready, lens, theme, settings, tools, erased, lit]);
 
   useEffect(() => {
     if (scrollerRef === undefined) return;

@@ -161,7 +161,7 @@ export const HOOK = String.raw`(function (config) {
       for (var i = 0; i < element.children.length && rows.length < 160; i += 1) {
         var child = element.children[i];
         if (/^(?:script|style|template|see-link)$/.test(child.localName)) continue;
-        rows.push({ depth: depth, name: nameOf(child).slice(0, 60), inside: child.querySelectorAll('*').length });
+        rows.push({ depth: depth, name: nameOf(child).slice(0, 60), inside: child.querySelectorAll('*').length, at: selectorOf(child) });
         if (depth < 5) walk(child, depth + 1);
       }
     })(document.body || document.documentElement, 0);

@@ -946,6 +946,14 @@ async function lenses(browser) {
   const panel = await page.locator('[data-seeing-xray]').innerText();
   ok(/WORDS \d+/.test(panel) && /LINKS \d+/.test(panel) && /main/.test(panel), 'X-RAY says what is pointed at, and what the page is made of');
   ok((await (await frameOf(page)).evaluate(() => getComputedStyle(document.querySelector('a')).outlineStyle)) === 'solid', 'and outlines by kind');
+  const mainLook = () => frameOf(page).then((each) => each.evaluate(() => { const at = getComputedStyle(document.querySelector('main')); return `${at.outlineWidth} ${at.outlineOffset}`; }));
+  const mainBefore = await mainLook();
+  await page.locator('[data-seeing-xray-row]', { hasText: /^main$/ }).first().focus();
+  await page.waitForTimeout(400);
+  const mainLit = await mainLook();
+  await page.locator('[data-seeing-address]').focus();
+  await page.waitForTimeout(400);
+  ok(mainLit === '3px -3px' && mainBefore !== mainLit && (await mainLook()) === mainBefore, `a row of MADE OF reached outlines its part of the page, and lets go (${mainBefore} / ${mainLit})`);
   await page.screenshot({ path: join(OUT, 'lens-xray.png') });
 
   for (const palette of ['YOURS', 'MONO', 'TERMINAL', 'AMBER', '1-BIT']) {
