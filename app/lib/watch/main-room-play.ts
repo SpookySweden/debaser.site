@@ -121,10 +121,15 @@ export function subscribeToGoLiveAsk(listener: () => void): () => void {
  * room (list 3: found on the live site, where reading it takes a moment).
  */
 export function goLiveInMainRoom(): boolean {
+  return withMainRoom(announceFrom);
+}
+
+/** Hands your main room to `then`, now or as soon as it has been read. False only for a signed-out visitor. */
+function withMainRoom(then: (session: NonNullable<ReturnType<typeof ownRoomState>['session']>) => void): boolean {
   const own = ownRoomState();
   if (own.visitor) return false;
   if (own.session !== null && own.roomId !== null) {
-    announceFrom(own.session);
+    then(own.session);
     return true;
   }
   let off: (() => void) | null = null;
@@ -140,7 +145,7 @@ export function goLiveInMainRoom(): boolean {
     if (now.visitor) stop();
     else if (now.session !== null && now.roomId !== null) {
       stop();
-      announceFrom(now.session);
+      then(now.session);
     }
   });
   return true;
@@ -154,6 +159,35 @@ function announceFrom(session: NonNullable<ReturnType<typeof ownRoomState>['sess
     goLiveAsked = roomId;
     openOrUnfold(roomId);
     for (const listener of goLiveListeners) listener();
+  });
+}
+
+/** The room whose `[ REMOTE ]` list should open: REMOTE was pressed on the shelf. Taken once. */
+let remoteAsked: string | null = null;
+const remoteListeners = new Set<() => void>();
+export function takeRemoteAsk(roomId: string): boolean {
+  if (remoteAsked !== roomId) return false;
+  remoteAsked = null;
+  return true;
+}
+/** Told when REMOTE is asked for, by a room already drawn. */
+export function subscribeToRemoteAsk(listener: () => void): () => void {
+  remoteListeners.add(listener);
+  return () => {
+    remoteListeners.delete(listener);
+  };
+}
+
+/** REMOTE on the shelf (Luke, 2026-11-23): your main room's window, with its list of machines to choose from. */
+export function remoteInMainRoom(): boolean {
+  return withMainRoom((session) => {
+    void session.ensureMade().then((held) => {
+      const roomId = session.id();
+      if (!held || roomId === null) return;
+      remoteAsked = roomId;
+      openOrUnfold(roomId);
+      for (const listener of remoteListeners) listener();
+    });
   });
 }
 

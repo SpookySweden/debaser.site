@@ -33,7 +33,10 @@ import { deskWindowServerState, deskWindowState, subscribeToDeskWindow, toggleDe
 import { historyAddressSpentByClose, historyWindowServerState, historyWindowState, subscribeToHistoryWindow, toggleHistory } from '../lib/history/history-window';
 import { TITLE_BAR_BUTTON, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import { pagePanelOpen, setPagePanelOpen, subscribeToPagePanel } from '../lib/ui/side-panel-page';
-import { ICON_LEAGUE, ICON_LIVE, ICON_READ } from '../lib/ui/icons';
+import { ICON_BROWSER, ICON_LEAGUE, ICON_LIVE, ICON_READ, ICON_REMOTE } from '../lib/ui/icons';
+import { remoteInMainRoom } from '../lib/watch/main-room-play';
+import { useModeration } from './ModerationProvider';
+import { WipTag } from './ModulesWindow';
 import { useWatching } from '../lib/watch/use-watching';
 import GoLiveWindow from './GoLiveWindow';
 import { openWatch } from '../lib/watch/watch-window';
@@ -93,6 +96,20 @@ function setSidebarOpen(next: boolean): void {
   }
 
   for (const listener of listeners) listener();
+}
+
+/** REMOTE, on the shelf of the site's owner only: nobody else is told there is anything to control (SPEC-screens.md). */
+function RemoteKey() {
+  const { role } = useModeration();
+  if (!role.owner) return null;
+  return (
+    <button type="button" onClick={() => remoteInMainRoom()} aria-haspopup="menu" title="Control one of your machines, in your room" className="key flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-label" data-shelf-remote>
+      <span className="min-w-0 flex-1 truncate text-left">
+        [ <span aria-hidden="true">{ICON_REMOTE}</span> REMOTE ]
+        <WipTag />
+      </span>
+    </button>
+  );
 }
 
 /**
@@ -381,6 +398,15 @@ export default function DesktopSidebar({ foldedOnThisPage = false }: { foldedOnT
                 [ <span aria-hidden="true">{ICON_LEAGUE}</span> LEAGUEBOT ]
               </span>
             </Link>
+            {/* BROWSER and REMOTE (Luke, 2026-11-23: "Add remote control and a browser button to the shelf, mark both as wip"). BROWSER is
+                its page; REMOTE is the owner's alone, as it is in a room, and opens their room on its list of machines. */}
+            <Link href="/browser" className="key flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-label" data-shelf-browser>
+              <span className="min-w-0 flex-1 truncate text-left">
+                [ <span aria-hidden="true">{ICON_BROWSER}</span> BROWSER ]
+                <WipTag />
+              </span>
+            </Link>
+            <RemoteKey />
             <RecommendationsKey me={user?.id ?? null} />
             <ShelfKey item={SIDE_MUSIC} isOpen={musicOpen} onPress={pressMusic} />
             <ShelfKey item={SIDE_QUEUES} isOpen={queuesOpen} onPress={pressQueues} />

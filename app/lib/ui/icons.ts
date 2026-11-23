@@ -64,6 +64,12 @@ export const ICON_READ = '\u{1F4D6}︎';
 /** LEAGUEBOT (SPEC-leaguebot.md): crossed swords, U+2694 with the text-style selector, so it draws in the key's ink. */
 export const ICON_LEAGUE = '⚔︎';
 
+/** BROWSER, the seeing machine: an eye (SPEC-seeing-machine.md). */
+export const ICON_BROWSER = '◉';
+
+/** REMOTE: one machine's screen on another (SPEC-screens.md). */
+export const ICON_REMOTE = '⇄';
+
 /** A notice waiting. */
 export const ICON_BELL = '☼';
 

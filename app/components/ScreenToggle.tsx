@@ -8,6 +8,7 @@ import { relayStatus, saveRelayKey } from '../lib/screens/relay-client';
 import { chooseRemoteSource,startDeviceBeacon, useOtherDevices, useRemoteSource, type RemoteSource } from '../lib/screens/devices';
 import { PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED } from '../lib/ui/controls';
 import { chooseScreen, useScreenView } from '../lib/watch/canvas-view';
+import { subscribeToRemoteAsk, takeRemoteAsk } from '../lib/watch/main-room-play';
 import { setVisualiserOn } from '../lib/watch/visualiser';
 
 /**
@@ -112,6 +113,15 @@ export default function ScreenToggle({
   useEffect(() => askRdpWay(), []);
   useEffect(() => startDeviceBeacon(), []);
 
+  // REMOTE pressed on the shelf (main-room-play.ts): the list opens here, as soon as something answers.
+  useEffect(() => {
+    const check = () => {
+      if (takeRemoteAsk(roomId)) setChoosing(true);
+    };
+    check();
+    return subscribeToRemoteAsk(check);
+  }, [roomId]);
+
   const [switchTrouble, setSwitchTrouble] = useState('');
   const [switching, setSwitching] = useState(false);
 
@@ -180,13 +190,14 @@ export default function ScreenToggle({
         [ REMOTE ]
       </button>
       {choosing && !onScreen ? (
-        <span className="absolute right-0 top-full z-40 mt-1 flex w-max max-w-[80vw] flex-col items-stretch gap-1 border border-ink-bar bg-ink-plate p-1" role="menu" data-remote-choices>
+        <span className="absolute right-0 top-full z-40 mt-1 flex w-max max-w-96 flex-col items-stretch gap-1 border border-ink-bar bg-ink-plate p-1" role="menu" data-remote-choices>
           {choices.map((choice) => (
             <button
               key={keyOf(choice.source)}
               type="button"
               role="menuitem"
-              className={`${PLATE_ON_BLACK} text-left`}
+              // Wrapped: in a small room one long line ran off the picture's left edge, the machine's name with it (2026-11-23).
+              className={`${PLATE_ON_BLACK} h-auto text-left whitespace-normal`}
               onClick={() => show(choice.source)}
               title={choice.tip}
               data-remote-choice={keyOf(choice.source)}
