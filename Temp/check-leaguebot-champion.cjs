@@ -124,7 +124,14 @@ const fixture = (name) => JSON.parse(read(`app/lib/leaguebot/fixtures/${name}`))
   assert.equal(await readChampionNotes('../Evelynn', dir), null);
 
   // --- the batch's checks ---
-  const { checkAnswer } = await import(pathToFileURL(path.join(root, 'scripts', 'leaguebot-advice-batch.mjs')).href);
+  const { checkAnswer, opponentOf } = await import(pathToFileURL(path.join(root, 'scripts', 'leaguebot-advice-batch.mjs')).href);
+  // Haiku copies the list's own spelling back (seen 2026-11-23: 3,000 good pairs were refused as "missing" until this).
+  assert.equal(opponentOf('Teemo (Teemo)', ['Teemo', 'Thresh']), 'Teemo');
+  assert.equal(opponentOf('Wukong (MonkeyKing)', ['MonkeyKing']), 'MonkeyKing');
+  assert.equal(opponentOf('Twisted Fate', ['TwistedFate']), 'TwistedFate');
+  assert.equal(opponentOf('thresh', ['Thresh']), 'Thresh');
+  assert.equal(opponentOf('Zed', ['Ahri']), null, 'a champion not asked for is ignored');
+  assert.deepEqual(checkAnswer({ pairs: [{ opponent: 'Ahri (Ahri)', against: Array(4).fill({ mark: '>', text: 'A line long enough to pass the length rule.' }), their_side: Array(3).fill({ mark: '+', text: 'A line long enough to pass the length rule.' }), with: Array(2).fill({ mark: '!', text: 'A line long enough to pass the length rule.' }) }] }, { subject: 'Evelynn', opponents: ['Ahri'], own: false, deep: false }), []);
   const L = (n, text = 'A line long enough to pass the length rule here.') => Array.from({ length: n }, () => ({ mark: '>', text }));
   const good = { pairs: [{ opponent: 'Ahri', against: L(4), their_side: L(3), with: L(2) }] };
   assert.deepEqual(checkAnswer(good, { subject: 'Evelynn', opponents: ['Ahri'], own: false, deep: false }), []);

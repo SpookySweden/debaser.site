@@ -9,8 +9,13 @@ on SERVER). No database change.
   spells. Their first and starting item aren't shown: match summaries hold only the final inventory, and the order would
   need each game's timeline (20 more requests a pick).
 - THIS PLAYER shows damage a minute, not damage share: the summaries don't carry the team's total.
-- Evelynn's batch: 172 of 172 matchups kept first time, $3.31 (Opus 5.5, 29 requests). A to Z: 1,549 Haiku 5.5
-  requests for the other 14,706 pairs, submitted the same night. The kits came from patch 16.23.1.
+- Evelynn's batch: 172 of 172 matchups kept first time, $3.31 (Opus 5.5, 29 requests). A to Z on Haiku 5.5: 1,549
+  requests ($4.83), then a retry of 1,328 smaller ones ($2.84) and a last 4 (under a cent). The retry was needed because
+  answers ran out of room on ten opponents a request, and because Haiku wrote opponents back as `Teemo (Teemo)`;
+  the checks now read that. Done 2026-11-23: all 29,756 matchup notes and 173 champions' CC and Arena notes, $10.97
+  in all, from patch 16.23.1. About 36 MB on SERVER; 20 handoffs flag CC for a hand check.
+- Haiku's notes are plainer and less exact than Opus's (seen: Thresh's lantern called a "dash", The Box's walls "to
+  break early"). Each note is labelled with the model that wrote it.
 - Both champions' kits are read as the batch runs, so a note is written from the patch of that night. A later patch's
   ability changes are not re-asked automatically yet: `submit` only fills pairs that are missing. Clearing a changed
   champion's file and running `submit --champion X` rewrites it.

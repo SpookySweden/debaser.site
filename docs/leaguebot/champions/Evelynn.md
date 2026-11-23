@@ -7,7 +7,7 @@ sections above HAND NOTES only.
 ## What was written
 - Patch 16.23.1; own parts (CC, Arena) by claude-opus-5-5 on 2026-11-23, DEEP prompt.
 - Matchups: 172 of 172 opponents from Evelynn's side; 172 ally notes.
-- Every answer passed the checks first time.
+- No answers about it waiting or refused now; every pair above passed the checks.
 
 ## Crowd control
 - W (charm, slow): A point-and-click curse; the charm only triggers on her next attack or spell after a delay. Get out of range or behind minions before she lands that hit.

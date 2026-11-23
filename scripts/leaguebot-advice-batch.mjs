@@ -158,6 +158,18 @@ function checkLines(lines, min, max, where, problems) {
     if (SECONDS.test(text)) problems.push(`${where}: states a time in seconds ("${text.match(SECONDS)[0]}")`);
   }
 }
+/**
+ * Which asked-for opponent an answer's `opponent` means. Haiku often copies the list's own spelling back,
+ * `Teemo (Teemo)` or `Wukong (MonkeyKing)`: the alias in brackets wins, then the bare name, letters only.
+ */
+export function opponentOf(said, opponents) {
+  const text = String(said ?? '');
+  const inBrackets = /\(([A-Za-z]+)\)\s*$/.exec(text)?.[1];
+  const bare = text.replace(/\s*\(.*\)\s*$/, '').replace(/[^A-Za-z]/g, '');
+  const match = (word) => (word ? opponents.find((o) => o.toLowerCase() === word.toLowerCase()) : undefined);
+  return match(inBrackets) ?? match(bare) ?? null;
+}
+
 /** The answer's problems for one request (an empty list means keep it). Exported shape for the check script. */
 export function checkAnswer(answer, request) {
   const problems = [];
@@ -170,7 +182,7 @@ export function checkAnswer(answer, request) {
       for (const c of own.cc) if (SECONDS.test(String(c.dodge ?? ''))) problems.push(`own.cc ${c.key}: states a time in seconds`);
     }
   }
-  const pairs = new Map((Array.isArray(answer.pairs) ? answer.pairs : []).map((p) => [p.opponent, p]));
+  const pairs = new Map((Array.isArray(answer.pairs) ? answer.pairs : []).map((p) => [opponentOf(p.opponent, request.opponents), p]));
   for (const opponent of request.opponents) {
     const p = pairs.get(opponent);
     if (!p) {
@@ -220,7 +232,8 @@ async function buildParams(request, patch, model, all) {
   const deep = request.deep;
   return {
     model,
-    max_tokens: deep ? 32000 : 16000,
+    // Haiku's thinking plus ten opponents ran past 16,000 on 231 of 1,549 requests (2026-11-23): room for both.
+    max_tokens: deep ? 32000 : 24000,
     system: [{ type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } }],
     messages: [
       {
@@ -250,13 +263,14 @@ function keep(answer, request, model, patch, written) {
     subject.patch = patch;
   }
   for (const p of answer.pairs ?? []) {
-    if (!request.opponents.includes(p.opponent)) continue;
-    subject.against[p.opponent] = { lines: p.against, model, deep: request.deep };
-    subject.with[p.opponent] = { lines: p.with, model };
-    const other = written.get(p.opponent) ?? readNotes(p.opponent, patch);
+    const opponent = opponentOf(p.opponent, request.opponents);
+    if (opponent === null) continue;
+    subject.against[opponent] = { lines: p.against, model, deep: request.deep };
+    subject.with[opponent] = { lines: p.with, model };
+    const other = written.get(opponent) ?? readNotes(opponent, patch);
     other.against[request.subject] = { lines: p.their_side, model, deep: false };
     other.with[request.subject] = { lines: p.with, model };
-    written.set(p.opponent, other);
+    written.set(opponent, other);
   }
   written.set(request.subject, subject);
 }
@@ -285,7 +299,8 @@ async function writeHandoff(alias, patch, total, log) {
     '## What was written',
     `- Patch ${notes.patch}; own parts (CC, Arena) by ${notes.model} on ${notes.writtenAt.slice(0, 10)}${notes.deep ? ', DEEP prompt' : ''}.`,
     `- Matchups: ${against} of ${total - 1} opponents from ${kit.name}'s side; ${allies} ally notes.`,
-    ...(log.length ? log.map((l) => `- ${l}`) : ['- Every answer passed the checks first time.']),
+    // Logs are kept from the first retry on (2026-11-23); the first A to Z batch's refusals were all asked again.
+    ...(log.length ? log.map((l) => `- ${l}`) : ['- No answers about it waiting or refused now; every pair above passed the checks.']),
     '',
     '## Crowd control',
     ...notes.cc.map((c) => `- ${c.key} (${c.type}): ${c.dodge}`),
@@ -360,14 +375,14 @@ async function collect(state, all, patch) {
       const log = logs.get(request.subject) ?? [];
       logs.set(request.subject, log);
       if (result.result.type !== 'succeeded') {
-        state.failed.push({ ...request, why: result.result.type });
+        state.failed.push({ ...request, batch: batch.id, why: result.result.type });
         log.push(`${result.custom_id}: ${result.result.type}, queued for retry`);
         continue;
       }
       const message = result.result.message;
       cost += costOf(batch.model, message.usage);
       if (message.stop_reason !== 'end_turn') {
-        state.failed.push({ ...request, why: message.stop_reason });
+        state.failed.push({ ...request, batch: batch.id, why: message.stop_reason });
         log.push(`${result.custom_id}: stopped (${message.stop_reason}), queued for retry`);
         continue;
       }
@@ -388,10 +403,10 @@ async function collect(state, all, patch) {
         const good = { ...request, own: request.own && !ownBad, opponents: request.opponents.filter((o) => !badOpponents.has(o)) };
         keep(answer, good, batch.model, patch, written);
         kept += good.opponents.length;
-        state.failed.push({ ...request, own: request.own && ownBad, opponents: [...badOpponents], why: problems.slice(0, 3).join('; ') });
+        state.failed.push({ ...request, batch: batch.id, own: request.own && ownBad, opponents: [...badOpponents], why: problems.slice(0, 3).join('; ') });
         log.push(`${result.custom_id}: ${problems.length} problems (${problems.slice(0, 2).join('; ')}), ${badOpponents.size} pairs queued for retry`);
       } else {
-        state.failed.push({ ...request, why: problems.slice(0, 3).join('; ') || 'no answer' });
+        state.failed.push({ ...request, batch: batch.id, why: problems.slice(0, 3).join('; ') || 'no answer' });
         log.push(`${result.custom_id}: failed the checks (${problems.slice(0, 2).join('; ')}), queued for retry`);
       }
     }
@@ -400,8 +415,12 @@ async function collect(state, all, patch) {
     batch.collected = true;
     batch.collectedAt = new Date().toISOString();
     batch.cost = Number(cost.toFixed(4));
+    // Each champion's log runs across batches, so a handoff rewritten later still says what happened earlier.
+    state.logs ??= {};
+    for (const [alias, log] of logs) state.logs[alias] = [...new Set([...(state.logs[alias] ?? []), ...log.map((l) => `${batch.label}: ${l}`)])];
     writeJson(STATE_FILE, state);
-    for (const [alias, log] of logs) await writeHandoff(alias, patch, all.length, log);
+    // Every champion this batch wrote anything into: its counts changed.
+    for (const alias of new Set([...logs.keys(), ...written.keys()])) await writeHandoff(alias, patch, all.length, state.logs[alias] ?? []);
     console.log(`${batch.id} (${batch.label}): kept ${kept} pairs; cost $${cost.toFixed(2)}; ${state.failed.length} items waiting for retry.`);
   }
 }
@@ -431,11 +450,33 @@ async function main() {
   } else if (command === 'retry') {
     const failed = (state.failed ?? []).filter((r) => r.opponents.length > 0 || r.own);
     const retryModel = option('model', null) ?? (failed[0]?.deep ? 'claude-opus-5-5' : 'claude-haiku-5-5');
-    const requests = failed.map(({ why, ...r }) => r);
+    // Asked again in smaller groups (default five): the first run's failures were answers that ran out of room or
+    // skipped some of ten opponents.
+    const group = Number(option('group', '5'));
+    const requests = failed.flatMap(({ why, ...r }) => {
+      if (r.opponents.length <= group) return [r];
+      const parts = [];
+      for (let i = 0; i < r.opponents.length; i += group) parts.push({ ...r, own: r.own && i === 0, opponents: r.opponents.slice(i, i + group) });
+      return parts;
+    });
     if (!flag('dry')) state.failed = [];
     await submit(requests, retryModel, patch, all, state, 'retry');
     if (!flag('dry')) writeJson(STATE_FILE, state);
   } else if (command === 'collect') {
+    await collect(state, all, patch);
+  } else if (command === 'handoffs') {
+    // Rewrites every finished champion's handoff from the notes as they are now (counts, CC, Arena), keeping hand notes.
+    for (const c of all) await writeHandoff(c.alias, patch, all.length, state.logs?.[c.alias] ?? []);
+    console.log(`Handoffs rewritten in ${HANDOFFS}.`);
+  } else if (command === 'recollect') {
+    // Reads a finished batch's answers again (Anthropic keeps them 29 days; nothing is billed twice), after a fix to
+    // the checks: its old failures are dropped first so they aren't asked twice.
+    const id = option('batch');
+    const batch = state.batches.find((b) => b.id === id);
+    if (!batch) throw new Error('Give --batch <id> of a batch in _batches.json.');
+    batch.collected = false;
+    state.failed = (state.failed ?? []).filter((f) => f.batch !== id && f.batch !== undefined);
+    writeJson(STATE_FILE, state);
     await collect(state, all, patch);
   } else if (command === 'status') {
     const files = all.map((c) => readNotes(c.alias, patch));
@@ -457,7 +498,7 @@ async function main() {
     console.log('PROBLEMS:', checkAnswer(answer, request));
     console.log(`usage: ${JSON.stringify(message.usage)}; cost at full price about $${(costOf(model, message.usage) * 2).toFixed(4)}`);
   } else {
-    console.log('Commands: submit (--champion X [--deep] | --next N) [--model M] [--dry], collect, retry [--dry], status, try --champion X --against Y.');
+    console.log('Commands: submit (--champion X [--deep] | --next N) [--model M] [--dry], collect, recollect --batch ID, retry [--dry] [--group N], handoffs, status, try --champion X --against Y.');
   }
 }
 
