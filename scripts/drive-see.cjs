@@ -1039,6 +1039,7 @@ async function lenses(browser) {
   await go(page, 'https://example.com/');
   await say(page, 'SOURCE REFUSED');
   await page.getByRole('button', { name: '[ SEE AN OLD COPY ]' }).waitFor();
+  await tool('[ TIME ]').click();
   await page.locator('[data-seeing-dial]').focus();
   await page.locator('[data-seeing-dial]').evaluate((input) => {
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '2004');

@@ -100,6 +100,7 @@ Each can be changed later by saying so.
 34. **HISTORY and KEPT sit at the far end of the tab line**, being yours whatever the page; the tool row under the lenses holds only what works on the page in front. Undo: the end prop of SeeingTabs back into the tool row.
 35. **Alt+L turns to the next lens** (STANDARD, READER, WATCHERS ... round again), remembered for the site as a press is; listed with the other keys. Undo: the KeyL line in keys.ts.
 36. **The status line ends with how long the page took** ("· IN 412 MS"), timed on this side from the press to the drawing, as a refusal's trace is. Undo: the ms in the shown state.
+37. **The TIME DIAL is a key, [ TIME ], until pressed**; on an old copy it is open at its year. Undo: dialShown in SeeingTools.tsx back to dial !== null.
 
 ## Risks, said once
 1. **SERVER is beside everything.** The torrent page (no password at home), Jellyfin, the database and its dashboard, the

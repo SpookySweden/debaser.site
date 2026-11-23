@@ -67,7 +67,9 @@ assert.match(lenses('reader', { ...L.SETTINGS_AT_FIRST, reader: { paper: 'theme'
 assert.ok(lenses('lowfi').includes('TERMINAL') && lenses('custom').includes('COPY RECIPE') && !lenses('custom').includes('placeholder="SEE:'));
 
 const tools = (props) => html(el(at('SeeingTools'), { address: 'https://example.com/', ready: true, seam: null, loupe: null, erasing: false, erased: 0, good: false, onSeam: none, onLoupe: none, onErasing: none, onBringBack: none, onScan: none, onGood: none, onGo: none, children: null, ...props }));
-assert.ok(/aria-label="Year"/.test(tools({})) && !/aria-label="Year"/.test(tools({ address: 'see:test' })) && !/BRING BACK/.test(tools({})) && /BRING BACK 3/.test(tools({ erased: 3 })));
+// The TIME DIAL is a key until pressed (decision 37), and open, at its year, on an old copy.
+assert.ok(!/aria-label="Year"/.test(tools({})) && tools({}).includes('[ TIME ]') && /aria-label="Year"/.test(tools({ address: 'https://web.archive.org/web/20040701000000if_/https://example.com/' })) && !tools({ address: 'https://web.archive.org/web/20040701000000if_/https://example.com/' }).includes('[ TIME ]'));
+assert.ok(!/aria-label="Year"/.test(tools({ address: 'see:test' })) && !tools({ address: 'see:test' }).includes('[ TIME ]') && !/BRING BACK/.test(tools({})) && /BRING BACK 3/.test(tools({ erased: 3 })));
 // A refusal's trace: only what this side knows, the address drawn as words (IMPROVE, 2026-11-23).
 const refused = (props) => html(el(at('SeeingRefused'), { reason: 'NO SUCH SITE', eye: 'SERVER EYE', ms: 412, address: 'https://example.com/<b>', canOld: true, ownEye: false, onAgain: none, onOld: none, onOwn: none, ...props }));
 assert.ok(/data-seeing-trace/.test(refused({})) && refused({}).includes('SERVER EYE') && refused({}).includes('NO SUCH SITE · 412 MS') && refused({}).includes('&lt;b&gt;') && !refused({}).includes('<b>'));

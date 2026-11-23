@@ -38,6 +38,9 @@ export default function SeeingTools({ address, ready, seam, loupe, erasing, eras
   // Past the last year is now.
   const shown = dial?.year ?? thisYear + 1;
   const [turning, setTurning] = useState<number | null>(null);
+  // The dial is a key until pressed; an old copy shows it open, at its year.
+  const [dialAsked, setDialAsked] = useState(false);
+  const dialShown = dial !== null && (dialAsked || dial.year !== null);
   const year = turning ?? shown;
   const letGo = () => {
     if (turning === null || dial === null) return;
@@ -96,7 +99,12 @@ export default function SeeingTools({ address, ready, seam, loupe, erasing, eras
         [ GOOD ]
       </button>
       ) : null}
-      {dial !== null ? (
+      {dial !== null && dial.year === null ? (
+        <button type="button" aria-pressed={dialAsked} title="The page as it was, in a year you choose" onClick={() => setDialAsked(!dialAsked)} className={on(dialAsked)}>
+          [ TIME ]
+        </button>
+      ) : null}
+      {dialShown ? (
         <label className="flex items-center gap-1 text-label text-ink">
           {DIAL_FIRST}
           <input

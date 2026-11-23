@@ -24,7 +24,7 @@ One line each, the most useful first. Struck through when done, with its commit.
 - ~~While a page was asked for (and after STOP) the view was an empty box: now a dither field, the step, the address and the eye, and a stepped scan line.~~
 - ~~TRAIL with one site was a lone word in a big box: a legend now says how many places and ways, and while there are none, what draws a line.~~
 - ~~HISTORY and KEPT pushed the page keys onto a third line: they moved to the empty end of the tab line (decision 34).~~
-- The page keys still take two lines at 1366 on an outside page (the TIME DIAL is wide): consider the dial as a key that opens it.
+- ~~The TIME DIAL sat open on every outside page: now [ TIME ] until pressed, open on an old copy (decision 37).~~ The page keys still take two lines at 1366: the page group alone is about 1100px.
 - ~~Keyboard round: the Tab order was probed (a throwaway Playwright probe) and is sensible; lenses had no key: Alt+L the next lens.~~
 - ~~After STOP the view said STOPPED and offered nothing: [ ASK AGAIN ] there now.~~
 - ~~The status line said what was reconstructed but not how long it took: "· IN 412 MS" at its end (took.ts, shared with the refusal trace).~~
