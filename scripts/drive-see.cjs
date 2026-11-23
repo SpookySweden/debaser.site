@@ -1139,6 +1139,9 @@ async function extension(browser) {
   // By itself, the next time there is a newer one: the folder already chosen, and nothing pressed.
   await put('picked', { 'manifest.json': oldManifest, 'worker.js': 'old' });
   await pretend({ version: '0.1.0' });
+  // The next release is one this session has not written yet: a version it wrote already is only said, never written again by itself
+  // (extension-store.ts, `writtenBefore`), so the mark of the one written above is taken away.
+  await page.evaluate(() => sessionStorage.removeItem('debaser-extension-written-v1'));
   await page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction((to) => JSON.parse(sessionStorage.getItem('pretend')).version === to, version, { timeout: 60000 });
   ok((await take('picked'))['worker.js'] === source('worker.js'), 'by itself, on another page, with nothing pressed, when the browser already lets the site write there');

@@ -15,4 +15,4 @@ One line each, the most useful first. Struck through when done, with its commit.
 - At 390 the page itself gets little height under five rows of keys (phones get the desktop zoomed out today, so low).
 - ~~A refusal's keys said IN YOUR OWN EYE and ON ITS OWN SITE where the bar says OWN EYE and OPEN SOURCE: the same words now.~~
 - ~~drive-see extension: the tamper case never matched (the window asks lens.js?v=...); fixed.~~
-- drive-see extension then fails at "by itself, on another page" (the keeper's update 5 s after /forum opens; 60 s timeout). Not touched by the IMPROVE runs; find whether the keeper or the pretend extension is at fault.
+- ~~drive-see extension failed at "by itself, on another page": the keeper rightly never rewrites a version this session already wrote, and the drive reused that version. The drive now stands for a newer release; 13 pass.~~
