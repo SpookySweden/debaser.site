@@ -156,6 +156,10 @@ async function shell(browser) {
     // (2026-11-23) Words are searched for now (the search drive); what is plainly an address and can't be opened is still refused.
     // (2026-11-23 late) A house computer is said to be one, in the server's own words.
     ['localhost:3000', 'NOT A PUBLIC ADDRESS'],
+    // (last run of 2026-11-23) And the house's own numbers and names, at the box (decision 52).
+    ['192.168.1.1', 'NOT A PUBLIC ADDRESS'],
+    ['http://[::1]/', 'NOT A PUBLIC ADDRESS'],
+    ['nas.local', 'NOT A PUBLIC ADDRESS'],
   ]) {
     await go(page, typed);
     await say(page, why);
