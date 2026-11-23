@@ -309,7 +309,8 @@ same(new Set(list.map((s) => s.id)).size, list.length, 'every server id is diffe
 same(new Set(list.map((s) => s.label)).size, list.length, 'every server name is different');
 for (const s of list) {
   ok(/^[a-z][a-z0-9_]{0,40}$/.test(s.id), `${s.id}: id is lowercase letters, digits and _`);
-  ok(/^[A-Z0-9][A-Z0-9 ._-]{0,29}$/.test(s.label), `${s.id}: name "${s.label}" is capitals, digits and spaces, 30 at most`);
+  // A typographic apostrophe is allowed (LUKE’S SERVER, 2026-11-22): a straight one would break the Debaser Servers program's single-quoted line pattern.
+  ok(/^[A-Z0-9][A-Z0-9 ._’-]{0,29}$/.test(s.label), `${s.id}: name "${s.label}" is capitals, digits, spaces and ’, 30 at most`);
   let url = null;
   try { url = new URL(s.base); } catch { /* reported below */ }
   ok(url !== null && url.protocol === 'https:' && url.origin === s.base && url.port === '', `${s.id}: address "${s.base}" is https and nothing after the host`);

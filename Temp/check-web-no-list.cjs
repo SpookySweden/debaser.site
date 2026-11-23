@@ -8,7 +8,8 @@ const path = require('node:path');
 const out = (file) => path.join(__dirname, 'out-no-list', 'lib', 'web', file);
 const servers = require(out('media-servers.js'));
 const server = { id: 'no_list', label: 'NO LIST', base: 'https://no-list.example', listPath: '*', play: { movie: '/m/{tmdb}', tv: '/t/{tmdb}/{season}/{episode}' } };
-servers.MEDIA_SERVERS.push(server);
+// Only this fake server: the real list is not empty since LUKE'S SERVER (2026-11-22), and asking it would test the house's Jellyfin.
+servers.MEDIA_SERVERS.splice(0, servers.MEDIA_SERVERS.length, server);
 const { wildcardSearch } = require(out('wildcard-search.js'));
 const { heldEpisodes, mediaPlayUrl } = require(out('media-titles.js'));
 
