@@ -9,6 +9,7 @@ import { FACET_LETTERS, type Facet } from '../lib/tag-station/word-facts';
 import { eraOf } from '../lib/tag-station/words';
 import { sourceLabel } from '../lib/tag-station/query';
 import { rowAddresses, type ExtraHosts } from '../lib/web/row-addresses';
+import SeeKey from './SeeKey';
 
 /**
  * The small pieces every TAG STATION panel shares (SPEC-tag-station.md): keys at least 44px tall with a thick focus ring, word
@@ -144,6 +145,7 @@ export function ItemRow({ item, note, extraHosts, onPick }: { item: StationItem;
             [ OPEN ↗ ]
           </a>
         ) : null}
+        {link ? <SeeKey href={link} look={STATION_KEY} /> : null}
         {item.seenOnly ? <FindInMedia item={item} /> : null}
       </div>
     </li>

@@ -31,6 +31,7 @@ import { FindInMedia, ItemRow, STATION_KEY, STATION_KEY_ON, Thumb, TitleLine, Wo
 import TagStationSearch from './TagStationSearch';
 import { noteHistory } from '../lib/recommender/history';
 import ForYou from './ForYou';
+import SeeKey from './SeeKey';
 import { YouTubeTopicChips } from './ForYouYouTube';
 
 const PAGE_PATH = '/discover';
@@ -199,6 +200,7 @@ function PlayKeys({ item, extraHosts }: { item: StationItem; extraHosts: ExtraHo
             [ OPEN ↗ ]
           </a>
         ) : null}
+        {link ? <SeeKey href={link} look={STATION_KEY} /> : null}
         {state === 'none' ? (
           <span role="status" className="text-label font-bold text-ink">
             NO PLAYABLE FILE

@@ -12,14 +12,14 @@ import { modulesState, serverModules, subscribeToModules } from '../lib/ui/modul
  * `[ SEE ]` beside an outside link (SPEC-seeing-machine.md, idea viii): opens it in BROWSER. Drawn only for somebody whose bar has
  * BROWSER on it; the link itself is unchanged. The address travels after the `#`, and this press is what opens it there.
  */
-export default function SeeKey({ href, small = false }: { href: string; small?: boolean }) {
+export default function SeeKey({ href, small = false, look = PLATE }: { href: string; small?: boolean; /** The key's look where a place has its own (DISCOVER's field). */ look?: string }) {
   const choices = useSyncExternalStore(subscribeToModules, modulesState, serverModules);
   const browser = MODULES.find((module) => module.key === 'browser');
   if (browser === undefined || !moduleIsOn(browser, choices)) return null;
   const read = readAddress(href);
   if (!read.ok || !/^https?:/.test(read.address)) return null;
   return (
-    <Link href={browserHref(read.address)} onClick={() => askToSee(read.address)} prefetch={false} aria-label={`See ${read.address} in BROWSER`} title="Open it in BROWSER" className={`${PLATE} ${small ? 'align-baseline' : ''}`} data-see-key>
+    <Link href={browserHref(read.address)} onClick={() => askToSee(read.address)} prefetch={false} aria-label={`See ${read.address} in BROWSER`} title="Open it in BROWSER" className={`${look} ${small ? 'align-baseline' : ''}`} data-see-key>
       [ SEE ]
     </Link>
   );
