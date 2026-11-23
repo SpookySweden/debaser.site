@@ -984,6 +984,14 @@ async function lenses(browser) {
   await page.waitForTimeout(500);
   const afterPress = await frameTop();
   ok(afterHover === 0 && afterPress > 0, `a row of MADE OF pressed brings its part into sight; pointed at, it leaves the page where it is (${afterHover} / ${afterPress})`);
+  await page.locator('[data-seeing-xray-row]', { hasText: /^header/ }).first().hover({ force: true });
+  await page.waitForTimeout(300);
+  await (await frameOf(page)).evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(300);
+  await endRow.hover();
+  await page.waitForTimeout(500);
+  const backAgain = await frameTop();
+  ok(backAgain === 0, `pointing back at a row pressed before doesn't scroll by itself (${backAgain})`);
   await page.screenshot({ path: join(OUT, 'lens-xray.png') });
 
   for (const palette of ['YOURS', 'MONO', 'TERMINAL', 'AMBER', '1-BIT']) {

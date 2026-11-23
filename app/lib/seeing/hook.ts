@@ -469,7 +469,9 @@ export const HOOK = String.raw`(function (config) {
   define_(Document.prototype, 'createElementNS', { __proto__: null, configurable: true, writable: true, enumerable: true, value: function createElementNS(space, name) {
     name = text_(name);
     if (!barred(name)) return reach_(makeIn, this, list(space === null || space === undefined ? null : text_(space), name));
-    return reach_(makeIn, this, list('http://www.w3.org/1999/xhtml', replaced(name)));
+    var madeIn = reach_(makeIn, this, list('http://www.w3.org/1999/xhtml', replaced(name)));
+    if (cut(lower(name), findLast(name, ':') + 1) === 'meta') pretendMeta(madeIn);
+    return madeIn;
   } });
   define_(DOMImplementation.prototype, 'createDocument', { __proto__: null, configurable: true, writable: true, enumerable: true, value: function createDocument(space, name) {
     name = name === null || name === undefined ? '' : text_(name);

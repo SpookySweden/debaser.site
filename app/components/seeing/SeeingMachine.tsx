@@ -201,7 +201,13 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
           noteSeen({ address: answer.document.address, title: answer.document.title, at: Date.now(), from: cameFrom });
           // Where it was sent on to, so the box says where it really is and its links are its own.
           if (answer.document.address !== address) changeTabs((all) => withAddress(all, tab.id, address, answer.document.address));
-        } else setShown({ key, state: 'refused', reason: answer.reason, eye: engine.name, ms: Math.round(performance.now() - began) });
+        } else {
+          setShown({ key, state: 'refused', reason: answer.reason, eye: engine.name, ms: Math.round(performance.now() - began) });
+          // Their keys are put away on a refused page (decision 46), so nothing is left on that can't be switched off.
+          setSeam(null);
+          setLoupe(null);
+          setErasing(false);
+        }
       });
     return () => going.abort();
     // (The stop before is read as it was when this one was opened; it does not open the page again.)

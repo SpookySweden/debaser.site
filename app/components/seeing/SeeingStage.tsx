@@ -62,6 +62,11 @@ export default function SeeingStage({ drawing, document, lens, settings, seam, l
   const [census, setCensus] = useState<Census | null>(null);
   const [lit, setLit] = useState<string | null>(null);
   const [reach, setReach] = useState<{ at: string; n: number } | null>(null);
+  // Another row lit lets go of the last press, so pointing back at a pressed row never scrolls by itself.
+  const litTo = useCallback((to: string | null) => {
+    setLit(to);
+    setReach((was) => (was !== null && was.at !== to ? null : was));
+  }, []);
   const reachTo = useCallback((to: string) => setReach((was) => ({ at: to, n: (was?.n ?? 0) + 1 })), []);
   const stage = useRef<HTMLDivElement>(null);
   const glass = useRef<HTMLDivElement>(null);
@@ -209,7 +214,7 @@ export default function SeeingStage({ drawing, document, lens, settings, seam, l
         {/* The page tunes in: the busy view's dither steps off it, top to bottom, once (globals.css; nothing under reduced motion). */}
         <div aria-hidden="true" className="seeing-arrive" data-seeing-arrive />
       </div>
-      {front.beside === 'watchers' ? <SeeingWatchers document={document} /> : front.beside === 'xray' ? <SeeingXray point={point} census={census} lit={lit} onLit={setLit} onReach={reachTo} /> : null}
+      {front.beside === 'watchers' ? <SeeingWatchers document={document} /> : front.beside === 'xray' ? <SeeingXray point={point} census={census} lit={lit} onLit={litTo} onReach={reachTo} /> : null}
     </>
   );
 }
