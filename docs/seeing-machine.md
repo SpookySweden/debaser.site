@@ -8,7 +8,7 @@ The plan and Luke's answers are `SPEC-seeing-machine.md`. This is what was built
 | The page, tabs, keys, the frame's element | `app/browser/page.tsx`, `app/components/seeing/*` |
 | Addresses, tabs, the frame's documents and messages, our script in it | `app/lib/seeing/address.ts`, `tabs.ts`, `frame.ts`, `hook.ts` |
 | The keyboard: / the box, Alt+N a new tab, Alt+W close it, Alt+1 to 8 a tab, Alt+L the next lens, Alt+H HISTORY, Alt+K KEPT, Alt+R ask again (as ↻), Escape puts them and the engines' list away (only while one is open; none while the page has the keyboard) | `app/lib/seeing/keys.ts`, listed on a new tab (`SeeingStart.tsx`) |
-| A refusal said plainly: what it means, what may still be tried; every reason the server gives has its own words (a check reads them from its source); under it the trace (EYE, ASKED, ANSWER and how long), only what this side knows | `app/lib/seeing/refusals.ts`, `SeeingRefused.tsx` |
+| A refusal said plainly: what it means, what may still be tried; every reason the server gives has its own words (a check reads them from its source; a file that isn't a page, "NOT SHOWN HERE: <type>", offers OPEN SOURCE only); under it the trace (EYE, ASKED, ANSWER and how long), only what this side knows | `app/lib/seeing/refusals.ts`, `SeeingRefused.tsx` |
 | Which keys show: HISTORY and KEPT at the tab line's end, always; a new tab only SCAN besides; SEAM, LOUPE, ERASE greyed until a page is drawn; the page's own keys (KEEP PAGE and on) only for an outside page | `SeeingTools.tsx`, the tool row in `SeeingMachine.tsx` |
 | Lenses, one file each | `app/lib/seeing/lenses/` |
 | The server's eye from the browser | `app/lib/seeing/server-engine.ts` (asks `/api/see/*` and nobody else) |
@@ -51,7 +51,7 @@ broken as it was and the browser does the building. (The spec named parse5; this
 is ever read wrongly.) The same tokens, as a plain tree, find READER's words. Scripts are changed in three ways only: module addresses are
 signed, `location` is pointed at a stand-in (the frame's own address can be neither read nor moved), and no frame tag is left in their words. A drawing's animation (SVG `set`, `animate`...) that sets an address, or whose values hold one, is taken out (`SMIL` in `rewrite.ts`). A frame is a link named by its host and path (a frameset's, a line each). A page that isn't HTML is drawn as what it is (`open.ts`): a picture, words, or a news feed as its list of links in plain text (`feed.ts`, decision 42). A feed a page names in its <link rel=alternate> is noted (`feeds`, three at most) and [ FEED ] opens it (decision 44). A page that builds itself and comes out with nothing on it (the hook's census at 4 and 10 seconds) gets a line saying so (`data-seeing-empty`, decision 43).
 
-Pages that can't be drawn as they mean are said so over the top: one that builds itself and comes out empty (decision 43), and a site's check that a person is asking (Cloudflare's "Just a moment...", a CAPTCHA wall; `bot-check.ts`, decision 48), never answered, with OWN EYE and OPEN SOURCE named. Plain text, CSV and JSON are drawn as words, JSON laid out two spaces a level; a news feed as its list (decision 42).
+Pages that can't be drawn as they mean are said so over the top: one that builds itself and comes out empty (decision 43), one the site sent with nothing on it at all (`cameBlank`), and a site's check that a person is asking (Cloudflare's "Just a moment...", a CAPTCHA wall; `bot-check.ts`, decision 48), never answered, with OWN EYE and OPEN SOURCE named. Plain text, CSV and JSON are drawn as words, JSON laid out two spaces a level; a news feed as its list (decision 42).
 
 ## What works (server's eye, 2026-11-23, `scripts/see-table.cjs`, from home)
 | Site | STANDARD | READER | Notes |
@@ -97,7 +97,7 @@ Proof: `drive-see.cjs --only lenses` (DYE and GLASS measured on every theme, 5.5
 ## Search (Luke, 2026-11-23: "a list of multiple search engines such as Google, bing and your best ideas")
 - `search.ts` (pure), `search-store.ts`, `SeeingEngines.tsx`. Words that are not an address go to the chosen engine; a line under the box says which of
   the two GO will do. Letters first ask an engine once (`w fog`, `!g fog`); `!` shows the list; ALL asks three, a tab each; a results page offers the
-  same words of the others (ASK); SEARCH THIS takes a selection. An engine can be off, moved, or added by hand (https, one `%s`, no inside names).
+  same words of the others (ASK); SEARCH THIS takes a selection. An engine can be off, moved, or added by hand (https, one `%s`, no inside names). A new tab lists the engines that are on to read (name and letters); their keys wait behind [ ARRANGE ] (decision 49); the list from the box is always whole.
 - Results are a page like any other: shown through a lens, never read into anything of ours. A bot check or a consent wall is never worked round: such
   an engine opens in OWN EYE, or a new tab (↗). READER shows a list of results as a list.
 - In the server's eye an engine sees the house's address; in OWN EYE or a new tab, the reader's. Nothing searched for is kept on the server:
