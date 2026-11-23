@@ -109,6 +109,15 @@ bake.
   input), stays to hang out once there, faces it, and every 5 to 12 seconds cheers at it with a `♪` over its head (the
   `friend` reaction: sent, so everyone in the room sees it; older tabs play a hop). Each friend's own browser does this
   for its own companion, so two friends both online drift together. The pointer, the music and joining in still win.
+  **Now and then they kiss** (Luke, 2026-11-22): at a moment both friends' browsers work out from the pair and the clock
+  (`kissDue` in `friends.ts`, nothing extra sent), your companion, just hanging out with its friend, tells the room
+  `kiss` (older tabs play a hop), walks to a spot fixed at the start (one target for the room, not one a frame), faces its
+  friend and leans in (`leanLook`: its own frame sheared, feet put) with text hearts rising (`data-kiss` on the figure,
+  which `NoteTrail` watches), then hops or cheers. Their companion on your strip hears `kiss` and leans in on the same
+  moment's ticks, toward its friend's figure; and your companion, if it did not start that kiss itself (mid one-off, or
+  counting their time together a second differently), joins in on the same moment (`kissHeard`), so neither leans alone.
+  Not with a friend whose companion is up in a profile's ROOM. Reduced motion: a still ♥ over it at the moment, on that
+  screen only.
 - **Chat.** A line of stream chat hops the companion of whoever said it. Every browser has the line already, so each
   works it out for itself from `companionSpoke` (one line in `use-watch-room.ts`); nothing is sent.
 - It climbs to and from a profile's ROOM on its `climb` frames, and walks along the strip to get under it.

@@ -2,7 +2,25 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
-import { areFriends, FRIEND_CHEER_MS, meetingSpot, nearFriend } from '../lib/character/friends';
+import {
+  areFriends,
+  FRIEND_CHEER_MS,
+  KISS_MS,
+  KISS_SLOT_MS,
+  kissAfter,
+  kissDue,
+  kissMoment,
+  kissPhase,
+  kissSpot,
+  leanShear,
+  sideOf,
+  tiesLeft,
+  meetingSpot,
+  nearForKiss,
+  nearFriend,
+  pairKeyOf,
+  togetherSince,
+} from '../lib/character/friends';
 import { DANCES, type MotionId } from '../lib/character/motion';
 import { useShownCharacter } from '../lib/character/use-shown-character';
 import { fallStep, spanFor, startBrain, think, throwOf, type BrainScene, type BrainState, type Fall, type Span } from '../lib/companion/brain';
@@ -34,6 +52,7 @@ import {
   throwStep,
   type Sample,
   type ThrowBox,
+  type ThrowLook,
   type Thrown,
 } from '../lib/companion/throw';
 import { floatingState } from '../lib/ui/floating-player';
@@ -517,7 +536,11 @@ function Figure({ placeRef, bodyRef, markRef, label, own, ownerId, look }: Figur
       </span>
       {/* Colourful music notes while it dances (Luke, 2026-11-13) and little `z`s while it sleeps (2026-11-14), from
           about where its sunk head is: text, not art, and none under reduced motion. */}
-      <NoteTrail watch={placeRef} sleepAt={look === null ? size.h : Math.round((size.h - look.sheet.head * SCALE) * 0.6)} />
+      <NoteTrail
+        watch={placeRef}
+        sleepAt={look === null ? size.h : Math.round((size.h - look.sheet.head * SCALE) * 0.6)}
+        heartsAt={look === null ? undefined : Math.round((size.h - look.sheet.head * SCALE) * 0.85)}
+      />
       {/* What its owner has just said in a stream room's chat, when the chat hands the words over. */}
       {ownerId === null ? null : <CompanionSpeech ownerId={ownerId} name={label} look={look} />}
       {/* A picture its owner has just sent in a stream room's chat, held up over its head (ROOMSYNC). */}
@@ -605,6 +628,18 @@ let reactionKind: CompanionWire['k'] = null;
 /** How long a one-off motion plays, in ticks: the strip's own, or the placeholder's hop. */
 const actLength = (look: Look, motion: MotionId): number => (look === null ? HOP.length : look.sheet.motions[motion].ticks.length);
 
+/**
+ * Somebody's companion on this strip has started a kiss (heard on the room's wire): whose, and the kiss's moment. Your own
+ * companion, if that is its friend and it did not start the kiss itself, joins in on the same moment.
+ */
+const kissHeard = new Set<(who: string, at: number) => void>();
+
+/** A kiss's lean as a look `draw` takes (Luke, 2026-11-22): its own frame sheared toward its friend about its feet. */
+function leanLook(lean: number, toward: 1 | -1, h: number): ThrowLook {
+  const { c, dx } = leanShear(lean, toward, h);
+  return { a: 1, b: 0, c, d: 1, dx, dy: 0, ghosts: [] };
+}
+
 /** A one-off motion being played through once: which, and how far in. */
 type Act = { motion: MotionId; tick: number };
 
@@ -616,6 +651,8 @@ type OwnProps = {
   roomKeys: string;
   /** A friend's companion in the room (`../lib/character/friends.ts`): where along the floor it is headed, else null. */
   friendShare: number | null;
+  /** Whose that friend's companion is: the two of them kiss now and then, at moments worked out from the pair. */
+  friendId: string | null;
   musicPlaying: boolean;
   track: string | null;
   still: boolean;
@@ -623,7 +660,7 @@ type OwnProps = {
   lookRef: string | null;
 };
 
-function OwnCompanion({ label, userId, roomKeys, friendShare, musicPlaying, track, still, look, lookRef }: OwnProps) {
+function OwnCompanion({ label, userId, roomKeys, friendShare, friendId, musicPlaying, track, still, look, lookRef }: OwnProps) {
   const placeRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLSpanElement>(null);
   const markRef = useRef<HTMLSpanElement>(null);
@@ -633,10 +670,10 @@ function OwnCompanion({ label, userId, roomKeys, friendShare, musicPlaying, trac
   useEffect(() => {
     music.current = { playing: musicPlaying, track };
   }, [musicPlaying, track]);
-  const company = useRef({ userId, keys: roomKeys, friendShare });
+  const company = useRef({ userId, keys: roomKeys, friendShare, friendId });
   useEffect(() => {
-    company.current = { userId, keys: roomKeys, friendShare };
-  }, [userId, roomKeys, friendShare]);
+    company.current = { userId, keys: roomKeys, friendShare, friendId };
+  }, [userId, roomKeys, friendShare, friendId]);
   useEffect(() => {
     wearing.current = { look, ref: lookRef };
   }, [look, lookRef]);
@@ -676,6 +713,21 @@ function OwnCompanion({ label, userId, roomKeys, friendShare, musicPlaying, trac
     let lastGreet = 0;
     /** When it may next cheer at a friend it stands with (0: at once, the moment they are together). */
     let nextCheer = 0;
+    /**
+     * A kiss with that friend (Luke, 2026-11-22: "kiss sometimes with hearts and cutely"; `../lib/character/friends.ts`):
+     * since when the two have stood together, when they last kissed, the clock last looked at, and the kiss under way
+     * (its moment, and the spot it steps in to, fixed at the start so the room hears one target, not one a frame).
+     */
+    let kissSince: number | null = null;
+    let kissLast: number | null = null;
+    let kissFrom = Date.now();
+    let kiss: { at: number; spot: number } | null = null;
+    /** Its friend's companion started a kiss: its moment, for it to join in on (`kissHeard`). */
+    let kissAsked: number | null = null;
+    const hearKiss = (who: string, at: number) => {
+      if (areFriends(company.current.userId, who)) kissAsked = at;
+    };
+    kissHeard.add(hearKiss);
     /** It types along until then: a moment after the last key typed into a text box. */
     let typingUntil = 0;
     /** A press on it, and the fall after it is let go. */
@@ -777,6 +829,8 @@ function OwnCompanion({ label, userId, roomKeys, friendShare, musicPlaying, trac
       const floorWas = lastFloorY;
       lastFloorY = floor.y;
       const now = Date.now();
+      // Hearts rise only on a frame it leans in for a kiss: set again below when it does.
+      if (place !== null && place.dataset.kiss !== undefined) delete place.dataset.kiss;
       const room = visitRoomState();
       const pathNow = window.location.pathname;
       const pageChanged = pathNow !== path;
@@ -1072,6 +1126,17 @@ function OwnCompanion({ label, userId, roomKeys, friendShare, musicPlaying, trac
         posing = null;
         draw(place, bodyRef.current, look, { x, floorY: floor.y, facing, mood: 'stand', motion: 'idle', tick: 0, lift: 0 });
         if (Math.floor(now / TICK_MS) % 5 === 0) yieldToKeys(place);
+        // Reduced motion: nobody walks over for a kiss, so with its friend's companion here, a still ♥ over its head at
+        // the kiss's moment says it instead (on this screen only: nothing is sent for it).
+        const pal = company.current.friendId;
+        const mine = company.current.userId;
+        kissSince = pal === null || mine === null ? null : togetherSince(kissSince, company.current.friendShare !== null, now);
+        const due = pal === null || mine === null ? null : kissDue(pairKeyOf(mine, pal), kissFrom, now, kissSince, kissLast);
+        kissFrom = now;
+        if (due !== null) {
+          kissLast = due;
+          markTimer = showMark(mark, markTimer, reactionMark('kiss') ?? '');
+        }
         say(floor, size, false);
         return;
       }
@@ -1089,7 +1154,7 @@ function OwnCompanion({ label, userId, roomKeys, friendShare, musicPlaying, trac
       // whether the two already stand together.
       const friendShareNow = company.current.friendShare;
       const friendX = friendShareNow === null ? null : Math.round(floor.left + friendShareNow * floorRoom(floor, size));
-      const friend = friendX === null ? null : { spot: meetingSpot(x, friendX, size.w), near: nearFriend(x, friendX, size.w) };
+      const friend = friendX === null ? null : { spot: meetingSpot(x, friendX, size.w, tiesLeft(company.current.userId, company.current.friendId)), near: nearFriend(x, friendX, size.w) };
       brain = think(brain, {
         now,
         lastActivity,
@@ -1102,6 +1167,42 @@ function OwnCompanion({ label, userId, roomKeys, friendShare, musicPlaying, trac
         scene,
         friend,
       });
+      // A kiss (Luke, 2026-11-22: "kiss sometimes with hearts and cutely"): at a moment both friends' browsers work out
+      // from the pair and the clock (`kissDue`), once they have stood together a while and it is not in the middle of a
+      // one-off; or joining in on the moment its friend's companion started one. The room is told, so everyone sees it.
+      // Not with a friend whose companion is up in a profile's ROOM: it is not on this strip to kiss.
+      const pal = company.current.friendId;
+      const mine = company.current.userId;
+      const palX = pal !== null && othersHereState().inRoom[pal] === undefined ? friendX : null;
+      kissSince = pal === null || mine === null || palX === null ? null : togetherSince(kissSince, nearForKiss(x, palX, size.w), now);
+      if (kiss === null && pal !== null && mine !== null && palX !== null) {
+        const due = kissDue(pairKeyOf(mine, pal), kissFrom, now, kissSince, kissLast);
+        const asked = kissAsked !== null && kissAsked !== kissLast && now - kissAsked < KISS_MS ? kissAsked : null;
+        const at = due !== null && act === null ? due : asked;
+        if (at !== null) {
+          kissLast = at;
+          act = null;
+          kiss = { at, spot: Math.min(span.right, Math.max(span.left, kissSpot(x, palX, size.w, tiesLeft(mine, pal)))) };
+          react('kiss');
+        }
+      }
+      kissAsked = null;
+      kissFrom = now;
+      // Its friend gone (or up in a ROOM), or the kiss left long behind while it was away from its strip: it is off.
+      if (kiss !== null && (palX === null || now - kiss.at > KISS_MS + 1_000)) kiss = null;
+      const kissing = kiss === null ? null : kissPhase(now - kiss.at);
+      if (kiss !== null && kissing === null) {
+        // Over: the one on the left hops, the other cheers.
+        const toward: 1 | -1 = friendX !== null && sideOf(x, friendX, tiesLeft(company.current.userId, company.current.friendId)) === -1 ? 1 : -1;
+        facing = toward;
+        act = { motion: kissAfter(toward), tick: 0 };
+        kiss = null;
+      }
+      if (kiss !== null && kissing !== null) {
+        // Over to the spot it fixed at the start, then stood facing its friend through the lean.
+        const going = kissing.stage === 'go' && Math.abs(kiss.spot - x) >= 1;
+        brain = { ...brain, mood: going ? 'walk' : 'stand', target: going ? kiss.spot : null, pose: null, act: null, until: now + KISS_MS };
+      }
       if (was.mood === 'sleep' && brain.mood !== 'sleep') {
         // Awake: a stretch, and after a long sleep a wave for whoever came back.
         react('wake');
@@ -1112,7 +1213,7 @@ function OwnCompanion({ label, userId, roomKeys, friendShare, musicPlaying, trac
       // Standing about with a friend: now and then a cheer with a note over its head, which the room sees too.
       if (friend === null || !friend.near) nextCheer = 0;
       // (Only while just hanging out: typing, a game, a book or a video along with you is not broken off for it.)
-      else if (act === null && brain.pose === null && (brain.mood === 'stand' || brain.mood === 'sit') && now >= nextCheer) {
+      else if (kiss === null && act === null && brain.pose === null && (brain.mood === 'stand' || brain.mood === 'sit') && now >= nextCheer) {
         react('friend');
         nextCheer = now + FRIEND_CHEER_MS[0] + Math.random() * (FRIEND_CHEER_MS[1] - FRIEND_CHEER_MS[0]);
       }
@@ -1180,7 +1281,19 @@ function OwnCompanion({ label, userId, roomKeys, friendShare, musicPlaying, trac
       }
       // Just landed from a throw: the squash, the spring back and the dip after it, feet on the floor.
       const tall = settle.shift();
-      draw(place, bodyRef.current, look, { x, floorY: floor.y, facing, mood: brain.mood, motion, tick: motionTick, lift, fx: tall === undefined ? null : squashLook('floor', tall, size) });
+      // Leaning in for a kiss: its own frame sheared toward its friend, feet kept where they stand, hearts rising.
+      const lean = kissing !== null && kissing.stage === 'lean' && !walking && act === null ? kissing.lean : 0;
+      if (lean > 0 && place !== null) place.dataset.kiss = facing === 1 ? 'right' : 'left';
+      draw(place, bodyRef.current, look, {
+        x,
+        floorY: floor.y,
+        facing,
+        mood: brain.mood,
+        motion,
+        tick: motionTick,
+        lift,
+        fx: tall !== undefined ? squashLook('floor', tall, size) : lean > 0 ? leanLook(lean, facing, size.h) : null,
+      });
       if (frame % 5 === 0 && grab === null) yieldToKeys(place);
       say(floor, size, false);
     };
@@ -1194,8 +1307,10 @@ function OwnCompanion({ label, userId, roomKeys, friendShare, musicPlaying, trac
         if (looping === 'read' && !still) act = { motion: 'flick', tick: 0 };
         return;
       }
-      const text = reactionMark(kind);
-      if (!still) act = { motion: reactionMotion(kind), tick: 0 };
+      // A kiss is a step in and a lean (the frame loop), not a one-off, and its hearts rise from it: no mark.
+      const kissing = kind === 'kiss';
+      const text = kissing ? null : reactionMark(kind);
+      if (!still && !kissing) act = { motion: reactionMotion(kind), tick: 0 };
       if (text !== null) markTimer = showMark(mark, markTimer, text);
       // A look round at a new theme, a hop as you speak in a room's chat: played here, and the room is told nothing (it
       // has the chat line itself, and works the hop out from that).
@@ -1480,6 +1595,7 @@ function OwnCompanion({ label, userId, roomKeys, friendShare, musicPlaying, trac
       offSpoke();
       offCatch();
       offHold();
+      kissHeard.delete(hearKiss);
       window.removeEventListener('pointerdown', onPutDown);
       // Gone while it was in the hand (the motion setting changed): nothing of the carry is left on the figure.
       if (place !== null) {
@@ -1562,6 +1678,15 @@ function RoomFigure({ companion, still }: { companion: RoomCompanion; still: boo
     let markTimer: ReturnType<typeof setTimeout> | null = null;
     /** Its feet, from the top of the screen: on its floor, or on the way up to or down to it. */
     let feet: number | null = null;
+    /** A kiss with its friend under way: its moment (`../lib/character/friends.ts`), else null. */
+    let kissAt: number | null = null;
+    /** Its friend's figure on this strip, if there is one in sight: yours, or another of the room's (not one up in a ROOM). */
+    const friendFigure = (): HTMLElement | null => {
+      for (const figure of document.querySelectorAll<HTMLElement>('[data-companion-strip] [data-companion-of]')) {
+        if (figure.style.visibility === 'visible' && areFriends(owner.current, figure.dataset.companionOf)) return figure;
+      }
+      return null;
+    };
 
     // Up into its person's profile room, or a room they visit as a commenter, and back (Luke, 2026-11-22: "just one of each
     // character on the screen at a time ... the same little dude that carries some memory and consistency"). The room draws
@@ -1591,6 +1716,8 @@ function RoomFigure({ companion, still }: { companion: RoomCompanion; still: boo
       const size = sizeOf(lookNow);
       const floor = floorNow(size);
       const now = wire.current;
+      // Hearts rise only on a frame it leans in for a kiss: set again below when it does.
+      if (place !== null && place.dataset.kiss !== undefined) delete place.dataset.kiss;
       const call = roomCallState();
       const wanted = call !== null && roomWants(person, call);
       // The same room calling again (who it wants changed: a commenter's look came in) is still the room it is in.
@@ -1692,9 +1819,26 @@ function RoomFigure({ companion, still }: { companion: RoomCompanion; still: boo
       if (seen === null) seen = now.r;
       else if (now.r > seen) {
         seen = now.r;
-        if (!still) act = { motion: reactionMotion(now.k), tick: 0 };
-        const text = reactionMark(now.k);
-        if (text !== null) markTimer = showMark(mark, markTimer, text);
+        if (now.k === 'kiss' && !still) {
+          // A kiss with its friend (Luke, 2026-11-22): timed from the moment both browsers worked out, so it leans in on
+          // the same tick as its friend here; heard too late for that moment, from now. With no friend of theirs in sight
+          // on this strip there is nobody to kiss: it is let be.
+          const at = Date.now();
+          const pal = friendFigure()?.dataset.companionOf;
+          if (pal !== undefined) {
+            const pair = pairKeyOf(person, pal);
+            const slot = Math.floor(at / KISS_SLOT_MS);
+            const found = kissMoment(pair, slot) <= at ? kissMoment(pair, slot) : kissMoment(pair, slot - 1);
+            const moment = at - found < KISS_MS ? found : at;
+            kissAt = moment;
+            // Your companion, if it is the friend and did not start this kiss itself, joins in on the same moment.
+            for (const hear of kissHeard) hear(person, moment);
+          }
+        } else {
+          if (!still) act = { motion: reactionMotion(now.k), tick: 0 };
+          const text = reactionMark(now.k);
+          if (text !== null) markTimer = showMark(mark, markTimer, text);
+        }
       }
 
       if (still) {
@@ -1742,6 +1886,24 @@ function RoomFigure({ companion, still }: { companion: RoomCompanion; still: boo
       const mood: CompanionMood = walking ? (now.m === 'chase' ? 'chase' : 'walk') : now.m === 'walk' || now.m === 'chase' ? 'stand' : now.m;
       if (mood === 'dance' && motion !== dance && !DANCES.includes(motion)) dance = pickDance();
 
+      // A kiss under way: there, it faces its friend, leans in on the moment's own ticks, and after it hops or cheers.
+      let lean = 0;
+      // A kiss left long behind while it was away from the strip (up in a ROOM) is simply over.
+      if (kissAt !== null && Date.now() - kissAt > KISS_MS + 1_000) kissAt = null;
+      if (kissAt !== null) {
+        const kissing = kissPhase(Date.now() - kissAt);
+        const palX = Number(friendFigure()?.dataset.x ?? Number.NaN);
+        const toward: 1 | -1 = Number.isFinite(palX) ? (sideOf(x, palX, tiesLeft(owner.current, friendFigure()?.dataset.companionOf)) === -1 ? 1 : -1) : facing;
+        if (kissing === null) {
+          kissAt = null;
+          facing = toward;
+          act = { motion: kissAfter(toward), tick: 0 };
+        } else if (!walking && act === null) {
+          facing = toward;
+          if (kissing.stage === 'lean') lean = kissing.lean;
+        }
+      }
+
       frame += 1;
       let lift = 0;
       if (act !== null) {
@@ -1760,7 +1922,8 @@ function RoomFigure({ companion, still }: { companion: RoomCompanion; still: boo
           if (frame % 5 === 0) facing = facing === 1 ? -1 : 1;
         }
       }
-      draw(place, bodyRef.current, lookNow, { x, floorY: floor.y, facing, mood, motion, tick: motionTick, lift });
+      if (lean > 0 && place !== null) place.dataset.kiss = facing === 1 ? 'right' : 'left';
+      draw(place, bodyRef.current, lookNow, { x, floorY: floor.y, facing, mood, motion, tick: motionTick, lift, fx: lean > 0 ? leanLook(lean, facing, size.h) : null });
       if (frame % 5 === 0) yieldToKeys(place);
     };
 
@@ -1852,6 +2015,7 @@ export default function Companion() {
             userId={userId}
             roomKeys={drawn.map((companion) => companion.key).join(',')}
             friendShare={drawn.find((companion) => areFriends(userId, companion.userId))?.wire.x ?? null}
+            friendId={drawn.find((companion) => areFriends(userId, companion.userId))?.userId ?? null}
             musicPlaying={music.playing}
             track={music.track}
             still={still}

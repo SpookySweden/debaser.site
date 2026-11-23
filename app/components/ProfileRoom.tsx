@@ -20,7 +20,18 @@ import {
   wholeIn,
 } from '../lib/companion/visit';
 import { onCompanionSpoke } from '../lib/companion/events';
-import { FRIEND_REPLY_MS, friendAnswer, friendIn, friendLines, wantsAnswer } from '../lib/character/friends';
+import {
+  FRIEND_REPLY_MS,
+  friendAnswer,
+  friendIn,
+  friendLines,
+  KISS_MS,
+  kissDue,
+  nearForKiss,
+  pairKeyOf,
+  togetherSince,
+  wantsAnswer,
+} from '../lib/character/friends';
 import type { ForumThread } from '../lib/forum/types';
 import type { ProfileComment } from '../lib/profile/types';
 import { blip } from '../lib/speech/blip';
@@ -181,6 +192,80 @@ export default function ProfileRoom({
   /** Where each figure stands, shared by the walkers so a friend can come and stand beside another. */
   const [spots] = useState(() => new Map<string, number>());
 
+  // A kiss now and then between two friends standing together (Luke, 2026-11-22: "kiss sometimes with hearts and
+  // cutely"; `../lib/character/friends.ts`). The room keeps the clock for each pair here and hands both walkers the
+  // moment; they step in, lean in with hearts rising, and hop and cheer after. Under reduced motion nobody moves: two
+  // friends both here get a still ♥ over their heads instead, at the same moments.
+  const pairsKey = useMemo(
+    () =>
+      [...new Set(Object.entries(friends).flatMap(([id, friend]) => (friend === null ? [] : [pairKeyOf(id, friend)])))].join('\n'),
+    [friends],
+  );
+  /** How wide each figure here is, for whether two of them stand together. */
+  const widths = useMemo(() => {
+    const all: Record<string, number> = {};
+    if (shown) all[userId] = roomFigureSize({ stripUrl: shown.stripUrl, sheet: shown.sheet }).w;
+    for (const guest of guests) all[guest.person.id] = roomFigureSize({ stripUrl: guest.shown.stripUrl, sheet: guest.shown.sheet }).w;
+    if (viewerId !== null && visit.out) all[viewerId] = roomFigureSize(visit.look === null ? null : { stripUrl: visit.look.stripUrl, sheet: visit.look.sheet }).w;
+    return all;
+  }, [shown, userId, guests, viewerId, visit.out, visit.look]);
+  /** The one line being said, and by whom. */
+  const [saying, setSaying] = useState<{ speakerId: string; line: SpeechLine } | null>(null);
+  // Somebody who has left the room is no longer saying anything.
+  const said = saying !== null && people.some((person) => person.id === saying.speakerId) ? saying : null;
+
+  /** The kiss each figure is in, by whose it is: its moment. */
+  const [kisses, setKisses] = useState<Record<string, number>>({});
+  /** A kiss under way: nobody starts saying anything till it is over. */
+  const kissing = Object.keys(kisses).length > 0;
+  const kissClock = useRef({ since: new Map<string, number | null>(), last: new Map<string, number | null>() });
+  /** Read by the kiss clock without restarting it: how wide each is. */
+  const kissRead = useRef(widths);
+  useEffect(() => {
+    kissRead.current = widths;
+  });
+  useEffect(() => {
+    if (!inView || pairsKey.length === 0) return;
+    const pairs = pairsKey.split('\n').map((key) => key.split(':') as [string, string]);
+    const clears = new Set<number>();
+    let from = Date.now();
+    const timer = window.setInterval(() => {
+      const now = Date.now();
+      const { since, last } = kissClock.current;
+      for (const [a, b] of pairs) {
+        const key = pairKeyOf(a, b);
+        const xa = spots.get(a);
+        const xb = spots.get(b);
+        const w = Math.max(kissRead.current[a] ?? 0, kissRead.current[b] ?? 0);
+        // Under reduced motion nobody walks over, so being here together is enough.
+        const near = xa !== undefined && xb !== undefined && (reduced || nearForKiss(xa, xb, w));
+        const together = togetherSince(since.get(key) ?? null, near, now);
+        since.set(key, together);
+        const moment = kissDue(key, from, now, together, last.get(key) ?? null);
+        if (moment === null) continue;
+        last.set(key, moment);
+        setKisses((current) => ({ ...current, [a]: moment, [b]: moment }));
+        // The kiss wins: a bubble over either of the two is put away.
+        setSaying((current) => (current !== null && (current.speakerId === a || current.speakerId === b) ? null : current));
+        const clear = window.setTimeout(() => {
+          clears.delete(clear);
+          setKisses((current) => {
+            const next = { ...current };
+            for (const id of [a, b]) if (next[id] === moment) delete next[id];
+            return next;
+          });
+        }, KISS_MS + 200);
+        clears.add(clear);
+      }
+      from = now;
+    }, 500);
+    return () => {
+      window.clearInterval(timer);
+      for (const clear of clears) window.clearTimeout(clear);
+      setKisses({});
+    };
+  }, [inView, pairsKey, reduced, spots]);
+
   // What each of them may say: only their own words, out of what this reader's page already holds; and, with a friend
   // here, a few cheerful noises of its own for them (never words: see `friends.ts`).
   const lines = useMemo(() => {
@@ -196,10 +281,6 @@ export default function ProfileRoom({
   // A change in who can talk, or in how much they have to say, starts the wait again; a redraw of the board does not.
   const talkersKey = talkers.map((person) => `${person.id}:${lines[person.id].length}`).join('|');
 
-  /** The one line being said, and by whom. */
-  const [saying, setSaying] = useState<{ speakerId: string; line: SpeechLine } | null>(null);
-  // Somebody who has left the room is no longer saying anything.
-  const said = saying !== null && people.some((person) => person.id === saying.speakerId) ? saying : null;
   /** What each character has said since its bag was last emptied, and whether anybody has spoken yet this visit. */
   const bags = useRef<Record<string, string[]>>({});
   const spokeOnce = useRef(false);
@@ -222,7 +303,7 @@ export default function ProfileRoom({
   /** A friend about to answer a cheerful noise: whose character answers. */
   const [answer, setAnswer] = useState<string | null>(null);
   useEffect(() => {
-    if (reduced || !inView || said !== null || answer === null) return;
+    if (reduced || !inView || said !== null || answer === null || kissing) return;
     const wait = waitWithin(FRIEND_REPLY_MS, Math.random);
     const timer = window.setTimeout(() => {
       setAnswer(null);
@@ -231,9 +312,9 @@ export default function ProfileRoom({
       }
     }, wait);
     return () => window.clearTimeout(timer);
-  }, [reduced, inView, said, answer]);
+  }, [reduced, inView, said, answer, kissing]);
   useEffect(() => {
-    if (reduced || !inView || said !== null || answer !== null || talkersKey.length === 0) return;
+    if (reduced || !inView || said !== null || answer !== null || kissing || talkersKey.length === 0) return;
     const wait = waitWithin(spokeOnce.current ? SPEECH_PACE.gapMs : SPEECH_PACE.firstMs, Math.random);
     const timer = window.setTimeout(() => {
       const able = material.current.talkers;
@@ -246,7 +327,7 @@ export default function ProfileRoom({
       if (sayNext(speaker.id)) spokeOnce.current = true;
     }, wait);
     return () => window.clearTimeout(timer);
-  }, [reduced, inView, said, answer, talkersKey, again, sayNext]);
+  }, [reduced, inView, said, answer, kissing, talkersKey, again, sayNext]);
 
   /** Reduced motion: a press on a character shows its next line, whole; a second press puts it away. */
   const pressed = useCallback(
@@ -386,6 +467,7 @@ export default function ProfileRoom({
             speech={speechOf(userId)}
             onPress={() => pressed(userId)}
             friendId={friends[userId] ?? null}
+            kiss={kisses[userId] ?? null}
             spots={spots}
             {...fromStrip(userId)}
           />
@@ -403,6 +485,7 @@ export default function ProfileRoom({
             speech={speechOf(guest.person.id)}
             onPress={() => pressed(guest.person.id)}
             friendId={friends[guest.person.id] ?? null}
+            kiss={kisses[guest.person.id] ?? null}
             spots={spots}
             {...fromStrip(guest.person.id)}
           />
@@ -420,6 +503,7 @@ export default function ProfileRoom({
             person={user?.id}
             onSpot={noteSpot}
             friendId={viewerId === null ? null : (friends[viewerId] ?? null)}
+            kiss={viewerId === null ? null : (kisses[viewerId] ?? null)}
             spots={spots}
             {...(viewerId === null ? {} : { speech: speechOf(viewerId), onPress: () => pressed(viewerId) })}
           />

@@ -103,6 +103,22 @@ Read this before touching the motions, the bake or the profile walker. The spec 
 - Reduced motion: nothing moves or speaks by itself, as before. Checked by `Temp/check-character-friends.cjs` and
   `scripts/drive-character-friends.cjs` (local mock server; sweden's profile with moldavius figtree and a stranger
   visiting).
+- **They kiss now and then** (Luke, 2026-11-22: "kiss sometimes with hearts and cutely"). Once two friends have stood
+  together 20 seconds, a kiss comes at the next shared moment (20 to 70 seconds after meeting), then one every 2 to 4
+  minutes while they stay together (about 3 on average). They step in until their boxes overlap (`kissSpot`, `KISS_OVERLAP`), face each
+  other, and both lean in on the same tick: their own baked frame sheared toward the other about the feet (`KISS_LEAN`,
+  `leanShear`; the smear rules, nothing drawn), with a peck in the middle. Text hearts (♥, the pink and red marker
+  colours) rise from where they meet (`NoteTrail.tsx`). After it the left one hops and the right one cheers.
+  - **When is worked out, never sent** (`kissDue`): each 45-second slot has one moment for the pair, a number from the two
+    ids and the slot, so two browsers (a stream room's two friends) and a ROOM all land on the same kiss. In a ROOM,
+    `ProfileRoom` keeps the clock and hands both walkers the moment (`kiss`); the kiss puts away a bubble over either of
+    the two, and nobody starts talking till it is over. A clock looked at late (`KISS_LATE_MS`) lets a missed kiss go.
+  - Two friends on the very same spot (a ROOM's walkers all start at its left edge before it has a width) take opposite
+    sides by their ids (`sideOf`, `tiesLeft`), for the kiss and for hanging out (`meetingSpot`): before 2026-11-22 they
+    could stand on top of each other.
+  - Reduced motion: nobody moves or leans; at the same moments a still ♥ shows over each friend (`data-kiss-still`).
+  - Checked by `Temp/check-character-kiss.cjs` and `scripts/drive-character-kiss.cjs` (local mock server, GUY baked for
+    both: the ROOM, a stream room's strip, and reduced motion).
 
 ## Rules that came from the spec
 - **Motion isn't artwork** (core.md, Asset Rules). Code only turns the joints of shapes someone built by hand. It never

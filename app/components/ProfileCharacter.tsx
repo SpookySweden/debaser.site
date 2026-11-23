@@ -19,7 +19,7 @@ import {
   type Lane,
   type WalkerState,
 } from '../lib/character/walker';
-import { befriend } from '../lib/character/friends';
+import { befriend, kissAfter, kissPhase, kissWalk, sideOf, tiesLeft, type KissPhase } from '../lib/character/friends';
 import { onCompanionCatch } from '../lib/companion/events';
 import type { Sample } from '../lib/companion/throw';
 import CharacterSprite from './CharacterSprite';
@@ -165,6 +165,7 @@ export function RoomWalker({
   onPress,
   friendId,
   spots,
+  kiss = null,
 }: {
   look: RoomLook;
   mood: Mood;
@@ -191,9 +192,22 @@ export function RoomWalker({
   friendId?: string | null;
   /** Where each figure in the room stands, by whose it is (left edges): it writes its own, and reads its friend's. */
   spots?: Map<string, number>;
+  /**
+   * A kiss with its friend (Luke, 2026-11-22; `../lib/character/friends.ts`): the moment it started, in ms since 1970, or
+   * null. It steps in close, faces its friend, leans in with hearts rising, and after it hops or cheers.
+   */
+  kiss?: number | null;
 }) {
   const reduced = useSyncExternalStore(subscribeReduced, reducedNow, reducedOnServer);
   const { w, h } = roomFigureSize(look);
+  // Read by the loop below without restarting it: the kiss under way, and the one it is in the middle of playing.
+  const kissAt = useRef<number | null>(kiss);
+  useEffect(() => {
+    kissAt.current = kiss;
+  }, [kiss]);
+  const kissing = useRef<number | null>(null);
+  /** Where its kiss is up to just now (stepping in, or how far it leans toward its friend), else null. */
+  const [kissNow, setKissNow] = useState<KissPhase>(null);
   const room = Math.max(0, width - w);
   const [state, setState] = useState<WalkerState>(() => {
     const start = startWalker(room, Math.random);
@@ -280,17 +294,37 @@ export function RoomWalker({
     if (reduced || width === 0) return;
     const every = Math.round(1000 / (look?.sheet.fps ?? 10));
     const timer = setInterval(() => {
+      const friendX = friendId && spots ? (spots.get(friendId) ?? null) : null;
+      // A kiss with its friend (Luke, 2026-11-22: "kiss sometimes with hearts and cutely"): timed from its moment, so the
+      // two of them lean in on the same tick.
+      const at = kissAt.current;
+      const phase = at === null ? null : kissPhase(Date.now() - at);
+      if (phase !== null && friendX !== null && at !== null) {
+        kissing.current = at;
+        setKissNow(phase);
+        setState((current) => kissWalk(current, phase, { friendX, w, room, step: WALK_BLOCKS_PER_TICK * ROOM_SCALE, tieLeft: tiesLeft(person, friendId) }));
+        return;
+      }
+      if (kissing.current !== null) {
+        // Over: upright again, and the one on the left hops while the other cheers.
+        kissing.current = null;
+        setKissNow(null);
+        setState((current) => {
+          const toward: 1 | -1 = friendX === null ? current.dir : sideOf(current.x, friendX, tiesLeft(person, friendId)) === -1 ? 1 : -1;
+          return { ...current, activity: 'react', motion: kissAfter(toward), tick: 0, dir: toward };
+        });
+        return;
+      }
       setState((current) => {
         // Talking: it stays where it stands. A one-off under way is stepped to its end first.
         if (hasSpeech.current && breaksOffFor(current.motion)) return current;
         const next = stepWalker(current, { mood, music, room, step: WALK_BLOCKS_PER_TICK * ROOM_SCALE, ticksOf, random: Math.random });
         // A friend in the room (Luke, 2026-11-21: "hang out with eachother in a jovial manner"): over it goes.
-        const friendX = friendId && spots ? (spots.get(friendId) ?? null) : null;
-        return befriend(current, next, { friendX, w, room, random: Math.random });
+        return befriend(current, next, { friendX, w, room, random: Math.random, tieLeft: tiesLeft(person, friendId) });
       });
     }, every);
     return () => clearInterval(timer);
-  }, [reduced, width, look, mood, music, room, ticksOf, friendId, spots, w]);
+  }, [reduced, width, look, mood, music, room, ticksOf, friendId, spots, w, person]);
 
   useEffect(() => {
     if (onSpot !== undefined && figure.current !== null) onSpot(figure.current);
@@ -315,10 +349,22 @@ export function RoomWalker({
   const dancing = !out && !reduced && DANCES.includes(motion);
   const visitor = who === 'visitor';
   const left = Math.min(Math.max(0, state.x), room);
+  // Leaning in for a kiss: its own frame sheared toward its friend about its feet (the smear rules: nothing drawn).
+  const lean = !out && !reduced && kissNow?.stage === 'lean' ? kissNow.lean : 0;
+  const leaning = lean > 0;
+  const shear = leaning ? -state.dir * lean : 0;
+  /** About its mouth, in px up from its feet: where the hearts start. */
+  const mouth = look === null ? undefined : Math.round((look.sheet.floor - look.sheet.head) * ROOM_SCALE * 0.85);
   return (
     <div ref={wrap} className={`absolute bottom-0 ${out ? 'invisible' : ''}`} style={{ left, width: w, height: h }} data-room-figure-out={out ? 'true' : undefined}>
       {loose !== null ? <LooseCharacter look={look} grab={loose.grab} facing={state.dir} stage={loose.stage} label={label} onHome={backIn} /> : null}
-      <NoteTrail active={dancing} />
+      <NoteTrail active={dancing} hearts={leaning ? (state.dir === 1 ? 'right' : 'left') : null} heartsAt={mouth} />
+      {/* Reduced motion: nobody moves for a kiss, so a still heart over its head says it instead, for as long as the kiss. */}
+      {reduced && kiss !== null && !out ? (
+        <span aria-hidden="true" className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 font-bold leading-none text-label text-mark-pink" data-kiss-still>
+          {'♥'}
+        </span>
+      ) : null}
       {talking && speech !== undefined ? speech({ x: left, w, h }) : null}
       <button
         ref={figure}
@@ -328,6 +374,7 @@ export function RoomWalker({
         {...(visitor ? { 'data-companion': 'visiting' } : { 'data-profile-character': who })}
         data-character-of={person}
         data-motion={motion}
+        data-kiss={kissNow === null ? undefined : kissNow.stage}
         aria-label={visitor ? 'YOUR COMPANION: PRESS TO SAY HELLO' : `${label}: PRESS TO SAY HELLO`}
         title={who === 'guest' ? label : 'SAY HELLO'}
         onClick={() => {
@@ -340,7 +387,7 @@ export function RoomWalker({
           if (!reduced && speech === undefined) setState((current) => react(current));
         }}
         className="block cursor-pointer overflow-hidden focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-acid"
-        style={{ width: w, height: h }}
+        style={shear === 0 ? { width: w, height: h } : { width: w, height: h, transform: `matrix(1, 0, ${shear.toFixed(3)}, 1, 0, 0)`, transformOrigin: 'bottom center' }}
       >
         {look === null ? (
           // No SHOWN character: the placeholder field, as the companion wears it. Code draws no figure.

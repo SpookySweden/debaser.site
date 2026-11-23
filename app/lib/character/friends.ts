@@ -51,11 +51,12 @@ export const FRIEND_ACTS: readonly MotionId[] = ['wave', 'hop', 'cheer', 'wave',
 /**
  * Where to head to stand beside a friend: halfway between the two, on its own side. Both friends heading for it meet in
  * the middle and never cross over, even when each only knows where the other was a moment ago. Positions are left edges.
+ * Two on the very same spot (a ROOM's walkers all start at its left edge before it has a width) settle which side each
+ * takes by `tieLeft` (`tiesLeft`, from the pair's ids), so they step apart instead of standing on top of each other.
  */
-export function meetingSpot(x: number, friendX: number, w: number): number {
+export function meetingSpot(x: number, friendX: number, w: number, tieLeft = true): number {
   const mid = (x + friendX) / 2;
-  const side = x <= friendX ? -1 : 1;
-  return Math.round(mid + (side * (w * (1 + FRIEND_GAP_SHARE))) / 2);
+  return Math.round(mid + (sideOf(x, friendX, tieLeft) * (w * (1 + FRIEND_GAP_SHARE))) / 2);
 }
 
 /** Whether two figures `w` wide stand together. */
@@ -73,19 +74,24 @@ export function nearFriend(x: number, friendX: number, w: number): boolean {
 export function befriend(
   prev: WalkerState,
   next: WalkerState,
-  input: { friendX: number | null; w: number; room: number; random: () => number },
+  input: { friendX: number | null; w: number; room: number; random: () => number; tieLeft?: boolean },
 ): WalkerState {
-  const { friendX, w, room, random } = input;
+  const { friendX, w, room, random, tieLeft = true } = input;
   if (friendX === null) return next;
   if (next.activity !== 'idle' && next.activity !== 'walk') return next;
   const fresh = next.tick === 0 && next !== prev;
   const together = nearFriend(next.x, friendX, w);
-  const toward: 1 | -1 = friendX >= next.x ? 1 : -1;
+  const toward: 1 | -1 = sideOf(next.x, friendX, tieLeft) === -1 ? 1 : -1;
+  // Standing on the very same spot as its friend: it steps over to its own side first.
+  if (next.x === friendX && next.activity === 'idle') {
+    const target = Math.min(Math.max(0, meetingSpot(next.x, friendX, w, tieLeft)), Math.max(0, room));
+    if (target !== next.x) return { ...next, activity: 'walk', motion: 'walk', tick: 0, target, dir: target > next.x ? 1 : -1 };
+  }
 
   // A walk under way that takes it further from its friend: now and then it thinks better of it and turns round.
   const away = next.activity === 'walk' && !fresh && !together && Math.abs(next.target - friendX) > Math.abs(next.x - friendX);
   if ((away && random() < FRIEND_TURN) || (fresh && !together && random() < FRIEND_PULL)) {
-    const target = Math.min(Math.max(0, meetingSpot(next.x, friendX, w)), Math.max(0, room));
+    const target = Math.min(Math.max(0, meetingSpot(next.x, friendX, w, tieLeft)), Math.max(0, room));
     if (target !== next.x) return { ...next, activity: 'walk', motion: 'walk', tick: 0, target, dir: target > next.x ? 1 : -1 };
   }
   if (together && next.activity === 'idle') {
@@ -155,4 +161,154 @@ export function friendAnswer(speakerId: string, random: () => number): SpeechLin
 /** Whether a line is a cheerful line said to a friend, which the friend answers (an answer is not answered again). */
 export function wantsAnswer(line: SpeechLine): boolean {
   return line.id.startsWith(SAID);
+}
+
+/*
+ * A kiss now and then (Luke, 2026-11-22: "Make it so that moldsvius figtree and Sweden's characters kiss sometimes with
+ * hearts and cutely"). Two friends who have been standing together a while step in until they all but touch, face each
+ * other, both lean in on their own baked frame (sheared toward the other, feet kept where they stand: the smear rules,
+ * nothing drawn), peck, lean back out, and the one on the left hops while the other cheers. Text hearts (♥) rise from
+ * between them while they lean (`NoteTrail.tsx`). Rare on purpose, so it stays special.
+ *
+ * **When is worked out from the clock, never sent.** Time is cut into slots of `KISS_SLOT_MS`; each slot has one moment
+ * in its first `KISS_WINDOW_MS`, the same for both friends (a number from the pair and the slot). At a moment, two friends
+ * together for `KISS_TOGETHER_MS` kiss if it is their first since they met (and `KISS_FIRST_GAP_MS` since the last), or
+ * on a coin from the same number once `KISS_GAP_MS` has passed. On a stream room's strip each friend's own browser runs
+ * this for its own companion, so both lean in the same second without a word between them; and one that heard its
+ * friend's companion start a kiss it did not (busy a moment, or counting their time together a second differently)
+ * joins in on that same moment. In a ROOM the room runs it for both.
+ * Everything after the moment is timed from it (`kissPhase`): `KISS_GO_MS` to get there, then the lean a tick at a time.
+ */
+
+/** The slots time is cut into, and the stretch at the start of each that its moment falls in, in ms. */
+export const KISS_SLOT_MS = 45_000;
+export const KISS_WINDOW_MS = 15_000;
+/** How long two friends stand together before they may kiss, in ms. */
+export const KISS_TOGETHER_MS = 20_000;
+/** The least time between two kisses, and between the last kiss and a first one after meeting again, in ms. */
+export const KISS_GAP_MS = 120_000;
+export const KISS_FIRST_GAP_MS = 60_000;
+/**
+ * A moment is due only this soon after it, in ms: a clock looked at again after a long gap (the companion away in a
+ * ROOM, the tab in the background) lets the kisses it missed go, rather than playing one that is already over.
+ */
+export const KISS_LATE_MS = 1_500;
+/** The time to step in close and face each other before the lean, in ms (enough to close `KISS_NEAR_WIDTHS` at a walk). */
+export const KISS_GO_MS = 3_000;
+/**
+ * Closer than this many figure-widths apart, two friends count as together for a kiss: looser than hanging out's
+ * `FRIEND_NEAR_WIDTHS`, so a friend wandering half a step off does not start their time together again.
+ */
+export const KISS_NEAR_WIDTHS = 2.2;
+/** Whether two figures `w` wide are close enough to count their time together for a kiss. */
+export function nearForKiss(x: number, friendX: number, w: number): boolean {
+  return Math.abs(x - friendX) <= w * KISS_NEAR_WIDTHS;
+}
+/** One step of the lean, in ms (the walkers' own ten a second). */
+export const KISS_TICK_MS = 100;
+/**
+ * The lean, a step at a time: how far the top of the figure is pushed toward its friend, as a share of its height (its
+ * feet stay put). In, a held lean, the peck (a step further for two steps), held again, and back out.
+ */
+export const KISS_LEAN: readonly number[] = [0.06, 0.12, 0.18, 0.18, 0.18, 0.24, 0.24, 0.18, 0.18, 0.18, 0.18, 0.12, 0.06];
+/** The whole kiss, from its moment to the hop and cheer after it, in ms. */
+export const KISS_MS = KISS_GO_MS + KISS_LEAN.length * KISS_TICK_MS;
+/** How much of a figure's box overlaps its friend's when they stand to kiss: the boxes are wider than the figures. */
+export const KISS_OVERLAP = 0.4;
+
+/** The pair's own key, the same whichever of the two asks. */
+export function pairKeyOf(a: string, b: string): string {
+  return a < b ? `${a}:${b}` : `${b}:${a}`;
+}
+
+/** A slot's moment for a pair, in ms since 1970: somewhere in the first `KISS_WINDOW_MS` of it, the same for both. */
+export function kissMoment(pair: string, slot: number): number {
+  return slot * KISS_SLOT_MS + (seedOf(`${pair}:${slot}`) % KISS_WINDOW_MS);
+}
+
+/** When two friends started standing together, carried a step on: kept while they are near, forgotten when apart. */
+export function togetherSince(since: number | null, near: boolean, now: number): number | null {
+  return near ? (since ?? now) : null;
+}
+
+/**
+ * Whether a pair kisses between `from` (not included) and `to`: the moment if so, else null. `since` is when they
+ * started standing together (null: apart), `last` when they last kissed (null: never on this screen).
+ */
+export function kissDue(pair: string, from: number, to: number, since: number | null, last: number | null): number | null {
+  if (since === null || to <= from) return null;
+  for (let slot = Math.floor(from / KISS_SLOT_MS); slot <= Math.floor(to / KISS_SLOT_MS); slot += 1) {
+    const moment = kissMoment(pair, slot);
+    if (moment <= from || moment > to || to - moment > KISS_LATE_MS || moment - since < KISS_TOGETHER_MS) continue;
+    const first = last === null || last < since;
+    if (first && (last === null || moment - last >= KISS_FIRST_GAP_MS)) return moment;
+    // After the first, a coin from the pair and the slot: both friends' browsers toss the same one.
+    if (!first && moment - last >= KISS_GAP_MS && (seedOf(`${pair}:${slot}:coin`) & 1) === 0) return moment;
+  }
+  return null;
+}
+
+/** Where a kiss is up to, `elapsed` ms after its moment: stepping in, leaning (how far), or over (null). */
+export type KissPhase = { stage: 'go' } | { stage: 'lean'; lean: number } | null;
+export function kissPhase(elapsed: number): KissPhase {
+  if (elapsed < 0 || elapsed >= KISS_MS) return null;
+  if (elapsed < KISS_GO_MS) return { stage: 'go' };
+  return { stage: 'lean', lean: KISS_LEAN[Math.min(KISS_LEAN.length - 1, Math.floor((elapsed - KISS_GO_MS) / KISS_TICK_MS))] };
+}
+
+/**
+ * Which side of its friend it is on: -1 the left, 1 the right. Two standing on the very same spot settle it by `tieLeft`
+ * (the pair's ids, so the two of them never both take the same side): one tie-break, everywhere.
+ */
+export function sideOf(x: number, friendX: number, tieLeft: boolean): 1 | -1 {
+  if (x !== friendX) return x < friendX ? -1 : 1;
+  return tieLeft ? -1 : 1;
+}
+
+/** Whether, on a tie, `me` takes the left side of `friend`: the smaller id does. */
+export function tiesLeft(me: string | null | undefined, friend: string | null | undefined): boolean {
+  return (me ?? '') < (friend ?? '');
+}
+
+/** Where to stand to kiss a friend: halfway between the two, on its own side, the boxes overlapping by `KISS_OVERLAP`. */
+export function kissSpot(x: number, friendX: number, w: number, tieLeft = true): number {
+  const mid = (x + friendX) / 2;
+  return Math.round(mid + (sideOf(x, friendX, tieLeft) * (w * (1 - KISS_OVERLAP))) / 2);
+}
+
+/**
+ * A profile ROOM's walker during a kiss, a tick at a time: stepping in to `kissSpot` (`step` px a tick), then standing
+ * facing its friend in its idle frame, still through the lean (the lean itself is drawn by its owner, `leanShear`).
+ * `room` is how far its left edge may go.
+ */
+export function kissWalk(
+  current: WalkerState,
+  phase: NonNullable<KissPhase>,
+  input: { friendX: number; w: number; room: number; step: number; tieLeft: boolean },
+): WalkerState {
+  const { friendX, w, room, step, tieLeft } = input;
+  const toward: 1 | -1 = sideOf(current.x, friendX, tieLeft) === -1 ? 1 : -1;
+  const target = Math.min(Math.max(0, kissSpot(current.x, friendX, w, tieLeft)), Math.max(0, room));
+  if (phase.stage === 'go' && Math.abs(target - current.x) >= 1) {
+    const dir: 1 | -1 = target > current.x ? 1 : -1;
+    const x = current.x + dir * Math.min(step, Math.abs(target - current.x));
+    return { ...current, activity: 'walk', motion: 'walk', tick: current.motion === 'walk' ? current.tick + 1 : 0, x, target, dir };
+  }
+  const tick = phase.stage === 'go' && current.motion === 'idle' ? current.tick + 1 : 0;
+  return { ...current, activity: 'idle', motion: 'idle', tick, left: Math.max(current.left, 30), target: current.x, dir: toward };
+}
+
+/** What it does once the kiss is over: the one on the left (its friend on its right) hops, the other cheers. */
+export function kissAfter(toward: 1 | -1): MotionId {
+  return toward === 1 ? 'hop' : 'cheer';
+}
+
+/**
+ * The lean as a plain 2D shear of its own frame (a CSS `matrix(1, 0, c, 1, dx, 0)` about the middle of its box): the top
+ * goes `lean` of its height toward its friend and the feet stay where they are. Whole steps, hard pixels, nothing drawn.
+ */
+export function leanShear(lean: number, toward: 1 | -1, h: number): { c: number; dx: number } {
+  if (lean === 0) return { c: 0, dx: 0 };
+  const c = Math.round(-toward * lean * 1000) / 1000;
+  return { c, dx: Math.round((-c * h) / 2) };
 }
