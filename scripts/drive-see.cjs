@@ -1125,6 +1125,13 @@ async function lenses(browser) {
   ok(!page.url().includes('media='), 'a thing sent by the extension waits in the tray');
   await page.getByRole('button', { name: /^\[ MEDIA \d \]$/ }).click();
 
+  await tool('[ ERASE ]').click();
+  await go(page, 'https://example.com/');
+  await say(page, 'SOURCE REFUSED');
+  await page.getByRole('button', { name: '[ SEE AN OLD COPY ]' }).waitFor();
+  await go(page, 'see:test');
+  await say(page, 'DOCUMENT RECONSTRUCTED');
+  ok((await tool('[ ERASE ]').getAttribute('aria-pressed')) === 'false', 'ERASE, on when a page was refused, is off on the next (its key was put away)');
   await go(page, 'https://example.com/');
   await say(page, 'SOURCE REFUSED');
   await page.getByRole('button', { name: '[ SEE AN OLD COPY ]' }).waitFor();
