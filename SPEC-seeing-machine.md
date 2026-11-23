@@ -92,6 +92,7 @@ Each can be changed later by saying so.
 26. **Keys: / the box, Alt+N, Alt+W, Alt+1 to 8**; never Ctrl+T, Ctrl+W, Ctrl+L or Alt+D, which the browser keeps.
 27. **A refusal fills the page**: its reason as a title, what it means in a line, and only the keys that may help (TRY AGAIN, OLD COPY, OWN EYE, ITS OWN SITE). A guard's refusal offers nothing.
 28. **The tool row is three groups split by a hairline**: yours (HISTORY, KEPT), this page (KEEP to SCRIPTS OFF), out of the machine (SHOW MY ROOM, OPEN SOURCE, OWN EYE).
+29. **An address typed in the site search (Ctrl+K) gets [ SEE IT IN BROWSER ]**, for whoever has BROWSER on the bar; the press opens it at once, as [ SEE ] does.
 
 ## Risks, said once
 1. **SERVER is beside everything.** The torrent page (no password at home), Jellyfin, the database and its dashboard, the
