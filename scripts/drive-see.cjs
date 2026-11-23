@@ -214,7 +214,9 @@ async function shell(browser) {
   // The site's search (Ctrl+K), in a browser of its own with BROWSER on the bar: an address typed there is a key that opens it here at
   // once (the press is the reader's); words are not an address.
   const modules = await page.evaluate(() => localStorage.getItem('debaser-modules-v2'));
-  const fresh = await open(browser, { as: ANN, storage: { 'debaser-modules-v2': modules } });
+  // A reader who has been here before: tabs kept, a page in front.
+  const kept = { front: 't2', tabs: [{ id: 't1', stops: [{ address: 'see:test', title: 'THE TEST PAGE' }], at: 0, lens: 'standard' }, { id: 't2', stops: [{ address: 'see:test', title: 'THE TEST PAGE' }], at: 0, lens: 'standard' }] };
+  const fresh = await open(browser, { as: ANN, storage: { 'debaser-modules-v2': modules, [`debaser-seeing-tabs-v1:${ANN.id}`]: JSON.stringify(kept) } });
   await fresh.page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded' });
   await fresh.page.waitForTimeout(1500);
   await fresh.page.keyboard.press('Control+KeyK');
@@ -226,7 +228,7 @@ async function shell(browser) {
   await fresh.page.locator('[data-see-line] a').click();
   await fresh.page.waitForURL(/\/browser/);
   await say(fresh.page, 'SOURCE REFUSED');
-  ok((await box(fresh.page).inputValue()) === 'https://example.org/fog', 'an address in the site search opens in BROWSER at once, on the press');
+  ok((await box(fresh.page).inputValue()) === 'https://example.org/fog' && (await tabs(fresh.page).count()) === 3, 'an address in the site search opens in BROWSER at once, on the press, in front of the tabs kept (one new tab, not two)');
   await fresh.context.close();
 
   // Another account in the same browser.

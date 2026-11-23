@@ -229,6 +229,9 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
       if (inFront?.address === brought) return;
       const id = freshId();
       changeTabs((all) => {
+        // A tab that has it already (the press that brought it opened it a moment ago): that one, in front, and nothing new.
+        const already = all.tabs.find((each) => stopOf(each)?.address === brought || each.draft === brought);
+        if (already !== undefined) return showTab(all, already.id);
         const room = inFront === null ? all : addTab(all, id);
         return withDraft(room, room.front, brought);
       });
@@ -246,8 +249,11 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
   // reads what was there on arrival.
   const href = browserHref(address);
   useEffect(() => {
-    if (window.location.pathname === '/browser' && window.location.pathname + window.location.hash !== href) {
-      window.history.replaceState(window.history.state, '', href);
+    // From the tabs as they are now, not as this drawing saw them: a press taken just before (above) has moved them on, and an
+    // old address written here would come back as a link that brought it.
+    const now = browserHref(stopOf(frontTab(seeingTabs().state))?.address ?? null);
+    if (window.location.pathname === '/browser' && window.location.pathname + window.location.hash !== now) {
+      window.history.replaceState(window.history.state, '', now);
     }
   }, [href, tab.id, tab.draft]);
 

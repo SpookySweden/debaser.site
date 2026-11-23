@@ -10,6 +10,6 @@ One line each, the most useful first. Struck through when done, with its commit.
 - Safety round, 2026-11-23: the attack list's 60 guards read through; no gap found by reading. Next safety round: the hostile page.
 - ~~The site search (Ctrl+K) had no way to see a typed address: [ SEE IT IN BROWSER ] (SeeLine), for whoever has BROWSER on the bar.~~
 - ~~SEEN TOGETHER on a local server wrote to its channel after closing it (an effect run twice): fixed in together-store.ts.~~
-- In drive-see shell, after the earlier steps, a [ SEE ] press landing on /browser did not open (6 tabs, a draft in front); in a clean browser it does. Worth a closer look: a press with a draft in the front tab.
+- ~~A [ SEE ] press from anywhere on the site, for a reader with tabs kept, opened the page and then put the old page back in front in an extra tab: the address after the # was written from a stale drawing and read back as a link. Fixed; the drive holds it.~~
 - ~~At 390 the address box was a sliver and GO/ALL broke over two lines; the second hairline dangled on built-in pages. The bar now wraps, the box first.~~
 - At 390 the page itself gets little height under five rows of keys (phones get the desktop zoomed out today, so low).
