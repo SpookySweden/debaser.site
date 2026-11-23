@@ -7,7 +7,7 @@
  * - signed out: the sign-in call and nothing of the machine; signed in, before its tabs are read: neither
  * - tabs: a tablist, one tab in front, a named close key each, the new-tab key quiet at eight
  * - the toolbar's keys are named, and quiet when there is nowhere to go; the address box is named
- * - a lens that isn't built has a quiet key that says so; READER's settings are there only while it is the lens
+ * - each lens's settings are there only while it is the lens; the dial is for a page outside; X-RAY prints a page's words as words
  * - WATCHERS prints what a page says as words, never as markup, and marks what was refused
  */
 const assert = require('node:assert/strict');
@@ -58,10 +58,21 @@ assert.ok(!/disabled=""/.test(key(bar({}), 'Reload')));
 assert.ok(!/disabled=""/.test(key(bar({ canBack: true }), 'Back')) && !/disabled=""/.test(key(bar({ busy: true }), 'Stop')));
 assert.match(bar({}), /<input[^>]*aria-label="Address"[^>]*/);
 
-const lenses = (lens) => html(el(at('SeeingLenses'), { lens, look: { paper: 'theme', size: 2 }, onLook: none, onLens: none, children: null }));
-assert.equal((lenses('standard').match(/title="Not built yet"/g) ?? []).length, 3);
+const L = require(path.join(OUT, 'lib/seeing/lenses/lens.js'));
+const lenses = (lens, settings = L.SETTINGS_AT_FIRST) => html(el(at('SeeingLenses'), { lens, settings, onSettings: none, onLens: none }));
+// (Phase 3, 2026-11-23: every lens is built, so no key says it isn't.)
+assert.equal((lenses('standard').match(/title="Not built yet"/g) ?? []).length, 0);
 assert.ok(!lenses('standard').includes('SEPIA') && lenses('reader').includes('SEPIA'));
-assert.match(html(el(at('SeeingLenses'), { lens: 'reader', look: { paper: 'theme', size: 1 }, onLook: none, onLens: none, children: null })), /aria-label="Smaller words"[^>]*disabled=""/);
+assert.match(lenses('reader', { ...L.SETTINGS_AT_FIRST, reader: { paper: 'theme', size: 1 } }), /aria-label="Smaller words"[^>]*disabled=""/);
+assert.ok(lenses('lowfi').includes('TERMINAL') && lenses('custom').includes('COPY RECIPE') && !lenses('custom').includes('placeholder="SEE:'));
+
+const tools = (props) => html(el(at('SeeingTools'), { address: 'https://example.com/', seam: null, loupe: null, erasing: false, erased: 0, good: false, onSeam: none, onLoupe: none, onErasing: none, onBringBack: none, onScan: none, onGood: none, onGo: none, children: null, ...props }));
+assert.ok(/aria-label="Year"/.test(tools({})) && !/aria-label="Year"/.test(tools({ address: 'see:test' })) && !/BRING BACK/.test(tools({})) && /BRING BACK 3/.test(tools({ erased: 3 })));
+assert.match(tools({ address: null }), /<button[^>]*disabled=""[^>]*>\[ SEAM \]/);
+
+const beside = html(el(at('SeeingXray'), { point: { path: ['<b>', 'p.x'], kind: 'WORDS', size: '1 x 2', ink: 'x', ground: 'y', face: 'z', words: '<img src=x>', inside: 2 }, census: { counts: { words: 1, pictures: 2, links: 3, frames: 4, scripts: 5, forms: 6 }, rows: [{ depth: 1, name: '<script>', inside: 0 }] } }));
+assert.ok(beside.includes('&lt;b&gt;') && beside.includes('&lt;img') && beside.includes('&lt;script&gt;') && !/<script|<img/.test(beside), "a page's own words are drawn as words");
+assert.match(html(el(at('SeeingXray'), { point: null, census: null })), /NOTHING\./);
 
 const page = { address: 'see:test', title: 'x', eye: 'BUILT IN', html: '', reading: null, watchers: [{ company: '<i>Ads</i>', host: 'ads.example', refused: true }, { company: 'Fonts', host: 'fonts.example', refused: false }], files: 0, refused: 0, status: null, signIn: false, refresh: null, assets: null, scripts: false };
 const watchers = html(el(at('SeeingWatchers'), { document: page }));

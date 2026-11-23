@@ -4,7 +4,7 @@ Luke, 2026-11-23, from his master text ("THE DEBASER SEEING MACHINE") and the in
 this prompt and all your ideas an creative context on implementing the idea to the site, account for themes, browser to be a
 new module").
 
-Status: **building (2026-11-23). Phase 1 is live (86d8eda); Phase 2 is built, for Luke's account only.** What was built and what works: `docs/seeing-machine.md`. The audit behind this
+Status: **building (2026-11-23). Phases 1 to 3 are built; the server's eye is for Luke's account only.** What was built and what works: `docs/seeing-machine.md`. The audit behind this
 is `seeing-machine-audit.md` in the sessions' notes folder; the parts that matter are repeated here.
 
 Words used here: an **eye** is a way of getting a page (the site's server fetches it, or the reader's own browser does). A
@@ -71,7 +71,10 @@ Each can be changed later by saying so.
 10. **Files come from debaser.site until `see.debaser.site` exists**, each with a policy that takes every right away.
 11. **OWN EYE opens in the extension's own page**, with the side panel on an ordinary tab beside it: the trial (2b) showed a frame in
     debaser.site is always signed out, and the extension's own page is not. Table: `docs/seeing-machine.md`.
-12. **Nineteen themes**, not the eighteen written below: MARMALADE has six.
+12. **SCAN uses wiby.me's random page**, a public list of the small, old web; GOOD keeps a page on the list in a new tab.
+13. **LOUPE starts at 2×**, and SEAM with READER on the right; both are a second drawing of the page, so its scripts run twice.
+14. **LOW-FI's and DYE's pictures are dithered in the browser**, from the files already fetched. Faces go the colours of your theme.
+15. **Nineteen themes**, not the eighteen written below: MARMALADE has six.
 
 ## Risks, said once
 1. **SERVER is beside everything.** The torrent page (no password at home), Jellyfin, the database and its dashboard, the

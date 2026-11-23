@@ -51,6 +51,8 @@ export function backgroundCovered(): boolean {
   // page this is. (It used to rest here as if the filled window were still over it.)
   if (siteWindowAway()) return false;
   if (!window.matchMedia('(min-width: 768px)').matches) return false;
+  // BROWSER's GLASS lens (SPEC-seeing-machine.md xv) looks through the window at it.
+  if ((document.documentElement.getAttribute('data-see-glass') ?? null) !== null) return false;
   return document.documentElement.getAttribute('data-site-fill') === 'on' || document.querySelector('[data-page-fill]') !== null;
 }
 

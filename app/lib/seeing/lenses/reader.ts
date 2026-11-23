@@ -18,7 +18,7 @@ export const reader: Lens = {
   id: 'reader',
   form: 'reading',
   beside: null,
-  css({ tokens, scheme, face, reader: look }) {
+  css({ tokens, scheme, face, settings: { reader: look } }) {
     const { paper, ink, link, quiet } = readerColours(tokens, look.paper);
     const shade = look.paper === 'theme' ? scheme : look.paper === 'dark' ? 'dark' : 'light';
     return [

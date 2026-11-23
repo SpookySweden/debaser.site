@@ -60,12 +60,32 @@ export function framePolicy({ nonce, assets, scripts }: Pick<FrameAsk, 'nonce' |
 export const OUTER_POLICY = "frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; worker-src 'none'; connect-src 'none'";
 
 /** From the site to the frame. */
-export type FrameDress = { see: 'dress'; css: string };
+export type FrameTools = {
+  /** THEME DYE: every colour on the page moved to the nearest of these. */
+  dye?: { dyes: string[]; paper: string };
+  /** Pictures dithered to these, no larger than `most` each way. */
+  pictures?: { dyes: string[]; most: number };
+  /** GLASS: words on strips of their own. */
+  strips?: true;
+  /** X-RAY: what is pointed at is told. */
+  xray?: true;
+  erase?: true;
+  /** Where the pointer is, and how far down the page is, are told: for the LOUPE and the SEAM. */
+  pointer?: true;
+  scroll?: true;
+};
+export type FrameDress = { see: 'dress'; css: string; tools: FrameTools };
+export type FrameScroll = { see: 'scrollTo'; x: number; y: number; whole: number };
 export type FrameArt = { see: 'art'; pieces: { src: string; title: string }[] };
 export type FrameAnswer =
   | { see: 'answer'; id: number; ok: true; addresses: (string | null)[] }
   | { see: 'answer'; id: number; ok: true; status: number; type: string; url: string; body: ArrayBuffer }
   | { see: 'answer'; id: number; ok: false };
+
+/** What X-RAY is pointing at. Words from a page: drawn as words. */
+export type Pointed = { path: string[]; kind: string; size: string; ink: string; ground: string; face: string; words: string; inside: number };
+/** What a page is made of. */
+export type Census = { counts: Record<'words' | 'pictures' | 'links' | 'frames' | 'scripts' | 'forms', number>; rows: { depth: number; name: string; inside: number }[] };
 
 /** From the frame. */
 export type FrameMessage =
@@ -74,6 +94,11 @@ export type FrameMessage =
   | { see: 'form' }
   | { see: 'art'; index: number }
   | { see: 'restricted'; count: number }
+  | { see: 'point'; point: Pointed }
+  | { see: 'census'; census: Census }
+  | { see: 'erase'; selector: string }
+  | { see: 'pointer'; x: number; y: number }
+  | { see: 'scroll'; x: number; y: number; whole: number }
   | { see: 'ask'; id: number; address: string }
   | { see: 'seal'; id: number; files: { address: string; kind: string }[] };
 
@@ -82,10 +107,42 @@ const FILES_MOST = 50;
 const isAddress = (value: unknown): value is string => typeof value === 'string' && value.length > 0 && value.length <= ADDRESS_MOST;
 const isCount = (value: unknown): value is number => typeof value === 'number' && Number.isInteger(value) && value >= 0 && value < 1_000_000;
 
+const isPlace = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && Math.abs(value) < 10_000_000;
+const words = (value: unknown, most: number): string => (typeof value === 'string' ? value.slice(0, most) : '');
+
+/** A selector of the one shape our script makes (`#id`, `div:nth-of-type(3)`, joined by ` > `): it is put back into a stylesheet. */
+export function isSelector(text: string): boolean {
+  return text.length <= 500 && /^(?:#[A-Za-z][\w-]{0,60}|[a-z][a-z0-9-]{0,40}:nth-of-type\(\d{1,5}\))(?: > [a-z][a-z0-9-]{0,40}:nth-of-type\(\d{1,5}\)){0,8}$/.test(text);
+}
+
+function readPoint(data: Record<string, unknown>): FrameMessage | null {
+  if (!Array.isArray(data.path) || data.path.length > 12) return null;
+  return {
+    see: 'point',
+    point: { path: data.path.map((each: unknown) => words(each, 60)), kind: words(data.kind, 12), size: words(data.size, 30), ink: words(data.ink, 40), ground: words(data.ground, 40), face: words(data.face, 120), words: words(data.words, 160), inside: isCount(data.inside) ? data.inside : 0 },
+  };
+}
+
+function readCensus(data: Record<string, unknown>): FrameMessage | null {
+  const counts = (typeof data.counts === 'object' && data.counts !== null ? data.counts : {}) as Record<string, unknown>;
+  const rows = Array.isArray(data.rows) ? data.rows.slice(0, 160) : [];
+  const number = (value: unknown) => (isCount(value) ? value : 0);
+  return {
+    see: 'census',
+    census: {
+      counts: { words: number(counts.words), pictures: number(counts.pictures), links: number(counts.links), frames: number(counts.frames), scripts: number(counts.scripts), forms: number(counts.forms) },
+      rows: rows.map((row: unknown) => {
+        const { depth, name, inside } = (typeof row === 'object' && row !== null ? row : {}) as Record<string, unknown>;
+        return { depth: Math.min(number(depth), 6), name: words(name, 60), inside: number(inside) };
+      }),
+    },
+  };
+}
+
 /** A message read as if a stranger sent it. Where it came from (the inner frame's own window) is the caller's to check first. */
 export function readFrameMessage(data: unknown): FrameMessage | null {
   if (typeof data !== 'object' || data === null) return null;
-  const { see, address, newTab, ads, index, count, id, files } = data as Record<string, unknown>;
+  const { see, address, newTab, ads, index, count, id, files, selector, x, y, whole } = data as Record<string, unknown>;
   switch (see) {
     case 'ready':
       return { see, ads: ads === true };
@@ -97,6 +154,16 @@ export function readFrameMessage(data: unknown): FrameMessage | null {
       return isCount(index) && index < 100 ? { see, index } : null;
     case 'restricted':
       return isCount(count) ? { see, count } : null;
+    case 'point':
+      return readPoint(data as Record<string, unknown>);
+    case 'census':
+      return readCensus(data as Record<string, unknown>);
+    case 'erase':
+      return typeof selector === 'string' && isSelector(selector) ? { see, selector } : null;
+    case 'pointer':
+      return isPlace(x) && isPlace(y) ? { see, x, y } : null;
+    case 'scroll':
+      return isPlace(x) && isPlace(y) && isPlace(whole) ? { see, x, y, whole } : null;
     case 'ask':
       return isCount(id) && isAddress(address) ? { see, id, address } : null;
     case 'seal': {

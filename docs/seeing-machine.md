@@ -70,6 +70,14 @@ signed, `location` is pointed at a stand-in (the frame's own address can be neit
 | Aozora (Shift_JIS) | whole | yes | |
 | accounts.google.com | refused, always | | D1 |
 
+## Lenses and tools (Phase 3)
+One file each in `lenses/`; a lens is a stylesheet (`css`), what it needs done to the page (`tools`, acted on by `hook.ts`, each undone when the
+next dressing doesn't ask for it), and a panel. X-RAY, LOW-FI (five palettes), DYE (colours to the theme's dyes, 4.5:1 kept, pictures dithered on a
+canvas), GLASS (`html[data-see-glass]` clears the site window; the backgrounds run while it is on), CUSTOM (ten blocks, shared as `SEE:words+mono`).
+SEAM and LOUPE are a second drawing of the page, clipped. ERASE keeps selectors of one shape (`isSelector`) per site; SITE MEMORY keeps a lens per
+site (`memory.ts`, this browser only until Phase 5). TIME DIAL: the Internet Archive's copy nearest a year. SCAN: wiby.me's own random page.
+Proof: `drive-see.cjs --only lenses` (DYE and GLASS measured on every theme, 5.51:1 or better).
+
 ## The extension's trial (2b, 2026-11-23, `scripts/see-extension-trial.cjs`, Edge 158)
 A throwaway extension, pretend sites for the cookies, and the real list signed out (nobody was signed in to anything).
 

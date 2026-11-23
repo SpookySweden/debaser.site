@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
 import type { SeenDocument } from '../../lib/seeing/engine';
-import { FRAME_SANDBOX, frameDocument, readFrameMessage, type FrameAnswer, type FrameArt, type FrameDress } from '../../lib/seeing/frame';
-import type { Lens, ReaderLook } from '../../lib/seeing/lenses/lens';
+import { FRAME_SANDBOX, frameDocument, readFrameMessage, type FrameAnswer, type FrameArt, type FrameDress, type FrameMessage, type FrameScroll, type FrameTools } from '../../lib/seeing/frame';
+import type { Lens, LensSettings } from '../../lib/seeing/lenses/lens';
 import { reach, sealFiles } from '../../lib/seeing/server-engine';
 import { billboards, openBillboard } from '../../lib/seeing/billboards';
 import { subscribeToTheme, themeState } from '../../lib/ui/theme-slot';
@@ -12,12 +12,22 @@ import { themeById } from '../../lib/ui/themes';
 type Props = {
   document: SeenDocument;
   lens: Lens;
-  look: ReaderLook;
+  settings: LensSettings;
+  /** What is asked of the page besides what its lens asks: ERASE, the SEAM and the LOUPE. */
+  tools: FrameTools;
+  /** Taken out of this site by the reader, as selectors of our own shape. */
+  erased: readonly string[];
+  /** How another drawing of the same page is kept where this one is. */
+  scrollerRef?: RefObject<((to: FrameScroll) => void) | null>;
+  /** What X-RAY, ERASE, the SEAM and the LOUPE are told. */
+  onTold?: (message: Told) => void;
   onOpen: (address: string, newTab: boolean) => void;
   /** Something the page tried that isn't done here, for the status line. */
   onNotice: (words: string) => void;
   onRestricted: (count: number) => void;
 };
+
+export type Told = Extract<FrameMessage, { see: 'point' | 'census' | 'erase' | 'pointer' | 'scroll' }>;
 
 /**
  * Pages opened from the frame in a little while: a few by themselves, more when the reader is pressing things (a press counts for some
@@ -48,7 +58,7 @@ function justPressed(frame: HTMLIFrameElement | null): boolean {
  * The frame a page is drawn in (`app/lib/seeing/frame.ts` says what it may do). Drawn anew for each page and each form of it; a change of
  * lens, theme or reader's settings only sends a new stylesheet in, so the page stays where it was scrolled to.
  */
-export default function SeeingViewport({ document: page, lens, look, onOpen, onNotice, onRestricted }: Props) {
+export default function SeeingViewport({ document: page, lens, settings, tools, erased, scrollerRef, onTold, onOpen, onNotice, onRestricted }: Props) {
   const frame = useRef<HTMLIFrameElement>(null);
   // Made once for this drawing of the page (the caller gives each its own key), so nothing that changes later reloads it.
   const [source] = useState(() => {
@@ -65,10 +75,10 @@ export default function SeeingViewport({ document: page, lens, look, onOpen, onN
   });
   const [ready, setReady] = useState(false);
   // What the page in front says is heard by one listener for as long as it is drawn: what it calls may change, what it asked for must not stop.
-  const calls = useRef({ onOpen, onNotice, onRestricted });
+  const calls = useRef({ onOpen, onNotice, onRestricted, onTold });
   useEffect(() => {
-    calls.current = { onOpen, onNotice, onRestricted };
-  }, [onOpen, onNotice, onRestricted]);
+    calls.current = { onOpen, onNotice, onRestricted, onTold };
+  }, [onOpen, onNotice, onRestricted, onTold]);
   const theme = themeById(useSyncExternalStore(subscribeToTheme, themeState, themeState).id);
 
   useEffect(() => {
@@ -104,6 +114,16 @@ export default function SeeingViewport({ document: page, lens, look, onOpen, onN
           else calls.current.onOpen(message.address, message.newTab);
           return;
         }
+        case 'erase':
+          // Only as the reader's own press: a page can say it, and what is erased is kept.
+          if (justPressed(frame.current)) calls.current.onTold?.(message);
+          return;
+        case 'point':
+        case 'census':
+        case 'pointer':
+        case 'scroll':
+          calls.current.onTold?.(message);
+          return;
         case 'form':
           calls.current.onNotice('FORMS THAT SEND ARE NOT SENT FROM HERE: OPEN THE SOURCE');
           return;
@@ -159,13 +179,30 @@ export default function SeeingViewport({ document: page, lens, look, onOpen, onN
   useEffect(() => {
     if (!ready) return;
     const face = window.getComputedStyle(window.document.body).fontFamily;
-    const dress: FrameDress = { see: 'dress', css: lens.css({ tokens: theme.tokens, scheme: theme.scheme, face, reader: look }) };
+    const look = { tokens: theme.tokens, scheme: theme.scheme, face, settings };
+    const gone = erased.length === 0 ? '' : `\n${erased.join(',\n')}{display:none!important}`;
+    const pointed = tools.erase ? `\n[data-see-pointed]{outline:3px solid ${theme.tokens['bubble-pale']}!important;outline-offset:-3px!important;cursor:crosshair!important}` : '';
+    const dress: FrameDress = { see: 'dress', css: `${lens.css(look)}${gone}${pointed}`, tools: { ...lens.tools?.(look), ...tools } };
     try {
       frame.current?.contentWindow?.frames[0]?.postMessage(dress, '*');
     } catch {
       // The frame went as it was being dressed.
     }
-  }, [ready, lens, theme, look]);
+  }, [ready, lens, theme, settings, tools, erased]);
+
+  useEffect(() => {
+    if (scrollerRef === undefined) return;
+    scrollerRef.current = (to) => {
+      try {
+        frame.current?.contentWindow?.frames[0]?.postMessage(to, '*');
+      } catch {
+        // The frame went as it was being moved.
+      }
+    };
+    return () => {
+      scrollerRef.current = null;
+    };
+  }, [scrollerRef]);
 
   if (lens.form === 'reading' && page.reading === null) return <p className="p-4 text-label text-ink">NO MAIN TEXT FOUND.</p>;
   return (
@@ -175,8 +212,9 @@ export default function SeeingViewport({ document: page, lens, look, onOpen, onN
       sandbox={FRAME_SANDBOX}
       srcDoc={source}
       referrerPolicy="no-referrer"
-      // What a page with no background of its own is drawn on, whatever the theme: STANDARD wears nothing.
-      className="min-w-0 flex-1 border-0 bg-ink-bar"
+      // What a page with no background of its own is drawn on, whatever the theme: STANDARD wears nothing. GLASS has no ground at all; a frame
+      // is see-through only while its scheme is its page's, which is light unless the page says otherwise.
+      className={`h-full w-full border-0 ${lens.clear ? 'scheme-light' : 'bg-ink-bar'}`}
       data-seeing-frame
     />
   );

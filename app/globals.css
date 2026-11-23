@@ -355,6 +355,18 @@ html[data-backdrop='tile'] .aquarium-key {
   }
 }
 
+/* GLASS (BROWSER, SPEC-seeing-machine.md xv): while a page is looked at through it the site window is clear where the page is, so the
+   background shows behind the page's own words. Everything of the machine's keeps the window's colour. */
+html[data-see-glass] [data-site-window='frame'],
+html[data-see-glass] [data-scroll-pane='page'] {
+  background: transparent;
+}
+
+html[data-see-glass] .seeing > :not([data-seeing-view]),
+html[data-see-glass] [data-scroll-pane='page'] + * {
+  background: var(--color-paper);
+}
+
 /* HIDE WINDOW (app/lib/ui/site-hidden.ts; Luke, 2026-11-16): while `<html>` carries the mark the site window is put away, so the
    background shows, from the first paint. `[ ▲ WINDOW ]` above the player (CornerShelf.tsx) brings it back. */
 html[data-site-hidden='on'] [data-site-window='frame'] {

@@ -11,7 +11,9 @@ import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { addressInHash, browserHref, readAddress } from '../../lib/seeing/address';
 import type { SeenDocument, SeeStep } from '../../lib/seeing/engine';
-import { lensOr } from '../../lib/seeing/lenses/registry';
+import { LENS_NAMES, type LensId } from '../../lib/seeing/lenses/names';
+import { bringBack, erase, erasedOn, lensRemembered, markGood, rememberLens, siteMemory, siteMemoryOnServer, subscribeToMemory } from '../../lib/seeing/memory';
+import { dialOf, dialTo } from '../../lib/seeing/time';
 import { addTab, canGoBack, canGoForward, closeTab, frontTab, showTab, step, stopOf, TABS_MOST, visit, withDraft, withAddress, withLens, withTitle, type Tabs } from '../../lib/seeing/tabs';
 import { changeTabs, freshId, letTabsGo, openTabsOf, seeingTabs, seeingTabsOnServer, subscribeToSeeingTabs } from '../../lib/seeing/tabs-store';
 import { engineFor } from '../../lib/seeing/engines';
@@ -20,11 +22,11 @@ import { TEST_ADDRESS } from '../../lib/seeing/test-engine';
 import { PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR } from '../../lib/ui/controls';
 import { useAuth } from '../AuthProvider';
 import SeeingLenses from './SeeingLenses';
+import SeeingStage, { type Loupe } from './SeeingStage';
 import SeeingTabs from './SeeingTabs';
 import SeeingToolbar from './SeeingToolbar';
-import SeeingViewport from './SeeingViewport';
-import SeeingWatchers from './SeeingWatchers';
-import { useReaderLook } from './use-reader-look';
+import SeeingTools from './SeeingTools';
+import { useLensSettings } from './use-lens-settings';
 
 /** What came of opening a page. `key` says which opening it was, so an answer to an earlier one is never drawn as this one's. */
 type Shown =
@@ -34,6 +36,9 @@ type Shown =
   | { key: string; state: 'refused'; reason: string };
 
 const NOTHING: Shown = { key: '', state: 'stopped' };
+
+/** A public list's own random page of the small, old web (idea vii). It answers with a page that sends people on, which a page may. */
+const SCAN_ADDRESS = 'https://wiby.me/surprise/';
 
 /** One line of fault words: White on Rose, as every fault is. */
 const FAULT = 'w-fit bg-bubble-pale px-1 text-label text-ink-bar';
@@ -49,7 +54,7 @@ export default function SeeingMachine() {
   }, [owner, status]);
 
   return (
-    <div className="flex h-full min-h-[24rem] flex-col px-2 pt-1" data-seeing>
+    <div className="seeing flex h-full min-h-[24rem] flex-col px-2 pt-1" data-seeing>
       <h1 className={TITLE_BAR}>THE SEEING MACHINE</h1>
       {owner !== null && held.owner === owner ? (
         <Machine key={owner} state={held.state} />
@@ -69,8 +74,12 @@ function Machine({ state }: { state: Tabs }) {
   const tab = frontTab(state);
   const stop = stopOf(tab);
   const address = stop?.address ?? null;
-  const lens = lensOr(tab.lens);
-  const { look, setLook } = useReaderLook();
+  const { settings, setSettings } = useLensSettings();
+  const memory = useSyncExternalStore(subscribeToMemory, siteMemory, siteMemoryOnServer);
+  const [seam, setSeam] = useState<LensId | null>(null);
+  const [loupe, setLoupe] = useState<Loupe | null>(null);
+  const [erasing, setErasing] = useState(false);
+  const erased = erasedOn(address);
 
   // A press of reload, or of stop, makes a new opening of the same page.
   const [turn, setTurn] = useState(0);
@@ -105,6 +114,9 @@ function Machine({ state }: { state: Tabs }) {
           const endKey = end.ok ? `${tab.id}:${tab.at}:${end.address}:${turn}` : key;
           landed.current = endKey;
           setShown({ key: endKey, state: 'shown', document: answer.document });
+          // SITE MEMORY: a site opens in the lens it was last looked at through.
+          const remembered = lensRemembered(answer.document.address);
+          if (remembered !== null) changeTabs((all) => withLens(all, tab.id, remembered));
           changeTabs((all) => withTitle(all, tab.id, address, answer.document.title));
           // Where it was sent on to, so the box says where it really is and its links are its own.
           if (answer.document.address !== address) changeTabs((all) => withAddress(all, tab.id, address, answer.document.address));
@@ -164,6 +176,13 @@ function Machine({ state }: { state: Tabs }) {
     [state],
   );
 
+  const onErase = useCallback(
+    (selector: string) => {
+      if (address !== null) erase(address, selector);
+    },
+    [address],
+  );
+
   const halt = () => {
     work.current?.abort();
     setShown({ key, state: 'stopped' });
@@ -182,7 +201,7 @@ function Machine({ state }: { state: Tabs }) {
       : now.state === 'busy'
         ? (now.at ?? 'ACQUIRING SOURCE')
         : now.state === 'shown'
-          ? `DOCUMENT RECONSTRUCTED · ${now.document.eye} · ${now.document.files} ${now.document.files === 1 ? 'FILE' : 'FILES'} · ${now.document.refused} REFUSED · LENS: ${tab.lens.toUpperCase()}${restricted.key === key && restricted.count > 0 ? ` · ${restricted.count} RESTRICTED` : ''}${now.document.status !== null && now.document.status >= 400 ? ` · HTTP ${now.document.status}` : ''}`
+          ? `DOCUMENT RECONSTRUCTED · ${now.document.eye} · ${now.document.files} ${now.document.files === 1 ? 'FILE' : 'FILES'} · ${now.document.refused} REFUSED · LENS: ${LENS_NAMES.find((each) => each.id === tab.lens)?.label ?? tab.lens}${restricted.key === key && restricted.count > 0 ? ` · ${restricted.count} RESTRICTED` : ''}${now.document.status !== null && now.document.status >= 400 ? ` · HTTP ${now.document.status}` : ''}`
           : address === null
             ? 'READY'
             : 'STOPPED');
@@ -210,7 +229,40 @@ function Machine({ state }: { state: Tabs }) {
         onStop={halt}
         onGo={go}
       />
-      <SeeingLenses lens={tab.lens} look={look} onLook={setLook} onLens={(id) => change((all) => withLens(all, tab.id, id))}>
+      <SeeingLenses
+        lens={tab.lens}
+        settings={settings}
+        onSettings={setSettings}
+        onLens={(id) => {
+          if (address !== null) rememberLens(address, id);
+          change((all) => withLens(all, tab.id, id));
+        }}
+      />
+      <SeeingTools
+        address={address}
+        seam={seam}
+        loupe={loupe}
+        erasing={erasing}
+        erased={erased.length}
+        good={address !== null && memory.good.some((each) => each.address === address)}
+        onSeam={(next) => {
+          setSeam(next);
+          setLoupe(null);
+        }}
+        onLoupe={(next) => {
+          setLoupe(next);
+          setSeam(null);
+        }}
+        onErasing={setErasing}
+        onBringBack={() => {
+          if (address !== null) bringBack(address);
+        }}
+        onScan={() => go(SCAN_ADDRESS)}
+        onGood={(good) => {
+          if (address !== null) markGood(address, stop?.title ?? address, good);
+        }}
+        onGo={go}
+      >
         {outside ? (
           <button
             type="button"
@@ -229,18 +281,32 @@ function Machine({ state }: { state: Tabs }) {
             [ OPEN SOURCE ↗ ]
           </a>
         ) : null}
-      </SeeingLenses>
+      </SeeingTools>
 
       <div className="frame mt-1 flex min-h-0 flex-1" data-seeing-view>
         {seen !== null ? (
-          <>
-            <SeeingViewport key={`${key}:${lens.form}`} document={seen} lens={lens} look={look} onOpen={go} onNotice={setNotice} onRestricted={onRestricted} />
-            {lens.beside === 'watchers' ? <SeeingWatchers document={seen} /> : null}
-          </>
+          <SeeingStage key={key} drawing={key} document={seen} lens={tab.lens} settings={settings} seam={seam} loupe={loupe} erasing={erasing} erased={erased} onErase={onErase} onOpen={go} onNotice={setNotice} onRestricted={onRestricted} />
         ) : address === null ? (
           <div className="p-4">
             <button type="button" className={PLATE_MAIN} onClick={() => go(TEST_ADDRESS)}>
               OPEN THE TEST PAGE
+            </button>
+            {memory.good.length > 0 ? (
+              <ul className="mt-3" aria-label="Good pages" data-seeing-good>
+                {memory.good.slice(0, 30).map((page) => (
+                  <li key={page.address}>
+                    <button type="button" onClick={() => go(page.address)} title={page.address} className={`${PLATE} max-w-full truncate`}>
+                      {page.title}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        ) : now.state === 'refused' && outside && dialOf(address).year === null ? (
+          <div className="p-4">
+            <button type="button" onClick={() => go(dialTo(address, new Date().getFullYear()))} className={PLATE}>
+              [ SEE AN OLD COPY ]
             </button>
           </div>
         ) : null}

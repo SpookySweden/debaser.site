@@ -6,6 +6,8 @@ export const LENS_NAMES = [
   { id: 'xray', label: 'X-RAY' },
   { id: 'lowfi', label: 'LOW-FI' },
   { id: 'dye', label: 'DYE' },
+  { id: 'glass', label: 'GLASS' },
+  { id: 'custom', label: 'CUSTOM' },
 ] as const;
 
 export type LensId = (typeof LENS_NAMES)[number]['id'];

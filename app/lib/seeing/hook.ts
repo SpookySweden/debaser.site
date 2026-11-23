@@ -26,10 +26,226 @@ export const HOOK = String.raw`(function (config) {
   window.addEventListener('message', function (event) {
     if (event.source !== site || !event.data || typeof event.data !== 'object') return;
     var data = event.data;
-    if (data.see === 'dress' && typeof data.css === 'string') { sheet.textContent = data.css; (document.head || document.documentElement).appendChild(sheet); show(); event.stopImmediatePropagation(); }
+    if (data.see === 'dress' && typeof data.css === 'string') { sheet.textContent = data.css; (document.head || document.documentElement).appendChild(sheet); use(data.tools); show(); event.stopImmediatePropagation(); }
     else if (data.see === 'answer' && waiting[data.id]) { var done = waiting[data.id]; delete waiting[data.id]; event.stopImmediatePropagation(); done(data); }
+    else if (data.see === 'scrollTo' && typeof data.y === 'number') { scrollTo_(data); event.stopImmediatePropagation(); }
     else if (data.see === 'art' && Array.isArray(data.pieces)) { hang(data.pieces); event.stopImmediatePropagation(); }
   }, true);
+
+  /* --- lens tools ---------------------------------------------------------------------------------------------------
+     What a lens needs done to the page itself, as the site asks with each dressing. Each can be undone. */
+  var tools = {}, seenBody = false;
+  function hexOf(text) { var n = parseInt(text.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; }
+  function rgbOf(text) { var n = String(text).match(/[\d.]+/g); return n && /^rgb/.test(text) ? { rgb: [Number(n[0]), Number(n[1]), Number(n[2])], alpha: n.length > 3 ? Number(n[3]) : 1 } : null; }
+  function light(c) { var v = [c[0], c[1], c[2]].map(function (x) { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); }); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; }
+  function contrast(a, b) { var x = light(a), y = light(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }
+  // Near in colour, and nearer still in how light it is, so what was dark on light stays so.
+  function far(a, b) { var l = (0.3 * (a[0] - b[0]) + 0.59 * (a[1] - b[1]) + 0.11 * (a[2] - b[2])); return 4 * l * l + (a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1]) + (a[2] - b[2]) * (a[2] - b[2]); }
+  function nearest(c, dyes) { var best = dyes[0], least = Infinity; for (var i = 0; i < dyes.length; i += 1) { var d = far(c, dyes[i]); if (d < least) { least = d; best = dyes[i]; } } return best; }
+  function reads(c, ground, dyes) {
+    var pick = nearest(c, dyes);
+    if (contrast(pick, ground) >= 4.5) return pick;
+    var best = pick, most = 0, least = Infinity;
+    dyes.forEach(function (dye) { var ratio = contrast(dye, ground), d = far(c, dye); if (ratio >= 4.5 && d < least) { least = d; best = dye; most = 99; } else if (most < 99 && ratio > most) { most = ratio; best = dye; } });
+    return best;
+  }
+  function css(c) { return 'rgb' + '(' + c[0] + ', ' + c[1] + ', ' + c[2] + ')'; }
+
+  /* THEME DYE: every colour moved to the nearest of the theme's dyes. */
+  var dyed = new Map(), bare = new Set(), dyedPictures = new Map(), dyeTimer = 0;
+  function put_(element, name, value) {
+    var was = dyed.get(element);
+    if (!was) { was = {}; dyed.set(element, was); if (!element.hasAttribute('style')) bare.add(element); }
+    if (!(name in was)) was[name] = [element.style.getPropertyValue(name), element.style.getPropertyPriority(name)];
+    element.style.setProperty(name, value, 'important');
+  }
+  function undye() {
+    dyed.forEach(function (was, element) { Object.keys(was).forEach(function (name) { if (was[name][0]) element.style.setProperty(name, was[name][0], was[name][1]); else element.style.removeProperty(name); }); if (bare.has(element) && element.getAttribute('style') === '') element.removeAttribute('style'); });
+    dyed.clear(); bare.clear();
+  }
+  function dyeAll(dyes, paper) {
+    var grounds = new Map(), list = document.body ? [document.documentElement, document.body].concat(Array.prototype.slice.call(document.body.querySelectorAll('*'), 0, 12000)) : [];
+    var plan = list.map(function (element) { var look = getComputedStyle(element); return { element: element, ground: rgbOf(look.backgroundColor), image: look.backgroundImage, ink: rgbOf(look.color), border: rgbOf(look.borderTopColor), bordered: parseFloat(look.borderTopWidth) > 0 || parseFloat(look.borderBottomWidth) > 0, fill: element instanceof SVGElement ? rgbOf(look.fill) : null, stroke: element instanceof SVGElement ? rgbOf(look.stroke) : null }; });
+    plan.forEach(function (one) {
+      var above = one.element.parentElement ? grounds.get(one.element.parentElement) : null, ground = above || paper;
+      if (one.ground && one.ground.alpha > 0.4) { ground = nearest(one.ground.rgb, dyes); put_(one.element, 'background-color', css(ground)); }
+      else if (one.ground && one.ground.alpha > 0) put_(one.element, 'background-color', 'transparent');
+      else if (one.element === document.documentElement) put_(one.element, 'background-color', css(paper));
+      if (/gradient/.test(one.image)) put_(one.element, 'background-image', 'none');
+      grounds.set(one.element, ground);
+      if (one.ink) put_(one.element, 'color', css(reads(one.ink.rgb, ground, dyes)));
+      if (one.border && one.bordered) put_(one.element, 'border-color', css(nearest(one.border.rgb, dyes)));
+      if (one.fill && one.fill.alpha > 0) put_(one.element, 'fill', css(nearest(one.fill.rgb, dyes)));
+      if (one.stroke && one.stroke.alpha > 0) put_(one.element, 'stroke', css(nearest(one.stroke.rgb, dyes)));
+    });
+  }
+
+  /* Pictures dithered to a few colours, in steps a page in front of you can spare. Signed files answer anybody, so a canvas may read them. */
+  var BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+  function ditherPicture(picture, dyes, most) {
+    return new Promise(function (done) {
+      var copy = new Image();
+      setCross(copy, 'anonymous');
+      copy.onload = function () {
+        try {
+          var scale = Math.min(1, most / Math.max(copy.naturalWidth, copy.naturalHeight, 1)), w = Math.max(1, Math.round(copy.naturalWidth * scale)), h = Math.max(1, Math.round(copy.naturalHeight * scale));
+          var canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          var pen = canvas.getContext('2d');
+          pen.drawImage(copy, 0, 0, w, h);
+          var data = pen.getImageData(0, 0, w, h), p = data.data;
+          for (var y = 0; y < h; y += 1) for (var x = 0; x < w; x += 1) {
+            var at = (y * w + x) * 4, nudge = (BAYER[(y % 4) * 4 + (x % 4)] / 16 - 0.5) * 72;
+            var to = nearest([p[at] + nudge, p[at + 1] + nudge, p[at + 2] + nudge], dyes);
+            p[at] = to[0]; p[at + 1] = to[1]; p[at + 2] = to[2];
+          }
+          pen.putImageData(data, 0, 0);
+          done(canvas.toDataURL('image/png'));
+        } catch (error) { done(null); }
+      };
+      copy.onerror = function () { done(null); };
+      // What is drawn, which is not always what it says: a set of sizes wins over it.
+      setSrc(copy, picture.currentSrc || getSrc(picture));
+    });
+  }
+  // Taken before the page has run, and called without asking anything the page could put in their place (see the guard, below).
+  var uncurry = Function.prototype.bind.bind(Function.prototype.call), plainSrc = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src'), setSrc = uncurry(plainSrc.set), getSrc = uncurry(plainSrc.get), setCross = uncurry(Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'crossOrigin').set), ditherRun = 0;
+  function undither() { ditherRun += 1; dyedPictures.forEach(function (was, picture) { setSrc(picture, was.src); if (was.srcset) picture.setAttribute('srcset', was.srcset); picture.style.removeProperty('image-rendering'); if (picture.getAttribute('style') === '') picture.removeAttribute('style'); });
+    document.querySelectorAll('source[data-see-media-was]').forEach(function (source) { var was = source.getAttribute('data-see-media-was'); if (was) source.setAttribute('media', was); else source.removeAttribute('media'); source.removeAttribute('data-see-media-was'); }); dyedPictures.clear(); }
+  function ditherAll(dyes, most) {
+    var run = (ditherRun += 1);
+    var pictures = Array.prototype.slice.call(document.images).filter(function (picture) { return picture.complete && picture.naturalWidth > 8 && !dyedPictures.has(picture) && picture.getBoundingClientRect().width > 8; }).slice(0, 60);
+    (function next() {
+      var picture = pictures.shift();
+      if (!picture || run !== ditherRun) return;
+      ditherPicture(picture, dyes, most).then(function (made) {
+        if (made && run === ditherRun && picture.isConnected) {
+          dyedPictures.set(picture, { src: getSrc(picture), srcset: picture.getAttribute('srcset') });
+          picture.removeAttribute('srcset');
+          if (picture.parentElement && picture.parentElement.localName === 'picture') picture.parentElement.querySelectorAll('source').forEach(function (source) { if (!source.hasAttribute('data-see-media-was')) { source.setAttribute('data-see-media-was', source.getAttribute('media') || ''); source.setAttribute('media', 'not all'); } });
+          picture.style.setProperty('image-rendering', 'pixelated');
+          setSrc(picture, made);
+        }
+        setTimeout(next, 15);
+      });
+    })();
+  }
+
+  /* GLASS: each run of words on a strip of its own. */
+  var strips = [];
+  function strip() {
+    if (!document.body) return;
+    var walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT), found = [], node;
+    while ((node = walk.nextNode()) && found.length < 6000) if (node.nodeValue.trim() && node.parentElement && !/^(?:script|style|textarea|option|select|title|see-strip|noscript)$/.test(node.parentElement.localName)) found.push(node);
+    found.forEach(function (text) { var wrap = document.createElement('see-strip'); text.parentNode.insertBefore(wrap, text); wrap.appendChild(text); strips.push(wrap); });
+  }
+  function unstrip() { strips.forEach(function (wrap) { while (wrap.firstChild) wrap.parentNode && wrap.parentNode.insertBefore(wrap.firstChild, wrap); wrap.remove(); }); strips = []; }
+
+  /* X-RAY: what is pointed at, and what the page is made of. */
+  var pointed = null, pointing = 0;
+  function nameOf(element) { return element.localName + (element.id ? '#' + element.id : '') + (typeof element.className === 'string' && element.className.trim() ? '.' + element.className.trim().split(/\s+/).slice(0, 2).join('.') : ''); }
+  function kindNamed(element) { return element.localName === 'a' ? 'LINK' : /^(?:img|picture|svg|video|canvas)$/.test(element.localName) ? 'PICTURE' : element.hasAttribute('data-see-frame') ? 'FRAME' : /^(?:script|see-link|style)$/.test(element.localName) ? 'SCRIPT' : /^(?:input|button|select|textarea|form|label)$/.test(element.localName) ? 'FORM' : 'WORDS'; }
+  function point(element) {
+    if (pointed) pointed.removeAttribute('data-see-pointed');
+    pointed = element;
+    element.setAttribute('data-see-pointed', '');
+    var box = element.getBoundingClientRect(), look = getComputedStyle(element), path = [];
+    for (var at = element; at && path.length < 12; at = at.parentElement) path.unshift(nameOf(at).slice(0, 60));
+    say({ see: 'point', path: path, kind: kindNamed(element), size: Math.round(box.width) + ' x ' + Math.round(box.height), ink: look.color, ground: look.backgroundColor, face: (look.fontSize + ' ' + look.fontFamily).slice(0, 120), words: (element.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 160), inside: element.querySelectorAll('*').length });
+  }
+  function census() {
+    var count = function (what) { return document.querySelectorAll(what).length; };
+    var rows = [];
+    (function walk(element, depth) {
+      for (var i = 0; i < element.children.length && rows.length < 160; i += 1) {
+        var child = element.children[i];
+        if (/^(?:script|style|template|see-link)$/.test(child.localName)) continue;
+        rows.push({ depth: depth, name: nameOf(child).slice(0, 60), inside: child.querySelectorAll('*').length });
+        if (depth < 5) walk(child, depth + 1);
+      }
+    })(document.body || document.documentElement, 0);
+    say({ see: 'census', counts: { words: (document.body ? document.body.innerText.match(/\S+/g) || [] : []).length, pictures: count('img, svg, canvas, video'), links: count('a[href]'), frames: count('[data-see-frame]'), scripts: count('script') - 1, forms: count('form, input, select, textarea, button') }, rows: rows });
+  }
+
+  /* ERASE: point, press, gone. The site keeps which, and sends it back as a stylesheet. */
+  function selectorOf(element) {
+    var parts = [];
+    // GLASS's strips are ours and go with it: what is erased is what they stand in.
+    while (element && element.localName === 'see-strip') element = element.parentElement;
+    for (var at = element; at && at !== document.documentElement && parts.length < 8; at = at.parentElement) {
+      if (at.id && /^[A-Za-z][\w-]{0,60}$/.test(at.id)) { parts.unshift('#' + at.id); break; }
+      var index = 1, before = at;
+      while ((before = before.previousElementSibling)) if (before.localName === at.localName) index += 1;
+      if (!/^[a-z][a-z0-9-]{0,40}$/.test(at.localName)) return null;
+      parts.unshift(at.localName + ':nth-of-type(' + index + ')');
+    }
+    return parts.length === 0 || (parts.length === 1 && /^(?:body|html)/.test(parts[0])) ? null : parts.join(' > ');
+  }
+
+  document.addEventListener('mousemove', function (event) {
+    if (!event.isTrusted || pointing || !(tools.xray || tools.erase || tools.pointer)) return;
+    pointing = requestAnimationFrame(function () {
+      pointing = 0;
+      if (tools.pointer) say({ see: 'pointer', x: Math.round(event.clientX), y: Math.round(event.clientY) });
+      var element = event.target instanceof Element ? event.target : null;
+      if (!element) return;
+      if (tools.xray && element !== pointed) point(element);
+      else if (tools.erase && element !== pointed) { if (pointed) pointed.removeAttribute('data-see-pointed'); pointed = element; element.setAttribute('data-see-pointed', ''); }
+    });
+  }, true);
+  document.documentElement.addEventListener('mouseleave', function () { if (tools.pointer) say({ see: 'pointer', x: -9000, y: -9000 }); });
+  window.addEventListener('click', function (event) {
+    if (!tools.erase || !event.isTrusted || !(event.target instanceof Element)) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    var selector = selectorOf(event.target);
+    if (selector) say({ see: 'erase', selector: selector });
+  }, true);
+
+  /* Two drawings of one page, kept at the same place. */
+  var movedAt = 0, scrollTimer = 0;
+  window.addEventListener('scroll', function () {
+    if (!tools.scroll || scrollTimer || Date.now() - movedAt < 250) return;
+    scrollTimer = setTimeout(function () {
+      scrollTimer = 0;
+      var page = document.scrollingElement || document.documentElement;
+      say({ see: 'scroll', x: page.scrollLeft, y: page.scrollTop, whole: Math.max(1, page.scrollHeight - page.clientHeight) });
+    }, 30);
+  }, { passive: true, capture: true });
+  function scrollTo_(data) {
+    var page = document.scrollingElement || document.documentElement, whole_ = Math.max(1, page.scrollHeight - page.clientHeight);
+    movedAt = Date.now();
+    // The same page is put at the same place; another form of it, as far through.
+    page.scrollTop = Math.abs(whole_ - data.whole) < 40 ? data.y : (data.y / Math.max(1, data.whole)) * whole_;
+    page.scrollLeft = data.x;
+  }
+
+  var again = 0;
+  function use(next) {
+    next = next && typeof next === 'object' ? next : {};
+    if (pointed && !next.xray && !next.erase) { pointed.removeAttribute('data-see-pointed'); pointed = null; }
+    if (next.xray && !tools.xray) setTimeout(census, 60);
+    undye(); undither(); unstrip();
+    tools = next;
+    clearTimeout(again);
+    var run = function () {
+      if (tools.dye) dyeAll(tools.dye.dyes.map(hexOf), hexOf(tools.dye.paper));
+      if (tools.strips) strip();
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run, { once: true }); else run();
+    // Again a little later: pictures just put back, or only now scrolled to, are not drawn yet.
+    if (tools.pictures) [120, 1500, 4000].forEach(function (after) { var for_ = tools; setTimeout(function () { if (tools === for_) ditherAll(tools.pictures.dyes.map(hexOf), tools.pictures.most); }, after); });
+  }
+  // What a page puts in later is dressed too, in a while, not at once.
+  new MutationObserver(function (changes) {
+    if (!(tools.dye || tools.strips || tools.pictures) || !changes.some(function (change) { return change.addedNodes.length > 0 && !(change.addedNodes[0] instanceof Element && change.addedNodes[0].localName === 'see-strip'); })) return;
+    clearTimeout(again);
+    again = setTimeout(function () {
+      if (tools.dye) { undye(); dyeAll(tools.dye.dyes.map(hexOf), hexOf(tools.dye.paper)); }
+      if (tools.strips) strip();
+      if (tools.pictures) ditherAll(tools.pictures.dyes.map(hexOf), tools.pictures.most);
+    }, 700);
+  }).observe(document, { childList: true, subtree: true });
 
   /* --- links and forms ------------------------------------------------------------------------------------------- */
   function whole(address) {

@@ -3,7 +3,7 @@
  * On a LOCAL mock dev server only (core.md, "Test locally"): mock sign-in, and the live database blocked.
  *
  *   SEEING_DEV_OPEN=1 SEEING_EXIT=fixture:4567 node scripts/dev-mock-live.cjs 3341      (in another terminal, from Git Bash)
- *   node scripts/drive-see.cjs --base http://localhost:3341 [--out Temp/browse/see] [--only shell|themes|frame|eye]
+ *   node scripts/drive-see.cjs --base http://localhost:3341 [--out Temp/browse/see] [--only shell|themes|frame|eye|lenses]
  *
  *   shell   signed out, the sign-in call and no machine; BROWSER off the bar until ticked in MODULOS, then there with WIP; the test page,
  *           its links, back, forward, reload, tabs (eight at most), the address box, refusals, lens keys, the address after the #, an
@@ -14,6 +14,8 @@
  *   eye     the server's eye (Phase 2) on a made-up internet this script serves: a page with its pictures, sheets, scripts, forms and
  *           trackers, its scripts' own requests, READER, WATCHERS, BILLBOARD, scripts off; then a hostile page that tries every way out.
  *           The browser asks nobody but the site, and the fixture is only ever asked by the server
+ *   lenses  Phase 3: X-RAY, LOW-FI, DYE, GLASS and CUSTOM on the test page, DYE's and GLASS's words measured on every theme, each undone by
+ *           STANDARD; SEAM, LOUPE, ERASE (only as a press), SITE MEMORY, the TIME DIAL and SCAN
  *   frame   the page in the frame has no origin: no cookies, storage or parent to read, no way to move the top window or open another;
  *           forged messages do nothing
  */
@@ -156,7 +158,6 @@ async function shell(browser) {
   ok((await inside(page).locator('header').count()) === 0, 'READER shows the main text alone');
   await page.waitForTimeout(300);
   await page.screenshot({ path: join(OUT, 'reader.png') });
-  for (const name of ['[ X-RAY ]', '[ LOW-FI ]', '[ DYE ]']) ok(await page.locator('[data-seeing-lenses]').getByRole('button', { name }).isDisabled(), `${name} waits, quiet`);
 
   await key(page, 'New tab').click();
   ok((await tabs(page).count()) === 2 && (await status(page)) === 'READY', 'a new tab, empty');
@@ -704,11 +705,170 @@ async function eye(browser) {
   }
 }
 
+/* --- Phase 3 ------------------------------------------------------------------------------------------------------ */
+
+async function lenses(browser) {
+  const ts = require('typescript');
+  const { outputText } = ts.transpileModule(require('node:fs').readFileSync('app/lib/ui/themes.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } });
+  const held = { exports: {} };
+  new Function('module', 'exports', 'require', outputText)(held, held.exports, require);
+  const layout = { standard: { screen: { w: 1900, h: 1000 }, windows: { 'preferences-tall': { rect: { x: 1480, y: 200, w: 384, h: 640 }, group: null, open: true, restore: null } }, order: ['preferences-tall'] } };
+  const { context, page } = await open(browser, { as: ANN, width: 1900, height: 1000, storage: { 'debaser.windows.mock.v1': JSON.stringify({ [ANN.id]: layout }) } });
+  await machine(page);
+  await go(page, 'see:test');
+  await say(page, 'DOCUMENT RECONSTRUCTED');
+  const lens = async (name) => {
+    await page.locator('[data-seeing-lenses]').getByRole('button', { name: `[ ${name} ]`, exact: true }).first().click();
+    await page.waitForTimeout(450);
+  };
+  const tool = (name) => page.locator('[data-seeing-tools]').getByRole('button', { name, exact: true });
+  const standing = () => frameOf(page).then((each) => each.evaluate(() => ({ html: document.body.innerHTML.length, colour: getComputedStyle(document.body).backgroundColor, ink: getComputedStyle(document.querySelector('p')).color, strips: document.querySelectorAll('see-strip').length, styled: document.querySelectorAll('main [style]').length })));
+  const before = await standing();
+
+  await lens('X-RAY');
+  await (await frameOf(page)).locator('h2').first().hover();
+  await page.waitForFunction(() => /h2/.test(document.querySelector('[data-seeing-xray]')?.textContent ?? ''));
+  const panel = await page.locator('[data-seeing-xray]').innerText();
+  ok(/WORDS \d+/.test(panel) && /LINKS \d+/.test(panel) && /main/.test(panel), 'X-RAY says what is pointed at, and what the page is made of');
+  ok((await (await frameOf(page)).evaluate(() => getComputedStyle(document.querySelector('a')).outlineStyle)) === 'solid', 'and outlines by kind');
+  await page.screenshot({ path: join(OUT, 'lens-xray.png') });
+
+  for (const palette of ['YOURS', 'MONO', 'TERMINAL', 'AMBER', '1-BIT']) {
+    await lens('LOW-FI');
+    await lens(palette);
+    const got = await (await frameOf(page)).evaluate(() => ({ ink: getComputedStyle(document.querySelector('p')).color, paper: getComputedStyle(document.body).backgroundColor }));
+    ok(ratio(got.ink.match(/\d+/g).map(Number), got.paper.match(/\d+/g).map(Number)) >= 4.5, `LOW-FI ${palette} reads`);
+  }
+  await page.screenshot({ path: join(OUT, 'lens-lowfi.png') });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  ok((await (await frameOf(page)).evaluate(() => getComputedStyle(document.documentElement, '::after').animationName)) === 'none', 'and is still under reduced motion');
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+
+  let lowest = 99;
+  let measured = 0;
+  for (const theme of held.exports.THEMES) {
+    await pickTheme(page, theme);
+    await page.waitForFunction((id) => document.documentElement.dataset.theme === id, theme.id, { timeout: 8000 });
+    for (const name of ['DYE', 'GLASS']) {
+      await lens(name);
+      for (const one of await (await frameOf(page)).evaluate(`(${MEASURE})(document.body)`)) {
+        const value = ratio(one.ink, one.ground ?? theme.tokens.paper.match(/\w\w/g).map((v) => parseInt(v, 16)));
+        lowest = Math.min(lowest, value);
+        measured += 1;
+        assert.ok(value >= 4.5, `${theme.id} ${name}: "${one.text}" ${value.toFixed(2)} ${JSON.stringify(one)}`);
+      }
+      if (['dark', 'default'].includes(theme.id)) await page.screenshot({ path: join(OUT, `lens-${name.toLowerCase()}-${theme.id}.png`) });
+      if (name === 'GLASS') {
+        const clear = await page.evaluate(() => [getComputedStyle(document.querySelector('[data-site-window="frame"]')).backgroundColor, getComputedStyle(document.querySelector('[data-seeing-tools]')).backgroundColor]);
+        ok(await page.evaluate(() => document.documentElement.hasAttribute('data-see-glass') && document.querySelector('[data-page-fill]') !== null), `${theme.id}: and the background is told it can be seen`);
+        ok(clear[0] === 'rgba(0, 0, 0, 0)' && clear[1] !== 'rgba(0, 0, 0, 0)', `${theme.id}: GLASS clears the window, and leaves the keys their ground`);
+      }
+    }
+  }
+  ok(true, `DYE and GLASS: ${measured} words measured on ${held.exports.THEMES.length} themes, the lowest ${lowest.toFixed(2)}:1`);
+  await lens('STANDARD');
+  const after = await standing();
+  ok(JSON.stringify(after) === JSON.stringify(before), `STANDARD after all of them leaves the page as it was (${JSON.stringify(before)} ${JSON.stringify(after)})`);
+  ok((await page.evaluate(() => document.documentElement.dataset.seeGlass)) === undefined, 'and the window its ground');
+
+  await lens('CUSTOM');
+  ok((await (await frameOf(page)).evaluate(() => getComputedStyle(document.body).backgroundColor)) !== before.colour, 'CUSTOM wears its recipe');
+  await page.locator('[data-seeing-lenses]').getByRole('button', { name: '[ PASTE RECIPE ]' }).click();
+  await page.getByLabel('Recipe', { exact: true }).last().fill('SEE:links');
+  await page.getByRole('button', { name: '[ USE ]' }).click();
+  await page.waitForTimeout(300);
+  ok((await (await frameOf(page)).evaluate(() => [getComputedStyle(document.querySelector('table')).display, getComputedStyle(document.querySelector('a')).display])).join() === 'none,inline', 'a recipe pasted is used');
+  await lens('STANDARD');
+
+  await tool('[ SEAM ]').click();
+  await page.waitForSelector('[data-seeing-second="seam"] iframe');
+  await page.waitForTimeout(800);
+  ok((await page.locator('[data-seeing-stage] iframe[data-seeing-frame]').count()) === 2, 'SEAM draws the page twice');
+  const slider = page.getByRole('slider', { name: 'Seam' });
+  const box1 = await slider.boundingBox();
+  await page.mouse.move(box1.x + 5, box1.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(box1.x - 200, box1.y + 200, { steps: 4 });
+  await page.mouse.up();
+  ok(Number(await slider.getAttribute('aria-valuenow')) < 45, 'and its line is dragged');
+  const frames = await Promise.all((await page.locator('[data-seeing-stage] iframe[data-seeing-frame]').elementHandles()).map(async (each) => (await (await each.contentFrame()).waitForSelector('iframe', { state: 'attached' })).contentFrame()));
+  await frames[0].evaluate(() => { document.scrollingElement.scrollTop = 400; });
+  await page.waitForTimeout(500);
+  ok((await frames[1].evaluate(() => document.scrollingElement.scrollTop)) > 100, 'one side scrolled, the other follows');
+  await page.screenshot({ path: join(OUT, 'lens-seam.png') });
+  await tool('[ SEAM ]').click();
+
+  await tool('[ LOUPE ]').click();
+  await page.waitForSelector('[data-seeing-second="loupe"] iframe', { state: 'attached' });
+  await page.waitForTimeout(800);
+  await page.locator('[data-seeing-frame]').first().hover({ position: { x: 300, y: 250 } });
+  await page.mouse.move(400, 400);
+  await page.mouse.move(420, 420);
+  await page.waitForFunction(() => document.querySelector('[data-seeing-second="loupe"]')?.style.transform === 'scale(2)');
+  ok(true, 'LOUPE is twice the size under the pointer');
+  await page.screenshot({ path: join(OUT, 'lens-loupe.png') });
+  await tool('[ LOUPE ]').click();
+
+  // ERASE: a page that says it has been pressed has not.
+  await (await frameOf(page)).evaluate(() => parent.parent.postMessage({ see: 'erase', selector: 'main:nth-of-type(1)' }, '*'));
+  await page.waitForTimeout(300);
+  ok((await page.getByRole('button', { name: /BRING BACK/ }).count()) === 0, 'a page cannot erase itself');
+  await tool('[ ERASE ]').click();
+  await inside(page).locator('table').click({ position: { x: 5, y: 5 } });
+  await page.getByRole('button', { name: /BRING BACK 1/ }).waitFor();
+  await tool('[ ERASE ]').click();
+  const gone = await (await frameOf(page)).evaluate(() => [...document.querySelectorAll('td, th, tr, table')].filter((each) => getComputedStyle(each).display === 'none').length);
+  ok(gone > 0, 'ERASE: point, press, gone');
+  await key(page, 'Reload').click();
+  await say(page, 'DOCUMENT RECONSTRUCTED');
+  await page.waitForTimeout(500);
+  ok((await (await frameOf(page)).evaluate(() => [...document.querySelectorAll('td, th, tr, table')].filter((each) => getComputedStyle(each).display === 'none').length)) === gone, 'and stays gone on that site');
+  await page.getByRole('button', { name: /BRING BACK/ }).click();
+  await page.waitForTimeout(300);
+  ok((await (await frameOf(page)).evaluate(() => [...document.querySelectorAll('td, th, tr, table')].filter((each) => getComputedStyle(each).display === 'none').length)) === 0, 'until one key brings it back');
+
+  // ERASE through GLASS takes out what the words stand in, not the strip that goes with the lens.
+  await lens('GLASS');
+  await tool('[ ERASE ]').click();
+  await inside(page).locator('blockquote see-strip').first().click();
+  await page.getByRole('button', { name: /BRING BACK 1/ }).waitFor();
+  await tool('[ ERASE ]').click();
+  await lens('STANDARD');
+  ok((await (await frameOf(page)).evaluate(() => { const el = document.querySelector('blockquote'); return el.offsetHeight === 0 || el.querySelector('p').offsetHeight === 0; })), 'ERASE through GLASS stays when the glass goes');
+  await page.getByRole('button', { name: /BRING BACK/ }).click();
+
+  await lens('READER');
+  await key(page, 'New tab').click();
+  await go(page, 'see:test/2');
+  await say(page, 'LENS: READER');
+  ok(true, 'SITE MEMORY: the site opens in the lens it was last looked at through');
+
+  await go(page, 'https://example.com/');
+  await say(page, 'SOURCE REFUSED');
+  await page.getByRole('button', { name: '[ SEE AN OLD COPY ]' }).waitFor();
+  await page.locator('[data-seeing-dial]').focus();
+  await page.locator('[data-seeing-dial]').evaluate((input) => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '2004');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await page.locator('[data-seeing-dial]').evaluate((input) => input.dispatchEvent(new PointerEvent('pointerup', { bubbles: true })));
+  await page.waitForFunction(() => document.querySelector('[data-seeing-address]').value.startsWith('https://web.archive.org/web/2004'));
+  ok((await box(page).inputValue()) === 'https://web.archive.org/web/20040701000000if_/https://example.com/', 'the TIME DIAL turns to a year, and a refusal offers an old copy');
+  await tool('[ GOOD ]').click();
+  await key(page, 'New tab').click();
+  ok((await page.locator('[data-seeing-good] li').count()) === 1, 'a GOOD page is on the list in a new tab');
+  await tool('[ SCAN ]').click();
+  await page.waitForFunction(() => document.querySelector('[data-seeing-address]').value === 'https://wiby.me/surprise/');
+  ok(true, 'SCAN asks for a random page');
+  ok(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), 'no sideways scroll');
+  await context.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: findChrome(), headless: true, // The frames in their own processes are how a real browser keeps them apart; this tool can't look inside them there.
     args: ['--use-angle=swiftshader', '--disable-features=IsolateSandboxedIframes'] });
   try {
-    for (const [name, run] of [['shell', shell], ['frame', frame], ['eye', eye], ['themes', themes]]) {
+    for (const [name, run] of [['shell', shell], ['frame', frame], ['eye', eye], ['lenses', lenses], ['themes', themes]]) {
       if (ONLY !== '' && ONLY !== name) continue;
       console.log(`\n=== ${name} ===`);
       await run(browser);
