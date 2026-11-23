@@ -231,6 +231,8 @@ assert.equal(readerRef('https://archive.org/details/..%2Fx', TEXTS_META), null);
 assert.equal(dialTo('https://web.archive.org/web/2004if_/http://example.com/', 1999), 'https://web.archive.org/web/19990701000000if_/http://example.com/');
 assert.equal(dialTo('https://web.archive.org/web/2004if_/http://example.com/', null), 'http://example.com/');
 for (const selector of ['#a', 'div:nth-of-type(2)', 'body:nth-of-type(1) > div:nth-of-type(2) > my-tag:nth-of-type(10)', '#a > p:nth-of-type(1)']) assert.ok(F.isSelector(selector), selector);
+// An address's #part: a plain id only, brought into sight once drawn.
+assert.deepEqual(['https://a.com/p#end', 'https://a.com/p#Part-2_b', 'https://a.com/p', 'https://a.com/p#', 'https://a.com/p#a%20b', 'https://a.com/p#%E0%A4%A', 'https://a.com/#x{}*', 'https://a.com/#2nd', null].map(F.partOf), ['#end', '#Part-2_b', null, null, null, null, null, null, null]);
 for (const selector of ['', '*', 'a{}', '#a{} *', 'div', '#a, #b', '#a]', 'x:nth-of-type(1){background:url(x)}', '#a > *', '@import', 'a:hover', '/**/', '#a\n', `#${'a'.repeat(600)}`]) assert.ok(!F.isSelector(selector), JSON.stringify(selector));
 assert.deepEqual(F.readFrameMessage({ see: 'erase', selector: '#a' }), { see: 'erase', selector: '#a' });
 for (const data of [{ see: 'erase', selector: '*{}' }, { see: 'erase' }, { see: 'pointer', x: 'a', y: 1 }, { see: 'pointer', x: Infinity, y: 1 }, { see: 'scroll', x: 1, y: 1 }, { see: 'point' }, { see: 'point', path: Array(20).fill('x') }]) assert.equal(F.readFrameMessage(data), null, JSON.stringify(data));

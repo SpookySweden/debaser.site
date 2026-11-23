@@ -128,6 +128,19 @@ export function isSelector(text: string): boolean {
   return text.length <= 500 && /^(?:#[A-Za-z][\w-]{0,60}|[a-z][a-z0-9-]{0,40}:nth-of-type\(\d{1,5}\))(?: > [a-z][a-z0-9-]{0,40}:nth-of-type\(\d{1,5}\)){0,8}$/.test(text);
 }
 
+/** The part an address names after its `#` (`…/page#end`), as a place to bring into sight once drawn; null when there is none, or it isn't a plain id. */
+export function partOf(address: string | null): string | null {
+  const at = address?.indexOf('#') ?? -1;
+  if (address === null || at < 0) return null;
+  let id: string;
+  try {
+    id = decodeURIComponent(address.slice(at + 1));
+  } catch {
+    return null;
+  }
+  return isSelector(`#${id}`) ? `#${id}` : null;
+}
+
 /** What a page's scripts have put on it to play: addresses the Room will judge as it judges any other. */
 function readMedia(data: Record<string, unknown>): FrameMessage | null {
   if (!Array.isArray(data.media)) return null;

@@ -626,6 +626,7 @@ function fixture() {
     '/hostile': ['text/html', HOSTILE],
     '/blank': ['text/html', '<!doctype html><title>Blank</title><div id="root"></div><script>import("/never.js")</script>'],
     '/void': ['text/html', ''],
+    '/long': ['text/html', `<title>Long</title><h1>Top</h1>${'<p>filler</p>'.repeat(200)}<h2 id="end">End</h2>${'<p>after</p>'.repeat(40)}`],
     '/moment': ['text/html', '<title>Just a moment...</title><h1>Checking your browser before accessing the site</h1><p>This takes a few seconds.</p>'],
     '/quiet': ['text/html', '<title>Quiet</title><h1>Quiet</h1><noembed><link rel="preconnect" href="http://127.0.0.1:4568/"><input type=password id=a></noembed><noframes><link rel="preconnect" href="http://127.0.0.1:4568/"></noframes><svg><style><p><link rel=preconnect href="http://127.0.0.1:4568/"><input type=password id=b></style></svg><xmp><link rel=preconnect href="http://127.0.0.1:4568/"></xmp><svg><script><p><link rel=preconnect href="http://127.0.0.1:4568/"></script></svg><math><mtext><style><img src=x></style></mtext></math><noscript><link rel=preconnect href="http://127.0.0.1:4568/"></noscript><link rel=preconnect href="http://127.0.0.1:4568/">'],
     '/sends': ['text/html', '<title>Sends</title><script>location.href = "/next"</script>'],
@@ -942,6 +943,11 @@ async function eye(browser) {
     await go(page, `${SITE}/void`);
     await page.locator('[data-seeing-empty]').waitFor({ timeout: 15000 });
     ok(/SENT A PAGE WITH NO WORDS/.test(await page.locator('[data-seeing-empty]').innerText()), 'a site that sends an empty page is said to have, not left a white box');
+    await go(page, `${SITE}/long#end`);
+    await say(page, 'DOCUMENT RECONSTRUCTED');
+    await page.waitForTimeout(1500);
+    const down = await (await frameOf(page)).evaluate(() => [window.scrollY, Math.round(document.getElementById('end').getBoundingClientRect().top)]).catch(() => [0, -1]);
+    ok(down[0] > 1000 && down[1] >= 0 && down[1] < 400, `an address's #part opens the page at that part (${down})`);
     await go(page, `${SITE}/moment`);
     await page.locator('[data-seeing-botcheck]').waitFor({ timeout: 15000 });
     ok(/OWN EYE/.test(await page.locator('[data-seeing-botcheck]').innerText()), "a site's check that a person is asking is said to be one, with where it can be done");

@@ -36,7 +36,7 @@ import { notesState, notesStateOnServer, openNotesOn, subscribeToNotes } from '.
 import type { SharedNote } from '../../lib/seeing/account';
 import { keptId } from '../../lib/seeing/pages';
 import { keptPage, keptPages, keptPagesOnServer, openKeptPagesOf, subscribeToKeptPages } from '../../lib/seeing/pages-store';
-import type { FrameScroll } from '../../lib/seeing/frame';
+import { partOf, type FrameScroll } from '../../lib/seeing/frame';
 import { engineFor } from '../../lib/seeing/engines';
 import { extensionState, extensionStateOnServer, lookForExtension, subscribeToExtension } from '../../lib/seeing/extension-store';
 import { openInOwnEye, tellOwnEyeTheme } from '../../lib/seeing/own-eye';
@@ -705,7 +705,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
           />
         ) : null}
         {seen !== null ? (
-          <SeeingStage key={key} drawing={key} document={seen} lens={tab.lens} settings={settings} seam={seam} loupe={loupe} erasing={erasing} erased={erased} onErase={onErase} onOpen={go} onNotice={setNotice} onRestricted={onRestricted} onMedia={onMedia} onSelect={outside ? onSelect : null} onPlace={leading && outside ? onPlace : null} moverRef={moverRef} marks={marks} finderRef={finderRef} graffiti={page} drawn={drawing && outside} />
+          <SeeingStage key={key} drawing={key} part={partOf(address)} document={seen} lens={tab.lens} settings={settings} seam={seam} loupe={loupe} erasing={erasing} erased={erased} onErase={onErase} onOpen={go} onNotice={setNotice} onRestricted={onRestricted} onMedia={onMedia} onSelect={outside ? onSelect : null} onPlace={leading && outside ? onPlace : null} moverRef={moverRef} marks={marks} finderRef={finderRef} graffiti={page} drawn={drawing && outside} />
         ) : address === null ? (
           <SeeingStart good={memory.good} ownEye={extension === 'current'} onGo={go} />
         ) : now.state === 'refused' ? (

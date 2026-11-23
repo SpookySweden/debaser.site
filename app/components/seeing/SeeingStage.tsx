@@ -46,6 +46,8 @@ type Props = {
   /** The page that may be drawn on, or null; and whether it is being drawn on. */
   graffiti: string | null;
   drawn: boolean;
+  /** The part the address names after its #, brought into sight once the page is drawn. */
+  part?: string | null;
 };
 
 const NO_TOOLS: FrameTools = {};
@@ -56,7 +58,7 @@ const cameOutEmpty = (census: Census) => census.counts.scripts > 0 && census.cou
 const nothing = () => undefined;
 
 /** The page, and over it a second drawing of it when there is a SEAM or a LOUPE. */
-export default function SeeingStage({ drawing, document, lens, settings, seam, loupe, erasing, erased, onErase, onOpen, onNotice, onRestricted, onMedia, onSelect, onPlace, moverRef, marks, finderRef, graffiti, drawn }: Props) {
+export default function SeeingStage({ drawing, document, lens, settings, seam, loupe, erasing, erased, onErase, onOpen, onNotice, onRestricted, onMedia, onSelect, onPlace, moverRef, marks, finderRef, graffiti, drawn, part = null }: Props) {
   const front = lensOr(lens);
   const [at, setAt] = useState(50);
   const [dragging, setDragging] = useState(false);
@@ -148,7 +150,7 @@ export default function SeeingStage({ drawing, document, lens, settings, seam, l
     <>
       <div ref={stage} className="relative min-w-0 flex-1 overflow-hidden" data-seeing-stage>
         <div className="absolute inset-0">
-          <SeeingViewport key={`${drawing}:${front.form}`} document={document} lens={front} settings={settings} tools={tools} erased={erased} lit={front.beside === 'xray' ? lit : null} bring={front.beside === 'xray' && reach !== null && reach.at === lit ? reach : null} scrollerRef={moveBack} onTold={told} onOpen={onOpen} onNotice={onNotice} onRestricted={onRestricted} />
+          <SeeingViewport key={`${drawing}:${front.form}`} document={document} lens={front} settings={settings} tools={tools} erased={erased} lit={front.beside === 'xray' ? lit : null} bring={front.beside === 'xray' && reach !== null && reach.at === lit ? reach : part !== null ? { at: part, n: 0 } : null} scrollerRef={moveBack} onTold={told} onOpen={onOpen} onNotice={onNotice} onRestricted={onRestricted} />
         </div>
         {board !== null && drawOn ? (
           <SeeingGraffiti
