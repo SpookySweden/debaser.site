@@ -131,6 +131,10 @@ bake.
   steps in. Pressed on the way it is picked up again; a press without a drag is still a hello. With the ROOM out of sight
   it waits on the floor and pops back in after six seconds. Not your own companion visiting (pick it up off its strip),
   not under reduced motion. Nothing is sent or saved: it is that reader's screen only.
+- **Dropped into a ROOM** (Luke, 2026-11-23: "allow to drag into the profile room", "Also others' in stream"): yours, a
+  ROOM's character taken out, or somebody else's companion picked up off the strip in a stream room (any companion can be
+  picked up now; somebody else's on this screen only) lands in a profile's ROOM when it is let go over it or thrown down
+  through its floor. `docs/profile-characters.md`, "Dropped into the ROOM".
 - **A catch.** `companionCatches(userId)` (`events.ts`) makes that person's character play `catch` once wherever it is
   drawn on this screen: their companion on the strip (yours, or theirs in a room you share) and their character in a
   profile's ROOM. Nothing is sent: whoever calls it still delivers the thing. Figures carry their owner's id

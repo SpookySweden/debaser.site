@@ -182,7 +182,9 @@ assert.equal(wire.parseCompanionWire({ x: 0.5, m: 'stand', r: 3, k: 'kiss' })?.k
   const walkerFile = read('app/components/ProfileCharacter.tsx');
   const companion = read('app/components/Companion.tsx');
   const trail = read('app/components/NoteTrail.tsx');
-  assert.equal((room.match(/kiss=\{/g) ?? []).length, 3, 'the owner, every guest and your visiting companion are handed their kiss');
+  // (2026-11-23, "allow to drag into the profile room") Somebody's companion dropped in off a stream room's strip is a
+  // fourth kind of figure in the room, handed its kiss too. Updated on purpose.
+  assert.equal((room.match(/kiss=\{/g) ?? []).length, 4, 'the owner, every guest, your visiting companion and anybody dropped in are handed their kiss');
   assert.ok(room.includes('kissDue(key, from, now, together'), 'the ROOM keeps the clock for each pair');
   assert.ok(/reduced \|\| nearForKiss\(xa, xb, w\)/.test(room), 'under reduced motion being here together is enough (nobody walks over)');
   assert.ok(walkerFile.includes('kissWalk(current, phase,'), 'the ROOM walker steps in by kissWalk');

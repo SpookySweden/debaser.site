@@ -8,6 +8,7 @@ import {
   callIntoRoom,
   clipOf,
   companionVisitState,
+  droppedVisitors,
   noteRoomSpot,
   noteRoomSpotOf,
   openRoom,
@@ -168,7 +169,14 @@ export default function ProfileRoom({
   // Whose companions the room calls up into it: everybody it would draw itself.
   const wantsKey = [...(ownerBelongs ? [userId] : []), ...guests.map((guest) => guest.person.id)].join('\n');
 
-  const drawn = ready && (ownerBelongs || visit.out || guests.length > 0);
+  // Somebody's companion from a stream room dragged and dropped in here that is not already one of the above (Luke,
+  // 2026-11-23: "allow to drag into the profile room", "Also others' in stream"): a visitor, until the room goes.
+  const dropped = useMemo(
+    () => droppedVisitors(others, [...(ownerBelongs ? [userId] : []), ...guests.map((guest) => guest.person.id), ...(viewerId === null ? [] : [viewerId])]),
+    [others, ownerBelongs, userId, guests, viewerId],
+  );
+
+  const drawn = ready && (ownerBelongs || visit.out || guests.length > 0 || dropped.length > 0);
   const visitorHere = visit.out && visit.inRoom && viewerId !== null;
 
   // Everybody whose character is in the room, by whose it is. Your companion on your own profile speaks as the owner.
@@ -179,8 +187,9 @@ export default function ProfileRoom({
       here.push({ id: viewerId, name: own ? displayName : (user?.displayName ?? 'YOU') });
     }
     for (const guest of guestsHere) here.push(guest.person);
+    for (const one of dropped) here.push({ id: one.id, name: one.name });
     return here;
-  }, [drawOwner, visitorHere, viewerId, own, userId, displayName, user?.displayName, guestsHere]);
+  }, [drawOwner, visitorHere, viewerId, own, userId, displayName, user?.displayName, guestsHere, dropped]);
 
   // Friends here together (`../lib/character/friends.ts`; Luke, 2026-11-21): whose friend is in the room, by whose it is.
   const friends = useMemo(() => {
@@ -359,8 +368,9 @@ export default function ProfileRoom({
 
   // And it calls up the companions of the people it would draw, when they are on this screen's strip (Luke, 2026-11-22).
   useEffect(() => {
-    if (stage === null || wantsKey.length === 0) return;
-    return callIntoRoom({ stage, wants: wantsKey.split('\n') });
+    // Called even with nobody to call up: it is also where a carried character can be dropped (2026-11-23).
+    if (stage === null) return;
+    return callIntoRoom({ stage, wants: wantsKey.length === 0 ? [] : wantsKey.split('\n') });
   }, [stage, wantsKey]);
 
   // Up here, a companion from a stream room still says what its person types in the room's chat, as it did on the strip.
@@ -391,6 +401,7 @@ export default function ProfileRoom({
     ownerBelongs ? roomFigureSize(ownerLook).h : 0,
     visit.out ? roomFigureSize(visitorLook).h : 0,
     ...guests.map((guest) => roomFigureSize({ stripUrl: guest.shown.stripUrl, sheet: guest.shown.sheet }).h),
+    ...dropped.map((one) => roomFigureSize(one.look === null ? null : { stripUrl: one.look.stripUrl, sheet: one.look.sheet }).h),
   );
   const name = displayName.toUpperCase();
   const nameOf = (id: string) => people.find((person) => person.id === id)?.name ?? '';
@@ -398,6 +409,8 @@ export default function ProfileRoom({
   const heightOf = (id: string): number | null => {
     const guest = guests.find((one) => one.person.id === id);
     if (guest !== undefined) return guest.shown.sheet.floor;
+    const visiting = dropped.find((one) => one.id === id);
+    if (visiting !== undefined) return visiting.look?.sheet.floor ?? null;
     if (id === userId && drawOwner && shown) return shown.sheet.floor;
     return visit.look?.sheet.floor ?? null;
   };
@@ -488,6 +501,25 @@ export default function ProfileRoom({
             kiss={kisses[guest.person.id] ?? null}
             spots={spots}
             {...fromStrip(guest.person.id)}
+          />
+        ))}
+        {/* Dropped in here off a stream room's strip (2026-11-23): somebody's companion, visiting until the room goes. */}
+        {dropped.map((one) => (
+          <RoomWalker
+            key={`dropped:${one.id}`}
+            look={one.look === null ? null : { stripUrl: one.look.stripUrl, sheet: one.look.sheet }}
+            mood={one.look?.mood ?? 'busy'}
+            music={music}
+            width={width}
+            who="guest"
+            label={`${one.name.toUpperCase()}'S CHARACTER`}
+            person={one.id}
+            speech={speechOf(one.id)}
+            onPress={() => pressed(one.id)}
+            friendId={friends[one.id] ?? null}
+            kiss={kisses[one.id] ?? null}
+            spots={spots}
+            {...fromStrip(one.id)}
           />
         ))}
         {visit.out && visit.inRoom ? (

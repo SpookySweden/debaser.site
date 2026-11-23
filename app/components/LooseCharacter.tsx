@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { MotionId } from '../lib/character/motion';
 import { fallStep, type Fall } from '../lib/companion/brain';
-import { LOOSE_CLIMB, looseStep, startLoose, type Loose } from '../lib/companion/loose';
+import { dropsInto, LOOSE_CLIMB, looseStep, startLoose, type Loose, type LooseHome } from '../lib/companion/loose';
 import {
   dragLook,
   glideAt,
@@ -45,6 +45,12 @@ type Phase = 'held' | 'thrown' | 'fall' | 'loose';
  * drawn. It lives in a layer over the page (under the music bar and every window, as the companion does), and takes no
  * presses but on itself. Nothing is sent or saved: it is this reader's screen only. Never drawn under reduced motion (the
  * room does not let one be taken out then).
+ *
+ * **Dropped into a room** (Luke, 2026-11-23: "allow to drag into the profile room"): let go over a profile's ROOM, or thrown
+ * so that it comes down through its floor, it lands on that floor (its landing played there) and is handed to the room,
+ * instead of dropping to the site's floor and climbing back up (`dropsInto` in `../lib/companion/loose.ts`). Somebody's
+ * companion picked up off the strip in a stream room (`RoomFigure` in `./Companion.tsx`) is carried by this too: it has
+ * no room of its own to walk home to (`stage` null), so once down on the site's floor it is handed straight back.
  */
 export default function LooseCharacter({
   look,
@@ -52,25 +58,33 @@ export default function LooseCharacter({
   facing: faceFrom,
   stage,
   label,
+  dropInto,
   onHome,
 }: {
   look: Look;
   grab: LooseGrab;
   facing: 1 | -1;
-  /** The room's floor it climbs back into. */
-  stage: HTMLElement;
+  /** The room's floor it climbs back into; null when it has none to walk home to (handed back once it is down). */
+  stage: HTMLElement | null;
   label: string;
-  /** Back in its room: where its left edge is on the screen, or null when it popped back in without getting there. */
-  onHome: (left: number | null) => void;
+  /** The room a drop lands in, looked at every frame it falls or flies; its own room when not given. */
+  dropInto?: () => HTMLElement | null;
+  /**
+   * Done: in a room (`'room'`, walked and climbed home, or dropped in), with its left edge on the screen, or null when it
+   * popped back in without getting there; or down on the site's floor (`'floor'`) with no room to go home to.
+   */
+  onHome: (left: number | null, how: 'room' | 'floor') => void;
 }) {
   const placeRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLSpanElement>(null);
   const home = useRef(onHome);
+  const into = useRef(dropInto);
   // What it wears and which way it faced, as they were when it was taken out: the room re-drawing (a new copy of the same
   // look, its walker still stepping underneath) must not start it over.
   const worn = useRef({ look, faceFrom });
   useEffect(() => {
     home.current = onHome;
+    into.current = dropInto;
   });
 
   useEffect(() => {
@@ -95,6 +109,8 @@ export default function LooseCharacter({
     let glide: { from: { x: number; y: number }; to: { x: number; y: number }; at: number } | null = null;
     let glideFrame = 0;
     let done = false;
+    /** Dropped into a room: the stage it landed in, its landing played there before it is handed over. */
+    let droppedIn: HTMLElement | null = null;
     if (look !== null) {
       void measureInsets(look, 'splat').then((found) => {
         insets = found;
@@ -124,11 +140,19 @@ export default function LooseCharacter({
       if (glideFrame === 0) glideFrame = requestAnimationFrame(glideLoop);
     };
 
-    /** Where it hangs for the pointer: under it, on the screen, never under the site's floor. */
+    /**
+     * Where it hangs for the pointer: under it, on the screen, never under the site's floor. Standing on a stream room's
+     * window (its top edge the floor), it may be carried down past that edge only over a profile's ROOM beside the window,
+     * no lower than the ROOM's floor, so it can be dropped in there (2026-11-23); anywhere else it is held at the edge, and
+     * never let go below it with nothing to land on.
+     */
     const hang = (held: LooseGrab) => {
       const floor = floorNow(size);
       x = Math.round(Math.min(Math.max(0, floor.screen - size.w), Math.max(0, held.px - held.offX)));
-      y = Math.round(Math.min(floor.y, Math.max(size.h, held.py + held.offY)));
+      const want = Math.max(size.h, held.py + held.offY);
+      const under = floor.ledge && want > floor.y ? (dropFloor()?.room ?? null) : null;
+      const lowest = under !== null && x >= under.left - 0.5 && x <= under.right + 0.5 ? Math.max(floor.y, under.floor) : floor.y;
+      y = Math.round(Math.min(lowest, want));
     };
     /** In the hand: placed on every move of the pointer, leaning back against the drag. */
     const followHand = () => {
@@ -187,6 +211,26 @@ export default function LooseCharacter({
       place.style.cursor = 'grabbing';
       followHand();
     };
+    /** The floor of the room a drop would land in, on the screen, or null when there is none on screen to land in. */
+    // Any of a ROOM's floor showing in the page will do, below the line it stands on or not (a stream room's window edge).
+    const dropFloor = (): { stage: HTMLElement; room: LooseHome } | null => {
+      const target = (into.current ?? (() => stage))();
+      if (target === null || !target.isConnected) return null;
+      const room = roomFloor(boxOf(target), clipOf(target), size, Number.POSITIVE_INFINITY);
+      return room === null ? null : { stage: target, room };
+    };
+    /** One frame of a fall or a flight from `from` to where it now is: true when that brought it down into a room. */
+    const dropped = (from: { x: number; y: number }, impact: number): boolean => {
+      const target = dropFloor();
+      if (target === null || target.room === null) return false;
+      const at = dropsInto(from, { x, y }, target.room);
+      if (at === null) return false;
+      x = at;
+      y = target.room.floor;
+      droppedIn = target.stage;
+      landed(false, impact);
+      return true;
+    };
     /** Down on the floor: its landing (or stars after a splat) played once, then on its way home. */
     const landed = (dizzy: boolean, impact: number) => {
       settle = settleFrames(impact);
@@ -215,10 +259,16 @@ export default function LooseCharacter({
       if (phase === 'thrown' && thrown !== null) {
         const box = { ...size, ...insets };
         const arena = { left: -insets.left, right: floor.screen - size.w + insets.right, ceiling: size.h - insets.top, floor: floor.y, spans: floor.spans };
+        const from = { x, y };
         thrown = throwStep(thrown, arena);
         x = thrown.x;
         y = thrown.y;
         if (Math.abs(thrown.vx) >= 2) facing = thrown.vx > 0 ? 1 : -1;
+        if (thrown.stage !== 'wind' && dropped(from, Math.abs(thrown.vy))) {
+          thrown = null;
+          paint({});
+          return;
+        }
         if (thrown.stage !== 'landed') {
           const ahead = throwStep(thrown, arena);
           glideToward({ x: ahead.x, y: ahead.y });
@@ -230,10 +280,19 @@ export default function LooseCharacter({
         thrown = null;
       }
       if (phase === 'fall' && fall !== null) {
-        const next = fallStep(fall, floor.y, floor.screen - size.w);
+        const from = { x, y };
+        // Let go below a stream room's window edge, over a ROOM's floor: that floor is what it falls to.
+        const under = y > floor.y ? (dropFloor()?.room ?? null) : null;
+        const ground = under !== null && x >= under.left - 0.5 && x <= under.right + 0.5 && y <= under.floor + 0.5 ? under.floor : floor.y;
+        const next = fallStep(fall, ground, floor.screen - size.w);
         x = next.x;
         y = next.y;
         fall = next;
+        if (dropped(from, Math.abs(next.vy))) {
+          fall = null;
+          paint({});
+          return;
+        }
         if (!next.landed) {
           const ahead = fallStep(next, floor.y, floor.screen - size.w);
           glideToward({ x: ahead.x, y: ahead.y });
@@ -246,14 +305,27 @@ export default function LooseCharacter({
       }
       if (phase !== 'loose' || loose === null) return;
       const tall = settle.shift();
+      // Dropped into a room: it stands on that room's floor while its landing plays, then the room has it.
+      const inRoom = droppedIn === null ? null : roomFloor(boxOf(droppedIn), clipOf(droppedIn), size, Number.POSITIVE_INFINITY);
+      if (droppedIn !== null && (act === null || inRoom === null)) {
+        done = true;
+        home.current(inRoom === null ? null : x, 'room');
+        return;
+      }
       if (act !== null) {
         // Its landing, or its stars, played through where it came down.
         motion = act.motion;
         motionTick = act.tick;
         act = act.tick + 1 < ticksOf(act.motion) ? { motion: act.motion, tick: act.tick + 1 } : null;
-        y = floor.y;
+        y = inRoom?.floor ?? floor.y;
         loose = { ...loose, y };
         paint({ fx: tall === undefined ? null : squashLook('floor', tall, size) });
+        return;
+      }
+      // No room of its own (somebody's companion off the strip): down on the floor, it is handed straight back.
+      if (stage === null) {
+        done = true;
+        home.current(x, 'floor');
         return;
       }
       const room = roomFloor(boxOf(stage), clipOf(stage), size, floor.y);
@@ -263,7 +335,7 @@ export default function LooseCharacter({
       facing = loose.facing;
       if (loose.stage === 'home') {
         done = true;
-        home.current(room === null ? null : x);
+        home.current(room === null ? null : x, 'room');
         return;
       }
       // Off the floor it climbs, its back to you; along the floor it walks; out of sight of its room it stands and waits.

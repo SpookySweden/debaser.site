@@ -177,8 +177,10 @@ assert.equal(wire.reactionIsLocal('friend'), false, 'and sent, so everyone in th
   const root = path.join(__dirname, '..');
   const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
   const room = read('app/components/ProfileRoom.tsx');
-  assert.equal((room.match(/friendId=\{/g) ?? []).length, 3, 'the owner, every guest and your visiting companion are told their friend');
-  assert.equal((room.match(/spots=\{spots\}/g) ?? []).length, 3, 'and share where each stands');
+  // (2026-11-23, "allow to drag into the profile room") Somebody's companion dropped in off a stream room's strip is a
+  // fourth kind of figure in the room, told its friend and sharing where it stands too. Updated on purpose.
+  assert.equal((room.match(/friendId=\{/g) ?? []).length, 4, 'the owner, every guest, your visiting companion and anybody dropped in are told their friend');
+  assert.equal((room.match(/spots=\{spots\}/g) ?? []).length, 4, 'and share where each stands');
   assert.ok(room.includes('friendLines(person.id)'), 'friends get their cheerful lines in the ROOM');
   assert.ok(room.includes('wantsAnswer(said.line)'), 'and answer each other');
   const walkerFile = read('app/components/ProfileCharacter.tsx');

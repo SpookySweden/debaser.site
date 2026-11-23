@@ -38,6 +38,15 @@ import { watchWindowState } from '../lib/watch/watch-window';
 import { measureWindows, type Floor, type FloorBox } from '../lib/companion/floor';
 import { shoveStep, shoveThrow } from '../lib/companion/shove';
 import { holdLedgeHeight } from '../lib/companion/ledge';
+import { dropsInto } from '../lib/companion/loose';
+import dynamic from 'next/dynamic';
+import type { LooseGrab } from './LooseCharacter';
+
+/**
+ * Somebody's companion picked up off the strip is carried by `./LooseCharacter.tsx`, fetched only in the browser once a
+ * press starts (as `ProfileCharacter.tsx` does): nobody needs it before then.
+ */
+const LooseCharacter = dynamic(() => import('./LooseCharacter'), { ssr: false });
 import { companionScene } from '../lib/companion/scene';
 import {
   isThrow,
@@ -518,8 +527,9 @@ function Figure({ placeRef, bodyRef, markRef, label, own, ownerId, look }: Figur
       ref={placeRef}
       role="img"
       aria-label={own ? 'Your companion' : `${label}'s companion`}
-      // Yours can be picked up: a grabbing hand over it, and a touch drags it rather than scrolling the page.
-      className={`group pointer-events-auto invisible absolute left-0 top-0 overflow-visible ${own ? 'cursor-grab touch-none select-none' : ''}`}
+      // Any can be picked up (somebody else's too, on this screen only, since 2026-11-23): a grabbing hand over it, and a
+      // touch drags it rather than scrolling the page.
+      className="group pointer-events-auto invisible absolute left-0 top-0 cursor-grab touch-none select-none overflow-visible"
       style={{ width: size.w, height: size.h }}
       data-companion={own ? 'own' : 'room'}
       data-companion-of={ownerId ?? undefined}
@@ -791,6 +801,32 @@ function OwnCompanion({ label, userId, roomKeys, friendShare, friendId, musicPla
       return { ...next, x: next.landed ? slid : next.x + Math.sign(slid - next.x) * Math.min(16, Math.abs(slid - next.x)) };
     };
 
+    /**
+     * Dropped into a profile's room (Luke, 2026-11-23: "allow to drag into the profile room"): this frame of its fall or
+     * flight, from `from` to where it now is, came down through the room's floor over a stretch it can stand on. It is in
+     * the room from here, as if it had climbed in (the room draws it, with a wave), and climbs down when the room goes.
+     */
+    const droppedIntoRoom = (from: { x: number; y: number }, to: { x: number; y: number }, size: Size, now: number): boolean => {
+      const room = visitRoomState();
+      if (room === null) return false;
+      const stage = boxOf(room.stage);
+      // Any of the room's floor showing in the page will do, below the line it stands on or not (a stream room's window).
+      const at = dropsInto(from, to, roomFloor(stage, clipOf(room.stage), size, Number.POSITIVE_INFINITY));
+      if (at === null) return false;
+      x = at;
+      thrown = null;
+      fall = null;
+      glide = null;
+      visiting = room;
+      phase = 'room';
+      lastActivity = now;
+      if (place !== null) place.style.cursor = '';
+      noteRoomSpot(null);
+      setCompanionInRoom(true, at - stage.left);
+      hide(place);
+      return true;
+    };
+
     const leaveRoom = () => {
       visiting = null;
       setCompanionInRoom(false);
@@ -896,6 +932,7 @@ function OwnCompanion({ label, userId, roomKeys, friendShare, friendId, musicPla
       // Thrown: it keeps the speed it was let go at (`../lib/companion/throw.ts`). A beat of wind-up, then through the air
       // drawn out along its path; flat against an edge of the screen it hits hard; bouncing, squashed, on its floor.
       if (phase === 'thrown' && thrown !== null) {
+        const before = { x: x ?? thrown.x, y };
         const box: ThrowBox = { ...size, ...insets };
         // Its picture, not the empty edge of its box, is what meets the sides and the top of the screen.
         const arena = { left: -insets.left, right: floor.screen - size.w + insets.right, ceiling: size.h - insets.top, floor: floor.y, spans: floor.spans };
@@ -903,6 +940,8 @@ function OwnCompanion({ label, userId, roomKeys, friendShare, friendId, musicPla
         x = thrown.x;
         y = thrown.y;
         if (Math.abs(thrown.vx) >= 2) facing = thrown.vx > 0 ? 1 : -1;
+        // Thrown into a profile's room, down through its floor: it lands in there (Luke, 2026-11-23).
+        if (thrown.stage !== 'wind' && droppedIntoRoom(before, { x, y }, size, now)) return;
         if (thrown.stage !== 'landed') {
           // Between this frame and the next it glides toward where the rules will have it then.
           const ahead = throwStep(thrown, arena);
@@ -932,6 +971,8 @@ function OwnCompanion({ label, userId, roomKeys, friendShare, friendId, musicPla
         x = fall?.x ?? x;
         fall = null;
         phase = 'mount';
+        // Unless it was let go over a profile's ROOM beside that window: down it drops into the ROOM (2026-11-23).
+        if (x !== null && droppedIntoRoom({ x, y }, { x, y: Number.MAX_SAFE_INTEGER }, size, now)) return;
       }
       if (phase === 'held' || phase === 'fall') {
         const from: Fall = fall ?? { x: x ?? 0, y, vx: 0, vy: 0, landed: false };
@@ -939,6 +980,8 @@ function OwnCompanion({ label, userId, roomKeys, friendShare, friendId, musicPla
         x = next.x;
         y = next.y;
         fall = next;
+        // Let go over a profile's room: it drops onto that room's floor, not past it to its strip (Luke, 2026-11-23).
+        if (droppedIntoRoom(from, { x: next.x, y: next.y }, size, now)) return;
         if (!next.landed) {
           phase = 'fall';
           play('dangle');
@@ -1367,6 +1410,8 @@ function OwnCompanion({ label, userId, roomKeys, friendShare, friendId, musicPla
         grab = null;
         fall = null;
         phase = 'mount';
+        // Unless it was let go over a profile's ROOM beside that window: down it drops into the ROOM (2026-11-23).
+        if (x !== null) droppedIntoRoom({ x, y }, { x, y: Number.MAX_SAFE_INTEGER }, size, Date.now());
         return;
       }
       if (still || !isThrow(toss.vx, toss.vy)) {
@@ -1663,6 +1708,18 @@ function RoomFigure({ companion, still }: { companion: RoomCompanion; still: boo
   useEffect(() => {
     wearing.current = look;
   }, [look]);
+  // Picked up off the strip by this reader (Luke, 2026-11-23: "allow to drag into the profile room", "Also others' in
+  // stream"): carried, thrown and dropped by `LooseCharacter`, on this screen only. Let go over a profile's ROOM it lands in
+  // there (a visitor, if the room is not theirs, until the room goes); down on the floor it walks back to where its owner
+  // has it, since their own browser still says where it stands.
+  const [carried, setCarried] = useState<{ grab: LooseGrab; facing: 1 | -1 } | null>(null);
+  /** Where the hand let it go, for the loop to carry on from: in a room (its left edge on screen), or down on the floor. */
+  const handedBack = useRef<{ left: number | null; how: 'room' | 'floor' } | null>(null);
+  /** Who it is and what it wears, for a room it is dropped into that is not theirs. */
+  const visitor = useRef<{ name: string; look: VisitLook }>({ name: '', look: null });
+  useEffect(() => {
+    visitor.current = { name: companion.name || 'SOMEONE', look: shown ? { stripUrl: shown.stripUrl, sheet: shown.sheet, mood: shown.mood } : null };
+  }, [companion.name, shown]);
 
   useEffect(() => {
     const place = placeRef.current;
@@ -1692,8 +1749,10 @@ function RoomFigure({ companion, still }: { companion: RoomCompanion; still: boo
     // character on the screen at a time ... the same little dude that carries some memory and consistency"). The room draws
     // no copy of them while it is on this strip: it walks to under the room, climbs in, and the room carries on with it;
     // when the room goes, it climbs back down from where it stood. `../lib/companion/visit.ts`.
-    let phase: 'strip' | 'up' | 'room' | 'down' = 'strip';
+    let phase: 'strip' | 'up' | 'room' | 'down' | 'carried' = 'strip';
     let visiting: RoomCall | null = null;
+    /** Dropped into a room that is not its person's (nor one they visit): it stays while that room is on the page. */
+    let droppedHere = false;
     const person = owner.current;
     // The room on the page is drawing them already (they came into the stream while it was open): that figure is this one.
     const callNow = roomCallState();
@@ -1723,6 +1782,31 @@ function RoomFigure({ companion, still }: { companion: RoomCompanion; still: boo
       // The same room calling again (who it wants changed: a commenter's look came in) is still the room it is in.
       if (visiting !== null && call !== null && call.stage === visiting.stage) visiting = call;
 
+      // In this reader's hand (or in the air, or landing): `LooseCharacter` draws it. Let go, it carries on from there.
+      if (phase === 'carried') {
+        const back = handedBack.current;
+        if (back === null) {
+          if (seen === null || now.r > seen) seen = now.r;
+          hide(place);
+          return;
+        }
+        handedBack.current = null;
+        if (back.how === 'room' && back.left !== null && call !== null) {
+          // Dropped into a ROOM: in there from where it landed, as if it had climbed in.
+          phase = 'room';
+          visiting = call;
+          droppedHere = !roomWants(person, call);
+          const arrival = { x: back.left - boxOf(call.stage).left, facing };
+          setOtherInRoom(person, droppedHere ? { ...arrival, dropped: visitor.current } : arrival);
+          hide(place);
+          return;
+        }
+        // Down on the floor where it landed: from there it walks back to where its owner has it.
+        phase = 'strip';
+        if (back.left !== null) x = back.left;
+        feet = floor.y;
+      }
+
       if (still) {
         // Reduced motion: nothing climbs. It is in the room while the room wants it, and back on its strip when not.
         if (wanted) {
@@ -1741,7 +1825,7 @@ function RoomFigure({ companion, still }: { companion: RoomCompanion; still: boo
         }
       } else {
         if (phase === 'room') {
-          if (wanted && call === visiting) {
+          if ((wanted || droppedHere) && call !== null && call === visiting) {
             // What it hears up there is the room's to show: nothing piles up to be played on its way back.
             if (seen === null || now.r > seen) seen = now.r;
             hide(place);
@@ -1750,6 +1834,7 @@ function RoomFigure({ companion, still }: { companion: RoomCompanion; still: boo
           // The room went, or wants it no more: down from where it stood in it, or back over the edge of its floor.
           const spot = roomSpotOf(person);
           visiting = null;
+          droppedHere = false;
           setOtherInRoom(person, null);
           if (spot !== null && otherLeaves(spot, floor.y) === 'down') {
             phase = 'down';
@@ -1928,20 +2013,55 @@ function RoomFigure({ companion, still }: { companion: RoomCompanion; still: boo
     };
 
     // Its owner speaking in the room's chat: a hop with `...`, worked out here from the chat line this browser already has.
-    // Up in a room, the room shows it there.
+    // Up in a room, the room shows it there; in the reader's hand, nothing is shown.
     const offSpoke = onCompanionSpoke((who) => {
-      if (who !== owner.current || phase === 'room') return;
+      if (who !== owner.current || phase === 'room' || phase === 'carried') return;
       if (!still) act = { motion: 'hop', tick: 0 };
       markTimer = showMark(mark, markTimer, '...');
     });
     // Something handed to its owner (a letter dropped on it here): it catches it, on this screen.
     const offCatch = onCompanionCatch((who) => {
-      if (who === owner.current && !still && phase !== 'room') act = { motion: 'catch', tick: 0 };
+      if (who === owner.current && !still && phase !== 'room' && phase !== 'carried') act = { motion: 'catch', tick: 0 };
     });
     // A picture its owner sent in the room's chat: it raises it, arms up (ROOMSYNC).
     const offHold = onCompanionHolds((who) => {
-      if (who === owner.current && !still && phase !== 'room') act = { motion: 'cheer', tick: 0 };
+      if (who === owner.current && !still && phase !== 'room' && phase !== 'carried') act = { motion: 'cheer', tick: 0 };
     });
+    // Pressed and dragged by this reader: picked up off the strip (2026-11-23). A press without a drag does nothing more.
+    const onPress = (event: PointerEvent) => {
+      if (still || event.button !== 0 || place === null || phase === 'room' || phase === 'carried') return;
+      // Fetched now, so it is there by the time the press has moved far enough to pick it up.
+      void import('./LooseCharacter');
+      const id = event.pointerId;
+      const from = { x: event.clientX, y: event.clientY };
+      const trail: Sample[] = [{ x: from.x, y: from.y, t: performance.now() }];
+      const stop = () => {
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', stop);
+        window.removeEventListener('pointercancel', stop);
+      };
+      const onMove = (move: PointerEvent) => {
+        if (move.pointerId !== id) return;
+        trail.push({ x: move.clientX, y: move.clientY, t: performance.now() });
+        if (Math.hypot(move.clientX - from.x, move.clientY - from.y) < GRAB_SLOP) return;
+        stop();
+        if (phase === 'room' || phase === 'carried') return;
+        const box = place.getBoundingClientRect();
+        phase = 'carried';
+        visiting = null;
+        act = null;
+        handedBack.current = null;
+        hide(place);
+        setCarried({
+          grab: { pointerId: id, px: move.clientX, py: move.clientY, offX: from.x - box.left, offY: box.bottom - from.y, x: box.left, feet: box.bottom, trail },
+          facing,
+        });
+      };
+      window.addEventListener('pointermove', onMove, { passive: true });
+      window.addEventListener('pointerup', stop, { passive: true });
+      window.addEventListener('pointercancel', stop, { passive: true });
+    };
+    place?.addEventListener('pointerdown', onPress);
     tick();
     const timer = setInterval(tick, TICK_MS);
     return () => {
@@ -1949,12 +2069,34 @@ function RoomFigure({ companion, still }: { companion: RoomCompanion; still: boo
       offSpoke();
       offCatch();
       offHold();
+      place?.removeEventListener('pointerdown', onPress);
+      // Started over (reduced motion switched): nothing stays in the reader's hand, so it is never drawn twice.
+      setCarried(null);
+      handedBack.current = null;
       leaveStrip();
       if (markTimer !== null) clearTimeout(markTimer);
     };
   }, [still]);
 
-  return <Figure placeRef={placeRef} bodyRef={bodyRef} markRef={markRef} label={companion.name || 'SOMEONE'} own={false} ownerId={companion.userId} look={look} />;
+  return (
+    <>
+      <Figure placeRef={placeRef} bodyRef={bodyRef} markRef={markRef} label={companion.name || 'SOMEONE'} own={false} ownerId={companion.userId} look={look} />
+      {carried !== null ? (
+        <LooseCharacter
+          look={look}
+          grab={carried.grab}
+          facing={carried.facing}
+          stage={null}
+          label={companion.name || 'SOMEONE'}
+          dropInto={() => roomCallState()?.stage ?? null}
+          onHome={(left, how) => {
+            handedBack.current = { left, how };
+            setCarried(null);
+          }}
+        />
+      ) : null}
+    </>
+  );
 }
 
 export default function Companion() {

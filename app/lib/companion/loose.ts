@@ -61,3 +61,18 @@ export function looseStep(now: Loose, ground: LooseGround, home: LooseHome): Loo
   if (y === home.floor && x === column) return { x, y, facing, stage: 'home', waited: 0 };
   return { x, y, facing, stage: 'climb', waited: 0 };
 }
+
+/**
+ * Dropped into a room (Luke, 2026-11-23: "allow to drag into the profile room"): whether one frame of a fall or a throw,
+ * from `from` to `to` (left edge, feet), brings it down through a room's floor while it is over the stretch of that floor
+ * a figure of its width can stand on. The left edge it lands at, or null. Anything let go of in a room, over it, or thrown
+ * into it from above lands on its floor; rising through it, or passing beside it, does not.
+ */
+export function dropsInto(from: { x: number; y: number }, to: { x: number; y: number }, room: LooseHome): number | null {
+  if (room === null) return null;
+  if (from.y > room.floor + 0.5 || to.y < room.floor - 0.5) return null;
+  const share = to.y === from.y ? 1 : Math.min(1, Math.max(0, (room.floor - from.y) / (to.y - from.y)));
+  const at = from.x + (to.x - from.x) * share;
+  if (at < room.left - 0.5 || at > room.right + 0.5) return null;
+  return Math.round(Math.min(room.right, Math.max(room.left, at)));
+}

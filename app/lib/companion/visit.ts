@@ -101,8 +101,12 @@ export const roomSpot = (): RoomSpot | null => spot;
  * A person not on this screen's strip is drawn by the room itself, as before.
  */
 
-/** Where somebody else's companion stepped into the room: its left edge from the stage's left, and the way it faced. */
-export type OtherArrival = { x: number; facing: 1 | -1 };
+/**
+ * Where somebody else's companion stepped into the room: its left edge from the stage's left, and the way it faced. One
+ * dragged and dropped into a room it does not belong to (Luke, 2026-11-23: "allow to drag into the profile room", "Also
+ * others' in stream") also says who it is and what it wears, so that room can draw it as a visitor until the room goes.
+ */
+export type OtherArrival = { x: number; facing: 1 | -1; dropped?: { name: string; look: VisitLook } };
 
 /** Whose companions are on this screen's strip just now, and who of them has climbed into the room on the page. */
 export type OthersHere = { onStrip: readonly string[]; inRoom: Readonly<Record<string, OtherArrival>> };
@@ -169,14 +173,27 @@ export function setOtherInRoom(person: string, arrival: OtherArrival | null): vo
     if (now !== undefined) setOthersHere({ ...othersHere, inRoom: withoutArrival(othersHere.inRoom, person) });
     return;
   }
-  const next = { x: Math.round(arrival.x), facing: arrival.facing };
-  if (now !== undefined && now.x === next.x && now.facing === next.facing) return;
+  const next: OtherArrival = { x: Math.round(arrival.x), facing: arrival.facing, ...(arrival.dropped === undefined ? {} : { dropped: arrival.dropped }) };
+  if (now !== undefined && now.x === next.x && now.facing === next.facing && now.dropped === next.dropped) return;
   setOthersHere({ ...othersHere, inRoom: { ...othersHere.inRoom, [person]: next } });
 }
 
 /** Whether the room draws `person` itself: they are not on this screen's strip, or their companion has climbed in. Pure. */
 export function roomDraws(person: string, here: OthersHere): boolean {
   return !here.onStrip.includes(person) || here.inRoom[person] !== undefined;
+}
+
+/**
+ * The people somebody dropped into this room who are not already in it as its owner or a visiting commenter: drawn by the
+ * room as visitors, with the look and name they arrived with, until the room goes. Pure.
+ */
+export function droppedVisitors(here: OthersHere, already: readonly string[]): { id: string; name: string; look: VisitLook; x: number; facing: 1 | -1 }[] {
+  const found: { id: string; name: string; look: VisitLook; x: number; facing: 1 | -1 }[] = [];
+  for (const [id, arrival] of Object.entries(here.inRoom)) {
+    if (arrival.dropped === undefined || already.includes(id)) continue;
+    found.push({ id, name: arrival.dropped.name, look: arrival.dropped.look, x: arrival.x, facing: arrival.facing });
+  }
+  return found;
 }
 
 /** A room calling the companions of the people it would draw (its owner, its visiting commenters) up into it. */

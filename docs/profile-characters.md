@@ -65,6 +65,31 @@ Read this before touching the motions, the bake or the profile walker. The spec 
 - Checked by `Temp/check-one-character.cjs` (the room drawn, the store, leaving) and `scripts/drive-one-character.cjs`
   (a local mock dev server; a second member put into the mock stream room on its wire).
 
+## Dropped into the ROOM (Luke, 2026-11-23)
+- "allow to drag into the profile room", and, asked whether that takes in other people's characters too, "Also others' in
+  stream". Let go over a ROOM (or thrown so that it comes down through its floor) a character lands on the ROOM's floor
+  where it crossed it, plays its landing, and is in the ROOM from there: it no longer drops to the site's floor and climbs
+  back up. One pure rule decides it for all of them: `dropsInto` in `app/lib/companion/loose.ts`.
+- **Your companion**: its fall and its throw ask the rule each frame (`droppedIntoRoom` in `OwnCompanion`), and so does a
+  let-go below a stream room's window edge, where it would otherwise climb back up onto the window. In the ROOM it is the
+  visit it already made by climbing (`setCompanionInRoom`): it waves, walks with the owner, and climbs down when the page
+  changes.
+- **A ROOM's character taken out**: `LooseCharacter` lands it back in where it is let go, with a wave, instead of the walk
+  home.
+- **Somebody else's companion in your stream room** can now be pressed and dragged off the strip (`RoomFigure`'s `onPress`):
+  `LooseCharacter` carries it (`stage` null: it has no ROOM of its own to walk home to). Dropped into a ROOM that is not
+  theirs it is a visitor there (its look and name ride on its arrival, `dropped` in `OtherArrival`; `droppedVisitors` in
+  `visit.ts`) until the ROOM goes, then it climbs down; dropped into their own ROOM it is the one-of-each figure as above.
+  Let go anywhere else it lands on the floor and walks back to where its owner has it, since their own browser still says
+  where it stands. This screen only: nothing is sent, and nobody else sees it moved.
+- Standing on a stream room's window edge, a carried character can be held down past that edge, so a ROOM beside the
+  window can be reached; any of a ROOM's floor showing in the page takes a drop. A ROOM always offers itself (`callIntoRoom`),
+  even with nobody to call up.
+- Reduced motion: nothing is carried, as before.
+- Checked by `Temp/check-drop-into-room.cjs` (the rule, and a ROOM drawing whoever is dropped into it) and
+  `scripts/drive-drop-into-room.cjs` (a local mock dev server: your companion, a stream member's, and the ROOM's own
+  character, each carried over the ROOM and let go, the ROOM out of sight until carried to it).
+
 ## Talking (SPEC-character-speech.md, Luke 2026-11-14)
 - **In a profile's ROOM** (`ProfileRoom.tsx`) up to three of the newest commenters' shown characters come to visit, and
   every so often one character stops, faces the reader and says something in a bubble over its head

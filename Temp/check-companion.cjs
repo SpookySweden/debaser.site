@@ -270,9 +270,12 @@ ok('a pose is only drawn with the mood it goes with, and every reaction has its 
   assert.deepEqual(wire.COMPANION_MOODS, ['stand', 'walk', 'sit', 'sleep', 'dance', 'chase'], 'the moods stay the first six, so older code still draws it');
 });
 
-ok('picking it up: only yours, a drag not a press, nothing under reduced motion, and never left hanging', () => {
+ok('picking it up: any, a drag not a press, nothing under reduced motion, and never left hanging', () => {
   const strip = read('app/components/Companion.tsx');
-  assert.match(strip, /own \? 'cursor-grab touch-none select-none' : ''/, 'only your own companion can be picked up');
+  // (Luke, 2026-11-23: "allow to drag into the profile room", "Also others' in stream") Somebody else's in a room you share
+  // can be picked up too, on this screen only (RoomFigure hands it to LooseCharacter). Updated on purpose.
+  assert.match(strip, /className="group pointer-events-auto invisible absolute left-0 top-0 cursor-grab touch-none select-none overflow-visible"/, 'any companion can be picked up');
+  assert.match(strip, /const onPress = \(event: PointerEvent\) => \{\s*if \(still \|\| event\.button !== 0/, "somebody else's, never under reduced motion");
   assert.match(strip, /Math\.hypot\(event\.clientX - grab\.startX, event\.clientY - grab\.startY\) < GRAB_SLOP/, 'a press that has not moved is a poke');
   assert.match(strip, /if \(still \|\| !canGrab\(\)\) \{/, 'nothing is carried under reduced motion, or out of a room it is in');
   assert.match(strip, /if \(!canGrab\(\)\) \{\s*grab = null;\s*return;\s*\}/, 'a press held while it climbed into the room picks nothing up');
@@ -621,8 +624,9 @@ ok('a line of chat hops the companion of whoever said it, worked out in each bro
   const strip = read('app/components/Companion.tsx');
   assert.match(strip, /if \(who === company\.current\.userId\) react\('spoke'\);/, 'yours hops when you speak');
   // (2026-11-22, "just one of each character on the screen") Not while it is up in a profile's room: the room's figure of
-  // them says the line there instead (ProfileRoom.tsx). Updated on purpose.
-  assert.match(strip, /if \(who !== owner\.current \|\| phase === 'room'\) return;\s*if \(!still\) act = \{ motion: 'hop', tick: 0 \};\s*markTimer = showMark\(mark, markTimer, '\.\.\.'\);/, "and theirs when they do, with nothing sent");
+  // them says the line there instead (ProfileRoom.tsx). Nor while this reader carries it (2026-11-23, dragged into a ROOM:
+  // LooseCharacter draws it then). Updated on purpose.
+  assert.match(strip, /if \(who !== owner\.current \|\| phase === 'room' \|\| phase === 'carried'\) return;\s*if \(!still\) act = \{ motion: 'hop', tick: 0 \};\s*markTimer = showMark\(mark, markTimer, '\.\.\.'\);/, "and theirs when they do, with nothing sent");
 });
 
 ok('hellos: it waves at a companion new to the room (not at every sync), and climbs on its climbing frames', () => {
@@ -676,15 +680,18 @@ ok("K2: handed something, a person's character catches it, wherever it is drawn 
   assert.equal(wire.reactionMark('catch'), null);
   const strip = read('app/components/Companion.tsx');
   assert.match(strip, /if \(who === company\.current\.userId && phase === 'strip'\) react\('catch'\);/, 'your own companion');
-  // (2026-11-22) Up in a profile's room, the room's figure of them catches it there (`RoomWalker`). Updated on purpose.
-  assert.match(strip, /if \(who === owner\.current && !still && phase !== 'room'\) act = \{ motion: 'catch', tick: 0 \};/, "somebody else's in a room you share");
+  // (2026-11-22) Up in a profile's room, the room's figure of them catches it there (`RoomWalker`); carried by this reader
+  // (2026-11-23), nothing is played under the hand. Updated on purpose.
+  assert.match(strip, /if \(who === owner\.current && !still && phase !== 'room' && phase !== 'carried'\) act = \{ motion: 'catch', tick: 0 \};/, "somebody else's in a room you share");
   assert.match(strip, /data-companion-of=\{ownerId \?\? undefined\}/, 'a companion on the strip says whose it is');
   const walkerSource = read('app/components/ProfileCharacter.tsx');
   assert.match(walkerSource, /return onCompanionCatch\(\(who\) => \{\s*if \(who === person\) setState\(\(current\) => catchIt\(current\)\);\s*\}\);/, "their character in a profile's ROOM");
   assert.match(walkerSource, /data-character-of=\{person\}/, 'which says whose it is too');
   // Updated on purpose (SPEC-character-speech.md, 2026-11-14): commenters' characters visit the room now, and each of
   // them says whose it is too, so three figures are drawn with a person where there were two.
-  assert.equal((read('app/components/ProfileRoom.tsx').match(/person=\{/g) ?? []).length, 3, "the room's own character, each visiting commenter's, and your visiting companion");
+  // Updated on purpose again (2026-11-23, "allow to drag into the profile room"): somebody's companion dropped in off a
+  // stream room's strip is a fourth kind of figure in the room, and says whose it is too.
+  assert.equal((read('app/components/ProfileRoom.tsx').match(/person=\{/g) ?? []).length, 4, "the room's own character, each visiting commenter's, your visiting companion, and anybody dropped in");
   const bus = read('app/lib/companion/events.ts');
   assert.doesNotMatch(bus, /fetch\(|supabase|sayCompanion/, 'the bus sends nothing anywhere');
 });
