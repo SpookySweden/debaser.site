@@ -140,6 +140,7 @@ import MainRoomKeys, { MainRoomEndSection, MainRoomLiveSection, VisitorRoomSetti
 import { registerMainRoomPlay, subscribeToGoLiveAsk, takeGoLiveAsk, type MainRoomSource } from '../lib/watch/main-room-play';
 import StreamQueueWindow from './StreamQueueWindow';
 import CanvasToggle from './CanvasToggle';
+import SeenTogether from './seeing/SeenTogether';
 import RoomCornerKeys from './RoomCornerKeys';
 import RoomVisualiser from './RoomVisualiser';
 import VisualiserToggle from './VisualiserToggle';
@@ -1897,6 +1898,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
           <VisualiserToggle roomId={roomId} audio={canvasAudio} />
           {visitorRoom ? null : <CanvasToggle roomId={roomId} audio={canvasAudio} />}
           <ScreenToggle roomId={roomId} audio={canvasAudio && !visitorRoom} />
+          {visitorRoom ? null : <SeenTogether roomId={roomId} />}
         </RoomCornerKeys>
         {/* Only over the picture itself, never over the canvas or the PC's screen in its place. */}
         {screen === 'picture' ? pictureBar : null}

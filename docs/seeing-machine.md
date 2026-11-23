@@ -153,6 +153,13 @@ In OWN EYE these are your own browser's, where they answer as they always do; no
 - Notes are the site's (`seen_notes`, `notes-store.ts`): everyone with an account who opens the page here sees them, with REPORT and HIDE. Drawings are
   this browser's.
 
+## SEEN TOGETHER (Phase 6)
+`together.ts` (pure), `together-store.ts`: `[ SHOW MY ROOM ]` tells the Room this reader is in (or their own) which page is in front and how far
+down it is, on the room's private channel (`seeing:<room>`, migration 20261123130300; on a local dev server, between this browser's tabs). Nothing is
+stored. What comes from the room is a stranger's words: an outside address only (`readTogether`), and a page opens only on the looker's own press
+(`[ SEE TOGETHER ]` in BROWSER, `[ PAGE: … ]` in the Room's corner keys); `[ FOLLOW ]` moves the page already in front and nothing else. Each sees it
+through their own lens. Sixty seconds without a word is nothing shown.
+
 ## SONIFY (Phase 6)
 `sonify.ts` reads a page's tags in order (headings the beat, links the notes, pictures a bell) and writes BeepBox's own JSON into BEATBOX's address;
 no word or address of the page goes in it. The same page always sounds the same.

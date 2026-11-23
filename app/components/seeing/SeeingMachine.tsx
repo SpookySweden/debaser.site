@@ -20,6 +20,11 @@ import { askedOf, cleanWords, engineChosen, enginesOn, readBox, sayBox, searchAd
 import { searchChoices, searchChoicesOnServer, subscribeToSearch } from '../../lib/seeing/search-store';
 import { openSearch } from '../../lib/search/site-search';
 import { beatBoxHref } from '../../lib/seeing/sonify';
+import { samePage } from '../../lib/seeing/together';
+import { follow, joinTogether, lead, leadTo, stopLeading, subscribeToTogether, together, togetherOnServer } from '../../lib/seeing/together-store';
+import { ownRoomState, subscribeToOwnRoom } from '../../lib/watch/own-room-client';
+import { subscribeToWatchWindow, watchWindowState } from '../../lib/watch/watch-window';
+import { shortName } from '../../lib/seeing/address';
 import { trayOf } from '../../lib/seeing/media';
 import { dialOf, dialTo } from '../../lib/seeing/time';
 import { addTab, canGoBack, canGoForward, closeTab, frontTab, showTab, step, stopOf, TABS_MOST, visit, withDraft, withAddress, withLens, withTitle, type Tabs } from '../../lib/seeing/tabs';
@@ -30,6 +35,7 @@ import { notesState, notesStateOnServer, openNotesOn, subscribeToNotes } from '.
 import type { SharedNote } from '../../lib/seeing/account';
 import { keptId } from '../../lib/seeing/pages';
 import { keptPage, keptPages, keptPagesOnServer, openKeptPagesOf, subscribeToKeptPages } from '../../lib/seeing/pages-store';
+import type { FrameScroll } from '../../lib/seeing/frame';
 import { engineFor } from '../../lib/seeing/engines';
 import { extensionState, extensionStateOnServer, lookForExtension, subscribeToExtension } from '../../lib/seeing/extension-store';
 import { openInOwnEye, tellOwnEyeTheme } from '../../lib/seeing/own-eye';
@@ -119,6 +125,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
   const [keeping, setKeeping] = useState(false);
   const [noting, setNoting] = useState(false);
   const [listing, setListing] = useState(false);
+  const moverRef = useRef<((to: FrameScroll) => void) | null>(null);
   const choices = useSyncExternalStore(subscribeToSearch, searchChoices, searchChoicesOnServer);
   const [drawing, setDrawing] = useState(false);
   const finderRef = useRef<((index: number) => void) | null>(null);
@@ -310,6 +317,31 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
     for (const engine of engines) if (engine.opens === 'out') ask(engine, typed.words);
   };
 
+  const seen = now.state === 'shown' ? now.document : null;
+  // SEEN TOGETHER: the room this reader is in, or their own.
+  const shownRoom = useSyncExternalStore(subscribeToWatchWindow, watchWindowState, watchWindowState);
+  const ownRoom = useSyncExternalStore(subscribeToOwnRoom, ownRoomState, ownRoomState);
+  const roomId = (shownRoom.open && shownRoom.focus?.kind === 'room' ? shownRoom.focus.roomId : null) ?? ownRoom.roomId;
+  const shared = useSyncExternalStore(subscribeToTogether, together, togetherOnServer);
+  useEffect(() => (roomId === null ? undefined : joinTogether(roomId)), [roomId]);
+  const { leading, following, shown: theirs } = shared;
+  const onPlace = useCallback(
+    (y: number, whole: number) => {
+      if (address !== null) leadTo({ address: address.split('#')[0], y, whole });
+    },
+    [address],
+  );
+  // Another page in front, while showing: that is what is shown.
+  useEffect(() => {
+    if (!leading) return;
+    if (address !== null && /^https?:/.test(address)) leadTo({ address: address.split('#')[0], y: 0, whole: 1 });
+    else stopLeading();
+  }, [leading, address]);
+  // Following moves the page in front to where they are, and opens nothing.
+  useEffect(() => {
+    if (following && theirs !== null && samePage(theirs.address, address)) moverRef.current?.({ see: 'scrollTo', x: 0, y: theirs.y, whole: theirs.whole });
+  }, [following, theirs, address, seen]);
+
   const onErase = useCallback(
     (selector: string) => {
       if (address !== null) erase(address, selector);
@@ -317,7 +349,6 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
     [address],
   );
 
-  const seen = now.state === 'shown' ? now.document : null;
   const sonify = () => {
     const href = seen === null ? null : beatBoxHref(seen.html);
     if (href === null) setNotice('NOTHING ON THIS PAGE TO PLAY');
@@ -468,6 +499,18 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
             [ SEARCH THIS ]
           </button>
         ) : null}
+        {outside && roomId !== null ? (
+          <button
+            type="button"
+            aria-pressed={leading}
+            disabled={seen === null}
+            title="Your room sees which page this is, and how far down it you are; each looks through their own lens"
+            onClick={() => (leading ? stopLeading() : address !== null ? lead({ address: address.split('#')[0], y: 0, whole: 1 }) : undefined)}
+            className={leading ? `${PLATE_PRESSED} cursor-pointer` : PLATE}
+          >
+            [ SHOW MY ROOM ]
+          </button>
+        ) : null}
         <button type="button" disabled={seen === null} title="The page's structure as a BEATBOX loop: headings the beat, links the notes" onClick={sonify} className={PLATE}>
           [ SONIFY ]
         </button>
@@ -497,6 +540,28 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
         ) : null}
       </SeeingTools>
 
+      {theirs !== null && !leading ? (
+        <p className="flex flex-wrap items-center gap-2 py-1 text-label text-ink" data-seeing-together>
+          IN YOUR ROOM: {shortName(theirs.address)}
+          {samePage(theirs.address, address) ? (
+            <button type="button" aria-pressed={following} onClick={() => follow(!following)} className={following ? `${PLATE_PRESSED} cursor-pointer` : PLATE}>
+              [ FOLLOW ]
+            </button>
+          ) : (
+            <button
+              type="button"
+              title={theirs.address}
+              onClick={() => {
+                follow(true);
+                go(theirs.address);
+              }}
+              className={PLATE}
+            >
+              [ SEE TOGETHER ]
+            </button>
+          )}
+        </p>
+      ) : null}
       {copyPage !== null ? (
         <p className="flex flex-wrap items-baseline gap-2 py-1 text-label text-ink" data-seeing-copy-of>
           KEPT {new Date(copyPage.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).toUpperCase()}
@@ -527,7 +592,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
           />
         ) : null}
         {seen !== null ? (
-          <SeeingStage key={key} drawing={key} document={seen} lens={tab.lens} settings={settings} seam={seam} loupe={loupe} erasing={erasing} erased={erased} onErase={onErase} onOpen={go} onNotice={setNotice} onRestricted={onRestricted} onMedia={onMedia} onSelect={outside ? onSelect : null} marks={marks} finderRef={finderRef} graffiti={page} drawn={drawing && outside} />
+          <SeeingStage key={key} drawing={key} document={seen} lens={tab.lens} settings={settings} seam={seam} loupe={loupe} erasing={erasing} erased={erased} onErase={onErase} onOpen={go} onNotice={setNotice} onRestricted={onRestricted} onMedia={onMedia} onSelect={outside ? onSelect : null} onPlace={leading && outside ? onPlace : null} moverRef={moverRef} marks={marks} finderRef={finderRef} graffiti={page} drawn={drawing && outside} />
         ) : address === null ? (
           <div className="min-w-0 flex-1 overflow-y-auto p-4">
             <button type="button" className={PLATE_MAIN} onClick={() => go(TEST_ADDRESS)}>

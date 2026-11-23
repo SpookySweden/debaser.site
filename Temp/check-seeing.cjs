@@ -1,7 +1,7 @@
 /*
  * BROWSER, the DEBASER SEEING MACHINE, Phase 1 (SPEC-seeing-machine.md, Luke 2026-11-23): the pure parts of the shell.
  * (scripts/drive-see.cjs drives the page itself in a browser, on every theme.)
- *   npx tsc app/lib/seeing/address.ts app/lib/seeing/tabs.ts app/lib/seeing/frame.ts app/lib/seeing/test-engine.ts app/lib/seeing/time.ts app/lib/seeing/trail.ts app/lib/seeing/search.ts app/lib/seeing/margins.ts app/lib/seeing/sonify.ts app/lib/seeing/pages.ts app/lib/seeing/media.ts app/lib/seeing/ask.ts app/lib/seeing/memory.ts app/lib/seeing/lenses/registry.ts app/lib/ui/modules.ts --rootDir app --outDir Temp/seeing-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
+ *   npx tsc app/lib/seeing/address.ts app/lib/seeing/tabs.ts app/lib/seeing/frame.ts app/lib/seeing/test-engine.ts app/lib/seeing/time.ts app/lib/seeing/trail.ts app/lib/seeing/search.ts app/lib/seeing/margins.ts app/lib/seeing/sonify.ts app/lib/seeing/together.ts app/lib/seeing/pages.ts app/lib/seeing/media.ts app/lib/seeing/ask.ts app/lib/seeing/memory.ts app/lib/seeing/lenses/registry.ts app/lib/ui/modules.ts --rootDir app --outDir Temp/seeing-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
  *   node Temp/check-seeing.cjs
  *
  * - an address: http and https only, no user names or passwords, no control characters, bare names get https, words are refused
@@ -316,6 +316,16 @@ assert.ok(light.text.length <= M.STORED_MOST && 'https://a.example/29' in light.
 let pagesDrawn = M.NO_MARGINS;
 for (let i = 0; i < 40; i += 1) pagesDrawn = M.withStrokes(pagesDrawn, `https://a.example/${i}`, [line]);
 assert.ok(Object.keys(pagesDrawn.drawings).length === M.DRAWN_PAGES_MOST && 'https://a.example/39' in pagesDrawn.drawings && !('https://a.example/0' in pagesDrawn.drawings));
+
+/* ------------------------------------------------------------------ Phase 6: SEEN TOGETHER, a room's words read as a stranger's */
+const G = require(`${OUT}together.js`);
+assert.deepEqual(G.readTogether({ see: 'at', address: 'https://a.example/x#part', y: 40, whole: 900 }), { see: 'at', address: 'https://a.example/x', y: 40, whole: 900 });
+assert.deepEqual(G.readTogether({ see: 'at', address: 'https://a.example/x', y: 5000, whole: 0 }), { see: 'at', address: 'https://a.example/x', y: 0, whole: 1 }, 'never further down than the page');
+assert.deepEqual([G.readTogether({ see: 'over', address: 'x' }), G.readTogether({ see: 'who' })], [{ see: 'over' }, { see: 'who' }]);
+for (const bad of [null, 'at', { see: 'at', address: 'javascript:alert(1)', y: 1, whole: 2 }, { see: 'at', address: 'see:kept/x', y: 1, whole: 2 }, { see: 'at', address: 'https://user:pw@a.example/', y: 1, whole: 2 }, { see: 'at', address: 'https://a.example/', y: -1, whole: 2 }, { see: 'at', address: 'https://a.example/', y: NaN, whole: 2 }, { see: 'at', address: 'https://a.example/', y: 1, whole: 1e9 }, { see: 'at', address: 'https://a.example/', y: '1', whole: 2 }, { see: 'go', address: 'https://a.example/' }]) {
+  assert.equal(G.readTogether(bad), null, `refused: ${JSON.stringify(bad)}`);
+}
+assert.deepEqual([G.samePage('https://a.example/x#a', 'https://a.example/x#b'), G.samePage('https://a.example/x', 'https://a.example/y'), G.samePage(null, null)], [true, false, false]);
 
 /* ------------------------------------------------------------------ search: an address or words, and to whom */
 const Q = require(`${OUT}search.js`);

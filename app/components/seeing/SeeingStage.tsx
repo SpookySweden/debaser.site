@@ -35,6 +35,9 @@ type Props = {
   onMedia: (media: readonly FoundMedia[]) => void;
   /** Told what is selected while there is somewhere to put it; null when there is not. */
   onSelect: ((text: string) => void) | null;
+  /** Told where the page is as it moves, while somebody is being shown it; and how it is moved to where they are. */
+  onPlace: ((y: number, whole: number) => void) | null;
+  moverRef: RefObject<((to: FrameScroll) => void) | null>;
   /** Passages with a note on them. */
   marks: readonly string[];
   /** How MARGINALIA brings one into sight. */
@@ -48,7 +51,7 @@ const NO_TOOLS: FrameTools = {};
 const nothing = () => undefined;
 
 /** The page, and over it a second drawing of it when there is a SEAM or a LOUPE. */
-export default function SeeingStage({ drawing, document, lens, settings, seam, loupe, erasing, erased, onErase, onOpen, onNotice, onRestricted, onMedia, onSelect, marks, finderRef, graffiti, drawn }: Props) {
+export default function SeeingStage({ drawing, document, lens, settings, seam, loupe, erasing, erased, onErase, onOpen, onNotice, onRestricted, onMedia, onSelect, onPlace, moverRef, marks, finderRef, graffiti, drawn }: Props) {
   const front = lensOr(lens);
   const [at, setAt] = useState(50);
   const [dragging, setDragging] = useState(false);
@@ -65,14 +68,17 @@ export default function SeeingStage({ drawing, document, lens, settings, seam, l
   const drawOn = board !== null && (drawn || strokesOn(everyMargin, board).length > 0);
   useEffect(() => {
     finderRef.current = (index) => moveBack.current?.({ see: 'find', index });
+    moverRef.current = (to) => moveBack.current?.(to);
     return () => {
       finderRef.current = null;
+      moverRef.current = null;
     };
-  }, [finderRef]);
+  }, [finderRef, moverRef]);
   const second = seam !== null ? lensOr(seam) : loupe !== null ? (typeof loupe === 'number' ? front : lensOr(loupe)) : null;
 
   const selecting = onSelect !== null;
-  const tools = useMemo<FrameTools>(() => ({ ...(erasing ? { erase: true as const } : {}), ...(seam !== null || loupe !== null ? { scroll: true as const } : {}), ...(loupe !== null ? { pointer: true as const } : {}), ...(selecting ? { select: true as const } : {}), ...(drawOn ? { place: true as const } : {}), ...(marks.length > 0 ? { marks: [...marks] } : {}) }), [erasing, seam, loupe, selecting, drawOn, marks]);
+  const placing = onPlace !== null;
+  const tools = useMemo<FrameTools>(() => ({ ...(erasing ? { erase: true as const } : {}), ...(seam !== null || loupe !== null ? { scroll: true as const } : {}), ...(loupe !== null ? { pointer: true as const } : {}), ...(selecting ? { select: true as const } : {}), ...(drawOn || placing ? { place: true as const } : {}), ...(marks.length > 0 ? { marks: [...marks] } : {}) }), [erasing, seam, loupe, selecting, drawOn, placing, marks]);
   const overTools = useMemo<FrameTools>(() => (seam !== null ? { scroll: true, ...(erasing ? { erase: true as const } : {}) } : NO_TOOLS), [seam, erasing]);
 
   // The site's own background through the window, while GLASS is the lens.
@@ -94,6 +100,7 @@ export default function SeeingStage({ drawing, document, lens, settings, seam, l
       else if (message.see === 'select') onSelect?.(message.text);
       else if (message.see === 'scroll') {
         setPlace({ y: message.y, whole: message.whole });
+        onPlace?.(message.y, message.whole);
         // Where it is because the other drawing moved it is not news to the other.
         if (Date.now() - movedByOther.current > 250) moveFront.current?.({ see: 'scrollTo', x: message.x, y: message.y, whole: message.whole });
       } else if (message.see === 'pointer' && glass.current !== null) {
@@ -107,7 +114,7 @@ export default function SeeingStage({ drawing, document, lens, settings, seam, l
         over.style.clipPath = `polygon(${message.x - halfWide}px ${message.y - halfHigh}px, ${message.x + halfWide}px ${message.y - halfHigh}px, ${message.x + halfWide}px ${message.y + halfHigh}px, ${message.x - halfWide}px ${message.y + halfHigh}px)`;
       }
     },
-    [loupe, onErase, onMedia, onSelect],
+    [loupe, onErase, onMedia, onSelect, onPlace],
   );
   const toldOver = useCallback(
     (message: Told) => {
