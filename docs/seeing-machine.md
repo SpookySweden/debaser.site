@@ -35,7 +35,7 @@ The plan and Luke's answers are `SPEC-seeing-machine.md`. This is what was built
    is a fresh window with it back) and no link element either (a stylesheet a page links to is a style that imports it), nor a meta it makes (a refresh would move the frame to a page its policy refuses: it is an inert see-meta). `createElement` and
    its kin are covered, every way of writing markup goes through one Trusted Types policy the browser enforces, and addresses that are
    scripts are refused. That part runs in the page's own window, so it leans on nothing the page could put something else in place of.
-   `scripts/drive-see.cjs --only eye` tries about 30 ways, then the same with each built-in taken from under it (the first version let 342
+   `scripts/drive-see.cjs --only eye` tries about 70 ways (workers, worklets, beacons, fonts, a refresh, frames and links made every way a script can), then the same with each built-in taken from under it (the first version let 342
    frames through there: the security review, 2026-11-23), with a trap that counts a bare connection or packet as an escape. Firefox before
    its Trusted Types has the wrappers alone.
 4. **Signed files.** An address in a page is a sealed pass (AES-GCM, the key made when the process starts): what, for whom, as what kind,
