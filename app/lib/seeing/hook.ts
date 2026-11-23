@@ -385,6 +385,9 @@ export const HOOK = String.raw`(function (config) {
   function ready() { say({ see: 'ready', ads: document.querySelectorAll('[data-see-ad]').length > 0 }); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready); else ready();
   setTimeout(show, 1500);
+  // How much came out, told twice as a page builds itself: the machine says so when nothing did (counts only, as X-RAY's).
+  setTimeout(census, 4000);
+  setTimeout(census, 10000);
 
   function dead(element) { if (element instanceof HTMLInputElement && element.type === 'password') { element.type = 'text'; element.disabled = true; element.value = ''; element.placeholder = 'NO SIGN-INS HERE'; element.setAttribute('data-see-dead', ''); } }
   if (!config.scripts) {

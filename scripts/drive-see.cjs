@@ -605,6 +605,7 @@ function fixture() {
     '/b': ['text/html', '<title>Far</title><h1>Far</h1>'],
     '/find': ['text/html', '<title>Found</title><h1>Found</h1>'],
     '/hostile': ['text/html', HOSTILE],
+    '/blank': ['text/html', '<!doctype html><title>Blank</title><div id="root"></div><script>import("/never.js")</script>'],
     '/quiet': ['text/html', '<title>Quiet</title><h1>Quiet</h1><noembed><link rel="preconnect" href="http://127.0.0.1:4568/"><input type=password id=a></noembed><noframes><link rel="preconnect" href="http://127.0.0.1:4568/"></noframes><svg><style><p><link rel=preconnect href="http://127.0.0.1:4568/"><input type=password id=b></style></svg><xmp><link rel=preconnect href="http://127.0.0.1:4568/"></xmp><svg><script><p><link rel=preconnect href="http://127.0.0.1:4568/"></script></svg><math><mtext><style><img src=x></style></mtext></math><noscript><link rel=preconnect href="http://127.0.0.1:4568/"></noscript><link rel=preconnect href="http://127.0.0.1:4568/">'],
     '/sends': ['text/html', '<title>Sends</title><script>location.href = "/next"</script>'],
     '/refreshes': ['text/html', '<meta http-equiv=refresh content="0;url=/next"><title>Refreshes</title>'],
@@ -907,6 +908,12 @@ async function eye(browser) {
     ok(context.pages().length === 1 && page.url().startsWith(`${BASE}/browser`), 'the top window is where it was, and alone');
     ok((await tabs(page).count()) === tabsBefore, 'its fifty forged messages opened no tab');
     ok(net.asked.filter((each) => /spam/.test(each.path)).length === 0, 'and fetched nothing');
+    await go(page, `${SITE}/quiet`);
+    await page.waitForTimeout(5000);
+    ok((await page.locator('[data-seeing-empty]').count()) === 0, 'a page with words on it is not said to be empty');
+    await go(page, `${SITE}/blank`);
+    await page.locator('[data-seeing-empty]').waitFor({ timeout: 15000 });
+    ok(/OWN EYE/.test(await page.locator('[data-seeing-empty]').innerText()), 'a page that builds itself and comes out empty is said to, with where it can be seen');
     await context.close();
   } finally {
     net.close();

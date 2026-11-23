@@ -106,6 +106,7 @@ Each can be changed later by saying so.
 40. **A page tunes in when it arrives**: the busy view's dither lies over it and is cut away from the top in six jumps, a third of a second (also on a tab switch); never under reduced motion, never takes the pointer. Undo: the seeing-arrive div in SeeingStage.tsx.
 41. **Alt+H opens HISTORY and Alt+K KEPT**, each a toggle, one in the other's place; Escape puts them away (and is left alone when neither is open); listed with the other keys. Undo: the KeyH, KeyK and Escape lines in keys.ts.
 42. **A news feed (RSS, Atom) is drawn as its list**: its title, a count, then each item as a link with its date and up to 300 plain characters of what it says; nothing of the feed's own markup, only http(s) links. OPEN SOURCE still opens the feed itself on its own site. Undo: the feed line in server/open.ts (feed.ts then unused).
+43. **A page that builds itself and comes out empty is said to**: the hook counts what came out 4 and 10 seconds after it is drawn (counts only, as X-RAY's), and when there is not a word, picture, link or frame, with its scripts on, a line over the page says so and that OWN EYE or OPEN SOURCE shows it. Undo: the two census timers in hook.ts and the data-seeing-empty line in SeeingStage.tsx.
 
 ## Risks, said once
 1. **SERVER is beside everything.** The torrent page (no password at home), Jellyfin, the database and its dashboard, the

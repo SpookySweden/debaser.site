@@ -48,6 +48,8 @@ type Props = {
 };
 
 const NO_TOOLS: FrameTools = {};
+/** Not a word, a picture, a link or a frame on the page: it came out empty (a page that builds itself the machine can't follow). */
+const cameOutEmpty = (census: Census) => census.counts.words < 3 && census.counts.pictures === 0 && census.counts.links === 0 && census.counts.frames === 0;
 const nothing = () => undefined;
 
 /** The page, and over it a second drawing of it when there is a SEAM or a LOUPE. */
@@ -188,6 +190,12 @@ export default function SeeingStage({ drawing, document, lens, settings, seam, l
               data-seeing-seam
             />
           </>
+        ) : null}
+        {census !== null && document.scripts && cameOutEmpty(census) ? (
+          // A page that builds itself and came out with nothing: said, over the top of it, with where it can be seen.
+          <p role="status" className="absolute inset-x-0 top-0 z-20 border-b-line border-ink bg-paper px-2 py-1 text-label text-ink" data-seeing-empty>
+            NOTHING CAME OUT: THIS PAGE BUILDS ITSELF IN A WAY THE MACHINE CAN&apos;T FOLLOW. OWN EYE OR OPEN SOURCE SHOWS IT.
+          </p>
         ) : null}
         {/* The page tunes in: the busy view's dither steps off it, top to bottom, once (globals.css; nothing under reduced motion). */}
         <div aria-hidden="true" className="seeing-arrive" data-seeing-arrive />
