@@ -4,7 +4,7 @@ Luke, 2026-11-23, from his master text ("THE DEBASER SEEING MACHINE") and the in
 this prompt and all your ideas an creative context on implementing the idea to the site, account for themes, browser to be a
 new module").
 
-Status: **building (2026-11-23). Phases 1 to 3 are built; the server's eye is for Luke's account only.** What was built and what works: `docs/seeing-machine.md`. The audit behind this
+Status: **building (2026-11-23). Phases 1 to 4 are built; the server's eye is for Luke's account only.** What was built and what works: `docs/seeing-machine.md`. The audit behind this
 is `seeing-machine-audit.md` in the sessions' notes folder; the parts that matter are repeated here.
 
 Words used here: an **eye** is a way of getting a page (the site's server fetches it, or the reader's own browser does). A
@@ -74,7 +74,11 @@ Each can be changed later by saying so.
 12. **SCAN uses wiby.me's random page**, a public list of the small, old web; GOOD keeps a page on the list in a new tab.
 13. **LOUPE starts at 2×**, and SEAM with READER on the right; both are a second drawing of the page, so its scripts run twice.
 14. **LOW-FI's and DYE's pictures are dithered in the browser**, from the files already fetched. Faces go the colours of your theme.
-15. **Nineteen themes**, not the eighteen written below: MARMALADE has six.
+15. **The extension lifts a whole site's policy in its frame**, because a browser can't lift the no-framing line alone; only there, only for sites
+    you add, and never for sign-ins. Its READER is its own, over the live page.
+16. **Rung 3 of the ladder waits**: it needs a new kind of queue row, which is a database change. Rung 4 waits for SCREENS' relay key.
+17. **`[ SEE ]` shows only for people with BROWSER on their bar**, so nobody else sees a key that would refuse them.
+18. **Nineteen themes**, not the eighteen written below: MARMALADE has six.
 
 ## Risks, said once
 1. **SERVER is beside everything.** The torrent page (no password at home), Jellyfin, the database and its dashboard, the

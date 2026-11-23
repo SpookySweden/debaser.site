@@ -105,6 +105,7 @@ import StreamArtShelf from './StreamArtShelf';
 import { watchLinkForItem } from '../lib/web/bridges';
 import { canWatch, WebDiscussKey } from './WebBridgeKeys';
 import MediaKindMark, { mediaMarkKind } from './MediaKindMark';
+import SeeKey from './SeeKey';
 import { noteSettingChanged, subscribeToAccountSettings } from '../lib/settings/settings-bus';
 
 /**
@@ -2100,6 +2101,7 @@ ${item.description}` : item.title)} className="ml-1.5" />
                   [ READ ↗ ]
                 </a>
               ) : null}
+              {outletKey !== null && link !== null ? <SeeKey href={link} /> : null}
               {/* Audio the bar can play goes there (web-audio.ts); the platform's player is the fallback. In GRID the arrow
                   is the key's last part instead (`[ ▶ PLAY│+ QUEUE│▾ ]`, below), so it fits the card's one line. */}
               {keyHoldsArrow !== null ? null : playHalf !== null ? (

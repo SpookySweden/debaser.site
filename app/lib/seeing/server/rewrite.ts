@@ -5,10 +5,11 @@
  *
  * Pure but for `sign`, which makes a signed address or refuses. SERVER ONLY.
  */
-import type { Watcher } from '../engine';
+import type { FoundMedia, Watcher } from '../engine';
 import { rewriteCss } from './css';
 import { decodeEntities, escapeValue, tokensOf, valueOf, writeStart, type Attribute } from './html';
 import type { AssetKind } from './assets';
+import { createMediaFinder, isMediaLink } from './media';
 import { rewriteImports, rewriteLocation } from './modules';
 import { watcherAt } from './watchers-list';
 
@@ -20,6 +21,7 @@ export type Rewritten = {
   title: string | null;
   language: string | null;
   watchers: Watcher[];
+  media: FoundMedia[];
   files: number;
   refused: number;
   /** A password box was found and made dead. */
@@ -97,6 +99,12 @@ export function rewritePage(html: string, address: string, sign: Sign, scripts: 
   let refresh: Rewritten['refresh'] = null;
   /** A script in a drawing was left out: its end goes too. */
   let dropped = false;
+  const media = createMediaFinder(address);
+  /** What the page calls the thing it shows, which is better than its window's title. */
+  let shownTitle = '';
+  /** The words inside a link to media, until it ends. */
+  let linking: { address: string; words: string } | null = null;
+  if (isMediaLink(address)) media.add(address, '', 'page');
 
   const absolute = (text: string): URL | null => {
     try {
@@ -133,11 +141,12 @@ export function rewritePage(html: string, address: string, sign: Sign, scripts: 
 
   let out = '';
   /** The raw insides that come next belong to this. */
-  let rawFor: 'keep' | 'drop' | 'css' | 'script' | 'module' | 'title' = 'keep';
+  let rawFor: 'keep' | 'drop' | 'css' | 'script' | 'module' | 'title' | 'data' = 'keep';
 
   for (const token of tokensOf(html)) {
     if (token.kind === 'comment' || token.kind === 'doctype') continue;
     if (token.kind === 'text') {
+      if (linking !== null && linking.words.length < 160) linking.words += decodeEntities(token.text);
       out += token.text;
       continue;
     }
@@ -145,6 +154,9 @@ export function rewritePage(html: string, address: string, sign: Sign, scripts: 
       if (rawFor === 'title') {
         if (title === null) title = decodeEntities(token.text);
         out += token.text;
+      } else if (rawFor === 'data') {
+        media.linkedData(token.text);
+        if (scripts) out += token.text;
       } else if (rawFor === 'css') out += css(token.text);
       else if (rawFor === 'module') out += rewriteImports(rewriteLocation(token.text), (each) => file(each, 'module')).replace(/<\/(?=script)/gi, '<\\/');
       else if (rawFor === 'script') out += rewriteLocation(token.text);
@@ -153,6 +165,10 @@ export function rewritePage(html: string, address: string, sign: Sign, scripts: 
       continue;
     }
     if (token.kind === 'end') {
+      if (token.name === 'a' && linking !== null) {
+        media.add(linking.address, linking.words, 'link');
+        linking = null;
+      }
       if (token.name === 'script' && (!scripts || dropped)) {
         dropped = false;
         continue;
@@ -187,6 +203,7 @@ export function rewritePage(html: string, address: string, sign: Sign, scripts: 
       refused += 1;
       if (url === null || url.href === address) continue;
       const watched = note(url);
+      if (!watched) media.add(url.href, value('title') ?? '', 'player');
       if (watched || AD_BOX.test(`${value('id') ?? ''} ${value('class') ?? ''}`)) {
         const size = (text: string | null) => (text !== null && /^\d{1,4}$/.test(text) ? Number(text) : null);
         const [width, height] = [size(value('width')), size(value('height'))];
@@ -195,6 +212,9 @@ export function rewritePage(html: string, address: string, sign: Sign, scripts: 
       continue;
     }
     if (name === 'meta') {
+      const said = (value('property') ?? value('name') ?? '').toLowerCase();
+      if (said === 'og:title') shownTitle = value('content') ?? '';
+      if (/^(?:og:video(?::url|:secure_url)?|og:audio(?::url|:secure_url)?|twitter:player(?::stream)?)$/.test(said)) media.add(value('content'), '', 'declared');
       if ((value('http-equiv') ?? '').trim().toLowerCase() === 'refresh' && refresh === null) {
         // Not left for the frame, which may go nowhere: the site is told where, and goes there as a pressed link would.
         const said = /^\s*(\d{1,4})(?:\.\d*)?\s*[;,]\s*(?:url\s*=\s*)?["']?([^"']+)/i.exec(value('content') ?? '');
@@ -225,7 +245,8 @@ export function rewritePage(html: string, address: string, sign: Sign, scripts: 
       const type = (value('type') ?? '').trim().toLowerCase();
       const isModule = type === 'module';
       if (!scripts) {
-        rawFor = 'drop';
+        // What it says it plays is read, and none of it is written: words from inside a script would be tags out here.
+        rawFor = type === 'application/ld+json' ? 'data' : 'drop';
         if (src !== null) {
           const url = absolute(src);
           if (url !== null) note(url);
@@ -241,6 +262,7 @@ export function rewritePage(html: string, address: string, sign: Sign, scripts: 
         out += writeStart('script', answer === null ? [{ name: 'type', raw: 'text/plain' }] : [...kept, { name: 'src', raw: escapeValue(answer) }], token.selfClosing);
         continue;
       }
+      if (type === 'application/ld+json') rawFor = 'data';
       if (type === 'speculationrules' || type === 'importmap') {
         rawFor = 'drop';
         out += '<script type="text/plain">';
@@ -284,6 +306,7 @@ export function rewritePage(html: string, address: string, sign: Sign, scripts: 
           else {
             const url = absolute(text);
             if (url !== null) {
+              if (name === 'a' && isMediaLink(url.href)) linking = { address: url.href, words: value('title') ?? '' };
               const here = url.hash !== '' && url.href.split('#')[0] === address.split('#')[0];
               put(each, here ? url.hash : url.href);
             } else if (/^\s*(?:mailto|tel):/i.test(text) || (scripts && /^\s*javascript:/i.test(text))) put(each, text.trim());
@@ -301,6 +324,8 @@ export function rewritePage(html: string, address: string, sign: Sign, scripts: 
         if (!picture || name === 'source') {
           // Video and sound never pass through: the tray is where they are played from (Phase 4).
           if (name === 'video' || name === 'audio' || name === 'track' || name === 'source') put('data-see-media', absolute(text)?.href ?? '');
+          if (name === 'video' || name === 'audio') media.add(text, value('title') ?? value('aria-label') ?? '', name);
+          if (name === 'source') media.add(text, '', /^audio\//i.test(value('type') ?? '') ? 'audio' : 'video');
           continue;
         }
         if (/^\s*data:image\//i.test(text)) put(each, text.trim());
@@ -353,5 +378,7 @@ export function rewritePage(html: string, address: string, sign: Sign, scripts: 
     if (ad && (name === 'div' || name === 'ins' || name === 'aside' || name === 'section')) kept.push({ name: 'data-see-ad', raw: null });
     out += writeStart(name, kept, token.selfClosing);
   }
-  return { html: noFrames(out), title, language, watchers: [...watchers.values()], files, refused, signIn, refresh };
+  // A thing with no name of its own is called what the page is.
+  const named = media.list().map((each) => (each.title !== '' ? each : { ...each, title: (shownTitle || title || '').slice(0, 160) }));
+  return { html: noFrames(out), title, language, media: named, watchers: [...watchers.values()], files, refused, signIn, refresh };
 }

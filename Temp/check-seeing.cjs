@@ -1,7 +1,7 @@
 /*
  * BROWSER, the DEBASER SEEING MACHINE, Phase 1 (SPEC-seeing-machine.md, Luke 2026-11-23): the pure parts of the shell.
  * (scripts/drive-see.cjs drives the page itself in a browser, on every theme.)
- *   npx tsc app/lib/seeing/address.ts app/lib/seeing/tabs.ts app/lib/seeing/frame.ts app/lib/seeing/test-engine.ts app/lib/seeing/time.ts app/lib/seeing/memory.ts app/lib/seeing/lenses/registry.ts app/lib/ui/modules.ts --rootDir app --outDir Temp/seeing-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
+ *   npx tsc app/lib/seeing/address.ts app/lib/seeing/tabs.ts app/lib/seeing/frame.ts app/lib/seeing/test-engine.ts app/lib/seeing/time.ts app/lib/seeing/media.ts app/lib/seeing/ask.ts app/lib/seeing/memory.ts app/lib/seeing/lenses/registry.ts app/lib/ui/modules.ts --rootDir app --outDir Temp/seeing-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
  *   node Temp/check-seeing.cjs
  *
  * - an address: http and https only, no user names or passwords, no control characters, bare names get https, words are refused
@@ -28,6 +28,8 @@ const { lowFiColours } = require(`${OUT}lenses/lowfi.js`);
 const { themeDyes } = require(`${OUT}lenses/dye.js`);
 const { PAPERS, TEXT_SIZES, PALETTES, BLOCKS, SETTINGS_AT_FIRST, recipeText, recipeFrom } = require(`${OUT}lenses/lens.js`);
 const { dialOf, dialTo } = require(`${OUT}time.js`);
+const { trayOf, lengthText } = require(`${OUT}media.js`);
+const { askToSee, takeAsked } = require(`${OUT}ask.js`);
 const { memoryFrom, siteIn } = require(`${OUT}memory.js`);
 const { LENS_NAMES } = require(`${OUT}lenses/names.js`);
 const { THEMES } = require('./seeing-out/lib/ui/themes.js');
@@ -213,6 +215,18 @@ assert.equal(siteIn('https://web.archive.org/web/19990701000000if_/http://foo.ex
 assert.equal(siteIn('javascript:x'), null);
 // The lens tools run in the page's window: what they hold of the browser's own is called without asking it.
 assert.ok(!/plain\w+\.(?:set|get)\.(?:call|apply)/.test(HOOK), 'nothing captured is called by way of something the page could put in its place');
+
+/* ------------------------------------------------------------------ Phase 4: the tray and SEE */
+const found = (address, from = 'link', title = '', seconds = null) => ({ address, title, from, seconds });
+const tray = trayOf([found('https://youtu.be/aqz-KE-bpKQ', 'player', 'Bunny', 635), found('https://www.youtube.com/watch?v=aqz-KE-bpKQ'), found('https://media.example.org/a.mp4', 'video', 'A'), found('http://media.example.org/b.mp4', 'video'), found('https://x.example.org/embed/1', 'player'), found('https://x.example.org/watch/1', 'declared', 'Film'), found('https://x.example.org/a.m3u8', 'video'), found('nonsense', 'video'), found('javascript:alert(1)', 'video')]);
+assert.deepEqual(tray.map((item) => [item.rung, item.kind, item.title]), [[1, 'YOUTUBE', 'Bunny'], [2, 'VIDEO', 'A'], [2, 'STREAM', 'x.example.org'], [5, 'VIDEO', 'media.example.org'], [5, 'VIDEO', 'Film']], 'one of each, the best rung first, and a frame nobody called media left out');
+assert.ok(tray.every((item) => item.rung === 5 ? item.reason.length > 0 && !('link' in item) : item.link.url.startsWith('https://')), 'what can go to the Room has a link, what cannot says why');
+assert.deepEqual([lengthText(59), lengthText(61.4), lengthText(3723)], ['0:59', '1:01', '1:02:03']);
+assert.deepEqual(F.readFrameMessage({ see: 'media', media: [{ address: 'https://a.example/x.mp4', title: 'T'.repeat(500), from: 'evil', seconds: -5 }, { address: 'javascript:x' }, 5] }), { see: 'media', media: [{ address: 'https://a.example/x.mp4', title: 'T'.repeat(160), from: 'video', seconds: null }] });
+assert.equal(F.readFrameMessage({ see: 'media' }), null);
+askToSee('https://example.com/');
+assert.equal(takeAsked(), 'https://example.com/');
+assert.equal(takeAsked(), null, 'once');
 
 /* ------------------------------------------------------------------ the built-in pages and the module */
 const browser = MODULES.find((module) => module.key === 'browser');

@@ -428,3 +428,7 @@ see-extension-trial.cjs
 -----------------------
 BROWSER's extension trial (phase 2b): a throwaway extension on pretend sites (which way of showing a site keeps its cookies) and, with
 --real, on the spec's list signed out. Signs in to nothing. Its result is the table in docs/seeing-machine.md.
+
+drive-see-extension.cjs
+-----------------------
+BROWSER's extension (extension/) in a real browser with a throwaway profile, on pretend sites the script serves on port 80. Signs in to nothing.

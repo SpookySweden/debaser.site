@@ -10,6 +10,9 @@ export type SeeStep = 'ACQUIRING SOURCE' | 'PARSING DOCUMENT STRUCTURE' | 'EXTRA
 /** A company's code or picture on the page that would have reported who is reading it. */
 export type Watcher = { company: string; host: string; refused: boolean };
 
+/** A video or a sound found on a page, as the page says it: words and addresses, nothing played or fetched. Never counts, ratings or views. */
+export type FoundMedia = { address: string; title: string; from: 'page' | 'video' | 'audio' | 'player' | 'declared' | 'link'; seconds: number | null };
+
 export type SeenDocument = {
   /** Where it really came from: the address asked for, or where that led. */
   address: string;
@@ -20,6 +23,7 @@ export type SeenDocument = {
   /** The page's main words and pictures, in reading order, for READER; null when none were found. */
   reading: string | null;
   watchers: readonly Watcher[];
+  media: readonly FoundMedia[];
   /** Files loaded with the page, and files refused. */
   files: number;
   refused: number;

@@ -11,6 +11,7 @@ import AsciiEmoticonPicker from './AsciiEmoticonPicker';
 import ProfileName from './ProfileName';
 import TimeStamp from './TimeStamp';
 import { ReportKey } from './ModerationKeys';
+import { SeeKeysIn } from './SeeKey';
 import { PLATE, PLATE_MAIN } from '../lib/ui/controls';
 
 type CommsThreadPanelProps = {
@@ -164,7 +165,10 @@ export default function CommsThreadPanel({
                 when the reader is scrolling back to work out who asked whom.
               */}
               {message.event === undefined ? (
-                <p className="mt-1 whitespace-pre-line text-prose leading-normal wrap-anywhere text-ink">{message.body}</p>
+                <p className="mt-1 whitespace-pre-line text-prose leading-normal wrap-anywhere text-ink">
+                  {message.body}
+                  <SeeKeysIn text={message.body} />
+                </p>
               ) : (
                 <p className="mt-1 flex flex-wrap items-center gap-2 text-key font-bold text-ink">
                   <span

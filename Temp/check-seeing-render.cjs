@@ -1,7 +1,7 @@
 /*
  * BROWSER on screen (SPEC-seeing-machine.md, Luke 2026-11-23): what the server draws of it. The pure parts are check-seeing.cjs, and
  * scripts/drive-see.cjs drives it in a browser.
- *   npx tsc app/components/seeing/SeeingMachine.tsx --rootDir app --outDir Temp/seeing-render-out --module commonjs --target es2022 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop --strictNullChecks
+ *   npx tsc app/components/seeing/SeeingMachine.tsx app/components/SeeKey.tsx --rootDir app --outDir Temp/seeing-render-out --module commonjs --target es2022 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop --strictNullChecks
  *   node Temp/check-seeing-render.cjs
  *
  * - signed out: the sign-in call and nothing of the machine; signed in, before its tabs are read: neither
@@ -74,10 +74,16 @@ const beside = html(el(at('SeeingXray'), { point: { path: ['<b>', 'p.x'], kind: 
 assert.ok(beside.includes('&lt;b&gt;') && beside.includes('&lt;img') && beside.includes('&lt;script&gt;') && !/<script|<img/.test(beside), "a page's own words are drawn as words");
 assert.match(html(el(at('SeeingXray'), { point: null, census: null })), /NOTHING\./);
 
-const page = { address: 'see:test', title: 'x', eye: 'BUILT IN', html: '', reading: null, watchers: [{ company: '<i>Ads</i>', host: 'ads.example', refused: true }, { company: 'Fonts', host: 'fonts.example', refused: false }], files: 0, refused: 0, status: null, signIn: false, refresh: null, assets: null, scripts: false };
+const page = { address: 'see:test', title: 'x', eye: 'BUILT IN', html: '', reading: null, watchers: [{ company: '<i>Ads</i>', host: 'ads.example', refused: true }, { company: 'Fonts', host: 'fonts.example', refused: false }], media: [], files: 0, refused: 0, status: null, signIn: false, refresh: null, assets: null, scripts: false };
 const watchers = html(el(at('SeeingWatchers'), { document: page }));
 assert.ok(watchers.includes('&lt;i&gt;Ads') && !watchers.includes('<i>'));
 assert.equal((watchers.match(/REFUSED/g) ?? []).length, 1);
 assert.match(html(el(at('SeeingWatchers'), { document: { ...page, watchers: [] } })), /NOBODY\./);
 
+const SeeKey = require('./seeing-render-out/components/SeeKey.js');
+assert.equal(html(el(SeeKey.default, { href: 'https://example.com/' })), '', 'no SEE key for somebody whose bar has no BROWSER on it');
+assert.equal(html(el(SeeKey.SeeKeysIn, { text: 'see https://example.com/ and javascript:x' })), '');
+const tray = html(el(at('SeeingTray'), { items: [{ key: 'a', title: '<b>x</b>', site: 'y.org', kind: 'VIDEO', seconds: 61, rung: 2, link: { url: 'https://y.org/a.mp4', kind: 'file', title: 'x' } }, { key: 'b', title: 'z', site: 'z.org', kind: 'VIDEO', seconds: null, rung: 5, reason: 'WHY' }] }));
+assert.ok(tray.includes('&lt;b&gt;x') && /▶ PLAY IN ROOM/.test(tray) && /\+ QUEUE/.test(tray) && tray.includes('1:01') && tray.includes('WHY'));
+assert.match(html(el(at('SeeingTray'), { items: [] })), /NOTHING FOUND\./);
 console.log('BROWSER on screen: the sign-in call, tabs, keys, lenses and WATCHERS');

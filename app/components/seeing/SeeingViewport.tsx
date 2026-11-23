@@ -27,7 +27,7 @@ type Props = {
   onRestricted: (count: number) => void;
 };
 
-export type Told = Extract<FrameMessage, { see: 'point' | 'census' | 'erase' | 'pointer' | 'scroll' }>;
+export type Told = Extract<FrameMessage, { see: 'point' | 'census' | 'erase' | 'pointer' | 'scroll' | 'media' }>;
 
 /**
  * Pages opened from the frame in a little while: a few by themselves, more when the reader is pressing things (a press counts for some
@@ -121,6 +121,7 @@ export default function SeeingViewport({ document: page, lens, settings, tools, 
         case 'point':
         case 'census':
         case 'pointer':
+        case 'media':
         case 'scroll':
           calls.current.onTold?.(message);
           return;

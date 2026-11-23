@@ -105,7 +105,7 @@ export async function openAnswer(request: Request, deps: SeeDeps = realSee()): P
     const words = answer.type.startsWith('image/') ? '' : wordsOf(answer.body, answer.charset);
     const page = isPage
       ? rewritePage(words, answer.url, sign, scripts)
-      : { html: plainPage(answer.type, words, answer.type.startsWith('image/') ? sign(answer.url, 'picture') : null), title: null, watchers: [], files: 0, refused: 0, signIn: false, refresh: null };
+      : { html: plainPage(answer.type, words, answer.type.startsWith('image/') ? sign(answer.url, 'picture') : null), title: null, watchers: [], media: [], files: 0, refused: 0, signIn: false, refresh: null };
     const document: SeenDocument = {
       address: answer.url,
       title: page.title ?? '',
@@ -113,6 +113,7 @@ export async function openAnswer(request: Request, deps: SeeDeps = realSee()): P
       html: page.html,
       reading: isPage ? readingOf(words, answer.url, page.title, sign) : null,
       watchers: page.watchers,
+      media: page.media,
       files: page.files,
       refused: page.refused,
       status: answer.status,

@@ -62,6 +62,18 @@ export function browserHref(address: string | null): string {
   return address === null ? '/browser' : `/browser#${HASH_KEY}=${encodeURIComponent(address)}`;
 }
 
+/** A media item the extension's reader pressed TO THE ROOM for: `/browser#media=<address>&title=<title>`. It waits in the tray for a press here. */
+export function mediaInHash(hash: string): { address: string; title: string } | null {
+  const match = /^#?media=([^&]+)(?:&title=(.*))?$/.exec(hash);
+  if (match === null) return null;
+  try {
+    const read = readAddress(decodeURIComponent(match[1]));
+    return read.ok && /^https?:/.test(read.address) ? { address: read.address, title: decodeURIComponent(match[2] ?? '').replace(/\s+/g, ' ').trim().slice(0, 160) } : null;
+  } catch {
+    return null;
+  }
+}
+
 /** The address a `/browser#see=` link carries, or null. Never opened by itself unless it is the page already in front: a link from anywhere can carry one. */
 export function addressInHash(hash: string): string | null {
   const match = new RegExp(`^#?${HASH_KEY}=(.+)$`).exec(hash);

@@ -1,6 +1,7 @@
 import Link from 'next/link';
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { parsePost, type PostPiece } from '../lib/forum/post-format';
+import SeeKey from './SeeKey';
 
 /**
  * A post's words with their small formatting (Luke, 2026-11-16, "3A"): **bold**, *italic*, links
@@ -28,15 +29,12 @@ function draw(pieces: PostPiece[], keyPrefix: string): ReactNode[] {
         );
       case 'link':
         return (
-          <a
-            key={key}
-            href={piece.href}
-            target="_blank"
-            rel="noopener noreferrer nofollow"
-            className="text-accent-ink underline wrap-anywhere"
-          >
-            {piece.text}
-          </a>
+          <Fragment key={key}>
+            <a href={piece.href} target="_blank" rel="noopener noreferrer nofollow" className="text-accent-ink underline wrap-anywhere">
+              {piece.text}
+            </a>
+            <SeeKey href={piece.href} small />
+          </Fragment>
         );
       case 'tag':
         return (

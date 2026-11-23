@@ -8,6 +8,7 @@
  * policy lets it load our signed files and nothing else. Every message from it is treated as hostile: whatever is in there could have
  * sent it.
  */
+import type { FoundMedia } from './engine';
 import { HOOK } from './hook';
 
 /** The whole of what each frame is allowed. Checked by Temp/check-seeing.cjs: nothing may be added here without a reason there. */
@@ -97,6 +98,7 @@ export type FrameMessage =
   | { see: 'point'; point: Pointed }
   | { see: 'census'; census: Census }
   | { see: 'erase'; selector: string }
+  | { see: 'media'; media: FoundMedia[] }
   | { see: 'pointer'; x: number; y: number }
   | { see: 'scroll'; x: number; y: number; whole: number }
   | { see: 'ask'; id: number; address: string }
@@ -113,6 +115,18 @@ const words = (value: unknown, most: number): string => (typeof value === 'strin
 /** A selector of the one shape our script makes (`#id`, `div:nth-of-type(3)`, joined by ` > `): it is put back into a stylesheet. */
 export function isSelector(text: string): boolean {
   return text.length <= 500 && /^(?:#[A-Za-z][\w-]{0,60}|[a-z][a-z0-9-]{0,40}:nth-of-type\(\d{1,5}\))(?: > [a-z][a-z0-9-]{0,40}:nth-of-type\(\d{1,5}\)){0,8}$/.test(text);
+}
+
+/** What a page's scripts have put on it to play: addresses the Room will judge as it judges any other. */
+function readMedia(data: Record<string, unknown>): FrameMessage | null {
+  if (!Array.isArray(data.media)) return null;
+  const media: FoundMedia[] = [];
+  for (const each of data.media.slice(0, 20)) {
+    const { address, title, from, seconds } = (typeof each === 'object' && each !== null ? each : {}) as Record<string, unknown>;
+    if (!isAddress(address) || !/^https?:/.test(address)) continue;
+    media.push({ address, title: words(title, 160), from: from === 'audio' ? 'audio' : 'video', seconds: isCount(seconds) && seconds > 0 ? seconds : null });
+  }
+  return { see: 'media', media };
 }
 
 function readPoint(data: Record<string, unknown>): FrameMessage | null {
@@ -158,6 +172,8 @@ export function readFrameMessage(data: unknown): FrameMessage | null {
       return readPoint(data as Record<string, unknown>);
     case 'census':
       return readCensus(data as Record<string, unknown>);
+    case 'media':
+      return readMedia(data as Record<string, unknown>);
     case 'erase':
       return typeof selector === 'string' && isSelector(selector) ? { see, selector } : null;
     case 'pointer':

@@ -843,6 +843,26 @@ async function lenses(browser) {
   await say(page, 'LENS: READER');
   ok(true, 'SITE MEMORY: the site opens in the lens it was last looked at through');
 
+  await page.locator('[data-dock-window="preferences"]').getByRole('button').filter({ hasText: '×' }).first().click();
+  // The tray (Phase 4): what the test page says it plays, and the Room's own halves.
+  await go(page, 'see:test');
+  await say(page, 'DOCUMENT RECONSTRUCTED');
+  await page.getByRole('button', { name: /^\[ MEDIA 3 \]$/ }).click();
+  const trayText = await page.locator('[data-seeing-tray]').innerText();
+  ok(/Big Buck Bunny/.test(trayText) && /10:35/.test(trayText) && /ONLY HTTPS LINKS/.test(trayText), 'the tray lists what the page plays, and says why the Room can not have one');
+  ok((await page.locator('[data-seeing-tray] [data-split-key]').count()) === 2, "with the Room's own two halves on the rest");
+  await page.getByRole('button', { name: 'Play in room: A file that is not there' }).click();
+  await page.waitForFunction(() => /WOULDN'T LOAD/i.test(document.querySelector('[data-seeing-tray] [role=status]')?.textContent ?? ''), null, { timeout: 25000 });
+  ok(true, 'a file is proved in this browser before it goes: one that will not load stays');
+  await page.getByRole('button', { name: /^\[ MEDIA 3 \]$/ }).click();
+  // From the extension: in the tray, and nothing plays until it is pressed.
+  await page.evaluate(() => {
+    window.location.hash = `#media=${encodeURIComponent('https://youtu.be/aqz-KE-bpKQ')}&title=${encodeURIComponent('From the extension')}`;
+  });
+  await page.waitForFunction(() => /From the extension/.test(document.querySelector('[data-seeing-tray]')?.textContent ?? ''));
+  ok(!page.url().includes('media='), 'a thing sent by the extension waits in the tray');
+  await page.getByRole('button', { name: /^\[ MEDIA \d \]$/ }).click();
+
   await go(page, 'https://example.com/');
   await say(page, 'SOURCE REFUSED');
   await page.getByRole('button', { name: '[ SEE AN OLD COPY ]' }).waitFor();

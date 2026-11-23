@@ -22,6 +22,7 @@ const { rewritePage, rewriteSrcset, siteOf } = at('rewrite.js');
 const { rewriteCss } = at('css.js');
 const { rewriteImports, rewriteLocation } = at('modules.js');
 const { readingOf } = at('reading.js');
+const { isoSeconds } = at('media.js');
 const { wordsOf } = at('words.js');
 const { tokensOf, decodeEntities } = at('html.js');
 const { watcherAt } = at('watchers-list.js');
@@ -139,6 +140,18 @@ for (const address of ['https://github.com/loginov/repo', 'https://github.com/',
 assert.equal(watcherAt('notdoubleclick.net'), null);
 assert.equal(watcherAt('a.b.doubleclick.net.').company, 'Google');
 assert.equal(siteOf('www.bbc.co.uk'), 'bbc.co.uk');
+
+/* ------------------------------------------------------------------ media */
+const LD = JSON.stringify({ '@graph': [{ '@type': 'VideoObject', name: 'Told', duration: 'PT1H2M3S', contentUrl: '/told.mp4', embedUrl: 'https://player.org/e/1' }, { '@type': 'Thing', contentUrl: '/not.mp4' }] });
+const SHOWS = `<title>Page</title><meta property="og:title" content="The film"><meta property="og:video:secure_url" content="https://v.org/og.mp4"><video src=/a.mp4 title="A"><source src=/b.webm type="video/webm"></video><audio><source src=/c.mp3 type="audio/mpeg"></audio><iframe src="https://www.youtube.com/embed/aqz-KE-bpKQ"></iframe><iframe src="https://ad.doubleclick.net/v"></iframe><a href="/d.mp4?x=1">D <b>words</b></a><a href=/page>not media</a><script type="application/ld+json">${LD}</script><script type="application/ld+json">{broken</script>`;
+for (const on of [true, false]) {
+  p = write(SHOWS, on);
+  assert.deepEqual(p.media.map((each) => [each.from, each.address.replace('https://news.seeing.org', ''), each.title, each.seconds]), [['declared', 'https://v.org/og.mp4', 'The film', null], ['video', '/a.mp4', 'A', null], ['video', '/b.webm', 'The film', null], ['audio', '/c.mp3', 'The film', null], ['player', 'https://www.youtube.com/embed/aqz-KE-bpKQ', 'The film', null], ['link', '/d.mp4?x=1', 'D words', null], ['declared', '/told.mp4', 'Told', 3723], ['declared', 'https://player.org/e/1', 'Told', 3723]], `scripts ${on ? 'on' : 'off'}`);
+  assert.ok(!/views|rating|likes/i.test(JSON.stringify(p.media)));
+}
+assert.ok(!/<script/.test(write(SHOWS, false).html), 'and the data is not a script when scripts are off');
+for (const inside of ['</template><base href=https://evil.org/><a href=https://evil.org/>x</a>', '{"a":"</template><form action=https://evil.org>"}']) assert.ok(!/evil\.org|<template|<base/.test(write(`<script type="application/ld+json">${inside}</script><p>after`, false).html), 'nor anything else');
+assert.deepEqual([isoSeconds('PT45S'), isoSeconds('P1DT1S'), isoSeconds('x'), isoSeconds('PT'), isoSeconds(5)], [45, 86401, null, null, null]);
 
 /* ------------------------------------------------------------------ scripts off */
 p = write('<body onload=x() ONCLICK="y()"><script>bad()</script><script src=/a.js></script><noscript><p>plain</p></noscript><img data-src=/lazy.png src="data:image/gif;base64,AA"><p>end', false);

@@ -78,6 +78,17 @@ SEAM and LOUPE are a second drawing of the page, clipped. ERASE keeps selectors 
 site (`memory.ts`, this browser only until Phase 5). TIME DIAL: the Internet Archive's copy nearest a year. SCAN: wiby.me's own random page.
 Proof: `drive-see.cjs --only lenses` (DYE and GLASS measured on every theme, 5.51:1 or better).
 
+## Media, SEE and the extension (Phase 4)
+- **The tray** (`[ MEDIA n ]`): what a page plays or says it plays (`server/media.ts`; scripts' own additions by `hook.ts`), read by the Room's own rules
+  (`lib/seeing/media.ts`, `recognizeLink`, `queueRefusal`). Rung 1 a platform's player, rung 2 a file or stream (a file is proved by
+  `probeVideoLink` first), rung 5 its own page only, with the reason. Rung 3 (a page's declared player framed in the Room, NOT IN STEP) needs a new
+  kind of queue row, so it waits for a database change; rung 4 waits for SCREENS' relay.
+- **`[ SEE ]`** (`SeeKey`) beside outside links in posts, comms, letters and MEDIA's reading rows, for people whose bar has BROWSER on it.
+- **The extension** (`extension/`, how to put it in: its README): OWN EYE. Its own page frames a site the reader has ADDED, with its cookies, in the
+  theme the site told it; a panel beside an ordinary tab has the same lenses. It asks for no site when it is put in. The no-framing header is
+  lifted by a session rule that names the machine's tab, the machine or an added site as the asker, and added sites only, never a sign-in; it goes
+  when the machine's page does. `Temp/check-see-extension.cjs`, `scripts/drive-see-extension.cjs` (26, pretend sites, signed in to nothing).
+
 ## The extension's trial (2b, 2026-11-23, `scripts/see-extension-trial.cjs`, Edge 158)
 A throwaway extension, pretend sites for the cookies, and the real list signed out (nobody was signed in to anything).
 

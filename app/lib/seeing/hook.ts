@@ -626,11 +626,24 @@ export const HOOK = String.raw`(function (config) {
     [window.HTMLScriptElement, window.HTMLImageElement].forEach(function (type) { try { if (type && name in type.prototype) Object.defineProperty(type.prototype, name, { configurable: true, get: function () { return ''; }, set: function () {} }); } catch (error) { /* kept */ } });
   });
 
+  /* what a script puts on the page to play: said, never loaded (the policy lets no media load) */
+  var played = {}, mediaTimer = 0;
+  function notePlayed(element, address) {
+    if (address === '' || (/^[a-z][a-z0-9+.-]*:/i.test(address) && !/^https?:/i.test(address)) || Object.keys(played).length >= 20) return;
+    var at = whole(address);
+    if (!/^https?:/.test(at) || played[at]) return;
+    played[at] = { address: at, title: (element.getAttribute('title') || element.getAttribute('aria-label') || document.title || '').slice(0, 160), from: element.localName === 'audio' ? 'audio' : 'video', seconds: 0 };
+    if (!mediaTimer) mediaTimer = setTimeout(function () { mediaTimer = 0; say({ see: 'media', media: Object.keys(played).map(function (key) { return played[key]; }) }); }, 400);
+  }
+  var ownMediaSrc = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'src');
+  if (ownMediaSrc && ownMediaSrc.set) Object.defineProperty(HTMLMediaElement.prototype, 'src', { configurable: true, enumerable: true, get: function () { return ownMediaSrc.get.call(this); }, set: function (value) { notePlayed(this, String(value)); ownMediaSrc.set.call(this, value); } });
+
   // What came in as markup (innerHTML), which no setter sees.
   function look(element) {
     if (!(element instanceof Element)) return;
     ['src', 'srcset', 'poster'].forEach(function (name) { var value = element.getAttribute(name); if (value !== null && kindOf(element, name) && !(element instanceof HTMLScriptElement)) later(element, name, value); });
     if (element.localName === 'see-link') joinLink(element);
+    if (element instanceof HTMLMediaElement || element instanceof HTMLSourceElement) { var plays = element.getAttribute('src'); if (plays !== null && (element instanceof HTMLMediaElement || (element.parentNode instanceof HTMLMediaElement))) notePlayed(element, plays); }
     dead(element);
   }
   new MutationObserver(function (changes) {
@@ -639,7 +652,7 @@ export const HOOK = String.raw`(function (config) {
       change.addedNodes.forEach(function (node) {
         if (!(node instanceof Element)) return;
         look(node);
-        node.querySelectorAll('img, source, see-link, video[poster], input').forEach(look);
+        node.querySelectorAll('img, source, see-link, video, audio, input').forEach(look);
       });
     });
   }).observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'srcset', 'type', 'href', 'rel'] });

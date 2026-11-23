@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as Pointing } from 'react';
-import type { SeenDocument } from '../../lib/seeing/engine';
+import type { FoundMedia, SeenDocument } from '../../lib/seeing/engine';
 import type { Census, FrameScroll, FrameTools, Pointed } from '../../lib/seeing/frame';
 import type { LensSettings } from '../../lib/seeing/lenses/lens';
 import type { LensId } from '../../lib/seeing/lenses/names';
@@ -29,13 +29,14 @@ type Props = {
   onOpen: (address: string, newTab: boolean) => void;
   onNotice: (words: string) => void;
   onRestricted: (count: number) => void;
+  onMedia: (media: readonly FoundMedia[]) => void;
 };
 
 const NO_TOOLS: FrameTools = {};
 const nothing = () => undefined;
 
 /** The page, and over it a second drawing of it when there is a SEAM or a LOUPE. */
-export default function SeeingStage({ drawing, document, lens, settings, seam, loupe, erasing, erased, onErase, onOpen, onNotice, onRestricted }: Props) {
+export default function SeeingStage({ drawing, document, lens, settings, seam, loupe, erasing, erased, onErase, onOpen, onNotice, onRestricted, onMedia }: Props) {
   const front = lensOr(lens);
   const [at, setAt] = useState(50);
   const [dragging, setDragging] = useState(false);
@@ -65,6 +66,7 @@ export default function SeeingStage({ drawing, document, lens, settings, seam, l
       if (message.see === 'point') setPoint(message.point);
       else if (message.see === 'census') setCensus(message.census);
       else if (message.see === 'erase') onErase(message.selector);
+      else if (message.see === 'media') onMedia(message.media);
       else if (message.see === 'scroll') moveFront.current?.({ see: 'scrollTo', x: message.x, y: message.y, whole: message.whole });
       else if (message.see === 'pointer' && glass.current !== null) {
         const over = glass.current;
@@ -77,7 +79,7 @@ export default function SeeingStage({ drawing, document, lens, settings, seam, l
         over.style.clipPath = `polygon(${message.x - halfWide}px ${message.y - halfHigh}px, ${message.x + halfWide}px ${message.y - halfHigh}px, ${message.x + halfWide}px ${message.y + halfHigh}px, ${message.x - halfWide}px ${message.y + halfHigh}px)`;
       }
     },
-    [loupe, onErase],
+    [loupe, onErase, onMedia],
   );
   const toldOver = useCallback(
     (message: Told) => {

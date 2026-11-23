@@ -2,7 +2,7 @@
  * Sign-in pages (SPEC-seeing-machine.md, D1: never proxied, whatever else changes). A host here is refused outright, on every redirect; a
  * password box anywhere else is dead in the page and says so. SERVER ONLY.
  */
-const SIGN_IN_HOSTS = [
+export const SIGN_IN_HOSTS = [
   'accounts.google.com', 'accounts.youtube.com', 'myaccount.google.com', 'oauth2.googleapis.com',
   'login.microsoftonline.com', 'login.live.com', 'login.microsoft.com', 'account.microsoft.com', 'account.live.com',
   'appleid.apple.com', 'idmsa.apple.com', 'account.apple.com',
@@ -15,10 +15,10 @@ const SIGN_IN_HOSTS = [
   'www.linkedin.com/checkpoint', 'www.reddit.com/login', 'old.reddit.com/login', 'discord.com/login', 'www.amazon.co.uk/ap', 'www.amazon.com/ap',
 ] as const;
 
-const SIGN_IN_NAMES = ['okta.com', 'oktapreview.com', 'auth0.com', 'onelogin.com', 'duosecurity.com', 'b2clogin.com', 'ping-eng.com', 'pingidentity.com'] as const;
+export const SIGN_IN_NAMES = ['okta.com', 'oktapreview.com', 'auth0.com', 'onelogin.com', 'duosecurity.com', 'b2clogin.com', 'ping-eng.com', 'pingidentity.com'] as const;
 
 /** Banks, by the names people in the UK would type; never read here at all. */
-const BANKS = ['barclays.co.uk', 'hsbc.co.uk', 'lloydsbank.co.uk', 'lloydsbank.com', 'natwest.com', 'nwolb.com', 'rbs.co.uk', 'santander.co.uk', 'halifax.co.uk', 'halifax-online.co.uk', 'nationwide.co.uk', 'monzo.com', 'starlingbank.com', 'revolut.com', 'tsb.co.uk', 'firstdirect.com', 'co-operativebank.co.uk', 'wise.com'] as const;
+export const BANKS = ['barclays.co.uk', 'hsbc.co.uk', 'lloydsbank.co.uk', 'lloydsbank.com', 'natwest.com', 'nwolb.com', 'rbs.co.uk', 'santander.co.uk', 'halifax.co.uk', 'halifax-online.co.uk', 'nationwide.co.uk', 'monzo.com', 'starlingbank.com', 'revolut.com', 'tsb.co.uk', 'firstdirect.com', 'co-operativebank.co.uk', 'wise.com'] as const;
 
 const REASON = 'SIGN-IN PAGES ARE NEVER SHOWN HERE';
 

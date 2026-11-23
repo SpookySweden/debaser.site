@@ -9,6 +9,7 @@ import { PLATE, PLATE_MAIN } from '../lib/ui/controls';
 import { useWebItem } from '../lib/web/use-web-item';
 import PopoutWindow from './PopoutWindow';
 import { WebRow } from './WebStream';
+import SeeKey from './SeeKey';
 
 const NO_HOSTS = {};
 const NOTHING = () => undefined;
@@ -78,9 +79,12 @@ export default function LetterItemPopout({
             {item.kind === 'web' && webItem === null ? <p className="mt-1 text-label text-ink-quiet">OPEN FINDS IT ON MEDIA.</p> : null}
             <p className="mt-3">
               {outside ? (
+                <>
                 <a href={href} target="_blank" rel="noopener noreferrer nofollow" onClick={() => onUse?.()} className={PLATE_MAIN}>
                   {verb} ↗
                 </a>
+                <SeeKey href={href} />
+                </>
               ) : (
                 <Link
                   href={href}

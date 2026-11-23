@@ -43,9 +43,16 @@ const PRETEND = [
   { company: 'A pretend font service', host: 'fonts.example', refused: false },
 ];
 
-const PAGES: Record<string, { title: string; body: string; watchers: SeenDocument['watchers'] }> = {
-  'see:test': { title: 'The test page', body: FIRST, watchers: PRETEND },
-  'see:test/2': { title: 'The second test page', body: SECOND, watchers: [] },
+/** For the tray: one the Room knows, one that won't load, and one it does not take. */
+const TRAY: SeenDocument['media'] = [
+  { address: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ', title: 'Big Buck Bunny', from: 'link', seconds: 635 },
+  { address: 'https://media.example/none.mp4', title: 'A file that is not there', from: 'video', seconds: null },
+  { address: 'http://media.example/plain.mp4', title: 'A file by plain http', from: 'video', seconds: null },
+];
+
+const PAGES: Record<string, { title: string; body: string; watchers: SeenDocument['watchers']; media: SeenDocument['media'] }> = {
+  'see:test': { title: 'The test page', body: FIRST, watchers: PRETEND, media: TRAY },
+  'see:test/2': { title: 'The second test page', body: SECOND, watchers: [], media: [] },
 };
 
 export const TEST_ADDRESS = 'see:test';
@@ -66,6 +73,7 @@ export const testEngine: SeeingEngine = {
         html: standing(page.body),
         reading: page.body,
         watchers: page.watchers,
+        media: page.media,
         files: 0,
         refused: 0,
         status: null,
