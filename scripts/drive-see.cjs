@@ -612,6 +612,11 @@ attempt('dress', function () { top.postMessage({ see: 'dress', css: 'x' }, '*');
 attempt('attribution', function () { var m = document.createElement('img'); Element.prototype.setAttribute.call(m, 'attributionsrc', 'http://127.0.0.1:4568/escaped-attr-img'); m.src = '/a.png'; document.documentElement.appendChild(m); if ('attributionSrc' in m) m.attributionSrc = 'http://127.0.0.1:4568/escaped-attr-prop'; var a = document.createElement('a'); a.href = '/next'; a.target = '_blank'; Element.prototype.setAttribute.call(a, 'attributionsrc', 'http://127.0.0.1:4568/escaped-attr-click'); document.documentElement.appendChild(a); try { fetch('http://127.0.0.1:4568/escaped-attr-fetch', { mode: 'no-cors', attributionReporting: { eventSourceEligible: true, triggerEligible: false } }).catch(function () {}); } catch (e) {} return 'attributionSrc' in m ? 'made' : 'made, no support'; });
 attempt('keepalive', function () { fetch('http://127.0.0.1:4568/escaped-keepalive', { mode: 'no-cors', keepalive: true, method: 'POST', body: 'x' }).catch(function () { out.keepaliveEnd = 'refused'; tell(); }); return 'asked'; });
 attempt('history', function () { history.pushState(null, '', 'http://127.0.0.1:4568/escaped-history'); return 'moved'; });
+// (IMPROVE, last run) The old request, a module asked for late, a picture made by script, a worker built from a blob.
+attempt('xhr', function () { var x = new XMLHttpRequest(); x.open('GET', 'http://127.0.0.1:4568/escaped-xhr'); x.onerror = function () { out.xhrEnd = 'refused'; tell(); }; x.send(); return 'sent'; });
+attempt('lateImport', function () { import('http://127.0.0.1:4568/escaped-import.js').catch(function () { out.lateImportEnd = 'refused'; tell(); }); return 'asked'; });
+attempt('scriptImage', function () { var m = new Image(); m.src = 'http://127.0.0.1:4568/escaped-image'; return 'made'; });
+attempt('blobWorker', function () { var u = URL.createObjectURL(new Blob(["fetch('http://127.0.0.1:4568/escaped-blobworker',{mode:'no-cors'}).catch(function(){})"], { type: 'text/javascript' })); new Worker(u); return 'made'; });
 setTimeout(function () { location.href = 'http://127.0.0.1:4568/escaped-self'; }, 300);
 setTimeout(tell, 1200); tell();
 </script>`;
@@ -935,6 +940,8 @@ async function eye(browser) {
       ok(made.every((name) => got[name] !== undefined), `an embed, a picture key, an image-set, a button's formaction and a service worker were made by script (${made.map((name) => `${name}=${got[name]}`)})`);
       const more = ['worker', 'sharedWorker', 'worklet', 'transport', 'speculation', 'metaRefresh', 'stylesheet', 'cssPictures'];
       ok(more.every((name) => got[name] !== undefined), `workers, worklets, WebTransport, speculation rules, a refresh, a stylesheet and CSS's other pictures were tried (${more.map((name) => `${name}=${got[name]}`)})`);
+      const late = ['xhr', 'lateImport', 'scriptImage', 'blobWorker'];
+      ok(late.every((name) => got[name] !== undefined), `an XMLHttpRequest, a late import, a script's picture and a blob worker were tried (${late.map((name) => `${name}=${got[name]}`)})`);
     }
     ok(net.escapes.length === 0, `it reached nothing by itself, not so much as a connection (${net.escapes.slice(0, 6)})`);
     const strangers2 = asked.filter((each) => each.left && !each.url.startsWith(`${BASE}/`) && !/^(?:data|blob|about|ws|chrome-error):/.test(each.url));
