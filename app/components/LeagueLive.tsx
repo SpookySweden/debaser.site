@@ -17,7 +17,8 @@ import type { RiotId } from '../lib/leaguebot/riot-id';
 import { championName, type StaticData } from '../lib/leaguebot/static-data';
 import { FAULT } from '../lib/leaguebot/look';
 import { rankText } from '../lib/leaguebot/types';
-import { PLATE, TITLE_BAR } from '../lib/ui/controls';
+import { PLATE, PLATE_PRESSED, TITLE_BAR } from '../lib/ui/controls';
+import LeagueChampion from './LeagueChampion';
 import LeagueAdvice from './LeagueAdvice';
 import LeagueIcon from './LeagueIcon';
 
@@ -82,11 +83,14 @@ function IconRow({ ids, lookup, label }: { ids: number[]; lookup: (id: number) =
 }
 
 /** One team as a full-width table: a player a line, the champion first, plain column names. */
-function Team({ title, id, players, me, data }: { title: string; id: string; players: LivePlayer[]; me: LivePlayer | null; data: StaticData | null }) {
+/** Which player a pick means, kept across the minute's re-checks of the same game. */
+const pickOf = (p: LivePlayer) => `${p.team}:${p.championId}:${p.name}#${p.tag}`;
+
+function Team({ title, id, players, me, data, picked, onPick }: { title: string; id: string; players: LivePlayer[]; me: LivePlayer | null; data: StaticData | null; picked: string | null; onPick: (p: LivePlayer) => void }) {
   const parties = new Map<number, number>();
   for (const p of players) if (p.party !== null && p.party > 0) parties.set(p.party, (parties.get(p.party) ?? 0) + 1);
   return (
-    <Section title={title} id={id}>
+    <Section title={title} id={id} note="pick a champion to read it below">
       {/* A narrow screen scrolls the table inside its strip, never the page. */}
       <div className="overflow-x-auto">
         <table className="w-full text-label text-ink">
@@ -109,14 +113,22 @@ function Team({ title, id, players, me, data }: { title: string; id: string; pla
                 <tr key={`${p.team}-${p.championId}`} className={`rule-pixel ${isMe ? 'bg-pointed' : ''}`}>
                   <th scope="row" className="px-2 py-1.5 text-left font-normal">
                     <span className="flex items-center gap-2">
-                      <LeagueIcon src={champion?.icon} name={champ} size="md" decorative />
+                      <button
+                        type="button"
+                        aria-pressed={picked === pickOf(p)}
+                        aria-controls="lb-champ"
+                        onClick={() => onPick(p)}
+                        className={`flex items-center gap-2 ${picked === pickOf(p) ? `${PLATE_PRESSED} cursor-pointer` : PLATE}`}
+                      >
+                        <LeagueIcon src={champion?.icon} name={champ} size="md" decorative />
+                        <span className="whitespace-nowrap">{champ}</span>
+                      </button>
                       <span className="flex gap-0.5 max-sm:hidden">
                         {p.spells.slice(0, 2).map((s) => (
                           <LeagueIcon key={s} src={data?.spells.get(s)?.icon} name={data?.spells.get(s)?.name ?? 'Summoner spell'} size="sm" />
                         ))}
                         {p.keystone ? <LeagueIcon src={data?.runes.get(p.keystone)?.icon} name={data?.runes.get(p.keystone)?.name ?? 'Keystone'} size="sm" /> : null}
                       </span>
-                      <span className="whitespace-nowrap">{champ}</span>
                     </span>
                   </th>
                   <td className="px-2 py-1.5">
@@ -159,6 +171,7 @@ export default function LeagueLive({ id, region, data }: { id: RiotId; region: R
   const [guide, setGuide] = useState<MatchupGuide | null>(null);
   const [guideError, setGuideError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [picked, setPicked] = useState<string | null>(null);
   const hadGame = useRef(false);
   const asked = useRef(0);
   const playing = useRef(false);
@@ -273,6 +286,8 @@ export default function LeagueLive({ id, region, data }: { id: RiotId; region: R
   const allies = game.players.filter((p) => p.team === myTeam);
   const enemies = game.players.filter((p) => p.team !== myTeam);
   const rift = isRiftGame(game);
+  // Your own champion is picked first; a pick whose player has left the answer falls back to it.
+  const pickedPlayer = game.players.find((p) => pickOf(p) === picked) ?? me ?? game.players[0] ?? null;
 
   return (
     <div className="space-y-4" data-leaguebot-live="playing">
@@ -387,8 +402,9 @@ export default function LeagueLive({ id, region, data }: { id: RiotId; region: R
         </div>
       </div>
 
-      <Team title="YOUR TEAM" id="lb-allies" players={allies} me={me} data={data} />
-      <Team title="ENEMY TEAM" id="lb-enemies" players={enemies} me={null} data={data} />
+      <Team title="YOUR TEAM" id="lb-allies" players={allies} me={me} data={data} picked={pickedPlayer ? pickOf(pickedPlayer) : null} onPick={(p) => setPicked(pickOf(p))} />
+      <Team title="ENEMY TEAM" id="lb-enemies" players={enemies} me={null} data={data} picked={pickedPlayer ? pickOf(pickedPlayer) : null} onPick={(p) => setPicked(pickOf(p))} />
+      {pickedPlayer ? <LeagueChampion key={pickOf(pickedPlayer)} picked={pickedPlayer} me={me} game={game} region={region} data={data} /> : null}
       {game.bans.length > 0 ? (
         <Section title="BANS" id="lb-bans">
           <ul className="flex flex-wrap gap-2 px-2 py-2">

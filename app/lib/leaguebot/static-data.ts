@@ -14,7 +14,8 @@ export type Named = { name: string; icon: string };
 export type StaticData = {
   patch: string;
   champions: Map<number, Named & { alias: string }>;
-  items: Map<number, Named>;
+  /** `completed`: a finished item worth naming in a build (nothing builds from it, 900 gold or more, not a consumable). */
+  items: Map<number, Named & { completed: boolean; boots: boolean }>;
   spells: Map<number, Named>;
   runes: Map<number, Named>;
 };
@@ -47,10 +48,16 @@ export function buildStaticData(patch: string, champion: Json, item: Json, summo
       champions.set(id, { name: entry.name, alias: String(entry.id), icon: `${DDRAGON}/cdn/${patch}/img/champion/${image}` });
     }
   }
-  const items = new Map<number, Named>();
+  const items = new Map<number, Named & { completed: boolean; boots: boolean }>();
   for (const [key, entry] of Object.entries((item.data ?? {}) as Record<string, Json>)) {
     const image = (entry.image as Json | undefined)?.full;
-    if (typeof entry.name === 'string' && typeof image === 'string') items.set(Number(key), { name: entry.name, icon: `${DDRAGON}/cdn/${patch}/img/item/${image}` });
+    if (typeof entry.name === 'string' && typeof image === 'string') {
+      const tags = Array.isArray(entry.tags) ? (entry.tags as unknown[]) : [];
+      const into = Array.isArray(entry.into) ? entry.into : [];
+      const gold = Number((entry.gold as Json | undefined)?.total ?? 0);
+      const completed = into.length === 0 && gold >= 900 && !tags.includes('Consumable') && !tags.includes('Trinket');
+      items.set(Number(key), { name: entry.name, icon: `${DDRAGON}/cdn/${patch}/img/item/${image}`, completed, boots: tags.includes('Boots') });
+    }
   }
   const spells = new Map<number, Named>();
   for (const entry of Object.values((summoner.data ?? {}) as Record<string, Json>)) {

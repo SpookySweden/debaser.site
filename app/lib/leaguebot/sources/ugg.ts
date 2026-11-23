@@ -113,6 +113,29 @@ export async function uggMatches(id: RiotId, region: Region, want: number, fetch
   return out.slice(0, want);
 }
 
+/** Summoner's Rift queues the CHAMPION panel reads: ranked solo, ranked flex, normal draft, quickplay. */
+const RIFT_QUEUES = [420, 440, 400, 490];
+
+/**
+ * The player's last `want` Summoner's Rift games on one champion, newest first (SPEC-leaguebot-live-champs.md: the
+ * CHAMPION panel's "their build" and "this player"). U.GG filters by champion itself, so a page is that champion's games.
+ */
+export async function uggChampionMatches(id: RiotId, region: Region, championId: number, want: number, fetchImpl?: FetchLike): Promise<MatchSummary[]> {
+  const out: MatchSummary[] = [];
+  for (let page = 1; out.length < want && page <= 3; page += 1) {
+    const data = await uggQuery(
+      `query($r:String!,$n:String!,$t:String!,$p:Int,$s:[Int],$q:[Int],$c:[Int]){ fetchPlayerMatchSummaries(regionId:$r,riotUserName:$n,riotTagLine:$t,queueType:$q,seasonIds:$s,page:$p,role:[],championId:$c,duoRiotUserName:"",duoRiotTagLine:""){ matchSummaries { ${SUMMARY_FIELDS} } } }`,
+      { r: region.ugg, n: id.name, t: id.tag, p: page, s: SEASONS, q: RIFT_QUEUES, c: [championId] },
+      fetchImpl,
+    );
+    const rows = ((data.fetchPlayerMatchSummaries as Json | null)?.matchSummaries ?? []) as Json[];
+    // A source that ignored the filter would hand back other champions: only this one's games count.
+    out.push(...rows.map((row) => toMatchSummary(row, id)).filter((m) => m.championId === championId));
+    if (rows.length < 20) break;
+  }
+  return out.slice(0, want);
+}
+
 /** Current solo rank and past seasons, U.GG's way (the fallback for OP.GG's profile). */
 export async function uggRanks(id: RiotId, region: Region, fetchImpl?: FetchLike): Promise<{ ranks: RankEntry[]; pastSeasons: PastSeason[] }> {
   const v = { r: region.ugg, n: id.name, t: id.tag };

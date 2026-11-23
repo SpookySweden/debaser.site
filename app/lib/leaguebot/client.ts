@@ -11,7 +11,8 @@ import type { RegionId } from './regions';
 import type { RiotId } from './riot-id';
 import type { LiveAnswer, MatchupGuide } from './live-types';
 import type { MatchReview } from './review-types';
-import { STATS_GAMES, type Lane, type PlayerAnswer } from './types';
+import type { PairAdvice } from './advice-notes';
+import { STATS_GAMES, type ChampionGamesAnswer, type Lane, type PlayerAnswer } from './types';
 
 export class LookupError extends Error {
   constructor(message: string) {
@@ -64,6 +65,34 @@ export async function lookUpPlayer(id: RiotId, region: RegionId, refresh = false
     return mockPlayer(id, region);
   }
   return getAnswer<PlayerAnswer>('/api/leaguebot/player', { region, name: id.name, tag: id.tag, ...(refresh ? { refresh: '1' } : {}) });
+}
+
+/**
+ * One player's recent games on one champion (the CHAMPION panel). When U.GG turns the server away, this browser reads the
+ * player's last 60 ranked solo games from OP.GG itself and keeps that champion's: fewer, and solo queue only, so it says so.
+ */
+export async function lookUpChampionGames(id: RiotId, region: RegionId, championId: number): Promise<ChampionGamesAnswer> {
+  if (LEAGUEBOT_DATA_SOURCE === 'mock') {
+    const { mockChampionGames } = await import('./fixtures/mock-answers');
+    return mockChampionGames(id, championId);
+  }
+  const answer = await getAnswer<ChampionGamesAnswer>('/api/leaguebot/champion', { region, name: id.name, tag: id.tag, champion: String(championId) });
+  if (answer.matches !== null) return answer;
+  try {
+    const games = (await browserOpggHistory(id, region, 60)).filter((m) => m.championId === championId);
+    return { matches: games, source: 'OP.GG', notes: [`U.GG didn't answer: their ranked solo games on it from OP.GG's last 60 instead.`], uggTrouble: answer.uggTrouble };
+  } catch {
+    return { ...answer, notes: ["Neither U.GG nor OP.GG answered for this player's games."] };
+  }
+}
+
+/** The Claude-written notes for your champion and the picked one, by Data Dragon's aliases. */
+export async function lookUpAdvice(mine: string, theirs: string, side: PairAdvice['side']): Promise<PairAdvice> {
+  if (LEAGUEBOT_DATA_SOURCE === 'mock') {
+    const { mockAdvice } = await import('./fixtures/mock-answers');
+    return mockAdvice(mine, theirs, side);
+  }
+  return getAnswer<PairAdvice>('/api/leaguebot/advice', { mine, theirs, side });
 }
 
 /** True when the window should fill the game list out from the browser (U.GG turned the server away). */

@@ -9,7 +9,8 @@ import type { RegionId } from '../regions';
 import type { RiotId } from '../riot-id';
 import type { LiveAnswer, LiveGame, MatchupGuide } from '../live-types';
 import type { MatchReview } from '../review-types';
-import type { Lane, LpPoint, MatchSummary, PlayerAnswer, Profile } from '../types';
+import type { ChampionGamesAnswer, Lane, LpPoint, MatchSummary, PlayerAnswer, Profile } from '../types';
+import type { CcNote, NoteLine, PairAdvice } from '../advice-notes';
 import liveGame from './live-game.json';
 import lpOpgg from './lp-opgg.json';
 import lpUgg from './lp-ugg.json';
@@ -116,4 +117,44 @@ export async function mockPlayer(id: RiotId, region: RegionId): Promise<PlayerAn
     return { profile: { riotId: id, region, ...MOCK_PROFILE, lpHistory: [], lpFrom: null }, profileSource: 'OP.GG', matches: MOCK_MATCHES, matchesSource: 'U.GG', notFound: false, notes: [], uggTrouble: null };
   }
   return { profile: { riotId: id, region, ...MOCK_PROFILE }, profileSource: 'OP.GG', matches: MOCK_MATCHES, matchesSource: 'U.GG', notFound: false, notes: [], uggTrouble: null };
+}
+
+/**
+ * A player's games on one champion on the mock site: the recorded games relabelled, a different slice per player so the
+ * numbers differ. A name ending `3` has only three games (the "read loosely" line), one ending `7` none (the empty state).
+ */
+export async function mockChampionGames(id: RiotId, championId: number): Promise<ChampionGamesAnswer> {
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  const name = id.name.toLowerCase();
+  const offset = [...name].reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % 60;
+  const want = name.endsWith('7') ? 0 : name.endsWith('3') ? 3 : 20;
+  const games = MOCK_MATCHES.slice(offset, offset + want).map((m) => ({ ...m, championId, players: [] }));
+  return { matches: games, source: 'U.GG', notes: [], uggTrouble: null };
+}
+
+/**
+ * The Claude-written notes on the mock site: plainly marked samples (the real ones live in a folder on SERVER). The
+ * mock player's own champion has a note against or with everyone; a picked champion whose alias starts with `Z` has no
+ * file yet (the "not written yet" state).
+ */
+export async function mockAdvice(mine: string, theirs: string, side: PairAdvice['side']): Promise<PairAdvice> {
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  if (theirs.startsWith('Z')) return { side, lines: null, cc: null, model: null, patch: null, deep: false };
+  const cc: CcNote[] = [
+    { key: 'Q', type: 'slow', dodge: `Sample dodge line for ${theirs}'s Q on the mock site: step out of the line it is aimed along.` },
+    { key: 'E', type: 'stun', dodge: `Sample dodge line for ${theirs}'s E: keep a minion between you, it stops on the first one hit.` },
+  ];
+  if (side === 'self') return { side, lines: null, cc, model: 'claude-opus-5-5', patch: '16.22.1', deep: true };
+  const lines: NoteLine[] =
+    side === 'with'
+      ? [
+          { mark: '+', text: `Sample note on the mock site: how ${mine} and ${theirs} work together shows here.` },
+          { mark: '>', text: 'A second sample line: when to group, and who starts the fight.' },
+        ]
+      : [
+          { mark: '!', text: `Sample note on the mock site: what ${theirs} threatens against ${mine} shows here.` },
+          { mark: '+', text: 'A second sample line: the window where you are stronger.' },
+          { mark: '>', text: 'A third sample line: one thing to try in this matchup.' },
+        ];
+  return { side, lines, cc, model: 'claude-opus-5-5', patch: '16.22.1', deep: side === 'against' };
 }

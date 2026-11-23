@@ -90,6 +90,15 @@ export type PlayerAnswer = {
   uggTrouble: string | null;
 };
 
+/** One player's recent games on one champion (the CHAMPION panel, SPEC-leaguebot-live-champs.md). */
+export type ChampionGamesAnswer = {
+  /** Null when U.GG didn't answer; the window then reads OP.GG from the browser. */
+  matches: MatchSummary[] | null;
+  source: SourceName | null;
+  notes: string[];
+  uggTrouble: string | null;
+};
+
 /** How many ranked solo games the STATS tab reads (five pages of U.GG's twenty). */
 export const STATS_GAMES = 100;
 

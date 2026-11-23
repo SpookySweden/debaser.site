@@ -259,6 +259,20 @@ Signs in as kept test account A, goes live, presses every filter key and reads w
 deployed site it leaves one ended stream, its board thread and one queue row (`supabase/cleanup/watch-test-streams.sql`
 lists them; removing them is a delete, so ask Luke). Kept here, not in `Temp/`, so both machines have it.
 
+leaguebot-advice-batch.mjs (and leaguebot-advice/prompt.mjs)
+-----------------------------------------------------------
+    node scripts/leaguebot-advice-batch.mjs status
+    node scripts/leaguebot-advice-batch.mjs submit --champion Evelynn --deep --model claude-opus-5-5
+    node scripts/leaguebot-advice-batch.mjs submit --next 20 --model claude-haiku-5-5     (--dry: plan and estimate only)
+    node scripts/leaguebot-advice-batch.mjs collect      then: retry, for anything that failed the checks
+
+LEAGUEBOT LIVE's Claude-written matchup, ally and dodge notes (SPEC-leaguebot-live-champs.md), written ahead of time
+through Anthropic's Message Batches API (half price) and never at click time. Run on SERVER: it reads
+ANTHROPIC_API_KEY from the site's own env file (G:\DEBASER-HOST\site.env; `--env` for another) and never prints it,
+and writes one `<alias>.json` per champion to I:\DEBASER\leaguebot-advice (LEAGUEBOT_ADVICE_DIR or `--out` for
+another), which `/api/leaguebot/advice` reads. `collect` also rewrites each finished champion's handoff in
+docs/leaguebot/champions/ (hand notes under HAND NOTES are kept). Each run spends money: say so to Luke first.
+
 web-fetch.cjs
 -------------
     npm run web:fetch                   run the MEDIA page's hourly fetch now, and print what each source saved
