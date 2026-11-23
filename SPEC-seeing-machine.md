@@ -114,6 +114,7 @@ Each can be changed later by saying so.
 48. **A site's check that a person is asking is said to be one**: a page whose title is Cloudflare's "Just a moment...", "Attention Required", "Verify you are human" and the like, or that carries a challenge service's mark (Cloudflare, hCaptcha, reCAPTCHA, DataDome, PerimeterX, Imperva, DDoS-Guard) with a 403, 429 or 503, gets a line over it: the machine never answers those; OWN EYE or OPEN SOURCE can. Nothing is worked round. Undo: bot-check.ts and its line in SeeingStage.tsx.
 49. **A new tab lists the engines to read, not to arrange**: each engine that is on, its name (pressed, it is the one asked) and its letters, three groups across; ALL, the arrows, ON/OFF and adding your own are behind [ ARRANGE ] beside the heading. The list from the box (▾ and `!`) is always whole. Undo: `whole` in SeeingEngines.tsx.
 50. **The status line weighs the page**: "· PAGE 48 KB" after REFUSED, the page's own markup counted in bytes (an old encoding is counted once read; its files are not in it), measured once a page. A readout of what really came, as an instrument would. Undo: the PAGE part in status-line.ts.
+51. **An unusual port is said before GO**: "THE SERVER'S EYE ASKS ONLY PORTS 80 AND 443 · GO TO ..." under the box for an address on another port. It is still taken as an address (GO shows the refusal, with OWN EYE to try). Undo: oddPort in search.ts.
 
 ## Risks, said once
 1. **SERVER is beside everything.** The torrent page (no password at home), Jellyfin, the database and its dashboard, the

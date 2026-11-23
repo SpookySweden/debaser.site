@@ -75,3 +75,5 @@ One line each, the most useful first. Struck through when done, with its commit.
 - ~~An address with a #part (…/page#end) opened at the top of the page: it now opens at that part, through X-RAY's own bring-into-sight (frame.ts partOf, a plain id only; drive eye 77, watched fail; check-see 5/5, frame 12, see-attack-live 614 refused).~~
 - ~~Five reasons the server can give fell to the general "THE PAGE DID NOT COME... TRY AGAIN": ports other than 80/443 (example.com:8080), THE MACHINE CAN'T TELL WHERE IT IS, a name or password in the address, too long, not http(s). Each has its words now; check-seeing reads public-address.ts too, and reasons with digits or an apostrophe (it was blind to them).~~
 - ~~Reviewer's note: a page drawn only by a background or an embed got the empty-page line: not now (DRAWN_OTHERWISE in SeeingStage).~~
+- ~~An address on an unusual port (example.com:8080) read GO TO and was refused after GO: the line under the box says the server asks only 80 and 443 first (decision 51).~~
+- Seen on screen, 2026-11-23 last run: MEDIA's reading rows draw [ SEE ] for a reader with BROWSER on the bar, and the press opens BROWSER at that address.

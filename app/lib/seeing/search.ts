@@ -114,7 +114,9 @@ export function readBox(typed: string, choices: SearchChoices): Typed {
 export function sayBox(typed: Typed): string {
   switch (typed.kind) {
     case 'address':
-      return `GO TO ${typed.address}`;
+      // The server refuses any other port whatever is said here (public-address.ts); said before GO, so the refusal is no surprise.
+      // First, so a long address truncated on the line never hides it.
+      return oddPort(typed.address) ? `THE SERVER'S EYE ASKS ONLY PORTS 80 AND 443 · GO TO ${typed.address}` : `GO TO ${typed.address}`;
     case 'search':
       return `SEARCH ${typed.engine.name.toUpperCase()} FOR ${typed.words}${typed.engine.opens === 'out' ? ' ↗' : ''}`;
     case 'list':
@@ -123,6 +125,16 @@ export function sayBox(typed: Typed): string {
       return typed.reason;
     case 'nothing':
       return '';
+  }
+}
+
+/** An address on a port other than the ordinary two. */
+function oddPort(address: string): boolean {
+  try {
+    const { port } = new URL(address);
+    return port !== '' && port !== '80' && port !== '443';
+  } catch {
+    return false;
   }
 }
 

@@ -458,6 +458,9 @@ assert.deepEqual(Q.enginesOf(Q.moved(Q.CHOICES_AT_FIRST, 'wiby', 1)).filter((eac
 assert.match(Q.sayBox(box('fog')), /^SEARCH DUCKDUCKGO FOR fog$/);
 assert.match(Q.sayBox(box('g fog')), /GOOGLE FOR fog ↗$/);
 assert.match(Q.sayBox(box('example.com')), /^GO TO https:\/\/example\.com\/$/);
+// A port the server refuses is said before GO, first on the line; the ordinary two are not.
+assert.match(Q.sayBox(box('example.com:8080/x')), /^THE SERVER'S EYE ASKS ONLY PORTS 80 AND 443 · GO TO https:\/\/example\.com:8080\/x$/);
+for (const typed of ['example.com:443', 'http://example.com:80/', 'https://example.com:443/']) assert.match(Q.sayBox(box(typed)), /^GO TO /, typed);
 
 /* ------------------------------------------------------------------ the built-in pages and the module */
 const browser = MODULES.find((module) => module.key === 'browser');
