@@ -2,8 +2,11 @@
 
 import { useMemo, useState, useSyncExternalStore } from 'react';
 import { matchesWords, searchWords } from '../../lib/search/site-search';
+import { hideSeen } from '../../lib/seeing/account';
 import { keptAddress, pageWords, type SeenPage } from '../../lib/seeing/pages';
 import { keptPages, keptPagesOnServer, removePage, subscribeToKeptPages } from '../../lib/seeing/pages-store';
+import { ReportKey } from '../ModerationKeys';
+import { useModeration } from '../ModerationProvider';
 import { FIELD_TIGHT, PLATE, PLATE_PRESSED, TITLE_BAR_INACTIVE } from '../../lib/ui/controls';
 
 const SHOWN = 60;
@@ -46,6 +49,7 @@ export default function SeeingKept({ me, onGo, onClose }: { me: string; onGo: (a
 function Card({ page, mine, onGo }: { page: SeenPage; mine: boolean; onGo: (address: string) => void }) {
   const [sure, setSure] = useState(false);
   const [said, setSaid] = useState<string | null>(null);
+  const { toolsOn } = useModeration();
   return (
     <li className="rule-pixel flex gap-2 py-2">
       {/* The server's own shrunk copy, carried in the card. */}
@@ -85,6 +89,13 @@ function Card({ page, mine, onGo }: { page: SeenPage; mine: boolean; onGo: (addr
               className={PLATE}
             >
               {sure ? '[ DELETE IT? ]' : '[ DELETE ]'}
+            </button>
+          ) : (
+            <ReportKey target={{ accountId: page.ownerId, name: page.ownerLabel, note: `A kept page: ${page.title} (${page.address})`.slice(0, 480) }} />
+          )}
+          {toolsOn && !mine ? (
+            <button type="button" onClick={() => void hideSeen('page', page.id).then((done) => setSaid(done ? 'HIDDEN' : 'NOT HIDDEN'))} className={PLATE}>
+              [ HIDE ]
             </button>
           ) : null}
         </p>

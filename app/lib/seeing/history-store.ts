@@ -1,8 +1,8 @@
 /**
- * Whose history it is, and where it is kept: in this browser, under the account's own key, until Phase 5's tables exist and it moves to the
- * account. Private either way: nothing about it is sent anywhere now.
+ * Whose history it is, and where it is kept: on the account, which nobody else reads, and in this browser under the account's own key.
  */
-import { rowsFrom, without, withVisit, type Seen } from './history';
+import { accountHistory, addToAccountHistory, clearAccountHistory, forgetInAccountHistory } from './account';
+import { keptRows, rowsFrom, without, withVisit, type Seen } from './history';
 
 const STORAGE_PREFIX = 'debaser-seeing-history-v1:';
 const NONE: readonly Seen[] = [];
@@ -45,17 +45,35 @@ export function openHistoryOf(owner: string | null): void {
   if (owner !== null) rows = readKept(owner) ?? NONE;
   held = { owner, rows };
   for (const listener of listeners) listener();
+  if (owner === null) return;
+  void accountHistory()
+    .catch(() => null)
+    .then((kept) => {
+      if (kept === null || held.owner !== owner) return;
+      // What was seen here and the account has not heard of (a line that was down, or from before it was kept there) goes to it.
+      const known = new Set(kept.map((row) => `${row.at} ${row.address}`));
+      const unheard = held.rows.filter((row) => !known.has(`${row.at} ${row.address}`));
+      void addToAccountHistory(unheard).catch(() => undefined);
+      keep(keptRows([...kept, ...unheard].sort((a, b) => b.at - a.at), Date.now()));
+    });
 }
 
 export function noteSeen(seen: Seen): void {
-  if (held.owner !== null) keep(withVisit(readKept(held.owner) ?? held.rows, seen));
+  if (held.owner === null) return;
+  const before = readKept(held.owner) ?? held.rows;
+  const after = withVisit(before, seen);
+  keep(after);
+  if (after.length > 0 && after[0].at === seen.at && after[0].address === seen.address) void addToAccountHistory([after[0]]).catch(() => undefined);
 }
 
 export function forgetOne(row: Seen): void {
-  if (held.owner !== null) keep(without(readKept(held.owner) ?? held.rows, row.at, row.address));
+  if (held.owner === null) return;
+  keep(without(readKept(held.owner) ?? held.rows, row.at, row.address));
+  void forgetInAccountHistory(row).catch(() => undefined);
 }
 
 /** One key clears it. */
-export function clearHistory(): void {
+export async function clearHistory(): Promise<boolean> {
   keep(NONE);
+  return clearAccountHistory().catch(() => false);
 }

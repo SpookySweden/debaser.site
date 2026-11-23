@@ -79,11 +79,10 @@ Each can be changed later by saying so.
     you add, and never for sign-ins. Its READER is its own, over the live page.
 16. **Rung 3 of the ladder waits**: it needs a new kind of queue row, which is a database change. Rung 4 waits for SCREENS' relay key.
 17. **`[ SEE ]` shows only for people with BROWSER on their bar**, so nobody else sees a key that would refuse them.
-18. **Phase 5 works without its tables**: kept pages and history are this browser's own until Luke says yes to them, and the key says so.
+18. **Phase 5 is on the site** (Luke, 2026-11-23: "you have the database okays make sure nothing is waiting on me"), in four migrations that only add.
 19. **A kept copy is refused for a page that is nothing but a sign-in**, not for one that has a password box somewhere on it.
 20. **A card's picture is carried in it**, shrunk by the server, so a list of cards asks nothing of anybody's site.
-21. **MARGINALIA and GRAFFITI are yours alone for now**, in this browser; SEEN TOGETHER needs a rule in the database for its private channel, so it
-    waits with them, as do MEDIA's PAGES lane and DISCOVER, which need everyone's kept pages.
+21. **Notes are everybody's, drawings yours alone**: a note is a line on a page; a drawing over a page is kept in this browser.
 22. **The extension updates in its own folder**, written by the site with your leave, every file checked; a browser updates such a folder no other
     way short of its own store, which is yours alone to list it in.
 23. **Nineteen themes**, not the eighteen written below: MARMALADE has six.

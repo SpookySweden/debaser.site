@@ -44,7 +44,7 @@ export function filesFor(request: Request, deps: SeeDeps, way: AnySiteWay): File
   return { way, counter: deps.counter, cache: deps.cache, now: deps.now, assetOrigin: assetOrigin(request, deps.gate.env), stands: (person) => passStands(person, deps.gate.env) };
 }
 
-type Ready = { ok: true; person: string; way: AnySiteWay; body: Record<string, unknown> } | { ok: false; response: Response };
+type Ready = { ok: true; person: string; token: string | null; way: AnySiteWay; body: Record<string, unknown> } | { ok: false; response: Response };
 
 /** The gate, the way out, and then the body: a small JSON object and nothing else. */
 export async function ready(request: Request, deps: SeeDeps): Promise<Ready> {
@@ -60,7 +60,7 @@ export async function ready(request: Request, deps: SeeDeps): Promise<Ready> {
     // Not JSON: not understood, below.
   }
   if (typeof body !== 'object' || body === null || Array.isArray(body)) return { ok: false, response: said(400, 'NOT UNDERSTOOD') };
-  return { ok: true, person: gate.person, way: deps.way, body: body as Record<string, unknown> };
+  return { ok: true, person: gate.person, token: gate.token, way: deps.way, body: body as Record<string, unknown> };
 }
 
 /** Pages that are not opened whoever asks: an ad server's, and a sign-in. */
@@ -79,12 +79,12 @@ function plainPage(type: string, words: string, picture: string | null): string 
 export async function openAnswer(request: Request, deps: SeeDeps = realSee()): Promise<Response> {
   const asked = await ready(request, deps);
   if (!asked.ok) return asked.response;
-  const { person, way, body } = asked;
+  const { person, token, way, body } = asked;
   const address = typeof body.address === 'string' ? body.address : '';
   const scripts = body.scripts !== false;
   const tooMany = deps.counter.page(person);
   if (tooMany !== null) return said(429, tooMany);
-  if (!(await recorded(person, [siteName(address)], deps))) return said(503, 'THE MACHINE IS OFF');
+  if (!(await recorded(person, [siteName(address)], deps, token))) return said(503, 'THE MACHINE IS OFF');
   try {
     const answer = await deps.counter.turn(person, () =>
       safeFetchAnySite(address, {
@@ -141,7 +141,7 @@ const WRITTEN_MOST = 5000;
 const holder = globalThis as typeof globalThis & { debaserSeeingWritten?: WeakMap<VisitLog, Map<string, number>> };
 const writtenBy = (holder.debaserSeeingWritten ??= new WeakMap());
 
-export async function recorded(person: string, sites: readonly (string | null)[], deps: SeeDeps): Promise<boolean> {
+export async function recorded(person: string, sites: readonly (string | null)[], deps: SeeDeps, token: string | null): Promise<boolean> {
   if (person === seeingOwner(deps.gate.env) || person === 'dev') return true;
   let written = writtenBy.get(deps.visits);
   if (written === undefined) writtenBy.set(deps.visits, (written = new Map<string, number>()));
@@ -150,7 +150,7 @@ export async function recorded(person: string, sites: readonly (string | null)[]
     const key = `${person} ${site}`;
     const last = written.get(key);
     if (last !== undefined && deps.now() - last < WRITTEN_AGAIN_MS) continue;
-    if (!(await deps.visits.write(person, site))) return false;
+    if (!(await deps.visits.write(person, site, token))) return false;
     if (written.size >= WRITTEN_MOST) written.clear();
     written.set(key, deps.now());
   }
@@ -177,7 +177,7 @@ export async function sealAnswer(request: Request, deps: SeeDeps = realSee()): P
   if (typeof page !== 'string' || !Array.isArray(files) || files.length > FILES_AT_ONCE) return said(400, 'NOT UNDERSTOOD');
   const own = filesFor(request, deps, asked.way);
   const named = files.map((file: unknown) => resolveOn(String((file as { address?: unknown } | null)?.address ?? ''), page)).filter((each) => each !== null);
-  if (!(await recorded(asked.person, named.map(siteName), deps))) return said(503, 'THE MACHINE IS OFF');
+  if (!(await recorded(asked.person, named.map(siteName), deps, asked.token))) return said(503, 'THE MACHINE IS OFF');
   const addresses = files.map((file: unknown) => {
     const { address, kind } = (typeof file === 'object' && file !== null ? file : {}) as { address?: unknown; kind?: unknown };
     const known = ASSET_KINDS.find((each) => each === kind && each !== 'data');
@@ -193,7 +193,7 @@ export async function askedAnswer(request: Request, deps: SeeDeps = realSee()): 
   const { page, address } = asked.body;
   if (typeof page !== 'string' || typeof address !== 'string') return said(400, 'NOT UNDERSTOOD');
   const wanted = resolveOn(address, page);
-  if (wanted === null || !(await recorded(asked.person, [siteName(wanted)], deps))) return said(403, "THAT ISN'T AN ADDRESS");
+  if (wanted === null || !(await recorded(asked.person, [siteName(wanted)], deps, asked.token))) return said(403, "THAT ISN'T AN ADDRESS");
   const answer = await askAnswer(address, page, asked.person, filesFor(request, deps, asked.way), request.signal);
   if (!answer.ok) return said(403, answer.reason);
   return new Response(answer.body as BodyInit, {

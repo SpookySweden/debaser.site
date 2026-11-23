@@ -1,7 +1,8 @@
 /**
- * Whose tabs are open in this browser (SPEC-seeing-machine.md). Kept in this browser only until Phase 5 moves them to the account, under
- * the account's own key, so two people sharing a computer never see each other's pages. Nothing about them is ever sent anywhere.
+ * Whose tabs are open (SPEC-seeing-machine.md): in this browser under the account's own key, so two people sharing a computer never see each
+ * other's pages, and on the account, which nobody else reads, for a browser that has none of them.
  */
+import { accountTabs, saveAccountTabs } from './account';
 import { freshTabs, storedTabs, tabsFromStored, type Tabs } from './tabs';
 
 const STORAGE_PREFIX = 'debaser-seeing-tabs-v1:';
@@ -39,7 +40,26 @@ export function openTabsOf(owner: string): void {
   } catch {
     // No storage here (a private window): a new tab, forgotten on leaving.
   }
-  publish({ owner, state: stored ?? freshTabs(freshId()) });
+  const opened = stored ?? freshTabs(freshId());
+  publish({ owner, state: opened });
+  if (stored !== null) return;
+  // Nothing of theirs here: as they left them in another browser, unless they have begun already.
+  void accountTabs()
+    .catch(() => null)
+    .then((kept) => {
+      if (kept !== null && held.owner === owner && held.state === opened) publish({ owner, state: kept });
+    });
+}
+
+/** Sent to the account a little after they stop changing. */
+const SAVE_AFTER_MS = 3000;
+let saving: ReturnType<typeof setTimeout> | null = null;
+function saveSoon(owner: string): void {
+  if (saving !== null) clearTimeout(saving);
+  saving = setTimeout(() => {
+    saving = null;
+    if (held.owner === owner) void saveAccountTabs(owner, held.state).catch(() => undefined);
+  }, SAVE_AFTER_MS);
 }
 
 /** Signed out: nobody's tabs are held in the page. What is stored stays, for them to come back to. */
@@ -52,6 +72,7 @@ export function changeTabs(change: (state: Tabs) => Tabs): void {
   const state = change(held.state);
   if (state === held.state) return;
   publish({ owner: held.owner, state });
+  saveSoon(held.owner);
   try {
     window.localStorage.setItem(STORAGE_PREFIX + held.owner, storedTabs(state));
   } catch {

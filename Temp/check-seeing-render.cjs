@@ -93,8 +93,8 @@ assert.ok(/ONLY YOU, IN THIS BROWSER/.test(keepPanel) && !/EVERYONE/.test(keepPa
 assert.match(keepPanel, /<a href="https:\/\/web\.archive\.org\/save\/https:\/\/a\.example\/" target="_blank" rel="noopener noreferrer"/);
 assert.match(keepPanel, /<button[^>]*disabled=""[^>]*>\[ \+ QUOTE \]/);
 assert.match(html(el(at('SeeingKept'), { me: 'u1', onGo: none, onClose: none })), /NOTHING KEPT\./);
-const notes = html(el(at('SeeingMargins'), { page: 'https://a.example/', notes: [{ id: 'n', page: 'https://a.example/', quote: '<i>q</i>', note: 'mine', at: 1 }], selected: '', onFind: none, onClose: none }));
-assert.ok(/ONLY YOU, IN THIS BROWSER/.test(notes) && /&lt;i&gt;q/.test(notes) && /\[ FIND \]/.test(notes));
+const notes = html(el(at('SeeingMargins'), { page: 'https://a.example/', owner: { id: 'u1', label: 'U' }, notes: [{ id: 'n', page: 'https://a.example/', quote: '<i>q</i>', note: 'mine', at: 1, ownerId: 'u2', ownerLabel: 'THEM' }], selected: '', onFind: none, onClose: none }));
+assert.ok(/ONLY YOU, IN THIS BROWSER/.test(notes) && /&lt;i&gt;q/.test(notes) && /\[ FIND \]/.test(notes) && !/\[ DELETE \]/.test(notes), "and nobody else's note can be deleted from here");
 assert.match(html(el(at('SeeingGraffiti'), { drawing: true, where: 'https://a.example/', at: { y: 0, whole: 1 }, onScroll: none })), /aria-label="Graffiti"/);
 const { ExtensionBody, default: ExtensionWindow } = require('./seeing-render-out/components/ExtensionWindow.js');
 assert.equal(html(el(ExtensionWindow)), '', 'shut, the EXTENSION window is not there');

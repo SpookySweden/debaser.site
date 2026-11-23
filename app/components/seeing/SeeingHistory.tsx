@@ -16,6 +16,7 @@ export default function SeeingHistory({ onGo, onClose }: { onGo: (address: strin
   const [view, setView] = useState<'list' | 'trail'>('list');
   const [words, setWords] = useState('');
   const [clearing, setClearing] = useState(false);
+  const [failed, setFailed] = useState(false);
   const found = useMemo(() => findIn(rows, words), [rows, words]);
   return (
     <section aria-label="History" className="absolute inset-0 z-30 flex flex-col bg-paper p-2 text-label text-ink" data-seeing-history>
@@ -33,7 +34,7 @@ export default function SeeingHistory({ onGo, onClose }: { onGo: (address: strin
           disabled={rows.length === 0}
           onClick={() => {
             // Two presses: there is no bringing it back.
-            if (clearing) clearHistory();
+            if (clearing) void clearHistory().then((done) => setFailed(!done));
             setClearing(!clearing);
           }}
           onBlur={() => setClearing(false)}
@@ -46,6 +47,7 @@ export default function SeeingHistory({ onGo, onClose }: { onGo: (address: strin
         </button>
       </div>
       <p className="text-ink-quiet">ONLY YOU SEE THIS. {HISTORY_DAYS} DAYS.</p>
+      {failed ? <p role="status">IT COULD NOT BE CLEARED FROM YOUR ACCOUNT: TRY AGAIN.</p> : null}
       {rows.length === 0 ? <p className="p-1">NOTHING YET.</p> : view === 'list' ? <List rows={found} onGo={onGo} /> : <TrailMap rows={found} onGo={onGo} />}
     </section>
   );

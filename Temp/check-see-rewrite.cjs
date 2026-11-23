@@ -348,6 +348,22 @@ const file = (pass, deps) => open.assetRoute(new Request(`https://debaser.site/a
     await open.openAnswer(ask('open', { address: 'https://html.duckduckgo.com/html/?q=my%20secret%20words' }, OTHER), s.deps);
     assert.ok(s.visits.rows.length === 1 && !/secret|html\/|q=/.test(JSON.stringify(s.visits.rows)), 'what is searched for is not written down');
   }
+  {
+    const { createDatabaseVisits } = at('visits.js');
+    const sent = [];
+    const yes = createDatabaseVisits('https://db.example/', 'anon-key', async (...each) => { sent.push(each); return new Response(null, { status: 204 }); });
+    assert.equal(await yes.write(OTHER, 'html.duckduckgo.com', 'their-token'), true);
+    assert.equal(sent[0][0], 'https://db.example/rest/v1/rpc/browse_log_write');
+    assert.deepEqual([sent[0][1].headers.Authorization, sent[0][1].headers.apikey, sent[0][1].body], ['Bearer their-token', 'anon-key', '{"p_site":"html.duckduckgo.com"}'], "with the reader's own session, and the site's name alone");
+    assert.equal(await yes.write(OTHER, 'x.example', null), false, 'nobody signed in, nothing written');
+    for (const bad of [async () => new Response('no', { status: 401 }), async () => new Response('no', { status: 500 }), async () => { throw new Error('down'); }]) assert.equal(await createDatabaseVisits('https://db.example', 'k', bad).write(OTHER, 'x.example', 't'), false, 'and what could not be written is a no');
+    assert.equal(await createDatabaseVisits('', '', async () => new Response()).write(OTHER, 'x.example', 't'), false);
+    const seenToken = [];
+    const t = world(answers, { SEEING_OPEN: 'accounts' });
+    t.deps.visits = { write: async (person, site, token) => { seenToken.push([person, site, token]); return true; } };
+    await open.openAnswer(ask('open', { address: 'https://page.org/?x=1' }, OTHER), t.deps);
+    assert.deepEqual(seenToken, [[OTHER, 'page.org', TOKEN[OTHER]]]);
+  }
   w.deps.visits = { write: async () => false };
   assert.ok((await open.askedAnswer(ask('ask', { page: 'https://page.org/', address: 'https://page.org/d.json' }, OTHER), w.deps)).status >= 400);
   assert.ok((await open.sealAnswer(ask('seal', { page: 'https://page.org/', files: [{ address: '/a.png', kind: 'picture' }] }, OTHER), w.deps)).status >= 400);

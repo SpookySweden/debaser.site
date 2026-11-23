@@ -17,7 +17,8 @@ import { authIsSupabase, ownerId, realDeps } from '../../screens/host-server';
 export type SeeingEnv = Record<string, string | undefined>;
 export type GateDeps = { env: SeeingEnv; accountOf: (token: string) => Promise<string | null> };
 
-export type Gate = { ok: true; person: string } | { ok: false; status: number; reason: string };
+/** `token`: the session it was, to write their visit with; none for the local drives. */
+export type Gate = { ok: true; person: string; token: string | null } | { ok: false; status: number; reason: string };
 
 const DEV_PERSON = 'dev';
 
@@ -39,14 +40,14 @@ const NOT_OPEN: Gate = { ok: false, status: 403, reason: 'THE MACHINE HAS NO EYE
 
 export async function whoMaySee(request: Request, deps: GateDeps): Promise<Gate> {
   if (isOff(deps.env)) return { ok: false, status: 503, reason: 'THE MACHINE IS OFF' };
-  if (devOpen(deps.env)) return { ok: true, person: DEV_PERSON };
+  if (devOpen(deps.env)) return { ok: true, person: DEV_PERSON, token: null };
   if (!authIsSupabase(deps.env)) return NOT_OPEN;
   const token = /^Bearer ([\w.-]{20,4000})$/.exec(request.headers.get('authorization') ?? '')?.[1];
   if (token === undefined) return { ok: false, status: 401, reason: 'LOG IN TO OPEN PAGES' };
   const person = (await deps.accountOf(token))?.toLowerCase() ?? null;
   if (person === null) return { ok: false, status: 401, reason: 'LOG IN TO OPEN PAGES' };
-  if ((deps.env.SEEING_OPEN ?? '').trim() === 'accounts') return { ok: true, person };
-  return person === seeingOwner(deps.env) ? { ok: true, person } : NOT_OPEN;
+  if ((deps.env.SEEING_OPEN ?? '').trim() === 'accounts') return { ok: true, person, token };
+  return person === seeingOwner(deps.env) ? { ok: true, person, token } : NOT_OPEN;
 }
 
 /** Whether a pass still stands for its person: the off switch and the owner-only rule reach pages already open. */

@@ -24,8 +24,10 @@ import { trayOf } from '../../lib/seeing/media';
 import { dialOf, dialTo } from '../../lib/seeing/time';
 import { addTab, canGoBack, canGoForward, closeTab, frontTab, showTab, step, stopOf, TABS_MOST, visit, withDraft, withAddress, withLens, withTitle, type Tabs } from '../../lib/seeing/tabs';
 import { changeTabs, freshId, letTabsGo, openTabsOf, seeingTabs, seeingTabsOnServer, subscribeToSeeingTabs } from '../../lib/seeing/tabs-store';
-import { notesOn, pageOf } from '../../lib/seeing/margins';
-import { margins, marginsOnServer, openMarginsOf, subscribeToMargins } from '../../lib/seeing/margins-store';
+import { pageOf } from '../../lib/seeing/margins';
+import { openMarginsOf } from '../../lib/seeing/margins-store';
+import { notesState, notesStateOnServer, openNotesOn, subscribeToNotes } from '../../lib/seeing/notes-store';
+import type { SharedNote } from '../../lib/seeing/account';
 import { keptId } from '../../lib/seeing/pages';
 import { keptPage, keptPages, keptPagesOnServer, openKeptPagesOf, subscribeToKeptPages } from '../../lib/seeing/pages-store';
 import { engineFor } from '../../lib/seeing/engines';
@@ -58,6 +60,7 @@ type Shown =
   | { key: string; state: 'refused'; reason: string };
 
 const NO_MEDIA: readonly FoundMedia[] = [];
+const NO_NOTES: readonly SharedNote[] = [];
 const NOTHING: Shown = { key: '', state: 'stopped' };
 
 /** A public list's own random page of the small, old web (idea vii). It answers with a page that sends people on, which a page may. */
@@ -120,9 +123,11 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
   const [drawing, setDrawing] = useState(false);
   const finderRef = useRef<((index: number) => void) | null>(null);
   const router = useRouter();
-  const everyMargin = useSyncExternalStore(subscribeToMargins, margins, marginsOnServer);
+  const held = useSyncExternalStore(subscribeToNotes, notesState, notesStateOnServer);
   const page = pageOf(address);
-  const notes = useMemo(() => notesOn(everyMargin, pageOf(address)), [everyMargin, address]);
+  const { id: ownerId, label: ownerLabel } = owner;
+  useEffect(() => openNotesOn(pageOf(address), { id: ownerId, label: ownerLabel }), [address, ownerId, ownerLabel]);
+  const notes = held.page === page ? held.notes : NO_NOTES;
   const marks = useMemo(() => notes.map((each) => each.quote), [notes]);
   const [selected, setSelected] = useState<{ key: string; text: string }>({ key: '', text: '' });
   const kept = useSyncExternalStore(subscribeToKeptPages, keptPages, keptPagesOnServer);
@@ -549,7 +554,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
           </div>
         ) : null}
         {noting && page !== null && seen !== null ? (
-          <SeeingMargins key={`notes ${page}`} page={page} notes={notes} selected={selected.key === key ? selected.text : ''} onFind={(index) => finderRef.current?.(index)} onClose={() => setNoting(false)} />
+          <SeeingMargins key={`notes ${page}`} page={page} owner={owner} notes={notes} selected={selected.key === key ? selected.text : ''} onFind={(index) => finderRef.current?.(index)} onClose={() => setNoting(false)} />
         ) : null}
         {keeping && outside && seen !== null ? <SeeingKeep key={`keep ${key}`} address={address} owner={owner} selected={selected.key === key ? selected.text : ''} onOpen={go} onClose={() => setKeeping(false)} /> : null}
         {trayOpen && (seen !== null || sent.length > 0) ? (

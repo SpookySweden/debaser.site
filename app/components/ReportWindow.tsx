@@ -22,7 +22,7 @@ import { useModeration } from './ModerationProvider';
  */
 function ReportForm({ target, me }: { target: ReportTarget; me: string }) {
   const [reason, setReason] = useState<ReportReason | null>(null);
-  const [note, setNote] = useState('');
+  const [note, setNote] = useState(target.note ?? '');
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -296,7 +296,7 @@ const CASES = {
     const ask = (token) => new Request('https://debaser.site/api/see/open', { method: 'POST', headers: token ? { authorization: token } : {} });
     const mine = `Bearer good${'a'.repeat(30)}`;
     const theirs = `Bearer other${'a'.repeat(30)}`;
-    assert.deepEqual(await M.gate.whoMaySee(ask(mine), deps()), { ok: true, person: OWNER });
+    assert.deepEqual(await M.gate.whoMaySee(ask(mine), deps()), { ok: true, person: OWNER, token: mine.slice(7) });
     for (const token of [null, 'Bearer', 'Bearer x', `Basic good${'a'.repeat(30)}`, `Bearer nobody${'a'.repeat(30)}`, `good${'a'.repeat(30)}`]) {
       const gate = await M.gate.whoMaySee(ask(token), deps());
       assert.equal(gate.ok, false, String(token));
@@ -466,7 +466,7 @@ const MUTANTS = [
   { name: 'gone', file: L, find: 'signal?.aborted === true', put: 'false', caught: 'limits' },
   { name: 'at once, all', file: L, find: ' || running >= exports.LIMITS.fetchesAtOnceAll', put: '', caught: 'limits' },
   { name: "a copy's sign-ins", file: K, find: 'refuses: open_1.refusesPage, ', put: '', caught: 'a kept copy' },
-  { name: "a copy's visit", file: K, find: 'if (!(await (0, open_1.recorded)(person, [(0, open_1.siteName)(address)], deps)))', put: 'if (false)', caught: 'a kept copy' },
+  { name: "a copy's visit", file: K, find: 'if (!(await (0, open_1.recorded)(person, [(0, open_1.siteName)(address)], deps, token)))', put: 'if (false)', caught: 'a kept copy' },
   { name: "a copy's scripts", file: K, find: 'answer.url, sign, false)', put: 'answer.url, sign, true)', caught: 'a kept copy' },
   { name: "a copy's forms", file: K, find: 'noForms(filled(page.html))', put: 'filled(page.html)', caught: 'a kept copy' },
   { name: "a copy's drawings", file: K, find: 'got[at] = SHRUNK.test(answered.type) ?', put: 'got[at] = true ?', caught: 'a kept copy' },

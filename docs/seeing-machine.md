@@ -130,24 +130,26 @@ In OWN EYE these are your own browser's, where they answer as they always do; no
   its "on every visit" question, which no script can press. A new permission in the manifest may need the reader's OK in the browser.
 - 0.1.0 doesn't know the word `reload`: after its first update the reader presses ↻ once.
 
-## History, TRAIL and kept pages (Phase 5, in the browser only until the tables exist)
+## History, TRAIL and kept pages (Phase 5; on the site since Luke's yes to the tables, 2026-11-23)
 - **History** (`history.ts`, `history-store.ts`): 90 days, 2,000 rows, under the account's own key in this browser; one key clears it. **TRAIL**
   (`trail.ts`): the same rows as a map of sites; the same walk always makes the same map.
 - **KEEP PAGE**: `POST /api/see/keep` (`server/keep.ts`) looks at the page again, signed out, and answers with a card and a copy: scripts, frames and
   forms gone, sheets and shrunk pictures written into it, 10 MB at most, so it asks for nothing from anywhere. Files are held by addresses under a
   name made for that one copy, so a page can't write itself one. Not 200, or nothing but a sign-in: a card, no copy, private.
-- **Where it is kept**: `pages-repository.ts` (IndexedDB `debaser-seeing`, the account's alone, today) or `supabase-pages-repository.ts` when
-  `NEXT_PUBLIC_SEEING_DATA_SOURCE=supabase`, which waits for the tables. The key says which: ONLY YOU, IN THIS BROWSER or EVERYONE WILL SEE THIS.
-  The migration is drafted outside the repo on purpose (another session's push would apply it).
+- **Where it is kept**: `supabase-pages-repository.ts` on the site, or `pages-repository.ts` (IndexedDB `debaser-seeing`) on a local dev server. The key
+  says which: EVERYONE WILL SEE THIS, or ONLY YOU, IN THIS BROWSER.
 - A copy opens at `see:kept/<id>` in the same frame with scripts off and no files, its source's link above it. Ctrl+K has PAGES.
-- Waiting for the tables: everyone's cards, REPORT and hiding, letters, recommendations, the forum's `page` anchor, tabs and history on the account.
+- **On the site** (`NEXT_PUBLIC_SEEING_DATA_SOURCE=supabase`, migrations 20261123130000 to 130300): cards everyone reads, copies and notes for accounts,
+  REPORT and a moderator's HIDE (`seen_hide`), history and tabs on the account (`account.ts`; in this browser too, so a line that is down loses nothing).
+  Local dev keeps all of it in the browser. The visit record is written by `browse_log_write` with the reader's own session (`server/visits.ts`).
 
-## MARGINALIA and GRAFFITI (Phase 6, in the browser only until the tables exist)
+## MARGINALIA and GRAFFITI (Phase 6)
 - `margins.ts`, `margins-store.ts`: notes on passages (300 characters, 50 a page) and strokes drawn over pages, under the account's own key in this
   browser (1.5 MB; the pages drawn on longest ago go first). **Notes**: a selection is told by the hook only while a panel wants one; a passage is marked with the browser's own highlights, so the page
   itself isn't changed. **Graffiti** stays where it was drawn as the page moves; READER has its own, since its words stand elsewhere. A page that lays itself out
   differently at another width moves under its drawing.
-- Waiting for the tables, and for a private channel's rule: notes shown to everyone, SEEN TOGETHER, the Room's CANVAS over a page.
+- Notes are the site's (`seen_notes`, `notes-store.ts`): everyone with an account who opens the page here sees them, with REPORT and HIDE. Drawings are
+  this browser's.
 
 ## SONIFY (Phase 6)
 `sonify.ts` reads a page's tags in order (headings the beat, links the notes, pictures a bell) and writes BeepBox's own JSON into BEATBOX's address;

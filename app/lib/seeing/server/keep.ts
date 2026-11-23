@@ -99,11 +99,11 @@ const noForms = (html: string): string => html.replace(/<(\/?)(?=form(?![a-z0-9]
 export async function keepAnswer(request: Request, deps: SeeDeps = realSee()): Promise<Response> {
   const asked = await ready(request, deps);
   if (!asked.ok) return asked.response;
-  const { person, way, body } = asked;
+  const { person, token, way, body } = asked;
   const address = typeof body.address === 'string' ? body.address : '';
   const tooMany = deps.counter.page(person);
   if (tooMany !== null) return said(429, tooMany);
-  if (!(await recorded(person, [siteName(address)], deps))) return said(503, 'THE MACHINE IS OFF');
+  if (!(await recorded(person, [siteName(address)], deps, token))) return said(503, 'THE MACHINE IS OFF');
   const until = AbortSignal.any([request.signal, AbortSignal.timeout(WITHIN_MS)]);
   try {
     const answer = await deps.counter.turn(
