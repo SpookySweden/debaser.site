@@ -12,7 +12,7 @@ import { PLATE, TITLE_BAR_INACTIVE } from '../../lib/ui/controls';
  * decision 47): a channel with nothing on it, still, never moving.
  */
 export default function SeeingRefused({ reason, eye, ms, address, canOld, ownEye, read = null, onAgain, onOld, onOwn }: { reason: string; eye: string; ms: number; address: string; canOld: boolean; ownEye: boolean; read?: string | null; onAgain: () => void; onOld: () => void; onOwn: () => void }) {
-  const help = refusalHelp(reason);
+  const help = refusalHelp(reason, address);
   const tries = help.tries.filter((each) => (each === 'old' ? canOld : each === 'own' ? ownEye : true));
   return (
     <section aria-label="The page did not come" className="flex min-w-0 flex-1 flex-col overflow-y-auto text-label text-ink" data-seeing-refused>

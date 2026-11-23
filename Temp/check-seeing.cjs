@@ -413,6 +413,13 @@ assert.ok(serverSays.size >= 12, `the server's reasons were found (${serverSays.
 for (const reason of serverSays) assert.notEqual(R.refusalHelp(reason), general, `${reason} is said plainly`);
 for (const guarded of ['NOT A PUBLIC ADDRESS', 'KNOWN FOR MALWARE OR PHISHING']) assert.deepEqual(R.refusalHelp(guarded).tries, [], `${guarded}: nothing to try`);
 assert.ok(R.refusalHelp('THE SOURCE TOOK TOO LONG').tries.includes('again'));
+// A set-aside name or a Tor address is refused the same, but never said to be inside a house; a house name still is.
+assert.match(R.refusalHelp('NOT A PUBLIC ADDRESS', 'https://no-such-host.invalid/').means, /SET ASIDE/);
+assert.match(R.refusalHelp('NOT A PUBLIC ADDRESS', 'http://shop.example/x').means, /SET ASIDE/);
+assert.match(R.refusalHelp('NOT A PUBLIC ADDRESS', 'http://abc.onion/').means, /TOR/);
+assert.match(R.refusalHelp('NOT A PUBLIC ADDRESS', 'http://nas.local/').means, /INSIDE A HOUSE/);
+assert.match(R.refusalHelp('NOT A PUBLIC ADDRESS', 'http://contest.com/').means, /INSIDE A HOUSE/);
+assert.deepEqual(R.refusalHelp('NOT A PUBLIC ADDRESS', 'http://abc.test/').tries, []);
 // Two the scan above can't read (built from the answer's type): a file is never told to come again, only to open in your own browser.
 for (const reason of ['NOT SHOWN HERE: APPLICATION/ZIP', "IT DOESN'T SAY WHAT IT IS"]) assert.deepEqual(R.refusalHelp(reason).tries, ['source'], `${reason} is said plainly`);
 

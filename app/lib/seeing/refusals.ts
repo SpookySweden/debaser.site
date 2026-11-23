@@ -29,7 +29,25 @@ const HELP: readonly [RegExp, RefusalHelp][] = [
 
 const ANYTHING_ELSE: RefusalHelp = { means: 'THE PAGE DID NOT COME. IT MAY COME A SECOND TIME, OR AS AN OLD COPY.', tries: ['again', 'old', 'own'] };
 
-export function refusalHelp(reason: string): RefusalHelp {
+/** Endings set aside so they never name a site on the open internet (`.test`, `.example`, `.invalid`, `.alt`), and Tor's `.onion`. */
+const SET_ASIDE = /\.(?:test|example|invalid|alt)\.?$/i;
+const ONION = /\.onion\.?$/i;
+
+function hostOf(address: string): string {
+  try {
+    return new URL(address).hostname;
+  } catch {
+    return '';
+  }
+}
+
+export function refusalHelp(reason: string, address = ''): RefusalHelp {
+  // The same refusal, said truly for a name that isn't inside a house: it is set aside, or Tor's.
+  if (/^NOT A PUBLIC ADDRESS$/.test(reason)) {
+    const host = hostOf(address);
+    if (SET_ASIDE.test(host)) return { means: 'THAT NAME IS SET ASIDE FOR EXAMPLES AND TESTS. NO SITE ON THE OPEN INTERNET HAS IT.', tries: [] };
+    if (ONION.test(host)) return { means: 'A TOR ADDRESS. THE MACHINE LOOKS ONLY AT THE OPEN INTERNET.', tries: [] };
+  }
   for (const [pattern, help] of HELP) if (pattern.test(reason)) return help;
   return ANYTHING_ELSE;
 }
