@@ -238,6 +238,9 @@ const told = F.readFrameMessage({ see: 'point', path: ['x'.repeat(500), 5], kind
 assert.ok(told.point.path[0].length === 60 && told.point.path[1] === '' && told.point.kind === '' && told.point.words.length === 160 && told.point.inside === 0);
 const counted = F.readFrameMessage({ see: 'census', counts: { words: 5, scripts: 'x' }, rows: [...Array(300).fill({ depth: 99, name: 'x'.repeat(99), inside: 1 }), 7] });
 assert.ok(counted.census.rows.length === 160 && counted.census.rows[0].depth === 6 && counted.census.rows[0].name.length === 60 && counted.census.counts.scripts === 0 && counted.census.counts.words === 5);
+// A row's place goes into a stylesheet when it is lit (decision 45): only the one shape our script makes is kept.
+const placed = F.readFrameMessage({ see: 'census', counts: {}, rows: [{ depth: 0, name: 'main', inside: 1, at: 'body:nth-of-type(1) > main:nth-of-type(1)' }, { depth: 0, name: 'x', inside: 0, at: 'main{} *{background:url(https://x.org/)}' }, { depth: 0, name: 'y', inside: 0, at: 7 }, { depth: 0, name: 'z', inside: 0 }] });
+assert.deepEqual(placed.census.rows.map((row) => row.at), ['body:nth-of-type(1) > main:nth-of-type(1)', null, null, null]);
 const kept3 = memoryFrom({ 'example.com': 'reader', 'bad site': 'reader', 'x.org': 'evil' }, { 'example.com': ['#a', '*{}', 5], 'y.org': 'x' }, [{ address: 'https://example.com/', title: 'A\u202eB' }, { address: 'javascript:alert(1)', title: 'x' }, 5]);
 assert.deepEqual(kept3, { lenses: { 'example.com': 'reader' }, erased: { 'example.com': ['#a'] }, good: [{ address: 'https://example.com/', title: 'A B' }] });
 assert.deepEqual(memoryFrom(null, 'x', { a: 1 }), { lenses: {}, erased: {}, good: [] });
