@@ -79,3 +79,4 @@ One line each, the most useful first. Struck through when done, with its commit.
 - Seen on screen, 2026-11-23 last run: MEDIA's reading rows draw [ SEE ] for a reader with BROWSER on the bar, and the press opens BROWSER at that address.
 - ~~http://[::1]/ and 192.168.1.1 read GO TO at the box and were refused only after GO: now NOT A PUBLIC ADDRESS at once (decision 52).~~
 - ~~[ OPEN SOURCE ↗ ] and [ READ IT ] (links) put their words at the top of their 44px box at phone width, a few pixels above [ OWN EYE ↗ ] (a button): inline-flex items-center, the words level (measured at 390 and 1366).~~
+- ~~Safety round (last run of 2026-11-23): the hostile page now also makes a subtitle track, a fenced frame and an SVG filter picture aimed at the trap; none reaches it (drive eye 78, the attempts asserted made).~~

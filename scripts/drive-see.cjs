@@ -578,6 +578,10 @@ attempt('style', function () { var m = document.createElement('style'); m.textCo
 attempt('picture', function () { var m = document.createElementNS('http://www.w3.org/2000/svg', 'image'); m.setAttributeNS('http://www.w3.org/1999/xlink', 'href', 'http://127.0.0.1:4568/escaped-svg'); document.documentElement.appendChild(m); return 'made'; });
 // (IMPROVE, 2026-11-23) More ways a page reaches out by itself: each must reach nothing, the trap included.
 attempt('beacon', function () { return navigator.sendBeacon('http://127.0.0.1:4568/escaped-beacon', 'x'); });
+// (last run of 2026-11-23) A video's subtitle track, a fenced frame and an SVG filter's picture, each made by script.
+attempt('track', function () { var v = document.createElement('video'); var t = document.createElement('track'); t.default = true; t.kind = 'subtitles'; t.src = 'http://127.0.0.1:4568/escaped-track'; v.appendChild(t); document.body.appendChild(v); if (v.textTracks[0]) v.textTracks[0].mode = 'showing'; return 'made'; });
+attempt('fenced', function () { var f = document.createElement('fencedframe'); f.setAttribute('src', 'http://127.0.0.1:4568/escaped-fenced'); document.body.appendChild(f); return 'made'; });
+attempt('feImage', function () { var NS = 'http://www.w3.org/2000/svg'; var s = document.createElementNS(NS, 'svg'), fl = document.createElementNS(NS, 'filter'), fe = document.createElementNS(NS, 'feImage'), r = document.createElementNS(NS, 'rect'); fl.id = 'fe'; fe.setAttribute('href', 'http://127.0.0.1:4568/escaped-feimage'); fl.appendChild(fe); s.appendChild(fl); r.setAttribute('width', '4'); r.setAttribute('height', '4'); r.setAttribute('filter', 'url(#fe)'); s.appendChild(r); document.body.appendChild(s); return 'made'; });
 attempt('events', function () { var e = new EventSource('http://127.0.0.1:4568/escaped-events'); e.onerror = function () { out.eventsEnd = 'refused'; e.close(); tell(); }; return 'made'; });
 attempt('sound', function () { var m = document.createElement('audio'); Element.prototype.setAttribute.call(m, 'src', 'http://127.0.0.1:4568/escaped-audio'); m.preload = 'auto'; document.documentElement.appendChild(m); m.load(); var v = document.createElement('video'); Element.prototype.setAttribute.call(v, 'poster', 'http://127.0.0.1:4568/escaped-poster'); Element.prototype.setAttribute.call(v, 'src', 'http://127.0.0.1:4568/escaped-video'); document.documentElement.appendChild(v); return 'made'; });
 attempt('font', function () { var m = document.createElement('style'); m.textContent = '@font-face{font-family:x;src:url(http://127.0.0.1:4568/escaped-font)} body{font-family:x}'; document.head.appendChild(m); if (document.fonts) document.fonts.load('1em x').catch(function () {}); return 'made'; });
@@ -913,6 +917,7 @@ async function eye(browser) {
     {
       const got = JSON.parse(hostile);
       ok(got.origin === 'done:null', 'the hostile page has no origin');
+      ok(['track', 'fenced', 'feImage'].every((name) => got[name] === 'done:made'), `a subtitle track, a fenced frame and an SVG filter's picture were made (${got.track} ${got.fenced} ${got.feImage})`);
       ok(['attribution', 'keepalive', 'history'].every((name) => got[name] !== undefined), `attribution, keepalive and history were tried (${got.attribution} ${got.keepalive} ${got.history} ${got.keepaliveEnd})`);
       ok(got.frames === 0 && Object.entries(got).filter(([name, value]) => /^make/.test(name) && !/^(?:done:0|[A-Z]\w*Error)$/.test(value)).length === 0, `no way of making a frame made one (${JSON.stringify(Object.entries(got).filter(([name, value]) => /^make/.test(name) && !/^(?:done:0|[A-Z]\w*Error)$/.test(value)))})`);
       ok(/Error/.test(got.rtc) && /Error/.test(got.freshRtc), 'so WebRTC is out of its reach');
