@@ -73,7 +73,16 @@ export const refusesPage = (url: URL): string | null => {
 /** A page that isn't HTML, as one that is: a picture, or words. */
 function plainPage(type: string, words: string, picture: string | null): string {
   if (type.startsWith('image/')) return picture === null ? '' : `<img src="${escapeValue(picture)}" alt="" style="max-width:100%">`;
-  return `<pre style="white-space:pre-wrap;overflow-wrap:anywhere">${escapeText(words)}</pre>`;
+  return `<pre style="white-space:pre-wrap;overflow-wrap:anywhere">${escapeText(/json/.test(type) ? indented(words) : words)}</pre>`;
+}
+
+/** JSON laid out two spaces a level, so it reads; anything that doesn't parse is left as it came. */
+function indented(words: string): string {
+  try {
+    return JSON.stringify(JSON.parse(words), null, 2);
+  } catch {
+    return words;
+  }
 }
 
 /** POST /api/see/open { address, scripts } */

@@ -444,6 +444,7 @@ const file = (pass, deps) => open.assetRoute(new Request(`https://debaser.site/a
     assert.match(said.reason, why, address);
   }
   assert.match((await (await open.openAnswer(ask('open', { address: 'https://page.org/plain' }), w.deps)).json()).document.html, /&lt;b&gt;not markup/);
+  assert.match((await (await open.openAnswer(ask('open', { address: 'https://page.org/d.json' }), w.deps)).json()).document.html, /<pre[^>]*>\{\n  (?:&quot;|")a(?:&quot;|"): 1\n\}<\/pre>/, 'JSON is laid out to read');
   assert.match((await (await open.openAnswer(ask('open', { address: 'https://page.org/pic' }), w.deps)).json()).document.html, /<img src="https:\/\/debaser\.site\/api\/see\/asset\//);
 
   // A script's own requests.

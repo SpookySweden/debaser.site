@@ -54,3 +54,4 @@ One line each, the most useful first. Struck through when done, with its commit.
 - Open: a feed the machine draws (feed.ts) is in the browser's default look; a lens still dresses it. A house look would need a font named outside the token files.
 - ~~A refused page showed a dozen keys that could do nothing there (KEEP PAGE, NOTES, GRAFFITI, SONIFY, SCRIPTS OFF...): only the ones that may help stay (decision 46; drive lenses 73, watched fail).~~
 - ~~DISCOVER (TAG STATION) rows and cards had [ OPEN ↗ ] but no [ SEE ], unlike MEDIA rows: they have both now, in DISCOVER's own key look, for whoever has BROWSER on the bar (SeeKey look prop; tag-station checks 9/9; not seen on screen).~~
+- ~~A JSON answer (an API address) was drawn as one long raw line: laid out two spaces a level now; what does not parse stays as it came (open.ts; check-see-rewrite, watched fail; check-see 5/5, eye 71, see-attack-live refused).~~
