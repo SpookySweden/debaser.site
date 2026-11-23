@@ -48,8 +48,8 @@ type Props = {
 };
 
 const NO_TOOLS: FrameTools = {};
-/** Not a word, a picture, a link or a frame on the page: it came out empty (a page that builds itself the machine can't follow). */
-const cameOutEmpty = (census: Census) => census.counts.words < 3 && census.counts.pictures === 0 && census.counts.links === 0 && census.counts.frames === 0;
+/** A page with scripts of its own, and not a word, a picture, a link or a frame on it: it came out empty (a page that builds itself the machine can't follow). */
+const cameOutEmpty = (census: Census) => census.counts.scripts > 0 && census.counts.words < 3 && census.counts.pictures === 0 && census.counts.links === 0 && census.counts.frames === 0;
 const nothing = () => undefined;
 
 /** The page, and over it a second drawing of it when there is a SEAM or a LOUPE. */
