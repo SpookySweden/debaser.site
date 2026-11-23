@@ -3,7 +3,7 @@
  * an address with a place for the words; its results are a page like any other, shown through a lens and never read into anything of ours.
  * Pure: the words go to the engine that is asked and nowhere else.
  */
-import { ADDRESS_MOST, readAddress } from './address';
+import { ADDRESS_MOST, ODD_PORT_SAID, oddPort, readAddress } from './address';
 
 /** `here`: its results read in the server's eye (tried, docs/seeing-machine.md). `out`: it turns servers away, so OWN EYE or a new tab. `site`: ours. */
 export type Opens = 'here' | 'out' | 'site';
@@ -116,7 +116,7 @@ export function sayBox(typed: Typed): string {
     case 'address':
       // The server refuses any other port whatever is said here (public-address.ts); said before GO, so the refusal is no surprise.
       // First, so a long address truncated on the line never hides it.
-      return oddPort(typed.address) ? `THE SERVER'S EYE ASKS ONLY PORTS 80 AND 443 · GO TO ${typed.address}` : `GO TO ${typed.address}`;
+      return oddPort(typed.address) ? `${ODD_PORT_SAID} · GO TO ${typed.address}` : `GO TO ${typed.address}`;
     case 'search':
       return `SEARCH ${typed.engine.name.toUpperCase()} FOR ${typed.words}${typed.engine.opens === 'out' ? ' ↗' : ''}`;
     case 'list':
@@ -125,16 +125,6 @@ export function sayBox(typed: Typed): string {
       return typed.reason;
     case 'nothing':
       return '';
-  }
-}
-
-/** An address on a port other than the ordinary two. */
-function oddPort(address: string): boolean {
-  try {
-    const { port } = new URL(address);
-    return port !== '' && port !== '80' && port !== '443';
-  } catch {
-    return false;
   }
 }
 

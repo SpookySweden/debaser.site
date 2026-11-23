@@ -55,6 +55,18 @@ export function readAddress(text: string): ReadAddress {
   return { ok: true, address: url.href };
 }
 
+/** An address on a port other than the ordinary two, which the server's eye refuses (public-address.ts): said before it is asked for. */
+export function oddPort(address: string): boolean {
+  try {
+    const { port } = new URL(address);
+    return port !== '' && port !== '80' && port !== '443';
+  } catch {
+    return false;
+  }
+}
+
+export const ODD_PORT_SAID = "THE SERVER'S EYE ASKS ONLY PORTS 80 AND 443";
+
 /** A short name for an address, until its page says its own title. */
 export function shortName(address: string): string {
   if (isBuiltIn(address)) return address.startsWith('see:kept/') ? 'KEPT PAGE' : 'TEST PAGE';

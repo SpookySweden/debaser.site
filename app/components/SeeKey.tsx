@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useSyncExternalStore } from 'react';
-import { browserHref, readAddress } from '../lib/seeing/address';
+import { browserHref, ODD_PORT_SAID, oddPort, readAddress } from '../lib/seeing/address';
 import { askToSee } from '../lib/seeing/ask';
 import { PLATE } from '../lib/ui/controls';
 import { MODULES, moduleIsOn } from '../lib/ui/modules';
@@ -47,6 +47,8 @@ export function SeeLine({ words, onLeave }: { words: string; onLeave: () => void
         [ SEE IT IN BROWSER ]
       </Link>
       <span className="min-w-0 wrap-anywhere">{read.address}</span>
+      {/* As the box says it (decision 51): the server's eye will refuse this one. */}
+      {oddPort(read.address) ? <span className="text-ink-quiet">{ODD_PORT_SAID}</span> : null}
     </p>
   );
 }
