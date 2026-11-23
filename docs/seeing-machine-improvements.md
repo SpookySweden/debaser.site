@@ -77,3 +77,4 @@ One line each, the most useful first. Struck through when done, with its commit.
 - ~~Reviewer's note: a page drawn only by a background or an embed got the empty-page line: not now (DRAWN_OTHERWISE in SeeingStage).~~
 - ~~An address on an unusual port (example.com:8080) read GO TO and was refused after GO: the line under the box says the server asks only 80 and 443 first (decision 51).~~
 - Seen on screen, 2026-11-23 last run: MEDIA's reading rows draw [ SEE ] for a reader with BROWSER on the bar, and the press opens BROWSER at that address.
+- ~~http://[::1]/ and 192.168.1.1 read GO TO at the box and were refused only after GO: now NOT A PUBLIC ADDRESS at once (decision 52).~~

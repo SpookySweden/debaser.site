@@ -115,6 +115,7 @@ Each can be changed later by saying so.
 49. **A new tab lists the engines to read, not to arrange**: each engine that is on, its name (pressed, it is the one asked) and its letters, three groups across; ALL, the arrows, ON/OFF and adding your own are behind [ ARRANGE ] beside the heading. The list from the box (▾ and `!`) is always whole. Undo: `whole` in SeeingEngines.tsx.
 50. **The status line weighs the page**: "· PAGE 48 KB" after REFUSED, the page's own markup counted in bytes (an old encoding is counted once read; its files are not in it), measured once a page. A readout of what really came, as an instrument would. Undo: the PAGE part in status-line.ts.
 51. **An unusual port is said before GO**: "THE SERVER'S EYE ASKS ONLY PORTS 80 AND 443 · GO TO ..." under the box for an address on another port. It is still taken as an address (GO shows the refusal, with OWN EYE to try). Undo: oddPort in search.ts.
+52. **The house's own addresses are said at the box**: [::1], 127.0.0.1, 10.x, 192.168.x, 172.16-31.x, 169.254.x and 100.64-127.x read NOT A PUBLIC ADDRESS before GO, as localhost:3000 already did; the server's own list still decides. Undo: INSIDE_IPV4 and the [ test in address.ts.
 
 ## Risks, said once
 1. **SERVER is beside everything.** The torrent page (no password at home), Jellyfin, the database and its dashboard, the

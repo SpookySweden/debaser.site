@@ -52,6 +52,9 @@ good('example.com', 'https://example.com/');
 good('  http://example.com/a?b=1#c ', 'http://example.com/a?b=1#c');
 good('HTTPS://EXAMPLE.com', 'https://example.com/');
 good('example.com:8080/x', 'https://example.com:8080/x');
+// The house's own addresses are said at the box, in the server's words, in any spelling `new URL` turns into them.
+for (const inside of ['http://[::1]/', '[2606:4700::1]', '127.0.0.1', 'http://0x7f.1/', 'https://2130706433/', '10.0.0.8:80/x', '192.168.1.1', '172.20.3.4', '169.254.169.254/latest', '100.100.1.1', '0.0.0.0']) bad(inside, /^NOT A PUBLIC ADDRESS$/);
+for (const [typed, address] of [['93.184.216.34', 'https://93.184.216.34/'], ['172.32.0.1', 'https://172.32.0.1/'], ['100.128.0.1', 'https://100.128.0.1/'], ['11.0.0.1', 'https://11.0.0.1/']]) good(typed, address);
 good('see:test', 'see:test');
 good('SEE:TEST/2', 'see:test/2');
 for (const text of ['javascript:alert(1)', 'JavaScript:alert(1)', 'data:text/html,x', 'file:///c:/', 'ftp://example.com', 'blob:https://example.com/x', 'mailto:a@example.com', 'view-source:https://example.com', 'about:blank']) bad(text, /ONLY HTTP/);
