@@ -49,7 +49,7 @@ const has = (kind, address) => assert.ok(signed.some((each) => each[0] === kind 
 let p = write('<img src="b.png" srcset="/c.png 1x, d.png 2x"><picture><source srcset="e.webp 640w,f.webp 1280w"></picture><link rel=stylesheet href=s.css media=print><script src="//cdn.seeing.org/x.js" integrity=sha256-x crossorigin nonce=1></script><script type=module src=/m.js></script>');
 for (const each of [['picture', 'https://news.seeing.org/a/b.png'], ['picture', 'https://news.seeing.org/c.png'], ['picture', 'https://news.seeing.org/a/d.png'], ['picture', 'https://news.seeing.org/a/f.webp'], ['style', 'https://news.seeing.org/a/s.css'], ['script', 'https://cdn.seeing.org/x.js'], ['module', 'https://news.seeing.org/m.js']]) has(...each);
 assert.ok(!/integrity|crossorigin|nonce/.test(p.html), 'what binds a file to its first bytes goes');
-assert.match(p.html, /media="print"/);
+assert.match(p.html, /<style media="print">@import url\("https:/);
 assert.equal(p.files, 8);
 p = write('<base href="/other/" target=_blank><base href="/third/"><img src=q.png><a href=r.html>r</a>');
 has('picture', 'https://news.seeing.org/other/q.png');
@@ -74,7 +74,7 @@ assert.ok(!/\ssrc=/.test(p.html), 'video and sound never pass through');
 assert.deepEqual(signed.map((each) => each[0]), ['picture'], 'only a poster');
 
 // However it is written, in a script's words too, no browser finds a frame.
-for (const html of ['<p><IFRAME>', '<iframe/src=x>', '<svg><iframe></svg>', '<script>x="<iframe src=y>"</script>', '<textarea><iframe></textarea>', '<title></title><frame>', '<a title="<iframe>">', '<x<iframe>', '<!--><iframe>', '<iframe\n', '<math><mtext></mtext><iframe></math>', '<noscript><iframe></noscript>', '<template><iframe></template>', '<style><iframe></style>', '<object>', '<embed>', '<frameset><frame>']) assert.ok(!/<\/?(?:iframe|frame|frameset|object|embed)(?![a-z0-9-])/i.test(write(html).html), html);
+for (const html of ['<p><IFRAME>', '<iframe/src=x>', '<svg><iframe></svg>', '<script>x="<iframe src=y>"</script>', '<textarea><iframe></textarea>', '<title></title><frame>', '<a title="<iframe>">', '<x<iframe>', '<!--><iframe>', '<iframe\n', '<math><mtext></mtext><iframe></math>', '<noscript><iframe></noscript>', '<template><iframe></template>', '<style><iframe></style>', '<object>', '<embed>', '<frameset><frame>', '<noembed><link rel=preconnect></noembed>', '<svg><style><p><link></style></svg>', '<svg><script><p><link></script></svg>', '<LINK rel=icon>', '<link rel=stylesheet href=/s.css>', '<xmp><link></xmp>']) assert.ok(!/<\/?(?:iframe|frame|frameset|object|embed|link)(?![a-z0-9-])/i.test(write(html).html), html);
 
 /* ------------------------------------------------------------------ styles */
 const css = (text) => {
@@ -326,7 +326,7 @@ const file = (pass, deps) => open.assetRoute(new Request(`https://debaser.site/a
   const before = w.asked.length;
   await file(passIn(page.html), w.deps);
   assert.equal(w.asked.length, before, 'kept for a little while');
-  const sheetPass = passIn(/<link[^>]+>/.exec(page.html)[0]);
+  const sheetPass = passIn(/@import url[^;]+/.exec(page.html)[0]);
   const sheet = await (await file(sheetPass, w.deps)).text();
   assert.match(sheet, /url\("https:\/\/debaser\.site\/api\/see\/asset\//);
   const module_ = await (await file(passIn(/<script type="module"[^>]+>/.exec(page.html)[0]), w.deps)).text();

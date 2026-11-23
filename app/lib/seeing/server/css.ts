@@ -129,6 +129,7 @@ export function rewriteCss(css: string, to: CssAddress): string {
     }
     out += token.text;
   }
-  // Inside a <style> nothing may close it.
-  return out.replace(/<\/(?=style)/gi, '<\\/');
+  // Inside a <style> nothing may close it, or be read as a tag where a style's insides are (in a drawing). `<` before a digit or a space is
+  // a comparison in a media query, and stays.
+  return out.replace(/<(?=[a-z/!?])/gi, '\\3c ');
 }

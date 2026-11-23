@@ -409,7 +409,7 @@ document.addEventListener('DOMContentLoaded', function () {
   tell();
 });`;
 
-const HOSTILE = `<!doctype html><title>Hostile</title><div id="out"></div><meta http-equiv="refresh" content="1;url=http://127.0.0.1:4567/escaped-refresh"><base href="http://127.0.0.1:4567/">
+const HOSTILE = `<!doctype html><title>Hostile</title><div id="out"></div><meta http-equiv="refresh" content="1;url=http://127.0.0.1:4568/escaped-refresh"><base href="http://127.0.0.1:4568/">
 <script>
 var out = {}; function tell() { document.getElementById('out').textContent = JSON.stringify(out); }
 function attempt(name, what) { try { var v = what(); out[name] = 'done:' + v; } catch (e) { out[name] = e.name; } }
@@ -417,9 +417,9 @@ attempt('origin', function () { return self.origin; });
 attempt('parentDoc', function () { return parent.document.title; });
 attempt('topDoc', function () { return top.document.title; });
 attempt('topStore', function () { return top.localStorage.length; });
-attempt('topNav', function () { top['loc' + 'ation'].href = 'http://127.0.0.1:4567/escaped-top'; return 'set'; });
-attempt('outerNav', function () { parent['loc' + 'ation'].href = 'http://127.0.0.1:4567/escaped-outer'; return 'set'; });
-attempt('popup', function () { return Object.getPrototypeOf(window).constructor.prototype && window.open.call(window, 'http://127.0.0.1:4567/escaped-popup'); });
+attempt('topNav', function () { top['loc' + 'ation'].href = 'http://127.0.0.1:4568/escaped-top'; return 'set'; });
+attempt('outerNav', function () { parent['loc' + 'ation'].href = 'http://127.0.0.1:4568/escaped-outer'; return 'set'; });
+attempt('popup', function () { return Object.getPrototypeOf(window).constructor.prototype && window.open.call(window, 'http://127.0.0.1:4568/escaped-popup'); });
 // A fresh realm, with nothing of ours in it.
 var HTML = 'http://www.w3.org/1999/xhtml', root = document.documentElement, F = 'ifr' + 'ame', T = '<' + F + '>';
 attempt('makeElement', function () { root.appendChild(document.createElement(F)); return window.length; });
@@ -447,24 +447,54 @@ attempt('makePolicy', function () { trustedTypes.createPolicy('mine', { createHT
 attempt('makeSplit', function () { var d = document.createElement('div'); root.appendChild(d); document.write('<ifr'); document.write('ame>'); return window.length; });
 attempt('rtc', function () { return new RTCPeerConnection() && 'made'; });
 out.frames = window.length;
+attempt('hint', function () { ['preconnect', 'dns-prefetch', 'prefetch', 'preload', 'modulepreload', 'icon', 'manifest', 'prerender'].forEach(function (rel) {
+  var l = document.createElement('link'); l.rel = rel; l.href = 'http://127.0.0.1:4568/escaped-hint'; document.head.appendChild(l);
+  var m = document.createElementNS(HTML, 'link'); m.setAttributeNS(null, 'rel', rel); m.setAttributeNS(null, 'href', 'http://127.0.0.1:4568/escaped-hint2'); document.head.appendChild(m);
+  var a = document.createElement('link'), n = document.createAttribute('rel'); n.value = rel; a.setAttributeNode(n); a.setAttribute('href', 'http://127.0.0.1:4568/escaped-hint3'); if (a.relList) a.relList.add(rel); document.head.appendChild(a);
+  document.head.insertAdjacentHTML('beforeend', '<link rel="' + rel + '" href="http://127.0.0.1:4568/escaped-hint4">');
+  document.querySelectorAll('link').forEach(function (own) { own.rel = rel; own.href = 'http://127.0.0.1:4568/escaped-hint5'; document.head.appendChild(own); });
+}); return document.querySelectorAll('link').length; });
+// Everything the hook might lean on, taken from under it.
+var RTC = '<script>try{var c=new RTCPeerConnection({iceServers:[{urls:"stun:127.0.0.1:4568"}]});c.createDataChannel("");c.createOffer().then(function(o){c.setLocalDescription(o)})}catch(e){}<' + '/script>';
+attempt('undermine', function () {
+  var made = 0;
+  function tryAll() {
+    try { var f = document.createElement(F); f.srcdoc = RTC; root.appendChild(f); } catch (e) {}
+    try { var g = document.createElementNS(HTML, F); g.srcdoc = RTC; root.appendChild(g); } catch (e) {}
+    try { var dd = document.createElement('div'); root.appendChild(dd); dd.innerHTML = '<' + F + ' srcdoc="' + RTC.split('"').join('&quot;') + '"></' + F + '>'; } catch (e) {}
+    try { root.appendChild(document.adoptNode(document.implementation.createDocument(HTML, F, null).documentElement)); } catch (e) {}
+    try { document.head.insertAdjacentHTML('beforeend', '<link rel=preconnect href="http://127.0.0.1:4568/">'); } catch (e) {}
+    made += window.length;
+  }
+  var yes = function () { return true; }, no = function () { return false; }, same = function () { return String(this); };
+  [[RegExp.prototype, 'test', no], [RegExp.prototype, 'exec', function () { return null; }], [RegExp.prototype, Symbol.replace, function (text) { return text; }], [String.prototype, 'replace', same], [String.prototype, 'split', function () { return ['p']; }], [String.prototype, 'toLowerCase', function () { return 'p'; }], [String.prototype, 'indexOf', function () { return -1; }], [String.prototype, 'charCodeAt', function () { return 0; }], [String.prototype, 'slice', function () { return 'p'; }], [Array.prototype, 'pop', function () { return 'p'; }], [Array.prototype, 'slice', function () { return ['p']; }], [Array.prototype, 'indexOf', function () { return -1; }], [Array.prototype, 'forEach', no], [Object.prototype, 'hasOwnProperty', no], [Object, 'create', function () { return {}; }], [Reflect, 'apply', function (f, t, a) { window.__got = f; return f(t, a); }], [Function.prototype, 'apply', function (t, a) { window.__got = this; return undefined; }], [Function.prototype, 'call', function () { window.__got = this; return undefined; }], [Function.prototype, 'bind', function () { window.__got = this; return this; }], [window, 'String', function () { return 'p'; }], [window, 'RegExp', function () { return { test: no }; }], [Map.prototype, 'get', no], [Map.prototype, 'has', no], [Set.prototype, 'has', no]].forEach(function (row) {
+    var was = Object.getOwnPropertyDescriptor(row[0], row[1]);
+    try { Object.defineProperty(row[0], row[1], { configurable: true, writable: true, value: row[2] }); tryAll(); } catch (e) {} finally { try { Object.defineProperty(row[0], row[1], was); } catch (e) {} }
+  });
+  Object.defineProperty(Object.prototype, 'iframe', { configurable: true, get: function () { return undefined; }, set: function () {} }); tryAll(); delete Object.prototype.iframe;
+  Object.defineProperty(Object.prototype, '0', { configurable: true, get: function () { return F; }, set: function () {} }); tryAll(); delete Object.prototype[0];
+  return made + ':' + typeof window.__got;
+});
+attempt('scriptAddress', function () { var a = document.createElement('a'); a.href = 'javascript:' + JSON.stringify(RTC); root.appendChild(a); a.click(); return 'clicked'; });
+attempt('scriptPlace', function () { self['loc' + 'ation'] = 'javascript:' + JSON.stringify(RTC); return 'set'; });
 var w = window[0];
-attempt('freshFetch', function () { w.fetch('http://127.0.0.1:4567/escaped-fetch', { mode: 'no-cors' }).catch(function () { out.freshFetchEnd = 'refused'; tell(); }); return 'asked'; });
-attempt('freshRtc', function () { var c = new w.RTCPeerConnection({ iceServers: [{ urls: 'stun:127.0.0.1:4567' }] }); c.createDataChannel('x'); c.createOffer().then(function (o) { return c.setLocalDescription(o); }).catch(function (e) { out.rtcEnd = e.name; tell(); }); return 'made'; });
-attempt('freshSocket', function () { new w.WebSocket('ws://127.0.0.1:4567/escaped-socket'); return 'made'; });
+attempt('freshFetch', function () { w.fetch('http://127.0.0.1:4568/escaped-fetch', { mode: 'no-cors' }).catch(function () { out.freshFetchEnd = 'refused'; tell(); }); return 'asked'; });
+attempt('freshRtc', function () { var c = new w.RTCPeerConnection({ iceServers: [{ urls: 'stun:127.0.0.1:4568' }] }); c.createDataChannel('x'); c.createOffer().then(function (o) { return c.setLocalDescription(o); }).catch(function (e) { out.rtcEnd = e.name; tell(); }); return 'made'; });
+attempt('freshSocket', function () { new w.WebSocket('ws://127.0.0.1:4568/escaped-socket'); return 'made'; });
 attempt('freshWorker', function () { new w.Worker('data:text/javascript,1'); return 'made'; });
-attempt('freshPopup', function () { return w.open('http://127.0.0.1:4567/escaped-popup2'); });
+attempt('freshPopup', function () { return w.open('http://127.0.0.1:4568/escaped-popup2'); });
 attempt('freshStore', function () { return w.localStorage.length; });
 attempt('freshCookie', function () { return w.document.cookie; });
 attempt('download', function () { var a = document.createElement('a'); a.href = 'data:text/plain,x'; a.download = 'x.txt'; document.documentElement.appendChild(a); a.click(); return 'clicked'; });
-attempt('form', function () { var m = document.createElement('form'); m.action = 'http://127.0.0.1:4567/escaped-form'; document.documentElement.appendChild(m); HTMLFormElement.prototype.submit.call(m); return 'sent'; });
-attempt('frame', function () { var m = document.createElement('iframe'); m.src = 'http://127.0.0.1:4567/escaped-frame'; document.documentElement.appendChild(m); return 'made'; });
-attempt('object', function () { var m = document.createElement('object'); m.data = 'http://127.0.0.1:4567/escaped-object'; document.documentElement.appendChild(m); return 'made'; });
-attempt('link', function () { ['prefetch', 'preload', 'dns-prefetch', 'preconnect', 'icon', 'manifest', 'modulepreload'].forEach(function (rel) { var l = document.createElement('link'); l.rel = rel; l.as = 'image'; Element.prototype.setAttribute.call(l, 'href', 'http://127.0.0.1:4567/escaped-' + rel); document.head.appendChild(l); }); return 'made'; });
-attempt('style', function () { var m = document.createElement('style'); m.textContent = 'body{background:url(http://127.0.0.1:4567/escaped-style)} @import url(http://127.0.0.1:4567/escaped-import)'; document.head.appendChild(m); return 'made'; });
-attempt('picture', function () { var m = document.createElementNS('http://www.w3.org/2000/svg', 'image'); m.setAttributeNS('http://www.w3.org/1999/xlink', 'href', 'http://127.0.0.1:4567/escaped-svg'); document.documentElement.appendChild(m); return 'made'; });
+attempt('form', function () { var m = document.createElement('form'); m.action = 'http://127.0.0.1:4568/escaped-form'; document.documentElement.appendChild(m); HTMLFormElement.prototype.submit.call(m); return 'sent'; });
+attempt('frame', function () { var m = document.createElement('iframe'); m.src = 'http://127.0.0.1:4568/escaped-frame'; document.documentElement.appendChild(m); return 'made'; });
+attempt('object', function () { var m = document.createElement('object'); m.data = 'http://127.0.0.1:4568/escaped-object'; document.documentElement.appendChild(m); return 'made'; });
+attempt('link', function () { ['prefetch', 'preload', 'dns-prefetch', 'preconnect', 'icon', 'manifest', 'modulepreload'].forEach(function (rel) { var l = document.createElement('link'); l.rel = rel; l.as = 'image'; Element.prototype.setAttribute.call(l, 'href', 'http://127.0.0.1:4568/escaped-' + rel); document.head.appendChild(l); }); return 'made'; });
+attempt('style', function () { var m = document.createElement('style'); m.textContent = 'body{background:url(http://127.0.0.1:4568/escaped-style)} @import url(http://127.0.0.1:4568/escaped-import)'; document.head.appendChild(m); return 'made'; });
+attempt('picture', function () { var m = document.createElementNS('http://www.w3.org/2000/svg', 'image'); m.setAttributeNS('http://www.w3.org/1999/xlink', 'href', 'http://127.0.0.1:4568/escaped-svg'); document.documentElement.appendChild(m); return 'made'; });
 attempt('api', function () { w.fetch('SITE/api/see/open', { method: 'POST', body: '{}' }).then(function (r) { out.apiEnd = 'answered ' + r.status; tell(); }, function () { out.apiEnd = 'refused'; tell(); }); return 'asked'; });
 attempt('dress', function () { top.postMessage({ see: 'dress', css: 'x' }, '*'); for (var i = 0; i < 50; i += 1) top.postMessage({ see: 'open', address: 'https://spam.seeing-fixture.org/spam' + i, newTab: true }, '*'); top.postMessage({ see: 'open', address: 'javascript:alert(1)' }, '*'); return 'sent'; });
-setTimeout(function () { location.href = 'http://127.0.0.1:4567/escaped-self'; }, 300);
+setTimeout(function () { location.href = 'http://127.0.0.1:4568/escaped-self'; }, 300);
 setTimeout(tell, 1200); tell();
 </script>`;
 
@@ -484,6 +514,7 @@ function fixture() {
     '/b': ['text/html', '<title>Far</title><h1>Far</h1>'],
     '/find': ['text/html', '<title>Found</title><h1>Found</h1>'],
     '/hostile': ['text/html', HOSTILE],
+    '/quiet': ['text/html', '<title>Quiet</title><h1>Quiet</h1><noembed><link rel="preconnect" href="http://127.0.0.1:4568/"><input type=password id=a></noembed><noframes><link rel="preconnect" href="http://127.0.0.1:4568/"></noframes><svg><style><p><link rel=preconnect href="http://127.0.0.1:4568/"><input type=password id=b></style></svg><xmp><link rel=preconnect href="http://127.0.0.1:4568/"></xmp><svg><script><p><link rel=preconnect href="http://127.0.0.1:4568/"></script></svg><math><mtext><style><img src=x></style></mtext></math><noscript><link rel=preconnect href="http://127.0.0.1:4568/"></noscript><link rel=preconnect href="http://127.0.0.1:4568/">'],
     '/sends': ['text/html', '<title>Sends</title><script>location.href = "/next"</script>'],
     '/refreshes': ['text/html', '<meta http-equiv=refresh content="0;url=/next"><title>Refreshes</title>'],
     '/loop': ['text/html', '<title>Loop</title><h1>Loop</h1><script>setTimeout(function () { location.href = "/loop2"; }, 50)</script>'],
@@ -498,7 +529,31 @@ function fixture() {
     }
     answer.writeHead(pages[request.url.split('?')[0]] ? 200 : 404, { 'content-type': type, 'access-control-allow-origin': '*' }).end(String(body).replaceAll ? (Buffer.isBuffer(body) ? body : body.replaceAll('SITE', BASE)) : body);
   });
-  return new Promise((done) => server.listen(4567, '127.0.0.1', () => done({ asked, close: () => server.close() })));
+  // Nothing of ours ever speaks to 4568: one connection, or one packet, is an escape.
+  const escapes = [];
+  const trap = require('node:http').createServer((request, answer) => {
+    escapes.push(request.url);
+    answer.end('trap');
+  });
+  trap.on('connection', (socket) => escapes.push(`a connection from ${socket.remotePort}`));
+  const packets = require('node:dgram').createSocket('udp4');
+  packets.on('message', () => escapes.push('a packet'));
+  packets.bind(4568, '127.0.0.1');
+  return new Promise((done) =>
+    trap.listen(4568, '127.0.0.1', () =>
+      server.listen(4567, '127.0.0.1', () =>
+        done({
+          asked,
+          escapes,
+          close: () => {
+            server.close();
+            trap.close();
+            packets.close();
+          },
+        }),
+      ),
+    ),
+  );
 }
 
 async function eye(browser) {
@@ -604,6 +659,15 @@ async function eye(browser) {
     const loops = net.asked.filter((each) => /^\/loop/.test(each.path)).length;
     ok(loops >= 2 && loops <= 12, `and one that does it without end is stopped (${loops})`);
 
+    for (const off of [true, false]) {
+      await go(page, `${SITE}/quiet`);
+      await inside(page).getByRole('heading', { name: 'Quiet' }).waitFor();
+      await page.waitForTimeout(1500);
+      const quiet = await (await frameOf(page)).evaluate(() => ({ links: document.querySelectorAll('link').length, live: document.querySelectorAll('input[type=password]:not([disabled])').length }));
+      ok(quiet.links === 0 && quiet.live === 0 && net.escapes.length === 0, `a page with no script to it gets nothing out either (${JSON.stringify(quiet)} ${net.escapes.slice(0, 3)})`);
+      if (off) await page.locator('[data-seeing]').getByRole('button', { name: '[ SCRIPTS OFF ]' }).click();
+    }
+    await page.locator('[data-seeing]').getByRole('button', { name: '[ SCRIPTS OFF ]' }).click();
     net.asked.length = 0;
     asked.length = 0;
     const tabsBefore = await tabs(page).count();
@@ -622,12 +686,13 @@ async function eye(browser) {
       ok(got.origin === 'done:null', 'the hostile page has no origin');
       ok(got.frames === 0 && Object.entries(got).filter(([name, value]) => /^make/.test(name) && !/^(?:done:0|[A-Z]\w*Error)$/.test(value)).length === 0, `no way of making a frame made one (${JSON.stringify(Object.entries(got).filter(([name, value]) => /^make/.test(name) && !/^(?:done:0|[A-Z]\w*Error)$/.test(value)))})`);
       ok(/Error/.test(got.rtc) && /Error/.test(got.freshRtc), 'so WebRTC is out of its reach');
+      ok(/^done:0:/.test(got.undermine), `nor with everything the hook might lean on taken from under it (${got.undermine})`);
+      ok(got.hint === 'done:0', 'and there is no link element to hint with');
       for (const name of ['parentDoc', 'topDoc', 'topStore', 'topNav', 'outerNav']) ok(got[name] === 'SecurityError', `it can't: ${name}`);
       ok(!/^done:\[object/.test(got.freshPopup ?? '') && !/^done:\[object/.test(got.popup ?? ''), 'it opened no window');
       ok(got.apiEnd !== undefined ? got.apiEnd === 'refused' : true, "it can't ask the site's own routes");
     }
-    const escaped = net.asked.filter((each) => /escaped/.test(each.path) && each.host === null);
-    ok(escaped.length === 0, `it reached nothing by itself (${escaped.map((each) => each.path)})`);
+    ok(net.escapes.length === 0, `it reached nothing by itself, not so much as a connection (${net.escapes.slice(0, 6)})`);
     const strangers2 = asked.filter((each) => each.left && !each.url.startsWith(`${BASE}/`) && !/^(?:data|blob|about|ws|chrome-error):/.test(each.url));
     ok(strangers2.length === 0, `and the browser asked nobody but the site (${strangers2.slice(0, 3).map((each) => each.url)})`);
     ok(context.pages().length === 1 && page.url().startsWith(`${BASE}/browser`), 'the top window is where it was, and alone');

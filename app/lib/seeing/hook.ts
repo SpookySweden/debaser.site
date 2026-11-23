@@ -3,9 +3,10 @@
  * hands pressed links to the site, gives the page in-memory storage in place of the storage it may not have, and passes what its scripts
  * ask for to the site, which asks for it under the same checks as everything else.
  *
- * The guards are the sandbox, the policy and the server, with one exception: WebRTC, which no policy in Chrome stops. The hook takes it
- * away, and keeps it away by letting no frame be made, since a frame is a fresh window with everything back in it: no element of that kind
- * can be created, and no markup holding one written (Trusted Types, which the browser itself enforces).
+ * The guards are the sandbox, the policy and the server, with one exception: what no policy in Chrome stops. WebRTC, and the hints a `<link>`
+ * gives (preconnect, dns-prefetch), reach another host straight from the reader's browser. The hook takes WebRTC away and lets no frame be
+ * made, since a frame is a fresh window with it back, and no link element at all: none can be created, and no markup holding one written
+ * (Trusted Types, which the browser itself enforces). That part runs in the page's own window and is written to lean on nothing in it.
  *
  * Plain browser script as text, put into the frame's document. No backticks in it, and no `</`.
  */
@@ -51,8 +52,12 @@ export const HOOK = String.raw`(function (config) {
     for (var i = 0; i < path.length; i += 1) if (path[i] instanceof Element && path[i].matches('a[href], area[href]')) { link = path[i]; break; }
     if (!link) return;
     var address = link.getAttribute('href') || '';
-    if (/^\s*javascript:/i.test(address)) return;
     event.preventDefault();
+    if (/^\s*javascript:/i.test(address)) {
+      // Never followed: an answer in words would make a new window of the page. Run where an answer is nothing.
+      if (config.scripts) { try { var code = decodeURIComponent(address.replace(/^\s*javascript:/i, '')); setTimeout(function () { (0, eval)(code); }, 0); } catch (error) { /* not a script */ } }
+      return;
+    }
     if (address.charAt(0) === '#') { jump(address); return; }
     say({ see: 'open', address: whole(address), newTab: event.type === 'auxclick' || event.ctrlKey || event.metaKey });
   }
@@ -118,48 +123,113 @@ export const HOOK = String.raw`(function (config) {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready); else ready();
   setTimeout(show, 1500);
 
-  if (!config.scripts) return;
+  function dead(element) { if (element instanceof HTMLInputElement && element.type === 'password') { element.type = 'text'; element.disabled = true; element.value = ''; element.placeholder = 'NO SIGN-INS HERE'; element.setAttribute('data-see-dead', ''); } }
+  if (!config.scripts) {
+    new MutationObserver(function (changes) { changes.forEach(function (change) { if (change.type === 'attributes') dead(change.target); change.addedNodes.forEach(function (node) { if (node instanceof Element) { dead(node); node.querySelectorAll('input').forEach(dead); } }); }); }).observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ['type'] });
+    return;
+  }
 
-  /* --- no frames ---------------------------------------------------------------------------------------------------- */
-  var FRAMES = /^(?:iframe|frame|frameset|object|embed|fencedframe|portal)$/i;
-  // As the server does to the page itself: a tag of that name is another tag. Tags cut in two across two writes are put back together first.
-  function noFrames(text) { return text.replace(/<(\/?)(?=(?:iframe|frame|frameset|object|embed|fencedframe|portal)(?![a-z0-9]))/gi, '<$1see-'); }
+  /* --- no frames, no links ------------------------------------------------------------------------------------------
+     The one part of this that is a guard (see the top). It runs in the page's own window, where the page may put anything in place of any
+     built-in, so it leans on none of them: what it needs is taken here, before the page has run, and nothing is looked up by name after. */
+  var taken = Function.prototype.bind.bind(Function.prototype.call);
+  var reach_ = Reflect.apply, text_ = String, lower = taken(String.prototype.toLowerCase), codeAt = taken(String.prototype.charCodeAt), cut = taken(String.prototype.slice), find = taken(String.prototype.indexOf), findLast = taken(String.prototype.lastIndexOf);
+  var define_ = Object.defineProperty;
+  var BARRED = { __proto__: null, iframe: 1, frame: 1, frameset: 1, object: 1, embed: 1, fencedframe: 1, portal: 1, link: 1 };
+  // Own data properties on an object with no prototype: nothing the page defines on Object.prototype is asked.
+  function barred(name) {
+    name = lower(name);
+    var colon = findLast(name, ':');
+    if (colon !== -1) name = cut(name, colon + 1);
+    return BARRED[name] === 1;
+  }
+  function isLetter(code) { return (code >= 97 && code <= 122) || (code >= 65 && code <= 90) || (code >= 48 && code <= 57); }
+  // After each opening or closing angle (and in XML after a prefix's colon), a barred name becomes another name.
+  function noFrames(text, xml) {
+    var out = '', from = 0, at = find(text, '<', 0), end, name;
+    while (at !== -1) {
+      var start = at + 1;
+      if (codeAt(text, start) === 47) start += 1;
+      end = start;
+      while (end < text.length && (isLetter(codeAt(text, end)) || (xml && (codeAt(text, end) === 58 || codeAt(text, end) === 45 || codeAt(text, end) === 95 || codeAt(text, end) === 46 || codeAt(text, end) > 127)))) end += 1;
+      name = cut(text, start, end);
+      if (name !== '' && barred(name)) { out += cut(text, from, start) + 'see-' + (xml ? cut(name, findLast(name, ':') + 1) : name); from = end; }
+      at = find(text, '<', at + 1);
+    }
+    return from === 0 && out === '' ? text : out + cut(text, from);
+  }
+  // Tags cut in two across two writes are put back together before they are read.
   var rest = '';
-  function markup(text, from, sink) {
-    text = String(text);
-    if (/write/i.test(String(sink || ''))) { text = rest + text; var cut = /<[^>]*$/.exec(text); rest = cut ? cut[0] : ''; if (cut) text = text.slice(0, cut.index); }
+  function markup(text, type, sink) {
+    text = text_(text);
+    sink = lower(text_(sink === undefined ? '' : sink));
+    if (find(sink, 'write', 0) !== -1) {
+      text = rest + text;
+      var open = findLast(text, '<');
+      if (open !== -1 && find(text, '>', open) === -1) { rest = cut(text, open); text = cut(text, 0, open); } else rest = '';
+    }
+    var low = lower(text);
     // A page written as XML can spell a tag in ways only its own rules can read.
-    if (/<!ENTITY/i.test(text) || /xmlns/i.test(text)) text = text.replace(/<!DOCTYPE[^>]*(?:\[[\s\S]*?\])?[^>]*>/gi, '').replace(/([<:\/])(?=(?:iframe|frame|frameset|object|embed|fencedframe|portal)(?![a-z0-9]))/gi, '$1see-');
-    return noFrames(text);
+    if (find(low, '<!entity', 0) !== -1) return '';
+    return noFrames(text, find(low, 'xmlns', 0) !== -1);
+  }
+  // An address that is a script makes a new window of the page when it answers with words, with everything back in it. Pressed links of that
+  // kind are run by us instead, where an answer is nothing.
+  function script(text, type, sink) {
+    sink = lower(text_(sink === undefined ? '' : sink));
+    return find(sink, 'location', 0) !== -1 || find(sink, 'href', 0) !== -1 || find(sink, 'action', 0) !== -1 || find(sink, 'src', 0) !== -1 && find(sink, 'script', 0) === -1 ? null : text;
   }
   if (window.trustedTypes && window.trustedTypes.createPolicy) {
-    window.trustedTypes.createPolicy('default', { createHTML: markup, createScript: function (text) { return text; }, createScriptURL: function (text) { return text; } });
+    window.trustedTypes.createPolicy('default', { createHTML: markup, createScript: script, createScriptURL: function (text) { return text; } });
   }
-  ['createElement', 'createElementNS'].forEach(function (name) {
-    var own = Document.prototype[name], place = name === 'createElement' ? 0 : 1;
-    Document.prototype[name] = function () {
-      var args = Array.prototype.slice.call(arguments), tag = String(args[place]);
-      args[place] = tag;
-      if (FRAMES.test(tag.split(':').pop())) { restrict(); args[place] = 'see-' + tag.split(':').pop().toLowerCase(); }
-      if (args[place + 1] && typeof args[place + 1] === 'object') args[place + 1] = undefined;
-      return own.apply(this, args);
-    };
-  });
-  var ownDocument = DOMImplementation.prototype.createDocument;
-  DOMImplementation.prototype.createDocument = function (space, name, type) {
-    name = String(name === null || name === undefined ? '' : name);
-    if (FRAMES.test(name.split(':').pop())) { restrict(); name = 'see-frame'; }
-    return ownDocument.call(this, space, name, type === undefined ? null : type);
-  };
+  var make = Document.prototype.createElement, makeIn = Document.prototype.createElementNS, makeDocument = DOMImplementation.prototype.createDocument, addClass = CustomElementRegistry.prototype.define;
+  function replaced(name) { if (lower(name) !== 'link') restrict(); return 'see-' + cut(lower(name), findLast(name, ':') + 1); }
+  // Arguments are handed on in a list made here, its places its own.
+  function list(a, b, c) { var all = { __proto__: null, length: 0 }; all.length = c === undefined ? (b === undefined ? 1 : 2) : 3; all[0] = a; all[1] = b; all[2] = c; return all; }
+  define_(Document.prototype, 'createElement', { __proto__: null, configurable: true, writable: true, enumerable: true, value: function createElement(name) {
+    name = text_(name);
+    if (!barred(name)) return reach_(make, this, list(name));
+    var made = reach_(make, this, list(replaced(name)));
+    if (lower(name) === 'link') pretendLink(made);
+    return made;
+  } });
+  define_(Document.prototype, 'createElementNS', { __proto__: null, configurable: true, writable: true, enumerable: true, value: function createElementNS(space, name) {
+    name = text_(name);
+    if (!barred(name)) return reach_(makeIn, this, list(space === null || space === undefined ? null : text_(space), name));
+    return reach_(makeIn, this, list('http://www.w3.org/1999/xhtml', replaced(name)));
+  } });
+  define_(DOMImplementation.prototype, 'createDocument', { __proto__: null, configurable: true, writable: true, enumerable: true, value: function createDocument(space, name) {
+    name = name === null || name === undefined ? '' : text_(name);
+    return reach_(makeDocument, this, list(space === null || space === undefined ? null : text_(space), barred(name) ? replaced(name) : name, null));
+  } });
+  // No class is made an element of another kind: an element that is a frame by its class is a frame.
+  define_(CustomElementRegistry.prototype, 'define', { __proto__: null, configurable: true, writable: true, enumerable: true, value: function define(name, type) { return reach_(addClass, this, list(text_(name), type)); } });
   // Newer ways of writing markup that no policy is asked about.
   [Element.prototype, window.ShadowRoot && ShadowRoot.prototype, Document, Document.prototype, window.DocumentFragment && DocumentFragment.prototype].forEach(function (type) {
-    if (type) Object.getOwnPropertyNames(type).forEach(function (name) { if (/^(?:setHTML|parseHTML|stream|append?HTML|prependHTML|beforeHTML|afterHTML|replaceWithHTML)/.test(name)) { try { delete type[name]; } catch (error) { /* a policy is asked about it */ } } });
+    if (type) Object.getOwnPropertyNames(type).forEach(function (name) { if (/^(?:setHTML|parseHTML|stream|appendHTML|prependHTML|beforeHTML|afterHTML|replaceWithHTML)/.test(name)) { try { delete type[name]; } catch (error) { /* a policy is asked about it */ } } });
   });
-  if (window.customElements) {
-    var ownDefine = CustomElementRegistry.prototype.define;
-    CustomElementRegistry.prototype.define = function (name, type) { return ownDefine.call(this, name, type); };
+  Object.getOwnPropertyNames(window).forEach(function (name) { if (/^(?:RTC|webkitRTC|XSLTProcessor|WebTransport)/.test(name)) { try { delete window[name]; } catch (error) { /* replaced below */ } } });
+
+  // A stylesheet a script links to: an element that says it is a link, and a style that imports the signed sheet in its place.
+  function pretendLink(element) {
+    ['rel', 'href', 'media', 'type', 'as'].forEach(function (name) {
+      define_(element, name, { configurable: true, get: function () { return element.getAttribute(name) || ''; }, set: function (value) { element.setAttribute(name, value); } });
+    });
+    define_(element, 'sheet', { configurable: true, get: function () { return null; } });
   }
-  ['XSLTProcessor', 'RTCPeerConnection', 'webkitRTCPeerConnection', 'RTCDataChannel', 'RTCSessionDescription', 'RTCIceCandidate', 'RTCIceTransport', 'RTCDtlsTransport', 'RTCSctpTransport', 'RTCRtpSender', 'RTCRtpReceiver', 'RTCRtpTransceiver', 'WebTransport'].forEach(function (name) { try { delete window[name]; } catch (error) { /* replaced below */ } });
+  function joinLink(element) {
+    var rel = element.getAttribute('rel') || '', href = element.getAttribute('href');
+    if (href === null || !/(?:^|\s)stylesheet(?:\s|$)/i.test(rel) || element.hasAttribute('data-see-joined')) return;
+    element.setAttribute('data-see-joined', '');
+    seal(href, 'style').then(function (answer) {
+      if (!answer) { element.dispatchEvent(new Event('error')); return; }
+      var style = document.createElement('style');
+      if (element.getAttribute('media')) style.setAttribute('media', element.getAttribute('media'));
+      style.textContent = '@import url("' + answer + '");';
+      if (element.parentNode) element.parentNode.insertBefore(style, element.nextSibling);
+      setTimeout(function () { element.dispatchEvent(new Event('load')); }, 150);
+    });
+  }
 
   /* --- what a page's scripts expect to find ------------------------------------------------------------------------ */
   function put(target, name, value) { try { Object.defineProperty(target, name, { value: value, configurable: true, writable: true }); } catch (error) { /* kept as it was */ } }
@@ -290,7 +360,6 @@ export const HOOK = String.raw`(function (config) {
   function near(address) { return address === '' || address.indexOf(config.assets) === 0 || /^(?:data|blob|about|javascript):/i.test(address) || address.charAt(0) === '#'; }
   function kindOf(element, name) {
     if (element instanceof HTMLScriptElement) return name === 'src' ? (element.type === 'module' ? 'module' : 'script') : null;
-    if (element instanceof HTMLLinkElement) return name === 'href' && /(?:^|\s)stylesheet(?:\s|$)/i.test(element.rel) ? 'style' : null;
     if (element instanceof HTMLImageElement || element instanceof HTMLSourceElement || element instanceof HTMLInputElement) return name === 'src' ? 'picture' : name === 'srcset' ? 'set' : null;
     if (element instanceof HTMLVideoElement) return name === 'poster' ? 'picture' : null;
     return null;
@@ -336,17 +405,17 @@ export const HOOK = String.raw`(function (config) {
     });
   }
   watchProperty(window.HTMLScriptElement, 'src'); watchProperty(window.HTMLImageElement, 'src'); watchProperty(window.HTMLImageElement, 'srcset');
-  watchProperty(window.HTMLSourceElement, 'srcset'); watchProperty(window.HTMLLinkElement, 'href'); watchProperty(window.HTMLVideoElement, 'poster');
+  watchProperty(window.HTMLSourceElement, 'srcset'); watchProperty(window.HTMLVideoElement, 'poster');
   ['integrity', 'crossOrigin', 'nonce'].forEach(function (name) {
-    [window.HTMLScriptElement, window.HTMLLinkElement, window.HTMLImageElement].forEach(function (type) { try { if (type && name in type.prototype) Object.defineProperty(type.prototype, name, { configurable: true, get: function () { return ''; }, set: function () {} }); } catch (error) { /* kept */ } });
+    [window.HTMLScriptElement, window.HTMLImageElement].forEach(function (type) { try { if (type && name in type.prototype) Object.defineProperty(type.prototype, name, { configurable: true, get: function () { return ''; }, set: function () {} }); } catch (error) { /* kept */ } });
   });
 
   // What came in as markup (innerHTML), which no setter sees.
   function look(element) {
     if (!(element instanceof Element)) return;
     ['src', 'srcset', 'poster'].forEach(function (name) { var value = element.getAttribute(name); if (value !== null && kindOf(element, name) && !(element instanceof HTMLScriptElement)) later(element, name, value); });
-    if (element instanceof HTMLLinkElement) { var value = element.getAttribute('href'); if (value !== null) later(element, 'href', value); }
-    if (element instanceof HTMLInputElement && element.type === 'password') { element.type = 'text'; element.disabled = true; element.value = ''; element.placeholder = 'NO SIGN-INS HERE'; ownSet.call(element, 'data-see-dead', ''); }
+    if (element.localName === 'see-link') joinLink(element);
+    dead(element);
   }
   new MutationObserver(function (changes) {
     changes.forEach(function (change) {
@@ -354,9 +423,9 @@ export const HOOK = String.raw`(function (config) {
       change.addedNodes.forEach(function (node) {
         if (!(node instanceof Element)) return;
         look(node);
-        node.querySelectorAll('img, source, link, video[poster], input').forEach(look);
+        node.querySelectorAll('img, source, see-link, video[poster], input').forEach(look);
       });
     });
-  }).observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'srcset', 'type'] });
+  }).observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'srcset', 'type', 'href', 'rel'] });
 
 })`;

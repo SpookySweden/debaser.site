@@ -423,3 +423,8 @@ see-table.cjs, see-attack-live.cjs
 BROWSER again. see-table.cjs opens the spec's fixed list of real sites on a local server and says what came of each (docs/seeing-machine.md
 holds the table). see-attack-live.cjs is the attack list once for real on SERVER: every service in the house asked for in every way, all
 refused, every socket watched. Run it after any change to the guarded fetch.
+
+see-extension-trial.cjs
+-----------------------
+BROWSER's extension trial (phase 2b): a throwaway extension on pretend sites (which way of showing a site keeps its cookies) and, with
+--real, on the spec's list signed out. Signs in to nothing. Its result is the table in docs/seeing-machine.md.

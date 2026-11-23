@@ -27,10 +27,14 @@ The plan and Luke's answers are `SPEC-seeing-machine.md`. This is what was built
    public. The house's own public address is asked of 1.1.1.1; unknown, nothing is fetched. Every redirect again from the start.
 2. **The frame.** Two frames, each `sandbox="allow-scripts"`: no origin, no storage, no way to the session. The outer carries
    `frame-src 'none'`, so a page cannot take its frame to another address; the inner's policy loads our signed files and nothing else.
-3. **WebRTC** is the one thing no policy in Chrome or Edge stops (the `webrtc` directive is not read there). The hook takes it away, and
-   keeps it away by letting no frame be made (a frame is a fresh window with it back): `createElement` and its kin are covered, and every
-   way of writing markup goes through one Trusted Types policy, which the browser enforces. `scripts/drive-see.cjs --only eye` tries 24 ways.
-   Firefox has no Trusted Types in older versions: there the wrappers alone hold. Workers, sockets and the rest are the policy's.
+3. **What no policy in Chrome or Edge stops** is WebRTC (the `webrtc` directive is not read there) and a `<link>`'s hints (preconnect,
+   dns-prefetch): each reaches another host straight from the reader's browser. So the hook takes WebRTC away, lets no frame be made (a frame
+   is a fresh window with it back) and no link element either (a stylesheet a page links to is a style that imports it). `createElement` and
+   its kin are covered, every way of writing markup goes through one Trusted Types policy the browser enforces, and addresses that are
+   scripts are refused. That part runs in the page's own window, so it leans on nothing the page could put something else in place of.
+   `scripts/drive-see.cjs --only eye` tries about 30 ways, then the same with each built-in taken from under it (the first version let 342
+   frames through there: the security review, 2026-11-23), with a trap that counts a bare connection or packet as an escape. Firefox before
+   its Trusted Types has the wrappers alone.
 4. **Signed files.** An address in a page is a sealed pass (AES-GCM, the key made when the process starts): what, for whom, as what kind,
    for an hour. The address a person looks at is in no URL, and an altered pass opens nothing.
 5. **The gate** reads the session token before anything else of a request. **Limits** are in `server/limits.ts`.
@@ -66,9 +70,42 @@ signed, `location` is pointed at a stand-in (the frame's own address can be neit
 | Aozora (Shift_JIS) | whole | yes | |
 | accounts.google.com | refused, always | | D1 |
 
-The extension's column is Phase 4's (the trial, 2b, below when it is done).
+## The extension's trial (2b, 2026-11-23, `scripts/see-extension-trial.cjs`, Edge 158)
+A throwaway extension, pretend sites for the cookies, and the real list signed out (nobody was signed in to anything).
+
+| Way | A site shows | Stays signed in (pretend site, Strict, Lax and plain cookies) | Its own scripts see their cookies and storage |
+| --- | --- | --- | --- |
+| (a) framed in a page of debaser.site, the no-framing header lifted for that frame | yes | **no, none sent** | no |
+| (b) an ordinary tab, the lens put on it, the machine in the side panel | yes, always whole | **yes, all sent** | yes |
+| (c) framed in a page of the extension's own, with leave for that site | yes | **yes, all sent** | no (storage starts empty in a frame) |
+
+Real sites, words shown signed out (b is the site itself):
+
+| Site | (b) tab | (c) extension's frame | (a) our frame |
+| --- | --- | --- | --- |
+| Wikipedia | 1601 | 1270 | 1281 |
+| BBC News | 1842 | 1842 | 1842 |
+| The Guardian | 3645 | 3645 | 3645 |
+| Hacker News | 707 | 707 | 707 |
+| GitHub | 518 | 518 | 518 |
+| archive.org | 0 (draws itself where this count can't see) | 0 | 0 |
+| old Reddit | 26 (turned a robot away) | 26 | 26 |
+| Excalidraw | 79 | 74 | 74 |
+| FT | 79 | 79 | 79 |
+| YouTube | 283 | 57 | 57 |
+| X | 399 | 399 | 369 |
+| Instagram | 507 | 330 | 330 |
+
+None broke out of its frame. What follows: **OWN EYE opens in the extension's own page (c), with the ordinary tab and side panel (b) one key
+away** for sites that keep their sign-in in storage, or look thin in a frame (YouTube, Instagram). (a) is dropped: it lifts a site's protection
+and still signs you out. Not tried: any site signed in, which only Luke can do with his own account; Chrome itself (only Edge is on SERVER).
 
 ## Proof
 `npm run checks -- --only check-see` (attack list with 52 guards each watched failing, the rewriter and routes, the frame's documents, what
 is drawn); `scripts/drive-see.cjs` (shell, frame, eye, themes, on a local mock server); `scripts/see-attack-live.cjs` (once for real on
 SERVER, 2026-11-23: 614 ways in refused, 6 real redirects into the house not followed, every socket opened was to a public address).
+
+## The security review (2026-11-23, over 128b12a..d44b88c, a fresh reader told to break it)
+Nothing in the fetch, the gate, the passes or the routes. Two in the frame, both letting a page reach another host from the reader's own
+browser (never the site, the session or the house): WebRTC brought back by undermining the hook, and link hints, with scripts off too. Both
+were proved in the drive first, then closed. Owed before `SEEING_OPEN=accounts`: Luke has looked, and the visit record's table.

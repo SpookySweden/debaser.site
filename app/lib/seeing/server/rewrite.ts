@@ -78,11 +78,11 @@ export function rewriteSrcset(text: string, sign: (address: string) => string | 
 }
 
 /**
- * No frame is left in a page however it was written, in a script's own words too: whatever the tags above were read as, a browser finds none.
- * (A frame, even an empty one, is a fresh window with none of the hook in it: see `frame.ts`.)
+ * No frame, and no link element, is left in a page however it was written, in a script's own words too: whatever the tags above were read as, a browser finds none.
+ * (A frame, even an empty one, is a fresh window with none of the hook in it: see `frame.ts`. A link's hints, preconnect and dns-prefetch, reach another host and no policy stops them.)
  */
 export function noFrames(html: string): string {
-  return html.replace(/<(\/?)(?=(?:iframe|frame|frameset|object|embed|fencedframe|portal)(?![a-z0-9]))/gi, '<$1see-');
+  return html.replace(/<(\/?)(?=(?:iframe|frame|frameset|object|embed|fencedframe|portal|link)(?![a-z0-9]))/gi, '<$1see-');
 }
 
 export function rewritePage(html: string, address: string, sign: Sign, scripts: boolean): Rewritten {
@@ -95,6 +95,8 @@ export function rewritePage(html: string, address: string, sign: Sign, scripts: 
   let language: string | null = null;
   let signIn = false;
   let refresh: Rewritten['refresh'] = null;
+  /** A script in a drawing was left out: its end goes too. */
+  let dropped = false;
 
   const absolute = (text: string): URL | null => {
     try {
@@ -151,7 +153,10 @@ export function rewritePage(html: string, address: string, sign: Sign, scripts: 
       continue;
     }
     if (token.kind === 'end') {
-      if (token.name === 'script' && !scripts) continue;
+      if (token.name === 'script' && (!scripts || dropped)) {
+        dropped = false;
+        continue;
+      }
       if (token.name === 'iframe' || token.name === 'frame' || GONE.has(token.name)) continue;
       out += token.name === 'noscript' ? (scripts ? '</template>' : '</div>') : `</${token.name.replace(/[^\w:.\u0080-\uffff-]/g, '')}>`;
       continue;
@@ -170,6 +175,8 @@ export function rewritePage(html: string, address: string, sign: Sign, scripts: 
       continue;
     }
     if (GONE.has(name)) {
+      // Two of them hold words, not tags; out of them, the words would be tags nobody had looked at.
+      rawFor = 'drop';
       // Only the element goes: what it falls back to may be read.
       refused += 1;
       continue;
@@ -202,7 +209,15 @@ export function rewritePage(html: string, address: string, sign: Sign, scripts: 
       if (!STYLESHEET.test(value('rel') ?? '')) continue;
       const media = value('media');
       const answer = file(value('href') ?? '', 'style');
-      if (answer !== null) out += `<link rel="stylesheet" href="${escapeValue(answer)}"${media === null ? '' : ` media="${escapeValue(media)}"`}>`;
+      // As a style that imports it: there is no link element in a page for its scripts to turn into something else.
+      if (answer !== null) out += `<style${media === null ? '' : ` media="${escapeValue(media)}"`}>@import url("${answer.replace(/[^\w:/.-]/g, encodeURIComponent)}");</style>`;
+      continue;
+    }
+    if (name === 'script' && token.foreign) {
+      // A script in a drawing: what it holds is read as tags in some places and as words in others, so it is neither.
+      rawFor = 'drop';
+      refused += 1;
+      dropped = !token.selfClosing;
       continue;
     }
     if (name === 'script') {

@@ -69,7 +69,9 @@ Each can be changed later by saying so.
 8. **A BILLBOARD press opens the STREAM ART shelf in a tab**, because a piece has no address of its own.
 9. **READER keeps the theme's paper first**, with the book reader's three, and six text sizes; kept in the browser.
 10. **Files come from debaser.site until `see.debaser.site` exists**, each with a policy that takes every right away.
-11. **Nineteen themes**, not the eighteen written below: MARMALADE has six.
+11. **OWN EYE opens in the extension's own page**, with the side panel on an ordinary tab beside it: the trial (2b) showed a frame in
+    debaser.site is always signed out, and the extension's own page is not. Table: `docs/seeing-machine.md`.
+12. **Nineteen themes**, not the eighteen written below: MARMALADE has six.
 
 ## Risks, said once
 1. **SERVER is beside everything.** The torrent page (no password at home), Jellyfin, the database and its dashboard, the
