@@ -22,7 +22,7 @@ export default function SeeingRefused({ reason, eye, ms, address, canOld, ownEye
       {tries.length > 0 || read !== null ? (
         <div className="mt-3 flex flex-wrap gap-2">
           {read !== null ? (
-            <Link href={`/read/${read}`} title="In the site's own reader" className={PLATE}>
+            <Link href={`/read/${read}`} title="In the site's own reader" className={`${PLATE} inline-block`}>
               [ READ IT ]
             </Link>
           ) : null}
@@ -40,7 +40,7 @@ export default function SeeingRefused({ reason, eye, ms, address, canOld, ownEye
                 [ OWN EYE ↗ ]
               </button>
             ) : (
-              <a key={each} href={address} target="_blank" rel="noopener noreferrer" className={PLATE}>
+              <a key={each} href={address} target="_blank" rel="noopener noreferrer" className={`${PLATE} inline-block`}>
                 [ OPEN SOURCE ↗ ]
               </a>
             ),
