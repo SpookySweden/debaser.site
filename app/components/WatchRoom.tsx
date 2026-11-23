@@ -1375,7 +1375,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   // nor the pointer hiding with it (Luke, 2026-11-22: "when remote controlling in the room on fullscreen, we dont need the
   // player bar at the bottom of the screen"). Keys still go to the remote; Esc (held, while it has the keyboard) and the
   // remote's own SETTINGS > LEAVE FULLSCREEN are the way out, and leaving fullscreen brings the bar back.
-  const remoteFull = staged && screen === 'screen';
+  const remoteOn = screen === 'screen';
+  const remoteFull = staged && remoteOn;
   const barAwake = useFullscreenBar(stageRef, barRef, fullscreen && !remoteFull);
   // `[ KEYS IN THE PICTURE ]` (ROOMBARS, Luke 2026-11-21; `keys-in-picture.ts`): the playback keys along the foot of the picture
   // as well. Not over a fullscreen stage, where the bar itself already lies over the picture's foot.
@@ -1513,7 +1514,14 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       {`[ ${staged ? ROOM_LEAVE_FULL_MARK : ROOM_FULL_MARK} ]`}
     </button>
   );
-  const pictureKeys = officialOn ? floatKey : hasTransport && song === null ? (
+  // The REMOTE view has its FULL key whatever is playing under it, or nothing is (Luke, 2026-11-23: "when using remote, there is no
+  // full screen button, appearing only when you stream a video").
+  const pictureKeys = officialOn ? (
+    <>
+      {floatKey}
+      {remoteOn ? fullKey : null}
+    </>
+  ) : hasTransport && song === null ? (
     <>
       <SpeakerKey muted={muted} volume={volume} onMuted={setMuted} onVolume={setVolume} />
       <QualityKey source={qualitySource} />
@@ -1528,6 +1536,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       {pipKey}
       {fullKey}
     </>
+  ) : remoteOn ? (
+    fullKey
   ) : null;
   // Fullscreen with no FULL key among the picture's keys (the blank screen's BOOKS / VIDEO / MUSIC, a song, another site's
   // own player): the way out is still on the bar (Luke, 2026-11-16: "the unfullscreen button is still visible").
@@ -1576,7 +1586,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
 
   // Under the picture, left to right: play/pause (host), where it is and the time, skip (host), the sound, QUALITY,
   // PIP, FULL, END STREAM (host). The chat column's strip names the video.
-  const playerBar = !keysOnMusicBar && !remoteFull && (hasTransport || hostKeys || floatKey !== null || exitKey !== null) ? (
+  const playerBar = !keysOnMusicBar && !remoteFull && (hasTransport || hostKeys || remoteOn || floatKey !== null || exitKey !== null) ? (
     // `relative`: on a phone the SUBS list opens as a sheet across the bar, just above it.
     <div
       ref={barRef}

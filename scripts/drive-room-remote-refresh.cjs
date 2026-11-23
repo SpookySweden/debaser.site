@@ -5,6 +5,8 @@
  *      room's REMOTE view on screen, the room's fullscreen has no bar of keys over the picture's foot, however the pointer
  *      moves or keys are pressed, and the pointer is never hidden with it. The remote's own SETTINGS > LEAVE FULLSCREEN is
  *      the way out, and leaving brings the keys back. A video's fullscreen keeps its bar, as before.
+ *      And (2026-11-23) "when using remote, there is no full screen button, appearing only when you stream a video": with
+ *      nothing on in the room, the REMOTE view still has the room's FULL key, and it works.
  *   2. "on a refresh, the open room is not collapsed and stays open on the screen if it was open": your room's window open
  *      before a reload is open after it, where it was and as big; folded before, folded after.
  *
@@ -166,6 +168,24 @@ const windowBox = (page) =>
     // The five-second video may have ended by now, so its FULL key may have gone with it: the room's own keys are the sign.
     await page.waitForSelector('[data-room-loop], [data-room-back]', { state: 'visible', timeout: 5000 });
     pass("SETTINGS > LEAVE FULLSCREEN leaves it, and the room's keys are back");
+
+    // Nothing on: the five-second video has ended and been taken off, the REMOTE view is still the screen.
+    await page.waitForSelector(`${ROOM} video[data-watch-video]`, { state: 'detached', timeout: 30000 });
+    await page.waitForSelector(`${ROOM} [data-room-screen]`, { timeout: 5000 });
+    await page.waitForSelector(`${ROOM} [data-screen-toggle="on"]`, { timeout: 5000 });
+    await sleep(500);
+    assert.equal(await page.locator('[data-room-full="enter"]:visible').count(), 1, 'one FULL key with the remote on and nothing playing');
+    await page.locator('[data-room-full="enter"]:visible').click();
+    await page.waitForFunction(() => document.fullscreenElement !== null, null, { timeout: 10000 });
+    await sleep(300);
+    state = await fullState(page);
+    assert.ok(state.remote === 1 && state.bar === 0, `the remote view is fullscreen, with no bar (${JSON.stringify(state)})`);
+    await page.screenshot({ path: join(SHOTS, '1b-remote-fullscreen-nothing-on.png') });
+    if ((await page.locator('[data-screen-fullscreen]').count()) === 0) await page.locator('[data-screen-settings-key]').click();
+    await page.locator('[data-screen-fullscreen]').click();
+    await page.waitForFunction(() => document.fullscreenElement === null, null, { timeout: 10000 });
+    assert.equal(await page.locator('[data-room-full="enter"]:visible').count(), 1, 'and the key is back after leaving');
+    pass('with nothing playing, the remote view has one FULL key; it goes fullscreen with no bar and comes back');
 
     // Back to the picture for part 2.
     await page.locator('[data-screen-settings-key]').click().catch(() => undefined);
