@@ -108,7 +108,8 @@ async function shell(browser) {
   await page.screenshot({ path: join(OUT, 'empty.png') });
   asked.length = 0;
   await key(page, 'OPEN THE TEST PAGE').click();
-  await say(page, 'DOCUMENT RECONSTRUCTED · BUILT IN · 0 FILES · 0 REFUSED · LENS: STANDARD');
+  await say(page, 'DOCUMENT RECONSTRUCTED · BUILT IN · 0 FILES · 0 REFUSED · PAGE ');
+  ok(/ · 0 REFUSED · PAGE \d+ KB · LENS: STANDARD/.test(await status(page)), `the status line weighs the page (${await status(page)})`);
   await inside(page).getByRole('heading', { name: 'The test page' }).waitFor();
   ok(/LENS: STANDARD · IN \d+(\.\d)? M?S$/.test((await status(page)).trim()), `the status line says how long it took (${await status(page)})`);
   ok((await tabs(page).first().innerText()).toUpperCase().includes('THE TEST PAGE'), "a tab wears its page's title");
@@ -682,7 +683,7 @@ async function eye(browser) {
     await go(page, `${SITE}/`);
     await say(page, 'DOCUMENT RECONSTRUCTED · SERVER EYE');
     const line = await status(page);
-    ok(/\d+ FILES · \d+ REFUSED · LENS: STANDARD/.test(line), `the status line says what was done: ${line}`);
+    ok(/\d+ FILES · \d+ REFUSED · PAGE \d+(?:\.\d)? (?:B|KB|MB) · LENS: STANDARD/.test(line), `the status line says what was done: ${line}`);
     ok((await tabs(page).first().innerText()).toUpperCase().includes('AN ORDINARY PAGE'), 'the tab wears its title');
     const out = async () => JSON.parse(await inside(page).locator('#out').innerText());
     await page.waitForFunction(() => true);

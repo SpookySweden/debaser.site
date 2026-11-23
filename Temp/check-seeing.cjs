@@ -1,7 +1,7 @@
 /*
  * BROWSER, the DEBASER SEEING MACHINE, Phase 1 (SPEC-seeing-machine.md, Luke 2026-11-23): the pure parts of the shell.
  * (scripts/drive-see.cjs drives the page itself in a browser, on every theme.)
- *   npx tsc app/lib/seeing/address.ts app/lib/seeing/tabs.ts app/lib/seeing/frame.ts app/lib/seeing/test-engine.ts app/lib/seeing/time.ts app/lib/seeing/trail.ts app/lib/seeing/search.ts app/lib/seeing/margins.ts app/lib/seeing/sonify.ts app/lib/seeing/together.ts app/lib/seeing/keys.ts app/lib/seeing/refusals.ts app/lib/seeing/bot-check.ts app/lib/seeing/read-ref.ts app/lib/seeing/pages.ts app/lib/seeing/media.ts app/lib/seeing/ask.ts app/lib/seeing/memory.ts app/lib/seeing/lenses/registry.ts app/lib/ui/modules.ts --rootDir app --outDir Temp/seeing-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
+ *   npx tsc app/lib/seeing/address.ts app/lib/seeing/tabs.ts app/lib/seeing/frame.ts app/lib/seeing/test-engine.ts app/lib/seeing/time.ts app/lib/seeing/trail.ts app/lib/seeing/search.ts app/lib/seeing/margins.ts app/lib/seeing/sonify.ts app/lib/seeing/together.ts app/lib/seeing/keys.ts app/lib/seeing/refusals.ts app/lib/seeing/took.ts app/lib/seeing/bot-check.ts app/lib/seeing/read-ref.ts app/lib/seeing/pages.ts app/lib/seeing/media.ts app/lib/seeing/ask.ts app/lib/seeing/memory.ts app/lib/seeing/lenses/registry.ts app/lib/ui/modules.ts --rootDir app --outDir Temp/seeing-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
  *   node Temp/check-seeing.cjs
  *
  * - an address: http and https only, no user names or passwords, no control characters, bare names get https, words are refused
@@ -377,6 +377,16 @@ for (const theirs of [{ ctrlKey: true, code: 'KeyW' }, { ctrlKey: true, code: 'K
 }
 
 /* ------------------------------------------------------------------ a refusal said plainly, and what may still be tried */
+/* ------------------------------------------------------------------ the status line's measures */
+const W = require(`${OUT}took.js`);
+assert.deepEqual([0, 812, 1024, 49152, 1468006].map(W.weighs), ['0 B', '812 B', '1 KB', '48 KB', '1.4 MB']);
+{
+  const page = { html: 'å'.repeat(10) };
+  assert.equal(W.pageBytes(page), 20, 'a page is weighed in bytes as sent, not letters');
+  page.html = '';
+  assert.equal(W.pageBytes(page), 20, 'and counted once a page');
+}
+
 const R = require(`${OUT}refusals.js`);
 const general = R.refusalHelp('SOMETHING NOBODY SAYS');
 // Every reason the server can give (read from its own source) has its own words, not the general ones.
