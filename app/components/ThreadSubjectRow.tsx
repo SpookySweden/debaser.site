@@ -11,6 +11,7 @@ import { rowAddresses } from '../lib/web/row-addresses';
 import { PLATFORM_LABELS } from '../lib/web/types';
 import { useWebItem } from '../lib/web/use-web-item';
 import PostAuthorRow from './PostAuthorRow';
+import SeeKey from './SeeKey';
 
 type ThreadSubjectRowProps = {
   subject: ThreadSubject;
@@ -124,6 +125,7 @@ function WebSubject({ anchor, href, stamp }: { anchor: ForumAnchor; href: string
           [ OPEN ↗ ]
         </a>
       ) : null}
+      {outbound !== null && item ? <SeeKey href={outbound} /> : null}
       {stamp}
     </span>
   );
