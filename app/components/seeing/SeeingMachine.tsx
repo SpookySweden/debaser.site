@@ -394,9 +394,10 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
         setKeptOpen(!keptOpen);
         setHistoryOpen(false);
       } else if (asked.do === 'away') {
-        if (!historyOpen && !keptOpen) return false;
+        if (!historyOpen && !keptOpen && !listing) return false;
         setHistoryOpen(false);
         setKeptOpen(false);
+        setListing(false);
       }
       else if (asked.do === 'close') change((all) => closeTab(all, all.front, freshId()));
       else if (asked.do === 'lens') {

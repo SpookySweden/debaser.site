@@ -7,7 +7,7 @@ export type SeeingKey = { do: 'box' } | { do: 'new' } | { do: 'close' } | { do: 
 export type Pressed = { key: string; code: string; altKey: boolean; ctrlKey: boolean; metaKey: boolean; shiftKey: boolean; typing: boolean };
 
 /** What a press asks of the machine, or null for one that isn't ours. `typing`: the press was in a box. `away` (Escape) is the machine's only
- * while HISTORY or KEPT is open: otherwise it is left to whoever else listens. */
+ * while HISTORY, KEPT or the engines' list is open: otherwise it is left to whoever else listens. */
 export function seeingKey(pressed: Pressed): SeeingKey | null {
   if (pressed.ctrlKey || pressed.metaKey) return null;
   if (!pressed.altKey) return pressed.key === '/' && !pressed.shiftKey && !pressed.typing ? { do: 'box' } : pressed.key === 'Escape' && !pressed.shiftKey ? { do: 'away' } : null;

@@ -1283,6 +1283,11 @@ async function search(browser) {
     await list.getByRole('button', { name: 'Close search engines', exact: true }).click();
     await page.getByRole('button', { name: '[ MINE ▾ ]' }).waitFor();
     ok(true, 'and is the one in front');
+    await page.getByRole('button', { name: '[ MINE ▾ ]' }).click();
+    await list.waitFor();
+    await page.keyboard.press('Escape');
+    await list.waitFor({ state: 'detached' });
+    ok(true, 'Escape puts the list away');
     await context.close();
   } finally {
     net.close();

@@ -40,3 +40,4 @@ One line each, the most useful first. Struck through when done, with its commit.
 - Open: an Internet Archive item's own page (/details/) that is a book gets no [ READ IT ]: it would need the item's kind (mediatype: texts), read from the page the machine already has.
 - Open: at 390 an outside page has about twelve rows of keys over it (phones get the desktop zoomed out, so low).
 - Open: SeeingMachine.tsx is about 710 lines; the page keys' block needs two dozen of its values, so moving it out isn't simpler yet.
+- ~~Escape left the engines' list open: it puts that away too (drive search).~~
