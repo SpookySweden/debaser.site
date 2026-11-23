@@ -149,7 +149,8 @@ export function ownEngine(name: string, address: string, id: string): Engine | s
   if (typed.split('%s').length !== 2) return 'ITS ADDRESS NEEDS ONE %s, WHERE THE WORDS GO';
   if (!/^https:\/\//i.test(typed)) return 'ITS ADDRESS STARTS WITH https://';
   const read = readAddress(typed.replace('%s', 'words'));
-  if (!read.ok) return read.reason;
+  // The engines list keeps its own words for an address inside the house (the box says NOT A PUBLIC ADDRESS).
+  if (!read.ok) return read.reason === 'NOT A PUBLIC ADDRESS' ? "THAT ISN'T A SITE OUTSIDE" : read.reason;
   const url = new URL(read.address);
   const plain = new URL(typed.replace('%s', 'other'));
   if (url.hostname !== plain.hostname || url.port !== plain.port) return 'THE WORDS CAN\'T BE PART OF THE SITE\'S NAME';
