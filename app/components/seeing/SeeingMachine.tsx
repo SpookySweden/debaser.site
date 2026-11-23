@@ -50,6 +50,7 @@ import SeeingAcquiring from './SeeingAcquiring';
 import SeeingElapsed from './SeeingElapsed';
 import SeeingRefused from './SeeingRefused';
 import { seeingKey, type SeeingKey } from '../../lib/seeing/keys';
+import { took } from '../../lib/seeing/took';
 import SeeingHistory from './SeeingHistory';
 import SeeingKeep from './SeeingKeep';
 import SeeingKept from './SeeingKept';
@@ -66,7 +67,7 @@ import { useLensSettings } from './use-lens-settings';
 type Shown =
   | { key: string; state: 'busy'; at: SeeStep | null; since?: number }
   | { key: string; state: 'stopped' }
-  | { key: string; state: 'shown'; document: SeenDocument }
+  | { key: string; state: 'shown'; document: SeenDocument; ms?: number }
   | { key: string; state: 'refused'; reason: string; eye: string; ms: number };
 
 const NO_MEDIA: readonly FoundMedia[] = [];
@@ -190,7 +191,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
           const end = readAddress(answer.document.address);
           const endKey = end.ok ? `${tab.id}:${tab.at}:${end.address}:${turn}` : key;
           landed.current = endKey;
-          setShown({ key: endKey, state: 'shown', document: answer.document });
+          setShown({ key: endKey, state: 'shown', document: answer.document, ms: Math.round(performance.now() - began) });
           // SITE MEMORY: a site opens in the lens it was last looked at through.
           const remembered = lensRemembered(answer.document.address);
           if (remembered !== null) changeTabs((all) => withLens(all, tab.id, remembered));
@@ -416,7 +417,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
       : now.state === 'busy'
         ? (now.at ?? 'ACQUIRING SOURCE')
         : now.state === 'shown'
-          ? `DOCUMENT RECONSTRUCTED · ${now.document.eye} · ${now.document.files} ${now.document.files === 1 ? 'FILE' : 'FILES'} · ${now.document.refused} REFUSED · LENS: ${LENS_NAMES.find((each) => each.id === tab.lens)?.label ?? tab.lens}${restricted.key === key && restricted.count > 0 ? ` · ${restricted.count} RESTRICTED` : ''}${now.document.status !== null && now.document.status >= 400 ? ` · HTTP ${now.document.status}` : ''}`
+          ? `DOCUMENT RECONSTRUCTED · ${now.document.eye} · ${now.document.files} ${now.document.files === 1 ? 'FILE' : 'FILES'} · ${now.document.refused} REFUSED · LENS: ${LENS_NAMES.find((each) => each.id === tab.lens)?.label ?? tab.lens}${restricted.key === key && restricted.count > 0 ? ` · ${restricted.count} RESTRICTED` : ''}${now.document.status !== null && now.document.status >= 400 ? ` · HTTP ${now.document.status}` : ''}${now.ms !== undefined ? ` · IN ${took(now.ms)}` : ''}`
           : address === null
             ? 'READY'
             : 'STOPPED');

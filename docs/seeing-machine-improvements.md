@@ -27,3 +27,4 @@ One line each, the most useful first. Struck through when done, with its commit.
 - The page keys still take two lines at 1366 on an outside page (the TIME DIAL is wide): consider the dial as a key that opens it.
 - ~~Keyboard round: the Tab order was probed (a throwaway Playwright probe) and is sensible; lenses had no key: Alt+L the next lens.~~
 - ~~After STOP the view said STOPPED and offered nothing: [ ASK AGAIN ] there now.~~
+- ~~The status line said what was reconstructed but not how long it took: "· IN 412 MS" at its end (took.ts, shared with the refusal trace).~~

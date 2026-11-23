@@ -1,6 +1,7 @@
 'use client';
 
 import { refusalHelp } from '../../lib/seeing/refusals';
+import { took } from '../../lib/seeing/took';
 import { PLATE, TITLE_BAR_INACTIVE } from '../../lib/ui/controls';
 
 /**
@@ -41,7 +42,7 @@ export default function SeeingRefused({ reason, eye, ms, address, canOld, ownEye
         {[
           ['EYE', eye],
           ['ASKED', address],
-          ['ANSWER', `${reason} · ${ms < 1000 ? `${ms} MS` : `${(ms / 1000).toFixed(1)} S`}`],
+          ['ANSWER', `${reason} · ${took(ms)}`],
         ].map(([name, value]) => (
           <div key={name} className="flex gap-2">
             <dt className="w-16 shrink-0 text-ink-quiet">{name}</dt>

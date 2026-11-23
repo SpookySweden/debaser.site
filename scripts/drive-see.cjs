@@ -110,6 +110,7 @@ async function shell(browser) {
   await key(page, 'OPEN THE TEST PAGE').click();
   await say(page, 'DOCUMENT RECONSTRUCTED · BUILT IN · 0 FILES · 0 REFUSED · LENS: STANDARD');
   await inside(page).getByRole('heading', { name: 'The test page' }).waitFor();
+  ok(/LENS: STANDARD · IN \d+(\.\d)? M?S$/.test((await status(page)).trim()), `the status line says how long it took (${await status(page)})`);
   ok((await tabs(page).first().innerText()).toUpperCase().includes('THE TEST PAGE'), "a tab wears its page's title");
   ok(page.url() === `${BASE}/browser#see=see%3Atest`, 'the address is after the #');
   await page.screenshot({ path: join(OUT, 'standard.png') });
