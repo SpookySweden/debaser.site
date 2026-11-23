@@ -88,6 +88,9 @@ Each can be changed later by saying so.
 23. **Nineteen themes**, not the eighteen written below: MARMALADE has six.
 24. **SEEN TOGETHER never opens a page on its own**: whoever shows a page leads, the others see `[ SEE TOGETHER ]` and choose; following
     moves a page already in front. Anybody in the room can say anything, so nothing said there opens anything.
+25. **A new tab says what the machine is in one line**, lists its keys, then SEEN LAST (eight pages), GOOD, and the engines under them.
+26. **Keys: / the box, Alt+N, Alt+W, Alt+1 to 8**; never Ctrl+T, Ctrl+W, Ctrl+L or Alt+D, which the browser keeps.
+27. **A refusal fills the page**: its reason as a title, what it means in a line, and only the keys that may help (TRY AGAIN, OLD COPY, OWN EYE, ITS OWN SITE). A guard's refusal offers nothing.
 
 ## Risks, said once
 1. **SERVER is beside everything.** The torrent page (no password at home), Jellyfin, the database and its dashboard, the

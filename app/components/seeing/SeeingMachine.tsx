@@ -46,6 +46,7 @@ import { subscribeToTheme, themeState } from '../../lib/ui/theme-slot';
 import { useAuth } from '../AuthProvider';
 import SeeingEngines from './SeeingEngines';
 import SeeingStart from './SeeingStart';
+import SeeingRefused from './SeeingRefused';
 import { seeingKey, type SeeingKey } from '../../lib/seeing/keys';
 import SeeingHistory from './SeeingHistory';
 import SeeingKeep from './SeeingKeep';
@@ -624,12 +625,16 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
           <SeeingStage key={key} drawing={key} document={seen} lens={tab.lens} settings={settings} seam={seam} loupe={loupe} erasing={erasing} erased={erased} onErase={onErase} onOpen={go} onNotice={setNotice} onRestricted={onRestricted} onMedia={onMedia} onSelect={outside ? onSelect : null} onPlace={leading && outside ? onPlace : null} moverRef={moverRef} marks={marks} finderRef={finderRef} graffiti={page} drawn={drawing && outside} />
         ) : address === null ? (
           <SeeingStart good={memory.good} ownEye={extension === 'current'} onGo={go} />
-        ) : now.state === 'refused' && outside && dialOf(address).year === null ? (
-          <div className="p-4">
-            <button type="button" onClick={() => go(dialTo(address, new Date().getFullYear()))} className={PLATE}>
-              [ SEE AN OLD COPY ]
-            </button>
-          </div>
+        ) : now.state === 'refused' ? (
+          <SeeingRefused
+            reason={now.reason}
+            address={address}
+            canOld={outside && dialOf(address).year === null}
+            ownEye={outside && extension === 'current'}
+            onAgain={() => setTurn((each) => each + 1)}
+            onOld={() => go(dialTo(address, new Date().getFullYear()))}
+            onOwn={() => void openInOwnEye(dialOf(address).address)}
+          />
         ) : null}
         {noting && page !== null && seen !== null ? (
           <SeeingMargins key={`notes ${page}`} page={page} owner={owner} notes={notes} selected={selected.key === key ? selected.text : ''} onFind={(index) => finderRef.current?.(index)} onClose={() => setNoting(false)} />

@@ -137,6 +137,8 @@ async function shell(browser) {
   await say(page, 'SOURCE REFUSED: NO SUCH SITE');
   const source = page.locator('[data-seeing]').getByRole('link', { name: /OPEN SOURCE/ });
   ok((await source.getAttribute('href')) === 'https://example.com/' && (await source.getAttribute('rel')) === 'noopener noreferrer', 'an outside page is refused, with the way to its source');
+  const refusal = await page.locator('[data-seeing-refused]').innerText();
+  ok(/NO COMPUTER ANSWERS TO THAT NAME/.test(refusal) && /SEE AN OLD COPY/.test(refusal) && !/TRY AGAIN/.test(refusal), 'the refusal says what it means, and offers only what may help');
   await page.screenshot({ path: join(OUT, 'refused.png') });
   for (const [typed, why] of [
     ['javascript:alert(1)', 'ONLY HTTP AND HTTPS'],

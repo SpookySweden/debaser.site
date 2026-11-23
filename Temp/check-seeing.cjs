@@ -1,7 +1,7 @@
 /*
  * BROWSER, the DEBASER SEEING MACHINE, Phase 1 (SPEC-seeing-machine.md, Luke 2026-11-23): the pure parts of the shell.
  * (scripts/drive-see.cjs drives the page itself in a browser, on every theme.)
- *   npx tsc app/lib/seeing/address.ts app/lib/seeing/tabs.ts app/lib/seeing/frame.ts app/lib/seeing/test-engine.ts app/lib/seeing/time.ts app/lib/seeing/trail.ts app/lib/seeing/search.ts app/lib/seeing/margins.ts app/lib/seeing/sonify.ts app/lib/seeing/together.ts app/lib/seeing/keys.ts app/lib/seeing/pages.ts app/lib/seeing/media.ts app/lib/seeing/ask.ts app/lib/seeing/memory.ts app/lib/seeing/lenses/registry.ts app/lib/ui/modules.ts --rootDir app --outDir Temp/seeing-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
+ *   npx tsc app/lib/seeing/address.ts app/lib/seeing/tabs.ts app/lib/seeing/frame.ts app/lib/seeing/test-engine.ts app/lib/seeing/time.ts app/lib/seeing/trail.ts app/lib/seeing/search.ts app/lib/seeing/margins.ts app/lib/seeing/sonify.ts app/lib/seeing/together.ts app/lib/seeing/keys.ts app/lib/seeing/refusals.ts app/lib/seeing/pages.ts app/lib/seeing/media.ts app/lib/seeing/ask.ts app/lib/seeing/memory.ts app/lib/seeing/lenses/registry.ts app/lib/ui/modules.ts --rootDir app --outDir Temp/seeing-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
  *   node Temp/check-seeing.cjs
  *
  * - an address: http and https only, no user names or passwords, no control characters, bare names get https, words are refused
@@ -337,6 +337,21 @@ assert.deepEqual([K.seeingKey(press({ altKey: true, code: 'KeyN', typing: true }
 for (const theirs of [{ ctrlKey: true, code: 'KeyW' }, { ctrlKey: true, code: 'KeyT' }, { ctrlKey: true, code: 'KeyL' }, { altKey: true, code: 'KeyD' }, { altKey: true, code: 'Digit9' }, { altKey: true, shiftKey: true, code: 'KeyN' }, { metaKey: true, key: '/' }]) {
   assert.equal(K.seeingKey(press(theirs)), null, `the browser's own: ${JSON.stringify(theirs)}`);
 }
+
+/* ------------------------------------------------------------------ a refusal said plainly, and what may still be tried */
+const R = require(`${OUT}refusals.js`);
+const general = R.refusalHelp('SOMETHING NOBODY SAYS');
+// Every reason the server can give (read from its own source) has its own words, not the general ones.
+const serverSays = new Set();
+for (const file of ['app/lib/web/safe-fetch.ts', 'app/lib/seeing/server/open.ts', 'app/lib/seeing/server-engine.ts', 'app/lib/seeing/server/gate.ts']) {
+  const source = fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
+  for (const m of source.matchAll(/(?:AnySiteRefusal\(|said\(\d+, |reason: )'([A-Z][A-Z ,:-]+)'/g)) serverSays.add(m[1]);
+}
+for (const reason of ['NOT UNDERSTOOD', 'SOMETHING WENT WRONG', "THAT ISN'T AN ADDRESS"]) serverSays.delete(reason);
+assert.ok(serverSays.size >= 12, `the server's reasons were found (${serverSays.size})`);
+for (const reason of serverSays) assert.notEqual(R.refusalHelp(reason), general, `${reason} is said plainly`);
+for (const guarded of ['NOT A PUBLIC ADDRESS', 'KNOWN FOR MALWARE OR PHISHING']) assert.deepEqual(R.refusalHelp(guarded).tries, [], `${guarded}: nothing to try`);
+assert.ok(R.refusalHelp('THE SOURCE TOOK TOO LONG').tries.includes('again'));
 
 /* ------------------------------------------------------------------ search: an address or words, and to whom */
 const Q = require(`${OUT}search.js`);
