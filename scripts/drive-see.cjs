@@ -228,9 +228,13 @@ async function shell(browser) {
   const fresh = await open(browser, { as: ANN, storage: { 'debaser-modules-v2': modules, [`debaser-seeing-tabs-v1:${ANN.id}`]: JSON.stringify(kept) } });
   await fresh.page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded' });
   await fresh.page.waitForTimeout(1500);
-  await fresh.page.keyboard.press('Control+KeyK');
   const searchBox = fresh.page.locator('#site-search-box');
-  await searchBox.waitFor({ timeout: 20000 });
+  // Pressed again until the page has woken enough to hear it (a dev server can take a while over /forum).
+  for (let tries = 0; tries < 20 && !(await searchBox.isVisible()); tries += 1) {
+    await fresh.page.keyboard.press('Control+KeyK');
+    await fresh.page.waitForTimeout(1000);
+  }
+  await searchBox.waitFor({ timeout: 5000 });
   await searchBox.fill('fog horns');
   ok((await fresh.page.locator('[data-see-line]').count()) === 0, 'words in the site search are not an address');
   await searchBox.fill('example.org/fog');
