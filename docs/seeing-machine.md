@@ -89,6 +89,30 @@ Proof: `drive-see.cjs --only lenses` (DYE and GLASS measured on every theme, 5.5
   lifted by a session rule that names the machine's tab, the machine or an added site as the asker, and added sites only, never a sign-in; it goes
   when the machine's page does. `Temp/check-see-extension.cjs`, `scripts/drive-see-extension.cjs` (26, pretend sites, signed in to nothing).
 
+## Search (Luke, 2026-11-23: "a list of multiple search engines such as Google, bing and your best ideas")
+- `search.ts` (pure), `search-store.ts`, `SeeingEngines.tsx`. Words that are not an address go to the chosen engine; a line under the box says which of
+  the two GO will do. Letters first ask an engine once (`w fog`, `!g fog`); `!` shows the list; ALL asks three, a tab each; a results page offers the
+  same words of the others (ASK); SEARCH THIS takes a selection. An engine can be off, moved, or added by hand (https, one `%s`, no inside names).
+- Results are a page like any other: shown through a lens, never read into anything of ours. A bot check or a consent wall is never worked round: such
+  an engine opens in OWN EYE, or a new tab (↗). READER shows a list of results as a list.
+- In the server's eye an engine sees the house's address; in OWN EYE or a new tab, the reader's. Nothing searched for is kept on the server:
+  `browse_log` is a site's name (checked).
+
+Each tried once in the server's eye, 2026-11-23 (`scripts/see-table.cjs --engines`):
+
+| Engine | Server's eye | Opens |
+| --- | --- | --- |
+| DuckDuckGo (plain HTML) | results | here, and the first choice |
+| Marginalia, Wiby, Wikipedia, Wiktionary, arXiv (slow), GitHub, Wikimedia Commons | results | here |
+| Google | a page asking for scripts it won't run here | ↗ |
+| Bing, Mojeek | a bot check | ↗ |
+| Brave (429), Ecosia (403), Openverse (403) | refused | ↗ |
+| Startpage, Qwant, Internet Archive, YouTube, MDN, Wayback Machine | its shell, no results | ↗ |
+| Stack Overflow | sends servers on to a check | ↗ |
+| Open Library | did not answer in time | ↗ |
+
+In OWN EYE these are your own browser's, where they answer as they always do; not tried here, where nobody is signed in to anything.
+
 ## The EXTENSION window, and how it is kept up to date (Luke, 2026-11-23)
 - Under the profile's `[ ⚙ SETTINGS ]`: `ExtensionWindow.tsx`. Without the extension it gets it first (the download), with an old one it updates it
   first, and only with the newest are there settings. OWN EYE opens it when it is missing or old. Silence is "not here".

@@ -141,7 +141,8 @@ async function shell(browser) {
   for (const [typed, why] of [
     ['javascript:alert(1)', 'ONLY HTTP AND HTTPS'],
     ['https://me:secret@example.com', 'NO NAME OR PASSWORD'],
-    ['hello there', "THAT ISN'T AN ADDRESS"],
+    // (2026-11-23) Words are searched for now (the search drive); what is plainly an address and can't be opened is still refused.
+    ['localhost:3000', "THAT ISN'T AN ADDRESS"],
   ]) {
     await go(page, typed);
     await say(page, why);
@@ -863,7 +864,8 @@ async function lenses(browser) {
   ok((await (await frameOf(page)).evaluate(() => getComputedStyle(document.body).backgroundColor)) !== before.colour, 'CUSTOM wears its recipe');
   await page.locator('[data-seeing-lenses]').getByRole('button', { name: '[ PASTE RECIPE ]' }).click();
   await page.getByLabel('Recipe', { exact: true }).last().fill('SEE:links');
-  await page.getByRole('button', { name: '[ USE ]' }).click();
+  // (The PREFERENCES window the drive picks themes from may be over the key.)
+  await page.getByLabel('Recipe', { exact: true }).last().press('Enter');
   await page.waitForTimeout(300);
   ok((await (await frameOf(page)).evaluate(() => [getComputedStyle(document.querySelector('table')).display, getComputedStyle(document.querySelector('a')).display])).join() === 'none,inline', 'a recipe pasted is used');
   await lens('STANDARD');
@@ -1104,11 +1106,83 @@ async function extension(browser) {
   await context.close();
 }
 
+/** Search, on pretend engines the fixture answers for: no real one is asked. */
+async function search(browser) {
+  const net = await fixture();
+  try {
+    const one = `https://one${Date.now()}.seeing-fixture.org`;
+    const choices = { chosen: 'own-one', off: ['google'], order: ['own-one', 'own-two', 'own-three', 'bing'], all: ['own-one', 'own-two', 'own-three'], own: ['one', 'two', 'three'].map((name) => ({ id: `own-${name}`, name: `Pretend ${name}`, address: `${one.replace('one', name)}/next?q=%s` })) };
+    const { context, page } = await open(browser, { as: ANN, storage: { 'debaser-seeing-search-v1': JSON.stringify(choices) } });
+    await context.route(/google\.com|bing\.com/, (route) => route.fulfill({ status: 200, contentType: 'text/html', body: 'pretend' }));
+    await page.goto(`${BASE}/browser`, { waitUntil: 'domcontentloaded' });
+    await page.locator('[data-seeing-tabs]').waitFor({ timeout: 60000 });
+    const says = () => page.locator('[data-seeing-says]').innerText();
+    ok(/Pretend one/.test(await page.locator('[data-seeing-engines]').innerText()), 'a new tab has the list under its box');
+    await box(page).fill('fog & "horns"');
+    ok((await says()) === 'SEARCH PRETEND ONE FOR fog & "horns"', 'the line under the box says it will search');
+    await box(page).fill('example.com');
+    ok((await says()) === 'GO TO https://example.com/', 'or that it will go there');
+    await box(page).fill('javascript:alert(1)');
+    ok(/ONLY HTTP/.test(await says()), 'or that it will do neither');
+    await box(page).fill('fog & "horns"');
+    await box(page).press('Enter');
+    await say(page, 'DOCUMENT RECONSTRUCTED');
+    ok((await box(page).inputValue()) === `${one}/next?q=fog%20%26%20%22horns%22`, 'words go to the engine that is chosen, whole');
+    ok(net.asked.some((each) => each.path === '/next?q=fog%20%26%20%22horns%22'), 'through the server, as any page');
+    await page.locator('[data-seeing-ask]').getByRole('button', { name: 'Pretend two' }).click();
+    await page.waitForFunction(() => document.querySelector('[data-seeing-address]').value.includes('two'));
+    ok((await box(page).inputValue()).endsWith('/next?q=fog%20%26%20%22horns%22') && !/Google/.test(await page.locator('[data-seeing-ask]').innerText()), 'a results page offers the same words of the others that are on');
+    const [outside] = await Promise.all([context.waitForEvent('page'), page.locator('[data-seeing-ask]').getByRole('button', { name: 'Bing ↗' }).click()]);
+    ok(/bing\.com\/search\?q=fog%20%26%20%22horns%22/.test(outside.url()) || (await outside.waitForURL(/bing\.com/).then(() => true)), 'one that turns servers away opens in a tab of its own');
+    ok(await outside.evaluate(() => window.opener === null), 'which knows nothing of this one');
+    await outside.close();
+    // Words selected on a page.
+    await say(page, 'DOCUMENT RECONSTRUCTED');
+    await page.waitForTimeout(600);
+    const inner = () => page.frames().filter((each) => each.parentFrame()?.parentFrame() === page.mainFrame()).at(-1);
+    const spot = await inner().evaluate(() => document.querySelector('h1').getBoundingClientRect().toJSON());
+    const outer = await page.locator('[data-seeing-frame]').first().boundingBox();
+    await page.mouse.click(outer.x + spot.x + 12, outer.y + spot.y + 12, { clickCount: 2, delay: 40 });
+    await page.waitForTimeout(400);
+    await key(page, '[ SEARCH THIS ]').click();
+    await page.waitForFunction(() => document.querySelector('[data-seeing-address]').value.endsWith('/next?q=Next'));
+    ok((await page.locator('[data-seeing-tabs] [role=tab]').count()) === 2, 'SEARCH THIS takes a selection, in a new tab');
+    // ALL.
+    await key(page, 'New tab').click();
+    await box(page).fill('fog horns');
+    await page.getByRole('button', { name: '[ ALL ]' }).click();
+    await page.waitForFunction(() => document.querySelectorAll('[data-seeing-tabs] [role=tab]').length === 5);
+    ok((await box(page).inputValue()).startsWith(one), 'ALL asks three, a tab each, the first in front');
+    // Shortcuts, the list, and one of your own.
+    await box(page).fill('m old films');
+    ok(/SEARCH MEDIA FOR old films/.test(await says()), 'letters first ask that engine once');
+    await box(page).fill('!');
+    await box(page).press('Enter');
+    const list = page.locator('section[data-seeing-engines]');
+    await list.waitFor();
+    await list.getByLabel('Name of your engine').fill('Mine');
+    await list.getByLabel('Address of your engine').fill('https://192.168.0.154/?q=%s');
+    await list.getByRole('button', { name: '[ ADD ]' }).click();
+    ok(/THAT ISN'T A SITE OUTSIDE/.test(await list.innerText()), 'an engine inside the house is refused');
+    await list.getByLabel('Address of your engine').fill('https://mine.example.com/?q=%s');
+    ok(/THAT ISN'T/.test(await list.innerText()) && (await list.getByRole('button', { name: '[ ADD ]' }).click(), true), 'one outside is asked for');
+    await list.getByRole('button', { name: 'Mine', exact: true }).click();
+    await page.screenshot({ path: join(OUT, 'engines.png') });
+    ok(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), 'no sideways scroll');
+    await list.getByRole('button', { name: 'Close search engines', exact: true }).click();
+    await page.getByRole('button', { name: '[ MINE ▾ ]' }).waitFor();
+    ok(true, 'and is the one in front');
+    await context.close();
+  } finally {
+    net.close();
+  }
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: findChrome(), headless: true, // The frames in their own processes are how a real browser keeps them apart; this tool can't look inside them there.
     args: ['--use-angle=swiftshader', '--disable-features=IsolateSandboxedIframes'] });
   try {
-    for (const [name, run] of [['shell', shell], ['frame', frame], ['eye', eye], ['lenses', lenses], ['extension', extension], ['themes', themes]]) {
+    for (const [name, run] of [['shell', shell], ['frame', frame], ['eye', eye], ['lenses', lenses], ['extension', extension], ['search', search], ['themes', themes]]) {
       if (ONLY !== '' && ONLY !== name) continue;
       console.log(`\n=== ${name} ===`);
       await run(browser);

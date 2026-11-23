@@ -51,7 +51,7 @@ for (let i = 0; i < 9; i += 1) state = T.addTab(state, `n${i}`);
 tabs = html(el(at('SeeingTabs'), { state, onShow: none, onClose: none, onNew: none }));
 assert.match(tabs, /<button[^>]*aria-label="New tab"[^>]*disabled=""/);
 
-const bar = (props) => html(el(at('SeeingToolbar'), { place: 'a', address: 'https://example.com/', canBack: false, canForward: false, busy: false, empty: false, onBack: none, onForward: none, onReload: none, onStop: none, onGo: none, ...props }));
+const bar = (props) => html(el(at('SeeingToolbar'), { place: 'a', address: 'https://example.com/', canBack: false, canForward: false, busy: false, empty: false, onBack: none, onForward: none, onReload: none, onStop: none, onGo: none, say: (text) => `SAYS ${text}`, searches: () => false, engine: 'DUCKDUCKGO', listing: false, onList: none, onAll: none, ...props }));
 const key = (markup, name) => new RegExp(`<button[^>]*aria-label="${name}"[^>]*>`).exec(markup)[0];
 for (const name of ['Back', 'Forward', 'Stop']) assert.match(key(bar({}), name), /disabled=""/, name);
 assert.ok(!/disabled=""/.test(key(bar({}), 'Reload')));
@@ -107,4 +107,9 @@ assert.ok(/>UPDATE</.test(body_({ kind: 'old', version: '0.1.0', folder: 'ask' }
 assert.ok(/OPENS PAGES IN/.test(body_({ kind: 'current', version: '0.2.0', settings: { lens: 'reader', wear: true } })));
 assert.ok(/CHROME AND EDGE/.test(body_({ kind: 'unable' })));
 for (const kind of ['missing', 'old', 'current', 'unable']) assert.match(body_({ kind, version: '0.1.0' }), /NEVER READS PASSWORDS OR COOKIES/);
+assert.ok(/\[ DUCKDUCKGO ▾ \]/.test(bar({})) && !/SAYS/.test(bar({})), 'the engine is named, and nothing is said of the page already in front');
+const engines = html(el(at('SeeingEngines'), { ownEye: false, onClose: none }));
+for (const name of ['Google ↗', 'Bing ↗', 'DuckDuckGo', 'Marginalia', 'Wikipedia', 'DEBASER.SITE', 'MEDIA']) assert.ok(engines.includes(name), name);
+assert.ok(/IN A NEW TAB/.test(engines) && /NO WORDS ARE STORED/.test(engines) && /https:\/\/example\.com\/\?q=%s/.test(engines));
+assert.match(html(el(at('SeeingEngines'), { ownEye: true, onClose: null })), /IN OWN EYE/);
 console.log('BROWSER on screen: the sign-in call, tabs, keys, lenses and WATCHERS');

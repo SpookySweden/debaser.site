@@ -63,7 +63,8 @@ Each can be changed later by saying so.
 2. **The eye says what it is** (`SeeingMachine/1.0`), and does not pretend to be Chrome. Some sites turn it away; getting past that is out of scope.
 3. **IPv4 only**, because the house's own machines have IPv6 addresses that look public.
 4. **Pages are asked of 1.1.1.2** (Cloudflare's resolver that knows malware and phishing), answer 16.
-5. **Words that are not an address are not searched for**: the box says so. A search key can be added, to whichever engine he picks.
+5. **Words that are not an address are searched for** (Luke, 2026-11-23: "allow the ability to search using a list of multiple search engines such as
+   Google, bing and your best ideas, don't ask me just do it"; it replaces an earlier no). Engines that turn servers away open in OWN EYE or a new tab.
 6. **A link from outside waits for GO**; a page may send itself on three times in twenty seconds, then no more.
 7. **A frame inside a page is a link to it**, `[ FRAME: … ]`, rather than a page in a page.
 8. **A BILLBOARD press opens the STREAM ART shelf in a tab**, because a piece has no address of its own.

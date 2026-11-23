@@ -134,10 +134,34 @@ function mainOf(root: Element): Element | null {
   return best !== null && best.words >= 20 ? best : null;
 }
 
+/** Links that say something, as a list of results has: three words at least, and not the page's furniture. */
+const RESULTS_LEAST = 6;
+function listOf(root: Element): Element | null {
+  const inside = new Map<Element, number>();
+  let all = 0;
+  const walk = (node: Element): number => {
+    if (isFurniture(node)) return 0;
+    let found = 0;
+    if (node.name === 'a' && node.words >= 3 && valueOf(node.attributes, 'href') !== null) found = 1;
+    else for (const child of node.children) if (typeof child !== 'string') found += walk(child);
+    inside.set(node, found);
+    return found;
+  };
+  all = walk(root);
+  if (all < RESULTS_LEAST) return null;
+  // The smallest element most of them are in.
+  let here = root;
+  for (;;) {
+    const next = here.children.find((child): child is Element => typeof child !== 'string' && (inside.get(child) ?? 0) >= all * 0.7);
+    if (next === undefined || next.name === 'a') return here;
+    here = next;
+  }
+}
+
 const KEPT = new Set(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'dl', 'dt', 'dd', 'blockquote', 'pre', 'code', 'kbd', 'samp', 'var', 'figure', 'figcaption', 'table', 'caption', 'thead', 'tbody', 'tr', 'td', 'th', 'b', 'strong', 'i', 'em', 'u', 's', 'del', 'ins', 'sub', 'sup', 'small', 'mark', 'q', 'cite', 'abbr', 'time', 'br', 'hr', 'ruby', 'rt', 'rp']);
 const BLOCK = new Set(['div', 'section', 'article', 'main', 'header', 'center', 'details', 'summary', 'address', 'picture', 'span', 'font', 'body', 'html', 'label', 'fieldset', 'legend', 'nobr', 'tt', 'big', 'a', 'dfn', 'bdi', 'bdo', 'data']);
 
-function write(node: Element, base: string, sign: Sign, title: { left: string | null }): string {
+function write(node: Element, base: string, sign: Sign, title: { left: string | null }, list = false): string {
   let out = '';
   for (const child of node.children) {
     if (typeof child === 'string') {
@@ -146,7 +170,7 @@ function write(node: Element, base: string, sign: Sign, title: { left: string | 
     }
     if (isFurniture(child)) continue;
     // A list or a box that is nearly all links is a menu, whatever it is called.
-    if (['ul', 'ol', 'div', 'section', 'table'].includes(child.name) && child.words > 6 && child.linked / child.words > 0.8 && child.commas < 3) continue;
+    if (!list && ['ul', 'ol', 'div', 'section', 'table'].includes(child.name) && child.words > 6 && child.linked / child.words > 0.8 && child.commas < 3) continue;
     if (child.name === 'img') {
       const given = valueOf(child.attributes, 'src') ?? '';
       const src = given === '' || given.startsWith('data:') ? (valueOf(child.attributes, 'data-src') ?? valueOf(child.attributes, 'data-lazy-src') ?? '') : given;
@@ -155,7 +179,7 @@ function write(node: Element, base: string, sign: Sign, title: { left: string | 
       if (answer !== null) out += `<img src="${escapeValue(answer)}" alt="${escapeValue(valueOf(child.attributes, 'alt') ?? '')}" loading="lazy">`;
       continue;
     }
-    const inside = write(child, base, sign, title);
+    const inside = write(child, base, sign, title, list);
     if (child.name === 'a') {
       const href = valueOf(child.attributes, 'href');
       let address: string | null = null;
@@ -188,7 +212,10 @@ function write(node: Element, base: string, sign: Sign, title: { left: string | 
 export function readingOf(html: string, address: string, title: string | null, sign: Sign): string | null {
   const root = treeOf(html);
   count(root, false);
-  const main = mainOf(root);
+  const written = mainOf(root);
+  // No writing to speak of, and a list of links that say something: the list is what the page is for.
+  const links = written === null || written.words < 120 ? listOf(root) : null;
+  const main = links ?? written;
   if (main === null) return null;
   let base = address;
   const tag = /<base\b[^>]*\bhref\s*=\s*["']?([^"'\s>]+)/i.exec(html.slice(0, 5_000))?.[1];
@@ -207,7 +234,7 @@ export function readingOf(html: string, address: string, title: string | null, s
   // The page's first heading, as its title, where the words start; a title like `Story - Site` says more than the story does.
   const heading = firstHeading(root);
   const shown = heading ?? title;
-  const body = write(main, base, signed, { left: shown === null ? null : escapeText(shown) });
+  const body = write(main, base, signed, { left: shown === null ? null : escapeText(shown) }, links !== null);
   return `${shown === null ? '' : `<h1>${escapeText(shown)}</h1>`}${body}`;
 }
 

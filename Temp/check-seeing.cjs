@@ -1,7 +1,7 @@
 /*
  * BROWSER, the DEBASER SEEING MACHINE, Phase 1 (SPEC-seeing-machine.md, Luke 2026-11-23): the pure parts of the shell.
  * (scripts/drive-see.cjs drives the page itself in a browser, on every theme.)
- *   npx tsc app/lib/seeing/address.ts app/lib/seeing/tabs.ts app/lib/seeing/frame.ts app/lib/seeing/test-engine.ts app/lib/seeing/time.ts app/lib/seeing/trail.ts app/lib/seeing/margins.ts app/lib/seeing/sonify.ts app/lib/seeing/pages.ts app/lib/seeing/media.ts app/lib/seeing/ask.ts app/lib/seeing/memory.ts app/lib/seeing/lenses/registry.ts app/lib/ui/modules.ts --rootDir app --outDir Temp/seeing-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
+ *   npx tsc app/lib/seeing/address.ts app/lib/seeing/tabs.ts app/lib/seeing/frame.ts app/lib/seeing/test-engine.ts app/lib/seeing/time.ts app/lib/seeing/trail.ts app/lib/seeing/search.ts app/lib/seeing/margins.ts app/lib/seeing/sonify.ts app/lib/seeing/pages.ts app/lib/seeing/media.ts app/lib/seeing/ask.ts app/lib/seeing/memory.ts app/lib/seeing/lenses/registry.ts app/lib/ui/modules.ts --rootDir app --outDir Temp/seeing-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
  *   node Temp/check-seeing.cjs
  *
  * - an address: http and https only, no user names or passwords, no control characters, bare names get https, words are refused
@@ -316,6 +316,49 @@ assert.ok(light.text.length <= M.STORED_MOST && 'https://a.example/29' in light.
 let pagesDrawn = M.NO_MARGINS;
 for (let i = 0; i < 40; i += 1) pagesDrawn = M.withStrokes(pagesDrawn, `https://a.example/${i}`, [line]);
 assert.ok(Object.keys(pagesDrawn.drawings).length === M.DRAWN_PAGES_MOST && 'https://a.example/39' in pagesDrawn.drawings && !('https://a.example/0' in pagesDrawn.drawings));
+
+/* ------------------------------------------------------------------ search: an address or words, and to whom */
+const Q = require(`${OUT}search.js`);
+const box = (text, choices = Q.CHOICES_AT_FIRST) => Q.readBox(text, choices);
+for (const [typed, address] of [['example.com', 'https://example.com/'], ['https://example.com/a b', 'https://example.com/a%20b'], ['example.com/a?b=c d'.replace(' ', '%20'), 'https://example.com/a?b=c%20d'], ['bbc.co.uk/news', 'https://bbc.co.uk/news'], ['example.com:8080/x', 'https://example.com:8080/x'], ['93.184.216.34', 'https://93.184.216.34/'], ['b\u00fccher.example', 'https://xn--bcher-kva.example/'], ['\u0645\u062b\u0627\u0644.\u0625\u062e\u062a\u0628\u0627\u0631', new URL('https://\u0645\u062b\u0627\u0644.\u0625\u062e\u062a\u0628\u0627\u0631').href], ['see:test', 'see:test'], ['readme.md/x', 'https://readme.md/x']]) assert.deepEqual(box(typed), { kind: 'address', address }, typed);
+for (const words of ['localhost', 'c++', 'what is 1.5', '1.5', 'a.b', 'node.js', 'notes.txt', 'hello', 'and/or', 'who@example.com', 'example.com is down', 'javascript: the good parts', 'q?', '...', 'a..b.com', '-x.com', '\u65e5\u672c\u8a9e \u6771\u4eac', 'cats & dogs', '100%']) assert.deepEqual([box(words).kind, box(words).words], ['search', words], words);
+for (const refused of ['javascript:alert(1)', 'file:///c:/', 'data:text/html,x', 'chrome://settings', 'mailto:a@b.c', 'https://a:b@example.com/', 'about:blank', 'localhost:3000', 'ftp://x.com']) assert.equal(box(refused).kind, 'refused', refused);
+assert.equal(box('  ').kind, 'nothing');
+assert.equal(box('!').kind, 'list');
+assert.equal(box('\u202eexample.com').address, 'https://example.com/', 'nothing that turns a line round is kept');
+for (const [typed, id, words] of [['g fog horn', 'google', 'fog horn'], ['!b fog', 'bing', 'fog'], ['W  fog', 'wikipedia', 'fog'], ['m films', 'media', 'films'], ['s posts', 'debaser', 'posts'], ['x fog', 'duckduckgo', 'x fog']]) assert.deepEqual([box(typed).engine.id, box(typed).words], [id, words], typed);
+assert.equal(box('g fog', { ...Q.CHOICES_AT_FIRST, off: ['google'] }).engine.id, 'duckduckgo', 'one that is off has no letters');
+assert.equal(box('!g fog', { ...Q.CHOICES_AT_FIRST, off: ['google'] }).engine.id, 'google', 'unless it is named outright');
+assert.equal(new Set(Q.ENGINES.map((each) => each.id)).size, Q.ENGINES.length);
+assert.equal(new Set(Q.ENGINES.map((each) => each.short)).size, Q.ENGINES.length, 'no letters twice');
+for (const awkward of ['a&b=c', 'x#y', '100%', '"quoted" \'words\'', '\ud83c\udf0a wave', '\u65e5\u672c\u8a9e', '$& $1 %s', 'a/b?c', '<script>', 'broken \ud83c half']) {
+  for (const engine of Q.ENGINES.filter((each) => each.opens !== 'site')) {
+    const address = Q.searchAddress(engine, awkward);
+    const url = new URL(address);
+    assert.equal(url.hostname, new URL(engine.address).hostname, engine.id);
+    assert.equal(url.hash, '', `${engine.id}: ${awkward}`);
+    assert.ok(readAddress(address).ok);
+    const asked = Q.askedOf(address, Q.CHOICES_AT_FIRST);
+    assert.deepEqual([asked.engine.id, asked.words], [engine.id, Q.cleanWords(awkward)], `${engine.id} is asked for exactly the words`);
+  }
+}
+assert.equal(Q.askedOf('https://en.wikipedia.org/wiki/Fog', Q.CHOICES_AT_FIRST), null);
+assert.equal(Q.askedOf('https://www.google.com/search?q=', Q.CHOICES_AT_FIRST), null);
+const madeOwn = Q.ownEngine(' My  engine ', 'https://find.example.com/?q=%s', 'own-1');
+assert.deepEqual([madeOwn.name, madeOwn.opens, madeOwn.group], ['My engine', 'here', 'YOURS']);
+for (const bad of ['http://find.example.com/?q=%s', 'https://find.example.com/', 'https://find.example.com/?q=%s&r=%s', 'https://%s.example.com/', 'https://a:b@find.example.com/?q=%s', 'https://localhost/?q=%s', 'https://192.168.0.154/?q=%s', 'https://127.0.0.1/?q=%s', 'https://[::1]/?q=%s', 'https://2130706433/?q=%s', 'https://0x7f.1/?q=%s', 'https://jellyfin.local/?q=%s', 'https://box.tail1234.ts.net/?q=%s', 'https://api.debaser.site/?q=%s', 'https://find.example.com:8096/?q=%s', 'https://router/?q=%s', 'javascript:%s', '']) assert.equal(typeof Q.ownEngine('x', bad, 'own-1'), 'string', `${bad} can not be added`);
+assert.equal(typeof Q.ownEngine('', 'https://find.example.com/?q=%s', 'own-1'), 'string');
+const kept_ = Q.choicesFrom(JSON.parse(JSON.stringify({ chosen: 'own-1', off: ['google', 'nonsense'], order: ['bing'], all: ['bing', 'mojeek', 'wiby', 'brave'], own: [{ id: 'own-1', name: 'Mine', address: 'https://find.example.com/?q=%s', opens: 'site', short: 'g' }, { id: 'own-2', name: 'Bad', address: 'https://192.168.0.1/?q=%s' }, { id: 'google', name: 'Not Google', address: 'https://evil.example.com/?q=%s' }] })));
+assert.deepEqual([kept_.chosen, kept_.off, kept_.all, kept_.own.map((each) => [each.id, each.opens, each.short])], ['own-1', ['google'], ['bing', 'mojeek', 'wiby'], [['own-1', 'here', '']]]);
+assert.deepEqual(Q.choicesFrom('x'), Q.CHOICES_AT_FIRST);
+assert.equal(Q.enginesOf(kept_)[0].id, 'bing');
+const up = Q.moved(Q.CHOICES_AT_FIRST, 'bing', -1);
+assert.deepEqual(Q.enginesOf(up).slice(0, 3).map((each) => each.id), ['duckduckgo', 'bing', 'google']);
+assert.equal(Q.moved(Q.CHOICES_AT_FIRST, 'duckduckgo', -1), Q.CHOICES_AT_FIRST);
+assert.deepEqual(Q.enginesOf(Q.moved(Q.CHOICES_AT_FIRST, 'wiby', 1)).filter((each) => each.group === 'GENERAL').map((each) => each.id), Q.ENGINES.filter((each) => each.group === 'GENERAL').map((each) => each.id), 'and only within its own group');
+assert.match(Q.sayBox(box('fog')), /^SEARCH DUCKDUCKGO FOR fog$/);
+assert.match(Q.sayBox(box('g fog')), /GOOGLE FOR fog ↗$/);
+assert.match(Q.sayBox(box('example.com')), /^GO TO https:\/\/example\.com\/$/);
 
 /* ------------------------------------------------------------------ the built-in pages and the module */
 const browser = MODULES.find((module) => module.key === 'browser');

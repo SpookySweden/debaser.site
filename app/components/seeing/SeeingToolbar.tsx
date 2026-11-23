@@ -19,17 +19,28 @@ type Props = {
   onReload: () => void;
   onStop: () => void;
   onGo: (text: string) => void;
+  /** What GO will do with what is in the box, and whether that is a search. */
+  say: (text: string) => string;
+  searches: (text: string) => boolean;
+  /** The engine that is asked, and its list. */
+  engine: string;
+  listing: boolean;
+  onList: () => void;
+  onAll: (text: string) => void;
 };
 
 /** Back, forward, reload, stop and the address box. The tab's own back and forward: the site's arrows do not record pages read. */
-export default function SeeingToolbar({ place, address, canBack, canForward, busy, empty, onBack, onForward, onReload, onStop, onGo }: Props) {
+export default function SeeingToolbar({ place, address, canBack, canForward, busy, empty, onBack, onForward, onReload, onStop, onGo, say, searches, engine, listing, onList, onAll }: Props) {
   const [text, setText] = useState(address);
   const [at, setAt] = useState(place);
   if (at !== place) {
     setAt(place);
     setText(address);
   }
+  // Nothing is said of a page already in front: the box holds its address, and GO asks for it again.
+  const words = text === address ? '' : say(text);
   return (
+    <>
     <form
       className="flex items-center gap-1 pt-1"
       onSubmit={(event) => {
@@ -58,7 +69,7 @@ export default function SeeingToolbar({ place, address, canBack, canForward, bus
           if (event.key === 'Escape') setText(address);
         }}
         aria-label="Address"
-        placeholder="ADDRESS"
+        placeholder="ADDRESS OR WORDS"
         autoComplete="off"
         autoCapitalize="none"
         spellCheck={false}
@@ -70,6 +81,17 @@ export default function SeeingToolbar({ place, address, canBack, canForward, bus
       <button type="submit" className={PLATE}>
         [ GO ]
       </button>
+      <button type="button" disabled={!searches(text)} title="The same words in three engines, a tab each" onClick={() => onAll(text)} className={PLATE}>
+        [ ALL ]
+      </button>
+      <button type="button" aria-expanded={listing} title="Search engines" onClick={onList} className={`${PLATE} max-w-48 truncate`}>
+        [ {engine} ▾ ]
+      </button>
     </form>
+    {/* Its line is always there, so nothing moves when it speaks. */}
+    <p className="min-h-5 max-w-full truncate text-label text-ink-quiet" data-seeing-says>
+      {words}
+    </p>
+    </>
   );
 }

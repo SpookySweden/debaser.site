@@ -16,6 +16,9 @@ import type { FoundMedia, SeenDocument, SeeStep } from '../../lib/seeing/engine'
 import { LENS_NAMES, type LensId } from '../../lib/seeing/lenses/names';
 import { noteSeen, openHistoryOf } from '../../lib/seeing/history-store';
 import { bringBack, erase, erasedOn, lensRemembered, markGood, rememberLens, siteMemory, siteMemoryOnServer, subscribeToMemory } from '../../lib/seeing/memory';
+import { askedOf, cleanWords, engineChosen, enginesOn, readBox, sayBox, searchAddress, type Engine } from '../../lib/seeing/search';
+import { searchChoices, searchChoicesOnServer, subscribeToSearch } from '../../lib/seeing/search-store';
+import { openSearch } from '../../lib/search/site-search';
 import { beatBoxHref } from '../../lib/seeing/sonify';
 import { trayOf } from '../../lib/seeing/media';
 import { dialOf, dialTo } from '../../lib/seeing/time';
@@ -34,6 +37,7 @@ import { TEST_ADDRESS } from '../../lib/seeing/test-engine';
 import { PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR } from '../../lib/ui/controls';
 import { subscribeToTheme, themeState } from '../../lib/ui/theme-slot';
 import { useAuth } from '../AuthProvider';
+import SeeingEngines from './SeeingEngines';
 import SeeingHistory from './SeeingHistory';
 import SeeingKeep from './SeeingKeep';
 import SeeingKept from './SeeingKept';
@@ -58,6 +62,9 @@ const NOTHING: Shown = { key: '', state: 'stopped' };
 
 /** A public list's own random page of the small, old web (idea vii). It answers with a page that sends people on, which a page may. */
 const SCAN_ADDRESS = 'https://wiby.me/surprise/';
+
+/** Other engines offered on a results page. */
+const ASKED_SHOWN = 9;
 
 /** One line of fault words: White on Rose, as every fault is. */
 const FAULT = 'w-fit bg-bubble-pale px-1 text-label text-ink-bar';
@@ -108,8 +115,11 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
   const [keptOpen, setKeptOpen] = useState(false);
   const [keeping, setKeeping] = useState(false);
   const [noting, setNoting] = useState(false);
+  const [listing, setListing] = useState(false);
+  const choices = useSyncExternalStore(subscribeToSearch, searchChoices, searchChoicesOnServer);
   const [drawing, setDrawing] = useState(false);
   const finderRef = useRef<((index: number) => void) | null>(null);
+  const router = useRouter();
   const everyMargin = useSyncExternalStore(subscribeToMargins, margins, marginsOnServer);
   const page = pageOf(address);
   const notes = useMemo(() => notesOn(everyMargin, pageOf(address)), [everyMargin, address]);
@@ -251,6 +261,50 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
     [state, setSent],
   );
 
+  /** Words to an engine: here, or where it lets itself be seen. A new tab when asked for one. */
+  const ask = (engine: Engine, words: string, newTab = false) => {
+    if (engine.id === 'debaser') openSearch(words);
+    else if (engine.opens === 'site') router.push(engine.address.replace('%s', () => encodeURIComponent(words)));
+    else if (engine.opens === 'here') go(searchAddress(engine, words), newTab);
+    else if (extension === 'current') void openInOwnEye(searchAddress(engine, words));
+    else window.open(searchAddress(engine, words), '_blank', 'noopener,noreferrer');
+  };
+
+  /** What was typed: an address, or words for an engine. */
+  const goBox = (text: string) => {
+    const typed = readBox(text, choices);
+    if (typed.kind === 'address') go(typed.address);
+    else if (typed.kind === 'search') ask(typed.engine, typed.words);
+    else if (typed.kind === 'list') setListing(true);
+    else setNotice(typed.kind === 'refused' ? typed.reason : 'NO ADDRESS');
+  };
+
+  /** The same words in the three ticked, a tab each. */
+  const searchAll = (text: string) => {
+    const typed = readBox(text, choices);
+    if (typed.kind !== 'search') return;
+    const engines = enginesOn(choices).filter((each) => choices.all.includes(each.id) && each.opens !== 'site');
+    const here = engines.filter((each) => each.opens === 'here');
+    const room = TABS_MOST - state.tabs.length + (address === null ? 1 : 0);
+    if (here.length > room) {
+      setNotice(`${TABS_MOST} TABS AT MOST`);
+      return;
+    }
+    setNotice(null);
+    setSent(NO_MEDIA);
+    changeTabs((all) => {
+      let next = all;
+      let first: string | null = null;
+      for (const engine of here) {
+        if (stopOf(frontTab(next)) !== null) next = addTab(next, freshId());
+        first ??= next.front;
+        next = visit(next, next.front, searchAddress(engine, typed.words));
+      }
+      return first === null ? next : showTab(next, first);
+    });
+    for (const engine of engines) if (engine.opens === 'out') ask(engine, typed.words);
+  };
+
   const onErase = useCallback(
     (selector: string) => {
       if (address !== null) erase(address, selector);
@@ -259,7 +313,6 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
   );
 
   const seen = now.state === 'shown' ? now.document : null;
-  const router = useRouter();
   const sonify = () => {
     const href = seen === null ? null : beatBoxHref(seen.html);
     if (href === null) setNotice('NOTHING ON THIS PAGE TO PLAY');
@@ -296,6 +349,8 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
   const outside = address !== null && /^https?:/.test(address);
   const onSelect = useCallback((text: string) => setSelected({ key, text }), [key, setSelected]);
   // A kept copy in front: whose page it is, and where it came from, said above it.
+  const asked = useMemo(() => (address === null ? null : askedOf(address, choices)), [address, choices]);
+  const pickedWords = selected.key === key ? cleanWords(selected.text) : '';
   const copyId = address === null ? null : keptId(address);
   const copyPage = copyId === null ? null : keptPage(copyId);
 
@@ -318,8 +373,29 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
         onForward={() => change((all) => step(all, tab.id, 1))}
         onReload={() => setTurn((each) => each + 1)}
         onStop={halt}
-        onGo={go}
+        onGo={goBox}
+        say={(text) => sayBox(readBox(text, choices))}
+        searches={(text) => readBox(text, choices).kind === 'search'}
+        engine={engineChosen(choices).name.toUpperCase()}
+        listing={listing}
+        onList={() => setListing(!listing)}
+        onAll={searchAll}
       />
+      {asked !== null ? (
+        // A results page: the same words of another, one press.
+        <p className="flex flex-wrap items-center gap-1 text-label text-ink" data-seeing-ask>
+          ASK
+          {enginesOn(choices)
+            .filter((each) => each.id !== asked.engine.id && each.opens !== 'site')
+            .slice(0, ASKED_SHOWN)
+            .map((each) => (
+              <button key={each.id} type="button" onClick={() => ask(each, asked.words)} className={PLATE}>
+                {each.name}
+                {each.opens === 'out' ? ' ↗' : ''}
+              </button>
+            ))}
+        </p>
+      ) : null}
       <SeeingLenses
         lens={tab.lens}
         settings={settings}
@@ -382,6 +458,11 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
         <button type="button" aria-expanded={trayOpen} disabled={seen === null && sent.length === 0} onClick={() => setTrayOpen(!trayOpen)} className={PLATE}>
           [ MEDIA {tray.length} ]
         </button>
+        {outside ? (
+          <button type="button" disabled={pickedWords === ''} title="Words selected on the page, to the engine in front, in a new tab" onClick={() => ask(engineChosen(choices), pickedWords, true)} className={PLATE}>
+            [ SEARCH THIS ]
+          </button>
+        ) : null}
         <button type="button" disabled={seen === null} title="The page's structure as a BEATBOX loop: headings the beat, links the notes" onClick={sonify} className={PLATE}>
           [ SONIFY ]
         </button>
@@ -429,6 +510,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
             onClose={() => setHistoryOpen(false)}
           />
         ) : null}
+        {listing ? <SeeingEngines ownEye={extension === 'current'} onClose={() => setListing(false)} /> : null}
         {keptOpen ? (
           <SeeingKept
             me={owner.id}
@@ -440,9 +522,9 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
           />
         ) : null}
         {seen !== null ? (
-          <SeeingStage key={key} drawing={key} document={seen} lens={tab.lens} settings={settings} seam={seam} loupe={loupe} erasing={erasing} erased={erased} onErase={onErase} onOpen={go} onNotice={setNotice} onRestricted={onRestricted} onMedia={onMedia} onSelect={(keeping || noting) && outside ? onSelect : null} marks={marks} finderRef={finderRef} graffiti={page} drawn={drawing && outside} />
+          <SeeingStage key={key} drawing={key} document={seen} lens={tab.lens} settings={settings} seam={seam} loupe={loupe} erasing={erasing} erased={erased} onErase={onErase} onOpen={go} onNotice={setNotice} onRestricted={onRestricted} onMedia={onMedia} onSelect={outside ? onSelect : null} marks={marks} finderRef={finderRef} graffiti={page} drawn={drawing && outside} />
         ) : address === null ? (
-          <div className="p-4">
+          <div className="min-w-0 flex-1 overflow-y-auto p-4">
             <button type="button" className={PLATE_MAIN} onClick={() => go(TEST_ADDRESS)}>
               OPEN THE TEST PAGE
             </button>
@@ -457,6 +539,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
                 ))}
               </ul>
             ) : null}
+            <SeeingEngines ownEye={extension === 'current'} onClose={null} />
           </div>
         ) : now.state === 'refused' && outside && dialOf(address).year === null ? (
           <div className="p-4">

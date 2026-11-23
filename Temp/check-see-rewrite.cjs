@@ -222,6 +222,9 @@ assert.equal((read.match(/<h1>/g) ?? []).length, 1);
 has('picture', 'https://news.seeing.org/a/pic.jpg');
 assert.equal(signed.length, 1);
 assert.equal(readingOf('<ul><li><a href=/1>one two</a></li></ul>', PAGE, null, sign), null, 'a page of links has no main text');
+const results = readingOf(`<nav><a href=/n>menu words here too</a></nav><form><input></form><div id=links>${Array.from({ length: 9 }, (_, i) => `<div class=r><h2><a href="/r${i}">Result number ${i} here</a></h2><a href="/r${i}">A few words about it</a><script>x()</script></div>`).join('')}</div><footer><a href=/f>footer words to skip</a></footer>`, PAGE, 'fog - Engine', sign);
+assert.ok(results.includes('<a href="https://news.seeing.org/r0">Result number 0 here</a>') && results.includes('Result number 8 here') && /A few words about it/.test(results), 'a list of results is read as a list');
+assert.ok(!/menu words|footer words|<script|<form|<input/.test(results), 'and only the list');
 assert.ok(readingOf(`<p>${'\u79c1\u306f\u305d\u306e\u4eba\u3092\u5e38\u306b\u5148\u751f\u3068\u547c\u3093\u3067\u3044\u305f\u3002'.repeat(20)}</p>`, PAGE, null, sign) !== null, 'and one without spaces between its words has');
 for (const m of readingOf(story, PAGE, '"><script>x</script>', sign).matchAll(/<\/?([a-z0-9]+)/g)) assert.ok(/^(?:h[1-6]|p|b|a|img|blockquote|ul|li|table|tr|td|tbody|div)$/.test(m[1]), m[1]);
 
@@ -340,6 +343,11 @@ const file = (pass, deps) => open.assetRoute(new Request(`https://debaser.site/a
   await open.sealAnswer(ask('seal', { page: 'https://page.org/', files: [{ address: '/a.png', kind: 'picture' }, { address: 'https://third.org/b.png', kind: 'picture' }] }, OTHER), w.deps);
   assert.deepEqual(w.visits.rows.map(({ site }) => site), ['page.org', 'elsewhere.org', 'third.org'], 'each site once in a while');
   w = world(answers, { SEEING_OPEN: 'accounts' });
+  {
+    const s = world({ 'https://html.duckduckgo.com/html/?q=my%20secret%20words': body('<p>results', 'text/html') }, { SEEING_OPEN: 'accounts' });
+    await open.openAnswer(ask('open', { address: 'https://html.duckduckgo.com/html/?q=my%20secret%20words' }, OTHER), s.deps);
+    assert.ok(s.visits.rows.length === 1 && !/secret|html\/|q=/.test(JSON.stringify(s.visits.rows)), 'what is searched for is not written down');
+  }
   w.deps.visits = { write: async () => false };
   assert.ok((await open.askedAnswer(ask('ask', { page: 'https://page.org/', address: 'https://page.org/d.json' }, OTHER), w.deps)).status >= 400);
   assert.ok((await open.sealAnswer(ask('seal', { page: 'https://page.org/', files: [{ address: '/a.png', kind: 'picture' }] }, OTHER), w.deps)).status >= 400);

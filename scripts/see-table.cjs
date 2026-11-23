@@ -38,6 +38,16 @@ const SITES = [
   ['japanese', 'https://www.aozora.gr.jp/cards/000148/files/773_14560.html'],
   ['signin', 'https://accounts.google.com/'],
 ];
+/** `--engines`: each search engine's results for the same plain words, once each (SPEC-seeing-machine.md, search). */
+const ts = require('typescript');
+const made = { exports: {} };
+const transpiled = (file) => ts.transpileModule(require('node:fs').readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+new Function('module', 'exports', 'require', transpiled('app/lib/seeing/search.ts'))(made, made.exports, () => {
+  const address = { exports: {} };
+  new Function('module', 'exports', transpiled('app/lib/seeing/address.ts'))(address, address.exports);
+  return address.exports;
+});
+if (args.includes('--engines')) SITES.splice(0, SITES.length, ...made.exports.ENGINES.filter((each) => each.opens !== 'site').map((each) => [each.id, made.exports.searchAddress(each, 'harbour fog signal')]));
 const ANN = { id: '11111111-1111-4111-8111-111111111111', displayName: 'SEE ANN', email: 'a@example.com', createdAt: '2026-11-01T00:00:00.000Z', salt: '', secretHash: '', hidden: true };
 
 (async () => {
