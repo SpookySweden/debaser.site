@@ -1,7 +1,7 @@
 /*
  * BROWSER's attack list (SPEC-seeing-machine.md, "How each phase is proved"; Luke 2026-11-23): everything the server's eye must refuse,
  * offline, with a made-up resolver and a made-up internet. (The same list is walked once for real on SERVER: scripts/see-attack-live.cjs.)
- *   npx tsc app/lib/web/safe-fetch.ts app/lib/web/public-address.ts app/lib/seeing/server/assets.ts app/lib/seeing/server/limits.ts app/lib/seeing/server/gate.ts app/lib/seeing/server/way-out.ts --rootDir app --outDir Temp/see-attack-out --module commonjs --target es2022 --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
+ *   npx tsc app/lib/web/safe-fetch.ts app/lib/web/public-address.ts app/lib/seeing/server/assets.ts app/lib/seeing/server/limits.ts app/lib/seeing/server/gate.ts app/lib/seeing/server/way-out.ts app/lib/seeing/server/keep.ts --rootDir app --outDir Temp/see-attack-out --module commonjs --target es2022 --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
  *   node Temp/check-see-attack.cjs
  *
  * Every case is also watched failing: the MUTANTS at the foot take one guard out of the compiled code, and the case named must then fail.
@@ -36,7 +36,7 @@ function load(mutant) {
     return module.exports;
   };
   const at = (name) => take(path.join(OUT, `${name}.js`));
-  return { address: at('lib/web/public-address'), fetching: at('lib/web/safe-fetch'), assets: at('lib/seeing/server/assets'), limits: at('lib/seeing/server/limits'), gate: at('lib/seeing/server/gate'), way: at('lib/seeing/server/way-out') };
+  return { keep: at('lib/seeing/server/keep'), visits: at('lib/seeing/server/visits'), cache: at('lib/seeing/server/cache'), address: at('lib/web/public-address'), fetching: at('lib/web/safe-fetch'), assets: at('lib/seeing/server/assets'), limits: at('lib/seeing/server/limits'), gate: at('lib/seeing/server/gate'), way: at('lib/seeing/server/way-out') };
 }
 
 const HOME = '81.2.69.142';
@@ -366,6 +366,39 @@ const CASES = {
     assert.equal(ran, false, 'nothing is fetched for somebody who has gone');
     assert.equal(c.atOnce(), 0);
   },
+  "a kept copy": async (M) => {
+    const OWNER = '11111111-1111-4111-8111-111111111111';
+    const page = (text) => () => new Response(text, { headers: { 'content-type': 'text/html' } });
+    const keep = async (address, answers, { person = OWNER, env = {}, writes = true } = {}) => {
+      const net = internet({ answers });
+      const deps = {
+        gate: { env: { NODE_ENV: 'production', NEXT_PUBLIC_AUTH_BACKEND: 'supabase', NEXT_PUBLIC_SUPABASE_URL: 'https://x', NEXT_PUBLIC_SUPABASE_ANON_KEY: 'k', SCREENS_OWNER_ID: OWNER, ...env }, accountOf: async () => person },
+        way: net.way, counter: M.limits.createCounter(), cache: M.cache.createCache(), visits: { write: async () => writes }, now: Date.now,
+      };
+      const request = new Request('https://debaser.site/api/see/keep', { method: 'POST', body: JSON.stringify({ address }), headers: { 'content-type': 'application/json', authorization: `Bearer ${'a'.repeat(40)}` } });
+      const answer = await M.keep.keepAnswer(request, deps);
+      return { status: answer.status, asked: net.asked, ...(await answer.json()) };
+    };
+    const other = { person: '22222222-2222-4222-8222-222222222222' };
+    assert.equal((await keep('https://page.org/', {}, other)).status, 403, 'nobody but the owner');
+    const unwritten = await keep('https://page.org/', {}, { ...other, env: { SEEING_OPEN: 'accounts' }, writes: false });
+    assert.deepEqual([unwritten.status, unwritten.asked.length], [503, 0], 'nothing is looked at for somebody whose visit could not be written down');
+    for (const address of ['https://accounts.google.com/', 'https://doubleclick.net/', 'http://127.0.0.1/']) {
+      const answer = await keep(address, {});
+      assert.deepEqual([answer.status, answer.asked.length], [403, 0], `${address} is not kept`);
+    }
+    const sent = await keep('https://page.org/', { 'https://page.org/': go('https://accounts.google.com/') });
+    assert.deepEqual([sent.status, sent.asked.length], [403, 1], 'nor where a page leads to one');
+    const made = await keep('https://page.org/', { 'https://page.org/': page('<script>a()</script><p onclick=b()>x<form action=/in><input></form><img src=https://127.0.0.1/a.png><img src=/v.svg><iframe src=https://evil.org/></iframe>'), 'https://page.org/v.svg': () => new Response('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10"/></svg>', { headers: { 'content-type': 'image/svg+xml' } }) });
+    assert.equal(made.ok, true);
+    assert.ok(!/<script|onclick|<form|<iframe|127\.0\.0\.1|svg|data:image/.test(made.copy.html), made.copy.html);
+    for (const [status, text] of [[403, '<p>not for you'], [200, '<form><input type=password></form>']]) assert.equal((await keep('https://page.org/', { 'https://page.org/': () => new Response(text, { status, headers: { 'content-type': 'text/html' } }) })).copy, null, 'what is not the page itself is not copied');
+    const sheets = await keep('https://page.org/', { 'https://page.org/': page('<p>x' + '<link rel=stylesheet href=/s.css>'.repeat(60)), 'https://page.org/s.css': () => new Response('a{color:red}'.repeat(20_000), { headers: { 'content-type': 'text/css' } }) });
+    assert.ok(sheets.copy !== null && sheets.copy.html.length < 10.5 * 1024 * 1024 && sheets.copy.html.length > 9 * 1024 * 1024, 'one sheet many times over stops at ten megabytes');
+    const noise = await require('sharp')(require('node:crypto').randomBytes(800 * 800 * 3), { raw: { width: 800, height: 800, channels: 3 } }).png().toBuffer();
+    const pictures = await keep('https://page.org/', { 'https://page.org/': page('<p>x' + '<img src=/n.png>'.repeat(200)), 'https://page.org/n.png': () => new Response(noise, { headers: { 'content-type': 'image/png' } }) });
+    assert.ok(pictures.copy !== null && pictures.copy.html.length < 10.5 * 1024 * 1024, 'and one picture');
+  },
 };
 
 const A = 'lib/web/public-address.js';
@@ -374,6 +407,7 @@ const P = 'lib/seeing/server/assets.js';
 const G = 'lib/seeing/server/gate.js';
 const L = 'lib/seeing/server/limits.js';
 const W = 'lib/seeing/server/way-out.js';
+const K = 'lib/seeing/server/keep.js';
 /** One guard out at a time. `caught` is the case that must then fail. */
 const MUTANTS = [
   { name: 'loopback', file: A, find: "['127.0.0.0', 8],", put: '', caught: 'this machine, in every spelling' },
@@ -431,6 +465,15 @@ const MUTANTS = [
   { name: 'waiting', file: L, find: 'if (person.parked >= exports.LIMITS.waitingEach)', put: 'if (false)', caught: 'limits' },
   { name: 'gone', file: L, find: 'signal?.aborted === true', put: 'false', caught: 'limits' },
   { name: 'at once, all', file: L, find: ' || running >= exports.LIMITS.fetchesAtOnceAll', put: '', caught: 'limits' },
+  { name: "a copy's sign-ins", file: K, find: 'refuses: open_1.refusesPage, ', put: '', caught: 'a kept copy' },
+  { name: "a copy's visit", file: K, find: 'if (!(await (0, open_1.recorded)(person, [(0, open_1.siteName)(address)], deps)))', put: 'if (false)', caught: 'a kept copy' },
+  { name: "a copy's scripts", file: K, find: 'answer.url, sign, false)', put: 'answer.url, sign, true)', caught: 'a kept copy' },
+  { name: "a copy's forms", file: K, find: 'noForms(filled(page.html))', put: 'filled(page.html)', caught: 'a kept copy' },
+  { name: "a copy's drawings", file: K, find: 'got[at] = SHRUNK.test(answered.type) ?', put: 'got[at] = true ?', caught: 'a kept copy' },
+  { name: 'a copy of a refusal', file: K, find: 'answer.status === 200 && ', put: '', caught: 'a kept copy' },
+  { name: 'a copy of a sign-in', file: K, find: ' && !(page.signIn && reading === null)', put: '', caught: 'a kept copy' },
+  { name: "a copy's sheets", file: K, find: 'if (sheet.length > left)', put: 'if (false)', caught: 'a kept copy' },
+  { name: "a copy's pictures", file: K, find: 'if (data.length > left)', put: 'if (false)', caught: 'a kept copy' },
 ];
 
 // Timeouts don't hold the process open by themselves: without this, a case left hanging would end the run quietly, as if it had passed.
@@ -457,7 +500,7 @@ process.on('exit', () => {
     assert.ok(CASES[mutant.caught] !== undefined, `${mutant.caught} is a case`);
     let caught = false;
     try {
-      await Promise.race([CASES[mutant.caught](changed), new Promise((_, no) => setTimeout(() => no(new Error('hung')), 3000).unref())]);
+      await Promise.race([CASES[mutant.caught](changed), new Promise((_, no) => setTimeout(() => no(new Error('hung')), mutant.file === K ? 30_000 : 3000).unref())]);
     } catch {
       caught = true;
     }
