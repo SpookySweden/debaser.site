@@ -24,6 +24,9 @@ export function isBuiltIn(address: string): boolean {
 /** This computer, a home or office network, a link-local or carrier's inside address, written as four numbers (as `new URL` writes them). */
 const INSIDE_IPV4 = /^(?:127|10|0)\.\d+\.\d+\.\d+$|^192\.168\.\d+\.\d+$|^172\.(?:1[6-9]|2\d|3[01])\.\d+\.\d+$|^169\.254\.\d+\.\d+$|^100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d+\.\d+$/;
 
+/** Names that mean a computer inside a house or an office network (`nas.local`, `router.home`, a tailnet's `ts.net`, `.onion`). */
+const INSIDE_NAME = /\.(?:local|localdomain|lan|home|internal|intranet|corp|private|arpa|onion|ts\.net)\.?$/i;
+
 /** What was typed into the address box, or pressed on a page. */
 export function readAddress(text: string): ReadAddress {
   const typed = text.trim();
@@ -45,7 +48,7 @@ export function readAddress(text: string): ReadAddress {
   // `localhost:3000` is an address, of a computer in the house: said in the server's own words, which refuses it whatever this says.
   if (/(?:^|\.)localhost\.?$/i.test(url.hostname)) return refuse('NOT A PUBLIC ADDRESS');
   // So are `[::1]` (the server's eye asks no IPv6 address) and the house's own IPv4 ranges: the server's list decides, this only says it first.
-  if (url.hostname.startsWith('[') || INSIDE_IPV4.test(url.hostname)) return refuse('NOT A PUBLIC ADDRESS');
+  if (url.hostname.startsWith('[') || INSIDE_IPV4.test(url.hostname) || INSIDE_NAME.test(url.hostname)) return refuse('NOT A PUBLIC ADDRESS');
   // `new URL('https://hello')` is a fine URL and not an address anybody meant.
   if (scheme === undefined && !url.hostname.includes('.')) return refuse("THAT ISN'T AN ADDRESS");
   if (url.username.length > 0 || url.password.length > 0) return refuse('NO NAME OR PASSWORD IN AN ADDRESS');
