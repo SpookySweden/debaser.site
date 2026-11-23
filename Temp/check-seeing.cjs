@@ -9,9 +9,9 @@
  * - tabs: eight at most, back and forward per tab, a visit forgets what was ahead, closing the last leaves a new one, fifty stops,
  *   stored and read back through one door (junk dropped, a javascript: stop dropped, drafts never stored)
  * - a page's title is plain text: no control or direction-changing characters, cut short
- * - the frame: `allow-scripts` and nothing more, default-src 'none', our one script by its nonce, messages read as a stranger's
+ * - the frame: two, each `allow-scripts` and nothing more; what each may load; our script first; messages read as a stranger's
  * - READER's words and links read 4.5:1 on their paper, on every theme and all four papers; WATCHERS' inks too; STANDARD wears nothing
- * - BROWSER is a module: off until ticked, WIP, and nothing in Phase 1's files fetches anything
+ * - BROWSER is a module: off until ticked, WIP, and only its engine (the site's own routes) and BILLBOARD fetch anything
  */
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -21,7 +21,7 @@ const OUT = './seeing-out/lib/seeing/';
 const { readAddress, addressInHash, browserHref, shortName } = require(`${OUT}address.js`);
 const T = require(`${OUT}tabs.js`);
 const F = require(`${OUT}frame.js`);
-const { testEngine, engineFor } = require(`${OUT}test-engine.js`);
+const { testEngine } = require(`${OUT}test-engine.js`);
 const { lensById, lensOr } = require(`${OUT}lenses/registry.js`);
 const { readerColours } = require(`${OUT}lenses/reader.js`);
 const { PAPERS, TEXT_SIZES } = require(`${OUT}lenses/lens.js`);
@@ -110,18 +110,36 @@ assert.equal(T.tabsFromStored(JSON.stringify({ tabs: Array.from({ length: 20 }, 
 
 /* ------------------------------------------------------------------ the frame */
 assert.equal(F.FRAME_SANDBOX, 'allow-scripts', 'the frame may run scripts and nothing else: never allow-same-origin, popups, top navigation or downloads');
-const doc = F.frameDocument('<p>hello</p>', 'NONCE', 'https://debaser.site');
-assert.match(doc, /default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-NONCE'; base-uri 'none'; form-action 'none'/);
-assert.ok(doc.indexOf('Content-Security-Policy') < doc.indexOf('<script'), 'the policy comes before any script');
-assert.equal((doc.match(/<script/g) ?? []).length, 1);
-assert.ok(doc.includes('"https://debaser.site"'), 'its messages go to the site alone');
-assert.ok(!F.frameDocument('', 'N', 'https://x.example/</script><script>').slice(doc.indexOf('<script')).includes('</script><script>'), 'nothing written into our script can close it');
+const ASSETS = 'https://see.example.org/api/see/asset/';
+const asked = (more = {}) => ({ html: '<p>hello</p>', address: 'https://page.example.org/a', nonce: 'NONCE', siteOrigin: 'https://debaser.site', assets: ASSETS, scripts: true, ...more });
+const policyOf = (more) => Object.fromEntries(F.framePolicy(asked(more)).split('; ').map((line) => [line.split(' ')[0], line.split(' ').slice(1).join(' ')]));
+for (const scripts of [true, false]) {
+  const policy = policyOf({ scripts });
+  for (const name of ['default-src', 'connect-src', 'media-src', 'worker-src', 'frame-src', 'object-src', 'base-uri', 'form-action']) assert.equal(policy[name], "'none'", `${name} is nothing`);
+  assert.equal(policy.webrtc, "'block'");
+  assert.equal(policy['img-src'], `${ASSETS} data: blob:`);
+  assert.equal(policy['script-src'], scripts ? `${ASSETS} 'unsafe-inline' 'unsafe-eval' data: blob:` : "'nonce-NONCE'", scripts ? 'scripts from our signed files and the page itself' : 'scripts off: ours alone');
+}
+for (const assets of ['https://evil.example', 'https://a.example/api/see/asset/; img-src *', "https://a.example/api/see/asset/ 'self'", '*', 'https:']) assert.equal(F.framePolicy(asked({ assets })), F.framePolicy(asked({ assets: null })), `no place but a plain one: ${assets}`);
+const inner = F.pageDocument(asked());
+assert.ok(inner.indexOf('Content-Security-Policy') < inner.indexOf('<script') && inner.indexOf('<script') < inner.indexOf('<p>hello'), 'the policy, then our script, then the page');
+assert.equal((inner.match(/<script/g) ?? []).length, 1);
+assert.ok(inner.includes('"site":"https://debaser.site"'), 'its messages go to the site alone');
+for (const address of ['https://x.example/</script><script>', 'https://x.example/"onload="']) assert.equal((F.pageDocument(asked({ address })).match(/<\/?script/g) ?? []).length, 2, 'nothing written into our script can close it');
+const outer = F.frameDocument(asked({ html: '"></iframe><script>evil()</script>' }));
+assert.equal((outer.match(/<script/g) ?? []).length, 0, "the outer frame has no script, and the page can't write one into it");
+assert.equal((outer.match(/<iframe/g) ?? []).length, 1);
+assert.match(outer, /<iframe sandbox="allow-scripts" /, 'the inner frame is held as the outer is');
+assert.match(F.OUTER_POLICY, /frame-src 'none'/, 'and can be taken nowhere');
+const { HOOK } = require(`${OUT}hook.js`);
+assert.ok(!/<\//.test(HOOK), 'our script holds nothing that could close its element');
+new Function(`return ${HOOK}`);
 const viewport = fs.readFileSync(path.join(ROOT, 'app/components/seeing/SeeingViewport.tsx'), 'utf8');
 assert.match(viewport, /sandbox=\{FRAME_SANDBOX\}/);
-assert.match(viewport, /event\.source !== frame\.current\.contentWindow\) return;\s*\n\s*const message = readFrameMessage/, 'only the frame in front is heard, and before its words are read');
-for (const data of [null, 5, 'ready', [], {}, { see: 'go' }, { see: 'open' }, { see: 'open', address: 5 }, { see: 'open', address: '' }, { see: 'open', address: 'x'.repeat(5000) }]) assert.equal(F.readFrameMessage(data), null, JSON.stringify(data)?.slice(0, 60));
+assert.match(viewport, /if \(from === null \|\| event\.source !== from\) return;\s*\n\s*const message = readFrameMessage/, 'only the page in front is heard, and before its words are read');
+for (const data of [null, 5, 'ready', [], {}, { see: 'go' }, { see: 'open' }, { see: 'open', address: 5 }, { see: 'open', address: '' }, { see: 'open', address: 'x'.repeat(5000) }, { see: 'ask', id: 'x', address: 'a' }, { see: 'ask', id: 1.5, address: 'a' }, { see: 'ask', id: 1 }, { see: 'seal', id: 1, files: 'x' }, { see: 'seal', id: 1, files: [{ address: 5, kind: 'picture' }] }, { see: 'seal', id: 1, files: Array(51).fill({ address: 'a', kind: 'picture' }) }, { see: 'art', index: -1 }, { see: 'art', index: 1e9 }, { see: 'restricted', count: 'x' }, { see: 'dress', css: 'x' }, { see: 'answer', id: 1 }]) assert.equal(F.readFrameMessage(data), null, JSON.stringify(data)?.slice(0, 60));
 assert.deepEqual(F.readFrameMessage({ see: 'open', address: 'https://a.example/', newTab: 'yes', extra: 1 }), { see: 'open', address: 'https://a.example/', newTab: false });
-assert.deepEqual(F.readFrameMessage({ see: 'ready', css: 'x' }), { see: 'ready' });
+assert.deepEqual(F.readFrameMessage({ see: 'ready', css: 'x' }), { see: 'ready', ads: false });
 
 /* ------------------------------------------------------------------ lenses, on every theme */
 assert.deepEqual(LENS_NAMES.filter((lens) => lensById(lens.id) !== null).map((lens) => lens.id), ['standard', 'reader', 'watchers']);
@@ -162,9 +180,11 @@ function files(dir) {
 }
 for (const file of [...files('app/lib/seeing'), ...files('app/components/seeing'), 'app/browser/page.tsx']) {
   const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
-  // Phase 1 fetches nothing. Phase 2 takes this line out on purpose, when the server's eye arrives.
-  assert.ok(!/\bfetch\(|XMLHttpRequest|sendBeacon|WebSocket\(/.test(source), `${file} fetches nothing`);
-  assert.ok(!/dangerouslySetInnerHTML|innerHTML/.test(source), `${file} puts no markup in the site's own page`);
+  // The page asks our own routes, and BILLBOARD the art: nothing else in the browser reaches anywhere. (Phase 2, 2026-11-23: it was nothing at all.)
+  if (!file.startsWith('app/lib/seeing/server/') && !/\/(?:hook|server-engine|billboards)\.ts$/.test(file)) assert.ok(!/\bfetch\(|XMLHttpRequest|sendBeacon|WebSocket\(/.test(source), `${file} fetches nothing`);
+  if (file.endsWith('server-engine.ts')) assert.deepEqual([...source.matchAll(/\bfetch\(([^,]+),/g)].map((m) => m[1]), ['`/api/see/${path}`'], 'the engine asks the site and nobody else');
+  // The hook runs in the frame, not here.
+  if (!file.endsWith('/hook.ts')) assert.ok(!/dangerouslySetInnerHTML|innerHTML/.test(source), `${file} puts no markup in the site's own page`);
 }
 
 (async () => {
@@ -174,9 +194,6 @@ for (const file of [...files('app/lib/seeing'), ...files('app/components/seeing'
   assert.deepEqual(steps, ['ACQUIRING SOURCE']);
   assert.equal(answer.document.files + answer.document.refused, 0, 'no made-up counts');
   assert.equal((await testEngine.open('see:nowhere', () => {}, new AbortController().signal)).ok, false);
-  assert.equal(engineFor('https://example.com/').name, 'NO EYE');
-  const outside = await engineFor('https://example.com/').open('https://example.com/', () => {}, new AbortController().signal);
-  assert.equal(outside.ok, false, 'nothing outside opens in Phase 1');
   console.log(`BROWSER: addresses, tabs, the frame, ${pairs} pairs over ${THEMES.length} themes, the module`);
 })().catch((error) => {
   console.error(error);

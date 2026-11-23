@@ -45,6 +45,9 @@ const SERVER_ONLY = [
   resolve(APP, 'lib/web/ingest.ts'),
   // Search everywhere (SPEC-web-search.md): its providers fetch, and the YouTube key is read beside them.
   resolve(APP, 'lib/web/search'),
+  // BROWSER's server eye (SPEC-seeing-machine.md): its fetching, its passes and who it is open to.
+  resolve(APP, 'lib/seeing/server'),
+  resolve(APP, 'lib/web/public-address.ts'),
 ];
 const isServerOnly = (file) => SERVER_ONLY.some((path) => file === path || file.startsWith(path + '\\') || file.startsWith(path + '/'));
 

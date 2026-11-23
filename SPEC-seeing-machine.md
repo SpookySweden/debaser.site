@@ -4,7 +4,7 @@ Luke, 2026-11-23, from his master text ("THE DEBASER SEEING MACHINE") and the in
 this prompt and all your ideas an creative context on implementing the idea to the site, account for themes, browser to be a
 new module").
 
-Status: **every question answered (2026-11-23), ready for a build session; Luke starting one is his OK.** Nothing is built, installed or changed. The audit behind this
+Status: **building (2026-11-23). Phase 1 is live (86d8eda); Phase 2 is built, for Luke's account only.** What was built and what works: `docs/seeing-machine.md`. The audit behind this
 is `seeing-machine-audit.md` in the sessions' notes folder; the parts that matter are repeated here.
 
 Words used here: an **eye** is a way of getting a page (the site's server fetches it, or the reader's own browser does). A
@@ -56,6 +56,20 @@ and on /privacy; a request to see or remove somebody's rows is done by hand, by 
 only: what the extension loads never passes through SERVER, so it isn't recorded.
 
 **D4. Public full copies (A)**: everyone sees the card and quotes at once; the full copy opens for people with an account.
+
+## Decisions taken for Luke (2026-11-23; his words, relayed by the coordinator session: "answers its own questions until it's finished every single idea")
+Each can be changed later by saying so.
+1. **No parse5.** The rewriter reads tags as a browser's tokenizer does and passes the page through, so no new dependency was needed.
+2. **The eye says what it is** (`SeeingMachine/1.0`), and does not pretend to be Chrome. Some sites turn it away; getting past that is out of scope.
+3. **IPv4 only**, because the house's own machines have IPv6 addresses that look public.
+4. **Pages are asked of 1.1.1.2** (Cloudflare's resolver that knows malware and phishing), answer 16.
+5. **Words that are not an address are not searched for**: the box says so. A search key can be added, to whichever engine he picks.
+6. **A link from outside waits for GO**; a page may send itself on three times in twenty seconds, then no more.
+7. **A frame inside a page is a link to it**, `[ FRAME: … ]`, rather than a page in a page.
+8. **A BILLBOARD press opens the STREAM ART shelf in a tab**, because a piece has no address of its own.
+9. **READER keeps the theme's paper first**, with the book reader's three, and six text sizes; kept in the browser.
+10. **Files come from debaser.site until `see.debaser.site` exists**, each with a policy that takes every right away.
+11. **Nineteen themes**, not the eighteen written below: MARMALADE has six.
 
 ## Risks, said once
 1. **SERVER is beside everything.** The torrent page (no password at home), Jellyfin, the database and its dashboard, the

@@ -12,10 +12,12 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import { addressInHash, browserHref, readAddress } from '../../lib/seeing/address';
 import type { SeenDocument, SeeStep } from '../../lib/seeing/engine';
 import { lensOr } from '../../lib/seeing/lenses/registry';
-import { addTab, canGoBack, canGoForward, closeTab, frontTab, showTab, step, stopOf, TABS_MOST, visit, withDraft, withLens, withTitle, type Tabs } from '../../lib/seeing/tabs';
+import { addTab, canGoBack, canGoForward, closeTab, frontTab, showTab, step, stopOf, TABS_MOST, visit, withDraft, withAddress, withLens, withTitle, type Tabs } from '../../lib/seeing/tabs';
 import { changeTabs, freshId, letTabsGo, openTabsOf, seeingTabs, seeingTabsOnServer, subscribeToSeeingTabs } from '../../lib/seeing/tabs-store';
-import { engineFor, TEST_ADDRESS } from '../../lib/seeing/test-engine';
-import { PLATE, PLATE_MAIN, TITLE_BAR } from '../../lib/ui/controls';
+import { engineFor } from '../../lib/seeing/engines';
+import { scriptsOff, setScriptsOff, siteSettings, siteSettingsOnServer, subscribeToSiteSettings } from '../../lib/seeing/site-settings';
+import { TEST_ADDRESS } from '../../lib/seeing/test-engine';
+import { PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR } from '../../lib/ui/controls';
 import { useAuth } from '../AuthProvider';
 import SeeingLenses from './SeeingLenses';
 import SeeingTabs from './SeeingTabs';
@@ -75,11 +77,19 @@ function Machine({ state }: { state: Tabs }) {
   const key = address === null ? '' : `${tab.id}:${tab.at}:${address}:${turn}`;
   const [shown, setShown] = useState<Shown>(NOTHING);
   const now: Shown = shown.key === key ? shown : address === null ? NOTHING : { key, state: 'busy', at: null };
+  // The opening a page that was sent on has already had, under the address it ended at.
+  const landed = useRef('');
   const work = useRef<AbortController | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // Counted by the page's own drawing; another page's count is never this one's.
+  const [restricted, setRestricted] = useState<{ key: string; count: number }>({ key: '', count: 0 });
+  const onRestricted = useCallback((count: number) => setRestricted({ key, count }), [key]);
+  useSyncExternalStore(subscribeToSiteSettings, siteSettings, siteSettingsOnServer);
 
   useEffect(() => {
     if (address === null) return;
+    if (landed.current === key) return;
+    landed.current = '';
     const going = new AbortController();
     work.current = going;
     const engine = engineFor(address);
@@ -91,12 +101,17 @@ function Machine({ state }: { state: Tabs }) {
       .then((answer) => {
         if (going.signal.aborted) return;
         if (answer.ok) {
-          setShown({ key, state: 'shown', document: answer.document });
+          const end = readAddress(answer.document.address);
+          const endKey = end.ok ? `${tab.id}:${tab.at}:${end.address}:${turn}` : key;
+          landed.current = endKey;
+          setShown({ key: endKey, state: 'shown', document: answer.document });
           changeTabs((all) => withTitle(all, tab.id, address, answer.document.title));
+          // Where it was sent on to, so the box says where it really is and its links are its own.
+          if (answer.document.address !== address) changeTabs((all) => withAddress(all, tab.id, address, answer.document.address));
         } else setShown({ key, state: 'refused', reason: answer.reason });
       });
     return () => going.abort();
-  }, [address, key, tab.id]);
+  }, [address, key, tab.id, tab.at, turn]);
 
   // A link that brought an address (`/browser#see=...`): put in the box of a new tab, waiting for GO. Any page anywhere can carry such a
   // link, so it never opens by itself, unless it is the page already in front, as it is after a reload.
@@ -167,7 +182,7 @@ function Machine({ state }: { state: Tabs }) {
       : now.state === 'busy'
         ? (now.at ?? 'ACQUIRING SOURCE')
         : now.state === 'shown'
-          ? `DOCUMENT RECONSTRUCTED · ${now.document.eye} · ${now.document.files} ${now.document.files === 1 ? 'FILE' : 'FILES'} · ${now.document.refused} REFUSED · LENS: ${tab.lens.toUpperCase()}`
+          ? `DOCUMENT RECONSTRUCTED · ${now.document.eye} · ${now.document.files} ${now.document.files === 1 ? 'FILE' : 'FILES'} · ${now.document.refused} REFUSED · LENS: ${tab.lens.toUpperCase()}${restricted.key === key && restricted.count > 0 ? ` · ${restricted.count} RESTRICTED` : ''}${now.document.status !== null && now.document.status >= 400 ? ` · HTTP ${now.document.status}` : ''}`
           : address === null
             ? 'READY'
             : 'STOPPED');
@@ -183,7 +198,7 @@ function Machine({ state }: { state: Tabs }) {
         onNew={() => change((all) => addTab(all, freshId()))}
       />
       <SeeingToolbar
-        place={`${tab.id}:${tab.at}:${tab.draft ?? ''}`}
+        place={`${tab.id}:${tab.at}:${address ?? ''}:${tab.draft ?? ''}`}
         address={tab.draft ?? address ?? ''}
         canBack={canGoBack(tab)}
         canForward={canGoForward(tab)}
@@ -197,6 +212,19 @@ function Machine({ state }: { state: Tabs }) {
       />
       <SeeingLenses lens={tab.lens} look={look} onLook={setLook} onLens={(id) => change((all) => withLens(all, tab.id, id))}>
         {outside ? (
+          <button
+            type="button"
+            aria-pressed={scriptsOff(address)}
+            onClick={() => {
+              setScriptsOff(address, !scriptsOff(address));
+              setTurn((each) => each + 1);
+            }}
+            className={scriptsOff(address) ? `${PLATE_PRESSED} cursor-pointer` : PLATE}
+          >
+            [ SCRIPTS OFF ]
+          </button>
+        ) : null}
+        {outside ? (
           <a href={address} target="_blank" rel="noopener noreferrer" className={PLATE}>
             [ OPEN SOURCE ↗ ]
           </a>
@@ -206,7 +234,7 @@ function Machine({ state }: { state: Tabs }) {
       <div className="frame mt-1 flex min-h-0 flex-1" data-seeing-view>
         {seen !== null ? (
           <>
-            <SeeingViewport key={`${key}:${lens.form}`} document={seen} lens={lens} look={look} onOpen={go} />
+            <SeeingViewport key={`${key}:${lens.form}`} document={seen} lens={lens} look={look} onOpen={go} onNotice={setNotice} onRestricted={onRestricted} />
             {lens.beside === 'watchers' ? <SeeingWatchers document={seen} /> : null}
           </>
         ) : address === null ? (

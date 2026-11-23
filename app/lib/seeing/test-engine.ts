@@ -19,7 +19,7 @@ const FIRST = `<h1>The test page</h1>
 <ul>
 <li><a href="see:test/2">The second test page</a>, so there is somewhere to come back from.</li>
 <li><a href="#end">The end of this page</a>, further down.</li>
-<li><a href="https://example.com/">An address outside</a>. The machine has no eye yet, so it is refused, and says so.</li>
+<li><a href="https://example.com/">An address outside</a>. It opens when the machine has an eye for you, and says why when it has not.</li>
 </ul>
 <h2>A table</h2>
 <table><tr><th>Lens</th><th>What it does</th></tr><tr><td>STANDARD</td><td>Leaves a page alone.</td></tr><tr><td>READER</td><td>Keeps the words, on your theme's paper.</td></tr><tr><td>WATCHERS</td><td>Says who was on the page.</td></tr></table>
@@ -68,20 +68,13 @@ export const testEngine: SeeingEngine = {
         watchers: page.watchers,
         files: 0,
         refused: 0,
+        status: null,
+        signIn: false,
+        refresh: null,
+        assets: null,
+        scripts: false,
       },
     };
   },
 };
 
-/** Until the server's eye is built (Phase 2), every address outside is refused with the reason. */
-export const noEyeYet: SeeingEngine = {
-  name: 'NO EYE',
-  takes: () => true,
-  async open(): Promise<SeeAnswer> {
-    return { ok: false, reason: 'THE MACHINE HAS NO EYE YET' };
-  },
-};
-
-export function engineFor(address: string): SeeingEngine {
-  return testEngine.takes(address) ? testEngine : noEyeYet;
-}

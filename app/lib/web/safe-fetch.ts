@@ -11,6 +11,7 @@
  *   built by the caller and follows no redirect at all.
  */
 
+import { ipv4Number, isPublicAddress, judgeAddress } from './public-address';
 import { isAllowedUrl } from './urls';
 
 export { buildUrl, isAllowedUrl, isSafeIdentifier } from './urls';
@@ -238,4 +239,136 @@ export async function safeFetchJson(url: string, options: SafeFetchOptions): Pro
   } catch {
     throw new SafeFetchError('response was not JSON');
   }
+}
+
+/* --- any site (SPEC-seeing-machine.md) ----------------------------------------------------------------------------- */
+
+/** What the any-site fetch is handed: the resolver, the way out, and this house's own address. */
+export type AnySiteWay = {
+  /** Every IPv4 address a name has, from a resolver that knows malware and phishing (it answers 0.0.0.0 for those). */
+  resolve(name: string, signal: AbortSignal): Promise<string[]>;
+  /** Asks `url` of that address and no other: the address judged is the address used. */
+  connect(url: URL, address: string, init: { headers: Record<string, string>; signal: AbortSignal }): Promise<Response>;
+  /** This house's public address, or null when it can't be told, and then nothing is fetched. */
+  homeAddress(): Promise<string | null>;
+};
+
+export type AnySiteOptions = {
+  way: AnySiteWay;
+  accept: string;
+  maxBytes: number;
+  timeoutMs: number;
+  maxRedirects: number;
+  /** Which kinds of answer are read at all; any other is refused before its body is. */
+  types: RegExp;
+  signal?: AbortSignal;
+  /** Asked of every address it goes to, redirects too: a reason to refuse it, or null. */
+  refuses?: (url: URL) => string | null;
+};
+
+export type AnySiteAnswer = { url: string; status: number; type: string; charset: string | null; body: Uint8Array; filename: boolean };
+
+/** Words a reader is shown: the any-site fetch's refusals say why. */
+export class AnySiteRefusal extends SafeFetchError {
+  constructor(reason: string, status?: number) {
+    super(reason, status);
+    this.name = 'AnySiteRefusal';
+  }
+}
+
+/** Says what it is, and nothing of the reader, the site or Luke. It does not pretend to be somebody's browser (getting past bot checks is out of scope). */
+const ANY_SITE_AGENT = 'Mozilla/5.0 (compatible; SeeingMachine/1.0)';
+
+async function readBytes(response: Response, maxBytes: number): Promise<Uint8Array> {
+  const declared = Number(response.headers.get('content-length'));
+  if (Number.isFinite(declared) && declared > maxBytes) {
+    await response.body?.cancel().catch(() => undefined);
+    throw new AnySiteRefusal('TOO LARGE');
+  }
+  if (!response.body) return new Uint8Array(0);
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    let next: ReadableStreamReadResult<Uint8Array>;
+    try {
+      next = await reader.read();
+    } catch {
+      throw new AnySiteRefusal('THE SOURCE STOPPED PART WAY');
+    }
+    if (next.done) break;
+    // Counted as they come out of any compression, so a small bomb of a file is cut off at the same size as a big one.
+    total += next.value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel().catch(() => undefined);
+      throw new AnySiteRefusal('TOO LARGE');
+    }
+    chunks.push(next.value);
+  }
+  const joined = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    joined.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return joined;
+}
+
+/**
+ * GET any public site, because a reader asked to see it. Every hop, the first and each redirect, is judged by name, looked up by the
+ * resolver that knows malware, has every one of its addresses judged, and is then asked of one of those addresses and no other, so a name
+ * cannot change its mind between the check and the use. No cookies, no Authorization, no Referer.
+ */
+export async function safeFetchAnySite(address: string, options: AnySiteOptions): Promise<AnySiteAnswer> {
+  const { way } = options;
+  const limit = AbortSignal.timeout(options.timeoutMs);
+  const signal = options.signal ? AbortSignal.any([limit, options.signal]) : limit;
+  const home = await way.homeAddress();
+  if (home === null) throw new AnySiteRefusal("THE MACHINE CAN'T TELL WHERE IT IS");
+  let current = address;
+
+  for (let hop = 0; hop <= options.maxRedirects; hop += 1) {
+    const verdict = judgeAddress(current, [home]);
+    // (Compared, not negated: some checks compile this file without strictNullChecks.)
+    if (verdict.ok === false) throw new AnySiteRefusal(verdict.reason);
+    const barred = options.refuses?.(verdict.url) ?? null;
+    if (barred !== null) throw new AnySiteRefusal(barred);
+
+    let response: Response;
+    try {
+      const addresses = ipv4Number(verdict.host) === null ? await way.resolve(verdict.host, signal) : [verdict.host];
+      if (addresses.length === 0) throw new AnySiteRefusal('NO SUCH SITE');
+      if (addresses.includes('0.0.0.0')) throw new AnySiteRefusal('KNOWN FOR MALWARE OR PHISHING');
+      if (!addresses.every((each) => isPublicAddress(each, [home]))) throw new AnySiteRefusal('NOT A PUBLIC ADDRESS');
+      response = await way.connect(verdict.url, addresses[0], {
+        headers: { 'User-Agent': ANY_SITE_AGENT, Accept: options.accept, 'Accept-Language': 'en-GB,en;q=0.8' },
+        signal,
+      });
+    } catch (error) {
+      if (error instanceof AnySiteRefusal) throw error;
+      throw new AnySiteRefusal(limit.aborted ? 'THE SOURCE TOOK TOO LONG' : 'THE SOURCE DID NOT ANSWER');
+    }
+
+    if (response.status >= 300 && response.status < 400 && response.headers.has('location')) {
+      const location = response.headers.get('location') ?? '';
+      await response.body?.cancel().catch(() => undefined);
+      try {
+        current = new URL(location, verdict.url).toString();
+      } catch {
+        throw new AnySiteRefusal('IT LEADS NOWHERE');
+      }
+      continue;
+    }
+
+    const said = response.headers.get('content-type') ?? '';
+    const type = said.split(';')[0].trim().toLowerCase();
+    if (!options.types.test(type)) {
+      await response.body?.cancel().catch(() => undefined);
+      throw new AnySiteRefusal(type === '' ? "IT DOESN'T SAY WHAT IT IS" : `NOT SHOWN HERE: ${type.slice(0, 60).toUpperCase()}`, response.status);
+    }
+    const body = await readBytes(response, options.maxBytes);
+    const charset = /charset\s*=\s*"?([\w.:-]{1,40})/i.exec(said)?.[1] ?? null;
+    return { url: verdict.url.toString(), status: response.status, type, charset, body, filename: /attachment/i.test(response.headers.get('content-disposition') ?? '') };
+  }
+  throw new AnySiteRefusal('IT LEADS ROUND AND ROUND');
 }

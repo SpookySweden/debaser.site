@@ -23,6 +23,16 @@ export type SeenDocument = {
   /** Files loaded with the page, and files refused. */
   files: number;
   refused: number;
+  /** What the source answered (200, 404); null for a page that was not fetched. */
+  status: number | null;
+  /** A password box was found, and made dead. */
+  signIn: boolean;
+  /** Where the page says it sends people on to, and after how many seconds; null for most. */
+  refresh: { address: string; after: number } | null;
+  /** Where its signed files are, and the only place the frame may load from; null for a page with none. */
+  assets: string | null;
+  /** Whether the page's own scripts run. */
+  scripts: boolean;
 };
 
 export type SeeAnswer = { ok: true; document: SeenDocument } | { ok: false; reason: string };

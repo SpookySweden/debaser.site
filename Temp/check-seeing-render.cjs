@@ -63,7 +63,7 @@ assert.equal((lenses('standard').match(/title="Not built yet"/g) ?? []).length, 
 assert.ok(!lenses('standard').includes('SEPIA') && lenses('reader').includes('SEPIA'));
 assert.match(html(el(at('SeeingLenses'), { lens: 'reader', look: { paper: 'theme', size: 1 }, onLook: none, onLens: none, children: null })), /aria-label="Smaller words"[^>]*disabled=""/);
 
-const page = { address: 'see:test', title: 'x', eye: 'BUILT IN', html: '', reading: null, watchers: [{ company: '<i>Ads</i>', host: 'ads.example', refused: true }, { company: 'Fonts', host: 'fonts.example', refused: false }], files: 0, refused: 0 };
+const page = { address: 'see:test', title: 'x', eye: 'BUILT IN', html: '', reading: null, watchers: [{ company: '<i>Ads</i>', host: 'ads.example', refused: true }, { company: 'Fonts', host: 'fonts.example', refused: false }], files: 0, refused: 0, status: null, signIn: false, refresh: null, assets: null, scripts: false };
 const watchers = html(el(at('SeeingWatchers'), { document: page }));
 assert.ok(watchers.includes('&lt;i&gt;Ads') && !watchers.includes('<i>'));
 assert.equal((watchers.match(/REFUSED/g) ?? []).length, 1);

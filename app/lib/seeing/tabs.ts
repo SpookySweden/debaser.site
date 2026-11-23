@@ -97,7 +97,7 @@ export function withLens(state: Tabs, id: string, lens: LensId): Tabs {
 
 /** A page's own title, as plain text: control characters out, one line, cut short. */
 export function cleanTitle(text: string): string | null {
-  const title = text.replace(/[\u0000-\u001f\u007f​-‏‪-‮⁦-⁩]+/g, ' ').replace(/\s+/g, ' ').trim();
+  const title = text.replace(/[\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2066-\u2069]+/g, ' ').replace(/\s+/g, ' ').trim();
   return title.length === 0 ? null : title.slice(0, TITLE_MOST);
 }
 
@@ -108,6 +108,16 @@ export function withTitle(state: Tabs, id: string, address: string, title: strin
     const clean = cleanTitle(title);
     if (stop === null || stop.address !== address || stop.title === clean) return tab;
     return { ...tab, stops: tab.stops.map((each, index) => (index === tab.at ? { ...each, title: clean } : each)) };
+  });
+}
+
+/** Where a page was sent on to: the stop is renamed, not added to, so back does not land on it again. */
+export function withAddress(state: Tabs, id: string, from: string, to: string): Tabs {
+  const read = readAddress(to);
+  return changed(state, id, (tab) => {
+    const stop = stopOf(tab);
+    if (!read.ok || stop === null || stop.address !== from || read.address === from) return tab;
+    return { ...tab, stops: tab.stops.map((each, index) => (index === tab.at ? { ...each, address: read.address } : each)) };
   });
 }
 

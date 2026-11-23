@@ -831,7 +831,9 @@ async function main() {
   const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => (entry.isDirectory() ? walk(path.join(dir, entry.name)) : /\.(ts|tsx)$/.test(entry.name) ? [path.join(dir, entry.name)] : []));
   const files = walk(path.join(ROOT, 'app')).map((file) => ({ file: path.relative(ROOT, file).replace(/\\/g, '/'), text: fs.readFileSync(file, 'utf8') }));
   const importers = files.filter(({ text }) => /from\s+['"][^'"]*screens\/host-server['"]/.test(text) || /from\s+['"]\.\/host-server['"]/.test(text)).map(({ file }) => file);
-  same(importers.sort(), ['app/api/screens/host/route.ts', 'app/api/screens/offer/route.ts', 'app/api/screens/settings/route.ts', 'app/lib/screens/device-mail.ts', 'app/lib/screens/rdp-server.ts', 'app/lib/screens/relay-server.ts'], 'only the three routes, the devices\' mailbox and the Remote Desktop rules (each only for its own routes) import the server file');
+  // (2026-11-23) BROWSER's gate and its routes too (SPEC-seeing-machine.md): the owner's account is the same one setting, and its session is
+  // checked the same way. They sit on the server's side of the same wall (check-web-types.cjs), and take nothing of the engine's.
+  same(importers.sort(), ['app/api/screens/host/route.ts', 'app/api/screens/offer/route.ts', 'app/api/screens/settings/route.ts', 'app/lib/screens/device-mail.ts', 'app/lib/screens/rdp-server.ts', 'app/lib/screens/relay-server.ts', 'app/lib/seeing/server/gate.ts', 'app/lib/seeing/server/open.ts'], 'only the three routes, the devices\' mailbox and the Remote Desktop rules (each only for its own routes) import the server file');
   const naming = files.filter(({ text }) => /SCREENS_(OWNER_ID|ENGINE_URL|DEV_OPEN)/.test(text.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, ''))).map(({ file }) => file);
   same(naming, ['app/lib/screens/host-server.ts'], 'and the settings are read in that file alone');
   ok(!files.some(({ text }) => /NEXT_PUBLIC_SCREENS/.test(text)), 'none of it is a NEXT_PUBLIC value');

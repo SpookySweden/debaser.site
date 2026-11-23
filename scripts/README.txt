@@ -417,3 +417,9 @@ drive-see.cjs
 
 BROWSER (SPEC-seeing-machine.md) in a real browser on a local mock dev server: the shell, the sandboxed frame with a page that tries to
 get out of it, and READER on every theme. The pure parts are Temp/check-seeing.cjs.
+
+see-table.cjs, see-attack-live.cjs
+----------------------------------
+BROWSER again. see-table.cjs opens the spec's fixed list of real sites on a local server and says what came of each (docs/seeing-machine.md
+holds the table). see-attack-live.cjs is the attack list once for real on SERVER: every service in the house asked for in every way, all
+refused, every socket watched. Run it after any change to the guarded fetch.

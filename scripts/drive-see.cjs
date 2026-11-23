@@ -2,8 +2,8 @@
  * BROWSER, the DEBASER SEEING MACHINE (SPEC-seeing-machine.md, Luke 2026-11-23), Phase 1: the shell, in a real browser.
  * On a LOCAL mock dev server only (core.md, "Test locally"): mock sign-in, and the live database blocked.
  *
- *   node scripts/dev-mock-live.cjs 3341           (in another terminal)
- *   node scripts/drive-see.cjs --base http://localhost:3341 [--out Temp/browse/see] [--only shell|themes|frame]
+ *   SEEING_DEV_OPEN=1 SEEING_EXIT=fixture:4567 node scripts/dev-mock-live.cjs 3341      (in another terminal, from Git Bash)
+ *   node scripts/drive-see.cjs --base http://localhost:3341 [--out Temp/browse/see] [--only shell|themes|frame|eye]
  *
  *   shell   signed out, the sign-in call and no machine; BROWSER off the bar until ticked in MODULOS, then there with WIP; the test page,
  *           its links, back, forward, reload, tabs (eight at most), the address box, refusals, lens keys, the address after the #, an
@@ -11,6 +11,9 @@
  *           host but the site, and no address is in any request; no sideways scroll at 390
  *   themes  every theme: READER's words and the machine's own measured in the page (4.5:1), and a theme change that dresses the open
  *           page again without reloading it or losing its place
+ *   eye     the server's eye (Phase 2) on a made-up internet this script serves: a page with its pictures, sheets, scripts, forms and
+ *           trackers, its scripts' own requests, READER, WATCHERS, BILLBOARD, scripts off; then a hostile page that tries every way out.
+ *           The browser asks nobody but the site, and the fixture is only ever asked by the server
  *   frame   the page in the frame has no origin: no cookies, storage or parent to read, no way to move the top window or open another;
  *           forged messages do nothing
  */
@@ -41,7 +44,15 @@ async function open(browser, { as = null, width = 1440, height = 900, theme = nu
   const context = await browser.newContext({ viewport: { width, height } });
   const asked = [];
   await context.route(/supabase\.(co|in)\/|api\.debaser\.site/, (route) => route.abort());
-  context.on('request', (request) => asked.push({ url: request.url(), body: request.postData() ?? '', type: request.resourceType() }));
+  // `left`: it was answered, or failed for some reason other than the frame's policy stopping it before it went.
+  const entries = new Map();
+  context.on('request', (request) => {
+    const entry = { url: request.url(), body: request.postData() ?? '', type: request.resourceType(), left: false };
+    entries.set(request, entry);
+    asked.push(entry);
+  });
+  context.on('response', (response) => entries.get(response.request()) && (entries.get(response.request()).left = true));
+  context.on('requestfailed', (request) => entries.get(request) && !/csp|BLOCKED_BY|ERR_ABORTED/i.test(request.failure()?.errorText ?? '') && (entries.get(request).left = true));
   await context.addInitScript(
     ({ users, session, themeId, more }) => {
       if (window.top !== window || sessionStorage.getItem('see.seeded') !== null) return;
@@ -66,8 +77,11 @@ const say = (page, words) => page.waitForFunction((text) => document.querySelect
 const key = (page, name) => page.locator('[data-seeing]').getByRole('button', { name, exact: true });
 const box = (page) => page.locator('[data-seeing-address]');
 const tabs = (page) => page.locator('[data-seeing-tabs] [role="tab"]');
-const inside = (page) => page.frameLocator('[data-seeing-frame]');
-const frameOf = async (page) => (await page.waitForSelector('[data-seeing-frame]')).contentFrame();
+const inside = (page) => page.frameLocator('[data-seeing-frame]').frameLocator('iframe');
+const frameOf = async (page) => {
+  const outer = await (await page.waitForSelector('[data-seeing-frame]')).contentFrame();
+  return (await outer.waitForSelector('iframe', { state: 'attached' })).contentFrame();
+};
 const go = async (page, text) => {
   await box(page).fill(text);
   await box(page).press('Enter');
@@ -118,7 +132,7 @@ async function shell(browser) {
   ok((await top()) === 0, 'reload opens it again from the top');
 
   await inside(page).getByRole('link', { name: 'An address outside' }).click();
-  await say(page, 'SOURCE REFUSED: THE MACHINE HAS NO EYE YET');
+  await say(page, 'SOURCE REFUSED: NO SUCH SITE');
   const source = page.locator('[data-seeing]').getByRole('link', { name: /OPEN SOURCE/ });
   ok((await source.getAttribute('href')) === 'https://example.com/' && (await source.getAttribute('rel')) === 'noopener noreferrer', 'an outside page is refused, with the way to its source');
   await page.screenshot({ path: join(OUT, 'refused.png') });
@@ -147,7 +161,7 @@ async function shell(browser) {
   await key(page, 'New tab').click();
   ok((await tabs(page).count()) === 2 && (await status(page)) === 'READY', 'a new tab, empty');
   ok(page.url() === `${BASE}/browser`, 'and no address after the #');
-  await inside(page).locator('body').waitFor({ state: 'detached' }).catch(() => undefined);
+  await page.locator('[data-seeing-frame]').waitFor({ state: 'detached' });
   ok((await page.locator('[data-seeing-frame]').count()) === 0, 'only the tab in front has a page');
   await go(page, 'see:test/2');
   await say(page, 'DOCUMENT RECONSTRUCTED');
@@ -184,7 +198,8 @@ async function shell(browser) {
 
   const outsideAsked = asked.filter((each) => !each.url.startsWith(BASE) && !each.url.startsWith('ws:') && !/^(data|blob|about):/.test(each.url) && /example\./.test(each.url));
   ok(outsideAsked.length === 0, 'nothing on any page was asked for');
-  ok(!asked.some((each) => /example\.(com|org)|see%3A|see:test/.test(`${each.url.replace(/#.*/, '')} ${each.body}`)), 'no address looked at is in any request');
+  ok(!asked.some((each) => /example\.(com|org)|see%3A|see:test/.test(each.url.replace(/#.*/, ''))), "no address looked at is in any request's address");
+  ok(!asked.some((each) => /example\.(com|org)/.test(each.body) && !each.url.endsWith('/api/see/open')), 'and only the page itself was asked for, in a body');
 
   // MODULOS ticks it on.
   await bar.getByRole('button', { name: 'MODULOS' }).click();
@@ -357,10 +372,278 @@ async function frame(browser) {
   await context.close();
 }
 
-(async () => {
-  const browser = await chromium.launch({ executablePath: findChrome(), headless: true, args: ['--use-angle=swiftshader'] });
+/* --- the server's eye -------------------------------------------------------------------------------------------- */
+
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+// A name of its own each run: the server keeps files for a few minutes.
+const SITE = `https://p${Date.now()}.seeing-fixture.org`;
+
+const ORDINARY = `<!doctype html><html lang="en"><head><title>An ordinary page</title><link rel="stylesheet" href="/s.css">
+<script src="/app.js"></script><script src="https://www.googletagmanager.com/gtm.js"></script><script type="module" src="/mod.js"></script></head>
+<body><h1>An ordinary page</h1><img id="plain" src="/a.png"><img id="refused" src="https://www.google-analytics.com/p.gif">
+<p>${'The story goes on, and on, with commas, and more words, to be the main text of the page. '.repeat(12)}</p>
+<a id="next" href="/next">next</a> <a id="far" href="/b#deep">far</a>
+<form id="search" action="/find"><input name="q" value="cats"><button id="go">Find</button></form>
+<form id="post" method="post" action="/post"><input name="q"><button id="send">Send</button></form>
+<form><input type="password" id="pw" value="secret"></form>
+<iframe src="https://ad.doubleclick.net/x" width="300" height="250"></iframe>
+<iframe src="https://player.seeing-fixture.org/embed" width="300" height="250"></iframe>
+<div id="out"></div></body></html>`;
+
+const APP = `
+var out = {};
+function tell() { document.getElementById('out').textContent = JSON.stringify(out); }
+document.addEventListener('DOMContentLoaded', function () {
+  out.inline = true;
+  localStorage.setItem('k', 'v'); out.store = localStorage.getItem('k') + localStorage.length;
+  document.cookie = 'a=1'; out.cookie = document.cookie;
+  fetch('/data.json').then(function (r) { return r.json(); }).then(function (d) { out.fetch = d.a; tell(); });
+  fetch('/data.json', { method: 'POST' }).catch(function (e) { out.post = e.name; tell(); });
+  var x = new XMLHttpRequest(); x.open('GET', 'data.json'); x.responseType = 'json'; x.onload = function () { out.xhr = x.response.a + ':' + x.status; tell(); }; x.send();
+  var i = new Image(); i.id = 'made'; i.onload = function () { out.image = true; tell(); }; i.src = '/made.png'; document.body.appendChild(i);
+  var d = document.createElement('div'); d.innerHTML = '<img id="markup" src="/markup.png">'; document.body.appendChild(d);
+  var s = document.createElement('script'); s.src = '/late.js'; document.head.appendChild(s);
+  var p = document.createElement('input'); p.type = 'password'; p.id = 'late-pw'; document.body.appendChild(p);
+  fetch('https://www.google-analytics.com/collect').catch(function () { out.tracker = 'refused'; tell(); });
+  fetch('http://127.0.0.1:4567/secret').catch(function () { out.loopback = 'refused'; tell(); });
+  tell();
+});`;
+
+const HOSTILE = `<!doctype html><title>Hostile</title><div id="out"></div><meta http-equiv="refresh" content="1;url=http://127.0.0.1:4567/escaped-refresh"><base href="http://127.0.0.1:4567/">
+<script>
+var out = {}; function tell() { document.getElementById('out').textContent = JSON.stringify(out); }
+function attempt(name, what) { try { var v = what(); out[name] = 'done:' + v; } catch (e) { out[name] = e.name; } }
+attempt('origin', function () { return self.origin; });
+attempt('parentDoc', function () { return parent.document.title; });
+attempt('topDoc', function () { return top.document.title; });
+attempt('topStore', function () { return top.localStorage.length; });
+attempt('topNav', function () { top['loc' + 'ation'].href = 'http://127.0.0.1:4567/escaped-top'; return 'set'; });
+attempt('outerNav', function () { parent['loc' + 'ation'].href = 'http://127.0.0.1:4567/escaped-outer'; return 'set'; });
+attempt('popup', function () { return Object.getPrototypeOf(window).constructor.prototype && window.open.call(window, 'http://127.0.0.1:4567/escaped-popup'); });
+// A fresh realm, with nothing of ours in it.
+var HTML = 'http://www.w3.org/1999/xhtml', root = document.documentElement, F = 'ifr' + 'ame', T = '<' + F + '>';
+attempt('makeElement', function () { root.appendChild(document.createElement(F)); return window.length; });
+attempt('makeElementNS', function () { root.appendChild(document.createElementNS(HTML, 'x:' + F)); return window.length; });
+attempt('makeTwoFaced', function () { var n = 0; root.appendChild(document.createElement({ toString: function () { return n++ ? F : 'p'; } })); return window.length; });
+attempt('makeProto', function () { root.appendChild(Document.prototype.createElement.call(new Document(), F)); return window.length; });
+attempt('makeOther', function () { root.appendChild(document.implementation.createHTMLDocument('').createElement(F)); return window.length; });
+attempt('makeDocument', function () { root.appendChild(document.adoptNode(document.implementation.createDocument(HTML, F, null).documentElement)); return window.length; });
+attempt('makeInner', function () { var d = document.createElement('div'); root.appendChild(d); d.innerHTML = T; return window.length; });
+attempt('makeOuter', function () { var d = document.createElement('div'); root.appendChild(d); d.outerHTML = T; return window.length; });
+attempt('makeAdjacent', function () { root.insertAdjacentHTML('beforeend', T); return window.length; });
+attempt('makeRange', function () { root.appendChild(document.createRange().createContextualFragment(T)); return window.length; });
+attempt('makeTemplate', function () { var t = document.createElement('template'); t.innerHTML = T; root.appendChild(t.content); return window.length; });
+attempt('makeShadow', function () { var d = document.createElement('div'); root.appendChild(d); d.attachShadow({ mode: 'open' }).innerHTML = T; return window.length; });
+attempt('makeParser', function () { root.appendChild(document.adoptNode(new DOMParser().parseFromString(T, 'text/html').querySelector(F))); return window.length; });
+attempt('makeXml', function () { root.appendChild(document.adoptNode(new DOMParser().parseFromString('<q:' + F + ' xmlns:q="' + HTML + '"/>', 'application/xml').documentElement)); return window.length; });
+attempt('makeXmlEntity', function () { var x = new DOMParser().parseFromString('<!DOCTYPE a [<!ENTITY e "&#60;q:' + '&#105;frame xmlns:q=\\'' + HTML + '\\'/&#62;">]><a>&e;</a>', 'application/xml'); root.appendChild(document.adoptNode(x.documentElement)); return window.length; });
+attempt('makeSafe', function () { var d = document.createElement('div'); root.appendChild(d); d.setHTML(T, { sanitizer: { elements: [F] } }); return window.length; });
+attempt('makeUnsafe', function () { var d = document.createElement('div'); root.appendChild(d); d.setHTMLUnsafe(T); return window.length; });
+attempt('makeParseUnsafe', function () { root.appendChild(document.adoptNode(Document.parseHTMLUnsafe(T).querySelector(F))); return window.length; });
+attempt('makeCustom', function () { class X extends HTMLIFrameElement {} customElements.define('x-y', X, { extends: F }); root.appendChild(new X()); return window.length; });
+attempt('makeCommand', function () { var d = document.createElement('div'); d.contentEditable = 'true'; root.appendChild(d); d.focus(); document.execCommand('insertHTML', false, T); return window.length; });
+attempt('makeXslt', function () { return new XSLTProcessor() && 'made'; });
+attempt('makePolicy', function () { trustedTypes.createPolicy('mine', { createHTML: function (s) { return s; } }); return 'made'; });
+attempt('makeSplit', function () { var d = document.createElement('div'); root.appendChild(d); document.write('<ifr'); document.write('ame>'); return window.length; });
+attempt('rtc', function () { return new RTCPeerConnection() && 'made'; });
+out.frames = window.length;
+var w = window[0];
+attempt('freshFetch', function () { w.fetch('http://127.0.0.1:4567/escaped-fetch', { mode: 'no-cors' }).catch(function () { out.freshFetchEnd = 'refused'; tell(); }); return 'asked'; });
+attempt('freshRtc', function () { var c = new w.RTCPeerConnection({ iceServers: [{ urls: 'stun:127.0.0.1:4567' }] }); c.createDataChannel('x'); c.createOffer().then(function (o) { return c.setLocalDescription(o); }).catch(function (e) { out.rtcEnd = e.name; tell(); }); return 'made'; });
+attempt('freshSocket', function () { new w.WebSocket('ws://127.0.0.1:4567/escaped-socket'); return 'made'; });
+attempt('freshWorker', function () { new w.Worker('data:text/javascript,1'); return 'made'; });
+attempt('freshPopup', function () { return w.open('http://127.0.0.1:4567/escaped-popup2'); });
+attempt('freshStore', function () { return w.localStorage.length; });
+attempt('freshCookie', function () { return w.document.cookie; });
+attempt('download', function () { var a = document.createElement('a'); a.href = 'data:text/plain,x'; a.download = 'x.txt'; document.documentElement.appendChild(a); a.click(); return 'clicked'; });
+attempt('form', function () { var m = document.createElement('form'); m.action = 'http://127.0.0.1:4567/escaped-form'; document.documentElement.appendChild(m); HTMLFormElement.prototype.submit.call(m); return 'sent'; });
+attempt('frame', function () { var m = document.createElement('iframe'); m.src = 'http://127.0.0.1:4567/escaped-frame'; document.documentElement.appendChild(m); return 'made'; });
+attempt('object', function () { var m = document.createElement('object'); m.data = 'http://127.0.0.1:4567/escaped-object'; document.documentElement.appendChild(m); return 'made'; });
+attempt('link', function () { ['prefetch', 'preload', 'dns-prefetch', 'preconnect', 'icon', 'manifest', 'modulepreload'].forEach(function (rel) { var l = document.createElement('link'); l.rel = rel; l.as = 'image'; Element.prototype.setAttribute.call(l, 'href', 'http://127.0.0.1:4567/escaped-' + rel); document.head.appendChild(l); }); return 'made'; });
+attempt('style', function () { var m = document.createElement('style'); m.textContent = 'body{background:url(http://127.0.0.1:4567/escaped-style)} @import url(http://127.0.0.1:4567/escaped-import)'; document.head.appendChild(m); return 'made'; });
+attempt('picture', function () { var m = document.createElementNS('http://www.w3.org/2000/svg', 'image'); m.setAttributeNS('http://www.w3.org/1999/xlink', 'href', 'http://127.0.0.1:4567/escaped-svg'); document.documentElement.appendChild(m); return 'made'; });
+attempt('api', function () { w.fetch('SITE/api/see/open', { method: 'POST', body: '{}' }).then(function (r) { out.apiEnd = 'answered ' + r.status; tell(); }, function () { out.apiEnd = 'refused'; tell(); }); return 'asked'; });
+attempt('dress', function () { top.postMessage({ see: 'dress', css: 'x' }, '*'); for (var i = 0; i < 50; i += 1) top.postMessage({ see: 'open', address: 'https://spam.seeing-fixture.org/spam' + i, newTab: true }, '*'); top.postMessage({ see: 'open', address: 'javascript:alert(1)' }, '*'); return 'sent'; });
+setTimeout(function () { location.href = 'http://127.0.0.1:4567/escaped-self'; }, 300);
+setTimeout(tell, 1200); tell();
+</script>`;
+
+function fixture() {
+  const asked = [];
+  const pages = {
+    '/': ['text/html', ORDINARY],
+    '/app.js': ['text/javascript', APP],
+    '/mod.js': ['text/javascript', "import { x } from './part.js'; window.moduleSays = x; document.documentElement.setAttribute('data-module', x);"],
+    '/part.js': ['text/javascript', "export const x = 'joined';"],
+    '/late.js': ['text/javascript', "document.documentElement.setAttribute('data-late', 'ran');"],
+    '/s.css': ['text/css', '@import "two.css"; h1{color:rgb(1, 2, 3)}'],
+    '/two.css': ['text/css', 'p{color:rgb(4, 5, 6);background:url(/bg.png)}'],
+    '/a.png': ['image/png', PNG], '/made.png': ['image/png', PNG], '/markup.png': ['image/png', PNG], '/bg.png': ['image/png', PNG],
+    '/data.json': ['application/json', '{"a":"json"}'],
+    '/next': ['text/html', '<title>Next</title><h1>Next</h1>'],
+    '/b': ['text/html', '<title>Far</title><h1>Far</h1>'],
+    '/find': ['text/html', '<title>Found</title><h1>Found</h1>'],
+    '/hostile': ['text/html', HOSTILE],
+    '/sends': ['text/html', '<title>Sends</title><script>location.href = "/next"</script>'],
+    '/refreshes': ['text/html', '<meta http-equiv=refresh content="0;url=/next"><title>Refreshes</title>'],
+    '/loop': ['text/html', '<title>Loop</title><h1>Loop</h1><script>setTimeout(function () { location.href = "/loop2"; }, 50)</script>'],
+    '/loop2': ['text/html', '<title>Loop</title><h1>Loop</h1><script>setTimeout(function () { location.href = "/loop"; }, 50)</script>'],
+  };
+  const server = require('node:http').createServer((request, answer) => {
+    asked.push({ path: request.url, host: request.headers['x-fixture-host'] ?? null, headers: request.headers });
+    const [type, body] = pages[request.url.split('?')[0]] ?? ['text/html', '<title>Nothing</title><h1>Nothing</h1>'];
+    if (request.url === '/moved') {
+      answer.writeHead(302, { location: '/next' }).end();
+      return;
+    }
+    answer.writeHead(pages[request.url.split('?')[0]] ? 200 : 404, { 'content-type': type, 'access-control-allow-origin': '*' }).end(String(body).replaceAll ? (Buffer.isBuffer(body) ? body : body.replaceAll('SITE', BASE)) : body);
+  });
+  return new Promise((done) => server.listen(4567, '127.0.0.1', () => done({ asked, close: () => server.close() })));
+}
+
+async function eye(browser) {
+  const net = await fixture();
   try {
-    for (const [name, run] of [['shell', shell], ['frame', frame], ['themes', themes]]) {
+    const { context, page, asked } = await open(browser, { as: ANN });
+    await machine(page);
+    asked.length = 0;
+    await go(page, `${SITE}/`);
+    await say(page, 'DOCUMENT RECONSTRUCTED · SERVER EYE');
+    const line = await status(page);
+    ok(/\d+ FILES · \d+ REFUSED · LENS: STANDARD/.test(line), `the status line says what was done: ${line}`);
+    ok((await tabs(page).first().innerText()).toUpperCase().includes('AN ORDINARY PAGE'), 'the tab wears its title');
+    const out = async () => JSON.parse(await inside(page).locator('#out').innerText());
+    await page.waitForFunction(() => true);
+    let said = {};
+    for (let i = 0; i < 60; i += 1) {
+      said = await out().catch(() => ({}));
+      if (said.fetch && said.xhr && said.image && said.tracker && said.loopback && said.post) break;
+      await page.waitForTimeout(250);
+    }
+    const inner = await frameOf(page);
+    ok(said.inline && said.store === 'v1' && said.cookie === 'a=1', "a page's scripts run, with storage in memory");
+    ok(said.fetch === 'json' && said.xhr === 'json:200', 'what they ask for is asked by the server');
+    ok(said.post === 'TypeError', 'a script may not send');
+    ok(said.tracker === 'refused' && said.loopback === 'refused', 'nor reach a tracker, nor this machine');
+    ok(said.image === true, 'a picture a script makes is signed and drawn');
+    await page.waitForTimeout(800);
+    const drawn = await inner.evaluate(() => ({
+      plain: document.querySelector('#plain').naturalWidth,
+      markup: document.querySelector('#markup').naturalWidth,
+      refused: document.querySelector('#refused').getAttribute('src'),
+      colour: getComputedStyle(document.querySelector('h1')).color,
+      imported: getComputedStyle(document.querySelector('p')).color,
+      late: document.documentElement.getAttribute('data-late'),
+      module: document.documentElement.getAttribute('data-module'),
+      pw: [document.querySelector('#pw'), document.querySelectorAll('input[type=password]').length, document.querySelector('#late-pw').disabled],
+      frames: document.querySelectorAll('iframe').length,
+      link: document.querySelector('[data-see-frame]').textContent,
+    }));
+    ok(drawn.plain === 1 && drawn.markup === 1, 'pictures are drawn, one a script wrote as markup too');
+    if (drawn.colour !== 'rgb(1, 2, 3)' || drawn.imported !== 'rgb(4, 5, 6)') console.log(drawn);
+    ok(drawn.colour === 'rgb(1, 2, 3)' && drawn.imported === 'rgb(4, 5, 6)', 'styles are, and what they import');
+    ok(drawn.late === 'ran' && drawn.module === 'joined', 'a script put in later runs, and a module with the module it needs');
+    ok(drawn.refused === null && drawn.pw[1] === 0 && drawn.pw[2] === true, 'a tracker is gone, and every password box is dead');
+    ok(drawn.frames === 0 && drawn.link === '[ FRAME: player.seeing-fixture.org ]', 'a frame in the page is a link to it');
+    await page.screenshot({ path: join(OUT, 'eye.png') });
+
+    const strangers = asked.filter((each) => each.left && !each.url.startsWith(`${BASE}/`) && !/^(?:data|blob|about|ws):/.test(each.url));
+    ok(strangers.length === 0, `the browser asked nobody but the site (${strangers.slice(0, 2).map((each) => each.url)})`);
+    ok(!asked.some((each) => /seeing-fixture/.test(each.url)), 'and no address of the page is in any request it made');
+    ok(net.asked.length > 5 && net.asked.every((each) => each.host !== null), 'the page was asked for by the server alone');
+    ok(net.asked.every((each) => each.headers.cookie === undefined && each.headers.referer === undefined && each.headers.authorization === undefined && !/debaser|luke/i.test(JSON.stringify(each.headers))), 'with nothing of the reader or the site');
+    ok(!net.asked.some((each) => /doubleclick|googletag|analytics|player/.test(String(each.host)) || each.path === '/secret'), 'and nothing refused was asked for');
+
+    await page.locator('[data-seeing-lenses]').getByRole('button', { name: '[ WATCHERS ]' }).click();
+    const watchers = await page.locator('[data-seeing-watchers]').innerText();
+    ok(/Google/.test(watchers) && /REFUSED/.test(watchers), 'WATCHERS says who was on it and what was refused');
+    await page.locator('[data-seeing-lenses]').getByRole('button', { name: '[ READER ]' }).click();
+    await inside(page).getByText('The story goes on').first().waitFor();
+    ok((await (await frameOf(page)).evaluate(() => document.querySelectorAll('form, #out, script[src]').length)) === 0, 'READER is the story alone');
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: join(OUT, 'eye-reader.png') });
+    await page.locator('[data-seeing-lenses]').getByRole('button', { name: '[ STANDARD ]' }).click();
+
+    await inside(page).locator('#next').click();
+    await inside(page).getByRole('heading', { name: 'Next' }).waitFor();
+    ok((await box(page).inputValue()) === `${SITE}/next`, 'a link is followed in the tab');
+    await key(page, 'Back').click();
+    await inside(page).locator('#go').waitFor();
+    await inside(page).locator('#go').click();
+    await inside(page).getByRole('heading', { name: 'Found' }).waitFor();
+    ok((await box(page).inputValue()) === `${SITE}/find?q=cats`, 'a search is sent, as a GET');
+    await key(page, 'Back').click();
+    await inside(page).locator('#send').click();
+    await say(page, 'FORMS THAT SEND');
+    ok(!net.asked.some((each) => each.path === '/post'), 'any other form is not');
+    await go(page, `${SITE}/moved`);
+    await inside(page).getByRole('heading', { name: 'Next' }).waitFor();
+    ok((await box(page).inputValue()) === `${SITE}/next`, 'a page sent on is where it ended');
+    await go(page, `${SITE}/nowhere`);
+    await say(page, 'HTTP 404');
+    ok(true, "a page that isn't there says so");
+
+    await go(page, `${SITE}/`);
+    await say(page, 'DOCUMENT RECONSTRUCTED');
+    await page.locator('[data-seeing]').getByRole('button', { name: '[ SCRIPTS OFF ]' }).click();
+    await page.waitForTimeout(1500);
+    const off = await (await frameOf(page)).evaluate(() => ({ out: document.querySelector('#out').textContent, scripts: document.querySelectorAll('script').length }));
+    ok(off.out === '' && off.scripts === 1, 'SCRIPTS OFF: only ours is left, and nothing of theirs ran');
+    await page.locator('[data-seeing]').getByRole('button', { name: '[ SCRIPTS OFF ]' }).click();
+    await say(page, 'DOCUMENT RECONSTRUCTED');
+
+    await go(page, `${SITE}/sends`);
+    await inside(page).getByRole('heading', { name: 'Next' }).waitFor();
+    ok(true, 'a page that sends itself on is let');
+    await go(page, `${SITE}/refreshes`);
+    await inside(page).getByRole('heading', { name: 'Next' }).waitFor();
+    ok(true, 'and one that says it does');
+    await page.waitForTimeout(21_000);
+    await go(page, `${SITE}/loop`);
+    await page.waitForTimeout(6000);
+    const loops = net.asked.filter((each) => /^\/loop/.test(each.path)).length;
+    ok(loops >= 2 && loops <= 12, `and one that does it without end is stopped (${loops})`);
+
+    net.asked.length = 0;
+    asked.length = 0;
+    const tabsBefore = await tabs(page).count();
+    await page.evaluate(() => {
+      window.messagesHeard = 0;
+    });
+    await page.waitForTimeout(6000);
+    await go(page, `${SITE}/hostile`);
+    await say(page, 'THE PAGE TRIED TO SEND YOU ON');
+    await page.waitForTimeout(4000);
+    const hostile = await (await frameOf(page)).evaluate(() => document.querySelector('#out') && document.querySelector('#out').textContent).catch(() => null);
+    console.log('  ..  the hostile page says:', String(hostile).slice(0, 900));
+    ok(hostile !== null && hostile !== '', 'the hostile page ran');
+    {
+      const got = JSON.parse(hostile);
+      ok(got.origin === 'done:null', 'the hostile page has no origin');
+      ok(got.frames === 0 && Object.entries(got).filter(([name, value]) => /^make/.test(name) && !/^(?:done:0|[A-Z]\w*Error)$/.test(value)).length === 0, `no way of making a frame made one (${JSON.stringify(Object.entries(got).filter(([name, value]) => /^make/.test(name) && !/^(?:done:0|[A-Z]\w*Error)$/.test(value)))})`);
+      ok(/Error/.test(got.rtc) && /Error/.test(got.freshRtc), 'so WebRTC is out of its reach');
+      for (const name of ['parentDoc', 'topDoc', 'topStore', 'topNav', 'outerNav']) ok(got[name] === 'SecurityError', `it can't: ${name}`);
+      ok(!/^done:\[object/.test(got.freshPopup ?? '') && !/^done:\[object/.test(got.popup ?? ''), 'it opened no window');
+      ok(got.apiEnd !== undefined ? got.apiEnd === 'refused' : true, "it can't ask the site's own routes");
+    }
+    const escaped = net.asked.filter((each) => /escaped/.test(each.path) && each.host === null);
+    ok(escaped.length === 0, `it reached nothing by itself (${escaped.map((each) => each.path)})`);
+    const strangers2 = asked.filter((each) => each.left && !each.url.startsWith(`${BASE}/`) && !/^(?:data|blob|about|ws|chrome-error):/.test(each.url));
+    ok(strangers2.length === 0, `and the browser asked nobody but the site (${strangers2.slice(0, 3).map((each) => each.url)})`);
+    ok(context.pages().length === 1 && page.url().startsWith(`${BASE}/browser`), 'the top window is where it was, and alone');
+    ok((await tabs(page).count()) === tabsBefore, 'its fifty forged messages opened no tab');
+    ok(net.asked.filter((each) => /spam/.test(each.path)).length === 0, 'and fetched nothing');
+    await context.close();
+  } finally {
+    net.close();
+  }
+}
+
+(async () => {
+  const browser = await chromium.launch({ executablePath: findChrome(), headless: true, // The frames in their own processes are how a real browser keeps them apart; this tool can't look inside them there.
+    args: ['--use-angle=swiftshader', '--disable-features=IsolateSandboxedIframes'] });
+  try {
+    for (const [name, run] of [['shell', shell], ['frame', frame], ['eye', eye], ['themes', themes]]) {
       if (ONLY !== '' && ONLY !== name) continue;
       console.log(`\n=== ${name} ===`);
       await run(browser);
