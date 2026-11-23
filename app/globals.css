@@ -375,6 +375,11 @@ html[data-see-glass] [data-scroll-pane='page'] + * {
   background: repeating-conic-gradient(var(--color-ink) 0 25%, var(--color-paper) 0 50%) 0 0 / 2px 2px;
 }
 
+/* A refused page's view under its words (SeeingRefused.tsx, decision 47): raster lines with no picture, a dead channel. Never moves. */
+.seeing-dead {
+  background: repeating-linear-gradient(to bottom, color-mix(in srgb, var(--color-ink-quiet) 30%, transparent) 0 1px, transparent 1px 5px);
+}
+
 .seeing-acquiring > * {
   position: relative;
 }
