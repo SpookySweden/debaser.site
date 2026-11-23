@@ -51,7 +51,7 @@ import SeeingAcquiring from './SeeingAcquiring';
 import SeeingElapsed from './SeeingElapsed';
 import SeeingRefused from './SeeingRefused';
 import { seeingKey, type SeeingKey } from '../../lib/seeing/keys';
-import { pageBytes, took, weighs } from '../../lib/seeing/took';
+import { shownLine } from '../../lib/seeing/status-line';
 import SeeingHistory from './SeeingHistory';
 import SeeingKeep from './SeeingKeep';
 import SeeingKept from './SeeingKept';
@@ -448,7 +448,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
       : now.state === 'busy'
         ? (now.at ?? 'ACQUIRING SOURCE')
         : now.state === 'shown'
-          ? `DOCUMENT RECONSTRUCTED · ${now.document.eye} · ${now.document.files} ${now.document.files === 1 ? 'FILE' : 'FILES'} · ${now.document.refused} REFUSED · PAGE ${weighs(pageBytes(now.document))} · LENS: ${LENS_NAMES.find((each) => each.id === tab.lens)?.label ?? tab.lens}${restricted.key === key && restricted.count > 0 ? ` · ${restricted.count} RESTRICTED` : ''}${now.document.status !== null && now.document.status >= 400 ? ` · HTTP ${now.document.status}` : ''}${now.ms !== undefined ? ` · IN ${took(now.ms)}` : ''}`
+          ? shownLine(now.document, LENS_NAMES.find((each) => each.id === tab.lens)?.label ?? tab.lens, restricted.key === key ? restricted.count : 0, now.ms)
           : address === null
             ? 'READY'
             : 'STOPPED');
