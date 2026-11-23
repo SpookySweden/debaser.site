@@ -4,7 +4,7 @@ One line each, the most useful first. Struck through when done, with its commit.
 
 - ~~(65e1600) A new tab said nothing of what the machine is and had no way back to the last pages: a line, SEEN LAST (8), GOOD, then the engines.~~
 - ~~The third tool row was 13 keys in one run: now three groups by hairlines, YOURS | THIS PAGE | OUT (SHOW MY ROOM moved to OUT).~~
-- Page tools on a refused or busy page show disabled; consider hiding THIS PAGE's group only when no page is shown at all (it must not jump while loading).
+- ~~A new tab showed seven dead keys (SEAM, LOUPE, ERASE, GOOD, MEDIA, SONIFY): now only SCAN, HISTORY, KEPT until a page is asked for.~~
 - ~~Keys for the keyboard: / the box, Alt+N, Alt+W, Alt+1 to 8 (keys.ts), listed on a new tab.~~
 - ~~A refused page was an empty box: now its reason, what it means, and only the keys that may help (refusals.ts, SeeingRefused.tsx).~~
 - Safety round, 2026-11-23: the attack list's 60 guards read through; no gap found by reading. Next safety round: the hostile page.

@@ -28,6 +28,8 @@ const on = (pressed: boolean): string => (pressed ? `${PLATE_PRESSED} cursor-poi
 
 /** SEAM, LOUPE, ERASE, SCAN and the TIME DIAL. */
 export default function SeeingTools({ address, seam, loupe, erasing, erased, good, onSeam, onLoupe, onErasing, onBringBack, onScan, onGood, onGo, children }: Props) {
+  // A new tab shows only what works without a page: SCAN, then HISTORY and KEPT.
+  const page = address !== null;
   const outside = address !== null && /^https?:/.test(address);
   const dial = outside ? dialOf(address) : null;
   const thisYear = new Date().getFullYear();
@@ -42,7 +44,8 @@ export default function SeeingTools({ address, seam, loupe, erasing, erased, goo
   };
   return (
     <div className="flex flex-wrap items-center gap-x-1 gap-y-1 pt-1" data-seeing-tools>
-      <button type="button" aria-pressed={seam !== null} disabled={address === null} title="A lens each side of a line you drag" onClick={() => onSeam(seam === null ? 'reader' : null)} className={on(seam !== null)}>
+      {page ? (<>
+      <button type="button" aria-pressed={seam !== null} title="A lens each side of a line you drag" onClick={() => onSeam(seam === null ? 'reader' : null)} className={on(seam !== null)}>
         [ SEAM ]
       </button>
       {seam !== null ? (
@@ -54,7 +57,7 @@ export default function SeeingTools({ address, seam, loupe, erasing, erased, goo
           ))}
         </select>
       ) : null}
-      <button type="button" aria-pressed={loupe !== null} disabled={address === null} title="Another lens under the pointer, or the same words larger" onClick={() => onLoupe(loupe === null ? 2 : null)} className={on(loupe !== null)}>
+      <button type="button" aria-pressed={loupe !== null} title="Another lens under the pointer, or the same words larger" onClick={() => onLoupe(loupe === null ? 2 : null)} className={on(loupe !== null)}>
         [ LOUPE ]
       </button>
       {loupe !== null ? (
@@ -74,7 +77,7 @@ export default function SeeingTools({ address, seam, loupe, erasing, erased, goo
           ))}
         </select>
       ) : null}
-      <button type="button" aria-pressed={erasing} disabled={address === null} title="Point, press, gone" onClick={() => onErasing(!erasing)} className={on(erasing)}>
+      <button type="button" aria-pressed={erasing} title="Point, press, gone" onClick={() => onErasing(!erasing)} className={on(erasing)}>
         [ ERASE ]
       </button>
       {erased > 0 ? (
@@ -82,12 +85,15 @@ export default function SeeingTools({ address, seam, loupe, erasing, erased, goo
           [ BRING BACK {erased} ]
         </button>
       ) : null}
+      </>) : null}
       <button type="button" title="A page of the small, old web" onClick={onScan} className={PLATE}>
         [ SCAN ]
       </button>
+      {page ? (
       <button type="button" aria-pressed={good} disabled={!outside} title="Keep it on the list in a new tab" onClick={() => onGood(!good)} className={on(good)}>
         [ GOOD ]
       </button>
+      ) : null}
       {dial !== null ? (
         <label className="flex items-center gap-1 text-label text-ink">
           {DIAL_FIRST}

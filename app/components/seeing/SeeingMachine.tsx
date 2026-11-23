@@ -514,7 +514,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
           }} className={PLATE}>
           [ KEPT {kept.length} ]
         </button>
-        <span aria-hidden="true" className="mx-1 self-stretch border-l-line border-ink" />
+        {address !== null || sent.length > 0 ? <span aria-hidden="true" className="mx-1 self-stretch border-l-line border-ink" /> : null}
         {outside ? (
           <>
             <button type="button" aria-expanded={keeping} disabled={seen === null} onClick={() => setKeeping(!keeping)} className={PLATE}>
@@ -528,17 +528,21 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
             </button>
           </>
         ) : null}
-        <button type="button" aria-expanded={trayOpen} disabled={seen === null && sent.length === 0} onClick={() => setTrayOpen(!trayOpen)} className={PLATE}>
+        {address !== null || sent.length > 0 ? (
+          <button type="button" aria-expanded={trayOpen} disabled={seen === null && sent.length === 0} onClick={() => setTrayOpen(!trayOpen)} className={PLATE}>
           [ MEDIA {tray.length} ]
         </button>
+        ) : null}
         {outside ? (
           <button type="button" disabled={pickedWords === ''} title="Words selected on the page, to the engine in front, in a new tab" onClick={() => ask(engineChosen(choices), pickedWords, true)} className={PLATE}>
             [ SEARCH THIS ]
           </button>
         ) : null}
+        {address !== null ? (
         <button type="button" disabled={seen === null} title="The page's structure as a BEATBOX loop: headings the beat, links the notes" onClick={sonify} className={PLATE}>
           [ SONIFY ]
         </button>
+        ) : null}
         {outside ? (
           <button
             type="button"

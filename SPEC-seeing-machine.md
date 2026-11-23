@@ -93,6 +93,7 @@ Each can be changed later by saying so.
 27. **A refusal fills the page**: its reason as a title, what it means in a line, and only the keys that may help (TRY AGAIN, OLD COPY, OWN EYE, ITS OWN SITE). A guard's refusal offers nothing.
 28. **The tool row is three groups split by a hairline**: yours (HISTORY, KEPT), this page (KEEP to SCRIPTS OFF), out of the machine (SHOW MY ROOM, OPEN SOURCE, OWN EYE).
 29. **An address typed in the site search (Ctrl+K) gets [ SEE IT IN BROWSER ]**, for whoever has BROWSER on the bar; the press opens it at once, as [ SEE ] does.
+30. **A new tab shows only the keys that work without a page**: SCAN, HISTORY and KEPT; SEAM, LOUPE, ERASE, GOOD, MEDIA and SONIFY come with the first page (MEDIA stays while it holds something sent). Undo: show them again, greyed.
 
 ## Risks, said once
 1. **SERVER is beside everything.** The torrent page (no password at home), Jellyfin, the database and its dashboard, the
