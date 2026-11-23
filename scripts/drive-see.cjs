@@ -1304,6 +1304,8 @@ async function search(browser) {
     await page.locator('[data-seeing-tabs]').waitFor({ timeout: 60000 });
     const says = () => page.locator('[data-seeing-says]').innerText();
     ok(/Pretend one/.test(await page.locator('[data-seeing-engines]').innerText()), 'a new tab has the list under its box');
+    ok((await page.locator('[data-seeing-engines] button[title="Up"]').count()) === 0 && !/\bGoogle\b/.test(await page.locator('[data-seeing-engines]').innerText()), 'for reading: no keys to move, and one that is off not listed');
+    await page.locator('[data-seeing-engines]').getByRole('button', { name: '[ ARRANGE ]' }).click();
     const arrows = await page.locator('[data-seeing-engines] ul').first().evaluate((list) => {
       const rows = [...list.querySelectorAll('li')];
       const key = (row, word) => row.querySelector(`button[title="${word}"]`);

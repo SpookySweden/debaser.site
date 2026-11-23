@@ -9,11 +9,18 @@ import { FIELD_TIGHT, PLATE, PLATE_PRESSED, TITLE_BAR_INACTIVE } from '../../lib
 export default function SeeingEngines({ ownEye, onClose }: { ownEye: boolean; onClose: (() => void) | null }) {
   const choices = useSyncExternalStore(subscribeToSearch, searchChoices, searchChoicesOnServer);
   const every = enginesOf(choices);
+  // On a new tab the list is for reading (name and letters); its keys wait behind ARRANGE. The list from the box is always whole.
+  const [arranging, setArranging] = useState(false);
+  const whole = onClose !== null || arranging;
   return (
     <section aria-label="Search engines" className={onClose === null ? 'mt-4 text-label text-ink' : 'absolute inset-0 z-30 flex flex-col overflow-y-auto bg-paper p-2 text-label text-ink'} data-seeing-engines>
       <div className="flex items-center gap-1">
         <h2 className={`${TITLE_BAR_INACTIVE} flex-1`}>SEARCH ENGINES</h2>
-        {onClose === null ? null : (
+        {onClose === null ? (
+          <button type="button" aria-pressed={arranging} onClick={() => setArranging(!arranging)} className={arranging ? `${PLATE_PRESSED} cursor-pointer` : PLATE}>
+            [ ARRANGE ]
+          </button>
+        ) : (
           <button type="button" aria-label="Close search engines" onClick={onClose} className={PLATE}>
             [ × ]
           </button>
@@ -25,23 +32,43 @@ export default function SeeingEngines({ ownEye, onClose }: { ownEye: boolean; on
       >
         THE LETTERS BEFORE WORDS ASK THAT ENGINE ONCE: w fog. ↗ OPENS {ownEye ? 'IN OWN EYE' : 'IN A NEW TAB'}, AND SEES YOUR ADDRESS; THE REST SEE THE HOUSE&apos;S. NO WORDS ARE STORED ON THE SERVER.
       </p>
-      <div className="grid gap-x-4 gap-y-2 lg:grid-cols-2">
+      <div className={whole ? 'grid gap-x-4 gap-y-2 lg:grid-cols-2' : 'grid gap-x-4 gap-y-2 sm:grid-cols-2 lg:grid-cols-3'}>
         {ENGINE_GROUPS.map((group) => {
-          const mine = every.filter((each) => each.group === group);
+          const mine = every.filter((each) => each.group === group && (whole || !choices.off.includes(each.id)));
           return mine.length === 0 ? null : (
             <div key={group}>
               <h3 className="title-line text-label font-bold text-ink">{group}</h3>
               <ul>
                 {mine.map((engine, at) => (
-                  <EngineRow key={engine.id} engine={engine} choices={choices} first={at === 0} last={at === mine.length - 1} />
+                  whole ? (
+                    <EngineRow key={engine.id} engine={engine} choices={choices} first={at === 0} last={at === mine.length - 1} />
+                  ) : (
+                    <EngineName key={engine.id} engine={engine} choices={choices} />
+                  )
                 ))}
               </ul>
             </div>
           );
         })}
       </div>
-      <AddOne choices={choices} />
+      {whole ? <AddOne choices={choices} /> : null}
     </section>
+  );
+}
+
+/** A new tab's row: the engine (pressed, it is the one asked) and its letters. One that is off isn't listed here. */
+function EngineName({ engine, choices }: { engine: Engine; choices: SearchChoices }) {
+  const chosen = engineChosen(choices).id === engine.id;
+  return (
+    <li className="flex items-center gap-1 py-0.5">
+      <span className="w-44">
+        <button type="button" aria-pressed={chosen} disabled={engine.opens === 'site'} onClick={() => changeSearch({ ...choices, chosen: engine.id })} className={chosen ? `${PLATE_PRESSED} cursor-pointer` : PLATE}>
+          {engine.name}
+          {engine.opens === 'out' ? ' ↗' : ''}
+        </button>
+      </span>
+      <span className="text-ink-quiet">{engine.short}</span>
+    </li>
   );
 }
 

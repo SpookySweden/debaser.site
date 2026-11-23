@@ -61,3 +61,4 @@ One line each, the most useful first. Struck through when done, with its commit.
 - ~~A site that answers with a bot check (Cloudflare's Just a moment..., a CAPTCHA wall) was drawn as a puzzle that can never be done, with no word: a line over it now says so and where it can be done (bot-check.ts, decision 48; check-seeing, drive eye 74, watched fail).~~
 - ~~↻ had no key: Alt+R asks again (as ↻: a page in front, nothing already being asked for), listed on the keys line (check-seeing; shell 49; the press itself not driven).~~
 - ~~At phone width the hairline before OPEN SOURCE dangled alone at the start of its line: it shows from desktop width only, as the first one does (seen at 390).~~
+- ~~A new tab was mostly a wall of 24 engine rows with five keys each: it lists them to read (name, letters, three groups across), the keys behind [ ARRANGE ] (decision 49; drive search 19).~~
