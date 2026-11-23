@@ -482,7 +482,7 @@ document.addEventListener('DOMContentLoaded', function () {
   tell();
 });`;
 
-const HOSTILE = `<!doctype html><title>Hostile</title><div id="out"></div><meta http-equiv="refresh" content="1;url=http://127.0.0.1:4568/escaped-refresh"><base href="http://127.0.0.1:4568/">
+const HOSTILE = `<!doctype html><title>Hostile</title><div id="out"></div><svg width="2" height="2"><image width="2" height="2"><set attributeName="href" to="http://127.0.0.1:4568/escaped-smil"/></image><use><animate attributeName="href" values="http://127.0.0.1:4568/escaped-smil2#a" dur="1s"/></use></svg><meta http-equiv="refresh" content="1;url=http://127.0.0.1:4568/escaped-refresh"><base href="http://127.0.0.1:4568/">
 <script>
 var out = {}; function tell() { document.getElementById('out').textContent = JSON.stringify(out); }
 function attempt(name, what) { try { var v = what(); out[name] = 'done:' + v; } catch (e) { out[name] = e.name; } }
@@ -571,6 +571,7 @@ attempt('events', function () { var e = new EventSource('http://127.0.0.1:4568/e
 attempt('sound', function () { var m = document.createElement('audio'); Element.prototype.setAttribute.call(m, 'src', 'http://127.0.0.1:4568/escaped-audio'); m.preload = 'auto'; document.documentElement.appendChild(m); m.load(); var v = document.createElement('video'); Element.prototype.setAttribute.call(v, 'poster', 'http://127.0.0.1:4568/escaped-poster'); Element.prototype.setAttribute.call(v, 'src', 'http://127.0.0.1:4568/escaped-video'); document.documentElement.appendChild(v); return 'made'; });
 attempt('font', function () { var m = document.createElement('style'); m.textContent = '@font-face{font-family:x;src:url(http://127.0.0.1:4568/escaped-font)} body{font-family:x}'; document.head.appendChild(m); if (document.fonts) document.fonts.load('1em x').catch(function () {}); return 'made'; });
 attempt('srcset', function () { var m = document.createElement('img'); Element.prototype.setAttribute.call(m, 'srcset', 'http://127.0.0.1:4568/escaped-srcset 1x'); document.documentElement.appendChild(m); return 'made'; });
+attempt('smil', function () { var NS = 'http://www.w3.org/2000/svg'; var g = document.createElementNS(NS, 'svg'), m = document.createElementNS(NS, 'image'), a = document.createElementNS(NS, 'set'); a.setAttribute('attributeName', 'href'); a.setAttribute('to', 'http://127.0.0.1:4568/escaped-smil3'); m.appendChild(a); g.appendChild(m); document.documentElement.appendChild(g); return 'made'; });
 attempt('api', function () { w.fetch('SITE/api/see/open', { method: 'POST', body: '{}' }).then(function (r) { out.apiEnd = 'answered ' + r.status; tell(); }, function () { out.apiEnd = 'refused'; tell(); }); return 'asked'; });
 attempt('dress', function () { top.postMessage({ see: 'dress', css: 'x' }, '*'); for (var i = 0; i < 50; i += 1) top.postMessage({ see: 'open', address: 'https://spam.seeing-fixture.org/spam' + i, newTab: true }, '*'); top.postMessage({ see: 'open', address: 'javascript:alert(1)' }, '*'); return 'sent'; });
 setTimeout(function () { location.href = 'http://127.0.0.1:4568/escaped-self'; }, 300);
@@ -885,7 +886,7 @@ async function eye(browser) {
       for (const name of ['parentDoc', 'topDoc', 'topStore', 'topNav', 'outerNav']) ok(got[name] === 'SecurityError', `it can't: ${name}`);
       ok(!/^done:\[object/.test(got.freshPopup ?? '') && !/^done:\[object/.test(got.popup ?? ''), 'it opened no window');
       ok(got.apiEnd !== undefined ? got.apiEnd === 'refused' : true, "it can't ask the site's own routes");
-      ok(['beacon', 'events', 'sound', 'font', 'srcset'].every((name) => got[name] !== undefined), `a beacon, an event stream, sound and a poster, a web font and a srcset were tried (${['beacon', 'events', 'sound', 'font', 'srcset'].map((name) => `${name}=${got[name]}`)})`);
+      ok(['beacon', 'events', 'sound', 'font', 'srcset', 'smil'].every((name) => got[name] !== undefined), `a beacon, an event stream, sound and a poster, a web font, a srcset and a drawing's animation were tried (${['beacon', 'events', 'sound', 'font', 'srcset', 'smil'].map((name) => `${name}=${got[name]}`)})`);
     }
     ok(net.escapes.length === 0, `it reached nothing by itself, not so much as a connection (${net.escapes.slice(0, 6)})`);
     const strangers2 = asked.filter((each) => each.left && !each.url.startsWith(`${BASE}/`) && !/^(?:data|blob|about|ws|chrome-error):/.test(each.url));

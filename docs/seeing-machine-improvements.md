@@ -35,3 +35,4 @@ One line each, the most useful first. Struck through when done, with its commit.
 - ~~HISTORY's FIND with words that matched nothing left a blank box: NOTHING FOUND. (Empty states stay NOTHING YET. and stop, SPEC-less-text rule 1.)~~
 - ~~HISTORY and KEPT had no keys: Alt+H and Alt+K, each a toggle, listed on the keys line.~~
 - ~~Escape did nothing to HISTORY or KEPT: it puts them away (only then; otherwise it is left alone).~~
+- ~~The hostile page now also tries a drawing's animation at the trap, in its markup and made by its script: none reaches it.~~
