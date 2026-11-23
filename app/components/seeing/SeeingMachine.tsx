@@ -387,6 +387,13 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
         box?.focus();
         box?.select();
       } else if (asked.do === 'new') change((all) => addTab(all, freshId()));
+      else if (asked.do === 'history') {
+        setHistoryOpen(!historyOpen);
+        setKeptOpen(false);
+      } else if (asked.do === 'kept') {
+        setKeptOpen(!keptOpen);
+        setHistoryOpen(false);
+      }
       else if (asked.do === 'close') change((all) => closeTab(all, all.front, freshId()));
       else if (asked.do === 'lens') {
         const next = LENS_NAMES[(LENS_NAMES.findIndex((each) => each.id === tab.lens) + 1) % LENS_NAMES.length].id;

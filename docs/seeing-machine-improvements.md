@@ -33,3 +33,4 @@ One line each, the most useful first. Struck through when done, with its commit.
 - ~~A book seen in BROWSER (Open Library, an Archive book) had no way into the site's own reader: [ READ IT ] (read-ref.ts, decision 39); the A BOOK refusal of an Archive PDF now opens it.~~
 - ~~A page popped in with no sense of the machine having made it: it now tunes in, the busy view's dither stepping off it in six jumps (decision 40).~~
 - ~~HISTORY's FIND with words that matched nothing left a blank box: NOTHING FOUND. (Empty states stay NOTHING YET. and stop, SPEC-less-text rule 1.)~~
+- ~~HISTORY and KEPT had no keys: Alt+H and Alt+K, each a toggle, listed on the keys line.~~

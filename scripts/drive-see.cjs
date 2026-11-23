@@ -283,6 +283,14 @@ async function shell(browser) {
   await back.page.keyboard.press('Alt+KeyL');
   await back.page.waitForFunction((was) => document.querySelector('[data-seeing-lenses] [aria-pressed="true"]')?.textContent.trim() !== was, lensBefore);
   ok(/READER/.test(await lensNow()) && /STANDARD/.test(lensBefore), `Alt+L turns to the next lens (${lensBefore} to ${await lensNow()})`);
+  await back.page.keyboard.press('Alt+KeyH');
+  await back.page.locator('[data-seeing-history]').waitFor();
+  await back.page.keyboard.press('Alt+KeyK');
+  await back.page.locator('[data-seeing-kept]').waitFor();
+  ok((await back.page.locator('[data-seeing-history]').count()) === 0, 'Alt+H opens HISTORY, and Alt+K KEPT in its place');
+  await back.page.keyboard.press('Alt+KeyK');
+  await back.page.locator('[data-seeing-kept]').waitFor({ state: 'detached' });
+  ok(true, 'and Alt+K again puts it away');
   await back.context.close();
 }
 
