@@ -21,6 +21,8 @@ import { trayOf } from '../../lib/seeing/media';
 import { dialOf, dialTo } from '../../lib/seeing/time';
 import { addTab, canGoBack, canGoForward, closeTab, frontTab, showTab, step, stopOf, TABS_MOST, visit, withDraft, withAddress, withLens, withTitle, type Tabs } from '../../lib/seeing/tabs';
 import { changeTabs, freshId, letTabsGo, openTabsOf, seeingTabs, seeingTabsOnServer, subscribeToSeeingTabs } from '../../lib/seeing/tabs-store';
+import { notesOn, pageOf } from '../../lib/seeing/margins';
+import { margins, marginsOnServer, openMarginsOf, subscribeToMargins } from '../../lib/seeing/margins-store';
 import { keptId } from '../../lib/seeing/pages';
 import { keptPage, keptPages, keptPagesOnServer, openKeptPagesOf, subscribeToKeptPages } from '../../lib/seeing/pages-store';
 import { engineFor } from '../../lib/seeing/engines';
@@ -34,6 +36,7 @@ import SeeingHistory from './SeeingHistory';
 import SeeingKeep from './SeeingKeep';
 import SeeingKept from './SeeingKept';
 import SeeingLenses from './SeeingLenses';
+import SeeingMargins from './SeeingMargins';
 import SeeingStage, { type Loupe } from './SeeingStage';
 import SeeingTabs from './SeeingTabs';
 import SeeingToolbar from './SeeingToolbar';
@@ -63,7 +66,10 @@ export default function SeeingMachine() {
   const held = useSyncExternalStore(subscribeToSeeingTabs, seeingTabs, seeingTabsOnServer);
 
   useEffect(() => {
-    if (status !== 'loading') openHistoryOf(owner);
+    if (status !== 'loading') {
+      openHistoryOf(owner);
+      openMarginsOf(owner);
+    }
     if (status !== 'loading') void openKeptPagesOf(owner);
     if (owner !== null) openTabsOf(owner);
     else if (status !== 'loading') letTabsGo();
@@ -99,6 +105,13 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
   const [historyOpen, setHistoryOpen] = useState(false);
   const [keptOpen, setKeptOpen] = useState(false);
   const [keeping, setKeeping] = useState(false);
+  const [noting, setNoting] = useState(false);
+  const [drawing, setDrawing] = useState(false);
+  const finderRef = useRef<((index: number) => void) | null>(null);
+  const everyMargin = useSyncExternalStore(subscribeToMargins, margins, marginsOnServer);
+  const page = pageOf(address);
+  const notes = useMemo(() => notesOn(everyMargin, pageOf(address)), [everyMargin, address]);
+  const marks = useMemo(() => notes.map((each) => each.quote), [notes]);
   const [selected, setSelected] = useState<{ key: string; text: string }>({ key: '', text: '' });
   const kept = useSyncExternalStore(subscribeToKeptPages, keptPages, keptPagesOnServer);
   const [sent, setSent] = useState<readonly FoundMedia[]>(NO_MEDIA);
@@ -357,9 +370,17 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
           [ KEPT {kept.length} ]
         </button>
         {outside ? (
-          <button type="button" aria-expanded={keeping} disabled={seen === null} onClick={() => setKeeping(!keeping)} className={PLATE}>
-            [ KEEP PAGE ]
-          </button>
+          <>
+            <button type="button" aria-expanded={keeping} disabled={seen === null} onClick={() => setKeeping(!keeping)} className={PLATE}>
+              [ KEEP PAGE ]
+            </button>
+            <button type="button" aria-expanded={noting} disabled={seen === null} onClick={() => setNoting(!noting)} className={PLATE}>
+              [ NOTES {notes.length} ]
+            </button>
+            <button type="button" aria-pressed={drawing} disabled={seen === null} onClick={() => setDrawing(!drawing)} className={drawing ? `${PLATE_PRESSED} cursor-pointer` : PLATE}>
+              [ GRAFFITI ]
+            </button>
+          </>
         ) : null}
         <button type="button" aria-expanded={trayOpen} disabled={seen === null && sent.length === 0} onClick={() => setTrayOpen(!trayOpen)} className={PLATE}>
           [ MEDIA {tray.length} ]
@@ -421,7 +442,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
           />
         ) : null}
         {seen !== null ? (
-          <SeeingStage key={key} drawing={key} document={seen} lens={tab.lens} settings={settings} seam={seam} loupe={loupe} erasing={erasing} erased={erased} onErase={onErase} onOpen={go} onNotice={setNotice} onRestricted={onRestricted} onMedia={onMedia} onSelect={keeping && outside ? onSelect : null} />
+          <SeeingStage key={key} drawing={key} document={seen} lens={tab.lens} settings={settings} seam={seam} loupe={loupe} erasing={erasing} erased={erased} onErase={onErase} onOpen={go} onNotice={setNotice} onRestricted={onRestricted} onMedia={onMedia} onSelect={(keeping || noting) && outside ? onSelect : null} marks={marks} finderRef={finderRef} graffiti={page} drawn={drawing && outside} />
         ) : address === null ? (
           <div className="p-4">
             <button type="button" className={PLATE_MAIN} onClick={() => go(TEST_ADDRESS)}>
@@ -445,6 +466,9 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
               [ SEE AN OLD COPY ]
             </button>
           </div>
+        ) : null}
+        {noting && page !== null && seen !== null ? (
+          <SeeingMargins key={`notes ${page}`} page={page} notes={notes} selected={selected.key === key ? selected.text : ''} onFind={(index) => finderRef.current?.(index)} onClose={() => setNoting(false)} />
         ) : null}
         {keeping && outside && seen !== null ? <SeeingKeep key={`keep ${key}`} address={address} owner={owner} selected={selected.key === key ? selected.text : ''} onOpen={go} onClose={() => setKeeping(false)} /> : null}
         {trayOpen && (seen !== null || sent.length > 0) ? (

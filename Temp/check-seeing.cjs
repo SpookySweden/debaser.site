@@ -1,7 +1,7 @@
 /*
  * BROWSER, the DEBASER SEEING MACHINE, Phase 1 (SPEC-seeing-machine.md, Luke 2026-11-23): the pure parts of the shell.
  * (scripts/drive-see.cjs drives the page itself in a browser, on every theme.)
- *   npx tsc app/lib/seeing/address.ts app/lib/seeing/tabs.ts app/lib/seeing/frame.ts app/lib/seeing/test-engine.ts app/lib/seeing/time.ts app/lib/seeing/trail.ts app/lib/seeing/sonify.ts app/lib/seeing/pages.ts app/lib/seeing/media.ts app/lib/seeing/ask.ts app/lib/seeing/memory.ts app/lib/seeing/lenses/registry.ts app/lib/ui/modules.ts --rootDir app --outDir Temp/seeing-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
+ *   npx tsc app/lib/seeing/address.ts app/lib/seeing/tabs.ts app/lib/seeing/frame.ts app/lib/seeing/test-engine.ts app/lib/seeing/time.ts app/lib/seeing/trail.ts app/lib/seeing/margins.ts app/lib/seeing/sonify.ts app/lib/seeing/pages.ts app/lib/seeing/media.ts app/lib/seeing/ask.ts app/lib/seeing/memory.ts app/lib/seeing/lenses/registry.ts app/lib/ui/modules.ts --rootDir app --outDir Temp/seeing-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
  *   node Temp/check-seeing.cjs
  *
  * - an address: http and https only, no user names or passwords, no control characters, bare names get https, words are refused
@@ -294,6 +294,28 @@ const played = (noise) => heard.channels.flatMap((channel, i) => (heard.getChann
 assert.ok(played(true).length >= 20 && played(false).length >= 20, `BeepBox reads its notes (${played(true).length}, ${played(false).length})`);
 assert.ok(played(true).some((note) => note.pitches[0] === 0) && played(true).every((note) => note.start % 6 === 0), 'the headings are the beat');
 for (const n of [1, 200, 4100]) assert.ok(new Song(JSON.stringify(S.songOf(S.partsOf('<h2>x</h2><a href=/q>y</a>'.repeat(n))))).barCount <= 8);
+
+/* ------------------------------------------------------------------ Phase 6: MARGINALIA and GRAFFITI */
+const M = require(`${OUT}margins.js`);
+const PG = 'https://a.example/x';
+assert.equal(M.pageOf(`${PG}#part`), PG);
+assert.equal(M.pageOf('see:test'), null);
+let marginAll = M.withNote(M.NO_MARGINS, { id: ID, page: PG, quote: ' a  b ', note: ' n ', at: NOW });
+assert.deepEqual(marginAll.notes, [{ id: ID, page: PG, quote: 'a b', note: 'n', at: NOW }]);
+assert.equal(M.withNote(marginAll, { id: ID, page: PG, quote: 'a', note: ' ', at: NOW }), marginAll, 'no note of nothing');
+assert.equal(M.withoutNote(marginAll, ID).notes.length, 0);
+const line = { ink: 'sun', points: [0, 10, 500, 20] };
+marginAll = M.withStrokes(marginAll, M.drawingKey(PG, false), [line]);
+assert.deepEqual([M.strokesOn(marginAll, PG).length, M.strokesOn(marginAll, M.drawingKey(PG, true)).length, M.strokesOn(marginAll, '__proto__').length, M.strokesOn(marginAll, 'constructor').length], [1, 0, 0, 0]);
+assert.deepEqual(M.marginsFrom(JSON.parse(JSON.stringify(marginAll))), marginAll, 'kept and read back the same');
+assert.deepEqual(M.marginsFrom({ notes: [{ id: 'x', page: PG, quote: 'q', note: 'n', at: 1 }, { id: ID, page: 'javascript:1', quote: 'q', note: 'n', at: 1 }], drawings: { [PG]: [{ ink: 'red', points: [1, 2] }, { ink: 'sun', points: [1] }, { ink: 'sun', points: [1, 'x'] }], 'see:test': [line] } }), M.NO_MARGINS);
+assert.deepEqual(Object.keys(M.withStrokes(marginAll, PG, []).drawings), []);
+const heavy = { notes: [], drawings: Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`https://a.example/${i}`, Array.from({ length: 40 }, () => ({ ink: 'sun', points: Array(600).fill(12345) }))])) };
+const light = M.storedMargins(heavy);
+assert.ok(light.text.length <= M.STORED_MOST && 'https://a.example/29' in light.margins.drawings && !('https://a.example/0' in light.margins.drawings), 'kept within its room, the newest kept');
+let pagesDrawn = M.NO_MARGINS;
+for (let i = 0; i < 40; i += 1) pagesDrawn = M.withStrokes(pagesDrawn, `https://a.example/${i}`, [line]);
+assert.ok(Object.keys(pagesDrawn.drawings).length === M.DRAWN_PAGES_MOST && 'https://a.example/39' in pagesDrawn.drawings && !('https://a.example/0' in pagesDrawn.drawings));
 
 /* ------------------------------------------------------------------ the built-in pages and the module */
 const browser = MODULES.find((module) => module.key === 'browser');

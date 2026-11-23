@@ -28,6 +28,7 @@ export const HOOK = String.raw`(function (config) {
     var data = event.data;
     if (data.see === 'dress' && typeof data.css === 'string') { sheet.textContent = data.css; (document.head || document.documentElement).appendChild(sheet); use(data.tools); show(); event.stopImmediatePropagation(); }
     else if (data.see === 'answer' && waiting[data.id]) { var done = waiting[data.id]; delete waiting[data.id]; event.stopImmediatePropagation(); done(data); }
+    else if (data.see === 'find' && typeof data.index === 'number') { mark(Array.isArray(tools.marks) ? tools.marks : []); if (marked[data.index]) find_(marked[data.index]); event.stopImmediatePropagation(); }
     else if (data.see === 'scrollTo' && typeof data.y === 'number') { scrollTo_(data); event.stopImmediatePropagation(); }
     else if (data.see === 'art' && Array.isArray(data.pieces)) { hang(data.pieces); event.stopImmediatePropagation(); }
   }, true);
@@ -207,16 +208,54 @@ export const HOOK = String.raw`(function (config) {
   window.addEventListener('mouseup', chosen, true);
   window.addEventListener('keyup', chosen, true);
 
+  /* MARGINALIA: each passage found in the page's words, white space aside, and marked without touching the page. */
+  var marked = [], markTimer = 0;
+  function mark(list) {
+    marked = [];
+    if (!window.CSS || !CSS.highlights || !window.Highlight || !document.body) return;
+    CSS.highlights.delete('see-marks');
+    if (!list.length) return;
+    var walker = document.createTreeWalker(document.body, 4), node, text = '', nodes = [], starts = [];
+    while ((node = walker.nextNode()) && text.length < 400000) {
+      if (/^(?:SCRIPT|STYLE|TEMPLATE|NOSCRIPT)$/.test(node.parentNode.nodeName)) continue;
+      nodes.push(node); starts.push(text.length); text += node.data.replace(/\s+/g, '');
+    }
+    function spot(place) {
+      var low = 0, high = starts.length - 1;
+      while (low < high) { var mid = (low + high + 1) >> 1; if (starts[mid] <= place) low = mid; else high = mid - 1; }
+      var left = place - starts[low], data = nodes[low].data, i = 0;
+      for (; i < data.length; i += 1) { if (/\s/.test(data[i])) continue; if (left === 0) break; left -= 1; }
+      return { node: nodes[low], at: Math.min(i, data.length) };
+    }
+    var all = new Highlight();
+    list.slice(0, 50).forEach(function (quote, index) {
+      var bare = String(quote).slice(0, 300).replace(/\s+/g, ''), at = bare ? text.indexOf(bare) : -1;
+      if (at < 0) return;
+      var from = spot(at), to = spot(at + bare.length - 1), range = document.createRange();
+      range.setStart(from.node, from.at);
+      range.setEnd(to.node, Math.min(to.at + 1, to.node.data.length));
+      marked[index] = range;
+      all.add(range);
+    });
+    CSS.highlights.set('see-marks', all);
+  }
+  // A page that is still being written, or writes more of itself, is looked through again: three times, and when a passage is asked for.
+  function markSoon(waits) {
+    markTimer = setTimeout(function () { mark(Array.isArray(tools.marks) ? tools.marks : []); if (waits.length > 1) markSoon(waits.slice(1)); }, waits[0]);
+  }
+  function find_(range) { var box = range.getBoundingClientRect(); window.scrollTo({ top: Math.max(0, window.scrollY + box.top - 120) }); }
+
   /* Two drawings of one page, kept at the same place. */
   var movedAt = 0, scrollTimer = 0;
   window.addEventListener('scroll', function () {
-    if (!tools.scroll || scrollTimer || Date.now() - movedAt < 250) return;
-    scrollTimer = setTimeout(function () {
-      scrollTimer = 0;
-      var page = document.scrollingElement || document.documentElement;
-      say({ see: 'scroll', x: page.scrollLeft, y: page.scrollTop, whole: Math.max(1, page.scrollHeight - page.clientHeight) });
-    }, 30);
+    if (!(tools.scroll || tools.place) || scrollTimer || (!tools.place && Date.now() - movedAt < 250)) return;
+    scrollTimer = setTimeout(tellPlace, 30);
   }, { passive: true, capture: true });
+  function tellPlace() {
+    scrollTimer = 0;
+    var page = document.scrollingElement || document.documentElement;
+    say({ see: 'scroll', x: page.scrollLeft, y: page.scrollTop, whole: Math.max(1, page.scrollHeight - page.clientHeight) });
+  }
   function scrollTo_(data) {
     var page = document.scrollingElement || document.documentElement, whole_ = Math.max(1, page.scrollHeight - page.clientHeight);
     movedAt = Date.now();
@@ -230,6 +269,9 @@ export const HOOK = String.raw`(function (config) {
     next = next && typeof next === 'object' ? next : {};
     if (pointed && !next.xray && !next.erase) { pointed.removeAttribute('data-see-pointed'); pointed = null; }
     if (next.xray && !tools.xray) setTimeout(census, 60);
+    if (next.place && !tools.place) setTimeout(tellPlace, 60);
+    clearTimeout(markTimer);
+    if (next.marks || marked.length) markSoon([120, 900, 3000]);
     undye(); undither(); unstrip();
     tools = next;
     clearTimeout(again);

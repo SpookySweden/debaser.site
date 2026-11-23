@@ -81,7 +81,9 @@ Each can be changed later by saying so.
 18. **Phase 5 works without its tables**: kept pages and history are this browser's own until Luke says yes to them, and the key says so.
 19. **A kept copy is refused for a page that is nothing but a sign-in**, not for one that has a password box somewhere on it.
 20. **A card's picture is carried in it**, shrunk by the server, so a list of cards asks nothing of anybody's site.
-21. **Nineteen themes**, not the eighteen written below: MARMALADE has six.
+21. **MARGINALIA and GRAFFITI are yours alone for now**, in this browser; SEEN TOGETHER needs a rule in the database for its private channel, so it
+    waits with them, as do MEDIA's PAGES lane and DISCOVER, which need everyone's kept pages.
+22. **Nineteen themes**, not the eighteen written below: MARMALADE has six.
 
 ## Risks, said once
 1. **SERVER is beside everything.** The torrent page (no password at home), Jellyfin, the database and its dashboard, the

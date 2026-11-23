@@ -29,26 +29,30 @@ function keep(rows: readonly Seen[]): void {
   }
 }
 
+/** What is kept now: another tab of the site may have written since this one read. */
+function readKept(owner: string): readonly Seen[] | null {
+  try {
+    const text = window.localStorage.getItem(STORAGE_PREFIX + owner);
+    return text === null ? null : rowsFrom(JSON.parse(text), Date.now());
+  } catch {
+    return null;
+  }
+}
+
 export function openHistoryOf(owner: string | null): void {
   if (held.owner === owner) return;
   let rows: readonly Seen[] = NONE;
-  if (owner !== null) {
-    try {
-      rows = rowsFrom(JSON.parse(window.localStorage.getItem(STORAGE_PREFIX + owner) ?? 'null'), Date.now());
-    } catch {
-      // Nothing readable: an empty history.
-    }
-  }
+  if (owner !== null) rows = readKept(owner) ?? NONE;
   held = { owner, rows };
   for (const listener of listeners) listener();
 }
 
 export function noteSeen(seen: Seen): void {
-  if (held.owner !== null) keep(withVisit(held.rows, seen));
+  if (held.owner !== null) keep(withVisit(readKept(held.owner) ?? held.rows, seen));
 }
 
 export function forgetOne(row: Seen): void {
-  keep(without(held.rows, row.at, row.address));
+  if (held.owner !== null) keep(without(readKept(held.owner) ?? held.rows, row.at, row.address));
 }
 
 /** One key clears it. */

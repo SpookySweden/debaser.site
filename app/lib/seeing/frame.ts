@@ -74,11 +74,17 @@ export type FrameTools = {
   /** Where the pointer is, and how far down the page is, are told: for the LOUPE and the SEAM. */
   pointer?: true;
   scroll?: true;
+  /** How far down the page is, at once and as it moves: for GRAFFITI. */
+  place?: true;
+  /** Passages marked where they stand, for MARGINALIA. */
+  marks?: string[];
   /** What the reader has selected is told: for quotes. */
   select?: true;
 };
 export type FrameDress = { see: 'dress'; css: string; tools: FrameTools };
 export type FrameScroll = { see: 'scrollTo'; x: number; y: number; whole: number };
+/** A marked passage brought into sight. */
+export type FrameFind = { see: 'find'; index: number };
 export type FrameArt = { see: 'art'; pieces: { src: string; title: string }[] };
 export type FrameAnswer =
   | { see: 'answer'; id: number; ok: true; addresses: (string | null)[] }

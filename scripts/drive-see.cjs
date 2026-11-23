@@ -619,6 +619,43 @@ async function eye(browser) {
     await page.getByRole('button', { name: 'Close history', exact: true }).click();
 
     // KEEP PAGE (Phase 5): the copy in this browser, drawn in the frame with nothing asked of the source.
+    // MARGINALIA and GRAFFITI (Phase 6).
+    await key(page, '[ NOTES 0 ]').click();
+    const noteFrame = () => page.frames().filter((each) => each.parentFrame()?.parentFrame() === page.mainFrame()).at(-1);
+    const pick = async (words) => {
+      const box = await noteFrame().evaluate(() => document.querySelector('p').getBoundingClientRect().toJSON());
+      const outer = await page.locator('[data-seeing-frame]').first().boundingBox();
+      await page.mouse.click(outer.x + box.x + 45, outer.y + box.y + 10, { clickCount: words, delay: 40 });
+      await page.waitForTimeout(300);
+    };
+    await page.waitForTimeout(500);
+    await pick(2);
+    const noting = page.locator('[data-seeing-margins]');
+    await noting.getByRole('textbox', { name: 'NOTE' }).fill('A note in the margin');
+    await noting.getByRole('button', { name: 'ADD', exact: true }).click();
+    ok((await noting.locator('blockquote').count()) === 1, 'a note is put on the words selected');
+    await page.waitForTimeout(500);
+    ok((await noteFrame().evaluate(() => CSS.highlights.get('see-marks')?.size ?? 0)) === 1, 'and they are marked where they stand');
+    await noting.getByRole('button', { name: '[ FIND ]' }).click();
+    await noting.getByRole('button', { name: 'Close notes', exact: true }).click();
+    await key(page, '[ GRAFFITI ]').click();
+    const board = await page.locator('[data-seeing-graffiti] canvas').boundingBox();
+    await page.mouse.move(board.x + 200, board.y + 120);
+    await page.mouse.down();
+    await page.mouse.move(board.x + 400, board.y + 220, { steps: 8 });
+    await page.mouse.up();
+    ok((await page.locator('[data-seeing-graffiti]').getAttribute('data-seeing-graffiti')) === '1', 'a line is drawn over the page');
+    await page.screenshot({ path: join(OUT, 'graffiti.png') });
+    const inkAt = () => page.locator('[data-seeing-graffiti] canvas').evaluate((each) => { const { data, width } = each.getContext('2d').getImageData(0, 0, each.width, each.height); for (let i = 3; i < data.length; i += 4) if (data[i] > 0) return Math.floor(i / 4 / width); return -1; });
+    const inkBefore = await inkAt();
+    await noteFrame().evaluate(() => { document.body.style.minHeight = '4000px'; scrollTo(0, 60); });
+    await page.waitForTimeout(400);
+    const inkAfter = await inkAt();
+    ok(inkBefore - inkAfter > 50 && inkBefore - inkAfter < 70, `and it moves with the page (${inkBefore} to ${inkAfter})`);
+    await noteFrame().evaluate(() => scrollTo(0, 0));
+    await key(page, '[ GRAFFITI ]').click();
+    ok((await page.locator('[data-seeing-graffiti]').evaluate((each) => getComputedStyle(each).pointerEvents)) === 'none', 'and stays, out of the way, when the pen is down');
+    await key(page, '[ NOTES 1 ]').waitFor();
     await key(page, '[ KEEP PAGE ]').click();
     const keepPanel = page.locator('[data-seeing-keep]');
     await keepPanel.getByLabel('TAGS').fill('fog, harbours');

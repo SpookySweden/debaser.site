@@ -43,6 +43,8 @@ const [role] = ask("select rolconfig::text as settings from pg_roles where rolna
 assert.match(role.settings, /pgrst\.db_pre_request=public\.guest_request_gate/, 'the gate is what runs before every request');
 console.log('  ok    the gate runs before every request');
 
+// (2026-11-23, on purpose) A table nobody may read through the site, account or not, needs no rule to keep a guest from reading it: browse_log
+// (SPEC-seeing-machine.md, D3) has no read privilege at all for either role. A table that had one again would be listed here as before.
 /* --- every table is shut to a guest unless it is the room's own --------------------------------------------------------- */
 const ROOM_TABLES = ['room_canvas_inputs', 'room_canvas_snapshots', 'room_canvases', 'watch_crowns', 'watch_members', 'watch_messages', 'watch_queue', 'watch_rooms'];
 const open = ask(`
@@ -50,6 +52,8 @@ const open = ask(`
   from pg_class c join pg_namespace n on n.oid = c.relnamespace
   where n.nspname = 'public' and c.relkind in ('r', 'p')
     and not exists (select 1 from pg_policy p where p.polrelid = c.oid and p.polname = 'guests stay out' and not p.polpermissive and p.polcmd = 'r')
+    and not (c.relrowsecurity and not has_table_privilege('authenticated', c.oid, 'select') and not has_table_privilege('anon', c.oid, 'select')
+      and not has_any_column_privilege('authenticated', c.oid, 'select') and not has_any_column_privilege('anon', c.oid, 'select'))
   order by 1
 `).map((row) => row.name);
 assert.deepEqual(open, ROOM_TABLES, `a table a guest can read that isn't the room's own needs a "guests stay out" rule in a migration: ${open.filter((name) => !ROOM_TABLES.includes(name)).join(', ')}`);

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
 import type { SeenDocument } from '../../lib/seeing/engine';
-import { FRAME_SANDBOX, frameDocument, readFrameMessage, type FrameAnswer, type FrameArt, type FrameDress, type FrameMessage, type FrameScroll, type FrameTools } from '../../lib/seeing/frame';
+import { FRAME_SANDBOX, frameDocument, readFrameMessage, type FrameAnswer, type FrameArt, type FrameDress, type FrameFind, type FrameMessage, type FrameScroll, type FrameTools } from '../../lib/seeing/frame';
 import type { Lens, LensSettings } from '../../lib/seeing/lenses/lens';
 import { reach, sealFiles } from '../../lib/seeing/server-engine';
 import { billboards, openBillboard } from '../../lib/seeing/billboards';
@@ -18,7 +18,7 @@ type Props = {
   /** Taken out of this site by the reader, as selectors of our own shape. */
   erased: readonly string[];
   /** How another drawing of the same page is kept where this one is. */
-  scrollerRef?: RefObject<((to: FrameScroll) => void) | null>;
+  scrollerRef?: RefObject<((to: FrameScroll | FrameFind) => void) | null>;
   /** What X-RAY, ERASE, the SEAM and the LOUPE are told. */
   onTold?: (message: Told) => void;
   onOpen: (address: string, newTab: boolean) => void;
@@ -184,7 +184,8 @@ export default function SeeingViewport({ document: page, lens, settings, tools, 
     const look = { tokens: theme.tokens, scheme: theme.scheme, face, settings };
     const gone = erased.length === 0 ? '' : `\n${erased.join(',\n')}{display:none!important}`;
     const pointed = tools.erase ? `\n[data-see-pointed]{outline:3px solid ${theme.tokens['bubble-pale']}!important;outline-offset:-3px!important;cursor:crosshair!important}` : '';
-    const dress: FrameDress = { see: 'dress', css: `${lens.css(look)}${gone}${pointed}`, tools: { ...lens.tools?.(look), ...tools } };
+    const marks = tools.marks === undefined ? '' : `\n::highlight(see-marks){background-color:${theme.tokens.bubble};color:${theme.tokens['ink-plate']}}`;
+    const dress: FrameDress = { see: 'dress', css: `${lens.css(look)}${gone}${pointed}${marks}`, tools: { ...lens.tools?.(look), ...tools } };
     try {
       frame.current?.contentWindow?.frames[0]?.postMessage(dress, '*');
     } catch {

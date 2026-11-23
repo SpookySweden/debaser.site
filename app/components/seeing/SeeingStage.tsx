@@ -1,11 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as Pointing } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type PointerEvent as Pointing, type RefObject } from 'react';
+import { drawingKey, strokesOn } from '../../lib/seeing/margins';
+import { margins, marginsOnServer, subscribeToMargins } from '../../lib/seeing/margins-store';
 import type { FoundMedia, SeenDocument } from '../../lib/seeing/engine';
-import type { Census, FrameScroll, FrameTools, Pointed } from '../../lib/seeing/frame';
+import type { Census, FrameFind, FrameScroll, FrameTools, Pointed } from '../../lib/seeing/frame';
 import type { LensSettings } from '../../lib/seeing/lenses/lens';
 import type { LensId } from '../../lib/seeing/lenses/names';
 import { lensOr } from '../../lib/seeing/lenses/registry';
+import SeeingGraffiti from './SeeingGraffiti';
 import SeeingViewport, { type Told } from './SeeingViewport';
 import SeeingWatchers from './SeeingWatchers';
 import SeeingXray from './SeeingXray';
@@ -32,13 +35,20 @@ type Props = {
   onMedia: (media: readonly FoundMedia[]) => void;
   /** Told what is selected while there is somewhere to put it; null when there is not. */
   onSelect: ((text: string) => void) | null;
+  /** Passages with a note on them. */
+  marks: readonly string[];
+  /** How MARGINALIA brings one into sight. */
+  finderRef: RefObject<((index: number) => void) | null>;
+  /** The page that may be drawn on, or null; and whether it is being drawn on. */
+  graffiti: string | null;
+  drawn: boolean;
 };
 
 const NO_TOOLS: FrameTools = {};
 const nothing = () => undefined;
 
 /** The page, and over it a second drawing of it when there is a SEAM or a LOUPE. */
-export default function SeeingStage({ drawing, document, lens, settings, seam, loupe, erasing, erased, onErase, onOpen, onNotice, onRestricted, onMedia, onSelect }: Props) {
+export default function SeeingStage({ drawing, document, lens, settings, seam, loupe, erasing, erased, onErase, onOpen, onNotice, onRestricted, onMedia, onSelect, marks, finderRef, graffiti, drawn }: Props) {
   const front = lensOr(lens);
   const [at, setAt] = useState(50);
   const [dragging, setDragging] = useState(false);
@@ -46,12 +56,23 @@ export default function SeeingStage({ drawing, document, lens, settings, seam, l
   const [census, setCensus] = useState<Census | null>(null);
   const stage = useRef<HTMLDivElement>(null);
   const glass = useRef<HTMLDivElement>(null);
-  const moveBack = useRef<((to: FrameScroll) => void) | null>(null);
-  const moveFront = useRef<((to: FrameScroll) => void) | null>(null);
+  const moveBack = useRef<((to: FrameScroll | FrameFind) => void) | null>(null);
+  const moveFront = useRef<((to: FrameScroll | FrameFind) => void) | null>(null);
+  const movedByOther = useRef(0);
+  const [place, setPlace] = useState({ y: 0, whole: 1 });
+  const everyMargin = useSyncExternalStore(subscribeToMargins, margins, marginsOnServer);
+  const board = graffiti === null ? null : drawingKey(graffiti, front.form === 'reading');
+  const drawOn = board !== null && (drawn || strokesOn(everyMargin, board).length > 0);
+  useEffect(() => {
+    finderRef.current = (index) => moveBack.current?.({ see: 'find', index });
+    return () => {
+      finderRef.current = null;
+    };
+  }, [finderRef]);
   const second = seam !== null ? lensOr(seam) : loupe !== null ? (typeof loupe === 'number' ? front : lensOr(loupe)) : null;
 
   const selecting = onSelect !== null;
-  const tools = useMemo<FrameTools>(() => ({ ...(erasing ? { erase: true as const } : {}), ...(seam !== null || loupe !== null ? { scroll: true as const } : {}), ...(loupe !== null ? { pointer: true as const } : {}), ...(selecting ? { select: true as const } : {}) }), [erasing, seam, loupe, selecting]);
+  const tools = useMemo<FrameTools>(() => ({ ...(erasing ? { erase: true as const } : {}), ...(seam !== null || loupe !== null ? { scroll: true as const } : {}), ...(loupe !== null ? { pointer: true as const } : {}), ...(selecting ? { select: true as const } : {}), ...(drawOn ? { place: true as const } : {}), ...(marks.length > 0 ? { marks: [...marks] } : {}) }), [erasing, seam, loupe, selecting, drawOn, marks]);
   const overTools = useMemo<FrameTools>(() => (seam !== null ? { scroll: true, ...(erasing ? { erase: true as const } : {}) } : NO_TOOLS), [seam, erasing]);
 
   // The site's own background through the window, while GLASS is the lens.
@@ -71,8 +92,11 @@ export default function SeeingStage({ drawing, document, lens, settings, seam, l
       else if (message.see === 'erase') onErase(message.selector);
       else if (message.see === 'media') onMedia(message.media);
       else if (message.see === 'select') onSelect?.(message.text);
-      else if (message.see === 'scroll') moveFront.current?.({ see: 'scrollTo', x: message.x, y: message.y, whole: message.whole });
-      else if (message.see === 'pointer' && glass.current !== null) {
+      else if (message.see === 'scroll') {
+        setPlace({ y: message.y, whole: message.whole });
+        // Where it is because the other drawing moved it is not news to the other.
+        if (Date.now() - movedByOther.current > 250) moveFront.current?.({ see: 'scrollTo', x: message.x, y: message.y, whole: message.whole });
+      } else if (message.see === 'pointer' && glass.current !== null) {
         const over = glass.current;
         const by = typeof loupe === 'number' ? loupe : 1;
         over.style.visibility = 'visible';
@@ -87,6 +111,7 @@ export default function SeeingStage({ drawing, document, lens, settings, seam, l
   );
   const toldOver = useCallback(
     (message: Told) => {
+      if (message.see === 'scroll') movedByOther.current = Date.now();
       if (message.see === 'scroll') moveBack.current?.({ see: 'scrollTo', x: message.x, y: message.y, whole: message.whole });
       else if (message.see === 'erase') onErase(message.selector);
     },
@@ -105,6 +130,17 @@ export default function SeeingStage({ drawing, document, lens, settings, seam, l
         <div className="absolute inset-0">
           <SeeingViewport key={`${drawing}:${front.form}`} document={document} lens={front} settings={settings} tools={tools} erased={erased} scrollerRef={moveBack} onTold={told} onOpen={onOpen} onNotice={onNotice} onRestricted={onRestricted} />
         </div>
+        {board !== null && drawOn ? (
+          <SeeingGraffiti
+            drawing={drawn}
+            where={board}
+            at={place}
+            onScroll={(y) => {
+              setPlace({ ...place, y });
+              moveBack.current?.({ see: 'scrollTo', x: 0, y, whole: place.whole });
+            }}
+          />
+        ) : null}
         {second !== null ? (
           <div
             ref={glass}

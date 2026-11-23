@@ -101,6 +101,13 @@ Proof: `drive-see.cjs --only lenses` (DYE and GLASS measured on every theme, 5.5
 - A copy opens at `see:kept/<id>` in the same frame with scripts off and no files, its source's link above it. Ctrl+K has PAGES.
 - Waiting for the tables: everyone's cards, REPORT and hiding, letters, recommendations, the forum's `page` anchor, tabs and history on the account.
 
+## MARGINALIA and GRAFFITI (Phase 6, in the browser only until the tables exist)
+- `margins.ts`, `margins-store.ts`: notes on passages (300 characters, 50 a page) and strokes drawn over pages, under the account's own key in this
+  browser (1.5 MB; the pages drawn on longest ago go first). **Notes**: a selection is told by the hook only while a panel wants one; a passage is marked with the browser's own highlights, so the page
+  itself isn't changed. **Graffiti** stays where it was drawn as the page moves; READER has its own, since its words stand elsewhere. A page that lays itself out
+  differently at another width moves under its drawing.
+- Waiting for the tables, and for a private channel's rule: notes shown to everyone, SEEN TOGETHER, the Room's CANVAS over a page.
+
 ## SONIFY (Phase 6)
 `sonify.ts` reads a page's tags in order (headings the beat, links the notes, pictures a bell) and writes BeepBox's own JSON into BEATBOX's address;
 no word or address of the page goes in it. The same page always sounds the same.
