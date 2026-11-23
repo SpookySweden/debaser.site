@@ -508,6 +508,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
           }} className={PLATE}>
           [ KEPT {kept.length} ]
         </button>
+        <span aria-hidden="true" className="mx-1 self-stretch border-l-line border-ink" />
         {outside ? (
           <>
             <button type="button" aria-expanded={keeping} disabled={seen === null} onClick={() => setKeeping(!keeping)} className={PLATE}>
@@ -529,18 +530,6 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
             [ SEARCH THIS ]
           </button>
         ) : null}
-        {outside && roomId !== null ? (
-          <button
-            type="button"
-            aria-pressed={leading}
-            disabled={seen === null}
-            title="Your room sees which page this is, and how far down it you are; each looks through their own lens"
-            onClick={() => (leading ? stopLeading() : address !== null ? lead({ address: address.split('#')[0], y: 0, whole: 1 }) : undefined)}
-            className={leading ? `${PLATE_PRESSED} cursor-pointer` : PLATE}
-          >
-            [ SHOW MY ROOM ]
-          </button>
-        ) : null}
         <button type="button" disabled={seen === null} title="The page's structure as a BEATBOX loop: headings the beat, links the notes" onClick={sonify} className={PLATE}>
           [ SONIFY ]
         </button>
@@ -555,6 +544,19 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
             className={scriptsOff(address) ? `${PLATE_PRESSED} cursor-pointer` : PLATE}
           >
             [ SCRIPTS OFF ]
+          </button>
+        ) : null}
+        <span aria-hidden="true" className="mx-1 self-stretch border-l-line border-ink" />
+        {outside && roomId !== null ? (
+          <button
+            type="button"
+            aria-pressed={leading}
+            disabled={seen === null}
+            title="Your room sees which page this is, and how far down it you are; each looks through their own lens"
+            onClick={() => (leading ? stopLeading() : address !== null ? lead({ address: address.split('#')[0], y: 0, whole: 1 }) : undefined)}
+            className={leading ? `${PLATE_PRESSED} cursor-pointer` : PLATE}
+          >
+            [ SHOW MY ROOM ]
           </button>
         ) : null}
         {outside ? (
