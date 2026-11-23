@@ -493,6 +493,8 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
             ))}
         </p>
       ) : null}
+      {/* The lenses and the tools share their lines, wrapping where they must (decision 38). */}
+      <div className="flex flex-wrap items-center gap-x-1 gap-y-1 pt-1" data-seeing-keys>
       <SeeingLenses
         lens={tab.lens}
         settings={settings}
@@ -502,6 +504,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
           change((all) => withLens(all, tab.id, id));
         }}
       />
+      <span aria-hidden="true" className="mx-1 hidden self-stretch border-l-line border-ink md:block" />
       <SeeingTools
         address={address}
         ready={seen !== null}
@@ -594,6 +597,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
           </button>
         ) : null}
       </SeeingTools>
+      </div>
 
       {theirs !== null && !leading ? (
         <p className="flex flex-wrap items-center gap-2 py-1 text-label text-ink" data-seeing-together>

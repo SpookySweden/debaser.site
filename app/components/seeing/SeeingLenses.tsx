@@ -19,7 +19,7 @@ export default function SeeingLenses({ lens, settings, onSettings, onLens }: Pro
     if (size !== undefined) onSettings({ ...settings, reader: { ...reader, size } });
   };
   return (
-    <div className="flex flex-wrap items-center gap-x-1 gap-y-1 pt-1" data-seeing-lenses>
+    <div className="contents" data-seeing-lenses>
       <span className="flex flex-wrap items-center gap-1" role="group" aria-label="Lens">
         {LENS_NAMES.map(({ id, label }) => {
           const built = lensById(id) !== null;

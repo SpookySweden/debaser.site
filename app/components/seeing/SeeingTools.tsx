@@ -48,7 +48,7 @@ export default function SeeingTools({ address, ready, seam, loupe, erasing, eras
     setTurning(null);
   };
   return (
-    <div className="flex flex-wrap items-center gap-x-1 gap-y-1 pt-1" data-seeing-tools>
+    <div className="contents" data-seeing-tools>
       {page ? (<>
       <button type="button" aria-pressed={seam !== null} disabled={!ready && seam === null} title="A lens each side of a line you drag" onClick={() => onSeam(seam === null ? 'reader' : null)} className={on(seam !== null)}>
         [ SEAM ]
