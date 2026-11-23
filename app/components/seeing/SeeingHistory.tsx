@@ -127,6 +127,11 @@ function TrailMap({ rows, onGo }: { rows: readonly Seen[]; onGo: (address: strin
           {place.site}
         </button>
       ))}
+      {/* The map's legend: what is on it, and while there is no line, what makes one. */}
+      <p className="absolute bottom-0 left-0 bg-paper p-1 text-ink-quiet tabular-nums" data-seeing-trail-legend>
+        {trail.places.length} {trail.places.length === 1 ? 'PLACE' : 'PLACES'} · {trail.steps.length} {trail.steps.length === 1 ? 'WAY' : 'WAYS'} BETWEEN THEM
+        {trail.steps.length === 0 ? '. A LINE IS DRAWN WHEN YOU GO FROM ONE SITE TO ANOTHER IN A TAB.' : ''}
+      </p>
     </div>
   );
 }

@@ -673,6 +673,7 @@ async function eye(browser) {
     ok(/An ordinary page/.test(await page.locator('[data-seeing-history]').innerText()), 'HISTORY has the page, by its title');
     await page.getByRole('button', { name: '[ TRAIL ]' }).click();
     ok((await page.locator('[data-seeing-trail] button').count()) === 1, 'TRAIL puts the site on the map');
+    ok(/1 PLACE · 0 WAYS BETWEEN THEM. A LINE IS DRAWN/.test(await page.locator('[data-seeing-trail-legend]').innerText()), 'and says what makes a line while there is none');
     await page.screenshot({ path: join(OUT, 'trail.png') });
     await page.getByRole('button', { name: 'Close history', exact: true }).click();
 
