@@ -456,7 +456,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
   const copyPage = copyId === null ? null : keptPage(copyId);
 
   // A book on the page in front: the site's own reader opens it (decision 39).
-  const reading = outside && address !== null ? readerRef(dialOf(address).address) : null;
+  const reading = outside && address !== null ? readerRef(dialOf(address).address, seen?.html ?? null) : null;
 
   return (
     <>

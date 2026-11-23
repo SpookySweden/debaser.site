@@ -219,6 +219,15 @@ for (const [address, ref] of [
   ['javascript:alert(1)', null],
   ['not an address', null],
 ]) assert.equal(readerRef(address), ref, address);
+// An item's own page is a book only when the page drawn says so.
+const TEXTS_META = '<head><meta property="mediatype" content="texts"></head>';
+assert.equal(readerRef('https://archive.org/details/alice00carr', TEXTS_META), 'internet_archive:alice00carr');
+assert.equal(readerRef('https://archive.org/details/alice00carr', "<meta content='texts' property='mediatype'/>"), 'internet_archive:alice00carr');
+assert.equal(readerRef('https://archive.org/details/film01', '<meta property="mediatype" content="movies">'), null);
+assert.equal(readerRef('https://archive.org/details/film01', '<a mediatype="texts">'), null);
+assert.equal(readerRef('https://archive.org/details/film01', '<meta property="mediatype" content="textsx">'), null);
+assert.equal(readerRef('https://evil.org/details/alice00carr', TEXTS_META), null);
+assert.equal(readerRef('https://archive.org/details/..%2Fx', TEXTS_META), null);
 assert.equal(dialTo('https://web.archive.org/web/2004if_/http://example.com/', 1999), 'https://web.archive.org/web/19990701000000if_/http://example.com/');
 assert.equal(dialTo('https://web.archive.org/web/2004if_/http://example.com/', null), 'http://example.com/');
 for (const selector of ['#a', 'div:nth-of-type(2)', 'body:nth-of-type(1) > div:nth-of-type(2) > my-tag:nth-of-type(10)', '#a > p:nth-of-type(1)']) assert.ok(F.isSelector(selector), selector);
