@@ -291,6 +291,11 @@ async function shell(browser) {
   await back.page.keyboard.press('Alt+KeyK');
   await back.page.locator('[data-seeing-kept]').waitFor({ state: 'detached' });
   ok(true, 'and Alt+K again puts it away');
+  await back.page.keyboard.press('Alt+KeyH');
+  await back.page.locator('[data-seeing-history]').waitFor();
+  await back.page.keyboard.press('Escape');
+  await back.page.locator('[data-seeing-history]').waitFor({ state: 'detached' });
+  ok(true, 'Escape puts HISTORY away');
   await back.context.close();
 }
 

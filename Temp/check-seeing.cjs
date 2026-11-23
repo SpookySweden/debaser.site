@@ -353,7 +353,8 @@ const press = (more) => ({ key: '', code: '', altKey: false, ctrlKey: false, met
 assert.deepEqual(K.seeingKey(press({ key: '/' })), { do: 'box' });
 assert.equal(K.seeingKey(press({ key: '/', typing: true })), null, 'a / typed in a box is a /');
 assert.deepEqual([K.seeingKey(press({ altKey: true, code: 'KeyH' })), K.seeingKey(press({ altKey: true, code: 'KeyK', typing: true })), K.seeingKey(press({ altKey: true, shiftKey: true, code: 'KeyH' }))], [{ do: 'history' }, { do: 'kept' }, null], 'Alt+H HISTORY, Alt+K KEPT');
-assert.ok(K.KEYS_LINE.includes('ALT+H HISTORY · ALT+K KEPT'), 'and they are listed');
+assert.ok(K.KEYS_LINE.includes('ALT+H HISTORY · ALT+K KEPT · ESC PUTS THEM AWAY'), 'and they are listed');
+assert.deepEqual([K.seeingKey(press({ key: 'Escape' })), K.seeingKey(press({ key: 'Escape', typing: true })), K.seeingKey(press({ key: 'Escape', ctrlKey: true }))], [{ do: 'away' }, { do: 'away' }, null], 'Escape asks them away, in a box too');
 assert.deepEqual([K.seeingKey(press({ altKey: true, code: 'KeyN', typing: true })), K.seeingKey(press({ altKey: true, code: 'KeyW' })), K.seeingKey(press({ altKey: true, code: 'Digit3' }))], [{ do: 'new' }, { do: 'close' }, { do: 'tab', index: 2 }]);
 assert.deepEqual(K.seeingKey(press({ altKey: true, code: 'KeyL' })), { do: 'lens' }, 'Alt+L the next lens');
 assert.ok(K.KEYS_LINE.includes('ALT+L'), 'and it is listed');

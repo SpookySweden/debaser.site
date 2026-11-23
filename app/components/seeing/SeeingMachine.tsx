@@ -379,7 +379,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
     changeTabs(next);
   };
   // The keys (keys.ts): heard on the site's own page, never in the frame.
-  const keyed = useRef<(asked: SeeingKey) => void>(() => undefined);
+  const keyed = useRef<(asked: SeeingKey) => boolean>(() => false);
   useEffect(() => {
     keyed.current = (asked) => {
       if (asked.do === 'box') {
@@ -393,6 +393,10 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
       } else if (asked.do === 'kept') {
         setKeptOpen(!keptOpen);
         setHistoryOpen(false);
+      } else if (asked.do === 'away') {
+        if (!historyOpen && !keptOpen) return false;
+        setHistoryOpen(false);
+        setKeptOpen(false);
       }
       else if (asked.do === 'close') change((all) => closeTab(all, all.front, freshId()));
       else if (asked.do === 'lens') {
@@ -403,6 +407,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
         const id = state.tabs[asked.index]?.id;
         if (id !== undefined) change((all) => showTab(all, id));
       }
+      return true;
     };
   });
   useEffect(() => {
@@ -411,8 +416,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
       const typing = target !== null && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName));
       const asked = seeingKey({ key: event.key, code: event.code, altKey: event.altKey, ctrlKey: event.ctrlKey, metaKey: event.metaKey, shiftKey: event.shiftKey, typing });
       if (asked === null || event.defaultPrevented) return;
-      event.preventDefault();
-      keyed.current(asked);
+      if (keyed.current(asked)) event.preventDefault();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
