@@ -101,6 +101,9 @@ has('picture', 'https://news.seeing.org/a/l.png');
 p = write('<svg><style>a{fill:url(m.svg)}</style><image href=n.png /><use xlink:href="#x"/><use href="https://e.org/sprite.svg#a"/><script>1</script></svg>', false);
 has('picture', 'https://news.seeing.org/a/n.png');
 assert.ok(!p.html.includes('<script'), 'scripts off: none in a drawing either');
+p = write('<svg><image><set attributeName="href" to="https://e.org/x.png"/></image><use><animate attributeName="xlink:href" values="#a;https://e.org/s.svg#b"/></use><rect><animate attributeName="fill" to="u&#114;l(https://e.org/p.svg#q)"/></rect><rect><animate attributeName="opacity" values="0;1"/></rect></svg>');
+assert.ok(!/e\.org|<set|attributename="(?:xlink:)?href"|fill/i.test(p.html), `an animation that sets an address goes (${p.html})`);
+assert.match(p.html, /<animate attributename="opacity" values="0;1"/i, 'one that only moves stays');
 assert.equal(rewriteSrcset('a.png, b.png 2x,c.png 3x, data:image/png;base64,AA== 4x', (one) => `S(${one})`), 'S(a.png), S(b.png) 2x, S(c.png) 3x, data:image/png;base64,AA== 4x');
 assert.equal(rewriteImports('import a from"./a.js";import"/b.js";export*from \'https://c.org/c.js\';import("./d.js");import r from"react";const s="from \'./e\'x"', (x) => `<${x}>`), 'import a from"<./a.js>";import"</b.js>";export*from \'<https://c.org/c.js>\';import("<./d.js>");import r from"react";const s="from \'<./e>\'x"', 'in the quotes it came in, so a string stays a string');
 

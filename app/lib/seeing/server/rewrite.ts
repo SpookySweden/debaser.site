@@ -34,7 +34,9 @@ export type Rewritten = {
 const GONE = new Set(['base', 'object', 'embed', 'applet', 'portal', 'fencedframe', 'param', 'frameset', 'noembed', 'noframes']);
 /** Attributes that do nothing here but reach out, or bind a file to its first bytes. */
 const DROPPED = new Set(['integrity', 'crossorigin', 'nonce', 'ping', 'srcdoc', 'manifest', 'autofocus', 'http-equiv', 'attributionsrc', 'fetchpriority', 'referrerpolicy', 'target', 'download', 'csp', 'is', 'formaction', 'formtarget', 'formmethod', 'background-src', 'lowsrc', 'dynsrc', 'codebase', 'archive', 'classid', 'data-see-ad', 'data-see-waiting', 'data-see-dead', 'data-see-frame', 'imagesrcset', 'imagesizes', 'profile', 'longdesc', 'cite', 'itemid']);
-const STYLESHEET = /(?:^|\s)stylesheet(?:\s|$)/i;
+/** A drawing's animations, which can set any attribute of what they animate. */
+const SMIL = new Set(['animate', 'set', 'animatemotion', 'animatetransform', 'animatecolor']);
+const STYLESHEET =/(?:^|\s)stylesheet(?:\s|$)/i;
 const LAZY = ['data-src', 'data-lazy-src', 'data-original', 'data-lazy'];
 const LAZY_SET = ['data-srcset', 'data-lazy-srcset'];
 
@@ -183,6 +185,14 @@ export function rewritePage(html: string, address: string, sign: Sign, scripts: 
     rawFor = 'keep';
     if (!/^[\w:.\u0080-\uffff-]+$/.test(name)) continue;
 
+    if (token.foreign && SMIL.has(name)) {
+      // An animation in a drawing that sets an address, or a value with one in it, would point the drawing somewhere after we have read it.
+      const said = ['to', 'from', 'values', 'by'].map(value).join(' ');
+      if (/href\s*$/i.test(value('attributename') ?? '') || /url|\\|&/i.test(said)) {
+        refused += 1;
+        continue;
+      }
+    }
     if (name === 'base') {
       const href = value('href');
       const url = href === null ? null : absolute(href);
