@@ -46,6 +46,7 @@ import { subscribeToTheme, themeState } from '../../lib/ui/theme-slot';
 import { useAuth } from '../AuthProvider';
 import SeeingEngines from './SeeingEngines';
 import SeeingStart from './SeeingStart';
+import SeeingAcquiring from './SeeingAcquiring';
 import SeeingElapsed from './SeeingElapsed';
 import SeeingRefused from './SeeingRefused';
 import { seeingKey, type SeeingKey } from '../../lib/seeing/keys';
@@ -653,7 +654,9 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
             onOld={() => go(dialTo(address, new Date().getFullYear()))}
             onOwn={() => void openInOwnEye(dialOf(address).address)}
           />
-        ) : null}
+        ) : (
+          <SeeingAcquiring words={now.state === 'busy' ? (now.at ?? 'ACQUIRING SOURCE') : 'STOPPED'} address={address} eye={engineFor(address).name} busy={now.state === 'busy'} />
+        )}
         {noting && page !== null && seen !== null ? (
           <SeeingMargins key={`notes ${page}`} page={page} owner={owner} notes={notes} selected={selected.key === key ? selected.text : ''} onFind={(index) => finderRef.current?.(index)} onClose={() => setNoting(false)} />
         ) : null}

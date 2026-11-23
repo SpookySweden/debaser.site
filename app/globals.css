@@ -367,6 +367,36 @@ html[data-see-glass] [data-scroll-pane='page'] + * {
   background: var(--color-paper);
 }
 
+/* BROWSER while a page is asked for (SeeingAcquiring.tsx): a 2px dither of ink through paper, the field `SpriteSlot` leaves, and while
+   busy a band of paper steps down it in twelve jumps, the way an old scanner reads. Still under reduced motion, and once stopped. */
+.seeing-acquiring {
+  position: relative;
+  overflow: hidden;
+  background: repeating-conic-gradient(var(--color-ink) 0 25%, var(--color-paper) 0 50%) 0 0 / 2px 2px;
+}
+
+.seeing-acquiring > * {
+  position: relative;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .seeing-acquiring[data-seeing-acquiring='busy']::before {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    height: --spacing(2);
+    background: var(--color-paper);
+    animation: seeing-scan 2.4s steps(12, end) infinite;
+  }
+}
+
+@keyframes seeing-scan {
+  to {
+    transform: translateY(var(--seeing-scan-depth, 60vh));
+  }
+}
+
 /* HIDE WINDOW (app/lib/ui/site-hidden.ts; Luke, 2026-11-16): while `<html>` carries the mark the site window is put away, so the
    background shows, from the first paint. `[ ▲ WINDOW ]` above the player (CornerShelf.tsx) brings it back. */
 html[data-site-hidden='on'] [data-site-window='frame'] {

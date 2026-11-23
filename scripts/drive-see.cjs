@@ -788,6 +788,9 @@ async function eye(browser) {
     ok(true, "a page that isn't there says so");
     await go(page, `${SITE}/slow`);
     await page.locator('[data-seeing-status] [data-seeing-elapsed]').filter({ hasText: /· [12] S/ }).waitFor({ timeout: 4000 });
+    const waiting = await page.locator('[data-seeing-acquiring="busy"]').innerText();
+    ok(/ACQUIRING SOURCE|PARSING DOCUMENT STRUCTURE/.test(waiting) && waiting.includes(`${SITE}/slow`) && /SERVER EYE/.test(waiting), `while it is asked for, the view says the step, the address and the eye (${waiting.replace(/\s+/g, ' ')})`);
+    await page.screenshot({ path: join(OUT, 'acquiring.png') });
     await inside(page).getByRole('heading', { name: 'Slow' }).waitFor();
     ok((await page.locator('[data-seeing-elapsed]').count()) === 0, 'a slow site is seen to be slow: the seconds count beside the step, and go when it comes');
 
