@@ -12,6 +12,7 @@ import SeeingGraffiti from './SeeingGraffiti';
 import SeeingViewport, { type Told } from './SeeingViewport';
 import SeeingWatchers from './SeeingWatchers';
 import SeeingXray from './SeeingXray';
+import { isBotCheck } from '../../lib/seeing/bot-check';
 
 /** LOUPE: another lens under the pointer, or the same words larger. */
 export type Loupe = LensId | 2 | 3 | 4;
@@ -194,7 +195,12 @@ export default function SeeingStage({ drawing, document, lens, settings, seam, l
             />
           </>
         ) : null}
-        {census !== null && document.scripts && cameOutEmpty(census) ? (
+        {isBotCheck(document) ? (
+          // A site's check that a person is asking: never answered here (decision 48), said over it, with where it can be done.
+          <p role="status" className="absolute inset-x-0 top-0 z-20 border-b-line border-ink bg-paper px-2 py-1 text-label text-ink" data-seeing-botcheck>
+            THE SITE WANTS TO CHECK A PERSON IS ASKING. THE MACHINE NEVER ANSWERS THOSE: OWN EYE OR OPEN SOURCE, IN YOUR OWN BROWSER, CAN.
+          </p>
+        ) : census !== null && document.scripts && cameOutEmpty(census) ? (
           // A page that builds itself and came out with nothing: said, over the top of it, with where it can be seen.
           <p role="status" className="absolute inset-x-0 top-0 z-20 border-b-line border-ink bg-paper px-2 py-1 text-label text-ink" data-seeing-empty>
             NOTHING CAME OUT: THIS PAGE BUILDS ITSELF IN A WAY THE MACHINE CAN&apos;T FOLLOW. OWN EYE OR OPEN SOURCE SHOWS IT.

@@ -619,6 +619,7 @@ function fixture() {
     '/find': ['text/html', '<title>Found</title><h1>Found</h1>'],
     '/hostile': ['text/html', HOSTILE],
     '/blank': ['text/html', '<!doctype html><title>Blank</title><div id="root"></div><script>import("/never.js")</script>'],
+    '/moment': ['text/html', '<title>Just a moment...</title><h1>Checking your browser before accessing the site</h1><p>This takes a few seconds.</p>'],
     '/quiet': ['text/html', '<title>Quiet</title><h1>Quiet</h1><noembed><link rel="preconnect" href="http://127.0.0.1:4568/"><input type=password id=a></noembed><noframes><link rel="preconnect" href="http://127.0.0.1:4568/"></noframes><svg><style><p><link rel=preconnect href="http://127.0.0.1:4568/"><input type=password id=b></style></svg><xmp><link rel=preconnect href="http://127.0.0.1:4568/"></xmp><svg><script><p><link rel=preconnect href="http://127.0.0.1:4568/"></script></svg><math><mtext><style><img src=x></style></mtext></math><noscript><link rel=preconnect href="http://127.0.0.1:4568/"></noscript><link rel=preconnect href="http://127.0.0.1:4568/">'],
     '/sends': ['text/html', '<title>Sends</title><script>location.href = "/next"</script>'],
     '/refreshes': ['text/html', '<meta http-equiv=refresh content="0;url=/next"><title>Refreshes</title>'],
@@ -929,6 +930,10 @@ async function eye(browser) {
     await go(page, `${SITE}/blank`);
     await page.locator('[data-seeing-empty]').waitFor({ timeout: 15000 });
     ok(/OWN EYE/.test(await page.locator('[data-seeing-empty]').innerText()), 'a page that builds itself and comes out empty is said to, with where it can be seen');
+    ok((await page.locator('[data-seeing-botcheck]').count()) === 0, 'a page that is empty is not said to be a check');
+    await go(page, `${SITE}/moment`);
+    await page.locator('[data-seeing-botcheck]').waitFor({ timeout: 15000 });
+    ok(/OWN EYE/.test(await page.locator('[data-seeing-botcheck]').innerText()), "a site's check that a person is asking is said to be one, with where it can be done");
     await context.close();
   } finally {
     net.close();

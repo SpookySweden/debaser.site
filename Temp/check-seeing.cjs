@@ -1,7 +1,7 @@
 /*
  * BROWSER, the DEBASER SEEING MACHINE, Phase 1 (SPEC-seeing-machine.md, Luke 2026-11-23): the pure parts of the shell.
  * (scripts/drive-see.cjs drives the page itself in a browser, on every theme.)
- *   npx tsc app/lib/seeing/address.ts app/lib/seeing/tabs.ts app/lib/seeing/frame.ts app/lib/seeing/test-engine.ts app/lib/seeing/time.ts app/lib/seeing/trail.ts app/lib/seeing/search.ts app/lib/seeing/margins.ts app/lib/seeing/sonify.ts app/lib/seeing/together.ts app/lib/seeing/keys.ts app/lib/seeing/refusals.ts app/lib/seeing/read-ref.ts app/lib/seeing/pages.ts app/lib/seeing/media.ts app/lib/seeing/ask.ts app/lib/seeing/memory.ts app/lib/seeing/lenses/registry.ts app/lib/ui/modules.ts --rootDir app --outDir Temp/seeing-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
+ *   npx tsc app/lib/seeing/address.ts app/lib/seeing/tabs.ts app/lib/seeing/frame.ts app/lib/seeing/test-engine.ts app/lib/seeing/time.ts app/lib/seeing/trail.ts app/lib/seeing/search.ts app/lib/seeing/margins.ts app/lib/seeing/sonify.ts app/lib/seeing/together.ts app/lib/seeing/keys.ts app/lib/seeing/refusals.ts app/lib/seeing/bot-check.ts app/lib/seeing/read-ref.ts app/lib/seeing/pages.ts app/lib/seeing/media.ts app/lib/seeing/ask.ts app/lib/seeing/memory.ts app/lib/seeing/lenses/registry.ts app/lib/ui/modules.ts --rootDir app --outDir Temp/seeing-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
  *   node Temp/check-seeing.cjs
  *
  * - an address: http and https only, no user names or passwords, no control characters, bare names get https, words are refused
@@ -458,6 +458,16 @@ for (const file of [...files('app/lib/seeing'), ...files('app/components/seeing'
   assert.deepEqual(steps, ['ACQUIRING SOURCE']);
   assert.equal(answer.document.files + answer.document.refused, 0, 'no made-up counts');
   assert.equal((await testEngine.open('see:nowhere', () => {}, new AbortController().signal)).ok, false);
+  // A site's check that a person is asking (decision 48): its title alone, or a challenge mark with an answer that turns visitors away.
+  const { isBotCheck } = require(`${OUT}bot-check.js`);
+  assert.equal(isBotCheck({ title: 'Just a moment...', html: '', status: 403 }), true, 'Cloudflare by its title');
+  assert.equal(isBotCheck({ title: 'Attention Required! | Cloudflare', html: '', status: 200 }), true);
+  assert.equal(isBotCheck({ title: 'Shop', html: '<script>window._cf_chl_opt={}</script>', status: 403 }), true, 'by its mark, turned away');
+  assert.equal(isBotCheck({ title: 'Shop', html: '<script src="https://geo.captcha-delivery.com/c.js"></script>', status: 403 }), true, 'DataDome');
+  assert.equal(isBotCheck({ title: 'Shop', html: '<div class="g-recaptcha"></div><script src="https://www.google.com/recaptcha/api.js">', status: 200 }), false, 'a contact form with a CAPTCHA is a page');
+  assert.equal(isBotCheck({ title: 'Just a moment in history', html: '', status: 200 }), false, 'a title that only starts so is a page');
+  assert.equal(isBotCheck({ title: 'A page about Cloudflare challenges', html: 'challenges.cloudflare.com', status: 200 }), false, 'an article about them is not one');
+  assert.equal(isBotCheck({ title: 'Not found', html: '', status: 404 }), false);
   console.log(`BROWSER: addresses, tabs, the frame, ${pairs} pairs over ${THEMES.length} themes, the module`);
 })().catch((error) => {
   console.error(error);
