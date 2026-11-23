@@ -664,12 +664,8 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
           <SeeingMargins key={`notes ${page}`} page={page} owner={owner} notes={notes} selected={selected.key === key ? selected.text : ''} onFind={(index) => finderRef.current?.(index)} onClose={() => setNoting(false)} />
         ) : null}
         {keeping && outside && seen !== null ? <SeeingKeep key={`keep ${key}`} address={address} owner={owner} selected={selected.key === key ? selected.text : ''} onOpen={go} onClose={() => setKeeping(false)} /> : null}
-        {trayOpen && (seen !== null || sent.length > 0) ? (
-          <>
-            {seen === null ? <div className="flex-1" /> : null}
-            <SeeingTray items={tray} />
-          </>
-        ) : null}
+        {/* (The start, the refusal and the busy view each fill what the tray leaves, so it needs no spacer.) */}
+        {trayOpen && (seen !== null || sent.length > 0) ? <SeeingTray items={tray} /> : null}
       </div>
 
       <p role="status" className={`my-1 max-w-full truncate tabular-nums ${fault ? FAULT : 'text-label text-ink'}`} data-seeing-status>
