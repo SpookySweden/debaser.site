@@ -399,9 +399,10 @@ const R = require(`${OUT}refusals.js`);
 const general = R.refusalHelp('SOMETHING NOBODY SAYS');
 // Every reason the server can give (read from its own source) has its own words, not the general ones.
 const serverSays = new Set();
-for (const file of ['app/lib/web/safe-fetch.ts', 'app/lib/seeing/server/open.ts', 'app/lib/seeing/server-engine.ts', 'app/lib/seeing/server/gate.ts']) {
+// (2026-11-23 late) public-address.ts too, and reasons with digits or an apostrophe: four were missed before.
+for (const file of ['app/lib/web/safe-fetch.ts', 'app/lib/web/public-address.ts', 'app/lib/seeing/server/open.ts', 'app/lib/seeing/server-engine.ts', 'app/lib/seeing/server/gate.ts']) {
   const source = fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
-  for (const m of source.matchAll(/(?:AnySiteRefusal\(|said\(\d+, |reason: )'([A-Z][A-Z ,:-]+)'/g)) serverSays.add(m[1]);
+  for (const m of source.matchAll(/(?:AnySiteRefusal\(|said\(\d+, |reason: |refuse\()(?:'([A-Z][A-Z0-9 ,:-]+)'|"([A-Z][A-Z0-9 ,:'-]+)")/g)) serverSays.add(m[1] ?? m[2]);
 }
 for (const reason of ['NOT UNDERSTOOD', 'SOMETHING WENT WRONG', "THAT ISN'T AN ADDRESS"]) serverSays.delete(reason);
 assert.ok(serverSays.size >= 12, `the server's reasons were found (${serverSays.size})`);
