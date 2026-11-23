@@ -104,6 +104,7 @@ Each can be changed later by saying so.
 38. **The lenses and the tools share their lines**, a hairline between them (desktop only), wrapping where they must: a built-in page has one row of keys under the address, an outside page two (it was three). Undo: the data-seeing-keyrow wrapper in SeeingMachine.tsx out, and the two `contents` roots in SeeingLenses.tsx and SeeingTools.tsx back to their own flex rows.
 39. **A book seen in BROWSER has [ READ IT ]**, into the site's own reader: an Open Library work's page, an Internet Archive book reader (/stream/) or a PDF or EPUB in an item (/download/); on the OUT group and first on a refusal. An Archive item's page alone gets none (it may be a film). Undo: drop readerRef (read-ref.ts) from SeeingMachine.tsx and SeeingRefused.tsx.
 40. **A page tunes in when it arrives**: the busy view's dither lies over it and is cut away from the top in six jumps, a third of a second (also on a tab switch); never under reduced motion, never takes the pointer. Undo: the seeing-arrive div in SeeingStage.tsx.
+41. **Alt+H opens HISTORY and Alt+K KEPT**, each a toggle, one in the other's place; listed with the other keys. Undo: the KeyH and KeyK lines in keys.ts.
 
 ## Risks, said once
 1. **SERVER is beside everything.** The torrent page (no password at home), Jellyfin, the database and its dashboard, the
