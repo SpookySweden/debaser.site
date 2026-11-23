@@ -60,7 +60,7 @@ const refuseWatchers = (url: URL): string | null => {
   return watcher === null ? refusesSignIn(url) : `REFUSED: ${watcher.company.toUpperCase()}`;
 };
 
-async function fetchFile(address: string, kind: AssetKind, deps: FileDeps, signal?: AbortSignal): Promise<AnySiteAnswer> {
+export async function fetchFile(address: string, kind: AssetKind, deps: FileDeps, signal?: AbortSignal): Promise<AnySiteAnswer> {
   const answer = await safeFetchAnySite(address, {
     way: deps.way,
     accept: ACCEPTS[kind],

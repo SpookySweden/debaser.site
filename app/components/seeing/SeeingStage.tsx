@@ -30,13 +30,15 @@ type Props = {
   onNotice: (words: string) => void;
   onRestricted: (count: number) => void;
   onMedia: (media: readonly FoundMedia[]) => void;
+  /** Told what is selected while there is somewhere to put it; null when there is not. */
+  onSelect: ((text: string) => void) | null;
 };
 
 const NO_TOOLS: FrameTools = {};
 const nothing = () => undefined;
 
 /** The page, and over it a second drawing of it when there is a SEAM or a LOUPE. */
-export default function SeeingStage({ drawing, document, lens, settings, seam, loupe, erasing, erased, onErase, onOpen, onNotice, onRestricted, onMedia }: Props) {
+export default function SeeingStage({ drawing, document, lens, settings, seam, loupe, erasing, erased, onErase, onOpen, onNotice, onRestricted, onMedia, onSelect }: Props) {
   const front = lensOr(lens);
   const [at, setAt] = useState(50);
   const [dragging, setDragging] = useState(false);
@@ -48,7 +50,8 @@ export default function SeeingStage({ drawing, document, lens, settings, seam, l
   const moveFront = useRef<((to: FrameScroll) => void) | null>(null);
   const second = seam !== null ? lensOr(seam) : loupe !== null ? (typeof loupe === 'number' ? front : lensOr(loupe)) : null;
 
-  const tools = useMemo<FrameTools>(() => ({ ...(erasing ? { erase: true as const } : {}), ...(seam !== null || loupe !== null ? { scroll: true as const } : {}), ...(loupe !== null ? { pointer: true as const } : {}) }), [erasing, seam, loupe]);
+  const selecting = onSelect !== null;
+  const tools = useMemo<FrameTools>(() => ({ ...(erasing ? { erase: true as const } : {}), ...(seam !== null || loupe !== null ? { scroll: true as const } : {}), ...(loupe !== null ? { pointer: true as const } : {}), ...(selecting ? { select: true as const } : {}) }), [erasing, seam, loupe, selecting]);
   const overTools = useMemo<FrameTools>(() => (seam !== null ? { scroll: true, ...(erasing ? { erase: true as const } : {}) } : NO_TOOLS), [seam, erasing]);
 
   // The site's own background through the window, while GLASS is the lens.
@@ -67,6 +70,7 @@ export default function SeeingStage({ drawing, document, lens, settings, seam, l
       else if (message.see === 'census') setCensus(message.census);
       else if (message.see === 'erase') onErase(message.selector);
       else if (message.see === 'media') onMedia(message.media);
+      else if (message.see === 'select') onSelect?.(message.text);
       else if (message.see === 'scroll') moveFront.current?.({ see: 'scrollTo', x: message.x, y: message.y, whole: message.whole });
       else if (message.see === 'pointer' && glass.current !== null) {
         const over = glass.current;
@@ -79,7 +83,7 @@ export default function SeeingStage({ drawing, document, lens, settings, seam, l
         over.style.clipPath = `polygon(${message.x - halfWide}px ${message.y - halfHigh}px, ${message.x + halfWide}px ${message.y - halfHigh}px, ${message.x + halfWide}px ${message.y + halfHigh}px, ${message.x - halfWide}px ${message.y + halfHigh}px)`;
       }
     },
-    [loupe, onErase, onMedia],
+    [loupe, onErase, onMedia, onSelect],
   );
   const toldOver = useCallback(
     (message: Told) => {

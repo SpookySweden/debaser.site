@@ -86,4 +86,11 @@ assert.equal(html(el(SeeKey.SeeKeysIn, { text: 'see https://example.com/ and jav
 const tray = html(el(at('SeeingTray'), { items: [{ key: 'a', title: '<b>x</b>', site: 'y.org', kind: 'VIDEO', seconds: 61, rung: 2, link: { url: 'https://y.org/a.mp4', kind: 'file', title: 'x' } }, { key: 'b', title: 'z', site: 'z.org', kind: 'VIDEO', seconds: null, rung: 5, reason: 'WHY' }] }));
 assert.ok(tray.includes('&lt;b&gt;x') && /▶ PLAY IN ROOM/.test(tray) && /\+ QUEUE/.test(tray) && tray.includes('1:01') && tray.includes('WHY'));
 assert.match(html(el(at('SeeingTray'), { items: [] })), /NOTHING FOUND\./);
+const history = html(el(at('SeeingHistory'), { onGo: none, onClose: none }));
+assert.ok(/ONLY YOU SEE THIS\. 90 DAYS\./.test(history) && /NOTHING YET\./.test(history) && /TRAIL/.test(history));
+const keepPanel = html(el(at('SeeingKeep'), { address: 'https://a.example/', owner: { id: 'u1', label: 'U' }, selected: '', onOpen: none, onClose: none }));
+assert.ok(/ONLY YOU, IN THIS BROWSER/.test(keepPanel) && !/EVERYONE/.test(keepPanel), 'it says who will see it');
+assert.match(keepPanel, /<a href="https:\/\/web\.archive\.org\/save\/https:\/\/a\.example\/" target="_blank" rel="noopener noreferrer"/);
+assert.match(keepPanel, /<button[^>]*disabled=""[^>]*>\[ \+ QUOTE \]/);
+assert.match(html(el(at('SeeingKept'), { me: 'u1', onGo: none, onClose: none })), /NOTHING KEPT\./);
 console.log('BROWSER on screen: the sign-in call, tabs, keys, lenses and WATCHERS');

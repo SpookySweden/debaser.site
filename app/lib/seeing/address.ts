@@ -47,7 +47,7 @@ export function readAddress(text: string): ReadAddress {
 
 /** A short name for an address, until its page says its own title. */
 export function shortName(address: string): string {
-  if (isBuiltIn(address)) return 'TEST PAGE';
+  if (isBuiltIn(address)) return address.startsWith('see:kept/') ? 'KEPT PAGE' : 'TEST PAGE';
   try {
     return new URL(address).hostname.replace(/^www\./, '');
   } catch {

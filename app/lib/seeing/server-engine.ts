@@ -28,6 +28,17 @@ export const serverEngine: SeeingEngine = {
   },
 };
 
+export type Kept = { address: string; card: { title: string; description: string; picture: string | null; language: string; date: string }; copy: unknown };
+
+/** The copy KEEP PAGE keeps, made there from its own signed-out look at the page. A reason, when it can't be. */
+export async function makeCopy(address: string, signal?: AbortSignal): Promise<Kept | string> {
+  const response = await ask('keep', { address }, signal);
+  if (response === null) return 'LOG IN TO KEEP PAGES';
+  const answer = (await response.json().catch(() => null)) as ({ ok?: boolean; reason?: unknown } & Partial<Kept>) | null;
+  if (answer?.ok === true && typeof answer.address === 'string' && answer.card !== undefined) return { address: answer.address, card: answer.card, copy: answer.copy ?? null };
+  return typeof answer?.reason === 'string' ? answer.reason : 'SOMETHING WENT WRONG';
+}
+
 export type Reached = { status: number; type: string; url: string; body: ArrayBuffer };
 
 /** What a page's own script asks for. */

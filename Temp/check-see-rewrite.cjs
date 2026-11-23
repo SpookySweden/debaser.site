@@ -1,7 +1,7 @@
 /*
  * BROWSER's rewriter, READER and the routes' answers (SPEC-seeing-machine.md, Phase 2; Luke 2026-11-23), offline: made-up pages and a
  * made-up internet. (What may be fetched at all is check-see-attack.cjs; the frame in a real browser is scripts/drive-see.cjs.)
- *   npx tsc app/lib/seeing/server/open.ts --rootDir app --outDir Temp/see-rewrite-out --module commonjs --target es2022 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop --strictNullChecks
+ *   npx tsc app/lib/seeing/server/open.ts app/lib/seeing/server/keep.ts --rootDir app --outDir Temp/see-rewrite-out --module commonjs --target es2022 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop --strictNullChecks
  *   node Temp/check-see-rewrite.cjs
  *
  * - nothing on a page is left pointing anywhere: pictures, sets, styles, fonts, imports, scripts and modules are signed, and frames,
@@ -32,6 +32,7 @@ const { createCache } = at('cache.js');
 const { createMemoryVisits } = at('visits.js');
 const assets = at('assets.js');
 const open = at('open.js');
+const keep = at('keep.js');
 
 const PAGE = 'https://news.seeing.org/a/story?x=1';
 const signed = [];
@@ -254,7 +255,20 @@ function world(answers, env = {}) {
   return { deps, asked, visits, later: (ms) => { now += ms; } };
 }
 const body = (text, type, more = {}) => () => new Response(text, { headers: { 'content-type': type, ...more } });
-const ask = (where, data, person = OWNER, headers = {}) => new Request(`https://debaser.site/api/see/${where}`, { method: 'POST', body: JSON.stringify(data), headers: { 'content-type': 'application/json', origin: 'https://debaser.site', ...(person ? { authorization: `Bearer ${TOKEN[person] ?? person}` } : {}), ...headers } });
+const sentBody = new WeakMap();
+const ask = (where, data, person = OWNER, headers = {}) => {
+  const made = new Request(`https://debaser.site/api/see/${where}`, { method: 'POST', body: JSON.stringify(data), headers: { 'content-type': 'application/json', origin: 'https://debaser.site', ...(person ? { authorization: `Bearer ${TOKEN[person] ?? person}` } : {}), ...headers } });
+  sentBody.set(made, JSON.stringify(data));
+  return made;
+};
+// A promise that never comes would end this quietly, with nothing proved.
+let done = false;
+process.on('exit', () => {
+  if (!done && process.exitCode === undefined) {
+    console.error('check-see-rewrite stopped before its end');
+    process.exitCode = 1;
+  }
+});
 const passIn = (text) => /\/api\/see\/asset\/([\w-]+)/.exec(text)[1];
 const file = (pass, deps) => open.assetRoute(new Request(`https://debaser.site/api/see/asset/${pass}`), pass, deps);
 
@@ -300,7 +314,9 @@ const file = (pass, deps) => open.assetRoute(new Request(`https://debaser.site/a
     const { noVisits, ...more } = env ?? {};
     w = world(answers, more);
     if (noVisits) w.deps.visits = { write: async () => false };
+    const again = new Request(request.url, { method: 'POST', headers: request.headers, body: sentBody.get(request) });
     const answer = await open.openAnswer(request, w.deps);
+    assert.ok((await keep.keepAnswer(again, w.deps)).status >= 400, `${what}: and no copy is made`);
     const said = await answer.json();
     assert.equal(said.ok, false, what);
     assert.ok(answer.status >= 400, what);
@@ -376,6 +392,48 @@ const file = (pass, deps) => open.assetRoute(new Request(`https://debaser.site/a
   assert.equal(await data.text(), '{"a":1}');
   assert.equal(data.headers.get('x-see-type'), 'application/json');
   assert.equal(data.headers.get('content-type'), 'application/octet-stream', 'never a document of ours');
+  // KEEP PAGE's copy: whole in itself, from this server's own signed-out look, and nothing of anybody's.
+  {
+    const sharp = require('sharp');
+    const png = await sharp({ create: { width: 1600, height: 900, channels: 3, background: 'teal' } }).png().toBuffer();
+    const story = `<html lang=en-GB><head><title>Story &amp; more</title><meta property=og:description content="What &quot;happened&quot;"><meta property=og:image content=/p.png><link rel=stylesheet href=/s.css><script>steal()</script></head><body onload=x()><article class=story><h1>Story</h1><time datetime=2026-01-02T03:04:05Z></time><p>${words(80)}</p><img src=/p.png><img src=/p.png><img src=/v.svg><img src=https://doubleclick.net/x.gif><p>${words(60)}</p></article><form action=https://evil.org/><input name=a></form><iframe src=https://evil.org/></iframe><p>https://x.invalid/0</p></body></html>`;
+    const k = world({
+      'https://keep.org/': body(story, 'text/html; charset=utf-8'),
+      'https://keep.org/p.png': body(png, 'image/png'),
+      'https://keep.org/v.svg': body('<svg xmlns="http://www.w3.org/2000/svg"/>', 'image/svg+xml'),
+      'https://keep.org/s.css': body('@import "/more.css";p{color:teal}a{background:url(b.png)}</style><script>x</script>', 'text/css'),
+      'https://keep.org/in': body('<title>In</title><form><input type=password></form><p>x', 'text/html'),
+      'https://keep.org/no': () => new Response('<p>Not for you', { status: 403, headers: { 'content-type': 'text/html' } }),
+      'https://keep.org/pic': body(png, 'image/png'),
+    });
+    const made = await (await keep.keepAnswer(ask('keep', { address: 'https://keep.org/' }), k.deps)).json();
+    assert.deepEqual([made.ok, made.address, made.card.title, made.card.description, made.card.language, made.card.date], [true, 'https://keep.org/', 'Story & more', 'What "happened"', 'en-GB', '2026-01-02']);
+    assert.match(made.card.picture, /^data:image\/webp;base64,/);
+    assert.ok(made.card.picture.length < 60_000);
+    const all = made.copy.html + made.copy.reading;
+    for (const gone of ['<script', 'steal', 'onload', '<iframe', '<form', 'doubleclick', '/api/see/', 'more.css', 'b.png', '.svg', '<link']) assert.ok(!all.includes(gone), `${gone} is not in a copy`);
+    assert.equal((made.copy.html.match(/<img[^>]*src="data:image\/webp;base64,/g) ?? []).length, 2, 'its pictures are in it, shrunk');
+    assert.match(made.copy.html, /p\{color:teal\}/);
+    assert.ok(made.copy.html.includes('https://x.invalid/0'), "a page can't write itself a place");
+    assert.match(made.copy.reading, /<h1>Story<\/h1>/);
+    assert.ok(k.asked.every((each) => each.startsWith('https://keep.org/')), 'nothing else was asked');
+    assert.equal(k.asked.filter((each) => each.endsWith('/p.png')).length, 2, 'the same picture once (and once for its card)');
+    for (const address of ['https://keep.org/in', 'https://keep.org/no']) {
+      const card = await (await keep.keepAnswer(ask('keep', { address }), k.deps)).json();
+      assert.deepEqual([card.ok, card.copy], [true, null], 'a page for signed-in people is a card, and no copy');
+    }
+    assert.equal((await keep.keepAnswer(ask('keep', { address: 'https://keep.org/pic' }), k.deps)).status, 403, 'only pages');
+    // The same picture over and over stops at ten megabytes.
+    const noise = await sharp(require('crypto').randomBytes(900 * 900 * 3), { raw: { width: 900, height: 900, channels: 3 } }).png().toBuffer();
+    const many = world({ 'https://many.org/': body(`<p>x${'<img src=/n.png>'.repeat(400)}`, 'text/html'), 'https://many.org/n.png': body(noise, 'image/png') });
+    const big = await (await keep.keepAnswer(ask('keep', { address: 'https://many.org/' }), many.deps)).json();
+    assert.ok(big.copy === null || big.copy.html.length < 11 * 1024 * 1024, 'ten megabytes at most');
+    const sheets = world({ 'https://sheets.org/': body(`<p>x${'<link rel=stylesheet href=/s.css>'.repeat(20_000)}`, 'text/html'), 'https://sheets.org/s.css': body('a{color:red}'.repeat(40_000), 'text/css') });
+    const sheeted = await (await keep.keepAnswer(ask('keep', { address: 'https://sheets.org/' }), sheets.deps)).json();
+    assert.ok(sheeted.copy === null || sheeted.copy.html.length < 11 * 1024 * 1024, 'nor is one sheet a thousand times over');
+    assert.equal(sheets.asked.length, 2);
+  }
+
   for (const address of ['http://localhost/', 'https://api.debaser.site/rest/v1/', 'https://www.google-analytics.com/collect', 'file:///c:/', 'https://page.org/film']) assert.equal((await open.askedAnswer(ask('ask', { page: 'https://page.org/', address }), w.deps)).status, 403, address);
   const sealed = await (await open.sealAnswer(ask('seal', { page: 'https://page.org/a/', files: [{ address: 'b.png', kind: 'picture' }, { address: 'https://doubleclick.net/x.js', kind: 'script' }, { address: 'c', kind: 'data' }, { address: 'd', kind: 'nonsense' }, null, { address: 'javascript:x', kind: 'script' }] }), w.deps)).json();
   assert.deepEqual(sealed.addresses.map((each) => each === null), [false, true, true, true, true, true]);
@@ -393,6 +451,7 @@ const file = (pass, deps) => open.assetRoute(new Request(`https://debaser.site/a
   small.put('huge', { type: 'x', body: new Uint8Array(500) });
   assert.equal(small.get('huge'), null);
 
+  done = true;
   console.log('the rewriter, READER and the routes: nothing left pointing anywhere, nothing fetched that should not be');
   process.exit(0);
 })().catch((error) => {

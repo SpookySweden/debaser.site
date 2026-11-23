@@ -610,6 +610,57 @@ async function eye(browser) {
     ok(net.asked.every((each) => each.headers.cookie === undefined && each.headers.referer === undefined && each.headers.authorization === undefined && !/debaser|luke/i.test(JSON.stringify(each.headers))), 'with nothing of the reader or the site');
     ok(!net.asked.some((each) => /doubleclick|googletag|analytics|player/.test(String(each.host)) || each.path === '/secret'), 'and nothing refused was asked for');
 
+    // HISTORY and TRAIL (Phase 5): the walk so far, in this browser and nowhere else.
+    await key(page, '[ HISTORY ]').click();
+    ok(/An ordinary page/.test(await page.locator('[data-seeing-history]').innerText()), 'HISTORY has the page, by its title');
+    await page.getByRole('button', { name: '[ TRAIL ]' }).click();
+    ok((await page.locator('[data-seeing-trail] button').count()) === 1, 'TRAIL puts the site on the map');
+    await page.screenshot({ path: join(OUT, 'trail.png') });
+    await page.getByRole('button', { name: 'Close history', exact: true }).click();
+
+    // KEEP PAGE (Phase 5): the copy in this browser, drawn in the frame with nothing asked of the source.
+    await key(page, '[ KEEP PAGE ]').click();
+    const keepPanel = page.locator('[data-seeing-keep]');
+    await keepPanel.getByLabel('TAGS').fill('fog, harbours');
+    const shownFrame = () => page.frames().filter((each) => each.parentFrame()?.parentFrame() === page.mainFrame()).at(-1);
+    await page.waitForTimeout(400);
+    await shownFrame().evaluate(() => {
+      const range = document.createRange();
+      range.selectNodeContents(document.querySelector('h1'));
+      getSelection().removeAllRanges();
+      getSelection().addRange(range);
+    });
+    await page.locator('[data-seeing-frame]').first().click({ position: { x: 5, y: 5 }, modifiers: ['Shift'] }).catch(() => undefined);
+    await shownFrame().evaluate(() => {
+      const range = document.createRange();
+      range.selectNodeContents(document.querySelector('h1'));
+      getSelection().removeAllRanges();
+      getSelection().addRange(range);
+    });
+    await page.keyboard.press('Shift');
+    await page.waitForTimeout(300);
+    const quoteKey = keepPanel.getByRole('button', { name: '[ + QUOTE ]' });
+    ok(await quoteKey.isEnabled(), 'words selected on the page can be quoted');
+    await quoteKey.click();
+    await keepPanel.getByRole('button', { name: 'KEEP', exact: true }).click();
+    await keepPanel.getByRole('button', { name: '[ SEE THE COPY ]' }).waitFor({ timeout: 30000 });
+    ok(/ONLY YOU, IN THIS BROWSER/.test(await keepPanel.innerText()), 'the key says who sees it');
+    const asksBefore = net.asked.length;
+    await keepPanel.getByRole('button', { name: '[ SEE THE COPY ]' }).click();
+    await say(page, 'KEPT COPY');
+    await page.waitForTimeout(600);
+    const copyWords = await shownFrame().evaluate(() => document.body.innerText).catch((failure) => String(failure));
+    const copyAsks = net.asked.slice(asksBefore).map((each) => each.host + each.path);
+    ok(/An ordinary page/.test(copyWords) && copyAsks.length === 0, `the copy is drawn, and the source was asked for nothing (${copyWords.slice(0, 80)} ${copyAsks})`);
+    ok(/KEPT /.test(await page.locator('[data-seeing-copy-of]').innerText()), 'and says whose page it is');
+    await page.screenshot({ path: join(OUT, 'kept-copy.png') });
+    await key(page, '[ KEPT 1 ]').click();
+    const keptText = await page.locator('[data-seeing-kept]').innerText();
+    ok(/FOG/.test(keptText) && /HARBOURS/.test(keptText) && /ONLY YOU/.test(keptText), 'the card is listed, with its tags');
+    await page.screenshot({ path: join(OUT, 'kept.png') });
+    await page.locator('[data-seeing-kept]').getByRole('button', { name: '[ SEE THE PAGE ]' }).click();
+    await say(page, 'SERVER EYE');
+
     await page.locator('[data-seeing-lenses]').getByRole('button', { name: '[ WATCHERS ]' }).click();
     const watchers = await page.locator('[data-seeing-watchers]').innerText();
     ok(/Google/.test(watchers) && /REFUSED/.test(watchers), 'WATCHERS says who was on it and what was refused');
@@ -881,6 +932,15 @@ async function lenses(browser) {
   await page.waitForFunction(() => document.querySelector('[data-seeing-address]').value === 'https://wiby.me/surprise/');
   ok(true, 'SCAN asks for a random page');
   ok(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), 'no sideways scroll');
+  // SONIFY (Phase 6): the page's structure in BEATBOX.
+  await go(page, 'see:test');
+  await say(page, 'DOCUMENT RECONSTRUCTED');
+  await key(page, '[ SONIFY ]').click();
+  await page.waitForURL("**/beatbox*", { timeout: 60000 });
+  ok(page.url().includes("/beatbox"), 'SONIFY opens the page in BEATBOX');
+  await page.waitForTimeout(3000);
+  await page.screenshot({ path: join(OUT, 'sonify.png') });
+
   await context.close();
 }
 

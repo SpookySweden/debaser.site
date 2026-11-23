@@ -12,6 +12,10 @@ import type { DocSummary } from '../lib/docs/types';
 import { commentDomId, threadDomId } from '../lib/forum/anchors';
 import { displayTitle } from '../lib/forum/site-author';
 import { useCatalogue } from '../lib/media/catalogue';
+import { browserHref } from '../lib/seeing/address';
+import { askToSee } from '../lib/seeing/ask';
+import { keptAddress, pageWords } from '../lib/seeing/pages';
+import { keptPages, keptPagesOnServer, openKeptPagesOf, subscribeToKeptPages } from '../lib/seeing/pages-store';
 import { useRecommendationList } from '../lib/recommendations/store';
 import {
   closeSearch,
@@ -36,7 +40,7 @@ import { useComms } from './CommsProvider';
 import DockWindow from './DockWindow';
 import { useForum } from './ForumProvider';
 
-type Row = { key: string; href: string; text: string; outside?: boolean };
+type Row = { key: string; href: string; text: string; outside?: boolean; /** Opened in BROWSER by the press itself: a link alone waits for GO there. */ see?: string };
 
 const ROW = 'block truncate py-0.5 text-prose text-ink hover:underline';
 
@@ -122,7 +126,10 @@ function Group({ title, rows, onLeave, empty }: { title: string; rows: Row[]; on
             {row.text} ↗
           </a>
         ) : (
-          <Link key={row.key} href={row.href} onClick={onLeave} className={ROW}>
+          <Link key={row.key} href={row.href} onClick={() => {
+              if (row.see !== undefined) askToSee(row.see);
+              onLeave();
+            }} className={ROW}>
             {row.text}
           </Link>
         ),
@@ -159,6 +166,9 @@ export function SearchBody({ initial, onLeave }: { initial: string; onLeave: () 
       live = false;
     };
   }, []);
+  // BROWSER's kept pages.
+  const kept = useSyncExternalStore(subscribeToKeptPages, keptPages, keptPagesOnServer);
+  useEffect(() => void openKeptPagesOf(me), [me]);
   useEffect(() => {
     let live = true;
     void getDocsRepository(me)
@@ -211,8 +221,11 @@ export function SearchBody({ initial, onLeave }: { initial: string; onLeave: () 
     const books = [...reading, ...read]
       .filter((place) => matchesWords(words, place.title))
       .map((place) => ({ key: place.bookRef, href: continueHref(place.bookRef), text: place.title || 'A BOOK' }));
-    return { posts, people, docRows, files, drawingRows, recs, books };
-  }, [words, forum.threads, accounts, docs, catalogue.items, drawings, recommendations.value, places]);
+    const pages = kept
+      .filter((page) => matchesWords(words, ...pageWords(page)))
+      .map((page) => ({ key: page.id, href: browserHref(null), see: page.hasCopy ? keptAddress(page.id) : page.address, text: `${page.title} · ${page.site}` }));
+    return { posts, people, docRows, files, drawingRows, recs, books, pages };
+  }, [kept, words, forum.threads, accounts, docs, catalogue.items, drawings, recommendations.value, places]);
 
   // OUTSIDE: MEDIA's own search, asked once per search and shown after the site's groups (S1B).
   const [outside, setOutside] = useState<{ for: string; items: WebStreamItem[]; failed: boolean } | null>(null);
@@ -269,6 +282,7 @@ export function SearchBody({ initial, onLeave }: { initial: string; onLeave: () 
           <Group title="DRAWINGS" rows={groups.drawingRows.slice(0, GROUP_LIMIT)} onLeave={onLeave} />
           <Group title="RECOMMENDATIONS" rows={groups.recs.slice(0, GROUP_LIMIT)} onLeave={onLeave} />
           <Group title="YOUR BOOKS" rows={groups.books.slice(0, GROUP_LIMIT)} onLeave={onLeave} />
+          <Group title="PAGES" rows={groups.pages.slice(0, GROUP_LIMIT)} onLeave={onLeave} />
           <Group
             title="OUTSIDE"
             rows={(outsideNow?.items ?? []).map((item) => ({

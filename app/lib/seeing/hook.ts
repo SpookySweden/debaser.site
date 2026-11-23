@@ -202,6 +202,11 @@ export const HOOK = String.raw`(function (config) {
     if (selector) say({ see: 'erase', selector: selector });
   }, true);
 
+  /* What the reader has selected, for a quote, while the site asks. */
+  function chosen(event) { if (tools.select && event.isTrusted) setTimeout(function () { var picked = window.getSelection(); say({ see: 'select', text: picked ? String(picked).slice(0, 2000).replace(/\s+/g, ' ').trim().slice(0, 300) : '' }); }, 0); }
+  window.addEventListener('mouseup', chosen, true);
+  window.addEventListener('keyup', chosen, true);
+
   /* Two drawings of one page, kept at the same place. */
   var movedAt = 0, scrollTimer = 0;
   window.addEventListener('scroll', function () {

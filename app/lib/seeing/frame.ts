@@ -74,6 +74,8 @@ export type FrameTools = {
   /** Where the pointer is, and how far down the page is, are told: for the LOUPE and the SEAM. */
   pointer?: true;
   scroll?: true;
+  /** What the reader has selected is told: for quotes. */
+  select?: true;
 };
 export type FrameDress = { see: 'dress'; css: string; tools: FrameTools };
 export type FrameScroll = { see: 'scrollTo'; x: number; y: number; whole: number };
@@ -99,6 +101,7 @@ export type FrameMessage =
   | { see: 'census'; census: Census }
   | { see: 'erase'; selector: string }
   | { see: 'media'; media: FoundMedia[] }
+  | { see: 'select'; text: string }
   | { see: 'pointer'; x: number; y: number }
   | { see: 'scroll'; x: number; y: number; whole: number }
   | { see: 'ask'; id: number; address: string }
@@ -176,6 +179,8 @@ export function readFrameMessage(data: unknown): FrameMessage | null {
       return readMedia(data as Record<string, unknown>);
     case 'erase':
       return typeof selector === 'string' && isSelector(selector) ? { see, selector } : null;
+    case 'select':
+      return typeof data === 'object' && 'text' in data ? { see, text: words(data.text, 300).replace(/\s+/g, ' ').trim() } : null;
     case 'pointer':
       return isPlace(x) && isPlace(y) ? { see, x, y } : null;
     case 'scroll':

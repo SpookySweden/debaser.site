@@ -1,0 +1,99 @@
+'use client';
+
+import { useMemo, useState, useSyncExternalStore } from 'react';
+import { matchesWords, searchWords } from '../../lib/search/site-search';
+import { keptAddress, pageWords, type SeenPage } from '../../lib/seeing/pages';
+import { keptPages, keptPagesOnServer, removePage, subscribeToKeptPages } from '../../lib/seeing/pages-store';
+import { FIELD_TIGHT, PLATE, PLATE_PRESSED, TITLE_BAR_INACTIVE } from '../../lib/ui/controls';
+
+const SHOWN = 60;
+
+/** The kept pages, over the page: cards, by tag or by words. */
+export default function SeeingKept({ me, onGo, onClose }: { me: string; onGo: (address: string) => void; onClose: () => void }) {
+  const pages = useSyncExternalStore(subscribeToKeptPages, keptPages, keptPagesOnServer);
+  const [words, setWords] = useState('');
+  const [tag, setTag] = useState<string | null>(null);
+  const tags = useMemo(() => [...new Set(pages.flatMap((page) => page.tags))].sort(), [pages]);
+  const found = useMemo(() => pages.filter((page) => (tag === null || page.tags.includes(tag)) && (words.trim() === '' || matchesWords(searchWords(words), ...pageWords(page)))), [pages, tag, words]);
+  return (
+    <section aria-label="Kept pages" className="absolute inset-0 z-30 flex flex-col bg-paper p-2 text-label text-ink" data-seeing-kept>
+      <div className="flex flex-wrap items-center gap-1">
+        <h2 className={`${TITLE_BAR_INACTIVE} min-w-40 flex-1`}>KEPT</h2>
+        <input value={words} onChange={(event) => setWords(event.target.value)} aria-label="Find in kept pages" placeholder="FIND" spellCheck={false} className={`${FIELD_TIGHT} w-40`} />
+        <button type="button" aria-label="Close kept pages" onClick={onClose} className={PLATE}>
+          [ × ]
+        </button>
+      </div>
+      {tags.length > 0 ? (
+        <p className="flex flex-wrap gap-1 py-1">
+          {tags.map((each) => (
+            <button key={each} type="button" aria-pressed={tag === each} onClick={() => setTag(tag === each ? null : each)} className={tag === each ? `${PLATE_PRESSED} cursor-pointer` : PLATE}>
+              {each}
+            </button>
+          ))}
+        </p>
+      ) : null}
+      {found.length === 0 ? <p className="p-1">NOTHING KEPT.</p> : null}
+      <ul className="min-h-0 flex-1 overflow-y-auto">
+        {found.slice(0, SHOWN).map((page) => (
+          <Card key={page.id} page={page} mine={page.ownerId === me} onGo={onGo} />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function Card({ page, mine, onGo }: { page: SeenPage; mine: boolean; onGo: (address: string) => void }) {
+  const [sure, setSure] = useState(false);
+  const [said, setSaid] = useState<string | null>(null);
+  return (
+    <li className="rule-pixel flex gap-2 py-2">
+      {/* The server's own shrunk copy, carried in the card. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {page.picture !== null ? <img src={page.picture} alt="" className="h-20 w-28 shrink-0 object-cover" /> : null}
+      <div className="min-w-0 flex-1">
+        <p className="text-prose break-words">{page.title}</p>
+        <p className="text-ink-quiet">
+          {page.site} · {new Date(page.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).toUpperCase()}
+          {mine ? '' : ` · ${page.ownerLabel}`}
+          {page.private ? ' · ONLY YOU' : ''}
+        </p>
+        {page.description !== '' ? <p className="break-words">{page.description}</p> : null}
+        {page.note !== '' ? <p className="break-words whitespace-pre-wrap">{page.note}</p> : null}
+        {page.quotes.map((quote) => (
+          <blockquote key={quote} className="border-l-line border-ink pl-2 break-words">
+            {quote}
+          </blockquote>
+        ))}
+        <p className="flex flex-wrap gap-1 pt-1">
+          {page.hasCopy ? (
+            <button type="button" onClick={() => onGo(keptAddress(page.id))} className={PLATE}>
+              [ SEE THE COPY ]
+            </button>
+          ) : null}
+          <button type="button" onClick={() => onGo(page.address)} title={page.address} className={PLATE}>
+            [ SEE THE PAGE ]
+          </button>
+          {mine ? (
+            <button
+              type="button"
+              onBlur={() => setSure(false)}
+              onClick={() => {
+                if (sure) void removePage(page).catch((failure: unknown) => setSaid(failure instanceof Error ? failure.message : 'NOT DELETED'));
+                setSure(!sure);
+              }}
+              className={PLATE}
+            >
+              {sure ? '[ DELETE IT? ]' : '[ DELETE ]'}
+            </button>
+          ) : null}
+        </p>
+        {said !== null ? (
+          <p role="status" className="w-fit bg-bubble-pale px-1 text-ink-bar">
+            {said}
+          </p>
+        ) : null}
+      </div>
+    </li>
+  );
+}

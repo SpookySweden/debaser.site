@@ -206,11 +206,13 @@ for (const [file, text] of sources) {
 // data drawn as lines, not artwork; Luke OK'd "data charts drawn by code in token colours, not illustrations" with
 // SPEC-leaguebot.md. Any other <svg> still fails, and so does a picture drawn inside this one (it may hold only lines).
 const DATA_CHARTS = new Set(['app/components/LeagueChart.tsx']);
+// (2026-11-23) BROWSER's kept copy (SPEC-seeing-machine.md): a web page's own pictures, shrunk while the site runs, not artwork in the code.
+const PAGE_COPIES = new Set(['app/lib/seeing/server/keep.ts']);
 for (const [file, text] of sources) {
   if (DATA_CHARTS.has(file)) {
     if (/<(path|circle|rect|ellipse|polygon|image|text)[\s>]/.test(text)) fail(file, 'a data chart may draw only lines');
   } else if (/<svg[\s>]/.test(text)) fail(file, 'draws an `<svg>`');
-  if (/data:image\//.test(text)) fail(file, 'inlines a `data:` image');
+  if (/data:image\//.test(text) && !PAGE_COPIES.has(file)) fail(file, 'inlines a `data:` image');
 }
 
 // 5. Every page wears the site's shell, and says what it is in the tab.

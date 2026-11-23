@@ -78,7 +78,10 @@ Each can be changed later by saying so.
     you add, and never for sign-ins. Its READER is its own, over the live page.
 16. **Rung 3 of the ladder waits**: it needs a new kind of queue row, which is a database change. Rung 4 waits for SCREENS' relay key.
 17. **`[ SEE ]` shows only for people with BROWSER on their bar**, so nobody else sees a key that would refuse them.
-18. **Nineteen themes**, not the eighteen written below: MARMALADE has six.
+18. **Phase 5 works without its tables**: kept pages and history are this browser's own until Luke says yes to them, and the key says so.
+19. **A kept copy is refused for a page that is nothing but a sign-in**, not for one that has a password box somewhere on it.
+20. **A card's picture is carried in it**, shrunk by the server, so a list of cards asks nothing of anybody's site.
+21. **Nineteen themes**, not the eighteen written below: MARMALADE has six.
 
 ## Risks, said once
 1. **SERVER is beside everything.** The torrent page (no password at home), Jellyfin, the database and its dashboard, the

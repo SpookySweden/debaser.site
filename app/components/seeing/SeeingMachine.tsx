@@ -8,16 +8,21 @@
  */
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { addressInHash, browserHref, mediaInHash, readAddress } from '../../lib/seeing/address';
 import { subscribeToAsked, takeAsked } from '../../lib/seeing/ask';
 import type { FoundMedia, SeenDocument, SeeStep } from '../../lib/seeing/engine';
 import { LENS_NAMES, type LensId } from '../../lib/seeing/lenses/names';
+import { noteSeen, openHistoryOf } from '../../lib/seeing/history-store';
 import { bringBack, erase, erasedOn, lensRemembered, markGood, rememberLens, siteMemory, siteMemoryOnServer, subscribeToMemory } from '../../lib/seeing/memory';
+import { beatBoxHref } from '../../lib/seeing/sonify';
 import { trayOf } from '../../lib/seeing/media';
 import { dialOf, dialTo } from '../../lib/seeing/time';
 import { addTab, canGoBack, canGoForward, closeTab, frontTab, showTab, step, stopOf, TABS_MOST, visit, withDraft, withAddress, withLens, withTitle, type Tabs } from '../../lib/seeing/tabs';
 import { changeTabs, freshId, letTabsGo, openTabsOf, seeingTabs, seeingTabsOnServer, subscribeToSeeingTabs } from '../../lib/seeing/tabs-store';
+import { keptId } from '../../lib/seeing/pages';
+import { keptPage, keptPages, keptPagesOnServer, openKeptPagesOf, subscribeToKeptPages } from '../../lib/seeing/pages-store';
 import { engineFor } from '../../lib/seeing/engines';
 import { openInOwnEye, ownEyeHere, tellOwnEyeTheme } from '../../lib/seeing/own-eye';
 import { scriptsOff, setScriptsOff, siteSettings, siteSettingsOnServer, subscribeToSiteSettings } from '../../lib/seeing/site-settings';
@@ -25,6 +30,9 @@ import { TEST_ADDRESS } from '../../lib/seeing/test-engine';
 import { PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR } from '../../lib/ui/controls';
 import { subscribeToTheme, themeState } from '../../lib/ui/theme-slot';
 import { useAuth } from '../AuthProvider';
+import SeeingHistory from './SeeingHistory';
+import SeeingKeep from './SeeingKeep';
+import SeeingKept from './SeeingKept';
 import SeeingLenses from './SeeingLenses';
 import SeeingStage, { type Loupe } from './SeeingStage';
 import SeeingTabs from './SeeingTabs';
@@ -55,6 +63,8 @@ export default function SeeingMachine() {
   const held = useSyncExternalStore(subscribeToSeeingTabs, seeingTabs, seeingTabsOnServer);
 
   useEffect(() => {
+    if (status !== 'loading') openHistoryOf(owner);
+    if (status !== 'loading') void openKeptPagesOf(owner);
     if (owner !== null) openTabsOf(owner);
     else if (status !== 'loading') letTabsGo();
   }, [owner, status]);
@@ -63,7 +73,7 @@ export default function SeeingMachine() {
     <div className="seeing flex h-full min-h-[24rem] flex-col px-2 pt-1" data-seeing>
       <h1 className={TITLE_BAR}>THE SEEING MACHINE</h1>
       {owner !== null && held.owner === owner ? (
-        <Machine key={owner} state={held.state} />
+        <Machine key={owner} state={held.state} owner={{ id: owner, label: user?.displayName ?? '' }} />
       ) : status === 'loading' || owner !== null ? null : (
         <p className="p-3 text-prose text-ink">
           <Link href="/account" className={PLATE}>
@@ -76,7 +86,7 @@ export default function SeeingMachine() {
   );
 }
 
-function Machine({ state }: { state: Tabs }) {
+function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: string } }) {
   const tab = frontTab(state);
   const stop = stopOf(tab);
   const address = stop?.address ?? null;
@@ -86,6 +96,11 @@ function Machine({ state }: { state: Tabs }) {
   const [loupe, setLoupe] = useState<Loupe | null>(null);
   const [erasing, setErasing] = useState(false);
   const [trayOpen, setTrayOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [keptOpen, setKeptOpen] = useState(false);
+  const [keeping, setKeeping] = useState(false);
+  const [selected, setSelected] = useState<{ key: string; text: string }>({ key: '', text: '' });
+  const kept = useSyncExternalStore(subscribeToKeptPages, keptPages, keptPagesOnServer);
   const [sent, setSent] = useState<readonly FoundMedia[]>(NO_MEDIA);
   const [ownEye, setOwnEye] = useState(false);
   const themeId = useSyncExternalStore(subscribeToTheme, themeState, themeState).id;
@@ -124,6 +139,8 @@ function Machine({ state }: { state: Tabs }) {
     const going = new AbortController();
     work.current = going;
     const engine = engineFor(address);
+    const before = tab.at > 0 ? (tab.stops[tab.at - 1]?.address ?? null) : null;
+    const cameFrom = before !== null && /^https?:/.test(before) ? before : null;
     void engine
       .open(address, (at) => {
         if (!going.signal.aborted) setShown({ key, state: 'busy', at });
@@ -140,11 +157,15 @@ function Machine({ state }: { state: Tabs }) {
           const remembered = lensRemembered(answer.document.address);
           if (remembered !== null) changeTabs((all) => withLens(all, tab.id, remembered));
           changeTabs((all) => withTitle(all, tab.id, address, answer.document.title));
+          // Yours alone: the page, and the one it was come to from.
+          noteSeen({ address: answer.document.address, title: answer.document.title, at: Date.now(), from: cameFrom });
           // Where it was sent on to, so the box says where it really is and its links are its own.
           if (answer.document.address !== address) changeTabs((all) => withAddress(all, tab.id, address, answer.document.address));
         } else setShown({ key, state: 'refused', reason: answer.reason });
       });
     return () => going.abort();
+    // (The stop before is read as it was when this one was opened; it does not open the page again.)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address, key, tab.id, tab.at, turn]);
 
   // A link that brought an address (`/browser#see=...`): put in the box of a new tab, waiting for GO. Any page anywhere can carry such a
@@ -227,6 +248,14 @@ function Machine({ state }: { state: Tabs }) {
     [address],
   );
 
+  const seen = now.state === 'shown' ? now.document : null;
+  const router = useRouter();
+  const sonify = () => {
+    const href = seen === null ? null : beatBoxHref(seen.html);
+    if (href === null) setNotice('NOTHING ON THIS PAGE TO PLAY');
+    else router.push(href);
+  };
+
   const halt = () => {
     work.current?.abort();
     setShown({ key, state: 'stopped' });
@@ -237,7 +266,6 @@ function Machine({ state }: { state: Tabs }) {
     changeTabs(next);
   };
 
-  const seen = now.state === 'shown' ? now.document : null;
   const line =
     notice ??
     (now.state === 'refused'
@@ -256,6 +284,10 @@ function Machine({ state }: { state: Tabs }) {
   const lateMedia = late.key === key ? late.media : NO_MEDIA;
   const tray = useMemo(() => trayOf([...sent, ...(seen?.media ?? NO_MEDIA), ...lateMedia]), [seen, lateMedia, sent]);
   const outside = address !== null && /^https?:/.test(address);
+  const onSelect = useCallback((text: string) => setSelected({ key, text }), [key, setSelected]);
+  // A kept copy in front: whose page it is, and where it came from, said above it.
+  const copyId = address === null ? null : keptId(address);
+  const copyPage = copyId === null ? null : keptPage(copyId);
 
   return (
     <>
@@ -312,8 +344,28 @@ function Machine({ state }: { state: Tabs }) {
         }}
         onGo={go}
       >
+        <button type="button" aria-expanded={historyOpen} onClick={() => {
+            setHistoryOpen(!historyOpen);
+            setKeptOpen(false);
+          }} className={PLATE}>
+          [ HISTORY ]
+        </button>
+        <button type="button" aria-expanded={keptOpen} onClick={() => {
+            setKeptOpen(!keptOpen);
+            setHistoryOpen(false);
+          }} className={PLATE}>
+          [ KEPT {kept.length} ]
+        </button>
+        {outside ? (
+          <button type="button" aria-expanded={keeping} disabled={seen === null} onClick={() => setKeeping(!keeping)} className={PLATE}>
+            [ KEEP PAGE ]
+          </button>
+        ) : null}
         <button type="button" aria-expanded={trayOpen} disabled={seen === null && sent.length === 0} onClick={() => setTrayOpen(!trayOpen)} className={PLATE}>
           [ MEDIA {tray.length} ]
+        </button>
+        <button type="button" disabled={seen === null} title="The page's structure as a BEATBOX loop: headings the beat, links the notes" onClick={sonify} className={PLATE}>
+          [ SONIFY ]
         </button>
         {outside ? (
           <button
@@ -340,9 +392,36 @@ function Machine({ state }: { state: Tabs }) {
         ) : null}
       </SeeingTools>
 
-      <div className="frame mt-1 flex min-h-0 flex-1" data-seeing-view>
+      {copyPage !== null ? (
+        <p className="flex flex-wrap items-baseline gap-2 py-1 text-label text-ink" data-seeing-copy-of>
+          KEPT {new Date(copyPage.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).toUpperCase()}
+          <button type="button" onClick={() => go(copyPage.address)} className={`${PLATE} max-w-full truncate`}>
+            {copyPage.address}
+          </button>
+        </p>
+      ) : null}
+      <div className="frame relative mt-1 flex min-h-0 flex-1" data-seeing-view>
+        {historyOpen ? (
+          <SeeingHistory
+            onGo={(where) => {
+              setHistoryOpen(false);
+              go(where);
+            }}
+            onClose={() => setHistoryOpen(false)}
+          />
+        ) : null}
+        {keptOpen ? (
+          <SeeingKept
+            me={owner.id}
+            onGo={(where) => {
+              setKeptOpen(false);
+              go(where);
+            }}
+            onClose={() => setKeptOpen(false)}
+          />
+        ) : null}
         {seen !== null ? (
-          <SeeingStage key={key} drawing={key} document={seen} lens={tab.lens} settings={settings} seam={seam} loupe={loupe} erasing={erasing} erased={erased} onErase={onErase} onOpen={go} onNotice={setNotice} onRestricted={onRestricted} onMedia={onMedia} />
+          <SeeingStage key={key} drawing={key} document={seen} lens={tab.lens} settings={settings} seam={seam} loupe={loupe} erasing={erasing} erased={erased} onErase={onErase} onOpen={go} onNotice={setNotice} onRestricted={onRestricted} onMedia={onMedia} onSelect={keeping && outside ? onSelect : null} />
         ) : address === null ? (
           <div className="p-4">
             <button type="button" className={PLATE_MAIN} onClick={() => go(TEST_ADDRESS)}>
@@ -367,6 +446,7 @@ function Machine({ state }: { state: Tabs }) {
             </button>
           </div>
         ) : null}
+        {keeping && outside && seen !== null ? <SeeingKeep key={`keep ${key}`} address={address} owner={owner} selected={selected.key === key ? selected.text : ''} onOpen={go} onClose={() => setKeeping(false)} /> : null}
         {trayOpen && (seen !== null || sent.length > 0) ? (
           <>
             {seen === null ? <div className="flex-1" /> : null}

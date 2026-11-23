@@ -26,10 +26,10 @@ export function realSee(): SeeDeps {
   return { gate, way: wayOut(gate.env), counter, cache, visits: visitLog, now: Date.now };
 }
 
-const HEADERS = { 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex' };
-const said = (status: number, reason: string): Response => Response.json({ ok: false, reason }, { status, headers: HEADERS });
+export const HEADERS = { 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff', 'X-Robots-Tag': 'noindex' };
+export const said = (status: number, reason: string): Response => Response.json({ ok: false, reason }, { status, headers: HEADERS });
 
-const PAGE_TYPES = /^(?:text\/html|application\/xhtml\+xml|text\/plain|text\/markdown|text\/csv|application\/json|text\/xml|application\/xml|application\/rss\+xml|application\/atom\+xml|image\/(?:png|jpeg|gif|webp|avif|svg\+xml)|application\/pdf|application\/epub\+zip)$/;
+export const PAGE_TYPES = /^(?:text\/html|application\/xhtml\+xml|text\/plain|text\/markdown|text\/csv|application\/json|text\/xml|application\/xml|application\/rss\+xml|application\/atom\+xml|image\/(?:png|jpeg|gif|webp|avif|svg\+xml)|application\/pdf|application\/epub\+zip)$/;
 
 /** Where this site's signed files are: the setting, or wherever the request came to. */
 function assetOrigin(request: Request, env: Record<string, string | undefined>): string {
@@ -40,14 +40,14 @@ function assetOrigin(request: Request, env: Record<string, string | undefined>):
   return /^https?:\/\/[a-z0-9.:-]+$/i.test(origin) ? origin : new URL(request.url).origin;
 }
 
-function filesFor(request: Request, deps: SeeDeps, way: AnySiteWay): FileDeps {
+export function filesFor(request: Request, deps: SeeDeps, way: AnySiteWay): FileDeps {
   return { way, counter: deps.counter, cache: deps.cache, now: deps.now, assetOrigin: assetOrigin(request, deps.gate.env), stands: (person) => passStands(person, deps.gate.env) };
 }
 
 type Ready = { ok: true; person: string; way: AnySiteWay; body: Record<string, unknown> } | { ok: false; response: Response };
 
 /** The gate, the way out, and then the body: a small JSON object and nothing else. */
-async function ready(request: Request, deps: SeeDeps): Promise<Ready> {
+export async function ready(request: Request, deps: SeeDeps): Promise<Ready> {
   const gate = await whoMaySee(request, deps.gate);
   if (!gate.ok) return { ok: false, response: said(gate.status, gate.reason) };
   if (deps.way === null) return { ok: false, response: said(503, 'THE MACHINE IS OFF') };
@@ -62,6 +62,12 @@ async function ready(request: Request, deps: SeeDeps): Promise<Ready> {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) return { ok: false, response: said(400, 'NOT UNDERSTOOD') };
   return { ok: true, person: gate.person, way: deps.way, body: body as Record<string, unknown> };
 }
+
+/** Pages that are not opened whoever asks: an ad server's, and a sign-in. */
+export const refusesPage = (url: URL): string | null => {
+  const watcher = watcherAt(url.hostname);
+  return watcher !== null && watcher.ad ? `REFUSED: ${watcher.company.toUpperCase()}` : refusesSignIn(url);
+};
 
 /** A page that isn't HTML, as one that is: a picture, or words. */
 function plainPage(type: string, words: string, picture: string | null): string {
@@ -88,10 +94,7 @@ export async function openAnswer(request: Request, deps: SeeDeps = realSee()): P
         timeoutMs: LIMITS.timeoutMs,
         maxRedirects: LIMITS.redirects,
         types: PAGE_TYPES,
-        refuses: (url) => {
-          const watcher = watcherAt(url.hostname);
-          return watcher !== null && watcher.ad ? `REFUSED: ${watcher.company.toUpperCase()}` : refusesSignIn(url);
-        },
+        refuses: refusesPage,
         signal: request.signal,
       }),
       request.signal,
@@ -138,7 +141,7 @@ const WRITTEN_MOST = 5000;
 const holder = globalThis as typeof globalThis & { debaserSeeingWritten?: WeakMap<VisitLog, Map<string, number>> };
 const writtenBy = (holder.debaserSeeingWritten ??= new WeakMap());
 
-async function recorded(person: string, sites: readonly (string | null)[], deps: SeeDeps): Promise<boolean> {
+export async function recorded(person: string, sites: readonly (string | null)[], deps: SeeDeps): Promise<boolean> {
   if (person === seeingOwner(deps.gate.env) || person === 'dev') return true;
   let written = writtenBy.get(deps.visits);
   if (written === undefined) writtenBy.set(deps.visits, (written = new Map<string, number>()));

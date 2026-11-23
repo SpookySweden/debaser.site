@@ -1,7 +1,7 @@
 /*
  * BROWSER, the DEBASER SEEING MACHINE, Phase 1 (SPEC-seeing-machine.md, Luke 2026-11-23): the pure parts of the shell.
  * (scripts/drive-see.cjs drives the page itself in a browser, on every theme.)
- *   npx tsc app/lib/seeing/address.ts app/lib/seeing/tabs.ts app/lib/seeing/frame.ts app/lib/seeing/test-engine.ts app/lib/seeing/time.ts app/lib/seeing/media.ts app/lib/seeing/ask.ts app/lib/seeing/memory.ts app/lib/seeing/lenses/registry.ts app/lib/ui/modules.ts --rootDir app --outDir Temp/seeing-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
+ *   npx tsc app/lib/seeing/address.ts app/lib/seeing/tabs.ts app/lib/seeing/frame.ts app/lib/seeing/test-engine.ts app/lib/seeing/time.ts app/lib/seeing/trail.ts app/lib/seeing/sonify.ts app/lib/seeing/pages.ts app/lib/seeing/media.ts app/lib/seeing/ask.ts app/lib/seeing/memory.ts app/lib/seeing/lenses/registry.ts app/lib/ui/modules.ts --rootDir app --outDir Temp/seeing-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
  *   node Temp/check-seeing.cjs
  *
  * - an address: http and https only, no user names or passwords, no control characters, bare names get https, words are refused
@@ -29,6 +29,8 @@ const { themeDyes } = require(`${OUT}lenses/dye.js`);
 const { PAPERS, TEXT_SIZES, PALETTES, BLOCKS, SETTINGS_AT_FIRST, recipeText, recipeFrom } = require(`${OUT}lenses/lens.js`);
 const { dialOf, dialTo } = require(`${OUT}time.js`);
 const { trayOf, lengthText } = require(`${OUT}media.js`);
+const H = require(`${OUT}history.js`);
+const { trailOf } = require(`${OUT}trail.js`);
 const { askToSee, takeAsked } = require(`${OUT}ask.js`);
 const { memoryFrom, siteIn } = require(`${OUT}memory.js`);
 const { LENS_NAMES } = require(`${OUT}lenses/names.js`);
@@ -227,6 +229,71 @@ assert.equal(F.readFrameMessage({ see: 'media' }), null);
 askToSee('https://example.com/');
 assert.equal(takeAsked(), 'https://example.com/');
 assert.equal(takeAsked(), null, 'once');
+
+/* ------------------------------------------------------------------ Phase 5: history and TRAIL */
+const NOW = 1_800_000_000_000;
+const DAY = 86_400_000;
+const seen = (address, at, from = null, title = 'T') => ({ address, title, at, from });
+let h = H.withVisit([], seen('https://a.example/', NOW - 5000));
+h = H.withVisit(h, seen('https://a.example/', NOW - 1000, null, 'Better'));
+assert.deepEqual(h.map((row) => row.title), ['Better'], 'the same page again at once is the same visit');
+h = H.withVisit(h, seen('https://b.example/x?secret=1', NOW, 'https://a.example/'));
+assert.equal(H.withVisit(h, seen('see:test', NOW)).length, 2, 'the built-in pages are not history');
+assert.deepEqual(H.keptRows([seen('https://a.example/', NOW - 91 * DAY), seen('https://b.example/', NOW - 89 * DAY)], NOW).map((row) => row.address), ['https://b.example/'], 'ninety days');
+assert.equal(H.keptRows(Array.from({ length: 3000 }, (_, i) => seen('https://a.example/', NOW - i * 1000)), NOW).length, H.HISTORY_MOST);
+assert.deepEqual(H.findIn(h, 'b.example').length, 1);
+assert.equal(H.without(h, NOW, 'https://b.example/x?secret=1').length, 1);
+assert.deepEqual(H.rowsFrom([seen('javascript:x', NOW), seen('https://a.example/', 'x'), null, { address: 'https://c.example/', title: 'A\u202eB', at: NOW, from: 'javascript:x' }], NOW), [{ address: 'https://c.example/', title: 'A B', at: NOW, from: null }]);
+assert.deepEqual(H.rowsFrom('x', NOW), []);
+const walk = [seen('https://c.example/2', NOW, 'https://b.example/'), seen('https://b.example/', NOW - 1, 'https://www.a.example/'), seen('https://www.a.example/', NOW - 2), seen('https://b.example/old', NOW - 3, 'https://www.a.example/')];
+const trail = trailOf(walk);
+assert.deepEqual(trail.places.map((place) => [place.site, place.visits, place.last]), [['b.example', 2, 'https://b.example/'], ['a.example', 1, 'https://www.a.example/'], ['c.example', 1, 'https://c.example/2']]);
+assert.deepEqual(trail.steps, [{ from: 'b.example', to: 'c.example', times: 1 }, { from: 'a.example', to: 'b.example', times: 2 }]);
+assert.deepEqual(trailOf(walk), trail, 'the same walk makes the same map');
+const big = trailOf(Array.from({ length: 400 }, (_, i) => seen(`https://s${i % 90}.example/`, NOW - i, i > 0 ? `https://s${(i * 7) % 90}.example/` : null)));
+assert.ok(big.places.length === 60 && big.places.every((place) => place.x >= 0.05 && place.x <= 0.95 && place.y >= 0.05 && place.y <= 0.95), 'sixty places, all on the map');
+assert.ok(big.places.every((one, i) => big.places.every((other, j) => i === j || Math.hypot(one.x - other.x, one.y - other.y) > 0.005)), 'no two in one place');
+const one = trailOf([seen('https://a.example/', NOW)]).places[0];
+assert.ok(Math.abs(one.x - 0.5) < 1e-9 && Math.abs(one.y - 0.5) < 1e-9, 'one place is in the middle');
+assert.deepEqual(trailOf([]), { places: [], steps: [] });
+
+/* ------------------------------------------------------------------ Phase 5: kept pages */
+assert.deepEqual(F.readFrameMessage({ see: 'select', text: ` a\n b ${'x'.repeat(900)}` }).text.length <= 300, true);
+assert.equal(F.readFrameMessage({ see: 'select' }), null);
+const P = require(`${OUT}pages.js`);
+const ID = '0123abcd-0000-4000-8000-00000000abcd';
+assert.equal(P.keptId(P.keptAddress(ID)), ID);
+assert.deepEqual(readAddress(P.keptAddress(ID)), { ok: true, address: P.keptAddress(ID) }, "a copy's address is one the machine takes");
+for (const bad of ['see:kept/x', 'see:kept/0123', 'see:test', 'https://a.example/see:kept/']) assert.equal(P.keptId(bad), null);
+assert.deepEqual(P.cleanTags('fog, #Fog , harbours,,' + 'x'.repeat(90)), ['FOG', 'HARBOURS', 'X'.repeat(40)]);
+assert.equal(P.cleanTags('a,b,c,d,e,f,g,h,i,j').length, P.TAGS_MOST);
+const row = { id: ID, ownerId: 'me', ownerLabel: 'Me', address: 'https://a.example/x', title: 'T', description: 'D', picture: 'data:image/webp;base64,AAAA', language: 'en', date: '2026-11-23', at: NOW, tags: ['fog'], note: 'n', quotes: ['q'.repeat(900), ''], hasCopy: true, private: false };
+const keptRow = P.pageFrom(row);
+assert.ok(keptRow.site === 'a.example' && keptRow.quotes.length === 1 && keptRow.quotes[0].length === P.QUOTE_LENGTH && keptRow.tags[0] === 'FOG');
+for (const bad of [{ id: 'x' }, { address: 'javascript:1' }, { address: 'see:test' }, { at: 'x' }]) assert.equal(P.pageFrom({ ...row, ...bad }), null, JSON.stringify(bad));
+for (const picture of ['https://tracker.example/p.gif', 'data:image/svg+xml;base64,AAAA', 'data:image/webp;base64,"onerror=', `data:image/webp;base64,${'A'.repeat(70000)}`]) assert.equal(P.pageFrom({ ...row, picture }).picture, null, 'a card asks nothing of anywhere');
+assert.equal(P.pageFrom({ ...row, private: undefined }).private, true, 'private unless it says otherwise');
+assert.equal(P.copyFrom({ reading: 'x' }), null);
+assert.deepEqual(P.copyFrom({ html: 'a', reading: 3, title: 4 }), { html: 'a', reading: null, title: '' });
+
+/* ------------------------------------------------------------------ Phase 6: SONIFY, heard by BeepBox itself */
+const S = require(`${OUT}sonify.js`);
+const sonPage = '<h1>a</h1><h1x><a href="https://x.example/1">l</a><a name=n>no</a><img src=x><h2>b</h2>' + Array.from({ length: 30 }, (_, i) => `<a class=k href='/p${i}'>w</a><h3>c</h3>`).join('');
+const parts = S.partsOf(sonPage);
+assert.deepEqual(parts.slice(0, 4).map((part) => part.kind), ['heading', 'link', 'picture', 'heading']);
+assert.equal(parts.length, 64);
+assert.equal(S.songOf(S.partsOf('<p>words</p><img src=x>')), null);
+assert.deepEqual(S.songOf(parts), S.songOf(S.partsOf(sonPage)), 'the same page sounds the same');
+const { Song } = require('beepbox');
+const hash = new URL(S.beatBoxHref(sonPage), 'https://debaser.site').hash;
+assert.ok(hash.length < 30_000 && !/example|secret/.test(decodeURIComponent(hash)), "no word or address of the page is in it");
+const heard = new Song(decodeURIComponent(hash.slice(1)));
+assert.equal(heard.barCount, 4);
+assert.equal(heard.tempo, 112);
+const played = (noise) => heard.channels.flatMap((channel, i) => (heard.getChannelIsNoise(i) === noise ? channel.patterns.flatMap((pattern) => pattern.notes) : []));
+assert.ok(played(true).length >= 20 && played(false).length >= 20, `BeepBox reads its notes (${played(true).length}, ${played(false).length})`);
+assert.ok(played(true).some((note) => note.pitches[0] === 0) && played(true).every((note) => note.start % 6 === 0), 'the headings are the beat');
+for (const n of [1, 200, 4100]) assert.ok(new Song(JSON.stringify(S.songOf(S.partsOf('<h2>x</h2><a href=/q>y</a>'.repeat(n))))).barCount <= 8);
 
 /* ------------------------------------------------------------------ the built-in pages and the module */
 const browser = MODULES.find((module) => module.key === 'browser');

@@ -89,6 +89,22 @@ Proof: `drive-see.cjs --only lenses` (DYE and GLASS measured on every theme, 5.5
   lifted by a session rule that names the machine's tab, the machine or an added site as the asker, and added sites only, never a sign-in; it goes
   when the machine's page does. `Temp/check-see-extension.cjs`, `scripts/drive-see-extension.cjs` (26, pretend sites, signed in to nothing).
 
+## History, TRAIL and kept pages (Phase 5, in the browser only until the tables exist)
+- **History** (`history.ts`, `history-store.ts`): 90 days, 2,000 rows, under the account's own key in this browser; one key clears it. **TRAIL**
+  (`trail.ts`): the same rows as a map of sites; the same walk always makes the same map.
+- **KEEP PAGE**: `POST /api/see/keep` (`server/keep.ts`) looks at the page again, signed out, and answers with a card and a copy: scripts, frames and
+  forms gone, sheets and shrunk pictures written into it, 10 MB at most, so it asks for nothing from anywhere. Files are held by addresses under a
+  name made for that one copy, so a page can't write itself one. Not 200, or nothing but a sign-in: a card, no copy, private.
+- **Where it is kept**: `pages-repository.ts` (IndexedDB `debaser-seeing`, the account's alone, today) or `supabase-pages-repository.ts` when
+  `NEXT_PUBLIC_SEEING_DATA_SOURCE=supabase`, which waits for the tables. The key says which: ONLY YOU, IN THIS BROWSER or EVERYONE WILL SEE THIS.
+  The migration is drafted outside the repo on purpose (another session's push would apply it).
+- A copy opens at `see:kept/<id>` in the same frame with scripts off and no files, its source's link above it. Ctrl+K has PAGES.
+- Waiting for the tables: everyone's cards, REPORT and hiding, letters, recommendations, the forum's `page` anchor, tabs and history on the account.
+
+## SONIFY (Phase 6)
+`sonify.ts` reads a page's tags in order (headings the beat, links the notes, pictures a bell) and writes BeepBox's own JSON into BEATBOX's address;
+no word or address of the page goes in it. The same page always sounds the same.
+
 ## The extension's trial (2b, 2026-11-23, `scripts/see-extension-trial.cjs`, Edge 158)
 A throwaway extension, pretend sites for the cookies, and the real list signed out (nobody was signed in to anything).
 
