@@ -8,6 +8,7 @@ One line each, the most useful first. Struck through when done, with its commit.
 - ~~Keys for the keyboard: / the box, Alt+N, Alt+W, Alt+1 to 8 (keys.ts), listed on a new tab.~~
 - ~~A refused page was an empty box: now its reason, what it means, and only the keys that may help (refusals.ts, SeeingRefused.tsx).~~
 - Safety round, 2026-11-23: the attack list's 60 guards read through; no gap found by reading. Next safety round: the hostile page.
+- ~~Works round, last run: the start page listed ALT keys to a phone reader with no keyboard~~ (hidden where the pointer is touch, pointer-coarse; seen: mouse shows it, touch hides it).
 - Safety round, last run: the hostile page also tries an XMLHttpRequest, a late import(), a picture made by script and a worker built from a blob; nothing reached out (drive eye 79). A link ping was tried and dropped: the click follows the page's own <base> off-site and blanks the frame, and a ping only goes with a followed link, already covered.
 - ~~Safety round, 2026-11-23 (2): the hostile page now also tries a beacon, an event stream, sound and video with a poster, a web font and a srcset at the trap: none reaches it. (An a-ping click is taken by the machine as a link to open, so it is not a test of the frame.)~~
 - ~~The site search (Ctrl+K) had no way to see a typed address: [ SEE IT IN BROWSER ] (SeeLine), for whoever has BROWSER on the bar.~~

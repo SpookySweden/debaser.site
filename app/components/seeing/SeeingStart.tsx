@@ -20,7 +20,8 @@ export default function SeeingStart({ good, ownEye, onGo }: { good: readonly { a
       <p className="max-w-prose">
         AN ADDRESS OR WORDS IN THE BOX ABOVE. A LENS CHANGES HOW A PAGE IS SEEN, NEVER THE PAGE; NOTHING OF IT IS KEPT BUT WHAT YOU KEEP.
       </p>
-      <p className="mt-1 text-ink-quiet" data-seeing-keys>
+      {/* The keyboard's keys, said only where the pointer is a mouse: a phone's reader has no ALT to press. */}
+      <p className="mt-1 text-ink-quiet pointer-coarse:hidden" data-seeing-keys>
         {KEYS_LINE}
       </p>
       <button type="button" className={`${PLATE_MAIN} mt-3`} onClick={() => onGo(TEST_ADDRESS)}>
