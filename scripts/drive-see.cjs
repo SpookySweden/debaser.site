@@ -226,6 +226,17 @@ async function shell(browser) {
   ok(await phone.page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), 'no sideways scroll at 390');
   await phone.page.screenshot({ path: join(OUT, 'phone.png') });
   await phone.context.close();
+
+  // A new tab: the line that says what this is, and the pages seen last, each once.
+  const at = Date.now();
+  const rows = [['https://a.example/#two', 'Fog A'], ['https://b.example/', 'Horn B'], ['https://a.example/#one', 'Fog A']].map(([address, title], i) => ({ address, title, at: at - i * 60000, from: null }));
+  const back = await open(browser, { as: ANN, storage: { [`debaser-seeing-history-v1:${ANN.id}`]: JSON.stringify(rows) } });
+  await machine(back.page);
+  const start = back.page.locator('[data-seeing-start]');
+  ok(/AN ADDRESS OR WORDS IN THE BOX ABOVE/.test(await start.innerText()), 'a new tab says what the machine is');
+  ok((await start.locator('[data-seeing-recent] li').allInnerTexts()).map((text) => text.split('\n')[0].trim()).join('|') === 'Fog A|Horn B', 'and the pages seen last, each once, newest first');
+  await back.page.screenshot({ path: join(OUT, 'start.png') });
+  await back.context.close();
 }
 
 /** Runs in a page: every element with words of its own, its ink against the nearest painted ground, as rgb triples. */

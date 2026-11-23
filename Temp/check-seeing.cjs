@@ -242,6 +242,7 @@ assert.equal(H.withVisit(h, seen('see:test', NOW)).length, 2, 'the built-in page
 assert.deepEqual(H.keptRows([seen('https://a.example/', NOW - 91 * DAY), seen('https://b.example/', NOW - 89 * DAY)], NOW).map((row) => row.address), ['https://b.example/'], 'ninety days');
 assert.equal(H.keptRows(Array.from({ length: 3000 }, (_, i) => seen('https://a.example/', NOW - i * 1000)), NOW).length, H.HISTORY_MOST);
 assert.deepEqual(H.findIn(h, 'b.example').length, 1);
+assert.deepEqual(H.recentPages([seen('https://a.example/#2', 9), seen('https://b.example/', 8), seen('https://a.example/#1', 7), seen('https://c.example/', 6), seen('https://d.example/', 5)], 3).map((row) => row.address), ['https://a.example/#2', 'https://b.example/', 'https://c.example/'], 'a new tab: the last pages, each once, newest first');
 assert.equal(H.without(h, NOW, 'https://b.example/x?secret=1').length, 1);
 assert.deepEqual(H.rowsFrom([seen('javascript:x', NOW), seen('https://a.example/', 'x'), null, { address: 'https://c.example/', title: 'A\u202eB', at: NOW, from: 'javascript:x' }], NOW), [{ address: 'https://c.example/', title: 'A B', at: NOW, from: null }]);
 assert.deepEqual(H.rowsFrom('x', NOW), []);

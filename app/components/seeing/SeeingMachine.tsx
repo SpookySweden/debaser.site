@@ -41,11 +41,11 @@ import { extensionState, extensionStateOnServer, lookForExtension, subscribeToEx
 import { openInOwnEye, tellOwnEyeTheme } from '../../lib/seeing/own-eye';
 import { openExtensionWindow } from '../../lib/ui/extension-window';
 import { scriptsOff, setScriptsOff, siteSettings, siteSettingsOnServer, subscribeToSiteSettings } from '../../lib/seeing/site-settings';
-import { TEST_ADDRESS } from '../../lib/seeing/test-engine';
-import { PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR } from '../../lib/ui/controls';
+import { PLATE, PLATE_PRESSED, TITLE_BAR } from '../../lib/ui/controls';
 import { subscribeToTheme, themeState } from '../../lib/ui/theme-slot';
 import { useAuth } from '../AuthProvider';
 import SeeingEngines from './SeeingEngines';
+import SeeingStart from './SeeingStart';
 import SeeingHistory from './SeeingHistory';
 import SeeingKeep from './SeeingKeep';
 import SeeingKept from './SeeingKept';
@@ -594,23 +594,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
         {seen !== null ? (
           <SeeingStage key={key} drawing={key} document={seen} lens={tab.lens} settings={settings} seam={seam} loupe={loupe} erasing={erasing} erased={erased} onErase={onErase} onOpen={go} onNotice={setNotice} onRestricted={onRestricted} onMedia={onMedia} onSelect={outside ? onSelect : null} onPlace={leading && outside ? onPlace : null} moverRef={moverRef} marks={marks} finderRef={finderRef} graffiti={page} drawn={drawing && outside} />
         ) : address === null ? (
-          <div className="min-w-0 flex-1 overflow-y-auto p-4">
-            <button type="button" className={PLATE_MAIN} onClick={() => go(TEST_ADDRESS)}>
-              OPEN THE TEST PAGE
-            </button>
-            {memory.good.length > 0 ? (
-              <ul className="mt-3" aria-label="Good pages" data-seeing-good>
-                {memory.good.slice(0, 30).map((page) => (
-                  <li key={page.address}>
-                    <button type="button" onClick={() => go(page.address)} title={page.address} className={`${PLATE} max-w-full truncate`}>
-                      {page.title}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            <SeeingEngines ownEye={extension === 'current'} onClose={null} />
-          </div>
+          <SeeingStart good={memory.good} ownEye={extension === 'current'} onGo={go} />
         ) : now.state === 'refused' && outside && dialOf(address).year === null ? (
           <div className="p-4">
             <button type="button" onClick={() => go(dialTo(address, new Date().getFullYear()))} className={PLATE}>

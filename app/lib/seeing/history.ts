@@ -30,6 +30,20 @@ export function withVisit(rows: readonly Seen[], seen: Seen): Seen[] {
 
 export const without = (rows: readonly Seen[], at: number, address: string): Seen[] => rows.filter((row) => row.at !== at || row.address !== address);
 
+/** The pages seen last, each once (a page's parts are one page), newest first: a new tab's way back. */
+export function recentPages(rows: readonly Seen[], most: number): Seen[] {
+  const seen = new Set<string>();
+  const out: Seen[] = [];
+  for (const row of rows) {
+    const page = row.address.split('#')[0];
+    if (seen.has(page)) continue;
+    seen.add(page);
+    out.push(row);
+    if (out.length >= most) break;
+  }
+  return out;
+}
+
 /** Every word somewhere in a page's title or address. */
 export function findIn(rows: readonly Seen[], words: string): Seen[] {
   const wanted = words.toLowerCase().split(/\s+/).filter(Boolean);
