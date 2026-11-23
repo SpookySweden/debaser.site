@@ -578,6 +578,12 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
           [ MEDIA {tray.length} ]
         </button>
         ) : null}
+        {outside && seen !== null && (seen.feeds ?? []).length > 0 ? (
+          // The page's own news feed, drawn as its list (decision 44).
+          <button type="button" title="The news feed this page says it has, as a list" onClick={() => go((seen.feeds ?? [])[0])} className={PLATE} data-seeing-feed>
+            [ FEED ]
+          </button>
+        ) : null}
         {outside ? (
           <button type="button" disabled={pickedWords === ''} title="Words selected on the page, to the engine in front, in a new tab" onClick={() => ask(engineChosen(choices), pickedWords, true)} className={PLATE}>
             [ SEARCH THIS ]

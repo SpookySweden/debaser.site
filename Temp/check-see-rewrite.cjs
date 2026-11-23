@@ -280,6 +280,13 @@ process.on('exit', () => {
     process.exitCode = 1;
   }
 });
+// The feeds a page says it has (decision 44): noted, three at most, http(s) only; the link element itself still goes.
+{
+  const q = write('<link rel="alternate" type="application/rss+xml" href="/feed.xml"><link rel="Alternate" type="application/atom+xml" href="https://x.org/atom"><link rel="alternate" type="application/rss+xml" href="/feed.xml"><link rel="alternate" type="application/rss+xml" href="javascript:alert(1)"><link rel="alternate" type="text/html" href="/fr"><link rel="alternate" type="application/rss+xml" href="/3"><link rel="alternate" type="application/rss+xml" href="/4"><p>x');
+  assert.deepEqual(q.feeds, ['https://news.seeing.org/feed.xml', 'https://x.org/atom', 'https://news.seeing.org/3']);
+  assert.ok(!/<link/i.test(q.html), 'no link element is left');
+  assert.deepEqual(write('<p>none').feeds, []);
+}
 // A feed (decision 42): drawn as its list, every word plain, only http(s) links, and quick however it is built.
 {
   const { feedPage } = at('feed.js');

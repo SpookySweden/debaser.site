@@ -28,6 +28,8 @@ export type Rewritten = {
   signIn: boolean;
   /** Where the page says it sends people on to, and after how many seconds. */
   refresh: { address: string; after: number } | null;
+  /** The news feeds (RSS, Atom) the page says it has: three at most. */
+  feeds: string[];
 };
 
 /** Elements that are taken out. */
@@ -99,6 +101,7 @@ export function rewritePage(html: string, address: string, sign: Sign, scripts: 
   let language: string | null = null;
   let signIn = false;
   let refresh: Rewritten['refresh'] = null;
+  const feeds: string[] = [];
   /** A script in a drawing was left out: its end goes too. */
   let dropped = false;
   const media = createMediaFinder(address);
@@ -240,6 +243,11 @@ export function rewritePage(html: string, address: string, sign: Sign, scripts: 
       continue;
     }
     if (name === 'link') {
+      // A feed the page says it has is only noted: the link itself goes, as every link that isn't a stylesheet does.
+      if (/(?:^|\s)alternate(?:\s|$)/i.test(value('rel') ?? '') && /^application\/(?:rss|atom)\+xml$/i.test((value('type') ?? '').trim())) {
+        const url = absolute(value('href') ?? '');
+        if (url !== null && feeds.length < 3 && !feeds.includes(url.href)) feeds.push(url.href);
+      }
       if (!STYLESHEET.test(value('rel') ?? '')) continue;
       const media = value('media');
       const answer = file(value('href') ?? '', 'style');
@@ -394,5 +402,5 @@ export function rewritePage(html: string, address: string, sign: Sign, scripts: 
   }
   // A thing with no name of its own is called what the page is.
   const named = media.list().map((each) => (each.title !== '' ? each : { ...each, title: (shownTitle || title || '').slice(0, 160) }));
-  return { html: noFrames(out), title, language, media: named, watchers: [...watchers.values()], files, refused, signIn, refresh };
+  return { html: noFrames(out), title, language, media: named, watchers: [...watchers.values()], files, refused, signIn, refresh, feeds };
 }

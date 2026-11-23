@@ -33,6 +33,8 @@ export type SeenDocument = {
   signIn: boolean;
   /** Where the page says it sends people on to, and after how many seconds; null for most. */
   refresh: { address: string; after: number } | null;
+  /** The news feeds the page says it has (the server's eye only). */
+  feeds?: string[];
   /** Where its signed files are, and the only place the frame may load from; null for a page with none. */
   assets: string | null;
   /** Whether the page's own scripts run. */

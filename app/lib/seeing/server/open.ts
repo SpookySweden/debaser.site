@@ -112,7 +112,7 @@ export async function openAnswer(request: Request, deps: SeeDeps = realSee()): P
     const feed = !isPage && /xml/.test(answer.type) ? feedPage(words, answer.url) : null;
     const page = isPage
       ? rewritePage(words, answer.url, sign, scripts)
-      : { html: feed?.html ?? plainPage(answer.type, words, picture ? sign(answer.url, 'picture') : null), title: feed?.title ?? null, watchers: [], media: [], files: picture ? 1 : 0, refused: 0, signIn: false, refresh: null };
+      : { html: feed?.html ?? plainPage(answer.type, words, picture ? sign(answer.url, 'picture') : null), title: feed?.title ?? null, watchers: [], media: [], files: picture ? 1 : 0, refused: 0, signIn: false, refresh: null, feeds: [] };
     const document: SeenDocument = {
       address: answer.url,
       title: page.title ?? '',
@@ -126,6 +126,7 @@ export async function openAnswer(request: Request, deps: SeeDeps = realSee()): P
       status: answer.status,
       signIn: page.signIn,
       refresh: page.refresh,
+      feeds: page.feeds,
       assets: `${files.assetOrigin}${ASSET_PATH}`,
       scripts: scripts && isPage,
     };
