@@ -71,3 +71,4 @@ One line each, the most useful first. Struck through when done, with its commit.
 - ~~The status line said how many files and how long, not how much came: "· PAGE 48 KB" (decision 50; check-seeing, shell 50, eye 76).~~
 - Code round, 2026-11-23 late: no dead exports in app/lib/seeing (every one is used in its file or elsewhere).
 - ~~The status line was one 400-character expression inside SeeingMachine: status-line.ts (shownLine, pure, checked word for word). Seen too, and fine: windows-1252 (header or meta) and Shift-JIS pages decode right; a refusal at 390 reads well.~~
+- ~~At phone width OPEN SOURCE (a link) sat 4px off OWN EYE (a button) on the bar: the links there are inline-block now, taking the keys' tap height (seen at 390).~~
