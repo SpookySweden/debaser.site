@@ -42,7 +42,7 @@ export default function SeeingToolbar({ place, address, canBack, canForward, bus
   return (
     <>
     <form
-      className="flex items-center gap-1 pt-1"
+      className="flex flex-wrap items-center gap-1 pt-1"
       onSubmit={(event) => {
         event.preventDefault();
         onGo(text);
@@ -75,13 +75,13 @@ export default function SeeingToolbar({ place, address, canBack, canForward, bus
         spellCheck={false}
         inputMode="url"
         maxLength={ADDRESS_MOST}
-        className={`${FIELD_TIGHT} min-w-0 flex-1`}
+        className={`${FIELD_TIGHT} min-w-0 flex-1 basis-48`}
         data-seeing-address
       />
-      <button type="submit" className={PLATE}>
+      <button type="submit" className={`${PLATE} shrink-0`}>
         [ GO ]
       </button>
-      <button type="button" disabled={!searches(text)} title="The same words in three engines, a tab each" onClick={() => onAll(text)} className={PLATE}>
+      <button type="button" disabled={!searches(text)} title="The same words in three engines, a tab each" onClick={() => onAll(text)} className={`${PLATE} shrink-0`}>
         [ ALL ]
       </button>
       <button type="button" aria-expanded={listing} title="Search engines" onClick={onList} className={`${PLATE} max-w-48 truncate`}>

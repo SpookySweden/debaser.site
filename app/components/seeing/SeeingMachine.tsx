@@ -546,7 +546,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
             [ SCRIPTS OFF ]
           </button>
         ) : null}
-        <span aria-hidden="true" className="mx-1 self-stretch border-l-line border-ink" />
+        {outside ? <span aria-hidden="true" className="mx-1 self-stretch border-l-line border-ink" /> : null}
         {outside && roomId !== null ? (
           <button
             type="button"
