@@ -1,7 +1,8 @@
+'use client';
+
 import type { Census, Pointed } from '../../lib/seeing/frame';
 import { TITLE_BAR_INACTIVE } from '../../lib/ui/controls';
 
-/** X-RAY's panel: the element pointed at, and what the page is made of. Every word is a page's own, drawn as words. */
 /** X-RAY's panel: what is pointed at, and what the page is made of; a row of that, pointed at or reached by the keyboard, is outlined on the page. */
 export default function SeeingXray({ point, census, lit, onLit }: { point: Pointed | null; census: Census | null; lit: string | null; onLit: (at: string | null) => void }) {
   return (
