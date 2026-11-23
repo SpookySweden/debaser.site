@@ -577,6 +577,12 @@ attempt('sound', function () { var m = document.createElement('audio'); Element.
 attempt('font', function () { var m = document.createElement('style'); m.textContent = '@font-face{font-family:x;src:url(http://127.0.0.1:4568/escaped-font)} body{font-family:x}'; document.head.appendChild(m); if (document.fonts) document.fonts.load('1em x').catch(function () {}); return 'made'; });
 attempt('srcset', function () { var m = document.createElement('img'); Element.prototype.setAttribute.call(m, 'srcset', 'http://127.0.0.1:4568/escaped-srcset 1x'); document.documentElement.appendChild(m); return 'made'; });
 attempt('smil', function () { var NS = 'http://www.w3.org/2000/svg'; var g = document.createElementNS(NS, 'svg'), m = document.createElementNS(NS, 'image'), a = document.createElementNS(NS, 'set'); a.setAttribute('attributeName', 'href'); a.setAttribute('to', 'http://127.0.0.1:4568/escaped-smil3'); m.appendChild(a); g.appendChild(m); document.documentElement.appendChild(g); return 'made'; });
+// (IMPROVE, 2026-11-23 evening) What the rewriter takes out of markup, made by the page's script instead.
+attempt('embed', function () { var m = document.createElement('embed'); Element.prototype.setAttribute.call(m, 'src', 'http://127.0.0.1:4568/escaped-embed'); document.documentElement.appendChild(m); return 'made'; });
+attempt('inputPicture', function () { var m = document.createElement('input'); m.type = 'image'; Element.prototype.setAttribute.call(m, 'src', 'http://127.0.0.1:4568/escaped-input'); document.documentElement.appendChild(m); return 'made'; });
+attempt('imageSet', function () { var m = document.createElement('style'); m.textContent = 'html{background-image:image-set(url(http://127.0.0.1:4568/escaped-imageset) 1x)} body{background-image:-webkit-image-set("http://127.0.0.1:4568/escaped-imageset2" 1x)}'; document.head.appendChild(m); var d = document.createElement('div'); d.style.cssText = 'width:9px;height:9px;background:url(http://127.0.0.1:4568/escaped-inline)'; document.documentElement.appendChild(d); return 'made'; });
+attempt('formAction', function () { var m = document.createElement('form'), b = document.createElement('button'); Element.prototype.setAttribute.call(b, 'formaction', 'http://127.0.0.1:4568/escaped-formaction'); m.appendChild(b); document.documentElement.appendChild(m); b.click(); return 'clicked'; });
+attempt('serviceWorker', function () { return typeof navigator.serviceWorker === 'undefined' ? 'none' : (navigator.serviceWorker.register('/sw.js').catch(function () {}), 'asked'); });
 attempt('api', function () { w.fetch('SITE/api/see/open', { method: 'POST', body: '{}' }).then(function (r) { out.apiEnd = 'answered ' + r.status; tell(); }, function () { out.apiEnd = 'refused'; tell(); }); return 'asked'; });
 attempt('dress', function () { top.postMessage({ see: 'dress', css: 'x' }, '*'); for (var i = 0; i < 50; i += 1) top.postMessage({ see: 'open', address: 'https://spam.seeing-fixture.org/spam' + i, newTab: true }, '*'); top.postMessage({ see: 'open', address: 'javascript:alert(1)' }, '*'); return 'sent'; });
 setTimeout(function () { location.href = 'http://127.0.0.1:4568/escaped-self'; }, 300);
@@ -892,6 +898,8 @@ async function eye(browser) {
       ok(!/^done:\[object/.test(got.freshPopup ?? '') && !/^done:\[object/.test(got.popup ?? ''), 'it opened no window');
       ok(got.apiEnd !== undefined ? got.apiEnd === 'refused' : true, "it can't ask the site's own routes");
       ok(['beacon', 'events', 'sound', 'font', 'srcset', 'smil'].every((name) => got[name] !== undefined), `a beacon, an event stream, sound and a poster, a web font, a srcset and a drawing's animation were tried (${['beacon', 'events', 'sound', 'font', 'srcset', 'smil'].map((name) => `${name}=${got[name]}`)})`);
+      const made = ['embed', 'inputPicture', 'imageSet', 'formAction', 'serviceWorker'];
+      ok(made.every((name) => got[name] !== undefined), `an embed, a picture key, an image-set, a button's formaction and a service worker were made by script (${made.map((name) => `${name}=${got[name]}`)})`);
     }
     ok(net.escapes.length === 0, `it reached nothing by itself, not so much as a connection (${net.escapes.slice(0, 6)})`);
     const strangers2 = asked.filter((each) => each.left && !each.url.startsWith(`${BASE}/`) && !/^(?:data|blob|about|ws|chrome-error):/.test(each.url));
