@@ -954,6 +954,16 @@ async function lenses(browser) {
   await page.locator('[data-seeing-address]').focus();
   await page.waitForTimeout(400);
   ok(mainLit === '3px -3px' && mainBefore !== mainLit && (await mainLook()) === mainBefore, `a row of MADE OF reached outlines its part of the page, and lets go (${mainBefore} / ${mainLit})`);
+  const endRow = page.locator('[data-seeing-xray-row]', { hasText: /^h2#end/ }).first();
+  const frameTop = () => frameOf(page).then((each) => each.evaluate(() => document.scrollingElement.scrollTop));
+  await (await frameOf(page)).evaluate(() => window.scrollTo(0, 0));
+  await endRow.hover();
+  await page.waitForTimeout(400);
+  const afterHover = await frameTop();
+  await endRow.click();
+  await page.waitForTimeout(500);
+  const afterPress = await frameTop();
+  ok(afterHover === 0 && afterPress > 0, `a row of MADE OF pressed brings its part into sight; pointed at, it leaves the page where it is (${afterHover} / ${afterPress})`);
   await page.screenshot({ path: join(OUT, 'lens-xray.png') });
 
   for (const palette of ['YOURS', 'MONO', 'TERMINAL', 'AMBER', '1-BIT']) {

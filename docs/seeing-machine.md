@@ -75,7 +75,7 @@ signed, `location` is pointed at a stand-in (the frame's own address can be neit
 
 ## Lenses and tools (Phase 3)
 One file each in `lenses/`; a lens is a stylesheet (`css`), what it needs done to the page (`tools`, acted on by `hook.ts`, each undone when the
-next dressing doesn't ask for it), and a panel. X-RAY (a MADE OF row pointed at outlines its part of the page: `lit`, decision 45), LOW-FI (five palettes), DYE (colours to the theme's dyes, 4.5:1 kept, pictures dithered on a
+next dressing doesn't ask for it), and a panel. X-RAY (a MADE OF row pointed at outlines its part of the page: `lit`, decision 45; pressed or reached by the keyboard it is brought into sight: the `reach` tool), LOW-FI (five palettes), DYE (colours to the theme's dyes, 4.5:1 kept, pictures dithered on a
 canvas), GLASS (`html[data-see-glass]` clears the site window; the backgrounds run while it is on), CUSTOM (ten blocks, shared as `SEE:words+mono`).
 SEAM and LOUPE are a second drawing of the page, clipped. ERASE keeps selectors of one shape (`isSelector`) per site; SITE MEMORY keeps a lens per
 site (`memory.ts`, this browser only until Phase 5). TIME DIAL: the Internet Archive's copy nearest a year. SCAN: wiby.me's own random page. The lenses and the tools share their lines (`[data-seeing-keyrow]`). [ READ IT ] (`read-ref.ts`) opens an Open Library work, an Archive book reader, an Archive PDF/EPUB, or an Archive item's own page when the page drawn says it is texts, in the site's own reader at /read. A lens or SEAM/LOUPE/ERASE pressed while HISTORY, KEPT or the engines' list covers the page puts the cover away. A page tunes in as it arrives (`.seeing-arrive` in globals.css; none under reduced motion).

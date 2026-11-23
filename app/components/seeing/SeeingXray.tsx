@@ -4,7 +4,7 @@ import type { Census, Pointed } from '../../lib/seeing/frame';
 import { TITLE_BAR_INACTIVE } from '../../lib/ui/controls';
 
 /** X-RAY's panel: what is pointed at, and what the page is made of; a row of that, pointed at or reached by the keyboard, is outlined on the page. */
-export default function SeeingXray({ point, census, lit, onLit }: { point: Pointed | null; census: Census | null; lit: string | null; onLit: (at: string | null) => void }) {
+export default function SeeingXray({ point, census, lit, onLit, onReach }: { point: Pointed | null; census: Census | null; lit: string | null; onLit: (at: string | null) => void; onReach: (at: string) => void }) {
   return (
     <section aria-label="X-ray" className="flex w-72 shrink-0 flex-col gap-2 overflow-y-auto border-l-line border-ink bg-paper p-2 text-label text-ink" data-seeing-xray>
       <h2 className={TITLE_BAR_INACTIVE}>POINTED AT</h2>
@@ -44,9 +44,9 @@ export default function SeeingXray({ point, census, lit, onLit }: { point: Point
                 ) : (
                   <button
                     type="button"
-                    onClick={() => onLit(row.at)}
+                    onClick={() => { onLit(row.at); onReach(row.at!); }}
                     onMouseEnter={() => onLit(row.at)}
-                    onFocus={() => onLit(row.at)}
+                    onFocus={(event) => { onLit(row.at); if (event.target.matches(':focus-visible')) onReach(row.at!); }}
                     onBlur={() => onLit(null)}
                     className={`max-w-full truncate text-left ${lit === row.at ? 'bg-ink text-paper' : ''}`}
                     data-seeing-xray-row

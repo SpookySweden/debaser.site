@@ -80,6 +80,8 @@ export type FrameTools = {
   marks?: string[];
   /** What the reader has selected is told: for quotes. */
   select?: true;
+  /** X-RAY: a row pressed or reached by the keyboard brings its part into sight; `n` counts the presses, so a second press brings it back. */
+  reach?: { at: string; n: number };
 };
 export type FrameDress = { see: 'dress'; css: string; tools: FrameTools };
 export type FrameScroll = { see: 'scrollTo'; x: number; y: number; whole: number };

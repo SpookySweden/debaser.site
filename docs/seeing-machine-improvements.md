@@ -50,5 +50,5 @@ One line each, the most useful first. Struck through when done, with its commit.
 - ~~At 390 an outside page has about eleven rows of keys: settled, not changed. Phones get the desktop zoomed out; a narrow window keeps the page 22rem tall and scrolls to it; a sideways strip would hide most keys.~~
 - Open: SeeingMachine.tsx is about 710 lines; the page keys' block needs two dozen of its values, so moving it out isn't simpler yet.
 - ~~Escape left the engines' list open: it puts that away too (drive search).~~
-- Open: an X-RAY row lights its part of the page but doesn't bring it into sight when it is scrolled away (it needs a hook tool, as MARGINALIA's finder has).
+- ~~An X-RAY row lit its part of the page but left it out of sight when scrolled away: pressed (or reached by the keyboard) it brings it into sight; only pointed at, the page stays still (drive lenses 72).~~
 - Open: a feed the machine draws (feed.ts) is in the browser's default look; a lens still dresses it. A house look would need a font named outside the token files.

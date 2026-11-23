@@ -243,6 +243,8 @@ export const HOOK = String.raw`(function (config) {
   function markSoon(waits) {
     markTimer = setTimeout(function () { mark(Array.isArray(tools.marks) ? tools.marks : []); if (waits.length > 1) markSoon(waits.slice(1)); }, waits[0]);
   }
+  // An X-RAY row's part, brought into sight only if it is out of it.
+  function bringIntoSight(at) { var part = null; try { part = document.querySelector(at); } catch (error) { return; } if (!part) return; var box = part.getBoundingClientRect(); if (box.bottom < 0 || box.top > window.innerHeight) window.scrollTo({ top: Math.max(0, window.scrollY + box.top - 120) }); }
   function find_(range) { var box = range.getBoundingClientRect(); window.scrollTo({ top: Math.max(0, window.scrollY + box.top - 120) }); }
 
   /* Two drawings of one page, kept at the same place. */
@@ -272,8 +274,10 @@ export const HOOK = String.raw`(function (config) {
     if (next.place && !tools.place) setTimeout(tellPlace, 60);
     clearTimeout(markTimer);
     if (next.marks || marked.length) markSoon([120, 900, 3000]);
+    var reachTo = next.reach && typeof next.reach.at === 'string' && (!tools.reach || tools.reach.n !== next.reach.n) ? next.reach.at : null;
     undye(); undither(); unstrip();
     tools = next;
+    if (reachTo !== null) bringIntoSight(reachTo);
     clearTimeout(again);
     var run = function () {
       if (tools.dye) dyeAll(tools.dye.dyes.map(hexOf), hexOf(tools.dye.paper));
