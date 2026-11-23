@@ -587,7 +587,7 @@ function fixture() {
       return;
     }
     // A slow site: it answers after two and a half seconds.
-    if (request.url === '/slow') {
+    if (request.url.split('?')[0] === '/slow') {
       setTimeout(() => answer.writeHead(200, { 'content-type': 'text/html' }).end('<title>Slow</title><h1>Slow</h1>'), 2500);
       return;
     }
@@ -799,6 +799,15 @@ async function eye(browser) {
     await page.screenshot({ path: join(OUT, 'acquiring.png') });
     await inside(page).getByRole('heading', { name: 'Slow' }).waitFor();
     ok((await page.locator('[data-seeing-elapsed]').count()) === 0, 'a slow site is seen to be slow: the seconds count beside the step, and go when it comes');
+    // STOP, then ASK AGAIN from the view.
+    await go(page, `${SITE}/slow?again`);
+    await page.locator('[data-seeing-acquiring="busy"]').waitFor();
+    await key(page, 'Stop').click();
+    const stopped = page.locator('[data-seeing-acquiring="stopped"]');
+    ok(/STOPPED/.test(await stopped.innerText()), 'STOP leaves the view saying so');
+    await stopped.getByRole('button', { name: '[ ASK AGAIN ]' }).click();
+    await inside(page).getByRole('heading', { name: 'Slow' }).waitFor();
+    ok(true, 'and ASK AGAIN there asks again');
 
     await go(page, `${SITE}/`);
     await say(page, 'DOCUMENT RECONSTRUCTED');

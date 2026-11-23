@@ -25,4 +25,5 @@ One line each, the most useful first. Struck through when done, with its commit.
 - ~~TRAIL with one site was a lone word in a big box: a legend now says how many places and ways, and while there are none, what draws a line.~~
 - ~~HISTORY and KEPT pushed the page keys onto a third line: they moved to the empty end of the tab line (decision 34).~~
 - The page keys still take two lines at 1366 on an outside page (the TIME DIAL is wide): consider the dial as a key that opens it.
-- ~~Keyboard round: the Tab order was probed (Temp/probe-tab-order.cjs) and is sensible; lenses had no key: Alt+L the next lens.~~
+- ~~Keyboard round: the Tab order was probed (a throwaway Playwright probe) and is sensible; lenses had no key: Alt+L the next lens.~~
+- ~~After STOP the view said STOPPED and offered nothing: [ ASK AGAIN ] there now.~~

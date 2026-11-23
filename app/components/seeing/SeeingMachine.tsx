@@ -662,7 +662,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
             onOwn={() => void openInOwnEye(dialOf(address).address)}
           />
         ) : (
-          <SeeingAcquiring words={now.state === 'busy' ? (now.at ?? 'ACQUIRING SOURCE') : 'STOPPED'} address={address} eye={engineFor(address).name} busy={now.state === 'busy'} />
+          <SeeingAcquiring words={now.state === 'busy' ? (now.at ?? 'ACQUIRING SOURCE') : 'STOPPED'} address={address} eye={engineFor(address).name} busy={now.state === 'busy'} onAgain={() => setTurn((each) => each + 1)} />
         )}
         {noting && page !== null && seen !== null ? (
           <SeeingMargins key={`notes ${page}`} page={page} owner={owner} notes={notes} selected={selected.key === key ? selected.text : ''} onFind={(index) => finderRef.current?.(index)} onClose={() => setNoting(false)} />
