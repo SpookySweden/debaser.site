@@ -1,3 +1,5 @@
+'use client';
+
 import { refusalHelp } from '../../lib/seeing/refusals';
 import { PLATE, TITLE_BAR_INACTIVE } from '../../lib/ui/controls';
 
