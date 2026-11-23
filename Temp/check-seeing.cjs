@@ -327,8 +327,10 @@ function files(dir) {
 }
 for (const file of [...files('app/lib/seeing'), ...files('app/components/seeing'), 'app/browser/page.tsx']) {
   const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
+  // (2026-11-23, on purpose) What keeps the extension up to date asks for the build's own list and files, and nothing else.
+  if (file.endsWith('/extension-store.ts')) assert.deepEqual([...source.matchAll(/\bfetch\(([^,]+),/g)].map((each) => each[1]), ["'/api/extension/list'", '`/api/extension/file/${encodeURIComponent(name)}?v=${sha256}`']);
   // The page asks our own routes, and BILLBOARD the art: nothing else in the browser reaches anywhere. (Phase 2, 2026-11-23: it was nothing at all.)
-  if (!file.startsWith('app/lib/seeing/server/') && !/\/(?:hook|server-engine|billboards)\.ts$/.test(file)) assert.ok(!/\bfetch\(|XMLHttpRequest|sendBeacon|WebSocket\(/.test(source), `${file} fetches nothing`);
+  if (!file.startsWith('app/lib/seeing/server/') && !/\/(?:hook|server-engine|billboards|extension-store)\.ts$/.test(file)) assert.ok(!/\bfetch\(|XMLHttpRequest|sendBeacon|WebSocket\(/.test(source), `${file} fetches nothing`);
   if (file.endsWith('server-engine.ts')) assert.deepEqual([...source.matchAll(/\bfetch\(([^,]+),/g)].map((m) => m[1]), ['`/api/see/${path}`'], 'the engine asks the site and nobody else');
   // The hook runs in the frame, not here.
   if (!file.endsWith('/hook.ts')) assert.ok(!/dangerouslySetInnerHTML|innerHTML/.test(source), `${file} puts no markup in the site's own page`);

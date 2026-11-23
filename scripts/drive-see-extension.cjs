@@ -133,6 +133,38 @@ const STORY = `<title>Shop</title><nav>menu</nav><article><h1>The shop</h1>${'<p
     await page.waitForTimeout(600);
     ok((await rules()) === 0, 'and it goes with the machine, whatever is opened in that tab next');
 
+    // Settings, its badge, and reading itself again when its folder has been written to (2026-11-23).
+    await page.goto('http://www.machinesite.test/');
+    ok(JSON.stringify((await say({ see: 'settings' }))?.settings) === '{"lens":"standard","wear":true}', 'its settings, as they come');
+    ok((await say({ see: 'settings', settings: { lens: 'reader', wear: false } }))?.settings.lens === 'reader', 'changed by the site');
+    ok((await say({ see: 'settings', settings: { lens: 'x', wear: 1 } }))?.settings.lens === 'reader', 'and only to what they can be');
+    await machine('http://www.shoptrial.test/');
+    ok((await status()).includes('LENS: READER'), 'a page opens in the lens that was set');
+    ok((await page.evaluate(() => getComputedStyle(document.body).backgroundColor)) !== 'rgb(16, 32, 48)', "and without the site's theme when that is off");
+    await page.goto('http://www.machinesite.test/');
+    await say({ see: 'settings', settings: { lens: 'standard', wear: true } });
+    await say({ see: 'newest', version: '99.0.0' });
+    await page.waitForTimeout(200);
+    ok((await worker.evaluate(() => chrome.action.getBadgeText({}))) === 'NEW', 'its key in the bar says when there is a newer one');
+    await say({ see: 'newest', version: manifest.version });
+    await page.waitForTimeout(200);
+    ok((await worker.evaluate(() => chrome.action.getBadgeText({}))) === '', 'and stops when there is not');
+    const [sitesPage] = await Promise.all([context.waitForEvent('page'), say({ see: 'sites' })]);
+    await sitesPage.waitForTimeout(1200);
+    ok(/shoptrial\.test/.test(await sitesPage.locator('#beside').innerText()), 'its sites are listed in its own page, not told to the site');
+    await sitesPage.close();
+    await page.bringToFront();
+    const newer = JSON.parse(fs.readFileSync(path.join(extension, 'manifest.json'), 'utf8'));
+    newer.version = '9.9.9';
+    fs.writeFileSync(path.join(extension, 'manifest.json'), JSON.stringify(newer));
+    ok((await say({ see: 'ping' }))?.version === manifest.version, 'written to, it is still the old one');
+    ok((await say({ see: 'reload' }))?.ok === true, 'asked by the site to read itself again');
+    await page.waitForTimeout(3000);
+    ok((await say({ see: 'ping' }))?.version === '9.9.9', 'it is the new one, with nothing pressed in the browser');
+    ok(JSON.stringify((await say({ see: 'settings' }))?.settings) === '{"lens":"standard","wear":true}', 'with its settings');
+    await machine('http://www.shoptrial.test/');
+    ok(/OWN EYE/.test(await status()), 'and the sites it was let');
+
     // The panel.
     await page.goto(`chrome-extension://${id}/panel.html`);
     await page.waitForTimeout(800);

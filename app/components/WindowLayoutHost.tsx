@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect } from 'react';
 import { openMusic } from '../lib/audio/music-window';
 import { openQueues } from '../lib/audio/queue-window';
 import { openArcade } from '../lib/games/arcade-window';
+import { openExtensionWindow } from '../lib/ui/extension-window';
 import { PREFERENCES_LAYOUT, openPreferences } from '../lib/ui/preferences-window';
 import {
   adoptLayouts,
@@ -29,6 +30,7 @@ const OPENERS: Record<string, () => void> = {
   music: () => openMusic(),
   arcade: () => openArcade(),
   queue: () => openQueues(),
+  extension: () => openExtensionWindow(),
   preferences: () => openPreferences(),
   [PREFERENCES_LAYOUT]: () => openPreferences(),
 };

@@ -62,6 +62,21 @@ chrome.permissions.onRemoved.addListener(() => void again());
 // The key in the browser's own bar opens the panel beside the tab.
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => undefined);
 
+/** The lenses there are, and whether it wears the site's theme: nothing else is a setting. */
+export function settingsFrom(value) {
+  if (typeof value !== 'object' || value === null) return null;
+  const lens = ['standard', 'reader', 'xray', 'lowfi', 'yours'].find((each) => each === value.lens);
+  return lens === undefined || typeof value.wear !== 'boolean' ? null : { lens, wear: value.wear };
+}
+
+/** Whether one version comes after another: numbers between dots, and nothing else is a version. */
+export function newer(one, other) {
+  if (![one, other].every((each) => typeof each === 'string' && /^\d{1,5}(?:\.\d{1,5}){0,3}$/.test(each))) return false;
+  const [a, b] = [one.split('.').map(Number), other.split('.').map(Number)];
+  for (let i = 0; i < 4; i += 1) if ((a[i] ?? 0) !== (b[i] ?? 0)) return (a[i] ?? 0) > (b[i] ?? 0);
+  return false;
+}
+
 export async function openMachine(address) {
   const read = address === undefined ? null : readAddress(address);
   await chrome.tabs.create({ url: chrome.runtime.getURL('machine.html') + (read === null ? '' : '#see=' + encodeURIComponent(read)) });
@@ -75,7 +90,8 @@ export function themeFrom(value) {
   return Object.values(theme).every((each) => each !== null) ? theme : null;
 }
 
-// Only debaser.site can speak to it (`externally_connectable`), and only to say these three things.
+// Only debaser.site can speak to it (`externally_connectable`), and only to say these things. It answers with its version and its two settings,
+// never with a site the reader has added or a page they looked at.
 chrome.runtime.onMessageExternal.addListener((message, sender, answer) => {
   if (sender.origin !== 'https://debaser.site') return;
   if (typeof message !== 'object' || message === null) return;
@@ -87,6 +103,24 @@ chrome.runtime.onMessageExternal.addListener((message, sender, answer) => {
   } else if (message.see === 'open' && typeof message.address === 'string') {
     void openMachine(message.address);
     answer({ ok: true });
+  } else if (message.see === 'settings') {
+    const given = settingsFrom(message.settings);
+    void (given === null ? Promise.resolve() : chrome.storage.local.set({ settings: given }))
+      .then(() => chrome.storage.local.get('settings'))
+      .then((kept) => answer({ see: 'settings', settings: settingsFrom(kept.settings) ?? { lens: 'standard', wear: true } }));
+    return true;
+  } else if (message.see === 'sites') {
+    void chrome.tabs.create({ url: chrome.runtime.getURL('machine.html') + '#sites' });
+    answer({ ok: true });
+  } else if (message.see === 'newest' && typeof message.version === 'string') {
+    const waiting = newer(message.version, chrome.runtime.getManifest().version);
+    void chrome.action.setBadgeText({ text: waiting ? 'NEW' : '' });
+    void chrome.action.setTitle({ title: waiting ? 'DEBASER SEEING MACHINE: AN UPDATE IS READY ON DEBASER.SITE' : 'DEBASER SEEING MACHINE' });
+    answer({ ok: true });
+  } else if (message.see === 'reload') {
+    // Its own files were written again by the site, in the folder the reader picked: read from there, as the ↻ key in the browser's list does.
+    answer({ ok: true });
+    setTimeout(() => chrome.runtime.reload(), 150);
   }
 });
 

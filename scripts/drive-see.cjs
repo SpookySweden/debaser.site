@@ -20,7 +20,7 @@
  *           forged messages do nothing
  */
 const assert = require('node:assert/strict');
-const { mkdirSync } = require('node:fs');
+const { mkdirSync, readFileSync } = require('node:fs');
 const { join } = require('node:path');
 const { chromium } = require('playwright-core');
 const { findChrome } = require('./browser.cjs');
@@ -981,11 +981,134 @@ async function lenses(browser) {
   await context.close();
 }
 
+/**
+ * The EXTENSION window (Luke, 2026-11-23), with a pretend extension answering the page and a real folder to write to: the browser's own private
+ * one (OPFS), whose handles are the same kind a picked folder's are. (The extension itself reading a rewritten folder: drive-see-extension.cjs.)
+ */
+async function extension(browser) {
+  const ID = readFileSync(join(__dirname, '..', 'app/lib/seeing/own-eye.ts'), 'utf8').match(/EXTENSION_ID = '([a-p]{32})'/)[1];
+  const { context, page } = await open(browser, { as: ANN });
+  await context.addInitScript(() => {
+    if (window.top !== window) return;
+    const kept = () => JSON.parse(sessionStorage.getItem('pretend') ?? '{"version":null}');
+    window.chrome = window.chrome ?? {};
+    window.chrome.runtime = {
+      sendMessage: (id, message, answer) => {
+        const it = kept();
+        window.toldIt = [...(window.toldIt ?? []), [id, message.see]];
+        if (it.version === null) return setTimeout(() => answer(undefined), 5);
+        if (message.see === 'ping') return setTimeout(() => answer({ see: 'pong', version: it.version }), 5);
+        if (message.see === 'settings') {
+          const settings = message.settings ?? it.settings ?? { lens: 'standard', wear: true };
+          sessionStorage.setItem('pretend', JSON.stringify({ ...it, settings }));
+          return setTimeout(() => answer({ see: 'settings', settings }), 5);
+        }
+        if (message.see === 'reload') {
+          // As the browser does: what is in the folder now is what it is.
+          void navigator.storage.getDirectory().then(async (root) => {
+            const manifest = JSON.parse(await (await (await (await root.getDirectoryHandle('picked')).getFileHandle('manifest.json')).getFile()).text());
+            sessionStorage.setItem('pretend', JSON.stringify({ ...it, version: manifest.version }));
+          });
+          if (it.deaf) return setTimeout(() => answer(undefined), 5);
+        }
+        return setTimeout(() => answer({ ok: true }), 5);
+      },
+    };
+    window.showDirectoryPicker = async () => (await navigator.storage.getDirectory()).getDirectoryHandle(window.pickThis ?? 'picked');
+  });
+  const pretend = (it) => page.evaluate((what) => sessionStorage.setItem('pretend', JSON.stringify(what)), it);
+  const put = (folder, files) => page.evaluate(async ([name, holds]) => {
+    const dir = await (await navigator.storage.getDirectory()).getDirectoryHandle(name, { create: true });
+    for (const [file, text] of Object.entries(holds)) {
+      const writing = await (await dir.getFileHandle(file, { create: true })).createWritable();
+      await writing.write(text);
+      await writing.close();
+    }
+  }, [folder, files]);
+  const take = (folder) => page.evaluate(async (name) => {
+    const dir = await (await navigator.storage.getDirectory()).getDirectoryHandle(name);
+    const out = {};
+    for await (const [file, handle] of dir.entries()) out[file] = await (await handle.getFile()).text();
+    return out;
+  }, folder);
+  const source = (file) => readFileSync(join(__dirname, '..', 'extension', file), 'utf8').replace(/\r\n/g, '\n');
+  const oldManifest = source('manifest.json').replace(/"version": "[^"]+"/, '"version": "0.1.0"');
+  const version = JSON.parse(source('manifest.json')).version;
+  const panel = page.locator('[data-extension]');
+  const kind = (which) => page.locator(`[data-extension="${which}"]`).waitFor({ timeout: 15000 });
+
+  await page.goto(`${BASE}/browser`, { waitUntil: 'domcontentloaded' });
+  await page.locator('[data-seeing-tabs]').waitFor({ timeout: 60000 });
+  await page.getByRole('button', { name: /SIDE PANEL/ }).first().click();
+  await page.getByRole('button', { name: 'Profile settings' }).click();
+  await page.getByRole('menuitem', { name: /\[ EXTENSION \]/ }).click();
+  await kind('missing');
+  const missing = await panel.innerText();
+  ok(/GET IT FIRST/.test(missing) && /chrome:\/\/extensions/.test(missing) && !/OPENS PAGES IN/.test(missing), 'without it, the window gets it first, and has no settings');
+  const download = await page.request.get(`${BASE}/api/extension/zip`);
+  ok(download.status() === 200 && /debaser-extension-\d/.test(download.headers()['content-disposition']) && (await download.body()).subarray(0, 2).toString() === 'PK', 'the download is there');
+  ok((await page.request.get(`${BASE}/api/extension/file/..%2fpackage.json`)).status() === 404 && (await page.request.get(`${BASE}/api/extension/file/package.json`)).status() === 404, 'and nothing but its own files');
+  ok(/text\/plain/.test((await page.request.get(`${BASE}/api/extension/file/worker.js`)).headers()['content-type']), 'which are words here, not scripts');
+
+  // OWN EYE without it.
+  await page.getByRole('button', { name: 'Close EXTENSION' }).click().catch(() => page.locator('[data-dock-window="extension"]').getByRole('button', { name: /close/i }).first().click());
+  await go(page, 'https://example.com/');
+  await page.waitForTimeout(800);
+  await page.getByRole('button', { name: '[ OWN EYE ↗ ]' }).click();
+  await kind('missing');
+  ok(true, 'a key that needs it opens the window that gets it');
+
+  // An old one, by its own folder.
+  await put('picked', { 'manifest.json': oldManifest, 'worker.js': 'old', 'mine.txt': 'mine' });
+  await put('other', { 'manifest.json': '{"key":"AAAA"}' });
+  await pretend({ version: '0.1.0', deaf: false });
+  await page.waitForTimeout(800);
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await kind('old');
+  const oldText = await panel.innerText();
+  ok(/UPDATE IT FIRST/.test(oldText) && oldText.includes('YOU HAVE 0.1.0') && oldText.includes(version) && !/WEARS/.test(oldText), 'with an old one, it updates it first');
+  await page.screenshot({ path: join(OUT, 'extension-old.png') });
+  await page.evaluate(() => (window.pickThis = 'other'));
+  await page.getByRole('button', { name: 'CHOOSE ITS FOLDER' }).click();
+  await page.waitForFunction(() => /ISN'T THE EXTENSION'S FOLDER/.test(document.querySelector('[data-extension]')?.textContent ?? ''));
+  ok(Object.keys(await take('other')).length === 1, "a folder that isn't its own is not written to");
+  await page.route('**/api/extension/file/lens.js', (route) => route.fulfill({ status: 200, body: 'tampered' }));
+  await page.evaluate(() => (window.pickThis = 'picked'));
+  await page.getByRole('button', { name: 'CHOOSE ITS FOLDER' }).click();
+  await page.waitForFunction(() => /lens\.js IS NOT WHAT IT SHOULD BE/.test(document.querySelector('[data-extension]')?.textContent ?? ''));
+  ok((await take('picked'))['worker.js'] === 'old', 'a file that is not what the build made: nothing is written');
+  await page.unroute('**/api/extension/file/lens.js');
+  await page.getByRole('button', { name: 'UPDATE', exact: true }).click();
+  await kind('current');
+  const now = await take('picked');
+  ok(now['manifest.json'] === source('manifest.json') && now['worker.js'] === source('worker.js') && now['mine.txt'] === 'mine', 'the new one is written into its folder, and nothing else touched');
+  await page.waitForFunction((to) => document.querySelector('[data-extension]')?.textContent.includes(`UPDATED TO ${to}`), version);
+  ok(/OPENS PAGES IN/.test(await panel.innerText()), 'and then there are settings');
+  await page.getByRole('button', { name: '[ READER ]' }).last().click();
+  await page.waitForFunction(() => JSON.parse(sessionStorage.getItem('pretend')).settings?.lens === 'reader');
+  ok(true, 'which it is told');
+  await page.screenshot({ path: join(OUT, 'extension-current.png') });
+
+  // By itself, the next time there is a newer one: the folder already chosen, and nothing pressed.
+  await put('picked', { 'manifest.json': oldManifest, 'worker.js': 'old' });
+  await pretend({ version: '0.1.0' });
+  await page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded' });
+  await page.waitForFunction((to) => JSON.parse(sessionStorage.getItem('pretend')).version === to, version, { timeout: 60000 });
+  ok((await take('picked'))['worker.js'] === source('worker.js'), 'by itself, on another page, with nothing pressed, when the browser already lets the site write there');
+
+  // One too old to know the word.
+  await put('picked', { 'manifest.json': oldManifest });
+  await pretend({ version: '0.1.0', deaf: true });
+  const told = await page.evaluate(() => window.toldIt ?? []);
+  ok(told.length > 0 && told.every(([id]) => id === ID), 'only the one extension is ever spoken to');
+  await context.close();
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: findChrome(), headless: true, // The frames in their own processes are how a real browser keeps them apart; this tool can't look inside them there.
     args: ['--use-angle=swiftshader', '--disable-features=IsolateSandboxedIframes'] });
   try {
-    for (const [name, run] of [['shell', shell], ['frame', frame], ['eye', eye], ['lenses', lenses], ['themes', themes]]) {
+    for (const [name, run] of [['shell', shell], ['frame', frame], ['eye', eye], ['lenses', lenses], ['extension', extension], ['themes', themes]]) {
       if (ONLY !== '' && ONLY !== name) continue;
       console.log(`\n=== ${name} ===`);
       await run(browser);

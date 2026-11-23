@@ -3,13 +3,13 @@
  * because this page is the extension's and has leave for that site. The frame can't move this page (no allow-top-navigation). Signing in is
  * always done in an ordinary tab: a sign-in page is never framed.
  */
-import { findMedia, findWatchers, LENSES, list, putLens, toRoom, toServerEye, wear } from './act.js';
+import { findMedia, findWatchers, LENSES, list, putLens, settings, toRoom, toServerEye, wear } from './act.js';
 import { allowedSites, isAllowed, neverFramed, originsOf, readAddress, siteOf } from './sites.js';
 
 const at = (id) => document.getElementById(id);
 const frame = at('page');
 let address = null;
-let lens = 'standard';
+let lens = (await settings()).lens;
 let beside = null;
 
 const say = (words, fault = false) => {
@@ -146,6 +146,7 @@ const ready = () => new Promise((done) => {
 });
 await ready();
 await wear();
+if (location.hash === '#sites') await open('sites');
 const brought = /^#see=(.+)$/.exec(location.hash)?.[1];
 if (brought !== undefined) {
   // An address brought by a link opens by itself only for a site already added; show() asks first for any other.

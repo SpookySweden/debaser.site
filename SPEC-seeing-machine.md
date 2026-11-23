@@ -83,7 +83,9 @@ Each can be changed later by saying so.
 20. **A card's picture is carried in it**, shrunk by the server, so a list of cards asks nothing of anybody's site.
 21. **MARGINALIA and GRAFFITI are yours alone for now**, in this browser; SEEN TOGETHER needs a rule in the database for its private channel, so it
     waits with them, as do MEDIA's PAGES lane and DISCOVER, which need everyone's kept pages.
-22. **Nineteen themes**, not the eighteen written below: MARMALADE has six.
+22. **The extension updates in its own folder**, written by the site with your leave, every file checked; a browser updates such a folder no other
+    way short of its own store, which is yours alone to list it in.
+23. **Nineteen themes**, not the eighteen written below: MARMALADE has six.
 
 ## Risks, said once
 1. **SERVER is beside everything.** The torrent page (no password at home), Jellyfin, the database and its dashboard, the

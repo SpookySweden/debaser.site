@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useState, useSyncExternalStore } from 'react';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { currentAvatarVersion } from '../lib/profile/visibility';
+import { extensionWindowState, subscribeToExtensionWindow, toggleExtensionWindow } from '../lib/ui/extension-window';
 import {
   preferencesWindowState,
   subscribeToPreferencesWindow,
@@ -66,6 +67,8 @@ export default function SidebarProfile() {
     preferencesWindowState,
     preferencesWindowState,
   );
+
+  const { open: extensionOpen } = useSyncExternalStore(subscribeToExtensionWindow, extensionWindowState, extensionWindowState);
 
   return (
     <section>
@@ -168,6 +171,11 @@ export default function SidebarProfile() {
                 role="menuitem"
               >
                 [ PREFERENCES ] {preferencesOpen ? '[ ON ]' : '[ ▶ ]'}
+              </button>
+
+              {/* BROWSER's extension (Luke, 2026-11-23): getting it or updating it first, then its settings. */}
+              <button type="button" onClick={toggleExtensionWindow} aria-haspopup="dialog" title={extensionOpen ? 'Close extension' : 'Open extension'} className={MENU_ROW} role="menuitem">
+                [ EXTENSION ] {extensionOpen ? '[ ON ]' : '[ ▶ ]'}
               </button>
 
               <button

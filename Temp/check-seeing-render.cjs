@@ -1,7 +1,7 @@
 /*
  * BROWSER on screen (SPEC-seeing-machine.md, Luke 2026-11-23): what the server draws of it. The pure parts are check-seeing.cjs, and
  * scripts/drive-see.cjs drives it in a browser.
- *   npx tsc app/components/seeing/SeeingMachine.tsx app/components/SeeKey.tsx --rootDir app --outDir Temp/seeing-render-out --module commonjs --target es2022 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop --strictNullChecks
+ *   npx tsc app/components/seeing/SeeingMachine.tsx app/components/SeeKey.tsx app/components/ExtensionWindow.tsx --rootDir app --outDir Temp/seeing-render-out --module commonjs --target es2022 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop --strictNullChecks
  *   node Temp/check-seeing-render.cjs
  *
  * - signed out: the sign-in call and nothing of the machine; signed in, before its tabs are read: neither
@@ -96,4 +96,15 @@ assert.match(html(el(at('SeeingKept'), { me: 'u1', onGo: none, onClose: none }))
 const notes = html(el(at('SeeingMargins'), { page: 'https://a.example/', notes: [{ id: 'n', page: 'https://a.example/', quote: '<i>q</i>', note: 'mine', at: 1 }], selected: '', onFind: none, onClose: none }));
 assert.ok(/ONLY YOU, IN THIS BROWSER/.test(notes) && /&lt;i&gt;q/.test(notes) && /\[ FIND \]/.test(notes));
 assert.match(html(el(at('SeeingGraffiti'), { drawing: true, where: 'https://a.example/', at: { y: 0, whole: 1 }, onScroll: none })), /aria-label="Graffiti"/);
+const { ExtensionBody, default: ExtensionWindow } = require('./seeing-render-out/components/ExtensionWindow.js');
+assert.equal(html(el(ExtensionWindow)), '', 'shut, the EXTENSION window is not there');
+const body_ = (state, canPick = true) => html(el(ExtensionBody, { canPick, state: { kind: 'missing', version: null, newest: '0.2.0', folder: 'none', settings: null, said: null, busy: false, ...state } }));
+assert.ok(/GET IT FIRST/.test(body_({})) && /href="\/api\/extension\/zip\?v=0\.2\.0"/.test(body_({})) && !/OPENS PAGES IN/.test(body_({})), 'without it, getting it first');
+assert.ok(/CHOOSE ITS FOLDER/.test(body_({ kind: 'old', version: '0.1.0' })) && !/OPENS PAGES IN/.test(body_({ kind: 'old', version: '0.1.0' })), 'old, updating it first');
+assert.ok(!/CHOOSE ITS FOLDER/.test(body_({ kind: 'old', version: '0.1.0' }, false)) && /DOWNLOAD/.test(body_({ kind: 'old', version: '0.1.0' }, false)), 'a browser that can not pick a folder has the download');
+assert.ok(/COULD/.test(body_({ kind: 'old', version: '0.1.0' })) && /COULD/.test(body_({ kind: 'current', version: '0.2.0' })), 'it says what choosing the folder gives');
+assert.ok(/>UPDATE</.test(body_({ kind: 'old', version: '0.1.0', folder: 'ask' })));
+assert.ok(/OPENS PAGES IN/.test(body_({ kind: 'current', version: '0.2.0', settings: { lens: 'reader', wear: true } })));
+assert.ok(/CHROME AND EDGE/.test(body_({ kind: 'unable' })));
+for (const kind of ['missing', 'old', 'current', 'unable']) assert.match(body_({ kind, version: '0.1.0' }), /NEVER READS PASSWORDS OR COOKIES/);
 console.log('BROWSER on screen: the sign-in call, tabs, keys, lenses and WATCHERS');

@@ -89,6 +89,23 @@ Proof: `drive-see.cjs --only lenses` (DYE and GLASS measured on every theme, 5.5
   lifted by a session rule that names the machine's tab, the machine or an added site as the asker, and added sites only, never a sign-in; it goes
   when the machine's page does. `Temp/check-see-extension.cjs`, `scripts/drive-see-extension.cjs` (26, pretend sites, signed in to nothing).
 
+## The EXTENSION window, and how it is kept up to date (Luke, 2026-11-23)
+- Under the profile's `[ ⚙ SETTINGS ]`: `ExtensionWindow.tsx`. Without the extension it gets it first (the download), with an old one it updates it
+  first, and only with the newest are there settings. OWN EYE opens it when it is missing or old. Silence is "not here".
+- **What is served** is made when the site is built, from `extension/` (`server/extension-files.ts`): `/api/extension/zip`, `/list` (a SHA-256 of each
+  file), `/file/<name>` (plain text). A change to `extension/` needs a new version in its manifest and a line in `extension-versions.json`
+  (`check-see-extension` fails without both, and never lets a version already on main change).
+- **Updating**: the reader picks the folder they loaded it from, once (`showDirectoryPicker`, the handle kept in IndexedDB; only a folder whose manifest
+  has our key). Every file is fetched and proved against the list before anything is touched; all are swapped at the end, the manifest last; a swap
+  that fails part of the way is put back. Then the extension is asked to `chrome.runtime.reload()`. By itself when the browser already lets the site
+  write there on every visit (the keeper, 5 seconds after a page opens, and only where an extension answers), by one press when it doesn't.
+- **What it costs, said once**: with the folder chosen, whoever controls debaser.site can change the extension's code; the fingerprints prove the
+  files are the site's, not that the site is honest. The window says so where it asks. A list signed by a key kept off the site would be the next step.
+- **Proved**: the writing, refusals and putting back (check); the window with real folder handles (`drive-see --only extension`, 13); a rewritten
+  folder read again on the site's word, with its settings and sites kept (`drive-see-extension`, 39). **Not proved**: the browser's own folder box and
+  its "on every visit" question, which no script can press. A new permission in the manifest may need the reader's OK in the browser.
+- 0.1.0 doesn't know the word `reload`: after its first update the reader presses ↻ once.
+
 ## History, TRAIL and kept pages (Phase 5, in the browser only until the tables exist)
 - **History** (`history.ts`, `history-store.ts`): 90 days, 2,000 rows, under the account's own key in this browser; one key clears it. **TRAIL**
   (`trail.ts`): the same rows as a map of sites; the same walk always makes the same map.

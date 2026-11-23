@@ -26,7 +26,9 @@ import { margins, marginsOnServer, openMarginsOf, subscribeToMargins } from '../
 import { keptId } from '../../lib/seeing/pages';
 import { keptPage, keptPages, keptPagesOnServer, openKeptPagesOf, subscribeToKeptPages } from '../../lib/seeing/pages-store';
 import { engineFor } from '../../lib/seeing/engines';
-import { openInOwnEye, ownEyeHere, tellOwnEyeTheme } from '../../lib/seeing/own-eye';
+import { extensionState, extensionStateOnServer, lookForExtension, subscribeToExtension } from '../../lib/seeing/extension-store';
+import { openInOwnEye, tellOwnEyeTheme } from '../../lib/seeing/own-eye';
+import { openExtensionWindow } from '../../lib/ui/extension-window';
 import { scriptsOff, setScriptsOff, siteSettings, siteSettingsOnServer, subscribeToSiteSettings } from '../../lib/seeing/site-settings';
 import { TEST_ADDRESS } from '../../lib/seeing/test-engine';
 import { PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR } from '../../lib/ui/controls';
@@ -115,16 +117,11 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
   const [selected, setSelected] = useState<{ key: string; text: string }>({ key: '', text: '' });
   const kept = useSyncExternalStore(subscribeToKeptPages, keptPages, keptPagesOnServer);
   const [sent, setSent] = useState<readonly FoundMedia[]>(NO_MEDIA);
-  const [ownEye, setOwnEye] = useState(false);
+  const extension = useSyncExternalStore(subscribeToExtension, extensionState, extensionStateOnServer).kind;
+  const ownEye = extension === 'current' || extension === 'old';
   const themeId = useSyncExternalStore(subscribeToTheme, themeState, themeState).id;
   useEffect(() => {
-    let gone = false;
-    void ownEyeHere().then((here) => {
-      if (!gone) setOwnEye(here);
-    });
-    return () => {
-      gone = true;
-    };
+    void lookForExtension();
   }, []);
   useEffect(() => {
     if (ownEye) void tellOwnEyeTheme(themeId);
@@ -406,8 +403,9 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
             [ OPEN SOURCE ↗ ]
           </a>
         ) : null}
-        {outside && ownEye ? (
-          <button type="button" title="In your own browser, where you are signed in" onClick={() => void openInOwnEye(dialOf(address).address)} className={PLATE}>
+        {outside && extension !== 'asking' && extension !== 'unable' ? (
+          // Missing or old, the key opens the window that gets it first.
+          <button type="button" title="In your own browser, where you are signed in" onClick={() => (extension === 'current' ? void openInOwnEye(dialOf(address).address) : openExtensionWindow())} className={PLATE}>
             [ OWN EYE ↗ ]
           </button>
         ) : null}

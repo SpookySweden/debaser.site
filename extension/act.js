@@ -2,7 +2,13 @@
 export const THEME_AT_FIRST = { paper: '#1a1525', ink: '#ffffff', accent: '#fff000', quiet: '#e1ff00', fault: '#e6004c', faultInk: '#ffffff', sun: '#fff000', scheme: 'dark' };
 
 export async function theme() {
-  return (await chrome.storage.local.get('theme')).theme ?? THEME_AT_FIRST;
+  return (await settings()).wear ? ((await chrome.storage.local.get('theme')).theme ?? THEME_AT_FIRST) : THEME_AT_FIRST;
+}
+
+/** What the reader set in the site's EXTENSION panel. */
+export const SETTINGS_AT_FIRST = { lens: 'standard', wear: true };
+export async function settings() {
+  return { ...SETTINGS_AT_FIRST, ...(await chrome.storage.local.get('settings')).settings };
 }
 
 /** The theme on one of the extension's own pages. */

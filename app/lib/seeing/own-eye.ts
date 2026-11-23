@@ -34,10 +34,38 @@ function say(message: unknown): Promise<unknown> {
   });
 }
 
-export async function ownEyeHere(): Promise<boolean> {
+const field = (answer: unknown, name: string): unknown => (typeof answer === 'object' && answer !== null ? (answer as Record<string, unknown>)[name] : undefined);
+
+/** Its version, or null when it isn't here: silence is an answer. */
+export async function extensionVersion(): Promise<string | null> {
   const answer = await say({ see: 'ping' });
-  return typeof answer === 'object' && answer !== null && (answer as { see?: unknown }).see === 'pong';
+  const version = field(answer, 'version');
+  return field(answer, 'see') === 'pong' && typeof version === 'string' && /^[\d.]{1,23}$/.test(version) ? version : null;
 }
+
+export const OWN_EYE_LENSES = [
+  ['standard', 'STANDARD'],
+  ['reader', 'READER'],
+  ['xray', 'X-RAY'],
+  ['lowfi', 'LOW-FI'],
+  ['yours', 'YOUR THEME'],
+] as const;
+export type OwnEyeSettings = { lens: (typeof OWN_EYE_LENSES)[number][0]; wear: boolean };
+
+/** Its settings, changed first when some are given; null from one that has none. */
+export async function ownEyeSettings(change?: OwnEyeSettings): Promise<OwnEyeSettings | null> {
+  const settings = field(await say({ see: 'settings', settings: change ?? null }), 'settings');
+  const lens = OWN_EYE_LENSES.find(([id]) => id === field(settings, 'lens'))?.[0];
+  const wear = field(settings, 'wear');
+  return lens === undefined || typeof wear !== 'boolean' ? null : { lens, wear };
+}
+
+/** Its own list of the sites it may act on, in its own page: the site is never told them. */
+export const openOwnEyeSites = async (): Promise<void> => void (await say({ see: 'sites' }));
+/** The version the site has, so its key in the browser's bar can say when an update is ready. */
+export const newestToOwnEye = async (version: string): Promise<void> => void (await say({ see: 'newest', version }));
+/** Whether it heard: its files have been written again, and it should read them. */
+export const reloadOwnEye = async (): Promise<boolean> => field(await say({ see: 'reload' }), 'ok') === true;
 
 /** The theme as the extension wears it: a few values, never a stylesheet. */
 export function ownEyeTheme(tokens: ThemeTokens, scheme: 'light' | 'dark') {

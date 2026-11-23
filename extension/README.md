@@ -4,10 +4,19 @@ Pages in your own Chrome or Edge, where you are already signed in, through the m
 passes through debaser.site's server; the sites see your own address.
 
 ## Put it in (Chrome or Edge, on a computer)
+From debaser.site: your profile's SETTINGS, EXTENSION. It has the download, and once it is in, its settings and its updates. By hand:
 1. Open `chrome://extensions` (Edge: `edge://extensions`).
 2. Turn on **Developer mode** (a switch on that page).
 3. Press **Load unpacked** and choose this folder (`extension`).
 4. Press the puzzle-piece key in the browser's bar and pin DEBASER SEEING MACHINE.
+
+## Keep it up to date
+A browser never updates a folder by itself. In the site's EXTENSION panel, CHOOSE ITS FOLDER once: the site then writes each new version into that
+folder, every file checked against a list made when the site was built, and asks the extension to read itself again. The browser asks you first, and
+asks again on a later visit unless you let it on every visit. Or download it again, over the same folder, and press its ↻ in the browser's list.
+
+## Take it out
+Remove it in `chrome://extensions` (Edge: `edge://extensions`) and delete the folder.
 
 ## Use it
 - **OWN EYE on debaser.site/browser** opens the page you are on in the machine's own tab. The first time for each site it asks to be let: you

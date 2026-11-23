@@ -24,6 +24,7 @@ import PlayHistoryKeeper from './components/PlayHistoryKeeper';
 import NotificationsProvider from './components/NotificationsProvider';
 import LostAccountWindow from './components/LostAccountWindow';
 import ModulesWindow from './components/ModulesWindow';
+import ExtensionWindow from './components/ExtensionWindow';
 import PreferencesWindow from './components/PreferencesWindow';
 import PrivacyFirstLook from './components/PrivacyFirstLook';
 import FirstVisitTour from './components/FirstVisitTour';
@@ -178,6 +179,8 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
                           make. It is not behind the Suspense boundary with the other two, because it
                           reads no address and has nothing to catch up on. */}
                       <PreferencesWindow />
+                      {/* BROWSER's extension: its window under the profile's SETTINGS, and what keeps it up to date. */}
+                      <ExtensionWindow />
 
                       {/* The AQUARIUM window: every knob of the sea behind the site (SPEC-aquarium-settings.md), and the key
                           on the sea that opens it. Beside PREFERENCES, which holds its other key. */}
