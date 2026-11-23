@@ -3,8 +3,11 @@
 import { refusalHelp } from '../../lib/seeing/refusals';
 import { PLATE, TITLE_BAR_INACTIVE } from '../../lib/ui/controls';
 
-/** A page that didn't come: the reason, what it means, and what may still be tried, each a key. */
-export default function SeeingRefused({ reason, address, canOld, ownEye, onAgain, onOld, onOwn }: { reason: string; address: string; canOld: boolean; ownEye: boolean; onAgain: () => void; onOld: () => void; onOwn: () => void }) {
+/**
+ * A page that didn't come: the reason, what it means, and what may still be tried, each a key. Under them the trace: only what is known on
+ * this side (which eye was asked, the address, how long until it said no), never a step it can't see.
+ */
+export default function SeeingRefused({ reason, eye, ms, address, canOld, ownEye, onAgain, onOld, onOwn }: { reason: string; eye: string; ms: number; address: string; canOld: boolean; ownEye: boolean; onAgain: () => void; onOld: () => void; onOwn: () => void }) {
   const help = refusalHelp(reason);
   const tries = help.tries.filter((each) => (each === 'old' ? canOld : each === 'own' ? ownEye : true));
   return (
@@ -34,6 +37,18 @@ export default function SeeingRefused({ reason, address, canOld, ownEye, onAgain
           )}
         </div>
       ) : null}
+      <dl className="mt-4 max-w-prose border-t-line border-ink pt-2 tabular-nums" data-seeing-trace>
+        {[
+          ['EYE', eye],
+          ['ASKED', address],
+          ['ANSWER', `${reason} · ${ms < 1000 ? `${ms} MS` : `${(ms / 1000).toFixed(1)} S`}`],
+        ].map(([name, value]) => (
+          <div key={name} className="flex gap-2">
+            <dt className="w-16 shrink-0 text-ink-quiet">{name}</dt>
+            <dd className="min-w-0 break-all">{value}</dd>
+          </div>
+        ))}
+      </dl>
     </section>
   );
 }

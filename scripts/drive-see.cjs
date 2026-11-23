@@ -139,6 +139,8 @@ async function shell(browser) {
   ok((await source.getAttribute('href')) === 'https://example.com/' && (await source.getAttribute('rel')) === 'noopener noreferrer', 'an outside page is refused, with the way to its source');
   const refusal = await page.locator('[data-seeing-refused]').innerText();
   ok(/NO COMPUTER ANSWERS TO THAT NAME/.test(refusal) && /SEE AN OLD COPY/.test(refusal) && !/TRY AGAIN/.test(refusal), 'the refusal says what it means, and offers only what may help');
+  const trace = await page.locator('[data-seeing-trace]').innerText();
+  ok(/EYE\s+SERVER EYE/.test(trace) && trace.includes('https://example.com/') && /NO SUCH SITE · \d+(\.\d)? M?S/.test(trace), 'and its trace: the eye asked, the address, how long until no');
   await page.screenshot({ path: join(OUT, 'refused.png') });
   for (const [typed, why] of [
     ['javascript:alert(1)', 'ONLY HTTP AND HTTPS'],

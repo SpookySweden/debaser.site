@@ -65,7 +65,7 @@ type Shown =
   | { key: string; state: 'busy'; at: SeeStep | null }
   | { key: string; state: 'stopped' }
   | { key: string; state: 'shown'; document: SeenDocument }
-  | { key: string; state: 'refused'; reason: string };
+  | { key: string; state: 'refused'; reason: string; eye: string; ms: number };
 
 const NO_MEDIA: readonly FoundMedia[] = [];
 const NO_NOTES: readonly SharedNote[] = [];
@@ -173,6 +173,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
     const going = new AbortController();
     work.current = going;
     const engine = engineFor(address);
+    const began = performance.now();
     const before = tab.at > 0 ? (tab.stops[tab.at - 1]?.address ?? null) : null;
     const cameFrom = before !== null && /^https?:/.test(before) ? before : null;
     void engine
@@ -195,7 +196,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
           noteSeen({ address: answer.document.address, title: answer.document.title, at: Date.now(), from: cameFrom });
           // Where it was sent on to, so the box says where it really is and its links are its own.
           if (answer.document.address !== address) changeTabs((all) => withAddress(all, tab.id, address, answer.document.address));
-        } else setShown({ key, state: 'refused', reason: answer.reason });
+        } else setShown({ key, state: 'refused', reason: answer.reason, eye: engine.name, ms: Math.round(performance.now() - began) });
       });
     return () => going.abort();
     // (The stop before is read as it was when this one was opened; it does not open the page again.)
@@ -640,6 +641,8 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
         ) : now.state === 'refused' ? (
           <SeeingRefused
             reason={now.reason}
+            eye={now.eye}
+            ms={now.ms}
             address={address}
             canOld={outside && dialOf(address).year === null}
             ownEye={outside && extension === 'current'}

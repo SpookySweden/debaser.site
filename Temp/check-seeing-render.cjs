@@ -68,6 +68,10 @@ assert.ok(lenses('lowfi').includes('TERMINAL') && lenses('custom').includes('COP
 
 const tools = (props) => html(el(at('SeeingTools'), { address: 'https://example.com/', seam: null, loupe: null, erasing: false, erased: 0, good: false, onSeam: none, onLoupe: none, onErasing: none, onBringBack: none, onScan: none, onGood: none, onGo: none, children: null, ...props }));
 assert.ok(/aria-label="Year"/.test(tools({})) && !/aria-label="Year"/.test(tools({ address: 'see:test' })) && !/BRING BACK/.test(tools({})) && /BRING BACK 3/.test(tools({ erased: 3 })));
+// A refusal's trace: only what this side knows, the address drawn as words (IMPROVE, 2026-11-23).
+const refused = (props) => html(el(at('SeeingRefused'), { reason: 'NO SUCH SITE', eye: 'SERVER EYE', ms: 412, address: 'https://example.com/<b>', canOld: true, ownEye: false, onAgain: none, onOld: none, onOwn: none, ...props }));
+assert.ok(/data-seeing-trace/.test(refused({})) && refused({}).includes('SERVER EYE') && refused({}).includes('NO SUCH SITE · 412 MS') && refused({}).includes('&lt;b&gt;') && !refused({}).includes('<b>'));
+assert.ok(refused({ ms: 15234 }).includes('· 15.2 S'));
 // A new tab shows only what works without a page (IMPROVE, 2026-11-23): SCAN stays, the page's own keys wait for a page.
 assert.ok(['SEAM', 'LOUPE', 'ERASE', 'GOOD'].every((name) => !tools({ address: null }).includes(`[ ${name} ]`)) && tools({ address: null }).includes('[ SCAN ]'));
 assert.ok(['SEAM', 'LOUPE', 'ERASE', 'GOOD', 'SCAN'].every((name) => tools({}).includes(`[ ${name} ]`)));

@@ -16,3 +16,4 @@ One line each, the most useful first. Struck through when done, with its commit.
 - ~~A refusal's keys said IN YOUR OWN EYE and ON ITS OWN SITE where the bar says OWN EYE and OPEN SOURCE: the same words now.~~
 - ~~drive-see extension: the tamper case never matched (the window asks lens.js?v=...); fixed.~~
 - ~~drive-see extension failed at "by itself, on another page": the keeper rightly never rewrites a version this session already wrote, and the drive reused that version. The drive now stands for a newer release; 13 pass.~~
+- ~~A refused page was a few words in an empty box: now a trace under them (EYE, ASKED, ANSWER with the time it took), only what this side knows.~~
