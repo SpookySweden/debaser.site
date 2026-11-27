@@ -39,8 +39,23 @@ session), `interview` (asking Luke), `handoff` (hand-overs and status).
 - **Starting fresh instead** (a new day of work, or a compaction that lost the thread): write the notes, then start a
   new coordinator with `start_session` (fresh, no worktree), brief: "You are the DEBASER coordinator. Read
   docs/sessions.md, docs/STATE.md and <notes folder>\coordinator-notes.md, then carry on from its NEXT list." Running
-  sessions still report to the old one until they finish; leave it idle (an idle session costs nothing) and never
-  archive it while its sessions run (memory, "Closing sessions").
+  sessions still report to the old one until they finish; leave it idle (an idle session costs nothing). Both the
+  new and the old coordinator pin themselves, so they are never archived (below).
+
+## Archiving when done (Luke, 2026-11-27, to the coordinator: "can you set it so that they and you check to see when the work is done and archive yourselves, along with the sessions under pc setup and sync, i want the coordinator to be the main session, along with the leftover cooridnator.")
+- The sidebar is the coordinator, the old coordinator, and whatever is still working. Every other session archives
+  itself (`archive_session` with "self") once its work is truly done, and only when ALL of these hold:
+  1. Its work is pushed and confirmed live (`npm run deploy-status`, `npm run read`; docs-only work: pushed to
+     `main`), and nothing is uncommitted in its worktree (archiving deletes the worktree).
+  2. Its hand-over says `STATE: done`.
+  3. Its final report has been SENT to the coordinator by message first (archiving ends the conversation, so the
+     end-of-turn report can't be relied on to arrive).
+  4. Nothing of it waits on Luke or on another session's answer, and no side session of its own is working.
+  If any of these fails, it stays idle and its report lists what is still open.
+- Never archive a working session, or one waiting on Luke (2026-11-22: "make sure we dont close any of the working
+  sessions"). The coordinator checks each report against git and archives a finished session that didn't archive
+  itself. The coordinators pin themselves: a pinned session is never archived, not even when a parent's archive takes
+  its finished side sessions with it. Luke's memory file "Closing sessions" holds the same rule.
 
 ## Starting a session (the `brief` skill has the template)
 - Its own worktree by default. A session that only reads may share a checkout. Two sessions never edit the same files;
@@ -113,6 +128,8 @@ gaming PC"). Which machine, and what never goes: "Which machine does what" below
    your own assertions, keep both sides on a conflict. A key that folds something open in place carries
    `aria-expanded`, and there is one global "this is open" look: don't invent another (2026-11-14).
 7. Leftovers your tests made (ids) go in your hand-over: deleting them waits for Luke.
+8. Done: hand-over to `STATE: done`, final report sent to the coordinator by message, then archive yourself
+   ("Archiving when done" above, all four conditions). If anything is still open, stay idle and say what.
 
 ## Which machine does what (Luke, 2026-11-27, typed to the coordinator: "splitting the workload intelligently between my active devices … utilise the thing we set up that allows the devices to communicate … make sure this also works when prompting on my laptop"; his choices the same day: "Tailscale", "On SERVER", "Heavy lane", "Only for reading work")
 - **SERVER runs every session**, whichever device Luke prompts from. It alone has the code with its notes, the
@@ -128,7 +145,8 @@ gaming PC"). Which machine, and what never goes: "Which machine does what" below
     engines; never whole sessions.
   - **Stays on SERVER** when the PC is off, asleep or unreachable (a probe of about 3 seconds), a League match is on
     the PC, the PC is already running a job, the full checks are asked for and the PC has no `.env.local`/`.env.test`
-    (true on 2026-11-27, waiting for Luke's OK), or the off switch is set: a file `remote-lane.off` beside
+    (copied there on 2026-11-27 at Luke's word "Yes, copy them", relayed by PC setup; its probe says `checksReady`), or
+    the off switch is set: a file `remote-lane.off` beside
     `heavy-step.cjs` (everything stays on SERVER while it exists).
   - **Goes to the PC** when SERVER's memory is over 60% in use (Luke's ceiling) or another heavy step holds SERVER's
     turn. Otherwise the two take turns (`remote-lane.next` beside the script remembers whose turn is next).
@@ -137,7 +155,10 @@ gaming PC"). Which machine, and what never goes: "Which machine does what" below
   - **How it runs:** the exact commit goes to the PC as a git bundle over `scp`, into the PC's own clean clone
     `G:\debaser-worker\repo` (on the PC's SSD), and `G:\debaser-worker\run-job.cjs` there runs the same steps as on
     SERVER (its source is `C:\DEBASER-SETUP\pc-worker\run-job.cjs` on SERVER). Full speed on the PC; if a League match
-    starts part-way, the job drops to idle priority.
+    starts part-way, the job drops to idle priority. For a checks job the PC runner also opens an SSH tunnel from the
+    PC's `127.0.0.1:5432` to SERVER's `127.0.0.1:5432` (the PC's own key to `debaser-server`), because
+    check-db-guard, check-guests and check-moderation reach the database through `scripts/db.cjs` at that address; the
+    tunnel closes when the job ends.
   - **Proof (PC setup, 2026-11-27):** an unpushed test commit verified on the PC in 71 seconds through heavy-step (147
     seconds the first time, with `npm ci`; SERVER takes about 5 minutes). PC unreachable, checks without the env files
     and the off switch each went to SERVER; a faked League process kept it on SERVER, and it went back to the PC after.

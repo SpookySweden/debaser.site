@@ -16,7 +16,8 @@ working sessions' status notes.
 - Also on SERVER: SSH (key only), Tailscale (`debaser-server`, nothing public), LibGen through a Proton WireGuard split
   tunnel plus the shadow proxy behind `/shadow`, SUNSHINE's screen engine (`G:\DEBASER-HOST\engine`).
 - The gaming PC (192.168.0.30, SSH alias `gaming-pc` from SERVER) is a SCREENS device and, since 2026-11-27, the heavy
-  lane: `verify:clean` (and the full checks, once it has the env files) run there through heavy-step when SERVER is busy
+  lane: `verify:clean` and the full checks (env files copied at his word, 2026-11-27; a full-suite proof run on the PC
+  was queued that day) run there through heavy-step when SERVER is busy
   or over 60% memory, or on alternate turns; off, asleep, busy or in a League match, they stay on SERVER. Off switch
   `remote-lane.off` beside heavy-step.cjs (`docs/sessions.md`). No sessions run there. Old session notes from it:
   `I:\work-data\claude-notes\` (history only).
@@ -39,8 +40,6 @@ and side panel live), this context system.
   and the heavy lane can reach them (his choice, 2026-11-27; `docs/sessions.md`, "Which machine does what"). Then the
   laptop app gets an SSH connection to SERVER. Cloud sessions for reading work need the cloud set up for the repo (his
   click).
-- The gaming PC lane is live for `verify:clean`; the full checks need his OK to put `.env.test`/`.env.local` on the PC.
-  Until then the full checks run on SERVER.
 - SCREENS relay: activate Cloudflare Realtime/TURN on his account (he ticks the terms and pays himself), then paste the
   key into the RELAY KEY form.
 - Off-site backup (Proton Drive, task `DebaserOffsite`) is built but off until he runs

@@ -52,7 +52,12 @@ Now there are three layers:
   and go to the PC whenever SERVER is over 60% memory, unless the PC is off, asleep or in a League match. The site,
   database and live tests always stay on SERVER. It is live (2026-11-27): a clean build took 71 seconds on the PC
   against about 5 minutes on SERVER. If a match starts part-way, the job drops to the lowest priority so your game
-  comes first. The full checks join it once you OK putting the test keys on the PC; until then they stay on SERVER.
+  comes first. The full checks can run there too, now that the test keys are on the PC (your "Yes, copy them").
+
+## When a session is finished (your rule, 2026-11-27)
+Every session archives itself once its work is pushed, live, its notes say done, and it has sent the coordinator its
+final report. One that still waits on you, or has work open, stays. The coordinator and the old coordinator are pinned
+and always stay, so the sidebar shows them plus whatever is still working.
 - **Tailscale is the road between them**, except the heavy lane, which uses a direct SSH connection over the home
   network for now. Only SERVER has joined Tailscale so far: the laptop, phone and gaming PC each need it installed and
   signed in with the same account (in `docs/STATE.md`, "Waiting on Luke").

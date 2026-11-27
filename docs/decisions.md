@@ -6,6 +6,8 @@ twice. When he decides something new, add a line here in the same commit as the 
 Product decisions for one feature stay in its SPEC; this file is for the ones that steer how work is done, plus pointers.
 
 ## How work is done
+- 2026-11-27 · sessions · Archive when done (typed to the coordinator): "can you set it so that they and you check to see when the work is done and archive yourselves, along with the sessions under pc setup and sync, i want the coordinator to be the main session, along with the leftover cooridnator." Every session but the two coordinators (pinned) archives itself once pushed, live, hand-over done, report sent, nothing waiting → `docs/sessions.md`, "Archiving when done"; `brief` and `handoff` skills; memory "Closing sessions".
+- 2026-11-27 · devices · The test keys on the gaming PC so the full checks can run there: "Yes, copy them" (relayed by the PC setup session) → `docs/sessions.md`, "Which machine does what".
 - 2026-11-27 · devices · "splitting the workload intelligently between my active devices … make sure this also works when prompting on my laptop"; his choices: the link is "Tailscale"; sessions run "On SERVER" (laptop and phone are windows onto it); the gaming PC is the "Heavy lane"; cloud sessions "Only for reading work" → `docs/sessions.md`, "Which machine does what".
 - 2026-11-27 · sessions · Coordinator restart: "Auto-shrink" at "300k tokens" for every session on the repo → `docs/sessions.md`, `.claude/settings.json`.
 - 2026-11-27 · sessions · Questions: "Everything via coordinator"; always the multiple-choice box, recommendation first → `docs/sessions.md`, `interview` skill. (Replaces the 2026-11-14 rule that builders never used the box: they still don't; the coordinator does.)

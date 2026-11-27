@@ -48,6 +48,11 @@ live step and why nothing local can prove it>
 - Hand-over: `<task>-handover.md` in <notes folder path>, the `handoff` skill's shape, kept current as items land.
 - Questions for Luke: to the coordinator (<id>), ready to ask (`interview` skill). Never the box yourself.
 - End of every turn: first line = what is now live (commit); then what Luke will see, how it was proved, what wasn't.
+- When done (Luke, 2026-11-27: "check to see when the work is done and archive yourselves"): archive yourself
+  (`archive_session` "self") only when ALL hold: pushed and confirmed live, nothing uncommitted in your worktree;
+  hand-over `STATE: done`; your final report SENT to the coordinator by message first; nothing waits on Luke or another
+  session, and no side session of yours is working. Otherwise stay idle and list what is open
+  (`docs/sessions.md`, "Archiving when done").
 
 ## Limits
 No database writes, deletes, DNS, tunnels, keys or security settings without Luke's quoted OK. Don't edit
@@ -61,4 +66,5 @@ looking; read docs/sessions.md; the notes folder path; which sessions are workin
 
 ## A fresh coordinator
 Brief: "You are the DEBASER coordinator. Read docs/sessions.md, docs/STATE.md and <notes folder>\coordinator-notes.md,
-then carry on from its NEXT list. You plan, brief, track and ask Luke; you don't build." No worktree.
+then carry on from its NEXT list. You plan, brief, track and ask Luke; you don't build. Pin yourself so you are never
+archived." No worktree.
