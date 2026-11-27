@@ -64,7 +64,7 @@ What still works under the block (checked 2026-11-17, read-only):
   logged or committed. The public anon key and `https://api.debaser.site` go into a `.env.production.local` file on the
   PC only, so the committed `.env.production` keeps pointing Vercel at the old project (that's what keeps Vercel as the
   way back).
-- **Updates** (Luke: the PC rebuilds itself): every 5 minutes a scheduled task checks `main`. When there's a new commit it
+- **Updates** (Luke: the PC rebuilds itself): a scheduled task checks `main` every 5 hours (every 5 minutes until 2026-11-27, when Luke asked: "every 5 hours automatically if its pulling from main, but also rebuilding when told"), and at once when asked: `npm run deploy-status` asks after a push, and `C:\DEBASER-SETUP\RUN-ME-rebuild-site.cmd` is a double-click. When there's a new commit it
   builds it in a second folder while the old one keeps serving, then swaps (a few seconds' blip). A failed build changes
   nothing and is written to a log. `npm run deploy-status` and `npm run read` are changed to ask debaser.site which commit
   it is running, so sessions keep the same loop.
@@ -172,7 +172,7 @@ and the media catalogue's rule only accepted supabase.co links ("Yes, widen it":
 `20261118024044_media_src_self_hosted.sql`, applied to the PC with `supabase db push --db-url`). Self-update: two copies
 (`G:DEBASER-HOSTsite` and `site-b`); `self-update.cjs` builds a new main in the idle copy, points services.json at it
 and stops the old server, and keep-running starts the new one (one full cycle tested: a 5-second blip). Task
-`DebaserUpdate` runs it every 5 minutes. The site's settings live in `G:DEBASER-HOSTsite.env`, copied into each build.
+`DebaserUpdate` runs it every 5 hours, and when asked (see Updates). The site's settings live in `G:DEBASER-HOSTsite.env`, copied into each build.
 Pushed as 280c6db (verify and verify:clean passed; checks 219/237 with my two updated on purpose, the rest
 the blocked cloud refusing sign-in, plus check-modules, which fails on main without this work). The PC picked it up by
 itself (03:36 noticed, 03:40 switched); `npm run deploy-status` waited until debaser.site reported 280c6db. Proved after:

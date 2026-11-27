@@ -6,7 +6,9 @@
  *   npm run deploy-status -- --vercel      the old check: Vercel's build of the commit (the way back, kept)
  *
  * Since 2026-11-18 the live site is debaser.site on Luke's PC (SPEC-self-hosting.md), which rebuilds itself from main
- * every 5 minutes (scripts/host/self-update.cjs). This asks https://debaser.site/api/version which commit it runs; a
+ * every 5 hours, and at once when asked (scripts/host/self-update.cjs; Luke, 2026-11-27: "every 5 hours automatically if its pulling
+ * from main, but also rebuilding when told"). On the PC this asks for that rebuild itself, once, when the commit isn't live yet, so a
+ * pushed change still goes live in minutes. It asks https://debaser.site/api/version which commit it runs; a
  * newer commit that contains this one counts as live too. On the PC itself it also reads the self-update's status file,
  * so a failed build stops the wait at once (exit 1) instead of running out the clock.
  *
@@ -104,6 +106,7 @@ async function waitForSite(sha) {
   const { existsSync, readFileSync } = require('node:fs');
   const deadline = Date.now() + timeoutSeconds * 1000;
   let failures = 0;
+  let asked = false;
   for (;;) {
     let served = null;
     try {
@@ -118,6 +121,17 @@ async function waitForSite(sha) {
       failures += 1;
       console.log(`could not ask debaser.site (${failures}/${MAX_FAILURES_IN_A_ROW}): ${error.message}`);
       if (failures >= MAX_FAILURES_IN_A_ROW) finish(3, `COULD NOT ASK debaser.site ${MAX_FAILURES_IN_A_ROW} times in a row (is Luke's PC on?): stopping rather than waiting blind.`);
+    }
+    // On the PC that serves the site: not live yet, so it is asked to rebuild now rather than at its next turn (once; a build
+    // already running just finishes, and a second ask while it runs is ignored by self-update's own lock).
+    if (!asked && existsSync(PC_STATUS) && !(served && contains(served, sha))) {
+      asked = true;
+      try {
+        execFileSync('schtasks', ['/Run', '/TN', 'DebaserUpdate'], { stdio: 'ignore', windowsHide: true });
+        console.log('asked the PC to rebuild from main now (task DebaserUpdate)');
+      } catch {
+        console.log('could not ask the PC to rebuild now: it will at its next 5-hourly turn');
+      }
     }
     if (existsSync(PC_STATUS)) {
       try {
