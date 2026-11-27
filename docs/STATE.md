@@ -33,9 +33,10 @@ FULLSCREEN key fix. Room sync, the context system and the first EXPLAIN and BROW
 - EXPLAIN: hover words on every key, shown only while `[ EXPLAIN ]` (PREFERENCES, off by default) is on; top bar, side
   panel, MEDIA, the room and music bar, profile and settings, and the forum live (a8fcf58, eed29ea, e14e50d, 6c2601a); next the
   reader, then the rest, one fresh session per area (`Temp/check-explain.cjs` STILL_TO_DO; hand-over `explain-handover.md` in the group's notes folder).
-- BROWSER: EXPLAIN words on the rest of its keys, then the IMPROVE rounds (a fresh BROWSER session under the coordinator). Live:
-  sign-in groups, IMPORT, the Web Store pack (90d3d69), OWN WEB (8827218, kept: Luke 2026-11-27), lenses on pages OWN EYE shows
-  inside BROWSER (7b85214, extension 0.7.0), the address box following them (95a39db). The store's icon and tile are Luke's to draw.
+- BROWSER: being built now: the easy install (`browser-easy-install-brief.md` in the 69ad notes folder: Luke's text icon, the Edge
+  Add-ons pack, hidden; CHOOSE AN EMPTY FOLDER; then a Firefox trial and a bookmarks-bar key), then the IMPROVE rounds. Live: sign-in
+  groups, IMPORT, the store pack (90d3d69), OWN WEB (8827218), lenses on pages OWN EYE shows inside BROWSER (7b85214), the address box
+  following them (95a39db), EXPLAIN words on every BROWSER key and the first agent review's fixes (e71c71c, extension 0.7.1).
 - The shelf: BROWSER and REMOTE are marked WIP (f648c04).
 
 ## Waiting on Luke
