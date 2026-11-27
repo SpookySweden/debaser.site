@@ -21,10 +21,12 @@ working sessions' status notes.
 The coordinator runs them; who is working on what, and their notes: the coordinator's notes and the group's notes folder
 (`docs/sessions.md`). On 2026-11-27: BROWSER (the seeing machine, `SPEC-seeing-machine.md`, its hand-over
 `browser-build-handover.md`), same-account room sync (rooms keep every device), hover explanations (EXPLAIN, top bar
-built), this context system.
+and side panel live), this context system.
 
 ## Half-done
-- EXPLAIN: hover words on every key; the top bar is built; side panel, rooms, MEDIA, profile, forum to go.
+- EXPLAIN: hover words on every key, shown only while `[ EXPLAIN ]` (PREFERENCES, off by default) is on; top bar and side
+  panel live (77177cb); rooms, MEDIA, profile, forum and the rest to go (`Temp/check-explain.cjs` STILL_TO_DO; hand-over
+  `explain-handover.md` in the group's notes folder).
 - BROWSER: lenses on the framed page, sign-in groups, the Chrome Web Store listing (pictures are Luke's).
 - The shelf: BROWSER and REMOTE are marked WIP (f648c04).
 
