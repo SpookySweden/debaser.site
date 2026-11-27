@@ -52,7 +52,6 @@ and side panel live), this context system.
 
 ## Known red checks
 - `check-hidden-accounts` (the house account, Luke's choice).
-- Listed as known reds in the old agent rules (2026-11-14 to 17), not re-checked since: `check-structure` ("any" in
-  `shadow-books.ts`), `check-web-filters` (its SOURCE line), `check-web-live-merge`.
-- Live-database checks that were red after the move to SERVER (coordinator, 2026-11-22; not re-checked since): `check-private-streams`, `check-auth-at-once`,
-  `check-media-visitors`, `check-storage-rules`.
+- The whole suite on SERVER, 2026-11-27: 261/264, then the two that were the coordinator's own change fixed (check-backdrops,
+  check-build-trace); the live-database checks that were red after the move pass since 2026-11-22 (vault locks re-made,
+  Edge fallback, check-auth-at-once reads the site's own address).
