@@ -105,7 +105,8 @@ const room = { hostId: 'host', endedAt: null, addMode: 'anyone' };
   assert.match(page, /\[ GO LIVE \]/, 'GO LIVE stays, as Luke chose');
   const roomPage = fs.readFileSync('app/components/WatchRoom.tsx', 'utf8');
   // Updated on purpose 2026-11-17 (ROOMPOLISH): a signed-out visitor's own room has the cog too, for its END ROOM and LOG IN.
-  assert.match(roomPage, /\(user !== null && mayEditRoom\(room, read\.crowns, user\.id, live\)\) \|\| \(visitorRoom && mainRoomHost\) \? \(\s*<button[\s\S]{0,300}data-room-settings-key/, 'the cog is only for those who may use it, and a visitor in their own room');
+  // Updated on purpose 2026-11-27 (EXPLAIN): the cog's tag carries its hover words now, so the reach is 600, not 300.
+  assert.match(roomPage, /\(user !== null && mayEditRoom\(room, read\.crowns, user\.id, live\)\) \|\| \(visitorRoom && mainRoomHost\) \? \(\s*<button[\s\S]{0,600}data-room-settings-key/, 'the cog is only for those who may use it, and a visitor in their own room');
   assert.match(roomPage, /aria-label="Room settings"/, 'and is named for a screen reader');
   const windowFile = fs.readFileSync('app/components/RoomSettingsWindow.tsx', 'utf8');
   assert.match(windowFile, /unsaved \? setState\(\{ kind: 'asking' \}\) : onClose\(\)/, 'unsaved words ask before the window closes');
