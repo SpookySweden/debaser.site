@@ -7,6 +7,7 @@ import { trailOf } from '../../lib/seeing/trail';
 import { FIELD_TIGHT, PLATE, PLATE_PRESSED, TITLE_BAR_INACTIVE } from '../../lib/ui/controls';
 import { subscribeToTheme, themeState } from '../../lib/ui/theme-slot';
 import { themeById } from '../../lib/ui/themes';
+import { explain, NOTE } from '../../lib/ui/explain';
 
 const ROWS_SHOWN = 200;
 
@@ -22,10 +23,10 @@ export default function SeeingHistory({ onGo, onClose }: { onGo: (address: strin
     <section aria-label="History" className="absolute inset-0 z-30 flex flex-col bg-paper p-2 text-label text-ink" data-seeing-history>
       <div className="flex flex-wrap items-center gap-1">
         <h2 className={`${TITLE_BAR_INACTIVE} min-w-40 flex-1`}>HISTORY</h2>
-        <button type="button" aria-pressed={view === 'list'} onClick={() => setView('list')} className={view === 'list' ? `${PLATE_PRESSED} cursor-pointer` : PLATE}>
+        <button type="button" aria-pressed={view === 'list'} onClick={() => setView('list')} className={view === 'list' ? `${PLATE_PRESSED} cursor-pointer` : PLATE} {...explain('Shows your history as a list, newest first, by day.', 'To find a page by when you saw it, or by words with FIND.')}>
           [ LIST ]
         </button>
-        <button type="button" aria-pressed={view === 'trail'} onClick={() => setView('trail')} className={view === 'trail' ? `${PLATE_PRESSED} cursor-pointer` : PLATE}>
+        <button type="button" aria-pressed={view === 'trail'} onClick={() => setView('trail')} className={view === 'trail' ? `${PLATE_PRESSED} cursor-pointer` : PLATE} {...explain('Shows your history as a map of sites, with lines for how you went from one to the next.', 'To see where your reading wandered; press a site to go back to the last page you saw there.')}>
           [ TRAIL ]
         </button>
         <input value={words} onChange={(event) => setWords(event.target.value)} aria-label="Find in history" placeholder="FIND" spellCheck={false} className={`${FIELD_TIGHT} w-40`} />
@@ -39,10 +40,11 @@ export default function SeeingHistory({ onGo, onClose }: { onGo: (address: strin
           }}
           onBlur={() => setClearing(false)}
           className={PLATE}
+          {...explain(clearing ? 'Press again to wipe your whole BROWSER history.' : 'Wipes your whole BROWSER history, after asking once.', 'History is yours alone and goes by itself after 90 days; this clears it now.', NOTE.undo)}
         >
           {clearing ? '[ CLEAR ALL? ]' : '[ CLEAR ]'}
         </button>
-        <button type="button" aria-label="Close history" onClick={onClose} className={PLATE}>
+        <button type="button" aria-label="Close history" onClick={onClose} className={PLATE} {...explain('Closes HISTORY and goes back to the page.')}>
           [ × ]
         </button>
       </div>
@@ -70,10 +72,10 @@ function List({ rows, onGo }: { rows: readonly Seen[]; onGo: (address: string) =
           <li key={`${row.at} ${row.address}`} className="rule-pixel flex flex-wrap items-baseline gap-x-2 py-1">
             {first ? <span className="basis-full text-accent-ink">{on}</span> : null}
             <span className="tabular-nums text-ink-quiet">{date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
-            <button type="button" onClick={() => onGo(row.address)} title={row.address} className={`${PLATE} max-w-full min-w-0 truncate`}>
+            <button type="button" onClick={() => onGo(row.address)} title={row.address} className={`${PLATE} max-w-full min-w-0 truncate`} {...explain('Opens this page again in this tab.')}>
               {row.title}
             </button>
-            <button type="button" aria-label={`Forget ${row.title}`} title="Forget" onClick={() => forgetOne(row)} className={PLATE}>
+            <button type="button" aria-label={`Forget ${row.title}`} title="Forget" onClick={() => forgetOne(row)} className={PLATE} {...explain('Takes this one visit out of your history.', 'To forget a single page without clearing the rest.', NOTE.undo)}>
               ×
             </button>
           </li>
@@ -126,6 +128,7 @@ function TrailMap({ rows, onGo }: { rows: readonly Seen[]; onGo: (address: strin
           onClick={() => onGo(place.last)}
           title={`${place.visits} ${place.visits === 1 ? 'visit' : 'visits'}`}
           className={`${PLATE} absolute -translate-x-1/2 -translate-y-1/2 bg-paper whitespace-nowrap`}
+          {...explain(`Opens the last page you saw on ${place.site}.`, 'Each site on the TRAIL is a place you went; the lines show which you came to from which.')}
           style={{ left: `${place.x * 100}%`, top: `${place.y * 100}%` }}
         >
           {place.site}

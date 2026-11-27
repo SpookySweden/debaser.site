@@ -7,6 +7,7 @@ import { askToSee } from '../lib/seeing/ask';
 import { PLATE } from '../lib/ui/controls';
 import { MODULES, moduleIsOn } from '../lib/ui/modules';
 import { modulesState, serverModules, subscribeToModules } from '../lib/ui/modules-slot';
+import { explain } from '../lib/ui/explain';
 
 /**
  * `[ SEE ]` beside an outside link (SPEC-seeing-machine.md, idea viii): opens it in BROWSER. Drawn only for somebody whose bar has
@@ -19,7 +20,7 @@ export default function SeeKey({ href, small = false, look = PLATE }: { href: st
   const read = readAddress(href);
   if (!read.ok || !/^https?:/.test(read.address)) return null;
   return (
-    <Link href={browserHref(read.address)} onClick={() => askToSee(read.address)} prefetch={false} aria-label={`See ${read.address} in BROWSER`} title="Open it in BROWSER" className={`${look} ${small ? 'align-baseline' : ''}`} data-see-key>
+    <Link href={browserHref(read.address)} onClick={() => askToSee(read.address)} prefetch={false} aria-label={`See ${read.address} in BROWSER`} title="Open it in BROWSER" className={`${look} ${small ? 'align-baseline' : ''}`} data-see-key {...explain('Opens this outside link in BROWSER, the house\'s own browser, instead of leaving the site.', 'To look at a link without a new tab: BROWSER can read it, change how it looks with a lens, keep a copy or share it into a room.')}>
       [ SEE ]
     </Link>
   );
@@ -43,6 +44,7 @@ export function SeeLine({ words, onLeave }: { words: string; onLeave: () => void
         }}
         prefetch={false}
         className={PLATE}
+        {...explain('Opens the address you typed in BROWSER and closes the search.', 'Typing an address into the site\'s search is the quick way to look at a page without going to BROWSER first.')}
       >
         [ SEE IT IN BROWSER ]
       </Link>

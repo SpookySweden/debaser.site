@@ -7,6 +7,7 @@ import { addNote, deleteNote } from '../../lib/seeing/notes-store';
 import { FIELD_TIGHT, PLATE, PLATE_MAIN, TITLE_BAR_INACTIVE } from '../../lib/ui/controls';
 import { ReportKey } from '../ModerationKeys';
 import { useModeration } from '../ModerationProvider';
+import { explain, NOTE } from '../../lib/ui/explain';
 
 type Props = { page: string; owner: { id: string; label: string }; notes: readonly SharedNote[]; selected: string; onFind: (index: number) => void; onClose: () => void };
 
@@ -20,7 +21,7 @@ export default function SeeingMargins({ page, owner, notes, selected, onFind, on
     <section aria-label="Notes" className="flex w-80 shrink-0 flex-col gap-2 overflow-y-auto border-l-line border-ink bg-paper p-2 text-label text-ink" data-seeing-margins>
       <div className="flex items-center gap-1">
         <h2 className={`${TITLE_BAR_INACTIVE} flex-1`}>NOTES</h2>
-        <button type="button" aria-label="Close notes" onClick={onClose} className={PLATE}>
+        <button type="button" aria-label="Close notes" onClick={onClose} className={PLATE} {...explain('Closes NOTES and goes back to the page.', 'Notes already added stay, marked on the page.')}>
           [ × ]
         </button>
       </div>
@@ -40,6 +41,7 @@ export default function SeeingMargins({ page, owner, notes, selected, onFind, on
           })
         }
         className={`${PLATE_MAIN} w-fit`}
+        {...explain('Adds your note to the passage you have selected on the page, and marks the passage.', 'Select words on the page and type a note first. Notes come back each time you open this page.', ON_THE_ACCOUNT ? NOTE.others : undefined)}
       >
         ADD
       </button>
@@ -55,18 +57,18 @@ export default function SeeingMargins({ page, owner, notes, selected, onFind, on
             <p className="py-1 break-words whitespace-pre-wrap">{each.note}</p>
             {ON_THE_ACCOUNT ? <p className="text-ink-quiet">{each.ownerLabel}</p> : null}
             <p className="flex flex-wrap gap-1">
-              <button type="button" onClick={() => onFind(index)} className={PLATE}>
+              <button type="button" onClick={() => onFind(index)} className={PLATE} {...explain('Scrolls the page to the passage this note is on.')}>
                 [ FIND ]
               </button>
               {each.ownerId === owner.id ? (
-                <button type="button" onClick={() => void deleteNote(each.id).then(tried)} className={PLATE}>
+                <button type="button" onClick={() => void deleteNote(each.id).then(tried)} className={PLATE} {...explain('Deletes your note at once.', 'Only your own notes have this key.', NOTE.undo)}>
                   [ DELETE ]
                 </button>
               ) : (
                 <ReportKey target={{ accountId: each.ownerId, name: each.ownerLabel, note: `A note on ${page}: ${each.note}`.slice(0, 480) }} />
               )}
               {toolsOn && each.ownerId !== owner.id ? (
-                <button type="button" onClick={() => void hideSeen('note', each.id).then(tried)} className={PLATE}>
+                <button type="button" onClick={() => void hideSeen('note', each.id).then(tried)} className={PLATE} {...explain('Hides this note from everyone but the person who wrote it and the moderators.', 'For a note that breaks the house rules.', NOTE.moderators)}>
                   [ HIDE ]
                 </button>
               ) : null}

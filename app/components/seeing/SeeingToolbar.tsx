@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { ADDRESS_MOST } from '../../lib/seeing/address';
 import { FIELD_TIGHT, PLATE } from '../../lib/ui/controls';
+import { explain } from '../../lib/ui/explain';
 
 type Props = {
   /** Which tab and stop this is: when it changes, the box goes back to what it starts with. */
@@ -49,16 +50,16 @@ export default function SeeingToolbar({ place, address, canBack, canForward, bus
       }}
       data-seeing-toolbar
     >
-      <button type="button" aria-label="Back" title="Back" disabled={!canBack} onClick={onBack} className={PLATE}>
+      <button type="button" aria-label="Back" title="Back" disabled={!canBack} onClick={onBack} className={PLATE} {...explain('Goes back to the page this tab showed before.', 'Each tab keeps its own back and forward.')}>
         ◄
       </button>
-      <button type="button" aria-label="Forward" title="Forward" disabled={!canForward} onClick={onForward} className={PLATE}>
+      <button type="button" aria-label="Forward" title="Forward" disabled={!canForward} onClick={onForward} className={PLATE} {...explain('Goes forward again to the page you went back from.')}>
         ►
       </button>
-      <button type="button" aria-label="Reload" title="Reload" disabled={empty || busy} onClick={onReload} className={PLATE}>
+      <button type="button" aria-label="Reload" title="Reload" disabled={empty || busy} onClick={onReload} className={PLATE} {...explain('Asks for this page again, fresh.', 'For a page that has changed since, or one that came badly.')}>
         ↻
       </button>
-      <button type="button" aria-label="Stop" title="Stop" disabled={!busy} onClick={onStop} className={PLATE}>
+      <button type="button" aria-label="Stop" title="Stop" disabled={!busy} onClick={onStop} className={PLATE} {...explain('Stops asking for the page that is on its way.', 'For a page that is taking too long; ASK AGAIN tries it once more.')}>
         ■
       </button>
       <input
@@ -78,13 +79,13 @@ export default function SeeingToolbar({ place, address, canBack, canForward, bus
         className={`${FIELD_TIGHT} min-w-0 flex-1 basis-48`}
         data-seeing-address
       />
-      <button type="submit" className={`${PLATE} shrink-0`}>
+      <button type="submit" className={`${PLATE} shrink-0`} {...explain('Opens what is in the box: an address goes to that page, words are searched for with the engine beside it.', 'The line under the box says which it will do before you press.')}>
         [ GO ]
       </button>
-      <button type="button" disabled={!searches(text)} title="The same words in three engines, a tab each" onClick={() => onAll(text)} className={`${PLATE} shrink-0`}>
+      <button type="button" disabled={!searches(text)} title="The same words in three engines, a tab each" onClick={() => onAll(text)} className={`${PLATE} shrink-0`} {...explain('Searches for the words in the box with three engines at once, each in a tab of its own.', 'To compare what different engines find for the same words.')}>
         [ ALL ]
       </button>
-      <button type="button" aria-expanded={listing} title="Search engines" onClick={onList} className={`${PLATE} max-w-48 truncate`}>
+      <button type="button" aria-expanded={listing} title="Search engines" onClick={onList} className={`${PLATE} max-w-48 truncate`} {...explain('Opens the list of search engines, to pick the one GO asks.', `${engine} is the one asked now; your pick is remembered.`)}>
         [ {engine} ▾ ]
       </button>
     </form>

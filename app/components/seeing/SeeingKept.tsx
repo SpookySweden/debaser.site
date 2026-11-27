@@ -12,6 +12,7 @@ import { ReportKey } from '../ModerationKeys';
 import TalkedAboutIn from '../TalkedAboutIn';
 import { useModeration } from '../ModerationProvider';
 import { FIELD_TIGHT, PLATE, PLATE_PRESSED, TITLE_BAR_INACTIVE } from '../../lib/ui/controls';
+import { explain, NOTE } from '../../lib/ui/explain';
 
 const SHOWN = 60;
 
@@ -27,14 +28,14 @@ export default function SeeingKept({ me, onGo, onClose }: { me: string; onGo: (a
       <div className="flex flex-wrap items-center gap-1">
         <h2 className={`${TITLE_BAR_INACTIVE} min-w-40 flex-1`}>KEPT</h2>
         <input value={words} onChange={(event) => setWords(event.target.value)} aria-label="Find in kept pages" placeholder="FIND" spellCheck={false} className={`${FIELD_TIGHT} w-40`} />
-        <button type="button" aria-label="Close kept pages" onClick={onClose} className={PLATE}>
+        <button type="button" aria-label="Close kept pages" onClick={onClose} className={PLATE} {...explain('Closes the KEPT list and goes back to the page.')}>
           [ × ]
         </button>
       </div>
       {tags.length > 0 ? (
         <p className="flex flex-wrap gap-1 py-1">
           {tags.map((each) => (
-            <button key={each} type="button" aria-pressed={tag === each} onClick={() => setTag(tag === each ? null : each)} className={tag === each ? `${PLATE_PRESSED} cursor-pointer` : PLATE}>
+            <button key={each} type="button" aria-pressed={tag === each} onClick={() => setTag(tag === each ? null : each)} className={tag === each ? `${PLATE_PRESSED} cursor-pointer` : PLATE} {...explain(`Shows only the kept pages tagged ${each}; press again to show them all.`, 'Tags are the words you gave pages when you kept them.')}>
               {each}
             </button>
           ))}
@@ -75,11 +76,11 @@ function Card({ page, mine, onGo }: { page: SeenPage; mine: boolean; onGo: (addr
         ))}
         <p className="flex flex-wrap gap-1 pt-1">
           {page.hasCopy ? (
-            <button type="button" onClick={() => onGo(keptAddress(page.id))} className={PLATE}>
+            <button type="button" onClick={() => onGo(keptAddress(page.id))} className={PLATE} {...explain('Opens the copy kept of this page, as it was when it was kept.', 'For a page that has changed or gone since.')}>
               [ SEE THE COPY ]
             </button>
           ) : null}
-          <button type="button" onClick={() => onGo(page.address)} title={page.address} className={PLATE}>
+          <button type="button" onClick={() => onGo(page.address)} title={page.address} className={PLATE} {...explain('Opens the page itself, as it is now, from its own site.', 'To see what has changed since it was kept.')}>
             [ SEE THE PAGE ]
           </button>
           {page.private ? null : (
@@ -97,6 +98,7 @@ function Card({ page, mine, onGo }: { page: SeenPage; mine: boolean; onGo: (addr
                 setSure(!sure);
               }}
               className={PLATE}
+              {...explain(sure ? 'Press again to delete this kept page and its copy.' : 'Deletes this kept page and its copy, after asking once.', 'Only your own kept pages have this key.', NOTE.undo)}
             >
               {sure ? '[ DELETE IT? ]' : '[ DELETE ]'}
             </button>
@@ -104,7 +106,7 @@ function Card({ page, mine, onGo }: { page: SeenPage; mine: boolean; onGo: (addr
             <ReportKey target={{ accountId: page.ownerId, name: page.ownerLabel, note: `A kept page: ${page.title} (${page.address})`.slice(0, 480) }} />
           )}
           {toolsOn && !mine ? (
-            <button type="button" onClick={() => void hideSeen('page', page.id).then((done) => setSaid(done ? 'HIDDEN' : 'NOT HIDDEN'))} className={PLATE}>
+            <button type="button" onClick={() => void hideSeen('page', page.id).then((done) => setSaid(done ? 'HIDDEN' : 'NOT HIDDEN'))} className={PLATE} {...explain('Hides this kept page from everyone but the person who kept it and the moderators.', 'For a kept page that breaks the house rules.', NOTE.moderators)}>
               [ HIDE ]
             </button>
           ) : null}

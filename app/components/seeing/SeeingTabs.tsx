@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { TABS_MOST, tabName, type Tabs } from '../../lib/seeing/tabs';
 import { PLATE, PLATE_PRESSED } from '../../lib/ui/controls';
+import { explain } from '../../lib/ui/explain';
 
 /** BROWSER's tabs: up to eight, each closed by its own key. The arrow keys move between them. */
 /** `end`: what is yours whatever the page (HISTORY, KEPT), at the line's far end, where the tabs leave room. */
@@ -35,17 +36,18 @@ export default function SeeingTabs({ state, onShow, onClose, onNew, end = null }
                 title={name}
                 onClick={() => onShow(tab.id)}
                 className={`${front ? `${PLATE_PRESSED} cursor-pointer` : PLATE} min-w-0 truncate uppercase`}
+                {...explain('Brings this tab to the front, with the page it was showing.', 'Each tab keeps its own page and its own back and forward; the arrow keys move between tabs too.')}
               >
                 [ {name} ]
               </button>
-              <button type="button" aria-label={`Close ${name}`} title="Close" onClick={() => onClose(tab.id)} className={PLATE}>
+              <button type="button" aria-label={`Close ${name}`} title="Close" onClick={() => onClose(tab.id)} className={PLATE} {...explain('Closes this tab and its back and forward.', 'To tidy the line of tabs; the page itself stays in HISTORY.')}>
                 ×
               </button>
             </span>
           );
         })}
       </div>
-      <button type="button" aria-label="New tab" title={state.tabs.length >= TABS_MOST ? `${TABS_MOST} tabs at most` : 'New tab'} disabled={state.tabs.length >= TABS_MOST} onClick={onNew} className={PLATE}>
+      <button type="button" aria-label="New tab" title={state.tabs.length >= TABS_MOST ? `${TABS_MOST} tabs at most` : 'New tab'} disabled={state.tabs.length >= TABS_MOST} onClick={onNew} {...explain(`Opens a new, empty tab and brings it to the front.`, `To look at another page without losing this one; ${TABS_MOST} tabs at most.`)} className={PLATE}>
         [ + ]
       </button>
       {end !== null ? <span className="ml-auto flex flex-wrap items-center gap-x-1">{end}</span> : null}

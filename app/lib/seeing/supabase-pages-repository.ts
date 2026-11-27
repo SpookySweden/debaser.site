@@ -7,6 +7,10 @@ import { copyFrom, pageFrom, type MadeCopy, type SeenPage } from './pages';
 import type { PagesRepository } from './pages-repository';
 
 const SHOWN_MOST = 300;
+/** OWN WEB's own window: its pages are found, checked for today and deleted from these. */
+const OWN_WEB_MOST = 2000;
+/** The same words as `OWN_WEB_TAG` in `./own-web.ts`; importing it would go in a circle (own-web reads the store that reads this). */
+const OWN_WEB_TAG = 'OWN WEB';
 
 type Row = { id: string; owner: string; owner_label: string; address: string; title: string; description: string; picture: string | null; language: string; published: string | null; tags: string[]; note: string; quotes: string[]; has_copy: boolean; private: boolean; created_at: string };
 
@@ -17,13 +21,17 @@ export function createSupabasePages(client: SupabaseClient): PagesRepository {
   return {
     shared: true,
     async list() {
-      const { data, error } = await client
-        .from('seen_pages')
-        .select('id, owner, owner_label, address, title, description, picture, language, published, tags, note, quotes, has_copy, private, created_at')
-        .order('created_at', { ascending: false })
-        .limit(SHOWN_MOST);
-      if (error) throw new Error('THE KEPT PAGES COULD NOT BE READ');
-      return ((data ?? []) as Row[]).map(pageOf).filter((page) => page !== null);
+      // Two windows: OWN WEB keeps a page a day by itself, so in one shared window it would push the pages kept on purpose out of KEPT.
+      const columns = 'id, owner, owner_label, address, title, description, picture, language, published, tags, note, quotes, has_copy, private, created_at';
+      const [kept, own] = await Promise.all([
+        client.from('seen_pages').select(columns).not('tags', 'cs', `{"${OWN_WEB_TAG}"}`).order('created_at', { ascending: false }).limit(SHOWN_MOST),
+        client.from('seen_pages').select(columns).contains('tags', [OWN_WEB_TAG]).order('created_at', { ascending: false }).limit(OWN_WEB_MOST),
+      ]);
+      if (kept.error || own.error) throw new Error('THE KEPT PAGES COULD NOT BE READ');
+      return ([...(kept.data ?? []), ...(own.data ?? [])] as Row[])
+        .map(pageOf)
+        .filter((page) => page !== null)
+        .sort((a, b) => b.at - a.at);
     },
     async copyOf(id) {
       const { data: row } = await client.from('seen_page_copies').select('path').eq('page', id).maybeSingle();

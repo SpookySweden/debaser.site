@@ -6,6 +6,7 @@ import { changeMargins, margins, marginsOnServer, subscribeToMargins } from '../
 import { PLATE, PLATE_PRESSED } from '../../lib/ui/controls';
 import { subscribeToTheme, themeState } from '../../lib/ui/theme-slot';
 import { themeById } from '../../lib/ui/themes';
+import { explain, NOTE } from '../../lib/ui/explain';
 
 const WIDE = 5;
 const INK_WORDS: Record<GraffitiInk, string> = { bubble: 'ROSE', sun: 'SUN', 'ink-bar': 'WHITE' };
@@ -81,11 +82,11 @@ export default function SeeingGraffiti({ drawing, where, at, onScroll }: { drawi
       {drawing ? (
         <p className="absolute top-1 right-1 flex flex-wrap gap-1 bg-paper p-1">
           {GRAFFITI_INKS.map((each) => (
-            <button key={each} type="button" aria-pressed={ink === each} onClick={() => setInk(each)} className={ink === each ? `${PLATE_PRESSED} cursor-pointer` : PLATE}>
+            <button key={each} type="button" aria-pressed={ink === each} onClick={() => setInk(each)} className={ink === each ? `${PLATE_PRESSED} cursor-pointer` : PLATE} {...explain(`Draws the next lines in ${INK_WORDS[each].toLowerCase()} ink.`, 'Pick a colour before you draw; lines already drawn keep theirs.')}>
               {INK_WORDS[each]}
             </button>
           ))}
-          <button type="button" disabled={strokes.length === 0} onClick={() => changeMargins((each) => withStrokes(each, where, strokes.slice(0, -1)))} className={PLATE}>
+          <button type="button" disabled={strokes.length === 0} onClick={() => changeMargins((each) => withStrokes(each, where, strokes.slice(0, -1)))} className={PLATE} {...explain('Takes away the last line you drew on this page.', 'Press it again to go further back, one line at a time.')}>
             [ UNDO ]
           </button>
           <button
@@ -97,6 +98,7 @@ export default function SeeingGraffiti({ drawing, where, at, onScroll }: { drawi
               setClearing(!clearing);
             }}
             className={PLATE}
+            {...explain(clearing ? 'Press again to wipe every line drawn on this page.' : 'Wipes every line drawn on this page, after asking once.', 'For a fresh start on this page; drawings on other pages stay. They are kept in this browser only.', NOTE.undo)}
           >
             {clearing ? '[ CLEAR IT? ]' : '[ CLEAR ]'}
           </button>

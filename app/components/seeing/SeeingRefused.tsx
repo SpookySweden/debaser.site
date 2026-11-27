@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { refusalHelp } from '../../lib/seeing/refusals';
 import { took } from '../../lib/seeing/took';
 import { PLATE, TITLE_BAR_INACTIVE } from '../../lib/ui/controls';
+import { explain, NOTE } from '../../lib/ui/explain';
 
 /**
  * A page that didn't come: the reason, what it means, and what may still be tried, each a key. Under them the trace: only what is known on
@@ -22,25 +23,25 @@ export default function SeeingRefused({ reason, eye, ms, address, canOld, ownEye
       {tries.length > 0 || read !== null ? (
         <div className="mt-3 flex flex-wrap gap-2">
           {read !== null ? (
-            <Link href={`/read/${read}`} title="In the site's own reader" className={`${PLATE} inline-flex items-center`}>
+            <Link href={`/read/${read}`} title="In the site's own reader" className={`${PLATE} inline-flex items-center`} {...explain('Opens this book in the site\'s own reader instead.', 'The reader shows books better than a page from outside does.')}>
               [ READ IT ]
             </Link>
           ) : null}
           {tries.map((each) =>
             each === 'again' ? (
-              <button key={each} type="button" onClick={onAgain} className={PLATE}>
+              <button key={each} type="button" onClick={onAgain} className={PLATE} {...explain('Asks for the same page again, from the start.', 'Worth one more try when a site was slow or busy.')}>
                 [ TRY AGAIN ]
               </button>
             ) : each === 'old' ? (
-              <button key={each} type="button" onClick={onOld} className={PLATE}>
+              <button key={each} type="button" onClick={onOld} className={PLATE} {...explain('Opens an older copy of this page from archive.org: the copy nearest the middle of this year.', 'When the page itself won\'t come, a saved copy often still can.')}>
                 [ SEE AN OLD COPY ]
               </button>
             ) : each === 'own' ? (
-              <button key={each} type="button" title="In your own browser, where you are signed in" onClick={onOwn} className={PLATE}>
+              <button key={each} type="button" title="In your own browser, where you are signed in" onClick={onOwn} className={PLATE} {...explain('Opens this page in a tab of your own browser, through the extension, where you are signed in.', 'Some sites only show themselves to a browser that is signed in, or refuse the house.', 'OPENS A NEW TAB.')}>
                 [ OWN EYE ↗ ]
               </button>
             ) : (
-              <a key={each} href={address} target="_blank" rel="noopener noreferrer" className={`${PLATE} inline-flex items-center`}>
+              <a key={each} href={address} target="_blank" rel="noopener noreferrer" className={`${PLATE} inline-flex items-center`} {...explain('Opens the page on its own site, outside BROWSER.', 'The last thing to try: the site as it is, with nothing of the house\'s in between.', NOTE.leaves)}>
                 [ OPEN SOURCE ↗ ]
               </a>
             ),

@@ -1227,7 +1227,8 @@ async function ownEyeFirst(browser) {
         // BROWSER holds itself open to the extension while OWN EYE shows pages here.
         connect: () => {
           window.heldOpen = (window.heldOpen ?? 0) + 1;
-          return { onMessage: { addListener: (hear) => { window.hearAt = hear; } }, postMessage: (message) => { window.lensesAsked = [...(window.lensesAsked ?? []), message.lens]; }, disconnect: () => { window.heldOpen -= 1; } };
+          // `dropHold` stands for the extension's worker restarting: the port closes from its side, as Chrome does then.
+          return { onMessage: { addListener: (hear) => { window.hearAt = hear; } }, onDisconnect: { addListener: (hear) => { window.dropHold = () => { window.heldOpen -= 1; hear(); }; } }, postMessage: (message) => { window.lensesAsked = [...(window.lensesAsked ?? []), message.lens]; }, disconnect: () => { window.heldOpen -= 1; } };
         },
         sendMessage: (id, message, answer) => {
           const it = kept();
@@ -1294,6 +1295,17 @@ async function ownEyeFirst(browser) {
     await page.locator('[data-seeing-lenses]').getByRole('button', { name: '[ WATCHERS ]' }).click();
     await page.waitForTimeout(300);
     ok(/THE HOUSE'S ONLY/.test(await page.locator('[data-seeing-status]').innerText()), 'and one only the house has says so');
+    ok((await page.evaluate(() => window.lensesAsked ?? [])).at(-1) === 'standard', 'and the framed page goes back to plain, not left in the lens before (the review, 2026-11-27)');
+    await page.locator('[data-seeing-lenses]').getByRole('button', { name: '[ READER ]' }).click();
+    await page.waitForTimeout(300);
+    // The extension's worker restarts: BROWSER holds itself open again, and asks again for the lens that was on.
+    const heldBefore = await page.evaluate(() => window.heldOpen);
+    const askedBefore = await page.evaluate(() => (window.lensesAsked ?? []).length);
+    await page.evaluate(() => window.dropHold());
+    await page.waitForFunction((before) => window.heldOpen === before, heldBefore, { timeout: 5000 });
+    await page.evaluate(() => window.hearAt({ see: 'ready' }));
+    await page.waitForTimeout(300);
+    ok(await page.evaluate((before) => (window.lensesAsked ?? []).length === before + 1 && window.lensesAsked.at(-1) === 'reader', askedBefore),'when the extension drops the hold, BROWSER holds again and asks for the lens again (the review, 2026-11-27)');
     await page.locator('[data-seeing-lenses]').getByRole('button', { name: '[ STANDARD ]' }).click();
     // A link followed inside the framed page: the extension says where it got to, and the address box follows, without reloading the frame.
     await page.evaluate((site) => window.hearAt({ see: 'at', href: `${site}/b`, title: 'B' }), SITE);

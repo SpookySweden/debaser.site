@@ -47,7 +47,8 @@ async function wearIn(tab) {
 }
 chrome.runtime.onConnectExternal.addListener((port) => {
   const tab = port.sender?.tab?.id;
-  if (port.name !== 'browser' || port.sender?.origin !== SITE || tab === undefined) return port.disconnect();
+  // BROWSER's own page only, the tab's top frame: debaser.site framed inside another site's tab must not unlock frames in that tab.
+  if (port.name !== 'browser' || port.sender?.origin !== SITE || tab === undefined || port.sender?.frameId !== 0) return port.disconnect();
   browsers.set(port, tab);
   // A lens BROWSER's page asks for, put on the page framed in its tab and worn again on each page it goes to: the reader stays signed in, since
   // the page is the site's own, in their own browser; the lens only changes how it looks.
@@ -147,7 +148,14 @@ export function themeFrom(value) {
  */
 const ASKED_MOST = 40;
 const HOUR_MS = 3_600_000;
-async function mayAsk(site) {
+// One at a time: two asks at once would both read the old list, and the second write would lose the first site.
+let asking = Promise.resolve();
+function mayAsk(site) {
+  const turn = asking.then(() => mayAskNow(site));
+  asking = turn.catch(() => undefined);
+  return turn;
+}
+async function mayAskNow(site) {
   const kept = (await chrome.storage.session.get('asked')).asked;
   const now = Date.now();
   const asked = kept && now - kept.since < HOUR_MS ? kept : { since: now, sites: [] };

@@ -5,6 +5,7 @@ import { LENS_NAMES, type LensId } from '../../lib/seeing/lenses/names';
 import { DIAL_FIRST, dialOf, dialTo } from '../../lib/seeing/time';
 import { FIELD_TIGHT, PLATE, PLATE_PRESSED } from '../../lib/ui/controls';
 import type { Loupe } from './SeeingStage';
+import { explain } from '../../lib/ui/explain';
 
 type Props = {
   /** The page in front, or null in a new tab. */
@@ -52,7 +53,7 @@ export default function SeeingTools({ address, ready, refused, seam, loupe, eras
   return (
     <div className="contents" data-seeing-tools>
       {page ? (<>
-      <button type="button" aria-pressed={seam !== null} disabled={!ready && seam === null} title="A lens each side of a line you drag" onClick={() => onSeam(seam === null ? 'reader' : null)} className={on(seam !== null)}>
+      <button type="button" aria-pressed={seam !== null} disabled={!ready && seam === null} title="A lens each side of a line you drag" onClick={() => onSeam(seam === null ? 'reader' : null)} className={on(seam !== null)} {...explain('Splits the page with a line you drag: one lens on each side of it. Press again to put it away.', 'To compare two ways of seeing the same page side by side, such as the page as sent against READER.')}>
         [ SEAM ]
       </button>
       {seam !== null ? (
@@ -64,7 +65,7 @@ export default function SeeingTools({ address, ready, refused, seam, loupe, eras
           ))}
         </select>
       ) : null}
-      <button type="button" aria-pressed={loupe !== null} disabled={!ready && loupe === null} title="Another lens under the pointer, or the same words larger" onClick={() => onLoupe(loupe === null ? 2 : null)} className={on(loupe !== null)}>
+      <button type="button" aria-pressed={loupe !== null} disabled={!ready && loupe === null} title="Another lens under the pointer, or the same words larger" onClick={() => onLoupe(loupe === null ? 2 : null)} className={on(loupe !== null)} {...explain('Turns on a small window that follows the pointer, showing the page under it larger or through another lens. Press again to put it away.', 'For small print, or a quick look through a lens without changing the whole page.')}>
         [ LOUPE ]
       </button>
       {loupe !== null ? (
@@ -84,25 +85,25 @@ export default function SeeingTools({ address, ready, refused, seam, loupe, eras
           ))}
         </select>
       ) : null}
-      <button type="button" aria-pressed={erasing} disabled={!ready && !erasing} title="Point, press, gone" onClick={() => onErasing(!erasing)} className={on(erasing)}>
+      <button type="button" aria-pressed={erasing} disabled={!ready && !erasing} title="Point, press, gone" onClick={() => onErasing(!erasing)} className={on(erasing)} {...explain('While it is on, pressing a part of the page takes it away. Press again to stop.', 'To clear away a banner, a box or anything in the way of reading. The page is remembered without it next time.')}>
         [ ERASE ]
       </button>
       {erased > 0 ? (
-        <button type="button" onClick={onBringBack} className={PLATE}>
+        <button type="button" onClick={onBringBack} className={PLATE} {...explain('Puts back every part you erased from this page.', 'For when ERASE took something you wanted after all.')}>
           [ BRING BACK {erased} ]
         </button>
       ) : null}
       </>) : null}
-      <button type="button" title="A page of the small, old web" onClick={onScan} className={PLATE}>
+      <button type="button" title="A page of the small, old web" onClick={onScan} className={PLATE} {...explain('Opens SCAN: a page of the small, old web, made of personal sites rather than big ones.', 'For wandering: somewhere to start when you have no address in mind.')}>
         [ SCAN ]
       </button>
       {address !== null ? (
-      <button type="button" aria-pressed={good} disabled={!outside} title="Keep it on the list in a new tab" onClick={() => onGood(!good)} className={on(good)}>
+      <button type="button" aria-pressed={good} disabled={!outside} title="Keep it on the list in a new tab" onClick={() => onGood(!good)} className={on(good)} {...explain('Marks this page as good, or takes the mark off.', 'Good pages are listed in every new tab, one press away.')}>
         [ GOOD ]
       </button>
       ) : null}
       {dial !== null && dial.year === null ? (
-        <button type="button" aria-pressed={dialAsked} title="The page as it was, in a year you choose" onClick={() => setDialAsked(!dialAsked)} className={on(dialAsked)}>
+        <button type="button" aria-pressed={dialAsked} title="The page as it was, in a year you choose" onClick={() => setDialAsked(!dialAsked)} className={on(dialAsked)} {...explain('Opens the TIME dial, to see this page as it was in a year you turn it to.', 'The old copies come from archive.org; past the last year is the page as it is now.')}>
           [ TIME ]
         </button>
       ) : null}

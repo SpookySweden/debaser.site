@@ -8,6 +8,7 @@ import { historyRows, historyRowsOnServer, subscribeToHistory } from '../../lib/
 import { TEST_ADDRESS } from '../../lib/seeing/test-engine';
 import { PLATE, PLATE_MAIN, TITLE_BAR_INACTIVE } from '../../lib/ui/controls';
 import SeeingEngines from './SeeingEngines';
+import { explain } from '../../lib/ui/explain';
 
 const RECENT_MOST = 8;
 
@@ -24,7 +25,7 @@ export default function SeeingStart({ good, ownEye, onGo }: { good: readonly { a
       <p className="mt-1 text-ink-quiet pointer-coarse:hidden" data-seeing-keys>
         {KEYS_LINE}
       </p>
-      <button type="button" className={`${PLATE_MAIN} mt-3`} onClick={() => onGo(TEST_ADDRESS)}>
+      <button type="button" className={`${PLATE_MAIN} mt-3`} onClick={() => onGo(TEST_ADDRESS)} {...explain('Opens the house\'s own test page, made for trying BROWSER out.', 'A safe page to try the lenses, notes and keeping on before you open a real site.')}>
         OPEN THE TEST PAGE
       </button>
       {recent.length > 0 ? (
@@ -33,7 +34,7 @@ export default function SeeingStart({ good, ownEye, onGo }: { good: readonly { a
           <ul>
             {recent.map((row) => (
               <li key={row.address} className="flex min-w-0 items-baseline gap-2">
-                <button type="button" onClick={() => onGo(row.address)} title={row.address} className={`${PLATE} min-w-0 max-w-full truncate`}>
+                <button type="button" onClick={() => onGo(row.address)} title={row.address} className={`${PLATE} min-w-0 max-w-full truncate`} {...explain('Opens this page again in this tab.', 'SEEN LAST: the pages you looked at most recently, to get back to them in one press.')}>
                   {row.title}
                 </button>
                 <span className="shrink-0 text-ink-quiet">{shortName(row.address)}</span>
@@ -48,7 +49,7 @@ export default function SeeingStart({ good, ownEye, onGo }: { good: readonly { a
           <ul aria-label="Good pages" data-seeing-good>
             {good.slice(0, 30).map((page) => (
               <li key={page.address}>
-                <button type="button" onClick={() => onGo(page.address)} title={page.address} className={`${PLATE} max-w-full truncate`}>
+                <button type="button" onClick={() => onGo(page.address)} title={page.address} className={`${PLATE} max-w-full truncate`} {...explain('Opens this page in this tab.', 'GOOD: pages you marked as good, kept here as your own short list.')}>
                   {page.title}
                 </button>
               </li>

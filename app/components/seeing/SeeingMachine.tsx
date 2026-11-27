@@ -43,7 +43,7 @@ import { holdOwnEye, openInOwnEye, ownEyeHas, tellOwnEyeTheme, type OwnEyeHold }
 import { chooseEye, dontAskAgain, eyeChoice, eyeChoiceOnServer, notAskedAgain, notAskedAgainOnServer, offerFor, subscribeToEyeChoice } from '../../lib/seeing/eye-choice';
 import { openExtensionWindow } from '../../lib/ui/extension-window';
 import { scriptsOff, setScriptsOff, siteSettings, siteSettingsOnServer, subscribeToSiteSettings } from '../../lib/seeing/site-settings';
-import { explain } from '../../lib/ui/explain';
+import { explain, NOTE } from '../../lib/ui/explain';
 import { PLATE, PLATE_PRESSED, TITLE_BAR } from '../../lib/ui/controls';
 import { subscribeToTheme, themeState } from '../../lib/ui/theme-slot';
 import { useAuth } from '../AuthProvider';
@@ -118,7 +118,7 @@ export default function SeeingMachine() {
         <Machine key={owner} state={held.state} owner={{ id: owner, label: user?.displayName ?? '' }} />
       ) : status === 'loading' || owner !== null ? null : (
         <p className="p-3 text-prose text-ink">
-          <Link href="/account" className={PLATE}>
+          <Link href="/account" className={PLATE} {...explain('Goes to the account page to log in.', 'BROWSER keeps your tabs, history and kept pages on your account, so it opens only once you are logged in.')}>
             [ LOG IN ]
           </Link>{' '}
           TO OPEN BROWSER
@@ -547,8 +547,9 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
   const ownLens = now.state === 'elsewhere' ? tab.lens : null;
   useEffect(() => {
     if (ownLens === null) return;
-    const worn = holdRef.current?.lens(ownLens) ?? false;
-    if (!worn && ownLens !== 'standard') setNotice('THIS LENS IS THE HOUSE\'S ONLY: FROM THE HOUSE SHOWS IT');
+    const worn = holdRef.current?.lens(ownLens) ?? 'unheard';
+    if (worn === 'house') setNotice('THIS LENS IS THE HOUSE\'S ONLY: FROM THE HOUSE SHOWS IT');
+    else if (worn === 'unheard' && ownLens !== 'standard') setNotice('THE EXTENSION DID NOT ANSWER: PICK THE LENS AGAIN, OR RELOAD THE PAGE');
   }, [ownLens, framedAt]);
   // The sign-in offered on entering a page (YouTube, for now), until it is on the list or the reader says not to.
   const offer = offerFor(address);
@@ -578,13 +579,13 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
             <button type="button" aria-expanded={historyOpen} onClick={() => {
                 setHistoryOpen(!historyOpen);
                 setKeptOpen(false);
-              }} className={PLATE}>
+              }} className={PLATE} {...explain('Opens your BROWSER history over the page, as a list or a TRAIL of sites; press again to close it.', 'To find a page you saw before. It is yours alone and goes by itself after 90 days.')}>
               [ HISTORY ]
             </button>
             <button type="button" aria-expanded={keptOpen} onClick={() => {
                 setKeptOpen(!keptOpen);
                 setHistoryOpen(false);
-              }} className={PLATE}>
+              }} className={PLATE} {...explain('Opens the pages kept with KEEP PAGE over the page, found by tag or by words; press again to close it.', 'The number is how many kept pages there are.')}>
               [ KEPT {keptOnly.length} ]
             </button>
             {ownWebCount > 0 ? (
@@ -626,7 +627,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
             .filter((each) => each.id !== asked.engine.id && each.opens !== 'site')
             .slice(0, ASKED_SHOWN)
             .map((each) => (
-              <button key={each.id} type="button" onClick={() => ask(each, asked.words)} className={PLATE}>
+              <button key={each.id} type="button" onClick={() => ask(each, asked.words)} className={PLATE} {...explain(`Searches for the same words with ${each.name} instead.`, each.opens === 'out' ? 'Marked ↗: its results open in your own browser.' : 'To compare what another engine finds.')}>
                 {each.name}
                 {each.opens === 'out' ? ' ↗' : ''}
               </button>
@@ -680,35 +681,35 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
       >
         {working ? (
           <>
-            <button type="button" aria-expanded={keeping} disabled={seen === null} onClick={() => setKeeping(!keeping)} className={PLATE}>
+            <button type="button" aria-expanded={keeping} disabled={seen === null} onClick={() => setKeeping(!keeping)} className={PLATE} {...explain('Opens KEEP PAGE beside the page: tags, a note and quotes, then KEEP; press again to close it.', 'To keep this page, with a copy of it, so you can find it again under KEPT.')}>
               [ KEEP PAGE ]
             </button>
-            <button type="button" aria-expanded={noting} disabled={seen === null} onClick={() => setNoting(!noting)} className={PLATE}>
+            <button type="button" aria-expanded={noting} disabled={seen === null} onClick={() => setNoting(!noting)} className={PLATE} {...explain('Opens NOTES beside the page: notes on passages of it; press again to close it.', 'Select words on the page and write a note on them. The number is how many notes this page has.')}>
               [ NOTES {notes.length} ]
             </button>
-            <button type="button" aria-pressed={drawing} disabled={seen === null} onClick={() => setDrawing(!drawing)} className={drawing ? `${PLATE_PRESSED} cursor-pointer` : PLATE}>
+            <button type="button" aria-pressed={drawing} disabled={seen === null} onClick={() => setDrawing(!drawing)} className={drawing ? `${PLATE_PRESSED} cursor-pointer` : PLATE} {...explain('While it is on, you draw over the page with the pointer, in the ink you pick. Press again to stop drawing.', 'The lines stay where you drew them as the page scrolls, and come back next time, in this browser.')}>
               [ GRAFFITI ]
             </button>
           </>
         ) : null}
         {(address !== null && now.state !== 'refused') || sent.length > 0 ? (
-          <button type="button" aria-expanded={trayOpen} disabled={seen === null && sent.length === 0} onClick={() => setTrayOpen(!trayOpen)} className={PLATE}>
+          <button type="button" aria-expanded={trayOpen} disabled={seen === null && sent.length === 0} onClick={() => setTrayOpen(!trayOpen)} className={PLATE} {...explain('Opens the MEDIA tray beside the page: the videos and sounds this page plays, each with keys to play it in your room; press again to close it.', 'Video and sound never come through the house: the tray hands them to the Room. The number is how many there are.')}>
           [ MEDIA {tray.length} ]
         </button>
         ) : null}
         {outside && seen !== null && (seen.feeds ?? []).length > 0 ? (
           // The page's own news feed, drawn as its list (decision 44).
-          <button type="button" title={`The news feed this page says it has, as a list: ${(seen.feeds ?? [])[0]}`} onClick={() => go((seen.feeds ?? [])[0])} className={PLATE} data-seeing-feed>
+          <button type="button" title={`The news feed this page says it has, as a list: ${(seen.feeds ?? [])[0]}`} onClick={() => go((seen.feeds ?? [])[0])} className={PLATE} data-seeing-feed {...explain('Opens the news feed this page says it has, drawn as a list of its latest posts.', 'A quick way to see what is new on a site without its clutter.')}>
             [ FEED ]
           </button>
         ) : null}
         {working ? (
-          <button type="button" disabled={pickedWords === ''} title="Words selected on the page, to the engine in front, in a new tab" onClick={() => ask(engineChosen(choices), pickedWords, true)} className={PLATE}>
+          <button type="button" disabled={pickedWords === ''} title="Words selected on the page, to the engine in front, in a new tab" onClick={() => ask(engineChosen(choices), pickedWords, true)} {...explain('Searches for the words you selected on the page, with the engine in front, in a new BROWSER tab.', 'Select words on the page first; this page stays where it is.')} className={PLATE}>
             [ SEARCH THIS ]
           </button>
         ) : null}
         {address !== null && now.state !== 'refused' ? (
-        <button type="button" disabled={seen === null} title="The page's structure as a BEATBOX loop: headings the beat, links the notes" onClick={sonify} className={PLATE}>
+        <button type="button" disabled={seen === null} title="The page's structure as a BEATBOX loop: headings the beat, links the notes" onClick={sonify} className={PLATE} {...explain('Turns the shape of this page into a loop and opens it in BEATBOX: its headings are the beat, its links the notes.', 'For fun: every page sounds different.', 'LEAVES BROWSER FOR BEATBOX.')}>
           [ SONIFY ]
         </button>
         ) : null}
@@ -721,6 +722,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
               setTurn((each) => each + 1);
             }}
             className={scriptsOff(address) ? `${PLATE_PRESSED} cursor-pointer` : PLATE}
+            {...explain(scriptsOff(address) ? 'Lets this site\'s scripts run again and shows the page afresh.' : 'Stops this site\'s scripts running and shows the page afresh without them.', 'For a site that is slow, jumpy or full of pop-ups. Remembered for the whole site, in this browser.')}
           >
             [ SCRIPTS OFF ]
           </button>
@@ -734,17 +736,18 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
             title="Your room sees which page this is, and how far down it you are; each looks through their own lens"
             onClick={() => (leading ? stopLeading() : address !== null ? lead({ address: address.split('#')[0], y: 0, whole: 1 }) : undefined)}
             className={leading ? `${PLATE_PRESSED} cursor-pointer` : PLATE}
+            {...explain(leading ? 'Stops showing this page to your room.' : 'Shows your room which page you are on and how far down it you are, as you read.', 'Others in the room can follow along, each through their own lens.', NOTE.others)}
           >
             [ SHOW MY ROOM ]
           </button>
         ) : null}
         {reading !== null ? (
-          <Link href={`/read/${reading}`} title="In the site's own reader" className={`${PLATE} inline-flex items-center`} data-seeing-read>
+          <Link href={`/read/${reading}`} title="In the site's own reader" className={`${PLATE} inline-flex items-center`} data-seeing-read {...explain('Opens this book in the site\'s own reader.', 'The reader shows books better than a page from outside does.')}>
             [ READ IT ]
           </Link>
         ) : null}
         {outside ? (
-          <a href={address} target="_blank" rel="noopener noreferrer" className={`${PLATE} inline-flex items-center`}>
+          <a href={address} target="_blank" rel="noopener noreferrer" className={`${PLATE} inline-flex items-center`} {...explain('Opens this page on its own site, outside BROWSER.', 'The site as it is, with nothing of the house\'s in between.', NOTE.leaves)}>
             [ OPEN SOURCE ↗ ]
           </a>
         ) : null}
@@ -756,6 +759,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
             onClick={() => chooseEye(eye === 'own' ? 'server' : 'own')}
             className={PLATE}
             data-seeing-eye={eye}
+            {...explain(eye === 'own' ? 'Switches to SERVER EYE: the page fetched by the house, signed out, rebuilt through the lenses.' : 'Switches to OWN EYE: the page from your own browser, signed in as you, as the site makes it.', 'OWN EYE is for sites you are signed in to; SERVER EYE is for every lens. The choice is remembered.')}
           >
             {eye === 'own' ? '[ OWN EYE: YOUR BROWSER, SIGNED IN ]' : '[ SERVER EYE: FROM THE HOUSE, SIGNED OUT ]'}
           </button>
@@ -769,13 +773,14 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
             onClick={() => (extension === 'current' ? void openInOwnEye(dialOf(address).address, 'machine') : openExtensionWindow())}
             className={PLATE}
             data-seeing-add-site={onList?.on === true ? 'on' : 'off'}
+            {...explain(onList?.on === true ? 'This site is on the extension\'s list already: OWN EYE may show it here. Take it off in the EXTENSION window.' : 'Adds this site to the extension\'s list, so OWN EYE may show it here, signed in.', 'Your browser asks you too before the extension may act on a site.')}
           >
             {onList?.on === true ? `[ ✓ ON THE LIST: ${onList.site} ]` : `[ ADD ${onList?.site ?? shortName(address)} ]`}
           </button>
         ) : null}
         {outside && extension !== 'asking' && extension !== 'unable' ? (
           // Missing or old, the key opens the window that gets it first.
-          <button type="button" title="In your own browser, where you are signed in" onClick={() => (extension === 'current' ? void openInOwnEye(dialOf(address).address) : openExtensionWindow())} className={PLATE}>
+          <button type="button" title="In your own browser, where you are signed in" onClick={() => (extension === 'current' ? void openInOwnEye(dialOf(address).address) : openExtensionWindow())} {...explain(extension === 'current' ? 'Opens this page in a real tab of your own browser, signed in, through the extension.' : 'Opens the EXTENSION window, to get or update the extension OWN EYE needs.', 'For a site that won\'t work inside BROWSER, or to use it exactly as in your browser.', extension === 'current' ? 'OPENS A NEW TAB.' : undefined)} className={PLATE}>
             [ OWN EYE ↗ ]
           </button>
         ) : null}
@@ -798,7 +803,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
         <p className="flex flex-wrap items-center gap-2 py-1 text-label text-ink" data-seeing-together>
           IN YOUR ROOM: {shortName(theirs.address)}
           {samePage(theirs.address, address) ? (
-            <button type="button" aria-pressed={following} onClick={() => follow(!following)} className={following ? `${PLATE_PRESSED} cursor-pointer` : PLATE}>
+            <button type="button" aria-pressed={following} onClick={() => follow(!following)} className={following ? `${PLATE_PRESSED} cursor-pointer` : PLATE} {...explain(following ? 'Stops following: you scroll the page yourself again.' : 'Follows the person showing this page to your room: your page scrolls with theirs.', 'To read along together; your lens stays your own.')}>
               [ FOLLOW ]
             </button>
           ) : (
@@ -810,6 +815,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
                 go(theirs.address);
               }}
               className={PLATE}
+              {...explain('Opens the page somebody in your room is showing, and follows along with them.', 'To join them on it; your lens stays your own.')}
             >
               [ SEE TOGETHER ]
             </button>
@@ -819,7 +825,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
       {copyPage !== null ? (
         <p className="flex flex-wrap items-baseline gap-2 py-1 text-label text-ink" data-seeing-copy-of>
           KEPT {new Date(copyPage.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).toUpperCase()}
-          <button type="button" onClick={() => go(copyPage.address)} className={`${PLATE} max-w-full truncate`}>
+          <button type="button" onClick={() => go(copyPage.address)} className={`${PLATE} max-w-full truncate`} {...explain('Opens the page this copy was kept from, as it is now.', 'To see what has changed since it was kept.')}>
             {copyPage.address}
           </button>
         </p>

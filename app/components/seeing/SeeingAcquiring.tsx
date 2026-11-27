@@ -1,6 +1,7 @@
 'use client';
 
 import { PLATE } from '../../lib/ui/controls';
+import { explain } from '../../lib/ui/explain';
 
 /**
  * The view while a page is asked for, or after STOP: no longer an empty box. A dithered field, and on it only what is true: the step the
@@ -15,7 +16,7 @@ export default function SeeingAcquiring({ words, address, eye, busy, onAgain }: 
         <p className="mt-2 break-all">{address}</p>
         <p className="mt-1 text-ink-quiet">{eye}</p>
         {busy ? null : (
-          <button type="button" onClick={onAgain} className={`${PLATE} mt-2`}>
+          <button type="button" onClick={onAgain} className={`${PLATE} mt-2`} {...explain('Asks the same eye for the same address again, from the start.', 'After STOP, or when a page took too long: often the second try gets through.')}>
             [ ASK AGAIN ]
           </button>
         )}

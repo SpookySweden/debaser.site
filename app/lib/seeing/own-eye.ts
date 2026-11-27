@@ -88,36 +88,70 @@ export async function tellOwnEyeTheme(themeId: string): Promise<void> {
 /** The lenses the extension has, as BROWSER names them; the rest are the house's only. */
 export const OWN_EYE_LENS: Record<string, 'standard' | 'reader' | 'xray' | 'lowfi' | 'yours'> = { standard: 'standard', reader: 'reader', xray: 'xray', lowfi: 'lowfi', dye: 'yours' };
 
-export type OwnEyeHold = { lens: (id: string) => boolean; release: () => void };
+/** `worn`: the extension wears it; `house`: a lens only the house has (the page is left plain); `unheard`: the extension isn't answering. */
+export type OwnEyeWorn = 'worn' | 'house' | 'unheard';
+export type OwnEyeHold = { lens: (id: string) => OwnEyeWorn; release: () => void };
+
+type HeldPort = { onMessage: { addListener: (hear: (value: unknown) => void) => void }; onDisconnect: { addListener: (hear: () => void) => void }; postMessage: (message: unknown) => void; disconnect: () => void };
+/** Held again after the extension's worker restarts or updates (it forgets every hold then), at most this often and this many times running. */
+const HELD_AGAIN_MS = 1500;
+const HELD_AGAIN_MOST = 5;
 
 /** BROWSER's page, held open to the extension while it is drawn: an added site may then be framed in its tabs. What a framed page says is a stranger's. */
 export function holdOwnEye(onAt: (href: string, title: string) => void): OwnEyeHold {
-  const own = (globalThis as typeof globalThis & { chrome?: { runtime?: { connect?: (id: string, info: { name: string }) => { onMessage: { addListener: (hear: (value: unknown) => void) => void }; postMessage: (message: unknown) => void; disconnect: () => void } } } }).chrome?.runtime;
-  if (own?.connect === undefined) return { lens: () => false, release: () => undefined };
-  let port: ReturnType<NonNullable<typeof own.connect>> | null = null;
-  try {
-    port = own.connect(EXTENSION_ID, { name: 'browser' });
-    port.onMessage.addListener((value) => {
-      const href = field(value, 'href');
-      const title = field(value, 'title');
-      if (field(value, 'see') === 'at' && typeof href === 'string' && /^https?:\/\//.test(href) && href.length <= 4000) onAt(href, typeof title === 'string' ? title.slice(0, 160) : '');
-    });
-  } catch {
-    port = null;
-  }
+  const own = (globalThis as typeof globalThis & { chrome?: { runtime?: { connect?: (id: string, info: { name: string }) => HeldPort } } }).chrome?.runtime;
+  if (own?.connect === undefined) return { lens: () => 'unheard', release: () => undefined };
+  const connect = own.connect;
+  let port: HeldPort | null = null;
+  let released = false;
+  let tries = 0;
+  let again: ReturnType<typeof setTimeout> | null = null;
+  // What the extension was last asked to wear: asked again once it is held again.
+  let wearing: string | null = null;
+  const hold = () => {
+    again = null;
+    try {
+      const held = connect(EXTENSION_ID, { name: 'browser' });
+      held.onMessage.addListener((value) => {
+        if (field(value, 'see') === 'ready') {
+          tries = 0;
+          if (wearing !== null) held.postMessage({ see: 'lens', lens: wearing });
+          return;
+        }
+        const href = field(value, 'href');
+        const title = field(value, 'title');
+        if (field(value, 'see') === 'at' && typeof href === 'string' && /^https?:\/\//.test(href) && href.length <= 4000) onAt(href, typeof title === 'string' ? title.slice(0, 160) : '');
+      });
+      held.onDisconnect.addListener(() => {
+        if (port === held) port = null;
+        if (released || tries >= HELD_AGAIN_MOST) return;
+        tries += 1;
+        again = setTimeout(hold, HELD_AGAIN_MS);
+      });
+      port = held;
+    } catch {
+      port = null;
+    }
+  };
+  hold();
   return {
-    // A lens on the framed page, worn by the extension; false for one only the house has.
     lens: (id) => {
-      const theirs = OWN_EYE_LENS[id];
-      if (theirs === undefined || port === null) return false;
+      // A lens only the house has: the page goes back to plain, so the one worn before doesn't stay on under the notice.
+      const theirs = OWN_EYE_LENS[id] ?? 'standard';
+      wearing = theirs;
+      if (port === null) return 'unheard';
       try {
         port.postMessage({ see: 'lens', lens: theirs });
-        return true;
       } catch {
-        return false;
+        return 'unheard';
       }
+      return OWN_EYE_LENS[id] === undefined ? 'house' : 'worn';
     },
-    release: () => port?.disconnect(),
+    release: () => {
+      released = true;
+      if (again !== null) clearTimeout(again);
+      port?.disconnect();
+    },
   };
 }
 

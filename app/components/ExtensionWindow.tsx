@@ -6,6 +6,7 @@ import { OWN_EYE_LENSES, openOwnEyeSites } from '../lib/seeing/own-eye';
 import { closeExtensionWindow, extensionWindowState, subscribeToExtensionWindow } from '../lib/ui/extension-window';
 import { PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import DockWindow from './DockWindow';
+import { explain } from '../lib/ui/explain';
 
 /** How long after a page opens the keeper asks: after everything the page itself needs. */
 const ASK_AFTER_MS = 5000;
@@ -70,7 +71,7 @@ export function ExtensionBody({ state, canPick }: { state: ExtensionState; canPi
 }
 
 const Download = ({ words, version }: { words: string; version: string | null }) => (
-  <a href={`/api/extension/zip?v=${version ?? ''}`} download className={PLATE_MAIN}>
+  <a href={`/api/extension/zip?v=${version ?? ''}`} download className={PLATE_MAIN} {...explain('Downloads the extension as a zip file, the newest version.', 'Unzip it and load the folder in your browser\'s extensions page, as the steps here say.', 'DOWNLOADS A FILE.')}>
     {words}
   </a>
 );
@@ -86,7 +87,7 @@ function Get({ newest }: { newest: string | null }) {
         <li>TURN ON DEVELOPER MODE.</li>
         <li>PRESS LOAD UNPACKED, AND CHOOSE THE FOLDER debaser-extension.</li>
       </ol>
-      <button type="button" onClick={() => window.location.reload()} title="Loads this page again: a page that was open before it was put in can't hear it" className={PLATE}>
+      <button type="button" onClick={() => window.location.reload()} title="Loads this page again: a page that was open before it was put in can't hear it" className={PLATE} {...explain('Loads this page again, so it finds the extension you just put in.', 'A page that was already open before the extension went in can\'t hear it until it is loaded again.')}>
         [ IT&apos;S IN ]
       </button>
     </section>
@@ -102,11 +103,11 @@ function Update({ state, canPick }: { state: ExtensionState; canPick: boolean })
       </p>
       {canPick ? (
         state.folder === 'none' ? (
-          <button type="button" disabled={state.busy} onClick={() => void pickExtensionFolder()} className={PLATE_MAIN}>
+          <button type="button" disabled={state.busy} onClick={() => void pickExtensionFolder()} className={PLATE_MAIN} {...explain('Asks you to choose the folder you loaded the extension from, so the site can write new versions into it.', 'Once it is chosen, updating is one press, or happens by itself; the browser asks you before the site may write there.')}>
             CHOOSE ITS FOLDER
           </button>
         ) : (
-          <button type="button" disabled={state.busy} onClick={() => void updateExtension()} className={PLATE_MAIN}>
+          <button type="button" disabled={state.busy} onClick={() => void updateExtension()} className={PLATE_MAIN} {...explain('Writes the newest version into the extension\'s folder and tells the extension to load it again.', 'Your version is older than the site\'s; some parts of BROWSER need the newest.')}>
             UPDATE
           </button>
         )
@@ -130,16 +131,16 @@ function Settings({ state, canPick }: { state: ExtensionState; canPick: boolean 
             <p>OPENS PAGES IN</p>
             <p className="flex flex-wrap gap-1" role="group" aria-label="Opens pages in">
               {OWN_EYE_LENSES.map(([id, label]) => (
-                <button key={id} type="button" aria-pressed={settings.lens === id} onClick={() => void changeExtensionSettings({ ...settings, lens: id })} className={settings.lens === id ? `${PLATE_PRESSED} cursor-pointer` : PLATE}>
+                <button key={id} type="button" aria-pressed={settings.lens === id} onClick={() => void changeExtensionSettings({ ...settings, lens: id })} {...explain(`Makes ${label} the lens the extension's own page opens pages with.`, 'You can still change the lens on any page afterwards.')} className={settings.lens === id ? `${PLATE_PRESSED} cursor-pointer` : PLATE}>
                   [ {label} ]
                 </button>
               ))}
             </p>
-            <button type="button" aria-pressed={settings.wear} onClick={() => void changeExtensionSettings({ ...settings, wear: !settings.wear })} className={settings.wear ? `${PLATE_PRESSED} cursor-pointer` : PLATE}>
+            <button type="button" aria-pressed={settings.wear} onClick={() => void changeExtensionSettings({ ...settings, wear: !settings.wear })} {...explain(settings.wear ? 'Stops the extension wearing your DEBASER theme: it goes back to the house colours.' : 'Makes the extension wear your DEBASER theme\'s colours.', 'The theme is used for its own panel and page, and by the YOUR THEME lens.')} className={settings.wear ? `${PLATE_PRESSED} cursor-pointer` : PLATE}>
               [ WEARS THE SITE&apos;S THEME ]
             </button>
             <p>
-              <button type="button" onClick={() => void openOwnEyeSites()} title="In the extension's own page: this site is never told them" className={PLATE}>
+              <button type="button" onClick={() => void openOwnEyeSites()} title="In the extension's own page: this site is never told them" className={PLATE} {...explain('Opens the extension\'s own page listing the sites you let it act on, where you can add or take one away.', 'The list stays in your browser: this site is never told which sites are on it.', 'OPENS A NEW TAB.')}>
                 [ SITES IT MAY ACT ON ↗ ]
               </button>
             </p>
@@ -152,7 +153,7 @@ function Settings({ state, canPick }: { state: ExtensionState; canPick: boolean 
           <p>VERSION {state.version}, THE NEWEST.</p>
           {!canPick ? null : state.folder === 'none' ? (
             <>
-              <button type="button" onClick={() => void pickExtensionFolder()} className={PLATE}>
+              <button type="button" onClick={() => void pickExtensionFolder()} className={PLATE} {...explain('Asks you to choose the folder you loaded the extension from, so the site can write new versions into it.', 'Once it is chosen, updating is one press, or happens by itself; the browser asks you before the site may write there.')}>
                 [ CHOOSE ITS FOLDER ]
               </button>
               <p>THE FOLDER YOU LOADED IT FROM. THEN A NEW VERSION IS WRITTEN INTO IT BY ITSELF IF THE BROWSER LETS THE SITE ON EVERY VISIT, AND BY ONE PRESS HERE IF NOT. {TRUST}</p>
@@ -160,7 +161,7 @@ function Settings({ state, canPick }: { state: ExtensionState; canPick: boolean 
           ) : (
             <>
               <p>{state.folder === 'granted' ? 'ITS FOLDER IS CHOSEN. NEW VERSIONS ARE WRITTEN INTO IT BY THEMSELVES WHILE THE BROWSER LETS THE SITE.' : 'ITS FOLDER IS CHOSEN. THE BROWSER WILL ASK BEFORE A NEW VERSION IS WRITTEN.'}</p>
-              <button type="button" onClick={() => void forgetExtensionFolder()} className={PLATE}>
+              <button type="button" onClick={() => void forgetExtensionFolder()} className={PLATE} {...explain('Makes the site forget the extension\'s folder: it stops writing new versions into it.', 'The folder and the extension stay as they are; choose the folder again to have updates written for you.')}>
                 [ FORGET THE FOLDER ]
               </button>
             </>

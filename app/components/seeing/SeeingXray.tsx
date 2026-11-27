@@ -2,6 +2,7 @@
 
 import type { Census, Pointed } from '../../lib/seeing/frame';
 import { TITLE_BAR_INACTIVE } from '../../lib/ui/controls';
+import { explain } from '../../lib/ui/explain';
 
 /** X-RAY's panel: what is pointed at, and what the page is made of; a row of that, pointed at or reached by the keyboard, is outlined on the page. */
 export default function SeeingXray({ point, census, lit, onLit, onReach }: { point: Pointed | null; census: Census | null; lit: string | null; onLit: (at: string | null) => void; onReach: (at: string) => void }) {
@@ -50,6 +51,7 @@ export default function SeeingXray({ point, census, lit, onLit, onReach }: { poi
                     onBlur={() => onLit(null)}
                     className={`max-w-full truncate text-left ${lit === row.at ? 'bg-ink text-paper' : ''}`}
                     data-seeing-xray-row
+                    {...explain('Scrolls the page to this part and lights it up.', 'X-RAY lists the parts a page is built from; resting on a row lights its part, pressing takes you there.')}
                   >
                     {row.name}
                   </button>
