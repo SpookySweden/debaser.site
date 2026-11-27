@@ -124,6 +124,9 @@ Each can be changed later by saying so.
     edge"): the page in the browser's own tab with the machine in its side panel, because that is the way that behaves exactly like the browser, and
     YouTube's videos play there (in the machine's frame they played white). The machine's own page is one press away for the lenses that need it.
     Every account is asked for the extension first; YouTube's sign-in line is for the server's eye now, since OWN EYE opens signed in already.
+55. **OWN EYE is inside BROWSER's own tab** (Luke, 2026-11-27: "i also need own eye to not open in a new tab but inside a 'new tab' inside of
+    debasers browser module"; it replaces 54's default): the page in a frame on BROWSER's page, signed in where the site lets its sign-in work inside
+    another site, a real tab and the machine's page one press away. YouTube's videos are its own player. Nothing loosens a site's cookies.
 
 ## Risks, said once
 1. **SERVER is beside everything.** The torrent page (no password at home), Jellyfin, the database and its dashboard, the

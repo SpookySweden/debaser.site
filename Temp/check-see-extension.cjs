@@ -26,7 +26,10 @@ assert.equal(manifest.manifest_version, 3);
 assert.deepEqual([...manifest.permissions].sort(), ['activeTab', 'declarativeNetRequestWithHostAccess', 'scripting', 'sidePanel', 'storage'], 'nothing that reads cookies, history, other tabs or requests');
 assert.equal(manifest.host_permissions, undefined, 'no site until it is added');
 assert.equal(manifest.content_scripts, undefined, 'and on no page until it is asked');
-assert.match(read('frame.js'), /^\/\*[\s\S]*?\*\/\nif \(window !== window\.top && window\.parent === window\.top && location\.ancestorOrigins\[0\] === 'chrome-extension:\/\/' \+ chrome\.runtime\.id\) \{\n  chrome\.runtime\.sendMessage\(\{ see: 'frame'[^\n]*\n\}\n$/, 'what runs on an added site says where it is, in the machine\'s frame, and nothing else');
+// (2026-11-27) and in one of BROWSER's tabs on debaser.site, where OWN EYE shows a page in a frame too.
+assert.equal(read('frame.js').replace(/^\/\*[\s\S]*?\*\/\n/, ''), "if (window !== window.top && window.parent === window.top && (location.ancestorOrigins[0] === 'chrome-extension://' + chrome.runtime.id || location.ancestorOrigins[0] === 'https://debaser.site')) {\n  chrome.runtime.sendMessage({ see: 'frame', href: location.href, title: document.title.slice(0, 160) }).catch(() => undefined);\n}\n", "what runs on an added site says where it is, in the machine's frame or BROWSER's, and nothing else");
+assert.ok(read('worker.js').includes("if (port.name !== 'browser' || port.sender?.origin !== SITE || tab === undefined) return port.disconnect();"), "only debaser.site's own page holds a tab open for frames");
+assert.ok(read('worker.js').includes("for (const [port, tab] of browsers) if (tab === sender.tab.id) port.postMessage"), "and where a framed page got to goes to that tab's page alone");
 assert.deepEqual(manifest.externally_connectable, { matches: ['https://debaser.site/*'] });
 assert.match(manifest.content_security_policy.extension_pages, /script-src 'self'; object-src 'none'/);
 const id = [...crypto.createHash('sha256').update(Buffer.from(manifest.key, 'base64')).digest('hex').slice(0, 32)].map((c) => String.fromCharCode(97 + parseInt(c, 16))).join('');
@@ -61,8 +64,9 @@ try {
   if (error.code === 'ERR_ASSERTION') throw error;
 }
 assert.match(worker, /sender\.origin !== 'https:\/\/debaser\.site'\) return;/, 'who is speaking is asked first');
-assert.match(worker, /condition: \{ tabIds, initiatorDomains: \[chrome\.runtime\.id, \.\.\.sites\], requestDomains: sites, excludedRequestDomains/, "only in the machine's own tabs, only added sites");
-assert.match(worker, /sites\.length === 0 \|\| machines\.size === 0 \? \[\] :/, 'and no rule at all with no machine open');
+// (2026-11-27, on purpose) BROWSER's own tab on debaser.site may frame an added site too, asked for by that page or the site itself.
+assert.ok(worker.includes('condition: { tabIds, initiatorDomains: [chrome.runtime.id, new URL(SITE).hostname, ...sites], requestDomains: sites, excludedRequestDomains'), "only in the machine's own tabs and BROWSER's, only added sites");
+assert.ok(worker.includes('sites.length === 0 || tabIds.length === 0 ? [] :') && worker.includes('const tabIds = [...new Set([...machines.values(), ...browsers.values()])];'), 'and no rule at all with no machine and no BROWSER open');
 assert.match(worker, /port\.sender\?\.url\?\.startsWith\(chrome\.runtime\.getURL\('machine\.html'\)\) !== true/, "a tab is the machine's only while the machine's own page is in it");
 assert.ok(!/updateDynamicRules|rule_resources/.test(worker + JSON.stringify(manifest)), 'the rule lasts as long as the browser is open');
 assert.match(read('machine.html'), /sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads"/, 'a site in the frame cannot move the machine');

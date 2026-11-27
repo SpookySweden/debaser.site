@@ -39,7 +39,7 @@ import { keptPage, keptPages, keptPagesOnServer, openKeptPagesOf, subscribeToKep
 import { partOf, type FrameScroll } from '../../lib/seeing/frame';
 import { engineFor } from '../../lib/seeing/engines';
 import { extensionState, extensionStateOnServer, lookForExtension, subscribeToExtension } from '../../lib/seeing/extension-store';
-import { openInOwnEye, ownEyeHas, tellOwnEyeTheme } from '../../lib/seeing/own-eye';
+import { holdOwnEye, openInOwnEye, ownEyeHas, tellOwnEyeTheme } from '../../lib/seeing/own-eye';
 import { chooseEye, dontAskAgain, eyeChoice, eyeChoiceOnServer, notAskedAgain, notAskedAgainOnServer, offerFor, subscribeToEyeChoice } from '../../lib/seeing/eye-choice';
 import { openExtensionWindow } from '../../lib/ui/extension-window';
 import { scriptsOff, setScriptsOff, siteSettings, siteSettingsOnServer, subscribeToSiteSettings } from '../../lib/seeing/site-settings';
@@ -53,7 +53,7 @@ import SeeingElapsed from './SeeingElapsed';
 import SeeingRefused from './SeeingRefused';
 import { seeingKey, type SeeingKey } from '../../lib/seeing/keys';
 import { shownLine } from '../../lib/seeing/status-line';
-import SeeingElsewhere from './SeeingElsewhere';
+import SeeingOwnFrame from './SeeingOwnFrame';
 import SeeingShell from './SeeingShell';
 import SeeingGetSignedIn from './SeeingGetSignedIn';
 import { shellOf } from '../../lib/seeing/shells';
@@ -197,7 +197,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
     if (eyeGate === 'asking') return;
     if (shell !== null) return;
     if (elsewhere) {
-      if (pressed.current === address) void openInOwnEye(dialOf(address).address);
+      // Shown in this tab by the browser itself (SeeingOwnFrame): nothing is asked of the server, and no tab is opened.
       pressed.current = null;
       return;
     }
@@ -482,7 +482,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
       : now.state === 'busy'
         ? (now.at ?? 'ACQUIRING SOURCE')
         : now.state === 'elsewhere'
-          ? 'IN OWN EYE, IN YOUR OWN BROWSER'
+          ? 'OWN EYE: YOUR OWN BROWSER, SIGNED IN AS YOU'
         : now.state === 'shell'
           ? 'NOT ASKED OF THE SERVER: IT NEEDS YOUR OWN BROWSER'
         : now.state === 'shown'
@@ -518,6 +518,12 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
     };
   }, [outside, extension, address]);
   const onList = listed !== null && listed.address === address ? listed : null;
+  // While OWN EYE shows pages here: held open to the extension, which says where a framed page got to.
+  const [framedAt, setFramedAt] = useState<{ key: string; href: string; title: string } | null>(null);
+  useEffect(() => {
+    if (!(eye === 'own' && extension === 'current')) return;
+    return holdOwnEye((href, title) => setFramedAt({ key, href, title }));
+  }, [eye, extension, key]);
   // The sign-in offered on entering a page (YouTube, for now), until it is on the list or the reader says not to.
   const offer = offerFor(address);
   const never = useSyncExternalStore(subscribeToEyeChoice, () => notAskedAgain(owner.id), notAskedAgainOnServer);
@@ -711,12 +717,12 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
           <button
             type="button"
             aria-pressed={eye === 'own'}
-            title="Where a page opens first: your own browser, signed in, or the server, signed out"
+            title="How a page is shown. OWN EYE: your own browser, signed in as you, the page as the site makes it. SERVER EYE: looked at from the house, never signed in, rebuilt through the lenses. Press to switch"
             onClick={() => chooseEye(eye === 'own' ? 'server' : 'own')}
             className={PLATE}
             data-seeing-eye={eye}
           >
-            [ OPENS IN: {eye === 'own' ? 'OWN EYE' : 'SERVER EYE'} ]
+            {eye === 'own' ? '[ OWN EYE: YOUR BROWSER, SIGNED IN ]' : '[ SERVER EYE: FROM THE HOUSE, SIGNED OUT ]'}
           </button>
         ) : null}
         {outside && (extension === 'missing' || extension === 'old' || onList !== null) ? (
@@ -808,7 +814,17 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
         ) : address === null ? (
           <SeeingStart good={memory.good} ownEye={extension === 'current'} onGo={go} />
         ) : now.state === 'elsewhere' ? (
-          <SeeingElsewhere address={address} onOwn={() => void openInOwnEye(dialOf(address).address)} onMachine={() => void openInOwnEye(dialOf(address).address, 'machine')} onHere={() => setHere([...here, key])} />
+          <SeeingOwnFrame
+            key={key}
+            address={dialOf(address).address}
+            onList={onList?.on ?? null}
+            site={onList?.site ?? shortName(address)}
+            at={framedAt !== null && framedAt.key === key ? framedAt : null}
+            onTab={() => void openInOwnEye(dialOf(address).address)}
+            onMachine={() => void openInOwnEye(dialOf(address).address, 'machine')}
+            onHouse={() => setHere([...here, key])}
+            onAdd={() => void openInOwnEye(dialOf(address).address, 'machine')}
+          />
         ) : now.state === 'shell' && shell !== null ? (
           <SeeingShell site={shell} extension={extension} onOwn={() => void openInOwnEye(dialOf(address).address)} onGet={openExtensionWindow} onAnyway={() => setHere([...here, key])} />
         ) : now.state === 'refused' ? (

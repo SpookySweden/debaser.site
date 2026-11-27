@@ -2,7 +2,7 @@
  * The extension's worker. It lifts the no-framing header for the sites the reader has added, in the tabs the machine's own page is
  * open in and nowhere else; opens the machine when the site or the panel asks; and keeps the theme the site sends. It reads no page, cookie or password.
  */
-import { allowedSites, isAllowed, NEVER_HOSTS, NEVER_NAMES, originsOf, readAddress, siteOf } from './sites.js';
+import { allowedSites, isAllowed, NEVER_HOSTS, NEVER_NAMES, originsOf, readAddress, SITE, siteOf } from './sites.js';
 
 const RULE = 1;
 
@@ -28,24 +28,41 @@ chrome.runtime.onConnect.addListener((port) => {
   void again().then(() => port.postMessage({ see: 'ready' })).catch(() => undefined);
 });
 
-/** One rule, for this session: frames in the machine's tabs, of added sites, never of a sign-in. */
+/**
+ * BROWSER's page on debaser.site, while it is open in a tab (Luke, 2026-11-27: OWN EYE "inside a 'new tab' inside of debasers browser module"): an
+ * added site may be shown in a frame there too, signed in where the site's own cookies are meant to work inside another site. The tab's leave goes
+ * when the page does. Where a framed page got to is told back to that page, and to nobody else.
+ */
+const browsers = new Map();
+chrome.runtime.onConnectExternal.addListener((port) => {
+  const tab = port.sender?.tab?.id;
+  if (port.name !== 'browser' || port.sender?.origin !== SITE || tab === undefined) return port.disconnect();
+  browsers.set(port, tab);
+  port.onDisconnect.addListener(() => {
+    browsers.delete(port);
+    void again();
+  });
+  void again().then(() => port.postMessage({ see: 'ready' })).catch(() => undefined);
+});
+
+/** One rule, for this session: frames in the machine's tabs and BROWSER's, of added sites, never of a sign-in. */
 async function frameRule() {
   const sites = await allowedSites();
   await frameScript(sites);
-  const tabIds = [...new Set(machines.values())];
+  const tabIds = [...new Set([...machines.values(), ...browsers.values()])];
   const never = [...NEVER_NAMES, ...NEVER_HOSTS.filter((each) => !each.includes('/'))];
   // A sign-in kept under a site's own name (github.com/login): its headers are left alone, which is stronger than the rule below.
   const paths = NEVER_HOSTS.filter((each) => each.includes('/'));
   const old = (await chrome.declarativeNetRequest.getSessionRules()).map((rule) => rule.id);
   await chrome.declarativeNetRequest.updateSessionRules({
     removeRuleIds: old,
-    addRules: sites.length === 0 || machines.size === 0 ? [] : [
+    addRules: sites.length === 0 || tabIds.length === 0 ? [] : [
       ...paths.map((each, index) => ({ id: RULE + 1 + index, priority: 10, condition: { urlFilter: '||' + each + '^', tabIds, resourceTypes: ['sub_frame'] }, action: { type: 'allow' } })),
       ...paths.map((each, index) => ({ id: RULE + 1001 + index, priority: 10, condition: { urlFilter: '||' + each + '|', tabIds, resourceTypes: ['sub_frame'] }, action: { type: 'allow' } })),
       {
         id: RULE,
         priority: 1,
-        condition: { tabIds, initiatorDomains: [chrome.runtime.id, ...sites], requestDomains: sites, excludedRequestDomains: [...new Set(never)], resourceTypes: ['sub_frame'] },
+        condition: { tabIds, initiatorDomains: [chrome.runtime.id, new URL(SITE).hostname, ...sites], requestDomains: sites, excludedRequestDomains: [...new Set(never)], resourceTypes: ['sub_frame'] },
         action: { type: 'modifyHeaders', responseHeaders: [{ header: 'x-frame-options', operation: 'remove' }, { header: 'content-security-policy', operation: 'remove' }] },
       },
     ],
@@ -165,7 +182,11 @@ chrome.runtime.onMessageExternal.addListener((message, sender, answer) => {
 chrome.runtime.onMessage.addListener((message, sender, answer) => {
   if (sender.id !== chrome.runtime.id || typeof message !== 'object' || message === null) return;
   if (message.see === 'machine') void openMachine(message.address).then(() => answer({ ok: true }));
-  else if (message.see === 'tab' && typeof message.address === 'string') void openTab(message.address).then(() => answer({ ok: true }));
+  else if (message.see === 'frame' && sender.tab?.id !== undefined && sender.frameId !== 0 && typeof message.href === 'string') {
+    // A page in one of BROWSER's tabs: where it got to, to that tab's BROWSER page alone.
+    for (const [port, tab] of browsers) if (tab === sender.tab.id) port.postMessage({ see: 'at', href: message.href, title: typeof message.title === 'string' ? message.title.slice(0, 160) : '' });
+    return;
+  } else if (message.see === 'tab' && typeof message.address === 'string') void openTab(message.address).then(() => answer({ ok: true }));
   else if (message.see === 'rules') void again().then(() => answer({ ok: true }));
   else return;
   return true;

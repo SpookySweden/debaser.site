@@ -1215,6 +1215,11 @@ async function ownEyeFirst(browser) {
       const kept = () => JSON.parse(sessionStorage.getItem('pretend') ?? '{"version":null,"sites":[]}');
       window.chrome = window.chrome ?? {};
       window.chrome.runtime = {
+        // BROWSER holds itself open to the extension while OWN EYE shows pages here.
+        connect: () => {
+          window.heldOpen = (window.heldOpen ?? 0) + 1;
+          return { onMessage: { addListener: () => undefined }, disconnect: () => { window.heldOpen -= 1; } };
+        },
         sendMessage: (id, message, answer) => {
           const it = kept();
           window.toldIt = [...(window.toldIt ?? []), [message.see, message.address ?? null, message.in ?? null]];
@@ -1234,7 +1239,7 @@ async function ownEyeFirst(browser) {
     const told = () => page.evaluate(() => window.toldIt ?? []);
     const opened = async (where = 'tab') => (await told()).filter(([see, , into]) => see === 'open' && into === where).map(([, address]) => address);
     const version = JSON.parse(readFileSync(join(__dirname, '..', 'extension', 'manifest.json'), 'utf8')).version;
-    const YT = 'https://www.youtube.com/watch?v=pretend';
+    const YT = 'https://www.youtube.com/watch?v=aqz-KE-bpKQ';
     const offer = page.locator('[data-seeing-sign-in]');
     const fresh = async () => {
       await page.goto(`${BASE}/browser`, { waitUntil: 'domcontentloaded' });
@@ -1271,25 +1276,38 @@ async function ownEyeFirst(browser) {
     await pretend({ version, sites: ['seeing-fixture.org'] });
     await fresh();
     await go(page, `${SITE}/a`);
-    await page.locator('[data-seeing-elsewhere]').waitFor();
-    ok((await opened()).includes(`${SITE}/a`), 'with the extension, a page pressed for opens in OWN EYE, in an ordinary tab');
+    await page.locator('[data-seeing-own-frame]').waitFor();
+    ok((await page.locator('[data-seeing-own-frame]').getAttribute('src')) === `${SITE}/a` && (await opened()).length === 0, "with the extension, a page opens in OWN EYE inside BROWSER's own tab, and no tab of the browser is opened");
+    ok((await page.evaluate(() => window.heldOpen)) >= 1, 'with BROWSER held open to the extension, which lets the site be framed here');
+    ok((await page.locator('[data-seeing-own-frame]').getAttribute('sandbox')) === 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads', "in a frame that can't move BROWSER's page");
     ok((await page.locator('[data-seeing-get-signed-in]').count()) === 0, 'and nothing is asked for first');
     ok(!net.asked.some((each) => each.path === '/a'), 'and the server asks nothing for it');
-    ok(/IN OWN EYE/.test(await page.locator('[data-seeing-status]').innerText()), 'which the status line says');
+    ok(/OWN EYE: YOUR OWN BROWSER/.test(await page.locator('[data-seeing-status]').innerText()), 'which the status line says');
     ok((await page.locator('[data-seeing-add-site]').getAttribute('data-seeing-add-site')) === 'on' && /ON THE LIST: seeing-fixture\.org/.test(await page.locator('[data-seeing-add-site]').innerText()), 'ADD THIS SITE says the site in front is on the list');
-    await page.getByRole('button', { name: '[ SEE IT HERE ]' }).click();
+    await page.getByRole('button', { name: '[ FROM THE HOUSE ]' }).click();
     await say(page, 'SERVER EYE');
-    ok(net.asked.some((each) => each.path === '/a'), 'SEE IT HERE is the server, once');
+    ok(net.asked.some((each) => each.path === '/a'), 'FROM THE HOUSE is the server, once');
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.locator('[data-seeing-elsewhere]').waitFor({ timeout: 60000 });
-    ok((await opened()).length === 0, 'a page that was only open when BROWSER loaded waits for a press');
+    await page.locator('[data-seeing-own-frame]').waitFor({ timeout: 60000 });
+    ok((await opened()).length === 0, 'a page open when BROWSER loads is shown here again, and opens nothing elsewhere');
     await go(page, YT);
-    await page.locator('[data-seeing-elsewhere]').waitFor();
-    ok((await opened()).at(-1) === YT && (await offer.count()) === 0, "YouTube opens in an ordinary tab, signed in, and asks nothing: its videos play there as in the browser, because it is the browser");
-    ok(/\[ ADD youtube\.com \]/.test(await page.locator('[data-seeing-add-site]').innerText()), 'ADD youtube.com, in words, for the machine\'s own page');
+    await page.locator('[data-seeing-own-frame]').waitFor();
+    ok((await page.locator('[data-seeing-own-frame]').getAttribute('src')) === 'https://www.youtube.com/embed/aqz-KE-bpKQ?autoplay=1', "a YouTube video is YouTube's own player inside BROWSER's tab, added or not: the watch page stops itself in a frame (the white page)");
+    ok((await offer.count()) === 0, 'and the sign-in line is not shown: OWN EYE is signed in already where it can be');
+    await go(page, 'https://www.youtube.com/');
+    await page.locator('[data-seeing-own="add"]').waitFor();
+    ok(/SHOW YOUTUBE\.COM HERE/.test(await page.locator('[data-seeing-own]').innerText()), "YouTube's own pages, not added: BROWSER offers to add it, to show it here");
+    await page.evaluate(() => sessionStorage.setItem('pretend', JSON.stringify({ ...JSON.parse(sessionStorage.getItem('pretend')), sites: ['seeing-fixture.org', 'youtube.com'] })));
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await page.locator('[data-seeing-own-frame]').waitFor();
+    ok((await page.locator('[data-seeing-own-frame]').getAttribute('src')) === 'https://www.youtube.com/', 'added, it is shown here');
+    await page.evaluate(() => sessionStorage.setItem('pretend', JSON.stringify({ ...JSON.parse(sessionStorage.getItem('pretend')), sites: ['seeing-fixture.org'] })));
+    await go(page, YT);
+    await page.locator('[data-seeing-own-frame]').waitFor();
+    ok(/\[ ADD youtube\.com \]/.test(await page.locator('[data-seeing-add-site]').innerText()), 'ADD youtube.com, in words');
     await page.locator('[data-seeing-add-site]').click();
     await page.waitForTimeout(300);
-    ok((await opened('machine')).at(-1) === YT, "which opens the machine's own page, where it is added");
+    ok((await opened('machine')).at(-1) === YT, "which opens the machine's own page, where a site is added");
     await page.locator('[data-seeing-eye]').click();
     await offer.waitFor();
     ok((await offer.getAttribute('data-seeing-sign-in')) === 'add', "through the server's eye, YouTube not on the list: LOG IN TO YOUTUBE");
@@ -1307,14 +1325,14 @@ async function ownEyeFirst(browser) {
     await page.evaluate(() => localStorage.removeItem(Object.keys(localStorage).find((each) => each.startsWith('debaser-seeing-not-again-v1:'))));
     await pretend({ version, sites: ['seeing-fixture.org', 'youtube.com'] });
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.locator('[data-seeing-elsewhere]').waitFor({ timeout: 60000 });
+    await page.locator('[data-seeing-own-frame]').waitFor({ timeout: 60000 });
     await page.waitForTimeout(1200);
     ok((await offer.count()) === 0 && /ON THE LIST: youtube\.com/.test(await page.locator('[data-seeing-add-site]').innerText()), 'on the list: nothing is offered');
     await page.screenshot({ path: join(OUT, 'own-eye-first.png') });
 
     // The default switched, and remembered.
     // (The server asks for the page and is told there is no such site: the pretend internet has no YouTube. Either way it is asked here.)
-    const here = () => page.waitForFunction(() => /REFUSED|RECONSTRUCTED|NOT ASKED OF THE SERVER/.test(document.querySelector('[data-seeing-status]')?.textContent ?? '') && document.querySelector('[data-seeing-elsewhere]') === null, null, { timeout: 30000 });
+    const here = () => page.waitForFunction(() => /REFUSED|RECONSTRUCTED|NOT ASKED OF THE SERVER/.test(document.querySelector('[data-seeing-status]')?.textContent ?? '') && document.querySelector('[data-seeing-own]') === null, null, { timeout: 30000 });
     await page.locator('[data-seeing-eye]').click();
     await here();
     ok(true, 'OPENS IN: SERVER EYE asks for it here');

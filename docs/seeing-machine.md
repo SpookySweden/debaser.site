@@ -97,6 +97,19 @@ Proof: `drive-see.cjs --only lenses` (DYE and GLASS measured on every theme, 5.5
   lifted by a session rule that names the machine's tab, the machine or an added site as the asker, and added sites only, never a sign-in; it goes
   when the machine's page does. `Temp/check-see-extension.cjs`, `scripts/drive-see-extension.cjs` (26, pretend sites, signed in to nothing).
 
+## OWN EYE inside BROWSER's own tab (Luke, 2026-11-27: "not open in a new tab but inside a 'new tab' inside of debasers browser module")
+- With the extension, OWN EYE shows the page in BROWSER's tab, in a frame on debaser.site (`SeeingOwnFrame`), sandboxed so it can't move or read
+  the page (`OWN_FRAME_SANDBOX`: no top navigation). BROWSER holds itself open to the extension while it is drawn (`holdOwnEye`, a port); the
+  extension lifts an added site's no-framing rule for frames in that tab only, and lets go when the page does. `frame.js` tells it where a framed
+  page got to, and it tells that tab's BROWSER page alone.
+- **Signed in where the site allows it here**: a framed page is sent only the cookies a site marks for use inside other sites (SameSite=None).
+  Google's are, so YouTube can be; many sites' aren't, and are signed out here. The extension does not copy or loosen a site's cookies to get
+  round that: it would weaken them everywhere. IN A TAB and IN THE MACHINE are one press away, and a page that says nothing in 8 seconds is said not
+  to have shown here.
+- A YouTube video is YouTube's own player (`/embed/`): its watch page stops itself in a frame (the white page). Sign-in pages are never framed (D1).
+- Proved with real cookies on pretend https sites: `scripts/drive-see-own-frame.cjs` (11); BROWSER's side: `drive-see --only owneye` (31).
+- The eyes say their purpose: OWN EYE "your browser, signed in as you"; SERVER EYE "from the house, never signed in, rebuilt through the lenses".
+
 ## Signed in by default, as in Chrome or Edge (Luke, 2026-11-27)
 - **OWN EYE opens an ordinary tab** of the reader's own browser (`openTab` in the extension's worker), with the machine's lenses in its side panel
   (opened by itself where the browser lets it; its key in the bar always does). Tabs, back and forward, sign-ins, video, passwords and downloads

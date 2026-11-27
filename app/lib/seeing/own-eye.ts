@@ -85,6 +85,24 @@ export async function tellOwnEyeTheme(themeId: string): Promise<void> {
   await say({ see: 'theme', theme: ownEyeTheme(theme.tokens, theme.scheme) });
 }
 
+/** BROWSER's page, held open to the extension while it is drawn: an added site may then be framed in its tabs. What a framed page says is a stranger's. */
+export function holdOwnEye(onAt: (href: string, title: string) => void): () => void {
+  const own = (globalThis as typeof globalThis & { chrome?: { runtime?: { connect?: (id: string, info: { name: string }) => { onMessage: { addListener: (hear: (value: unknown) => void) => void }; disconnect: () => void } } } }).chrome?.runtime;
+  if (own?.connect === undefined) return () => undefined;
+  let port: ReturnType<NonNullable<typeof own.connect>> | null = null;
+  try {
+    port = own.connect(EXTENSION_ID, { name: 'browser' });
+    port.onMessage.addListener((value) => {
+      const href = field(value, 'href');
+      const title = field(value, 'title');
+      if (field(value, 'see') === 'at' && typeof href === 'string' && /^https?:\/\//.test(href) && href.length <= 4000) onAt(href, typeof title === 'string' ? title.slice(0, 160) : '');
+    });
+  } catch {
+    port = null;
+  }
+  return () => port?.disconnect();
+}
+
 /** In an ordinary tab, signed in, the lenses beside it (the default); or in the machine's own page, its frame. */
 export async function openInOwnEye(address: string, where: 'tab' | 'machine' = 'tab'): Promise<void> {
   await say({ see: 'open', address, in: where });
