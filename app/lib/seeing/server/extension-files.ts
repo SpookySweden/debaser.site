@@ -37,13 +37,16 @@ export async function extensionList(): Promise<ExtensionList> {
 
 const FOLDER = 'debaser-extension';
 
-/** A plain zip: one folder, each file deflated. (1980: a zip's first day, so the same files make the same bytes.) */
-export function zipOf(files: readonly { name: string; bytes: Buffer }[]): Buffer {
+/**
+ * A plain zip: one folder, each file deflated. (1980: a zip's first day, so the same files make the same bytes.) `folder: ''` puts the
+ * files at the top of the zip, as the stores want them (they read manifest.json there).
+ */
+export function zipOf(files: readonly { name: string; bytes: Buffer }[], folder = FOLDER): Buffer {
   const parts: Buffer[] = [];
   const names: Buffer[] = [];
   let at = 0;
   for (const { name, bytes } of files) {
-    const called = Buffer.from(`${FOLDER}/${name}`, 'utf8');
+    const called = Buffer.from(folder ? `${folder}/${name}` : name, 'utf8');
     const packed = deflateRawSync(bytes, { level: 9 });
     const head = Buffer.alloc(26);
     head.writeUInt16LE(20, 0);
@@ -86,5 +89,5 @@ export async function extensionZip(store = false): Promise<{ name: string; bytes
       files.push({ name, bytes: Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`, 'utf8') });
     } else files.push({ name, bytes });
   }
-  return { name: `${FOLDER}-${store ? 'store-' : ''}${(await extensionList()).version}.zip`, bytes: zipOf(files) };
+  return { name: `${FOLDER}-${store ? 'store-' : ''}${(await extensionList()).version}.zip`, bytes: zipOf(files, store ? '' : FOLDER) };
 }

@@ -110,8 +110,10 @@ assert.ok(!/allow-top-navigation/.test(read('machine.html')));
   if (process.platform === 'win32') {
     require('node:child_process').execFileSync('powershell', ['-NoProfile', '-Command', `Expand-Archive -LiteralPath '${path.join(dir, 'store.zip')}' -DestinationPath '${path.join(dir, 'store')}'`]);
     const { key: _key, ...rest } = manifest;
-    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir, 'store', 'debaser-extension', 'manifest.json'), 'utf8')), rest, "the store's manifest is the same but for the key");
-    for (const file of files) if (file !== 'manifest.json') assert.ok(fs.readFileSync(path.join(dir, 'store', 'debaser-extension', file)).equals(Buffer.from(read(file))), `${file} in the store's copy`);
+    // Both stores read manifest.json at the top of the zip, not inside a folder (it was in one on 3d6537f: the upload would be refused).
+    assert.ok(!fs.existsSync(path.join(dir, 'store', 'debaser-extension')), "the store's copy has no folder round its files");
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir, 'store', 'manifest.json'), 'utf8')), rest, "the store's manifest is at the top of the zip, the same but for the key");
+    for (const file of files) if (file !== 'manifest.json') assert.ok(fs.readFileSync(path.join(dir, 'store', file)).equals(Buffer.from(read(file))), `${file} in the store's copy`);
   }
   fs.rmSync(dir, { recursive: true, force: true });
   // (2026-11-27) The version before this one, so a store's copy one behind is let be: from the record of versions, in order.
