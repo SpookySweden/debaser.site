@@ -10,6 +10,11 @@ From debaser.site: your profile's SETTINGS, EXTENSION. It has the download, and 
 3. Press **Load unpacked** and choose this folder (`extension`).
 4. Press the puzzle-piece key in the browser's bar and pin DEBASER SEEING MACHINE.
 
+## Sign-ins and IMPORT
+Adding a site that shares a sign-in (Google, Microsoft, Apple, Meta, Amazon) offers all of that company's sites at once, named first. SITES has
+ADD A SIGN-IN and IMPORT FROM THIS BROWSER: the sites this browser has been to in the last 30 days, by name, ticked; the browser asks for leave
+to read its history, which is used once and given back. Nothing of it leaves the extension's page.
+
 ## Keep it up to date
 A browser never updates a folder by itself. In the site's EXTENSION panel, CHOOSE ITS FOLDER once: the site then writes each new version into that
 folder, every file checked against a list made when the site was built, and asks the extension to read itself again. The browser asks you first, and

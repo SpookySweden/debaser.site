@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { explain } from '../../lib/ui/explain';
 import { PLATE, PLATE_MAIN } from '../../lib/ui/controls';
 
 const PUT_AWAY_KEY = 'debaser-seeing-signed-in-later-v1';
@@ -34,12 +35,12 @@ export default function SeeingGetSignedIn({ extension, onGet }: { extension: 'mi
       ) : (
         <>
           TO USE IT SIGNED IN, AS YOU WOULD CHROME OR EDGE:
-          <button type="button" onClick={onGet} className={PLATE_MAIN}>
+          <button type="button" onClick={onGet} className={PLATE_MAIN} {...explain('Opens the EXTENSION window: the download and the four steps to put it in, or the update.', 'With it, pages open in your own browser, signed in as you, inside BROWSER.')}>
             {extension === 'old' ? 'UPDATE THE EXTENSION' : 'GET THE EXTENSION'}
           </button>
         </>
       )}
-      <button type="button" onClick={later} className={PLATE}>
+      <button type="button" onClick={later} className={PLATE} {...explain('Puts this line away until you next open the site.', 'BROWSER works without the extension: pages then come from the house, signed out.')}>
         {extension === 'unable' ? '[ OK ]' : '[ NOT NOW ]'}
       </button>
     </p>

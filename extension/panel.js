@@ -3,7 +3,7 @@
  * that tab and no other (activeTab); a tab it has no leave for says so.
  */
 import { findMedia, findWatchers, LENSES, list, putLens, toRoom, toServerEye, wear } from './act.js';
-import { isAllowed, neverFramed, originsOf, siteOf } from './sites.js';
+import { groupOf, isAllowed, neverFramed, originsOfAll, siteOf } from './sites.js';
 
 const at = (id) => document.getElementById(id);
 const tabNow = async () => (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
@@ -25,9 +25,12 @@ async function look() {
   const add = at('add');
   add.hidden = on === null;
   add.disabled = on === true;
-  add.textContent = on ? '[ ✓ ON THE LIST: ' + site + ' ]' : '[ ADD ' + site + ' ]';
+  // A site that shares its sign-in brings the rest of them, named on the key before it is pressed.
+  const group = groupOf(site);
+  add.textContent = on ? '[ ✓ ON THE LIST: ' + site + ' ]' : group === null ? '[ ADD ' + site + ' ]' : '[ ADD ' + group.name + ': ' + site + ' AND ' + (group.sites.length - 1) + ' MORE ]';
+  add.title = group === null ? site : group.sites.join(', ');
   add.onclick = async () => {
-    if (await chrome.permissions.request({ origins: originsOf(site) })) await chrome.runtime.sendMessage({ see: 'rules' });
+    if (await chrome.permissions.request({ origins: originsOfAll(group === null ? [site] : group.sites) })) await chrome.runtime.sendMessage({ see: 'rules' });
     await look();
   };
   const where = { tabId: tab.id };

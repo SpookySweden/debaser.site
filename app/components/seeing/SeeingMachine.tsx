@@ -56,6 +56,7 @@ import { shownLine } from '../../lib/seeing/status-line';
 import SeeingOwnFrame from './SeeingOwnFrame';
 import SeeingShell from './SeeingShell';
 import SeeingGetSignedIn from './SeeingGetSignedIn';
+import SeeingFirstVisit from './SeeingFirstVisit';
 import { shellOf } from '../../lib/seeing/shells';
 import SeeingHistory from './SeeingHistory';
 import SeeingSignIn from './SeeingSignIn';
@@ -747,6 +748,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
       </SeeingTools>
       </div>
 
+      <SeeingFirstVisit owner={owner.id} />
       {extension === 'missing' || extension === 'old' || extension === 'unable' ? <SeeingGetSignedIn extension={extension} onGet={openExtensionWindow} /> : null}
       {offering && offer !== null ? (
         <SeeingSignIn

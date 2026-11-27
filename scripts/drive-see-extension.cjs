@@ -4,6 +4,7 @@
  * by a script) and the local pretend site standing in for debaser.site. Signs in to nothing.
  *
  *   node scripts/drive-see-extension.cjs
+ *   STORE_SHOTS=docs/extension-store node scripts/drive-see-extension.cjs     (also the Chrome Web Store's pictures, 1280 x 800, of the real thing)
  */
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -86,6 +87,7 @@ const STORY = `<title>Shop</title><nav>menu</nav><article><h1>The shop</h1>${'<p
       await page.waitForTimeout(400);
       ok((await status()).includes(`LENS: ${label}`), `${name} is put on`);
       if (name === 'LOW-FI') ok((await inner().evaluate(() => getComputedStyle(document.querySelector('article p')).color)) === 'rgb(255, 255, 255)', 'in the theme');
+      if (process.env.STORE_SHOTS) await page.screenshot({ path: path.join(process.env.STORE_SHOTS, `store-${name.toLowerCase().replace(/[^a-z]+/g, '-')}.png`) });
     }
     await page.getByRole('button', { name: '[ STANDARD ]', exact: true }).click();
     await page.waitForTimeout(300);
@@ -179,6 +181,19 @@ const STORY = `<title>Shop</title><nav>menu</nav><article><h1>The shop</h1>${'<p
     await page.goto(`chrome-extension://${id}/machine.html#see=${encodeURIComponent('https://www.youtube.com/watch?v=x')}`);
     await page.waitForTimeout(1200);
     ok(/STOPS ITSELF IN A FRAME/.test(await page.locator('#door').innerText()) && (await page.locator('#page').getAttribute('src')) === null, 'YouTube is never framed: OPEN IT IN A TAB');
+
+    // A site that shares its sign-in offers the whole company, named before the press; SITES offers each company and IMPORT.
+    await page.goto('about:blank');
+    await page.goto(`chrome-extension://${id}/machine.html#see=${encodeURIComponent('https://www.google.com/maps')}`);
+    await page.waitForTimeout(1200);
+    const googleDoor = await page.locator('#door').innerText();
+    ok(/\[ ADD google\.com \]/.test(googleDoor) && /GOOGLE SIGNS YOU IN TO google\.com, youtube\.com, gmail\.com/.test(googleDoor) && /\[ ADD ALL OF GOOGLE \]/.test(googleDoor), `a Google site offers itself, and all of Google's sites in one press, named first (${googleDoor.replace(/s+/g, ' ').slice(0, 200)})`);
+    await page.locator('#sites').click();
+    await page.waitForTimeout(500);
+    const sitesView = await page.locator('#beside').innerText();
+    if (process.env.STORE_SHOTS) await page.screenshot({ path: path.join(process.env.STORE_SHOTS, 'store-sign-ins.png') });
+    ok(/ADD A SIGN-IN/.test(sitesView) && /\[ GOOGLE \]/.test(sitesView) && /\[ MICROSOFT \]/.test(sitesView) && /\[ IMPORT FROM THIS BROWSER \]/.test(sitesView), 'SITES offers each sign-in, and IMPORT FROM THIS BROWSER');
+    ok((await context.serviceWorkers().at(-1).evaluate(() => chrome.permissions.contains({ permissions: ['history'] }))) === false, "and holds no leave to read the browser's history until IMPORT is pressed");
 
     // Asked by the site whether the page in front is on its list: that one, and never the list.
     await page.goto('http://www.machinesite.test/');

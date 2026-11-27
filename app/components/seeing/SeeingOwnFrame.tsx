@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { explain, NOTE } from '../../lib/ui/explain';
 import { PLATE, PLATE_MAIN } from '../../lib/ui/controls';
 import { youtubeId } from '../../lib/watch/links';
 
@@ -38,13 +39,13 @@ export default function SeeingOwnFrame({ address, onList, site, at, onTab, onMac
   const silent = !embedded && loadedAt !== null && at === null && now - loadedAt >= SILENT_MS;
   const keys = (
     <>
-      <button type="button" onClick={onTab} title="In an ordinary tab of your browser, where every site works as usual" className={PLATE}>
+      <button type="button" onClick={onTab} title="In an ordinary tab of your browser, where every site works as usual" className={PLATE} {...explain('Opens this page in an ordinary tab of your own browser.', 'For a site that is signed out or stops itself inside BROWSER: in a tab, it is exactly as in your browser.', NOTE.leaves)}>
         [ IN A TAB ↗ ]
       </button>
-      <button type="button" onClick={onMachine} title="The machine's own page, with every lens" className={PLATE}>
+      <button type="button" onClick={onMachine} title="The machine's own page, with every lens" className={PLATE} {...explain('Opens this page in the extension\'s own page, the machine, in a tab of its own.', 'The machine can put every lens on a page: READER, X-RAY, LOW-FI, YOUR THEME.')}>
         [ IN THE MACHINE ↗ ]
       </button>
-      <button type="button" onClick={onHouse} title="Looked at from the house: never signed in, rebuilt through the lenses" className={PLATE}>
+      <button type="button" onClick={onHouse} title="Looked at from the house: never signed in, rebuilt through the lenses" className={PLATE} {...explain('Shows this page here as the server sees it: from the house, never signed in, rebuilt through the lenses.', 'To read a page without it seeing you, or to use every lens here.', 'THE SITE NAME AND THE TIME ARE WRITTEN DOWN.')}>
         [ FROM THE HOUSE ]
       </button>
     </>
@@ -56,7 +57,7 @@ export default function SeeingOwnFrame({ address, onList, site, at, onTab, onMac
           <p className="title-line text-ink">SHOW {site.toUpperCase()} HERE</p>
           <p className="mt-2">YOUR OWN BROWSER SHOWS A SITE HERE ONCE IT IS ADDED: ONE PRESS IN THE MACHINE&apos;S PAGE, AND YOUR BROWSER ASKS TOO.</p>
           <p className="mt-2 flex flex-wrap gap-1">
-            <button type="button" onClick={onAdd} className={PLATE_MAIN}>
+            <button type="button" onClick={onAdd} className={PLATE_MAIN} {...explain('Opens the machine\'s page, where one press adds this site to the extension\'s list; your browser asks too.', 'A site is shown here, from your own browser, only once it is on the list.')}>
               ADD {site} ↗
             </button>
             {keys}

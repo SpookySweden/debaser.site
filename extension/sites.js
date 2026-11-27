@@ -153,6 +153,21 @@ export function inATab(address) {
   }
 }
 
+/**
+ * Sites that share one sign-in: adding one offers the rest, in one press and one box of the browser's. From each company's own sites (Google's
+ * country domains are left to a press of their own: they are many, and each is asked for by name). Each stays removable on its own.
+ */
+export const SIGN_IN_GROUPS = [
+  { name: 'GOOGLE', sites: ['google.com', 'youtube.com', 'gmail.com', 'youtube-nocookie.com', 'googleusercontent.com', 'ytimg.com', 'ggpht.com', 'blogger.com', 'google.co.uk'] },
+  { name: 'MICROSOFT', sites: ['microsoft.com', 'live.com', 'office.com', 'outlook.com', 'bing.com', 'xbox.com', 'microsoftonline.com', 'sharepoint.com', 'onedrive.com'] },
+  { name: 'APPLE', sites: ['apple.com', 'icloud.com'] },
+  { name: 'META', sites: ['facebook.com', 'instagram.com', 'messenger.com', 'threads.com', 'whatsapp.com'] },
+  { name: 'AMAZON', sites: ['amazon.com', 'amazon.co.uk', 'primevideo.com', 'audible.co.uk', 'audible.com'] },
+];
+export const groupOf = (site) => SIGN_IN_GROUPS.find((group) => group.sites.includes(site)) ?? null;
+/** The origins a set of sites is asked for under: one box of the browser's for all of them. */
+export const originsOfAll = (sites) => [...new Set(sites.flatMap(originsOf))];
+
 export const originsOf = (site) => (/^[\d.]+$/.test(site) ? ['https://' + site + '/*', 'http://' + site + '/*'] : ['https://' + site + '/*', 'https://*.' + site + '/*', 'http://' + site + '/*', 'http://*.' + site + '/*']);
 
 export async function allowedSites() {

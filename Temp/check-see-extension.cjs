@@ -25,6 +25,9 @@ const manifest = JSON.parse(read('manifest.json'));
 assert.equal(manifest.manifest_version, 3);
 assert.deepEqual([...manifest.permissions].sort(), ['activeTab', 'declarativeNetRequestWithHostAccess', 'scripting', 'sidePanel', 'storage'], 'nothing that reads cookies, history, other tabs or requests');
 assert.equal(manifest.host_permissions, undefined, 'no site until it is added');
+// (2026-11-27) IMPORT FROM THIS BROWSER reads the browser's history once, on a press, and gives the leave back at once.
+assert.deepEqual(manifest.optional_permissions, ['history'], 'nothing else to ask for later');
+assert.ok(read('machine.js').includes("await chrome.permissions.remove({ permissions: ['history'] }).catch(() => undefined);") && !/chrome\.history/.test(read('worker.js') + read('panel.js') + read('act.js')), 'given back after the one read, and read nowhere else');
 assert.equal(manifest.content_scripts, undefined, 'and on no page until it is asked');
 // (2026-11-27) and in one of BROWSER's tabs on debaser.site, where OWN EYE shows a page in a frame too.
 assert.equal(read('frame.js').replace(/^\/\*[\s\S]*?\*\/\n/, ''), "if (window !== window.top && window.parent === window.top && (location.ancestorOrigins[0] === 'chrome-extension://' + chrome.runtime.id || location.ancestorOrigins[0] === 'https://debaser.site')) {\n  chrome.runtime.sendMessage({ see: 'frame', href: location.href, title: document.title.slice(0, 160) }).catch(() => undefined);\n}\n", "what runs on an added site says where it is, in the machine's frame or BROWSER's, and nothing else");

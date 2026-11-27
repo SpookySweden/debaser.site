@@ -97,6 +97,17 @@ Proof: `drive-see.cjs --only lenses` (DYE and GLASS measured on every theme, 5.5
   lifted by a session rule that names the machine's tab, the machine or an added site as the asker, and added sites only, never a sign-in; it goes
   when the machine's page does. `Temp/check-see-extension.cjs`, `scripts/drive-see-extension.cjs` (26, pretend sites, signed in to nothing).
 
+## Sign-in groups, IMPORT, the first visit, the store (Luke, 2026-11-27)
+- `SIGN_IN_GROUPS` (extension/sites.js): adding a site that shares a sign-in offers the whole company's sites, named before the press, in one box
+  of the browser's (the machine's door, the panel's ADD); each stays removable on its own in SITES, which also has ADD A SIGN-IN.
+- IMPORT FROM THIS BROWSER (SITES): the browser's `history` permission, optional, asked for on the press, used once to list site names from the last
+  30 days (a company's sign-in first, ticked) and given back at once. Chosen over `cookies`, which would hand the extension every cookie's value
+  and is what the store reviews hardest; the history gives names only. Nothing leaves the extension's page.
+- The first visit (`SeeingFirstVisit`): what each eye is for, what each lets you do, and that the server's eye writes down which sites it opens,
+  kept with no end date (D3), until UNDERSTOOD. The same is on /privacy, with the extension's own section.
+- The Chrome Web Store: `docs/extension-store/` holds what to paste, the screenshots (1280 x 800, from `STORE_SHOTS=... drive-see-extension`) and
+  exactly what Luke presses. The icon and the promotional tile are his to draw.
+
 ## OWN EYE inside BROWSER's own tab (Luke, 2026-11-27: "not open in a new tab but inside a 'new tab' inside of debasers browser module")
 - With the extension, OWN EYE shows the page in BROWSER's tab, in a frame on debaser.site (`SeeingOwnFrame`), sandboxed so it can't move or read
   the page (`OWN_FRAME_SANDBOX`: no top navigation). BROWSER holds itself open to the extension while it is drawn (`holdOwnEye`, a port); the

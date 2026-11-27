@@ -4,7 +4,7 @@
  * always done in an ordinary tab: a sign-in page is never framed.
  */
 import { findMedia, findWatchers, LENSES, list, putLens, settings, toRoom, toServerEye, wear } from './act.js';
-import { allowedSites, inATab, isAllowed, neverFramed, originsOf, readAddress, siteOf } from './sites.js';
+import { allowedSites, groupOf, inATab, isAllowed, neverFramed, originsOf, originsOfAll, readAddress, SIGN_IN_GROUPS, siteOf } from './sites.js';
 
 const at = (id) => document.getElementById(id);
 const frame = at('page');
@@ -59,13 +59,17 @@ async function show(text) {
   }
   if (!(await isAllowed(read))) {
     frame.removeAttribute('src');
-    door(`THE MACHINE MAY ACT ON A SITE ONLY WHEN YOU ADD IT.`, `ADD ${site}`, async () => {
-      // One site, and everything under its name. The browser asks too.
-      if (await chrome.permissions.request({ origins: originsOf(site) })) {
+    const group = groupOf(site);
+    const add = (sites) => async () => {
+      // The sites named, and everything under their names, in one box of the browser's.
+      if (await chrome.permissions.request({ origins: originsOfAll(sites) })) {
         await chrome.runtime.sendMessage({ see: 'rules' });
         await show(read);
       }
-    });
+    };
+    door(`THE MACHINE MAY ACT ON A SITE ONLY WHEN YOU ADD IT.`, `ADD ${site}`, add([site]));
+    // A site that shares its sign-in: the rest of them, named before the press.
+    if (group !== null) door2(`${group.name} SIGNS YOU IN TO ${group.sites.join(', ')}.`, `ADD ALL OF ${group.name}`, add(group.sites));
     return say(`NOT ADDED: ${site}`);
   }
   at('door').hidden = true;
@@ -73,6 +77,16 @@ async function show(text) {
   frameId = null;
   frame.src = read;
   say('ACQUIRING SOURCE');
+}
+
+/** A second offer under the first. */
+function door2(words, label, press) {
+  const line = document.createElement('p');
+  line.textContent = words;
+  const key = document.createElement('button');
+  key.textContent = '[ ' + label + ' ]';
+  key.addEventListener('click', press);
+  at('door').append(line, key);
 }
 
 function door(words, label, press) {
@@ -112,12 +126,82 @@ async function open(which) {
       await chrome.runtime.sendMessage({ see: 'rules' });
       await open('sites');
     }]] })), 'NO SITE ADDED.');
+    // Sign-ins, each a whole company's sites in one press; and IMPORT, the sites this browser has been to.
+    const offers = document.createElement('div');
+    const heading = document.createElement('h2');
+    heading.textContent = 'ADD A SIGN-IN';
+    offers.append(heading);
+    for (const group of SIGN_IN_GROUPS) {
+      const missing = group.sites.filter((each) => !sites.includes(each));
+      if (missing.length === 0) continue;
+      const key = document.createElement('button');
+      key.textContent = '[ ' + group.name + ' ]';
+      key.title = group.sites.join(', ');
+      key.addEventListener('click', async () => {
+        if (await chrome.permissions.request({ origins: originsOfAll(missing) })) await chrome.runtime.sendMessage({ see: 'rules' });
+        await open('sites');
+      });
+      offers.append(key);
+    }
+    const importing = document.createElement('button');
+    importing.textContent = '[ IMPORT FROM THIS BROWSER ]';
+    importing.title = 'The sites this browser has been to in the last 30 days, offered ticked; read here and given back at once';
+    importing.addEventListener('click', () => void importSites(offers));
+    offers.append(document.createElement('br'), importing);
+    into.append(offers);
     return;
   }
   const where = await target();
   if (where === null) return list(into, [], 'NOTHING SHOWN.');
   if (which === 'media') list(into, ((await findMedia(where).catch(() => null)) ?? []).map(({ address: media, title }) => ({ words: title, small: media, keys: [['TO THE ROOM ↗', () => toRoom(media, title)]] })), 'NOTHING FOUND.');
   else list(into, ((await findWatchers(where).catch(() => null)) ?? []).map(({ host, count }) => ({ words: host, small: String(count) })), 'NOBODY.');
+}
+
+/**
+ * IMPORT FROM THIS BROWSER: the sites this browser has been to in the last 30 days, by name only, offered ticked (a company's sign-in first). The
+ * leave to read the browser's history is asked for on the press, used once and given back; nothing of it leaves this page.
+ */
+async function importSites(into) {
+  if (!(await chrome.permissions.request({ permissions: ['history'] }))) return;
+  let visits = [];
+  try {
+    visits = await chrome.history.search({ text: '', startTime: Date.now() - 30 * 86_400_000, maxResults: 5000 });
+  } finally {
+    await chrome.permissions.remove({ permissions: ['history'] }).catch(() => undefined);
+  }
+  const counts = new Map();
+  for (const visit of visits) {
+    const read = readAddress(visit.url ?? '');
+    if (read === null || neverFramed(read)) continue;
+    const site = siteOf(new URL(read).hostname);
+    counts.set(site, (counts.get(site) ?? 0) + (visit.visitCount ?? 1));
+  }
+  const already = await allowedSites();
+  const offered = [...counts].filter(([site]) => !already.includes(site)).sort((a, b) => Number(groupOf(b[0]) !== null) - Number(groupOf(a[0]) !== null) || b[1] - a[1]).slice(0, 40);
+  const box = document.createElement('div');
+  box.id = 'import';
+  if (offered.length === 0) box.textContent = 'NOTHING NEW TO ADD.';
+  for (const [site] of offered) {
+    const line = document.createElement('label');
+    line.className = 'row';
+    const tick = document.createElement('input');
+    tick.type = 'checkbox';
+    tick.checked = true;
+    tick.value = site;
+    line.append(tick, ' ' + site + (groupOf(site) ? ' (' + groupOf(site).name + ')' : ''));
+    box.append(line);
+  }
+  const add = document.createElement('button');
+  add.textContent = '[ ADD THE TICKED ]';
+  add.disabled = offered.length === 0;
+  add.addEventListener('click', async () => {
+    const ticked = [...box.querySelectorAll('input:checked')].map((each) => each.value);
+    if (ticked.length > 0 && (await chrome.permissions.request({ origins: originsOfAll(ticked) }))) await chrome.runtime.sendMessage({ see: 'rules' });
+    await open('sites');
+  });
+  box.append(add);
+  into.querySelector('#import')?.remove();
+  into.append(box);
 }
 
 for (const [id, label] of LENSES) {

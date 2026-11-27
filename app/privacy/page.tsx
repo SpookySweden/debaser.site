@@ -65,6 +65,25 @@ const SECTIONS: { heading: string; lines: string[] }[] = [
     ],
   },
   {
+    heading: 'BROWSER, THE SEEING MACHINE',
+    lines: [
+      'BROWSER shows other websites in two ways. OWN EYE is your own browser, signed in as you, through the DEBASER extension: the page comes from your own connection, nothing of it passes through the site, and nothing about it is written down.',
+      'The server’s eye fetches a page you ask for from the site’s server, on its owner’s home connection, never signed in: the website sees that connection, not yours. Nothing it fetches is kept, except a page you press KEEP PAGE for.',
+      'For every account but the owner’s, the server’s eye writes down which site it opened (its name only, never the page or its address) and when. This record is kept with no end date and read only by the site’s owner, so that anything done from the house’s connection can be traced to an account. To see or have your lines removed, ask; it is done by hand.',
+      'Your BROWSER history and open tabs are kept on your account, read by you alone, and cleared by one key. Notes you leave on a page are seen by people with an account who open it; a page you keep is seen by everyone, its full copy by people with an account.',
+      'Words you search for go to the search engine you choose. In the server’s eye that engine sees the house’s connection; they are never stored by the site.',
+    ],
+  },
+  {
+    heading: 'THE DEBASER EXTENSION',
+    lines: [
+      'The extension acts only on sites you add to it, and on the tab you press its key on. It never reads your passwords or cookies.',
+      'It tells debaser.site its version, its two settings, whether the page in front of you is on its list, and what you press to send. It never sends the list of sites you added.',
+      'IMPORT FROM THIS BROWSER reads the sites your browser has been to in the last 30 days, by name, once, inside the extension, when you press it; the permission is given back straight after and nothing of it leaves your browser.',
+      'If you choose its folder, new versions are written into it by the site, each file checked against the list the site was built with, and the browser asks you first.',
+    ],
+  },
+  {
     heading: 'COOKIES AND YOUR BROWSER',
     lines: [
       'The site keeps your sign-in and a few conveniences (which panels you left open, your view choices) in your browser’s own storage. There are no advertising or tracking cookies.',
@@ -86,7 +105,7 @@ const SECTIONS: { heading: string; lines: string[] }[] = [
   },
   {
     heading: 'CHANGES',
-    lines: ['If what the site keeps changes, this page changes with it. Last changed 14 November 2026.'],
+    lines: ['If what the site keeps changes, this page changes with it. Last changed 27 November 2026.'],
   },
 ];
 

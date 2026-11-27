@@ -127,6 +127,11 @@ Each can be changed later by saying so.
 55. **OWN EYE is inside BROWSER's own tab** (Luke, 2026-11-27: "i also need own eye to not open in a new tab but inside a 'new tab' inside of
     debasers browser module"; it replaces 54's default): the page in a frame on BROWSER's page, signed in where the site lets its sign-in work inside
     another site, a real tab and the machine's page one press away. YouTube's videos are its own player. Nothing loosens a site's cookies.
+56. **A sign-in brings its company** (Luke, 2026-11-27: "link your sign ins to add all related pages ... and have an import button"): adding a
+    Google, Microsoft, Apple, Meta or Amazon site offers all of that company's sites, named first, in one box of the browser's. IMPORT reads the
+    browser's history (site names, 30 days), not its cookies, asked for on the press and given back at once.
+57. **The first visit says what each eye is for**, and that the server's eye writes down sites opened, kept with no end date (Luke's "Keep
+    forever", 2026-11-27), as D3 always asked; /privacy says it too.
 
 ## Risks, said once
 1. **SERVER is beside everything.** The torrent page (no password at home), Jellyfin, the database and its dashboard, the
