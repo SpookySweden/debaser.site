@@ -32,6 +32,7 @@ import {
   toggleSearch,
 } from '../lib/search/site-search';
 import { FIELD, PLATE } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 import { searchEverywhere } from '../lib/web/everywhere-client';
 import { getCanvasRepository, type StreamArtPiece } from '../lib/watch/canvas-repository';
 import type { WebStreamItem } from '../lib/web/dedupe';
@@ -266,7 +267,7 @@ export function SearchBody({ initial, onLeave }: { initial: string; onLeave: () 
           className={`${FIELD} min-w-0 flex-1`}
           maxLength={200}
         />
-        <button type="submit" className={PLATE}>
+        <button type="submit" className={PLATE} {...explain('Searches the whole site for what you typed in the box.', 'The site\x27s own posts, people, docs, files, drawings, recommendations and your books come first, then the outside platforms. Enter in the box does the same.')}>
           [ SEARCH ]
         </button>
       </form>
@@ -297,7 +298,7 @@ export function SearchBody({ initial, onLeave }: { initial: string; onLeave: () 
             empty={outsideNow === null ? 'ASKING THE OUTSIDE PLATFORMS...' : outsideNow.failed ? 'THE OUTSIDE PLATFORMS DID NOT ANSWER.' : 'NOTHING OUTSIDE.'}
           />
           <p className="pt-1">
-            <Link href={`/media?q=${encodeURIComponent(asked.trim())}`} onClick={onLeave} className={PLATE}>
+            <Link href={`/media?q=${encodeURIComponent(asked.trim())}`} onClick={onLeave} className={PLATE} {...explain('Goes to MEDIA with the same search, to see every outside result.', 'This window shows only the first few from the outside platforms. MEDIA shows them all, with its filters and players.')}>
               [ ALL OF IT IN MEDIA → ]
             </Link>
           </p>

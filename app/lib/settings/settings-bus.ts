@@ -29,6 +29,8 @@ export const SYNCED_KEYS = {
   deskAuto: 'debaser.desk.auto.v1',
   // `[ KEYS IN THE PICTURE ]`, `1` on and `0` off (ROOMBARS, Luke 2026-11-21; `../watch/keys-in-picture.ts`).
   keysInPicture: 'debaser.room.keys-in-picture.v1',
+  // `[ EXPLAIN ]`, the explanation box on every key, `1` on and `0` off (Luke, 2026-11-27; `../ui/explain-mode.ts`).
+  explain: 'debaser.site.explain.v1',
 } as const;
 
 export type SyncedName = keyof typeof SYNCED_KEYS;

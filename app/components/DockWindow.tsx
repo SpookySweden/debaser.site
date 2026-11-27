@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { WINDOW_TITLE_BAR } from '../lib/ui/controls';
+import { explain, explainFrom, type Explanation } from '../lib/ui/explain';
 import { useWindowDrag } from '../lib/ui/use-window-drag';
 import {
   beginMove,
@@ -63,6 +64,12 @@ type DockWindowProps = {
   onMinimize?: () => void;
   /** The `[ _ ]` key's hover tip, when folding means something more than "out of sight" (a room: its picture floats). */
   minimizeTip?: string;
+  /**
+   * What the `×` and `[ _ ]` keys explain while EXPLAIN is on (`../lib/ui/explain.ts`), when closing or folding this window does more
+   * than put it away (a room: closing it leaves the room). Without them, the plain words below.
+   */
+  closeWords?: Explanation;
+  minimizeWords?: Explanation;
   /**
    * Folded away: still drawn, so what is inside keeps running (a video keeps playing), but invisible and out
    * of reach - the board behind it is usable and nothing in it can be tabbed to.
@@ -172,6 +179,8 @@ export default function DockWindow({
   tall,
   onMinimize,
   minimizeTip = 'Fold away (keeps playing)',
+  closeWords,
+  minimizeWords,
   minimized = false,
   pictureOut = false,
   aboveBottomBar = false,
@@ -298,6 +307,7 @@ export default function DockWindow({
                 onClick={() => detachWindow(id)}
                 aria-label={`Detach ${title} from its group`}
                 title="Detach from group"
+                {...explain(`Takes the ${title} window out of its group, so it stands and moves on its own again.`, 'Windows dropped onto each other join into a group that moves together. Shaking a window while you drag it does the same as this key.')}
                 className="hidden cursor-pointer key px-1 py-0.75 text-label font-bold leading-none sm:inline-block"
               >
                 ⇲
@@ -312,6 +322,7 @@ export default function DockWindow({
                 onClick={onMinimize}
                 aria-label={`Fold ${title} away`}
                 title={minimizeTip}
+                {...explainFrom(minimizeWords ?? { what: `Folds the ${title} window out of sight without closing it.`, why: 'Whatever is playing or loading in it keeps going. Open it again from the key that opened it.' })}
                 className="cursor-pointer key px-1 py-0.75 text-label font-bold leading-none max-sm:min-h-tap max-sm:min-w-tap max-sm:text-sm"
               >
                 [ _ ]
@@ -326,6 +337,7 @@ export default function DockWindow({
                 aria-label={live.restore === null ? `Fill the page with ${title}` : `${title} back to its size`}
                 aria-pressed={live.restore !== null}
                 title={live.restore === null ? 'Fill the page' : 'Back to its size'}
+                {...explain(live.restore === null ? `Makes the ${title} window fill the page.` : `Puts the ${title} window back to the size and place it had.`, 'For more room inside the window. Press it again, or drag the title line, to have it back as it was.')}
                 className="cursor-pointer key px-1 py-0.75 text-label font-bold leading-none"
                 data-window-maximise={live.restore === null ? 'off' : 'on'}
               >
@@ -338,6 +350,7 @@ export default function DockWindow({
               onDoubleClick={(event) => event.stopPropagation()}
               onClick={onClose}
               aria-label={`Close ${title}`}
+              {...explainFrom(closeWords ?? { what: `Closes the ${title} window.`, why: 'Puts it away so the page behind shows. Open it again from the key that opened it.' })}
               className="cursor-pointer key px-1 py-0.75 text-label font-bold leading-none max-sm:min-h-tap max-sm:min-w-tap max-sm:text-sm"
             >
               [ × ]

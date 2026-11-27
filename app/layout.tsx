@@ -40,6 +40,7 @@ import Companion from './components/Companion';
 import WatchWindow from './components/WatchWindow';
 import LetterWindow from './components/LetterWindow';
 import WindowLayoutHost from './components/WindowLayoutHost';
+import ExplainLayer from './components/ExplainLayer';
 import { cursorBootScript } from './lib/ui/cursor-slot';
 import { backdropBootScript } from './lib/ui/backdrop-slot';
 import Aquarium from './components/Aquarium';
@@ -156,6 +157,8 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
                           for a guest), saved back, and kept on screen. Draws nothing; it comes before
                           the windows so the screen is measured before an address opens one. */}
                       <WindowLayoutHost />
+                      {/* EXPLAIN (Luke, 2026-11-27): the one box that explains a key on hover or focus, while the reader's switch is on. */}
+                      <ExplainLayer />
                       <Suspense fallback={null}>
                         <ArcadeWindow />
                         <MusicWindow />

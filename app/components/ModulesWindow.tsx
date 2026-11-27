@@ -6,6 +6,7 @@ import { replayTour, TOUR_PAGE } from '../lib/ui/first-visit-tour';
 import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
 import { inkOnNameColour } from '../lib/profile/name-colours';
 import { KEY_FOCUS } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 import { MODULES, moduleColour, moduleIsOn, moduleSwatches, withColour, withTick, type ModuleDef } from '../lib/ui/modules';
 import {
   closeModulesWindow,
@@ -62,6 +63,15 @@ function ModuleRow({ module, bar }: { module: ModuleDef; bar: string }) {
         disabled={module.always === true}
         onClick={() => setModuleChoices(withTick(choices, module, !on))}
         className={TICK}
+        {...explain(
+          module.always
+            ? `${module.label} is always on the bar: it is the way back to this list.`
+            : on
+              ? `Takes the ${module.label} key off the top bar.`
+              : `Puts a ${module.label} key on the top bar.`,
+          module.always ? module.explain.why : `${module.explain.what} A page taken off the bar still works from its address. Saved to your account.`,
+          module.explain.note,
+        )}
       >
         <span aria-hidden="true">{on ? '[ ✓ ]' : '[   ]'}</span>
         <span>{module.label}</span>
@@ -78,13 +88,22 @@ function ModuleRow({ module, bar }: { module: ModuleDef; bar: string }) {
             aria-pressed={picked === swatch.id}
             title={swatch.label}
             onClick={() => setModuleChoices(withColour(choices, module.key, swatch.id))}
+            {...explain(
+              `Makes the ${module.label} word on the top bar turn ${swatch.label} when the pointer is over it.`,
+              'Only colours that read well on your theme\x27s bar are offered. The tick marks the one picked. Saved to your account.',
+            )}
             className={SWATCH}
             style={{ backgroundColor: swatch.ink, color: inkOnNameColour(swatch.ink) }}
           >
             {picked === swatch.id ? <span aria-hidden="true">✓</span> : null}
           </button>
         ))}
-        <button type="button" aria-pressed={chosen === undefined} onClick={() => setModuleChoices(withColour(choices, module.key, null))} className={SMALL_KEY}>
+        <button type="button" aria-pressed={chosen === undefined} onClick={() => setModuleChoices(withColour(choices, module.key, null))} className={SMALL_KEY} {...explain(
+            module.defaultColour === undefined
+              ? `Takes away the colour you picked for ${module.label}: its word turns the site\x27s own colour under the pointer.`
+              : `Gives ${module.label} back the colour it starts with, instead of the one you picked.`,
+            'Pressed in while no colour of your own is picked. Saved to your account.',
+          )}>
           {module.defaultColour === undefined ? '[ SITE ]' : '[ DEFAULT ]'}
         </button>
       </div>
@@ -158,10 +177,10 @@ export default function ModulesWindow() {
         <section className="pb-2">
           <h3 className="text-sm font-bold text-ink">ALSO</h3>
           <p className="flex flex-wrap items-center gap-2 pt-1">
-            <Link href="/projects" className={SMALL_KEY}>
+            <Link href="/projects" className={SMALL_KEY} {...explain('Goes to PROJECTS, the map of every project the site holds.', 'Each project has a page gathering its parts: for the debaser comic, its concepts, lore, notes and links. Also a module you can tick onto the bar above.')}>
               [ PROJECTS ]
             </Link>
-            <Link href="/files" className={SMALL_KEY}>
+            <Link href="/files" className={SMALL_KEY} {...explain('Goes to FILES, the catalogue of every picture, piece of music and video the site holds.', 'Each file shows where on the site it is used. Search results in MEDIA link here too.')}>
               [ FILES ]
             </Link>
             {/* FIRSTVISIT (Luke's A, 2026-11-20): the desktop tour again, on the board. */}
@@ -174,6 +193,7 @@ export default function ModulesWindow() {
               }}
               className={SMALL_KEY}
               data-tour-replay
+              {...explain('Plays the first-visit tour again: a short walk round the desktop pointing out the main keys.', 'Closes this window and goes to the forum first, where the tour runs.')}
             >
               [ TOUR ]
             </button>
@@ -204,7 +224,7 @@ function AlwaysOn({ signedIn }: { signedIn: boolean }) {
     <Group title="ALWAYS ON">
       {rows.map((row) => (
         <li key={row.key} className="rule-pixel py-1.5" data-always-on={row.key}>
-          <button type="button" role="checkbox" aria-checked disabled className={TICK}>
+          <button type="button" role="checkbox" aria-checked disabled className={TICK} {...explain(`${row.label} is always there and can\x27t be taken off: ${row.where.toLowerCase()}.`, 'Listed so you don\x27t hunt for a tick that isn\x27t there. Each one is the only way to what it opens.')}>
             <span aria-hidden="true">[ ✓ ]</span>
             <span>{row.label}</span>
             <span className="text-label">ALWAYS ON</span>

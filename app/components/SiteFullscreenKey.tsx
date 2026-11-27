@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from 'react';
 import { KEY_FOCUS } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 import { siteCanFullscreen, siteIsFullscreen, subscribeToSiteFullscreen, toggleSiteFullscreen } from '../lib/ui/whole-site-fullscreen';
 
 const never = () => () => undefined;
@@ -23,6 +24,10 @@ export default function SiteFullscreenKey() {
       aria-pressed={on}
       title={on ? 'Back to the browser window (Esc or F11)' : 'The whole site, fullscreen'}
       onClick={toggleSiteFullscreen}
+      {...explain(
+        on ? 'Leaves fullscreen, back to the normal browser window with its tabs and address bar.' : 'Makes the whole site fill your screen, hiding the browser\x27s tabs and address bar.',
+        on ? 'Esc or F11 does the same.' : 'For the most room to read and watch. Esc, F11 or this key again brings the browser back.',
+      )}
       className={`key ${KEY_FOCUS} -my-2 hidden min-h-tap shrink-0 cursor-pointer items-center px-2 text-label font-bold leading-none whitespace-nowrap active:translate-y-press active:bg-bubble active:text-ink-plate md:inline-flex`}
     >
       <span aria-hidden="true">{on ? '[ LEAVE FULLSCREEN ]' : '[ FULLSCREEN ]'}</span>

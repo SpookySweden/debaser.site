@@ -37,6 +37,7 @@ import { useModeration } from './ModerationProvider';
 import { reportsWindowServerState, reportsWindowState, subscribeToReportsWindow, toggleReports } from '../lib/moderation/moderation-windows';
 import { getModerationStore } from '../lib/moderation/repository';
 import { LIBRARY_HREF } from '../lib/audio/music-window';
+import { explain, explainFrom, NOTE } from '../lib/ui/explain';
 
 /**
  * The window's keys, and the mark each one wears.
@@ -202,7 +203,7 @@ function TopBarWindowKeys({ hover }: { hover: CSSProperties }) {
   const find = useSyncExternalStore(subscribeToSearchWindow, searchWindowState, searchWindowServerState);
   return (
     <>
-      <button type="button" aria-expanded={find.open} onClick={toggleSearch} title="Search the whole site (Ctrl+K)" className={`${wordClass(false)} module-key cursor-pointer`} style={hover} data-search-key>
+      <button type="button" aria-expanded={find.open} onClick={toggleSearch} title="Search the whole site (Ctrl+K)" className={`${wordClass(false)} module-key cursor-pointer`} style={hover} data-search-key {...explain(find.open ? 'Closes the SEARCH window.' : 'Opens the SEARCH window: one box that looks through the whole site.', 'Finds posts and replies, people, docs and lore, files and tracks, drawings, recommendations and your books, then the outside platforms MEDIA searches. Ctrl+K opens it from any page.')}>
         ⌕ SEARCH
       </button>
       <ReportsKey hover={hover} />
@@ -239,7 +240,7 @@ function ReportsKey({ hover }: { hover: CSSProperties }) {
 
   if (!role.moderator) return null;
   return (
-    <button type="button" aria-expanded={reports.open} onClick={toggleReports} title="What people reported" className={`${wordClass(false)} module-key cursor-pointer`} style={hover} data-reports-key>
+    <button type="button" aria-expanded={reports.open} onClick={toggleReports} title="What people reported" className={`${wordClass(false)} module-key cursor-pointer`} style={hover} data-reports-key {...explain(reports.open ? 'Closes the REPORTS window.' : 'Opens REPORTS: posts and people reported to the moderators, and appeals against moderation.', 'Where a moderator reads each report and decides what to do. The number beside the word is how many are waiting.', NOTE.moderators)}>
       REPORTS{waiting > 0 ? <span className="ml-1 bg-bubble-pale px-1 text-ink-bar">{waiting}</span> : null}
     </button>
   );
@@ -318,7 +319,7 @@ export default function SiteNav({ active, endKey }: { active?: NavKey; /** A key
         if (module.href === null) {
           // MODULOS (Luke, 2026-11-16: "a word like the others"): the same word key, the same ink and hover, last on the bar.
           return (
-            <button key={module.key} type="button" aria-expanded={listOpen} onClick={toggleModulesWindow} className={`${wordClass(false)} module-key cursor-pointer`} {...hover} data-tour="modulos">
+            <button key={module.key} type="button" aria-expanded={listOpen} onClick={toggleModulesWindow} className={`${wordClass(false)} module-key cursor-pointer`} {...hover} data-tour="modulos" {...(listOpen ? explain('Closes the MODULOS window.', module.explain.why) : explainFrom(module.explain))}>
               {module.label}
             </button>
           );
@@ -327,7 +328,7 @@ export default function SiteNav({ active, endKey }: { active?: NavKey; /** A key
         // The page you are on keeps its word's colour under the pointer too (`--module-ink` is what the hover rule reads; the rules set it).
         const look = !isActive ? hover : wordRules === '' ? { style: { '--module-ink': 'var(--color-ink)' } as CSSProperties } : { 'data-module': module.key };
         return (
-          <Link key={module.key} href={module.href} aria-current={isActive ? 'page' : undefined} className={`${wordClass(isActive)} module-key`} {...look}>
+          <Link key={module.key} href={module.href} aria-current={isActive ? 'page' : undefined} className={`${wordClass(isActive)} module-key`} {...look} {...explainFrom(isActive ? { ...module.explain, what: `You are on ${module.label} now. Pressing it takes you back to its first page.` } : module.explain)}>
             {module.label}
             {module.wip ? <WipTag /> : null}
           </Link>

@@ -1,6 +1,7 @@
 'use client';
 
 import { KEY_FOCUS } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 import { chosenFill, setChosenFill } from '../lib/ui/site-fill';
 import { setSiteHidden } from '../lib/ui/site-hidden';
 
@@ -25,6 +26,10 @@ export default function FullWindowKey({ on }: { on: boolean }) {
       aria-pressed={on}
       title={on ? 'Back to the normal window' : 'Make the window fill the screen'}
       onClick={() => setChosenFill(!chosenFill())}
+      {...explain(
+        on ? 'Shrinks the site window back to its normal size, with the background showing around it.' : 'Makes the site window fill the whole browser, edge to edge.',
+        'More room for what you are reading, or the background back in view. Remembered in this browser.',
+      )}
       className={`key ${KEY_FOCUS} -my-2 hidden min-h-tap shrink-0 cursor-pointer items-center px-2 text-label font-bold leading-none whitespace-nowrap active:translate-y-press active:bg-bubble active:text-ink-plate md:inline-flex`}
     >
       <span aria-hidden="true" className="fill-key-off">[ FILL WINDOW ]</span>
@@ -46,6 +51,10 @@ export function HideWindowKey() {
       aria-label="Hide window"
       title="Put the window away to see the background"
       onClick={() => setSiteHidden(true)}
+      {...explain(
+        'Puts the site window away, so the whole moving background shows.',
+        'To look at or play with the background. The [ ▲ WINDOW ] key above the music bar brings the window back. Remembered in this browser.',
+      )}
       className={`key ${KEY_FOCUS} -my-2 hidden min-h-tap shrink-0 cursor-pointer items-center px-2 text-label font-bold leading-none whitespace-nowrap active:translate-y-press active:bg-bubble active:text-ink-plate md:inline-flex`}
     >
       <span aria-hidden="true">[ HIDE WINDOW ]</span>

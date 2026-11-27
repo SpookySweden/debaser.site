@@ -2,6 +2,7 @@
 
 import { useEffect, useSyncExternalStore } from 'react';
 import { KEY_FOCUS } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 import { goSiteHistory, siteHistoryServerWays, siteHistoryWays, subscribeToSiteHistory } from '../lib/ui/site-history';
 import { redoStep, startUndoTrail, subscribeToUndoTrail, undoStep, undoTrailServerState, undoTrailState } from '../lib/ui/undo-trail';
 
@@ -49,14 +50,33 @@ export default function SiteArrows() {
   const redoName = !redoes || trail.redoKind === 'page' ? 'Forward' : `Redo: ${spoken(trail.redoWords ?? '')}`;
   const undoTip = !undoes ? 'Back' : trail.undoWords === null ? 'UNDO' : `UNDO: ${trail.undoWords}`;
   const redoTip = redoes ? `REDO: ${trail.redoWords}` : 'Forward';
+  // EXPLAIN (Luke, 2026-11-27): what a press does now, and what the arrows are.
+  const undoWhat = undoes
+    ? trail.undoKind === 'page'
+      ? 'Undoes your last step: back to the page you were on before.'
+      : trail.undoWords === null
+        ? 'Undoes the last thing you did on screen.'
+        : `Undoes the last thing you did on screen: ${trail.undoWords.toLowerCase()}.`
+    : back
+      ? 'Goes back to the page you were on before.'
+      : 'Nothing to undo or go back to yet.';
+  const redoWhat = redoes
+    ? trail.redoKind === 'page'
+      ? 'Redoes the step you just undid: forward to the page you came back from.'
+      : `Redoes what you just undid: ${(trail.redoWords ?? '').toLowerCase()}.`
+    : forward
+      ? 'Goes forward again to the page you came back from.'
+      : 'Nothing to redo or go forward to.';
+  const arrowsWhy =
+    'The site\x27s own undo and redo, like in a program: they step through what you did on screen (pages you moved between, things folded open or shut, windows opened or closed) in the order you did it. With nothing to undo, they are back and forward through the pages you visited.';
 
   return (
     // `relative` so the one-line notice hangs under the arrows and takes no room in the bar.
     <span className="relative inline-flex items-center gap-1">
-      <button type="button" data-undo-arrow="undo" onClick={() => pressUndo(undoes)} disabled={!undoes && !back} aria-label={undoName} title={undoTip} className={ARROW}>
+      <button type="button" data-undo-arrow="undo" onClick={() => pressUndo(undoes)} disabled={!undoes && !back} aria-label={undoName} title={undoTip} className={ARROW} {...explain(undoWhat, arrowsWhy)}>
         ◄
       </button>
-      <button type="button" data-undo-arrow="redo" onClick={() => pressRedo(redoes)} disabled={!redoes && !forward} aria-label={redoName} title={redoTip} className={ARROW}>
+      <button type="button" data-undo-arrow="redo" onClick={() => pressRedo(redoes)} disabled={!redoes && !forward} aria-label={redoName} title={redoTip} className={ARROW} {...explain(redoWhat, arrowsWhy)}>
         ►
       </button>
       {trail.notice === null ? null : (

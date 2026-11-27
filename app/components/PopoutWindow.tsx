@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { STATUS_BAR, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
+import { explainFrom, type Explanation } from '../lib/ui/explain';
 import { useWindowDrag } from '../lib/ui/use-window-drag';
 
 type PopoutWindowProps = {
@@ -36,6 +37,8 @@ type PopoutWindowProps = {
   windowClassName?: string;
   /** The title line's ink instead of the accent ink (a room look's `text-room-title`). */
   titleInk?: string;
+  /** What the `×` explains while EXPLAIN is on, when closing does more than put the window away (`../lib/ui/explain.ts`). */
+  closeWords?: Explanation;
   /** In the middle of the screen rather than near the top. An auto margin, so a tall window still scrolls from its first line. */
   centred?: boolean;
   children: ReactNode;
@@ -64,6 +67,7 @@ export default function PopoutWindow({
   titleInk,
   dismissOnBackdrop = true,
   centred = false,
+  closeWords,
   children,
 }: PopoutWindowProps) {
   const titleId = useId();
@@ -129,6 +133,7 @@ export default function PopoutWindow({
               onPointerDown={(event) => event.stopPropagation()}
               onClick={onClose}
               aria-label="Close window"
+              {...explainFrom(closeWords ?? { what: `Closes the ${title} window.`, why: dismissOnBackdrop ? 'Back to the page behind it. Esc, or a click outside the window, does the same.' : 'Back to the page behind it. Esc does the same.' })}
               className={`${TITLE_BAR_BUTTON} max-sm:min-h-tap max-sm:min-w-tap`}
             >
               [ × ]

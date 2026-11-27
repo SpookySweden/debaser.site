@@ -99,7 +99,11 @@ No Win95 bevels anywhere - not on windows, not on buttons, not on the scrollbar.
   restates what a title, badge, button or switch already shows. A sentence a reader really needs (how
   following a queue works, what a privacy switch does) goes behind a `[ ? ]` key (`InfoFold`), which
   folds it open and works on phones. A hover tip is a few words naming an unlabelled control, never an
-  explanation; page intros (`SiteWindow`'s `tip`) are a short phrase or nothing. Errors and refusals
+  explanation. The one exception is EXPLAIN (Luke, 2026-11-27), a tool for judging the UI: every key carries its own
+  explanation in the code (`explain()` in `app/lib/ui/explain.ts`: what a press does, what it's for, anything to know
+  first), and the one box (`ExplainLayer.tsx`) shows it on hover or keyboard focus only while the reader's `[ EXPLAIN ]`
+  switch in PREFERENCES is on (off by default). Nothing is ever drawn beside a key; a new key without words fails
+  `Temp/check-explain.cjs`. Page intros (`SiteWindow`'s `tip`) are a short phrase or nothing. Errors and refusals
   stay on screen, as short as they can be while still saying what to do.
 - **Say it once.** No badge that repeats a window's title, no count of what is plainly on screen, no
   readback of a setting. A guest gets one sign-in call per screen (the banner's `[ LOG IN ]`); a locked

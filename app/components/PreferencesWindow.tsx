@@ -28,6 +28,8 @@ import {
   type ThemeId,
 } from '../lib/ui/theme-slot';
 import { layoutReady, resetLayout, subscribeToWindowLayout } from '../lib/ui/window-layout';
+import { explain } from '../lib/ui/explain';
+import { setExplainMode, useExplainMode } from '../lib/ui/explain-mode';
 
 /** The window's name on the page (`data-dock-window`); the layout store knows it as `PREFERENCES_LAYOUT`. */
 const PREFERENCES_ID = 'preferences';
@@ -83,6 +85,12 @@ function ThemeRow({
       onClick={() => setTheme(theme.id)}
       aria-pressed={active}
       title={note}
+      {...explain(
+        `Switches the whole site to the ${label} colours: ${note.toLowerCase()}`,
+        option
+          ? 'One of the ways this theme comes. The filled row is the one you have on. Saved to your account, so your other computers change too.'
+          : 'Changes every window, word and key at once, so you can see the page you are on in it straight away. The filled row is the one you have on. Saved to your account, so your other computers change too.',
+      )}
       className={`flex cursor-pointer items-center gap-2 px-2 py-1 text-left text-label max-sm:min-h-tap max-sm:px-3 max-sm:text-sm ${
         option ? 'ml-6 w-[calc(100%-1.5rem)]' : 'w-full'
       } ${
@@ -148,6 +156,10 @@ function CursorRow({ cursor, active }: { cursor: Cursor; active: boolean }) {
       onClick={() => setCursor(cursor.id)}
       aria-pressed={active}
       title={cursor.note}
+      {...explain(
+        `Changes your mouse pointer to the ${cursor.label} one: ${cursor.note.toLowerCase()}.`,
+        'Pick the pointer you can see best against the windows. Only you see it. Saved to your account.',
+      )}
       className={`flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-left text-label ${
         active
           ? 'key key-fill [--key-fill:var(--color-ink)] text-paper'
@@ -172,6 +184,45 @@ function CursorRow({ cursor, active }: { cursor: Cursor; active: boolean }) {
  * (`../lib/ui/preferences-window.ts`), so opening it does not re-render the board underneath - the
  * same arrangement the arcade and the archive keep.
  */
+/** What each OUTSIDE PICTURES choice does, for its explanation. */
+const OUTSIDE_WORDS: Record<string, string> = {
+  ask: 'Covers each outside picture until you press SHOW on it. The setting you start with.',
+  always: 'Loads every outside picture as soon as it comes up in a queue, without asking.',
+  never: 'Never loads outside pictures: they stay covered and there is no SHOW key.',
+};
+
+/**
+ * `[ EXPLAIN ]` (Luke, 2026-11-27, "A: a switch, off"): the explanation box on every key, at the top of PREFERENCES so it is found
+ * first. Off by default; saved to the account (`../lib/ui/explain-mode.ts`).
+ */
+function ExplainChoice() {
+  const on = useExplainMode();
+  return (
+    <section>
+      <div className={TITLE_BAR_INACTIVE}>
+        <span>EXPLAIN</span>
+      </div>
+      <p className="p-2">
+        <button
+          type="button"
+          aria-pressed={on}
+          onClick={() => setExplainMode(!on)}
+          className={on ? PLATE_PRESSED : PLATE}
+          data-explain-switch={on ? 'on' : 'off'}
+          {...explain(
+            on
+              ? 'Turns the explanation boxes off. This box is one of them.'
+              : 'Turns on a box that explains any key you rest the pointer on.',
+            'With it on, rest the pointer on a key, or reach it with Tab, and a box beside it says what a press does, what it is for, and anything to know first. Esc puts the box away. Saved to your account, so it follows you to your other computers.',
+          )}
+        >
+          [ EXPLAIN ]
+        </button>
+      </p>
+    </section>
+  );
+}
+
 /** ASK (the start), ALWAYS SHOW or NEVER: one of three, the chosen one pressed in. */
 function OutsidePicturesChoice() {
   const { mode } = useSyncExternalStore(subscribeToOutsidePictures, outsidePicturesState, outsidePicturesServerState);
@@ -183,7 +234,7 @@ function OutsidePicturesChoice() {
 
       <div className="flex flex-wrap items-center gap-1 p-2" role="group" aria-label="Outside pictures" data-outside-pictures={mode}>
         {OUTSIDE_MODES.map((option) => (
-          <button key={option.value} type="button" aria-pressed={mode === option.value} title={option.tip} onClick={() => setOutsideMode(option.value)} className={mode === option.value ? PLATE_PRESSED : PLATE} data-outside-mode={option.value}>
+          <button key={option.value} type="button" aria-pressed={mode === option.value} title={option.tip} onClick={() => setOutsideMode(option.value)} className={mode === option.value ? PLATE_PRESSED : PLATE} data-outside-mode={option.value} {...explain(OUTSIDE_WORDS[option.value], 'A picture someone queued from another website is loaded from that website, which then sees your browser asked for it. This decides whether your browser fetches those. Kept in this browser only.')}>
             [ {option.label} ]
           </button>
         ))}
@@ -210,6 +261,10 @@ function BackdropChoice() {
               aria-pressed={backdrop.id === id}
               title={backdrop.note}
               data-backdrop-option={backdrop.id}
+              {...explain(
+                `Puts ${backdrop.label} behind the site window: ${backdrop.note.toLowerCase()}.`,
+                'Changes only what shows around and behind the window, not the window itself. The filled row is the one on. Saved to your account.',
+              )}
               className={`flex min-w-0 flex-1 cursor-pointer items-center gap-2 px-2 py-1 text-left text-label max-sm:min-h-tap max-sm:px-3 max-sm:text-sm ${
                 backdrop.id === id ? 'key key-fill [--key-fill:var(--color-ink)] text-paper' : 'key'
               }`}
@@ -229,6 +284,10 @@ function BackdropChoice() {
                 aria-label={`${backdrop.label} settings`}
                 title="SETTINGS"
                 data-backdrop-settings={backdrop.id}
+                {...explain(
+                  `Opens the settings window for ${backdrop.label}, and puts ${backdrop.label} on if another background was on.`,
+                  'Each moving background has its own settings for how it looks and moves. Changes show behind the window as you make them.',
+                )}
                 className={PLATE}
               >
                 [ {'⚙︎'} ]
@@ -295,7 +354,9 @@ export default function PreferencesWindow() {
       {/* What each section is for is its title line's hover tip, not a paragraph under it
           (SPEC-efficiency.md, 2026-10-23). The SESSION placeholder, the "on the theme now" readback and
           the back-to-default key went with them: the filled row already says which theme is on. */}
-      <section>
+      <ExplainChoice />
+
+      <section className="mt-2">
         <div className={TITLE_BAR_INACTIVE}>
           <span>THEME</span>
         </div>
@@ -344,6 +405,11 @@ export default function PreferencesWindow() {
             onClick={resetLayout}
             title="PUT EVERY WINDOW BACK IN ITS CORNER"
             className={PLATE}
+            {...explain(
+              'Puts every window back where it starts: its corner and its size.',
+              'For when windows have been dragged off somewhere awkward, made too small, or stacked on top of each other. The windows stay open; only where they sit changes.',
+              'WHERE YOU HAD MOVED THEM IS FORGOTTEN.',
+            )}
           >
             [ RESET LAYOUT ]
           </button>

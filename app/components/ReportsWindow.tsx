@@ -21,6 +21,7 @@ import {
   type ModTargetKind,
 } from '../lib/moderation/types';
 import { FIELD, PLATE, PLATE_PRESSED } from '../lib/ui/controls';
+import { explain, NOTE } from '../lib/ui/explain';
 import { useAuth } from './AuthProvider';
 import DockWindow from './DockWindow';
 import { useModeration } from './ModerationProvider';
@@ -39,6 +40,14 @@ const TABS: readonly { id: Tab; label: string }[] = [
   { id: 'log', label: 'LOG' },
   { id: 'moderators', label: 'MODERATORS' },
 ];
+
+/** What each tab shows, for its explanation (EXPLAIN, Luke 2026-11-27). */
+const TAB_WORDS: Record<Tab, string> = {
+  open: 'Shows the reports and appeals still waiting for a moderator to act.',
+  done: 'Shows the reports and appeals already handled: acted on or dismissed.',
+  log: 'Shows the moderation log: every hide, unhide, ban, unban and dismissal, who did it and when.',
+  moderators: 'Shows who the moderators are. The owner can add and take off moderators here.',
+};
 
 const KIND_WORDS: Record<string, string> = {
   thread: 'POST',
@@ -139,20 +148,20 @@ function ReportRow({ report, names, me, onDone }: { report: ModerationReport; na
           </label>
           <div className="flex flex-wrap items-center gap-1">
             {report.kind === 'report' && context !== null && isHideable(context.kind) && !context.private ? (
-              <button type="button" disabled={busy} onClick={() => void act(() => store.hide(me, context.kind as ModTargetKind, context.id, why.trim(), report.id, { authorId: report.accountId, text: context.text }))} className={PLATE}>
+              <button type="button" disabled={busy} onClick={() => void act(() => store.hide(me, context.kind as ModTargetKind, context.id, why.trim(), report.id, { authorId: report.accountId, text: context.text }))} className={PLATE} {...explain('Hides the reported post, reply, comment or chat line from everyone at once.', 'Nothing is deleted: moderators still see it greyed with an UNHIDE key, and its author sees it marked HIDDEN BY A MODERATOR, with the reason typed above. Written to the log.', NOTE.others)}>
                 [ HIDE ]
               </button>
             ) : null}
             {report.kind === 'report' ? (
-              <button type="button" disabled={busy} onClick={() => void act(() => store.ban(me, report.accountId, why.trim(), report.id))} className={PLATE}>
+              <button type="button" disabled={busy} onClick={() => void act(() => store.ban(me, report.accountId, why.trim(), report.id))} className={PLATE} {...explain('Bans the reported person: they can still read the site but can no longer write anything, and what they wrote is hidden from everyone but moderators.', 'They see BANNED with the reason typed above wherever they would write, and can send one appeal. UNBAN undoes it. Written to the log.', NOTE.others)}>
                 [ BAN ]
               </button>
             ) : (
-              <button type="button" disabled={busy} onClick={() => void act(() => store.unban(me, report.accountId, report.id))} className={PLATE}>
+              <button type="button" disabled={busy} onClick={() => void act(() => store.unban(me, report.accountId, report.id))} className={PLATE} {...explain('Lifts the ban on the person who appealed: they can write again and what they wrote shows again.', 'The answer to an appeal you agree with. Written to the log.')}>
                 [ UNBAN ]
               </button>
             )}
-            <button type="button" disabled={busy} onClick={() => void act(() => store.dismissReport(me, report.id, why.trim()))} className={PLATE}>
+            <button type="button" disabled={busy} onClick={() => void act(() => store.dismissReport(me, report.id, why.trim()))} className={PLATE} {...explain('Closes this report without doing anything to anyone.', 'For a report that needs no action. It moves to DONE, with the reason typed above, and is written to the log.')}>
               [ DISMISS ]
             </button>
           </div>
@@ -225,7 +234,7 @@ function Moderators({ names, accounts, me, owner }: { names: Names; accounts: Ac
             <Person id={row.id} names={names} />
             {row.owner ? <span className="text-label">OWNER</span> : null}
             {owner && !row.owner ? (
-              <button type="button" onClick={() => void run(() => getModerationStore().removeModerator(me, row.id))} className={PLATE}>
+              <button type="button" onClick={() => void run(() => getModerationStore().removeModerator(me, row.id))} className={PLATE} {...explain('Takes this person off the moderator list.', 'They lose the moderator keys and REPORTS at once. You can make them a moderator again from the list below. Written to the log.')}>
                 [ TAKE OFF ]
               </button>
             ) : null}
@@ -245,7 +254,7 @@ function Moderators({ names, accounts, me, owner }: { names: Names; accounts: Ac
               ))}
             </select>
           </label>
-          <button type="button" disabled={pick === ''} onClick={() => void run(() => getModerationStore().addModerator(me, pick))} className={PLATE}>
+          <button type="button" disabled={pick === ''} onClick={() => void run(() => getModerationStore().addModerator(me, pick))} className={PLATE} {...explain('Makes the person picked in the list a moderator.', 'They get REPORTS and the keys to hide posts and ban accounts. Only the owner can do this. Written to the log.')}>
             [ MAKE MODERATOR ]
           </button>
         </div>
@@ -318,6 +327,7 @@ function ReportsBody({ me, owner }: { me: string; owner: boolean }) {
             aria-selected={tab === entry.id}
             onClick={() => setTab(entry.id)}
             className={tab === entry.id ? PLATE_PRESSED : PLATE}
+            {...explain(TAB_WORDS[entry.id], 'The filled tab is the one showing.')}
           >
             {tab === entry.id ? entry.label : `[ ${entry.label} ]`}
           </button>

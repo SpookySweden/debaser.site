@@ -1,6 +1,7 @@
 import { NAME_COLOURS } from '../profile/name-colours';
 import { contrastRatio } from './colour';
 import { DYES } from './themes';
+import type { Explanation } from './explain';
 
 /**
  * The modules: what the top bar's keys are called (Luke, 2026-11-06). Each person ticks which ones appear on their bar, and may give each one a colour its word
@@ -23,42 +24,191 @@ export type ModuleDef = {
   always?: boolean;
   /** The colour its word turns on hover until somebody picks another (a `NAME_COLOURS` id). */
   defaultColour?: string;
+  /** What its key explains on hover while EXPLAIN is on (`./explain.ts`): what the page is and what it's for. */
+  explain: Explanation;
 };
+
+/** The caution a WIP module's key carries. */
+const STILL_BEING_MADE = 'STILL BEING MADE: PARTS MAY NOT WORK YET.';
 
 /** In the order the bar draws them, MODULOS last. Luke's choice: BEATBOX, ANIMATE and DISCOVER start off and are tagged WIP, and CREATIVE holds BEATBOX, STREAM and ANIMATE. */
 export const MODULES: readonly ModuleDef[] = [
   // (2026-11-14) A first visit's bar is FORUM, MEDIA and STREAM only (Luke: "only on modules by default being now, forum, media,
   // steam"); PROJECTS, READ and DOCS start off, still a tick away in MODULOS.
-  { key: 'home', label: 'PROJECTS', href: '/projects', group: 'site', startsOn: false },
+  {
+    key: 'home',
+    label: 'PROJECTS',
+    href: '/projects',
+    group: 'site',
+    startsOn: false,
+    explain: {
+      what: 'Goes to PROJECTS, the map of every project the site holds.',
+      why: 'Each project has a page gathering its parts: for the debaser comic, its concepts, lore, notes and links.',
+    },
+  },
   // (2026-11-16) The three hover colours are the ones the account "Good morning" chose (read from its saved choices; Luke: "the hover
   // colours the account 'good morning' chose": green, light blue, reddish pink), so a first visit has them and "reset everyone"
   // (modules-slot.ts's new storage key) gives everyone the same.
-  { key: 'forum', label: 'FORUM', href: '/forum', group: 'site', startsOn: true, defaultColour: 'emerald' },
-  { key: 'web', label: 'MEDIA', href: '/media', group: 'site', startsOn: true, defaultColour: 'teal' },
+  {
+    key: 'forum',
+    label: 'FORUM',
+    href: '/forum',
+    group: 'site',
+    startsOn: true,
+    defaultColour: 'emerald',
+    explain: {
+      what: 'Goes to the FORUM, the board of posts and threads.',
+      why: "The site's home and desktop: read and write posts, reply to people, and the windows (music, rooms, letters) open over it.",
+    },
+  },
+  {
+    key: 'web',
+    label: 'MEDIA',
+    href: '/media',
+    group: 'site',
+    startsOn: true,
+    defaultColour: 'teal',
+    explain: {
+      what: 'Goes to MEDIA, one search over videos, music, films, books and live streams from other platforms and friends\' servers.',
+      why: 'With nothing searched it shows a feed picked for you. Play things in their own players, put them in a room, or recommend them.',
+    },
+  },
   // Luke's comic (SPEC-comic.md): the reader at /comic, his studio at /comic/studio. On the bar for first visits from 2026-11-20 (Q1A)
   // until 2026-11-21 (Luke: "make comic no longer always on"): an ordinary module now, off until ticked. Its colour stays.
-  { key: 'comic', label: 'COMIC', href: '/comic', group: 'site', startsOn: false, defaultColour: 'flavine' },
+  {
+    key: 'comic',
+    label: 'COMIC',
+    href: '/comic',
+    group: 'site',
+    startsOn: false,
+    defaultColour: 'flavine',
+    explain: { what: 'Goes to COMIC, where you read the Debaser comic page by page.', why: 'It remembers where you stopped, so CONTINUE picks up from there.' },
+  },
   // The reader (Luke, 2026-11-13: "a new module for reading"): your books, and your own PDFs and EPUBs matched to their book.
   // (2026-11-14) Off by default: READ lives on the side panel's shelf under ARCADE instead (DesktopSidebar's ReadKey).
-  { key: 'read', label: 'READ', href: '/read', group: 'site', startsOn: false },
+  {
+    key: 'read',
+    label: 'READ',
+    href: '/read',
+    group: 'site',
+    startsOn: false,
+    explain: {
+      what: 'Goes to READ, your books in the site\'s own e-reader.',
+      why: 'Open books found on MEDIA, or your own PDF and EPUB files, which stay in this browser and are never uploaded.',
+    },
+  },
   // A map of the words on MEDIA's items (SPEC-tag-station.md, SPEC-discover.md).
-  { key: 'tagstation', label: 'DISCOVER', href: '/discover', group: 'site', startsOn: false, wip: true },
+  {
+    key: 'tagstation',
+    label: 'DISCOVER',
+    href: '/discover',
+    group: 'site',
+    startsOn: false,
+    wip: true,
+    explain: {
+      what: 'Goes to DISCOVER, a map of the words (tags) on the things in MEDIA.',
+      why: 'Wander from word to word to find music, videos and books you would not have searched for.',
+      note: STILL_BEING_MADE,
+    },
+  },
   // Queues of things sent to people or posted publicly (SPEC-recommendations.md, Luke 2026-11-10): off until ticked.
-  { key: 'recommendations', label: 'RECOMMENDATIONS', href: '/recommendations', group: 'site', startsOn: false },
+  {
+    key: 'recommendations',
+    label: 'RECOMMENDATIONS',
+    href: '/recommendations',
+    group: 'site',
+    startsOn: false,
+    explain: {
+      what: 'Goes to RECOMMENDATIONS: the things people have sent you, and the ones posted for everyone.',
+      why: 'A queue of picks from people you know, to watch, read or listen to when you have time.',
+    },
+  },
   // Shared live documents in folders, the lore pages among them (SPEC-live-docs.md): on the bar from a first visit (Luke, 2026-11-13: "on for everyone").
-  { key: 'docs', label: 'DOCS', href: '/docs', group: 'site', startsOn: false },
+  {
+    key: 'docs',
+    label: 'DOCS',
+    href: '/docs',
+    group: 'site',
+    startsOn: false,
+    explain: {
+      what: 'Goes to DOCS, the shared documents in folders, the lore pages among them.',
+      why: 'Several people can write in the same document at once and see each other typing.',
+    },
+  },
   // The music maker (app/features/beatbox).
-  { key: 'beatbox', label: 'BEATBOX', href: '/beatbox', group: 'creative', startsOn: false, wip: true },
-  { key: 'cytube', label: 'STREAM', href: '/stream', group: 'creative', startsOn: true, defaultColour: 'rose' },
+  {
+    key: 'beatbox',
+    label: 'BEATBOX',
+    href: '/beatbox',
+    group: 'creative',
+    startsOn: false,
+    wip: true,
+    explain: { what: 'Goes to BEATBOX, the music maker.', why: 'Build beats and tunes from pads and a note grid, and keep your songs.', note: STILL_BEING_MADE },
+  },
+  {
+    key: 'cytube',
+    label: 'STREAM',
+    href: '/stream',
+    group: 'creative',
+    startsOn: true,
+    defaultColour: 'rose',
+    explain: {
+      what: 'Goes to STREAM, for watching and listening together.',
+      why: 'The live rooms open now, the stream canvases, and GO LIVE to start your own broadcast for others to join.',
+    },
+  },
   // The frame-by-frame animator (SPEC-animator.md).
-  { key: 'animate', label: 'ANIMATE', href: '/animate', group: 'creative', startsOn: false, wip: true },
+  {
+    key: 'animate',
+    label: 'ANIMATE',
+    href: '/animate',
+    group: 'creative',
+    startsOn: false,
+    wip: true,
+    explain: { what: 'Goes to ANIMATE, the frame-by-frame animator.', why: 'Draw a picture on each frame and play them in a row to make it move.', note: STILL_BEING_MADE },
+  },
   // League of Legends stats, scouting and advice (SPEC-leaguebot.md, Luke 2026-11-17: a top-bar key and a shelf key, 10A+B): off until
   // ticked, WIP until all three tabs are built.
-  { key: 'leaguebot', label: 'LEAGUEBOT', href: '/leaguebot', group: 'site', startsOn: false, wip: true },
+  {
+    key: 'leaguebot',
+    label: 'LEAGUEBOT',
+    href: '/leaguebot',
+    group: 'site',
+    startsOn: false,
+    wip: true,
+    explain: {
+      what: 'Goes to LEAGUEBOT, League of Legends stats, scouting and advice.',
+      why: 'Look up a player\'s matches and champions, size up a game in progress, and get tips from your own play.',
+      note: STILL_BEING_MADE,
+    },
+  },
   // BROWSER, the DEBASER SEEING MACHINE (SPEC-seeing-machine.md, Luke 2026-11-23): off until ticked, WIP until its phases are built.
-  { key: 'browser', label: 'BROWSER', href: '/browser', group: 'site', startsOn: false, wip: true },
+  {
+    key: 'browser',
+    label: 'BROWSER',
+    href: '/browser',
+    group: 'site',
+    startsOn: false,
+    wip: true,
+    explain: {
+      what: 'Goes to BROWSER, the DEBASER SEEING MACHINE: other websites opened inside the site, in its own look.',
+      why: 'Type an address or a search and press GO. A page is only fetched when you ask, and nothing of it is kept unless you capture it.',
+      note: STILL_BEING_MADE,
+    },
+  },
   // MODULOS is the tab holding the rest of the modules, Luke's name for it (2026-11-06). The bar's own MODULES: title went on 2026-11-14.
-  { key: 'modules', label: 'MODULOS', href: null, group: 'site', startsOn: true, always: true },
+  {
+    key: 'modules',
+    label: 'MODULOS',
+    href: null,
+    group: 'site',
+    startsOn: true,
+    always: true,
+    explain: {
+      what: 'Opens the MODULOS window: choose which pages have a key on this bar, and the colour each word turns under the pointer.',
+      why: 'Hide the pages you never use and bring back the ones you do. A page taken off the bar still works from its address. Saved to your account.',
+    },
+  },
 ];
 
 /** Only what somebody changed from the start, so a module's starting state can change later without touching anybody's choices. */
