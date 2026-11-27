@@ -6,6 +6,7 @@ import { queueRefusal } from '../lib/watch/links';
 import { addToMyQueue } from '../lib/watch/my-queue';
 import { pictureLink } from '../lib/watch/pictures';
 import { useAuth } from './AuthProvider';
+import { explain } from '../lib/ui/explain';
 
 /** How long the key says it worked, before it can add the picture again. */
 const QUEUED_MS = 4000;
@@ -55,6 +56,7 @@ export default function QueuePictureKey({ url, title, maker, className = PLATE }
         disabled={state !== 'idle'}
         aria-label={`Add the picture "${title}" to the queue`}
         title="It holds the screen, when its turn comes, until NEXT"
+        {...explain('Puts this picture at the end of the queue you are on: your own room\'s, or the live room\'s.', 'When its turn comes it holds the screen until someone presses NEXT. Only its address and title are filed; nothing is copied.')}
         className={className}
         data-queue-picture={state}
       >

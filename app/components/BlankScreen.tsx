@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { KEY_FOCUS } from '../lib/ui/controls';
 import { BLANK_KEYS, type BlankKey } from '../lib/watch/blank-screen';
+import { explain } from '../lib/ui/explain';
 
 /** Each key's lit dye (tokens.css: `--color-blank-*`), as the `--blank-lit` the `.blank-key` rules read. */
 const LIT: Record<BlankKey, string> = {
@@ -13,6 +14,13 @@ const LIT: Record<BlankKey, string> = {
 
 /** If the press animation never reports its end (animations off some other way), the window opens anyway. */
 const PRESS_FALLBACK_MS = 1000;
+
+/** EXPLAIN's words for each key. */
+const WORDS: Record<BlankKey, string> = {
+  video: 'Opens the queue window with a search for videos already filled in.',
+  music: 'Opens the queue window with a search for music already filled in.',
+  books: 'Opens the queue window with a search for books already filled in.',
+};
 
 const TIPS: Record<BlankKey, string> = {
   video: 'Find a video to queue',
@@ -75,6 +83,7 @@ export default function BlankScreen({ fit, onPick, hidden = false }: { fit: stri
           data-pressed={pressed === key}
           aria-haspopup="dialog"
           title={TIPS[key]}
+          {...explain(WORDS[key], 'Nothing is playing in this room: pick something to put on its screen. You can change the search before adding anything.')}
           className={`blank-key ${LIT[key]} cursor-pointer px-3 py-2 text-display font-bold ${KEY_FOCUS} data-[pressed=true]:animate-blank-press max-sm:min-h-tap`}
           data-blank-key={key}
         >

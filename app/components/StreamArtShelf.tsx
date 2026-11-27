@@ -21,6 +21,7 @@ import QueuePictureKey from './QueuePictureKey';
 import { usePresence } from './PresenceProvider';
 import StatusDot from './StatusDot';
 import TimeStamp from './TimeStamp';
+import { NOTE, explain } from '../lib/ui/explain';
 
 /** The crown over a participant who held one (`mark-crown-filled`), shown at 16px. */
 const CROWN_SRC = `/${artSlot('mark-crown-filled')?.path ?? 'assets/icons/crown-filled.png'}`;
@@ -106,16 +107,16 @@ function PieceRow({ piece, admin, onOpen, onPeople, onChanged }: { piece: Stream
   return (
     <li className="rule-pixel py-2" data-stream-art-piece={canvas.id}>
       <div className="flex flex-wrap items-start gap-2">
-        <button type="button" onClick={onOpen} className="block w-40 shrink-0 cursor-pointer border border-ink" aria-label={`Open ${canvas.title}`}>
+        <button type="button" onClick={onOpen} {...explain('Opens this piece: its final drawing, the whole timeline replayed stroke by stroke, and every snapshot, dated and credited.', 'To look at a room\'s drawing after its stream.')} className="block w-40 shrink-0 cursor-pointer border border-ink" aria-label={`Open ${canvas.title}`}>
           <CanvasPicture source={{ kind: 'image', url: latest?.imageUrl ?? null }} placements={latest?.placements ?? []} className="aspect-video w-full" />
         </button>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <button type="button" onClick={onOpen} className="min-w-0 cursor-pointer text-left text-sm font-bold text-ink hover:underline">
+            <button type="button" onClick={onOpen} {...explain('Opens this piece: its final drawing, the whole timeline replayed stroke by stroke, and every snapshot, dated and credited.', 'To look at a room\'s drawing after its stream.')} className="min-w-0 cursor-pointer text-left text-sm font-bold text-ink hover:underline">
               {canvas.title}
             </button>
             {/* The host's picture, where language flags sit on other media: it opens everybody who was there. */}
-            <button type="button" onClick={onPeople} className="inline-flex shrink-0 cursor-pointer" title="Everybody who was there" aria-label={`Everybody in ${canvas.hostLabel}'s room`} data-stream-art-host>
+            <button type="button" onClick={onPeople} className="inline-flex shrink-0 cursor-pointer" title="Everybody who was there" {...explain('Opens the list of everybody who was in the room while this was drawn.', 'The host\'s picture stands for the whole room.')} aria-label={`Everybody in ${canvas.hostLabel}'s room`} data-stream-art-host>
               <PersonPicture id={canvas.hostId} label={canvas.hostLabel} size={HOST_PICTURE} />
             </button>
             {canvas.hidden ? <span className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">HIDDEN</span> : null}
@@ -133,11 +134,11 @@ function PieceRow({ piece, admin, onOpen, onPeople, onChanged }: { piece: Stream
           {fault === null ? null : <p className="mt-1 w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">{fault}</p>}
         </div>
         <span className="flex shrink-0 items-center gap-1 max-sm:w-full max-sm:justify-start max-sm:pl-42">
-          <button type="button" onClick={onOpen} className={PLATE}>
+          <button type="button" onClick={onOpen} className={PLATE} {...explain('Opens this piece: its final drawing, the whole timeline replayed stroke by stroke, and every snapshot, dated and credited.', 'To look at a room\'s drawing after its stream.')}>
             [ OPEN ]
           </button>
           {admin ? (
-            <button type="button" disabled={busy} onClick={() => hide(!canvas.hidden)} className={PLATE} data-stream-art-hide>
+            <button type="button" disabled={busy} onClick={() => hide(!canvas.hidden)} className={PLATE} data-stream-art-hide {...explain(canvas.hidden ? 'Puts this piece back on the archive for everyone.' : 'Takes this piece off the archive for everyone, without wiping it.', 'For a drawing that should not be on show.', NOTE.moderators)}>
               {canvas.hidden ? '[ SHOW ]' : '[ HIDE ]'}
             </button>
           ) : null}
@@ -238,16 +239,16 @@ function PieceWindow({ piece, onClose, onPeople, past = false }: { piece: Stream
     <PopoutWindow title={piece.canvas.title} badge={past ? 'NOT SAVED' : 'STREAM ART'} onClose={onClose} maxWidth="max-w-3xl">
       <div className="space-y-2 p-2 text-ink" data-stream-art-window>
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" className={replaying ? PLATE : PLATE_PRESSED} aria-pressed={!replaying} onClick={() => setReplaying(false)}>
+          <button type="button" className={replaying ? PLATE : PLATE_PRESSED} aria-pressed={!replaying} onClick={() => setReplaying(false)} {...explain('Shows the finished drawing.', 'The last picture the canvas reached.')}>
             [ FINAL ]
           </button>
-          <button type="button" className={replaying ? PLATE_PRESSED : PLATE} aria-pressed={replaying} disabled={inputs === null || inputs.length === 0} onClick={() => setReplaying(true)} data-stream-art-replay-key>
+          <button type="button" className={replaying ? PLATE_PRESSED : PLATE} aria-pressed={replaying} disabled={inputs === null || inputs.length === 0} onClick={() => setReplaying(true)} {...explain('Replays the drawing stroke by stroke, the way it was made.', 'To watch it come together.')} data-stream-art-replay-key>
             [ TIMELINE ]
           </button>
           {/* The final drawing takes a turn in a queue as a picture (SPEC-rooms-queues.md, phase 5); what was placed on top of it is not part of that picture. */}
           {finalShot !== null && finalShot.imageUrl ? <QueuePictureKey url={finalShot.imageUrl} title="STREAM ART" maker={piece.canvas.hostLabel} /> : null}
           <span className="flex-1" />
-          <button type="button" onClick={onPeople} className="inline-flex cursor-pointer items-center gap-1 text-label font-bold" title="Everybody who was there">
+          <button type="button" onClick={onPeople} className="inline-flex cursor-pointer items-center gap-1 text-label font-bold" title="Everybody who was there" {...explain('Opens the list of everybody who was in the room while this was drawn.', 'To see who drew it.')}>
             <PersonPicture id={piece.canvas.hostId} label={piece.canvas.hostLabel} size={HOST_PICTURE} />
             WHO WAS THERE
           </button>
@@ -352,6 +353,7 @@ function Replay({ inputs }: { inputs: readonly CanvasInput[] }) {
             setPlaying((value) => !value);
           }}
           aria-label={playing ? 'Pause the replay' : 'Play the replay'}
+          {...explain(playing ? 'Pauses the replay where it is.' : 'Plays the replay from where it is, or from the start once it has finished.', 'A whole replay takes about the same time, however much was drawn.')}
         >
           {playing ? '[ ❚❚ ]' : '[ ▶ ]'}
         </button>
@@ -487,7 +489,7 @@ function PastRow({ entry, onOpen, onPeople }: { entry: PastCanvas; onOpen: (piec
   return (
     <li className="rule-pixel py-2" data-past-canvas={canvas.id}>
       <div className="flex flex-wrap items-start gap-2">
-        <button type="button" onClick={() => onOpen(piece)} className="block w-40 shrink-0 cursor-pointer border border-ink" aria-label={`Open ${canvas.title}`}>
+        <button type="button" onClick={() => onOpen(piece)} {...explain('Opens this drawing nobody saved: its final picture and its timeline replayed stroke by stroke.', 'Its room has ended without anyone saving it; it is kept here for the people who were there.')} className="block w-40 shrink-0 cursor-pointer border border-ink" aria-label={`Open ${canvas.title}`}>
           {picture === null ? (
             <CanvasPicture source={{ kind: 'image', url: null }} placements={[]} className="aspect-video w-full" />
           ) : (
@@ -496,10 +498,10 @@ function PastRow({ entry, onOpen, onPeople }: { entry: PastCanvas; onOpen: (piec
         </button>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <button type="button" onClick={() => onOpen(piece)} className="min-w-0 cursor-pointer text-left text-sm font-bold text-ink hover:underline">
+            <button type="button" onClick={() => onOpen(piece)} {...explain('Opens this drawing nobody saved: its final picture and its timeline replayed stroke by stroke.', 'Its room has ended without anyone saving it; it is kept here for the people who were there.')} className="min-w-0 cursor-pointer text-left text-sm font-bold text-ink hover:underline">
               {canvas.title}
             </button>
-            <button type="button" onClick={() => onPeople(piece)} className="inline-flex shrink-0 cursor-pointer" title="Everybody who drew" aria-label={`Everybody who drew in ${canvas.hostLabel}'s room`}>
+            <button type="button" onClick={() => onPeople(piece)} className="inline-flex shrink-0 cursor-pointer" title="Everybody who drew" {...explain('Opens the list of everybody who drew on this canvas.', 'The host\'s picture stands for the whole room.')} aria-label={`Everybody who drew in ${canvas.hostLabel}'s room`}>
               <PersonPicture id={canvas.hostId} label={canvas.hostLabel} size={HOST_PICTURE} />
             </button>
           </div>
@@ -511,7 +513,7 @@ function PastRow({ entry, onOpen, onPeople }: { entry: PastCanvas; onOpen: (piec
           </div>
         </div>
         <span className="flex shrink-0 items-center gap-1 max-sm:w-full max-sm:justify-start max-sm:pl-42">
-          <button type="button" onClick={() => onOpen(piece)} className={PLATE}>
+          <button type="button" onClick={() => onOpen(piece)} className={PLATE} {...explain('Opens this drawing nobody saved: its final picture and its timeline replayed stroke by stroke.', 'Its room has ended without anyone saving it; it is kept here for the people who were there.')}>
             [ OPEN ]
           </button>
         </span>

@@ -18,6 +18,7 @@ import { useAuth } from './AuthProvider';
 import PopoutWindow from './PopoutWindow';
 import ProfileAvatar from './ProfileAvatar';
 import SpriteSlot from './SpriteSlot';
+import { NOTE, explain } from '../lib/ui/explain';
 
 /** A song with no picture of its own and no uploader (a hand-filed file): an art slot until Luke files one. */
 const NO_COVER_SRC = `/${artSlot('web-thumb-missing')?.path ?? 'assets/web/thumb-missing.png'}`;
@@ -61,7 +62,7 @@ export default function SongCoverCard({ track, fit }: { track: AudioTrack; fit: 
       {/* Third-party words as plain text, never as HTML (CLAUDE.md); cut to a few lines on the card. */}
       {words !== null ? <span className="line-clamp-4 max-w-md wrap-anywhere text-label text-cover-card-ink" data-cover-words>{words}</span> : null}
       {owner !== null && user !== null && user.id === owner ? (
-        <button type="button" className={PLATE} onClick={() => setEditing(true)} data-cover-edit>
+        <button type="button" className={PLATE} onClick={() => setEditing(true)} data-cover-edit {...explain('Opens the pop-up to add or change the picture and words on your song\'s card.', 'Only you see this key: you uploaded the song. The card is what a room\'s screen shows while it plays.')}>
           [ EDIT CARD ]
         </button>
       ) : null}
@@ -179,10 +180,10 @@ export function SongCardEditor({ track, ownerId, onClose }: { track: AudioTrack;
           </p>
         )}
         <div className="flex flex-wrap gap-2">
-          <button type="submit" className={PLATE_MAIN} disabled={busy} data-cover-save>
+          <button type="submit" className={PLATE_MAIN} disabled={busy} data-cover-save {...explain('Saves the picture and words on your song\'s card.', 'Everyone who plays the song in a room sees them.', NOTE.others)}>
             {busy ? '[ SAVING... ]' : '[ SAVE ]'}
           </button>
-          <button type="button" className={PLATE} onClick={onClose}>
+          <button type="button" className={PLATE} onClick={onClose} {...explain('Closes the pop-up without saving.', 'The card stays as it was.')}>
             [ CANCEL ]
           </button>
         </div>

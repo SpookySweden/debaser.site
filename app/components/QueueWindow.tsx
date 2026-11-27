@@ -26,6 +26,7 @@ import QueuePlaylists from './QueuePlaylists';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import RadioLoops from './RadioLoops';
 import StreamQueueWindow from './StreamQueueWindow';
+import { explain } from '../lib/ui/explain';
 
 /**
  * The queue window: your room's queue, your playlists, and where you have been, in three tabs (SPEC-rooms-queues.md).
@@ -158,7 +159,7 @@ function OwnQueue({ onClose }: { onClose: () => void }) {
       {own.visitor ? (
         <p className="border-b border-ink px-2 py-1 text-label text-ink" data-own-room-note="visitor">
           KEPT IN THIS BROWSER ONLY.{' '}
-          <Link href="/account" className={PLATE_LINK}>
+          <Link href="/account" className={PLATE_LINK} {...explain('Goes to the account page to log in or make an account.', 'Signed out, your queue lives only in this browser.')}>
             [ LOG IN ]
           </Link>{' '}
           TO KEEP IT ON YOUR ACCOUNT.
@@ -196,6 +197,7 @@ function QueueTabPlate({
       role="tab"
       aria-selected={selected}
       onClick={onSelect}
+      {...explain(({ 'UP NEXT': 'Shows what plays next: your queue, or the live room\'s.', PLAYLISTS: 'Shows your playlists, to play one or add it to the queue.', 'RADI-OH': 'Shows RADI-OH: what you have been listening to lately, kept so you can jump straight back in.' } as Record<string, string>)[label] ?? 'Shows this screen of the queue window.', 'One screen of the queue window at a time.')}
       className={`min-w-0 flex-1 cursor-pointer truncate px-2 py-1 text-key tracking-wide max-sm:min-h-tap max-sm:px-3 max-sm:text-sm ${
         selected
           ? 'key key-fill [--key-fill:var(--color-ink)] text-paper'

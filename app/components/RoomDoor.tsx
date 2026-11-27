@@ -13,6 +13,7 @@ import { useAuth } from './AuthProvider';
 import { useForum } from './ForumProvider';
 import PrivateOutline from './PrivateOutline';
 import { useRoomIdentity } from './use-room-identity';
+import { explain } from '../lib/ui/explain';
 
 const line = 'text-label font-bold text-ink';
 
@@ -131,13 +132,13 @@ export default function RoomDoor({ roomId }: { roomId: string }) {
               data-room-door-password
             />
           </label>
-          <button type="button" className={`${PLATE} max-sm:min-h-tap`} aria-pressed={shown} onClick={() => setShown((was) => !was)}>
+          <button type="button" className={`${PLATE} max-sm:min-h-tap`} aria-pressed={shown} onClick={() => setShown((was) => !was)} {...explain(shown ? 'Hides the password as dots again.' : 'Shows the password as you typed it.', 'To check it before you join.')}>
             {shown ? '[ HIDE ]' : '[ SHOW ]'}
           </button>
         </div>
       ) : null}
       <div className="flex flex-wrap items-center gap-2">
-        <button type="submit" className={PLATE_MAIN} disabled={busy || (needsPassword && password.length === 0)} data-room-door-join>
+        <button type="submit" className={PLATE_MAIN} disabled={busy || (needsPassword && password.length === 0)} data-room-door-join {...explain('Joins this room: it makes you a member, so you can watch and talk.', 'Without an account you join as a guest, made by this press.')}>
           {busy ? '[ JOINING... ]' : '[ JOIN ]'}
         </button>
         {answer === 'wrong' ? (
@@ -153,7 +154,7 @@ export default function RoomDoor({ roomId }: { roomId: string }) {
       {identity?.kind === 'account' ? null : (
         <p className="font-bold" data-room-door-guest>
           JOINING AS A GUEST.{' '}
-          <Link href="/account" className="key px-1 py-1 text-label">
+          <Link href="/account" className="key px-1 py-1 text-label" {...explain('Goes to the account page to log in or make an account.', 'To join under your own name instead of as a guest.')}>
             [ LOG IN ]
           </Link>{' '}
           IF YOU HAVE AN ACCOUNT.

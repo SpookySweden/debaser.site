@@ -10,6 +10,7 @@ import type { ForumAuthor, ForumTrack } from '../lib/forum/types';
 import { FIELD, PLATE, PLATE_LARGE } from '../lib/ui/controls';
 import AudioTagChooser from './AudioTagChooser';
 import { useMusicPlayer } from './MusicPlayerProvider';
+import { NOTE, explain } from '../lib/ui/explain';
 
 type TrackAttachmentPickerProps = {
   id: string;
@@ -90,6 +91,7 @@ function ArchivePicker({ id, onPick }: { id: string; onPick: (track: AudioTrack)
                 onClick={() => onPick(track)}
                 className={PLATE}
                 title={`Attach ${track.title}`}
+                {...explain('Attaches this track from the archive to your post.', 'The archive keeps the file; the post points at it. One track to a post.')}
               >
                 [ ATTACH ]
               </button>
@@ -233,6 +235,7 @@ export default function TrackAttachmentPicker({ id, onChange, author }: TrackAtt
           aria-pressed={mode === 'file'}
           className={`${PLATE} disabled:cursor-not-allowed`}
           title={signedIn ? 'File a track from this machine' : 'Filing a track takes an account'}
+          {...explain('Shows the way to attach a track by uploading a file from this computer.', 'For music the archive does not hold yet.', NOTE.account)}
         >
           {mode === 'file' ? '[ ▣ FROM THIS MACHINE ]' : '[ FROM THIS MACHINE ]'}
         </button>
@@ -243,6 +246,7 @@ export default function TrackAttachmentPicker({ id, onChange, author }: TrackAtt
           aria-pressed={mode === 'archive'}
           className={PLATE}
           title="Attach a track the archive already holds"
+          {...explain('Shows the archive\'s tracks, to attach one it already holds.', 'So you don\'t have to find the file again.')}
         >
           {mode === 'archive' ? '[ ▣ FROM THE ARCHIVE ]' : '[ FROM THE ARCHIVE ]'}
         </button>
@@ -253,6 +257,7 @@ export default function TrackAttachmentPicker({ id, onChange, author }: TrackAtt
           aria-pressed={mode === 'link'}
           className={PLATE}
           title="Paste a link to an MP3 that is hosted somewhere else"
+          {...explain('Shows the way to attach a track by pasting a link to an MP3 hosted somewhere else.', 'For a file that lives on another site.')}
         >
           {mode === 'link' ? '[ ▣ LINK ONE ]' : '[ LINK ONE ]'}
         </button>
@@ -324,6 +329,7 @@ export default function TrackAttachmentPicker({ id, onChange, author }: TrackAtt
             onClick={() => (mode === 'file' ? void attachFile() : attachLink())}
             disabled={busy}
             className={PLATE_LARGE}
+            {...explain(mode === 'file' ? 'Uploads the chosen file and attaches it to your post.' : 'Attaches the linked MP3 to your post.', 'One track to a post; attaching another replaces it.')}
           >
             {busy ? '[ FILING... ]' : '[ ATTACH TRACK ]'}
           </button>

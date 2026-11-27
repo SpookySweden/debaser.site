@@ -37,6 +37,7 @@ import RoomRdpScreen from './RoomRdpScreen';
 import { ROUTE_WORDS } from '../lib/screens/net-route';
 import { PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED } from '../lib/ui/controls';
 import { chooseScreen } from '../lib/watch/canvas-view';
+import { explain } from '../lib/ui/explain';
 
 /**
  * The PC's screen on a room's screen (SPEC-screens.md, phase 3, first slice), in the place the room's canvas takes:
@@ -155,14 +156,14 @@ function EngineScreen({ roomId, audio, engine }: { roomId: string; audio: boolea
         <div className="flex items-center gap-1">
           {view.problem ? (
             <span className="bg-ink-plate">
-              <button type="button" className={PLATE_ON_BLACK} onClick={() => session.tryAgain()} data-screen-try-again>
+              <button type="button" className={PLATE_ON_BLACK} onClick={() => session.tryAgain()} data-screen-try-again {...explain('Tries connecting to the PC\'s screen again.', 'The picture dropped or never came; this starts the connection over.')}>
                 [ TRY AGAIN ]
               </button>
             </span>
           ) : null}
           {controlAllowed ? (
             <span className="bg-ink-plate">
-              <button type="button" className={key(control.mine)} aria-pressed={control.mine} onClick={() => session.toggleControl()} data-screen-control-key={control.mine ? 'mine' : 'free'}>
+              <button type="button" className={key(control.mine)} aria-pressed={control.mine} {...explain(control.mine ? 'Gives back control of the PC, so your keyboard and mouse stop working on it.' : 'Takes control of the PC: your keyboard and mouse work on it.', 'One person controls at a time. Hold Esc for a second, or press RELEASE, to give it back.')} onClick={() => session.toggleControl()} data-screen-control-key={control.mine ? 'mine' : 'free'}>
                 {control.mine ? '[ RELEASE ]' : '[ CONTROL ]'}
               </button>
             </span>
@@ -170,14 +171,14 @@ function EngineScreen({ roomId, audio, engine }: { roomId: string; audio: boolea
           {/* Only when the PC sends sound, and never on the PC itself. */}
           {soundKey ? (
             <span className="bg-ink-plate">
-              <button type="button" className={key(view.sound.on)} aria-pressed={view.sound.on} onClick={() => session.toggleSound()} data-screen-sound-key={view.sound.on ? 'on' : 'off'}>
+              <button type="button" className={key(view.sound.on)} aria-pressed={view.sound.on} {...explain(view.sound.on ? 'Turns the PC\'s sound off on this device.' : 'Turns on the PC\'s sound on this device.', 'Only you hear it, with its own volume apart from the room\'s music. The PC reads its sound only while someone has this on.')} onClick={() => session.toggleSound()} data-screen-sound-key={view.sound.on ? 'on' : 'off'}>
                 [ SOUND ]
               </button>
             </span>
           ) : null}
           <span className="bg-ink-plate">
             {/* Open, it is pressed in by the site's one "this is open" look, in this Black surface's own inks (globals.css). */}
-            <button type="button" className={PLATE_ON_BLACK} aria-expanded={panelOpen} aria-controls={panelId} onClick={() => openPanel(!panelOpen)} data-screen-settings-key>
+            <button type="button" className={PLATE_ON_BLACK} aria-expanded={panelOpen} aria-controls={panelId} {...explain(panelOpen ? 'Closes the screen settings panel.' : 'Opens the screen settings: picture shape, size, frames and bitrate, drawing, upscaling, the readout, full screen, sound and control.', 'Shape, size, frames and bitrate ask the PC for a different picture; the rest change only this device.')} onClick={() => openPanel(!panelOpen)} data-screen-settings-key>
               [ SETTINGS ]
             </button>
           </span>
@@ -193,10 +194,10 @@ function EngineScreen({ roomId, audio, engine }: { roomId: string; audio: boolea
         {engine === 'server' && rdp.available && rdp.on ? (
           <span className="flex max-w-full flex-wrap items-center justify-end gap-1 bg-ink-plate px-1 font-mono text-label text-ink-bar" data-screen-way-in>
             <span>WAY IN</span>
-            <button type="button" className={PLATE_ON_BLACK_PRESSED} aria-pressed="true" data-screen-way="engine">
+            <button type="button" className={PLATE_ON_BLACK_PRESSED} aria-pressed="true" data-screen-way="engine" {...explain('The way in you are using now: the site\'s own screen engine. Pressing it does nothing.', 'The key beside it switches to Windows Remote Desktop instead.')}>
               [ OUR ENGINE ]
             </button>
-            <button type="button" className={PLATE_ON_BLACK} aria-pressed="false" onClick={() => chooseRemoteSource({ kind: 'rdp' })} title="Windows' own Remote Desktop through Guacamole: slower, but works without our engine" data-screen-way="rdp">
+            <button type="button" className={PLATE_ON_BLACK} aria-pressed="false" onClick={() => chooseRemoteSource({ kind: 'rdp' })} {...explain('Switches this screen to Windows\' own Remote Desktop, through Guacamole.', 'Slower, but a second way in for when our engine won\'t connect.')} title="Windows' own Remote Desktop through Guacamole: slower, but works without our engine" data-screen-way="rdp">
               [ WINDOWS REMOTE DESKTOP (GUACAMOLE) ]
             </button>
           </span>
@@ -207,7 +208,7 @@ function EngineScreen({ roomId, audio, engine }: { roomId: string; audio: boolea
         {control.mine ? (
           <div className="flex max-w-full flex-wrap items-center justify-end gap-1 bg-ink-plate px-1 font-mono text-label text-ink-bar" role="status" data-screen-control-bar>
             <span data-screen-control-bar-says>{controlBarSays(control.escHolding, wishes.mouse, control.pointerLocked)}</span>
-            <button type="button" className={PLATE_ON_BLACK} onClick={() => session.toggleControl()} data-screen-control-bar-release>
+            <button type="button" className={PLATE_ON_BLACK} onClick={() => session.toggleControl()} data-screen-control-bar-release {...explain('Gives back control of the PC.', 'Your keyboard and mouse work on this site again. Holding Esc for a second does the same.')}>
               [ RELEASE ]
             </button>
           </div>
@@ -228,7 +229,7 @@ function EngineScreen({ roomId, audio, engine }: { roomId: string; audio: boolea
         >
           <header className="flex items-start justify-between gap-2">
             <h2 className="text-sun">SETTINGS</h2>
-            <button type="button" className={PLATE_ON_BLACK} aria-label="Close settings" onClick={() => openPanel(false)} autoFocus>
+            <button type="button" className={PLATE_ON_BLACK} aria-label="Close settings" onClick={() => openPanel(false)} autoFocus {...explain('Closes the screen settings panel.', 'What you chose stays as it is.')}>
               [ × ]
             </button>
           </header>
@@ -238,7 +239,7 @@ function EngineScreen({ roomId, audio, engine }: { roomId: string; audio: boolea
             {view.host?.pcScreen?.allowed ? (
               <>
                 <div className="flex flex-wrap items-start gap-1">
-                  <button type="button" className={key(wishes.fit)} aria-pressed={wishes.fit} onClick={() => session.toggleFit()} data-screen-pc-fit={wishes.fit ? 'on' : 'off'}>
+                  <button type="button" className={key(wishes.fit)} aria-pressed={wishes.fit} {...explain(wishes.fit ? 'Stops fitting the PC\'s screen to this one; it goes back to its own size.' : 'Changes the PC\'s own screen to this screen\'s shape while you are connected, and back when you leave.', 'It changes the PC itself: its monitor goes black for a moment and its windows may move. The line below says what happened.')} onClick={() => session.toggleFit()} data-screen-pc-fit={wishes.fit ? 'on' : 'off'}>
                     [ FIT THE PC TO THIS SCREEN ]
                   </button>
                 </div>
@@ -251,7 +252,7 @@ function EngineScreen({ roomId, audio, engine }: { roomId: string; audio: boolea
               </>
             ) : null}
             <div className="flex flex-wrap items-start gap-1">
-              <button type="button" className={key(matching)} aria-pressed={matching} onClick={() => session.toggleMatch()} data-screen-match={matching ? 'on' : 'off'}>
+              <button type="button" className={key(matching)} aria-pressed={matching} {...explain(matching ? 'Stops matching this screen, so you can pick a shape yourself.' : 'Asks the PC to send the middle of its screen in the shape of this screen.', 'It fills this screen with no bars; on a wider PC screen the two sides are cut off. Nothing on the PC itself changes.')} onClick={() => session.toggleMatch()} data-screen-match={matching ? 'on' : 'off'}>
                 [ MATCH THIS SCREEN ]
               </button>
             </div>
@@ -261,7 +262,7 @@ function EngineScreen({ roomId, audio, engine }: { roomId: string; audio: boolea
                 <Sub>SHAPE</Sub>
                 <div className="flex flex-wrap items-start gap-1" role="group" aria-label="Shape">
                   {SHAPES.map((shape) => (
-                    <button key={shape} type="button" className={key(asked.shape === shape)} aria-pressed={asked.shape === shape} onClick={() => session.change({ shape })} data-screen-shape={shape}>
+                    <button key={shape} type="button" className={key(asked.shape === shape)} aria-pressed={asked.shape === shape} {...explain(({ native: 'Shows the PC\'s whole screen at its own shape, with bars if this screen is narrower.', '16:9': 'Asks the PC for a 16:9 picture, the usual widescreen shape.', '16:10': 'Asks the PC for a 16:10 picture, a little taller than widescreen.', '21:9': 'Asks the PC for a 21:9 picture, an extra-wide shape.', '4:3': 'Asks the PC for a 4:3 picture, the old square-ish shape.' })[shape] ?? 'Asks the PC for this picture shape.', 'A shape narrower than the PC\'s screen cuts its sides off.')} onClick={() => session.change({ shape })} data-screen-shape={shape}>
                       {`[ ${shape.toUpperCase()} ]`}
                     </button>
                   ))}
@@ -272,7 +273,7 @@ function EngineScreen({ roomId, audio, engine }: { roomId: string; audio: boolea
             <Sub>SIZE (LINES, AT MOST)</Sub>
             <div className="flex flex-wrap gap-1" role="group" aria-label="Size, in lines at most">
               {LINES.filter((lines) => linesOffered(lines, view.host)).map((lines) => (
-                <button key={lines} type="button" className={key(asked.lines === lines)} aria-pressed={asked.lines === lines} onClick={() => session.change({ lines })} data-screen-lines={lines}>
+                <button key={lines} type="button" className={key(asked.lines === lines)} aria-pressed={asked.lines === lines} {...explain(lines === 'native' ? 'Asks for the picture at the PC\'s own full size.' : `Asks the PC for a picture at most ${lines} lines tall.`, 'Smaller is quicker on a slow connection; bigger is sharper.')} onClick={() => session.change({ lines })} data-screen-lines={lines}>
                   {`[ ${String(lines).toUpperCase()} ]`}
                 </button>
               ))}
@@ -280,7 +281,7 @@ function EngineScreen({ roomId, audio, engine }: { roomId: string; audio: boolea
             <Sub>FRAMES A SECOND</Sub>
             <div className="flex flex-wrap gap-1" role="group" aria-label="Frames a second">
               {RATES.filter((rate) => rateOffered(rate, view.host)).map((rate) => (
-                <button key={rate} type="button" className={key(asked.fps === rate)} aria-pressed={asked.fps === rate} onClick={() => session.change({ fps: rate })} data-screen-fps={rate}>
+                <button key={rate} type="button" className={key(asked.fps === rate)} aria-pressed={asked.fps === rate} {...explain(rate === 'auto' ? 'Lets the frame rate follow this screen and the connection.' : `Asks the PC for ${rate} frames a second.`, 'More frames move more smoothly but need a faster connection.')} onClick={() => session.change({ fps: rate })} data-screen-fps={rate}>
                   {`[ ${String(rate).toUpperCase()} ]`}
                 </button>
               ))}
@@ -321,7 +322,7 @@ function EngineScreen({ roomId, audio, engine }: { roomId: string; audio: boolea
           <Part title="DRAWING">
             <div className="flex flex-wrap items-start gap-1" role="group" aria-label="Drawing">
               {DRAWINGS.map((drawing) => (
-                <button key={drawing} type="button" className={key(wishes.drawing === drawing)} aria-pressed={wishes.drawing === drawing} onClick={() => session.setDrawing(drawing)} data-screen-drawing-key={drawing}>
+                <button key={drawing} type="button" className={key(wishes.drawing === drawing)} aria-pressed={wishes.drawing === drawing} {...explain(drawing === 'fast' ? 'Draws each frame straight onto a canvas, skipping the browser\'s queue, so it shows sooner.' : 'Draws the picture with the browser\'s own video player.', 'Only on this device: nothing is sent to the PC.')} onClick={() => session.setDrawing(drawing)} data-screen-drawing-key={drawing}>
                   {`[ ${drawing.toUpperCase()} ]`}
                 </button>
               ))}
@@ -335,7 +336,7 @@ function EngineScreen({ roomId, audio, engine }: { roomId: string; audio: boolea
           <Part title="UPSCALING">
             <div className="flex flex-wrap items-start gap-1" role="group" aria-label="Upscaling">
               {UPSCALINGS.map((upscaling) => (
-                <button key={upscaling} type="button" className={key(wishes.upscaling === upscaling)} aria-pressed={wishes.upscaling === upscaling} onClick={() => session.setUpscaling(upscaling)} data-screen-upscaling={upscaling}>
+                <button key={upscaling} type="button" className={key(wishes.upscaling === upscaling)} aria-pressed={wishes.upscaling === upscaling} {...explain(({ off: 'Shows the picture at its real size, not stretched.', smooth: 'Stretches the picture to fill the box, softly.', sharp: 'Stretches the picture in hard squares, for pixel art.', sharpened: 'Stretches the picture and sharpens every frame on this device, which may add a little delay.' })[upscaling] ?? 'Changes how the picture is stretched.', 'Only on this device: nothing is sent to the PC.')} onClick={() => session.setUpscaling(upscaling)} data-screen-upscaling={upscaling}>
                   {`[ ${upscaling.toUpperCase()} ]`}
                 </button>
               ))}
@@ -352,7 +353,7 @@ function EngineScreen({ roomId, audio, engine }: { roomId: string; audio: boolea
               {view.readout}
             </pre>
             <div className="flex flex-wrap items-start gap-1">
-              <button type="button" className={key(wishes.numbers)} aria-pressed={wishes.numbers} onClick={() => session.toggleNumbers()}>
+              <button type="button" className={key(wishes.numbers)} aria-pressed={wishes.numbers} {...explain(wishes.numbers ? 'Hides the small readout in the corner of the picture.' : 'Shows the small readout in the corner of the picture: its size, speed and delay.', 'Only on this device, for seeing how well the picture is coming through.')} onClick={() => session.toggleNumbers()}>
                 [ NUMBERS ]
               </button>
             </div>
@@ -361,7 +362,7 @@ function EngineScreen({ roomId, audio, engine }: { roomId: string; audio: boolea
 
           <Part title="WINDOW">
             <div>
-              <button type="button" className={key(view.fullscreen)} aria-pressed={view.fullscreen} onClick={() => session.toggleFullscreen()} data-screen-fullscreen>
+              <button type="button" className={key(view.fullscreen)} aria-pressed={view.fullscreen} {...explain(view.fullscreen ? 'Leaves full screen, back to the room.' : 'Fills your whole screen with the PC\'s picture.', 'For working on the PC as if you sat at it. Only on this device.')} onClick={() => session.toggleFullscreen()} data-screen-fullscreen>
                 {view.fullscreen ? '[ LEAVE FULLSCREEN ]' : '[ FULLSCREEN ]'}
               </button>
             </div>
@@ -375,10 +376,10 @@ function EngineScreen({ roomId, audio, engine }: { roomId: string; audio: boolea
             {soundKey ? (
               <>
                 <div className="flex flex-wrap items-start gap-1" role="group" aria-label="Sound">
-                  <button type="button" className={key(view.sound.on)} aria-pressed={view.sound.on} onClick={() => session.setSound(true)} data-screen-sound-choice="on">
+                  <button type="button" className={key(view.sound.on)} aria-pressed={view.sound.on} {...explain('Turns on the PC\'s sound on this device.', 'Only you hear it. The volume slider below sets how loud.')} onClick={() => session.setSound(true)} data-screen-sound-choice="on">
                     [ SOUND ON ]
                   </button>
-                  <button type="button" className={key(!view.sound.on)} aria-pressed={!view.sound.on} onClick={() => session.setSound(false)} data-screen-sound-choice="off">
+                  <button type="button" className={key(!view.sound.on)} aria-pressed={!view.sound.on} {...explain('Turns the PC\'s sound off on this device.', 'The PC stops reading its sound once nobody has it on.')} onClick={() => session.setSound(false)} data-screen-sound-choice="off">
                     [ SOUND OFF ]
                   </button>
                 </div>
@@ -417,7 +418,7 @@ function EngineScreen({ roomId, audio, engine }: { roomId: string; audio: boolea
                 <Sub>MOUSE</Sub>
                 <div className="flex flex-wrap items-start gap-1" role="group" aria-label="Mouse">
                   {MICE.map((mouse) => (
-                    <button key={mouse} type="button" className={key(wishes.mouse === mouse)} aria-pressed={wishes.mouse === mouse} onClick={() => session.setMouse(mouse)} data-screen-mouse={mouse}>
+                    <button key={mouse} type="button" className={key(wishes.mouse === mouse)} aria-pressed={wishes.mouse === mouse} {...explain(mouse === 'game' ? 'Captures the mouse for 3D games: every movement turns the view instead of moving a pointer.' : 'Uses the mouse as an ordinary pointer: the PC\'s pointer goes where yours is.', 'While you control the PC. Esc gives your pointer back.')} onClick={() => session.setMouse(mouse)} data-screen-mouse={mouse}>
                       {`[ ${MOUSE_NAMES[mouse] ?? mouse.toUpperCase()} ]`}
                     </button>
                   ))}

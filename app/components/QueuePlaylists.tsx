@@ -16,6 +16,7 @@ import { useWatchRoom } from '../lib/watch/use-watch-room';
 import { useAuth } from './AuthProvider';
 import { useMusicLibrary } from './MusicLibraryProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
+import { NOTE, explain } from '../lib/ui/explain';
 
 /**
  * PLAYLISTS, the queue window's middle tab (SPEC-rooms-queues.md, phase 4; Luke's answers 3A and 9A): your saved
@@ -51,7 +52,7 @@ export default function QueuePlaylists() {
   if (user === null || !library.canWrite) {
     return (
       <p className="p-3 text-label font-bold text-ink" data-queue-playlists="signed-out">
-        <Link href="/account" className={PLATE_LINK}>
+        <Link href="/account" className={PLATE_LINK} {...explain('Goes to the account page to log in or make an account.', 'Playlists are kept on your account.')}>
           [ LOG IN ]
         </Link>{' '}
         TO KEEP PLAYLISTS
@@ -139,7 +140,7 @@ export default function QueuePlaylists() {
           return (
             <li key={list.id} className="px-2 py-1" data-playlist={list.name}>
               <div className="flex flex-wrap items-center gap-2">
-                <button type="button" className="min-w-0 flex-1 cursor-pointer truncate text-left font-bold hover:underline max-sm:min-h-tap" aria-expanded={shown} onClick={() => setOpen(shown ? null : list.id)} data-playlist-open>
+                <button type="button" className="min-w-0 flex-1 cursor-pointer truncate text-left font-bold hover:underline max-sm:min-h-tap" aria-expanded={shown} {...explain(shown ? 'Folds this playlist shut.' : 'Opens this playlist to show what is in it.', 'To see, play or take out its things one by one.')} onClick={() => setOpen(shown ? null : list.id)} data-playlist-open>
                   {shown ? '▾' : '▸'} {list.name} ({list.items.length})
                 </button>
                 {inLiveRoom ? null : (
@@ -152,6 +153,7 @@ export default function QueuePlaylists() {
                     title="Your queue becomes this playlist, and its first thing starts"
                     aria-label={replaces ? `Replace your queue with ${list.name}` : `Play ${list.name}`}
                     data-playlist-play
+                    {...explain(replaces ? 'Replaces your queue with this playlist now, and its first thing starts.' : 'Your queue becomes this playlist, and its first thing starts.', 'If things are already waiting in your queue, it asks first; clicking elsewhere cancels.', NOTE.asks)}
                   >
                     {replaces ? '[ REPLACE YOUR QUEUE? ]' : '[ ▶ PLAY ]'}
                   </button>
@@ -164,6 +166,7 @@ export default function QueuePlaylists() {
                   title={inLiveRoom ? "Add it to the end of the live room's queue" : 'Add it to the end of your queue'}
                   aria-label={`Add ${list.name} to the queue`}
                   data-playlist-queue
+                  {...explain(inLiveRoom ? 'Adds the whole playlist to the end of the live room\'s queue.' : 'Adds the whole playlist to the end of your queue.', 'What is already queued stays ahead of it.')}
                 >
                   [ + QUEUE ]
                 </button>
@@ -183,7 +186,7 @@ export default function QueuePlaylists() {
                         <span className="min-w-0 flex-1 truncate" title={titleOf(item)}>
                           {titleOf(item)}
                         </span>
-                        <button type="button" className={PLATE} disabled={busy} aria-label={`Take ${titleOf(item)} out of ${list.name}`} onClick={() => void takeOut(list, item)}>
+                        <button type="button" className={PLATE} disabled={busy} aria-label={`Take ${titleOf(item)} out of ${list.name}`} {...explain('Takes this out of the playlist.', 'Only the playlist changes; anything already queued stays.')} onClick={() => void takeOut(list, item)}>
                           [ × ]
                         </button>
                       </li>

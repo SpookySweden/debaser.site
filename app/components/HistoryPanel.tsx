@@ -5,6 +5,7 @@ import { eraseHistory, forgetOne, readHistory, readPaused, setPaused, subscribeH
 import type { HistoryKind, HistoryRow } from '../lib/recommender/types';
 import { erasePlays } from '../lib/history/plays';
 import { PLATE, PLATE_PRESSED } from '../lib/ui/controls';
+import { NOTE, explain } from '../lib/ui/explain';
 
 /**
  * FOR YOU's history controls (SPEC-recommender.md, Luke 2026-11-13), on the account's PRIVACY tab and behind FOR YOU's
@@ -87,10 +88,10 @@ export default function HistoryPanel() {
       </h3>
       <p className="text-key text-ink">WHAT YOU OPEN, PLAY AND READ HERE, KEPT 90 DAYS. ONLY YOU CAN SEE IT. FOR YOU PICKS FROM IT. PAUSE AND ERASE ALSO COVER THE HISTORY WINDOW&apos;S LOG.</p>
       <div className="flex flex-wrap items-center gap-1">
-        <button type="button" onClick={() => void flipPause()} aria-pressed={paused} className={paused ? PLATE_PRESSED : PLATE} data-history-pause>
+        <button type="button" onClick={() => void flipPause()} aria-pressed={paused} className={paused ? PLATE_PRESSED : PLATE} data-history-pause {...explain(paused ? 'Starts keeping your history again.' : 'Stops keeping what you open, play and read until you resume.', 'What is kept stays. It pauses the HISTORY window\'s log too.')}>
           {paused ? 'PAUSED: [ RESUME HISTORY ]' : '[ PAUSE HISTORY ]'}
         </button>
-        <button type="button" onClick={() => void erase()} onBlur={() => setConfirming(false)} className={PLATE} data-history-erase>
+        <button type="button" onClick={() => void erase()} onBlur={() => setConfirming(false)} className={PLATE} data-history-erase {...explain(confirming ? 'Erases all your history now, and the HISTORY window\'s log with it.' : 'Asks first, then erases all your history and the HISTORY window\'s log.', 'Press again to confirm; clicking anywhere else cancels.', NOTE.undo)}>
           {confirming ? '[ YES, ERASE IT ]' : '[ ERASE MY HISTORY ]'}
         </button>
       </div>
@@ -113,14 +114,14 @@ export default function HistoryPanel() {
               <li key={`${row.kind}:${row.ref}`} className="rule-pixel flex flex-wrap items-center gap-x-2 py-1 text-key text-ink">
                 <span className="text-ink-quiet">{`${KIND_WORD[row.kind]} · ${ACTION_WORD[row.action]} · ${row.lastAt.slice(0, 10)}`}</span>
                 <span className="min-w-0 flex-1 wrap-anywhere">{row.title || row.ref}</span>
-                <button type="button" onClick={() => void forgetOne(row.kind, row.ref)} aria-label={`Forget ${row.title || row.ref}`} className={PLATE}>
+                <button type="button" onClick={() => void forgetOne(row.kind, row.ref)} aria-label={`Forget ${row.title || row.ref}`} className={PLATE} {...explain('Takes this one thing out of your history.', 'So FOR YOU stops picking from it.', NOTE.undo)}>
                   [ FORGET ]
                 </button>
               </li>
             ))}
           </ul>
           {rows.length > shown ? (
-            <button type="button" onClick={() => setShown((now) => now + STEP)} className={`${PLATE} w-fit`}>
+            <button type="button" onClick={() => setShown((now) => now + STEP)} className={`${PLATE} w-fit`} {...explain('Shows 30 more lines of your history.', 'The list starts with the most recent only.')}>
               [ SHOW MORE ]
             </button>
           ) : null}

@@ -9,6 +9,7 @@ import { leaveKeys, takeKeys, type KeyTaker } from '../lib/screens/key-gate';
 import { ROUTE_WORDS, type NetRoute } from '../lib/screens/net-route';
 import { askRdpPass, doorIsOpen, readRdpWayNow, saveServerSignIn, switchRdp } from '../lib/screens/rdp-client';
 import { PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 
 /** Holding Esc this long lets go of the server, as with the PC's engine (control.ts, LET_GO_HOLD_MS). */
 const LET_GO_HOLD_MS = 1000;
@@ -66,11 +67,11 @@ function ServerSignIn({ onSaved, onClose }: { onSaved: () => void; onClose: (() 
       <span className="flex items-center gap-1">
         {saying ? <span role="status">{saying}</span> : null}
         {onClose ? (
-          <button type="button" className={PLATE_ON_BLACK} onClick={onClose}>
+          <button type="button" className={PLATE_ON_BLACK} onClick={onClose} {...explain('Closes the server sign-in form without saving anything.', 'What you typed is dropped; the sign-in already on the PC stays as it was.')}>
             [ CLOSE ]
           </button>
         ) : null}
-        <button type="submit" className={PLATE_ON_BLACK} disabled={busy} data-room-rdp-signin-save>
+        <button type="submit" className={PLATE_ON_BLACK} disabled={busy} data-room-rdp-signin-save {...explain('Sends the server\'s address and Windows sign-in to the PC, which keeps them in its rdp.env file, then connects again.', 'So the PC can open the server by Remote Desktop. An empty field leaves that line as it was; the password is never kept here or shown again.')}>
           [ SAVE ON THE PC ]
         </button>
       </span>
@@ -410,6 +411,7 @@ export default function RoomRdpScreen() {
             aria-pressed="true"
             title="Windows' own Remote Desktop, turned into a picture by Apache Guacamole on the PC: a separate thing from our engine, and slower"
             data-room-rdp-way="rdp"
+            {...explain('The way in you are using now: Windows\' own Remote Desktop, through Guacamole on the PC. Pressing it does nothing.', 'The slower way in, kept for when our engine is not running on the server.')}
           >
             [ WINDOWS REMOTE DESKTOP (GUACAMOLE) ]
           </button>
@@ -421,10 +423,11 @@ export default function RoomRdpScreen() {
             onClick={() => chooseRemoteSource({ kind: 'engine', engine: 'server' })}
             title={serverEngine.available ? 'Our own engine on the server: much lower delay than Remote Desktop' : "Our engine isn't running on the server right now"}
             data-room-rdp-way="engine"
+            {...explain(serverEngine.available ? 'Switches this screen to the site\'s own engine on the server.' : 'Our engine is not running on the server right now, so this key is off.', 'Our engine has much lower delay than Remote Desktop.')}
           >
             {serverEngine.available ? '[ OUR ENGINE ]' : '[ OUR ENGINE: NOT RUNNING ON THE SERVER ]'}
           </button>
-          <button type="button" className={optionsShown ? PLATE_ON_BLACK_PRESSED : PLATE_ON_BLACK} aria-expanded={optionsShown} onClick={() => setOptionsOpen((open) => !open)} data-room-rdp-options>
+          <button type="button" className={optionsShown ? PLATE_ON_BLACK_PRESSED : PLATE_ON_BLACK} aria-expanded={optionsShown} onClick={() => setOptionsOpen((open) => !open)} data-room-rdp-options {...explain(optionsShown ? 'Hides the remote\'s options.' : 'Shows the remote\'s options: its on and off switch, fitting the server to this view, and the server sign-in.', 'Kept out of the way so a small room picture stays clickable. It opens by itself when the remote is off or the server is not named yet.')}>
             [ OPTIONS ]
           </button>
         </div>
@@ -437,6 +440,7 @@ export default function RoomRdpScreen() {
               onClick={() => void flipRemote(state === 'off')}
               title="The server remote's own switch, on the PC: off, nothing reaches the server this way"
               data-room-rdp-switch={state === 'off' ? 'off' : 'on'}
+            {...explain(state === 'off' ? 'Switches the server remote on at the PC, then connects.' : 'Switches the server remote off at the PC and disconnects.', 'It is the PC\'s own switch: while it is off, nothing reaches the server this way.')}
             >
               {state === 'off' ? '[ SERVER REMOTE: OFF ]' : '[ SERVER REMOTE: ON ]'}
             </button>
@@ -448,12 +452,13 @@ export default function RoomRdpScreen() {
                 onClick={toggleFit}
                 title={fitView ? "The server's desktop follows this view's size" : "The server's desktop is this screen's size, drawn whole"}
                 data-room-rdp-fit={fitView ? 'on' : 'off'}
+            {...explain(fitView ? 'Stops fitting: the server\'s desktop goes back to this device\'s screen size, drawn whole.' : 'Makes the server\'s desktop the size of this view, and has it follow the view as it changes.', 'So nothing is drawn smaller than it is. Remembered in this browser only.')}
               >
                 [ FIT THE SERVER TO THIS VIEW ]
               </button>
             ) : null}
             {state !== 'setup' && state !== 'off' ? (
-              <button type="button" className={signInOpen ? PLATE_ON_BLACK_PRESSED : PLATE_ON_BLACK} aria-expanded={signInOpen} onClick={() => setSignInOpen((open) => !open)} data-room-rdp-signin-key>
+              <button type="button" className={signInOpen ? PLATE_ON_BLACK_PRESSED : PLATE_ON_BLACK} aria-expanded={signInOpen} onClick={() => setSignInOpen((open) => !open)} data-room-rdp-signin-key {...explain(signInOpen ? 'Closes the server sign-in form.' : 'Opens the form for the server\'s address and Windows sign-in.', 'For when the server moved or its password changed.')}>
                 [ SERVER SIGN-IN ]
               </button>
             ) : null}
@@ -479,12 +484,12 @@ export default function RoomRdpScreen() {
           <div className="flex max-w-full flex-wrap items-center justify-end gap-1 bg-ink-plate px-1 font-mono" role="status">
             <span data-room-rdp-says>{says}</span>
             {state === 'locked' ? (
-              <button type="button" className={PLATE_ON_BLACK} onClick={unlock} title="Opens Cloudflare's own page in a small window: type your email, then the code it sends" data-room-rdp-unlock>
+              <button type="button" className={PLATE_ON_BLACK} onClick={unlock} title="Opens Cloudflare's own page in a small window: type your email, then the code it sends" data-room-rdp-unlock {...explain('Opens Cloudflare\'s own page in a small window: type your email, then the code it sends you.', 'Over the internet the server has an extra lock. Once it lets you in, this screen connects by itself.')}>
                 [ UNLOCK WITH AN EMAIL CODE ]
               </button>
             ) : null}
             {state === 'ended' || state === 'locked' ? (
-              <button type="button" className={PLATE_ON_BLACK} onClick={again} data-room-rdp-again>
+              <button type="button" className={PLATE_ON_BLACK} onClick={again} data-room-rdp-again {...explain('Asks the PC for the way in again and reconnects.', 'The connection ended or was locked; this starts it over.')}>
                 [ TRY AGAIN ]
               </button>
             ) : null}
@@ -492,7 +497,7 @@ export default function RoomRdpScreen() {
         ) : (
           <div className="flex max-w-full flex-wrap items-center justify-end gap-1 bg-ink-plate px-1 font-mono" role="status" data-room-rdp-control={engaged ? 'on' : 'off'}>
             <span>{engaged ? (escHolding ? 'KEEP HOLDING ESC TO LET GO' : 'CONTROL ON · HOLD ESC TO LET GO') : 'CONTROL OFF · CLICK THE PICTURE'}</span>
-            <button type="button" className={PLATE_ON_BLACK} onClick={() => engage(!engaged)} data-room-rdp-release>
+            <button type="button" className={PLATE_ON_BLACK} onClick={() => engage(!engaged)} data-room-rdp-release {...explain(engaged ? 'Gives back control: your keyboard and mouse stop working on the server.' : 'Takes control of the server: your keyboard and mouse work on it.', 'Holding Esc for a second also lets go, and clicking the picture takes control again.')}>
               {engaged ? '[ RELEASE ]' : '[ TAKE CONTROL ]'}
             </button>
           </div>

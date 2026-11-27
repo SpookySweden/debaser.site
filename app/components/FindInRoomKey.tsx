@@ -11,6 +11,7 @@ import { openWatch } from '../lib/watch/watch-window';
 import { useAuth } from './AuthProvider';
 import { useForum } from './ForumProvider';
 import GoLiveWindow from './GoLiveWindow';
+import { explain } from '../lib/ui/explain';
 
 /**
  * A TMDB title no media server holds (SPEC-media-servers.md; Luke, 2026-11-07): find a source for it in a room. It
@@ -44,6 +45,7 @@ export default function FindInRoomKey({ title }: { title: string }) {
           openWatch({ kind: 'room', roomId });
         }}
         aria-label={`Find a source for "${title}" in the room you are in`}
+        {...explain('Opens the room you are in with its queue searched for this title.', 'Nothing holds this title to play yet, so the room\'s search finds a source for it.')}
         data-find-in-room="add"
       >
         [ FIND IN ROOM ]
@@ -60,6 +62,7 @@ export default function FindInRoomKey({ title }: { title: string }) {
         aria-expanded={asking}
         onClick={() => setAsking(true)}
         aria-label={`Find "${title}" in a room: opens the room's settings`}
+        {...explain('Opens GO LIVE to start a room; once it is up, its queue is searched for this title.', 'Nothing holds this title to play yet, so a room\'s search finds a source for it.')}
         data-find-in-room="start"
       >
         [ FIND IN ROOM ]

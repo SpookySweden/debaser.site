@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { deviceRtc, beBusy, callBody, gathered, newCall, sendDeviceMessage, takeDeviceMessages, type RemoteSource } from '../lib/screens/devices';
 import { ROUTE_WORDS, routeOfConnection, type NetRoute } from '../lib/screens/net-route';
 import { PLATE_ON_BLACK } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 
 /**
  * REMOTE showing another of the owner's own devices, with nothing installed on it (SPEC-screens.md). This asks that
@@ -113,7 +114,7 @@ export default function RoomDeviceScreen({ source }: { source: Extract<RemoteSou
                 setWhy('');
                 setRoute(null);
                 setTries((n) => n + 1);
-              }} data-room-device-again>
+              }} data-room-device-again {...explain('Asks that device to share its screen again.', 'Somebody at that device has to press SHARE there; you can only watch it, not control it.')}>
               [ ASK AGAIN ]
             </button>
           ) : null}

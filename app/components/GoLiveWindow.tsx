@@ -13,6 +13,7 @@ import type { RoomAddMode, RoomPrivacy } from '../lib/watch/types';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import PopoutWindow from './PopoutWindow';
 import RoomPrivacyPicker from './RoomPrivacyPicker';
+import { NOTE, explain } from '../lib/ui/explain';
 
 const ADD_MODES: readonly { value: RoomAddMode; label: string }[] = [
   { value: 'anyone', label: 'ANYONE' },
@@ -115,6 +116,7 @@ export default function GoLiveWindow({
                   aria-checked={addMode === mode.value}
                   className={`${addMode === mode.value ? PLATE_PRESSED : PLATE} max-sm:min-h-tap`}
                   onClick={() => setAddMode(mode.value)}
+                  {...explain(mode.value === 'anyone' ? 'Lets anyone in the room add to its queue.' : 'Lets only you and people you crown add to the queue.', 'WHO CAN ADD. You can change it later in the room\'s settings.')}
                   data-go-live-add-mode={mode.value}
                 >
                   {`[ ${mode.label} ]`}
@@ -132,7 +134,7 @@ export default function GoLiveWindow({
               : 'PEOPLE NEED THE ROOM LINK. EVERYONE ELSE SEES ONLY THAT IT IS ON: NO NAMES AND NO WORDS.'}
         </p>
         <div className="flex flex-wrap items-center gap-2">
-          <button type="submit" className={PLATE_MAIN} disabled={waiting || busy} data-go-live-start>
+          <button type="submit" className={PLATE_MAIN} disabled={waiting || busy} data-go-live-start {...explain('Starts your room live, with who can join as picked above.', 'It carries what you are playing and your own queue into the room.', NOTE.others)}>
             {busy ? '[ GOING LIVE... ]' : '[ START ]'}
           </button>
           {fault === null ? null : (

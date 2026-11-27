@@ -4,6 +4,7 @@ import { PLATE, PLATE_PRESSED } from '../lib/ui/controls';
 import { QUEUE_LOOKUP_SOURCE, QUEUE_SOURCES, QUEUE_TYPES, queueSearchPlan, withQueueFilter } from '../lib/watch/blank-screen';
 import type { FilterKey } from '../lib/web/web-filters';
 import { SORT_OPTIONS, type SortChoice } from '../lib/web/web-sort';
+import { explain } from '../lib/ui/explain';
 
 /**
  * The stream queue search's filters (Luke, 2026-11-04): the same rows as the archive search's, offering only what a
@@ -40,6 +41,7 @@ export default function QueueSearchFilters({
           aria-pressed={lookingUp}
           aria-label="IMDB: look up posters and details of films and shows"
           title="Posters and details of films and shows, from TMDB. A room cannot play these."
+          {...explain(lookingUp ? 'Stops looking up films and shows; back to searching what a room can play.' : 'Looks up posters and details of films and shows, from TMDB.', 'For finding out about a title. A room cannot play these, so they have no ADD.')}
           className={lookingUp ? PLATE_PRESSED : PLATE}
           data-imdb-key
         >
@@ -56,6 +58,7 @@ export default function QueueSearchFilters({
             onClick={() => pick('in', option.value)}
             aria-pressed={plan.source === option.value}
             aria-label={`Source: ${option.label}`}
+            {...explain(option.value === 'all' ? 'Searches every source a room can play.' : `Searches only ${option.label}.`, 'It writes its filter into the search bar, so you can see and change it there.')}
             className={plan.source === option.value ? PLATE_PRESSED : PLATE}
           >
             {`[ ${option.label} ]`}
@@ -74,6 +77,7 @@ export default function QueueSearchFilters({
               onClick={() => pick('type', option.value)}
               aria-pressed={on}
               aria-label={`Type: ${option.label}`}
+              {...explain(option.value === 'all' ? 'Shows every kind a room can play: videos, music and books.' : (({ video: 'Shows only videos in the results.', music: 'Shows only music in the results.', books: 'Shows only books in the results.' } as Record<string, string>)[option.value] ?? 'Shows only this kind in the results.'), 'It writes its filter into the search bar, so you can see and change it there.')}
               className={on ? PLATE_PRESSED : PLATE}
             >
               {`[ ${option.label} ]`}
@@ -89,6 +93,7 @@ export default function QueueSearchFilters({
           onClick={() => pick('vibe', plan.vibe ? 'off' : 'on')}
           aria-pressed={plan.vibe}
           aria-label="Vibe search: mood and tag words"
+          {...explain(plan.vibe ? 'Turns vibe search off.' : 'Turns vibe search on: your words are also read as moods and tags.', 'It writes its filter into the search bar, so you can see and change it there.')}
           className={plan.vibe ? PLATE_PRESSED : PLATE}
         >
           {plan.vibe ? '[ ON ]' : '[ OFF ]'}
@@ -105,6 +110,7 @@ export default function QueueSearchFilters({
             onClick={() => pickSort({ sort: option.value, dir: option.value === 'date' ? sort.dir : 'desc' })}
             aria-pressed={sort.sort === option.value}
             aria-label={`Sort: ${option.label}`}
+            {...explain(({ best: 'Puts the results that best match your words first.', popular: 'Puts the most popular results first.', date: 'Puts the results in date order.' } as Record<string, string>)[option.value] ?? 'Changes the order of the results.', 'It writes its filter into the search bar, so you can see and change it there.')}
             className={sort.sort === option.value ? PLATE_PRESSED : PLATE}
           >
             {`[ ${option.label} ]`}
@@ -114,6 +120,7 @@ export default function QueueSearchFilters({
           type="button"
           onClick={() => pickSort({ sort: 'date', dir: sort.dir === 'asc' ? 'desc' : 'asc' })}
           disabled={disabled || sort.sort !== 'date'}
+          {...explain(sort.sort !== 'date' ? 'Flips date order between newest first and oldest first; it works only while DATE is picked.' : sort.dir === 'asc' ? 'Flips to newest first.' : 'Flips to oldest first.', 'The arrow shows which way the dates run now.')}
           aria-label={sort.sort !== 'date' ? 'Flip the order: only for DATE' : sort.dir === 'asc' ? 'Oldest first: flip to newest first' : 'Newest first: flip to oldest first'}
           className={PLATE}
         >

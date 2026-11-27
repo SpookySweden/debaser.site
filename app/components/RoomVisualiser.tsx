@@ -28,6 +28,7 @@ import {
 } from '../lib/watch/visualiser';
 import { PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED } from '../lib/ui/controls';
 import { ROOM_FULL_MARK } from '../lib/watch/room-frame';
+import { explain } from '../lib/ui/explain';
 
 type Hearing = 'starting' | 'listening' | 'own-rhythm' | 'unsupported';
 type Deaf = ReturnType<typeof whyDeaf>;
@@ -76,10 +77,11 @@ export default function RoomVisualiser({ roomId, element }: { roomId: string; el
                 acceptWarning();
                 setWarned(true);
               }}
+              {...explain('Starts the visualiser: it moves and changes colour with the music, beginning with the calm looks.', 'This warning shows once per browser; pressing this means it won\'t ask again here.', 'SOME LOOKS FLASH.')}
             >
               [ I UNDERSTAND, SHOW IT ]
             </button>
-            <button type="button" className={PLATE_ON_BLACK} onClick={() => setVisualiserOn(roomId, false)}>
+            <button type="button" className={PLATE_ON_BLACK} onClick={() => setVisualiserOn(roomId, false)} {...explain('Turns the visualiser off for you and goes back to the room\'s picture.', 'Nothing is shown; the warning asks again next time you turn it on.')}>
               [ NOT NOW ]
             </button>
           </p>
@@ -398,7 +400,7 @@ function Visualiser({ element }: { element: HTMLMediaElement | null }) {
               </label>
             ))}
             <p>
-              <button type="button" className={PLATE_ON_BLACK} onClick={reset} aria-label="Put every slider back to where it started" data-visualiser-reset>
+              <button type="button" className={PLATE_ON_BLACK} onClick={reset} aria-label="Put every slider back to where it started" data-visualiser-reset {...explain('Puts every slider back where it started.', 'The sliders are kept in this browser; this clears what you changed.')}>
                 [ RESET ]
               </button>
             </p>
@@ -406,19 +408,19 @@ function Visualiser({ element }: { element: HTMLMediaElement | null }) {
         ) : null}
         {/* On a Black strip: the keys' Daffodil words would be lost on a bright picture. */}
         <div className="flex flex-wrap items-center gap-1 bg-chrome">
-          <button type="button" className={PLATE_ON_BLACK} onClick={() => go('previous')} aria-label="Previous look (P)">
+          <button type="button" className={PLATE_ON_BLACK} onClick={() => go('previous')} aria-label="Previous look (P)" {...explain('Goes back to the previous look.', 'The P key does the same while the visualiser is shown.')}>
             [ ◀ ]
           </button>
-          <button type="button" className={PLATE_ON_BLACK} onClick={() => go('next')} aria-label="Next look (N)">
+          <button type="button" className={PLATE_ON_BLACK} onClick={() => go('next')} aria-label="Next look (N)" {...explain('Moves on to the next look.', 'The N key does the same while the visualiser is shown.')}>
             [ ▶ ]
           </button>
-          <button type="button" className={PLATE_ON_BLACK} onClick={() => go('random')} aria-label="A random look (R)">
+          <button type="button" className={PLATE_ON_BLACK} onClick={() => go('random')} aria-label="A random look (R)" {...explain('Jumps to a look picked at random.', 'The R key does the same while the visualiser is shown.')}>
             [ RANDOM ]
           </button>
-          <button type="button" className={held ? PLATE_ON_BLACK_PRESSED : PLATE_ON_BLACK} aria-pressed={held} onClick={() => setHeld((was) => !was)} aria-label="Hold this look (space)">
+          <button type="button" className={held ? PLATE_ON_BLACK_PRESSED : PLATE_ON_BLACK} aria-pressed={held} onClick={() => setHeld((was) => !was)} aria-label="Hold this look (space)" {...explain(held ? 'Lets the looks change on their own again.' : 'Keeps this look on screen: it stops changing on its own.', 'The looks otherwise change as often as the CHANGE EVERY slider says. The space bar does the same.')}>
             {held ? '[ HELD ]' : '[ HOLD ]'}
           </button>
-          <button type="button" className={wild ? PLATE_ON_BLACK_PRESSED : PLATE_ON_BLACK} aria-pressed={wild} onClick={switchWild} aria-label={wild ? 'Back to the calm looks' : 'All looks, some of which flash'}>
+          <button type="button" className={wild ? PLATE_ON_BLACK_PRESSED : PLATE_ON_BLACK} aria-pressed={wild} onClick={switchWild} {...explain(wild ? 'Goes back to the calm looks only.' : 'Lets every look play, the flashing ones too.', 'Calm is the start; ALL widens the set and starts again from its first look.', wild ? undefined : 'SOME LOOKS FLASH.')} aria-label={wild ? 'Back to the calm looks' : 'All looks, some of which flash'}>
             {wild ? '[ ALL ]' : '[ CALM ]'}
           </button>
           <button
@@ -428,10 +430,11 @@ function Visualiser({ element }: { element: HTMLMediaElement | null }) {
             aria-controls={slidersId}
             onClick={() => setSlidersOpen((was) => !was)}
             data-visualiser-sliders-key
+            {...explain(slidersOpen ? 'Hides the sliders again.' : 'Shows the sliders: how much it reacts, its speed, its brightness and how often the look changes.', 'Kept in this browser; RESET puts them back.')}
           >
             [ SLIDERS ]
           </button>
-          <button type="button" className={PLATE_ON_BLACK} onClick={fullscreen} aria-label="Fullscreen (F)" title="Full screen (F)">
+          <button type="button" className={PLATE_ON_BLACK} onClick={fullscreen} aria-label="Fullscreen (F)" title="Full screen (F)" {...explain('Fills your whole screen with the visualiser, or leaves full screen if it already does.', 'The F key does the same; Esc also leaves.')}>
             {`[ ${ROOM_FULL_MARK} ]`}
           </button>
           <span className="min-w-0 flex-1 truncate bg-chrome px-1 text-label text-ink-bar">

@@ -11,6 +11,7 @@ import { useWatchRoom } from '../lib/watch/use-watch-room';
 import { watchHref } from '../lib/watch/watch-window';
 import ProfileName from './ProfileName';
 import { TimedMessage } from './WatchRoom';
+import { explain } from '../lib/ui/explain';
 
 /** The marker on a stream's card while it runs (decision 9). */
 export function StreamMarker({ roomId }: { roomId: string }) {
@@ -39,7 +40,7 @@ export function StreamRowFacts({ roomId }: { roomId: string }) {
       {facts.live ? (
         <>
           {' '}
-          <Link href={watchHref({ kind: 'room', roomId })} className="key px-1 text-label">
+          <Link href={watchHref({ kind: 'room', roomId })} className="key px-1 text-label" {...explain('Opens this stream\'s room to watch it: it is still on.', 'Join in while it runs; once it ends, this record is what remains.')}>
             [ ▶ WATCH ]
           </Link>
         </>
@@ -87,7 +88,7 @@ export default function StreamRecord({ roomId }: { roomId: string }) {
         <span>{streamDate(read.room.startedAt)}</span>
         {live ? <span className="bg-acid px-1 font-bold text-ink-plate">LIVE</span> : <span className="font-bold">ENDED</span>}
         {live ? (
-          <Link href={watchHref({ kind: 'room', roomId })} className="key px-1 py-1 text-label">
+          <Link href={watchHref({ kind: 'room', roomId })} className="key px-1 py-1 text-label" {...explain('Opens this stream\'s room to watch it: it is still on.', 'Join in while it runs; once it ends, this record is what remains.')}>
             [ ▶ WATCH ]
           </Link>
         ) : null}
@@ -114,7 +115,7 @@ function PlayRow({ number, title, href, messages }: { number: number; title: str
   return (
     <li className="rule-pixel py-1">
       {href === undefined ? (
-        <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} className="cursor-pointer text-left font-bold hover:underline">
+        <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} {...explain(open ? 'Folds the chat for this play shut.' : 'Opens the chat that was said while this played, each line stamped with its time.', 'The record keeps every play in order, each with its own chat.')} className="cursor-pointer text-left font-bold hover:underline">
           {open ? '[-]' : '[+]'} {number}. {title} :: {said}
         </button>
       ) : (
@@ -124,6 +125,7 @@ function PlayRow({ number, title, href, messages }: { number: number; title: str
             onClick={() => setOpen((value) => !value)}
             aria-expanded={open}
             aria-label={`${open ? 'Fold' : 'Unfold'} the chat over ${title}`}
+            {...explain(open ? 'Folds the chat for this play shut.' : 'Opens the chat that was said while this played, each line stamped with its time.', 'The title beside it opens the original address in a new tab.')}
             className="cursor-pointer text-left font-bold hover:underline max-sm:min-h-tap"
           >
             {open ? '[-]' : '[+]'} {number}.

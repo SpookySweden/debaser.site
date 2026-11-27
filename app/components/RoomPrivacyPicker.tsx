@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { FIELD_TIGHT, PLATE, PLATE_PRESSED } from '../lib/ui/controls';
 import { ROOM_PASSWORD_MAX, roomPrivacyLabel } from '../lib/watch/rules';
 import type { RoomPrivacy } from '../lib/watch/types';
+import { explain } from '../lib/ui/explain';
 
 const CHOICES: readonly RoomPrivacy[] = ['private', 'password', 'open'];
 
@@ -41,6 +42,7 @@ export default function RoomPrivacyPicker({
             className={`${value === choice ? PLATE_PRESSED : PLATE} max-sm:min-h-tap`}
             onClick={() => onChange(choice)}
             data-room-privacy={choice}
+            {...explain(({ private: 'Makes the room private: people need its link to join, and everyone else sees only that it is on.', password: 'People need the room link and a password; everyone else sees only that it is on.', open: 'Opens the room to anyone: it is listed with names, and its thread is on the board.' } as Record<string, string>)[choice] ?? 'Picks who can join this room.', 'WHO CAN JOIN. Nothing changes until you press START or SAVE below.')}
           >
             {`[ ${roomPrivacyLabel(choice)} ]`}
           </button>
@@ -61,7 +63,7 @@ export default function RoomPrivacyPicker({
               data-room-password
             />
           </label>
-          <button type="button" className={`${PLATE} max-sm:min-h-tap`} aria-pressed={shown} onClick={() => setShown((was) => !was)}>
+          <button type="button" className={`${PLATE} max-sm:min-h-tap`} aria-pressed={shown} onClick={() => setShown((was) => !was)} {...explain(shown ? 'Hides the password as dots again.' : 'Shows the password as you typed it.', 'To check it before you share it.')}>
             {shown ? '[ HIDE ]' : '[ SHOW ]'}
           </button>
         </div>

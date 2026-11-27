@@ -28,6 +28,7 @@ import RoomSettingsWindow from './RoomSettingsWindow';
 import SongCoverCard from './SongCoverCard';
 import { SpeakerKey } from './StreamBarKeys';
 import StreamQueueWindow from './StreamQueueWindow';
+import { explain } from '../lib/ui/explain';
 
 /** As a live room's window: it opens filling the screen, because the picture wants all the room it can get. */
 const ROOM_SIZE = { w: 2560, h: 1440 };
@@ -183,6 +184,7 @@ export default function OwnRoomWindow({
         else orderFloating(paused ? 'play' : 'pause');
       }}
       data-own-room-play={paused ? 'paused' : 'playing'}
+      {...explain(paused ? 'Plays what is on your room\'s screen.' : 'Pauses what is on your room\'s screen.', 'A song on the music bar is played or paused there.')}
     >
       {paused ? '[ ▶ ]' : '[ ❚❚ ]'}
     </button>
@@ -215,14 +217,14 @@ export default function OwnRoomWindow({
   // Next is drawn when it has something to do: something waits, the bar's shelf walks on from a song, or a picture comes off.
   const skipKey =
     waiting > 0 || songOnBar || pictureOn ? (
-      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label={pictureOn ? 'Next: take the picture off and start what is queued behind it' : 'Skip to the next in your queue'} title={pictureOn ? 'Takes the picture off' : 'Skip'} onClick={pictureOn ? nextFromPicture : playNext} data-own-room-next>
+      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label={pictureOn ? 'Next: take the picture off and start what is queued behind it' : 'Skip to the next in your queue'} title={pictureOn ? 'Takes the picture off' : 'Skip'} onClick={pictureOn ? nextFromPicture : playNext} data-own-room-next {...explain(pictureOn ? 'Takes the picture off and starts what is queued behind it.' : 'Skips to the next thing in your queue.', 'With nothing queued behind a picture, the screen simply goes blank.')}>
         [ ▶▶ ]
       </button>
     ) : null;
   // `[ PIP ]`: the window folds to its key above the player and the video floats. The only way the picture floats.
   const floatKey =
     videoOn && !pictureOn ? (
-      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Picture in picture: floats over the site" title="Floats over the site" onClick={() => onCollapse(true)} data-own-room-pip>
+      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Picture in picture: floats over the site" title="Floats over the site" onClick={() => onCollapse(true)} data-own-room-pip {...explain('Folds this window away and floats the video over the site.', 'So it keeps playing in a corner while you look at other pages.')}>
         [ PIP ]
       </button>
     ) : null;
@@ -237,7 +239,7 @@ export default function OwnRoomWindow({
         onVolume={(next) => setSoundAsked((was) => ({ play: screenPlay, volume: next, muted: was !== null && was.play === screenPlay ? was.muted : muted }))}
       />
       {floatKey}
-      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Fullscreen" onClick={togglePlayerFullscreen} data-own-room-full>
+      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Fullscreen" onClick={togglePlayerFullscreen} data-own-room-full {...explain('Fills your whole screen with the player, or leaves full screen if it already does.', 'For watching without the rest of the site around it.')}>
         [ FULL ]
       </button>
     </>
@@ -313,7 +315,7 @@ export default function OwnRoomWindow({
                 <RoomSideGrip />
                 {/* One key for the queue window, where everything is added and seen, and the cog beside it: as in a live room. */}
                 <div className={TITLE_BAR}>
-                  <button type="button" className={`${TITLE_BAR_BUTTON} max-sm:min-h-tap`} aria-haspopup="dialog" onClick={() => openQueue()} data-own-room-queue-key>
+                  <button type="button" className={`${TITLE_BAR_BUTTON} max-sm:min-h-tap`} aria-haspopup="dialog" onClick={() => openQueue()} data-own-room-queue-key {...explain('Opens the queue window, where everything for your room is searched for, added and seen.', 'The one place to choose what plays next.')}>
                     [ QUEUE ]
                   </button>
                   {mayEdit ? (
@@ -326,6 +328,7 @@ export default function OwnRoomWindow({
                       title="Link and settings"
                       onClick={() => setSettingsOpen(true)}
                       data-own-room-settings
+                      {...explain('Opens your room\'s link and settings.', 'To share the room or change how it works.')}
                     >
                       [ {ROOM_COG} ]
                     </button>
@@ -364,13 +367,13 @@ export default function OwnRoomWindow({
                   <p>
                     {user === null ? (
                       <>
-                        <Link href="/account" className={PLATE_LINK}>
+                        <Link href="/account" className={PLATE_LINK} {...explain('Goes to the account page to log in or make an account.', 'You need an account to go live with your room.')}>
                           [ LOG IN ]
                         </Link>{' '}
                         TO GO LIVE
                       </>
                     ) : (
-                      <button type="button" onClick={() => setGoingLive(true)} aria-haspopup="dialog" aria-expanded={goingLive} className={PLATE_MAIN} data-own-room-go-live>
+                      <button type="button" onClick={() => setGoingLive(true)} aria-haspopup="dialog" aria-expanded={goingLive} className={PLATE_MAIN} data-own-room-go-live {...explain('Opens GO LIVE, where you choose who can join; START there opens your room to them.', 'So other people can watch and listen with you. Nothing starts until you press START.')}>
                         [ GO LIVE ]
                       </button>
                     )}

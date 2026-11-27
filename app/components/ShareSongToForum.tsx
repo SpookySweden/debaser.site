@@ -7,6 +7,7 @@ import { BOARD_TARGET } from '../lib/forum/anchors';
 import { smallKey } from '../features/beatbox/ui/looks';
 import { useAuth } from './AuthProvider';
 import { useForum } from './ForumProvider';
+import { NOTE, explain } from '../lib/ui/explain';
 
 const TITLE_MAX = 80;
 const LINK_MAX = 20000;
@@ -71,16 +72,16 @@ export default function ShareSongToForum({ getSong }: { getSong: () => SavedSong
           </label>
           <p className="text-bb-large wrap-anywhere">Everyone on the forum will be able to open this song.</p>
           <div className="flex flex-wrap gap-bb-gutter">
-            <button type="button" disabled={busy} onClick={() => void post()} className={smallKey()}>
+            <button type="button" disabled={busy} onClick={() => void post()} className={smallKey()} {...explain('Posts a thread on the board holding this song\'s link, under your name.', 'Everyone on the forum can open the song from it.', NOTE.others)}>
               Post
             </button>
-            <button type="button" onClick={() => setOpen(false)} className={smallKey()}>
+            <button type="button" onClick={() => setOpen(false)} className={smallKey()} {...explain('Closes this without posting anything.', 'Nothing goes on the board.')}>
               Cancel
             </button>
           </div>
         </>
       ) : (
-        <button type="button" onClick={() => setOpen(true)} className={smallKey()}>
+        <button type="button" onClick={() => setOpen(true)} className={smallKey()} {...explain('Opens a small box to share this song to the forum as a thread.', 'Nothing is posted until you press Post in it.')}>
           Share to forum
         </button>
       )}

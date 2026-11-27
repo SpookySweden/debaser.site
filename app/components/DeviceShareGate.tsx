@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { deviceRtc, beBusy, callBody, gathered, sendDeviceMessage, startDeviceBeacon, takeDeviceMessages, useOtherDevices } from '../lib/screens/devices';
 import { PLATE_ON_BLACK } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 
 /**
  * The other end of REMOTE from another device (SPEC-screens.md): on every page, for the owner only, this tab says
@@ -105,7 +106,7 @@ export default function DeviceShareGate() {
           <p data-device-share-asks>{`${ask.name} WANTS TO SEE THIS SCREEN.`}</p>
           <p>Press SHARE, then choose a screen in your browser&apos;s own window. The other device can only watch: it cannot control this one.</p>
           <div className="flex flex-wrap gap-1">
-            <button type="button" className={PLATE_ON_BLACK} onClick={() => void share(ask)} data-device-share-yes>
+            <button type="button" className={PLATE_ON_BLACK} onClick={() => void share(ask)} data-device-share-yes {...explain('Shares this screen with your other device: your browser then asks which screen or window to send.', 'The other device can only watch; it cannot control this one.')}>
               [ SHARE THIS SCREEN ]
             </button>
             <button
@@ -116,6 +117,7 @@ export default function DeviceShareGate() {
                 setAsk(null);
               }}
               data-device-share-no
+              {...explain('Says no: the other device is told it was declined here.', 'Nothing of this screen is sent.')}
             >
               [ NO ]
             </button>
@@ -125,7 +127,7 @@ export default function DeviceShareGate() {
       {sharing ? (
         <div className="flex flex-wrap items-center gap-1" data-device-sharing>
           <span>{`SHARING THIS SCREEN WITH ${sharing.name}`}</span>
-          <button type="button" className={PLATE_ON_BLACK} onClick={() => stop(true)} data-device-share-stop>
+          <button type="button" className={PLATE_ON_BLACK} onClick={() => stop(true)} data-device-share-stop {...explain('Stops sharing this screen and tells the other device.', 'Its picture of this screen ends at once.')}>
             [ STOP ]
           </button>
         </div>
@@ -133,7 +135,7 @@ export default function DeviceShareGate() {
       {trouble ? (
         <div className="flex flex-wrap items-center gap-1">
           <p role="status">{trouble}</p>
-          <button type="button" className={PLATE_ON_BLACK} onClick={() => setTrouble('')}>
+          <button type="button" className={PLATE_ON_BLACK} onClick={() => setTrouble('')} {...explain('Closes this message about the screen share.', 'Nothing else changes when you close it.')}>
             [ OK ]
           </button>
         </div>

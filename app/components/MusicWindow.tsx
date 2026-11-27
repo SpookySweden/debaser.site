@@ -17,6 +17,7 @@ import {
 import DockWindow from './DockWindow';
 import PersonalLibrary from './PersonalLibrary';
 import VanityView from './VanityView';
+import { explain } from '../lib/ui/explain';
 
 /** The screens drawn inside the window (CATALOGUE is a page, so its tab is a link). */
 const SCREENS: { screen: MusicScreen; label: string }[] = [
@@ -80,7 +81,7 @@ export default function MusicWindow() {
       {/* FILES is the link to the page the shelf moved to (the catalogue's music); MY MUSIC and VANITY
           are this window's screens. It said CATALOGUE until that page was named FILES (Luke, 2026-11-04). */}
       <div className="mb-2 flex flex-wrap items-stretch gap-1">
-        <Link href={MUSIC_HREF} onClick={close} className={`${TAB} cursor-pointer`}>
+        <Link href={MUSIC_HREF} onClick={close} className={`${TAB} cursor-pointer`} {...explain('Closes this window and goes to the FILES page\'s music: every song the site holds.', 'The shelf of all the music lives there now.')}>
           [ FILES ]
         </Link>
         {SCREENS.map(({ screen, label }) =>
@@ -89,7 +90,7 @@ export default function MusicWindow() {
               [ {label} ]
             </span>
           ) : (
-            <button key={screen} type="button" onClick={() => showMusicScreen(screen)} className={`${TAB} cursor-pointer`}>
+            <button key={screen} type="button" onClick={() => showMusicScreen(screen)} className={`${TAB} cursor-pointer`} {...explain(screen === 'vanity' ? 'Shows VANITY: the site\'s own MP3s by artist, album and song, with picks.' : 'Shows MY MUSIC: your own music.', 'One screen of this window at a time.')}>
               [ {label} ]
             </button>
           ),

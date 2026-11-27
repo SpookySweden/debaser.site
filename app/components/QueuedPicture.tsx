@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { PLATE_ON_BLACK } from '../lib/ui/controls';
 import { addedHere, alwaysShowInRoom, outsideAnswer, outsidePicturesServerState, outsidePicturesState, subscribeToOutsidePictures } from '../lib/watch/outside-pictures';
 import { PICTURE_REFUSALS, dimensionsRefusal, isTrustedPicture, loadPicture, outsideAddressRefusal, pictureHost } from '../lib/watch/pictures';
+import { explain } from '../lib/ui/explain';
 
 /**
  * A picture from a queue, on a room's screen (SPEC-rooms-queues.md, section 6): fitted, never stretched, with its
@@ -138,7 +139,7 @@ function OutsidePicture({ src, title, className, roomId, guest }: { src: string;
           <>
             <p className={NOTE}>PICTURE FROM {host}. LOADING IT TELLS THAT SERVER YOUR BROWSER ASKED.</p>
             <p className="flex flex-wrap items-center justify-center gap-2">
-              <button type="button" className={PLATE_ON_BLACK} onClick={() => setPressed(src)} aria-label={`Show the picture from ${host}`} data-outside-show>
+              <button type="button" className={PLATE_ON_BLACK} onClick={() => setPressed(src)} aria-label={`Show the picture from ${host}`} data-outside-show {...explain('Loads this picture from the outside server named above, this once.', 'Loading it tells that server your browser asked. It is checked here before it shows.')}>
                 [ SHOW ]
               </button>
               {roomId !== null && !guest ? (
@@ -150,6 +151,7 @@ function OutsidePicture({ src, title, className, roomId, guest }: { src: string;
                     setPressed(src);
                   }}
                   data-outside-always
+                  {...explain('Shows this picture, and from now on every outside picture in this room, without asking.', 'Kept in this browser only. Each one is still checked here before it shows.')}
                 >
                   [ ALWAYS SHOW IN THIS ROOM ]
                 </button>

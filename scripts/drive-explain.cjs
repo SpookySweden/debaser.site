@@ -204,6 +204,29 @@ async function boxContrast(page) {
   console.log(`  note undo arrow (${(await undo.isDisabled()) ? 'disabled' : 'enabled'}): ${undoWords ?? 'no box'}`);
   check(undoWords !== null, 'the undo arrow explains itself, disabled or not', undoWords ?? 'none');
 
+  // The room area's second half (EXPLAIN-ROOMS, 2026-11-27): the HISTORY window opened from its address, its keys explained.
+  console.log('A ROOM-AREA WINDOW: HISTORY');
+  await page.goto(`${BASE}/forum?history=1`, { waitUntil: 'domcontentloaded', timeout: 240000 });
+  const pause = page.locator('[data-history-log] [data-history-pause]');
+  await pause.waitFor({ timeout: 120000 });
+  await sleep(1500);
+  await pause.hover();
+  await sleep(800);
+  const pauseWords = await boxText(page);
+  check(pauseWords !== null && pauseWords.includes('new lines in your log'), "HISTORY's PAUSE explains itself", pauseWords ?? 'none');
+  const music = page.locator('[data-history-log] [data-history-filter="music"]');
+  await music.hover();
+  await sleep(100);
+  const musicWords = await boxText(page);
+  check(musicWords !== null && musicWords.includes('only the songs'), 'its MUSIC filter explains itself', musicWords ?? 'none');
+  const erase = page.locator('[data-history-log] [data-history-erase]');
+  await erase.hover();
+  await sleep(100);
+  check((await boxText(page))?.includes("CAN'T BE UNDONE") === true, 'its ERASE carries the caution');
+  await page.screenshot({ path: join(OUT, 'dark-history.png') });
+  await page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded', timeout: 240000 });
+  await media.waitFor({ timeout: 120000 });
+
   console.log('BRIGHT THEME');
   await page.evaluate(() => window.localStorage.setItem('debaser.site.theme.v2', 'default'));
   await page.reload({ waitUntil: 'domcontentloaded' });

@@ -3,6 +3,7 @@
 import type { ForumPreview } from '../lib/forum/types';
 import MediaThumbnail from './MediaThumbnail';
 import SheetImage from './SheetImage';
+import { explain } from '../lib/ui/explain';
 
 export type MediaPickerItem = {
   id: string;
@@ -48,6 +49,7 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
               role="radio"
               aria-checked={value === ''}
               onClick={() => onChange('')}
+              {...explain('Picks no picture: the post is words only.', 'You can pick a picture again at any time before posting.')}
               className={`w-21 cursor-pointer rounded-none border p-0.5 text-center ${
                 value === '' ? 'border-ink-plate bg-ena text-ink-bar' : 'border-ink bg-sun-pale text-ink hover:bg-ice-pale'
               }`}
@@ -69,6 +71,7 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
                   aria-checked={picked}
                   title={item.label}
                   onClick={() => onChange(item.id)}
+                  {...explain('Picks this picture to go with your post.', 'The box beside the list shows what is picked.')}
                   className={`w-21 cursor-pointer rounded-none border p-0.5 text-center ${
                     picked ? 'border-ink-plate bg-ena text-ink-bar' : 'border-ink bg-sun-pale text-ink hover:bg-ice-pale'
                   }`}
@@ -116,6 +119,7 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
                 <button
                   type="button"
                   onClick={() => onChange('')}
+                  {...explain('Takes the picked picture off, so the post is words only.', 'The picture stays in the catalogue.')}
                   className="mt-1 cursor-pointer key px-0.5 py-0.75 text-label font-bold max-sm:min-h-tap max-sm:px-1"
                 >
                   [ CLEAR ]

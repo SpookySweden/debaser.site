@@ -24,6 +24,7 @@ import { setCanvasDropTarget, useCanvasDrag, type CanvasDragPayload } from '../l
 import { useCanvasAsk, useRoomCanvas, type CanvasContext } from '../lib/watch/use-room-canvas';
 import ArtMark from './ArtMark';
 import CanvasPicture from './CanvasPicture';
+import { NOTE, explain } from '../lib/ui/explain';
 
 /** The canvas's hand-drawn keys (app/lib/ui/art/slots.ts), shown at 16px. */
 const MARK_SIZE = 16;
@@ -173,7 +174,7 @@ export default function RoomCanvas({ roomId, context, visible }: RoomCanvasProps
       <CanvasSaveAsk roomId={roomId} reason="view" />
       {canDraw ? (
         <div className="flex shrink-0 flex-wrap items-center gap-1 px-1 py-0.5 text-label text-sun" role="toolbar" aria-label="Canvas tools" data-canvas-tools>
-          <button type="button" className={tool === 'pen' ? PLATE_ON_BLACK_PRESSED : PLATE_ON_BLACK} aria-pressed={tool === 'pen'} aria-label="Pen" title="Pen" onClick={() => setTool('pen')}>
+          <button type="button" className={tool === 'pen' ? PLATE_ON_BLACK_PRESSED : PLATE_ON_BLACK} aria-pressed={tool === 'pen'} aria-label="Pen" title="Pen" onClick={() => setTool('pen')} {...explain('Picks the pen: drag on the canvas to draw.', 'Everyone in the room sees your strokes as you make them.', NOTE.others)}>
             <ArtMark src={PEN_SRC} size={MARK_SIZE} fallback={<span>[ PEN ]</span>} />
           </button>
           {PEN_SIZES.map((option) => (
@@ -184,6 +185,7 @@ export default function RoomCanvas({ roomId, context, visible }: RoomCanvasProps
               aria-pressed={tool === 'pen' && size === option}
               aria-label={`Pen size ${option}`}
               title={`Size ${option}`}
+              {...explain(`Picks the pen at size ${option}.`, 'The pen comes in four sizes; this also switches back from the eraser.')}
               onClick={() => {
                 setTool('pen');
                 setSize(option);
@@ -196,10 +198,10 @@ export default function RoomCanvas({ roomId, context, visible }: RoomCanvasProps
             <span className="sr-only">Pen colour</span>
             <input type="color" value={colour} onChange={(event) => setPicked(canvasColour(event.target.value))} className="h-6 w-8 cursor-pointer border border-sun bg-ink-plate p-0 max-sm:h-tap" data-canvas-colour />
           </label>
-          <button type="button" className={tool === 'eraser' ? PLATE_ON_BLACK_PRESSED : PLATE_ON_BLACK} aria-pressed={tool === 'eraser'} aria-label="Eraser: rubs out your own strokes" title="Eraser" onClick={() => setTool('eraser')}>
+          <button type="button" className={tool === 'eraser' ? PLATE_ON_BLACK_PRESSED : PLATE_ON_BLACK} aria-pressed={tool === 'eraser'} aria-label="Eraser: rubs out your own strokes" title="Eraser" {...explain('Picks the eraser: drag over the canvas to rub out.', 'It only rubs out your own strokes, never anyone else\'s.')} onClick={() => setTool('eraser')}>
             <ArtMark src={ERASER_SRC} size={MARK_SIZE} fallback={<span>[ ERASER ]</span>} />
           </button>
-          <button type="button" className={PLATE_ON_BLACK} aria-label="Undo your last" title="Undo" onClick={canvas.undo}>
+          <button type="button" className={PLATE_ON_BLACK} aria-label="Undo your last" title="Undo" onClick={canvas.undo} {...explain('Takes back the last thing you did on the canvas: a stroke, a rub-out or something you placed.', 'Only ever your own; nobody can clear the whole canvas.')}>
             <ArtMark src={UNDO_SRC} size={MARK_SIZE} fallback={<span>[ UNDO ]</span>} />
           </button>
           <span className="flex-1" />
@@ -211,6 +213,7 @@ export default function RoomCanvas({ roomId, context, visible }: RoomCanvasProps
             aria-label={saved ? 'Saved to the media page' : 'Save to the media page'}
             title={saved ? 'Saved' : 'Save'}
             onClick={canvas.save}
+            {...explain(saved ? 'This canvas is already saved to the media page.' : 'Saves the canvas as it is now, as a picture on the media page.', saved ? 'Drawing after this is kept too: its last picture is taken when the room closes.' : 'So the drawing is kept after the stream ends.')}
             data-canvas-save={saved ? 'saved' : 'unsaved'}
           >
             <ArtMark src={SAVE_SRC} size={MARK_SIZE} fallback={<span>{saved ? '[ SAVED ]' : view.saving ? '[ SAVING... ]' : '[ SAVE ]'}</span>} />
@@ -257,10 +260,10 @@ export function CanvasSaveAsk({ roomId, reason }: { roomId: string; reason: 'clo
     return createPortal(
       <div className="fixed inset-x-0 top-1/3 z-popout mx-auto flex w-fit max-w-full flex-wrap items-center gap-2 frame bg-sun-pale p-2 text-ink" role="alertdialog" aria-label="Save this canvas" data-canvas-ask="close">
         <span className="text-label font-bold">SAVE THIS CANVAS?</span>
-        <button type="button" disabled={saving} className={PLATE_MAIN} onClick={() => answer(true)}>
+        <button type="button" disabled={saving} className={PLATE_MAIN} onClick={() => answer(true)} {...explain('Saves the canvas as a picture on the media page.', 'Nothing is saved until somebody says yes here.')}>
           [ SAVE ]
         </button>
-        <button type="button" disabled={saving} className={PLATE} onClick={() => answer(false)}>
+        <button type="button" disabled={saving} className={PLATE} onClick={() => answer(false)} {...explain('Goes on without saving the canvas.', 'The drawing is not kept as a picture on the media page.')}>
           [ DON&apos;T SAVE ]
         </button>
       </div>,
@@ -275,10 +278,10 @@ export function CanvasSaveAsk({ roomId, reason }: { roomId: string; reason: 'clo
       data-canvas-ask={reason}
     >
       <span className="text-label font-bold">SAVE THIS CANVAS?</span>
-      <button type="button" disabled={saving} className={PLATE_ON_BLACK} onClick={() => answer(true)}>
+      <button type="button" disabled={saving} className={PLATE_ON_BLACK} onClick={() => answer(true)} {...explain('Saves the canvas as a picture on the media page.', 'It asks every half hour of unsaved drawing, so nothing is lost by accident.')}>
         [ SAVE ]
       </button>
-      <button type="button" disabled={saving} className={PLATE_ON_BLACK} onClick={() => answer(false)}>
+      <button type="button" disabled={saving} className={PLATE_ON_BLACK} onClick={() => answer(false)} {...explain('Carries on drawing without saving.', 'It asks again after another half hour of unsaved drawing.')}>
         [ DON&apos;T SAVE ]
       </button>
     </div>

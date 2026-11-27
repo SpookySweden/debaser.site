@@ -25,6 +25,7 @@ import { webTrackNow } from '../lib/web/web-track-lookup';
 import { useAuth } from './AuthProvider';
 import DockWindow from './DockWindow';
 import { useMusicPlayer, type MusicPlayerValue } from './MusicPlayerProvider';
+import { NOTE, explain } from '../lib/ui/explain';
 
 /**
  * HISTORY (SPEC-history.md, Luke 2026-11-17): what you played, how it reached you, and when, as a logbook.
@@ -197,7 +198,7 @@ export function HistoryLog() {
       {browserOnly ? (
         <p className="border-b border-ink px-2 py-1 text-label text-ink" data-history-note="visitor">
           KEPT IN THIS BROWSER ONLY.{' '}
-          <Link href="/account" className={PLATE_LINK}>
+          <Link href="/account" className={PLATE_LINK} {...explain('Goes to the account page to log in or make an account.', 'Signed out, this log lives only in this browser.')}>
             [ LOG IN ]
           </Link>{' '}
           TO KEEP IT ON YOUR ACCOUNT.
@@ -205,17 +206,17 @@ export function HistoryLog() {
       ) : null}
 
       <div className="flex flex-wrap items-center gap-1" data-history-keys>
-        <button type="button" onClick={() => void flipPause()} aria-pressed={paused} className={paused ? PLATE_PRESSED : PLATE} data-history-pause>
+        <button type="button" onClick={() => void flipPause()} aria-pressed={paused} className={paused ? PLATE_PRESSED : PLATE} data-history-pause {...explain(paused ? 'Starts writing new lines in your log again.' : 'Stops writing new lines in your log until you resume.', 'What is already there stays. Signed in, it pauses the history FOR YOU picks from too.')}>
           {paused ? '[ RESUME ]' : '[ PAUSE ]'}
         </button>
         <span className="flex flex-wrap items-center gap-1" role="group" aria-label="Show">
           {LOG_FILTERS.map((one) => (
-            <button key={one.key} type="button" onClick={() => setFilter(one.key)} aria-pressed={filter === one.key} className={filter === one.key ? PLATE_PRESSED : PLATE} data-history-filter={one.key}>
+            <button key={one.key} type="button" onClick={() => setFilter(one.key)} {...explain(({ all: 'Shows every line in your log.', music: 'Shows only the songs in your log.', video: 'Shows only the videos in your log.', books: 'Shows only the books in your log.', rooms: 'Shows only what played in a room or from your own queue.', letters: 'Shows only what you played from a letter.' } as Record<string, string>)[one.key] ?? 'Shows only this kind of line.', 'It only changes what this window shows; nothing is removed.')} aria-pressed={filter === one.key} className={filter === one.key ? PLATE_PRESSED : PLATE} data-history-filter={one.key}>
               [ {one.label} ]
             </button>
           ))}
         </span>
-        <button type="button" onClick={() => void erase()} onBlur={() => setConfirming(false)} className={`${PLATE} ml-auto`} data-history-erase>
+        <button type="button" onClick={() => void erase()} onBlur={() => setConfirming(false)} className={`${PLATE} ml-auto`} data-history-erase {...explain(confirming ? 'Erases every line of your log now.' : 'Asks first, then erases your whole log.', 'Press again to confirm; clicking anywhere else cancels.', NOTE.undo)}>
           {confirming ? '[ YES, ERASE ALL ]' : '[ ERASE ]'}
         </button>
       </div>
@@ -257,7 +258,7 @@ export function HistoryLog() {
       )}
 
       {older && plays !== null && plays.length > 0 ? (
-        <button type="button" onClick={showOlder} className={`${PLATE} self-start`} data-history-older>
+        <button type="button" onClick={showOlder} className={`${PLATE} self-start`} data-history-older {...explain('Reads 50 more lines further back in your log.', 'The log starts with the most recent lines only.')}>
           [ SHOW OLDER ]
         </button>
       ) : null}
@@ -322,7 +323,7 @@ function PlayLine({ play, me, open, onToggle }: { play: Play; me: string | null;
         {onToggle === undefined ? (
           <div className="flex min-w-0 flex-1 items-center gap-2 px-1">{body}</div>
         ) : (
-          <button type="button" onClick={onToggle} aria-expanded={open === true} className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 px-1 text-left hover:bg-chrome-dark">
+          <button type="button" onClick={onToggle} aria-expanded={open === true} {...explain(open === true ? 'Folds this line shut again.' : 'Folds this line open underneath: the room\'s queue as it played, the letter\'s things, or where it came from.', 'To see how it reached you, and what played around it.')} className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 px-1 text-left hover:bg-chrome-dark">
             {body}
           </button>
         )}
@@ -334,11 +335,12 @@ function PlayLine({ play, me, open, onToggle }: { play: Play; me: string | null;
             aria-label={`Play ${play.title || 'it'} again${placeOf(play.leftAtSeconds) ? ` from ${placeOf(play.leftAtSeconds)}` : ''}`}
             title={placeOf(play.leftAtSeconds) ? `FROM ${placeOf(play.leftAtSeconds)}` : 'FROM THE START'}
             data-history-resume
+            {...explain('Jumps back in where you left off: a song plays from there, a video plays in your room from there, a book opens at your place.', 'For carrying on with something you stopped.')}
           >
             [ ▶ ]
           </button>
         ) : null}
-        <button type="button" onClick={() => void take()} className={PLATE} aria-label={`Take ${play.title || 'this line'} out of your history`} data-history-remove>
+        <button type="button" onClick={() => void take()} className={PLATE} aria-label={`Take ${play.title || 'this line'} out of your history`} data-history-remove {...explain('Takes this one line out of your log.', 'The rest of your log stays as it is.', NOTE.undo)}>
           [ X ]
         </button>
       </div>
@@ -360,7 +362,7 @@ function SessionLine({ session, me, open, onToggle }: { session: PlaySession; me
   const where = inRoom === undefined ? 'YOUR ROOM' : inRoom.whereLabel.toUpperCase() || 'A ROOM';
   return (
     <li className="rule-pixel py-1" data-history-session={session.roomId}>
-      <button type="button" onClick={onToggle} aria-expanded={open} className="flex w-full cursor-pointer items-center gap-2 px-1 text-left hover:bg-chrome-dark">
+      <button type="button" onClick={onToggle} aria-expanded={open} {...explain(open ? 'Folds this room session shut again.' : 'Folds this room session open: the room\'s queue as it played, with your plays marked.', 'Plays in a row in one room are kept together as one line.')} className="flex w-full cursor-pointer items-center gap-2 px-1 text-left hover:bg-chrome-dark">
         <span className="shrink-0 font-mono text-label text-ink">
           {clockOf(oldest.playedAt)}–{clockOf(newest.playedAt)}
         </span>
@@ -417,7 +419,7 @@ function FactsFold({ play }: { play: Play }) {
         {watched ? ` · YOU WATCHED ${watched}` : ''}
       </p>
       {opens ? (
-        <Link href={play.whereHref as string} className={`${PLATE} self-start`} data-history-open>
+        <Link href={play.whereHref as string} className={`${PLATE} self-start`} data-history-open {...explain('Goes to the page on the site this came from.', 'To find it where it lives.')}>
           [ OPEN ]
         </Link>
       ) : null}
@@ -456,7 +458,7 @@ function LetterFold({ play }: { play: Play }) {
           );
         })}
       </ul>
-      <button type="button" onClick={() => openLetter(letterId)} className={`${PLATE} self-start`} data-history-open>
+      <button type="button" onClick={() => openLetter(letterId)} className={`${PLATE} self-start`} data-history-open {...explain('Opens the letter this was played from.', 'To see the rest of what it holds.')}>
         [ OPEN LETTER ]
       </button>
     </div>
@@ -528,16 +530,16 @@ function RoomFold({ roomId, plays, me }: { roomId: string; plays: readonly Play[
       </ol>
       <div className="flex flex-wrap items-center gap-1">
         {links.length > 0 ? (
-          <button type="button" onClick={() => playFrom(links, player)} className={PLATE} data-history-play-from>
+          <button type="button" onClick={() => playFrom(links, player)} className={PLATE} data-history-play-from {...explain('Plays the first of these now and puts the rest next in your own queue, in the order they played.', 'To hear that stretch of the room again.')}>
             [ ▶ PLAY FROM HERE ]
           </button>
         ) : null}
         {!ended ? (
-          <button type="button" onClick={() => openWatch({ kind: 'room', roomId })} className={PLATE} data-history-open>
+          <button type="button" onClick={() => openWatch({ kind: 'room', roomId })} className={PLATE} data-history-open {...explain(ownRoom ? 'Opens your own room window.' : 'Joins this room: it is still going.', 'The room has not ended, so you can go back in.')}>
             {ownRoom ? '[ OPEN YOUR ROOM ]' : `[ ${ICON_LIVE} JOIN ROOM ]`}
           </button>
         ) : read.room.forumThreadId !== null ? (
-          <Link href={`/forum#${threadDomId(read.room.forumThreadId)}`} className={PLATE} data-history-open>
+          <Link href={`/forum#${threadDomId(read.room.forumThreadId)}`} className={PLATE} data-history-open {...explain('Goes to the post this room left on the board when it ended.', 'The room is over; its record is what remains.')}>
             [ OPEN ITS RECORD ]
           </Link>
         ) : (

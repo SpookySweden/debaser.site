@@ -27,6 +27,7 @@ import { useQueueName } from '../lib/audio/use-queue-name';
 import { useWebTrack } from '../lib/web/web-track-lookup';
 import InfoFold from './InfoFold';
 import { useMusicPlayer } from './MusicPlayerProvider';
+import { explain } from '../lib/ui/explain';
 
 /**
  * Somebody's queue, opened: what they are playing, and the two ways to join them.
@@ -142,6 +143,7 @@ export default function QueueProfilePopout({
             onClick={onClose}
             aria-label="Close"
             title="Close"
+            {...explain('Closes this card about their queue.', 'Following, if you are, carries on.')}
             className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-none border border-ink-plate bg-bubble-pale text-key font-bold leading-none text-ink-bar hover:bg-bubble hover:text-ink-plate focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble"
           >
             ×
@@ -236,7 +238,7 @@ function QueueCardBody({
 
       <p className="flex flex-wrap gap-2 pt-1">
         {following ? (
-          <button type="button" onClick={onUnfollow} className={PLATE}>
+          <button type="button" onClick={onUnfollow} className={PLATE} {...explain('Stops following their queue: your player no longer moves with theirs.', 'Pressing anything on your player yourself also stops following.')}>
             [ UNFOLLOW ]
           </button>
         ) : mine ? null : (
@@ -247,6 +249,7 @@ function QueueCardBody({
               disabled={!canFollow}
               title="Play fast to catch up"
               className={PLATE}
+              {...explain('Follows their queue, starting a little behind them and playing fast until you are level.', 'You hear the last stretch of what they played, sped up. From then on your player keeps with theirs.', 'WHAT YOU WERE PLAYING IS SAVED TO RADI-OH FIRST.')}
             >
               [ CATCH UP ]
             </button>
@@ -255,13 +258,14 @@ function QueueCardBody({
               onClick={onSkip}
               disabled={!canFollow}
               className={PLATE}
+              {...explain('Follows their queue, jumping straight to exactly where they are.', 'Instant. From then on your player keeps with theirs: their next track, their pauses.', 'WHAT YOU WERE PLAYING IS SAVED TO RADI-OH FIRST.')}
             >
               [ SKIP AHEAD ]
             </button>
           </>
         )}
         {following || mine ? (
-          <button type="button" onClick={onClose} className={PLATE}>
+          <button type="button" onClick={onClose} className={PLATE} {...explain('Closes this card about their queue.', 'Following, if you are, carries on.')}>
             [ CLOSE ]
           </button>
         ) : null}
