@@ -5,6 +5,7 @@ import { openReport } from '../lib/moderation/moderation-windows';
 import { PLATE } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import { useModeration } from './ModerationProvider';
+import { explain } from '../lib/ui/explain';
 
 /**
  * REPORT and BLOCK on somebody else's profile (SPEC-moderation.md, 4B and 6B): one red `[ ! ]` that opens the REPORT / BLOCK
@@ -29,6 +30,7 @@ export function ProfileModerationKeys({ userId, name }: { userId: string; name: 
       aria-haspopup="dialog"
       aria-label={`Report or block ${name}`}
       title="REPORT OR BLOCK"
+      {...explain(`Opens REPORT about ${name}, with the choice to BLOCK them as well.`, 'Report tells the moderators; block hides their posts, comments, chat and rooms from you, and they are never told.')}
       className={ALARM_KEY}
       data-moderation-key
     >
@@ -58,7 +60,7 @@ export function BlockedProfileCard({ userId }: { userId: string }) {
   return (
     <section className="flex flex-wrap items-center gap-2 p-3 text-sm font-bold text-ink" data-blocked-card>
       <p>YOU BLOCKED THIS PERSON.</p>
-      <button type="button" disabled={busy} onClick={() => void press()} className={PLATE}>
+      <button type="button" disabled={busy} onClick={() => void press()} className={PLATE} {...explain('Unblocks this person: their profile, posts, comments, chat and rooms come back for you.', 'They were never told about the block, and are not told now.')}>
         {busy ? '[ UNBLOCKING... ]' : '[ UNBLOCK ]'}
       </button>
       {error !== null ? <span className="bg-bubble-pale px-1 text-label text-ink-bar">{error}</span> : null}

@@ -5,7 +5,7 @@ import { openReport, type ReportTarget } from '../lib/moderation/moderation-wind
 import { getModerationStore } from '../lib/moderation/repository';
 import { MODERATION_TEXT_MAX, type HiddenMark, type ModTargetKind } from '../lib/moderation/types';
 import { FIELD, PLATE, PLATE_PRESSED } from '../lib/ui/controls';
-import { explain } from '../lib/ui/explain';
+import { explain, NOTE } from '../lib/ui/explain';
 import { useAuth } from './AuthProvider';
 import { useModeration } from './ModerationProvider';
 
@@ -24,6 +24,7 @@ export function ReportKey({ target, className, label }: { target: ReportTarget; 
       onClick={() => openReport(target)}
       className={className ?? PLATE}
       title={label === undefined ? undefined : 'Report'}
+      {...explain(`Opens REPORT about ${target.name}, carrying this line, to tell the moderators what is wrong.`, 'The report goes to the moderators only; the person is not told who reported them.')}
       aria-label={label === undefined ? undefined : `Report ${target.name}`}
       data-report-key
     >
@@ -91,7 +92,7 @@ export function HideControl({ kind, id, authorId, text, mark }: { kind: ModTarge
   if (mark !== null) {
     return (
       <span className="inline-flex flex-wrap items-center gap-1">
-        <button type="button" disabled={busy} onClick={() => void run(() => store.unhide(me, kind, id))} className={PLATE} data-unhide-key>
+        <button type="button" disabled={busy} onClick={() => void run(() => store.unhide(me, kind, id))} className={PLATE} data-unhide-key {...explain('Unhides this line: everybody can see it again.', 'It was never deleted, only hidden by a moderator.', NOTE.moderators)}>
           {busy ? '[ WORKING... ]' : '[ UNHIDE ]'}
         </button>
         {error !== null ? <span className="bg-bubble-pale px-1 text-ink-bar">{error}</span> : null}
@@ -101,7 +102,7 @@ export function HideControl({ kind, id, authorId, text, mark }: { kind: ModTarge
 
   return (
     <span className="inline-flex flex-wrap items-center gap-1">
-      <button type="button" disabled={busy} onClick={() => setNaming(!naming)} className={PLATE} data-hide-key>
+      <button type="button" disabled={busy} onClick={() => setNaming(!naming)} className={PLATE} data-hide-key {...explain(naming ? 'Puts the hide box away without hiding anything.' : 'Opens a box for the reason, then CONFIRM HIDE hides this line from everybody.', 'Only its author and the moderators still see it, with the reason. UNHIDE puts it back.', NOTE.moderators)}>
         {naming ? '[ CANCEL HIDE ]' : '[ HIDE ]'}
       </button>
       {naming ? (
@@ -114,7 +115,7 @@ export function HideControl({ kind, id, authorId, text, mark }: { kind: ModTarge
             onChange={(event) => setReason(event.target.value)}
             className={FIELD}
           />
-          <button type="button" disabled={busy} onClick={() => void run(() => store.hide(me, kind, id, reason.trim(), null, { authorId, text }))} className={PLATE}>
+          <button type="button" disabled={busy} onClick={() => void run(() => store.hide(me, kind, id, reason.trim(), null, { authorId, text }))} className={PLATE} {...explain('Hides this line from everybody, with the reason typed beside it.', 'Its author sees HIDDEN BY A MODERATOR and the reason; nothing is deleted, and UNHIDE undoes it.', NOTE.moderators)}>
             {busy ? '[ HIDING... ]' : '[ CONFIRM HIDE ]'}
           </button>
         </span>

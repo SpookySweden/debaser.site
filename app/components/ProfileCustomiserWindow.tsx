@@ -28,11 +28,19 @@ import ProfileCustomiserPictureTab from './ProfileCustomiserPictureTab';
 import ProfileCustomiserSongTab from './ProfileCustomiserSongTab';
 import { ProfileTagsTab } from './ProfileCustomiserTagsTab';
 import CharacterEditorPanel from './CharacterEditorPanel';
+import { explain, NOTE, type Explanation } from '../lib/ui/explain';
 
 type TabKey = 'profile' | 'character' | 'privacy';
 
 /** What the reader asked for that could lose unsaved work: shut the window, change tab, or go to the profile. */
 type Intent = { kind: 'close' } | { kind: 'tab'; tab: TabKey } | { kind: 'view' };
+
+/** What each tab holds, for the EXPLAIN box. */
+const TAB_WORDS: Record<TabKey, Explanation> = {
+  profile: { what: 'Shows the PROFILE tab: your picture, your track, your name, bio, country, status and name colour, and the tags people gave you.', why: 'What visitors see on your page.' },
+  character: { what: 'Shows the CHAR tab: build characters, and pick which one lives on your profile and its mood.', why: 'The character also walks with you as your companion, if that is on.' },
+  privacy: { what: 'Shows the PRIVACY tab: the switches for what other people may see of you.', why: 'Each switch saves the moment you press it.' },
+};
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'profile', label: '[ PROFILE ]' },
@@ -577,6 +585,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
             key={entry.key}
             type="button"
             onClick={() => guard({ kind: 'tab', tab: entry.key })}
+            {...explain(TAB_WORDS[entry.key].what, TAB_WORDS[entry.key].why, NOTE.asks)}
             className={`cursor-pointer px-3 py-1 text-key max-sm:min-h-tap ${
               tab === entry.key ? 'key key-fill [--key-fill:var(--color-ink)] text-paper' : 'key'
             }`}
@@ -740,7 +749,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
             {/* Here rather than under the bio, so it's in reach from anywhere in the scroll. It goes quiet until
                 there's something for it to keep, so it doesn't look like it would file a picture or a track. */}
             {tab === 'profile' ? (
-              <button type="button" onClick={() => void handleSaveIdentity()} disabled={busy || !aboutChanged} className={PLATE_MAIN}>
+              <button type="button" onClick={() => void handleSaveIdentity()} disabled={busy || !aboutChanged} className={PLATE_MAIN} {...explain('Saves your name, bio, country, status and name colour.', 'Pictures and tracks are kept with their own FILE AS key, not this one.', NOTE.others)}>
                 {busy ? '[ WORKING... ]' : '[ SAVE ]'}
               </button>
             ) : null}
@@ -754,6 +763,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
                 guard({ kind: 'view' });
               }}
               className="key px-1 py-1 max-sm:inline-flex max-sm:min-h-tap max-sm:items-center"
+              {...explain('Closes the editor and goes to your profile page, as visitors see it.', 'To check how your changes look.', NOTE.asks)}
             >
               [ VIEW PROFILE ]
             </a>

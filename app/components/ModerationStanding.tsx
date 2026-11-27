@@ -8,6 +8,7 @@ import { MODERATION_TEXT_MAX } from '../lib/moderation/types';
 import { FIELD, PLATE } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import { useModeration } from './ModerationProvider';
+import { explain } from '../lib/ui/explain';
 
 /**
  * A banned person's notice (SPEC-moderation.md, 10A): `[ BANNED ]` with the moderator's reason, and one APPEAL, which arrives in
@@ -52,12 +53,12 @@ export function BannedNotice() {
             APPEAL
             <textarea value={words} maxLength={MODERATION_TEXT_MAX} rows={3} onChange={(event) => setWords(event.target.value)} className={FIELD} />
           </label>
-          <button type="button" disabled={busy || words.trim() === ''} onClick={() => void send()} className={PLATE}>
+          <button type="button" disabled={busy || words.trim() === ''} onClick={() => void send()} className={PLATE} {...explain('Sends the appeal you typed to the moderators, in their REPORTS.', 'To ask for the ban to be lifted. One appeal waits at a time.')}>
             {busy ? '[ SENDING... ]' : '[ SEND APPEAL ]'}
           </button>
         </div>
       ) : (
-        <button type="button" onClick={() => setWriting(true)} className={PLATE}>
+        <button type="button" onClick={() => setWriting(true)} className={PLATE} {...explain('Opens a box to write an appeal against your ban.', 'The moderators read it in their REPORTS; nothing is sent until SEND APPEAL.')}>
           [ APPEAL ]
         </button>
       )}
@@ -108,7 +109,7 @@ export function BlockedList() {
               <Link href={`/profile/${person}`} className="link-pixel text-prose font-bold">
                 {names[person] ?? 'SOMEBODY'}
               </Link>
-              <button type="button" onClick={() => void lift(person)} className={PLATE}>
+              <button type="button" onClick={() => void lift(person)} className={PLATE} {...explain('Unblocks this person: their posts, comments, chat and rooms come back for you as they were.', 'They were never told about the block, and are not told now.')}>
                 [ UNBLOCK ]
               </button>
             </li>

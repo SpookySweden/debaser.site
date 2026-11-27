@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { ProfileRepository } from '../lib/profile/types';
+import { explain, NOTE } from '../lib/ui/explain';
 
 type ProfileCommentPinProps = {
   /** The account whose page this is: the owner whose pin it is. */
@@ -65,6 +66,7 @@ export default function ProfileCommentPin({
         aria-pressed={pinned}
         aria-label={pinned ? 'Unpin this comment' : 'Pin this comment'}
         title={pinned ? 'UNPIN' : 'PIN'}
+        {...explain(pinned ? 'Unpins this comment: it goes back into the feed in its own place.' : 'Pins this comment: it leads each run of three on your profile feed.', 'Only you, the profile owner, can pin.', NOTE.others)}
         className="cursor-pointer key px-0.5 py-0.75 text-label leading-none disabled:cursor-wait max-sm:min-h-tap max-sm:min-w-tap max-sm:text-sm"
       >
         <span aria-hidden="true">📌</span>

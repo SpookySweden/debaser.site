@@ -7,6 +7,7 @@ import { getProfileRepository } from '../lib/profile/repository';
 import { FIELD, PLATE_LARGE } from '../lib/ui/controls';
 import AccountGoogleLink from './AccountGoogleLink';
 import { useAuth } from './AuthProvider';
+import { explain, NOTE as CAUTION } from '../lib/ui/explain';
 
 const NOTE = 'text-label font-bold text-ink';
 
@@ -167,7 +168,7 @@ export default function AccountSecurityPanel() {
             error={nameState.errors.displayName}
           />
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <button type="button" onClick={() => void handleName()} disabled={nameState.busy} className={PLATE_LARGE}>
+            <button type="button" onClick={() => void handleName()} disabled={nameState.busy} className={PLATE_LARGE} {...explain('Saves the display name typed above as your name on the site, and on your profile too.', 'The name shown on your posts, comments and profile.', CAUTION.others)}>
               {nameState.busy ? '[ WORKING... ]' : '[ SAVE NAME ]'}
             </button>
             {nameState.message === null ? null : <p className={NOTE}>{nameState.message}</p>}
@@ -198,7 +199,7 @@ export default function AccountSecurityPanel() {
             error={emailState.errors.currentPassword}
           />
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <button type="button" onClick={() => void handleEmail()} disabled={emailState.busy} className={PLATE_LARGE}>
+            <button type="button" onClick={() => void handleEmail()} disabled={emailState.busy} className={PLATE_LARGE} {...explain('Changes the email you sign in with to the one typed above; needs your current password.', 'The site may send a link to the new address first: it changes once you open it.')}>
               {emailState.busy ? '[ WORKING... ]' : '[ CHANGE EMAIL ]'}
             </button>
             {emailState.message === null ? null : <p className={NOTE}>{emailState.message}</p>}
@@ -239,7 +240,7 @@ export default function AccountSecurityPanel() {
             error={passwordState.errors.confirmPassword}
           />
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <button type="button" onClick={() => void handlePassword()} disabled={passwordState.busy} className={PLATE_LARGE}>
+            <button type="button" onClick={() => void handlePassword()} disabled={passwordState.busy} className={PLATE_LARGE} {...explain('Changes your password to the new one typed twice above; needs your current password.', 'Use the new password the next time you sign in.')}>
               {passwordState.busy ? '[ WORKING... ]' : '[ CHANGE PASSWORD ]'}
             </button>
             {passwordState.message === null ? null : <p className={NOTE}>{passwordState.message}</p>}

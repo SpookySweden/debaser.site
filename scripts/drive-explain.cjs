@@ -224,6 +224,52 @@ async function boxContrast(page) {
   await sleep(100);
   check((await boxText(page))?.includes("CAN'T BE UNDONE") === true, 'its ERASE carries the caution');
   await page.screenshot({ path: join(OUT, 'dark-history.png') });
+
+  // Profile and settings (EXPLAIN-PROFILE, 2026-11-27): the account page, its PRIVACY tab, and the profile editor.
+  console.log('PROFILE AND SETTINGS: THE ACCOUNT PAGE AND THE PROFILE EDITOR');
+  await page.goto(`${BASE}/account`, { waitUntil: 'domcontentloaded', timeout: 240000 });
+  const signOut = page.locator('button', { hasText: '[ SIGN OUT ]' }).first();
+  await signOut.waitFor({ timeout: 120000 });
+  await sleep(1500);
+  await signOut.hover();
+  await sleep(800);
+  const signOutWords = await boxText(page);
+  check(signOutWords !== null && signOutWords.includes('Signs you out'), 'SIGN OUT explains itself', signOutWords ?? 'none');
+  const privacyTab = page.locator('button[role="tab"]', { hasText: 'PRIVACY' }).first();
+  await page.mouse.move(700, 600);
+  await sleep(300);
+  await privacyTab.hover();
+  await sleep(800);
+  const privacyTabWords = await boxText(page);
+  check(privacyTabWords !== null && privacyTabWords.includes('PRIVACY switches'), "the account page's PRIVACY tab explains itself", privacyTabWords ?? 'none');
+  await privacyTab.click();
+  const lamp = page.locator('button[aria-label^="ONLINE LAMP:"]').first();
+  await lamp.waitFor({ timeout: 30000 });
+  await page.mouse.move(700, 600);
+  await sleep(300);
+  await lamp.hover();
+  await sleep(800);
+  const lampWords = await boxText(page);
+  check(lampWords !== null && lampWords.includes('ONLINE LAMP switch') && lampWords.includes('Saved the moment'), 'a privacy switch says what it shares', lampWords ?? 'none');
+  await page.locator('button[role="tab"]', { hasText: 'ACCOUNT' }).first().click();
+  const editProfile = page.locator('button', { hasText: '[ EDIT PROFILE ]' }).first();
+  await editProfile.waitFor({ timeout: 30000 });
+  await editProfile.click();
+  const colour = page.locator('[data-change-colour]');
+  await colour.waitFor({ timeout: 60000 });
+  await page.mouse.move(700, 600);
+  await sleep(300);
+  await colour.hover();
+  await sleep(800);
+  const colourWords = await boxText(page);
+  check(colourWords !== null && colourWords.includes('NAME COLOUR window'), "the editor's CHANGE COLOUR explains itself", colourWords ?? 'none');
+  const charTab = page.locator('button', { hasText: '[ CHAR' }).first();
+  await charTab.hover();
+  await sleep(100);
+  const charWords = await boxText(page);
+  check(charWords !== null && charWords.includes('CHAR tab') && charWords.includes('ASKS YOU FIRST'), "the editor's CHAR tab explains itself, with its caution", charWords ?? 'none');
+  await page.screenshot({ path: join(OUT, 'dark-profile-editor.png') });
+
   await page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded', timeout: 240000 });
   await media.waitFor({ timeout: 120000 });
 
@@ -252,6 +298,13 @@ async function boxContrast(page) {
   check(caution.note !== null && caution.note >= 4.5, `RESET LAYOUT's caution strip reads 4.5:1 on the ${themeNow} theme`, String(caution.note?.toFixed(2)));
   check((await boxText(page))?.includes('FORGOTTEN') === true, 'and says what is lost');
   await page.screenshot({ path: join(OUT, 'bright-caution.png') });
+  const weekly = page.locator('[data-dock-window="preferences"] [data-notify-switch="weeklyEmail"]');
+  await weekly.scrollIntoViewIfNeeded();
+  await sleep(300);
+  await weekly.hover();
+  await sleep(800);
+  const weeklyWords = await boxText(page);
+  check(weeklyWords !== null && weeklyWords.includes('Sunday evenings'), "PREFERENCES' WEEKLY EMAIL switch explains itself", weeklyWords ?? 'none');
   await toggle.scrollIntoViewIfNeeded();
   await toggle.click();
   await sleep(1800);

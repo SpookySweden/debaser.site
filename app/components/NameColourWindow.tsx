@@ -12,6 +12,7 @@ import {
 } from '../lib/profile/name-colours';
 import { KEY_FOCUS, PLATE_MAIN } from '../lib/ui/controls';
 import PopoutWindow from './PopoutWindow';
+import { explain } from '../lib/ui/explain';
 
 const NOTE = 'text-label font-bold text-ink';
 
@@ -52,6 +53,7 @@ function NameColourRow({ hex, label, sample, chosen, onChoose }: { hex: string; 
       onClick={() => onChoose(hex)}
       aria-pressed={chosen}
       aria-label={label}
+      {...explain(`Picks ${label} as the colour your name is written in.`, 'It shows at once in the lines above; the editor\'s SAVE keeps it.')}
       className={`${COLOUR_ROW} ${chosen ? 'outline-2 -outline-offset-2 outline-ink' : 'hover:outline-2 hover:-outline-offset-2 hover:outline-dotted hover:outline-ink'}`}
     >
       {/* A fixed width: the tick falls back to a wider face, and picking a row must not nudge its words. */}
@@ -140,7 +142,7 @@ export default function NameColourWindow({ hex, sample, onChoose, onClose }: { h
       status=""
       maxWidth="max-w-3xl"
       actions={
-        <button type="button" onClick={onClose} className={PLATE_MAIN}>
+        <button type="button" onClick={onClose} className={PLATE_MAIN} {...explain('Closes the colour chooser with your pick in place.', "It isn't saved yet: press SAVE in the profile editor to keep it.")}>
           [ DONE ]
         </button>
       }

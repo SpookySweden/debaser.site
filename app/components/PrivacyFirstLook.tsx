@@ -8,6 +8,7 @@ import { holdTour } from '../lib/ui/first-visit-tour';
 import { useAuth } from './AuthProvider';
 import DockWindow from './DockWindow';
 import PrivacySwitches, { PRIVACY_SWITCHES } from './PrivacySwitches';
+import { explain } from '../lib/ui/explain';
 
 /**
  * The PRIVACY window: shown once per account, the first time it is signed in (SPEC-privacy-phase-1.md).
@@ -49,11 +50,11 @@ export default function PrivacyFirstLook() {
         </p>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" onClick={() => finish()} className={PLATE_MAIN}>
+          <button type="button" onClick={() => finish()} className={PLATE_MAIN} {...explain(sharing.length === 0 ? 'Keeps everything private and closes this window.' : 'Keeps the switches as they are above and closes this window.', 'You can change any of them later in ACCOUNT, under PRIVACY. This window does not come back.')}>
             {sharing.length === 0 ? '[ KEEP IT PRIVATE ]' : '[ KEEP THESE SETTINGS ]'}
           </button>
           {sharing.length === 0 ? null : (
-            <button type="button" onClick={() => finish(Object.fromEntries(sharing.map((key) => [key, false])))} className={PLATE}>
+            <button type="button" onClick={() => finish(Object.fromEntries(sharing.map((key) => [key, false])))} className={PLATE} {...explain('Turns every switch above off, so nothing is shared, and closes this window.', 'You can switch any back on later in ACCOUNT, under PRIVACY.')}>
               [ TURN EVERYTHING OFF ]
             </button>
           )}

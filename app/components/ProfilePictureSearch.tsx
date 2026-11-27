@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { chatImageUrl, type ImageResult, type ImageSearchKind } from '../lib/watch/chat-images';
 import { webSessionHeaders } from '../lib/web/web-session';
 import { FIELD_TIGHT, KEY_FOCUS, PLATE, PLATE_PRESSED } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 
 const SOURCES: { kind: ImageSearchKind; label: string; placeholder: string; credit: string }[] = [
   { kind: 'image', label: '[ IMAGES ]', placeholder: 'SEARCH WIKIMEDIA COMMONS', credit: 'FREE IMAGES FROM WIKIMEDIA COMMONS. SHOWN FROM THERE, NOT COPIED.' },
@@ -56,6 +57,7 @@ export default function ProfilePictureSearch({ pendingSrc, onSelectSrc }: { pend
             type="button"
             aria-pressed={entry.kind === source}
             className={entry.kind === source ? PLATE_PRESSED : PLATE}
+            {...explain(entry.kind === 'image' ? 'Searches free pictures on Wikimedia Commons.' : entry.kind === 'gif' ? 'Searches moving pictures (GIFs) on GIPHY.' : 'Searches stickers (cut-out GIFs) on GIPHY.', 'For a profile picture. If words are typed, it searches them there at once. Pictures are shown from there, not copied.')}
             onClick={() => {
               setSource(entry.kind);
               if (words.trim().length > 0) void search(entry.kind, words);
@@ -84,7 +86,7 @@ export default function ProfilePictureSearch({ pendingSrc, onSelectSrc }: { pend
           autoComplete="off"
           className={`${FIELD_TIGHT} min-w-0 flex-1`}
         />
-        <button type="submit" className={PLATE} disabled={words.trim().length === 0 || state.kind === 'searching'}>
+        <button type="submit" className={PLATE} disabled={words.trim().length === 0 || state.kind === 'searching'} {...explain(`Searches ${current.kind === 'image' ? 'Wikimedia Commons' : 'GIPHY'} for the words typed beside it.`, 'Pick one of the results to use it as your next profile picture.')}>
           [ FIND ]
         </button>
       </form>
@@ -106,6 +108,7 @@ export default function ProfilePictureSearch({ pendingSrc, onSelectSrc }: { pend
                       type="button"
                       onClick={() => onSelectSrc(result.url)}
                       aria-pressed={chosen}
+                      {...explain('Picks this picture as your next profile picture, shown as a preview.', 'Nothing changes until you press FILE AS.')}
                       aria-label={`Use ${result.title || 'this picture'}`}
                       title={result.title}
                       className={`relative block aspect-square w-full cursor-pointer overflow-hidden border border-ink bg-paper ${KEY_FOCUS} ${chosen ? 'outline-2 -outline-offset-2 outline-ink' : ''}`}

@@ -8,6 +8,7 @@ import { hideFromProfile, setProfileMood, showOnProfile } from '../lib/character
 import { useShownCharacter } from '../lib/character/use-shown-character';
 import { PLATE, PLATE_PRESSED } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
+import { explain, NOTE } from '../lib/ui/explain';
 
 /**
  * ON YOUR PROFILE, in the [ CHAR ] tab (SPEC-profile-characters.md): which saved character lives on your profile, and its
@@ -100,6 +101,7 @@ export default function ProfileCharacterPicker() {
             aria-pressed={mood === entry}
             onClick={() => void chooseMood(entry)}
             className={mood === entry ? PLATE_PRESSED : PLATE}
+            {...explain(entry === 'calm' ? 'Sets the mood to CALM: your character mostly stands about.' : entry === 'busy' ? 'Sets the mood to BUSY: your character walks a lot.' : 'Sets the mood to PARTY: your character dances often.', 'How your character behaves on your profile. Saved at once.', NOTE.others)}
           >
             [ {entry.toUpperCase()} ]
           </button>

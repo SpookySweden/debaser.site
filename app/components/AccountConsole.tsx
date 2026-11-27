@@ -8,6 +8,7 @@ import AccountForms from './AccountForms';
 import { useAuth } from './AuthProvider';
 import PrivacySwitches from './PrivacySwitches';
 import HistoryPanel from './HistoryPanel';
+import { explain } from '../lib/ui/explain';
 
 type AccountTab = 'account' | 'privacy';
 
@@ -55,6 +56,7 @@ export default function AccountConsole() {
             aria-selected={tab === entry}
             onClick={() => setTab(entry)}
             className={tab === entry ? `${PLATE_PRESSED} cursor-pointer` : PLATE}
+            {...explain(entry === 'account' ? "Shows your account: your profile's keys, your name, email and password, and your board activity." : 'Shows the PRIVACY switches: what other people may see of you, and who you blocked.', entry === 'account' ? 'Where you change how you sign in and what you are called.' : 'Each switch saves the moment you press it.')}
           >
             [ {entry.toUpperCase()} ]
           </button>

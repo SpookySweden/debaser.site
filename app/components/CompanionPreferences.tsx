@@ -12,15 +12,17 @@ import { useShownCharacter } from '../lib/character/use-shown-character';
 import { usePhone } from '../lib/companion/use-phone';
 import { TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
+import { explain, type Explanation } from '../lib/ui/explain';
 
 /** One choice's row: the same pressed-key look as the theme and cursor rows above it. */
-function ChoiceRow({ label, note, active, onPress }: { label: string; note: string; active: boolean; onPress: () => void }) {
+function ChoiceRow({ label, note, active, onPress, words }: { label: string; note: string; active: boolean; onPress: () => void; words: Explanation }) {
   return (
     <button
       type="button"
       onClick={onPress}
       aria-pressed={active}
       title={note}
+      {...explain(words.what, words.why, words.note)}
       className={`flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-left text-label max-sm:min-h-tap max-sm:px-3 max-sm:text-sm ${
         active ? 'key key-fill [--key-fill:var(--color-ink)] text-paper' : 'key'
       }`}
@@ -59,12 +61,14 @@ export default function CompanionPreferences() {
           note={`YOUR COMPANION WALKS ALONG THE BOTTOM ${where}`}
           active={on}
           onPress={() => setCompanionChoices(withSwitch(choices, phone, true))}
+          words={{ what: `Turns your companion on ${phone ? 'on this phone' : 'on a computer'}: your profile's SHOWN character walks along the bottom of the site.`, why: 'Just for company. A computer and a phone keep separate switches.' }}
         />
         <ChoiceRow
           label="OFF"
           note={`NO COMPANION ${where}`}
           active={!on}
           onPress={() => setCompanionChoices(withSwitch(choices, phone, false))}
+          words={{ what: `Turns your companion off ${phone ? 'on this phone' : 'on a computer'}: no character walks along the bottom.`, why: 'A computer and a phone keep separate switches.' }}
         />
       </div>
 

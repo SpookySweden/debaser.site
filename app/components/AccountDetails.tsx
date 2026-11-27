@@ -14,6 +14,7 @@ import { useForum } from './ForumProvider';
 import ProfileBoardActivity from './ProfileBoardActivity';
 import ProfileName from './ProfileName';
 import TimeStamp from './TimeStamp';
+import { explain, NOTE } from '../lib/ui/explain';
 
 /**
  * The signed-in half of the account page.
@@ -86,7 +87,7 @@ export default function AccountDetails() {
           ) : null}
 
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <button type="button" onClick={() => void signOut()} disabled={busy} className={PLATE_LARGE}>
+            <button type="button" onClick={() => void signOut()} disabled={busy} className={PLATE_LARGE} {...explain('Signs you out of DEBASER_OS in this browser.', 'Your account and everything in it stay as they are; log in again to come back.')}>
               [ SIGN OUT ]
             </button>
           </div>
@@ -112,7 +113,7 @@ export default function AccountDetails() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 p-3 text-label font-bold text-ink">
-            <button type="button" onClick={() => void handleDelete()} disabled={busy} className={PLATE_LARGE}>
+            <button type="button" onClick={() => void handleDelete()} disabled={busy} className={PLATE_LARGE} {...explain(confirmDelete ? 'Deletes this account now, and signs you out.' : 'Asks to delete this account: the key turns into CONFIRM DELETE, and a second press deletes it.', 'Only on a copy of the site running with local test accounts; the real site has no such key here.', NOTE.undo)}>
               {confirmDelete ? '[ CONFIRM DELETE ]' : '[ DELETE ACCOUNT ]'}
             </button>
             <button
@@ -122,6 +123,7 @@ export default function AccountDetails() {
                 setMessage('LOCAL ACCOUNTS CLEARED.');
               }}
               className={PLATE_LARGE}
+              {...explain("Wipes every local test account kept in this browser, and signs you out; the site's house account is made again.", 'For trying the site afresh on a copy that runs with local test accounts.', NOTE.undo)}
             >
               [ CLEAR LOCAL ACCOUNTS ]
             </button>

@@ -32,6 +32,7 @@ import type { LooseGrab } from './LooseCharacter';
  */
 const LooseCharacter = dynamic(() => import('./LooseCharacter'), { ssr: false });
 import NoteTrail from './NoteTrail';
+import { explain } from '../lib/ui/explain';
 
 /**
  * The character a person shows on their profile, living in the page's empty space (SPEC-profile-characters.md).
@@ -376,6 +377,7 @@ export function RoomWalker({
         data-motion={motion}
         data-kiss={kissNow === null ? undefined : kissNow.stage}
         aria-label={visitor ? 'YOUR COMPANION: PRESS TO SAY HELLO' : `${label}: PRESS TO SAY HELLO`}
+        {...explain(visitor ? 'Your companion, visiting this room: press it and it waves, hops or turns to say hello.' : 'Press this character and it waves, hops or turns to say hello.', visitor ? 'Just for fun: nothing is saved or sent.' : 'Hold and drag it to pull it out of the room and throw it; let go and it walks back and climbs in. Nothing is saved.')}
         title={who === 'guest' ? label : 'SAY HELLO'}
         onClick={() => {
           if (dragged.current) {
@@ -482,6 +484,7 @@ function Walking({ shown, root, music }: { shown: ShownCharacter; root: RefObjec
         data-profile-character=""
         data-motion={motion}
         aria-label="THEIR CHARACTER: PRESS TO SAY HELLO"
+        {...explain('Press their character and it waves, hops or turns to say hello.', 'Just for fun: nothing is saved or sent.')}
         title="SAY HELLO"
         onClick={() => {
           if (!reduced) setState((current) => (current === null ? current : react(current)));

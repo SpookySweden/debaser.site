@@ -45,6 +45,7 @@ import ProfileTagList from './ProfileTagList';
 import ProfileWire from './ProfileWire';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import { versionCrop } from '../lib/profile/avatar-crop';
+import { explain } from '../lib/ui/explain';
 
 type PublicProfileWindowProps = {
   userId: string;
@@ -167,7 +168,7 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
           {/* The owner's way into the customiser: clicking your own name lands here, so this page must
               not be a dead end for somebody who came to change it (a test run, 2026-10-30). */}
           {owner ? (
-            <button type="button" onClick={() => setCustomising(true)} aria-haspopup="dialog" className={PLATE}>
+            <button type="button" onClick={() => setCustomising(true)} aria-haspopup="dialog" className={PLATE} {...explain('Opens the profile editor: your picture, track, name, bio, name colour, tags, character and privacy.', 'Only you see this key, on your own profile.')}>
               [ EDIT PROFILE ]
             </button>
           ) : (
@@ -489,6 +490,7 @@ function CommentsSection({
           className={HYPER_ARROW}
           aria-expanded={open}
           title={open ? 'Fold the comments away' : 'Show the comments'}
+          {...explain(open ? 'Folds the comments on this profile away.' : 'Unfolds the comments people left on this profile.', 'The number beside the arrow is how many there are.')}
         >
           {open ? '▾' : '▸'}
           {comments.length === 0 ? '' : ` ${comments.length}`}

@@ -7,6 +7,7 @@ import { FIELD, PLATE_LARGE, PLATE_MAIN } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import GoogleSignInButton from './GoogleSignInButton';
 import { LostAccountLine } from './LostAccountWindow';
+import { explain } from '../lib/ui/explain';
 
 type FieldProps = {
   id: string;
@@ -165,7 +166,7 @@ export default function AccountForms({ stacked = false }: { stacked?: boolean })
           />
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <button type="submit" disabled={signUpBusy} className={PLATE_LARGE}>
+            <button type="submit" disabled={signUpBusy} className={PLATE_LARGE} {...explain('Makes a new account from the email, display name and password typed above.', 'If the site asks, it sends a link to that email first: open it to finish. Otherwise you are signed in at once.')}>
               {signUpBusy ? '[ WORKING... ]' : '[ CREATE ACCOUNT ]'}
             </button>
             {signUpMessage === null ? null : (
@@ -218,7 +219,7 @@ export default function AccountForms({ stacked = false }: { stacked?: boolean })
           />
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <button type="submit" disabled={signInBusy} className={PLATE_MAIN}>
+            <button type="submit" disabled={signInBusy} className={PLATE_MAIN} {...explain('Signs you in with the email and password typed above.', 'For an account you already have. Signed in, you can post, keep music and set your profile.')}>
               {signInBusy ? '[ WORKING... ]' : '[ LOG IN ]'}
             </button>
             {signInMessage === null ? null : (

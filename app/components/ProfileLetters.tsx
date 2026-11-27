@@ -12,6 +12,7 @@ import LetterDragLayer from './LetterDragLayer';
 import LetterStamp from './LetterStamp';
 import { nameInkStyle } from './NameColourWindow';
 import PopoutWindow from './PopoutWindow';
+import { explain } from '../lib/ui/explain';
 
 /**
  * LETTERS on a profile (SPEC-letters.md): each letter as a small envelope with its round stamp picture, and beside it
@@ -55,6 +56,7 @@ export default function ProfileLetters({ userId, owner }: { userId: string; owne
             <button
               type="button"
               onClick={() => openLetter(letter.id)}
+              {...explain(`Opens the letter ${letter.name}.`, me === null ? 'Letters are pages to look through, like a photo album.' : 'You can also drag it onto somebody to send them it.')}
               {...letterDraggable(() => (me === null ? null : { letter, barred: [me, letter.owner] }))}
               title={letter.description || undefined}
               className="flex max-w-full cursor-pointer items-center gap-1.5 px-1 py-1 text-left hover:outline hover:outline-1 hover:outline-dotted hover:outline-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-ink max-sm:min-h-tap"
@@ -102,6 +104,7 @@ function NewLetterKey({ owner }: { owner: string }) {
         aria-expanded={open}
         className={PLATE}
         data-new-letter-key
+        {...explain(open ? 'Puts the NEW LETTER window away, with nothing made.' : 'Opens the NEW LETTER window: give the letter a name, and it is made and opened.', 'A letter is a page you fill like a photo album, to keep or to send.')}
       >
         [ + NEW LETTER ]
       </button>
@@ -161,7 +164,7 @@ function NewLetterWindow({ owner }: { owner: string }) {
           </p>
         ) : null}
         <div className="flex justify-end">
-          <button type="submit" className={PLATE_MAIN} disabled={busy || name.trim().length === 0}>
+          <button type="submit" className={PLATE_MAIN} disabled={busy || name.trim().length === 0} {...explain('Makes a new letter with the name typed above, and opens it.', 'It starts private, among your letters on your profile.')}>
             MAKE LETTER
           </button>
         </div>

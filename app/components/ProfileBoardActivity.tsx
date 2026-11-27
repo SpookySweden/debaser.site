@@ -6,6 +6,7 @@ import type { ForumThread } from '../lib/forum/types';
 import { BOARD_ACTIVITY_STEP, boardActivityRows } from '../lib/profile/board-activity';
 import { PLATE } from '../lib/ui/controls';
 import TimeStamp from './TimeStamp';
+import { explain } from '../lib/ui/explain';
 
 type ProfileBoardActivityProps = {
   /** Whose activity it is. */
@@ -40,7 +41,7 @@ export default function ProfileBoardActivity({ userId, threads, ready = true }: 
     <section data-board-activity={open ? 'open' : 'shut'}>
       <div className="title-line text-accent-ink">
         <span>BOARD ACTIVITY</span>
-        <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className={PLATE}>
+        <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className={PLATE} {...explain(open ? 'Folds the board activity list away.' : 'Unfolds the list of posts and replies this person made on the board.', 'Each row leads straight to its place on the board.')}>
           {open ? '[ HIDE ▴ ]' : '[ SHOW ▾ ]'}
         </button>
       </div>
@@ -77,7 +78,7 @@ export default function ProfileBoardActivity({ userId, threads, ready = true }: 
           )}
 
           {rows.length > shown ? (
-            <button type="button" onClick={() => setShown(shown + BOARD_ACTIVITY_STEP)} className={`${PLATE} mt-2`}>
+            <button type="button" onClick={() => setShown(shown + BOARD_ACTIVITY_STEP)} className={`${PLATE} mt-2`} {...explain(`Shows the next ${BOARD_ACTIVITY_STEP} posts and replies in the list.`, 'The list starts short so the page stays tidy.')}>
               [ MORE ▾ ]
             </button>
           ) : null}

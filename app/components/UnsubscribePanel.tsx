@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { PLATE } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 
 type Step = { kind: 'working' } | { kind: 'done'; on: boolean } | { kind: 'error'; message: string };
 
@@ -52,10 +53,10 @@ export default function UnsubscribePanel() {
       {step.kind === 'done' ? (
         <div className="flex flex-wrap items-center gap-2 p-2">
           <p>{step.on ? 'WEEKLY EMAIL: ON' : 'WEEKLY EMAIL: OFF'}</p>
-          <button type="button" className={PLATE} onClick={() => flip(!step.on)}>
+          <button type="button" className={PLATE} onClick={() => flip(!step.on)} {...explain(step.on ? 'Turns the weekly email off again.' : 'Turns the weekly email back on: on Sunday evenings, a list of what you have not read.', 'You can also switch it in PREFERENCES, under NOTIFICATIONS.')}>
             {step.on ? '[ TURN IT OFF ]' : '[ TURN IT BACK ON ]'}
           </button>
-          <Link href="/forum" className={PLATE}>
+          <Link href="/forum" className={PLATE} {...explain('Goes to the board, the front page of DEBASER_OS.', 'Nothing else needs doing here: your choice is already saved.')}>
             [ DEBASER_OS ]
           </Link>
         </div>

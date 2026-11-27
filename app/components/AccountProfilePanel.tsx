@@ -14,6 +14,7 @@ import MusicOptionsPrompt from './MusicOptionsPrompt';
 import ProfileAvatar from './ProfileAvatar';
 import ProfileCustomiserWindow from './ProfileCustomiserWindow';
 import { displayCrop } from '../lib/profile/avatar-crop';
+import { explain } from '../lib/ui/explain';
 
 /**
  * The account page's profile section.
@@ -84,12 +85,13 @@ export default function AccountProfilePanel({ userId }: { userId: string }) {
           <div className="flex flex-wrap items-center gap-1 pt-1">
             {/* The page's one main action: editing is what a reader comes here for, viewing is the
                 side road (a test run could not tell the two apart, 2026-10-30). */}
-            <button type="button" onClick={() => setCustomising(true)} aria-haspopup="dialog" className={PLATE_MAIN}>
+            <button type="button" onClick={() => setCustomising(true)} aria-haspopup="dialog" className={PLATE_MAIN} {...explain('Opens the profile editor: your picture, track, name, bio, name colour, tags, character and privacy.', 'Changes are kept when you press SAVE or file a version; it asks before closing on unsaved work.')}>
               [ EDIT PROFILE ]
             </button>
             <Link
               href={`/profile/${encodeURIComponent(userId)}`}
               className={PLATE_LINK}
+              {...explain('Goes to your profile page, as other people see it.', 'To check how your picture, track and words look to visitors.')}
             >
               [ VIEW PROFILE ]
             </Link>

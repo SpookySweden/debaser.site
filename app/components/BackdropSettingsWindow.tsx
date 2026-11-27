@@ -69,6 +69,7 @@ import { PLATE, PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED, PLATE_PRESSED, TITLE_BAR
 import { useAuth } from './AuthProvider';
 import { BandStrip, MINI, MINI_ON, Sparkline, XYPad } from './backdrops/BackdropControls';
 import DockWindow from './DockWindow';
+import { explain } from '../lib/ui/explain';
 
 const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
 
@@ -137,6 +138,7 @@ function RowKeys({ panel, knobs, name }: { panel: Panel; knobs: readonly Knob[];
           onClick={() => setBackdropSway(id, ranges[0].key, swaying ? null : firstSway(ranges[0], panel.values[ranges[0].key] as number))}
           className={swaying ? MINI_ON : MINI}
           data-backdrop-sway={ranges[0].key}
+          {...explain(swaying ? `Stops ${name} swaying: it stays where it is now.` : `Sways ${name}: its value drifts back and forth between two marks by itself.`, 'Keeps the background moving without you touching it. Saved with your settings.')}
         >
           ~
         </button>
@@ -152,6 +154,7 @@ function RowKeys({ panel, knobs, name }: { panel: Panel; knobs: readonly Knob[];
         }}
         className={MINI}
         data-backdrop-roll={knobs[0].key}
+        {...explain(`Rolls ${name} to somewhere at random.`, 'For finding a look you would not have picked yourself. The other knobs stay put.')}
       >
         ?
       </button>
@@ -163,6 +166,7 @@ function RowKeys({ panel, knobs, name }: { panel: Panel; knobs: readonly Knob[];
         onClick={() => knobs.forEach((knob) => setBackdropLock(id, knob.key, !locked))}
         className={locked ? MINI_ON : MINI}
         data-backdrop-lock={knobs[0].key}
+        {...explain(locked ? `Unlocks ${name}: PARTY, RESET and the looks may change it again.` : `Locks ${name}: PARTY, RESET, MORPH and the looks leave it alone.`, 'Keeps one setting you like while you try others.')}
       >
         =
       </button>
@@ -243,7 +247,7 @@ function RangeRow({ knob, panel }: { knob: RangeKnob; panel: Panel }) {
 function SwitchKey({ knob, panel }: { knob: SwitchKnob; panel: Panel }) {
   const on = panel.values[knob.key] === true;
   return (
-    <button type="button" aria-pressed={on} title={knob.tip} onClick={() => change(panel, knob.key, !on)} className={on ? PLATE_PRESSED : PLATE} data-backdrop-knob={knob.key}>
+    <button type="button" aria-pressed={on} title={knob.tip} onClick={() => change(panel, knob.key, !on)} className={on ? PLATE_PRESSED : PLATE} data-backdrop-knob={knob.key} {...explain(`Switches ${knob.label} ${on ? 'off' : 'on'} for this background (pressed in means on).`, knob.tip)}>
       [ {knob.label} ]
     </button>
   );
@@ -270,6 +274,7 @@ function ChoiceRow({ knob, panel }: { knob: ChoiceKnob; panel: Panel }) {
             onClick={() => change(panel, knob.key, option.value)}
             className={chosen ? PLATE_PRESSED : PLATE}
             data-backdrop-knob={`${knob.key}-${option.value}`}
+            {...explain(`Sets ${knob.label} to ${option.label} for this background.`, byTheme ? SET_BY_THEME : option.tip)}
           >
             [ {option.label} ]
           </button>
@@ -310,7 +315,7 @@ function ThemeRow({ panel, theme }: { panel: Panel; theme: string }) {
   const name = shown.family === undefined ? shown.label : `${shown.family.label} ${shown.label}`;
   return (
     <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-label text-ink" data-backdrop-theme={on ? 'on' : 'off'}>
-      <button type="button" aria-pressed={on} title={THEME_TIP} onClick={() => change(panel, THEME_KEY, !on)} className={on ? PLATE_PRESSED : PLATE} data-backdrop-knob={THEME_KEY}>
+      <button type="button" aria-pressed={on} title={THEME_TIP} onClick={() => change(panel, THEME_KEY, !on)} className={on ? PLATE_PRESSED : PLATE} data-backdrop-knob={THEME_KEY} {...explain(on ? 'Turns THEME off: the background goes back to your own settings for it.' : "Turns THEME on: the background takes the site theme's colours, light and mood, and follows the theme when it changes.", 'While THEME is on, the knobs it sets are greyed; RESET, PARTY and the looks leave it as it is.')}>
         {/* It says which way it is, as a toggle (Luke, 2026-11-17: "a toggle separate to the "reset" button"). */}
         [ THEME: {on ? 'ON' : 'OFF'} ]
       </button>
@@ -395,6 +400,7 @@ function WidgetRow({ widget, panel }: { widget: Widget; panel: Panel }) {
             onClick={() => (bouncing ? stopBounce(id, widget.id) : startBounce(id, widget.id, { ...puck, vx: 0, vy: 0 }))}
             className={bouncing ? PLATE_PRESSED : PLATE}
             data-backdrop-bounce={widget.id}
+            {...explain(bouncing ? 'Catches the puck: it and its two knobs stop where they are.' : 'Lets the puck go: it bounces round the pad by itself, moving its two knobs with it.', 'Flick the puck to send it faster. It is caught when the window shuts.')}
           >
             [ BOUNCE ]
           </button>
@@ -487,6 +493,7 @@ function Morph({ panel }: { panel: Panel }) {
         }}
         className={PLATE}
         data-backdrop-morph-target={look.id}
+        {...explain('Picks which ready-made look the MORPH slider slides towards; each press moves to the next look.', 'Then drag the slider beside it: every unlocked knob slides from where it is to that look.')}
       >
         [ {look.label} ]
       </button>
@@ -530,6 +537,7 @@ function Ghost() {
         onClick={ghost === 'off' ? startGhost : stopGhost}
         className={ghost === 'off' ? PLATE : PLATE_PRESSED}
         data-backdrop-ghost={ghost}
+        {...explain(ghost === 'off' ? `Records your pointer for ${GHOST_SECONDS} seconds, then plays that movement back in a loop while your own pointer is still.` : 'Stops the ghost pointer.', 'So the background keeps being played with while your hand is elsewhere.')}
       >
         [ {ghost === 'off' ? 'RECORD POINTER' : ghost === 'recording' ? 'RECORDING' : 'STOP GHOST'} ]
       </button>
@@ -583,7 +591,7 @@ export function BackdropKnobs({ id }: { id: string }) {
         ) : (
           <p className={`ml-auto flex flex-wrap items-center justify-end gap-2 text-label text-ink${sheet.columns.length < 3 ? " w-full" : ""}`}>
             <span>THE BACKGROUND IS ON {BACKDROPS.find((each) => each.id === backdrop)?.label ?? 'SOMETHING ELSE'}.</span>
-            <button type="button" onClick={() => setBackdrop(BACKDROPS.find((each) => each.id === id)?.id ?? DEFAULT_BACKDROP)} className={PLATE}>
+            <button type="button" onClick={() => setBackdrop(BACKDROPS.find((each) => each.id === id)?.id ?? DEFAULT_BACKDROP)} className={PLATE} {...explain(`Puts the ${def.label} on as the site's background.`, 'Another background is on now, so these knobs change nothing you can see until this one is showing.')}>
               [ SHOW THE {def.label} ]
             </button>
           </p>
@@ -616,6 +624,7 @@ export function BackdropKnobs({ id }: { id: string }) {
                             onClick={() => fireBackdropAction(id, action.id)}
                             className={active.includes(`${id}:${action.id}`) ? PLATE_PRESSED : PLATE}
                             data-backdrop-knob={action.id}
+                            {...explain(`Sets off ${action.label} in the background, there and then.`, action.tip)}
                           >
                             [ {action.label} ]
                           </button>
@@ -662,6 +671,7 @@ function Looks({ panel, still, kept }: { panel: Panel; still: boolean; kept: rea
           onClick={() => setBackdropValues(id, resetValues(def, panel.values, panel.locks))}
           className={PLATE}
           data-backdrop-look="reset"
+          {...explain(panel.values[THEME_KEY] === true ? `Puts every unlocked knob back to the ${def.label} as it comes, in the theme's look.` : `Puts every unlocked knob back to the ${def.label}'s own settings, as it comes.`, 'For starting again after trying things. THEME and locked knobs stay as they are.')}
         >
           [ RESET ]
         </button>
@@ -669,7 +679,7 @@ function Looks({ panel, still, kept }: { panel: Panel; still: boolean; kept: rea
     }
     if (index === 1) {
       return (
-        <button key="party" type="button" title="EVERY KNOB SOMEWHERE AT RANDOM" onClick={() => setBackdropValues(id, partyValues(def, Math.random, panel.values, kept))} className={PLATE} data-backdrop-look="party">
+        <button key="party" type="button" title="EVERY KNOB SOMEWHERE AT RANDOM" onClick={() => setBackdropValues(id, partyValues(def, Math.random, panel.values, kept))} className={PLATE} {...explain('Throws every unlocked knob somewhere at random at once.', 'A quick way to a new look; lock the knobs you want kept first.')} data-backdrop-look="party">
           [ PARTY ]
         </button>
       );
@@ -684,6 +694,7 @@ function Looks({ panel, still, kept }: { panel: Panel; still: boolean; kept: rea
         onClick={() => put(look.values)}
         className={isLook(look.values) ? PLATE_PRESSED : PLATE}
         data-backdrop-look={look.id}
+        {...explain(`Sets every unlocked knob to the ready-made ${look.label} look.`, look.tip)}
       >
         [ {look.label} ]
       </button>
@@ -755,6 +766,7 @@ export default function BackdropSettingsWindow() {
           title={seeThrough ? 'SOLID AGAIN' : 'HALF SEE-THROUGH, SO THE BACKGROUND SHOWS THROUGH THE WINDOW'}
           className="cursor-pointer key px-1 py-0.75 text-label font-bold leading-none max-sm:min-h-tap max-sm:min-w-tap max-sm:text-sm"
           data-backdrop-see-through={seeThrough ? 'on' : 'off'}
+          {...explain(seeThrough ? 'Makes this window solid again.' : 'Makes this window half see-through, so the background shows through it.', 'To watch the background change while you turn its knobs.')}
         >
           [ 50% ]
         </button>
@@ -784,6 +796,7 @@ export function BackdropKey() {
       title={`CHANGE THE ${label}: EVERY KNOB IT HAS`}
       className={`aquarium-key ${open ? PLATE_ON_BLACK_PRESSED : PLATE_ON_BLACK}`}
       data-backdrop-key=""
+      {...explain(`Opens or shuts the settings window for the ${label}, the background behind the site: every knob it has.`, 'Signed in, your settings are saved to your account and follow you to other computers.')}
     >
       [ {label} ]
     </button>

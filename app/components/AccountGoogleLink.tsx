@@ -5,6 +5,7 @@ import { getAuthRepository } from '../lib/auth/auth-repository';
 import type { GoogleLink } from '../lib/auth/types';
 import { PLATE_LARGE } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
+import { explain } from '../lib/ui/explain';
 
 const NOTE = 'text-label font-bold text-ink';
 
@@ -67,12 +68,12 @@ export default function AccountGoogleLink() {
       <div className="mt-2 flex flex-wrap items-center gap-2">
         {link?.linked ? (
           link.canUnlink ? (
-            <button type="button" onClick={() => void unlinkIt()} disabled={busy} className={PLATE_LARGE}>
+            <button type="button" onClick={() => void unlinkIt()} disabled={busy} className={PLATE_LARGE} {...explain('Unlinks your Google account from this one: you sign in with your email and password only.', 'Only offered while another way in remains, so you are never locked out.')}>
               {busy ? '[ WORKING... ]' : '[ UNLINK GOOGLE ]'}
             </button>
           ) : null
         ) : (
-          <button type="button" onClick={() => void linkIt()} disabled={busy || link === undefined} className={PLATE_LARGE}>
+          <button type="button" onClick={() => void linkIt()} disabled={busy || link === undefined} className={PLATE_LARGE} {...explain('Takes you to Google to pick an account, then back here with it linked to this one.', 'Then signing in with Google or with your email both reach this same account.')}>
             {busy ? '[ GOING TO GOOGLE... ]' : '[ LINK GOOGLE ACCOUNT ]'}
           </button>
         )}

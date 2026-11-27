@@ -16,6 +16,7 @@ import type { ProfileVisibility } from '../lib/profile/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { PLATE, PLATE_PRESSED } from '../lib/ui/controls';
 import { RECOMMEND_NOTE } from '../lib/web/recommendations';
+import { explain } from '../lib/ui/explain';
 
 /** Each switch and what it shares, in the plain words the PRIVACY tab and the first-look window both use. */
 export const PRIVACY_SWITCHES: { key: keyof ProfileVisibility; label: string; note: string }[] = [
@@ -72,6 +73,7 @@ export default function PrivacySwitches({ userId, withMade = true }: { userId: s
                 aria-label={`${row.label}: ${on ? 'ON' : 'OFF'}`}
                 onClick={() => void press(row.key)}
                 disabled={busy || !read}
+                {...explain(on ? `Turns the ${row.label} switch off.` : `Turns the ${row.label} switch on.`, `On: ${row.note.charAt(0)}${row.note.slice(1).toLowerCase()} Saved the moment you press it.`)}
                 className={`${on ? `${PLATE_PRESSED} cursor-pointer` : PLATE} shrink-0 text-heading max-sm:min-h-tap`}
               >
                 [ {on ? 'ON' : 'OFF'} ]
@@ -121,6 +123,7 @@ function MadeSwitches() {
                 aria-label={`Post ${row.label.toLowerCase()} to the board: ${on ? 'ON' : 'OFF'}`}
                 onClick={() => setMadeSwitch(row.kind, !on)}
                 disabled={!loaded}
+                {...explain(on ? `Stops posting ${row.label.toLowerCase()} to the board.` : `Starts posting ${row.label.toLowerCase()} to the board.`, 'On, one line a day on the board lists what you made public. Off stops new lines; old ones stay.')}
                 className={`${on ? `${PLATE_PRESSED} cursor-pointer` : PLATE} shrink-0 text-heading max-sm:min-h-tap`}
                 data-made-switch={row.kind}
               >

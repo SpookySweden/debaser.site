@@ -17,6 +17,7 @@ import { FIELD_TIGHT, PLATE } from '../lib/ui/controls';
 import InfoFold from './InfoFold';
 import ProfileName from './ProfileName';
 import { TagMark, tagChipClasses, tagMarkColourFromColour } from './TagBadge';
+import { explain, NOTE } from '../lib/ui/explain';
 
 type ProfileTagListProps = {
   profile: PublicProfile;
@@ -106,7 +107,7 @@ export default function ProfileTagList({ profile, repository, viewer, owner }: P
         </span>
 
         {canGiveTag(owner, profile.visibility) ? (
-          <button type="button" onClick={() => setAdding(!adding)} disabled={busy} className={PLATE}>
+          <button type="button" onClick={() => setAdding(!adding)} disabled={busy} className={PLATE} {...explain(adding ? 'Puts the box for giving a tag away.' : 'Opens a box to give this person a tag: a short label, like LORE KEEPER.', 'A tag shows on their profile once they approve it.')}>
             {adding ? '[ CANCEL ]' : '[ ADD TAG ]'}
           </button>
         ) : null}
@@ -157,6 +158,7 @@ export default function ProfileTagList({ profile, repository, viewer, owner }: P
                     }
                     disabled={busy}
                     className={PLATE}
+                    {...explain(tag.hidden ? 'Approves this tag: it shows on your profile.' : 'Hides this tag from your profile; it stays here to approve again.', 'Only you, the owner, see these keys.', NOTE.others)}
                   >
                     {tag.hidden ? '[ APPROVE ]' : '[ HIDE ]'}
                   </button>
@@ -165,6 +167,7 @@ export default function ProfileTagList({ profile, repository, viewer, owner }: P
                     onClick={() => void run(() => repository.removeTag(profile.userId, tag.id), 'REMOVED.')}
                     disabled={busy}
                     className={PLATE}
+                    {...explain('Removes this tag from your profile altogether.', 'To get it back, somebody would have to give it again.', NOTE.undo)}
                   >
                     [ REMOVE ]
                   </button>
@@ -176,7 +179,7 @@ export default function ProfileTagList({ profile, repository, viewer, owner }: P
       )}
 
       {listed.length > TAGS_BEFORE_EXPANDING ? (
-        <button type="button" onClick={() => setExpanded(!expanded)} className={PLATE}>
+          <button type="button" onClick={() => setExpanded(!expanded)} className={PLATE} {...explain(expanded ? 'Shows only the first few tags again.' : `Shows all ${listed.length} tags.`, 'The list starts short so the page stays tidy.')}>
           {expanded ? '[ SHOW FEWER ]' : `[ SHOW ALL ${listed.length} TAGS ]`}
         </button>
       ) : null}
@@ -195,7 +198,7 @@ export default function ProfileTagList({ profile, repository, viewer, owner }: P
               placeholder="e.g. LORE KEEPER"
               className={`${FIELD_TIGHT} w-44`}
             />
-            <button type="button" onClick={() => void give()} disabled={busy} className={PLATE}>
+            <button type="button" onClick={() => void give()} disabled={busy} className={PLATE} {...explain('Gives this person the tag typed beside it.', 'It waits for them to approve it before it shows on their profile.')}>
               {busy ? '[ WORKING... ]' : '[ GIVE TAG ]'}
             </button>
           </div>

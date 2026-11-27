@@ -21,6 +21,7 @@ import ProfileAvatar from './ProfileAvatar';
 import ProfileCommentBox from './ProfileCommentBox';
 import SheetImage from './SheetImage';
 import { versionCrop } from '../lib/profile/avatar-crop';
+import { explain, type Explanation } from '../lib/ui/explain';
 
 /** The size the drawing is previewed at, so what is on screen is what is commented on. */
 const PICTURE_SIZE = 176;
@@ -44,15 +45,18 @@ function Choice({
   active,
   onClick,
   title,
+  words,
   children,
 }: {
   active: boolean;
   onClick: () => void;
   title?: string;
+  /** What the choice does, for the EXPLAIN box. */
+  words: Explanation;
   children: ReactNode;
 }) {
   return (
-    <button type="button" onClick={onClick} className={HYPER_TEXT} title={title} aria-pressed={active}>
+    <button type="button" onClick={onClick} className={HYPER_TEXT} title={title} aria-pressed={active} {...explain(words.what, words.why, words.note)}>
       {active ? <span className={HYPER_MARK}>▸ </span> : null}
       {children}
     </button>
@@ -87,6 +91,7 @@ function VersionStrip({
           <Choice
             active={version.id === currentId}
             onClick={() => onSelect(version.id)}
+            words={{ what: `Switches to version ${version.tag}, to read and write comments on it.`, why: 'Each version keeps its own comments, so an older one can still be talked about.' }}
           >
             {version.tag}
             {version.current ? ' (current)' : ''}
@@ -162,6 +167,7 @@ function AspectPreview({
             })
       }
             className={PLATE_MEDIUM}
+            {...explain(playing ? 'Pauses this track where it is.' : 'Plays this profile track in your music player.', 'To hear it while you read or write comments about it.')}
           >
             {playing ? '[ ❚❚ PAUSE ]' : '[ ▶ PLAY ]'}
           </button>
@@ -277,6 +283,7 @@ export default function ProfileCommentWindow({
                         key={option}
                         active={option === aspect}
                         onClick={() => setAspect(option)}
+                        words={{ what: `Makes the comment about ${ASPECT_LABEL[option].toLowerCase()}, and shows the comments already there.`, why: 'Picture, music and the profile in general each keep their own comments.' }}
                       >
                         {ASPECT_LABEL[option]}
                         {option === 'avatar' && picture !== undefined ? ` (${picture.tag})` : ''}

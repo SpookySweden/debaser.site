@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { ProfileCommentKind } from '../lib/profile/types';
 import { HYPER_ARROW, HYPER_TEXT } from '../lib/ui/hypertext';
+import { explain } from '../lib/ui/explain';
 
 /**
  * One account's aspects, in the order the page reads: the drawing, the track, the profile.
@@ -60,6 +61,7 @@ export function ProfileCommentOptions({ options, onChoose }: ProfileCommentOptio
               role="menuitem"
               disabled={!option.available}
               onClick={() => onChoose(option.kind)}
+              {...explain(`Opens the comment window on their ${label}${option.tag === undefined ? '' : ` (${option.tag})`}, to read and write comments there.`, option.available ? undefined : (option.reason ?? 'Closed: the owner switched it off, or nothing is filed yet.'))}
               className={`flex w-full items-baseline justify-between gap-x-3 px-2 py-1 text-left text-label font-bold ${
                 option.available
                   ? 'cursor-pointer text-ink hover:bg-ena hover:text-ink-bar'
@@ -109,6 +111,7 @@ export default function ProfileCommentMenu({ options, onChoose }: ProfileComment
           onClick={() => setOpen(!open)}
           className={HYPER_TEXT}
           aria-haspopup="menu"
+          {...explain(open ? 'Shuts the menu of what to comment on.' : 'Opens a menu: comment on their picture, their music, or the profile in general.', 'Picking one opens the comment window on it.')}
           aria-expanded={open}
         >
           comment
@@ -120,6 +123,7 @@ export default function ProfileCommentMenu({ options, onChoose }: ProfileComment
           className={HYPER_ARROW}
           aria-hidden="true"
           tabIndex={-1}
+          {...explain(open ? 'Shuts the menu of what to comment on.' : 'Opens a menu: comment on their picture, their music, or the profile in general.', 'The same as pressing the word comment beside it.')}
         >
           {open ? '▴' : '▾'}
         </button>

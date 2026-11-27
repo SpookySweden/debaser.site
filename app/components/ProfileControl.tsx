@@ -15,6 +15,7 @@ import ProfileAvatar from './ProfileAvatar';
 import ProfileCustomiserWindow from './ProfileCustomiserWindow';
 import ProfileName from './ProfileName';
 import { displayCrop, type AvatarCrop } from '../lib/profile/avatar-crop';
+import { explain } from '../lib/ui/explain';
 
 const MENU_ITEM =
   'flex w-full items-center gap-2 px-2 py-0.75 text-left text-ink hover:bg-ena hover:text-ink-bar max-sm:min-h-tap max-sm:px-3 max-sm:text-sm';
@@ -55,7 +56,7 @@ const MENU_PANEL =
  */
 export function ProfileLogIn() {
   return (
-    <Link href="/account" className={LOG_IN_BUTTON}>
+    <Link href="/account" className={LOG_IN_BUTTON} {...explain('Goes to the account page, to log in or make an account.', 'Signed in, you can post, comment, keep music and have a profile.')}>
       [ LOG IN ]
     </Link>
   );
@@ -98,6 +99,7 @@ export function ProfilePictureMenu({ userId, displayName, avatarVersion, avatarC
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label={`Open the account menu${news}`}
+        {...explain('Opens your account menu: notifications, your profile, the profile editor and the rest of the site.', 'A mark on your picture means unread notifications.')}
         title={unreadNotifications === 0 ? 'Account and notifications' : `Account and notifications (${unreadNotifications} new)`}
         className={PICTURE_BUTTON}
       >
@@ -158,6 +160,7 @@ export function ProfilePictureMenu({ userId, displayName, avatarVersion, avatarC
               }}
               aria-haspopup="dialog"
               role="menuitem"
+              {...explain('Opens the profile editor: your picture, track, name, bio, name colour, tags, character and privacy.', 'The same editor as EDIT PROFILE on the account page.')}
             >
               <span aria-hidden="true" className="w-4 shrink-0 text-center text-label">
                 ✎
@@ -274,6 +277,7 @@ function GuestProfileMenu() {
         aria-haspopup="menu"
         aria-label="Open the site menu"
         title="Open the site menu"
+        {...explain('Opens the site menu: LOG IN, and every part of the site.', 'You are not signed in; the menu is the way round the site and the way in.')}
         className={PICTURE_BUTTON}
       >
         <ProfileAvatar
@@ -292,7 +296,7 @@ function GuestProfileMenu() {
             {/* The way in, the key alone (SPEC-less-text.md): the account page offers both logging in
                 and signing up, and the guest banner already says what is missing. */}
             <p className="pb-1 text-label text-ink">
-              <Link href="/account" className={PLATE_LINK} onClick={() => setOpen(false)} role="menuitem">
+              <Link href="/account" className={PLATE_LINK} onClick={() => setOpen(false)} role="menuitem" {...explain('Goes to the account page, to log in or make an account.', 'Signed in, you can post, comment, keep music and have a profile.')}>
                 [ LOG IN ]
               </Link>
             </p>

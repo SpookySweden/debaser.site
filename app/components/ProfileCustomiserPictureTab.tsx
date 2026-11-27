@@ -13,6 +13,7 @@ import { displayCrop, versionCrop } from '../lib/profile/avatar-crop';
 import AvatarCropEditor from './AvatarCropEditor';
 import ChooseFileKey from './ChooseFileKey';
 import type { AvatarCrop } from '../lib/profile/avatar-crop';
+import { explain, NOTE } from '../lib/ui/explain';
 
 export type ProfileCustomiserPictureTabProps = {
   profile: PublicProfile;
@@ -128,6 +129,7 @@ export default function ProfileCustomiserPictureTab({
                 <button
                   type="button"
                   onClick={() => onSelectSrc(picture.src)}
+                  {...explain('Picks this picture as your next profile picture, shown above as a preview.', 'Nothing changes until you press FILE AS. Pictures here are the site\'s own and ones people filed.')}
                   className={`flex cursor-pointer items-center gap-2 p-1 text-label ${
                     pendingSrc === picture.src
                       ? 'key key-fill [--key-fill:var(--color-ink)] text-paper'
@@ -172,6 +174,7 @@ export default function ProfileCustomiserPictureTab({
               onClick={onFileVersion}
               disabled={busy || pendingSrc === null}
               className={PLATE_LARGE}
+              {...explain(`Files the picture you picked or uploaded as your profile picture, numbered P${nextVersion}.`, 'Earlier pictures stay under HISTORY, where USE THIS ONE brings one back.', NOTE.others)}
             >
               {busy ? '[ WORKING... ]' : `[ FILE AS P${nextVersion} ]`}
             </button>
@@ -218,6 +221,7 @@ export default function ProfileCustomiserPictureTab({
                     onClick={() => onRestore(version.id)}
                     disabled={busy}
                     className={PLATE_LARGE}
+                    {...explain('Makes this earlier picture your profile picture again.', 'Nothing is lost: the others stay in HISTORY.', NOTE.others)}
                   >
                     [ USE THIS ONE ]
                   </button>

@@ -2,6 +2,7 @@
 
 import { useRef, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { clampToKnob, shownValue, type RangeKnob } from '../../lib/backdrops/knobs';
+import { explain } from '../../lib/ui/explain';
 
 /**
  * The settings windows' own controls, for where a plain slider says too little (SPEC-backgrounds.md): a strip with two handles
@@ -93,6 +94,7 @@ export function BandStrip({ low, high, values, gap, onChange, names, id }: BandP
             aria-valuenow={values[which]}
             aria-valuetext={shownValue(knob, values[which])}
             onKeyDown={key(which)}
+            {...explain(`The ${which === 0 ? 'low' : 'high'} end of this stretch: drag it along the strip, or press the arrow keys, to move it.`, 'The background uses what lies between the two ends.')}
             className="absolute top-0 h-5 w-2 -translate-x-1/2 cursor-pointer bg-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble"
             style={{ left: `${which === 0 ? from : to}%` }}
             data-backdrop-band-handle={which === 0 ? 'low' : 'high'}

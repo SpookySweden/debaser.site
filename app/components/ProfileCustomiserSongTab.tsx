@@ -7,6 +7,7 @@ import { FIELD, PLATE_LARGE } from '../lib/ui/controls';
 import { CUSTOMISER_NOTE } from './ProfileCustomiserOptionsTabs';
 import ChooseFileKey from './ChooseFileKey';
 import TimeStamp from './TimeStamp';
+import { explain, NOTE } from '../lib/ui/explain';
 
 export type ProfileCustomiserSongTabProps = {
   profile: PublicProfile;
@@ -133,6 +134,7 @@ export default function ProfileCustomiserSongTab({
                   onClick={onFileVersion}
                   disabled={busy || pendingSrc === null || title.trim().length === 0}
                   className={PLATE_LARGE}
+                  {...explain(`Files the track you uploaded, with its title, credit and note, as your profile track, numbered M${nextVersion}.`, 'Needs a track and a title. Earlier tracks stay under HISTORY, where USE THIS ONE brings one back.', NOTE.others)}
                 >
                   {busy ? '[ WORKING... ]' : `[ FILE AS M${nextVersion} ]`}
                 </button>
@@ -170,6 +172,7 @@ export default function ProfileCustomiserSongTab({
                     onClick={() => onRestore(version.id)}
                     disabled={busy}
                     className={PLATE_LARGE}
+                    {...explain('Makes this earlier track your profile track again.', 'Nothing is lost: the others stay in HISTORY.', NOTE.others)}
                   >
                     [ USE THIS ONE ]
                   </button>

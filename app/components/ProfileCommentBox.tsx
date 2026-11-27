@@ -4,6 +4,7 @@ import { useState, type ReactNode } from 'react';
 import { MAX_COMMENT_LENGTH } from '../lib/profile/types';
 import { validateProfileComment } from '../lib/profile/visibility';
 import { FIELD, PLATE_MAIN } from '../lib/ui/controls';
+import { explain, NOTE } from '../lib/ui/explain';
 
 type ProfileCommentBoxProps = {
   /** Unique id for the textarea, so the window can focus it on open. */
@@ -94,7 +95,7 @@ export default function ProfileCommentBox({
       )}
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <button type="button" onClick={() => void handleSubmit()} disabled={busy} className={PLATE_MAIN}>
+        <button type="button" onClick={() => void handleSubmit()} disabled={busy} className={PLATE_MAIN} {...explain('Files the comment typed above on what is picked under ABOUT.', 'It shows on the profile for anyone who can read its comments.', NOTE.others)}>
           {busy ? '[ WORKING... ]' : submitLabel}
         </button>
         {/* The count is only worth reading in the last tenth before the limit. */}

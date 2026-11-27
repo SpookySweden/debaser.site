@@ -6,6 +6,7 @@ import type { ProfileElement } from '../lib/profile/elements';
 import type { PublicProfile } from '../lib/profile/types';
 import { PLATE_MEDIUM } from '../lib/ui/controls';
 import { useMusicPlayer } from './MusicPlayerProvider';
+import { explain } from '../lib/ui/explain';
 
 type ProfileTrackPanelProps = {
   profile: PublicProfile;
@@ -61,6 +62,7 @@ export default function ProfileTrackPanel({ profile, element, owner }: ProfileTr
                   })
             }
             className={PLATE_MEDIUM}
+            {...explain(playing ? 'Pauses this track where it is.' : 'Plays this profile track in your music player.', 'It keeps playing as you move round the site.')}
           >
             {playing ? '[ ❚❚ PAUSE ]' : '[ ▶ PLAY ]'}
           </button>

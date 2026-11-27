@@ -8,6 +8,7 @@ import type { PublicProfile } from '../lib/profile/types';
 import { FIELD, PLATE_LARGE } from '../lib/ui/controls';
 import CountryFlag from './CountryFlag';
 import { nameInkStyle } from './NameColourWindow';
+import { explain } from '../lib/ui/explain';
 
 export const CUSTOMISER_NOTE = 'text-label font-bold text-ink';
 
@@ -68,7 +69,7 @@ export function ProfileIdentityTab({
             className={FIELD}
           />
         </span>
-        <button type="button" onClick={onChangeColour} aria-haspopup="dialog" data-change-colour className={PLATE_LARGE}>
+        <button type="button" onClick={onChangeColour} aria-haspopup="dialog" data-change-colour className={PLATE_LARGE} {...explain('Opens the NAME COLOUR window, to pick the colour your name is written in.', 'Your pick shows at once; SAVE in this editor keeps it.')}>
           [ CHANGE COLOUR ]
         </button>
       </div>
