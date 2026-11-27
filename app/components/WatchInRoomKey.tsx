@@ -72,7 +72,7 @@ export default function WatchInRoomKey(props: { source: RoomSource; series?: Roo
   }
   return (
     <>
-      <button type="button" onClick={key.press} disabled={key.disabled} aria-label={key.label} {...explain(key.mode === 'start' ? 'Puts this on in your room.' : 'Adds this to the room you are in.', key.mode === 'start' ? 'Your room plays it for you, and for whoever you let in.' : 'It goes in the room\'s queue, where everyone in the room sees it.', key.mode === 'start' ? undefined : 'OTHERS IN THE ROOM SEE IT.')} className={PLATE} data-watch-in-room={key.data}>
+      <button type="button" onClick={key.press} disabled={key.disabled} aria-label={key.label} {...explain('Adds this to the room you are in.', 'It goes in the room\'s queue, where everyone in the room sees it.', 'OTHERS IN THE ROOM SEE IT.')} className={PLATE} data-watch-in-room={key.data}>
         {`[ ${key.words} ]`}
       </button>
       {key.after}

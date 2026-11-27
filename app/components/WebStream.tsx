@@ -1067,7 +1067,7 @@ export default function WebStream() {
       aria-pressed={!art && boxFilters.source === option.value}
       aria-label={`Source: ${option.label}`}
       className={!art && boxFilters.source === option.value ? FILTER_KEY_ON : FILTER_KEY}
-      {...explain(option.value === 'all' ? 'Searches every source at once.' : `Searches only ${option.label}.`, `WHERE FROM: which platform or site the results come from. ${BOX}`)}
+      {...explain(option.value === 'all' ? 'Searches every source at once.' : `Searches only ${option.label}.`, `WHERE FROM: which platform or site the results come from. Each filter key just writes a word into the search box (you can type it too), and the search runs again.`)}
     >
       {!art && boxFilters.source === option.value ? (option.value === 'all' ? 'ALL SOURCES' : option.label) : `[ ${option.value === 'all' ? 'ALL SOURCES' : option.label} ]`}
     </button>
@@ -1493,7 +1493,7 @@ export default function WebStream() {
                 aria-pressed={boxFilters.type === option.value}
                 aria-label={`Type: ${option.label}`}
                 className={boxFilters.type === option.value ? FILTER_KEY_ON : FILTER_KEY}
-                {...explain(KIND_WORDS[option.value] ?? `Shows only ${option.label.toLowerCase()}.`, `WHAT KIND of thing the results are. ${BOX}`)}
+                {...explain(KIND_WORDS[option.value] ?? `Shows only ${option.label.toLowerCase()}.`, `WHAT KIND of thing the results are. Each filter key just writes a word into the search box (you can type it too), and the search runs again.`)}
               >
                 {boxFilters.type === option.value ? (option.value === 'all' ? 'ALL KINDS' : option.label) : `[ ${option.value === 'all' ? 'ALL KINDS' : option.label} ]`}
               </button>
