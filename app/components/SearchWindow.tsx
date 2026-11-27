@@ -224,7 +224,7 @@ export function SearchBody({ initial, onLeave }: { initial: string; onLeave: () 
       .filter((place) => matchesWords(words, place.title))
       .map((place) => ({ key: place.bookRef, href: continueHref(place.bookRef), text: place.title || 'A BOOK' }));
     const pages = kept
-      .filter((page) => matchesWords(words, ...pageWords(page)))
+      .filter((page) => !page.tags.includes('OWN WEB') && matchesWords(words, ...pageWords(page)))
       .map((page) => ({ key: page.id, href: browserHref(null), see: page.hasCopy ? keptAddress(page.id) : page.address, text: `${page.title} · ${page.site}` }));
     return { posts, people, docRows, files, drawingRows, recs, books, pages };
   }, [kept, words, forum.threads, accounts, docs, catalogue.items, drawings, recommendations.value, places]);

@@ -43,6 +43,7 @@ import { holdOwnEye, openInOwnEye, ownEyeHas, tellOwnEyeTheme } from '../../lib/
 import { chooseEye, dontAskAgain, eyeChoice, eyeChoiceOnServer, notAskedAgain, notAskedAgainOnServer, offerFor, subscribeToEyeChoice } from '../../lib/seeing/eye-choice';
 import { openExtensionWindow } from '../../lib/ui/extension-window';
 import { scriptsOff, setScriptsOff, siteSettings, siteSettingsOnServer, subscribeToSiteSettings } from '../../lib/seeing/site-settings';
+import { explain } from '../../lib/ui/explain';
 import { PLATE, PLATE_PRESSED, TITLE_BAR } from '../../lib/ui/controls';
 import { subscribeToTheme, themeState } from '../../lib/ui/theme-slot';
 import { useAuth } from '../AuthProvider';
@@ -62,6 +63,8 @@ import SeeingHistory from './SeeingHistory';
 import SeeingSignIn from './SeeingSignIn';
 import SeeingKeep from './SeeingKeep';
 import SeeingKept from './SeeingKept';
+import SeeingOwnWeb from './SeeingOwnWeb';
+import { isOwnWeb, keepInOwnWeb } from '../../lib/seeing/own-web';
 import SeeingLenses from './SeeingLenses';
 import SeeingMargins from './SeeingMargins';
 import SeeingStage, { type Loupe } from './SeeingStage';
@@ -137,6 +140,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
   const [trayOpen, setTrayOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [keptOpen, setKeptOpen] = useState(false);
+  const [webOpen, setWebOpen] = useState(false);
   const [keeping, setKeeping] = useState(false);
   const [noting, setNoting] = useState(false);
   const [listing, setListing] = useState(false);
@@ -153,6 +157,9 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
   const marks = useMemo(() => notes.map((each) => each.quote), [notes]);
   const [selected, setSelected] = useState<{ key: string; text: string }>({ key: '', text: '' });
   const kept = useSyncExternalStore(subscribeToKeptPages, keptPages, keptPagesOnServer);
+  // OWN WEB's pages are their own list, not KEEP PAGE's.
+  const keptOnly = useMemo(() => kept.filter((page) => !isOwnWeb(page)), [kept]);
+  const ownWebCount = kept.length - keptOnly.length;
   const [sent, setSent] = useState<readonly FoundMedia[]>(NO_MEDIA);
   const extension = useSyncExternalStore(subscribeToExtension, extensionState, extensionStateOnServer).kind;
   const ownEye = extension === 'current' || extension === 'old';
@@ -233,6 +240,8 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
           changeTabs((all) => withTitle(all, tab.id, address, answer.document.title));
           // Yours alone: the page, and the one it was come to from.
           noteSeen({ address: answer.document.address, title: answer.document.title, at: Date.now(), from: cameFrom });
+          // OWN WEB: the owner's page from the house, kept as a copy once a day (the server says whether it may be).
+          void keepInOwnWeb(answer.document, owner);
           // Where it was sent on to, so the box says where it really is and its links are its own.
           if (answer.document.address !== address) changeTabs((all) => withAddress(all, tab.id, address, answer.document.address));
         } else {
@@ -560,8 +569,17 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
                 setKeptOpen(!keptOpen);
                 setHistoryOpen(false);
               }} className={PLATE}>
-              [ KEPT {kept.length} ]
+              [ KEPT {keptOnly.length} ]
             </button>
+            {ownWebCount > 0 ? (
+              <button type="button" aria-expanded={webOpen} onClick={() => {
+                  setWebOpen(!webOpen);
+                  setKeptOpen(false);
+                  setHistoryOpen(false);
+                }} className={PLATE} {...explain('Every page you opened from the house, kept whole on your account for you alone: found by words or site, deleted by page, site or all.', 'A page still opens here after the site changes it or takes it down.')}>
+                [ OWN WEB {ownWebCount} ]
+              </button>
+            ) : null}
           </>
         }
       />
@@ -801,6 +819,15 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
           />
         ) : null}
         {listing ? <SeeingEngines ownEye={extension === 'current'} onClose={() => setListing(false)} /> : null}
+        {webOpen ? (
+          <SeeingOwnWeb
+            onGo={(where) => {
+              setWebOpen(false);
+              go(where);
+            }}
+            onClose={() => setWebOpen(false)}
+          />
+        ) : null}
         {keptOpen ? (
           <SeeingKept
             me={owner.id}

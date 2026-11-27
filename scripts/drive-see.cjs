@@ -71,6 +71,7 @@ async function open(browser, { as = null, width = 1440, height = 900, theme = nu
   );
   const page = await context.newPage();
   page.on('pageerror', (error) => console.log(`  ..  page error: ${error.message.slice(0, 160)}`));
+  if (process.env.SEE_TRACE) page.on('response', async (response) => { if (response.url().endsWith('/api/see/keep')) console.log('  .. keep', response.status(), (await response.text().catch(() => '')).slice(0, 160)); });
   return { context, page, asked };
 }
 
@@ -754,6 +755,14 @@ async function eye(browser) {
     await page.getByRole('button', { name: 'Close history', exact: true }).click();
 
     // KEEP PAGE (Phase 5): the copy in this browser, drawn in the frame with nothing asked of the source.
+    // OWN WEB (Luke, 2026-11-27): the owner's page from the house, kept whole by itself, found, opened and deleted.
+    await key(page, /^\[ OWN WEB \d+ \]$/).waitFor({ timeout: 40000 });
+    await key(page, /^\[ OWN WEB \d+ \]$/).click();
+    const web = page.locator('[data-seeing-own-web]');
+    ok(/An ordinary page/.test(await web.innerText()) && /NEVER WHAT YOUR OWN BROWSER SHOWS/.test(await web.innerText()), 'OWN WEB keeps the page opened from the house, and says what it never keeps');
+    ok(!/OWN WEB/.test(await key(page, /^\[ KEPT \d+ \]$/).innerText()) && (await key(page, /^\[ KEPT \d+ \]$/).innerText()) === '[ KEPT 0 ]', "and it is not in KEEP PAGE's list");
+    await web.getByRole('button', { name: 'Close own web', exact: true }).click();
+
     // MARGINALIA and GRAFFITI (Phase 6).
     await key(page, '[ NOTES 0 ]').click();
     const noteFrame = () => page.frames().filter((each) => each.parentFrame()?.parentFrame() === page.mainFrame()).at(-1);

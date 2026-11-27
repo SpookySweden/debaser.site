@@ -20,8 +20,8 @@ export default function SeeingKept({ me, onGo, onClose }: { me: string; onGo: (a
   const pages = useSyncExternalStore(subscribeToKeptPages, keptPages, keptPagesOnServer);
   const [words, setWords] = useState('');
   const [tag, setTag] = useState<string | null>(null);
-  const tags = useMemo(() => [...new Set(pages.flatMap((page) => page.tags))].sort(), [pages]);
-  const found = useMemo(() => pages.filter((page) => (tag === null || page.tags.includes(tag)) && (words.trim() === '' || matchesWords(searchWords(words), ...pageWords(page)))), [pages, tag, words]);
+  const tags = useMemo(() => [...new Set(pages.filter((page) => !page.tags.includes('OWN WEB')).flatMap((page) => page.tags))].sort(), [pages]);
+  const found = useMemo(() => pages.filter((page) => !page.tags.includes('OWN WEB') && (tag === null || page.tags.includes(tag)) && (words.trim() === '' || matchesWords(searchWords(words), ...pageWords(page)))), [pages, tag, words]);
   return (
     <section aria-label="Kept pages" className="absolute inset-0 z-30 flex flex-col bg-paper p-2 text-label text-ink" data-seeing-kept>
       <div className="flex flex-wrap items-center gap-1">

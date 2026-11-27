@@ -122,12 +122,13 @@ export async function openAnswer(request: Request, deps: SeeDeps = realSee()): P
     const page = isPage
       ? rewritePage(words, answer.url, sign, scripts)
       : { html: feed?.html ?? plainPage(answer.type, words, picture ? sign(answer.url, 'picture') : null), title: feed?.title ?? null, watchers: [], media: [], files: picture ? 1 : 0, refused: 0, signIn: false, refresh: null, feeds: [] };
+    const reading = isPage ? readingOf(words, answer.url, page.title, sign) : null;
     const document: SeenDocument = {
       address: answer.url,
       title: page.title ?? '',
       eye: 'SERVER EYE',
       html: page.html,
-      reading: isPage ? readingOf(words, answer.url, page.title, sign) : null,
+      reading,
       watchers: page.watchers,
       media: page.media,
       files: page.files,
@@ -138,6 +139,9 @@ export async function openAnswer(request: Request, deps: SeeDeps = realSee()): P
       feeds: page.feeds,
       assets: `${files.assetOrigin}${ASSET_PATH}`,
       scripts: scripts && isPage,
+      // OWN WEB (Luke, 2026-11-27): the owner's own pages, a real page and the page itself, are kept for him; nobody else's.
+      // (A password box somewhere on an ordinary page is no reason; a page that is nothing but a sign-in is, as KEEP PAGE has it.)
+      ownWeb: isPage && answer.status === 200 && !(page.signIn && reading === null) && (person === seeingOwner(deps.gate.env) || person === 'dev'),
     };
     return Response.json({ ok: true, document }, { headers: HEADERS });
   } catch (error) {

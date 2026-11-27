@@ -39,6 +39,8 @@ export type SeenDocument = {
   assets: string | null;
   /** Whether the page's own scripts run. */
   scripts: boolean;
+  /** OWN WEB keeps it (the owner's eye only; .claude/rules/browser.md). Absent: not kept. */
+  ownWeb?: boolean;
 };
 
 export type SeeAnswer = { ok: true; document: SeenDocument } | { ok: false; reason: string };

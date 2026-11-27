@@ -97,6 +97,15 @@ Proof: `drive-see.cjs --only lenses` (DYE and GLASS measured on every theme, 5.5
   lifted by a session rule that names the machine's tab, the machine or an added site as the asker, and added sites only, never a sign-in; it goes
   when the machine's page does. `Temp/check-see-extension.cjs`, `scripts/drive-see-extension.cjs` (26, pretend sites, signed in to nothing).
 
+## OWN WEB (Luke, 2026-11-27: "Yes, change it", to keeping every page he opens; .claude/rules/browser.md)
+- The server says which page may be kept (`ownWeb` on the document: the owner's eye, or the local drives' `dev`; status 200; not a page that is
+  nothing but a sign-in). `own-web.ts` then keeps it as KEEP PAGE does, a copy made by the server's own look again, private, tagged OWN WEB, once a
+  day per address. On the phase 5 tables (seen_pages, seen_page_copies, the seen store), so their rules hold: his alone, at most 200 a day.
+- `[ OWN WEB n ]` beside KEPT (`SeeingOwnWeb`): find by words, filter by site, open the copy kept that day or the page now, delete a page, a site
+  or everything (two presses), and switch keeping off (KEEPING WHAT I OPEN). KEPT, Ctrl+K and the lanes leave OWN WEB's pages out.
+- Never kept: what OWN EYE shows (his own browser, signed in: the site never sees it), a sign-in, a page that wasn't the page itself, a form.
+- Not built: the files on I: (the store is where the database keeps its files); other accounts (a switch of their own, off, when Luke asks).
+
 ## Sign-in groups, IMPORT, the first visit, the store (Luke, 2026-11-27)
 - `SIGN_IN_GROUPS` (extension/sites.js): adding a site that shares a sign-in offers the whole company's sites, named before the press, in one box
   of the browser's (the machine's door, the panel's ADD); each stays removable on its own in SITES, which also has ADD A SIGN-IN.

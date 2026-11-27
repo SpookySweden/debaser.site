@@ -132,6 +132,8 @@ Each can be changed later by saying so.
     browser's history (site names, 30 days), not its cookies, asked for on the press and given back at once.
 57. **The first visit says what each eye is for**, and that the server's eye writes down sites opened, kept with no end date (Luke's "Keep
     forever", 2026-11-27), as D3 always asked; /privacy says it too.
+58. **OWN WEB keeps what the owner opens from the house** (Luke, 2026-11-27, typed here: "Yes, change it"): each page a copy, private, once a
+    day per address, on the phase 5 tables; his alone for now. Never what his own browser shows, a sign-in, or a form. Deleted by page, site or all.
 
 ## Risks, said once
 1. **SERVER is beside everything.** The torrent page (no password at home), Jellyfin, the database and its dashboard, the
