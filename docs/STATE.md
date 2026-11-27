@@ -23,10 +23,11 @@ working sessions' status notes.
   `I:\work-data\claude-notes\` (history only).
 
 ## Sessions now
-The coordinator runs them; who is working on what, and their notes: the coordinator's notes and the group's notes folder
-(`docs/sessions.md`). On 2026-11-27: BROWSER (the seeing machine, `SPEC-seeing-machine.md`, its hand-over
-`browser-build-handover.md`), same-account room sync (rooms keep every device), hover explanations (EXPLAIN, top bar,
-side panel, MEDIA and the rooms live; the rest by fresh sessions, one area at a time), this context system.
+One coordinator, the only main session (top level, pinned; the first coordinator and PC setup archived 2026-11-27 at
+Luke's word). Its notes: `coordinator-notes.md` in the group's notes folder (`docs/sessions.md`). On 2026-11-27, under it:
+BROWSER continued (review of six unreviewed commits, hover words, IMPROVE; hand-over `browser-build-handover.md`),
+EXPLAIN-PROFILE (hover words in profile and settings; the rest by fresh sessions, one area at a time), and the room
+FULLSCREEN key fix. Room sync, the context system and the first EXPLAIN and BROWSER sessions are done and archived.
 
 ## Half-done
 - EXPLAIN: hover words on every key, shown only while `[ EXPLAIN ]` (PREFERENCES, off by default) is on; top bar, side
