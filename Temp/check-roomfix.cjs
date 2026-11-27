@@ -72,7 +72,7 @@ const same = (actual, expected, what) => {
 /* 4. READ YOUR OWN BOOK. */
 {
   const stream = read('app/components/WebStream.tsx');
-  ok(/<button type="button" onClick=\{\(\) => router\.push\('\/read'\)\} className=\{FILTER_KEY\} data-own-book-key>/.test(stream), 'a move within the site');
+  ok(/<button type="button" onClick=\{\(\) => router\.push\('\/read'\)\} className=\{FILTER_KEY\} data-own-book-key(?: \{\.\.\.explain\(.*\)\})?>/.test(stream), 'a move within the site');
   ok(!/window\.location\.(assign|href)\s*\(?\s*['"`]\/read/.test(stream), 'never a fresh page load, which took the room and what was playing down with it');
 }
 

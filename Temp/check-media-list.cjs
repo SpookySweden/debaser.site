@@ -148,7 +148,7 @@ assert.match(rowKeys, /aria-label=\{label\}/);
 // own checked address.
 assert.match(stream, /<ThumbInfo ref=\{infoKey\} label=\{`Details of "\$\{item\.title\}"`\} open=\{detailsOpen\} onPress=\{\(\) => setDetailsOpen\(true\)\} \/>/, 'every row has the i');
 assert.ok(!stream.includes('<ThumbOpen'), "... in place of the corner's ↗");
-assert.match(stream, /<a href=\{link\} target="_blank" rel="noopener noreferrer nofollow" aria-label=\{`Open "\$\{item\.title\}" on \$\{goName\} \(new tab\)`\} className=\{PLATE_LINK\} data-details-go>/, 'DETAILS: GO TO, on the checked address, in a new tab');
+assert.match(stream, /<a href=\{link\} target="_blank" rel="noopener noreferrer nofollow" aria-label=\{`Open "\$\{item\.title\}" on \$\{goName\} \(new tab\)`\} className=\{PLATE_LINK\} data-details-go(?: \{\.\.\.explain\(.*\)\})?>/, 'DETAILS: GO TO, on the checked address, in a new tab');
 assert.match(stream, /<PopoutWindow title="DETAILS" onClose=\{onClose\}/, "DETAILS is the site's one pop-up window (X, Escape, a click outside)");
 assert.ok(!/data-why>/.test(stream) && /data-details-why>/.test(stream), 'the why-line left the card for DETAILS');
 assert.ok(!stream.includes('[ OPEN ↗ ]'), 'no OPEN key among the keys');
@@ -204,7 +204,7 @@ assert.match(read('app/api/web/search/route.ts'), /const lang = filterLanguage\(
 
 // ORDER (Luke, 2026-11-14: "make the order settings be a separate expandable button to the right of view and filters").
 assert.ok(stream.indexOf('data-filters-key') < stream.indexOf('data-view-toggle') && stream.indexOf('data-view-toggle') < stream.indexOf('data-order-toggle'), 'FILTERS, VIEW, then ORDER');
-assert.match(stream, /aria-expanded=\{folds\.has\('media-order'\)\} aria-controls="media-order-panel" className=\{FOLD_KEY\} data-order-toggle>\n\s*\{`\[ ORDER: \$\{orderLabel\(boxSort\)\} \]`\}/, 'it says the order and whether it is open');
+assert.match(stream, /aria-expanded=\{folds\.has\('media-order'\)\} aria-controls="media-order-panel" className=\{FOLD_KEY\} data-order-toggle(?: \{\.\.\.explain\(.*\)\})?>\n\s*\{`\[ ORDER: \$\{orderLabel\(boxSort\)\} \]`\}/, 'it says the order and whether it is open');
 assert.match(stream, /className="flex flex-col items-start gap-1 py-1" data-order-panel>/, 'its choices one to a line');
 assert.ok(!stream.includes('<FilterRow label="ORDER">'), 'not in FILTERS any more');
 assert.match(stream, /const FOLD_IDS = \['media-filters', 'media-view', 'media-order',/, 'this browser remembers it open or shut');
