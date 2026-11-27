@@ -158,10 +158,17 @@ gaming PC"). Which machine, and what never goes: "Which machine does what" below
     starts part-way, the job drops to idle priority. For a checks job the PC runner also opens an SSH tunnel from the
     PC's `127.0.0.1:5432` to SERVER's `127.0.0.1:5432` (the PC's own key to `debaser-server`), because
     check-db-guard, check-guests and check-moderation reach the database through `scripts/db.cjs` at that address; the
-    tunnel closes when the job ends.
+    tunnel closes when the job ends. `scripts/db.cjs` reads `POSTGRES_PASSWORD` from `G:\DEBASER-HOST\supabase\.env`:
+    the PC has that file holding only that one value (Luke, 2026-11-27, relayed by PC setup: "Yes, password only"),
+    readable only by his account and Administrators. The runner sets `CLAUDECODE=1` for every job, because the
+    Supabase CLI answers in JSON only then and check-guests reads that JSON.
   - **Proof (PC setup, 2026-11-27):** an unpushed test commit verified on the PC in 71 seconds through heavy-step (147
-    seconds the first time, with `npm ci`; SERVER takes about 5 minutes). PC unreachable, checks without the env files
-    and the off switch each went to SERVER; a faked League process kept it on SERVER, and it went back to the PC after.
+    seconds the first time, with `npm ci`; SERVER takes about 5 minutes). The full suite at 9aa047e: 264 of 268 in
+    about 18 minutes; after the two fixes above, check-db-guard, check-guests and check-moderation passed on a re-run,
+    so the PC's suite matches SERVER's (only check-hidden-accounts red, the known one). PC unreachable, checks without
+    the env files and the off switch each went to SERVER; a faked League process kept it on SERVER, and it went back to
+    the PC after.
+  - **Times on the PC:** `verify:clean` about 70 seconds, the full `npm run checks` about 18 minutes.
 - **Between devices:** the lane uses key-only SSH from SERVER to the gaming PC over the home network: SSH alias
   `gaming-pc` (192.168.0.30), SERVER's key, the PC's port 22 open only to SERVER. Tailscale is the road Luke chose for
   the rest (`debaser-server` is on it; on 2026-11-27 the laptop, phone and gaming PC had not joined; when the PC joins,

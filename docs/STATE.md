@@ -16,8 +16,8 @@ working sessions' status notes.
 - Also on SERVER: SSH (key only), Tailscale (`debaser-server`, nothing public), LibGen through a Proton WireGuard split
   tunnel plus the shadow proxy behind `/shadow`, SUNSHINE's screen engine (`G:\DEBASER-HOST\engine`).
 - The gaming PC (192.168.0.30, SSH alias `gaming-pc` from SERVER) is a SCREENS device and, since 2026-11-27, the heavy
-  lane: `verify:clean` and the full checks (env files copied at his word, 2026-11-27; a full-suite proof run on the PC
-  was queued that day) run there through heavy-step when SERVER is busy
+  lane: `verify:clean` (about 70 s there) and the full checks (about 18 min; the same results as on SERVER, proved
+  2026-11-27) run there through heavy-step when SERVER is busy
   or over 60% memory, or on alternate turns; off, asleep, busy or in a League match, they stay on SERVER. Off switch
   `remote-lane.off` beside heavy-step.cjs (`docs/sessions.md`). No sessions run there. Old session notes from it:
   `I:\work-data\claude-notes\` (history only).
