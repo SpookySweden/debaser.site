@@ -116,7 +116,7 @@ assert.deepEqual([fluid.cell, fluid.steps, fluid.dither, fluid.mirror], [10, 3, 
 const windowSource = fs.readFileSync('app/components/BackdropSettingsWindow.tsx', 'utf8');
 assert.match(windowSource, /onClick=\{\(\) => setBackdropValues\(id, resetValues\(def, panel\.values, panel\.locks\)\)\}/, 'the window`s RESET is that rule');
 const fishOn = renderToString(React.createElement(BackdropKnobs, { id: 'aquarium' })).replace(/<!-- -->/g, '');
-assert.match(fishOn, /aria-pressed="true"[^>]*data-backdrop-knob="theme">\[ THEME: ON \]</, '[ THEME ] says which way it is');
+assert.match(fishOn, /aria-pressed="true"[^>]*data-backdrop-knob="theme"[^>]*>\[ THEME: ON \]</, '[ THEME ] says which way it is');
 
 /* ------------------------------------------------------------------ 4. PREFERENCES */
 const prefs = fs.readFileSync('app/components/PreferencesWindow.tsx', 'utf8');

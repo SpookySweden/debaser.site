@@ -143,7 +143,7 @@ const ember = renderToString(React.createElement(BackdropKnobs, { id: 'fluid' })
 assert.match(ember, /aria-pressed="true"[^>]*data-backdrop-knob="theme"/, 'FLUID`s window has [ THEME ], pressed');
 assert.ok(ember.indexOf('data-backdrop-knob="theme"') < ember.indexOf('data-backdrop-sheet='), 'heading the sheet, not inside a section (one sheet since 2026-11-17)');
 // A toggle that says which way it is, `[ THEME: ON ]` (SETTINGSUI item 3, 2026-11-17).
-assert.match(ember, /data-backdrop-knob="theme">\[ THEME: ON \]<\/button><span><span[^>]*>OVERDRIVE EMBER</, 'naming the theme it is matched to, beside it');
+assert.match(ember, /data-backdrop-knob="theme"[^>]*>\[ THEME: ON \]<\/button><span><span[^>]*>OVERDRIVE EMBER</, 'naming the theme it is matched to, beside it');
 // The knobs the theme sets say so in their own row (THEME in their keys' column), not in a list at the top (2026-11-17).
 assert.match(ember, /aria-label="COLOURS"[\s\S]*?data-backdrop-set-by-theme="">THEME</, 'and the knobs the theme sets say THEME in their row');
 assert.match(ember, /disabled=""[^>]*data-backdrop-knob="colours-dyes"/, 'which rest while it is on');
