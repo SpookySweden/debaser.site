@@ -32,8 +32,9 @@ side panel, MEDIA and half the rooms live; the rest by fresh sessions, one area 
 - EXPLAIN: hover words on every key, shown only while `[ EXPLAIN ]` (PREFERENCES, off by default) is on; top bar, side
   panel, MEDIA and the room and music bar's first half live (a8fcf58); the rooms' second half, profile, forum and the rest to go,
   one fresh session per area (`Temp/check-explain.cjs` STILL_TO_DO; hand-over `explain-handover.md` in the group's notes folder).
-- BROWSER: lenses on a page shown by OWN EYE inside BROWSER's tab, the address box following it, EXPLAIN words on the rest of
-  its keys. Sign-in groups, IMPORT and the Web Store pack are live (90d3d69); the store's icon and tile are Luke's to draw.
+- BROWSER: EXPLAIN words on the rest of its keys, then the IMPROVE rounds (a fresh BROWSER session under the coordinator). Live:
+  sign-in groups, IMPORT, the Web Store pack (90d3d69), OWN WEB (8827218, kept: Luke 2026-11-27), lenses on pages OWN EYE shows
+  inside BROWSER (7b85214, extension 0.7.0), the address box following them (95a39db). The store's icon and tile are Luke's to draw.
 - The shelf: BROWSER and REMOTE are marked WIP (f648c04).
 
 ## Waiting on Luke
@@ -45,8 +46,7 @@ side panel, MEDIA and half the rooms live; the rest by fresh sessions, one area 
   key into the RELAY KEY form.
 - Off-site backup (Proton Drive, task `DebaserOffsite`) is built but off until he runs
   `C:\DEBASER-SETUP\proton-backup-setup.ps1`; then the first upload and a restore test are owed.
-- BROWSER: `SEEING_OPEN`, the `see.debaser.site` DNS record, whether the machine puts away consent boxes, and his own
-  word on changing "nothing of it is kept" (OWN WEB).
+- BROWSER: `SEEING_OPEN`, the `see.debaser.site` DNS record, whether the machine puts away consent boxes.
 - Google sign-in check on debaser.site from his own browser.
 - The gaming PC's security (Defender off, dead startup entries, old encrypted files in `C:\tmp`): his to change.
 - Test leftovers on TEST ACCOUNT A/B (ROOMCHAT lines, CANVAS rooms): a delete, waits for his OK. POPOUT on hold.
