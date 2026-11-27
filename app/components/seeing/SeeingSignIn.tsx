@@ -3,16 +3,15 @@
 import { PLATE, PLATE_MAIN } from '../../lib/ui/controls';
 
 /**
- * On entering a page of a site that offers it (YouTube, for now): one line over the page. With the extension, LOG IN opens the page in OWN EYE,
- * which asks to add the site (one press there, and the browser's own box) and shows it where you are signed in, or signs you in in an ordinary
- * tab. Without it, it is got first.
+ * On entering a page of a site that offers it (YouTube, for now) through the server's eye: one line over the page. With the extension, LOG IN opens
+ * it in an ordinary tab of the reader's own browser, signed in as they are there (or signing in, on the site's own page). Without it, it is got first.
  */
 export default function SeeingSignIn({ site, has, onLogIn, onGet, onNotNow, onNever }: { site: string; has: boolean; onLogIn: () => void; onGet: () => void; onNotNow: () => void; onNever: () => void }) {
   const name = site.replace(/\.com$/, '').toUpperCase();
   return (
     <p className="flex flex-wrap items-center gap-2 py-1 text-label text-ink" data-seeing-sign-in={has ? 'add' : 'get'}>
       {has ? (
-        <button type="button" onClick={onLogIn} title="Opens it in OWN EYE, which asks to add the site: one press there, and your browser's own box" className={PLATE_MAIN}>
+        <button type="button" onClick={onLogIn} title="In an ordinary tab of your own browser, signed in as you are there" className={PLATE_MAIN}>
           LOG IN TO {name}
         </button>
       ) : (

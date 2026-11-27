@@ -120,6 +120,10 @@ Each can be changed later by saying so.
     browser, signed in; the server's eye is one press away and remembered as the choice when switched. YouTube offers LOG IN on entering until it is
     on the list, with NOT NOW and DON'T ASK AGAIN; ADD THIS SITE says in words whether the site in front is on the list. Adding a site is one press
     here, one in the extension's page, and the browser's own box: only the extension may ask the browser, and only on a press of its own.
+54. **OWN EYE is an ordinary tab** (Luke, 2026-11-27: "by default people are using this browser signed in and can use it like they would chrome or
+    edge"): the page in the browser's own tab with the machine in its side panel, because that is the way that behaves exactly like the browser, and
+    YouTube's videos play there (in the machine's frame they played white). The machine's own page is one press away for the lenses that need it.
+    Every account is asked for the extension first; YouTube's sign-in line is for the server's eye now, since OWN EYE opens signed in already.
 
 ## Risks, said once
 1. **SERVER is beside everything.** The torrent page (no password at home), Jellyfin, the database and its dashboard, the

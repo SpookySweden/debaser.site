@@ -165,6 +165,21 @@ const STORY = `<title>Shop</title><nav>menu</nav><article><h1>The shop</h1>${'<p
     await machine('http://www.shoptrial.test/');
     ok(/OWN EYE/.test(await status()), 'and the sites it was let');
 
+    // OWN EYE as the browser itself: the page in an ordinary tab, not the machine's frame; the machine's own page only when asked for.
+    await page.goto('http://www.machinesite.test/');
+    const [plain] = await Promise.all([context.waitForEvent('page'), say({ see: 'open', address: 'http://www.shoptrial.test/second' })]);
+    await plain.waitForLoadState('domcontentloaded');
+    ok(plain.url() === 'http://www.shoptrial.test/second', 'the site opens a page in an ordinary tab of the reader\'s browser');
+    ok((await plain.evaluate(() => document.cookie)) === 'strict=1' || /strict=1/.test(await plain.locator('body').innerText()), 'signed in as they are there');
+    await plain.close();
+    const [inMachine] = await Promise.all([context.waitForEvent('page'), say({ see: 'open', address: 'http://www.shoptrial.test/', in: 'machine' })]);
+    ok(inMachine.url().startsWith(`chrome-extension://${id}/machine.html`), "and the machine's own page when that is asked for");
+    await inMachine.close();
+    // A site that stops itself in a frame (YouTube's videos played white there): the machine sends it to an ordinary tab.
+    await page.goto(`chrome-extension://${id}/machine.html#see=${encodeURIComponent('https://www.youtube.com/watch?v=x')}`);
+    await page.waitForTimeout(1200);
+    ok(/STOPS ITSELF IN A FRAME/.test(await page.locator('#door').innerText()) && (await page.locator('#page').getAttribute('src')) === null, 'YouTube is never framed: OPEN IT IN A TAB');
+
     // Asked by the site whether the page in front is on its list: that one, and never the list.
     await page.goto('http://www.machinesite.test/');
     const has = await say({ see: 'has', address: 'http://www.shoptrial.test/a' });

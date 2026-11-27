@@ -97,6 +97,18 @@ Proof: `drive-see.cjs --only lenses` (DYE and GLASS measured on every theme, 5.5
   lifted by a session rule that names the machine's tab, the machine or an added site as the asker, and added sites only, never a sign-in; it goes
   when the machine's page does. `Temp/check-see-extension.cjs`, `scripts/drive-see-extension.cjs` (26, pretend sites, signed in to nothing).
 
+## Signed in by default, as in Chrome or Edge (Luke, 2026-11-27)
+- **OWN EYE opens an ordinary tab** of the reader's own browser (`openTab` in the extension's worker), with the machine's lenses in its side panel
+  (opened by itself where the browser lets it; its key in the bar always does). Tabs, back and forward, sign-ins, video, passwords and downloads
+  are the browser's own, because they are. The machine's own page (its frame) stays, one press away (IN THE MACHINE), for the lenses that need
+  it, and ADD THIS SITE opens it, since that is where a site is added. An ordinary tab needs no site on the list.
+- **Why the tab**: YouTube's videos played white in the machine's frame (Luke, 2026-11-27); its pages stop themselves in a frame. In a tab they are
+  YouTube as the browser shows it. The machine's page sends YouTube, X, Instagram, Facebook and TikTok to a tab (`TAB_SITES` in sites.js).
+- **Without the extension** BROWSER asks for it first, once a visit (`SeeingGetSignedIn`); a browser that can't have it is told so. The server's eye
+  says plainly that YouTube and those sites need your own browser (`shells.ts`, `SeeingShell`) and asks the server nothing for them, unless SHOW
+  WHAT COMES ANYWAY is pressed: they draw themselves with scripts a signed-out server isn't given enough for, and videos never pass through it.
+- BROWSER's own page doesn't follow the tab once it is open: that would take the browser's `tabs` leave, which reads every tab's address.
+
 ## OWN EYE first, the sign-in offered on YouTube, ADD THIS SITE (Luke, 2026-11-23)
 - With the extension, a page pressed for opens in OWN EYE, your own browser, in a tab of its own (`SeeingElsewhere`), with SEE IT HERE for the
   server's eye; a page that was only open when BROWSER loaded waits for a press. `[ OPENS IN: OWN EYE | SERVER EYE ]` switches it, remembered in this

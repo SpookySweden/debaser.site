@@ -82,6 +82,18 @@ export async function openMachine(address) {
   await chrome.tabs.create({ url: chrome.runtime.getURL('machine.html') + (read === null ? '' : '#see=' + encodeURIComponent(read)) });
 }
 
+/**
+ * OWN EYE as the browser itself (Luke, 2026-11-27: "use it like they would chrome or edge"): the page in an ordinary tab, where tabs, back and
+ * forward, sign-ins, video and downloads are the browser's own because they are, and the machine's lenses beside it in the side panel. The panel
+ * opens by itself where the browser lets it; its key in the bar always does.
+ */
+export async function openTab(address) {
+  const read = readAddress(address);
+  if (read === null) return;
+  const tab = await chrome.tabs.create({ url: read });
+  await chrome.sidePanel.open({ tabId: tab.id }).catch(() => undefined);
+}
+
 /** Colours and a face, as values: anything that isn't one is dropped, because the machine writes them into a stylesheet. */
 export function themeFrom(value) {
   if (typeof value !== 'object' || value === null) return null;
@@ -119,7 +131,8 @@ chrome.runtime.onMessageExternal.addListener((message, sender, answer) => {
     if (theme !== null) void chrome.storage.local.set({ theme });
     answer({ ok: theme !== null });
   } else if (message.see === 'open' && typeof message.address === 'string') {
-    void openMachine(message.address);
+    // An ordinary tab unless the machine's own page is asked for (its frame, for the lenses that need it).
+    void (message.in === 'machine' ? openMachine(message.address) : openTab(message.address));
     answer({ ok: true });
   } else if (message.see === 'has' && typeof message.address === 'string') {
     // About the one page it is asked of, and a few at most: the site is never told the list.
@@ -152,6 +165,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, answer) => {
 chrome.runtime.onMessage.addListener((message, sender, answer) => {
   if (sender.id !== chrome.runtime.id || typeof message !== 'object' || message === null) return;
   if (message.see === 'machine') void openMachine(message.address).then(() => answer({ ok: true }));
+  else if (message.see === 'tab' && typeof message.address === 'string') void openTab(message.address).then(() => answer({ ok: true }));
   else if (message.see === 'rules') void again().then(() => answer({ ok: true }));
   else return;
   return true;

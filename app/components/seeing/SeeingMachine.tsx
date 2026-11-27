@@ -54,6 +54,9 @@ import SeeingRefused from './SeeingRefused';
 import { seeingKey, type SeeingKey } from '../../lib/seeing/keys';
 import { shownLine } from '../../lib/seeing/status-line';
 import SeeingElsewhere from './SeeingElsewhere';
+import SeeingShell from './SeeingShell';
+import SeeingGetSignedIn from './SeeingGetSignedIn';
+import { shellOf } from '../../lib/seeing/shells';
 import SeeingHistory from './SeeingHistory';
 import SeeingSignIn from './SeeingSignIn';
 import SeeingKeep from './SeeingKeep';
@@ -73,7 +76,8 @@ type Shown =
   | { key: string; state: 'stopped' }
   | { key: string; state: 'shown'; document: SeenDocument; ms?: number }
   | { key: string; state: 'refused'; reason: string; eye: string; ms: number }
-  | { key: string; state: 'elsewhere' };
+  | { key: string; state: 'elsewhere' }
+  | { key: string; state: 'shell' };
 
 const NO_MEDIA: readonly FoundMedia[] = [];
 const NO_NOTES: readonly SharedNote[] = [];
@@ -181,14 +185,17 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
   // A page opened by a press here goes to OWN EYE; one that was only open when the page loaded waits for a press.
   const pressed = useRef<string | null>(null);
   const elsewhere = ownFirst && extension === 'current' && !here.includes(key);
+  // A site the server's eye can't show: said, and nothing asked of the server, unless it is asked for anyway.
+  const shell = !elsewhere && extension !== 'asking' && !here.includes(key) ? shellOf(address) : null;
   // What the extension says matters only while OWN EYE is the choice: with the server's eye, its answer coming late asks for nothing again.
   const eyeGate = ownFirst ? extension : 'server';
-  const now: Shown = elsewhere ? { key, state: 'elsewhere' } : held_;
+  const now: Shown = elsewhere ? { key, state: 'elsewhere' } : shell !== null ? { key, state: 'shell' } : held_;
 
   useEffect(() => {
     if (address === null) return;
     if (landed.current === key) return;
     if (eyeGate === 'asking') return;
+    if (shell !== null) return;
     if (elsewhere) {
       if (pressed.current === address) void openInOwnEye(dialOf(address).address);
       pressed.current = null;
@@ -238,7 +245,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
     return () => going.abort();
     // (The stop before is read as it was when this one was opened; it does not open the page again.)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address, key, tab.id, tab.at, turn, eyeGate, elsewhere]);
+  }, [address, key, tab.id, tab.at, turn, eyeGate, elsewhere, shell]);
 
   // A link that brought an address (`/browser#see=...`): put in the box of a new tab, waiting for GO. Any page anywhere can carry such a
   // link, so it never opens by itself, unless it is the page already in front, as it is after a reload.
@@ -476,6 +483,8 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
         ? (now.at ?? 'ACQUIRING SOURCE')
         : now.state === 'elsewhere'
           ? 'IN OWN EYE, IN YOUR OWN BROWSER'
+        : now.state === 'shell'
+          ? 'NOT ASKED OF THE SERVER: IT NEEDS YOUR OWN BROWSER'
         : now.state === 'shown'
           ? shownLine(now.document, LENS_NAMES.find((each) => each.id === tab.lens)?.label ?? tab.lens, restricted.key === key ? restricted.count : 0, now.ms)
           : address === null
@@ -490,7 +499,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
   const outside = address !== null && /^https?:/.test(address);
   // A refused page keeps only the keys that may help: lenses, SCAN, TIME, READ IT, OPEN SOURCE, OWN EYE (decision 46).
   // (Nor on a page shown in OWN EYE: there is nothing here for them to work on.)
-  const working = outside && now.state !== 'refused' && now.state !== 'elsewhere';
+  const working = outside && now.state !== 'refused' && now.state !== 'elsewhere' && now.state !== 'shell';
   // Whether the site in front is on the extension's list (ADD THIS SITE), as it says for this one page.
   const [listed, setListed] = useState<{ address: string; on: boolean; site: string } | null>(null);
   useEffect(() => {
@@ -513,7 +522,8 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
   const offer = offerFor(address);
   const never = useSyncExternalStore(subscribeToEyeChoice, () => notAskedAgain(owner.id), notAskedAgainOnServer);
   const [notNow, setNotNow] = useState('');
-  const offering = offer !== null && outside && !never.includes(offer) && notNow !== key && (extension === 'missing' || extension === 'old' || (extension === 'current' && onList?.on === false));
+  // With OWN EYE first a page opens signed in already; the line is for the server's eye, and for a browser without the extension.
+  const offering = offer !== null && outside && !never.includes(offer) && notNow !== key && (extension === 'missing' || extension === 'old' || (extension === 'current' && eye === 'server' && onList?.on === false));
   const onSelect = useCallback((text: string) => setSelected({ key, text }), [key, setSelected]);
   // A kept copy in front: whose page it is, and where it came from, said above it.
   const asked = useMemo(() => (address === null ? null : askedOf(address, choices)), [address, choices]);
@@ -715,7 +725,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
             type="button"
             disabled={onList?.on === true}
             title={onList?.on === true ? 'The extension may act on it. Take it off in the EXTENSION window' : 'The extension may act on it once you add it: a press in OWN EYE, and your browser asks too'}
-            onClick={() => (extension === 'current' ? void openInOwnEye(dialOf(address).address) : openExtensionWindow())}
+            onClick={() => (extension === 'current' ? void openInOwnEye(dialOf(address).address, 'machine') : openExtensionWindow())}
             className={PLATE}
             data-seeing-add-site={onList?.on === true ? 'on' : 'off'}
           >
@@ -731,6 +741,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
       </SeeingTools>
       </div>
 
+      {extension === 'missing' || extension === 'old' || extension === 'unable' ? <SeeingGetSignedIn extension={extension} onGet={openExtensionWindow} /> : null}
       {offering && offer !== null ? (
         <SeeingSignIn
           site={offer}
@@ -797,7 +808,9 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
         ) : address === null ? (
           <SeeingStart good={memory.good} ownEye={extension === 'current'} onGo={go} />
         ) : now.state === 'elsewhere' ? (
-          <SeeingElsewhere address={address} onOwn={() => void openInOwnEye(dialOf(address).address)} onHere={() => setHere([...here, key])} />
+          <SeeingElsewhere address={address} onOwn={() => void openInOwnEye(dialOf(address).address)} onMachine={() => void openInOwnEye(dialOf(address).address, 'machine')} onHere={() => setHere([...here, key])} />
+        ) : now.state === 'shell' && shell !== null ? (
+          <SeeingShell site={shell} extension={extension} onOwn={() => void openInOwnEye(dialOf(address).address)} onGet={openExtensionWindow} onAnyway={() => setHere([...here, key])} />
         ) : now.state === 'refused' ? (
           <SeeingRefused
             reason={now.reason}

@@ -136,6 +136,20 @@ export function readAddress(text) {
 }
 
 /** The leave asked for one site: its name and everything under it, so a page that moves to www. still opens. */
+/**
+ * Sites whose pages stop themselves in a frame, or play nothing there (YouTube's videos: a white page): opened in an ordinary tab, with the lenses in
+ * the side panel.
+ */
+export const TAB_SITES = ['youtube.com', 'youtu.be', 'x.com', 'twitter.com', 'instagram.com', 'facebook.com', 'tiktok.com'];
+export function inATab(address) {
+  try {
+    const host = new URL(address).hostname.toLowerCase();
+    return TAB_SITES.some((site) => host === site || host.endsWith('.' + site));
+  } catch {
+    return false;
+  }
+}
+
 export const originsOf = (site) => (/^[\d.]+$/.test(site) ? ['https://' + site + '/*', 'http://' + site + '/*'] : ['https://' + site + '/*', 'https://*.' + site + '/*', 'http://' + site + '/*', 'http://*.' + site + '/*']);
 
 export async function allowedSites() {

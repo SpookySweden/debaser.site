@@ -1217,7 +1217,7 @@ async function ownEyeFirst(browser) {
       window.chrome.runtime = {
         sendMessage: (id, message, answer) => {
           const it = kept();
-          window.toldIt = [...(window.toldIt ?? []), [message.see, message.address ?? null]];
+          window.toldIt = [...(window.toldIt ?? []), [message.see, message.address ?? null, message.in ?? null]];
           if (it.version === null) return setTimeout(() => answer(undefined), 5);
           if (message.see === 'ping') return setTimeout(() => answer({ see: 'pong', version: it.version }), 5);
           if (message.see === 'has') {
@@ -1232,7 +1232,7 @@ async function ownEyeFirst(browser) {
     });
     const pretend = (it) => page.evaluate((what) => sessionStorage.setItem('pretend', JSON.stringify(what)), it);
     const told = () => page.evaluate(() => window.toldIt ?? []);
-    const opened = async () => (await told()).filter(([see]) => see === 'open').map(([, address]) => address);
+    const opened = async (where = 'tab') => (await told()).filter(([see, , into]) => see === 'open' && into === where).map(([, address]) => address);
     const version = JSON.parse(readFileSync(join(__dirname, '..', 'extension', 'manifest.json'), 'utf8')).version;
     const YT = 'https://www.youtube.com/watch?v=pretend';
     const offer = page.locator('[data-seeing-sign-in]');
@@ -1242,9 +1242,12 @@ async function ownEyeFirst(browser) {
       await page.waitForTimeout(800);
     };
 
-    // No extension: the server's eye, and on YouTube the extension is offered first.
+    // No extension: the extension is asked for first, on every page; YouTube is said plainly, not drawn broken, and offers it too.
     await fresh();
+    ok(await page.locator('[data-seeing-get-signed-in="missing"]').waitFor({ timeout: 20000 }).then(() => true), 'without the extension, BROWSER asks for it first: signed in, as in Chrome or Edge');
     await go(page, YT);
+    await page.locator('[data-seeing-shell="youtube.com"]').waitFor();
+    ok(!net.asked.some((each) => /youtube/.test(String(each.host))), 'YouTube in the server\'s eye is said, and not asked of the server');
     // (YouTube itself is never asked: the pretend internet has no such site, and the line is about the address, not the answer.)
     await offer.waitFor();
     ok((await offer.getAttribute('data-seeing-sign-in')) === 'get' && /NEEDS THE EXTENSION/.test(await offer.innerText()), 'no extension: YouTube offers to log in, and the extension first');
@@ -1255,6 +1258,9 @@ async function ownEyeFirst(browser) {
     await offer.getByRole('button', { name: '[ NOT NOW ]' }).click();
     ok((await offer.count()) === 0, 'NOT NOW puts it away for this page');
     await go(page, 'https://www.youtube.com/watch?v=another');
+    await page.getByRole('button', { name: '[ SHOW WHAT COMES ANYWAY ]' }).click();
+    await page.waitForFunction(() => document.querySelector('[data-seeing-shell]') === null);
+    ok(true, 'unless it is asked for anyway');
     await offer.waitFor();
     ok(true, 'and it is back on the next');
     await go(page, `${SITE}/`);
@@ -1266,7 +1272,8 @@ async function ownEyeFirst(browser) {
     await fresh();
     await go(page, `${SITE}/a`);
     await page.locator('[data-seeing-elsewhere]').waitFor();
-    ok((await opened()).includes(`${SITE}/a`), 'with the extension, a page pressed for opens in OWN EYE');
+    ok((await opened()).includes(`${SITE}/a`), 'with the extension, a page pressed for opens in OWN EYE, in an ordinary tab');
+    ok((await page.locator('[data-seeing-get-signed-in]').count()) === 0, 'and nothing is asked for first');
     ok(!net.asked.some((each) => each.path === '/a'), 'and the server asks nothing for it');
     ok(/IN OWN EYE/.test(await page.locator('[data-seeing-status]').innerText()), 'which the status line says');
     ok((await page.locator('[data-seeing-add-site]').getAttribute('data-seeing-add-site')) === 'on' && /ON THE LIST: seeing-fixture\.org/.test(await page.locator('[data-seeing-add-site]').innerText()), 'ADD THIS SITE says the site in front is on the list');
@@ -1277,19 +1284,26 @@ async function ownEyeFirst(browser) {
     await page.locator('[data-seeing-elsewhere]').waitFor({ timeout: 60000 });
     ok((await opened()).length === 0, 'a page that was only open when BROWSER loaded waits for a press');
     await go(page, YT);
+    await page.locator('[data-seeing-elsewhere]').waitFor();
+    ok((await opened()).at(-1) === YT && (await offer.count()) === 0, "YouTube opens in an ordinary tab, signed in, and asks nothing: its videos play there as in the browser, because it is the browser");
+    ok(/\[ ADD youtube\.com \]/.test(await page.locator('[data-seeing-add-site]').innerText()), 'ADD youtube.com, in words, for the machine\'s own page');
+    await page.locator('[data-seeing-add-site]').click();
+    await page.waitForTimeout(300);
+    ok((await opened('machine')).at(-1) === YT, "which opens the machine's own page, where it is added");
+    await page.locator('[data-seeing-eye]').click();
     await offer.waitFor();
-    ok((await offer.getAttribute('data-seeing-sign-in')) === 'add', 'YouTube, not on the list: LOG IN TO YOUTUBE');
-    ok(/\[ ADD youtube\.com \]/.test(await page.locator('[data-seeing-add-site]').innerText()), 'and ADD youtube.com, in words');
+    ok((await offer.getAttribute('data-seeing-sign-in')) === 'add', "through the server's eye, YouTube not on the list: LOG IN TO YOUTUBE");
     const before = (await opened()).length;
     await offer.getByRole('button', { name: 'LOG IN TO YOUTUBE' }).click();
     await page.waitForTimeout(300);
-    ok((await opened()).length === before + 1 && (await opened()).at(-1) === YT, 'one press opens it in OWN EYE, which asks to add it');
+    ok((await opened()).length === before + 1 && (await opened()).at(-1) === YT, 'one press: YouTube in an ordinary tab of your own browser, signed in');
     await offer.getByRole('button', { name: "[ DON'T ASK AGAIN ]" }).click();
     ok((await offer.count()) === 0, "DON'T ASK AGAIN");
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.locator('[data-seeing-elsewhere]').waitFor({ timeout: 60000 });
-    await page.waitForTimeout(1200);
+    await page.locator('[data-seeing-tabs]').waitFor({ timeout: 60000 });
+    await page.waitForTimeout(1500);
     ok((await offer.count()) === 0, 'and not after a reload either');
+    await page.locator('[data-seeing-eye]').click();
     await page.evaluate(() => localStorage.removeItem(Object.keys(localStorage).find((each) => each.startsWith('debaser-seeing-not-again-v1:'))));
     await pretend({ version, sites: ['seeing-fixture.org', 'youtube.com'] });
     await page.reload({ waitUntil: 'domcontentloaded' });
@@ -1300,7 +1314,7 @@ async function ownEyeFirst(browser) {
 
     // The default switched, and remembered.
     // (The server asks for the page and is told there is no such site: the pretend internet has no YouTube. Either way it is asked here.)
-    const here = () => page.waitForFunction(() => /REFUSED|RECONSTRUCTED/.test(document.querySelector('[data-seeing-status]')?.textContent ?? '') && document.querySelector('[data-seeing-elsewhere]') === null, null, { timeout: 30000 });
+    const here = () => page.waitForFunction(() => /REFUSED|RECONSTRUCTED|NOT ASKED OF THE SERVER/.test(document.querySelector('[data-seeing-status]')?.textContent ?? '') && document.querySelector('[data-seeing-elsewhere]') === null, null, { timeout: 30000 });
     await page.locator('[data-seeing-eye]').click();
     await here();
     ok(true, 'OPENS IN: SERVER EYE asks for it here');

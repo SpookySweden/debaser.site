@@ -85,6 +85,7 @@ export async function tellOwnEyeTheme(themeId: string): Promise<void> {
   await say({ see: 'theme', theme: ownEyeTheme(theme.tokens, theme.scheme) });
 }
 
-export async function openInOwnEye(address: string): Promise<void> {
-  await say({ see: 'open', address });
+/** In an ordinary tab, signed in, the lenses beside it (the default); or in the machine's own page, its frame. */
+export async function openInOwnEye(address: string, where: 'tab' | 'machine' = 'tab'): Promise<void> {
+  await say({ see: 'open', address, in: where });
 }

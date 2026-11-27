@@ -4,7 +4,7 @@
  * always done in an ordinary tab: a sign-in page is never framed.
  */
 import { findMedia, findWatchers, LENSES, list, putLens, settings, toRoom, toServerEye, wear } from './act.js';
-import { allowedSites, isAllowed, neverFramed, originsOf, readAddress, siteOf } from './sites.js';
+import { allowedSites, inATab, isAllowed, neverFramed, originsOf, readAddress, siteOf } from './sites.js';
 
 const at = (id) => document.getElementById(id);
 const frame = at('page');
@@ -47,6 +47,11 @@ async function show(text) {
   const site = siteOf(new URL(read).hostname);
   frame.hidden = true;
   at('door').hidden = false;
+  if (inATab(read)) {
+    frame.removeAttribute('src');
+    door("THIS SITE STOPS ITSELF IN A FRAME. IN AN ORDINARY TAB IT IS AS IN YOUR BROWSER, AND THE MACHINE'S LENSES ARE IN ITS SIDE PANEL.", 'OPEN IT IN A TAB', () => chrome.runtime.sendMessage({ see: 'tab', address: read }));
+    return say('IN AN ORDINARY TAB', true);
+  }
   if (neverFramed(read)) {
     frame.removeAttribute('src');
     door('SIGN-IN PAGES ARE NEVER SHOWN IN A FRAME.', 'OPEN IT IN A TAB', () => chrome.tabs.create({ url: read }));
