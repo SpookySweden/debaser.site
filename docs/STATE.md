@@ -26,8 +26,9 @@ working sessions' status notes.
 One coordinator, the only main session (top level, pinned; the first coordinator and PC setup archived 2026-11-27 at
 Luke's word). Its notes: `coordinator-notes.md` in the group's notes folder (`docs/sessions.md`). Working under it since the
 evening of 2026-11-27, each in its own worktree: BROWSER-FIREFOX (first the key named OWN EYE showing its page inside BROWSER,
-then the Firefox trial and the bookmarks-bar key; hand-over `browser-firefox-handover.md` in the `local_83ffacf4-…` notes folder), EXPLAIN-READER (hover words in the reader; `explain-handover.md`) and TRACK-VERSION-PAUSE (a
-profile track's version-history key that says "pause" really pauses). Done, live and archived that day: the room builder (the
+then the Firefox trial and the bookmarks-bar key; hand-over `browser-firefox-handover.md` in the `local_83ffacf4-…` notes folder; then the morning's BROWSER gaps and Luke's two evening choices: an optional ALLOW EVERY SITE key, and OWN WEB
+keeping the pages OWN EYE shows) and EXPLAIN-READER (hover words in the reader; `explain-handover.md`). Done, live and archived
+that day: a profile track version's "pause" key in the history really pauses (e6c051f), the room builder (the
 FULL key ccb030a, your own devices' volume 05f4f90, `[ DEVICES ]` 2c51b18), EXPLAIN for profile, settings and the forum, BROWSER's
 review fixes and easy-install items 1 and 2, room sync and the context system. The gaming PC's heavy lane is switched off
 (`remote-lane.off`) at Luke's word while League is playing: every heavy step stays on SERVER until he says it is done.
