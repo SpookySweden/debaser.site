@@ -32,7 +32,8 @@ and side panel live), this context system.
 - EXPLAIN: hover words on every key, shown only while `[ EXPLAIN ]` (PREFERENCES, off by default) is on; top bar and side
   panel live (77177cb); rooms, MEDIA, profile, forum and the rest to go (`Temp/check-explain.cjs` STILL_TO_DO; hand-over
   `explain-handover.md` in the group's notes folder).
-- BROWSER: lenses on the framed page, sign-in groups, the Chrome Web Store listing (pictures are Luke's).
+- BROWSER: lenses on a page shown by OWN EYE inside BROWSER's tab, the address box following it, EXPLAIN words on the rest of
+  its keys. Sign-in groups, IMPORT and the Web Store pack are live (90d3d69); the store's icon and tile are Luke's to draw.
 - The shelf: BROWSER and REMOTE are marked WIP (f648c04).
 
 ## Waiting on Luke
