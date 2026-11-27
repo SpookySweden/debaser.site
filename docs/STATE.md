@@ -26,12 +26,12 @@ working sessions' status notes.
 The coordinator runs them; who is working on what, and their notes: the coordinator's notes and the group's notes folder
 (`docs/sessions.md`). On 2026-11-27: BROWSER (the seeing machine, `SPEC-seeing-machine.md`, its hand-over
 `browser-build-handover.md`), same-account room sync (rooms keep every device), hover explanations (EXPLAIN, top bar,
-side panel, MEDIA and half the rooms live; the rest by fresh sessions, one area at a time), this context system.
+side panel, MEDIA and the rooms live; the rest by fresh sessions, one area at a time), this context system.
 
 ## Half-done
 - EXPLAIN: hover words on every key, shown only while `[ EXPLAIN ]` (PREFERENCES, off by default) is on; top bar, side
-  panel, MEDIA and the room and music bar's first half live (a8fcf58); the rooms' second half, profile, forum and the rest to go,
-  one fresh session per area (`Temp/check-explain.cjs` STILL_TO_DO; hand-over `explain-handover.md` in the group's notes folder).
+  panel, MEDIA and the room and music bar live (a8fcf58, eed29ea); next profile and settings, then the reader, forum and the
+  rest, one fresh session per area (`Temp/check-explain.cjs` STILL_TO_DO; hand-over `explain-handover.md` in the group's notes folder).
 - BROWSER: EXPLAIN words on the rest of its keys, then the IMPROVE rounds (a fresh BROWSER session under the coordinator). Live:
   sign-in groups, IMPORT, the Web Store pack (90d3d69), OWN WEB (8827218, kept: Luke 2026-11-27), lenses on pages OWN EYE shows
   inside BROWSER (7b85214, extension 0.7.0), the address box following them (95a39db). The store's icon and tile are Luke's to draw.
