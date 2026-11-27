@@ -77,6 +77,7 @@ import {
   type PlaceSave,
 } from '../../lib/books/types';
 import { PLATE, PLATE_MAIN, PLATE_PRESSED } from '../../lib/ui/controls';
+import { explain, explainFrom, NOTE, type Explanation } from '../../lib/ui/explain';
 import { asFile, keptFileOf, rematchKept } from '../../lib/books/own-library';
 import { useAuth } from '../AuthProvider';
 import { useForum } from '../ForumProvider';
@@ -87,9 +88,39 @@ import { noteHistory } from '../../lib/recommender/history';
 import { notePlay } from '../../lib/history/plays';
 import { pokeCompanion } from '../../lib/companion/events';
 import { useCompanionScene } from '../../lib/companion/use-companion-scene';
-import { MatchSearch, OWN_ACCEPT } from './OwnFileDrop';
+import { MatchSearch, NOT_LISTED_WORDS, OWN_ACCEPT } from './OwnFileDrop';
 
 const LOOK_KEY = 'debaser-reader-look';
+
+/** EXPLAIN's words for the top row's panel keys: what each panel holds (a second press closes it). */
+const PANEL_WORDS: Record<PanelName, Explanation> = {
+  contents: {
+    what: "Opens the book's own list of chapters, with the one you are in marked; press a chapter to go there.",
+    why: 'The panel lies over the page, so the book never moves under it. A second press, or Esc, closes it.',
+  },
+  search: {
+    what: 'Opens a search of the whole book: type words and every place they appear is listed, chapter by chapter.',
+    why: 'To find a passage or a name again. A second press, or Esc, closes it; the last results are still there when you open it again.',
+  },
+  bookmarks: {
+    what: 'Opens your bookmarks in this book: add one for the page you are on, go to one, or delete one.',
+    why: 'Bookmarks are saved to your account, so signed out the panel only asks you to log in. The number on the key is how many you have here.',
+  },
+  highlights: {
+    what: "Opens the list of highlights in this book: yours from every copy of it, and other readers' public ones.",
+    why: 'Each has GO TO; your own also have the lock, DELETE and + LETTER. To make one, choose words on the page. The number on the key counts them all.',
+  },
+  look: {
+    what: 'Opens the settings for how the book is laid out: layout, one page or two, text size, line spacing, margins, font and paper.',
+    why: 'They are remembered for every book. A PDF has fixed pages, so only layout, page count and paper show for it.',
+  },
+};
+
+/** EXPLAIN's words for [ ◀ BACK ], which is on the top row and on the pages shown when a book can't be read. */
+const BACK_WORDS: Explanation = {
+  what: 'Leaves the reader for the page you came from.',
+  why: "Your place in the book is saved a second or two after each page turn. Opened with nothing before it, the reader goes to the book's page in MEDIA instead, or to MEDIA itself for an Archive book or your own file.",
+};
 /** How long a click on the page's edge waits before turning it: long enough for a double-click to choose a word. */
 const TURN_WAIT_MS = 250;
 const NONE_HIGHLIGHTED: BookHighlight[] = [];
@@ -1327,7 +1358,13 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
     setOwnFile(file);
   };
   const ownPicker = (label: string, className: string) => (
-    <label className={`${className} cursor-pointer`}>
+    <label
+      className={`${className} cursor-pointer`}
+      {...explain(
+        "Opens your device's file chooser, to read a different PDF or EPUB of your own.",
+        'The file you are reading closes and the new one goes to its card first, which says which book it is. Nothing is uploaded.',
+      )}
+    >
       {label}
       <input type="file" accept={OWN_ACCEPT} onChange={chooseOwn} className="sr-only" />
     </label>
@@ -1349,7 +1386,7 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
   };
 
   const topKey = (name: PanelName, label: string) => (
-    <button type="button" onClick={() => toggle(name)} aria-pressed={panel === name} disabled={!ready} className={panel === name ? PLATE_PRESSED : PLATE}>
+    <button type="button" onClick={() => toggle(name)} aria-pressed={panel === name} disabled={!ready} className={panel === name ? PLATE_PRESSED : PLATE} {...explainFrom(PANEL_WORDS[name])}>
       {panel === name ? label : `[ ${label} ]`}
     </button>
   );
@@ -1358,7 +1395,7 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
     <div className={focus ? 'fixed inset-0 z-overlay flex flex-col' : 'flex h-full min-h-[24rem] flex-col'}>
       {!focus ? (
         <header className="flex flex-wrap items-center gap-1 border-b border-ink bg-sun-pale px-2 py-1 text-ink">
-          <button type="button" onClick={back} className={PLATE}>
+          <button type="button" onClick={back} className={PLATE} {...explainFrom(BACK_WORDS)}>
             [ ◀ BACK ]
           </button>
           <h1 className="min-w-0 flex-1 truncate px-1 text-key text-accent-ink" title={title}>
@@ -1379,7 +1416,12 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
             ) : null}
             {own && phase !== 'choose' ? ownPicker('[ ANOTHER FILE ]', PLATE) : null}
             {phase === 'choose' ? null : (
-              <button type="button" onClick={() => setFocus(true)} className={PLATE}>
+              <button
+                type="button"
+                onClick={() => setFocus(true)}
+                className={PLATE}
+                {...explain('Fills the whole window with the book and hides everything else: the site, this row of keys and the progress bar.', 'For reading with nothing around the page. The arrow keys and the page edges still turn pages; Esc, or EXIT FOCUS in the top corner, brings everything back.')}
+              >
                 [ FOCUS ]
               </button>
             )}
@@ -1396,11 +1438,19 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
                 ? 'NO BOOK FOUND FOR THIS FILE: KEPT AS YOUR OWN FILE.'
                 : matchLine(match)}
           </span>
-          <button type="button" onClick={() => setChoosing(true)} className={PLATE}>
+          <button
+            type="button"
+            onClick={() => setChoosing(true)}
+            className={PLATE}
+            {...explain(
+              'Opens the WHICH BOOK IS THIS? panel, to search the catalogue and say by hand which book this file is.',
+              'For when the site matched your file to the wrong book, or found none. Matched, its place and highlights count as that book in every copy.',
+            )}
+          >
             {match === 'unfound' || match === 'none' ? '[ FIND IT ]' : '[ CHANGE ]'}
           </button>
           {match !== 'none' ? (
-            <button type="button" onClick={() => void chooseMatch('none')} className={PLATE}>
+            <button type="button" onClick={() => void chooseMatch('none')} className={PLATE} {...explainFrom(NOT_LISTED_WORDS)}>
               [ NOT LISTED ]
             </button>
           ) : null}
@@ -1415,6 +1465,10 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
           role="document"
           onClick={(event) => tapAt(event.clientX)}
           onDoubleClick={cancelTurn}
+          {...explain(
+            'The book itself. A click on the left third of the reading area turns back a page, and one on the right third turns forward; the middle does nothing.',
+            "A double-click chooses a word instead of turning. Drag across words and the highlight bar opens beside them (not on a scan's page pictures). This box stays while the pointer rests on the page: move the pointer off the page to put it away.",
+          )}
         />
 
         {flip && ready ? (
@@ -1453,14 +1507,27 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
                 : `YOU'RE ${ask.progress > 0 ? `${progressText(ask)} THROUGH` : 'PART WAY THROUGH'}${ask.other ? ' IN ANOTHER COPY OF THIS BOOK' : ''}${ask.updatedAt ? ` · LAST READ ${whenText(ask.updatedAt)}` : ''}.`}
             </p>
             <div className="flex flex-wrap justify-center gap-1">
-              <button type="button" onClick={() => answerAsk.current?.('continue')} className={PLATE_MAIN} autoFocus>
+              <button
+                type="button"
+                onClick={() => answerAsk.current?.('continue')}
+                className={PLATE_MAIN}
+                autoFocus
+                {...(ask.other
+                  ? explain('Opens this copy of the book about as far through as you were in the other copy.', 'Pages differ between copies, so it lands at the same share of the book rather than the same line. As you read on, your place is saved in this copy too.')
+                  : explain('Opens the book at the page where you stopped reading.', 'The place comes from your account when signed in, so it follows you between devices; signed out, from this browser.'))}
+              >
                 {ask.other
                   ? `CONTINUE FROM ${progressText(ask)} (READ IN ANOTHER COPY)`
                   : ask.progress > 0 || ask.finishedAt
                     ? `CONTINUE FROM ${ask.finishedAt ? '100%' : progressText(ask)}`
                     : 'CONTINUE WHERE YOU WERE'}
               </button>
-              <button type="button" onClick={() => answerAsk.current?.('over')} className={PLATE}>
+              <button
+                type="button"
+                onClick={() => answerAsk.current?.('over')}
+                className={PLATE}
+                {...explain('Opens the book at the start of its text instead of where you were.','Your saved place is not wiped by the press itself: it is replaced the first time you turn a page from here.')}
+              >
                 [ START OVER ]
               </button>
             </div>
@@ -1506,6 +1573,7 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
                   rel="noopener noreferrer nofollow"
                   aria-label="Borrow this book on the Internet Archive (new tab)"
                   className={PLATE_MAIN}
+                  {...explain("Opens this book's page on the Internet Archive, where it can be borrowed.", 'The Archive lends it free for an hour at a time, and asks for an account of its own there. It is read on their site, not in this reader.', NOTE.leaves)}
                 >
                   [ BORROW ON ARCHIVE ↗ ]
                 </a>
@@ -1516,10 +1584,11 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
                 rel="noopener noreferrer nofollow"
                 aria-label="Open this book on Open Library (new tab)"
                 className={borrowOnArchive ? PLATE : PLATE_MAIN}
+                {...explain("Opens this book's page on Open Library.", 'No free copy was found to read here; Open Library lists libraries that lend it and shops that sell it.', NOTE.leaves)}
               >
                 [ OPEN LIBRARY ↗ ]
               </a>
-              <button type="button" onClick={back} className={PLATE}>
+              <button type="button" onClick={back} className={PLATE} {...explainFrom(BACK_WORDS)}>
                 [ ◀ BACK ]
               </button>
             </div>
@@ -1538,11 +1607,12 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
                     setOpenCount((count) => count + 1);
                   }}
                   className={PLATE_MAIN}
+                  {...explain('Asks the IPFS gateways for this book again, from the start.', 'Gateways are slow and a file nobody was holding may be held again later, so a second try can work where the first did not.')}
                 >
                   [ TRY AGAIN ]
                 </button>
               ) : null}
-              <button type="button" onClick={back} className={PLATE}>
+              <button type="button" onClick={back} className={PLATE} {...explainFrom(BACK_WORDS)}>
                 [ ◀ BACK ]
               </button>
             </div>
@@ -1551,7 +1621,7 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
         {fault ? (
           <p className="absolute left-2 top-2 z-40 flex items-center gap-1 bg-bubble-pale px-1 text-label text-ink-bar" role="alert">
             {fault}
-            <button type="button" onClick={() => setFault(null)} className="px-1" aria-label="Dismiss">
+            <button type="button" onClick={() => setFault(null)} className="px-1" aria-label="Dismiss" {...explain('Puts this error line away.', 'It only clears the message: nothing is retried or undone. Whatever it says failed (a highlight, a bookmark, a search) can be tried again.')}>
               ×
             </button>
           </p>
@@ -1630,7 +1700,13 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
         ) : null}
 
         {focus ? (
-          <button type="button" onClick={() => setFocus(false)} className="absolute right-1 top-1 z-10 px-1 text-label underline max-sm:min-h-tap" aria-label="Leave focus mode">
+          <button
+            type="button"
+            onClick={() => setFocus(false)}
+            className="absolute right-1 top-1 z-10 px-1 text-label underline max-sm:min-h-tap"
+            aria-label="Leave focus mode"
+            {...explain('Leaves focus mode: the site, the row of keys and the progress bar come back around the book.', 'You stay on the same page. Esc does the same.')}
+          >
             EXIT FOCUS
           </button>
         ) : null}
@@ -1641,10 +1717,23 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
       ) : null}
       {!focus && phase !== 'viewer' && phase !== 'choose' && phase !== 'no-free-copy' ? (
         <footer className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-ink bg-sun-pale px-2 py-1 text-ink">
-          <button type="button" onClick={() => turn('left')} disabled={!ready} className={PLATE} aria-label="Page back">
+          <button
+            type="button"
+            onClick={() => turn('left')}
+            disabled={!ready}
+            className={PLATE}
+            aria-label="Page back"
+            {...explain('Turns back one page, or one spread when two pages show side by side.', 'The same as the left arrow key, Page Up, or a click on the left third of the page.')}
+          >
             [ ◀ ]
           </button>
-          <label className="flex min-w-[10rem] flex-1 items-center gap-2">
+          <label
+            className="flex min-w-[10rem] flex-1 items-center gap-2"
+            {...explain(
+              'Shows how far through the book you are; drag it and let go to jump to that point.',
+              "The book moves when you let go, not while you drag. In a Project Gutenberg book the bar ends where the story does, before the licence pages at the back.",
+            )}
+          >
             <span className="sr-only">Where you are in the book</span>
             <input
               type="range"
@@ -1664,7 +1753,14 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
               {percent}%
             </span>
           </label>
-          <button type="button" onClick={() => turn('right')} disabled={!ready} className={PLATE} aria-label="Page forward">
+          <button
+            type="button"
+            onClick={() => turn('right')}
+            disabled={!ready}
+            className={PLATE}
+            aria-label="Page forward"
+            {...explain('Turns forward one page, or one spread when two pages show side by side.', 'The same as the right arrow key, Page Down, or a click on the right third of the page. Reaching the last page marks the book FINISHED.')}
+          >
             [ ▶ ]
           </button>
           <p className="flex w-full min-w-0 flex-wrap justify-between gap-x-2 text-label text-ink-quiet">

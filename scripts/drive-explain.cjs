@@ -13,6 +13,7 @@
 const { chromium } = require('playwright-core');
 const { mkdirSync } = require('node:fs');
 const { join } = require('node:path');
+const { crc32 } = require('node:zlib');
 const { findChrome } = require('./browser.cjs');
 
 const args = process.argv.slice(2);
@@ -47,6 +48,67 @@ const box = (page) => page.locator('[data-explain-box]');
 const boxText = async (page) => ((await box(page).count()) === 0 ? null : (await box(page).innerText()).replace(/\s+/g, ' ').trim());
 const rect = (locator) => locator.evaluate((element) => element.getBoundingClientRect().toJSON());
 const overlaps = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+
+/**
+ * A tiny EPUB made here, for the READER step: three chapters of plain test sentences, zipped with no compression (the
+ * `mimetype` entry first, as an EPUB asks). Nothing is read from disk or the network, so the drive needs no book file.
+ */
+function tinyEpub() {
+  const lines = (chapter) =>
+    Array.from({ length: 60 }, (_, index) => `<p>Chapter ${chapter}, paragraph ${index + 1}: plain words in the test book of the EXPLAIN drive, long enough to fill a line or two of the page.</p>`).join('');
+  const chapter = (number) =>
+    `<?xml version="1.0" encoding="utf-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>Chapter ${number}</title></head><body><h1>Chapter ${number}</h1>${lines(number)}</body></html>`;
+  const files = [
+    ['mimetype', 'application/epub+zip'],
+    ['META-INF/container.xml', '<?xml version="1.0"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="book.opf" media-type="application/oebps-package+xml"/></rootfiles></container>'],
+    [
+      'book.opf',
+      '<?xml version="1.0" encoding="utf-8"?><package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="id">explain-drive-test-book</dc:identifier><dc:title>Zzqx Explain Drive Test Book</dc:title><dc:language>en</dc:language><meta property="dcterms:modified">2026-11-27T00:00:00Z</meta></metadata><manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="c1" href="c1.xhtml" media-type="application/xhtml+xml"/><item id="c2" href="c2.xhtml" media-type="application/xhtml+xml"/><item id="c3" href="c3.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="c1"/><itemref idref="c2"/><itemref idref="c3"/></spine></package>',
+    ],
+    [
+      'nav.xhtml',
+      '<?xml version="1.0" encoding="utf-8"?><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><head><title>Contents</title></head><body><nav epub:type="toc"><ol><li><a href="c1.xhtml">Chapter 1</a></li><li><a href="c2.xhtml">Chapter 2</a></li><li><a href="c3.xhtml">Chapter 3</a></li></ol></nav></body></html>',
+    ],
+    ['c1.xhtml', chapter(1)],
+    ['c2.xhtml', chapter(2)],
+    ['c3.xhtml', chapter(3)],
+  ];
+  const parts = [];
+  const central = [];
+  let offset = 0;
+  for (const [name, text] of files) {
+    const nameBytes = Buffer.from(name, 'utf8');
+    const data = Buffer.from(text, 'utf8');
+    const sum = crc32(data);
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(0x04034b50, 0);
+    local.writeUInt16LE(20, 4);
+    local.writeUInt32LE(sum, 14);
+    local.writeUInt32LE(data.length, 18);
+    local.writeUInt32LE(data.length, 22);
+    local.writeUInt16LE(nameBytes.length, 26);
+    const entry = Buffer.alloc(46);
+    entry.writeUInt32LE(0x02014b50, 0);
+    entry.writeUInt16LE(20, 4);
+    entry.writeUInt16LE(20, 6);
+    entry.writeUInt32LE(sum, 16);
+    entry.writeUInt32LE(data.length, 20);
+    entry.writeUInt32LE(data.length, 24);
+    entry.writeUInt16LE(nameBytes.length, 28);
+    entry.writeUInt32LE(offset, 42);
+    parts.push(local, nameBytes, data);
+    central.push(entry, nameBytes);
+    offset += local.length + nameBytes.length + data.length;
+  }
+  const directory = Buffer.concat(central);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(files.length, 8);
+  end.writeUInt16LE(files.length, 10);
+  end.writeUInt32LE(directory.length, 12);
+  end.writeUInt32LE(offset, 16);
+  return Buffer.concat([...parts, directory, end]);
+}
 
 /** The box's words against its own background, and the caution strip's, as contrast ratios. */
 async function boxContrast(page) {
@@ -313,6 +375,78 @@ async function boxContrast(page) {
     filePostWords ?? 'none',
   );
   await page.screenshot({ path: join(OUT, 'dark-forum-new-post.png') });
+
+  // The reader (EXPLAIN-READER, 2026-11-27): the READ page, a file of your own (a tiny EPUB made above, never a real book),
+  // and the open book's keys. Open Library is answered here with "nothing found", so no request leaves this machine.
+  console.log('THE READER: THE READ PAGE, A FILE OF YOUR OWN AND THE OPEN BOOK');
+  let library = 0;
+  await context.route(/openlibrary\.org\//, (route) => {
+    library += 1;
+    return route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ numFound: 0, docs: [] }) });
+  });
+  await page.goto(`${BASE}/read`, { waitUntil: 'domcontentloaded', timeout: 240000 });
+  const drop = page.locator('[data-own-drop]');
+  await drop.waitFor({ timeout: 240000 });
+  await sleep(2000);
+  const said = (words, ...parts) => words !== null && parts.every((part) => words.includes(part));
+  const chooseWords = await sayOf(drop.locator('label', { hasText: 'CHOOSE A FILE' }));
+  check(said(chooseWords, 'file chooser', 'never uploaded'), 'CHOOSE A FILE explains itself', chooseWords ?? 'none');
+  const keepWords = await sayOf(drop.locator('label', { hasText: 'KEEP IT ON THIS DEVICE' }));
+  check(said(keepWords, 'YOUR FILES', 'never sent anywhere'), 'the KEEP IT ON THIS DEVICE tick explains itself', keepWords ?? 'none');
+  const mediaLink = page.locator('a', { hasText: 'FIND A BOOK IN MEDIA' });
+  if ((await mediaLink.count()) > 0) {
+    const mediaWords = await sayOf(mediaLink.first());
+    check(said(mediaWords, 'Opens the MEDIA page'), "the empty shelf's FIND A BOOK IN MEDIA explains itself", mediaWords ?? 'none');
+  }
+  await page.locator('[data-own-input]').first().setInputFiles({ name: 'zzqx-explain-drive-test-book.epub', mimeType: 'application/epub+zip', buffer: tinyEpub() });
+  const card = page.locator('[data-own-card]');
+  await card.waitFor({ timeout: 60000 });
+  const cardRead = card.locator('[data-own-read]:not([disabled])');
+  await cardRead.waitFor({ timeout: 60000 });
+  const cardReadWords = await sayOf(cardRead);
+  check(said(cardReadWords, 'Opens this file in the reader'), "the file card's READ explains itself", cardReadWords ?? 'none');
+  const findItWords = await sayOf(card.locator('button', { hasText: 'FIND IT' }));
+  check(said(findItWords, 'say by hand which book this file is'), "the file card's FIND IT explains itself", findItWords ?? 'none');
+  const notListedWords = await sayOf(card.locator('button', { hasText: 'NOT LISTED' }));
+  check(said(notListedWords, 'none of the books in the catalogue'), "the file card's NOT LISTED explains itself", notListedWords ?? 'none');
+  const anotherWords = await sayOf(card.locator('button', { hasText: 'ANOTHER FILE' }));
+  check(said(anotherWords, 'shows the drop box again'), "the file card's ANOTHER FILE explains itself", anotherWords ?? 'none');
+  await page.screenshot({ path: join(OUT, 'dark-reader-card.png') });
+  await cardRead.click();
+  const readerKeys = page.locator('nav[aria-label="The reader\'s keys"]');
+  const lookKey = readerKeys.locator('button:not([disabled])', { hasText: 'LOOK' });
+  await lookKey.waitFor({ timeout: 120000 });
+  await sleep(1500);
+  const contentsWords = await sayOf(readerKeys.locator('button', { hasText: 'CONTENTS' }));
+  check(said(contentsWords, 'list of chapters'), "the open book's CONTENTS explains itself", contentsWords ?? 'none');
+  const highlightsWords = await sayOf(readerKeys.locator('button', { hasText: 'HIGHLIGHTS' }));
+  check(said(highlightsWords, 'list of highlights in this book'), "the open book's HIGHLIGHTS explains itself", highlightsWords ?? 'none');
+  const focusWords = await sayOf(readerKeys.locator('button', { hasText: 'FOCUS' }));
+  check(said(focusWords, 'Fills the whole window with the book'), 'FOCUS explains itself', focusWords ?? 'none');
+  const backWords = await sayOf(page.locator('header button', { hasText: 'BACK' }).first());
+  check(said(backWords, 'Leaves the reader', 'saved a second or two after each page turn'), 'BACK explains itself', backWords ?? 'none');
+  const forwardWords = await sayOf(page.locator('button[aria-label="Page forward"]'));
+  check(said(forwardWords, 'Turns forward one page', 'FINISHED'), 'the page-forward key explains itself', forwardWords ?? 'none');
+  const sliderWords = await sayOf(page.locator('label', { has: page.locator('[data-reader-percent]') }));
+  check(said(sliderWords, 'how far through the book you are'), 'the progress bar explains itself', sliderWords ?? 'none');
+  // The book itself is one large clickable box: its words must still land inside the screen.
+  const bookWords = await sayOf(page.locator('[role="document"][aria-label="The book"]'));
+  check(said(bookWords, 'The book itself', 'left third'), 'the page of the book explains its edges', bookWords ?? 'none');
+  if (bookWords !== null) {
+    const where = await rect(box(page));
+    check(where.left >= 0 && where.top >= 0 && where.right <= 1440 && where.bottom <= 900, 'and that box stays inside the screen', JSON.stringify({ left: Math.round(where.left), top: Math.round(where.top), right: Math.round(where.right), bottom: Math.round(where.bottom) }));
+  }
+  await page.screenshot({ path: join(OUT, 'dark-reader-book.png') });
+  await lookKey.click();
+  const lookPanel = page.locator('aside[aria-label="LOOK"]');
+  const bigger = lookPanel.locator('button[aria-label="text size bigger"]');
+  await bigger.waitFor({ timeout: 15000 });
+  const biggerWords = await sayOf(bigger);
+  check(said(biggerWords, "Makes the book's text one step bigger", 'Kept for every book'), "LOOK's text-size key explains itself", biggerWords ?? 'none');
+  const verseWords = await sayOf(lookPanel.locator('button', { hasText: 'VERSE' }).first());
+  check(said(verseWords, 'lines that must not be rejoined'), "LOOK's VERSE layout explains itself", verseWords ?? 'none');
+  await page.screenshot({ path: join(OUT, 'dark-reader-look.png') });
+  console.log(`  (Open Library was answered here, never asked: ${library} request${library === 1 ? '' : 's'} caught)`);
 
   await page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded', timeout: 240000 });
   await media.waitFor({ timeout: 120000 });

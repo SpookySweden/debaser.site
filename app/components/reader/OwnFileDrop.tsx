@@ -10,6 +10,7 @@ import { fingerprint, progressText, whenText } from '../../lib/books/reading-pla
 import { getBooksRepository } from '../../lib/books/repository';
 import { ownRef, type BookPlace } from '../../lib/books/types';
 import { FIELD_TIGHT, PLATE, PLATE_LINK, PLATE_MAIN, TITLE_BAR } from '../../lib/ui/controls';
+import { explain, explainFrom, type Explanation } from '../../lib/ui/explain';
 
 type Me = { id: string } | null;
 
@@ -33,6 +34,12 @@ function remember(key: string, value: string): void {
   }
 }
 
+/** EXPLAIN's words for [ NOT LISTED ], which sits on the card, in the search and on the reader's match line. */
+export const NOT_LISTED_WORDS: Explanation = {
+  what: 'Says this file is none of the books in the catalogue: it is kept simply as your own file.',
+  why: 'The site stops guessing which book it is, and remembers that. Its place and highlights are still saved, on their own. FIND IT matches it to a book later.',
+};
+
 /**
  * [ CHANGE ] for your own file: BOOKS search (Open Library's works), each with [ THIS ONE ], and [ NOT LISTED ] at the foot.
  * Only the words typed go to Open Library.
@@ -55,7 +62,7 @@ export function MatchSearch({ start, onChoose }: { start: string; onChoose: (cho
           <span className="sr-only">Search BOOKS for this file&apos;s book</span>
           <input value={query} onChange={(event) => setQuery(event.target.value)} className={FIELD_TIGHT} maxLength={200} />
         </label>
-        <button type="submit" className={PLATE} disabled={busy}>
+        <button type="submit" className={PLATE} disabled={busy} {...explain("Searches Open Library's catalogue of books for the words in the box, and lists up to 8 below.", 'To say by hand which book this file is. Only the words in the box go to Open Library, never the file itself.')}>
           [ SEARCH BOOKS ]
         </button>
       </form>
@@ -72,13 +79,19 @@ export function MatchSearch({ start, onChoose }: { start: string; onChoose: (cho
               {result.title.toUpperCase()}
               {result.author ? ` BY ${result.author.toUpperCase()}` : ''}
             </span>
-            <button type="button" onClick={() => onChoose(result)} className={PLATE} aria-label={`THIS ONE: ${result.title}`}>
+            <button
+              type="button"
+              onClick={() => onChoose(result)}
+              className={PLATE}
+              aria-label={`THIS ONE: ${result.title}`}
+              {...explain('Says your file is this book, and saves that match.', 'Your place and highlights in the file then count as this book, alongside every other copy of it. The match is kept in this browser, and on your account when signed in; CHANGE picks another.')}
+            >
               [ THIS ONE ]
             </button>
           </li>
         ))}
       </ul>
-      <button type="button" onClick={() => onChoose('none')} className={PLATE}>
+      <button type="button" onClick={() => onChoose('none')} className={PLATE} {...explainFrom(NOT_LISTED_WORDS)}>
         [ NOT LISTED ]
       </button>
     </div>
@@ -345,7 +358,13 @@ export default function OwnFileDrop({
   };
 
   const picker = (label: string, className: string) => (
-    <label className={`${className} cursor-pointer`}>
+    <label
+      className={`${className} cursor-pointer`}
+      {...explain(
+        "Opens your device's file chooser, to pick a PDF or an EPUB to read here.",
+        'The file is read in this browser and never uploaded: only a fingerprint of it, which book it is and your place are saved. Before it opens, a card says which book the site thinks it is.',
+      )}
+    >
       {label}
       <input type="file" accept={OWN_ACCEPT} onChange={fromInput} className="sr-only" data-own-input />
     </label>
@@ -389,7 +408,13 @@ export default function OwnFileDrop({
             : 'THE SITE WORKS OUT WHICH BOOK IT IS, SO YOUR PLACE AND HIGHLIGHTS COUNT IN EVERY COPY AND EDITION OF THAT BOOK.'}{' '}
           IT STAYS ON YOUR DEVICE: ONLY ITS FINGERPRINT, ITS BOOK AND YOUR PLACE ARE SAVED.
         </p>
-        <label className="flex items-center gap-1 text-label">
+        <label
+          className="flex items-center gap-1 text-label"
+          {...explain(
+            "Ticked, the next file you choose is also kept in this browser's own storage, and listed under YOUR FILES.",
+            'It then opens with one press next time, on this device only. Unticked, you choose the file again each time. Either way it is never sent anywhere.',
+          )}
+        >
           <input type="checkbox" checked={keep} onChange={(event) => setKeep(event.target.checked)} data-own-keep />
           KEEP IT ON THIS DEVICE, SO IT STAYS ON YOUR SHELF
         </label>
@@ -470,23 +495,42 @@ export default function OwnFileDrop({
         </div>
       </div>
       <div className="flex flex-wrap gap-1">
-        <button type="button" onClick={() => onOpen(picked.file)} className={PLATE_MAIN} disabled={status === 'finding'} data-own-read>
+        <button
+          type="button"
+          onClick={() => onOpen(picked.file)}
+          className={PLATE_MAIN}
+          disabled={status === 'finding'}
+          data-own-read
+          {...explain('Opens this file in the reader, on this device.', 'A book you have already started, in this file or another copy, asks whether to continue from there or start over. The key waits while the site is still finding which book it is.')}
+        >
           [ READ ]
         </button>
-        <button type="button" onClick={() => setChoosing((open) => !open)} className={PLATE} disabled={status === 'finding'} aria-expanded={choosing}>
+        <button
+          type="button"
+          onClick={() => setChoosing((open) => !open)}
+          className={PLATE}
+          disabled={status === 'finding'}
+          aria-expanded={choosing}
+          {...(choosing
+            ? explain('Closes the book search under this card without changing anything.', 'The match shown on the card stays as it is.')
+            : explain(
+                'Opens a search under this card, to say by hand which book this file is.',
+                'For when the site matched it to the wrong book, or found none. Matched, its place and highlights count as that book in every copy.',
+              ))}
+        >
           {match && match !== 'none' ? '[ CHANGE ]' : '[ FIND IT ]'}
         </button>
         {match !== 'none' && status !== 'finding' ? (
-          <button type="button" onClick={() => void choose('none')} className={PLATE}>
+          <button type="button" onClick={() => void choose('none')} className={PLATE} {...explainFrom(NOT_LISTED_WORDS)}>
             [ NOT LISTED ]
           </button>
         ) : null}
         {match && match !== 'none' ? (
-          <Link href={`/media/book/${match.work}`} className={PLATE_LINK}>
+          <Link href={`/media/book/${match.work}`} className={PLATE_LINK} {...explain('Opens the MEDIA page of the book this file was matched to.', "That page lists the book and its editions. It leaves this card: the file is not opened, though a file kept on this device stays under YOUR FILES.")}>
             [ BOOK PAGE ]
           </Link>
         ) : null}
-        <button type="button" onClick={reset} className={PLATE}>
+        <button type="button" onClick={reset} className={PLATE} {...explain('Puts this card away and shows the drop box again, to choose a different file.', 'Nothing is lost: the match stays saved, and a file kept on this device stays under YOUR FILES.')}>
           [ ANOTHER FILE ]
         </button>
       </div>

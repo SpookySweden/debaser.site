@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { HIGHLIGHT_COLOURS, MARK_LABELS } from '../../lib/books/reader-look';
 import { COMMENT_MAX, type HighlightColour } from '../../lib/books/types';
 import { FIELD_TIGHT, PLATE, PLATE_MAIN, PLATE_PRESSED } from '../../lib/ui/controls';
+import { explain, NOTE } from '../../lib/ui/explain';
 
 /** The swatch's fill: a token per colour, written out so the stylesheet keeps each class. */
 export const SWATCH: Record<HighlightColour, string> = {
@@ -73,7 +74,7 @@ export default function HighlightBar({
       {!signedIn ? (
         <p className="flex items-center justify-between gap-1 px-0.5">
           <span className="text-label">LOG IN TO HIGHLIGHT</span>
-          <button type="button" onClick={onClose} className={PLATE} aria-label="Close">
+          <button type="button" onClick={onClose} className={PLATE} aria-label="Close" {...explain('Closes this small bar beside the words you chose.', 'Highlights are kept on an account, so signed out there is nothing else here to press. Esc closes it too.')}>
             [ × ]
           </button>
         </p>
@@ -89,20 +90,50 @@ export default function HighlightBar({
                 aria-pressed={(existing?.colour ?? colour) === each}
                 onClick={() => (writing ? setColour(each) : onColour(each, locked))}
                 className={`frame h-7 w-7 max-sm:h-tap max-sm:w-tap ${SWATCH[each]} ${(existing?.colour ?? (writing ? colour : null)) === each ? 'outline-2 outline-offset-1 outline-ink' : ''}`}
+                {...(existing
+                  ? explain(`Changes this highlight to ${MARK_LABELS[each].toLowerCase()}.`, 'Only the colour changes: its words, its comment and whether it is posted stay as they are.')
+                  : writing
+                    ? explain(`Picks ${MARK_LABELS[each].toLowerCase()} for the highlight you are writing a comment on.`, 'Nothing is saved yet: SAVE below makes the highlight in the colour that is outlined.')
+                    : explain(
+                        `Highlights the words you chose in ${MARK_LABELS[each].toLowerCase()}, at once.`,
+                        'It is saved to your account and listed under HIGHLIGHTS. Unless the lock beside these colours is on, it is also posted in your own reading thread for this book on the forum.',
+                        locked ? 'THE LOCK IS ON: KEPT TO YOURSELF.' : NOTE.others,
+                      ))}
               />
             ))}
             {existing ? (
               <>
-                <button type="button" onClick={onLock} aria-pressed={existing.isLocked} className={existing.isLocked ? PLATE_PRESSED : PLATE}>
+                <button
+                  type="button"
+                  onClick={onLock}
+                  aria-pressed={existing.isLocked}
+                  className={existing.isLocked ? PLATE_PRESSED : PLATE}
+                  {...(existing.isLocked
+                    ? explain('Unlocks this highlight: it is posted in your own reading thread for this book on the forum.', 'Locked, only you see it. Press when you want other people to read it.', NOTE.others)
+                    : explain('Locks this highlight: its post in your reading thread on the forum is taken down, and only you see it.', 'The highlight itself stays in the book. Press again later to post it once more.'))}
+                >
                   {existing.isLocked ? '🔒' : '🔓'}
                 </button>
-                <button type="button" onClick={onDelete} className={PLATE}>
+                <button
+                  type="button"
+                  onClick={onDelete}
+                  className={PLATE}
+                  {...explain('Deletes this highlight from the book, and its post on the forum with it.', 'For a highlight you no longer want. To hide it from other people but keep it, use the lock instead.', `${NOTE.asks} ${NOTE.undo}`)}
+                >
                   [ DELETE ]
                 </button>
               </>
             ) : (
               <>
-                <button type="button" onClick={() => setWriting((open) => !open)} aria-expanded={writing} className={writing ? PLATE_PRESSED : PLATE}>
+                <button
+                  type="button"
+                  onClick={() => setWriting((open) => !open)}
+                  aria-expanded={writing}
+                  className={writing ? PLATE_PRESSED : PLATE}
+                  {...(writing
+                    ? explain('Closes the comment box without saving anything.', 'The words stay chosen, so a colour still highlights them with no comment.')
+                    : explain('Opens a box under these keys to write a few words of your own about the words you chose.', `The comment (up to ${COMMENT_MAX} characters) is saved with the highlight when you press SAVE. With the box open, the colours only pick a colour.`))}
+                >
                   COMMENT
                 </button>
                 <button
@@ -112,6 +143,9 @@ export default function HighlightBar({
                   aria-label={locked ? 'Kept to yourself: not posted in your thread' : 'Posted in your thread for this book'}
                   title={locked ? 'KEPT TO YOURSELF' : 'POSTED IN YOUR THREAD'}
                   className={locked ? PLATE_PRESSED : PLATE}
+                  {...(locked
+                    ? explain('Turns the lock off: the highlight you are about to make will be posted in your reading thread for this book on the forum.', 'Nothing happens until you press a colour or SAVE.')
+                    : explain('Turns the lock on: the highlight you are about to make is kept to yourself and not posted on the forum.', 'Nothing happens until you press a colour or SAVE. Unlocked, each highlight becomes a post in your own reading thread for this book.'))}
                 >
                   {locked ? '🔒' : '🔓'}
                 </button>
@@ -132,10 +166,19 @@ export default function HighlightBar({
                 autoFocus
               />
               <p className="flex gap-1">
-                <button type="button" onClick={() => onComment(colour, comment, locked)} className={PLATE_MAIN}>
+                <button
+                  type="button"
+                  onClick={() => onComment(colour, comment, locked)}
+                  className={PLATE_MAIN}
+                  {...explain(
+                    'Makes the highlight in the outlined colour, with the comment you typed.',
+                    'It is saved to your account. Unless the lock is on, the words and your comment are also posted in your own reading thread for this book on the forum.',
+                    locked ? 'THE LOCK IS ON: KEPT TO YOURSELF.' : NOTE.others,
+                  )}
+                >
                   SAVE
                 </button>
-                <button type="button" onClick={() => setWriting(false)} className={PLATE}>
+                <button type="button" onClick={() => setWriting(false)} className={PLATE} {...explain('Closes the comment box without making a highlight.', 'The words stay chosen and the bar stays open, so you can still press a colour.')}>
                   [ CANCEL ]
                 </button>
               </p>

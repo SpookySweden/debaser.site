@@ -10,6 +10,7 @@ import { getBooksRepository } from '../../lib/books/repository';
 import { browserPlaces, continueHref, coverOf, finishedWhen, placeKey, progressText, shelves, storedPlace, whenText } from '../../lib/books/reading-places';
 import { ownHash, type BookPlace } from '../../lib/books/types';
 import { PLATE, PLATE_LINK, TITLE_BAR } from '../../lib/ui/controls';
+import { explain } from '../../lib/ui/explain';
 import OwnFileDrop, { isBookFile } from './OwnFileDrop';
 
 type Me = { id: string } | null;
@@ -248,7 +249,7 @@ export default function ReadingShelf({
           ) : reading.length === 0 ? (
             <p className="py-2 text-label">
               NOTHING STARTED YET. A BOOK YOU READ HERE KEEPS YOUR PLACE.{' '}
-              <Link href="/media" className={PLATE_LINK}>
+              <Link href="/media" className={PLATE_LINK} {...explain('Opens the MEDIA page, where books are searched for and opened.', 'Any book you start reading from there is listed here afterwards, with your place in it.')}>
                 FIND A BOOK IN MEDIA
               </Link>
             </p>
@@ -267,11 +268,25 @@ export default function ReadingShelf({
                     </p>
                   </div>
                   {ownHash(place.bookRef) ? (
-                    <button type="button" onClick={() => readOwn(place.bookRef)} className={PLATE} aria-label={`READ ${titleOf(place)}`}>
+                    <button
+                      type="button"
+                      onClick={() => readOwn(place.bookRef)}
+                      className={PLATE}
+                      aria-label={`READ ${titleOf(place)}`}
+                      {...explain(
+                        'Opens your own file in the reader, which then asks whether to continue from your place or start over.',
+                        'A file this browser keeps (ON THIS DEVICE) opens at once. Otherwise the box at the top of the page asks you to choose the file again, because the site never holds it.',
+                      )}
+                    >
                       [ READ ]
                     </button>
                   ) : (
-                    <Link href={continueHref(place.bookRef)} className={PLATE} aria-label={`READ ${titleOf(place)}`}>
+                    <Link
+                      href={continueHref(place.bookRef)}
+                      className={PLATE}
+                      aria-label={`READ ${titleOf(place)}`}
+                      {...explain('Opens this book in the reader, which then asks whether to continue from your place or start over.', 'Your place is saved as you turn pages: on your account when signed in, else in this browser.')}
+                    >
                       [ READ ]
                     </Link>
                   )}
@@ -305,15 +320,34 @@ export default function ReadingShelf({
                       <p className="break-words text-label text-ink-quiet">{row.name}</p>
                     </div>
                     <div className="flex flex-wrap gap-1">
-                      <button type="button" onClick={() => void openKept(row.ref)} className={PLATE} aria-label={`READ YOUR FILE ${name}`}>
+                      <button
+                        type="button"
+                        onClick={() => void openKept(row.ref)}
+                        className={PLATE}
+                        aria-label={`READ YOUR FILE ${name}`}
+                        {...explain('Opens this file in the reader, straight from the copy this browser keeps.', 'Nothing is uploaded: the file is read on this device. A book you have started asks whether to continue or start over.')}
+                      >
                         [ READ ]
                       </button>
                       {row.match ? (
-                        <Link href={`/media/book/${row.match.work}`} className={PLATE_LINK} aria-label={`BOOK PAGE: ${name}`}>
+                        <Link
+                          href={`/media/book/${row.match.work}`}
+                          className={PLATE_LINK}
+                          aria-label={`BOOK PAGE: ${name}`}
+                          {...explain('Opens the MEDIA page of the book this file was matched to.', 'That page lists the book and its editions; your place and highlights in this file count as that book.')}
+                        >
                           [ BOOK PAGE ]
                         </Link>
                       ) : null}
-                      <button type="button" onClick={() => void forget(row.ref)} className={PLATE} aria-label={forgetting === row.ref ? `SURE? FORGET ${name}` : `FORGET ${name}`}>
+                      <button
+                        type="button"
+                        onClick={() => void forget(row.ref)}
+                        className={PLATE}
+                        aria-label={forgetting === row.ref ? `SURE? FORGET ${name}` : `FORGET ${name}`}
+                        {...(forgetting === row.ref
+                          ? explain("Removes this browser's copy of the file for good.", 'Your place and highlights in it stay. The file on your own disk is not touched, so you can choose it again later.', "THIS IS THE SECOND PRESS: THE BROWSER'S COPY GOES NOW.")
+                          : explain("Asks to remove this browser's copy of the file: the key turns to SURE? FORGET, and a second press removes it.", 'Frees the room it takes in this browser. Your place and highlights in it stay, and the file on your own disk is not touched.'))}
+                      >
                         {forgetting === row.ref ? '[ SURE? FORGET ]' : '[ FORGET ]'}
                       </button>
                     </div>
@@ -342,15 +376,35 @@ export default function ReadingShelf({
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {ownHash(place.bookRef) ? (
-                      <button type="button" onClick={() => readOwn(place.bookRef)} className={PLATE} aria-label={`READ AGAIN: ${titleOf(place)}`}>
+                      <button
+                        type="button"
+                        onClick={() => readOwn(place.bookRef)}
+                        className={PLATE}
+                        aria-label={`READ AGAIN: ${titleOf(place)}`}
+                        {...explain(
+                          'Opens your own finished file in the reader again, which asks whether to continue from the end or start over.',
+                          'A file this browser keeps opens at once. Otherwise the box at the top of the page asks you to choose the file again, because the site never holds it.',
+                        )}
+                      >
                         [ READ AGAIN ]
                       </button>
                     ) : (
-                      <Link href={continueHref(place.bookRef)} className={PLATE} aria-label={`READ AGAIN: ${titleOf(place)}`}>
+                      <Link
+                        href={continueHref(place.bookRef)}
+                        className={PLATE}
+                        aria-label={`READ AGAIN: ${titleOf(place)}`}
+                        {...explain('Opens this finished book in the reader again, which asks whether to continue from the end or start over.', 'Turning pages before its end takes the FINISHED mark off, so the book moves back up to CONTINUE READING.')}
+                      >
                         [ READ AGAIN ]
                       </Link>
                     )}
-                    <button type="button" onClick={() => void unfinish(place)} className={PLATE} aria-label={`NOT FINISHED: ${titleOf(place)}`}>
+                    <button
+                      type="button"
+                      onClick={() => void unfinish(place)}
+                      className={PLATE}
+                      aria-label={`NOT FINISHED: ${titleOf(place)}`}
+                      {...explain('Takes the FINISHED mark off this book and moves it back up to CONTINUE READING.', 'For a book marked finished by reaching its last page when you were not done with it. Your place in it is kept.')}
+                    >
                       [ NOT FINISHED ]
                     </button>
                   </div>
