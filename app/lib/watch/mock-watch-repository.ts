@@ -1,4 +1,5 @@
-import type { AddSeriesInput, AddToQueueInput, OpenOwnRoomInput, OpenRoomInput, PlayNowInput, PlaybackPatch, RoomChange, RoomMembership, RoomSettingsInput, SendMessageInput, WatchRepository } from './repository';
+import type { AddSeriesInput, AddToQueueInput, OpenOwnRoomInput, OpenRoomInput, OwnDeviceLine, OwnDeviceMessage, PlayNowInput, PlaybackPatch, RoomChange, RoomMembership, RoomSettingsInput, SendMessageInput, WatchRepository } from './repository';
+import { ownDevicesTopic, readOwnDeviceMessage } from './own-devices';
 import { queueRefusal } from './links';
 import { getMockAuthRepository } from '../auth/mock-auth';
 import { OWN_QUEUE_FULL, OwnRoomRefusal } from './own-room';
@@ -1186,6 +1187,17 @@ class MockWatchRepository implements WatchRepository {
         bye();
       },
     };
+  }
+
+  joinOwnDevices(userId: string, onMessage: (message: OwnDeviceMessage) => void): OwnDeviceLine {
+    // A line of its own per account, as the real one is: another account's tabs in this browser never hear it.
+    if (typeof BroadcastChannel === 'undefined') return { send: () => undefined, leave: () => undefined };
+    const line = new BroadcastChannel(`${WIRE}:${ownDevicesTopic(userId)}`);
+    line.onmessage = (event: MessageEvent) => {
+      const message = readOwnDeviceMessage(event.data);
+      if (message !== null) onMessage(message);
+    };
+    return { send: (message) => line.postMessage(message), leave: () => line.close() };
   }
 
   subscribeWatching(listener: (watching: WatchingMap | null) => void): () => void {

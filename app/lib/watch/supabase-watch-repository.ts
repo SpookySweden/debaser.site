@@ -1,7 +1,8 @@
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
 import { getSupabaseBrowserClient } from '../supabase/client';
 import { guestClient, hasStoredGuest, roomClient } from './room-client';
-import type { AddSeriesInput, AddToQueueInput, OpenOwnRoomInput, OpenRoomInput, PlayNowInput, PlaybackPatch, RoomChange, RoomMembership, RoomSettingsInput, SendMessageInput, WatchRepository } from './repository';
+import type { AddSeriesInput, AddToQueueInput, OpenOwnRoomInput, OpenRoomInput, OwnDeviceLine, OwnDeviceMessage, PlayNowInput, PlaybackPatch, RoomChange, RoomMembership, RoomSettingsInput, SendMessageInput, WatchRepository } from './repository';
+import { ownDevicesTopic, readOwnDeviceMessage } from './own-devices';
 import { isLinkKind, queueRefusal } from './links';
 import { MUSIC_ROOM_GONE_SECONDS } from './music-rooms';
 import { OWN_QUEUE_FULL, OwnRoomRefusal } from './own-room';
@@ -1285,7 +1286,51 @@ class SupabaseWatchRepository implements WatchRepository {
     openWatchingChannel();
     if (told) sayWatching();
   }
+
+  joinOwnDevices(userId: string, onMessage: (message: OwnDeviceMessage) => void): OwnDeviceLine {
+    // An account's own: the room's connection is the account's whenever one is signed in (the room only asks for an account).
+    const client = roomClient();
+    if (client === null) return { send: () => undefined, leave: () => undefined };
+    const topic = ownDevicesTopic(userId);
+    let line = ownLines.get(topic);
+    if (line === undefined) {
+      const made: OwnLine = { channel: null, listeners: new Set() };
+      line = made;
+      ownLines.set(topic, made);
+      // A line of the same name still on its way out (a quick close and reopen) is let go first, as the canvas's is: the client
+      // would hand that one back.
+      const stale = client.getChannels().filter((held) => held.topic === `realtime:${topic}`);
+      void Promise.all(stale.map((held) => client.removeChannel(held))).then(() => {
+        if (ownLines.get(topic) !== made) return;
+        // Private: only this account hears it or sends on it (the realtime.messages rules in *_own_device_line.sql).
+        const channel = client.channel(topic, { config: { broadcast: { self: false }, private: true } });
+        channel.on('broadcast', { event: 'own' }, ({ payload }) => {
+          const message = readOwnDeviceMessage(payload);
+          if (message !== null) for (const listener of made.listeners) listener(message);
+        });
+        channel.subscribe();
+        made.channel = channel;
+      });
+    }
+    const held = line;
+    held.listeners.add(onMessage);
+    return {
+      send: (message) => {
+        if (held.channel !== null) void held.channel.send({ type: 'broadcast', event: 'own', payload: message });
+      },
+      leave: () => {
+        held.listeners.delete(onMessage);
+        if (held.listeners.size > 0 || ownLines.get(topic) !== held) return;
+        ownLines.delete(topic);
+        if (held.channel !== null) void client.removeChannel(held.channel);
+      },
+    };
+  }
 }
+
+/** The account's own line, one per tab however many rooms ask for it (`joinOwnDevices`). */
+type OwnLine = { channel: RealtimeChannel | null; listeners: Set<(message: OwnDeviceMessage) => void> };
+const ownLines = new Map<string, OwnLine>();
 
 let supabaseWatchRepository: SupabaseWatchRepository | null = null;
 

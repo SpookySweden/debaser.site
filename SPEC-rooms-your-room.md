@@ -148,3 +148,22 @@ appears inside of the bar/backround in the top left corner of it similar to the 
   FULL or GO LIVE, and the shelf key is the way back. A window kept above the bar is lifted whole, never shortened, unless it
   is taller than all the room above the bar. Proof: `scripts/drive-roomfix.cjs`.) Not proved: real YouTube stills of a real letterboxed video, Vimeo, the site's real
   storage answering the way a read needs, phones.
+
+## Part 5: your own devices together (Luke, 2026-11-27; built the same day)
+Luke, typed: "when two of the same account are watching media in a room, make sure the pause play and volume controls are all synced."
+- Play, pause and jumps already followed between one account's devices (earlier the same day: 1A "last one touched" leads, 2A
+  "follow live" on the bar, 3A LUKE'S SERVER driven). Checked again on two tabs of one account for a file, YouTube, LUKE'S SERVER
+  and the music bar (`scripts/drive-same-account.cjs`, steps 1-11): all followed, nothing to fix. An outside player the room
+  cannot drive (PeerTube, the Archive's, LUKE'S SERVER with its remote off) takes no orders, so it cannot follow.
+- The room's speaker key (volume line and MUTE) now follows between your own devices in the same room, any room, and never
+  anybody else's. It moves files, YouTube, Vimeo, Twitch and LUKE'S SERVER when driven. A change made inside another site's own
+  player (YouTube's own slider) is not heard.
+- His answers (asked through the coordinator, word for word):
+  - "Should the bar's volume also follow between your devices?": "Yes, it follows (Recommended)". The bar's volume follows while
+    your bars play your room.
+  - "When a second device of yours joins the room, should it take the volume your other device already has?": "Take current
+    volume on join" (told the risk: a loud jump on headphones). A device that comes in asks; one that was there first answers.
+  - The database rule: "Yes, add it (Recommended)", for exactly two Realtime rules on a channel `account:<own id>` that only that
+    account may hear or send on (`supabase/migrations/20261127100000_own_device_line.sql`). Nothing is stored.
+- How: `app/lib/watch/own-devices.ts`, `WatchRepository.joinOwnDevices` (mock: a BroadcastChannel between tabs), the room's
+  `turnVolume`/`turnMuted` in `WatchRoom.tsx`, the bar's `use-own-bar-volume.ts` in `MusicRoomKeeper.tsx`.

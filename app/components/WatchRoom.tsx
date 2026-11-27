@@ -25,7 +25,8 @@ import { lookClass, lookForRoom } from '../lib/cytube/looks';
 import { setOpenRoomLook } from '../lib/cytube/room-look';
 import { saveLookChoice, useLookChoice } from '../lib/cytube/use-looks';
 import { afterFile, blankPrefill, blankStart, screenIsBlank, type BlankKey } from '../lib/watch/blank-screen';
-import { getWatchRepository, repositoryFor } from '../lib/watch/repository';
+import { getWatchRepository, repositoryFor, type OwnDeviceLine } from '../lib/watch/repository';
+import { OWN_ASK_AFTER_MS, OWN_VOLUME_SAY_MS } from '../lib/watch/own-devices';
 import { ownRoomState, subscribeToOwnRoom, takeComeBack } from '../lib/watch/own-room-client';
 import type { AudioTrack } from '../lib/audio/tracks';
 import { frontPosition } from '../lib/watch/music-rooms';
@@ -485,6 +486,77 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     if (byPress) pressedLead.current = Date.now();
     setLead('lead');
   }
+
+  /* --- your devices' speaker key (Luke, 2026-11-27: "when two of the same account are watching media in a room, make sure the
+     pause play and volume controls are all synced") -------------------------------------------------------------------------- */
+
+  /** The account's own line while another of its devices is in this room (any room, hosted or not); nobody else's volume moves. */
+  const ownLine = useRef<OwnDeviceLine | null>(null);
+  /** The speaker key was turned on this device: the next settled volume is said to the others (one heard is never said back). */
+  const turnedHere = useRef(false);
+  const sayTimer = useRef<number | null>(null);
+  const saidAt = useRef(0);
+  /** This device came into the room after another of yours and has its sound now: from their answer, or from a turn of its own key. */
+  const soundSettled = useRef(false);
+  const accountId = user?.id ?? null;
+  /** When this device came into the room, by the room's own list. */
+  const cameInAt = useEffectEvent(() => members.find((member) => member.key === myKey)?.joinedAt ?? Number.POSITIVE_INFINITY);
+  /** Luke's answer, "Take current volume on join": a device of yours that came in later asks; one that was here first answers. */
+  const cameInLater = useEffectEvent(() => !eldestDevice);
+  const answerAsk = useEffectEvent((since: number) => {
+    if (cameInAt() < since) ownLine.current?.send({ kind: 'volume', roomId, volume, muted });
+  });
+  useEffect(() => {
+    if (accountId === null || !otherDeviceHere) return;
+    const line = repository.joinOwnDevices(accountId, (message) => {
+      if (message.roomId !== roomId) return;
+      if (message.kind === 'ask-room') answerAsk(message.since);
+      if (message.kind !== 'volume') return;
+      soundSettled.current = true;
+      setVolume(message.volume);
+      setMuted(message.muted);
+    });
+    ownLine.current = line;
+    soundSettled.current = !cameInLater();
+    const since = cameInAt();
+    const asks = OWN_ASK_AFTER_MS.map((after) =>
+      window.setTimeout(() => {
+        if (!soundSettled.current) line.send({ kind: 'ask-room', roomId, since });
+      }, after),
+    );
+    return () => {
+      for (const ask of asks) window.clearTimeout(ask);
+      if (sayTimer.current !== null) window.clearTimeout(sayTimer.current);
+      sayTimer.current = null;
+      ownLine.current = null;
+      line.leave();
+    };
+  }, [repository, accountId, otherDeviceHere, roomId]);
+  // Said once the key settles, both values together (the volume line also unmutes), and at most every OWN_VOLUME_SAY_MS while it is dragged.
+  useEffect(() => {
+    if (!turnedHere.current) return;
+    turnedHere.current = false;
+    if (ownLine.current === null) return;
+    if (sayTimer.current !== null) window.clearTimeout(sayTimer.current);
+    sayTimer.current = window.setTimeout(
+      () => {
+        sayTimer.current = null;
+        saidAt.current = Date.now();
+        ownLine.current?.send({ kind: 'volume', roomId, volume, muted });
+      },
+      Math.max(0, OWN_VOLUME_SAY_MS - (Date.now() - saidAt.current)),
+    );
+  }, [volume, muted, roomId]);
+  const turnVolume = useCallback((next: number) => {
+    turnedHere.current = true;
+    soundSettled.current = true;
+    setVolume(next);
+  }, []);
+  const turnMuted = useCallback((next: boolean) => {
+    turnedHere.current = true;
+    soundSettled.current = true;
+    setMuted(next);
+  }, []);
 
   /* --- the music stops (decision 7) ------------------------------------------------------------ */
 
@@ -1708,7 +1780,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     </>
   ) : hasTransport && song === null ? (
     <>
-      <SpeakerKey muted={muted} volume={volume} onMuted={setMuted} onVolume={setVolume} />
+      <SpeakerKey muted={muted} volume={volume} onMuted={turnMuted} onVolume={turnVolume} followsYourDevices={user !== null} />
       <QualityKey source={qualitySource} />
       <SubsKey
         key={entryId ?? 'none'}
@@ -1839,7 +1911,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
         </>
       ) : hasTransport ? (
         <>
-          <SpeakerKey muted={muted} volume={volume} onMuted={setMuted} onVolume={setVolume} />
+          <SpeakerKey muted={muted} volume={volume} onMuted={turnMuted} onVolume={turnVolume} followsYourDevices={user !== null} />
           {pipKey}
           {fullKey}
         </>

@@ -349,6 +349,8 @@ const watchRepo = {
     return readRoomAnswer;
   },
   addToQueue: async (input) => say('addToQueue', input),
+  // The account's own line between its devices (the bar's volume following them): nothing to hear here.
+  joinOwnDevices: () => ({ send: () => undefined, leave: () => undefined }),
 };
 const EMPTY_PAGE = { items: [], nextCursor: null };
 const webRepo = {

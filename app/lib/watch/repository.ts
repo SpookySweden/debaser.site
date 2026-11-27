@@ -87,6 +87,20 @@ export type RoomChange =
   | { kind: 'uncrowned'; userId: string }
   | { kind: 'refresh' };
 
+/**
+ * What one of your devices tells your others (Luke, 2026-11-27: "when two of the same account are watching media in a room, make
+ * sure the pause play and volume controls are all synced"): the room's speaker key, for the room it was turned in (`volume`), and the
+ * music bar's volume while it plays your room (`bar`; Luke's answer, "Yes, it follows"). A device that comes in asks the ones there
+ * before it for what they have (`ask-room`, `ask-bar`, with when it came in; Luke's answer, "Take current volume on join").
+ */
+export type OwnDeviceMessage =
+  | { kind: 'volume'; roomId: string; volume: number; muted: boolean }
+  | { kind: 'bar'; roomId: string; volume: number }
+  | { kind: 'ask-room' | 'ask-bar'; roomId: string; since: number };
+
+/** This tab on its account's own line: only that account's devices hear it or send on it. */
+export type OwnDeviceLine = { send: (message: OwnDeviceMessage) => void; leave: () => void };
+
 /** One tab's place in a room, while it is there. */
 export type RoomMembership = {
   /** Leaves the room's presence channel. */
@@ -234,6 +248,12 @@ export type WatchRepository = {
   subscribeWatching(listener: (watching: WatchingMap | null) => void): () => void;
   /** This tab's line in it: joins on the first, says it again on a change, leaves on null. */
   setWatching(entry: WatchingEntry | null): void;
+  /**
+   * The account's own line between its devices (the speaker key followed on your other devices). Supabase: a private broadcast
+   * channel `account:<your id>` that only that account may hear or send on (its realtime.messages rules); the mock: a
+   * BroadcastChannel between this browser's tabs. Your own tab never hears itself.
+   */
+  joinOwnDevices(userId: string, onMessage: (message: OwnDeviceMessage) => void): OwnDeviceLine;
 };
 
 let repository: WatchRepository | null = null;

@@ -23,11 +23,17 @@ const MARK_SIZE = 16;
 const SPEAKER_GLYPH = '\u{1F508}︎';
 const SPEAKER_MUTED_GLYPH = '\u{1F507}︎';
 
-/** The sound key (a press mutes and unmutes) and the volume beside it. A phone has its own volume keys. */
-export function SpeakerKey({ muted, volume, onMuted, onVolume }: { muted: boolean; volume: number; onMuted: (muted: boolean) => void; onVolume: (volume: number) => void }) {
+/**
+ * The sound key (a press mutes and unmutes) and the volume beside it. A phone has its own volume keys. `followsYourDevices`: a room's, where an account's own other devices in the room follow it
+ * (Luke, 2026-11-27: "when two of the same account are watching media in a room, make sure the pause play and volume controls are all
+ * synced"), so the words say so.
+ */
+export function SpeakerKey({ muted, volume, onMuted, onVolume, followsYourDevices = false }: { muted: boolean; volume: number; onMuted: (muted: boolean) => void; onVolume: (volume: number) => void; followsYourDevices?: boolean }) {
+  const off = followsYourDevices ? 'Turns the sound off here and on your own other devices in this room.' : 'Turns the sound off, on this device only.';
+  const back = followsYourDevices ? 'Turns the sound back on, here and on your own other devices in this room.' : 'Turns the sound back on.';
   return (
     <span className="flex shrink-0 items-center gap-1">
-      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-pressed={muted} aria-label={muted ? 'Unmute' : 'Mute'} title={muted ? 'Unmute' : 'Mute'} {...explain(muted ? 'Turns the sound back on.' : 'Turns the sound off, on this device only.', 'Everyone else still hears it; the video keeps playing in step.')} onClick={() => onMuted(!muted)}>
+      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-pressed={muted} aria-label={muted ? 'Unmute' : 'Mute'} title={muted ? 'Unmute' : 'Mute'} {...explain(muted ? back : off, 'Everyone else still hears it; the video keeps playing in step.')} onClick={() => onMuted(!muted)}>
         {/* The symbol at the drawing's own 16px, so it reads as a speaker rather than a dot. */}
         {muted ? (
           <ArtMark key="muted" src={SPEAKER_MUTED_SRC} size={MARK_SIZE} fallback={<span className="text-title leading-none">{SPEAKER_MUTED_GLYPH}</span>} />

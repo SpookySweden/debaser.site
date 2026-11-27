@@ -11,8 +11,13 @@
  *   5. PLAY on another video in FILES on B: both devices put it on.
  *   6. [ ◀◀ ] in the room on A: both go back to the first video.
  *   7. Your room with no window open (2A): B's bar follows A's bar (a song put on, paused, played).
+ *      Then the bar's volume follows both ways, and a tab opened after takes it (Luke, 2026-11-27: "Yes, it follows"; "Take current volume on join").
+ *   9. The room's speaker key (volume line, MUTE) on either device moves the other's sound, and nothing else's (Luke, 2026-11-27);
+ *      a device that comes in after takes the sound the others have.
+ *  10. YouTube in the room: a pause inside its own player, the room's PLAY and the speaker key follow between the devices.
+ *  11. LUKE'S SERVER (a stand-in speaking the bridge's remote): the same.
  *
- *   node scripts/drive-same-account.cjs --base http://localhost:3317
+ *   node scripts/drive-same-account.cjs --base http://localhost:3317   (--only-players for 9-11, --only-bar for 7)
  *
  * Start the server with every data source on mock and Supabase EMPTY (`node scripts/dev-mock-live.cjs 3317`), so nothing reaches
  * the live database. Nothing is fetched from the network for the media: the drive answers its own test sound (a quiet three-minute
@@ -143,12 +148,27 @@ const SHELF = `(() => {
 const bar = (page) =>
   page.evaluate(() => {
     const element = window.__audios[window.__audios.length - 1];
-    return element ? { file: element.src.split('/').pop(), time: element.currentTime, paused: element.paused } : null;
+    return element ? { file: element.src.split('/').pop(), time: element.currentTime, paused: element.paused, volume: element.volume } : null;
   });
 const onBar = async (page) => {
   const held = await bar(page);
   return held === null ? 'no bar' : `${held.file} ${held.time.toFixed(1)}s ${held.paused ? 'paused' : 'playing'}`;
 };
+/** The music bar's own volume line (0-100), not the room's. */
+const BAR_SLIDER = `[...document.querySelectorAll('input[aria-label="Volume"]')].find((held) => held.closest('[data-dock-window="stream"], [data-stream-bar]') === null && held.offsetParent !== null)`;
+const setBarVolume = (page, value) =>
+  page.evaluate(([wanted, find]) => {
+    const input = eval(find);
+    if (input === undefined) throw new Error('no bar volume line');
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, String(wanted));
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }, [value, BAR_SLIDER]);
+async function barVolumeUntil(page, wanted) {
+  await page.waitForFunction(([value, find]) => {
+    const input = eval(find);
+    return input !== undefined && Number(input.value) === value;
+  }, [wanted, BAR_SLIDER], { timeout: 8000 });
+}
 async function barUntil(page, what, check, timeout = 10000) {
   const end = Date.now() + timeout;
   let held = null;
@@ -225,6 +245,22 @@ async function barStep(browser, errors) {
     await barUntil(b, 'B is on the second song', (held) => held.file === 'tone-two.wav', 10000);
     console.log(`    A: ${await onBar(a)}   B: ${await onBar(b)}`);
     pass('NEXT on B\'s bar moved A on to the same song');
+
+    await setBarVolume(a, 35);
+    await barUntil(b, 'B\'s bar goes to 35% with A', (held) => near(held.volume, 0.35), 8000);
+    await barVolumeUntil(b, 35);
+    await setBarVolume(b, 60);
+    await barUntil(a, 'A\'s bar goes to 60% with B', (held) => near(held.volume, 0.6), 8000);
+    pass('the bar\'s volume moved on A moved B\'s, and back the other way');
+    await setBarVolume(a, 25);
+    await barUntil(b, 'B\'s bar at 25%', (held) => near(held.volume, 0.25), 8000);
+    const c = await context.newPage();
+    c.on('pageerror', (error) => errors.push(`bar C: ${error.message}`));
+    await open(c, '/forum');
+    await c.waitForFunction(() => window.__audios.length > 0, null, { timeout: 20000 });
+    await barUntil(c, 'C, opened after, takes 25%', (held) => near(held.volume, 0.25), 12000);
+    await barVolumeUntil(c, 25);
+    pass('a tab opened after came in with the bar at 25%, the volume the others had');
   } catch (error) {
     for (const [index, page] of context.pages().entries()) console.error(`    ${index === 0 ? 'A' : 'B'}: ${await onBar(page).catch(() => '?')}`);
     throw error;
@@ -255,12 +291,20 @@ async function jellyfinUntil(page, what, check, timeout) {
   throw new Error(`${what}: never happened (last: ${JSON.stringify(held)})`);
 }
 /** The room's own play/pause key on this device, pressed in the page. */
-const pressRoomKey = (page, label) =>
-  page.evaluate((wanted) => {
+/** (The key's word follows the player a moment after it changes, so it is waited for, up to five seconds.) */
+const pressRoomKey = async (page, label) => {
+  await page
+    .waitForFunction((wanted) => [...document.querySelectorAll(`button[aria-label="${wanted}"]`)].some((button) => button.closest('[data-dock-window="stream"], [data-stream-bar]') !== null), label, { timeout: 5000 })
+    .catch(() => undefined);
+  return page.evaluate((wanted) => {
     const key = [...document.querySelectorAll(`button[aria-label="${wanted}"]`)].find((button) => button.closest('[data-dock-window="stream"], [data-stream-bar]') !== null);
-    if (key === undefined) throw new Error(`no ${wanted} key`);
+    if (key === undefined) {
+      const there = [...document.querySelectorAll('[data-dock-window="stream"] button[aria-label], [data-stream-bar] button[aria-label]')].map((button) => button.getAttribute('aria-label'));
+      throw new Error(`no ${wanted} key (the room's keys here: ${there.join(', ')})`);
+    }
     key.click();
   }, label);
+};
 
 async function jellyfinStep(browser, errors, bridge) {
   console.log("8. LUKE'S SERVER (JELLYFIN) ON BOTH DEVICES (3A)");
@@ -332,6 +376,241 @@ async function jellyfinStep(browser, errors, bridge) {
   }
 }
 
+/* --- 9-11: the speaker key follows your devices, and play/pause on YouTube and LUKE'S SERVER (Luke, 2026-11-27: "when two of the
+   same account are watching media in a room, make sure the pause play and volume controls are all synced") ---------------------- */
+
+/**
+ * YouTube's IFrame Player API, stood in for: a player that keeps its own clock, takes play, pause, jumps and the volume as YouTube's
+ * does and says its state the same way. Each one made is kept on `window.__yt` so the drive can read it and press inside it.
+ */
+const FAKE_YT = `(() => {
+  window.__yt = [];
+  const STATE = { unstarted: -1, ended: 0, playing: 1, paused: 2, buffering: 3, cued: 5 };
+  window.YT = {
+    PlayerState: STATE,
+    Player: function (element, options) {
+      const player = this;
+      let base = 0, since = null, volume = 100, muted = false, gone = false;
+      const now = () => (since === null ? base : base + (Date.now() - since) / 1000);
+      const say = (data) => setTimeout(() => !gone && options.events.onStateChange({ data }), 30);
+      Object.assign(player, {
+        videoId: options.videoId,
+        playVideo() { if (since === null) { since = Date.now(); say(STATE.playing); } },
+        pauseVideo() { if (since !== null) { base = now(); since = null; say(STATE.paused); } },
+        seekTo(seconds) { base = seconds; if (since !== null) since = Date.now(); },
+        getCurrentTime: now,
+        getDuration: () => 600,
+        setVolume(next) { volume = next; },
+        mute() { muted = true; },
+        unMute() { muted = false; },
+        setPlaybackRate() {},
+        getVideoData: () => ({ isLive: false }),
+        destroy() { gone = true; since = null; },
+        state: () => ({ time: now(), paused: since === null, volume, muted, gone }),
+      });
+      const frame = document.createElement('iframe');
+      frame.setAttribute('data-fake-youtube', options.videoId);
+      element.replaceWith(frame);
+      window.__yt.push(player);
+      setTimeout(() => !gone && options.events.onReady(), 50);
+    },
+  };
+  const ready = window.onYouTubeIframeAPIReady;
+  if (typeof ready === 'function') ready();
+})()`;
+
+/**
+ * LUKE'S SERVER, stood in for: a page at the server's address that speaks the bridge's remote (app/lib/watch/jellyfin-player.ts)
+ * over a plain player of the drive's own tone, so the room drives it as it drives Jellyfin.
+ */
+const SERVER_PAGE = `<!doctype html><html><body style="margin:0;background:#000">
+<video id="v" src="${SOUND}/server.wav" style="width:100%;height:100%"></video>
+<script>
+  const video = document.getElementById('v');
+  const say = (event) => parent.postMessage({ debaser: 'debaser-jellyfin', event, ready: video.readyState > 0, time: video.currentTime, duration: video.duration || 0, paused: video.paused, ended: video.ended }, '*');
+  for (const event of ['play', 'playing', 'pause', 'seeked', 'ended', 'waiting']) video.addEventListener(event, () => say(event));
+  setInterval(() => say('time'), 500);
+  addEventListener('message', (message) => {
+    const order = message.data;
+    if (!order || order.debaser !== 'debaser-jellyfin') return;
+    if (order.cmd === 'play') video.play().catch(() => say('blocked'));
+    if (order.cmd === 'pause') video.pause();
+    if (order.cmd === 'seek') video.currentTime = order.seconds;
+    if (order.cmd === 'rate') video.playbackRate = order.rate;
+    if (order.cmd === 'volume') { video.volume = order.volume; video.muted = order.muted; }
+    if (order.cmd === 'state') say('state');
+  });
+  say('hello');
+</script></body></html>`;
+
+/** The room's own volume line on this device (the room window's, or the room's keys on the music bar). */
+const slider = (page) =>
+  page.evaluate(() => {
+    const input = [...document.querySelectorAll('input[aria-label="Volume"]')].find((held) => held.closest('[data-dock-window="stream"], [data-stream-bar]') !== null && held.offsetParent !== null);
+    return input === undefined ? null : Number(input.value);
+  });
+/** Moves this device's volume line to `value`, as a hand on it does. */
+const setSlider = (page, value) =>
+  page.evaluate((wanted) => {
+    const input = [...document.querySelectorAll('input[aria-label="Volume"]')].find((held) => held.closest('[data-dock-window="stream"], [data-stream-bar]') !== null && held.offsetParent !== null);
+    if (input === undefined) throw new Error('no volume line');
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, String(wanted));
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }, value);
+/** The room's file player's sound on this device. */
+const sound = (page) =>
+  page.evaluate(() => {
+    const video = document.querySelector('[data-dock-window="stream"] video[data-watch-video]');
+    return video === null ? null : { volume: video.volume, muted: video.muted };
+  });
+async function waitFor(what, read, check, timeout = 8000) {
+  const end = Date.now() + timeout;
+  let held = null;
+  while (Date.now() < end) {
+    held = await read();
+    if (held !== null && check(held)) return held;
+    await sleep(250);
+  }
+  throw new Error(`${what}: never happened (last: ${JSON.stringify(held)})`);
+}
+const near = (a, b) => Math.abs(a - b) < 0.02;
+/** The newest stand-in YouTube player on this device. */
+const youtube = (page) => page.evaluate(() => (window.__yt && window.__yt.length > 0 ? window.__yt[window.__yt.length - 1].state() : null));
+/** The stand-in server's player on this device. */
+async function server(page) {
+  const frame = page.frames().find((candidate) => candidate.url().startsWith('https://media.debaser.site/debaser/'));
+  if (frame === undefined) return null;
+  return frame.evaluate(() => {
+    const video = document.getElementById('v');
+    return video === null ? null : { time: video.currentTime, paused: video.paused, volume: video.volume, muted: video.muted };
+  }).catch(() => null);
+}
+/** Puts `link` on in your room now, playing, as a PLAY in the page does, and tells every tab the room changed. */
+const putOnNow = (page, link) =>
+  page.evaluate((wanted) => {
+    const tables = JSON.parse(localStorage.getItem('debaser.watch.v1'));
+    const room = tables.rooms.find((held) => held.origin === 'music' && held.endedAt === null);
+    const at = new Date().toISOString();
+    const id = crypto.randomUUID();
+    tables.queue.push({ id, roomId: room.id, position: 99, inQueue: true, mediaItemId: null, link: wanted, series: null, addedBy: room.hostId, addedAt: at, playedAt: at, playIndex: 9 });
+    Object.assign(room, { currentEntryId: id, positionSeconds: 0, isPlaying: true, updatedAt: at });
+    localStorage.setItem('debaser.watch.v1', JSON.stringify(tables));
+    const wire = new BroadcastChannel('debaser-watch');
+    wire.postMessage({ type: 'changed', roomId: room.id });
+    wire.close();
+  }, link);
+
+async function playersStep(browser, errors) {
+  console.log('9. THE SPEAKER KEY FOLLOWS YOUR DEVICES (a file)');
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  await context.addInitScript(SEED);
+  await context.route(/supabase\.(co|in)|api\.debaser\.site/, (route) => route.abort());
+  await serveMedia(context);
+  await context.route(/^https:\/\/www\.youtube\.com\/iframe_api/, (route) => route.fulfill({ status: 200, contentType: 'text/javascript', body: FAKE_YT }));
+  await context.route(/^https:\/\/www\.youtube\.com\/oembed/, (route) => route.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: '{"title":"A YOUTUBE VIDEO","width":640,"height":360}' }));
+  await context.route(/^https:\/\/(i\.ytimg\.com|www\.youtube-nocookie\.com)\//, (route) => route.fulfill({ status: 404, body: '' }));
+  await context.route(/^https:\/\/media\.debaser\.site\//, (route) => route.fulfill({ status: 200, contentType: 'text/html', body: SERVER_PAGE }));
+  try {
+    const a = await context.newPage();
+    a.on('pageerror', (error) => errors.push(`players A: ${error.message}`));
+    await open(a, '/files?kind=video');
+    await pressPlay(a, 'SAME ACCOUNT ONE');
+    await until(a, 'A plays the first video', (held) => held.src.endsWith('one.wav') && !held.paused, 20000);
+    const b = await context.newPage();
+    b.on('pageerror', (error) => errors.push(`players B: ${error.message}`));
+    await open(b, '/files?kind=video');
+    await until(b, 'B has the first video', (held) => held.src.endsWith('one.wav'), 20000);
+    // Both devices hear each other in the room's presence first (a device alone keeps its own line shut).
+    await sleep(2500);
+
+    await setSlider(a, 0.4);
+    await waitFor('B\'s sound goes to 0.4 with A', () => sound(b), (held) => near(held.volume, 0.4) && !held.muted);
+    await waitFor('B\'s volume line shows 0.4', () => slider(b), (held) => near(held, 0.4));
+    pass('the volume line moved on A: B\'s sound and B\'s line went there too');
+
+    await pressRoomKey(a, 'Mute');
+    await waitFor('B mutes with A', () => sound(b), (held) => held.muted);
+    await pressRoomKey(b, 'Unmute');
+    await waitFor('A unmutes with B', () => sound(a), (held) => !held.muted && near(held.volume, 0.4));
+    pass('MUTE on A muted B, and UNMUTE on B brought A\'s sound back');
+
+    await setSlider(b, 0.7);
+    await waitFor('A\'s sound goes to 0.7 with B', () => sound(a), (held) => near(held.volume, 0.7));
+    // What is not yours or not this room's never moves it: a word for another room on your line, and a word on another account's line.
+    await a.evaluate(() => {
+      const mine = new BroadcastChannel('debaser-watch:account:drive-user');
+      mine.postMessage({ kind: 'volume', roomId: 'another-room', volume: 0.1, muted: false });
+      mine.close();
+      const theirs = new BroadcastChannel('debaser-watch:account:somebody-else');
+      theirs.postMessage({ kind: 'volume', roomId: 'any', volume: 0.1, muted: true });
+      theirs.close();
+    });
+    await sleep(1500);
+    const kept = [await sound(a), await sound(b)];
+    assert.ok(kept.every((held) => near(held.volume, 0.7) && !held.muted), `nobody else's word moved it (${JSON.stringify(kept)})`);
+    assert.equal((await stage(a)).paused || (await stage(b)).paused, false, 'the volume never paused either device');
+    pass('B\'s line moved A; a word for another room, or on another account\'s line, moved neither');
+
+    // Luke's answer, "Take current volume on join": A goes to 20% and mutes, then a third device comes in.
+    await setSlider(a, 0.2);
+    await pressRoomKey(a, 'Mute');
+    await waitFor('B has 20% and muted from A', () => sound(b), (held) => near(held.volume, 0.2) && held.muted);
+    const c = await context.newPage();
+    c.on('pageerror', (error) => errors.push(`players C: ${error.message}`));
+    await open(c, '/files?kind=video');
+    await until(c, 'C has the first video', (held) => held.src.endsWith('one.wav'), 20000);
+    await waitFor('C, which came in after, takes 20% and muted', () => sound(c), (held) => near(held.volume, 0.2) && held.muted, 12000);
+    await waitFor('C\'s volume line shows it muted', () => slider(c), (held) => held === 0);
+    pass('a device that came in after A had 20% and muted came in at 20% and muted');
+    await c.close();
+    await sleep(2500);
+    await pressRoomKey(a, 'Unmute');
+    await setSlider(a, 0.7);
+    await waitFor('B back at 0.7 and unmuted', () => sound(b), (held) => near(held.volume, 0.7) && !held.muted);
+
+    console.log('10. YOUTUBE ON BOTH DEVICES');
+    await putOnNow(a, { url: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ', kind: 'youtube', title: 'A YOUTUBE VIDEO' });
+    await waitFor('A\'s YouTube plays', () => youtube(a), (held) => !held.gone && !held.paused && held.time > 1, 20000);
+    await waitFor('B\'s YouTube plays', () => youtube(b), (held) => !held.gone && !held.paused && held.time > 1, 20000);
+    assert.equal((await youtube(b)).volume, 70, 'B\'s YouTube took the room\'s volume');
+    // A press inside YouTube's own player on B (its play key does this to its player).
+    await b.evaluate(() => window.__yt[window.__yt.length - 1].pauseVideo());
+    await waitFor('A\'s YouTube pauses with B', () => youtube(a), (held) => held.paused, 8000);
+    pass('a pause inside YouTube\'s own player on B paused YouTube on A');
+    await pressRoomKey(a, 'Play');
+    await waitFor('B\'s YouTube plays with A', () => youtube(b), (held) => !held.paused, 8000);
+    pass('PLAY on A\'s room key played YouTube on B');
+    await setSlider(a, 0.3);
+    await waitFor('B\'s YouTube goes to 30 with A', () => youtube(b), (held) => held.volume === 30, 8000);
+    await pressRoomKey(b, 'Mute');
+    await waitFor('A\'s YouTube mutes with B', () => youtube(a), (held) => held.muted, 8000);
+    await pressRoomKey(b, 'Unmute');
+    await waitFor('A\'s YouTube unmutes with B', () => youtube(a), (held) => !held.muted, 8000);
+    pass('the volume line and MUTE moved YouTube on the other device');
+
+    console.log("11. LUKE'S SERVER ON BOTH DEVICES (a stand-in that speaks the bridge's remote)");
+    await putOnNow(a, { url: 'https://media.debaser.site/debaser/play/movie/7', kind: 'embed', title: 'A FILM ON THE SERVER' });
+    await a.waitForSelector('[data-server-remote="on"]', { timeout: 30000 });
+    await b.waitForSelector('[data-server-remote="on"]', { timeout: 30000 });
+    await waitFor('A\'s server player plays', () => server(a), (held) => !held.paused && held.time > 1, 20000);
+    await waitFor('B\'s server player plays', () => server(b), (held) => !held.paused && held.time > 1, 20000);
+    assert.ok(near((await server(b)).volume, 0.3), 'B\'s server player took the room\'s volume');
+    const frameB = b.frames().find((candidate) => candidate.url().startsWith('https://media.debaser.site/debaser/'));
+    await frameB.evaluate(() => document.getElementById('v').pause());
+    await waitFor('A\'s server player pauses with B', () => server(a), (held) => held.paused, 10000);
+    pass('a pause inside the server\'s own player on B paused it on A');
+    await pressRoomKey(a, 'Play');
+    await waitFor('B\'s server player plays with A', () => server(b), (held) => !held.paused, 10000);
+    pass('PLAY on A\'s room key played the server\'s player on B');
+    await setSlider(b, 0.55);
+    await waitFor('A\'s server player goes to 0.55 with B', () => server(a), (held) => near(held.volume, 0.55), 8000);
+    pass('the volume line on B moved the server\'s player on A');
+    await a.screenshot({ path: join(SHOTS, 'players-a.png') });
+  } finally {
+    await context.close();
+  }
+}
+
 async function until(page, what, check, timeout = 10000) {
   const end = Date.now() + timeout;
   let held = null;
@@ -361,6 +640,12 @@ async function until(page, what, check, timeout = 10000) {
   try {
     if (args.includes('--jellyfin')) {
       await jellyfinStep(browser, errors, args[args.indexOf('--jellyfin') + 1]);
+      console.log(`\nPASSED ${passed}`);
+      return;
+    }
+    if (args.includes('--only-players')) {
+      await playersStep(browser, errors);
+      assert.deepEqual(errors, [], `no page errors: ${errors.join(' | ')}`);
       console.log(`\nPASSED ${passed}`);
       return;
     }
@@ -439,6 +724,7 @@ PASSED ${passed}`);
     await context.close();
 
     await barStep(browser, errors);
+    await playersStep(browser, errors);
 
     assert.deepEqual(blocked, [], 'nothing reached the live database');
     assert.deepEqual(errors, [], `no page errors: ${errors.join(' | ')}`);

@@ -23,6 +23,7 @@ import { useWatchRoom } from '../lib/watch/use-watch-room';
 import { webTrackNow } from '../lib/web/web-track-lookup';
 import { useAuth } from './AuthProvider';
 import { useMusicPlayer, type MusicPlayerValue } from './MusicPlayerProvider';
+import { useOwnBarVolume } from '../lib/watch/use-own-bar-volume';
 
 /**
  * The keeper of your own room (SPEC-rooms-queues.md; it was the music room's keeper, SPEC-music-queues.md). Draws nothing.
@@ -93,6 +94,8 @@ export default function MusicRoomKeeper() {
     label.current = user?.displayName ?? '';
     now.current = player;
   });
+  // The bar's volume follows your other devices while their bars play your room (Luke, 2026-11-27: "Yes, it follows").
+  useOwnBarVolume(identity !== null && identity !== 'visitor' ? identity : null, own.visitor ? null : own.roomId, player.volume, player.setVolume, player.room === null || player.room.roomId === own.roomId);
 
   /* --- the session: one per person ------------------------------------------------------------------ */
 
