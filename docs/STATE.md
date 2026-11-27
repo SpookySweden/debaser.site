@@ -24,11 +24,13 @@ working sessions' status notes.
 
 ## Sessions now
 One coordinator, the only main session (top level, pinned; the first coordinator and PC setup archived 2026-11-27 at
-Luke's word). Its notes: `coordinator-notes.md` in the group's notes folder (`docs/sessions.md`). On 2026-11-27, under it:
-BROWSER continued (review of six unreviewed commits, hover words, IMPROVE; hand-over `browser-build-handover.md`),
-EXPLAIN-PROFILE (hover words in profile and settings; the rest by fresh sessions, one area at a time), and the room
-builder: the FULL key (ccb030a), your own devices' volume following in a room (05f4f90) and `[ DEVICES ]` (2c51b18,
-`SPEC-room-devices.md`), all live. Room sync, the context system and the first EXPLAIN and BROWSER sessions are done and archived.
+Luke's word). Its notes: `coordinator-notes.md` in the group's notes folder (`docs/sessions.md`). Working under it since the
+evening of 2026-11-27, each in its own worktree: BROWSER-FIREFOX (the Firefox trial, then the bookmarks-bar key; hand-over
+`browser-build-handover.md`), EXPLAIN-READER (hover words in the reader; `explain-handover.md`) and TRACK-VERSION-PAUSE (a
+profile track's version-history key that says "pause" really pauses). Done, live and archived that day: the room builder (the
+FULL key ccb030a, your own devices' volume 05f4f90, `[ DEVICES ]` 2c51b18), EXPLAIN for profile, settings and the forum, BROWSER's
+review fixes and easy-install items 1 and 2, room sync and the context system. The gaming PC's heavy lane is switched off
+(`remote-lane.off`) at Luke's word while League is playing: every heavy step stays on SERVER until he says it is done.
 
 ## Half-done
 - EXPLAIN: hover words on every key, shown only while `[ EXPLAIN ]` (PREFERENCES, off by default) is on; top bar, side
