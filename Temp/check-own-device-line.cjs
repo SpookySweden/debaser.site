@@ -53,6 +53,18 @@ function join(client, topic, heard) {
     assert.equal(heardA2.length, 1, 'A\'s second connection heard the first');
     console.log('  ok    two connections of TEST ACCOUNT A joined account:<A> and heard each other');
 
+    // [ DEVICES ] (SPEC-room-devices.md): its three words cross the same line whole.
+    const way = { mode: 'follows-me', keeper: null, at: 1 };
+    const devicesWords = [
+      { kind: 'hello', roomId: 'own-line-check', from: 'check-device-1', key: 'check-key', name: 'CHECK ONE', modes: { 'check-device-2': way }, held: false, answer: false },
+      { kind: 'pair', roomId: 'own-line-check', from: 'check-device-1', to: 'check-device-2', ...way },
+      { kind: 'mute-device', roomId: 'own-line-check', from: 'check-device-1', to: 'check-device-2', on: true },
+    ];
+    for (const word of devicesWords) await joinA1.channel.send({ type: 'broadcast', event: 'own', payload: word });
+    for (let tick = 0; tick < 20 && heardA2.length < 1 + devicesWords.length; tick += 1) await sleep(250);
+    for (const word of devicesWords) assert.deepEqual(heardA2.find((payload) => payload.kind === word.kind), word, `A's second connection heard ${word.kind} whole`);
+    console.log('  ok    DEVICES\' hello, pair and mute-device crossed A\'s line whole');
+
     const intruder = await join(b.client, topic, heardB);
     assert.notEqual(intruder.status, 'SUBSCRIBED', 'B may not join A\'s line');
     console.log(`  ok    TEST ACCOUNT B could not join A's line (${intruder.status})`);
