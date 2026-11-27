@@ -27,7 +27,8 @@ One coordinator, the only main session (top level, pinned; the first coordinator
 Luke's word). Its notes: `coordinator-notes.md` in the group's notes folder (`docs/sessions.md`). On 2026-11-27, under it:
 BROWSER continued (review of six unreviewed commits, hover words, IMPROVE; hand-over `browser-build-handover.md`),
 EXPLAIN-PROFILE (hover words in profile and settings; the rest by fresh sessions, one area at a time), and the room
-FULLSCREEN key fix. Room sync, the context system and the first EXPLAIN and BROWSER sessions are done and archived.
+builder: the FULL key (ccb030a), your own devices' volume following in a room (05f4f90) and `[ DEVICES ]` (2c51b18,
+`SPEC-room-devices.md`), all live. Room sync, the context system and the first EXPLAIN and BROWSER sessions are done and archived.
 
 ## Half-done
 - EXPLAIN: hover words on every key, shown only while `[ EXPLAIN ]` (PREFERENCES, off by default) is on; top bar, side
@@ -62,6 +63,6 @@ FULLSCREEN key fix. Room sync, the context system and the first EXPLAIN and BROW
 
 ## Known red checks
 - `check-hidden-accounts` (the house account, Luke's choice).
-- The whole suite on SERVER, 2026-11-27: 261/264, then the two that were the coordinator's own change fixed (check-backdrops,
+- The whole suite on SERVER, 2026-11-27 (475d48d): 268/269, only `check-hidden-accounts`. Earlier that day: 261/264, then the two that were the coordinator's own change fixed (check-backdrops,
   check-build-trace); the live-database checks that were red after the move pass since 2026-11-22 (vault locks re-made,
   Edge fallback, check-auth-at-once reads the site's own address).
