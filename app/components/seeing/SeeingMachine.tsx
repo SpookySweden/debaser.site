@@ -181,17 +181,21 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
   // A page opened by a press here goes to OWN EYE; one that was only open when the page loaded waits for a press.
   const pressed = useRef<string | null>(null);
   const elsewhere = ownFirst && extension === 'current' && !here.includes(key);
+  // What the extension says matters only while OWN EYE is the choice: with the server's eye, its answer coming late asks for nothing again.
+  const eyeGate = ownFirst ? extension : 'server';
   const now: Shown = elsewhere ? { key, state: 'elsewhere' } : held_;
 
   useEffect(() => {
     if (address === null) return;
     if (landed.current === key) return;
-    if (ownFirst && extension === 'asking') return;
+    if (eyeGate === 'asking') return;
     if (elsewhere) {
       if (pressed.current === address) void openInOwnEye(dialOf(address).address);
       pressed.current = null;
       return;
     }
+    // A press that went to the server's eye is spent: it opens nothing in OWN EYE later.
+    pressed.current = null;
     landed.current = '';
     const going = new AbortController();
     work.current = going;
@@ -234,7 +238,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
     return () => going.abort();
     // (The stop before is read as it was when this one was opened; it does not open the page again.)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address, key, tab.id, tab.at, turn, ownFirst, extension, elsewhere]);
+  }, [address, key, tab.id, tab.at, turn, eyeGate, elsewhere]);
 
   // A link that brought an address (`/browser#see=...`): put in the box of a new tab, waiting for GO. Any page anywhere can carry such a
   // link, so it never opens by itself, unless it is the page already in front, as it is after a reload.
@@ -492,11 +496,16 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
   useEffect(() => {
     if (!outside || extension !== 'current') return;
     let gone = false;
-    void ownEyeHas(address).then((answer) => {
-      if (!gone && answer !== null) setListed({ address, ...answer });
-    });
+    const askIt = () =>
+      void ownEyeHas(address).then((answer) => {
+        if (!gone && answer !== null) setListed({ address, ...answer });
+      });
+    askIt();
+    // Added in OWN EYE's own tab: asked again on coming back.
+    window.addEventListener('focus', askIt);
     return () => {
       gone = true;
+      window.removeEventListener('focus', askIt);
     };
   }, [outside, extension, address]);
   const onList = listed !== null && listed.address === address ? listed : null;

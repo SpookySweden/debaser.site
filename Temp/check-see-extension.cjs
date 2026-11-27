@@ -44,8 +44,8 @@ for (const file of files) {
 const worker = read('worker.js');
 assert.deepEqual([...worker.matchAll(/message\.see === '(\w+)'/g)].map((each) => each[1]).slice(0, 8), ['ping', 'theme', 'open', 'has', 'settings', 'sites', 'newest', 'reload']);
 // (2026-11-27) `has`: whether the one page it is asked about is on the list, and no more than a few sites asked about: never the list.
-assert.ok(worker.includes('if (read === null || asked.size >= ASKED_MOST) return answer({ on: null });'), 'about one page, and only a few sites');
-assert.ok(worker.includes('void isAllowed(read).then((on) => answer({ on, site }));'), 'whether it is on the list, and nothing else');
+assert.ok(worker.includes('void mayAsk(site).then(async (may) => answer(may ? { on: await isAllowed(read), site } : { on: null }));'), 'whether the one page is on the list, and nothing else');
+assert.ok(/if \(asked\.sites\.length >= ASKED_MOST\) return false;/.test(worker) && /chrome\.storage\.session\.set\(\{ asked \}\)/.test(worker), 'a few sites an hour, counted while the browser is open, not while the worker is awake');
 const external = worker.slice(worker.indexOf('onMessageExternal'), worker.indexOf('chrome.runtime.onMessage.addListener'));
 assert.ok(!/allowedSites|chrome\.tabs\.query|chrome\.permissions|\bpages?\b.*answer/.test(external), 'the site is never told a site or a page');
 // Its whole contents, whatever the machine does with line ends.

@@ -172,7 +172,8 @@ const STORY = `<title>Shop</title><nav>menu</nav><article><h1>The shop</h1>${'<p
     ok((await say({ see: 'has', address: 'https://www.youtube.com/watch?v=x' }))?.on === false, 'and hears no for one that is not');
     ok((await say({ see: 'has', address: 'javascript:alert(1)' }))?.on === null, 'and nothing for what is no page');
     for (let i = 0; i < 40; i += 1) await say({ see: 'has', address: `https://s${i}.example/` });
-    ok((await say({ see: 'has', address: 'http://www.shoptrial.test/b' }))?.on === null, 'nor for more than a few sites, so the list can not be gone through');
+    ok((await say({ see: 'has', address: 'https://fresh.example/' }))?.on === null, 'nor for more than a few sites an hour, so the list can not be gone through');
+    ok((await say({ see: 'has', address: 'http://www.shoptrial.test/b' }))?.on === true, 'though one already asked about still is');
 
     // The panel.
     await page.goto(`chrome-extension://${id}/panel.html`);

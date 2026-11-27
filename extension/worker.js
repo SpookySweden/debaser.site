@@ -90,9 +90,23 @@ export function themeFrom(value) {
   return Object.values(theme).every((each) => each !== null) ? theme : null;
 }
 
-/** The sites the site has asked about since the worker woke: it may ask about the pages it shows, and not go through a list. */
-const asked = new Set();
+/**
+ * The sites the site has asked about this hour, kept while the browser is open (the worker sleeps): it may ask about the pages it shows, and not go
+ * through a list.
+ */
 const ASKED_MOST = 40;
+const HOUR_MS = 3_600_000;
+async function mayAsk(site) {
+  const kept = (await chrome.storage.session.get('asked')).asked;
+  const now = Date.now();
+  const asked = kept && now - kept.since < HOUR_MS ? kept : { since: now, sites: [] };
+  if (!asked.sites.includes(site)) {
+    if (asked.sites.length >= ASKED_MOST) return false;
+    asked.sites.push(site);
+  }
+  await chrome.storage.session.set({ asked });
+  return true;
+}
 
 // Only debaser.site can speak to it (`externally_connectable`), and only to say these things. It answers with its version and its two settings,
 // never with a site the reader has added or a page they looked at.
@@ -110,10 +124,9 @@ chrome.runtime.onMessageExternal.addListener((message, sender, answer) => {
   } else if (message.see === 'has' && typeof message.address === 'string') {
     // About the one page it is asked of, and a few at most: the site is never told the list.
     const read = readAddress(message.address);
-    if (read === null || asked.size >= ASKED_MOST) return answer({ on: null });
+    if (read === null) return answer({ on: null });
     const site = siteOf(new URL(read).hostname);
-    asked.add(site);
-    void isAllowed(read).then((on) => answer({ on, site }));
+    void mayAsk(site).then(async (may) => answer(may ? { on: await isAllowed(read), site } : { on: null }));
     return true;
   } else if (message.see === 'settings') {
     const given = settingsFrom(message.settings);

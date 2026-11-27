@@ -61,7 +61,7 @@ export const folderCanBePicked = (): boolean => typeof window !== 'undefined' &&
 
 async function listNow(): Promise<ExtensionList | null> {
   try {
-    const response = await fetch('/api/extension/list', { cache: 'no-store' });
+    const response = await fetch('/api/extension/list', { cache: 'no-store', signal: AbortSignal.timeout(3000) });
     return response.ok ? listFrom(await response.json()) : null;
   } catch {
     return null;
