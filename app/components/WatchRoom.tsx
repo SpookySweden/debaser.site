@@ -165,6 +165,7 @@ import SongCoverCard from './SongCoverCard';
 import SpeechAudioKey from './SpeechAudioKey';
 import { noteHistory } from '../lib/recommender/history';
 import { useCompanionScene } from '../lib/companion/use-companion-scene';
+import { explain, NOTE } from '../lib/ui/explain';
 
 /** One per tab: two tabs of one account are two members of a room. */
 function newTabKey(): string {
@@ -1554,6 +1555,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
         className={`${PLATE_ON_BLACK} shrink-0`}
         aria-label="Play: starts this player again from the top for everyone, together"
         title="Starts everyone's player from the top, together"
+        {...explain('Starts this player again from the top for everyone in the room, together.', 'For a player the site can\'t steer itself: it gets everyone back in step.')}
         onClick={playServerForAll}
         data-server-play
       >
@@ -1564,6 +1566,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
         type="button"
         className={`${PLATE_ON_BLACK} shrink-0`}
         aria-label={clock.paused ? 'Play' : 'Pause'}
+        {...explain(clock.paused ? 'Plays the video from where it is.' : 'Pauses the video where it is.', 'In a room you host, everyone watching along moves with you.')}
         onClick={() => {
           const video = videoRef.current;
           if (video === null) return;
@@ -1623,6 +1626,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
         disabled={nothingBefore}
         aria-label="Back to what played before"
         title={nothingBefore ? 'Nothing played before' : 'Back'}
+        {...explain('Goes back to what played before this.', 'In a room you host, everyone watching along moves with you.')}
         onClick={goBack}
         data-room-back
       >
@@ -1634,6 +1638,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
         disabled={waiting.length === 0 && !pictureOn}
         aria-label="Skip to the next video"
         title={waiting.length === 0 && !pictureOn ? 'Nothing queued' : 'Skip'}
+        {...explain('Skips to the next thing in the queue.', 'In a room you host, everyone watching along moves with you. Greyed out when nothing is queued.')}
         onClick={() => moveOn(true)}
       >
         [ ▶▶ ]
@@ -1644,6 +1649,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
         aria-pressed={player.roomLoop}
         aria-label="Loop what is on"
         title={player.roomLoop ? 'Looping: starts again when it ends' : 'Loop what is on'}
+        {...explain(player.roomLoop ? 'Stops repeating what is on.' : 'Repeats what is on: it starts again when it ends.', 'Filled while it repeats.')}
         onClick={() => player.setRoomLoop(!player.roomLoop)}
         data-room-loop={player.roomLoop ? 'on' : 'off'}
       >
@@ -1653,12 +1659,12 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   ) : null;
   const floatKey =
     link !== null && !archiveRead.waiting && (officialOn || isEmbedKind(link.kind)) && song === null ? (
-      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Picture in picture: floats over the site" title="Picture in picture: floats over the site" onClick={pictureFloats ? expandWatch : onFloatPicture} data-room-pip>
+      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Picture in picture: floats over the site" title="Picture in picture: floats over the site" {...explain('Floats the video over the site, so it keeps playing on other pages.', 'Drag it where you like. The room stays open behind it.')} onClick={pictureFloats ? expandWatch : onFloatPicture} data-room-pip>
         {`[ ${ROOM_PIP_MARK} ]`}
       </button>
     ) : null;
   const pipKey = canPip ? (
-    <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Picture in picture" title="Picture in picture" onClick={togglePip} data-room-pip>
+    <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Picture in picture" title="Picture in picture" onClick={togglePip} data-room-pip {...explain('Pops the video out into the browser\'s own little window, above your other apps.', 'To keep watching while you use another program.')}>
       {`[ ${ROOM_PIP_MARK} ]`}
     </button>
   ) : floatKey;
@@ -1670,6 +1676,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       className={`${PLATE_ON_BLACK} shrink-0`}
       aria-label={staged ? 'Leave fullscreen' : 'Fullscreen'}
       title={staged ? 'Leave full screen' : 'Full screen'}
+      {...explain(staged ? 'Leaves full screen, back to the window.' : 'Fills the screen with the room\'s picture.', 'Esc also leaves full screen. Only your screen changes.')}
       onClick={toggleFullscreen}
       data-room-full={staged ? 'leave' : 'enter'}
     >
@@ -1705,7 +1712,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   // own player): the way out is still on the bar (Luke, 2026-11-16: "the unfullscreen button is still visible").
   const exitKey =
     fullscreen && !(!officialOn && hasTransport && song === null) ? (
-      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Leave fullscreen" title="Leave full screen" onClick={toggleFullscreen} data-room-exit-full>
+      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Leave fullscreen" title="Leave full screen" onClick={toggleFullscreen} data-room-exit-full {...explain('Leaves full screen, back to the window.', 'Esc does the same.')}>
         {`[ ${ROOM_LEAVE_FULL_MARK} ]`}
       </button>
     ) : null;
@@ -1717,6 +1724,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     <button
       type="button"
       className={`${confirmEnd ? PLATE_ON_BLACK_PRESSED : PLATE_ON_BLACK} shrink-0`}
+      {...explain(confirmEnd ? 'Ends the stream for everybody, now.' : 'Ends the stream. The first press asks; the second ends it for everybody.', 'Everyone is sent out; the room\'s record stays on the forum. It may ask to save the canvas first.', "CAN'T BE UNDONE.")}
       onClick={() => {
         if (!confirmEnd) {
           setConfirmEnd(true);
@@ -1914,13 +1922,13 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
             <div className="flex shrink-0 flex-wrap items-center gap-2 bg-ink-plate px-2 py-1 text-label text-ink-bar">
               <span className="font-bold">PICTURE :: HELD</span>
               {mayNextPicture ? (
-                <button type="button" className={PLATE_ON_BLACK} onClick={nextFromPicture} aria-label="Next: take the picture off and start what is queued behind it" data-room-picture-next>
+                <button type="button" className={PLATE_ON_BLACK} onClick={nextFromPicture} aria-label="Next: take the picture off and start what is queued behind it" data-room-picture-next {...explain('Takes the picture off the screen and starts what is queued behind it.', 'A picture holds the screen until someone moves on.')}>
                   [ NEXT ► ]
                 </button>
               ) : live ? (
                 <span data-room-picture-waiting>WAITING FOR THE HOST</span>
               ) : null}
-              <button type="button" className={PLATE_ON_BLACK} onClick={() => setHiddenPicture(hiddenPicture === entryId ? null : entryId)} aria-pressed={hiddenPicture === entryId}>
+              <button type="button" className={PLATE_ON_BLACK} onClick={() => setHiddenPicture(hiddenPicture === entryId ? null : entryId)} aria-pressed={hiddenPicture === entryId} {...explain(hiddenPicture === entryId ? 'Shows the picture again.' : 'Hides this picture on your screen only.', 'Everyone else still sees it.')}>
                 {hiddenPicture === entryId ? '[ SHOW IT ]' : '[ HIDE ]'}
               </button>
             </div>
@@ -2043,7 +2051,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
               {offlineChannel === null && twitchPage !== null ? (
                 <>
                   {' '}
-                  <a href={twitchPage} target="_blank" rel="noopener noreferrer" className="pointer-events-auto underline" data-watch-twitch-page>
+                  <a href={twitchPage} target="_blank" rel="noopener noreferrer" className="pointer-events-auto underline" data-watch-twitch-page {...explain('Opens this channel on Twitch itself.', 'For when the stream will not play here.', NOTE.leaves)}>
                     [ WATCH ON TWITCH ↗ ]
                   </a>
                 </>
@@ -2061,7 +2069,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
               link !== null && isEmbedKind(link.kind) ? 'items-end pb-3' : 'items-center'
             }`}
           >
-            <button type="button" onClick={joinPlayback} className={`${JOIN_KEY} pointer-events-auto`} data-watch-join>
+            <button type="button" onClick={joinPlayback} className={`${JOIN_KEY} pointer-events-auto`} data-watch-join {...explain('Starts the room\'s video on your screen, in step with everyone else.', 'Browsers won\'t play sound until you press something; this is that press.')}>
               [ ▶ JOIN PLAYBACK ]
             </button>
           </div>
@@ -2149,7 +2157,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
               {playKey}
               {skipKey}
               {pictureKeys}
-              <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-haspopup="dialog" onClick={() => openQueue()} data-stream-bar-queue>
+              <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-haspopup="dialog" onClick={() => openQueue()} data-stream-bar-queue {...explain('Opens the room\'s queue: what plays next.', 'Search, add and see what is waiting. Who may add is set in the room settings.')}>
                 [ QUEUE ]
               </button>
               {endKey}
@@ -2167,12 +2175,12 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       <RoomSideGrip />
       {/* One key for the queue window, where everything is added and seen (Luke, 2026-11-02). */}
       <div className={TITLE_BAR}>
-        <button type="button" className={`${TITLE_BAR_BUTTON} max-sm:min-h-tap`} aria-haspopup="dialog" onClick={() => openQueue()} data-watch-queue-key>
+        <button type="button" className={`${TITLE_BAR_BUTTON} max-sm:min-h-tap`} aria-haspopup="dialog" onClick={() => openQueue()} data-watch-queue-key {...explain('Opens the room\'s queue: what plays next.', 'Search, add and see what is waiting. Who may add is set in the room settings.')}>
           [ QUEUE ]
         </button>
         {/* A signed-out visitor's own room has a cog too: its END ROOM, and LOG IN for going live. */}
         {(user !== null && mayEditRoom(room, read.crowns, user.id, live)) || (visitorRoom && mainRoomHost) ? (
-          <button type="button" className={`${TITLE_BAR_BUTTON} max-sm:min-h-tap`} aria-haspopup="dialog" aria-label="Room settings" title="Room settings" onClick={() => setSettingsOpen(true)} data-room-settings-key>
+          <button type="button" className={`${TITLE_BAR_BUTTON} max-sm:min-h-tap`} aria-haspopup="dialog" aria-label="Room settings" title="Room settings" {...explain('Opens the room settings: its name, topic, who can join, who can add, and more.', 'Only the host and people they crowned have this key.')} onClick={() => setSettingsOpen(true)} data-room-settings-key>
             [ {ROOM_COG} ]
           </button>
         ) : null}
@@ -2193,7 +2201,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
           <p className="text-key font-bold">JUST YOU HERE</p>
           <p>This room is kept in this browser. Nobody else can see it or join it.</p>
           <p className="mt-1">
-            <Link href="/account" className={PLATE_LINK}>
+            <Link href="/account" className={PLATE_LINK} {...explain('Goes to the ACCOUNT page to log in or make an account.', 'Signed in, your room can go live for other people to join and chat in.')}>
               [ LOG IN ]
             </Link>{' '}
             TO SHARE ITS LINK, CHAT WITH WHO JOINS, AND GO LIVE.
@@ -2247,7 +2255,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
         <p className="text-label font-bold text-ink" role="status">
           {music ? 'THIS ROOM IS CLOSED.' : room.endedAt === null ? 'THIS STREAM WENT QUIET.' : 'STREAM ENDED.'}{' '}
           {room.forumThreadId === null ? null : (
-            <Link href={`/forum#${threadDomId(room.forumThreadId)}`} className="key px-1 py-1 text-label">
+            <Link href={`/forum#${threadDomId(room.forumThreadId)}`} className="key px-1 py-1 text-label" {...explain('Goes to this room\'s record on the forum.', 'What played and what was said, kept after the room ends.')}>
               [ READ THE RECORD ]
             </Link>
           )}
@@ -2258,14 +2266,14 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
         <div className="flex flex-wrap items-center gap-2" role="alertdialog" aria-label="Leave the stream">
           <span className="text-label font-bold text-ink">{heir !== null ? `LEAVE? ${heir.name.toUpperCase()} WILL HOST.` : 'NOBODY ELSE IS HERE. END THE STREAM?'}</span>
           {heir !== null ? (
-            <button type="button" disabled={leaving} className={PLATE} onClick={() => void leave('handover')}>
+            <button type="button" disabled={leaving} className={PLATE} {...explain('Leaves the stream and hands it on: someone else becomes the host and it carries on.', 'The room keeps going without you.')} onClick={() => void leave('handover')}>
               [ LEAVE ]
             </button>
           ) : null}
-          <button type="button" disabled={leaving} className={PLATE} onClick={() => void leave('end')}>
+          <button type="button" disabled={leaving} className={PLATE} {...explain('Ends the stream for everybody as you leave.', 'Everyone is sent out; the record stays on the forum.', "CAN'T BE UNDONE.")} onClick={() => void leave('end')}>
             [ END STREAM ]
           </button>
-          <button type="button" disabled={leaving} className={PLATE} onClick={onStay}>
+          <button type="button" disabled={leaving} className={PLATE} {...explain('Stays in the stream: nothing changes.', 'Closes this question.')} onClick={onStay}>
             [ STAY ]
           </button>
         </div>
@@ -2455,7 +2463,7 @@ function ChatPanel({
       ) : null}
       {!live ? null : identity?.kind !== 'account' && read.room.guestsCanTalk === false ? (
         <p className="text-label font-bold text-ink" data-watch-guests-quiet>
-          <Link href="/account" className="key px-1 py-1 text-label">
+          <Link href="/account" className="key px-1 py-1 text-label" {...explain('Goes to the ACCOUNT page to log in or make an account.', 'In this room, guests may only watch; an account can talk.')}>
             [ LOG IN ]
           </Link>{' '}
           TO TALK. GUESTS WATCH ONLY IN THIS ROOM.
@@ -2516,11 +2524,12 @@ function ChatPanel({
                   className={shelf !== null ? PLATE_PRESSED : PLATE}
                   aria-pressed={shelf !== null}
                   aria-label="Emotes, GIFs and images"
+                  {...explain('Opens emotes, GIFs, stickers and pictures to send in the chat.', 'Pick one and it is sent to the room\'s chat.')}
                   onClick={() => setShelf((open) => (open !== null ? null : identity?.kind === 'account' ? 'gif' : 'emote'))}
                 >
                   GIF
                 </button>
-                <button type="submit" disabled={busy || draft.trim().length === 0} className={PLATE} aria-label="Send" title="Send" data-watch-send>
+                <button type="submit" disabled={busy || draft.trim().length === 0} className={PLATE} aria-label="Send" title="Send" data-watch-send {...explain('Sends your message to the room\'s chat.', 'Enter does the same.', NOTE.others)}>
                   <ArtMark src={SEND_MARK_SRC} size={SEND_MARK_SIZE} fallback={<span className="text-title leading-none">➤</span>} />
                 </button>
               </span>
@@ -2605,6 +2614,7 @@ function ChatShelf({
             type="button"
             className={entry.tab === tab ? PLATE_PRESSED : PLATE}
             aria-pressed={entry.tab === tab}
+            {...explain(`Shows the ${entry.label.toLowerCase()} to send.`, 'Search for one with the box below.')}
             onClick={() => {
               onTab(entry.tab);
               if (entry.tab !== 'emote' && words.trim().length > 0) void search(entry.tab, words);
@@ -2623,7 +2633,7 @@ function ChatShelf({
               <ul className="mt-1 flex flex-wrap gap-1">
                 {group.emoticons.map((emoticon) => (
                   <li key={emoticon.text}>
-                    <button type="button" onClick={() => onEmote(emoticon.text)} className={`${PLATE} font-mono`} title={emoticon.about}>
+                    <button type="button" onClick={() => onEmote(emoticon.text)} className={`${PLATE} font-mono`} title={emoticon.about} {...explain(`Sends ${emoticon.text} to the chat.`, emoticon.about, NOTE.others)}>
                       {emoticon.text}
                     </button>
                   </li>
@@ -2654,7 +2664,7 @@ function ChatShelf({
               autoFocus
               className={`${FIELD_TIGHT} min-w-0 flex-1`}
             />
-            <button type="submit" className={PLATE} disabled={words.trim().length === 0 || state.kind === 'searching'}>
+            <button type="submit" className={PLATE} disabled={words.trim().length === 0 || state.kind === 'searching'} {...explain('Searches for what you typed.', 'The results show below; press one to send it.')}>
               [ FIND ]
             </button>
           </form>
@@ -2679,6 +2689,7 @@ function ChatShelf({
                         className={`block aspect-square w-full cursor-pointer overflow-hidden border border-ink bg-paper ${KEY_FOCUS} ${canvasOpen ? 'touch-none animate-wiggle hover:animate-none focus-visible:animate-none' : ''}`}
                         title={result.title}
                         aria-label={`Send ${result.title || 'this picture'}`}
+                        {...explain('Sends this to the room\'s chat.', canvasOpen ? 'Or drag it onto the canvas.' : 'Everyone in the room sees it.', NOTE.others)}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element -- hotlinked from GIPHY or Commons, never proxied or copied */}
                         <img src={result.thumb} alt="" loading="lazy" draggable={false} referrerPolicy="no-referrer" className="h-full w-full object-cover" />

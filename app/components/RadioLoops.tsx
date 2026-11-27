@@ -19,6 +19,7 @@ import { lengthSeconds, trackContext } from '../lib/audio/track-context';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import LoopPopout from './LoopPopout';
 import TrackDetails from './TrackDetails';
+import { explain } from '../lib/ui/explain';
 
 /**
  * RADI-OH: everything you have been listening to lately, as **faces you press to jump back in**.
@@ -88,6 +89,7 @@ export default function RadioLoops() {
               type="button"
               onClick={clearAllLoops}
               className="shrink-0 cursor-pointer key px-1 py-1 text-label font-bold max-sm:min-h-tap"
+              {...explain('Takes every loop off RADI-OH.', 'The tracks themselves stay on the shelf.', "CAN'T BE UNDONE.")}
             >
               [ CLEAR ALL ]
             </button>
@@ -211,6 +213,7 @@ function LoopIcon({
       <button
         type="button"
         onClick={onOpen}
+        {...explain('Opens this loop: the track and the place you were in it.', 'RADI-OH keeps the things you played lately, to go back to.')}
         onFocus={(event) => {
           // The keyboard's own pointing: a click also focuses, so only a visible focus counts, or a
           // mouse press would leave the face perked up after the pointer had gone (CLAUDE.md).
@@ -254,6 +257,7 @@ function LoopIcon({
         onFocus={() => setOverX(true)}
         onBlur={() => setOverX(false)}
         aria-label={`Remove ${label}`}
+        {...explain('Takes this loop off RADI-OH.', 'The track itself stays on the shelf.')}
         className={`absolute -right-3 top-[5px] flex h-4 w-4 cursor-pointer items-center justify-center rounded-none border border-ink-plate bg-bubble-pale text-label font-bold leading-none text-ink-bar hover:bg-bubble hover:text-ink-plate focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble motion-reduce:transition-none ${
           overX ? 'origin-bottom-left translate-x-1 -translate-y-1 scale-150' : ''
         }`}

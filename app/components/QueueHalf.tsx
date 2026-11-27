@@ -10,6 +10,7 @@ import { useAuth } from './AuthProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import type { Half } from './SplitKey';
 import { useRoomKey } from './WatchInRoomKey';
+import { explain } from '../lib/ui/explain';
 
 /**
  * **The second half of MEDIA's PLAY key, in one place** (Luke's list, 2026-11-14, M6; his ROOMS answer 7A: "MEDIA's key
@@ -66,6 +67,7 @@ export function useQueueHalf({
     return {
       words: roomKey.words === 'ADD TO ROOM' ? '+ QUEUE' : roomKey.words,
       label: `Add "${title}" to the queue of the room you are in`,
+      explain: { what: 'Adds this to the queue of the room you are in.', why: 'It plays after what is already waiting there.', note: 'OTHERS IN THE ROOM SEE IT.' },
       press: roomKey.press,
       disabled: roomKey.disabled,
       data: `room-${roomKey.data}`,
@@ -91,6 +93,7 @@ export function useQueueHalf({
     return {
       words: state === 'busy' ? '… ADDING' : state === 'queued' ? '✓ QUEUED' : '+ QUEUE',
       label: `Add "${title}" to the music player's up next`,
+      explain: { what: 'Adds this to UP NEXT in the music player.', why: 'It plays after everything already waiting.' },
       press: () => void queue(),
       disabled: state === 'busy',
       busy: state === 'busy',
@@ -123,6 +126,7 @@ export function useQueueHalf({
     return {
       words: state === 'busy' ? '… ADDING' : state === 'queued' ? '✓ QUEUED' : '+ QUEUE',
       label: `Add "${title}" to your queue`,
+      explain: { what: 'Adds this to your queue.', why: 'It plays in your room after everything already waiting.' },
       press: () => void queue(),
       disabled: state === 'busy',
       busy: state === 'busy',

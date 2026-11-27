@@ -5,6 +5,7 @@ import { PLATE_ON_BLACK } from '../lib/ui/controls';
 import { floatingClock, orderFloating, subscribeToFloatingClock, togglePlayerFullscreen } from '../lib/ui/floating-player';
 import { formatMediaTime } from '../lib/watch/rules';
 import { SpeakerKey } from './StreamBarKeys';
+import { explain } from '../lib/ui/explain';
 
 const noClock = () => null;
 
@@ -46,7 +47,7 @@ export default function FloatingStageBar({ play }: { play: number }) {
       data-floating-stage-bar=""
       data-backdrop-solid=""
     >
-      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label={paused ? 'Play' : 'Pause'} onClick={() => orderFloating(paused ? 'play' : 'pause')} data-stage-play={paused ? 'paused' : 'playing'}>
+      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label={paused ? 'Play' : 'Pause'} {...explain(paused ? 'Plays the video from where it is.' : 'Pauses the video where it is.', 'In a room you host, everyone watching along moves with you.')} onClick={() => orderFloating(paused ? 'play' : 'pause')} data-stage-play={paused ? 'paused' : 'playing'}>
         {paused ? '[ ▶ ]' : '[ ❚❚ ]'}
       </button>
       {duration > 0 ? (
@@ -64,7 +65,7 @@ export default function FloatingStageBar({ play }: { play: number }) {
         onMuted={(next) => setSoundAsked((was) => ({ play, volume: was !== null && was.play === play ? was.volume : volume, muted: next }))}
         onVolume={(next) => setSoundAsked((was) => ({ play, volume: next, muted: was !== null && was.play === play ? was.muted : muted }))}
       />
-      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Leave fullscreen" onClick={togglePlayerFullscreen}>
+      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Leave fullscreen" {...explain('Leaves fullscreen, back to the player\'s normal size.', 'Esc does the same.')} onClick={togglePlayerFullscreen}>
         [ EXIT ]
       </button>
     </div>

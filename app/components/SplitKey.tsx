@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { KEY_FOCUS, PLATE, PLATE_PRESSED } from '../lib/ui/controls';
+import { explainFrom, type Explanation } from '../lib/ui/explain';
 
 /**
  * **One key, two halves** (Luke's list, 2026-11-14: M6 "play/ watch in room, two halves of the same button", M9 "another
@@ -34,6 +35,8 @@ export type Half = {
   busy?: boolean;
   /** A hook for the checks and drives: `data-split-half`. */
   data?: string;
+  /** What the half explains on hover while EXPLAIN is on (`../lib/ui/explain.ts`). A half drawn by `draw` carries its own. */
+  explain?: Explanation;
   /** Draws the half itself: a key component with a window of its own. */
   draw?: (className: string, text: string) => ReactNode;
   /** What follows the key: a status line, a window. */
@@ -63,6 +66,7 @@ function drawHalf(half: Half, className: string, text: string): ReactNode {
       aria-busy={half.busy}
       className={className}
       data-split-half={half.data}
+      {...(half.explain === undefined ? {} : explainFrom(half.explain))}
     >
       {text}
     </button>

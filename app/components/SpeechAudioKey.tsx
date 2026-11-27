@@ -4,6 +4,7 @@ import { useEffect, useSyncExternalStore } from 'react';
 import { recallSpeechSound, setSpeechSound, setSpeechVolume, speechSoundOn, subscribeToSpeechSound } from '../lib/speech/blip';
 import { PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED } from '../lib/ui/controls';
 import { useMusicPlayer } from './MusicPlayerProvider';
+import { explain } from '../lib/ui/explain';
 
 const offOnServer = () => false;
 
@@ -38,6 +39,7 @@ export default function SpeechAudioKey() {
       aria-label="Character voices"
       title={on ? 'Voices on: press to stop them' : 'Voices off: press to hear them talk'}
       data-speech-audio={on ? 'on' : 'off'}
+      {...explain(on ? 'Turns the characters\' voices off.' : 'Turns the characters\' voices on, so you hear them talk.', 'The little sounds the characters make when they speak. Only on your device.')}
       className={on ? `${PLATE_ON_BLACK_PRESSED} cursor-pointer` : PLATE_ON_BLACK}
     >
       {/* A symbol only (Luke, 2026-11-16): the note, struck through while the voices are off; filled while they are on.

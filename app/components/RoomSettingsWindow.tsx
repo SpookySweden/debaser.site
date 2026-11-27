@@ -11,6 +11,7 @@ import { applyLocalChange } from '../lib/watch/use-watch-room';
 import { joinHref, watchHref } from '../lib/watch/watch-window';
 import PopoutWindow from './PopoutWindow';
 import RoomPrivacyPicker from './RoomPrivacyPicker';
+import { explain, NOTE } from '../lib/ui/explain';
 
 const ADD_MODES: readonly { value: RoomAddMode; label: string }[] = [
   { value: 'anyone', label: 'ANYONE' },
@@ -259,6 +260,7 @@ export default function RoomSettingsWindow({
                 role="radio"
                 aria-checked={addMode === mode.value}
                 className={addMode === mode.value ? PLATE_PRESSED : PLATE}
+                {...explain(mode.value === 'anyone' ? 'Lets anyone in the room add to its queue.' : 'Lets only the host and people they crowned add to the queue.', 'WHO CAN ADD. It takes effect when you press SAVE.')}
                 onClick={() => {
                   setAddDraft(mode.value);
                   setState({ kind: 'idle' });
@@ -270,11 +272,11 @@ export default function RoomSettingsWindow({
             ))}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <button type="submit" className={PLATE} disabled={!unsaved || state.kind === 'saving'} data-room-save>
+            <button type="submit" className={PLATE} disabled={!unsaved || state.kind === 'saving'} data-room-save {...explain('Saves the room\'s name, topic and who can add.', 'Everyone in the room sees the new name and topic.', NOTE.others)}>
               {state.kind === 'saving' ? '[ SAVING... ]' : '[ SAVE ]'}
             </button>
             {state.kind === 'asking' ? (
-              <button type="button" className={PLATE} onClick={onClose} data-room-discard>
+              <button type="button" className={PLATE} onClick={onClose} data-room-discard {...explain('Closes the settings and throws away what you changed.', 'Nothing you typed here is saved.', "CAN'T BE UNDONE.")}>
                 [ CLOSE WITHOUT SAVING ]
               </button>
             ) : null}
@@ -317,6 +319,7 @@ export default function RoomSettingsWindow({
                 className={PLATE}
                 disabled={passwordMissing || privacyState.kind === 'saving' || (!privacyChanged && passwordDraft.length === 0)}
                 data-room-privacy-save
+                {...explain(privacyChanged ? `Makes the room ${roomPrivacyLabel(privacy)}.` : 'Changes the room\'s password to the one you typed.', 'Who can come in. People already in the room stay.')}
               >
                 {privacyChanged ? `[ MAKE IT ${roomPrivacyLabel(privacy)} ]` : '[ CHANGE PASSWORD ]'}
               </button>
@@ -337,10 +340,10 @@ export default function RoomSettingsWindow({
         {/* No chat in an own room, so nothing for a guest to be let talk in. */}
         <div className={own ? 'hidden' : 'flex flex-wrap items-center gap-2'} data-room-guests-talk={room.guestsCanTalk === false ? 'off' : 'on'}>
           <span className="font-bold">GUESTS CAN TALK:</span>
-          <button type="button" className={room.guestsCanTalk === false ? PLATE : PLATE_PRESSED} aria-pressed={room.guestsCanTalk !== false} onClick={() => void setGuestsCanTalk(true)}>
+          <button type="button" className={room.guestsCanTalk === false ? PLATE : PLATE_PRESSED} aria-pressed={room.guestsCanTalk !== false} {...explain('Lets guests (people not signed in) talk in the chat.', 'Saved at once.')} onClick={() => void setGuestsCanTalk(true)}>
             [ YES ]
           </button>
-          <button type="button" className={room.guestsCanTalk === false ? PLATE_PRESSED : PLATE} aria-pressed={room.guestsCanTalk === false} onClick={() => void setGuestsCanTalk(false)}>
+          <button type="button" className={room.guestsCanTalk === false ? PLATE_PRESSED : PLATE} aria-pressed={room.guestsCanTalk === false} {...explain('Lets guests (people not signed in) only watch, not talk.', 'Saved at once.')} onClick={() => void setGuestsCanTalk(false)}>
             [ NO, THEY WATCH ]
           </button>
           {guestsFault === null ? null : <span className="w-fit bg-bubble-pale px-1 font-bold text-ink-bar" role="alert">{guestsFault}</span>}
@@ -350,10 +353,10 @@ export default function RoomSettingsWindow({
             leave the DISCUSS pages of what played, past ones too. Not in an own room, which has no chat. */}
         <div className={own || !isHost ? 'hidden' : 'flex flex-wrap items-center gap-2'} data-room-chat-on-discuss={room.chatOnDiscuss === false ? 'off' : 'on'}>
           <span className="font-bold">CHAT ON DISCUSSION:</span>
-          <button type="button" className={room.chatOnDiscuss === false ? PLATE : PLATE_PRESSED} aria-pressed={room.chatOnDiscuss !== false} onClick={() => void setChatOnDiscuss(true)}>
+          <button type="button" className={room.chatOnDiscuss === false ? PLATE : PLATE_PRESSED} aria-pressed={room.chatOnDiscuss !== false} {...explain('Shows this room\'s chat on the DISCUSS pages of what played.', 'So talk about a video stays with it. Saved at once.', NOTE.others)} onClick={() => void setChatOnDiscuss(true)}>
             [ ON ]
           </button>
-          <button type="button" className={room.chatOnDiscuss === false ? PLATE_PRESSED : PLATE} aria-pressed={room.chatOnDiscuss === false} onClick={() => void setChatOnDiscuss(false)}>
+          <button type="button" className={room.chatOnDiscuss === false ? PLATE_PRESSED : PLATE} aria-pressed={room.chatOnDiscuss === false} {...explain('Takes this room\'s chat off the DISCUSS pages of what played, past ones too.', 'Saved at once.')} onClick={() => void setChatOnDiscuss(false)}>
             [ OFF ]
           </button>
           {discussFault === null ? null : <span className="w-fit bg-bubble-pale px-1 font-bold text-ink-bar" role="alert">{discussFault}</span>}
@@ -371,7 +374,7 @@ export default function RoomSettingsWindow({
                   ) : person.removedAt !== null ? (
                     <span className="text-ink-quiet">REMOVED</span>
                   ) : (
-                    <button type="button" className={`${PLATE} max-sm:min-h-tap`} onClick={() => void removePerson(person)} aria-label={`Remove ${person.label}`} data-room-remove={person.userId}>
+                    <button type="button" className={`${PLATE} max-sm:min-h-tap`} onClick={() => void removePerson(person)} aria-label={`Remove ${person.label}`} {...explain(`Removes ${person.label} from the room.`, 'They are sent out of the room.', NOTE.others)} data-room-remove={person.userId}>
                       [ REMOVE ]
                     </button>
                   )}
@@ -385,22 +388,22 @@ export default function RoomSettingsWindow({
         {/* Somebody else's own room: its link is its owner's to hand out, so a joiner has no key for it here. */}
         <div className={own && !isHost ? 'hidden' : 'flex flex-wrap items-center gap-2'}>
           <span className="font-bold">ROOM LINK:</span>
-          <button type="button" className={PLATE} onClick={() => void copyLink()} data-room-copy-link>
+          <button type="button" className={PLATE} onClick={() => void copyLink()} data-room-copy-link {...explain('Copies the room\'s link, to send to people you want to let in.', 'Anyone with the link can come in, as the room\'s privacy allows.')}>
             {copied === 'copied' ? '[ COPIED ]' : copied === 'failed' ? '[ COULD NOT COPY ]' : '[ COPY LINK ]'}
           </button>
           {/* Beside COPY LINK (Luke, 2026-11-14): its owner's alone, and one more press with the consequence said first. */}
           {own && isHost ? (
             refresh.kind === 'asking' || refresh.kind === 'working' ? (
               <>
-                <button type="button" className={PLATE} disabled={refresh.kind === 'working'} onClick={() => void refreshLink()} data-room-refresh-link="confirm">
+                <button type="button" className={PLATE} disabled={refresh.kind === 'working'} onClick={() => void refreshLink()} data-room-refresh-link="confirm" {...explain('Makes a new room link now: the old one stops working.', 'Send the new link to the people you still want.', "CAN'T BE UNDONE: THE OLD LINK STOPS WORKING.")}>
                   {refresh.kind === 'working' ? '[ REFRESHING... ]' : '[ YES, REFRESH ]'}
                 </button>
-                <button type="button" className={PLATE} disabled={refresh.kind === 'working'} onClick={() => setRefresh({ kind: 'idle' })}>
+                <button type="button" className={PLATE} disabled={refresh.kind === 'working'} {...explain('Keeps the old link: nothing changes.', 'Closes this question.')} onClick={() => setRefresh({ kind: 'idle' })}>
                   [ NO ]
                 </button>
               </>
             ) : (
-              <button type="button" className={PLATE} onClick={() => setRefresh({ kind: 'asking' })} aria-expanded={false} data-room-refresh-link="ask">
+              <button type="button" className={PLATE} onClick={() => setRefresh({ kind: 'asking' })} aria-expanded={false} data-room-refresh-link="ask" {...explain('Makes a new room link, so the old one stops working. It asks first.', 'For when a link went to someone it shouldn\'t have.')}>
                 [ REFRESH LINK ]
               </button>
             )
@@ -424,6 +427,7 @@ export default function RoomSettingsWindow({
               aria-checked={choice.look === key.id}
               className={choice.look === key.id ? PLATE_PRESSED : PLATE}
               onClick={() => void saveLookChoice(userId, { look: key.id }).catch(() => undefined)}
+              {...explain(key.id === null ? 'Takes your look off your rooms.' : `Gives your rooms the ${key.label} look.`, 'YOUR LOOK: how rooms you host look to everyone in them. Saved at once.')}
               data-room-look={key.label}
             >
               {`[ ${key.label} ]`}

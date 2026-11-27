@@ -45,6 +45,7 @@ import MusicOptionsPrompt from './MusicOptionsPrompt';
 import PopoutWindow from './PopoutWindow';
 import SoundGraph, { TabListenKey } from './SoundGraph';
 import LoveBuzzOnArrival from './LoveBuzzOnArrival';
+import { explain } from '../lib/ui/explain';
 
 /**
  * The station: the site's player, pinned to the bottom of every page.
@@ -241,7 +242,7 @@ export default function MusicPlayer() {
           In a room it says STREAM with the TV mark and wiggles, as the bar's own TV key does. */}
       <span ref={tile} className={`fixed bottom-2 left-2 z-50 frame bg-sun-pale p-0.5 ${roomId !== null ? 'animate-wiggle hover:animate-none' : ''}`} data-companion-avoid>
         <BarrNotice anchor={tile} />
-        <button type="button" onClick={() => setBarOpen(true)} className={`${PLATE} inline-flex items-center gap-1`}>
+        <button type="button" onClick={() => setBarOpen(true)} className={`${PLATE} inline-flex items-center gap-1`} {...explain(streamOn ? 'Opens the bar again, showing the stream you are in.' : 'Opens the music bar again along the foot of the screen.', 'The bar was folded down to this tile. What is playing keeps playing either way.')}>
           {streamOn ? (
             <>
               [ <ArtMark src={TV_MARK_SRC} size={TV_MARK_SIZE} fallback="TV" /> STREAM ]
@@ -324,6 +325,7 @@ function PlayerName({ roomId, className }: { roomId: string | null; className: s
       className={`${PLATE_HARDWARE} ${WIGGLE}`}
       title="Back to the stream on this bar"
       aria-label="Show the stream on this bar"
+      {...explain('Swaps this bar back to the stream you are in.', 'The bar shows either your music player or a room\'s stream; this goes back to the stream.')}
       data-stream-bar-swap="music"
     >
       ♪ PLAYER
@@ -362,18 +364,19 @@ function StreamStrip({ roomId, onHide, onSettings }: { roomId: string; onHide: (
             className={`${PLATE_HARDWARE} ${WIGGLE}`}
             title="Show the music player on this bar"
             aria-label="Show the music player on this bar"
+            {...explain('Swaps this bar to your music player.', 'The stream keeps going in its room; the bar shows your own music instead. The ♪ PLAYER key swaps back.')}
             data-stream-bar-swap="stream"
           >
             <ArtMark src={TV_MARK_SRC} size={TV_MARK_SIZE} fallback="[ TV ]" />
           </button>
 
-          <button type="button" onClick={onHide} className={PLATE_HARDWARE}>
+          <button type="button" onClick={onHide} className={PLATE_HARDWARE} {...explain('Folds the bar down to a small tile in the corner.', 'For more room on screen. What is playing keeps playing; press the tile to have the bar back.')}>
             [ HIDE ]
           </button>
 
           {/* The player's options here too (ROOMBARS, Luke 2026-11-21: "in the settings cog at the bottom of the player bar"):
               while a room has the bar, its `[ KEYS IN THE PICTURE ]` is wanted most. */}
-          <button type="button" onClick={onSettings} className={PLATE_HARDWARE} aria-label="Player options" title="Player options" data-stream-bar-options>
+          <button type="button" onClick={onSettings} className={PLATE_HARDWARE} aria-label="Player options" title="Player options" data-stream-bar-options {...explain('Opens the player\'s options: how the bar looks and behaves, KEYS IN THE PICTURE for a room, and more.', 'Your choices are saved to your account.')}>
             [ ⚙ ]
           </button>
         </span>
@@ -423,7 +426,7 @@ function ScreenNow({ entry, paused, onNext }: { entry: FloatingEntry; paused: bo
       {picture ? (
         <>
           <span className="shrink-0 text-label font-bold text-ink-bar">HELD</span>
-          <button type="button" onClick={onNext} aria-label="Next: take the picture off and start what is queued behind it" className={`${PLATE_TAP} shrink-0`} data-bar-picture-next>
+          <button type="button" onClick={onNext} aria-label="Next: take the picture off and start what is queued behind it" className={`${PLATE_TAP} shrink-0`} data-bar-picture-next {...explain('Takes the picture off the screen and starts what is queued behind it.', 'A picture holds the screen until someone moves on.')}>
             [ NEXT ► ]
           </button>
         </>
@@ -455,6 +458,7 @@ function BarQueueKey() {
       aria-label={`${liveId === null ? 'Your queue' : "The live room's queue"}: ${waiting === 0 ? 'nothing waiting' : `${waiting} waiting`}`}
       className={open ? PLATE_PRESSED : PLATE_HARDWARE}
       data-bar-queue={waiting}
+      {...explain(open ? 'Closes the QUEUE window.' : liveId === null ? 'Opens your queue: what plays next in your room.' : 'Opens the live room\'s queue: what plays next there.', 'Search, add, reorder and take things out. The number is how many are waiting.')}
     >
       [ QUEUE{waiting > 0 ? ` ${waiting}` : ''} ]
     </button>
@@ -531,6 +535,7 @@ function PlayerSongKeys({ plate, side, anchor }: { plate: string; side: 'left' |
           aria-pressed={liked}
           className={plate}
           title={liked ? `Unlike ${song.title}` : `Like ${song.title}`}
+          {...explain(liked ? 'Takes this song out of what you liked.' : 'Likes this song: it goes into MY MUSIC under what you liked.', 'Your likes also help the site pick music for you.')}
           aria-label={liked ? `Unlike ${song.title}` : `Like ${song.title}`}
         >
           {liked ? '♥' : '♡'}
@@ -563,10 +568,10 @@ function BarrNotice({ anchor }: { anchor: RefObject<HTMLElement | null> }) {
           <span className="bg-barred px-1 text-ink-bar">BARRED</span> :: {player.barrAsk.title} - PLAY ANYWAY?
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-1">
-          <button type="button" onClick={player.playAnyway} className={PLATE}>
+          <button type="button" onClick={player.playAnyway} className={PLATE} {...explain('Plays this song anyway, although you barred it.', 'You barred it so it would not play; this lets it play this once.')}>
             [ PLAY ]
           </button>
-          <button type="button" onClick={player.skipBarred} className={PLATE}>
+          <button type="button" onClick={player.skipBarred} className={PLATE} {...explain('Skips this barred song and goes on to the next one.', 'You barred it so it would not play.')}>
             [ SKIP ]
           </button>
         </div>
@@ -580,7 +585,7 @@ function BarrNotice({ anchor }: { anchor: RefObject<HTMLElement | null> }) {
       <AboveAnchor anchor={anchor} side="left" className={box}>
         <p role="status">
           <span className="bg-barred px-1 text-ink-bar">BARRED SONG PLAYING</span> ::{' '}
-          <button type="button" onClick={player.playAnyway} className={PLATE}>
+          <button type="button" onClick={player.playAnyway} className={PLATE} {...explain('Lets you hear this song, although you barred it.', 'The room you follow is playing it; your speaker was kept silent, still in step with them.')}>
             [ LISTEN ANYWAY ]
           </button>
         </p>
@@ -698,6 +703,7 @@ function DockedBar({ roomId, onHide, onSettings }: BarControls) {
               type="button"
               onClick={onHide}
               className={PLATE_HARDWARE}
+              {...explain('Folds the bar down to a small tile in the corner.', 'For more room on screen. What is playing keeps playing; press the tile to have the bar back.')}
             >
               [ HIDE ]
             </button>
@@ -771,7 +777,7 @@ function DockedBar({ roomId, onHide, onSettings }: BarControls) {
           {/* Not while a live room has the bar (yours or one you are in): that room's own window ends or leaves it. */}
           {player.room === null ? <GoLiveKey plate={PLATE_HARDWARE} /> : null}
 
-          <button type="button" onClick={onSettings} className={PLATE_HARDWARE}>
+          <button type="button" onClick={onSettings} className={PLATE_HARDWARE} {...explain('Opens the player\'s options: how the bar looks and behaves, KEYS IN THE PICTURE for a room, and more.', 'Your choices are saved to your account.')}>
             [ OPTIONS ]
           </button>
         </div>
@@ -846,6 +852,7 @@ function TransportPad({
           className={`${PLATE_HARDWARE} min-w-[2.25rem]`}
           title="Previous track"
           aria-label="Previous track"
+          {...explain('Goes back to the previous track.', 'In a room you host, everyone listening along moves with you.')}
         >
           <span aria-hidden="true" className="text-label leading-none">
             ◀
@@ -860,6 +867,10 @@ function TransportPad({
             onClick={onCycle}
             disabled={disabled}
             title={WORD[state]}
+            {...explain(
+              state === 'playing' ? 'Pauses the music where it is.' : state === 'paused' ? 'Plays the music, repeating this track.' : 'Stops repeating this track; it keeps playing.',
+              'One key, three steps: playing, then paused, then playing on repeat, then back to playing. The mark shows which step it is on.',
+            )}
             className="flex min-w-[3rem] cursor-pointer items-center justify-center rounded-none px-2 py-1 text-display font-bold leading-none text-acid hover:bg-ena hover:text-ink-bar focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:bg-bubble active:text-ink-plate disabled:cursor-not-allowed disabled:text-ink-bar"
           >
             <span aria-hidden="true" className={ANIMATION[state]}>
@@ -876,6 +887,7 @@ function TransportPad({
           className={`${PLATE_HARDWARE} min-w-[2.25rem]`}
           title="Next track"
           aria-label="Next track"
+          {...explain('Skips to the next track.', 'In a room you host, everyone listening along moves with you.')}
         >
           <span aria-hidden="true" className="text-label leading-none">
             ▶
@@ -904,7 +916,7 @@ function ShelfWindow({ onClose }: { onClose: () => void }) {
       maxWidth="max-w-2xl"
       status="PICK A ROW TO PLAY IT"
       actions={
-        <button type="button" onClick={player.refresh} className={PLATE}>
+        <button type="button" onClick={player.refresh} className={PLATE} {...explain('Reads the shelf again, to pick up new tracks.', 'For when a track was added since the shelf was opened.')}>
           [ RELOAD SHELF ]
         </button>
       }
@@ -937,6 +949,7 @@ function ShelfWindow({ onClose }: { onClose: () => void }) {
                   onClick={() => player.playAt(position)}
                   disabled={playingThis && player.playing}
                   className={PLATE}
+                  {...explain('Plays this track now.', 'It starts in the music bar and the shelf plays on from here.')}
                 >
                   {playingThis && player.playing ? '[ PLAYING ]' : '[ ▶ PLAY ]'}
                 </button>
@@ -992,6 +1005,7 @@ function CompactBar({ roomId, onHide, onMusic, onQueues, onSettings }: CardContr
             onClick={onSettings}
             className="min-h-tap min-w-tap cursor-pointer px-1 text-sm leading-none hover:bg-sun-pale hover:text-accent-ink"
             title="Player options"
+            {...explain('Opens the player\'s options: how the bar looks and behaves, KEYS IN THE PICTURE for a room, and more.', 'Your choices are saved to your account.')}
           >
             ⚙
           </button>
@@ -1001,6 +1015,7 @@ function CompactBar({ roomId, onHide, onMusic, onQueues, onSettings }: CardContr
             onClick={onHide}
             className="min-h-tap min-w-tap cursor-pointer px-1 text-sm leading-none hover:bg-sun-pale hover:text-accent-ink"
             title="Hide player"
+            {...explain('Folds the player down out of the way.', 'What is playing keeps playing.')}
           >
             ▾
           </button>
@@ -1035,7 +1050,7 @@ function CompactBar({ roomId, onHide, onMusic, onQueues, onSettings }: CardContr
         />
 
         <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
-          <button type="button" onClick={player.previous} className={PLATE_TAP}>
+          <button type="button" onClick={player.previous} className={PLATE_TAP} {...explain('Goes back to the previous track.', 'In a room you host, everyone listening along moves with you.')}>
             [ PREV ]
           </button>
 
@@ -1043,11 +1058,12 @@ function CompactBar({ roomId, onHide, onMusic, onQueues, onSettings }: CardContr
             type="button"
             onClick={player.toggle}
             className={`${PLATE_TAP} min-w-[8rem] text-base`}
+            {...explain(playing ? 'Pauses the music where it is.' : 'Plays the music from where it is.', 'Keeps your place in the track.')}
           >
             {playing ? '[ PAUSE ]' : '[ PLAY ]'}
           </button>
 
-          <button type="button" onClick={player.next} className={PLATE_TAP}>
+          <button type="button" onClick={player.next} className={PLATE_TAP} {...explain('Skips to the next track.', 'In a room you host, everyone listening along moves with you.')}>
             [ NEXT ]
           </button>
         </div>
@@ -1061,6 +1077,7 @@ function CompactBar({ roomId, onHide, onMusic, onQueues, onSettings }: CardContr
             className={loop ? `${PLATE_PRESSED} cursor-pointer` : PLATE}
             title="Loop"
             aria-label="Loop this track"
+            {...explain(loop ? 'Stops repeating this track.' : 'Repeats this track over and over.', 'Filled while it repeats.')}
             aria-pressed={loop}
           >
             [ ↻ ]
@@ -1087,7 +1104,7 @@ function CompactBar({ roomId, onHide, onMusic, onQueues, onSettings }: CardContr
             panel. They wear `SIDE_MUSIC`' and `SIDE_QUEUES`' own mark and word, so one thing is one
             thing wherever it is pressed; the card's foot is the only row with room for them as words. */}
         <div className="mt-1 flex flex-wrap items-center gap-2">
-          <button type="button" onClick={onMusic} className={PLATE} aria-haspopup="dialog">
+          <button type="button" onClick={onMusic} className={PLATE} aria-haspopup="dialog" {...explain('Opens MY MUSIC, the window with your own music: what you liked, and the lists you made.', 'Play and sort your music while the page stays where it is.')}>
             [ {SIDE_MUSIC.mark} {SIDE_MUSIC.label} ]
           </button>
 
@@ -1096,6 +1113,7 @@ function CompactBar({ roomId, onHide, onMusic, onQueues, onSettings }: CardContr
             onClick={onQueues}
             className={PLATE}
             aria-haspopup="dialog"
+            {...explain('Opens the QUEUE window: UP NEXT, your playlists, and RADI-OH.', 'UP NEXT is your own room\'s queue: search, add, reorder and take things out.')}
           >
             [ {SIDE_QUEUES.mark} {SIDE_QUEUES.label} ]
           </button>

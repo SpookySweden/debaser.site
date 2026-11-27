@@ -8,6 +8,7 @@ import type { LanguageTag } from '../lib/web/language';
 import { audioLanguage, choiceOf, defaultSubtitle, orderSubtitles, subtitleName, trackForChoice, type SubtitleChoice, type SubtitleTrack } from '../lib/web/subtitles';
 import ArtMark from './ArtMark';
 import LanguageFlag from './LanguageFlag';
+import { explain } from '../lib/ui/explain';
 
 /**
  * Three keys of the stream room's player bar (SPEC-watch-together.md, reworked 2026-11-02): the speaker with its
@@ -26,7 +27,7 @@ const SPEAKER_MUTED_GLYPH = '\u{1F507}︎';
 export function SpeakerKey({ muted, volume, onMuted, onVolume }: { muted: boolean; volume: number; onMuted: (muted: boolean) => void; onVolume: (volume: number) => void }) {
   return (
     <span className="flex shrink-0 items-center gap-1">
-      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-pressed={muted} aria-label={muted ? 'Unmute' : 'Mute'} title={muted ? 'Unmute' : 'Mute'} onClick={() => onMuted(!muted)}>
+      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-pressed={muted} aria-label={muted ? 'Unmute' : 'Mute'} title={muted ? 'Unmute' : 'Mute'} {...explain(muted ? 'Turns the sound back on.' : 'Turns the sound off, on this device only.', 'Everyone else still hears it; the video keeps playing in step.')} onClick={() => onMuted(!muted)}>
         {/* The symbol at the drawing's own 16px, so it reads as a speaker rather than a dot. */}
         {muted ? (
           <ArtMark key="muted" src={SPEAKER_MUTED_SRC} size={MARK_SIZE} fallback={<span className="text-title leading-none">{SPEAKER_MUTED_GLYPH}</span>} />
@@ -109,7 +110,7 @@ export function QualityKey({ source }: { source: QualityControl | null }) {
     <span ref={boxRef} className="relative shrink-0">
       {/* The mark most players wear (Luke, 2026-11-17: "pip should also by symbolised as well as the quality button"); the choice
           in force is said in its name and tooltip, and marked in the list. */}
-      <button type="button" className={PLATE_ON_BLACK} aria-haspopup="menu" aria-expanded={open} aria-label={`Quality: ${label}`} title={`Quality: ${label}`} onClick={() => setOpen((value) => !value)} data-watch-quality={current}>
+      <button type="button" className={PLATE_ON_BLACK} aria-haspopup="menu" aria-expanded={open} aria-label={`Quality: ${label}`} title={`Quality: ${label}`} {...explain('Opens the picture quality choices for this video.', 'Lower quality loads faster on a slow connection; AUTO picks for you. Only your screen changes.')} onClick={() => setOpen((value) => !value)} data-watch-quality={current}>
         {`[ ${ROOM_QUALITY_MARK} ▴ ]`}
       </button>
       {open ? (
@@ -122,6 +123,7 @@ export function QualityKey({ source }: { source: QualityControl | null }) {
               role="menuitemradio"
               aria-checked={choice.id === current}
               className={`${PLATE_ON_BLACK} text-left`}
+              {...explain(choice.id === AUTO_QUALITY ? 'Lets the player pick the quality for your connection.' : `Plays this video at ${choice.label}.`, 'Only your screen changes.')}
               onClick={() => {
                 preferredLabel = choice.id === AUTO_QUALITY ? null : choice.label;
                 source.setQuality(choice.id);
@@ -249,6 +251,7 @@ export function SubsKey({
         aria-expanded={open}
         aria-label={`Subtitles: ${name}`}
         title="Subtitles"
+        {...explain('Opens the subtitle choices for this video.', 'Each viewer picks their own; nothing is shared with the room.')}
         onClick={() => setOpen((value) => !value)}
         data-watch-subs={current ?? 'off'}
       >
@@ -273,6 +276,7 @@ export function SubsKey({
                 className={`${on ? PLATE_ON_BLACK_PRESSED : PLATE_ON_BLACK} flex items-center gap-1.5 text-left max-sm:min-h-tap`}
                 onClick={() => pick(track)}
                 data-subs-choice={track?.id ?? 'off'}
+                {...explain(track === null ? 'Turns the subtitles off.' : `Shows the ${subtitleName(track)} subtitles.`, 'Only on your screen.')}
               >
                 {track === null ? (
                   'OFF'

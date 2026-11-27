@@ -11,6 +11,7 @@ import AudioTagPill from './AudioTagPill';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import { useMusicLibrary } from './MusicLibraryProvider';
 import { BarredTitle, SongMenuKey, SongMenuPanel } from './SongMenu';
+import { explain } from '../lib/ui/explain';
 
 type InlineTrackPlayerProps = {
   track: ForumTrack;
@@ -66,6 +67,7 @@ export default function InlineTrackPlayer({ track, poster, origin, compact = fal
           onClick={press}
           className={PLATE}
           title={playing ? `Pause ${track.title}` : `Play ${track.title}`}
+          {...explain(playing ? 'Pauses this track where it is.' : 'Plays this track in the music bar.', 'It keeps playing as you move round the site.')}
         >
           {playing ? '[ ❚❚ ]' : '[ ▶ ]'}
         </button>

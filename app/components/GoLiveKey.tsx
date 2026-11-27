@@ -6,6 +6,7 @@ import { useAuth } from './AuthProvider';
 import { useForum } from './ForumProvider';
 import GoLiveWindow from './GoLiveWindow';
 import { goLiveInMainRoom } from '../lib/watch/main-room-play';
+import { explain } from '../lib/ui/explain';
 
 /**
  * `[ GO LIVE ]` wherever your room shows itself: on the bar, and on the floating player in place of its old
@@ -35,6 +36,7 @@ export default function GoLiveKey({ plate = PLATE, pressed = PLATE_PRESSED, scre
         aria-label="Go live: start a room people can join, with what is on and your queue"
         className={asking ? pressed : plate}
         data-go-live-key
+        {...explain('Opens GO LIVE: start a room other people can join, with what is on and your queue.', 'First you choose who can join (PRIVATE is picked to start with); nothing starts until you press START.', 'ONCE STARTED, PEOPLE YOU LET IN SEE AND HEAR WHAT YOU PLAY.')}
       >
         [ GO LIVE ]
       </button>

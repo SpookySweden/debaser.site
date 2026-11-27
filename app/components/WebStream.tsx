@@ -1927,6 +1927,9 @@ export function WebRow({
             words: playing ? '■ CLOSE' : '▶ PLAY',
             // The visible word leads the name (PLAY / CLOSE), so a voice command for what is on screen works.
             label: playing ? `Close the ${source} player for "${item.title}"` : `Play "${item.title}" (loads the ${source} player)`,
+            explain: playing
+              ? { what: `Stops this and closes the ${source} player.`, why: 'The row stays; PLAY opens it again.' }
+              : { what: `Plays this here, in ${source}\'s own player.`, why: 'It plays in your room, so it keeps going as you move round the site.' },
             press: () => {
               if (playing) {
                 stopPlayer();
@@ -2431,6 +2434,9 @@ function useBarPlay(item: WebStreamItem, onOpen: () => void, elsewhere: { href: 
     words: state === 'finding' ? '… FINDING' : sounding ? '❚❚ PAUSE' : '▶ PLAY',
     // The visible word leads the name, so a voice command for what is on screen works.
     label: sounding ? `Pause "${item.title}" in the music player` : `Play "${item.title}" in the music player`,
+    explain: sounding
+      ? { what: 'Pauses this in the music bar.', why: 'Press again to carry on from the same place.' }
+      : { what: 'Plays this sound in the music bar at the foot of the screen.', why: 'Streamed straight from the platform, and it keeps playing as you move round the site.' },
     press: () => void press(),
     pressed: sounding,
     busy: state === 'finding',

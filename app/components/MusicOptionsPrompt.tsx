@@ -5,6 +5,7 @@ import { setKeysInPicture, useKeysInPicture } from '../lib/watch/keys-in-picture
 import { useOptionalAuth } from './AuthProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import PopoutWindow from './PopoutWindow';
+import { explain } from '../lib/ui/explain';
 
 /**
  * The player's options, one window for every way in.
@@ -43,7 +44,7 @@ export default function MusicOptionsPrompt({ onClose }: { onClose: () => void })
           <span className="w-7 text-right">{Math.round(player.volume * 100)}</span>
         </label>
 
-        <button type="button" onClick={() => player.setPlayByDefault(!player.playByDefault)} className={PLATE_LARGE}>
+        <button type="button" onClick={() => player.setPlayByDefault(!player.playByDefault)} className={PLATE_LARGE} {...explain(player.playByDefault ? 'Stops profile songs playing by themselves when you open a profile.' : 'Lets a profile\'s song start playing by itself when you open the profile.', 'Off, a profile\'s song waits for you to press play.')}>
           {player.playByDefault ? '[ AUTOPLAY PROFILES: ON ]' : '[ AUTOPLAY PROFILES: OFF ]'}
         </button>
 
@@ -55,6 +56,7 @@ export default function MusicOptionsPrompt({ onClose }: { onClose: () => void })
           aria-label="Keys in the picture: play, skip, back, seek, sound, full screen and picture in picture also along the foot of a room's picture"
           title="Also along the foot of a room's picture"
           className={PLATE_LARGE}
+          {...explain(keysInPicture ? 'Takes the playback keys off the foot of a room\'s picture.' : 'Puts the playback keys along the foot of a room\'s picture too.', 'Play, skip, back, seek, sound, full screen and picture in picture, where your eyes already are. Saved to your account.')}
           data-keys-in-picture-toggle={keysInPicture ? 'on' : 'off'}
         >
           {keysInPicture ? '[ KEYS IN THE PICTURE: ON ]' : '[ KEYS IN THE PICTURE: OFF ]'}
@@ -68,6 +70,7 @@ export default function MusicOptionsPrompt({ onClose }: { onClose: () => void })
               onClose();
             }}
             className={PLATE}
+            {...explain('Closes this and stops it opening by itself again.', 'The same options stay under OPTIONS on the music bar.')}
           >
             [ DON&apos;T SHOW AGAIN ]
           </button>

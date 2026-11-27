@@ -7,6 +7,7 @@ import { FIELD_TIGHT, PLATE } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import LetterStamp from './LetterStamp';
 import PopoutWindow from './PopoutWindow';
+import { explain } from '../lib/ui/explain';
 
 /**
  * ADD TO LETTER (SPEC-letters.md): on anything on the site, like adding a song to a playlist. Opens a short list of your
@@ -20,7 +21,7 @@ export default function AddToLetterKey({ thing, className = PLATE, label = '[ + 
   if (user === null || status !== 'signed-in') return null;
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className={className} aria-label={`Add "${thing.title}" to a letter`}>
+      <button type="button" onClick={() => setOpen(true)} className={className} aria-label={`Add "${thing.title}" to a letter`} {...explain('Opens your letters, to add this to one or start a new one.', 'A letter is a page of things you pick for someone, sent to them when you are ready.')}>
         {label}
       </button>
       {open ? <LetterPicker owner={user.id} thing={thing} onClose={() => setOpen(false)} /> : null}
@@ -83,7 +84,7 @@ function LetterPicker({ owner, thing, onClose }: { owner: string; thing: LetterT
             aria-label="New letter's name"
             className={`${FIELD_TIGHT} min-w-0 flex-1 basis-40`}
           />
-          <button type="submit" className={PLATE} disabled={busy || name.trim().length === 0}>
+          <button type="submit" className={PLATE} disabled={busy || name.trim().length === 0} {...explain('Starts a new letter with the name you typed, with this in it.', 'Nothing is sent until you send the letter.')}>
             [ + NEW LETTER ]
           </button>
         </form>
@@ -96,6 +97,7 @@ function LetterPicker({ owner, thing, onClose }: { owner: string; thing: LetterT
                 type="button"
                 disabled={busy}
                 onClick={() => void addTo(letter.id, letter.name)}
+                {...explain(`Adds this to the letter ${letter.name}.`, 'Nothing is sent until you send the letter.')}
                 className="flex w-full cursor-pointer items-center gap-2 p-1 text-left text-label text-ink hover:outline hover:outline-1 hover:outline-dotted hover:outline-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-ink disabled:cursor-wait"
               >
                 <LetterStamp letter={letter} />

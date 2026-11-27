@@ -7,6 +7,7 @@ import type { LoopSource } from '../lib/audio/loops';
 import { originLabel } from '../lib/audio/loops';
 import { useWebTrack } from '../lib/web/web-track-lookup';
 import { useMusicPlayer } from './MusicPlayerProvider';
+import { explain } from '../lib/ui/explain';
 
 /**
  * A loop, opened: what it is, and the two things you can do with it.
@@ -94,6 +95,7 @@ export default function LoopPopout({
             onClick={onClose}
             aria-label="Close"
             title="Close"
+            {...explain('Closes the LOOP window.', 'It stays on RADI-OH.')}
             className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-none border border-ink-plate bg-bubble-pale text-key font-bold leading-none text-ink-bar hover:bg-bubble hover:text-ink-plate focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble"
           >
             ×
@@ -125,10 +127,11 @@ export default function LoopPopout({
               disabled={track === undefined}
               title={track === undefined ? 'Not on the shelf' : undefined}
               className={PLATE}
+              {...explain('Plays this track again from where you left it.', 'Greyed out when the track is no longer on the shelf.')}
             >
               [ RESUME ]
             </button>
-            <button type="button" onClick={onRemove} className={PLATE}>
+            <button type="button" onClick={onRemove} className={PLATE} {...explain('Takes this loop off RADI-OH.', 'The track itself stays on the shelf.')}>
               [ REMOVE ]
             </button>
           </p>

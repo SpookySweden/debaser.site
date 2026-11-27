@@ -7,6 +7,7 @@ import type { AudioTrack } from '../lib/audio/tracks';
 import { FIELD_TIGHT, PLATE, PLATE_PRESSED } from '../lib/ui/controls';
 import { useMusicLibrary } from './MusicLibraryProvider';
 import PopoutWindow from './PopoutWindow';
+import { explain } from '../lib/ui/explain';
 
 /**
  * ADD TO: [ PLAYLIST ] (Luke, 2026-11-14: "add to needs to go like 'add to: (playlist) (letter)'"). The twin of
@@ -54,6 +55,7 @@ export default function AddToPlaylistKey({
         title={off ? reason : undefined}
         aria-label={`Add "${thing.title}" to a playlist`}
         data-add-to-playlist
+        {...explain('Opens your playlists, to add this to one or start a new one.', 'Playlists are queues you keep: play one any time from the QUEUE window.')}
       >
         {label}
       </button>
@@ -117,7 +119,7 @@ function PlaylistPicker({ thing, onClose }: { thing: PlaylistThing; onClose: () 
             aria-label="New playlist's name"
             className={`${FIELD_TIGHT} min-w-0 flex-1 basis-40`}
           />
-          <button type="submit" className={PLATE} disabled={busy || name.trim().length === 0}>
+          <button type="submit" className={PLATE} disabled={busy || name.trim().length === 0} {...explain('Makes a new playlist with the name you typed, with this in it.', 'It shows in the QUEUE window under PLAYLISTS.')}>
             [ + NEW PLAYLIST ]
           </button>
         </form>
@@ -136,6 +138,7 @@ function PlaylistPicker({ thing, onClose }: { thing: PlaylistThing; onClose: () 
                 }
                 className={`${choice.holds ? `${PLATE_PRESSED} cursor-pointer` : PLATE} ${ROW}`}
                 title={choice.holds ? `Take it out of ${choice.name}` : `Add it to ${choice.name}`}
+                {...explain(choice.holds ? `Takes this out of ${choice.name}.` : `Adds this to ${choice.name}.`, 'A tick means it is already in that playlist.')}
               >
                 [ {choice.holds ? '✓ ' : ''}
                 {choice.name} ]

@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from 'react';
 import { PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED } from '../lib/ui/controls';
 import { stageBkgOn, stageBkgOnServer, subscribeToStageBkg, toggleStageBkg } from '../lib/ui/stage-bkg';
+import { explain } from '../lib/ui/explain';
 
 /**
  * `[ BKG ]`, in the top-left corner of a fullscreen video's surround, where the background's own key sits on the desk
@@ -24,6 +25,7 @@ export default function StageKey() {
       aria-pressed={on}
       aria-label="Background round the picture, black bars trimmed"
       title={on ? 'BACKGROUND ROUND THE PICTURE, BARS TRIMMED. PRESS FOR THE PLAIN VIDEO' : 'THE PLAIN VIDEO. PRESS FOR THE BACKGROUND, BARS TRIMMED'}
+      {...explain(on ? 'Shows the plain video, with its own black bars.' : 'Puts the site\'s background round the picture and trims the black bars.', 'Only on your screen.')}
       className={`absolute left-1 top-1 z-30 opacity-60 hover:opacity-100 focus-visible:opacity-100 ${on ? PLATE_ON_BLACK_PRESSED : PLATE_ON_BLACK}`}
       data-stage-bkg={on ? 'on' : 'off'}
       data-backdrop-solid=""

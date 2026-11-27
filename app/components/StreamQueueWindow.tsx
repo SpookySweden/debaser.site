@@ -76,6 +76,7 @@ import ProfileAvatarLink from './ProfileAvatarLink';
 import ProfileName from './ProfileName';
 import QueueSearchFilters from './QueueSearchFilters';
 import MediaKindMark, { mediaMarkKind, type MediaMarkKind } from './MediaKindMark';
+import { explain } from '../lib/ui/explain';
 
 /** The crowns (`mark-crown`, `mark-crown-filled` in app/lib/ui/art/slots.ts), shown at 16px. */
 const CROWN_SRC = `/${artSlot('mark-crown')?.path ?? 'assets/icons/crown.png'}`;
@@ -943,7 +944,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
                 autoFocus
                 className={`${FIELD_TIGHT} min-w-0 flex-1`}
               />
-              <button type="submit" className={PLATE} disabled={search.kind === 'searching' || linkState.kind === 'checking' || (seriesTarget !== null && seriesState.kind !== 'read')}>
+              <button type="submit" className={PLATE} disabled={search.kind === 'searching' || linkState.kind === 'checking' || (seriesTarget !== null && seriesState.kind !== 'read')} {...explain(address ? 'Adds the video at the pasted address.' : 'Searches for what you typed, the site\'s own videos first.', address ? 'It is tried once in your browser first, so a link that won\'t play is refused here.' : 'Results take the place of the additions; ◀ ADDITIONS brings them back. Paste a link to add it instead.')}>
                 {address ? '[ + ADD ]' : '[ SEARCH ]'}
               </button>
               {address && rights.arrange ? (
@@ -993,7 +994,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
         ) : read.room.endedAt === null && userId === null ? (
           <p className="font-bold">
             {/* The room stays drawn on every page, and this window with it: going to log in closes it. */}
-            <Link href="/account" className="key px-1 py-1 text-label" onClick={onClose}>
+            <Link href="/account" className="key px-1 py-1 text-label" onClick={onClose} {...explain('Goes to the ACCOUNT page to log in or make an account.', 'Searching and adding to a room need an account.')}>
               [ LOG IN ]
             </Link>{' '}
             TO ADD VIDEOS
@@ -1027,16 +1028,17 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
                 const keys =
                   rights.arrange && queued && unitIndex !== -1 ? (
                     <span className="flex shrink-0 items-center">
-                      <button type="button" className={PLATE} disabled={unitIndex - 1 < slotBase} aria-label={`Move ${name} up`} onClick={() => reorder(units[unitIndex].id, -1)}>
+                      <button type="button" className={PLATE} disabled={unitIndex - 1 < slotBase} aria-label={`Move ${name} up`} {...explain('Moves this up the queue, to play sooner.', 'Only someone with a crown can reorder the queue.')} onClick={() => reorder(units[unitIndex].id, -1)}>
                         [ ↑ ]
                       </button>
-                      <button type="button" className={PLATE} disabled={unitIndex === units.length - 1} aria-label={`Move ${name} down`} onClick={() => reorder(units[unitIndex].id, 1)}>
+                      <button type="button" className={PLATE} disabled={unitIndex === units.length - 1} aria-label={`Move ${name} down`} {...explain('Moves this down the queue, to play later.', 'Only someone with a crown can reorder the queue.')} onClick={() => reorder(units[unitIndex].id, 1)}>
                         [ ↓ ]
                       </button>
                       <button
                         type="button"
                         className={PLATE}
                         aria-label={`Take ${name} out`}
+                        {...explain('Takes this out of the queue before it plays.', 'Everyone in the room sees the queue change.')}
                         onClick={() => (block.series === null ? takeOut(first, 'THE FILE COULD NOT BE TAKEN OUT.') : takeOutSeries(block.series.id, 'THE SERIES COULD NOT BE TAKEN OUT.'))}
                       >
                         [ × ]
@@ -1044,7 +1046,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
                     </span>
                   ) : queued && block.series === null && mayTakeOutPicture(first, read.room.hostId, userId) ? (
                     // A picture not yet shown: whoever added it, and the room's host, may take it out without a crown.
-                    <button type="button" className={PLATE} aria-label={`Take ${name} out`} onClick={() => takeOut(first, 'THE PICTURE COULD NOT BE TAKEN OUT.')} data-picture-out>
+                    <button type="button" className={PLATE} aria-label={`Take ${name} out`} onClick={() => takeOut(first, 'THE PICTURE COULD NOT BE TAKEN OUT.')} data-picture-out {...explain('Takes this picture out of the queue.', 'Everyone in the room sees the queue change.')}>
                       [ × ]
                     </button>
                   ) : null;
@@ -1059,6 +1061,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
                           type="button"
                           onClick={() => replayInRoom(roomId, first.id)}
                           title={`Play ${name} again`}
+                          {...explain('Plays this again in the room, now.', 'It already played (shown in red). Everyone watching along moves with it.')}
                           className={`min-w-0 flex-1 cursor-pointer truncate text-left hover:underline max-sm:min-h-tap ${QUEUE_INK[state]}`}
                           data-queue-replay={first.id}
                         >
@@ -1087,6 +1090,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
                         onClick={() => toggleFold(block.key)}
                         aria-expanded={open}
                         title={name}
+                        {...explain(open ? 'Folds this series\' episodes away.' : 'Folds open this series\' episodes.', 'The number is how many episodes are in the queue.')}
                         className={`min-w-0 flex-1 cursor-pointer truncate text-left hover:underline max-sm:min-h-tap ${QUEUE_INK[state]}`}
                       >
                         <span className="sr-only">{`${said}series, `}</span>
@@ -1107,6 +1111,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
                                   type="button"
                                   onClick={() => replayInRoom(roomId, entry.id)}
                                   title={`Play ${titleOf(entry)} again`}
+                                  {...explain('Plays this episode again in the room, now.', 'It already played. Everyone watching along moves with it.')}
                                   className={`min-w-0 flex-1 cursor-pointer truncate text-left hover:underline max-sm:min-h-tap ${QUEUE_INK[episodeState]}`}
                                   data-queue-replay={entry.id}
                                 >
@@ -1119,7 +1124,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
                               </span>
                               )}
                               {rights.arrange && episodeState === 'queued' ? (
-                                <button type="button" className={PLATE} aria-label={`Take ${titleOf(entry)} out`} onClick={() => takeOut(entry, 'THE EPISODE COULD NOT BE TAKEN OUT.')}>
+                                <button type="button" className={PLATE} aria-label={`Take ${titleOf(entry)} out`} {...explain('Takes this episode out of the queue before it plays.', 'Everyone in the room sees the queue change.')} onClick={() => takeOut(entry, 'THE EPISODE COULD NOT BE TAKEN OUT.')}>
                                   [ × ]
                                 </button>
                               ) : null}
@@ -1334,11 +1339,12 @@ function PlaylistKeys({ read, userId, shelf, waiting }: { read: WatchRoomRead; u
             setMode((was) => (was === 'naming' ? 'idle' : 'naming'));
           }}
           title="Save what is on and what waits as one of your playlists. The queue stays as it is."
+          {...explain('Saves what is on and what waits as one of your playlists.', 'Name it, and load it again any time. The queue stays as it is.')}
           data-save-playlist
         >
           [ SAVE AS PLAYLIST ]
         </button>
-        <button type="button" className={mode === 'picking' ? PLATE_PRESSED : PLATE} disabled={busy} aria-expanded={mode === 'picking'} onClick={() => setMode((was) => (was === 'picking' ? 'idle' : 'picking'))} data-load-playlist>
+        <button type="button" className={mode === 'picking' ? PLATE_PRESSED : PLATE} disabled={busy} aria-expanded={mode === 'picking'} {...explain('Opens your playlists, to put one into this queue.', 'Pick one and its tracks join the queue.')} onClick={() => setMode((was) => (was === 'picking' ? 'idle' : 'picking'))} data-load-playlist>
           [ LOAD A PLAYLIST ]
         </button>
         <button
@@ -1348,6 +1354,7 @@ function PlaylistKeys({ read, userId, shelf, waiting }: { read: WatchRoomRead; u
           onClick={() => (mode === 'clearing' ? void clear() : setMode('clearing'))}
           onBlur={() => setMode((was) => (was === 'clearing' ? 'idle' : was))}
           title="Empty what waits. What is on plays on."
+          {...explain(mode === 'clearing' ? 'Empties the queue now.' : 'Empties what waits in the queue. The first press asks; the second empties it.', 'What is on keeps playing.', "CAN'T BE UNDONE: SAVE IT AS A PLAYLIST FIRST TO KEEP IT.")}
           data-clear-queue
         >
           {mode === 'clearing' ? '[ CLEAR THE QUEUE? ]' : '[ CLEAR ]'}
@@ -1362,7 +1369,7 @@ function PlaylistKeys({ read, userId, shelf, waiting }: { read: WatchRoomRead; u
           }}
         >
           <input value={name} maxLength={MAX_PLAYLIST_NAME} autoComplete="off" aria-label="Playlist name" onChange={(event) => setName(event.target.value)} className={`${FIELD_TIGHT} min-w-0 flex-1`} data-save-playlist-name />
-          <button type="submit" className={PLATE} disabled={busy || wanted.length === 0} data-save-playlist-go>
+          <button type="submit" className={PLATE} disabled={busy || wanted.length === 0} data-save-playlist-go {...explain(taken ? 'Replaces your playlist of this name with what is in the queue now.' : 'Saves the queue as a playlist with this name.', 'It shows under PLAYLISTS in the QUEUE window.', taken ? 'THE OLD PLAYLIST OF THIS NAME IS REPLACED.' : undefined)}>
             {taken ? '[ REPLACE IT ]' : '[ SAVE ]'}
           </button>
           {taken ? (
@@ -1379,7 +1386,7 @@ function PlaylistKeys({ read, userId, shelf, waiting }: { read: WatchRoomRead; u
           <ul aria-label="Your playlists" className="flex flex-col gap-0.5">
             {library.playlists.map((list) => (
               <li key={list.id}>
-                <button type="button" className="cursor-pointer truncate text-left font-bold hover:underline max-sm:min-h-tap" onClick={() => void load(list)} data-load-pick={list.name}>
+                <button type="button" className="cursor-pointer truncate text-left font-bold hover:underline max-sm:min-h-tap" onClick={() => void load(list)} data-load-pick={list.name} {...explain(`Puts the playlist ${list.name} into this queue.`, 'The number is how many things it holds.')}>
                   {list.name} ({list.items.length})
                 </button>
               </li>
@@ -1436,12 +1443,12 @@ function AdditionRow({
         {title}
       </span>
       {onPull === null ? null : (
-        <button type="button" className={PLATE} aria-label={`Put ${title} at the end of the queue`} title="To the end of the queue" onClick={onPull}>
+        <button type="button" className={PLATE} aria-label={`Put ${title} at the end of the queue`} title="To the end of the queue" onClick={onPull} {...explain('Puts this addition at the end of the queue.', 'Or drag it onto a line in the queue to drop it there. Only someone with a crown can.')}>
           [ ← ]
         </button>
       )}
       {onTakeBack === null ? null : (
-        <button type="button" className={PLATE} aria-label={`Take back ${title}`} onClick={onTakeBack}>
+        <button type="button" className={PLATE} aria-label={`Take back ${title}`} onClick={onTakeBack} {...explain('Takes this back off your additions.', 'Without a crown, what you add waits on your own list (YOUR ADDITIONS) until the host or someone crowned puts it in the queue.')}>
           [ × ]
         </button>
       )}
@@ -1480,17 +1487,17 @@ function AdditionBlock({
     <li className={`rule-pixel py-1 ${picked ? 'opacity-50' : ''}`} data-addition={unit.id} data-series-block={unit.id}>
       <div {...handlers} className={`flex items-center gap-2 ${handlers === undefined ? '' : 'cursor-grab touch-pan-y select-none'}`}>
         <SeriesLanguageFlags entries={unit.entries} title={title} titleOf={titleOf} className="shrink-0" />
-        <button type="button" onClick={onToggle} aria-expanded={open} title={title} className="min-w-0 flex-1 cursor-pointer truncate text-left hover:underline max-sm:min-h-tap">
+        <button type="button" onClick={onToggle} aria-expanded={open} title={title} className="min-w-0 flex-1 cursor-pointer truncate text-left hover:underline max-sm:min-h-tap" {...explain(open ? 'Folds this series\' episodes away.' : 'Folds open this series\' episodes.', 'The number is how many episodes it has.')}>
           <span className="sr-only">Series: </span>
           {open ? '[-]' : '[+]'} {title} ({unit.entries.length})
         </button>
         {onPull === null ? null : (
-          <button type="button" className={PLATE} aria-label={`Put ${title} at the end of the queue`} title="To the end of the queue" onClick={onPull}>
+          <button type="button" className={PLATE} aria-label={`Put ${title} at the end of the queue`} title="To the end of the queue" onClick={onPull} {...explain('Puts this series at the end of the queue.', 'Or drag it onto a line in the queue to drop it there. Only someone with a crown can.')}>
             [ ← ]
           </button>
         )}
         {onTakeBack === null ? null : (
-          <button type="button" className={PLATE} aria-label={`Take back ${title}`} onClick={onTakeBack}>
+          <button type="button" className={PLATE} aria-label={`Take back ${title}`} onClick={onTakeBack} {...explain('Takes this series back off your additions.', 'Without a crown, what you add waits on your own list (YOUR ADDITIONS) until the host or someone crowned puts it in the queue.')}>
             [ × ]
           </button>
         )}
@@ -1507,7 +1514,7 @@ function AdditionBlock({
                   {titleOf(entry)}
                 </span>
                 {out === null ? null : (
-                  <button type="button" className={PLATE} aria-label={`Take ${titleOf(entry)} out`} onClick={out}>
+                  <button type="button" className={PLATE} aria-label={`Take ${titleOf(entry)} out`} onClick={out} {...explain('Takes this episode out.', 'The rest of the series stays.')}>
                     [ × ]
                   </button>
                 )}
@@ -1556,7 +1563,7 @@ function PersonFold({
       <div className="flex items-center gap-1">
         <Crown held={person.crowned} name={name} mine={mine} canPress={canCrown} onPress={onCrown} />
         <ProfileAvatarLink author={author} size={20} showName={false} variant="plain" className="shrink-0" />
-        <button type="button" onClick={onToggle} aria-expanded={open} title={status.length > 0 ? status : undefined} className="min-w-0 flex-1 cursor-pointer truncate text-left hover:underline max-sm:min-h-tap">
+        <button type="button" onClick={onToggle} aria-expanded={open} title={status.length > 0 ? status : undefined} {...explain(open ? 'Folds this person\'s additions away.' : 'Folds open what this person added, waiting for the queue.', 'The number is how many they added. Pull one across with ← or by dragging it.')} className="min-w-0 flex-1 cursor-pointer truncate text-left hover:underline max-sm:min-h-tap">
           {open ? '[-]' : '[+]'} <ProfileName author={author} /> ({additionUnits(person.additions).length})
           {status.length > 0 ? <span className="ml-1 text-ink-quiet" data-person-status>{status}</span> : null}
         </button>
@@ -1594,7 +1601,7 @@ function Crown({ held, name, mine, canPress, onPress }: { held: boolean; name: s
 
   const action = held ? (mine ? 'Take your own crown off' : `Take ${name}'s crown`) : mine ? 'Put your crown back on' : `Crown ${name}`;
   return (
-    <button type="button" className={`${held ? PLATE_PRESSED : PLATE} ${box}`} aria-pressed={held} aria-label={action} title={action} onClick={onPress} data-crown-key>
+    <button type="button" className={`${held ? PLATE_PRESSED : PLATE} ${box}`} aria-pressed={held} aria-label={action} title={action} onClick={onPress} data-crown-key {...explain(held ? `Takes the crown off: they can no longer arrange the queue.` : 'Crowns this person: they can reorder the queue, take things out and pull additions in.', 'Only the host gives and takes crowns, their own included.')}>
       {mark}
     </button>
   );
@@ -1635,7 +1642,7 @@ function Results({
     <div className="flex flex-col gap-1" data-watch-results={search.kind}>
       <div className="flex flex-wrap items-center gap-2">
         <span className="min-w-0 flex-1 truncate font-bold">{search.words.length === 0 ? 'OUR VIDEOS' : `RESULTS :: ${search.words.toUpperCase()}`}</span>
-        <button type="button" className={PLATE} onClick={onBack}>
+        <button type="button" className={PLATE} onClick={onBack} {...explain('Goes back from the search results to the additions.', 'What people added, waiting for the queue.')}>
           [ ◀ ADDITIONS ]
         </button>
       </div>
@@ -1683,7 +1690,7 @@ function Results({
                     {media.copies.length > 0 ? (
                       <ServerWatch item={{ ...item, media }} crowned={crowned} added={added(`web:${item.id}`)} onAdd={(add, straight) => onAddServer(item, add, straight)} />
                     ) : null}
-                    <button type="button" className={PLATE} onClick={() => onFindToPlay(item.title)} aria-label={`Search for "${item.title}" among what a room can play`} data-imdb-find>
+                    <button type="button" className={PLATE} onClick={() => onFindToPlay(item.title)} aria-label={`Search for "${item.title}" among what a room can play`} data-imdb-find {...explain('Searches for this title among what a room can play.', 'This is a film\'s listing; this finds a copy the room can put on.')}>
                       [ FIND TO PLAY ]
                     </button>
                   </>
@@ -1712,7 +1719,7 @@ function Results({
         </p>
       ) : null}
       {search.kind === 'found' && search.next !== null ? (
-        <button type="button" className={`${PLATE} w-fit`} disabled={search.loadingMore} onClick={() => onMore(search.words, search.next ?? '')}>
+        <button type="button" className={`${PLATE} w-fit`} disabled={search.loadingMore} {...explain('Shows more results for this search.', 'They come a page at a time.')} onClick={() => onMore(search.words, search.next ?? '')}>
           {search.loadingMore ? '[ LOADING... ]' : '[ MORE ]'}
         </button>
       ) : null}
@@ -1768,7 +1775,7 @@ function WebResult({
         <div className="flex items-center gap-2">
           <ResultThumb thumb={thumb} kind={mediaMarkKind(item)} onFailed={() => setThumbFailed(true)} />
           <span className="min-w-0 flex-1">
-            <button type="button" onClick={toggle} aria-expanded={open} title={item.title} className="block w-full cursor-pointer truncate text-left font-bold hover:underline max-sm:min-h-tap">
+            <button type="button" onClick={toggle} aria-expanded={open} title={item.title} className="block w-full cursor-pointer truncate text-left font-bold hover:underline max-sm:min-h-tap" {...explain(open ? 'Folds this result\'s details away.' : 'Folds open this result\'s details and its keys to add it.', 'Pick an episode, a season or the whole thing where it has them.')}>
               {open ? '[-]' : '[+]'} {item.title}
             </button>
             <span className="mt-0.5 flex flex-wrap items-center gap-x-2">
@@ -1900,7 +1907,7 @@ function AddKey({
         </span>
       ) : (
         <>
-          <button type="button" className={PLATE} disabled={disabled} onClick={() => onAdd(false)} aria-label={`Add ${label} to your list`}>
+          <button type="button" className={PLATE} disabled={disabled} onClick={() => onAdd(false)} aria-label={`Add ${label} to your list`} {...explain('Adds this to your additions.', 'Without a crown, what you add waits on your own list (YOUR ADDITIONS) until the host or someone crowned puts it in the queue.')}>
             [ + ADD ]
           </button>
           {crowned ? <QueueKey label={label} disabled={disabled} onAdd={() => onAdd(true)} /> : null}
@@ -1916,7 +1923,7 @@ function AddKey({
  */
 function QueueKey({ label, disabled = false, onAdd }: { label: string; disabled?: boolean; onAdd: () => void }) {
   return (
-    <button type="button" className={`${PLATE} shrink-0`} disabled={disabled} onClick={onAdd} aria-label={`Add ${label} straight to the queue`} title="Straight into the queue" data-add-queue>
+    <button type="button" className={`${PLATE} shrink-0`} disabled={disabled} onClick={onAdd} aria-label={`Add ${label} straight to the queue`} title="Straight into the queue" data-add-queue {...explain('Puts this straight into the queue.', 'Your crown lets you skip the additions list.', 'OTHERS IN THE ROOM SEE IT.')}>
       <ArtMark
         src={ADD_QUEUE_SRC}
         size={CROWN_SIZE}
@@ -1955,10 +1962,10 @@ function EpisodeTicks({ read, ticked, onTicked }: { read: SeriesRead; ticked: Re
     <div className="flex flex-col gap-1" data-episode-ticks={all}>
       <div className="flex flex-wrap items-center gap-1">
         <span className="min-w-0 flex-1 font-bold">{`${ticked.size} OF ${all} TICKED`}</span>
-        <button type="button" className={PLATE} disabled={ticked.size === all} onClick={() => onTicked(new Set(read.episodes.map((_, index) => index)))}>
+        <button type="button" className={PLATE} disabled={ticked.size === all} {...explain('Ticks every episode in the list.', 'Then add them all at once.')} onClick={() => onTicked(new Set(read.episodes.map((_, index) => index)))}>
           [ TICK ALL ]
         </button>
-        <button type="button" className={PLATE} disabled={ticked.size === 0} onClick={() => onTicked(new Set())}>
+        <button type="button" className={PLATE} disabled={ticked.size === 0} {...explain('Unticks every episode in the list.', 'To start picking again.')} onClick={() => onTicked(new Set())}>
           [ TICK NONE ]
         </button>
       </div>
@@ -2060,11 +2067,11 @@ function SeriesPicker({
           )}
           <div className="flex flex-wrap items-center justify-end gap-1">
             {busy ? <span className="font-bold">ADDING...</span> : null}
-            <button type="button" className={PLATE} disabled={none || busy} onClick={() => void add(false)} aria-label={`Add the ticked episodes of ${read.title} to your list`}>
+            <button type="button" className={PLATE} disabled={none || busy} onClick={() => void add(false)} aria-label={`Add the ticked episodes of ${read.title} to your list`} {...explain('Adds the ticked episodes to your additions.', 'Without a crown, what you add waits on your own list (YOUR ADDITIONS) until the host or someone crowned puts it in the queue.')}>
               [ + ADD ]
             </button>
             {crowned ? <QueueKey label={`the ticked episodes of ${read.title}`} disabled={none || busy} onAdd={() => void add(true)} /> : null}
-            <button type="button" className={PLATE} onClick={onCancel}>
+            <button type="button" className={PLATE} onClick={onCancel} {...explain('Closes the episode list without adding anything.', 'Nothing changes.')}>
               [ CANCEL ]
             </button>
           </div>

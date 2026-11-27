@@ -5,6 +5,7 @@ import { PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED } from '../lib/ui/controls';
 import { chooseScreen, useScreenView } from '../lib/watch/canvas-view';
 import { setVisualiserOn } from '../lib/watch/visualiser';
 import ArtMark from './ArtMark';
+import { explain } from '../lib/ui/explain';
 
 /** The toggle's hand-drawn mark (`mark-canvas` in app/lib/ui/art/slots.ts), shown at 16px. */
 const CANVAS_MARK_SRC = `/${artSlot('mark-canvas')?.path ?? 'assets/icons/canvas.png'}`;
@@ -33,6 +34,7 @@ export default function CanvasToggle({ roomId, audio, className }: CanvasToggleP
       aria-pressed={onCanvas}
       aria-label={onCanvas ? 'Show the picture' : 'Show the canvas'}
       title={onCanvas ? 'Picture' : 'Canvas'}
+      {...explain(onCanvas ? 'Swaps the room\'s screen back to the picture.' : 'Swaps the room\'s screen to the canvas, to draw on together.', 'Everyone in the room can draw on the canvas.')}
       onClick={() => {
         // The visualiser lies over the canvas, so choosing the canvas puts it away: one press opens the canvas (Luke, 2026-11-16).
         if (!onCanvas) setVisualiserOn(roomId, false);

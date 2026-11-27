@@ -43,6 +43,7 @@ import { noteComeBack, ownRoomState, subscribeToOwnRoom } from '../lib/watch/own
 import { noteRoomStart } from '../lib/watch/room-start';
 import { fitRoom, roomFitShape, subscribeToRoomFit } from '../lib/watch/room-fit';
 import { askToSaveCanvas } from '../lib/watch/use-room-canvas';
+import { explain, NOTE } from '../lib/ui/explain';
 
 /** Large, over the board, like the arcade but bigger: the video is the point (decision 1). */
 /** Wide enough to take the screen: the room opens filling it (`fill`), as the video wants all the room it can get. */
@@ -300,16 +301,17 @@ function PlayAskWindow() {
           </p>
         ) : null}
         <p className="flex flex-wrap gap-2">
-          <button type="button" className={PLATE_MAIN} data-play-ask-mine onClick={() => playInMainRoomLeaving(ask.source)}>
+          <button type="button" className={PLATE_MAIN} data-play-ask-mine {...explain('Leaves this room and plays it in your own room instead.', 'You are in someone else\'s room; your own room plays it just for you, or whoever you let in.')} onClick={() => playInMainRoomLeaving(ask.source)}>
             [ PLAY IN YOUR ROOM ]
           </button>
-          <button type="button" className={PLATE} data-play-ask-theirs onClick={addToTheirs}>
+          <button type="button" className={PLATE} data-play-ask-theirs {...explain('Adds it to the queue of the room you are in.', 'It plays there after what is waiting, for everyone in the room.', NOTE.others)} onClick={addToTheirs}>
             [ ADD TO THEIR QUEUE ]
           </button>
           <button
             type="button"
             className={PLATE}
             data-play-ask-cancel
+            {...explain('Does neither: nothing is played or added.', 'Closes this question.')}
             onClick={() => {
               setFault(null);
               answerPlayAsk();
@@ -363,7 +365,7 @@ function JoinByLink({ secret, signedIn, onDone }: { secret: string; signedIn: bo
       <div className="flex flex-col gap-2 p-2 text-label font-bold text-ink" data-join-by-link={signedIn ? answer : 'signed-out'}>
         {!signedIn ? (
           <p>
-            <Link href="/account" className="key px-1 py-1 text-label">
+            <Link href="/account" className="key px-1 py-1 text-label" {...explain('Goes to the ACCOUNT page to log in or make an account.', 'Joining someone\'s room needs an account. Open the room\'s link again afterwards.')}>
               [ LOG IN ]
             </Link>{' '}
             TO JOIN THIS ROOM. THEN OPEN THE LINK AGAIN.
@@ -374,7 +376,7 @@ function JoinByLink({ secret, signedIn, onDone }: { secret: string; signedIn: bo
           <>
             <p role="alert">THAT LINK DOES NOT WORK ANY MORE. ASK FOR A NEW ONE.</p>
             <p>
-              <button type="button" onClick={onDone} className={PLATE}>
+              <button type="button" onClick={onDone} className={PLATE} {...explain('Closes this message box.', 'Nothing else changes.')}>
                 [ OK ]
               </button>
             </p>
@@ -411,7 +413,7 @@ function OwnRoomDoor({ folded = false }: { folded?: boolean }) {
 
   return createPortal(
     <span className="frame bg-sun-pale p-0.5" data-own-room-door={folded ? 'folded' : 'shut'} data-companion-avoid>
-      <button type="button" onClick={() => (folded ? expandWatch() : openWatch({ kind: 'room', roomId }))} className={PLATE} aria-label={tip} title={tip}>
+      <button type="button" onClick={() => (folded ? expandWatch() : openWatch({ kind: 'room', roomId }))} className={PLATE} aria-label={tip} title={tip} {...explain('Opens your own room\'s window.', 'Your room is where what you play goes; it keeps playing while its window is shut.')}>
         [ ▲ ROOM ]
       </button>
     </span>,
@@ -430,7 +432,7 @@ function FoldedRoomKey({ live, label, state }: { live: boolean; label: string; /
   const tip = live ? `BACK TO THE ROOM: ${label}` : `BACK TO THE ROOM (ENDED): ${label}`;
   return createPortal(
     <span className="frame bg-sun-pale p-0.5" data-room-shelf-key={live ? 'live' : 'ended'} data-companion-avoid>
-      <button type="button" onClick={expandWatch} className={`${PLATE} inline-flex items-center gap-1`} aria-label={tip} title={tip}>
+      <button type="button" onClick={expandWatch} className={`${PLATE} inline-flex items-center gap-1`} aria-label={tip} title={tip} {...explain(live ? 'Opens the room window you folded away.' : 'Opens the room window again: this stream has ended.', 'The words beside it say how the room is doing.')}>
         <ArtMark src={UP_MARK_SRC} size={UP_MARK_HEIGHT} width={UP_MARK_WIDTH} fallback="[ ▲ ]" />
         {/* It said LIVE for a private room too; it says what the window's badge says. */}
         <span>{live ? `ROOM :: ${state}` : 'ROOM :: ENDED'}</span>
@@ -465,14 +467,14 @@ function PreLiveWindow({ mediaItemId, onClose }: { mediaItemId: string; onClose:
           </video>
           {user === null ? (
             <p className="text-label font-bold text-ink">
-              <Link href="/account" className="key px-1 py-1 text-label">
+              <Link href="/account" className="key px-1 py-1 text-label" {...explain('Goes to the ACCOUNT page to log in or make an account.', 'Going live needs an account.')}>
                 [ LOG IN ]
               </Link>{' '}
               TO STREAM
             </p>
           ) : (
             <p className="flex flex-wrap items-center gap-2 text-label font-bold text-ink">
-              <Link href="/stream" className={PLATE_MAIN} onClick={onClose}>
+              <Link href="/stream" className={PLATE_MAIN} onClick={onClose} {...explain('Goes to STREAM, where you go live and see the rooms open now.', 'Start a room other people can join from there.')}>
                 [ GO LIVE ON STREAM ]
               </Link>
               THEN ADD THIS FROM THE QUEUE.
@@ -635,6 +637,7 @@ function RoomFitKey() {
       aria-label="Fit the window to the picture"
       title="Fit the window to the picture"
       className="cursor-pointer key px-1 py-0.75 text-label font-bold leading-none"
+      {...explain('Sizes the room window to fit the picture, with no black bars.', 'Only your window changes.')}
       data-room-fit
     >
       [ FIT ]

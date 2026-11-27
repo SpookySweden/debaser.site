@@ -11,6 +11,7 @@ import { askToSaveCanvas } from '../lib/watch/use-room-canvas';
 import { applyLocalChange } from '../lib/watch/use-watch-room';
 import { useForum } from './ForumProvider';
 import PopoutWindow from './PopoutWindow';
+import { explain, NOTE } from '../lib/ui/explain';
 
 /**
  * Your main room's own keys and settings (SPEC-rooms-perpetual.md). Making it public or private and ending it live in the
@@ -49,6 +50,7 @@ export default function MainRoomKeys({ room, heir, onLeft, onAskLive }: { room: 
         aria-haspopup="dialog"
         aria-label={live ? 'Live: change who can join, or go private, in the room settings' : 'Go live: opens the room settings on who can join'}
         title={live ? 'LIVE: CHANGE WHO CAN JOIN, OR GO PRIVATE (ROOM SETTINGS)' : 'GO LIVE: WHO CAN JOIN, IN THE ROOM SETTINGS'}
+        {...explain(live ? 'Opens the room settings on who can join: change it, or go private.' : 'Opens the room settings on who can join, to go live.', live ? 'Your room is live: people can find it and come in.' : 'Your room is private until you choose who can join and press GO LIVE there.')}
         onClick={onAskLive}
       >
         {live ? '[ ● LIVE ]' : '[ GO LIVE ]'}
@@ -61,6 +63,7 @@ export default function MainRoomKeys({ room, heir, onLeft, onAskLive }: { room: 
           data-main-room-leave
           aria-label={`Leave: ${heir.name} will host`}
           title={`LEAVE: ${heir.name.toUpperCase()} WILL HOST`}
+          {...explain(`Leaves your live room; ${heir.name} becomes the host and it carries on.`, 'The room keeps going without you.', NOTE.others)}
           onClick={() => void leave()}
         >
           [ LEAVE ]
@@ -111,6 +114,7 @@ export function MainRoomEndSection({ room, onLeft }: { room: WatchRoom; onLeft: 
         disabled={busy}
         className={confirmEnd ? PLATE_PRESSED : PLATE}
         data-main-room-end={confirmEnd ? 'confirm' : 'first'}
+        {...explain(confirmEnd ? 'Ends the room for everybody in it, now.' : 'Ends the room. The first press asks; the second ends it for everybody.', 'Everyone is sent out and the room stops playing.', "CAN'T BE UNDONE.")}
         onClick={() => {
           if (!confirmEnd) {
             setConfirmEnd(true);
@@ -143,7 +147,7 @@ export function VisitorRoomSettings({ room, onLeft, onClose }: { room: WatchRoom
         <div className="flex flex-col gap-2 font-bold" data-room-live-section data-main-room-log-in>
           <p>GO LIVE: YOUR ROOM IS KEPT IN THIS BROWSER. TO PUT IT ON THE LISTS, SHARE ITS LINK AND CHAT, LOG IN FIRST.</p>
           <p>
-            <Link href="/account" className={PLATE_MAIN}>
+            <Link href="/account" className={PLATE_MAIN} {...explain('Goes to the ACCOUNT page to log in or make an account.', 'Going live needs an account: your room is kept in this browser until then.')}>
               [ LOG IN ]
             </Link>
           </p>
@@ -216,6 +220,7 @@ export function MainRoomLiveSection({ room, hostName }: { room: WatchRoom; hostN
             aria-checked={privacy === choice.value}
             title={choice.tip}
             className={privacy === choice.value ? PLATE_PRESSED : PLATE}
+            {...explain(`Makes the room ${choice.label}: ${choice.tip.toLowerCase()}`, 'Who can join your room. It takes effect when you press GO LIVE or SAVE.')}
             data-main-room-privacy={choice.value}
             onClick={() => {
               setPrivacyDraft(choice.value);
@@ -234,11 +239,11 @@ export function MainRoomLiveSection({ room, hostName }: { room: WatchRoom; hostN
         </label>
       ) : null}
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" disabled={busy} className={live ? PLATE : PLATE_MAIN} data-main-room-start onClick={() => void announce(true)}>
+        <button type="button" disabled={busy} className={live ? PLATE : PLATE_MAIN} data-main-room-start {...explain(live ? 'Saves who can join your live room.' : 'Goes live with the choice above: your room shows on the lists for the people it lets in.', 'People who come in see and hear what you play.', NOTE.others)} onClick={() => void announce(true)}>
           {live ? '[ SAVE ]' : '[ GO LIVE ]'}
         </button>
         {live ? (
-          <button type="button" disabled={busy} className={PLATE} data-main-room-private onClick={() => void announce(false)}>
+          <button type="button" disabled={busy} className={PLATE} data-main-room-private {...explain('Takes your room off the lists, back to private.', 'Nobody new can come in; your music keeps playing for you.')} onClick={() => void announce(false)}>
             [ GO PRIVATE ]
           </button>
         ) : null}

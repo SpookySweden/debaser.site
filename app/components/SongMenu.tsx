@@ -18,6 +18,7 @@ import { SongCardEditor } from './SongCoverCard';
 import { useMusicLibrary } from './MusicLibraryProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import NewPostForm from './NewPostForm';
+import { explain, NOTE } from '../lib/ui/explain';
 
 /**
  * The song settings panel (SPEC-vanity.md): one `[ ⋯ ]` key on a song row, and the short menu it opens.
@@ -69,6 +70,7 @@ export function SongMenuKey({
       aria-haspopup="menu"
       title={`Song options :: ${title}`}
       aria-label={`Song options for ${title}`}
+      {...explain('Opens this song\'s options: like, play next, add to the queue, attach to a post, copy its link, bar it.', 'Everything you can do with this one song.')}
       className={open ? `${PLATE_PRESSED} cursor-pointer` : plate}
     >
       [ ⋯ ]
@@ -167,7 +169,7 @@ export function SongMenuPanel({ track, onClose, placement = 'below', anchor, sid
             so nothing in this list moves when one is pressed. A letter and a playlist are both saved to an account. */}
         {!library.canWrite ? (
           <p className={LINE}>
-            <Link href="/account" className={PLATE_LINK}>
+            <Link href="/account" className={PLATE_LINK} {...explain('Goes to the ACCOUNT page to log in or make an account.', 'Liking and barring songs are kept on an account.')}>
               [ LOG IN ]
             </Link>{' '}
             TO LIKE AND KEEP LISTS
@@ -195,6 +197,7 @@ export function SongMenuPanel({ track, onClose, placement = 'below', anchor, sid
               })
             }
             className={ROW}
+            {...explain(liked ? 'Takes this song out of what you liked.' : 'Likes this song: it goes into MY MUSIC under what you liked.', 'Your likes also help the site pick music for you.')}
           >
             {liked ? '[ ♥ UNLIKE ]' : '[ ♡ LIKE ]'}
           </button>
@@ -207,6 +210,7 @@ export function SongMenuPanel({ track, onClose, placement = 'below', anchor, sid
             setNotice('PLAYS NEXT.');
           }}
           className={ROW}
+          {...explain('Puts this song straight after the one playing.', 'It goes to the front of your queue.')}
         >
           [ PLAY NEXT ]
         </button>
@@ -218,22 +222,23 @@ export function SongMenuPanel({ track, onClose, placement = 'below', anchor, sid
             setNotice('ADDED TO THE QUEUE.');
           }}
           className={ROW}
+          {...explain('Adds this song to the end of your queue.', 'It plays after everything already waiting.')}
         >
           [ ADD TO QUEUE ]
         </button>
-        <button type="button" role="menuitem" onClick={() => setPosting(true)} className={ROW}>
+        <button type="button" role="menuitem" onClick={() => setPosting(true)} className={ROW} {...explain('Starts a forum post with this song attached.', 'Write about it and post it to the board.', NOTE.others)}>
           [ ATTACH TO POST ]
         </button>
-        <button type="button" role="menuitem" onClick={() => void copyLink()} className={ROW}>
+        <button type="button" role="menuitem" onClick={() => void copyLink()} className={ROW} {...explain('Copies a link to this song.', 'Paste it in a message or a post; it opens the song on the site.')}>
           [ COPY LINK ]
         </button>
         {top.length === 0 ? null : (
-          <Link href={`/files?cat=${encodeURIComponent(folderCategoryId(top))}`} role="menuitem" className={`${ROW} truncate`} title={song.folderPath ?? top}>
+          <Link href={`/files?cat=${encodeURIComponent(folderCategoryId(top))}`} role="menuitem" className={`${ROW} truncate`} title={song.folderPath ?? top} {...explain(`Goes to the ${top} folder in FILES.`, 'Where this song is kept, with the songs beside it.')}>
             [ GO TO {top} ]
           </Link>
         )}
         {user !== null && songOwner(song.id) === user.id ? (
-          <button type="button" role="menuitem" onClick={() => setCarding(true)} className={ROW} title="The picture and words a room shows while this song plays">
+          <button type="button" role="menuitem" onClick={() => setCarding(true)} className={ROW} title="The picture and words a room shows while this song plays" {...explain('Opens this song\'s cover card: the picture and words a room shows while it plays.', 'Only for songs you put on the site.')}>
             [ COVER CARD ]
           </button>
         ) : null}
@@ -251,6 +256,7 @@ export function SongMenuPanel({ track, onClose, placement = 'below', anchor, sid
               })
             }
             className={barred ? ROW_ON : ROW}
+            {...explain(barred ? 'Lets this song play for you again.' : 'Bars this song: it stops before playing for you and asks first, and in a room it is silent for you.', 'Only you see it; nobody is told.')}
           >
             {barred ? '[ UNBARR ]' : '[ BARR ]'}
           </button>

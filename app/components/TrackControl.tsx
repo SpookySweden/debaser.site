@@ -6,6 +6,7 @@ import type { ForumAuthor, ForumTrack } from '../lib/forum/types';
 import { PLATE, PLATE_LARGE } from '../lib/ui/controls';
 import AudioTagPill from './AudioTagPill';
 import TrackPickerWindow from './TrackPickerWindow';
+import { explain } from '../lib/ui/explain';
 
 type TrackControlProps = {
   id: string;
@@ -42,6 +43,7 @@ export default function TrackControl({ id, value, onChange, author }: TrackContr
           aria-expanded={open}
           title="Attach an MP3"
           className={PLATE_LARGE}
+          {...explain('Opens the window to attach a soundtrack to this post: an MP3 from the shelf or your own.', 'People reading the post can play it.')}
         >
           [ ♪ SOUNDTRACK ]
         </button>
@@ -87,6 +89,7 @@ export default function TrackControl({ id, value, onChange, author }: TrackContr
         type="button"
         onClick={() => onChange(null)}
         className={PLATE}
+        {...explain('Takes the soundtrack off this post.', 'Attach another with SOUNDTRACK.')}
       >
         [ CLEAR ]
       </button>

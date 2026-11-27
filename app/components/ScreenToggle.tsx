@@ -10,6 +10,7 @@ import { PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED } from '../lib/ui/controls';
 import { chooseScreen, useScreenView } from '../lib/watch/canvas-view';
 import { subscribeToRemoteAsk, takeRemoteAsk } from '../lib/watch/main-room-play';
 import { setVisualiserOn } from '../lib/watch/visualiser';
+import { explain } from '../lib/ui/explain';
 
 /**
  * The `[ REMOTE ]` key (SPEC-screens.md, phase 3; it read `[ SCREEN ]` until Luke renamed it, 2026-11-21), beside
@@ -47,6 +48,7 @@ function RelayKey() {
         aria-expanded={open}
         onClick={() => setOpen((was) => !was)}
         title="Cloudflare's relay carries the picture when two devices cannot reach each other directly, such as a phone on mobile data"
+        {...explain(status.set ? 'Opens the relay settings: it is on, through Cloudflare.' : 'Opens the box to set up the relay for mobile data.', 'Cloudflare\'s relay carries the screen picture when two devices can\'t reach each other directly, such as a phone on mobile data.')}
         data-remote-relay-key
       >
         {status.set ? '[ RELAY FOR MOBILE DATA: ON (CLOUDFLARE) ]' : '[ RELAY FOR MOBILE DATA: SET UP ]'}

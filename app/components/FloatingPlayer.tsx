@@ -45,6 +45,7 @@ import QueuedPicture from './QueuedPicture';
 import { StageBackdrop } from './backdrops/Backdrops';
 import FloatingStageBar from './FloatingStageBar';
 import StageKey from './StageKey';
+import { explain } from '../lib/ui/explain';
 
 /**
  * The site's one video (SPEC-floating-player.md, `app/lib/ui/floating-player.ts`), drawn once in `layout.tsx`, so it
@@ -395,7 +396,7 @@ export default function FloatingPlayer() {
         <div {...drag.bar} onDoubleClick={togglePlayerFullscreen} className="cursor-move touch-none select-none" title="Drag to move. Pull an edge to resize. Double press for fullscreen.">
           <div className={WINDOW_TITLE_BAR}>
             <span className="truncate">{entry.title}</span>
-            <button type="button" onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} onClick={closeFloating} aria-label={`Close "${entry.title}"`} className={`${PLATE} shrink-0`}>
+            <button type="button" onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} onClick={closeFloating} aria-label={`Close "${entry.title}"`} {...explain('Stops this and closes the floating player.', 'Play it again from its row or its room.')} className={`${PLATE} shrink-0`}>
               [ × ]
             </button>
           </div>
@@ -409,6 +410,7 @@ export default function FloatingPlayer() {
                 aria-label={`Pop out "${entry.title}" above other apps`}
                 title="The browser's own pop-out: stays above other apps"
                 className={PLATE}
+                {...explain('Pops the video out into the browser\'s own little window, which stays above your other apps.', 'To keep watching while you use another program. Close that window to bring it back.')}
               >
                 [ POP OUT ]
               </button>

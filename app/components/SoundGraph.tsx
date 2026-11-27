@@ -28,6 +28,7 @@ import { floatingClock, floatingState, subscribeToFloating, subscribeToFloatingC
 import { soundTrack, tapSound } from '../lib/watch/audio-tap';
 import { roomScreenSound, subscribeToRoomScreenSound } from '../lib/audio/room-screen-sound';
 import { useMusicPlayer } from './MusicPlayerProvider';
+import { explain } from '../lib/ui/explain';
 
 /**
  * The sound graph: one small canvas behind the words on the music bar's black display (Luke, 2026-11-16). The rules it
@@ -391,6 +392,7 @@ export function TabListenKey() {
       title={tip}
       aria-label={tip}
       className={`${PLATE_ON_BLACK} relative shrink-0 self-start`}
+      {...explain('Lets the sound graph hear this tab, so it moves to what is really playing.', 'The browser asks which tab to share: pick this one with its sound. Nothing is recorded or kept.')}
       data-tab-listen={status}
     >
       [ HEAR ]
