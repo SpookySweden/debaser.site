@@ -134,9 +134,18 @@ Proof: `drive-see.cjs --only lenses` (DYE and GLASS measured on every theme, 5.5
   on that tab's frame) and again on each page the frame goes to. READER, X-RAY, LOW-FI and DYE (its YOUR THEME); WATCHERS, GLASS and CUSTOM are the
   house's only and say so. Nothing of the page leaves the reader's browser; they stay signed in.
 - The eyes say their purpose: OWN EYE "your browser, signed in as you"; SERVER EYE "from the house, never signed in, rebuilt through the lenses".
+- **Every key named OWN EYE shows the page here** (Luke, 2026-11-27: "it seems own eye still opens a new tab in edge when i click it"), whichever
+  eye is the choice: `[ OWN EYE ]` on the tool row (put away while OWN EYE shows the page), a refused page's `[ OWN EYE ]`, SHOW IT HERE WITH OWN
+  EYE on the "needs your own browser" page, and words to an engine marked ↗ (with the extension in; without it, a tab of the browser's as
+  before). `SeeingMachine`'s `there` holds the addresses asked for that way, for this visit; the eye chosen for other pages is not changed, and
+  `[ FROM THE HOUSE ]` is the way back. A tab of the browser is opened only by a key whose name says tab: `[ IN A TAB ↗ ]` (on the frame's line,
+  and on the "needs your own browser" page) and `LOG IN TO YOUTUBE IN A TAB ↗` (a sign-in page is never framed, D1). A framed page that says
+  nothing in 8 seconds says why (the site refuses to be inside another, or it is a sign-in page) and its tab key becomes OPEN IT IN A TAB ↗, the
+  main key. `drive-see --only owneye` (its last steps fail on the old machine file: the key opened a tab).
 
 ## Signed in by default, as in Chrome or Edge (Luke, 2026-11-27)
-- **OWN EYE opens an ordinary tab** of the reader's own browser (`openTab` in the extension's worker), with the machine's lenses in its side panel
+- **An ordinary tab** of the reader's own browser (`openTab` in the extension's worker; since decision 55 only behind a key whose name says tab),
+  with the machine's lenses in its side panel
   (opened by itself where the browser lets it; its key in the bar always does). Tabs, back and forward, sign-ins, video, passwords and downloads
   are the browser's own, because they are. The machine's own page (its frame) stays, one press away (IN THE MACHINE), for the lenses that need
   it, and ADD THIS SITE opens it, since that is where a site is added. An ordinary tab needs no site on the list.
@@ -151,7 +160,7 @@ Proof: `drive-see.cjs --only lenses` (DYE and GLASS measured on every theme, 5.5
 - With the extension, a page pressed for opens in OWN EYE, your own browser, in a tab of its own (`SeeingElsewhere`), with SEE IT HERE for the
   server's eye; a page that was only open when BROWSER loaded waits for a press. `[ OPENS IN: OWN EYE | SERVER EYE ]` switches it, remembered in this
   browser (`eye-choice.ts`). Without the extension, the server's eye as before.
-- On entering a page of a site in `SIGN_IN_OFFERED` (`youtube.com`, for now) that is not on the extension's list: LOG IN TO YOUTUBE, NOT NOW (this
+- On entering a page of a site in `SIGN_IN_OFFERED` (`youtube.com`, for now) that is not on the extension's list: LOG IN TO YOUTUBE IN A TAB ↗, NOT NOW (this
   page), DON'T ASK AGAIN (that site, for this account in this browser). Without the extension: GET THE EXTENSION first.
 - `[ ADD youtube.com ]` / `[ ✓ ON THE LIST: youtube.com ]` beside OWN EYE, and ADD in the extension's panel. The site asks the extension (`has`)
   about the page in front only, and it answers for a few sites at most, so the list can't be gone through.
@@ -164,7 +173,7 @@ Proof: `drive-see.cjs --only lenses` (DYE and GLASS measured on every theme, 5.5
   the two GO will do. Letters first ask an engine once (`w fog`, `!g fog`); `!` shows the list; ALL asks three, a tab each; a results page offers the
   same words of the others (ASK); SEARCH THIS takes a selection. An engine can be off, moved, or added by hand (https, one `%s`, no inside names). A new tab lists the engines that are on to read (name and letters); their keys wait behind [ ARRANGE ] (decision 49); the list from the box is always whole.
 - Results are a page like any other: shown through a lens, never read into anything of ours. A bot check or a consent wall is never worked round: such
-  an engine opens in OWN EYE, or a new tab (↗). READER shows a list of results as a list.
+  an engine opens here in OWN EYE (the frame), or without the extension in a new tab (↗). READER shows a list of results as a list.
 - In the server's eye an engine sees the house's address; in OWN EYE or a new tab, the reader's. Nothing searched for is kept on the server:
   `browse_log` is a site's name (checked).
 

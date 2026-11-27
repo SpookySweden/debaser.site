@@ -50,8 +50,9 @@ export default function SeeingOwnFrame({ address, onList, site, at, onTab, onMac
   const silent = !embedded && loadedAt !== null && at === null && now - loadedAt >= SILENT_MS;
   const keys = (
     <>
-      <button type="button" onClick={onTab} title="In an ordinary tab of your browser, where every site works as usual" className={PLATE} {...explain('Opens this page in an ordinary tab of your own browser.', 'For a site that is signed out or stops itself inside BROWSER: in a tab, it is exactly as in your browser.', NOTE.leaves)}>
-        [ IN A TAB ↗ ]
+      {/* The one way to a tab of the browser, under a name that says so. A page that stayed blank here: it is the key to press. */}
+      <button type="button" onClick={onTab} title="In an ordinary tab of your browser, where every site works as usual" className={silent ? PLATE_MAIN : PLATE} data-seeing-own-tab {...explain('Opens this page in an ordinary tab of your own browser.', 'For a site that is signed out or stops itself inside BROWSER: in a tab, it is exactly as in your browser.', NOTE.leaves)}>
+        {silent ? 'OPEN IT IN A TAB ↗' : '[ IN A TAB ↗ ]'}
       </button>
       <button type="button" onClick={onMachine} title="The machine's own page, with every lens" className={PLATE} {...explain('Opens this page in the extension\'s own page, the machine, in a tab of its own.', 'The machine can put every lens on a page: READER, X-RAY, LOW-FI, YOUR THEME.')}>
         [ IN THE MACHINE ↗ ]
@@ -80,8 +81,8 @@ export default function SeeingOwnFrame({ address, onList, site, at, onTab, onMac
   return (
     <div className="flex min-w-0 flex-1 flex-col" data-seeing-own={silent ? 'silent' : 'shown'}>
       <p className="flex flex-wrap items-center gap-1 px-1 py-1 text-label text-ink">
-        <span className="min-w-0 flex-1 truncate" title={at?.href ?? address}>
-          {silent ? "IT DIDN'T SHOW HERE: SOME SITES REFUSE TO BE INSIDE ANOTHER, AND SIGN-IN PAGES ALWAYS OPEN IN A TAB." : `YOUR OWN BROWSER, SIGNED IN AS YOU WHERE THE SITE ALLOWS IT HERE${at !== null && boxAddress(at.href) !== address ?` · NOW AT ${at.title || at.href}` : ''}`}
+        <span className={silent ? 'min-w-0 flex-1' : 'min-w-0 flex-1 truncate'} title={at?.href ?? address}>
+          {silent ? "IT DIDN'T SHOW HERE. EITHER THIS SITE REFUSES TO BE INSIDE ANOTHER, OR THIS IS A SIGN-IN PAGE, AND THOSE ARE NEVER SHOWN INSIDE ANYTHING. A TAB OF YOUR BROWSER SHOWS IT AS USUAL." :`YOUR OWN BROWSER, SIGNED IN AS YOU WHERE THE SITE ALLOWS IT HERE${at !== null && boxAddress(at.href) !== address ?` · NOW AT ${at.title || at.href}` : ''}`}
         </span>
         {keys}
       </p>

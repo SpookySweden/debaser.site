@@ -1350,9 +1350,9 @@ async function ownEyeFirst(browser) {
     await offer.waitFor();
     ok((await offer.getAttribute('data-seeing-sign-in')) === 'add', "through the server's eye, YouTube not on the list: LOG IN TO YOUTUBE");
     const before = (await opened()).length;
-    await offer.getByRole('button', { name: 'LOG IN TO YOUTUBE' }).click();
+    await offer.getByRole('button', { name: 'LOG IN TO YOUTUBE IN A TAB ↗', exact: true }).click();
     await page.waitForTimeout(300);
-    ok((await opened()).length === before + 1 && (await opened()).at(-1) === YT, 'one press: YouTube in an ordinary tab of your own browser, signed in');
+    ok((await opened()).length === before + 1 && (await opened()).at(-1) === YT, 'one press, on a key named for a tab: YouTube in an ordinary tab of your own browser, signed in');
     await offer.getByRole('button', { name: "[ DON'T ASK AGAIN ]" }).click();
     ok((await offer.count()) === 0, "DON'T ASK AGAIN");
     await page.reload({ waitUntil: 'domcontentloaded' });
@@ -1378,6 +1378,57 @@ async function ownEyeFirst(browser) {
     await here();
     ok((await page.locator('[data-seeing-eye]').getAttribute('data-seeing-eye')) === 'server', 'and is remembered');
     ok((await told()).every(([see, address]) => see !== 'has' || address === null || /^https:\/\/(www\.youtube\.com|[a-z0-9]+\.seeing-fixture\.org)\//.test(address)), 'the extension is asked about the page in front, and nothing else');
+
+    // Every key named OWN EYE, with the server's eye the choice (Luke, 2026-11-27: "it seems own eye still opens a new tab in edge when i
+    // click it"): the page is shown here, in BROWSER's own tab, and a tab of the browser is opened only by a key whose name says tab.
+    const frame = page.locator('[data-seeing-own-frame]');
+    const framed = async () => ((await frame.waitFor({ timeout: 5000 }).then(() => true, () => false)) ? frame.getAttribute('src') : null);
+    const tabs = async () => (await opened()).length;
+    const ownKey = page.locator('[data-seeing-keyrow]').getByRole('button', { name: /^\[ OWN EYE( ↗)? \]$/ });
+    // (Engines and sites of the real internet are never asked by this drive: the frame's address is what is read.)
+    await context.route(/^https:\/\/(www\.)?(google|x|instagram)\.com\//, (route) => route.abort());
+    await go(page, `${SITE}/a`);
+    await say(page, 'SERVER EYE');
+    let before2 = await tabs();
+    await ownKey.click();
+    ok((await framed()) === `${SITE}/a` && (await tabs()) === before2, "the key named OWN EYE, in the server's eye: the page is shown here, inside BROWSER, and no tab of the browser is opened");
+    ok((await page.locator('[data-seeing-eye]').getAttribute('data-seeing-eye')) === 'server' && (await ownKey.count()) === 0 && /OWN EYE: YOUR OWN BROWSER/.test(await page.locator('[data-seeing-status]').innerText()), 'the status line says OWN EYE, the key is put away while it shows the page, and the eye chosen for other pages is as it was');
+    await page.getByRole('button', { name: '[ FROM THE HOUSE ]' }).click();
+    await say(page, 'SERVER EYE');
+    ok((await page.locator('[data-seeing-own]').count()) === 0 && (await ownKey.count()) === 1, 'FROM THE HOUSE is the server again, with the key back');
+    // A page the house refuses (an unusual port): its own OWN EYE key.
+    await go(page, `${SITE}:8444/a`);
+    await page.locator('[data-seeing-refused]').waitFor();
+    before2 = await tabs();
+    await page.locator('[data-seeing-refused]').getByRole('button', { name: /^\[ OWN EYE( ↗)? \]$/ }).click();
+    ok((await framed()) === `${SITE}:8444/a` && (await tabs()) === before2, "a refused page's OWN EYE key shows it here too, and opens no tab");
+    // It stays blank (nothing answers there): said, and the tab key becomes the one to press.
+    await page.locator('[data-seeing-own="silent"]').waitFor({ timeout: 20000 });
+    ok(/IT DIDN'T SHOW HERE/.test(await page.locator('[data-seeing-own]').innerText()) && /SIGN-IN PAGE/.test(await page.locator('[data-seeing-own]').innerText()), 'a page that stays blank in the frame says why: the site refuses to be inside another, or it is a sign-in page');
+    await page.locator('[data-seeing-own]').getByRole('button', { name: 'OPEN IT IN A TAB ↗', exact: true }).click();
+    await page.waitForTimeout(300);
+    ok((await tabs()) === before2 + 1 && (await opened()).at(-1) === `${SITE}:8444/a`, 'and its key, named for a tab, opens the tab');
+    // A site the house can't show (X): OWN EYE here; a tab under its own name.
+    await go(page, 'https://x.com/');
+    await page.locator('[data-seeing-shell="x.com"]').waitFor();
+    before2 = await tabs();
+    await page.locator('[data-seeing-shell]').getByRole('button', { name: /OWN EYE/ }).click();
+    await page.locator('[data-seeing-own="add"]').waitFor({ timeout: 5000 }).catch(() => undefined);
+    ok((await page.locator('[data-seeing-own="add"]').count()) === 1 && (await tabs()) === before2 && /SHOW X\.COM HERE/.test(await page.locator('[data-seeing-own]').innerText()), "a site the house can't show: its OWN EYE key shows it here (not on the list: BROWSER offers to add it), and opens no tab");
+    await go(page, 'https://www.instagram.com/');
+    await page.locator('[data-seeing-shell="instagram.com"]').waitFor();
+    await page.locator('[data-seeing-shell]').getByRole('button', { name: '[ IN A TAB ↗ ]', exact: true }).click();
+    await page.waitForTimeout(300);
+    ok((await tabs()) === before2 + 1 && (await opened()).at(-1) === 'https://www.instagram.com/', 'and the key beside it, named for a tab, opens the tab');
+    // Words to an engine that turns the house away (Google): here, in OWN EYE.
+    before2 = await tabs();
+    const windows = context.pages().length;
+    await go(page, 'g fog');
+    await page.locator('[data-seeing-own="add"]').waitFor({ timeout: 5000 }).catch(() => undefined);
+    ok((await page.locator('[data-seeing-own="add"]').count()) === 1 && (await box(page).inputValue()) === 'https://www.google.com/search?q=fog' && (await tabs()) === before2 && context.pages().length === windows, 'words to an engine that turns the house away are asked here, in OWN EYE: no tab of the browser, no window');
+    await pretend({ version, sites: ['seeing-fixture.org', 'youtube.com', 'google.com'] });
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    ok((await framed()) === 'https://www.google.com/search?q=fog' && (await tabs()) === before2, 'and with the engine on the list, its results are shown here');
     await context.close();
   } finally {
     net.close();
@@ -1481,7 +1532,7 @@ async function extension(browser) {
   await page.getByRole('button', { name: 'Close EXTENSION' }).click().catch(() => page.locator('[data-dock-window="extension"]').getByRole('button', { name: /close/i }).first().click());
   await go(page, 'https://example.com/');
   await page.waitForTimeout(800);
-  await page.getByRole('button', { name: '[ OWN EYE ↗ ]' }).click();
+  await page.getByRole('button', { name: '[ OWN EYE ]', exact: true }).click();
   await kind('missing');
   ok(true, 'a key that needs it opens the window that gets it');
 

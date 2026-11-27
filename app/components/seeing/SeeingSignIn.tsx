@@ -12,8 +12,8 @@ export default function SeeingSignIn({ site, has, onLogIn, onGet, onNotNow, onNe
   return (
     <p className="flex flex-wrap items-center gap-2 py-1 text-label text-ink" data-seeing-sign-in={has ? 'add' : 'get'}>
       {has ? (
-        <button type="button" onClick={onLogIn} title="In an ordinary tab of your own browser, signed in as you are there" className={PLATE_MAIN} {...explain('Opens this page in an ordinary tab of your own browser, where you are signed in, or can sign in on the site itself.', 'The server\'s eye is never signed in: this is the way to the signed-in page.', NOTE.leaves)}>
-          LOG IN TO {name}
+        <button type="button" onClick={onLogIn} title="In an ordinary tab of your own browser, signed in as you are there" className={PLATE_MAIN} {...explain('Opens this page in an ordinary tab of your own browser, where you are signed in, or can sign in on the site itself.', 'The server\'s eye is never signed in, and a sign-in page is never shown inside another site: signing in happens in a tab, on the site itself.', NOTE.leaves)}>
+          LOG IN TO {name} IN A TAB ↗
         </button>
       ) : (
         <>

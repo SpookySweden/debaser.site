@@ -127,6 +127,10 @@ Each can be changed later by saying so.
 55. **OWN EYE is inside BROWSER's own tab** (Luke, 2026-11-27: "i also need own eye to not open in a new tab but inside a 'new tab' inside of
     debasers browser module"; it replaces 54's default): the page in a frame on BROWSER's page, signed in where the site lets its sign-in work inside
     another site, a real tab and the machine's page one press away. YouTube's videos are its own player. Nothing loosens a site's cookies.
+    **Every key named OWN EYE does that, whichever eye is the choice** (Luke, 2026-11-27: "it seems own eye still opens a new tab in edge when
+    i click it, i did ask before for this to open inside of my site as a new tab in the browser module"): the key on the tool row, a refused
+    page's, the "needs your own browser" page's, and words to an engine that turns the house away. A tab of the browser is opened only by a
+    key whose name says tab (`[ IN A TAB ↗ ]`; `LOG IN TO … IN A TAB ↗`, since a sign-in page is never framed, D1).
 56. **A sign-in brings its company** (Luke, 2026-11-27: "link your sign ins to add all related pages ... and have an import button"): adding a
     Google, Microsoft, Apple, Meta or Amazon site offers all of that company's sites, named first, in one box of the browser's. IMPORT reads the
     browser's history (site names, 30 days), not its cookies, asked for on the press and given back at once.

@@ -74,6 +74,19 @@ assert.ok(!/aria-label="Year"/.test(tools({ address: 'see:test' })) && !tools({ 
 const refused = (props) => html(el(at('SeeingRefused'), { reason: 'NO SUCH SITE', eye: 'SERVER EYE', ms: 412, address: 'https://example.com/<b>', canOld: true, ownEye: false, onAgain: none, onOld: none, onOwn: none, ...props }));
 assert.ok(/data-seeing-trace/.test(refused({})) && refused({}).includes('SERVER EYE') && refused({}).includes('NO SUCH SITE · 412 MS') && refused({}).includes('&lt;b&gt;') && !refused({}).includes('<b>'));
 assert.ok(refused({ ms: 15234 }).includes('· 15.2 S'));
+
+// The keys named OWN EYE show the page inside BROWSER (Luke, 2026-11-27: "it seems own eye still opens a new tab in edge when i click it"):
+// none of them is marked as leaving (↗); a tab of the browser is behind a key whose name says tab, and only there.
+const TAB_KEY = /IN A TAB ↗/;
+const ownRefused = refused({ reason: 'TOO LARGE', ownEye: true });
+assert.ok(ownRefused.includes('[ OWN EYE ]') && !/OWN EYE ↗/.test(ownRefused) && !/OPENS A NEW TAB/.test(ownRefused), "a refused page's OWN EYE key says nothing of a tab");
+const shellPage = (extension) => html(el(at('SeeingShell'), { site: 'x.com', extension, onOwn: none, onTab: none, onGet: none, onAnyway: none }));
+assert.ok(shellPage('current').includes('SHOW IT HERE WITH OWN EYE') && !/OWN EYE ↗/.test(shellPage('current')) && shellPage('current').includes('[ IN A TAB ↗ ]'), 'a site the house can\'t show: OWN EYE here, and a tab under its own name');
+assert.ok(!TAB_KEY.test(shellPage('missing')) && shellPage('missing').includes('GET THE EXTENSION'), 'without the extension, the extension first');
+const signInLine = html(el(at('SeeingSignIn'), { site: 'youtube.com', has: true, onLogIn: none, onGet: none, onNotNow: none, onNever: none }));
+assert.ok(signInLine.includes('LOG IN TO YOUTUBE IN A TAB ↗'), 'signing in is in a tab, and the key says so');
+const ownFrame = html(el(at('SeeingOwnFrame'), { address: 'https://example.com/', onList: true, site: 'example.com', at: null, onTab: none, onMachine: none, onHouse: none, onAdd: none }));
+assert.ok(ownFrame.includes('[ IN A TAB ↗ ]') && ownFrame.includes('[ FROM THE HOUSE ]') && /data-seeing-own-frame/.test(ownFrame), "the frame's own line: a tab and the house, one press away");
 // A new tab shows only what works without a page (IMPROVE, 2026-11-23): SCAN stays, the page's own keys wait for a page.
 assert.ok(['SEAM', 'LOUPE', 'ERASE', 'GOOD'].every((name) => !tools({ address: null }).includes(`[ ${name} ]`)) && tools({ address: null }).includes('[ SCAN ]'));
 assert.ok(['SEAM', 'LOUPE', 'ERASE', 'GOOD', 'SCAN'].every((name) => tools({}).includes(`[ ${name} ]`)));

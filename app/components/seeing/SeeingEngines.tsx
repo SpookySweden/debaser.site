@@ -31,7 +31,7 @@ export default function SeeingEngines({ ownEye, onClose }: { ownEye: boolean; on
         className="py-1"
         title="In the server's eye an engine sees the house's address, not yours. In OWN EYE or a new tab it sees yours. The words you search for are never stored on the server."
       >
-        THE LETTERS BEFORE WORDS ASK THAT ENGINE ONCE: w fog. ↗ OPENS {ownEye ? 'IN OWN EYE' : 'IN A NEW TAB'}, AND SEES YOUR ADDRESS; THE REST SEE THE HOUSE&apos;S. NO WORDS ARE STORED ON THE SERVER.
+        THE LETTERS BEFORE WORDS ASK THAT ENGINE ONCE: w fog. ↗ OPENS {ownEye ? 'HERE, IN OWN EYE' : 'IN A NEW TAB'}, AND SEES YOUR ADDRESS; THE REST SEE THE HOUSE&apos;S. NO WORDS ARE STORED ON THE SERVER.
       </p>
       <div className={whole ? 'grid gap-x-4 gap-y-2 lg:grid-cols-2' : 'grid gap-x-4 gap-y-2 sm:grid-cols-2 lg:grid-cols-3'}>
         {ENGINE_GROUPS.map((group) => {

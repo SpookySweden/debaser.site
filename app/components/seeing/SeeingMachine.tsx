@@ -188,7 +188,11 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
 
   // OWN EYE first (Luke, 2026-11-23), when the extension answers: the page in your own browser, and here the way to see it through the server.
   const eye = useSyncExternalStore(subscribeToEyeChoice, eyeChoice, eyeChoiceOnServer);
-  const ownFirst = eye === 'own' && address !== null && /^https?:/.test(address);
+  // And a page OWN EYE was asked for by name (the key named OWN EYE, an engine the house can't show), whichever eye is the choice
+  // (Luke, 2026-11-27: "it seems own eye still opens a new tab in edge when i click it"): shown here, never in a tab of the browser.
+  const [there, setThere] = useState<readonly string[]>([]);
+  const ownAsked = eye === 'own' || (address !== null && there.includes(address));
+  const ownFirst = ownAsked && address !== null && /^https?:/.test(address);
   const [here, setHere] = useState<readonly string[]>([]);
   // A page opened by a press here goes to OWN EYE; one that was only open when the page loaded waits for a press.
   const pressed = useRef<string | null>(null);
@@ -313,7 +317,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
   }, [href, tab.id, tab.draft]);
 
   const go = useCallback(
-    (text: string, newTab = false) => {
+    (text: string, newTab = false, own = false) => {
       const read = readAddress(text);
       if (!read.ok) {
         setNotice(read.reason);
@@ -326,6 +330,8 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
       }
       setNotice(null);
       setSent(NO_MEDIA);
+      // `own`: with OWN EYE, here, whichever eye is the choice.
+      if (own) setThere((all) => (all.includes(read.address) ? all : [...all, read.address]));
       pressed.current = read.address;
       changeTabs((all) => {
         const room = newTab ? addTab(all, freshId()) : all;
@@ -337,13 +343,28 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
     [state, setSent],
   );
 
-  /** Words to an engine: here, or where it lets itself be seen. A new tab when asked for one. */
+  /**
+   * Words to an engine: here, or where it lets itself be seen. A new tab when asked for one. An engine that turns the house away is shown
+   * here by OWN EYE when the extension is in (never a tab of the browser), and in a tab of the browser's when it isn't.
+   */
   const ask = (engine: Engine, words: string, newTab = false) => {
     if (engine.id === 'debaser') openSearch(words);
     else if (engine.opens === 'site') router.push(engine.address.replace('%s', () => encodeURIComponent(words)));
     else if (engine.opens === 'here') go(searchAddress(engine, words), newTab);
-    else if (extension === 'current') void openInOwnEye(searchAddress(engine, words));
+    else if (extension === 'current') go(searchAddress(engine, words), newTab, true);
     else window.open(searchAddress(engine, words), '_blank', 'noopener,noreferrer');
+  };
+
+  /** The key named OWN EYE: the page in front, here, from the reader's own browser. Without the extension, the window that gets it. */
+  const showOwn = () => {
+    if (address === null) return;
+    if (extension !== 'current') {
+      openExtensionWindow();
+      return;
+    }
+    setNotice(null);
+    setHere(here.filter((each) => each !== key));
+    if (!there.includes(address)) setThere([...there, address]);
   };
 
   /** What was typed: an address, or words for an engine. */
@@ -360,7 +381,9 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
     const typed = readBox(text, choices);
     if (typed.kind !== 'search') return;
     const engines = enginesOn(choices).filter((each) => choices.all.includes(each.id) && each.opens !== 'site');
-    const here = engines.filter((each) => each.opens === 'here');
+    // With the extension in, an engine that turns the house away is a tab here too, shown by OWN EYE.
+    const own = extension === 'current' ? engines.filter((each) => each.opens === 'out').map((each) => searchAddress(each, typed.words)) : [];
+    const here = engines.filter((each) => each.opens === 'here' || (each.opens === 'out' && extension === 'current'));
     const room = TABS_MOST - state.tabs.length + (address === null ? 1 : 0);
     if (here.length > room) {
       setNotice(`${TABS_MOST} TABS AT MOST`);
@@ -378,7 +401,8 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
       }
       return first === null ? next : showTab(next, first);
     });
-    for (const engine of engines) if (engine.opens === 'out') ask(engine, typed.words);
+    if (own.length > 0) setThere((all) => [...all, ...own.filter((each) => !all.includes(each))]);
+    else for (const engine of engines) if (engine.opens === 'out') ask(engine, typed.words);
   };
 
   const seen = now.state === 'shown' ? now.document : null;
@@ -532,14 +556,14 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
   const [framedAt, setFramedAt] = useState<{ key: string; href: string; title: string } | null>(null);
   const holdRef = useRef<OwnEyeHold | null>(null);
   useEffect(() => {
-    if (!(eye === 'own' && extension === 'current')) return;
+    if (!(ownAsked && extension === 'current')) return;
     const hold = holdOwnEye((href, title) => setFramedAt({ key, href, title }));
     holdRef.current = hold;
     return () => {
       holdRef.current = null;
       hold.release();
     };
-  }, [eye, extension, key]);
+  }, [ownAsked, extension, key]);
   // Where the page OWN EYE shows here got to, by a link followed inside it: the address box follows it (the frame is not reloaded; GO there
   // makes it a stop of the tab's own).
   const followed = now.state === 'elsewhere' && framedAt !== null && framedAt.key === key ? boxAddress(framedAt.href) : null;
@@ -556,7 +580,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
   const never = useSyncExternalStore(subscribeToEyeChoice, () => notAskedAgain(owner.id), notAskedAgainOnServer);
   const [notNow, setNotNow] = useState('');
   // With OWN EYE first a page opens signed in already; the line is for the server's eye, and for a browser without the extension.
-  const offering = offer !== null && outside && !never.includes(offer) && notNow !== key && (extension === 'missing' || extension === 'old' || (extension === 'current' && eye === 'server' && onList?.on === false));
+  const offering = offer !== null && outside && !never.includes(offer) && notNow !== key && (extension === 'missing' || extension === 'old' || (extension === 'current' && eye === 'server' && now.state !== 'elsewhere' && onList?.on === false));
   const onSelect = useCallback((text: string) => setSelected({ key, text }), [key, setSelected]);
   // A kept copy in front: whose page it is, and where it came from, said above it.
   const asked = useMemo(() => (address === null ? null : askedOf(address, choices)), [address, choices]);
@@ -778,10 +802,21 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
             {onList?.on === true ? `[ ✓ ON THE LIST: ${onList.site} ]` : `[ ADD ${onList?.site ?? shortName(address)} ]`}
           </button>
         ) : null}
-        {outside && extension !== 'asking' && extension !== 'unable' ? (
-          // Missing or old, the key opens the window that gets it first.
-          <button type="button" title="In your own browser, where you are signed in" onClick={() => (extension === 'current' ? void openInOwnEye(dialOf(address).address) : openExtensionWindow())} {...explain(extension === 'current' ? 'Opens this page in a real tab of your own browser, signed in, through the extension.' : 'Opens the EXTENSION window, to get or update the extension OWN EYE needs.', 'For a site that won\'t work inside BROWSER, or to use it exactly as in your browser.', extension === 'current' ? 'OPENS A NEW TAB.' : undefined)} className={PLATE}>
-            [ OWN EYE ↗ ]
+        {outside && extension !== 'asking' && extension !== 'unable' && now.state !== 'elsewhere' ? (
+          // The key named OWN EYE shows the page here, never in a tab of the browser (Luke, 2026-11-27); a page OWN EYE shows already has
+          // no use for it. Missing or old, the key opens the window that gets the extension first.
+          <button
+            type="button"
+            title="Here, inside BROWSER, from your own browser, where you are signed in"
+            onClick={showOwn}
+            data-seeing-own-key
+            {...explain(
+              extension === 'current' ? 'Shows this page here, inside BROWSER, from your own browser: signed in as you where the site allows it. No tab of your browser is opened.' : 'Opens the EXTENSION window, to get or update the extension OWN EYE needs.',
+              'For a site you are signed in to, or one that turns the house away. A real tab of your browser is one press further: [ IN A TAB ↗ ], on the line above the page.',
+            )}
+            className={PLATE}
+          >
+            [ OWN EYE ]
           </button>
         ) : null}
       </SeeingTools>
@@ -877,7 +912,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
             onAdd={() => void openInOwnEye(dialOf(address).address, 'machine')}
           />
         ) : now.state === 'shell' && shell !== null ? (
-          <SeeingShell site={shell} extension={extension} onOwn={() => void openInOwnEye(dialOf(address).address)} onGet={openExtensionWindow} onAnyway={() => setHere([...here, key])} />
+          <SeeingShell site={shell} extension={extension} onOwn={showOwn} onTab={() => void openInOwnEye(dialOf(address).address)} onGet={openExtensionWindow} onAnyway={() => setHere([...here, key])} />
         ) : now.state === 'refused' ? (
           <SeeingRefused
             reason={now.reason}
@@ -889,7 +924,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
             ownEye={outside && extension === 'current'}
             onAgain={() => setTurn((each) => each + 1)}
             onOld={() => go(dialTo(address, new Date().getFullYear()))}
-            onOwn={() => void openInOwnEye(dialOf(address).address)}
+            onOwn={showOwn}
           />
         ) : (
           <SeeingAcquiring words={now.state === 'busy' ? (now.at ?? 'ACQUIRING SOURCE') : 'STOPPED'} address={address} eye={engineFor(address).name} busy={now.state === 'busy'} onAgain={() => setTurn((each) => each + 1)} />
