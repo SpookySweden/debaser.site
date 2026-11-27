@@ -1227,7 +1227,7 @@ async function ownEyeFirst(browser) {
         // BROWSER holds itself open to the extension while OWN EYE shows pages here.
         connect: () => {
           window.heldOpen = (window.heldOpen ?? 0) + 1;
-          return { onMessage: { addListener: () => undefined }, disconnect: () => { window.heldOpen -= 1; } };
+          return { onMessage: { addListener: () => undefined }, postMessage: (message) => { window.lensesAsked = [...(window.lensesAsked ?? []), message.lens]; }, disconnect: () => { window.heldOpen -= 1; } };
         },
         sendMessage: (id, message, answer) => {
           const it = kept();
@@ -1288,6 +1288,13 @@ async function ownEyeFirst(browser) {
     await page.locator('[data-seeing-own-frame]').waitFor();
     ok((await page.locator('[data-seeing-own-frame]').getAttribute('src')) === `${SITE}/a` && (await opened()).length === 0, "with the extension, a page opens in OWN EYE inside BROWSER's own tab, and no tab of the browser is opened");
     ok((await page.evaluate(() => window.heldOpen)) >= 1, 'with BROWSER held open to the extension, which lets the site be framed here');
+    await page.locator('[data-seeing-lenses]').getByRole('button', { name: '[ READER ]' }).click();
+    await page.waitForTimeout(300);
+    ok((await page.evaluate(() => window.lensesAsked ?? [])).includes('reader'), "a lens pressed is asked of the extension, to wear on the page framed here: it stays the site's own, signed in");
+    await page.locator('[data-seeing-lenses]').getByRole('button', { name: '[ WATCHERS ]' }).click();
+    await page.waitForTimeout(300);
+    ok(/THE HOUSE'S ONLY/.test(await page.locator('[data-seeing-status]').innerText()), 'and one only the house has says so');
+    await page.locator('[data-seeing-lenses]').getByRole('button', { name: '[ STANDARD ]' }).click();
     ok((await page.locator('[data-seeing-own-frame]').getAttribute('sandbox')) === 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads', "in a frame that can't move BROWSER's page");
     ok((await page.locator('[data-seeing-get-signed-in]').count()) === 0, 'and nothing is asked for first');
     ok(!net.asked.some((each) => each.path === '/a'), 'and the server asks nothing for it');

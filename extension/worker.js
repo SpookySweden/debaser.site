@@ -2,6 +2,7 @@
  * The extension's worker. It lifts the no-framing header for the sites the reader has added, in the tabs the machine's own page is
  * open in and nowhere else; opens the machine when the site or the panel asks; and keeps the theme the site sends. It reads no page, cookie or password.
  */
+import { putLens } from './act.js';
 import { allowedSites, isAllowed, NEVER_HOSTS, NEVER_NAMES, originsOf, readAddress, SITE, siteOf } from './sites.js';
 
 const RULE = 1;
@@ -34,12 +35,33 @@ chrome.runtime.onConnect.addListener((port) => {
  * when the page does. Where a framed page got to is told back to that page, and to nobody else.
  */
 const browsers = new Map();
+const LENS_IDS = ['standard', 'reader', 'xray', 'lowfi', 'yours'];
+/** The frame BROWSER's tab shows a page in, and the lens asked for there. */
+const framedIn = new Map();
+const lensOf = new Map();
+async function wearIn(tab) {
+  const frameId = framedIn.get(tab);
+  const lens = lensOf.get(tab);
+  if (frameId === undefined || lens === undefined) return;
+  await putLens({ tabId: tab, frameIds: [frameId] }, lens).catch(() => undefined);
+}
 chrome.runtime.onConnectExternal.addListener((port) => {
   const tab = port.sender?.tab?.id;
   if (port.name !== 'browser' || port.sender?.origin !== SITE || tab === undefined) return port.disconnect();
   browsers.set(port, tab);
+  // A lens BROWSER's page asks for, put on the page framed in its tab and worn again on each page it goes to: the reader stays signed in, since
+  // the page is the site's own, in their own browser; the lens only changes how it looks.
+  port.onMessage.addListener((message) => {
+    if (message?.see !== 'lens' || !LENS_IDS.includes(message.lens)) return;
+    lensOf.set(tab, message.lens);
+    void wearIn(tab);
+  });
   port.onDisconnect.addListener(() => {
     browsers.delete(port);
+    if (![...browsers.values()].includes(tab)) {
+      lensOf.delete(tab);
+      framedIn.delete(tab);
+    }
     void again();
   });
   void again().then(() => port.postMessage({ see: 'ready' })).catch(() => undefined);
@@ -184,7 +206,12 @@ chrome.runtime.onMessage.addListener((message, sender, answer) => {
   if (message.see === 'machine') void openMachine(message.address).then(() => answer({ ok: true }));
   else if (message.see === 'frame' && sender.tab?.id !== undefined && sender.frameId !== 0 && typeof message.href === 'string') {
     // A page in one of BROWSER's tabs: where it got to, to that tab's BROWSER page alone.
-    for (const [port, tab] of browsers) if (tab === sender.tab.id) port.postMessage({ see: 'at', href: message.href, title: typeof message.title === 'string' ? message.title.slice(0, 160) : '' });
+    const ours = [...browsers].filter(([, tab]) => tab === sender.tab.id);
+    for (const [port] of ours) port.postMessage({ see: 'at', href: message.href, title: typeof message.title === 'string' ? message.title.slice(0, 160) : '' });
+    if (ours.length > 0) {
+      framedIn.set(sender.tab.id, sender.frameId);
+      void wearIn(sender.tab.id);
+    }
     return;
   } else if (message.see === 'tab' && typeof message.address === 'string') void openTab(message.address).then(() => answer({ ok: true }));
   else if (message.see === 'rules') void again().then(() => answer({ ok: true }));

@@ -134,6 +134,9 @@ Each can be changed later by saying so.
     forever", 2026-11-27), as D3 always asked; /privacy says it too.
 58. **OWN WEB keeps what the owner opens from the house** (Luke, 2026-11-27, typed here: "Yes, change it"): each page a copy, private, once a
     day per address, on the phase 5 tables; his alone for now. Never what his own browser shows, a sign-in, or a form. Deleted by page, site or all.
+59. **Lenses on a signed-in page** (Luke, 2026-11-27: "incorporate the things so that the lenses work while people are still able to be signed in
+    on the sites"): a lens on the page OWN EYE shows inside BROWSER is worn by the extension on the site's own page, in the reader's own browser, so
+    they stay signed in; nothing of the page is fetched by the house or kept. The house-only lenses say so.
 
 ## Risks, said once
 1. **SERVER is beside everything.** The torrent page (no password at home), Jellyfin, the database and its dashboard, the

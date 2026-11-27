@@ -39,7 +39,7 @@ import { keptPage, keptPages, keptPagesOnServer, openKeptPagesOf, subscribeToKep
 import { partOf, type FrameScroll } from '../../lib/seeing/frame';
 import { engineFor } from '../../lib/seeing/engines';
 import { extensionState, extensionStateOnServer, lookForExtension, subscribeToExtension } from '../../lib/seeing/extension-store';
-import { holdOwnEye, openInOwnEye, ownEyeHas, tellOwnEyeTheme } from '../../lib/seeing/own-eye';
+import { holdOwnEye, openInOwnEye, ownEyeHas, tellOwnEyeTheme, type OwnEyeHold } from '../../lib/seeing/own-eye';
 import { chooseEye, dontAskAgain, eyeChoice, eyeChoiceOnServer, notAskedAgain, notAskedAgainOnServer, offerFor, subscribeToEyeChoice } from '../../lib/seeing/eye-choice';
 import { openExtensionWindow } from '../../lib/ui/extension-window';
 import { scriptsOff, setScriptsOff, siteSettings, siteSettingsOnServer, subscribeToSiteSettings } from '../../lib/seeing/site-settings';
@@ -530,10 +530,23 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
   const onList = listed !== null && listed.address === address ? listed : null;
   // While OWN EYE shows pages here: held open to the extension, which says where a framed page got to.
   const [framedAt, setFramedAt] = useState<{ key: string; href: string; title: string } | null>(null);
+  const holdRef = useRef<OwnEyeHold | null>(null);
   useEffect(() => {
     if (!(eye === 'own' && extension === 'current')) return;
-    return holdOwnEye((href, title) => setFramedAt({ key, href, title }));
+    const hold = holdOwnEye((href, title) => setFramedAt({ key, href, title }));
+    holdRef.current = hold;
+    return () => {
+      holdRef.current = null;
+      hold.release();
+    };
   }, [eye, extension, key]);
+  // The lens in front, on the page OWN EYE shows here: worn by the extension on the site's own page, so the reader stays signed in.
+  const ownLens = now.state === 'elsewhere' ? tab.lens : null;
+  useEffect(() => {
+    if (ownLens === null) return;
+    const worn = holdRef.current?.lens(ownLens) ?? false;
+    if (!worn && ownLens !== 'standard') setNotice('THIS LENS IS THE HOUSE\'S ONLY: FROM THE HOUSE SHOWS IT');
+  }, [ownLens, framedAt]);
   // The sign-in offered on entering a page (YouTube, for now), until it is on the list or the reader says not to.
   const offer = offerFor(address);
   const never = useSyncExternalStore(subscribeToEyeChoice, () => notAskedAgain(owner.id), notAskedAgainOnServer);

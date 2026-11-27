@@ -85,10 +85,15 @@ export async function tellOwnEyeTheme(themeId: string): Promise<void> {
   await say({ see: 'theme', theme: ownEyeTheme(theme.tokens, theme.scheme) });
 }
 
+/** The lenses the extension has, as BROWSER names them; the rest are the house's only. */
+export const OWN_EYE_LENS: Record<string, 'standard' | 'reader' | 'xray' | 'lowfi' | 'yours'> = { standard: 'standard', reader: 'reader', xray: 'xray', lowfi: 'lowfi', dye: 'yours' };
+
+export type OwnEyeHold = { lens: (id: string) => boolean; release: () => void };
+
 /** BROWSER's page, held open to the extension while it is drawn: an added site may then be framed in its tabs. What a framed page says is a stranger's. */
-export function holdOwnEye(onAt: (href: string, title: string) => void): () => void {
-  const own = (globalThis as typeof globalThis & { chrome?: { runtime?: { connect?: (id: string, info: { name: string }) => { onMessage: { addListener: (hear: (value: unknown) => void) => void }; disconnect: () => void } } } }).chrome?.runtime;
-  if (own?.connect === undefined) return () => undefined;
+export function holdOwnEye(onAt: (href: string, title: string) => void): OwnEyeHold {
+  const own = (globalThis as typeof globalThis & { chrome?: { runtime?: { connect?: (id: string, info: { name: string }) => { onMessage: { addListener: (hear: (value: unknown) => void) => void }; postMessage: (message: unknown) => void; disconnect: () => void } } } }).chrome?.runtime;
+  if (own?.connect === undefined) return { lens: () => false, release: () => undefined };
   let port: ReturnType<NonNullable<typeof own.connect>> | null = null;
   try {
     port = own.connect(EXTENSION_ID, { name: 'browser' });
@@ -100,7 +105,20 @@ export function holdOwnEye(onAt: (href: string, title: string) => void): () => v
   } catch {
     port = null;
   }
-  return () => port?.disconnect();
+  return {
+    // A lens on the framed page, worn by the extension; false for one only the house has.
+    lens: (id) => {
+      const theirs = OWN_EYE_LENS[id];
+      if (theirs === undefined || port === null) return false;
+      try {
+        port.postMessage({ see: 'lens', lens: theirs });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    release: () => port?.disconnect(),
+  };
 }
 
 /** In an ordinary tab, signed in, the lenses beside it (the default); or in the machine's own page, its frame. */

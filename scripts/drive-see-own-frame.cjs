@@ -106,6 +106,19 @@ const SANDBOX = /OWN_FRAME_SANDBOX = '([^']+)'/.exec(fs.readFileSync(path.join(_
     await page.waitForTimeout(1200);
     ok(told.some((each) => each.see === 'at' && each.href === 'https://www.shoptrial.test/second') && (await drawn()) !== null, 'a link followed inside it is followed, and told');
 
+    // A lens asked for by BROWSER's page, worn on the framed page by the extension, and again on the next page: still signed in.
+    await page.evaluate(() => window.held.postMessage({ see: 'lens', lens: 'lowfi' }));
+    await page.waitForTimeout(1000);
+    ok((await inner().evaluate(() => document.getElementById('debaser-see') !== null)) && (await drawn()).includes('session=1'), 'a lens is put on the page framed in BROWSER, while it stays signed in');
+    await inner().locator('#next').click();
+    await page.waitForTimeout(1500);
+    ok((await inner().evaluate(() => document.getElementById('debaser-see') !== null)) && (await drawn()).includes('session=1'), 'and worn again on the next page it goes to');
+    await page.evaluate(() => window.held.postMessage({ see: 'lens', lens: 'standard' }));
+    await page.waitForTimeout(800);
+    ok((await inner().evaluate(() => document.getElementById('debaser-see') === null)), 'STANDARD takes it off');
+    await page.evaluate(() => window.held.postMessage({ see: 'lens', lens: '<script>' }));
+    ok(true, 'and what is not a lens is nothing');
+
     await frameOf('https://accounts.google.com/');
     ok((await inner()?.locator('#signin').count().catch(() => 0)) === 0, 'a sign-in page is never shown inside it (D1)');
     await frameOf('https://www.shoptrial.test/leave');

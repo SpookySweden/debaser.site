@@ -32,7 +32,9 @@ assert.equal(manifest.content_scripts, undefined, 'and on no page until it is as
 // (2026-11-27) and in one of BROWSER's tabs on debaser.site, where OWN EYE shows a page in a frame too.
 assert.equal(read('frame.js').replace(/^\/\*[\s\S]*?\*\/\n/, ''), "if (window !== window.top && window.parent === window.top && (location.ancestorOrigins[0] === 'chrome-extension://' + chrome.runtime.id || location.ancestorOrigins[0] === 'https://debaser.site')) {\n  chrome.runtime.sendMessage({ see: 'frame', href: location.href, title: document.title.slice(0, 160) }).catch(() => undefined);\n}\n", "what runs on an added site says where it is, in the machine's frame or BROWSER's, and nothing else");
 assert.ok(read('worker.js').includes("if (port.name !== 'browser' || port.sender?.origin !== SITE || tab === undefined) return port.disconnect();"), "only debaser.site's own page holds a tab open for frames");
-assert.ok(read('worker.js').includes("for (const [port, tab] of browsers) if (tab === sender.tab.id) port.postMessage"), "and where a framed page got to goes to that tab's page alone");
+assert.ok(read('worker.js').includes("const ours = [...browsers].filter(([, tab]) => tab === sender.tab.id);") && read('worker.js').includes("for (const [port] of ours) port.postMessage"), "and where a framed page got to goes to that tab's page alone");
+// (2026-11-27) a lens asked for by BROWSER's page is worn on the page framed in that tab only, and only one the extension has.
+assert.ok(read('worker.js').includes("if (message?.see !== 'lens' || !LENS_IDS.includes(message.lens)) return;") && read('worker.js').includes('await putLens({ tabId: tab, frameIds: [frameId] }, lens)'), 'a lens on the framed page in that tab, of the lenses it has');
 assert.deepEqual(manifest.externally_connectable, { matches: ['https://debaser.site/*'] });
 assert.match(manifest.content_security_policy.extension_pages, /script-src 'self'; object-src 'none'/);
 const id = [...crypto.createHash('sha256').update(Buffer.from(manifest.key, 'base64')).digest('hex').slice(0, 32)].map((c) => String.fromCharCode(97 + parseInt(c, 16))).join('');
