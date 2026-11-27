@@ -297,8 +297,8 @@ async function boxContrast(page) {
   await filterKey.click();
   const sortWords = await sayOf(page.locator('button[aria-controls="board-controls-panel"]'));
   check(sortWords !== null && sortWords.includes('time frame'), 'SORT explains itself', sortWords ?? 'none');
-  const searchWords = await sayOf(page.locator('input[aria-label="Search the board"]'));
-  check(searchWords !== null && searchWords.includes('Searches the board'), 'the search box explains itself', searchWords ?? 'none');
+  const boardSearchWords = await sayOf(page.locator('input[aria-label="Search the board"]'));
+  check(boardSearchWords !== null && boardSearchWords.includes("Searches the board"), "the board search box explains itself", boardSearchWords ?? "none");
   await page.keyboard.press('Escape');
   const newPost = page.locator('[data-main-key]', { hasText: 'NEW POST' });
   const newPostWords = await sayOf(newPost);
