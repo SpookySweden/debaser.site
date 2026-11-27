@@ -23,6 +23,7 @@ import TimeStamp from './TimeStamp';
 import { PLATE, ROW_READ, ROW_UNREAD } from '../lib/ui/controls';
 import { HiddenNote, ReportKey } from './ModerationKeys';
 import { useModeration } from './ModerationProvider';
+import { NOTE, explain } from '../lib/ui/explain';
 
 /** The line a reply's REPORT carries: a reply, or a profile's comment the board gathered (`profile-comment:<id>`). */
 function reportedLine(id: string, text: string): { kind: 'reply' | 'profile_comment'; id: string; text: string } {
@@ -176,7 +177,15 @@ export default function CommentNodeCard({
         <TagStrip tags={displayTags(comment.tags)} className="mt-1" limit={5} />
 
         <div className="mt-1 flex flex-wrap items-center gap-1">
-          <button type="button" onClick={onToggleReply} className={PLATE}>
+          <button
+            type="button"
+            onClick={onToggleReply}
+            className={PLATE}
+            {...explain(
+              replyOpen ? 'Closes the box for answering this reply.' : 'Opens a box under this reply for answering it.',
+              'An answer is nested under the reply it answers.',
+            )}
+          >
             {replyOpen ? '[ CANCEL ]' : '[ REPLY ]'}
           </button>
 
@@ -188,6 +197,10 @@ export default function CommentNodeCard({
               onClick={onToggleReplies}
               aria-expanded={!repliesHidden}
               className={PLATE}
+              {...explain(
+                repliesHidden ? 'Shows the answers to this reply.' : 'Folds the answers to this reply away.',
+                'The number is how many answers it has.',
+              )}
             >
               {`[ ${countReplies(replyCount)} ${repliesHidden ? '▾' : '▴'} ]`}
             </button>
@@ -211,6 +224,11 @@ export default function CommentNodeCard({
             onSubmit={onSubmit}
             variant="reply"
             submitLabel="[ FILE REPLY ]"
+            submitWords={{
+              what: 'Files what is typed in the box as an answer to this reply.',
+              why: 'It is nested under the reply it answers.',
+              note: NOTE.others,
+            }}
             placeholder="Reply..."
             author={viewer}
             accounts={accounts}

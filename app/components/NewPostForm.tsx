@@ -18,6 +18,7 @@ import { useNotifications } from './NotificationsProvider';
 import PicturePicker from './PicturePicker';
 import PopoutWindow from './PopoutWindow';
 import TreePicker from './TreePicker';
+import { NOTE } from '../lib/ui/explain';
 
 /** Destinations as folders and items, the shape a file dialog draws. */
 const TARGET_TREE = postTargetTree();
@@ -298,6 +299,19 @@ export default function NewPostForm({ onClose, onCreated, initialTrack = null, i
           onChange={setBody}
           onSubmit={handleSubmit}
           submitLabel={isBoardPost ? '[ FILE POST ]' : '[ FILE COMMENT ]'}
+          submitWords={
+            isBoardPost
+              ? {
+                  what: 'Files the post on the board, with its title, words and anything attached.',
+                  why: 'It opens on the feed, sorted by NEW. Anybody you tag with @ is told.',
+                  note: NOTE.others,
+                }
+              : {
+                  what: 'Files the words as a comment on what is picked under FILE UNDER.',
+                  why: "If nobody has said anything about it yet, its thread is opened on the board first.",
+                  note: NOTE.others,
+                }
+          }
           placeholder={isBoardPost ? 'Write the post...' : 'Write the comment...'}
           author={forum.author}
           accounts={accounts}

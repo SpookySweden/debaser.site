@@ -7,9 +7,17 @@ import { displayTitle } from '../lib/forum/site-author';
 import { PLATE, PLATE_PRESSED, TITLE_BAR } from '../lib/ui/controls';
 import TimeStamp from './TimeStamp';
 import { bodyWords } from '../lib/forum/song-link';
+import { explain } from '../lib/ui/explain';
 
 /** Results are not paged until there are more than this; then `[ MORE ]` shows the next lot. */
 const RESULTS_PAGE = 25;
+
+/** What each sort key says while [ EXPLAIN ] is on. */
+const SORT_WORDS: Record<ResultSort, string> = {
+  newest: 'Orders the results newest first.',
+  oldest: 'Orders the results oldest first.',
+  relevance: 'Orders the results by how well they match your words.',
+};
 
 type ForumSearchResultsProps = {
   /** The hits, already in the chosen order. */
@@ -40,11 +48,16 @@ export default function ForumSearchResults({ hits, terms, sort, onSort, onOpen, 
   return (
     <section aria-label="Search results" className="min-w-0 text-ink">
       <div className="flex items-center gap-2">
-        <button type="button" onClick={onClose} className={`${PLATE} @min-[58.5rem]:hidden`}>
+        <button
+          type="button"
+          onClick={onClose}
+          className={`${PLATE} @min-[58.5rem]:hidden`}
+          {...explain('Closes the search results and empties the search box.', 'The board goes back to how it was before the search.')}
+        >
           [ ◂ BACK ]
         </button>
         <h2 className={`${TITLE_BAR} flex-1 text-title`}>{hits.length === 0 ? 'NO RESULTS' : `${hits.length} ${pluralise(hits.length, 'RESULT')}`}</h2>
-        <button type="button" onClick={onClose} aria-label="Close search results" className={`${PLATE} @max-[58.5rem]:hidden`}>
+        <button type="button" onClick={onClose} aria-label="Close search results" className={`${PLATE} @max-[58.5rem]:hidden`} {...explain('Closes the search results and empties the search box.', 'The board goes back to how it was before the search.')}>
           [ × ]
         </button>
       </div>
@@ -61,6 +74,7 @@ export default function ForumSearchResults({ hits, terms, sort, onSort, onOpen, 
                 onClick={() => onSort(option.value)}
                 aria-pressed={sort === option.value}
                 className={sort === option.value ? PLATE_PRESSED : PLATE}
+                {...explain(SORT_WORDS[option.value], 'The pressed key is the order shown now.')}
               >
                 {option.label}
               </button>
@@ -77,6 +91,10 @@ export default function ForumSearchResults({ hits, terms, sort, onSort, onOpen, 
                   <button
                     type="button"
                     onClick={() => onOpen(hit)}
+                    {...explain(
+                      'Opens the post this result is in on the board, scrolled to the match.',
+                      'On a narrow window the results fold away while you read; RESULTS brings them back.',
+                    )}
                     className="block w-full cursor-pointer p-1 text-left hover:bg-ink hover:text-paper focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble max-sm:min-h-tap"
                   >
                     <span className="flex flex-wrap items-center justify-between gap-x-2 text-label">
@@ -106,7 +124,12 @@ export default function ForumSearchResults({ hits, terms, sort, onSort, onOpen, 
           </ol>
 
           {hits.length > shown ? (
-            <button type="button" onClick={() => setShown((current) => current + RESULTS_PAGE)} className={`${PLATE} mt-2`}>
+            <button
+            type="button"
+            onClick={() => setShown((current) => current + RESULTS_PAGE)}
+            className={`${PLATE} mt-2`}
+            {...explain('Shows the next 25 results under these.')}
+          >
               [ MORE ]
             </button>
           ) : null}

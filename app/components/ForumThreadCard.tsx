@@ -45,6 +45,7 @@ import ThreadSubjectRow from './ThreadSubjectRow';
 import TimeStamp from './TimeStamp';
 import { HiddenNote, ReportKey } from './ModerationKeys';
 import { useModeration } from './ModerationProvider';
+import { NOTE, explain } from '../lib/ui/explain';
 
 type ForumThreadCardProps = {
   thread: ForumThread;
@@ -371,6 +372,10 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                       type="button"
                       onClick={() => revealReply(matchedReplies[0].id)}
                       className={PLATE}
+                      {...explain(
+                        'Opens this post and scrolls to the reply that matched your tag filter.',
+                        "The post itself doesn't carry the tag: somebody's reply does.",
+                      )}
                     >
                       [ OPEN REPLY ]
                     </button>
@@ -459,14 +464,22 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
             ) : made !== null ? (
               isOpen ? <MadeRecord person={made.person} day={made.day} body={thread.body} /> : null
             ) : layout.right.isAnchorPost ? null : songHrefIn(layout.right.body) !== null ? (
-              <Link href={songHrefIn(layout.right.body) as string} className={PLATE}>
+              <Link
+                href={songHrefIn(layout.right.body) as string}
+                className={PLATE}
+                {...explain('Opens the BEAT BOX at the song this post shares.', 'The post is a link to a song made in the BEAT BOX.')}
+              >
                 [ OPEN SONG ]
               </Link>
             ) : docLinkIn(layout.right.body) !== null ? (
               // A document's board post (SPEC-live-docs.md): its first lines, then the key that opens it.
               <>
                 <p className="whitespace-pre-line text-prose leading-normal wrap-anywhere text-ink">{docLinkIn(layout.right.body)?.words}</p>
-                <Link href={docLinkIn(layout.right.body)?.href ?? '/docs'} className={PLATE}>
+                <Link
+                  href={docLinkIn(layout.right.body)?.href ?? '/docs'}
+                  className={PLATE}
+                  {...explain('Opens the document this post was filed for.', 'The post shows its first lines; the whole document is on DOCS.')}
+                >
                   [ OPEN DOC ]
                 </Link>
               </>
@@ -505,6 +518,10 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                 onClick={() => setReplyOpen((open) => !open)}
                 aria-expanded={replyOpen}
                 className={`${PLATE} mt-2`}
+                {...explain(
+                  replyOpen ? 'Closes the reply box under this post.' : 'Opens a box under this post for writing a reply.',
+                  'A reply shows under the post for everyone reading it, and anybody you tag with @ is told.',
+                )}
               >
                 {replyOpen ? '[ CANCEL ]' : '[ REPLY ]'}
               </button>
@@ -515,6 +532,11 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                   value={reply}
                   onChange={setReply}
                   onSubmit={handleReply}
+                  submitWords={{
+                    what: 'Files what is typed in the box as a reply under this post.',
+                    why: 'Whoever wrote the post is tagged without being asked, and anybody you tag with @ is told.',
+                    note: NOTE.others,
+                  }}
                   variant="reply"
                   submitLabel="[ FILE REPLY ]"
                   placeholder="Reply..."

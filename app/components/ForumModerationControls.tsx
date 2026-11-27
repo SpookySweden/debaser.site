@@ -9,6 +9,7 @@ import { useAuth } from './AuthProvider';
 import { useForum } from './ForumProvider';
 import { HideControl } from './ModerationKeys';
 import { useModeration } from './ModerationProvider';
+import { NOTE, explain } from '../lib/ui/explain';
 
 /**
  * Who may edit or remove what is already on the board.
@@ -108,11 +109,31 @@ export function AuthorModeration({ author }: { author: ForumAuthor }) {
       ) : null}
 
       {author.banned === true ? (
-        <button type="button" onClick={() => void lift()} disabled={busy} className={PLATE}>
+        <button
+          type="button"
+          onClick={() => void lift()}
+          disabled={busy}
+          className={PLATE}
+          {...explain(
+            'Lifts the ban on this account: it can write again, and what it wrote shows again.',
+            undefined,
+            NOTE.moderators,
+          )}
+        >
           {busy ? '[ WORKING... ]' : '[ UNBAN ]'}
         </button>
       ) : (
-        <button type="button" onClick={() => setNaming(!naming)} disabled={busy} className={PLATE}>
+        <button
+          type="button"
+          onClick={() => setNaming(!naming)}
+          disabled={busy}
+          className={PLATE}
+          {...explain(
+            naming ? 'Folds the ban form away without banning anyone.' : 'Opens a box for the reason, before the ban itself.',
+            'A ban stops the account writing anywhere on the site and hides what it has written from everybody but moderators.',
+            NOTE.moderators,
+          )}
+        >
           {naming ? '[ CANCEL BAN ]' : '[ BAN ]'}
         </button>
       )}
@@ -128,7 +149,17 @@ export function AuthorModeration({ author }: { author: ForumAuthor }) {
             className={FIELD}
           />
 
-          <button type="button" onClick={() => void ban()} disabled={busy} className={PLATE}>
+          <button
+            type="button"
+            onClick={() => void ban()}
+            disabled={busy}
+            className={PLATE}
+            {...explain(
+              'Bans this account, with the reason typed beside it written to the moderation log.',
+              'A ban stops the account writing anywhere on the site and hides what it has written from everybody but moderators. UNBAN lifts it.',
+              NOTE.moderators,
+            )}
+          >
             {busy ? '[ BANNING... ]' : '[ CONFIRM BAN ]'}
           </button>
 
@@ -194,11 +225,33 @@ export function ThreadModeration({ thread }: { thread: ForumThread }) {
       <div className="flex flex-wrap items-center gap-1">
         <span className="border border-ink-plate bg-ena px-1 text-ink-bar">[ ADMIN ]</span>
 
-        <button type="button" onClick={() => setEditing(!editing)} disabled={busy} className={PLATE}>
+        <button
+          type="button"
+          onClick={() => setEditing(!editing)}
+          disabled={busy}
+          className={PLATE}
+          {...explain(
+            editing ? 'Closes the editor without saving the changes.' : "Opens this post's title and words for rewriting.",
+            'Moderators can correct any post on the board.',
+            NOTE.moderators,
+          )}
+        >
           {editing ? '[ CANCEL EDIT ]' : '[ EDIT POST ]'}
         </button>
 
-        <button type="button" onClick={() => void remove()} disabled={busy} className={PLATE}>
+        <button
+          type="button"
+          onClick={() => void remove()}
+          disabled={busy}
+          className={PLATE}
+          {...explain(
+            confirming
+              ? 'Second press: deletes this post from the board for good.'
+              : 'Deletes this post from the board. The first press only asks; a second press does it.',
+            'For a post that breaks the rules. A post can also be edited instead.',
+            NOTE.undo,
+          )}
+        >
           {busy ? '[ WORKING... ]' : confirming ? '[ CONFIRM REMOVE ]' : '[ REMOVE POST ]'}
         </button>
 
@@ -230,7 +283,13 @@ export function ThreadModeration({ thread }: { thread: ForumThread }) {
             className={FIELD}
           />
 
-          <button type="button" onClick={() => void save()} disabled={busy} className={PLATE}>
+          <button
+            type="button"
+            onClick={() => void save()}
+            disabled={busy}
+            className={PLATE}
+            {...explain('Saves the rewritten title and words over the post.', 'Everyone reading the board sees the new version.', NOTE.moderators)}
+          >
             {busy ? '[ SAVING... ]' : '[ SAVE POST ]'}
           </button>
         </div>
@@ -291,11 +350,33 @@ export function CommentModeration({ comment }: { comment: ForumComment }) {
       <div className="flex flex-wrap items-center gap-1">
         <span className="border border-ink-plate bg-ena px-1 text-ink-bar">[ ADMIN ]</span>
 
-        <button type="button" onClick={() => setEditing(!editing)} disabled={busy} className={PLATE}>
+        <button
+          type="button"
+          onClick={() => setEditing(!editing)}
+          disabled={busy}
+          className={PLATE}
+          {...explain(
+            editing ? 'Closes the editor without saving the changes.' : "Opens this reply's words for rewriting.",
+            'Moderators can correct any reply on the board.',
+            NOTE.moderators,
+          )}
+        >
           {editing ? '[ CANCEL EDIT ]' : '[ EDIT REPLY ]'}
         </button>
 
-        <button type="button" onClick={() => void remove()} disabled={busy} className={PLATE}>
+        <button
+          type="button"
+          onClick={() => void remove()}
+          disabled={busy}
+          className={PLATE}
+          {...explain(
+            confirming
+              ? 'Second press: deletes this reply from the board for good.'
+              : 'Deletes this reply from the board. The first press only asks; a second press does it.',
+            'For a reply that breaks the rules. A reply can also be edited instead.',
+            NOTE.undo,
+          )}
+        >
           {busy ? '[ WORKING... ]' : confirming ? '[ CONFIRM REMOVE ]' : '[ REMOVE REPLY ]'}
         </button>
 
@@ -322,7 +403,13 @@ export function CommentModeration({ comment }: { comment: ForumComment }) {
             className={FIELD}
           />
 
-          <button type="button" onClick={() => void save()} disabled={busy} className={PLATE}>
+          <button
+            type="button"
+            onClick={() => void save()}
+            disabled={busy}
+            className={PLATE}
+            {...explain('Saves the rewritten words over the reply.', 'Everyone reading the board sees the new version.', NOTE.moderators)}
+          >
             {busy ? '[ SAVING... ]' : '[ SAVE REPLY ]'}
           </button>
         </div>

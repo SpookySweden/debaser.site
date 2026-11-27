@@ -15,6 +15,7 @@ import TagStrip from './TagStrip';
 import ThreadSubjectRow from './ThreadSubjectRow';
 import TimeStamp from './TimeStamp';
 import { bodyWords } from '../lib/forum/song-link';
+import { explain } from '../lib/ui/explain';
 
 type ForumGalleryTileProps = {
   thread: ForumThread;
@@ -156,6 +157,10 @@ export default function ForumGalleryTile({ thread, onOpen, tagFilter = [], read 
           type="button"
           onClick={() => onOpen(thread.id)}
           className={`${PLATE} mt-auto self-start`}
+          {...explain(
+            'Switches the board to the feed and opens this post there, with its replies.',
+            'A filter that would hide the post is cleared first.',
+          )}
         >
           [ OPEN ]
         </button>

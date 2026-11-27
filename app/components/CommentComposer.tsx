@@ -9,6 +9,7 @@ import TagChooser from './TagChooser';
 import TagStrip from './TagStrip';
 import TrackControl from './TrackControl';
 import { PLATE, PLATE_MAIN } from '../lib/ui/controls';
+import { NOTE, explainFrom, type Explanation } from '../lib/ui/explain';
 
 type CommentComposerProps = {
   id: string;
@@ -53,7 +54,11 @@ type CommentComposerProps = {
    * main key is `+ NEW POST`, and an open post can hold several reply boxes (SPEC-efficiency.md).
    */
   variant?: 'full' | 'reply';
+  /** What the submit key says while [ EXPLAIN ] is on: each caller files something different. */
+  submitWords?: Explanation;
 };
+
+const SUBMIT_WORDS: Explanation = { what: 'Files what is typed in the box above.', note: NOTE.others };
 
 /**
  * Shared Win95 textarea + submit block. Used by the New Post form, the reply
@@ -85,6 +90,7 @@ export default function CommentComposer({
   status = null,
   rows = 3,
   variant = 'full',
+  submitWords = SUBMIT_WORDS,
 }: CommentComposerProps) {
   const { tagVocabulary } = useForum();
   const showTagChooser = tags !== undefined && onTagsChange !== undefined;
@@ -107,7 +113,7 @@ export default function CommentComposer({
   );
 
   const submit = (
-    <button type="submit" disabled={busy} className={condensed ? `${PLATE} sm:shrink-0` : PLATE_MAIN}>
+    <button type="submit" disabled={busy} className={condensed ? `${PLATE} sm:shrink-0` : PLATE_MAIN} {...explainFrom(submitWords)}>
       {busy ? '[ WORKING... ]' : submitLabel}
     </button>
   );

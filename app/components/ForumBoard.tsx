@@ -50,6 +50,7 @@ import { useForum } from './ForumProvider';
 import { TagMark, tagMarkColour } from './TagBadge';
 import { PLATE,PLATE_MAIN, PLATE_PRESSED } from '../lib/ui/controls';
 import { noteSettingChanged, subscribeToAccountSettings } from '../lib/settings/settings-bus';
+import { NOTE, explain, explainFrom, type Explanation } from '../lib/ui/explain';
 
 /**
  * How the board is read: one row of three tabs, exactly one lit (SPEC-forum-v2.md, Luke's 1A).
@@ -83,6 +84,30 @@ const SOURCE_FILTERS: { value: SourceFilter; label: string }[] = [
   { value: 'doc', label: 'DOC THREADS' },
   // The records of streams are the STREAMS tab now, not a source (SPEC-forum-v2.md, 1A).
 ];
+
+/** What each tab says while [ EXPLAIN ] is on. */
+const VIEW_WORDS: Record<BoardView, Explanation> = {
+  feed: {
+    what: 'Shows the board as a list of posts, one row each, opened one at a time.',
+    why: "The number on it, when there is one, counts posts from the last week you haven't opened, or that have a reply since you did.",
+  },
+  gallery: {
+    what: 'Shows only the posts that carry a picture, as a wall of tiles drawn open.',
+    why: "For looking through the board's pictures without opening each post.",
+  },
+  streams: {
+    what: 'Shows the records of past streams, which stay off the feed until somebody replies to one.',
+    why: "Tags and the source filter are set aside here, not cleared: they apply again on FEED or GALLERY.",
+  },
+};
+
+/** What each of an empty board's keys says while [ EXPLAIN ] is on. */
+const EMPTY_CLEAR_WORDS: Record<EmptyClear, string> = {
+  tags: 'Takes every picked tag off the filter, so the posts come back.',
+  source: 'Sets the source filter back to all sources.',
+  music: 'Switches the music filter off, and its music tags with it.',
+  feed: "Goes back to the FEED tab, the board's ordinary list of posts.",
+};
 
 /** The keys an empty board offers (`./lib/forum/board-empty.ts`). */
 const EMPTY_CLEAR_LABELS: Record<EmptyClear, string> = {
@@ -889,6 +914,7 @@ export default function ForumBoard() {
               onClick={() => handleView(option.value)}
               aria-pressed={view === option.value}
               title={option.title}
+              {...explainFrom(VIEW_WORDS[option.value])}
               className={view === option.value ? PLATE_PRESSED : PLATE}
               // A steady name up to the full stop: the undo arrows know a key by it (app/lib/ui/undo-trail.ts `pickName`),
               // so the count changing as posts are read is not taken for a change of tab.
@@ -908,6 +934,10 @@ export default function ForumBoard() {
           aria-controls="board-tags-panel"
           title="Tags, and where posts come from"
           className={PLATE}
+          {...explain(
+            'Opens the panel of tags and where posts come from, to narrow the board to what you pick.',
+            'The number on it counts the filters switched on now. A second press folds the panel away.',
+          )}
         >
           {`[ FILTER${filtersOn > 0 ? ` · ${filtersOn}` : ''} ${menu === 'tags' ? '▴' : '▾'} ]`}
         </button>
@@ -932,6 +962,12 @@ export default function ForumBoard() {
                     type="button"
                     onClick={() => toggleTagFilter(option.key)}
                     aria-pressed={active}
+                    {...explain(
+                      active
+                        ? 'Takes this tag off the filter: the board is no longer narrowed by it.'
+                        : 'Adds this tag to the filter, so the board shows only posts carrying it.',
+                      'The number beside a tag is how many posts carry it. With several picked, MATCH says whether a post needs any of them or all.',
+                    )}
                     className={`inline-flex cursor-pointer items-center gap-0.75 px-1 font-bold max-sm:min-h-tap max-sm:px-2 max-sm:text-sm ${
                       active ? 'bg-ena text-ink-bar' : 'text-ink hover:underline'
                     }`}
@@ -951,6 +987,10 @@ export default function ForumBoard() {
                 type="button"
                 onClick={openTagIndex}
                 className={PLATE}
+                {...explain(
+                  'Opens the whole tag index in a window of its own, and folds this panel away.',
+                  "Every tag on the board and the board's music filter, setting the same filter as this panel.",
+                )}
               >
                 [ TAG INDEX... ]
               </button>
@@ -981,7 +1021,12 @@ export default function ForumBoard() {
                     ALL
                   </label>
 
-                  <button type="button" onClick={clearTagFilters} className={PLATE}>
+                  <button
+                    type="button"
+                    onClick={clearTagFilters}
+                    className={PLATE}
+                    {...explain('Takes every picked tag off the filter at once.', 'The source and the other filters stay as they are.')}
+                  >
                     [ CLEAR TAGS ]
                   </button>
                 </>
@@ -1019,6 +1064,12 @@ export default function ForumBoard() {
                 className={hideMade ? PLATE_PRESSED : PLATE}
                 title="Leave out the rows that say what people made today"
                 data-hide-made
+                {...explain(
+                  hideMade
+                    ? 'Brings back the rows that say what people made today.'
+                    : 'Leaves out the rows that say what people made today.',
+                  'Remembered for your next visit, and on your account when signed in.',
+                )}
               >
                 [ HIDE MADE ]
               </button>
@@ -1033,6 +1084,10 @@ export default function ForumBoard() {
           aria-expanded={menu === 'controls'}
           aria-controls="board-controls-panel"
           className={PLATE}
+          {...explain(
+            'Opens the sort: the order the posts are in, and for TOP, over what time frame.',
+            'A second press folds it away. Filing a new post switches the sort to NEW, so the post is in view.',
+          )}
         >
           {`[ SORT: ${sortKeyLabel} ${menu === 'controls' ? '▴' : '▾'} ]`}
         </button>
@@ -1082,7 +1137,16 @@ export default function ForumBoard() {
             {/* The mock store's housekeeping: never drawn on the live board. */}
             {forum.source === 'mock' ? (
               <div>
-                <button type="button" onClick={handleReset} className={PLATE}>
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className={PLATE}
+                  {...explain(
+                    "Deletes the posts kept in this browser's test board, and closes every open post.",
+                    'Drawn only on the test board that runs without the database, never on the live site.',
+                    NOTE.undo,
+                  )}
+                >
                   [ PURGE LOCAL POSTS ]
                 </button>
               </div>
@@ -1121,6 +1185,10 @@ export default function ForumBoard() {
           aria-expanded={composerOpen}
           className={`${PLATE_MAIN} ml-auto`}
           data-main-key
+          {...explain(
+            'Opens the form for writing a new post: a title, the words, tags, a picture or a track.',
+            'Once it is filed, the board goes to the feed sorted by NEW with its filters cleared, so your post is in view.',
+          )}
         >
           + NEW POST
         </button>
@@ -1140,6 +1208,10 @@ export default function ForumBoard() {
                 type="button"
                 onClick={() => toggleTagFilter(key)}
                 className={setAside ? `${PLATE} [--key-ink:var(--color-ink-quiet)]` : PLATE}
+                {...explain(
+                  'Takes this tag off the filter, widening the board again.',
+                  'On STREAMS the picked tags are greyed: kept, and set aside until FEED or GALLERY.',
+                )}
               >
                 [ {label} × ]
               </button>
@@ -1171,7 +1243,15 @@ export default function ForumBoard() {
           {search !== null && resultsFolded ? (
             // Held at the top of the window while the thread is read, so the next result is one press away.
             <div className="sticky top-0 z-10 bg-paper @min-[58.5rem]:hidden">
-              <button type="button" onClick={() => setResultsFolded(false)} className={PLATE}>
+              <button
+                type="button"
+                onClick={() => setResultsFolded(false)}
+                className={PLATE}
+                {...explain(
+                  'Brings the search results back over the board.',
+                  'On a narrow window the results fold away while you read a post opened from them.',
+                )}
+              >
                 {`[ ◂ RESULTS (${searchHits.length}) ]`}
               </button>
             </div>
@@ -1189,7 +1269,13 @@ export default function ForumBoard() {
               {forum.ready && forum.threads.length > 0 && emptyBoard.clears.length > 0 ? (
                 <p className="flex flex-wrap gap-2 px-3 pb-3 text-label font-bold" data-empty-clears>
                   {emptyBoard.clears.map((clear) => (
-                    <button key={clear} type="button" onClick={() => clearForEmpty(clear)} className={PLATE}>
+                    <button
+                      key={clear}
+                      type="button"
+                      onClick={() => clearForEmpty(clear)}
+                      className={PLATE}
+                      {...explain(EMPTY_CLEAR_WORDS[clear], 'Offered because it is what is hiding every post right now.')}
+                    >
                       {EMPTY_CLEAR_LABELS[clear]}
                     </button>
                   ))}
@@ -1253,6 +1339,7 @@ export default function ForumBoard() {
                 disabled={currentPage === 1}
                 aria-label="Previous page"
                 className={PLATE}
+                {...explain('Goes to the previous page of posts.', 'The board scrolls back to the top of the list. Greyed on the first page.')}
               >
                 [ &lt; ]
               </button>
@@ -1265,6 +1352,7 @@ export default function ForumBoard() {
                 disabled={currentPage === totalPages}
                 aria-label="Next page"
                 className={PLATE}
+                {...explain('Goes to the next page of posts.', 'The board scrolls back to the top of the list. Greyed on the last page.')}
               >
                 [ &gt; ]
               </button>
@@ -1277,6 +1365,7 @@ export default function ForumBoard() {
                       onClick={() => goToPage(number)}
                       aria-current={number === currentPage ? 'page' : undefined}
                       className={number === currentPage ? PLATE_PRESSED : PLATE}
+                      {...explain('Goes straight to this page of posts.', 'A key per page shows once there are more than five pages; the pressed one is the page you are on.')}
                     >
                       {`[ ${number} ]`}
                     </button>

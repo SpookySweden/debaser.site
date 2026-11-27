@@ -15,6 +15,7 @@ import { HYPER_ARROW, HYPER_LABEL, HYPER_TEXT } from '../lib/ui/hypertext';
 import CommentRow, { commentRowData } from './CommentRow';
 import ProfileCommentPin from './ProfileCommentPin';
 import TimeStamp from './TimeStamp';
+import { explain } from '../lib/ui/explain';
 
 type ElementCommentsProps = {
   profile: PublicProfile;
@@ -95,6 +96,10 @@ export default function ElementComments({
           className={HYPER_ARROW}
           aria-expanded={open}
           title={open ? `Fold the comments on ${element.tag} away` : `Show the comments on ${element.tag}`}
+          {...explain(
+            open ? 'Folds the comments on this version away.' : 'Shows the comments left on this version.',
+            "The number is how many there are. To add one, use the profile's comment key.",
+          )}
         >
           {open ? '▾' : '▸'}
           {thread.length === 0 ? '' : ` ${thread.length}`}
@@ -107,6 +112,10 @@ export default function ElementComments({
             type="button"
             onClick={() => setHistoryOpen(!historyOpen)}
             className={HYPER_TEXT}
+            {...explain(
+              historyOpen ? 'Folds the list of versions away.' : 'Lists every version of this, with how many comments each has.',
+              'From the list you can switch to an older version and read its own comments.',
+            )}
             aria-expanded={historyOpen}
           >
             history ({versions.length})
@@ -175,6 +184,10 @@ export default function ElementComments({
                       onClick={() => onPlay(version)}
                       className={HYPER_TEXT}
                       title={`Play ${version.tag}`}
+                      {...explain(
+                        playing?.(version) === true ? 'This version is the one playing in the music bar now.' : 'Plays this version of the track in the music bar.',
+                        'To hear a version without switching the page to it.',
+                      )}
                     >
                       {playing?.(version) === true ? 'pause' : 'play'}
                     </button>
@@ -184,6 +197,9 @@ export default function ElementComments({
                     type="button"
                     onClick={() => onSelect(version.id)}
                     disabled={looking}
+                    {...explain(
+                      looking ? 'This is the version shown now.' : 'Switches to this version and shows its own comments.',
+                    )}
                     className={`${HYPER_TEXT} disabled:cursor-default disabled:text-ink disabled:no-underline`}
                   >
                     {looking ? 'reading' : `read ${version.tag}`}

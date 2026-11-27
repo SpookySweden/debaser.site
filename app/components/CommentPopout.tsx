@@ -5,6 +5,7 @@ import type { ForumAnchor } from '../lib/forum/types';
 import { PLATE, PLATE_LARGE } from '../lib/ui/controls';
 import CommentWindow from './CommentWindow';
 import { useForum } from './ForumProvider';
+import { explain } from '../lib/ui/explain';
 
 type CommentPopoutProps = {
   /** The item this control belongs to (a picture, a text box, the board). */
@@ -38,6 +39,10 @@ export default function CommentPopout({ anchor, compact = false, label = 'COMMEN
         aria-haspopup="dialog"
         aria-expanded={isOpen}
         className={className ?? (compact ? PLATE : PLATE_LARGE)}
+        {...explain(
+          "Opens a window with this item's comments, to read them and add your own.",
+          "The number is how many comments it has. They are the item's thread on the board too.",
+        )}
       >
         {`[ ${label}${commentCount > 0 ? ` (${commentCount})` : ''} ]`}
       </button>

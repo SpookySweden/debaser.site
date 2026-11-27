@@ -21,6 +21,7 @@ import PopoutWindow from './PopoutWindow';
 import { RoomChatLine, useDiscussChat } from './RoomChatLines';
 import TagStrip from './TagStrip';
 import TimeStamp from './TimeStamp';
+import { NOTE, explain } from '../lib/ui/explain';
 
 type CommentWindowProps = {
   anchor: ForumAnchor;
@@ -131,6 +132,7 @@ export default function CommentWindow({ anchor, onClose, roomChat }: CommentWind
           <Link
             href={`/forum#${threadDomId(thread.id)}`}
             className="key px-1 py-1"
+            {...explain("Goes to this item's thread on the board, opened.", 'To read it among the other posts, with every reply.')}
           >
             [ OPEN ON BOARD ]
           </Link>
@@ -191,6 +193,11 @@ export default function CommentWindow({ anchor, onClose, roomChat }: CommentWind
             onChange={setBody}
             onSubmit={handleSubmit}
             submitLabel="[ FILE COMMENT ]"
+            submitWords={{
+              what: "Files what is typed in the box as a comment in this item's thread.",
+              why: 'If the item has no thread yet, filing opens one on the board. Anybody you tag with @ is told.',
+              note: NOTE.others,
+            }}
             placeholder="Comment..."
             author={forum.author}
             accounts={accounts}

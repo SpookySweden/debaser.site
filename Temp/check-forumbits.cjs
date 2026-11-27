@@ -128,7 +128,7 @@ async function main() {
   // By its layout name, `preferences-tall` since it opened taller (SETTINGSUI, 2026-11-17): the name the layout store knows it by.
   assert.match(preferences, /clearMainKeys\(PREFERENCES_LAYOUT\)/, 'PREFERENCES runs the check');
   assert.match(preferences, /\[open, layoutIsReady, pathname\]/, 'on opening and on every new page');
-  assert.match(readFileSync('app/components/ForumBoard.tsx', 'utf8'), /data-main-key\s*>\s*\+ NEW POST/, '+ NEW POST is marked as the board\'s main key');
+  assert.match(readFileSync('app/components/ForumBoard.tsx', 'utf8'), /data-main-key[^>]*>\s*\+ NEW POST/, '+ NEW POST is marked as the board\'s main key');
 
   // --- 3. the profile tab --------------------------------------------------------------------------
   const page = readFileSync('app/profile/[userId]/page.tsx', 'utf8');

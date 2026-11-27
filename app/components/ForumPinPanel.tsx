@@ -10,6 +10,7 @@ import { PLATE } from '../lib/ui/controls';
 import { useForum } from './ForumProvider';
 import { useModTools } from './ForumModerationControls';
 import InfoFold from './InfoFold';
+import { NOTE, explain } from '../lib/ui/explain';
 
 function failure(caught: unknown, fallback: string): string {
   return caught instanceof Error ? caught.message : fallback;
@@ -116,7 +117,19 @@ export function ThreadPinControl({ thread }: { thread: ForumThread }) {
         </span>
       )}
 
-      <button type="button" onClick={() => void pinFor()} disabled={busy} className={PLATE}>
+      <button
+        type="button"
+        onClick={() => void pinFor()}
+        disabled={busy}
+        className={PLATE}
+        {...explain(
+          pin === undefined
+            ? 'Pins this post for the time shown on the key beside it.'
+            : 'Pins this post again for the time on the key beside it, replacing the pin it has.',
+          'A pinned post holds the top of the board and leads the wire until it runs out.',
+          NOTE.moderators,
+        )}
+      >
         {busy ? '[ WORKING... ]' : pin === undefined ? '[ PIN POST ]' : '[ CHANGE PIN ]'}
       </button>
 
@@ -127,12 +140,23 @@ export function ThreadPinControl({ thread }: { thread: ForumThread }) {
         disabled={busy}
         title={`Pin for ${durationChoice?.label.toLowerCase() ?? ''}`}
         className={`${PLATE} pin-tick`}
+        {...explain(
+          'Steps how long the pin lasts: 6 hours, 1 day, 1 week or forever.',
+          'Set it before pressing PIN POST. Each press beeps softly.',
+          NOTE.moderators,
+        )}
       >
         [ {durationChoice?.short ?? duration} ]
       </button>
 
       {pin === undefined ? null : (
-        <button type="button" onClick={() => void unpin()} disabled={busy} className={PLATE}>
+        <button
+          type="button"
+          onClick={() => void unpin()}
+          disabled={busy}
+          className={PLATE}
+          {...explain('Takes the pin off this post: it goes back to its own place on the board.', undefined, NOTE.moderators)}
+        >
           {busy ? '[ WORKING... ]' : '[ UNPIN ]'}
         </button>
       )}
@@ -213,6 +237,11 @@ export default function ForumPinPanel() {
                     onClick={() => void unpin(pin.threadId)}
                     disabled={busyId !== null}
                     className={PLATE}
+                    {...explain(
+                      'Takes the pin off this post: it goes back to its own place on the board.',
+                      'This list is every pin running now, with how long each has left.',
+                      NOTE.moderators,
+                    )}
                   >
                     {busyId === pin.threadId ? '[ WORKING... ]' : '[ UNPIN ]'}
                   </button>

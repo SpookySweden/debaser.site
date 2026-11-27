@@ -22,6 +22,7 @@ import {
   type SuggestContext,
 } from '../lib/forum/board-search';
 import { PLATE } from '../lib/ui/controls';
+import { explain, explainFrom, type Explanation } from '../lib/ui/explain';
 
 /**
  * The board's search box (SPEC-forum-search.md, part 2): Discord's behaviour in the site's look.
@@ -54,6 +55,20 @@ type Item =
 
 const MONTHS = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
 const WEEKDAYS = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
+
+/** What a row of the autofill list says while [ EXPLAIN ] is on. */
+function rowWords(item: Item): Explanation {
+  if (item.kind === 'filter') {
+    return {
+      what: `Writes ${item.key}: into the box, and the list turns into its suggestions.`,
+      why: 'A filter narrows the search: to one person, a tag, a date and so on.',
+    };
+  }
+  if (item.kind === 'value') {
+    return { what: 'Turns this choice into a filter pill in the box.', why: 'Press Enter to run the search, or pick more filters first.' };
+  }
+  return { what: 'Runs this earlier search again, filters and all.', why: 'The last five searches are kept, in this browser only.' };
+}
 
 const LIST_ID = 'forum-search-list';
 const optionId = (index: number) => `forum-search-option-${index}`;
@@ -296,6 +311,7 @@ export default function ForumSearchBox({ threads, directory, directoryIds, tagVo
 
   const row = (item: Item, index: number, content: ReactNode, extra?: ReactNode) => (
     <li
+      {...explainFrom(rowWords(item))}
       key={`${item.kind}-${index}`}
       id={optionId(index)}
       role="option"
@@ -318,6 +334,10 @@ export default function ForumSearchBox({ threads, directory, directoryIds, tagVo
       {/* The box: pills, then the words being typed. Pressing anywhere in it lands in the words. */}
       <div
         onClick={() => inputRef.current?.focus()}
+        {...explain(
+          'Searches the board: type words, or pick a filter such as from: from the list that opens under the box.',
+          'Enter runs the search and the results show beside the board. Esc closes the list; a second Esc empties the box.',
+        )}
         className="frame flex min-h-tap flex-wrap items-center gap-1 bg-paper px-1 py-0.5 focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-dotted focus-within:outline-bubble sm:min-h-0"
       >
         {pills.map((pill, index) => (
@@ -331,6 +351,10 @@ export default function ForumSearchBox({ threads, directory, directoryIds, tagVo
               }}
               aria-label={`Remove ${formatFilter(pill)}`}
               className="cursor-pointer px-1 text-label text-paper max-sm:min-h-tap max-sm:min-w-tap"
+              {...explain(
+                'Takes this filter out of the search.',
+                'If a search is showing, it runs again with what is left. Backspace at the start of the box takes off the last one.',
+              )}
             >
               ×
             </button>
@@ -425,6 +449,7 @@ export default function ForumSearchBox({ threads, directory, directoryIds, tagVo
                       }}
                       aria-label={`Remove recent search ${item.search}`}
                       className="cursor-pointer px-1 max-sm:min-h-tap max-sm:min-w-tap"
+                      {...explain('Removes this search from the recent list.', 'Recent searches are kept in this browser only.')}
                     >
                       ×
                     </button>,
@@ -447,7 +472,13 @@ function RecentRow({ first, onClearAll, children }: { first: boolean; onClearAll
     <>
       <li role="presentation" className="mt-1 flex items-center justify-between px-1 text-label text-accent-ink">
         RECENT SEARCHES
-        <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={onClearAll} className={PLATE}>
+        <button
+          type="button"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={onClearAll}
+          className={PLATE}
+          {...explain('Empties the list of recent searches.', 'They are kept in this browser only; nothing on the board changes.')}
+        >
           [ CLEAR ]
         </button>
       </li>
@@ -475,11 +506,23 @@ function Calendar({
   return (
     <div className="mb-2 w-fit" onMouseDown={(event) => event.preventDefault()}>
       <div className="flex items-center justify-between gap-2 text-label text-ink">
-        <button type="button" onClick={() => onMonth(-1)} aria-label="Previous month" className={PLATE}>
+        <button
+          type="button"
+          onClick={() => onMonth(-1)}
+          aria-label="Previous month"
+          className={PLATE}
+          {...explain('Shows the month before in the calendar.')}
+        >
           [ ◂ ]
         </button>
         <span>{`${MONTHS[month]} ${year}`}</span>
-        <button type="button" onClick={() => onMonth(1)} aria-label="Next month" className={PLATE}>
+        <button
+          type="button"
+          onClick={() => onMonth(1)}
+          aria-label="Next month"
+          className={PLATE}
+          {...explain('Shows the month after in the calendar.')}
+        >
           [ ▸ ]
         </button>
       </div>
@@ -507,6 +550,7 @@ function Calendar({
                       type="button"
                       onClick={() => onPick(value)}
                       aria-label={value}
+                      {...explain('Picks this day for the date filter.', "It becomes a pill in the search box. Today's date is underlined.")}
                       className={`w-8 cursor-pointer py-0.5 text-label hover:bg-ink hover:text-paper max-sm:min-h-tap max-sm:w-11 ${
                         value === today ? 'text-accent-ink underline' : 'text-ink'
                       }`}

@@ -12,6 +12,7 @@ import { PLATFORM_LABELS } from '../lib/web/types';
 import { useWebItem } from '../lib/web/use-web-item';
 import PostAuthorRow from './PostAuthorRow';
 import SeeKey from './SeeKey';
+import { NOTE, explain } from '../lib/ui/explain';
 
 type ThreadSubjectRowProps = {
   subject: ThreadSubject;
@@ -121,6 +122,11 @@ function WebSubject({ anchor, href, stamp }: { anchor: ForumAnchor; href: string
           rel="noopener noreferrer nofollow"
           aria-label={`Open "${item.title}" on ${PLATFORM_LABELS[item.platform]} (new tab)`}
           className={PLATE}
+          {...explain(
+            "Opens this item's own page on the site it came from.",
+            'The thread is filed under an item on the MEDIA page; this is where the item itself lives.',
+            NOTE.leaves,
+          )}
         >
           [ OPEN ↗ ]
         </a>

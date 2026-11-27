@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { insertMention, mentionToken, mentionsIn, removeMention, type Mentionable } from '../lib/forum/mentions';
 import ProfileName from './ProfileName';
+import { explain } from '../lib/ui/explain';
 
 type MentionPickerProps = {
   id: string;
@@ -57,6 +58,10 @@ export default function MentionPicker({ id, accounts, body, onChange, autoTag = 
         <button
           type="button"
           disabled={picked === ''}
+          {...explain(
+            "Tags the person picked in the list beside it: their @name goes into the words.",
+            'Tagging somebody tells them about the post once it is filed. Greyed until somebody is picked.',
+          )}
           onClick={() => {
             const account = accounts.find((entry) => entry.id === picked);
             if (account === undefined) return;
@@ -82,6 +87,7 @@ export default function MentionPicker({ id, accounts, body, onChange, autoTag = 
                 type="button"
                 onClick={() => onChange(removeMention(body, account.displayName))}
                 aria-label={`Stop tagging ${account.displayName}`}
+                {...explain('Stops tagging this person: their @name comes out of the words.')}
                 className="cursor-pointer border border-ink bg-sun-pale px-1 text-label font-bold text-ink hover:bg-ice max-sm:min-h-tap max-sm:min-w-tap max-sm:text-sm"
               >
                 x

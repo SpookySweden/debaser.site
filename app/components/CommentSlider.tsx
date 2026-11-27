@@ -6,6 +6,7 @@ import { PROFILE_COMMENTS_ANCHOR, PROFILE_PIN_LABEL } from '../lib/profile/feed'
 import type { ProfileComment } from '../lib/profile/types';
 import { PLATE, PLATE_PRESSED } from '../lib/ui/controls';
 import CommentRow, { commentRowData } from './CommentRow';
+import { explain } from '../lib/ui/explain';
 
 /**
  * The comments left on a profile, as a newswire you can drive (Luke, 2026-11-14: "make the profile comments section
@@ -201,7 +202,7 @@ export default function CommentSlider({ comments, onOpen }: CommentSliderProps) 
     >
       {comments.length < 2 ? null : (
         <div role="group" aria-label="Step through the comments" className="flex shrink-0 items-center gap-1">
-          <button type="button" onClick={() => step(-1)} aria-label="Previous comment" title="Previous comment" className={PLATE}>
+          <button type="button" onClick={() => step(-1)} aria-label="Previous comment" title="Previous comment" className={PLATE} {...explain('Steps to the comment before this one.', 'A moving line then holds still for a few seconds, so it can be read.')}>
             [ ◀ ]
           </button>
           {moving ? (
@@ -211,12 +212,16 @@ export default function CommentSlider({ comments, onOpen }: CommentSliderProps) 
               aria-pressed={stopped}
               aria-label="Hold the comments still"
               title={stopped ? 'Let the comments move again' : 'Hold the comments still'}
+              {...explain(
+                stopped ? 'Lets the line of comments move again.' : 'Stops the line of comments for as long as you like.',
+                'It also waits by itself while the pointer is on it. Pressing a comment opens the full list there.',
+              )}
               className={stopped ? `${PLATE_PRESSED} cursor-pointer` : PLATE}
             >
               {stopped ? 'HOLD' : '[ HOLD ]'}
             </button>
           ) : null}
-          <button type="button" onClick={() => step(1)} aria-label="Next comment" title="Next comment" className={PLATE}>
+          <button type="button" onClick={() => step(1)} aria-label="Next comment" title="Next comment" className={PLATE} {...explain('Steps to the comment after this one.', 'A moving line then holds still for a few seconds, so it can be read.')}>
             [ ▶ ]
           </button>
         </div>

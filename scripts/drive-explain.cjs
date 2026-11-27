@@ -270,6 +270,50 @@ async function boxContrast(page) {
   check(charWords !== null && charWords.includes('CHAR tab') && charWords.includes('ASKS YOU FIRST'), "the editor's CHAR tab explains itself, with its caution", charWords ?? 'none');
   await page.screenshot({ path: join(OUT, 'dark-profile-editor.png') });
 
+  // The forum (EXPLAIN-FORUM, 2026-11-27): the board's own row of keys, its FILTER panel, the search box and the new post form.
+  console.log('THE FORUM: THE BOARD ROW, FILTER, SEARCH AND A NEW POST');
+  await page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded', timeout: 240000 });
+  await media.waitFor({ timeout: 120000 });
+  const boardRow = page.locator('[role="group"][aria-label="Board view"]');
+  await boardRow.waitFor({ timeout: 120000 });
+  await sleep(1500);
+  const sayOf = async (locator) => {
+    await page.mouse.move(700, 900);
+    await sleep(300);
+    await locator.hover();
+    await sleep(800);
+    return boxText(page);
+  };
+  const galleryWords = await sayOf(boardRow.locator('button', { hasText: 'GALLERY' }));
+  check(galleryWords !== null && galleryWords.includes('carry a picture'), "the board's GALLERY tab explains itself", galleryWords ?? 'none');
+  const filterKey = page.locator('button[aria-controls="board-tags-panel"]');
+  const filterWords = await sayOf(filterKey);
+  check(filterWords !== null && filterWords.includes('where posts come from'), 'FILTER explains itself', filterWords ?? 'none');
+  await filterKey.click();
+  const tagIndex = page.locator('#board-tags-panel button', { hasText: 'TAG INDEX' });
+  await tagIndex.waitFor({ timeout: 15000 });
+  const tagIndexWords = await sayOf(tagIndex);
+  check(tagIndexWords !== null && tagIndexWords.includes('whole tag index'), "the FILTER panel's TAG INDEX explains itself", tagIndexWords ?? 'none');
+  await filterKey.click();
+  const sortWords = await sayOf(page.locator('button[aria-controls="board-controls-panel"]'));
+  check(sortWords !== null && sortWords.includes('time frame'), 'SORT explains itself', sortWords ?? 'none');
+  const searchWords = await sayOf(page.locator('input[aria-label="Search the board"]'));
+  check(searchWords !== null && searchWords.includes('Searches the board'), 'the search box explains itself', searchWords ?? 'none');
+  await page.keyboard.press('Escape');
+  const newPost = page.locator('[data-main-key]', { hasText: 'NEW POST' });
+  const newPostWords = await sayOf(newPost);
+  check(newPostWords !== null && newPostWords.includes('writing a new post'), '+ NEW POST explains itself', newPostWords ?? 'none');
+  await newPost.click();
+  const filePost = page.locator('button[type="submit"]', { hasText: 'FILE POST' });
+  await filePost.waitFor({ timeout: 30000 });
+  const filePostWords = await sayOf(filePost);
+  check(
+    filePostWords !== null && filePostWords.includes('Files the post on the board') && filePostWords.includes('OTHER PEOPLE SEE THIS'),
+    "the new post form's FILE POST explains itself, with its note",
+    filePostWords ?? 'none',
+  );
+  await page.screenshot({ path: join(OUT, 'dark-forum-new-post.png') });
+
   await page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded', timeout: 240000 });
   await media.waitFor({ timeout: 120000 });
 
