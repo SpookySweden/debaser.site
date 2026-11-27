@@ -17,7 +17,7 @@
  *  10. YouTube in the room: a pause inside its own player, the room's PLAY and the speaker key follow between the devices.
  *  11. LUKE'S SERVER (a stand-in speaking the bridge's remote): the same.
  *
- *   node scripts/drive-same-account.cjs --base http://localhost:3317   (--only-players for 9-11, --only-bar for 7)
+ *   node scripts/drive-same-account.cjs --base http://localhost:3317   (--only-players for 9-11, --only-bar for 7, --only-devices for 12-17)
  *
  * Start the server with every data source on mock and Supabase EMPTY (`node scripts/dev-mock-live.cjs 3317`), so nothing reaches
  * the live database. Nothing is fetched from the network for the media: the drive answers its own test sound (a quiet three-minute
@@ -611,6 +611,173 @@ async function playersStep(browser, errors) {
   }
 }
 
+/* --- 12-17. [ DEVICES ] (Luke, 2026-11-27; SPEC-room-devices.md) ------------------------------------------------------- */
+
+const VIDEO = '[data-dock-window="stream"] video[data-watch-video]';
+const devicesKey = (page) => page.evaluate(() => document.querySelector('[data-room-devices-key]') !== null);
+/** Opens DEVICES on this device (if it is not open) and waits for the other device's row. */
+async function openDevices(page) {
+  if ((await page.$('[data-room-devices]')) === null) {
+    await page.waitForSelector('[data-room-devices-key]', { timeout: 10000 });
+    await page.evaluate(() => document.querySelector('[data-room-devices-key]').click());
+  }
+  await page.waitForSelector('[data-room-devices] [data-room-device]', { timeout: 10000 });
+}
+/** The other device's row in DEVICES: its id, its way, and whether it is muted. */
+const deviceRow = (page) =>
+  page.evaluate(() => {
+    const row = document.querySelector('[data-room-devices] [data-room-device]');
+    return row === null ? null : { id: row.getAttribute('data-room-device'), mode: row.getAttribute('data-room-device-mode'), muted: row.getAttribute('data-room-device-muted') === 'yes' };
+  });
+/** Presses one of the row's keys (a way, or MUTE). */
+const pressDeviceKey = (page, selector) => page.evaluate((wanted) => document.querySelector(`[data-room-devices] [data-room-device] ${wanted}`).click(), selector);
+const closeDevices = async (page) => {
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => document.querySelector('[data-room-devices]') === null, null, { timeout: 5000 });
+};
+/** What DEVICES leaves this device's room keys: `follow`, `own`, or null. */
+const hold = (page) => page.evaluate(() => document.querySelector('[data-room-devices-hold]')?.getAttribute('data-room-devices-hold') ?? null);
+/** A press on this device's own player (its play key does this to its player). */
+const pausePlayer = (page) => page.evaluate((selector) => document.querySelector(selector).pause(), VIDEO);
+const playPlayer = (page) => page.evaluate((selector) => void document.querySelector(selector).play(), VIDEO);
+const jumpPlayer = (page, seconds) =>
+  page.evaluate(
+    ([selector, to]) => {
+      document.querySelector(selector).currentTime = to;
+    },
+    [VIDEO, seconds],
+  );
+/** Sets the other device's way on this one, through DEVICES, and waits for the other end to agree. */
+async function setWay(page, other, mode, mirrored) {
+  await openDevices(page);
+  if ((await deviceRow(page)).mode !== mode) await pressDeviceKey(page, `[data-room-device-set="${mode}"]`);
+  await waitFor(`the way here is ${mode}`, () => deviceRow(page), (row) => row.mode === mode);
+  await closeDevices(page);
+  await openDevices(other);
+  await waitFor(`the other device shows ${mirrored}`, () => deviceRow(other), (row) => row.mode === mirrored);
+  await closeDevices(other);
+}
+
+async function devicesStep(browser, errors) {
+  console.log('12. [ DEVICES ]: THE KEY');
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  await context.addInitScript(SEED);
+  await context.route(/supabase\.(co|in)|api\.debaser\.site/, (route) => route.abort());
+  await serveMedia(context);
+  try {
+    const a = await context.newPage();
+    a.on('pageerror', (error) => errors.push(`devices A: ${error.message}`));
+    await open(a, '/files?kind=video');
+    await pressPlay(a, 'SAME ACCOUNT ONE');
+    await until(a, 'A plays the first video', (held) => held.src.endsWith('one.wav') && !held.paused, 20000);
+    await sleep(2500);
+    assert.equal(await devicesKey(a), false, 'no DEVICES key with one device in the room');
+    const b = await context.newPage();
+    b.on('pageerror', (error) => errors.push(`devices B: ${error.message}`));
+    await open(b, '/files?kind=video');
+    await until(b, 'B has the first video', (held) => held.src.endsWith('one.wav') && !held.paused, 20000);
+    await waitFor('the DEVICES key on A', () => devicesKey(a), (on) => on, 10000);
+    await waitFor('the DEVICES key on B', () => devicesKey(b), (on) => on, 10000);
+    await openDevices(a);
+    assert.equal((await deviceRow(a)).mode, 'unset', 'nothing chosen at first');
+    await closeDevices(a);
+    pass('no DEVICES key alone; with B in the room both have it, and A lists B with nothing chosen');
+
+    console.log('13. FOLLOWS ME (B copies A)');
+    await setWay(a, b, 'follows-me', 'i-follow');
+    await waitFor('B\'s room keys give way', () => hold(b), (held) => held === 'follow');
+    assert.equal(await hold(a), null, 'A keeps its keys');
+    await setSlider(a, 0.5);
+    await waitFor('B takes A\'s volume', () => sound(b), (held) => near(held.volume, 0.5));
+    await setSlider(b, 0.2);
+    await sleep(1500);
+    assert.ok(near((await sound(a)).volume, 0.5), `B's volume left A alone (${JSON.stringify(await sound(a))})`);
+    await pausePlayer(b);
+    await sleep(2500);
+    assert.equal((await stage(a)).paused, false, 'a pause on B left A playing');
+    await until(b, 'B goes back to playing with A', (held) => !held.paused, 8000);
+    await pausePlayer(a);
+    await until(b, 'B pauses with A', (held) => held.paused, 8000);
+    await playPlayer(a);
+    await until(b, 'B plays with A', (held) => !held.paused, 8000);
+    pass('B copies A: A\'s volume and pause reach B; B\'s volume and pause never reach A, and B goes back to A');
+
+    console.log('14. I FOLLOW (A copies B)');
+    await setWay(a, b, 'i-follow', 'follows-me');
+    await waitFor('A\'s room keys give way', () => hold(a), (held) => held === 'follow');
+    await setSlider(b, 0.6);
+    await waitFor('A takes B\'s volume', () => sound(a), (held) => near(held.volume, 0.6));
+    await setSlider(a, 0.1);
+    await sleep(1500);
+    assert.ok(near((await sound(b)).volume, 0.6), 'A\'s volume left B alone');
+    await pausePlayer(a);
+    await sleep(2500);
+    assert.equal((await stage(b)).paused, false, 'a pause on A left B playing');
+    await until(a, 'A goes back to playing with B', (held) => !held.paused, 8000);
+    await jumpPlayer(b, 100);
+    await until(a, 'A jumps to 1:40 with B', (held) => Math.abs(held.time - 100) < 3, 8000);
+    pass('A copies B: B\'s volume and jump reach A; A\'s volume and pause never reach B');
+
+    console.log('15. APART');
+    await setWay(a, b, 'apart', 'apart');
+    // B leads the room now (A was following it): B keeps the room, and A plays on its own.
+    await waitFor('A plays on its own', () => hold(a), (held) => held === 'own');
+    assert.equal(await hold(b), null, 'B keeps the room and its keys');
+    await setSlider(a, 0.35);
+    await setSlider(b, 0.75);
+    await sleep(1500);
+    assert.ok(near((await sound(a)).volume, 0.35) && near((await sound(b)).volume, 0.75), 'neither moved the other\'s volume');
+    await pausePlayer(a);
+    await sleep(2500);
+    assert.equal((await stage(a)).paused, true, 'A stays paused, on its own');
+    assert.equal((await stage(b)).paused, false, 'B plays on');
+    await jumpPlayer(b, 30);
+    await sleep(2500);
+    assert.ok(Math.abs((await stage(a)).time - 30) > 5, 'B\'s jump left A where it was');
+    await pressRoomKey(a, 'Play');
+    await until(a, 'A\'s own PLAY plays A', (held) => !held.paused, 6000);
+    pass('APART: neither device\'s volume, pause or jump moves the other; A\'s own PLAY plays only A');
+
+    console.log('16. MUTE A DEVICE FROM ANOTHER');
+    await setWay(a, b, 'follows-me', 'i-follow');
+    await openDevices(a);
+    await pressDeviceKey(a, '[data-room-device-mute]');
+    await waitFor('B goes silent', () => sound(b), (held) => held.muted);
+    await waitFor('A\'s row says B is muted', () => deviceRow(a), (held) => held.muted);
+    await closeDevices(a);
+    assert.equal((await sound(a)).muted, false, 'A still has its sound');
+    await b.waitForSelector('[data-room-device-held-key]', { timeout: 5000 });
+    await setSlider(a, 0.45);
+    await waitFor('B takes A\'s level, still silent', () => sound(b), (held) => near(held.volume, 0.45) && held.muted);
+    await pressRoomKey(b, 'Unmute');
+    await waitFor('B\'s own speaker key brings its sound back', () => sound(b), (held) => !held.muted);
+    await openDevices(a);
+    await waitFor('A\'s row says B has sound', () => deviceRow(a), (held) => !held.muted);
+    await closeDevices(a);
+    pass('MUTE on A silenced only B, B still took A\'s level, and B\'s own speaker key brought its sound back');
+
+    console.log('17. KEPT THROUGH A RELOAD, AND THE KEY GOES WITH ONE DEVICE');
+    await b.reload({ waitUntil: 'domcontentloaded' });
+    await b.waitForSelector('[data-bar-queue], [data-stream-bar]', { timeout: 120000 });
+    await until(b, 'B has the video again', (held) => held.src.endsWith('.wav'), 20000);
+    await openDevices(b);
+    await waitFor('B still follows A after its reload', () => deviceRow(b), (held) => held.mode === 'i-follow', 12000);
+    await closeDevices(b);
+    await waitFor('B\'s keys still give way', () => hold(b), (held) => held === 'follow');
+    await a.reload({ waitUntil: 'domcontentloaded' });
+    await a.waitForSelector('[data-bar-queue], [data-stream-bar]', { timeout: 120000 });
+    await openDevices(a);
+    await waitFor('A still has B following it after its reload', () => deviceRow(a), (held) => held.mode === 'follows-me', 12000);
+    await closeDevices(a);
+    await b.close();
+    await waitFor('the DEVICES key goes from A', () => devicesKey(a), (on) => !on, 15000);
+    pass('the way was kept through a reload of B and of A, and A\'s DEVICES key went when B left');
+    await a.screenshot({ path: join(SHOTS, 'devices-a.png') });
+  } finally {
+    await context.close();
+  }
+}
+
 async function until(page, what, check, timeout = 10000) {
   const end = Date.now() + timeout;
   let held = null;
@@ -645,6 +812,12 @@ async function until(page, what, check, timeout = 10000) {
     }
     if (args.includes('--only-players')) {
       await playersStep(browser, errors);
+      assert.deepEqual(errors, [], `no page errors: ${errors.join(' | ')}`);
+      console.log(`\nPASSED ${passed}`);
+      return;
+    }
+    if (args.includes('--only-devices')) {
+      await devicesStep(browser, errors);
       assert.deepEqual(errors, [], `no page errors: ${errors.join(' | ')}`);
       console.log(`\nPASSED ${passed}`);
       return;
@@ -725,6 +898,7 @@ PASSED ${passed}`);
 
     await barStep(browser, errors);
     await playersStep(browser, errors);
+    await devicesStep(browser, errors);
 
     assert.deepEqual(blocked, [], 'nothing reached the live database');
     assert.deepEqual(errors, [], `no page errors: ${errors.join(' | ')}`);

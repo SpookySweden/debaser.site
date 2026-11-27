@@ -1,4 +1,5 @@
-import type { OwnDeviceMessage } from './repository';
+import type { OwnDeviceMessage, OwnDeviceWay } from './repository';
+import type { DeviceMode } from './own-device-modes';
 
 /**
  * Your own devices in a room, kept together (Luke, 2026-11-27: "when two of the same account are watching media in a room, make sure
@@ -27,8 +28,41 @@ export function readOwnDeviceMessage(data: unknown): OwnDeviceMessage | null {
   const said = data as Record<string, unknown>;
   if (typeof said.roomId !== 'string') return null;
   const roomId = said.roomId;
-  if (said.kind === 'volume' && isNumber(said.volume) && typeof said.muted === 'boolean') return { kind: 'volume', roomId, volume: clampVolume(said.volume), muted: said.muted };
-  if (said.kind === 'bar' && isNumber(said.volume)) return { kind: 'bar', roomId, volume: clampVolume(said.volume) };
-  if ((said.kind === 'ask-room' || said.kind === 'ask-bar') && isNumber(said.since)) return { kind: said.kind, roomId, since: said.since };
+  // A device of yours from before [ DEVICES ] says nothing of who it is: its sound is taken as from a device with no way chosen.
+  const from = typeof said.from === 'string' && said.from.length <= ID_MAX ? said.from : undefined;
+  const sender = from === undefined ? {} : { from };
+  if (said.kind === 'volume' && isNumber(said.volume) && typeof said.muted === 'boolean') return { kind: 'volume', roomId, volume: clampVolume(said.volume), muted: said.muted, ...sender };
+  if (said.kind === 'bar' && isNumber(said.volume)) return { kind: 'bar', roomId, volume: clampVolume(said.volume), ...sender };
+  if ((said.kind === 'ask-room' || said.kind === 'ask-bar') && isNumber(said.since)) return { kind: said.kind, roomId, since: said.since, ...sender };
+  if (from === undefined) return null;
+  if (said.kind === 'hello' && typeof said.key === 'string' && typeof said.name === 'string' && typeof said.held === 'boolean' && typeof said.answer === 'boolean') {
+    const modes: Record<string, OwnDeviceWay> = {};
+    if (typeof said.modes === 'object' && said.modes !== null) {
+      for (const [id, way] of Object.entries(said.modes as Record<string, unknown>).slice(0, MODES_MAX)) {
+        const read = readWay(way);
+        if (read !== null && id.length <= ID_MAX) modes[id] = read;
+      }
+    }
+    return { kind: 'hello', roomId, from, key: said.key.slice(0, 200), name: said.name.slice(0, NAME_MAX), modes, held: said.held, answer: said.answer };
+  }
+  if (typeof said.to !== 'string') return null;
+  const to = said.to;
+  if (said.kind === 'pair') {
+    const way = readWay(said);
+    return way === null ? null : { kind: 'pair', roomId, from, to, ...way };
+  }
+  if (said.kind === 'mute-device' && typeof said.on === 'boolean') return { kind: 'mute-device', roomId, from, to, on: said.on };
   return null;
+}
+
+const ID_MAX = 64;
+const NAME_MAX = 24;
+const MODES_MAX = 24;
+const isMode = (value: unknown): value is DeviceMode => value === 'follows-me' || value === 'i-follow' || value === 'apart';
+
+function readWay(data: unknown): OwnDeviceWay | null {
+  if (typeof data !== 'object' || data === null) return null;
+  const way = data as Record<string, unknown>;
+  if (!(way.mode === null || isMode(way.mode)) || !isNumber(way.at)) return null;
+  return { mode: way.mode, keeper: typeof way.keeper === 'string' && way.keeper.length <= ID_MAX ? way.keeper : null, at: way.at };
 }

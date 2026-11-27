@@ -103,6 +103,11 @@ export type MusicPlayerValue = {
   assign: (track: AudioTrack, options?: { loop?: boolean; autoplay?: boolean; origin?: PlayOrigin }) => void;
   playAt: (index: number) => void;
   setVolume: (value: number) => void;
+  /**
+   * This device muted from another of yours in a room's DEVICES (SPEC-room-devices.md): the bar plays on in step, silent here only,
+   * until it is lifted. Said by the room; never saved by the bar.
+   */
+  setSilenced: (silenced: boolean) => void;
   setLoop: (value: boolean) => void;
   /**
    * The loop of the room you host (ROOMSYNC, Luke 2026-11-16: "the loop button to loop it"): what is on in the room
@@ -354,6 +359,8 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
   const [elapsed, setElapsed] = useState(0);
   const [duration, setDuration] = useState(Number.NaN);
   const [volume, setVolumeState] = useState(() => loadSettings().volume);
+  const [silenced, setSilenced] = useState(false);
+  const silencedNow = useRef(silenced);
   const [loop, setLoopState] = useState(() => loadSettings().loop);
   const [playbackRate, setPlaybackRateState] = useState(1);
   /** The songs queued by hand (`enqueue`), and the same list as a ref for the `ended` handler. */
@@ -689,7 +696,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
     }
 
     // A barred song in a followed broadcast: stay in step, silent on this speaker only.
-    audio.muted = gate === 'mute';
+    audio.muted = gate === 'mute' || silencedNow.current;
 
     if (!playing || held) {
       audio.pause();
@@ -1183,6 +1190,12 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
   }, [index, playUpNext, queue.length]);
 
   const setVolume = useCallback((value: number) => setVolumeState(clampVolume(value)), []);
+  // Muted from DEVICES or let go: the element is told at once, as the track's own effect tells it on every load.
+  useEffect(() => {
+    silencedNow.current = silenced;
+    const audio = audioRef.current;
+    if (audio !== null) audio.muted = gate === 'mute' || silenced;
+  }, [silenced, gate]);
 
   /**
    * The shelf's repeat switch, and an explicit statement about the *shelf*.
@@ -1323,6 +1336,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       assign,
       playAt,
       setVolume,
+      setSilenced,
       setLoop,
       playByDefault,
       setPlayByDefault,
@@ -1371,6 +1385,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       assign,
       playAt,
       setVolume,
+      setSilenced,
       setLoop,
       playByDefault,
       setPlayByDefault,

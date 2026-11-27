@@ -2,6 +2,7 @@ import { isSupabaseConfigured } from '../supabase/client';
 import { getMockWatchRepository } from './mock-watch-repository';
 import { getSupabaseWatchRepository } from './supabase-watch-repository';
 import type { OwnRoomHost } from './own-room';
+import type { DeviceMode } from './own-device-modes';
 import type { GuestNameAnswer, JoinAnswer, LiveRoom, PrivateLine, PrivateFold, PrivateRoomLine, QueueMove, RoomAddMode, RoomDoor, RoomGuest, RoomMemberRow, RoomOutline, RoomPrivacy, StreamFold, DiscussLine, DiscussQuery, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
 /**
@@ -92,11 +93,22 @@ export type RoomChange =
  * sure the pause play and volume controls are all synced"): the room's speaker key, for the room it was turned in (`volume`), and the
  * music bar's volume while it plays your room (`bar`; Luke's answer, "Yes, it follows"). A device that comes in asks the ones there
  * before it for what they have (`ask-room`, `ask-bar`, with when it came in; Luke's answer, "Take current volume on join").
+ *
+ * [ DEVICES ] (Luke, 2026-11-27; own-device-modes.ts): each message carries the device that said it (`from`, its id), so a device
+ * takes the sound only from one it follows. A device in the room says who it is (`hello`: its presence key, name, the ways it
+ * holds with the others, and whether it is muted from DEVICES; `answer` when it replies to one), a way chosen for a pair is told
+ * to the other end (`pair`, as the sender sees it), and MUTE silences one device from another (`mute-device`).
  */
 export type OwnDeviceMessage =
-  | { kind: 'volume'; roomId: string; volume: number; muted: boolean }
-  | { kind: 'bar'; roomId: string; volume: number }
-  | { kind: 'ask-room' | 'ask-bar'; roomId: string; since: number };
+  | { kind: 'volume'; roomId: string; volume: number; muted: boolean; from?: string }
+  | { kind: 'bar'; roomId: string; volume: number; from?: string }
+  | { kind: 'ask-room' | 'ask-bar'; roomId: string; since: number; from?: string }
+  | { kind: 'hello'; roomId: string; from: string; key: string; name: string; modes: Record<string, OwnDeviceWay>; held: boolean; answer: boolean }
+  | ({ kind: 'pair'; roomId: string; from: string; to: string } & OwnDeviceWay)
+  | { kind: 'mute-device'; roomId: string; from: string; to: string; on: boolean };
+
+/** How one device holds with another, as that device sees it, stamped so two ends that disagree settle on the later choice. */
+export type OwnDeviceWay = { mode: DeviceMode | null; keeper: string | null; at: number };
 
 /** This tab on its account's own line: only that account's devices hear it or send on it. */
 export type OwnDeviceLine = { send: (message: OwnDeviceMessage) => void; leave: () => void };

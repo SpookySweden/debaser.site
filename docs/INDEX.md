@@ -10,10 +10,10 @@ Sizes are rough tokens (characters / 4): read the sections you need, not the who
 |---|---|---|
 | `.claude/rules/art.md` | when a file in its area is opened | 652 |
 | `.claude/rules/backend.md` | when a file in its area is opened | 389 |
-| `.claude/rules/browser.md` | when a file in its area is opened | 401 |
+| `.claude/rules/browser.md` | when a file in its area is opened | 522 |
 | `.claude/rules/core.md` | every session | 3178 |
 | `.claude/rules/frontend.md` | when a file in its area is opened | 954 |
-| `.claude/rules/media.md` | when a file in its area is opened | 2684 |
+| `.claude/rules/media.md` | when a file in its area is opened | 2766 |
 
 ## Skills
 
@@ -27,9 +27,9 @@ Sizes are rough tokens (characters / 4): read the sections you need, not the who
 
 | File | What | ≈ tokens |
 |---|---|---|
-| `SPEC-seeing-machine.md` | BROWSER, the DEBASER SEEING MACHINE | 9874 |
-| `docs/seeing-machine-improvements.md` | BROWSER: what to make better next (the IMPROVE rounds, browser-fallback brief) | 3915 |
-| `docs/seeing-machine.md` | BROWSER, the DEBASER SEEING MACHINE: how it is built | 6746 |
+| `SPEC-seeing-machine.md` | BROWSER, the DEBASER SEEING MACHINE | 10297 |
+| `docs/seeing-machine-improvements.md` | BROWSER: what to make better next (the IMPROVE rounds, browser-fallback brief) | 4110 |
+| `docs/seeing-machine.md` | BROWSER, the DEBASER SEEING MACHINE: how it is built | 7497 |
 
 ## MEDIA
 
@@ -66,10 +66,11 @@ Sizes are rough tokens (characters / 4): read the sections you need, not the who
 | `SPEC-guests.md` | Guests in streams | 1634 |
 | `SPEC-music-queues.md` | music broadcasts become rooms that share the stream's queue (2026-11-03) | 1929 |
 | `SPEC-room-chat-discuss.md` | room chat on the DISCUSS page (Luke, 2026-11-16) | 1174 |
+| `SPEC-room-devices.md` | [ DEVICES ], YOUR OWN DEVICES IN A ROOM (Luke, 2026-11-27) | 1885 |
 | `SPEC-room-settings.md` | Room settings (Luke, 2026-11-05) | 592 |
 | `SPEC-rooms-perpetual.md` | THE PERPETUAL ROOM (Luke's second list, ROOMMODEL; 2026-11-16) | 7457 |
 | `SPEC-rooms-queues.md` | queues become rooms (Luke's list P1 and P2; answers of 2026-11-14) | 11307 |
-| `SPEC-rooms-your-room.md` | YOUR ROOM LIKE THE LIVE ROOM, A ROOM WINDOW THAT LIFTS, AND BACKGROUNDS IN FULLSCREEN (Luke, 2026-11-16) | 3556 |
+| `SPEC-rooms-your-room.md` | YOUR ROOM LIKE THE LIVE ROOM, A ROOM WINDOW THAT LIFTS, AND BACKGROUNDS IN FULLSCREEN (Luke, 2026-11-16) | 4048 |
 | `SPEC-screens.md` | SCREENS — sharing a screen in a room and controlling your own devices, on our own engine | 8490 |
 | `SPEC-stream-art.md` | the room canvas ("magma mode") and STREAM ART in the archive (2026-11-03) | 1494 |
 | `SPEC-stream-queue.md` | stream queue window, people's additions and crowns (2026-11-02) | 1795 |
@@ -150,17 +151,17 @@ Sizes are rough tokens (characters / 4): read the sections you need, not the who
 | `SPEC-command-center.md` | the command center (helper agents, an agent cap, CLAUDE.md split into rules) | 5015 |
 | `SPEC-efficiency.md` | Efficiency pass ("say it once, say it short") | 5005 |
 | `SPEC-self-hosting.md` | hosting DEBASER_OS from Luke's PC (self-hosting) | 8947 |
-| `docs/STATE.md` | State of the site (the one current picture) | 1103 |
+| `docs/STATE.md` | State of the site (the one current picture) | 1319 |
 | `docs/commands.md` | Commands | 1045 |
-| `docs/decisions.md` | Luke's standing decisions | 1406 |
+| `docs/decisions.md` | Luke's standing decisions | 1587 |
 | `docs/handoff-archive.md` | Older handoff notes, newest first | 22842 |
-| `docs/sessions.md` | How sessions are run | 3135 |
+| `docs/sessions.md` | How sessions are run | 4387 |
 | `docs/site-review-2026-11.md` | Site review, November 2026 | 2855 |
 
 ## OTHER
 
 | File | What | ≈ tokens |
 |---|---|---|
-| `docs/how-this-works.md` | How the Claude sessions get their instructions (for Luke, 2026-11-27) | 1312 |
+| `docs/how-this-works.md` | How the Claude sessions get their instructions (for Luke, 2026-11-27) | 1455 |
 | `docs/theming.md` | Theming: how the look is changed | 2256 |
 

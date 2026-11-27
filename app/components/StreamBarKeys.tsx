@@ -28,9 +28,29 @@ const SPEAKER_MUTED_GLYPH = '\u{1F507}︎';
  * (Luke, 2026-11-27: "when two of the same account are watching media in a room, make sure the pause play and volume controls are all
  * synced"), so the words say so.
  */
-export function SpeakerKey({ muted, volume, onMuted, onVolume, followsYourDevices = false }: { muted: boolean; volume: number; onMuted: (muted: boolean) => void; onVolume: (volume: number) => void; followsYourDevices?: boolean }) {
+export function SpeakerKey({
+  muted,
+  volume,
+  onMuted,
+  onVolume,
+  followsYourDevices = false,
+  heldBy,
+}: {
+  muted: boolean;
+  volume: number;
+  onMuted: (muted: boolean) => void;
+  onVolume: (volume: number) => void;
+  followsYourDevices?: boolean;
+  /** Muted from DEVICES (SPEC-room-devices.md): by which of your devices; undefined when not. */
+  heldBy?: string;
+}) {
   const off = followsYourDevices ? 'Turns the sound off here and on your own other devices in this room.' : 'Turns the sound off, on this device only.';
-  const back = followsYourDevices ? 'Turns the sound back on, here and on your own other devices in this room.' : 'Turns the sound back on.';
+  const back =
+    heldBy !== undefined
+      ? `Turns this device's sound back on. It was muted from ${heldBy} in DEVICES.`
+      : followsYourDevices
+        ? 'Turns the sound back on, here and on your own other devices in this room.'
+        : 'Turns the sound back on.';
   return (
     <span className="flex shrink-0 items-center gap-1">
       <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-pressed={muted} aria-label={muted ? 'Unmute' : 'Mute'} title={muted ? 'Unmute' : 'Mute'} {...explain(muted ? back : off, 'Everyone else still hears it; the video keeps playing in step.')} onClick={() => onMuted(!muted)}>
@@ -41,6 +61,11 @@ export function SpeakerKey({ muted, volume, onMuted, onVolume, followsYourDevice
           <ArtMark key="sound" src={SPEAKER_SRC} size={MARK_SIZE} fallback={<span className="text-title leading-none">{SPEAKER_GLYPH}</span>} />
         )}
       </button>
+      {heldBy === undefined ? null : (
+        <span className="shrink-0 text-label text-sun max-sm:hidden" data-room-device-held-key>
+          MUTED FROM {heldBy}
+        </span>
+      )}
       <input
         type="range"
         aria-label="Volume"

@@ -27,6 +27,10 @@ import { saveLookChoice, useLookChoice } from '../lib/cytube/use-looks';
 import { afterFile, blankPrefill, blankStart, screenIsBlank, type BlankKey } from '../lib/watch/blank-screen';
 import { getWatchRepository, repositoryFor, type OwnDeviceLine } from '../lib/watch/repository';
 import { OWN_ASK_AFTER_MS, OWN_VOLUME_SAY_MS } from '../lib/watch/own-devices';
+import { playbackRole, takesSoundFrom, type DeviceMode } from '../lib/watch/own-device-modes';
+import { useOwnDevices } from '../lib/watch/use-own-devices';
+import { offerRoomDevices } from '../lib/watch/room-devices-key';
+import RoomDevicesWindow from './RoomDevicesWindow';
 import { ownRoomState, subscribeToOwnRoom, takeComeBack } from '../lib/watch/own-room-client';
 import type { AudioTrack } from '../lib/audio/tracks';
 import { frontPosition } from '../lib/watch/music-rooms';
@@ -191,6 +195,8 @@ const PRESS_HOLD_MS = 1500;
 const ORDER_LANDS_MS = 2500;
 /** How long `<NAME> IS HOSTING NOW` stays up. */
 const HANDOVER_NOTICE_MS = 15000;
+/** How long the bar says why a device DEVICES keeps from moving the room didn't put a song on. */
+const DEVICES_NOTICE_MS = 6000;
 /** How long a host's player waits on a link that will not play before the room moves on. */
 const DEAD_LINK_SKIP_MS = 5000;
 /** How many of the room's own chat lines it keeps (how often UP NEXT comes: lib/watch/room-notes.ts). */
@@ -478,13 +484,48 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
    * presses, that one leads: a page that has just opened follows the device already playing.
    */
   const eldestDevice = me !== null && members.filter((member) => member.userId === me.id).sort((a, b) => a.joinedAt - b.joinedAt || a.key.localeCompare(b.key))[0]?.key === myKey;
+  const accountId = user?.id ?? null;
+  /** Your other devices' keys in this room, in the order they came in. */
+  const otherDeviceKeys = useMemo(
+    () => (me === null ? [] : members.filter((member) => member.userId === me.id && member.key !== myKey).sort((a, b) => a.joinedAt - b.joinedAt).map((member) => member.key)),
+    [members, me, myKey],
+  );
+  /** [ DEVICES ] (Luke, 2026-11-27; own-device-modes.ts): how each of your other devices here goes with this one. */
+  const ownDevices = useOwnDevices(repository, accountId, roomId, myKey, otherDeviceKeys, accountId !== null && otherDeviceHere);
+  /**
+   * In your own room, what DEVICES leaves this device: following one of yours it was set to follow (it never takes the room),
+   * ON ITS OWN beside the one that keeps the room (APART), leading one set to follow it, or free (today's rule).
+   */
+  const deviceRole = accountHosts && ownDevices.deviceId !== null ? playbackRole(ownDevices.book, ownDevices.deviceId, ownDevices.here.map((device) => device.deviceId)) : { role: 'free' as const, by: null };
+  const keptFollowing = deviceRole.role === 'follow';
+  const onItsOwn = deviceRole.role === 'own';
+  /** The device DEVICES ties this one to, by name. */
+  const roleBy = deviceRole.by === null ? null : (ownDevices.here.find((device) => device.deviceId === deviceRole.by)?.name ?? 'YOUR OTHER DEVICE');
+  /** What the room's keys say in place of the ones that would move the room, on a device DEVICES keeps from it. */
+  const devicesHoldNotice = () => (keptFollowing ? `FOLLOWING ${roleBy ?? ''} · CHANGE IT IN [ DEVICES ]` : `ON ITS OWN BESIDE ${roleBy ?? ''} · CHANGE IT IN [ DEVICES ]`);
+  /** A press that would move the room, on a device DEVICES keeps from it (the music bar's NEXT, back, a song played in): the bar says why for a few seconds, and true. */
+  const heldBackByDevices = (): boolean => {
+    if (!accountHosts || !(keptFollowing || onItsOwn)) return false;
+    setNotice(devicesHoldNotice());
+    window.setTimeout(() => setNotice(null), DEVICES_NOTICE_MS);
+    return true;
+  };
   /** This device plays the room's clock and writes it: the host's account, on the one of its devices that leads. */
-  const amHost = accountHosts && (lead === 'lead' || (lead === 'unset' && membersHeard && (!otherDeviceHere || eldestDevice)));
-  /** A press on one of the host's keys (or the player's own) on a device that was following: it leads from now on. */
-  function takeLead(byPress = true) {
-    if (!accountHosts || amHost) return;
+  const amHost =
+    accountHosts &&
+    !keptFollowing &&
+    !onItsOwn &&
+    (deviceRole.role === 'lead' || lead === 'lead' || (lead === 'unset' && membersHeard && (!otherDeviceHere || eldestDevice)));
+  /**
+   * A press on one of the host's keys (or the player's own) on a device that was following: it leads from now on. False when
+   * this device may not move the room (not your room, or DEVICES has it following or on its own): the press goes no further.
+   */
+  function takeLead(byPress = true): boolean {
+    if (!accountHosts || keptFollowing || onItsOwn) return false;
+    if (amHost) return true;
     if (byPress) pressedLead.current = Date.now();
     setLead('lead');
+    return true;
   }
 
   /* --- your devices' speaker key (Luke, 2026-11-27: "when two of the same account are watching media in a room, make sure the
@@ -498,20 +539,23 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   const saidAt = useRef(0);
   /** This device came into the room after another of yours and has its sound now: from their answer, or from a turn of its own key. */
   const soundSettled = useRef(false);
-  const accountId = user?.id ?? null;
   /** When this device came into the room, by the room's own list. */
   const cameInAt = useEffectEvent(() => members.find((member) => member.key === myKey)?.joinedAt ?? Number.POSITIVE_INFINITY);
   /** Luke's answer, "Take current volume on join": a device of yours that came in later asks; one that was here first answers. */
   const cameInLater = useEffectEvent(() => !eldestDevice);
+  /** This device's id on the line, so your others take its sound only by the way DEVICES has them go with it. */
+  const soundFrom = useEffectEvent(() => (ownDevices.deviceId === null ? {} : { from: ownDevices.deviceId }));
+  /** The sound said by one of your devices is taken only from one this device follows, or from any while nothing is chosen. */
+  const takesSound = useEffectEvent((from: string | undefined) => takesSoundFrom(ownDevices.book, from ?? null));
   const answerAsk = useEffectEvent((since: number) => {
-    if (cameInAt() < since) ownLine.current?.send({ kind: 'volume', roomId, volume, muted });
+    if (cameInAt() < since) ownLine.current?.send({ kind: 'volume', roomId, volume, muted, ...soundFrom() });
   });
   useEffect(() => {
     if (accountId === null || !otherDeviceHere) return;
     const line = repository.joinOwnDevices(accountId, (message) => {
       if (message.roomId !== roomId) return;
       if (message.kind === 'ask-room') answerAsk(message.since);
-      if (message.kind !== 'volume') return;
+      if (message.kind !== 'volume' || !takesSound(message.from)) return;
       soundSettled.current = true;
       setVolume(message.volume);
       setMuted(message.muted);
@@ -542,21 +586,44 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       () => {
         sayTimer.current = null;
         saidAt.current = Date.now();
-        ownLine.current?.send({ kind: 'volume', roomId, volume, muted });
+        ownLine.current?.send({ kind: 'volume', roomId, volume, muted, ...soundFrom() });
       },
       Math.max(0, OWN_VOLUME_SAY_MS - (Date.now() - saidAt.current)),
     );
   }, [volume, muted, roomId]);
+  /**
+   * Muted from DEVICES (on another device of yours, or this one's window): silent whatever the shared mute or volume says, and the
+   * level still follows, so the sound comes back where your others have it. Lifted by MUTE again there, or this speaker key here.
+   * Kept until then, but in force only while another device of yours is in the room, where DEVICES shows it: alone, nothing on
+   * screen would say why this device was silent.
+   */
+  const heldMuted = otherDeviceHere ? ownDevices.book.heldMuted : null;
+  const silent = muted || heldMuted !== null;
+  const { unholdSelf } = ownDevices;
   const turnVolume = useCallback((next: number) => {
     turnedHere.current = true;
     soundSettled.current = true;
     setVolume(next);
   }, []);
-  const turnMuted = useCallback((next: boolean) => {
-    turnedHere.current = true;
-    soundSettled.current = true;
-    setMuted(next);
-  }, []);
+  const turnMuted = useCallback(
+    (next: boolean) => {
+      // Sound asked for at this device lifts a mute from DEVICES: whoever presses it is standing here and wants to hear.
+      if (!next && heldMuted !== null) {
+        unholdSelf();
+        if (!muted) return;
+      }
+      turnedHere.current = true;
+      soundSettled.current = true;
+      setMuted(next);
+    },
+    [heldMuted, muted, unholdSelf],
+  );
+  // The music bar is this device's sound too while a song plays here: silent with it.
+  const { setSilenced } = player;
+  useEffect(() => {
+    setSilenced(heldMuted !== null);
+    return () => setSilenced(false);
+  }, [heldMuted, setSilenced]);
 
   /* --- the music stops (decision 7) ------------------------------------------------------------ */
 
@@ -603,7 +670,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
 
   /** The host moves on: the next file in the queue (inside a series, its next episode), or the same one again from the top. */
   function moveOn(skip: boolean) {
-    takeLead();
+    if (!takeLead()) return;
     // The room's loop (ROOMSYNC, "the loop button to loop it"): at its end, what is on starts again. A skip still skips.
     if (!skip && player.roomLoop && entry !== undefined && !pictureOn) {
       fromTheTop();
@@ -630,7 +697,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
 
   /** The host starts a row: the next one, or (ROOMSYNC) one that played before, which keeps its place in the list. */
   function startRow(next: WatchQueueEntry) {
-    takeLead();
+    if (!takeLead()) return;
     const video = videoRef.current;
     goingBlack.current = false;
 
@@ -658,7 +725,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
 
   /** What is on starts again from the top, for everybody: the room's loop, or the back arrow with nothing before it. */
   function fromTheTop() {
-    takeLead();
+    if (!takeLead()) return;
     const playing = songOn ? audioElement() : videoRef.current;
     if (playing !== null) {
       playing.currentTime = 0;
@@ -678,7 +745,9 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     }
     startRow(before);
   }
-  const backFromBar = useEffectEvent(() => goBack());
+  const backFromBar = useEffectEvent(() => {
+    if (!heldBackByDevices()) goBack();
+  });
 
   // A press on a row that played, in the queue window (ROOMSYNC: "click on a previous thing in the queue to play it again").
   const replayRow = useEffectEvent((entryId: string) => {
@@ -721,8 +790,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
    * queue and started from the top, as moving on is, so this player and the room agree on what is on.
    */
   const playHere = useEffectEvent((source: MainRoomSource, startAt: number | null) => {
-    if (me === null) return;
-    takeLead();
+    if (me === null || !takeLead()) return;
     const queue = read.queue;
     const added = source.link !== undefined
       ? repository.addToQueue({ roomId, addedBy: me.id, position: nextQueuePosition(queue), inQueue: true, link: source.link })
@@ -840,7 +908,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   /* --- following ------------------------------------------------------------------------------- */
 
   useEffect(() => {
-    if (amHost || !live) return;
+    // ON ITS OWN (DEVICES, APART in your own room): this player is left where it is, and its presses move only itself.
+    if (amHost || !live || onItsOwn) return;
 
     /** This player's last jump to the host, for this play only. */
     let lastJump: FollowerJump | null = null;
@@ -927,7 +996,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       video?.removeEventListener('seeked', onSeeked);
       if (video !== null) video.playbackRate = 1;
     };
-  }, [amHost, live, src, videoElement, refusedPlay]);
+  }, [amHost, live, onItsOwn, src, videoElement, refusedPlay]);
 
   // A room that ended stops the picture where it is. Not the song of the person who started it and is ending it:
   // that carries on for them alone, on the bar (SPEC-rooms-queues.md, phase 3).
@@ -947,8 +1016,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   /** The leading device went quiet at a file's end: this following device of the host's account leads and moves on. */
   const leadWhenGone = useEffectEvent((): boolean => {
     if (!accountHosts || amHost) return false;
-    takeLead(false);
-    return true;
+    return takeLead(false);
   });
 
   const goingHome = useRef(false);
@@ -965,7 +1033,9 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   const { bindRoom, cue, audioElement } = player;
   // While the room is live the bar's keys are the room's (MusicPlayerProvider `bindRoom`): the host's NEXT
   // skips, and a follower who takes the controls leaves the room.
-  const skipFromBar = useEffectEvent(() => moveOn(true));
+  const skipFromBar = useEffectEvent(() => {
+    if (!heldBackByDevices()) moveOn(true);
+  });
   const leaveFromBar = useEffectEvent(() => onLeft());
 
   // Off-queue plays (SPEC-music-queues.md): a song the host plays from a post, a profile or PLAY FOR YOU slots into
@@ -975,7 +1045,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   const playFromOutside = useEffectEvent((tracks: AudioTrack[]) => {
     const [first, ...rest] = tracks;
     if (first === undefined || me === null || !accountHosts) return;
-    takeLead();
+    // A device DEVICES keeps from moving the room: the song isn't put on, and the bar says why.
+    if (heldBackByDevices() || !takeLead()) return;
     const queue = read.queue;
     const crowned = hasCrown(read.crowns, me.id);
     void repository
@@ -1207,8 +1278,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     const video = videoRef.current;
     if (video === null || songOn) return;
     video.volume = volume;
-    video.muted = muted;
-  }, [volume, muted, src, videoElement, songOn]);
+    video.muted = silent;
+  }, [volume, silent, src, videoElement, songOn]);
 
   // A link that will not play in this browser (an address tied to somebody else's session, one that
   // expired in the queue): it says so on the stage, and chat goes on. A host's room moves on after a
@@ -1279,7 +1350,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   const serverStart = useRef<{ entryId: string | null; at: number } | null>(null);
   /** The host's PLAY on a server's player: 0 now, and the beat walks up from here. */
   function playServerForAll() {
-    takeLead();
+    if (!takeLead()) return;
     serverStart.current = { entryId: room.currentEntryId, at: Date.now() };
     void repository
       .writePlayback(roomId, { currentEntryId: room.currentEntryId, positionSeconds: 0, isPlaying: true })
@@ -1532,6 +1603,26 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
 
   const [queueOpen, setQueueOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  /** [ DEVICES ] (Luke, 2026-11-27): its key is on the window's title line while another device of yours is here. */
+  const [devicesOpen, setDevicesOpen] = useState(false);
+  const devicesKeyOn = accountId !== null && otherDeviceHere && live;
+  const openDevices = useCallback(() => setDevicesOpen(true), []);
+  useEffect(() => {
+    if (!devicesKeyOn) return;
+    offerRoomDevices(openDevices);
+    return () => {
+      offerRoomDevices(null);
+      // The window goes with the key (the other device left), and doesn't come back by itself when one comes in again.
+      setDevicesOpen(false);
+    };
+  }, [devicesKeyOn, openDevices]);
+  const myDeviceId = ownDevices.deviceId;
+  const { choose: chooseWay } = ownDevices;
+  /** APART in your own room: the device playing the room now keeps it, and the other plays on its own. */
+  const chooseDeviceMode = useCallback(
+    (other: string, mode: DeviceMode | null) => chooseWay(other, mode, mode === 'apart' && accountHosts ? (amHost ? myDeviceId : other) : null),
+    [chooseWay, accountHosts, amHost, myDeviceId],
+  );
   /** Counts GO LIVE's asks: each opens the cog on WHO CAN JOIN (Luke, 2026-11-17), from the bar's key, the music bar or CYTUBE. */
   const [askedLive, setAskedLive] = useState(0);
   const askLive = () => {
@@ -1587,6 +1678,16 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   // A picture has nothing to play, pause or seek: it is held until NEXT.
   const hasTransport = src !== undefined && !officialOn && !pictureOn;
   const hostKeys = accountHosts && live;
+  /** DEVICES: a device following one of yours has no keys that move the room; one ON ITS OWN keeps play, pause and seek, for itself. */
+  const steersHere = hostKeys && !keptFollowing;
+  const movesRoom = steersHere && !onItsOwn;
+  /** Where those keys were: which of your devices this one follows, or that it plays on its own. */
+  const devicesHold =
+    hostKeys && (keptFollowing || onItsOwn) ? (
+      <span className="shrink-0 px-1 text-label text-sun" data-room-devices-hold={keptFollowing ? 'follow' : 'own'}>
+        {keptFollowing ? `FOLLOWING ${roleBy ?? ''}` : 'ON ITS OWN'}
+      </span>
+    ) : null;
   /** Your own main room, live: its WHO CAN JOIN and END ROOM are in the cog. */
   const mainRoomHost = hostKeys && music;
   // GO LIVE pressed on the music bar or the CYTUBE page opens this room (main-room-play.ts): here, its cog on WHO CAN JOIN.
@@ -1630,7 +1731,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
 
   // The keys, each drawn in whichever of the two bars is showing them.
   const playKey =
-    serverOn && hostKeys ? (
+    serverOn && movesRoom ? (
       // A server's own player can't be paused from here: the host's PLAY starts everybody's again from the top, together.
       <button
         type="button"
@@ -1643,7 +1744,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       >
         [ ▶ PLAY FOR ALL ]
       </button>
-    ) : hasTransport && hostKeys ? (
+    ) : hasTransport && steersHere ? (
       <button
         type="button"
         className={`${PLATE_ON_BLACK} shrink-0`}
@@ -1663,7 +1764,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   // A live stream has no position to show; the space is kept so the keys beside it stay put.
   const seekLine = stageLive ? (
     <span className="min-w-12 flex-1" />
-  ) : accountHosts && live ? (
+  ) : steersHere ? (
     <input
       type="range"
       aria-label="Seek"
@@ -1700,7 +1801,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   // Back, skip and loop (ROOMSYNC adds back and loop beside the skip: "the back arrow ... to go back to it and the loop
   // button to loop it"). The loop is the bar's own loop key while you host (`roomLoop`), so the two always agree.
   const nothingBefore = previousPlay(read) === null && (entry === undefined || pictureOn);
-  const skipKey = hostKeys ? (
+  const skipKey = movesRoom ? (
     <>
       <button
         type="button"
@@ -1780,7 +1881,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     </>
   ) : hasTransport && song === null ? (
     <>
-      <SpeakerKey muted={muted} volume={volume} onMuted={turnMuted} onVolume={turnVolume} followsYourDevices={user !== null} />
+      <SpeakerKey muted={silent} volume={volume} onMuted={turnMuted} onVolume={turnVolume} followsYourDevices={user !== null} heldBy={heldMuted === null ? undefined : (heldMuted.by ?? 'THIS DEVICE')} />
       <QualityKey source={qualitySource} />
       <SubsKey
         key={entryId ?? 'none'}
@@ -1853,6 +1954,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       data-watch-bar-awake={fullscreen ? (barAwake ? 'awake' : 'asleep') : undefined}
     >
       {playKey}
+      {devicesHold}
       {/* Where it is, and the time: a row of its own on a phone, so the keys fit on the one under it. With no
           transport (a WEB platform's own player) the space only pushes the host's keys to the right. */}
       {serverOn ? (
@@ -1911,7 +2013,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
         </>
       ) : hasTransport ? (
         <>
-          <SpeakerKey muted={muted} volume={volume} onMuted={turnMuted} onVolume={turnVolume} followsYourDevices={user !== null} />
+          <SpeakerKey muted={silent} volume={volume} onMuted={turnMuted} onVolume={turnVolume} followsYourDevices={user !== null} heldBy={heldMuted === null ? undefined : (heldMuted.by ?? 'THIS DEVICE')} />
           {pipKey}
           {fullKey}
         </>
@@ -2243,6 +2345,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
             {/* `relative`: QUALITY and SUBS open their lists over their keys, above the bar. */}
             <span className={`relative flex shrink-0 flex-wrap items-center gap-1 frame bg-hardware px-1 py-0.5 text-label text-sun ${lookLines} ${lookKeys}`} data-watch-bar="music">
               {playKey}
+              {devicesHold}
               {skipKey}
               {pictureKeys}
               <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-haspopup="dialog" onClick={() => openQueue()} data-stream-bar-queue {...explain('Opens the room\'s queue: what plays next.', 'Search, add and see what is waiting. Who may add is set in the room settings.')}>
@@ -2320,6 +2423,21 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
         />
       ) : null}
       {naming && user === null ? <GuestWindow onNamed={() => setNaming(false)} onClose={() => setNaming(false)} /> : null}
+      {devicesOpen && devicesKeyOn && myDeviceId !== null ? (
+        <RoomDevicesWindow
+          thisName={ownDevices.name}
+          heldBy={ownDevices.book.heldMuted === null ? undefined : ownDevices.book.heldMuted.by}
+          rows={ownDevices.here.map((device) => ({ deviceId: device.deviceId, name: device.name, mode: ownDevices.book.devices[device.deviceId]?.mode ?? null, muted: device.held }))}
+          hosting={accountHosts}
+          hostName={hostName}
+          keepers={Object.fromEntries(ownDevices.here.map((device) => [device.deviceId, ownDevices.book.devices[device.deviceId]?.keeper === myDeviceId]))}
+          onMode={chooseDeviceMode}
+          onMute={ownDevices.muteDevice}
+          onRename={ownDevices.rename}
+          onUnholdSelf={ownDevices.unholdSelf}
+          onClose={() => setDevicesOpen(false)}
+        />
+      ) : null}
       {settingsOpen && visitorRoom && mainRoomHost ? (
         <VisitorRoomSettings room={room} onLeft={onLeft} onClose={closeSettings} />
       ) : settingsOpen && user !== null && mayEditRoom(room, read.crowns, user.id, live) ? (

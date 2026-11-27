@@ -42,6 +42,7 @@ import { answerPlayAsk, playAskState, playInMainRoomLeaving, subscribeToPlayAsk 
 import { noteComeBack, ownRoomState, subscribeToOwnRoom } from '../lib/watch/own-room-client';
 import { noteRoomStart } from '../lib/watch/room-start';
 import { fitRoom, roomFitShape, subscribeToRoomFit } from '../lib/watch/room-fit';
+import { noRoomDevicesOffer, roomDevicesOffer, subscribeToRoomDevices } from '../lib/watch/room-devices-key';
 import { askToSaveCanvas } from '../lib/watch/use-room-canvas';
 import { explain, NOTE } from '../lib/ui/explain';
 
@@ -561,7 +562,12 @@ function RoomWindow({
         id="stream"
         layoutId="room"
         maximisable
-        titleKeys={<RoomFitKey />}
+        titleKeys={
+          <>
+            <RoomDevicesKey />
+            <RoomFitKey />
+          </>
+        }
         // Somebody's own room, joined by its link, is named as theirs: it is not a stream and has no privacy to pick.
         title={read ? (read.room.origin === 'music' ? roomOwnerTitle : `STREAM :: ${roomShownName(read.room, hostName).toUpperCase()}${read.room.privacy === 'open' ? '' : ` :: ${roomPrivacyLabel(read.room.privacy)}`}`) : 'STREAM'}
         badge={read ? (read.room.origin === 'music' ? (read.room.isPublic ? 'LIVE' : mainRoom ? 'PRIVATE' : 'BY LINK') : live ? 'LIVE' : 'ENDED') : undefined}
@@ -625,6 +631,29 @@ function RoomWindow({
  * reasonable way"): the window takes the picture's shape, no bars round it (`room-fit.ts`). Drawn only while there is a
  * picture of a known shape, and only on a desktop, where the window can be sized.
  */
+/**
+ * [ DEVICES ] on the room window's title line, top right (Luke, 2026-11-27, "Room window, top right"): while another device of
+ * your account is in the room, it opens the room's DEVICES window (room-devices-key.ts, RoomDevicesWindow.tsx).
+ */
+function RoomDevicesKey() {
+  const open = useSyncExternalStore(subscribeToRoomDevices, roomDevicesOffer, noRoomDevicesOffer);
+  if (open === null) return null;
+  return (
+    <button
+      type="button"
+      onPointerDown={(event) => event.stopPropagation()}
+      onDoubleClick={(event) => event.stopPropagation()}
+      onClick={() => open()}
+      aria-haspopup="dialog"
+      className="cursor-pointer key px-1 py-0.75 text-label font-bold leading-none"
+      {...explain('Opens DEVICES: your own other devices in this room.', 'Choose which of them follows which, or mute one from here. Kept on the devices until you change it.')}
+      data-room-devices-key
+    >
+      [ DEVICES ]
+    </button>
+  );
+}
+
 function RoomFitKey() {
   const shape = useSyncExternalStore(subscribeToRoomFit, roomFitShape, noRoomFitShape);
   const desktop = useSyncExternalStore(subscribeToWidth, wideEnough, notWide);
