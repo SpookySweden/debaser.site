@@ -20,6 +20,17 @@ export function framedAddress(address: string): string {
   }
 }
 
+/** Where a framed page got to, as the address box says it: YouTube's player reads as its watch page, the page that was asked for. */
+export function boxAddress(href: string): string {
+  try {
+    const url = new URL(href);
+    const id = /^\/embed\/([\w-]{6,20})$/.exec(url.pathname)?.[1];
+    return id !== undefined && /(^|\.)youtube\.com$/.test(url.hostname) ? `https://www.youtube.com/watch?v=${id}` : href;
+  } catch {
+    return href;
+  }
+}
+
 type Props = { address: string; onList: boolean | null; site: string; at: { href: string; title: string } | null; onTab: () => void; onMachine: () => void; onHouse: () => void; onAdd: () => void };
 
 /**
@@ -70,7 +81,7 @@ export default function SeeingOwnFrame({ address, onList, site, at, onTab, onMac
     <div className="flex min-w-0 flex-1 flex-col" data-seeing-own={silent ? 'silent' : 'shown'}>
       <p className="flex flex-wrap items-center gap-1 px-1 py-1 text-label text-ink">
         <span className="min-w-0 flex-1 truncate" title={at?.href ?? address}>
-          {silent ? "IT DIDN'T SHOW HERE: SOME SITES REFUSE TO BE INSIDE ANOTHER, AND SIGN-IN PAGES ALWAYS OPEN IN A TAB." : `YOUR OWN BROWSER, SIGNED IN AS YOU WHERE THE SITE ALLOWS IT HERE${at !== null && at.href !== address ? ` · NOW AT ${at.title || at.href}` : ''}`}
+          {silent ? "IT DIDN'T SHOW HERE: SOME SITES REFUSE TO BE INSIDE ANOTHER, AND SIGN-IN PAGES ALWAYS OPEN IN A TAB." : `YOUR OWN BROWSER, SIGNED IN AS YOU WHERE THE SITE ALLOWS IT HERE${at !== null && boxAddress(at.href) !== address ?` · NOW AT ${at.title || at.href}` : ''}`}
         </span>
         {keys}
       </p>

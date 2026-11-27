@@ -128,6 +128,8 @@ Proof: `drive-see.cjs --only lenses` (DYE and GLASS measured on every theme, 5.5
   to have shown here.
 - A YouTube video is YouTube's own player (`/embed/`): its watch page stops itself in a frame (the white page). Sign-in pages are never framed (D1).
 - Proved with real cookies on pretend https sites: `scripts/drive-see-own-frame.cjs` (11); BROWSER's side: `drive-see --only owneye` (31).
+- The address box follows it (2026-11-27): where the extension says the framed page got to (an http(s) address only) is put in the box,
+  without reloading the frame; GO there makes it a stop of the tab's own. YouTube's player reads as its watch page (`boxAddress`).
 - Lenses on it (2026-11-27): a lens pressed in BROWSER is sent over the held port; the extension wears it on the framed page (act.js putLens
   on that tab's frame) and again on each page the frame goes to. READER, X-RAY, LOW-FI and DYE (its YOUR THEME); WATCHERS, GLASS and CUSTOM are the
   house's only and say so. Nothing of the page leaves the reader's browser; they stay signed in.

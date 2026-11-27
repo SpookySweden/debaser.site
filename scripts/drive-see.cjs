@@ -1227,7 +1227,7 @@ async function ownEyeFirst(browser) {
         // BROWSER holds itself open to the extension while OWN EYE shows pages here.
         connect: () => {
           window.heldOpen = (window.heldOpen ?? 0) + 1;
-          return { onMessage: { addListener: () => undefined }, postMessage: (message) => { window.lensesAsked = [...(window.lensesAsked ?? []), message.lens]; }, disconnect: () => { window.heldOpen -= 1; } };
+          return { onMessage: { addListener: (hear) => { window.hearAt = hear; } }, postMessage: (message) => { window.lensesAsked = [...(window.lensesAsked ?? []), message.lens]; }, disconnect: () => { window.heldOpen -= 1; } };
         },
         sendMessage: (id, message, answer) => {
           const it = kept();
@@ -1295,6 +1295,13 @@ async function ownEyeFirst(browser) {
     await page.waitForTimeout(300);
     ok(/THE HOUSE'S ONLY/.test(await page.locator('[data-seeing-status]').innerText()), 'and one only the house has says so');
     await page.locator('[data-seeing-lenses]').getByRole('button', { name: '[ STANDARD ]' }).click();
+    // A link followed inside the framed page: the extension says where it got to, and the address box follows, without reloading the frame.
+    await page.evaluate((site) => window.hearAt({ see: 'at', href: `${site}/b`, title: 'B' }), SITE);
+    await page.waitForTimeout(300);
+    ok((await page.locator('[data-seeing-address]').inputValue()) === `${SITE}/b` && (await page.locator('[data-seeing-own-frame]').getAttribute('src')) === `${SITE}/a`, 'a link followed inside the framed page: the address box follows it, and the frame is not reloaded');
+    await page.evaluate(() => window.hearAt({ see: 'at', href: 'javascript:alert(1)', title: 'X' }));
+    await page.waitForTimeout(300);
+    ok((await page.locator('[data-seeing-address]').inputValue()) === `${SITE}/b`, 'and what is not a web address is never put there');
     ok((await page.locator('[data-seeing-own-frame]').getAttribute('sandbox')) === 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads', "in a frame that can't move BROWSER's page");
     ok((await page.locator('[data-seeing-get-signed-in]').count()) === 0, 'and nothing is asked for first');
     ok(!net.asked.some((each) => each.path === '/a'), 'and the server asks nothing for it');
@@ -1310,6 +1317,9 @@ async function ownEyeFirst(browser) {
     await page.locator('[data-seeing-own-frame]').waitFor();
     ok((await page.locator('[data-seeing-own-frame]').getAttribute('src')) === 'https://www.youtube.com/embed/aqz-KE-bpKQ?autoplay=1', "a YouTube video is YouTube's own player inside BROWSER's tab, added or not: the watch page stops itself in a frame (the white page)");
     ok((await offer.count()) === 0, 'and the sign-in line is not shown: OWN EYE is signed in already where it can be');
+    await page.evaluate(() => window.hearAt({ see: 'at', href: 'https://www.youtube.com/embed/zzzzzzzzzzz?autoplay=1', title: 'Next' }));
+    await page.waitForTimeout(300);
+    ok((await page.locator('[data-seeing-address]').inputValue()) === 'https://www.youtube.com/watch?v=zzzzzzzzzzz', "the next video in YouTube's player reads in the address box as its watch page");
     await go(page, 'https://www.youtube.com/');
     await page.locator('[data-seeing-own="add"]').waitFor();
     ok(/SHOW YOUTUBE\.COM HERE/.test(await page.locator('[data-seeing-own]').innerText()), "YouTube's own pages, not added: BROWSER offers to add it, to show it here");

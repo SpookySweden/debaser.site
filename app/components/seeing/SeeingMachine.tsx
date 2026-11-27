@@ -54,7 +54,7 @@ import SeeingElapsed from './SeeingElapsed';
 import SeeingRefused from './SeeingRefused';
 import { seeingKey, type SeeingKey } from '../../lib/seeing/keys';
 import { shownLine } from '../../lib/seeing/status-line';
-import SeeingOwnFrame from './SeeingOwnFrame';
+import SeeingOwnFrame, { boxAddress } from './SeeingOwnFrame';
 import SeeingShell from './SeeingShell';
 import SeeingGetSignedIn from './SeeingGetSignedIn';
 import SeeingFirstVisit from './SeeingFirstVisit';
@@ -540,6 +540,9 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
       hold.release();
     };
   }, [eye, extension, key]);
+  // Where the page OWN EYE shows here got to, by a link followed inside it: the address box follows it (the frame is not reloaded; GO there
+  // makes it a stop of the tab's own).
+  const followed = now.state === 'elsewhere' && framedAt !== null && framedAt.key === key ? boxAddress(framedAt.href) : null;
   // The lens in front, on the page OWN EYE shows here: worn by the extension on the site's own page, so the reader stays signed in.
   const ownLens = now.state === 'elsewhere' ? tab.lens : null;
   useEffect(() => {
@@ -597,8 +600,8 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
         }
       />
       <SeeingToolbar
-        place={`${tab.id}:${tab.at}:${address ?? ''}:${tab.draft ?? ''}`}
-        address={tab.draft ?? address ?? ''}
+        place={`${tab.id}:${tab.at}:${address ?? ''}:${tab.draft ?? ''}:${followed ?? ''}`}
+        address={tab.draft ?? followed ?? address ?? ''}
         canBack={canGoBack(tab)}
         canForward={canGoForward(tab)}
         busy={now.state === 'busy'}
