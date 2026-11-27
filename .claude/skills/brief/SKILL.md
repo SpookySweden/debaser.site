@@ -51,8 +51,9 @@ live step and why nothing local can prove it>
 - When done (Luke, 2026-11-27: "check to see when the work is done and archive yourselves"): archive yourself
   (`archive_session` "self") only when ALL hold: pushed and confirmed live, nothing uncommitted in your worktree;
   hand-over `STATE: done`; your final report SENT to the coordinator by message first; nothing waits on Luke or another
-  session, and no side session of yours is working. Otherwise stay idle and list what is open
-  (`docs/sessions.md`, "Archiving when done").
+  session, and no side session of yours is working. Turn your own Remote Control off first
+  (`mcp__ccd_session_mgmt__set_remote_control` "self" false), or the archive is refused. Otherwise stay idle and list
+  what is open (`docs/sessions.md`, "Archiving when done").
 
 ## Limits
 No database writes, deletes, DNS, tunnels, keys or security settings without Luke's quoted OK. Don't edit

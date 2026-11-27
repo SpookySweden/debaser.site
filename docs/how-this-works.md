@@ -53,15 +53,15 @@ Now there are three layers:
   database and live tests always stay on SERVER. It is live (2026-11-27): a clean build took 71 seconds on the PC
   against about 5 minutes on SERVER. If a match starts part-way, the job drops to the lowest priority so your game
   comes first. The full checks can run there too, now that the test keys are on the PC (your "Yes, copy them").
-
-## When a session is finished (your rule, 2026-11-27)
-Every session archives itself once its work is pushed, live, its notes say done, and it has sent the coordinator its
-final report. One that still waits on you, or has work open, stays. The coordinator and the old coordinator are pinned
-and always stay, so the sidebar shows them plus whatever is still working.
 - **Tailscale is the road between them**, except the heavy lane, which uses a direct SSH connection over the home
   network for now. Only SERVER has joined Tailscale so far: the laptop, phone and gaming PC each need it installed and
   signed in with the same account (in `docs/STATE.md`, "Waiting on Luke").
 - **Cloud sessions only for reading work** (research, reviews, SPEC drafts), once you've set the cloud up for the repo.
+
+## When a session is finished (your rule, 2026-11-27)
+Every session archives itself once its work is pushed, live, its notes say done, and it has sent the coordinator its
+final report. One that still waits on you, or has work open, stays. The one coordinator is pinned and always stays, so
+the sidebar shows it plus whatever is still working (the old coordinator and PC setup were archived at your word).
 
 ## What you might notice
 - Sessions shrink themselves and carry on, instead of growing for days.

@@ -25,8 +25,8 @@ working sessions' status notes.
 ## Sessions now
 One coordinator, the only main session (top level, pinned; the first coordinator and PC setup archived 2026-11-27 at
 Luke's word). Its notes: `coordinator-notes.md` in the group's notes folder (`docs/sessions.md`). Working under it since the
-evening of 2026-11-27, each in its own worktree: BROWSER-FIREFOX (the Firefox trial, then the bookmarks-bar key; hand-over
-`browser-build-handover.md`), EXPLAIN-READER (hover words in the reader; `explain-handover.md`) and TRACK-VERSION-PAUSE (a
+evening of 2026-11-27, each in its own worktree: BROWSER-FIREFOX (first the key named OWN EYE showing its page inside BROWSER,
+then the Firefox trial and the bookmarks-bar key; hand-over `browser-firefox-handover.md` in the `local_83ffacf4-…` notes folder), EXPLAIN-READER (hover words in the reader; `explain-handover.md`) and TRACK-VERSION-PAUSE (a
 profile track's version-history key that says "pause" really pauses). Done, live and archived that day: the room builder (the
 FULL key ccb030a, your own devices' volume 05f4f90, `[ DEVICES ]` 2c51b18), EXPLAIN for profile, settings and the forum, BROWSER's
 review fixes and easy-install items 1 and 2, room sync and the context system. The gaming PC's heavy lane is switched off
@@ -45,10 +45,15 @@ review fixes and easy-install items 1 and 2, room sync and the context system. T
 - The shelf: BROWSER and REMOTE are marked WIP (f648c04).
 
 ## Waiting on Luke
-- Tailscale: the laptop, phone and gaming PC join his tailnet (install, sign in with the same account) so sessions
-  and the heavy lane can reach them (his choice, 2026-11-27; `docs/sessions.md`, "Which machine does what"). Then the
-  laptop app gets an SSH connection to SERVER. Cloud sessions for reading work need the cloud set up for the repo (his
-  click).
+- Tailscale: the laptop, phone and gaming PC join his tailnet so sessions and the heavy lane can reach them (his choice,
+  2026-11-27; `docs/sessions.md`, "Which machine does what"). On each: get Tailscale (tailscale.com/download on the laptop
+  and PC, the app store on the phone), open it, sign in with the same account SERVER (`debaser-server`) uses; nothing else
+  to set. Then tell the coordinator: a session writes the exact clicks for the laptop app's SSH connection to SERVER.
+  Cloud sessions for reading work need the cloud set up for the repo (his click).
+- Edge on SERVER (asked by the PC setup session, 2026-11-27; it needs admin rights a session doesn't have): Settings,
+  System and performance, switch off "Startup boost" and "Continue running background extensions and apps", to free memory.
+  Optional, never answered: moving the database tools off the connection pooler (about 210 MB freed, a minute of database
+  downtime).
 - SCREENS relay: activate Cloudflare Realtime/TURN on his account (he ticks the terms and pays himself), then paste the
   key into the RELAY KEY form.
 - Off-site backup (Proton Drive, task `DebaserOffsite`) is built but off until he runs

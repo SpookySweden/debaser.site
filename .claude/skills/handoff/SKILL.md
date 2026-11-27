@@ -57,14 +57,15 @@ Bring the hand-over up to date, update `docs/STATE.md` if a line of it changed (
 whose first line is what is live.
 
 ## When the task is done: archive yourself (Luke, 2026-11-27: "check to see when the work is done and archive yourselves")
-Not the coordinators: they are pinned and stay. Every other session, in this order:
+Not the coordinator: it is pinned and stays. Every other session, in this order:
 1. Pushed and confirmed live (`npm run deploy-status`, `npm run read`; docs-only: pushed to `main`); `git status` shows
    nothing uncommitted in your worktree (archiving deletes it).
 2. Hand-over: `STATE: done`.
 3. Send the final report to the coordinator by message (first line: what is live, with the commit). Archiving ends the
    conversation, so the end-of-turn report can't be relied on to arrive.
 4. Nothing waits on Luke or another session, and no side session of yours is working.
-5. Then `archive_session` with "self". If any step fails, stay idle and say what is open. The coordinator archives a
+5. Then turn your own Remote Control off (`mcp__ccd_session_mgmt__set_remote_control` "self" false: the app refuses to
+   archive a session while it is on, and it is on by default), then `archive_session` with "self". If any step fails, stay idle and say what is open. The coordinator archives a
    finished session that didn't (`docs/sessions.md`, "Archiving when done").
 
 ## The coordinator's notes (`coordinator-notes.md`)

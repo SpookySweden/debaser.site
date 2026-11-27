@@ -18,6 +18,10 @@ session), `interview` (asking Luke), `handoff` (hand-overs and status).
 - Every session of a group writes in the group's notes folder: the one the app names in the brief ("Shared notes folder
   for this group of sessions"). Never in another group's folder, never only in a message. A note written anywhere else
   is a note nobody reads (2026-11-23: the paid fallback nearly didn't start because a hand-over was in the wrong folder).
+- Which folder, in practice (2026-11-27): the app gives each starting session a folder of its own, so there are three.
+  Briefs, hand-overs and `coordinator-notes.md` live in `local_69ad3dc0-…`; a brief names it by its full path, and that
+  path wins over the app's "Shared notes folder" line (two builders followed the app's line and wrote their hand-overs
+  in `local_83ffacf4-…`: the coordinator's notes say where each one is). `heavy-step.cjs` and its locks: `local_4199eda8-…`.
 - Names, so nothing is hunted for: `<task>-brief.md` (from the coordinator), `<task>-handover.md` (the builder's living
   status and hand-over, one file per task, kept current as items land), `<task>-report.md` (a long finding), and the
   coordinator's own `coordinator-notes.md`. Drafts of SQL: `<task>-<what>-draft.sql`.
@@ -39,11 +43,13 @@ session), `interview` (asking Luke), `handoff` (hand-overs and status).
 - **Starting fresh instead** (a new day of work, or a compaction that lost the thread): write the notes, then start a
   new coordinator with `start_session` (fresh, no worktree), brief: "You are the DEBASER coordinator. Read
   docs/sessions.md, docs/STATE.md and <notes folder>\coordinator-notes.md, then carry on from its NEXT list." Running
-  sessions still report to the old one until they finish; leave it idle (an idle session costs nothing). Both the
-  new and the old coordinator pin themselves, so they are never archived (below).
+  sessions still report to the old one until they finish, so each is told by message to report to the new one. The new
+  coordinator pins itself; the old one is archived once nothing reports to it (Luke, 2026-11-27: "i need you to supervise
+  them and archive them as soon as possible and then continue their work perfectly under this coorindator").
 
 ## Archiving when done (Luke, 2026-11-27, to the coordinator: "can you set it so that they and you check to see when the work is done and archive yourselves, along with the sessions under pc setup and sync, i want the coordinator to be the main session, along with the leftover cooridnator.")
-- The sidebar is the coordinator, the old coordinator, and whatever is still working. Every other session archives
+- The sidebar is the one coordinator and whatever is still working (the old coordinator and PC setup were archived the
+  same day, at his word: "supervise them and archive them as soon as possible"). Every other session archives
   itself (`archive_session` with "self") once its work is truly done, and only when ALL of these hold:
   1. Its work is pushed and confirmed live (`npm run deploy-status`, `npm run read`; docs-only work: pushed to
      `main`), and nothing is uncommitted in its worktree (archiving deletes the worktree).
@@ -52,9 +58,12 @@ session), `interview` (asking Luke), `handoff` (hand-overs and status).
      end-of-turn report can't be relied on to arrive).
   4. Nothing of it waits on Luke or on another session's answer, and no side session of its own is working.
   If any of these fails, it stays idle and its report lists what is still open.
+- Remote Control first: the app refuses to archive a session while its Remote Control is on, and it is on by default
+  (PC setup's own archive was refused for it, 2026-11-27). So the last two steps are: turn your own Remote Control off
+  (`mcp__ccd_session_mgmt__set_remote_control` "self" false), then `archive_session` "self".
 - Never archive a working session, or one waiting on Luke (2026-11-22: "make sure we dont close any of the working
   sessions"). The coordinator checks each report against git and archives a finished session that didn't archive
-  itself. The coordinators pin themselves: a pinned session is never archived, not even when a parent's archive takes
+  itself. The coordinator pins itself: a pinned session is never archived, not even when a parent's archive takes
   its finished side sessions with it. Luke's memory file "Closing sessions" holds the same rule.
 
 ## Starting a session (the `brief` skill has the template)
@@ -82,14 +91,20 @@ session), `interview` (asking Luke), `handoff` (hand-overs and status).
   `FROM <name> TO <name> | WHAT: <one line> | NEEDS: <answer, file, nothing> | DETAIL: <notes file path>`.
 - Anything longer goes in a notes file; the message names it.
 - A message never carries an approval of its own and never widens one: only Luke's quoted words do (above).
+- A message can arrive hours late (2026-11-27: a question box waiting on Luke held the coordinator's turn for nine hours;
+  three final reports landed after their senders had archived). "Queued" is not "read". Before saying something is or
+  isn't done, look at git (`git fetch; git merge-base --is-ancestor <sha> origin/main`) and the hand-over file, not at
+  silence or the order of messages.
+- `start_session` is refused on a turn that another session's message or a notification started, and while Luke is on
+  Remote Control: propose a card instead, which he starts with a click in the desktop app.
 - End-of-turn reports start with what is now live (commit) in one line, then in plain English what Luke will see, how it
   was proved, and what wasn't. Never "should work".
 
 ## The heavy-step turn (ONE AT A TIME ON SERVER, 2026-11-27)
 SERVER hosts the live site, its database and the media apps in 16 GB, and four heavy steps side by side took it to
 15.5 GB. Heavy: `npm run build`/`verify`/`verify:clean`, `npx tsc --noEmit`, `npm run checks` in any form, `next dev`
-while used, and every browser drive, shot, capture or audit. Run each through the tool in the coordinator's notes folder
-(`local_4199eda8-…`): `node "<that folder>\heavy-step.cjs" <GROUP> -- <command>`. A dev server plus drives: `--claim
+while used, and every browser drive, shot, capture or audit. Run each through the tool in the first coordinator's notes
+folder (`local_4199eda8-…`): `node "<that folder>\heavy-step.cjs" <GROUP> -- <command>`. A dev server plus drives: `--claim
 "<what>"`, do the lot, stop the server, `--release` (a claim is taken back after 30 minutes). Live steps: `--live`
 (browser on the live site, 10 minutes apart) or `--live-check` (live database, no browser, 2 minutes). `--who` says who
 has the turn; never delete a lock by hand. A wait can be long: run it in the background and carry on. Cheap steps need
@@ -128,8 +143,8 @@ gaming PC"). Which machine, and what never goes: "Which machine does what" below
    your own assertions, keep both sides on a conflict. A key that folds something open in place carries
    `aria-expanded`, and there is one global "this is open" look: don't invent another (2026-11-14).
 7. Leftovers your tests made (ids) go in your hand-over: deleting them waits for Luke.
-8. Done: hand-over to `STATE: done`, final report sent to the coordinator by message, then archive yourself
-   ("Archiving when done" above, all four conditions). If anything is still open, stay idle and say what.
+8. Done: hand-over to `STATE: done`, final report sent to the coordinator by message, then your own Remote Control off
+   and archive yourself ("Archiving when done" above, all four conditions). If anything is still open, stay idle and say what.
 
 ## Which machine does what (Luke, 2026-11-27, typed to the coordinator: "splitting the workload intelligently between my active devices … utilise the thing we set up that allows the devices to communicate … make sure this also works when prompting on my laptop"; his choices the same day: "Tailscale", "On SERVER", "Heavy lane", "Only for reading work")
 - **SERVER runs every session**, whichever device Luke prompts from. It alone has the code with its notes, the
