@@ -183,11 +183,13 @@ export default function ElementComments({
                       type="button"
                       onClick={() => onPlay(version)}
                       className={HYPER_TEXT}
-                      title={`Play ${version.tag}`}
-                      {...explain(
-                        playing?.(version) === true ? 'This version is the one playing in the music bar now.' : 'Plays this version of the track in the music bar.',
-                        'To hear a version without switching the page to it.',
-                      )}
+                      title={playing?.(version) === true ? `Pause ${version.tag}` : `Play ${version.tag}`}
+                      {...(playing?.(version) === true
+                        ? explain('Pauses this version where it is.', 'Press it again to carry on from the same place.')
+                        : explain(
+                            'Plays this version of the track in the music bar.',
+                            'To hear a version without switching the page to it.',
+                          ))}
                     >
                       {playing?.(version) === true ? 'pause' : 'play'}
                     </button>

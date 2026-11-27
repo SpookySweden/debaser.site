@@ -235,13 +235,17 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
                 owner={owner}
                 repository={repository}
                 onSelect={setTrackId}
+                // The version that is playing reads "pause", so its press pauses (as the track's own key does above);
+                // any other press plays that version, and a paused one carries on from where it stopped.
                 onPlay={(element) =>
-                  player.play(elementAsTrack(profile, element), {
-                    origin: 'profile',
-                    href: `/profile/${encodeURIComponent(profile.userId)}`,
-                    where: `THE PROFILE OF ${profile.displayName.toUpperCase()}`,
-                    context: profileContext(profile.displayName),
-                  })
+                  player.track?.src === element.src && player.playing
+                    ? player.toggle()
+                    : player.play(elementAsTrack(profile, element), {
+                        origin: 'profile',
+                        href: `/profile/${encodeURIComponent(profile.userId)}`,
+                        where: `THE PROFILE OF ${profile.displayName.toUpperCase()}`,
+                        context: profileContext(profile.displayName),
+                      })
                 }
                 playing={(element) => player.track?.src === element.src && player.playing}
               />
