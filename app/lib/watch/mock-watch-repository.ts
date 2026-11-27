@@ -5,6 +5,7 @@ import { OWN_QUEUE_FULL, OwnRoomRefusal } from './own-room';
 import { mayTakeOutPicture } from './pictures';
 import { companionOutState, parseCompanionWire, setRoomCompanions, subscribeToCompanionOut, type CompanionWire, type RoomCompanion } from '../companion/wire';
 import { membersSignature } from './members-signature';
+import { noteOwnPlayback } from './device-lead';
 import { MAIN_ROOM_TAKE_OVER_MS, NOT_ALLOWED, ROOM_NAME_MAX, ROOM_TOPIC_MAX, TAKE_OVER_QUIET_MS, cleanRoomWords, guestNameLooksRight, hasCrown, mayEditRoom } from './rules';
 import type { GuestNameAnswer, JoinAnswer, LiveRoom, PrivateLine, PrivateSize, PrivateFold, PrivateRoomLine, QueueMove, RoomDoor, RoomGuest, RoomMemberRow, RoomOutline, RoomPrivacy, StreamFold, DiscussLine, DiscussQuery, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
@@ -774,6 +775,7 @@ class MockWatchRepository implements WatchRepository {
     if (room.hostId !== input.by) throw new Error(NOT_ALLOWED);
     const entry = songRow(input.roomId, input.link, { position: input.position, addedBy: input.by, playedAt: stamp(), playIndex: input.playIndex });
     save({ ...tables, queue: [...tables.queue, entry] }, input.roomId);
+    noteOwnPlayback(input.roomId, { currentEntryId: entry.id, positionSeconds: 0, isPlaying: true });
     changeRoom(input.roomId, (current) => ({ ...current, currentEntryId: entry.id, positionSeconds: 0, isPlaying: true }));
     return entry;
   }
@@ -804,6 +806,8 @@ class MockWatchRepository implements WatchRepository {
   }
 
   async writePlayback(roomId: string, patch: PlaybackPatch): Promise<void> {
+    // This tab's own write, as the Supabase store remembers it (device-lead.ts).
+    noteOwnPlayback(roomId, patch);
     changeRoom(roomId, (room) => (pictureStaysOff(room, patch.currentEntryId) ? room : { ...room, ...patch, positionSeconds: Math.max(0, patch.positionSeconds) }));
   }
 
@@ -817,6 +821,7 @@ class MockWatchRepository implements WatchRepository {
     const on = tables.queue.find((entry) => entry.id === room.currentEntryId && entry.roomId === roomId);
     if (on === undefined || on.link?.kind !== 'picture') return false;
     picturesOff.set(roomId, { entryId: on.id, at: Date.now() });
+    noteOwnPlayback(roomId, { currentEntryId: null, positionSeconds: 0, isPlaying: false });
     changeRoom(roomId, (current) => ({ ...current, currentEntryId: null, positionSeconds: 0, isPlaying: false }));
     return true;
   }
@@ -828,6 +833,7 @@ class MockWatchRepository implements WatchRepository {
       entry.id === entryId && entry.roomId === roomId ? { ...entry, playedAt: entry.playedAt ?? at, playIndex: entry.playIndex ?? playIndex } : entry,
     );
     save({ ...tables, queue }, roomId);
+    noteOwnPlayback(roomId, { currentEntryId: entryId, positionSeconds: 0, isPlaying: true });
     changeRoom(roomId, (room) => (pictureStaysOff(room, entryId) ? room : { ...room, currentEntryId: entryId, positionSeconds: 0, isPlaying: true }));
   }
 
@@ -1089,10 +1095,18 @@ class MockWatchRepository implements WatchRepository {
     const off = onWire((message) => {
       if (message.type === 'changed' && message.roomId === roomId) onChange({ kind: 'refresh' });
     });
+    // The wire's word can reach another tab before the stored tables do (the browser carries the two separately), and that tab
+    // then read the old room and missed the change. Read again when the tables themselves arrive (two of one person's devices
+    // in one room, device-lead.ts, made this show).
+    const stored = (event: StorageEvent) => {
+      if (event.key === KEY) onChange({ kind: 'refresh' });
+    };
+    if (typeof window !== 'undefined') window.addEventListener('storage', stored);
 
     return () => {
       localListeners.delete(local);
       off();
+      if (typeof window !== 'undefined') window.removeEventListener('storage', stored);
     };
   }
 

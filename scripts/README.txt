@@ -170,6 +170,21 @@ drive-watch-in-room.cjs
 `[ WATCH IN ROOM ]` and `[ ADD TO ROOM ]` in a real browser (SPEC-floating-player.md, part 3). Live it starts two rooms as A
 and ends them, and prints their ids: each leaves an ended record and a board thread to delete, so ask Luke.
 
+drive-same-account.cjs
+----------------------
+    node scripts/dev-mock-live.cjs 3319                                                  first: a local server, every switch on mock
+    node scripts/drive-same-account.cjs --base http://localhost:3319                    your room on two devices (two tabs, one account)
+    node scripts/drive-same-account.cjs --base http://localhost:3319 --only-bar         only the music bar part
+    node scripts/drive-same-account.cjs --base http://localhost:3319 --jellyfin http://127.0.0.1:8099
+                                                                                         LUKE'S SERVER kept in step, against a local copy of
+                                                                                         the bridge: PORT=8099 EXTRA_FRAME_ANCESTORS=http://localhost:3319
+                                                                                         node G:\MEDIA-HOST\debaser-bridge\bridge.cjs
+
+One account on two devices in one room (Luke, 2026-11-27; `app/lib/watch/device-lead.ts`): the device touched last leads and
+the other follows it, in the room window (play, pause, a jump, PLAY in FILES, the back key) and on the music bar with no window
+(play, pause, NEXT). Its test sounds are made by the drive itself. The Jellyfin part plays a real film from Luke's Jellyfin
+(Big Buck Bunny) as the shared Guest account.
+
 drive-first-visit.cjs and dev-mock-signed-out.cjs
 -------------------------------------------------
     node scripts/dev-mock-live.cjs 3351                                                 a local server, every switch on mock

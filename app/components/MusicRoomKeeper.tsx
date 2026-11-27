@@ -6,6 +6,7 @@ import type { AudioTrack } from '../lib/audio/tracks';
 import { useCatalogue } from '../lib/media/catalogue';
 import type { MediaItem } from '../lib/media/types';
 import { closeFloating, floatingState, onFloatingEnded, orderFloating, playFloating, subscribeToFloating } from '../lib/ui/floating-player';
+import { SEEK_SECONDS, isOwnPlayback, playbackChanged } from '../lib/watch/device-lead';
 import { getBrowserWatchRepository } from '../lib/watch/mock-watch-repository';
 import { playInMainRoom } from '../lib/watch/main-room-play';
 import { takeUnhandledPlay } from '../lib/watch/row-handoff';
@@ -15,8 +16,9 @@ import { OwnRoomSession, ownRoomPlace } from '../lib/watch/own-room';
 import { clearOwnRoom, ownRoomState, patchOwnRoom, setOwnRoom, sharedRoomStore, storedVisitorRoomId, subscribeToOwnRoom, visitorRoomId } from '../lib/watch/own-room-client';
 import { floatingForLink } from '../lib/watch/own-screen';
 import { getWatchRepository, registerBrowserRoom } from '../lib/watch/repository';
-import { currentEntry, upcoming } from '../lib/watch/rules';
+import { currentEntry, hostPosition, upcoming } from '../lib/watch/rules';
 import { isSongLink, songLink, trackForSong } from '../lib/watch/songs';
+import type { WatchRoom, WatchRoomRead } from '../lib/watch/types';
 import { useWatchRoom } from '../lib/watch/use-watch-room';
 import { webTrackNow } from '../lib/web/web-track-lookup';
 import { useAuth } from './AuthProvider';
@@ -30,8 +32,10 @@ import { useMusicPlayer, type MusicPlayerValue } from './MusicPlayerProvider';
  * signed-out visitor's in their browser), puts its queue on the bar as up-next, and tells it what you play:
  *
  * - a song or video you start is filed as what is on; the next thing queued starts when one ends, whatever kind;
- * - pause, resume and a seek that has settled are written once each. Nothing is written on a clock, and no live
- *   connection is held: nobody else is in the room, so there is nobody to keep in step;
+ * - pause, resume and a seek that has settled are written once each. Nothing is written on a clock;
+ * - your other devices are in it too (Luke, 2026-11-27, 2A "follow live"): a signed-in room is followed live, and what
+ *   another of your devices puts on, pauses, plays or moves to, this bar does too. The device you touched last leads
+ *   (`device-lead.ts`); the others wait at a song's end for it to move the room on;
  * - after a reload the room is back, paused: a browser allows no sound without a press;
  * - coming back to the tab reads the room again, in case another of your devices changed it.
  */
@@ -42,6 +46,12 @@ const SEEK_SETTLE_MS = 1200;
 const ENDED_LOOK_MS = 800;
 /** Coming back to the tab reads the room again at most this often. */
 const REFRESH_EVERY_MS = 60 * 1000;
+/** A following device waits this long at the end of a song for the one that leads to move your room on, then moves it on itself. */
+const LEAD_GONE_AT_END_MS = 4000;
+/** A bar event this soon after it followed another device is that order landing, not a press. */
+const FOLLOWED_LANDS_MS = 2500;
+/** How many of the room's past states the keeper remembers, to tell an old read from a new change. */
+const PAST_STATES_KEPT = 20;
 /** How many queued things in a row the screen may skip for having no player here, before it gives up. */
 const SKIP_LIMIT = 25;
 
@@ -68,7 +78,8 @@ export default function MusicRoomKeeper() {
   const { user, status } = useAuth();
   const player = useMusicPlayer();
   const own = useSyncExternalStore(subscribeToOwnRoom, ownRoomState, ownRoomState);
-  const { read } = useWatchRoom(own.roomId, { follow: false });
+  // Followed live while signed in: your other devices change it (device-lead.ts). A visitor's lives in this browser only.
+  const { read } = useWatchRoom(own.roomId, { follow: !own.visitor });
   const session = own.session;
 
   /** Whose room: an account's id, `visitor` for anybody signed out, null until the sign-in has been read. */
@@ -176,6 +187,107 @@ export default function MusicRoomKeeper() {
     else orderFloating('pause');
   });
 
+  /* --- your other devices (Luke, 2026-11-27, 1A + 2A; device-lead.ts) ----------------------------------------------- */
+
+  /** Whether this device leads your room: it does until another of your devices changes what plays, and again once it presses. */
+  const lead = useRef<'lead' | 'follow'>('lead');
+  /** The room as this keeper last saw it, to tell a real change of what plays from a beat or a setting. */
+  const seenRoom = useRef<WatchRoom | null>(null);
+  /** The room's last few states as this keeper saw them, to know an old one read again (`PAST_STATES_KEPT`). */
+  const pastStates = useRef<string[]>([]);
+  /**
+   * When this bar last did what another device of yours did (`followOther`): the bar's own pause, play and seek events that follow
+   * soon after are that order landing, not a press here, and are not written back (or two devices write each other's for ever).
+   */
+  const followed = useRef({ at: 0, playing: false, seekAt: 0 });
+  /** The wait at a song's end for the leading device (`LEAD_GONE_AT_END_MS`). */
+  const leadWait = useRef(0);
+  useEffect(() => () => window.clearTimeout(leadWait.current), []);
+
+  /** At the end of what was on: a following device waits for the one that leads; if it never moves the room on, this one does. */
+  const waitForLead = useEffectEvent((): boolean => {
+    if (lead.current !== 'follow' || session === null) return false;
+    const ended = session.read()?.room.currentEntryId ?? null;
+    window.clearTimeout(leadWait.current);
+    leadWait.current = window.setTimeout(() => {
+      if (session.read()?.room.currentEntryId !== ended || now.current.room !== null) return;
+      lead.current = 'lead';
+      const next = takeNext();
+      if (next === null) session.stopped();
+      else if (next !== 'other') now.current.cue(next.track);
+    }, LEAD_GONE_AT_END_MS);
+    return true;
+  });
+
+  /** What another of your devices put on, paused, played or moved to: this bar and screen do the same. */
+  const followOther = useEffectEvent((held: WatchRoomRead) => {
+    window.clearTimeout(leadWait.current);
+    followed.current = { ...followed.current, at: Date.now(), playing: held.room.isPlaying };
+    // A live room has the bar: the room's own window follows (WatchRoom.tsx).
+    const bar = now.current;
+    if (bar.room !== null) return;
+    const room = held.room;
+    const at = hostPosition(room, Date.now());
+    const on = currentEntry(held);
+    const screen = floatingState().entry;
+    const ownScreen = screen !== null && screen.id.startsWith('own:');
+    if (on === undefined || on.link === null) {
+      // Stopped there, or one of the site's own files, which plays on the screen the queue starts.
+      if (on === undefined) {
+        if (bar.playing) bar.steer(false);
+        if (ownScreen) orderFloating('pause');
+      }
+      return;
+    }
+    if (isSongLink(on.link)) {
+      if (ownScreen) closeFloating();
+      const track = trackForSong(on.link, bar.queue, webTrackNow(on.link.url));
+      const audio = bar.audioElement();
+      if (audio === null || bar.track?.src !== track.src) {
+        followed.current.seekAt = Date.now();
+        bar.cue(track, { at }, room.isPlaying);
+        return;
+      }
+      if (Math.abs(audio.currentTime - at) > SEEK_SECONDS) {
+        followed.current.seekAt = Date.now();
+        audio.currentTime = at;
+      }
+      if (room.isPlaying !== bar.playing) bar.steer(room.isPlaying);
+      return;
+    }
+    // A video: the same one on this device's screen, playing or paused as the room says.
+    if (screen?.id !== `own:${on.id}`) {
+      const shown = floatingForLink(on.link, `own:${on.id}`, window.location.origin);
+      if (shown === null) return;
+      if (bar.playing) bar.steer(false);
+      playFloating(shown);
+    }
+    orderFloating(room.isPlaying ? 'play' : 'pause');
+  });
+
+  const heldNow = read ?? null;
+  useEffect(() => {
+    if (heldNow === null || session === null || own.visitor) return;
+    const room = heldNow.room;
+    // What is on now has not reached this copy yet (its row comes on its own): looked at again when it has.
+    if (room.currentEntryId !== null && currentEntry(heldNow) === undefined) return;
+    // A read that brings back a state this copy has already been past (a read sent off before a later write landed) is old
+    // news, not another device: it is let go by, and the newer state it would cover stays.
+    const said = `${room.id}|${room.currentEntryId}|${room.isPlaying}|${room.positionSeconds}`;
+    const before = seenRoom.current;
+    const beforeSaid = before === null ? '' : `${before.id}|${before.currentEntryId}|${before.isPlaying}|${before.positionSeconds}`;
+    if (said !== beforeSaid && pastStates.current.includes(said)) return;
+    pastStates.current = [...pastStates.current.slice(-(PAST_STATES_KEPT - 1)), said];
+    seenRoom.current = room;
+    if (before === null || before.id !== room.id || room.id !== session.id() || !playbackChanged(before, room)) return;
+    if (isOwnPlayback(room)) {
+      lead.current = 'lead';
+      return;
+    }
+    lead.current = 'follow';
+    followOther(heldNow);
+  }, [heldNow, session, own.visitor]);
+
   const { bindOwnRoom } = player;
   const roomId = own.roomId;
   useEffect(() => {
@@ -183,7 +295,7 @@ export default function MusicRoomKeeper() {
       bindOwnRoom(null);
       return;
     }
-    bindOwnRoom({ roomId, waiting, onEnqueue: (track, where) => enqueue(track, where), takeNext: () => takeNext(), onPlaying: (track) => playing(track) });
+    bindOwnRoom({ roomId, waiting, onEnqueue: (track, where) => enqueue(track, where), takeNext: () => takeNext(), waitAtEnd: () => waitForLead(), onPlaying: (track) => playing(track) });
   }, [bindOwnRoom, session, roomId, waiting]);
   useEffect(() => () => bindOwnRoom(null), [bindOwnRoom]);
 
@@ -248,14 +360,24 @@ export default function MusicRoomKeeper() {
       const on = held === null ? undefined : currentEntry(held);
       return now.current.room === null && on !== undefined && on.link?.url === now.current.track?.src;
     };
+    /** A pause or play this soon after following another device, the way it was told to go, is that order landing (`followed`). */
+    const landed = (playing: boolean) => {
+      if (Date.now() - followed.current.at < FOLLOWED_LANDS_MS && followed.current.playing === playing) return true;
+      // A press here the other way: the follow is over, and the next pause or play here is a press too.
+      followed.current.at = 0;
+      return false;
+    };
     const paused = () => {
+      if (landed(false)) return;
       // The end of a song is not a pause: the next thing starts, or the room says it stopped.
       if (!audio.ended && mine()) session.playback(audio.currentTime, false);
     };
     const resumed = () => {
+      if (landed(true)) return;
       if (mine()) session.playback(audio.currentTime, true);
     };
     const seeked = () => {
+      if (Date.now() - followed.current.seekAt < FOLLOWED_LANDS_MS) return;
       window.clearTimeout(settle);
       // Back to the very start while playing is a song repeating itself: the same play, and a short clip does it
       // every few seconds, so it is not written.
@@ -270,7 +392,8 @@ export default function MusicRoomKeeper() {
     const ended = () => {
       window.clearTimeout(after);
       after = window.setTimeout(() => {
-        if (audio.ended && !now.current.playing && mine()) session.stopped();
+        // Not on a device that follows another of yours: that one moves the room on (`waitForLead`).
+        if (audio.ended && !now.current.playing && mine() && lead.current === 'lead') session.stopped();
       }, ENDED_LOOK_MS);
     };
     audio.addEventListener('pause', paused);
@@ -320,6 +443,7 @@ export default function MusicRoomKeeper() {
     onStart();
     const offEnd = onFloatingEnded(() => {
       if (now.current.room !== null || now.current.playing) return;
+      if (waitForLead()) return;
       const next = takeNext();
       if (next === null) session.stopped();
       else if (next !== 'other') now.current.cue(next.track);

@@ -39,7 +39,7 @@ import RoomDoor from './RoomDoor';
 import WatchRoom from './WatchRoom';
 import { closeFloating, floatingState, subscribeToFloating } from '../lib/ui/floating-player';
 import { answerPlayAsk, playAskState, playInMainRoomLeaving, subscribeToPlayAsk } from '../lib/watch/main-room-play';
-import { ownRoomState, subscribeToOwnRoom } from '../lib/watch/own-room-client';
+import { noteComeBack, ownRoomState, subscribeToOwnRoom } from '../lib/watch/own-room-client';
 import { noteRoomStart } from '../lib/watch/room-start';
 import { fitRoom, roomFitShape, subscribeToRoomFit } from '../lib/watch/room-fit';
 import { askToSaveCanvas } from '../lib/watch/use-room-canvas';
@@ -239,7 +239,9 @@ function OwnRoomComesBack({ state, ownRoomId }: { state: ReturnType<typeof watch
     if (readShown() !== ownRoomId || held.id !== ownRoomId || held.endedAt !== null || held.isPublic) return;
     if (watchWindowState().open) return;
     const place = hostPosition(held, Date.now());
-    if (held.isPlaying) ownRoomState().session?.playback(place, false);
+    // Paused by its window, and only if no other device of yours is playing it (device-lead.ts): a reload is not a pause for the
+    // laptop still playing it.
+    if (held.isPlaying) noteComeBack(ownRoomId);
     // The room's new player starts the video where it had got to, not from the top.
     if (held.currentEntryId !== null) noteRoomStart(held.currentEntryId, place);
     openWatch({ kind: 'room', roomId: ownRoomId });

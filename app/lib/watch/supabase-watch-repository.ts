@@ -8,6 +8,7 @@ import { OWN_QUEUE_FULL, OwnRoomRefusal } from './own-room';
 import { companionOutState, parseCompanionWire, setRoomCompanions, subscribeToCompanionOut, type RoomCompanion } from '../companion/wire';
 import { membersSignature } from './members-signature';
 import { presencePace, type PresencePace } from './presence-pace';
+import { noteOwnPlayback } from './device-lead';
 import { NOT_ALLOWED, watchClockSkewMs } from './rules';
 import type { GuestNameAnswer, JoinAnswer, LiveRoom, PrivateLine, PrivateSize, PrivateFold, PrivateRoomLine, QueueMove, RoomDoor, RoomGuest, RoomMemberRow, RoomOutline, RoomPrivacy, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap, DiscussLine, DiscussQuery } from './types';
 
@@ -777,6 +778,8 @@ class SupabaseWatchRepository implements WatchRepository {
   }
 
   async writePlayback(roomId: string, patch: PlaybackPatch): Promise<void> {
+    // Remembered before it is sent: its echo can come back before the answer (device-lead.ts).
+    noteOwnPlayback(roomId, patch);
     const { error } = await requireClient()
       .from(ROOMS)
       .update({
@@ -789,6 +792,7 @@ class SupabaseWatchRepository implements WatchRepository {
   }
 
   async pictureNext(roomId: string): Promise<boolean> {
+    noteOwnPlayback(roomId, { currentEntryId: null, positionSeconds: 0, isPlaying: false });
     const { data, error } = await requireClient().rpc('watch_picture_next', { room: roomId });
     if (error) throw refused(error, 'THE PICTURE COULD NOT BE TAKEN OFF.');
     return data === true;

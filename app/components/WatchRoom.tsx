@@ -20,12 +20,13 @@ import { loadLiveNow } from '../lib/web/everywhere-client';
 import { TwitchSignInNote } from './TwitchSignInNote';
 import { hasQualityControl, hasSubtitleControl, type EmbedPlayable, type Playable, type QualityControl } from '../lib/watch/playable';
 import type { EmbedRefusal } from '../lib/watch/embed-player';
+import { JellyfinPlayable, isJellyfinHello } from '../lib/watch/jellyfin-player';
 import { lookClass, lookForRoom } from '../lib/cytube/looks';
 import { setOpenRoomLook } from '../lib/cytube/room-look';
 import { saveLookChoice, useLookChoice } from '../lib/cytube/use-looks';
 import { afterFile, blankPrefill, blankStart, screenIsBlank, type BlankKey } from '../lib/watch/blank-screen';
 import { getWatchRepository, repositoryFor } from '../lib/watch/repository';
-import { ownRoomState, subscribeToOwnRoom } from '../lib/watch/own-room-client';
+import { ownRoomState, subscribeToOwnRoom, takeComeBack } from '../lib/watch/own-room-client';
 import type { AudioTrack } from '../lib/audio/tracks';
 import { frontPosition } from '../lib/watch/music-rooms';
 import { isSongLink, songLink, trackForSong } from '../lib/watch/songs';
@@ -106,6 +107,7 @@ import { steadyInterval } from '../lib/watch/steady-timer';
 import { UP_NEXT_EVERY_MS, notInStepId, notInStepNote, upNextRepeats, type RoomNote } from '../lib/watch/room-notes';
 import { attachStream, playsDirectly, type StreamHandle } from '../lib/watch/stream-player';
 import { applyLocalChange } from '../lib/watch/use-watch-room';
+import { SEEK_SECONDS, isOwnPlayback, leadFromChange, playbackChanged } from '../lib/watch/device-lead';
 import { HiddenNote, HideControl, ReportKey } from './ModerationKeys';
 import { useModeration } from './ModerationProvider';
 import { officialEmbedUrl, WEB_EMBED_SANDBOX } from '../lib/web/official-embed';
@@ -176,6 +178,15 @@ function newTabKey(): string {
 const JOIN_KEY = PLATE_MAIN.replace('px-3 py-1 text-key', 'min-h-tap px-6 py-2 text-heading');
 /** How often a follower checks itself against the host. */
 const FOLLOW_TICK_MS = 500;
+/**
+ * A following device of the host's account waits this long at the end of a file for the device that leads to move the room on;
+ * then it moves on itself (the leading device was shut mid-file: device-lead.ts).
+ */
+const LEAD_GONE_AT_END_MS = 4000;
+/** A press that took the lead holds the follower's clock off this long, while this device turns into the one that leads. */
+const PRESS_HOLD_MS = 1500;
+/** A player event this soon after the follower's own order of the same kind is that order landing, not a press. */
+const ORDER_LANDS_MS = 2500;
 /** How long `<NAME> IS HOSTING NOW` stays up. */
 const HANDOVER_NOTICE_MS = 15000;
 /** How long a host's player waits on a link that will not play before the room moves on. */
@@ -236,7 +247,11 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   const now = useNow(5000);
 
   const live = roomIsLive(room, now);
-  const amHost = me !== null && room.hostId === me.id;
+  /**
+   * The account hosts this room: its keys, its settings, handing it on. On several devices of one account only one of them
+   * leads the playback (`amHost`, further down, once who is here is known; Luke 2026-11-27, device-lead.ts).
+   */
+  const accountHosts = me !== null && room.hostId === me.id;
   /** Somebody's music room (SPEC-music-queues.md): its owner always hosts, it is switched off rather than ended, and it is not on the board. */
   const music = room.origin === 'music';
   /**
@@ -332,6 +347,13 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   /** The window that asks who this is, from pressing the canvas (SPEC-guests.md). */
   const [naming, setNaming] = useState(false);
   const [members, setMembers] = useState<WatchMember[]>([]);
+  /**
+   * The room's presence really answered (not only the wait running out): only then does a page that came back with your room know
+   * no other device of yours is playing it (device-lead.ts).
+   */
+  const presenceAnswered = useRef(false);
+  /** How long a room waits for presence before it counts as heard: longer for the host's own account (its devices, device-lead.ts). */
+  const heardWait = useEffectEvent(() => (accountHosts ? 10000 : 3000));
   /** False until the room's presence has answered once: before that, "the host is missing" means nothing. */
   const [membersHeard, setMembersHeard] = useState(false);
 
@@ -340,10 +362,10 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
    * section 4). Once a member row of somebody else appears (they used the link), or the room goes live, it opens.
    */
   const [othersMayBeIn, setOthersMayBeIn] = useState(false);
-  const aloneByRule = music && amHost && !room.isPublic;
+  const aloneByRule = music && accountHosts && !room.isPublic;
   // Watched for the whole time you host your main room, live or not: a live room with people in it that goes private
   // keeps its presence (they stay in it).
-  const watchMembers = music && amHost;
+  const watchMembers = music && accountHosts;
   const meId = me?.id ?? null;
   const meName = me?.displayName ?? '';
   useEffect(() => {
@@ -364,7 +386,9 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       off();
     };
   }, [repository, roomId, watchMembers, meId]);
-  const presenceOn = !aloneByRule || othersMayBeIn;
+  // Signed in, your main room hears who is in it even when it is only you: your other devices are you too, and they need to
+  // know of each other to keep in step (Luke, 2026-11-27: "streams being synced on multiple devices"; device-lead.ts).
+  const presenceOn = !aloneByRule || othersMayBeIn || user !== null;
 
   useEffect(() => {
     if (room.endedAt !== null) return;
@@ -372,6 +396,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       // Just you: said here, nothing sent anywhere. Handed over once this effect is done, as the song's player is below.
       let current = true;
       const alone: WatchMember = { key: myKey, userId: meId, guestId: null, name: meName, joinedAt: Date.now() };
+      presenceAnswered.current = true;
       void Promise.resolve().then(() => {
         if (!current) return;
         setMembers([alone]);
@@ -381,17 +406,24 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
         current = false;
       };
     }
+    // The store says this tab at once, before the room has answered; every word after that is the room's own answer.
+    let joining = true;
     const membership = repository.joinRoom(
       roomId,
       // A guest is here by name only: no id on the wire, so nobody can crown them or hand them the room.
       { key: myKey, userId: user?.id ?? null, guestId: presenceGuestId, name: user?.displayName ?? guestLabel },
       (next) => {
         setMembers(next);
-        if (next.length > 1 || next.some((member) => member.key !== myKey)) setMembersHeard(true);
+        if (!joining || next.length > 1 || next.some((member) => member.key !== myKey)) {
+          presenceAnswered.current = true;
+          setMembersHeard(true);
+        }
       },
     );
+    joining = false;
     // A room alone hears only itself; after a moment that is an answer too.
-    const heard = window.setTimeout(() => setMembersHeard(true), 3000);
+    // Longer for the host's own account: a device that hears itself alone too early would take the lead from the one in use.
+    const heard = window.setTimeout(() => setMembersHeard(true), heardWait());
 
     return () => {
       window.clearTimeout(heard);
@@ -400,6 +432,52 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   }, [repository, roomId, room.endedAt, user?.id, user?.displayName, presenceGuestId, guestLabel, myKey, presenceOn, meId, meName]);
 
   const accounts = accountsPresent(members);
+
+  /* --- which of your devices leads (Luke, 2026-11-27, 1A: "last one touched"; device-lead.ts) ------------------------- */
+
+  /** Another device (or tab) of this account is in the room now. */
+  const otherDeviceHere = me !== null && members.some((member) => member.userId === me.id && member.key !== myKey);
+  /**
+   * Whether this device leads your room's playback: `lead` after it pressed (its write is the room's last) or while it was
+   * here alone when another came in; `follow` after another of your devices pressed; `unset` until either, when it leads
+   * only while it is the one device here.
+   */
+  const [lead, setLead] = useState<'unset' | 'lead' | 'follow'>('unset');
+  /** When a press here took the lead: the hosting below tells the room what this player shows, not the other way round. */
+  const pressedLead = useRef(0);
+  const [leadSeen, setLeadSeen] = useState({ room, otherDeviceHere, heard: membersHeard });
+  if (leadSeen.room !== room || leadSeen.otherDeviceHere !== otherDeviceHere || leadSeen.heard !== membersHeard) {
+    setLeadSeen({ room, otherDeviceHere, heard: membersHeard });
+    let next = lead;
+    if (!accountHosts) next = 'unset';
+    else {
+      // The other device went: this one is alone again, and leads.
+      if (!otherDeviceHere && leadSeen.otherDeviceHere) next = 'unset';
+      if (leadSeen.room !== room && playbackChanged(leadSeen.room, room)) {
+        const before = read.queue.find((row) => row.id === leadSeen.room.currentEntryId);
+        const said = leadFromChange({ own: isOwnPlayback(room), pictureTakenOff: room.currentEntryId === null && before?.link?.kind === 'picture' });
+        if (said !== null) next = said;
+      }
+    }
+    if (next !== lead) setLead(next);
+  }
+  // Another device of yours is playing your room: this page coming back is not a reload to pause for.
+  useEffect(() => {
+    if (membersHeard && otherDeviceHere) takeComeBack(roomId);
+  }, [membersHeard, otherDeviceHere, roomId]);
+  /**
+   * Of your devices here, this one has been in the room longest (then by key, so two of them never both think so). Until one of them
+   * presses, that one leads: a page that has just opened follows the device already playing.
+   */
+  const eldestDevice = me !== null && members.filter((member) => member.userId === me.id).sort((a, b) => a.joinedAt - b.joinedAt || a.key.localeCompare(b.key))[0]?.key === myKey;
+  /** This device plays the room's clock and writes it: the host's account, on the one of its devices that leads. */
+  const amHost = accountHosts && (lead === 'lead' || (lead === 'unset' && membersHeard && (!otherDeviceHere || eldestDevice)));
+  /** A press on one of the host's keys (or the player's own) on a device that was following: it leads from now on. */
+  function takeLead(byPress = true) {
+    if (!accountHosts || amHost) return;
+    if (byPress) pressedLead.current = Date.now();
+    setLead('lead');
+  }
 
   /* --- the music stops (decision 7) ------------------------------------------------------------ */
 
@@ -446,6 +524,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
 
   /** The host moves on: the next file in the queue (inside a series, its next episode), or the same one again from the top. */
   function moveOn(skip: boolean) {
+    takeLead();
     // The room's loop (ROOMSYNC, "the loop button to loop it"): at its end, what is on starts again. A skip still skips.
     if (!skip && player.roomLoop && entry !== undefined && !pictureOn) {
       fromTheTop();
@@ -472,6 +551,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
 
   /** The host starts a row: the next one, or (ROOMSYNC) one that played before, which keeps its place in the list. */
   function startRow(next: WatchQueueEntry) {
+    takeLead();
     const video = videoRef.current;
     goingBlack.current = false;
 
@@ -499,6 +579,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
 
   /** What is on starts again from the top, for everybody: the room's loop, or the back arrow with nothing before it. */
   function fromTheTop() {
+    takeLead();
     const playing = songOn ? audioElement() : videoRef.current;
     if (playing !== null) {
       playing.currentTime = 0;
@@ -526,7 +607,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     if (row === undefined || row.playedAt === null || row.id === room.currentEntryId) return;
     startRow(row);
   });
-  const hostKeysOn = amHost && live;
+  const hostKeysOn = accountHosts && live;
   useEffect(() => {
     if (!hostKeysOn) return;
     return registerRoomReplay(roomId, (entryId) => replayRow(entryId));
@@ -562,6 +643,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
    */
   const playHere = useEffectEvent((source: MainRoomSource, startAt: number | null) => {
     if (me === null) return;
+    takeLead();
     const queue = read.queue;
     const added = source.link !== undefined
       ? repository.addToQueue({ roomId, addedBy: me.id, position: nextQueuePosition(queue), inQueue: true, link: source.link })
@@ -581,9 +663,9 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       });
   });
   useEffect(() => {
-    if (!music || !amHost) return;
+    if (!music || !accountHosts) return;
     return registerMainRoomPlay(roomId, (source, startAt) => playHere(source, startAt));
-  }, [music, amHost, roomId]);
+  }, [music, accountHosts, roomId]);
   /** Whether the room says the host is playing, read by the effects without depending on every write. */
   const roomPlaying = useEffectEvent(() => room.isPlaying);
   useCompanionScene('watch', room.isPlaying);
@@ -619,6 +701,12 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
 
   useEffect(() => {
     if (!amHost || !live) return;
+    // Taken by a press here (device-lead.ts): what this player shows now is what the room is told, not the other way round.
+    const pressed = Date.now() - pressedLead.current < PRESS_HOLD_MS;
+    pressedLead.current = 0;
+    // Your room came back with this page and no other device of yours is in it: a reload, so it waits paused (ROOMSYNC). Only when
+    // presence answered: the wait running out says nothing about a laptop still playing it.
+    const cameBack = takeComeBack(roomId) && presenceAnswered.current;
     const video = videoRef.current;
     if (video === null) return;
     // Hosting starts (or resumes after a new file loads) on the play the room names, unless this host
@@ -642,7 +730,11 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     // Taking the transport over mid-file: carry on from where this player is, and say so at once. A follower
     // waits at the end of a file for the host to move on, so a hand-over at that moment finds this player
     // already ended - its `ended` came before it was host and will not come again: move on now.
-    if (roomPlaying() && video.ended) fileEnded();
+    if (pressed) {
+      // Nothing to put back: the press is the news.
+    } else if (cameBack) {
+      video.pause();
+    } else if (roomPlaying() && video.ended) fileEnded();
     else if (roomPlaying() && video.paused) void video.play().catch(refusedPlay);
     say();
 
@@ -653,7 +745,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       video.removeEventListener('ended', ended);
       stopBeat();
     };
-  }, [amHost, live, src, videoElement, refusedPlay, announced]);
+  }, [amHost, live, src, videoElement, refusedPlay, announced, roomId]);
 
   // A new play the room names while the host's file player already holds that file (the same file again: PLAY in MEDIA on the
   // video paused here, list 4): nothing loads, so `autoPlay` never fires. Started here; a new file starts by `autoPlay`.
@@ -673,17 +765,37 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
 
     /** This player's last jump to the host, for this play only. */
     let lastJump: FollowerJump | null = null;
+    /**
+     * When this follower last told its player to play, pause or jump (device-lead.ts): a player event soon after its own order
+     * is that order landing. Any other, on a device of the host's account, is a press there, and that device leads.
+     */
+    const ordered = { play: 0, pause: 0, seek: 0 };
+    // A follower goes where the room is: a place noted for this play's start (a page that came back) is used up here, so it
+    // never puts this player back there later, when this device takes the lead (device-lead.ts).
+    const followed = currentId();
+    if (videoRef.current !== null && followed !== null) roomStartFor(videoRef.current, followed);
+    /** Since when this follower's player has sat at the end of the play the room still names, playing. */
+    let endedSince: number | null = null;
     const tick = () => {
       const video = videoRef.current;
-      if (video === null || video.readyState < 1) return;
+      if (video === null || video.readyState < 1 || Date.now() - pressedLead.current < PRESS_HOLD_MS) return;
       // A live stream has no shared position: everybody plays and pauses with the host, at the live edge.
       if (stageLiveNow()) {
+        ordered.seek = Date.now();
         toLiveEdge(video);
         if (video.playbackRate !== 1) video.playbackRate = 1;
-        if (roomPlaying() && video.paused) void video.play().then(() => setNeedsPress(false), refusedPlay);
-        else if (!roomPlaying() && !video.paused) video.pause();
+        if (roomPlaying() && video.paused) {
+          ordered.play = Date.now();
+          void video.play().then(() => setNeedsPress(false), refusedPlay);
+        } else if (!roomPlaying() && !video.paused) {
+          ordered.pause = Date.now();
+          video.pause();
+        }
         return;
       }
+      // The device of yours that leads went away mid-file (a laptop shut): at the end, this one moves the room on.
+      endedSince = video.ended && roomPlaying() ? (endedSince ?? Date.now()) : null;
+      if (endedSince !== null && Date.now() - endedSince > LEAD_GONE_AT_END_MS && leadWhenGone()) return;
       const step = viewerStep(
         roomNow(),
         { seconds: video.currentTime, duration: video.duration, playing: !video.paused, ended: video.ended },
@@ -698,16 +810,19 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
         const jump = followerJump(lastJump, step.at, video.currentTime, step.playing, Date.now(), loading);
         if (jump !== undefined) {
           lastJump = jump.mark;
+          ordered.seek = Date.now();
           video.currentTime = Number.isFinite(video.duration) && video.duration > 1 ? Math.min(jump.to, video.duration - 0.5) : jump.to;
         }
       }
       if (Math.abs(video.playbackRate - step.rate) > 0.01) video.playbackRate = step.rate;
       if (step.playing && video.paused) {
+        ordered.play = Date.now();
         void video.play().then(
           () => setNeedsPress(false),
           refusedPlay,
         );
       } else if (!step.playing && !video.paused) {
+        ordered.pause = Date.now();
         video.pause();
       }
     };
@@ -715,14 +830,48 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     tick();
     const timer = window.setInterval(tick, FOLLOW_TICK_MS);
     const video = videoRef.current;
+    // A device of the host's account hears its own player's presses (its keys, the music bar's, the site's own player's) and leads.
+    const heard = (kind: 'play' | 'pause' | 'seek') => () => {
+      if (video === null || Date.now() - ordered[kind] < ORDER_LANDS_MS) return;
+      pressedOnPlayer(kind, video);
+    };
+    const onPlay = heard('play');
+    const onPause = heard('pause');
+    const onSeeked = heard('seek');
+    video?.addEventListener('play', onPlay);
+    video?.addEventListener('pause', onPause);
+    video?.addEventListener('seeked', onSeeked);
     return () => {
       window.clearInterval(timer);
+      video?.removeEventListener('play', onPlay);
+      video?.removeEventListener('pause', onPause);
+      video?.removeEventListener('seeked', onSeeked);
       if (video !== null) video.playbackRate = 1;
     };
   }, [amHost, live, src, videoElement, refusedPlay]);
 
   // A room that ended stops the picture where it is. Not the song of the person who started it and is ending it:
   // that carries on for them alone, on the bar (SPEC-rooms-queues.md, phase 3).
+  /**
+   * A press on the player of a following device of the host's account: it leads, if the player now shows something the room
+   * does not say (the check keeps a slow start or a stall from counting as a press).
+   */
+  const pressedOnPlayer = useEffectEvent((kind: 'play' | 'pause' | 'seek', video: Playable) => {
+    if (!accountHosts || amHost || stageLive) return;
+    const now = Date.now();
+    const differs =
+      kind === 'pause' ? room.isPlaying && video.paused && !video.ended
+      : kind === 'play' ? !room.isPlaying && !video.paused
+      : Math.abs(video.currentTime - hostPosition(room, now)) > SEEK_SECONDS * 2;
+    if (differs) takeLead();
+  });
+  /** The leading device went quiet at a file's end: this following device of the host's account leads and moves on. */
+  const leadWhenGone = useEffectEvent((): boolean => {
+    if (!accountHosts || amHost) return false;
+    takeLead(false);
+    return true;
+  });
+
   const goingHome = useRef(false);
   const cameHome = useRef(false);
   const barAudio = player.audioElement;
@@ -746,7 +895,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   const fromTop = useRef<string | null>(null);
   const playFromOutside = useEffectEvent((tracks: AudioTrack[]) => {
     const [first, ...rest] = tracks;
-    if (first === undefined || me === null || !amHost) return;
+    if (first === undefined || me === null || !accountHosts) return;
+    takeLead();
     const queue = read.queue;
     const crowned = hasCrown(read.crowns, me.id);
     void repository
@@ -789,7 +939,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     if (!live) return;
     bindRoom({
       roomId,
-      hosting: amHost,
+      hosting: accountHosts,
       onNext: () => skipFromBar(),
       onPrevious: () => backFromBar(),
       onLeave: () => leaveFromBar(),
@@ -797,7 +947,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       onEnqueue: (track, where) => enqueueFromOutside(track, where),
       waiting: waitingSongs,
     });
-  }, [bindRoom, roomId, amHost, live, waitingSongs]);
+  }, [bindRoom, roomId, accountHosts, live, waitingSongs]);
   useEffect(() => () => bindRoom(null), [bindRoom]);
   useEffect(() => {
     if (!live) bindRoom(null);
@@ -864,7 +1014,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   useEffect(() => {
     // A private main room is its owner's: a quiet host is waited for, never taken over. A live one is taken over after
     // 45 quiet seconds (the store's rule, MAIN_ROOM_TAKE_OVER_MS): until then each try is simply refused.
-    if (!announced || user === null || amHost || !live || !membersHeard) return;
+    if (!announced || user === null || accountHosts || !live || !membersHeard) return;
     if (!shouldTakeOver(members, hostId, myKey)) return;
 
     const attempt = () =>
@@ -874,7 +1024,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     attempt();
     const timer = window.setInterval(attempt, TAKE_OVER_RETRY_MS);
     return () => window.clearInterval(timer);
-  }, [repository, roomId, hostId, user, amHost, live, members, membersHeard, myKey, announced]);
+  }, [repository, roomId, hostId, user, accountHosts, live, members, membersHeard, myKey, announced]);
 
   // `<NAME> IS HOSTING NOW` on every change of host after the first one this tab saw (decision 6).
   const seenHost = useRef(hostId);
@@ -900,14 +1050,14 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       repository.setWatching(null);
       return;
     }
-    repository.setWatching({ userId: user.id, roomId, hostName, title, hosting: amHost, unlisted: !myProfile.visibility.showOnline || room.privacy !== 'open' });
-  }, [repository, user, live, announced, roomId, hostName, title, amHost, myProfile.visibility.showOnline, room.privacy]);
+    repository.setWatching({ userId: user.id, roomId, hostName, title, hosting: accountHosts, unlisted: !myProfile.visibility.showOnline || room.privacy !== 'open' });
+  }, [repository, user, live, announced, roomId, hostName, title, accountHosts, myProfile.visibility.showOnline, room.privacy]);
   useEffect(() => () => repository.setWatching(null), [repository]);
 
   /* --- leaving --------------------------------------------------------------------------------- */
 
   const heir = me === null ? null : handoverTo(members, me.id);
-  const myOtherTab = me !== null && members.some((member) => member.userId === me.id && member.key !== myKey);
+  const myOtherTab = otherDeviceHere;
   const [leaving, setLeaving] = useState(false);
   const [confirmEnd, setConfirmEnd] = useState(false);
 
@@ -920,7 +1070,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
    * keeps their own queue as it is.
    */
   function setOut(): (() => void) | null {
-    if (cameHome.current || music || user === null || !amHost || !live || !wasCarried(roomId)) return null;
+    if (cameHome.current || music || user === null || !accountHosts || !live || !wasCarried(roomId)) return null;
     goingHome.current = true;
     const leaving = read;
     const songWasOn = songOn;
@@ -955,15 +1105,15 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   // never ended, and closing its window only closes the window (SPEC-rooms-queues.md; GO PUBLIC's switch is gone).
   useEffect(() => {
     if (!closing) return;
-    if (music || !(amHost && live && !myOtherTab)) onLeft();
-  }, [closing, amHost, live, myOtherTab, onLeft, music]);
+    if (music || !(accountHosts && live && !myOtherTab)) onLeft();
+  }, [closing, accountHosts, live, myOtherTab, onLeft, music]);
 
   // A host whose tab closes with others in the room hands over on the way out; if the write is lost
   // the others take over by themselves once the host has been quiet a few seconds.
   const goodbye = useEffectEvent(() => {
     if (music) return;
     const heirId = heir?.userId ?? null;
-    if (amHost && live && !myOtherTab && heirId !== null) void repository.handOver(roomId, heirId).catch(() => undefined);
+    if (accountHosts && live && !myOtherTab && heirId !== null) void repository.handOver(roomId, heirId).catch(() => undefined);
   });
   useEffect(() => {
     const onHide = () => goodbye();
@@ -1030,9 +1180,16 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     return () => window.clearTimeout(timer);
   }, [linkDead, amHost, live]);
 
+  /**
+   * LUKE'S SERVER's player said it can be driven (Luke, 2026-11-27, 3A "full sync"; `jellyfin-player.ts`): for this play it is the
+   * room's player as YouTube's is, followed for play, pause and jumps, and the server's own ways (PLAY FOR ALL, the restart, the beat)
+   * stand down. Kept with the frame's restart count, so the frame is not made again as the room changes over.
+   */
+  const [remoteEntry, setRemoteEntry] = useState<{ entryId: string; restarts: number } | null>(null);
+  const serverDriven = remoteEntry !== null && entryId !== null && remoteEntry.entryId === entryId;
   // A WEB platform's own player (`embed`) gives the room no transport to read, so the host's heartbeat is
   // said here instead: the room stays live (not closed as quiet) and on this play until the host moves on.
-  const officialOn = link !== null && link.kind === 'embed';
+  const officialOn = link !== null && link.kind === 'embed' && !serverDriven;
   /**
    * A media server's own player (SPEC-media-servers.md): the host's PLAY restarts everybody's at once (Luke, 2026-11-08). Its beat
    * writes how long ago that PLAY was, walking up, and the PLAY writes 0, so everybody sees the restart as the position going back
@@ -1043,6 +1200,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   const serverStart = useRef<{ entryId: string | null; at: number } | null>(null);
   /** The host's PLAY on a server's player: 0 now, and the beat walks up from here. */
   function playServerForAll() {
+    takeLead();
     serverStart.current = { entryId: room.currentEntryId, at: Date.now() };
     void repository
       .writePlayback(roomId, { currentEntryId: room.currentEntryId, positionSeconds: 0, isPlaying: true })
@@ -1083,9 +1241,9 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   }, [pictureOn, entryId, room.currentEntryId]);
   /** NEXT off a picture: the host moves the room on; a crown asks the database to take it off, and the host's tab starts what is next. */
   const crownedHere = me !== null && hasCrown(read.crowns, me.id);
-  const mayNextPicture = pictureOn && live && (amHost || crownedHere);
+  const mayNextPicture = pictureOn && live && (accountHosts || crownedHere);
   function nextFromPicture() {
-    if (amHost) {
+    if (accountHosts) {
       moveOn(true);
       return;
     }
@@ -1328,7 +1486,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   // Read fresh as the room opens: a look the host changed since this tab last read it shows.
   // A visitor's own room: their browser id is no account, so there is no saved look to read for it.
   const hostChoice = useLookChoice(visitorRoom ? null : room.hostId, { fresh: true });
-  const look = lookForRoom(hostChoice.look, myChoice, amHost);
+  const look = lookForRoom(hostChoice.look, myChoice, accountHosts);
   const lookCls = lookClass(look);
   /** With a look: its lines on the screen's frame and the LED's frames, its key colour on the bar's keys. */
   const lookLines = look === null ? '' : `${lookCls} [--frame-line:var(--room-lines)]`;
@@ -1345,7 +1503,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   /** A WEB platform's own player carries its own transport; the bar then holds only the host's keys. */
   // A picture has nothing to play, pause or seek: it is held until NEXT.
   const hasTransport = src !== undefined && !officialOn && !pictureOn;
-  const hostKeys = amHost && live;
+  const hostKeys = accountHosts && live;
   /** Your own main room, live: its WHO CAN JOIN and END ROOM are in the cog. */
   const mainRoomHost = hostKeys && music;
   // GO LIVE pressed on the music bar or the CYTUBE page opens this room (main-room-play.ts): here, its cog on WHO CAN JOIN.
@@ -1409,6 +1567,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
         onClick={() => {
           const video = videoRef.current;
           if (video === null) return;
+          takeLead();
           if (video.paused) void video.play().catch(refusedPlay);
           else video.pause();
         }}
@@ -1419,7 +1578,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   // A live stream has no position to show; the space is kept so the keys beside it stay put.
   const seekLine = stageLive ? (
     <span className="min-w-12 flex-1" />
-  ) : amHost && live ? (
+  ) : accountHosts && live ? (
     <input
       type="range"
       aria-label="Seek"
@@ -1429,6 +1588,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       value={Math.min(clock.seconds, duration)}
       onChange={(event) => {
         const video = videoRef.current;
+        takeLead();
         if (video !== null) video.currentTime = Number(event.target.value);
       }}
       className="min-w-12 flex-1 accent-sun"
@@ -1720,7 +1880,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     askName: user === null && !visitorRoom && live && room.guestsCanTalk !== false && (roomGuest === null || !roomGuest.named) ? () => setNaming(true) : undefined,
     host: { id: room.originalHostId, label: room.originalHostLabel },
     title: `${music ? 'MUSIC' : 'STREAM'} :: ${room.originalHostLabel.toUpperCase()}`,
-    amHost,
+    amHost: accountHosts,
     live,
     music,
     // Only an ended room is over (SPEC-rooms-perpetual.md: private and live are the same room). Going private once
@@ -1773,7 +1933,26 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
           </div>
         ) : link !== null && link.kind === 'embed' ? (
           // A server's player is made again on each of the host's PLAYs (`restarts`), so everybody's starts from the top together.
-          <OfficialEmbedStage key={`official-${entryId}-${serverOn ? serverSeen.restarts : 0}`} link={link} fit={videoFit} shaped={dressed} />
+          <OfficialEmbedStage
+            key={`official-${entryId}-${serverDriven ? (remoteEntry?.restarts ?? 0) : serverOn ? serverSeen.restarts : 0}`}
+            link={link}
+            fit={videoFit}
+            shaped={dressed}
+            autoPlay={amHost && live && room.isPlaying}
+            onRemote={(player) => {
+              if (entryId === null) return;
+              setRemoteEntry({ entryId, restarts: serverOn ? serverSeen.restarts : 0 });
+              attachVideo(player);
+            }}
+            onGone={(gone) => {
+              if (videoRef.current === gone) attachVideo(null);
+              // Its frame went: a frame made again must say hello again before the room drives it.
+              setRemoteEntry((held) => (held !== null && held.entryId === entryId ? null : held));
+            }}
+            onTime={onTime}
+            onBlocked={() => setNeedsPress(true)}
+            onPlaying={() => setNeedsPress(false)}
+          />
         ) : link !== null && isEmbedKind(link.kind) ? (
           <EmbedStage
             key={`embed-${entryId}`}
@@ -1946,9 +2125,9 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
               {look === null ? <SoundGraph /> : null}
               <span className="relative block min-w-0">
               <span className="flex min-w-0 items-center gap-2 font-bold text-ink-bar">
-                <span className={`shrink-0 px-1 ${live ? 'bg-acid text-ink-plate' : 'bg-bubble-pale text-ink-bar'}`}>{music ? (!live ? 'CLOSED' : room.isPublic ? 'LIVE' : amHost ? 'PRIVATE' : 'BY LINK') : live ? 'LIVE' : 'ENDED'}</span>
+                <span className={`shrink-0 px-1 ${live ? 'bg-acid text-ink-plate' : 'bg-bubble-pale text-ink-bar'}`}>{music ? (!live ? 'CLOSED' : room.isPublic ? 'LIVE' : accountHosts ? 'PRIVATE' : 'BY LINK') : live ? 'LIVE' : 'ENDED'}</span>
                 <span className="truncate">
-                  {music ? 'ROOM' : 'STREAM'} :: {amHost ? 'YOU ARE HOSTING' : music ? `${hostName.toUpperCase()} IS PLAYING` : `HOSTED BY ${hostName.toUpperCase()}`}
+                  {music ? 'ROOM' : 'STREAM'} :: {accountHosts ? 'YOU ARE HOSTING' : music ? `${hostName.toUpperCase()} IS PLAYING` : `HOSTED BY ${hostName.toUpperCase()}`}
                 </span>
               </span>
               <MarqueeText className={`block text-key font-bold ${look === null ? 'text-acid' : 'text-room-readout'}`} text={blank ? 'NOTHING ON' : (entryTitle ?? '...')} />
@@ -2003,7 +2182,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
           {room.topic}
         </p>
       )}
-      {user !== null && !amHost ? (
+      {user !== null && !accountHosts ? (
         <LookToggle compact choice={myChoice} onChange={(next) => void saveLookChoice(user.id, next).catch(() => undefined)} />
       ) : null}
       {/* A visitor's browser id is no account: the crawl names only what is on. */}
@@ -2075,7 +2254,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
         </p>
       ) : null}
 
-      {closing && amHost && live && !myOtherTab && !music ? (
+      {closing && accountHosts && live && !myOtherTab && !music ? (
         <div className="flex flex-wrap items-center gap-2" role="alertdialog" aria-label="Leave the stream">
           <span className="text-label font-bold text-ink">{heir !== null ? `LEAVE? ${heir.name.toUpperCase()} WILL HOST.` : 'NOBODY ELSE IS HERE. END THE STREAM?'}</span>
           {heir !== null ? (
@@ -2599,10 +2778,70 @@ export function TimedMessage({ message }: { message: WatchMessage }) {
  * (`officialEmbedUrl`). The platform's player cannot be driven from here, so the room does not keep it in
  * step: everybody presses play on it themselves, and the host moves the room on with NEXT.
  */
-function OfficialEmbedStage({ link, fit, shaped }: { link: WatchLink; fit: string; /** Fullscreen: a 16:9 box with the background round it (this player never says its video's shape). */ shaped: boolean }) {
+function OfficialEmbedStage({
+  link,
+  fit,
+  shaped,
+  autoPlay = false,
+  onRemote,
+  onGone,
+  onTime,
+  onBlocked,
+  onPlaying,
+}: {
+  link: WatchLink;
+  fit: string;
+  /** Fullscreen: a 16:9 box with the background round it (this player never says its video's shape). */
+  shaped: boolean;
+  /** A server's player that can be driven starts playing when it is handed over (the room plays, and this device leads). */
+  autoPlay?: boolean;
+  /** The server's frame said it can be driven (`jellyfin-player.ts`): its player, for the room's sync. */
+  onRemote?: (player: EmbedPlayable) => void;
+  onGone?: (player: EmbedPlayable) => void;
+  onTime?: () => void;
+  onBlocked?: () => void;
+  onPlaying?: () => void;
+}) {
   // A configured media server's own player page (SPEC-media-servers.md): played with that server's sandbox. The host
   // match also re-proves it is still a configured server, so a de-configured server's old queue link stops playing.
   const server = mediaServerForUrl(link.url);
+  const frameRef = useRef<HTMLIFrameElement>(null);
+  /** The frame said hello: the room drives it (shown on the frame for checks, `data-server-remote`). */
+  const [driven, setDriven] = useState(false);
+  const serverOrigin = server === undefined ? null : new URL(server.base).origin;
+  const startsPlaying = useEffectEvent(() => autoPlay);
+  const give = useEffectEvent((player: EmbedPlayable) => onRemote?.(player));
+  const take = useEffectEvent((player: EmbedPlayable) => onGone?.(player));
+  const tick = useEffectEvent(() => onTime?.());
+  const block = useEffectEvent(() => onBlocked?.());
+  const started = useEffectEvent(() => onPlaying?.());
+  // The server's own page says hello when its bridge lets the room drive it (Luke, 2026-11-27, 3A): from then on it is driven like
+  // YouTube's player. Until then, and for a server that never says it, it plays as it always has.
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (frame === null || serverOrigin === null) return;
+    let player: JellyfinPlayable | null = null;
+    const onTick = () => tick();
+    const onBlock = () => block();
+    const onPlay = () => started();
+    const listen = (event: MessageEvent) => {
+      if (player !== null || !isJellyfinHello(event, frame, serverOrigin)) return;
+      const made = new JellyfinPlayable(frame, serverOrigin, startsPlaying());
+      player = made;
+      setDriven(true);
+      for (const type of ['timeupdate', 'loadedmetadata', 'play', 'pause']) made.addEventListener(type, onTick);
+      made.addEventListener('blocked', onBlock);
+      made.addEventListener('playing', onPlay);
+      give(made);
+    };
+    window.addEventListener('message', listen);
+    return () => {
+      window.removeEventListener('message', listen);
+      if (player === null) return;
+      player.destroy();
+      take(player);
+    };
+  }, [serverOrigin]);
   const checked = server !== undefined ? link.url : officialEmbedUrl(link.url);
   // A PeerTube player is asked to start with English subtitles on foreign audio (SPEC-subtitles.md): its own
   // menu is the way to change them, since the room cannot drive this player. Added after the check, never stored.
@@ -2623,6 +2862,7 @@ function OfficialEmbedStage({ link, fit, shaped }: { link: WatchLink; fit: strin
   return (
     <div className={`flex flex-col ${fit}`} style={shaped ? (stageStyle(WIDE) as CSSProperties) : undefined} data-backdrop-solid={shaped ? '' : undefined}>
       <iframe
+        ref={frameRef}
         src={url}
         title={`Player: ${link.title}`}
         referrerPolicy="no-referrer"
@@ -2631,6 +2871,7 @@ function OfficialEmbedStage({ link, fit, shaped }: { link: WatchLink; fit: strin
         allow={siteFullscreenWorks() ? withoutFullscreen(allowed) : allowed}
         className="min-h-0 w-full flex-1 bg-paper"
         data-watch-embed={server !== undefined ? 'server' : 'embed'}
+        data-server-remote={driven ? 'on' : undefined}
       />
     </div>
   );

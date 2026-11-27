@@ -192,6 +192,11 @@ export type OwnRoomBinding = {
    * cannot play (a video), which the room has started on its own screen, so the bar goes quiet; null, nothing waits.
    */
   takeNext: () => { track: AudioTrack } | 'other' | null;
+  /**
+   * Asked at a song's end, before walking on: true on a device of yours that follows another (Luke, 2026-11-27, 2A; the keeper's
+   * device-lead.ts), whose bar waits for the device that leads to move the room on rather than moving it on twice.
+   */
+  waitAtEnd?: () => boolean;
   /** The bar is playing this song, by somebody's press or by walking on: the room files it if it is new. */
   onPlaying: (track: AudioTrack) => void;
 };
@@ -816,6 +821,12 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       // loads it the moment their row says what it is. Walking on to the shelf's next file here would
       // play a few seconds of something unrelated first.
       if (isFollowing()) {
+        setPlaying(false);
+        return;
+      }
+
+      // Your other device leads your room: it moves the room on, and this bar follows it there.
+      if (ownRef.current?.waitAtEnd?.() === true) {
         setPlaying(false);
         return;
       }

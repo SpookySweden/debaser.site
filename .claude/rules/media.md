@@ -122,4 +122,6 @@ paths:
   Twitch's own player overlay showing one while paused or hovered is Twitch's, kept (Luke, 2026-11-17: "Keep it").
 - Luke's own and his friends' media servers are allowed sources, with no list file (any title by its TMDB number, at once) or read from each server's list file
   (`app/lib/web/media-servers.ts`; friends' side: `docs/media-server-setup.md`). Each video plays from the
-  server's own player today. TMDB details (server-side, `TMDB_READ_TOKEN`) never include ratings, votes or popularity.
+  server's own player today. In a room, LUKE'S SERVER's player is driven like YouTube's (Luke, 2026-11-27, 3A): the bridge on
+  SERVER adds a small script to Jellyfin's page that takes play, pause and jumps from debaser.site only
+  (`app/lib/watch/jellyfin-player.ts`; off switch `G:\MEDIA-HOST\debaser-bridge\remote.off`), else PLAY FOR ALL as before. TMDB details (server-side, `TMDB_READ_TOKEN`) never include ratings, votes or popularity.

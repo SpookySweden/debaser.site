@@ -99,7 +99,9 @@ ok(!rules.serverRestarted({ entryId: 'e1', position: 0 }, { currentEntryId: 'e1'
 ok(!rules.serverRestarted(mark, { currentEntryId: 'e2', positionSeconds: 0 }), 'a new play is not a restart (its player is new anyway)');
 ok(!rules.serverRestarted(null, { currentEntryId: 'e1', positionSeconds: 0 }), 'a viewer who just came in restarts nothing');
 const room = read('app/components/WatchRoom.tsx');
-ok(/<OfficialEmbedStage key=\{`official-\$\{entryId\}-\$\{serverOn \? serverSeen\.restarts : 0\}`\}/.test(room), 'every tab makes the server\'s player again on each restart (the counter is in its key)');
+// Once LUKE'S SERVER's frame says the room can drive it (Luke, 2026-11-27, 3A; jellyfin-player.ts), its key keeps the count it had
+// then, so the frame is not made again as the room changes over; until then the restart counter is in the key as before.
+ok(/<OfficialEmbedStage\s+key=\{`official-\$\{entryId\}-\$\{serverDriven \? \(remoteEntry\?\.restarts \?\? 0\) : serverOn \? serverSeen\.restarts : 0\}`\}/.test(room), 'every tab makes the server\'s player again on each restart (the counter is in its key)');
 ok(/serverRestarted\(serverSeen\.mark, room\)/.test(room), 'counted from the room\'s own rows');
 ok(/onClick=\{playServerForAll\}/.test(room) && /positionSeconds: 0, isPlaying: true/.test(room.slice(room.indexOf('function playServerForAll'), room.indexOf('function playServerForAll') + 600)), 'the host\'s PLAY FOR ALL writes 0, playing');
 ok(!/NOT IN STEP: EVERYONE PRESSES PLAY ON THIS ONE\.<\/p>/.test(room), 'no line under the player any more (it never covers the picture)');

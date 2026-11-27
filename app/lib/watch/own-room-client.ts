@@ -48,6 +48,27 @@ export function clearOwnRoom(session: OwnRoomSession): void {
 /** The browser's copy every window reads (`use-watch-room.ts`), as the session writes to it. */
 export const sharedRoomStore: RoomStore = { get: peekRoom, prime: primeRoom, apply: applyBrowserChange };
 
+/**
+ * Your room came back with this page (`OwnRoomComesBack`, WatchWindow.tsx). Its window decides what that means once it knows who
+ * is in it (Luke, 2026-11-27, device-lead.ts): alone, it was a reload, and your room waits paused where it was (ROOMSYNC); with
+ * another of your devices in it playing, this one follows it and nothing is paused.
+ */
+let cameBack: { roomId: string; at: number } | null = null;
+/** A come-back older than this was never taken (its window never led): forgotten. */
+const CAME_BACK_MS = 30_000;
+
+export function noteComeBack(roomId: string): void {
+  cameBack = { roomId, at: Date.now() };
+}
+
+/** True once, for the room that just came back with this page. */
+export function takeComeBack(roomId: string): boolean {
+  const held = cameBack;
+  if (held === null || held.roomId !== roomId) return false;
+  cameBack = null;
+  return Date.now() - held.at < CAME_BACK_MS;
+}
+
 const VISITOR_KEY = 'debaser.own-room.visitor.v1';
 
 /** The visitor id this browser already holds, or null: asked when somebody logs in, so nothing is made up for them. */

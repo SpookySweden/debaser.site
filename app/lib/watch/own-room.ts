@@ -1,5 +1,6 @@
 import type { RoomChange, WatchRepository } from './repository';
 import { frontPosition } from './music-rooms';
+import { noteOwnPlayback } from './device-lead';
 import { hostPosition, nextPlayIndex, nextQueuePosition, playOrder, upcoming } from './rules';
 import type { WatchLink, WatchQueueEntry, WatchRoom, WatchRoomRead } from './types';
 
@@ -232,7 +233,13 @@ export class OwnRoomSession {
 
   private setRoom(patch: Partial<WatchRoom>): void {
     const read = this.mine();
-    this.deps.store.apply(read.room.id, { kind: 'room', room: { ...read.room, ...patch, updatedAt: this.stamp() } });
+    const room: WatchRoom = { ...read.room, ...patch, updatedAt: this.stamp() };
+    // This device's own change, known as its own when the copy every window reads shows it (device-lead.ts): the browser's
+    // copy changes before the write is sent.
+    if ('currentEntryId' in patch || 'positionSeconds' in patch || 'isPlaying' in patch) {
+      noteOwnPlayback(room.id, { currentEntryId: room.currentEntryId, positionSeconds: room.positionSeconds, isPlaying: room.isPlaying });
+    }
+    this.deps.store.apply(read.room.id, { kind: 'room', room });
   }
 
   /* --- the writes, one after another ---------------------------------------------------------------- */
