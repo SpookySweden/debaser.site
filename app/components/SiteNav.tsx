@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from 'react';
 import { moduleBarColour, WipTag } from './ModulesWindow';
 import SiteArrows from './SiteArrows';
-import { MODULES, moduleColour, moduleHoverInk, moduleIsOn, moduleMark } from '../lib/ui/modules';
+import { MODULE_EXPLAIN, MODULES, moduleColour, moduleHoverInk, moduleIsOn, moduleMark } from '../lib/ui/modules';
 import {
   modulesState,
   modulesWindowOpen,
@@ -319,7 +319,7 @@ export default function SiteNav({ active, endKey }: { active?: NavKey; /** A key
         if (module.href === null) {
           // MODULOS (Luke, 2026-11-16: "a word like the others"): the same word key, the same ink and hover, last on the bar.
           return (
-            <button key={module.key} type="button" aria-expanded={listOpen} onClick={toggleModulesWindow} className={`${wordClass(false)} module-key cursor-pointer`} {...hover} data-tour="modulos" {...(listOpen ? explain('Closes the MODULOS window.', module.explain.why) : explainFrom(module.explain))}>
+            <button key={module.key} type="button" aria-expanded={listOpen} onClick={toggleModulesWindow} className={`${wordClass(false)} module-key cursor-pointer`} {...hover} data-tour="modulos" {...(listOpen ? explain('Closes the MODULOS window.', MODULE_EXPLAIN[module.key].why) : explainFrom(MODULE_EXPLAIN[module.key]))}>
               {module.label}
             </button>
           );
@@ -328,7 +328,7 @@ export default function SiteNav({ active, endKey }: { active?: NavKey; /** A key
         // The page you are on keeps its word's colour under the pointer too (`--module-ink` is what the hover rule reads; the rules set it).
         const look = !isActive ? hover : wordRules === '' ? { style: { '--module-ink': 'var(--color-ink)' } as CSSProperties } : { 'data-module': module.key };
         return (
-          <Link key={module.key} href={module.href} aria-current={isActive ? 'page' : undefined} className={`${wordClass(isActive)} module-key`} {...look} {...explainFrom(isActive ? { ...module.explain, what: `You are on ${module.label} now. Pressing it takes you back to its first page.` } : module.explain)}>
+          <Link key={module.key} href={module.href} aria-current={isActive ? 'page' : undefined} className={`${wordClass(isActive)} module-key`} {...look} {...explainFrom(isActive ? { ...MODULE_EXPLAIN[module.key], what: `You are on ${module.label} now. Pressing it takes you back to its first page.` } : MODULE_EXPLAIN[module.key])}>
             {module.label}
             {module.wip ? <WipTag /> : null}
           </Link>

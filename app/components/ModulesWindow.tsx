@@ -7,7 +7,7 @@ import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
 import { inkOnNameColour } from '../lib/profile/name-colours';
 import { KEY_FOCUS } from '../lib/ui/controls';
 import { explain } from '../lib/ui/explain';
-import { MODULES, moduleColour, moduleIsOn, moduleSwatches, withColour, withTick, type ModuleDef } from '../lib/ui/modules';
+import { MODULE_EXPLAIN, MODULES, moduleColour, moduleIsOn, moduleSwatches, withColour, withTick, type ModuleDef } from '../lib/ui/modules';
 import {
   closeModulesWindow,
   modulesSaveFailed,
@@ -69,8 +69,8 @@ function ModuleRow({ module, bar }: { module: ModuleDef; bar: string }) {
             : on
               ? `Takes the ${module.label} key off the top bar.`
               : `Puts a ${module.label} key on the top bar.`,
-          module.always ? module.explain.why : `${module.explain.what} A page taken off the bar still works from its address. Saved to your account.`,
-          module.explain.note,
+          module.always ? MODULE_EXPLAIN[module.key].why : `${MODULE_EXPLAIN[module.key].what} A page taken off the bar still works from its address. Saved to your account.`,
+          MODULE_EXPLAIN[module.key].note,
         )}
       >
         <span aria-hidden="true">{on ? '[ ✓ ]' : '[   ]'}</span>

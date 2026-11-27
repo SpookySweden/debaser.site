@@ -22,6 +22,9 @@
  *
  * Also holds where the box goes (`placeExplainBox` in `app/lib/ui/explain.ts`): never over the key, always inside the screen.
  *
+ * And renders the box itself (`ExplainLayer.tsx`): on the server, and while the switch is off, it draws nothing at all.
+ *
+ *   npx tsc app/components/ExplainLayer.tsx app/lib/ui/explain-mode.ts --rootDir app --outDir Temp/explain-out --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
  *   node Temp/check-explain.cjs           the check
  *   node Temp/check-explain.cjs --list    every file with keys missing words, done or not, with counts
  */
@@ -469,6 +472,24 @@ function checkPlacement() {
   assert.equal(explain('a', 'b', 'c')['data-explain-note'], 'c');
 }
 
+/** The box, rendered as the server draws it: the switch can't be read there, so it is off and nothing is drawn. */
+function checkRender() {
+  const out = path.join(__dirname, 'explain-out');
+  if (!fs.existsSync(path.join(out, 'components/ExplainLayer.js'))) {
+    console.log('check-explain: no compiled box (run through `npm run checks`, which compiles it first); render skipped');
+    return;
+  }
+  const React = require('react');
+  const { renderToStaticMarkup } = require('react-dom/server');
+  const ExplainLayer = require('./explain-out/components/ExplainLayer.js').default;
+  assert.equal(renderToStaticMarkup(React.createElement(ExplainLayer)), '', 'off (and on the server), the box draws nothing');
+  const { explainOnFrom } = require('./explain-out/lib/ui/explain-mode.js');
+  assert.equal(explainOnFrom(null), false, 'nothing stored: off (Luke: "A: a switch, off")');
+  assert.equal(explainOnFrom('1'), true);
+  assert.equal(explainOnFrom('0'), false);
+  assert.equal(explainOnFrom('yes'), false, 'anything else stored: off');
+}
+
 const { files, missing, weak, explained } = scan();
 
 if (process.argv.includes('--list')) {
@@ -478,6 +499,7 @@ if (process.argv.includes('--list')) {
 }
 
 checkPlacement();
+checkRender();
 
 const failures = [];
 for (const [file, rows] of missing) if (!STILL_TO_DO.has(file)) failures.push(...rows.map((row) => `no explanation: ${row}`));
