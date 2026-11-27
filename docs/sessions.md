@@ -80,6 +80,13 @@ while used, and every browser drive, shot, capture or audit. Run each through th
 has the turn; never delete a lock by hand. A wait can be long: run it in the background and carry on. Cheap steps need
 no turn: reading, editing, git, `npm run tokens`, `read`, `deploy-status`, read-only `db`.
 
+**The gaming PC lane (live and proved 2026-11-27):** `verify:clean` and the full `npm run checks` may run on the gaming
+PC instead; nothing changes for the session asking. Commit first, then `node "<that folder>\heavy-step.cjs" <GROUP> --
+npm run verify:clean` (optionally `-- <sha>`) or `-- npm run checks`. heavy-step prints where it went and why:
+`heavy-step: remote lane: running on the GAMING PC (<why>)` or `... running on SERVER (<why>)`. The output streams
+back; the exit code and the final CLEAN VERIFY PASSED/FAILED line are the same as on SERVER (the PC's line adds "on the
+gaming PC"). Which machine, and what never goes: "Which machine does what" below.
+
 ## Builders' setup and loop
 1. In your worktree: `git fetch origin`, start from `origin/main`. Copy `.env.local` and `.env.test` from
    `G:\debaser.site\` if missing (never print or commit them). `npm ci` in the background if `node_modules` is missing.
@@ -113,22 +120,36 @@ no turn: reading, editing, git, `npm run tokens`, `read`, `deploy-status`, read-
   Control (on by default for SERVER sessions), or the laptop app's SSH connection to SERVER over Tailscale. A session
   never builds on the laptop: one that finds itself on a machine other than SERVER (`hostname` is not `server`, or
   `G:\debaser.site` is missing) stops and says so.
-- **The gaming PC is the heavy lane** (being built, 2026-11-27; the PC setup session owns `heavy-step.cjs` and the lane,
-  this section describes it as built; Luke: "an even split... leave the server at no more than 60%"). `verify:clean` and
-  the full `npm run checks` may run on the PC; nothing else does (not the live site, database, Docker, tunnel or engines,
-  not `--live` / `--live-check` steps). `heavy-step.cjs` picks the machine per job: the PC unreachable, asleep or in a
-  League match (process `League of Legends`) → SERVER; SERVER over 60% memory or already holding the heavy turn → the
-  PC; otherwise the two take turns. The commit goes to a worker clone on the PC and runs there at full speed; output and
-  exit code come back unchanged, so a session asks for the turn exactly as above. Whole sessions never run there.
-  Until Luke runs the PC's setup script (and OKs the test keys on the PC for the full checks), everything runs on SERVER.
-- **Between devices:** the lane uses key-only SSH from SERVER to the gaming PC over the home network for now. Tailscale
-  is the road Luke chose for the rest (`debaser-server` is on it; on 2026-11-27 the laptop, phone and gaming PC had not
-  joined; when the PC joins, the lane may use it too). `docs/STATE.md`, "Waiting on Luke".
+- **The gaming PC is the heavy lane** (live and proved 2026-11-27, built by the PC setup session, which owns
+  `heavy-step.cjs` and `remote-lane.cjs`; Luke: "an even split... leave the server at no more than 60%"; on the PC "Full
+  speed"; League match or PC off: "Run on the server instead"). How a session uses it: "The heavy-step turn" above.
+  - **Only** `verify:clean` and the full `npm run checks` can go to the PC. Never `--live`, `--live-check`, `--claim`,
+    dev servers, browser drives, `checks:changed` or `checks --only`; never the live site, database, Docker, tunnel or
+    engines; never whole sessions.
+  - **Stays on SERVER** when the PC is off, asleep or unreachable (a probe of about 3 seconds), a League match is on
+    the PC, the PC is already running a job, the full checks are asked for and the PC has no `.env.local`/`.env.test`
+    (true on 2026-11-27, waiting for Luke's OK), or the off switch is set: a file `remote-lane.off` beside
+    `heavy-step.cjs` (everything stays on SERVER while it exists).
+  - **Goes to the PC** when SERVER's memory is over 60% in use (Luke's ceiling) or another heavy step holds SERVER's
+    turn. Otherwise the two take turns (`remote-lane.next` beside the script remembers whose turn is next).
+  - **Failures:** if SSH drops part-way, or the PC reports it is busy or its setup failed, the step re-runs on SERVER by
+    itself. A real verify or check failure on the PC comes back as a failure, like one on SERVER.
+  - **How it runs:** the exact commit goes to the PC as a git bundle over `scp`, into the PC's own clean clone
+    `G:\debaser-worker\repo` (on the PC's SSD), and `G:\debaser-worker\run-job.cjs` there runs the same steps as on
+    SERVER (its source is `C:\DEBASER-SETUP\pc-worker\run-job.cjs` on SERVER). Full speed on the PC; if a League match
+    starts part-way, the job drops to idle priority.
+  - **Proof (PC setup, 2026-11-27):** an unpushed test commit verified on the PC in 71 seconds through heavy-step (147
+    seconds the first time, with `npm ci`; SERVER takes about 5 minutes). PC unreachable, checks without the env files
+    and the off switch each went to SERVER; a faked League process kept it on SERVER, and it went back to the PC after.
+- **Between devices:** the lane uses key-only SSH from SERVER to the gaming PC over the home network: SSH alias
+  `gaming-pc` (192.168.0.30), SERVER's key, the PC's port 22 open only to SERVER. Tailscale is the road Luke chose for
+  the rest (`debaser-server` is on it; on 2026-11-27 the laptop, phone and gaming PC had not joined; when the PC joins,
+  the lane may use it too). `docs/STATE.md`, "Waiting on Luke".
 - **Cloud sessions only for reading work** that needs no database or house machine: research, reviews, SPEC drafts.
   They start from the pushed `main` and never push; building stays on SERVER. Setting the cloud up for the repo is
   Luke's click.
 - **Inside a session:** subagents for contained jobs, read-only ones on a cheaper model where they suit; skills for
   repeated recipes (`brief`, `interview`, `handoff`, `verify-site`, `add-web-adapter`); hooks for the guards; memory
   for Luke's standing rules about Claude itself.
-- `heavy-step.cjs` and its locks live in the coordinator's first notes folder (`local_4199eda8-…`), outside the repo,
+- `heavy-step.cjs`, `remote-lane.cjs` and their locks live in the coordinator's first notes folder (`local_4199eda8-…`), outside the repo,
   on SERVER: sessions on SERVER reach it by that path.

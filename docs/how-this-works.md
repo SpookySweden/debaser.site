@@ -50,8 +50,9 @@ Now there are three layers:
   the laptop: a session that finds itself anywhere else stops and says so.
 - **The gaming PC is the heavy lane:** the clean builds and the full checks are shared evenly between SERVER and the PC,
   and go to the PC whenever SERVER is over 60% memory, unless the PC is off, asleep or in a League match. The site,
-  database and live tests always stay on SERVER. The PC setup session is building it; it starts once you run its setup
-  script on the PC.
+  database and live tests always stay on SERVER. It is live (2026-11-27): a clean build took 71 seconds on the PC
+  against about 5 minutes on SERVER. If a match starts part-way, the job drops to the lowest priority so your game
+  comes first. The full checks join it once you OK putting the test keys on the PC; until then they stay on SERVER.
 - **Tailscale is the road between them**, except the heavy lane, which uses a direct SSH connection over the home
   network for now. Only SERVER has joined Tailscale so far: the laptop, phone and gaming PC each need it installed and
   signed in with the same account (in `docs/STATE.md`, "Waiting on Luke").
