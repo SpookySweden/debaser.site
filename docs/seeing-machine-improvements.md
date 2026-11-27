@@ -86,3 +86,7 @@ One line each, the most useful first. Struck through when done, with its commit.
 - ~~Safety round (last run of 2026-11-23): the hostile page now also makes a subtitle track, a fenced frame and an SVG filter picture aimed at the trap; none reaches it (drive eye 78, the attempts asserted made).~~
 - ~~nas.local, router.home, a tailnet name read GO TO and were refused after GO: NOT A PUBLIC ADDRESS at the box too (decision 52). A [ SEE ] key is no longer drawn beside such a link either.~~
 - Seen on screen, last run of 2026-11-23: DISCOVER draws [ SEE ] beside each row's OPEN for a reader with BROWSER on the bar.
+
+## Open, from the first agent review of 683b402..95a39db (2026-11-27; fixed in 30fd085: OWN WEB no longer pushes kept pages off the list, a typed OWN WEB tag is dropped, a house-only lens puts a framed page back to plain and says so, BROWSER holds again when the extension drops it, only the top page may hold a tab, asks for a site wait their turn)
+- OWN WEB keeps a page that has a password box when it also has readable text (on purpose in 8827218: copies keep no forms, so the box never works). Stricter, if Luke wants it: keep nothing from a page with a password box at all.
+- The OWN WEB switch lives in each browser (local storage), not on the account: off in one browser is still on in another. Left as built; an account setting needs a database change and Luke's OK.
