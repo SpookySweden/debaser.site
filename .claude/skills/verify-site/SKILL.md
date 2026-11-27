@@ -1,20 +1,24 @@
 ---
 name: verify-site
-description: Run the full proof that a change is done - verify, the checks it can affect, capture + audit locally, then confirm the pushed commit is built on Vercel, screenshot the deployed site at desktop and phone width, and read it with `npm run read`. Use when finishing a task, or when Luke types /verify-site. Optional argument - a route to screenshot and read instead of /forum (e.g. `/users`), and/or text to expect, passed through to `npm run read`.
+description: Run the full proof that a change is done - verify, the checks it can affect, capture + audit locally, then confirm the pushed commit is live on debaser.site and read it with `npm run read`. Use when finishing a task, or when Luke types /verify-site. Optional argument - a route to read instead of /forum (e.g. `/users`), and/or text to expect, passed through to `npm run read`.
 ---
 
 # /verify-site
 
-The ship loop from `.claude/rules/core.md`, as one run. Report pass/fail for every step in plain English, with the
-two screenshots. Stop at the first failure, show the failing output, and say which step it was - do not
-carry on to later steps and do not "fix and retry" without telling Luke.
+The ship loop from `.claude/rules/core.md`, as one run. Report pass/fail for every step in plain English. Stop at the
+first failure, show the failing output, and say which step it was - do not carry on to later steps and do not "fix and
+retry" without telling Luke.
+
+Updated 2026-11-27 (the site moved to SERVER on 2026-11-22): it used to wait for Vercel and screenshot the deployed site
+at desktop and phone width. Luke's rules since 2026-11-14 replace that: prove it locally, confirm only presence on the
+live site, desktop first, no screenshots to him unless he has a visual choice. Heavy steps (1-3) take the one turn on
+SERVER (`docs/sessions.md`).
 
 Accounts: there are no account details to read or pass. `--signin` signs in as the kept `TEST ACCOUNT A`
 itself and the scripts load the Supabase address on their own. Never open or name `.env.local`.
 
-Arguments: if Luke gave a route (e.g. `/users`), use `https://debaser-site.vercel.app<route>` as ADDRESS;
-otherwise ADDRESS is `https://debaser-site.vercel.app/forum`. Any quoted text he gave is an expectation
-for step 6.
+Arguments: if Luke gave a route (e.g. `/users`), use `https://debaser.site<route>` as ADDRESS; otherwise ADDRESS is
+`https://debaser.site/forum`. Any quoted text he gave is an expectation for step 5.
 
 ## Part 1 - this machine
 
@@ -22,46 +26,33 @@ for step 6.
 2. `npm run checks:changed`: the checks this work can affect. Must end with every one passing. If it prints
    `FULL RUN DUE`, or the work was a big feature built from a SPEC, run the whole `npm run checks` instead. A
    failing check is a finding - report it, never delete or loosen it to go green.
-3. `npm run capture`, then `npm run audit`. Capture always first, or the audit reads old snapshots. The
-   audit does not fail by exit code: read its output and report every unnamed control, small tap target,
-   small text and low-contrast pair it lists, plus the questions it ends with.
+3. For visual changes only: on a local dev server with mock data, `npm run shot` at desktop width (one look at 390
+   wide that nothing scrolls sideways), then `npm run capture` and `npm run audit`. Capture always first, or the
+   audit reads old snapshots. The audit does not fail by exit code: read its output and report every unnamed
+   control, small tap target, small text and low-contrast pair it lists. Look at the shots yourself with Read; they
+   are for you, not for Luke.
 
 ## Gate - is this change actually live?
 
 4. Run `git status --porcelain` and `git log origin/main..HEAD --oneline` (after `git fetch origin main`).
-   - Anything uncommitted or unpushed: **stop here.** Tell Luke Part 1's result and that the deployed
-     steps would show the old site. Do not commit or push on his behalf from this skill - pushing to
-     `main` puts the change live, and that click is his last look.
-   - Otherwise wait for Vercel to finish building this exact commit with `npm run deploy-status`
-     (scripts/deploy-status.cjs: GitHub's public status API through plain Node, no `gh`, which is not
-     installed here). It waits up to 10 minutes and its exit code says what happened: 0 built - continue;
-     1 build failed on Vercel - stop and report it; 2 not pushed; 3 could not ask GitHub - stop and say so,
-     never keep waiting; 4 still building - stop and say so, and do not screenshot a site that may be stale.
-     Run it in the background if it may take long; never write a hand-made polling loop instead.
+   - Anything uncommitted or unpushed: **stop here.** Tell Luke Part 1's result and that the live site would show
+     the old version. Do not commit or push on his behalf from this skill.
+   - Otherwise `npm run deploy-status`: it asks SERVER to rebuild from `main` at once and waits until
+     `https://debaser.site/api/version` reports this commit. Exit 0 live - continue; 1 SERVER's build failed (see
+     `G:\DEBASER-HOST\logs\update.log`) - stop and report it; 2 not pushed; 3 could not ask (SERVER off?) - stop and
+     say so, never keep waiting; 4 still building - run it again. Run it in the background if it may take long;
+     never write a hand-made polling loop instead.
 
-## Part 2 - the deployed site
+## Part 2 - the live site
 
-5. Screenshots, one sign-in (the kept test account) shared by both:
-
-   ```bash
-   npm run browser -- --start --signin
-   npm run shot -- --attach --fresh --url ADDRESS --width 1440 --height 1000 --out Temp/browse/verify-desktop.png
-   npm run shot -- --attach --fresh --url ADDRESS --width 390 --height 844 --mobile --out Temp/browse/verify-phone.png
-   npm run browser -- --stop
-   ```
-
-   A shot that reports `NOTHING IS LISTENING` or an `ERR_...` is a failure, not a picture. Open both PNGs
-   with the Read tool and look at them: say what is on screen, and anything visibly broken (overlapping,
-   cut off, empty panes, a `READING...` that never resolved). Then send both to Luke with SendUserFile.
-6. `npm run read -- --url ADDRESS` (plus any expected text, or `--absent <text>`). Must report present /
-   absent as expected and exit 0.
+5. `npm run read -- --url ADDRESS` (plus any expected text, or `--absent <text>`). Must report present / absent as
+   expected and exit 0. Nothing more on the live site unless something can't be proved locally (core.md says how).
 
 ## Report
 
 - A short table: step, pass/fail, one-line note.
-- The two screenshots.
-- What was **not** checked: whether it looks right is Luke's call; one still frame cannot show motion or
-  hover/tap reveals; pages other than ADDRESS were not screenshotted; anything skipped and why.
+- What was **not** checked: whether it looks right is Luke's call; one still frame cannot show motion or hover/tap
+  reveals; pages other than the ones looked at; anything skipped and why.
 - Housekeeping: none from the checks. They sign in as the kept, hidden test accounts (TEST ACCOUNT A-D) and
   make no account. If `npm run db:sweep:review` ever lists leftovers, removing them is a delete - run
   `npm run db:sweep` only after Luke says yes.

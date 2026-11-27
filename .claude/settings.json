@@ -1,4 +1,5 @@
 {
+  "autoCompactWindow": 300000,
   "permissions": {
     "defaultMode": "bypassPermissions",
     "allow": [
@@ -34,6 +35,34 @@
             "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.cjs\" stop",
             "timeout": 180,
             "statusMessage": "Typechecking..."
+          },
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/context.cjs\" stop",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/context.cjs\" precompact",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "compact|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/context.cjs\" start",
+            "timeout": 10
           }
         ]
       }

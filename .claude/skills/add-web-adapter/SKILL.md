@@ -5,7 +5,7 @@ description: The recipe for adding a new platform (Openverse, PeerTube, a podcas
 
 # Add a WEB adapter
 
-Read `SPEC-web.md` and the MEDIA section of `CLAUDE.md` first (the page readers call MEDIA is WEB in the code). The Internet Archive adapter
+Read `SPEC-web.md` and `.claude/rules/media.md` (the MEDIA rules, moved out of `CLAUDE.md` on 2026-11-27) first (the page readers call MEDIA is WEB in the code). The Internet Archive adapter
 (`app/lib/web/adapters/internet-archive.ts`) is the worked example: copy its shape. Pick the closest
 of the others for anything unusual:
 - `peertube.ts`: the host varies, so it comes from a hand-picked list in code (`PEERTUBE_INSTANCES`).
@@ -16,7 +16,7 @@ Feeds are parsed with `adapters/xml.ts` (strict, bounded, no DTDs); do not add a
 
 ## Rules no adapter may bend
 - Official public APIs, RSS/Atom, oEmbed or open-data endpoints first. HTML scraping only as a last resort,
-  with Luke's OK for that platform and a fallback (CLAUDE.md). No paid or keyed service unless Luke says so.
+  with Luke's OK for that platform and a fallback (`.claude/rules/media.md`). No paid or keyed service unless Luke says so.
 - Metadata only: the `WebItem` fields. Never request, store or pass on likes, views, downloads,
   ratings, follower counts or comments. Do not put engagement fields in the request's field list.
 - No rule against downloading, copying or self-hosting media (Luke, 2026-11-15). Today thumbnails
