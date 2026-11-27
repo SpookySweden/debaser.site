@@ -9,6 +9,7 @@ import NotificationBell from './NotificationBell';
 import ProfileName from './ProfileName';
 import TimeStamp from './TimeStamp';
 import { PLATE_LINK, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 
 /**
  * The side panel's comms block: one button, and the conversations behind it.
@@ -79,6 +80,10 @@ export default function SidebarComms() {
           aria-expanded={expanded}
           aria-controls="sidebar-comms-list"
           className={TITLE_BAR_BUTTON}
+          {...explain(
+            expanded ? 'Folds your conversations away again.' : 'Folds open your conversations here: the latest message from each, newest first.',
+            'Private messages and group chats. The NEW count beside it is messages you have not read yet; press a conversation to open it in COMMS.',
+          )}
         >
           [ COMMS ] {expanded ? '▴' : '▾'}
         </button>
@@ -98,7 +103,7 @@ export default function SidebarComms() {
           {userId === null ? (
             // A locked action is one line with the way in at its start (SPEC-efficiency.md).
             <p className="p-2 text-label text-ink">
-              <Link href="/account" className={PLATE_LINK}>
+              <Link href="/account" className={PLATE_LINK} {...explain('Goes to the ACCOUNT page to log in or make an account.', 'Messaging needs an account, so people know who they are talking to.')}>
                 [ LOG IN ]
               </Link>{' '}
               TO MESSAGE PEOPLE
@@ -119,6 +124,7 @@ export default function SidebarComms() {
                     onClick={() => openConversation(thread.id)}
                     disabled={busyId !== null}
                     className="w-full cursor-pointer p-1 text-left text-label font-bold text-ink hover:bg-ice-pale disabled:cursor-wait disabled:opacity-60"
+                    {...explain('Opens this conversation in COMMS, to read it and reply.', 'Shows who it is with, when it last moved, the latest message, and how many you have not read.')}
                   >
                     <span className="flex flex-wrap items-center justify-between gap-1">
                       {thread.kind === 'group' ? (
@@ -137,7 +143,7 @@ export default function SidebarComms() {
           )}
 
           <div className="flex flex-wrap items-center gap-1 px-2 pb-2">
-            <Link href="/comms" className={PLATE_LINK} title="Open comms">
+            <Link href="/comms" className={PLATE_LINK} title="Open comms" {...explain('Goes to COMMS, the page for all your conversations.', 'Read and write messages, start a new conversation, or make a group.')}>
               [ OPEN ]
             </Link>
           </div>

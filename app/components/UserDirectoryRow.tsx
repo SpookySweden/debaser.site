@@ -7,6 +7,7 @@ import { inkOnNameColour, nameColourDark, profileNameColour } from '../lib/profi
 import { presenceLine } from '../lib/profile/presence';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { PLATE } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 import ProfileAvatarLink from './ProfileAvatarLink';
 import { usePresence } from './PresenceProvider';
 import ProfileLink from './ProfileLink';
@@ -210,6 +211,7 @@ export default function UserDirectoryRow({
               onClick={() => onMessage?.(row.account.id)}
               disabled={busy}
               className={PLATE}
+              {...explain('Opens a private conversation with this person in COMMS.', 'If you have talked before, it opens that conversation; otherwise it starts a new one. Only the two of you see it.')}
             >
               {busy ? '[ OPENING... ]' : '[ MESSAGE ]'}
             </button>

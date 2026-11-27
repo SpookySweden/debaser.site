@@ -17,6 +17,7 @@ import { useNotifications } from './NotificationsProvider';
 import ProfileName from './ProfileName';
 import TimeStamp from './TimeStamp';
 import { PLATE_LINK, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 
 /**
  * What kind of news a row is, as the badge this site already uses for that: navy for a tag and
@@ -159,11 +160,20 @@ function NotificationRow({
       : 'border-ink bg-bubble-pale text-ink-bar [--key-ink:var(--color-ink-bar)] [--key-hover-ink:var(--color-bubble-pale)] [--key-quiet-ink:var(--color-ink-bar)] hover:text-ink hover:[--key-ink:var(--color-accent-ink)]'
   } hover:bg-ice-pale max-sm:min-h-tap`;
 
+  // EXPLAIN (Luke, 2026-11-27): what pressing a notification does.
+  const explainWords = isInvite
+    ? explain('Opens the ARCADE on this game invitation, to accept it and play.', 'It opens over the page you are on. The notification then counts as read.')
+    : explain(
+        target === null ? 'Marks this notification read.' : 'Goes to what this notification is about, and marks it read.',
+        'Who did it, what kind it is, when, and the words they wrote. A filled square means you have not opened it yet.',
+      );
+
   if (target === null) {
     return (
       <li>
         <button
           type="button"
+          {...explainWords}
           className={`${className} cursor-pointer`}
           onClick={() => {
             onOpen(item);
@@ -180,6 +190,7 @@ function NotificationRow({
     <li>
       <Link
         href={target}
+        {...explainWords}
         className={`${className} cursor-pointer`}
         onClick={(event) => {
           // An invitation opens the arcade *here*, over whatever is being read: walking the reader to
@@ -276,6 +287,7 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
             aria-label="Close the notifications"
             title="Close"
             className={TITLE_BAR_BUTTON}
+            {...explain('Closes the notifications list.', 'Nothing is marked read by closing; the bell keeps its count.')}
           >
             [ × ]
           </button>
@@ -284,7 +296,7 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
 
       {userId === null ? (
         <p className="p-2 text-label font-bold text-ink">
-          <Link href="/account" onClick={onClose} className={PLATE_LINK}>
+          <Link href="/account" onClick={onClose} className={PLATE_LINK} {...explain('Goes to the ACCOUNT page to log in or make an account.', 'Notifications are for an account: replies to your posts, tags, letters and invitations.')}>
             [ LOG IN ]
           </Link>{' '}
           TO GET NOTIFICATIONS
@@ -298,6 +310,7 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
             type="button"
             onClick={retry}
             className="mt-1 cursor-pointer key px-1 py-1 text-label font-bold"
+            {...explain('Asks for your notifications again.', 'They could not be read just now, often because the connection dropped for a moment.')}
           >
             [ RETRY ]
           </button>
@@ -320,6 +333,7 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
             void markAllRead();
           }}
           className="cursor-pointer key px-1 py-1 text-label font-bold disabled:cursor-not-allowed"
+          {...explain('Marks every notification read at once, without opening them.', 'Clears the bell\'s NEW count. They all stay in the list under EARLIER.', "CAN'T BE UNDONE: THEY CAN'T BE MADE UNREAD AGAIN.")}
         >
           [ MARK ALL READ ]
         </button>
@@ -327,6 +341,7 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
           href="/forum"
           onClick={onClose}
           className="cursor-pointer key px-1 py-1 text-label font-bold"
+          {...explain('Goes to the FORUM board.', 'Where the posts and replies these notifications point at live.')}
         >
           [ BOARD ]
         </Link>
@@ -340,6 +355,7 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
             }}
             className="cursor-pointer key px-1 py-1 text-label font-bold"
             data-bell-desk
+            {...explain('Opens YOUR DESK: what is waiting for you, gathered in one window.', 'Continue reading, replies to you, who is live now, news from people you talk to, and what is waiting for you.')}
           >
             [ ▭ DESK ]
           </button>

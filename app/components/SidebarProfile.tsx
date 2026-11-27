@@ -18,6 +18,7 @@ import ProfileCustomiserWindow from './ProfileCustomiserWindow';
 import ProfileLink from './ProfileLink';
 import ProfileName from './ProfileName';
 import { PLATE, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
+import { explain, NOTE } from '../lib/ui/explain';
 import { displayCrop } from '../lib/profile/avatar-crop';
 import { LostAccountLine } from './LostAccountWindow';
 
@@ -87,6 +88,10 @@ export default function SidebarProfile() {
               aria-label="Profile settings"
               title="Profile settings"
               className={TITLE_BAR_BUTTON}
+              {...explain(
+                settingsOpen ? 'Folds the settings list away again.' : 'Opens the settings list under your profile: ACCOUNT, PREFERENCES and EXTENSION.',
+                'ACCOUNT is your sign-in and details; PREFERENCES is the theme, background, pointer, notifications and the EXPLAIN switch; EXTENSION is the browser add-on for BROWSER.',
+              )}
             >
               [ <span aria-hidden="true">⚙</span> SETTINGS ]
             </button>
@@ -138,7 +143,7 @@ export default function SidebarProfile() {
               )}
 
               {/* Said in words: an unlabelled pencil was missed in a test run (2026-10-30). */}
-              <button type="button" onClick={() => setCustomising(true)} aria-haspopup="dialog" className={PLATE}>
+              <button type="button" onClick={() => setCustomising(true)} aria-haspopup="dialog" className={PLATE} {...explain('Opens the customiser for your profile: your picture, name and its colour, status, bio, song, tags, character and privacy.', 'What you change there is what people see on your profile page. It asks before closing if you have changes not saved.', NOTE.others)}>
                 [ EDIT PROFILE ]
               </button>
             </div>
@@ -146,7 +151,7 @@ export default function SidebarProfile() {
 
           {settingsOpen ? (
             <div className="fold-body space-y-1 border-t border-ink pt-2" role="menu" aria-label="Profile settings">
-              <Link href="/account" className={MENU_ROW} role="menuitem" onClick={() => setSettingsOpen(false)}>
+              <Link href="/account" className={MENU_ROW} role="menuitem" onClick={() => setSettingsOpen(false)} {...explain('Goes to your ACCOUNT page: how you sign in, your details, your privacy and security.', 'Where you change your password or the Google account you sign in with.')}>
                 [ ACCOUNT ]
               </Link>
 
@@ -168,13 +173,17 @@ export default function SidebarProfile() {
                 aria-haspopup="dialog"
                 title={preferencesOpen ? 'Close preferences' : 'Open preferences'}
                 className={MENU_ROW}
+                {...explain(
+                  preferencesOpen ? 'Closes the PREFERENCES window.' : 'Opens PREFERENCES: the theme, background, pointer, companion, notifications and the EXPLAIN switch.',
+                  'How the site looks and behaves for you. Most of it is saved to your account, so your other computers match.',
+                )}
                 role="menuitem"
               >
                 [ PREFERENCES ] {preferencesOpen ? '[ ON ]' : '[ ▶ ]'}
               </button>
 
               {/* BROWSER's extension (Luke, 2026-11-23): getting it or updating it first, then its settings. */}
-              <button type="button" onClick={toggleExtensionWindow} aria-haspopup="dialog" title={extensionOpen ? 'Close extension' : 'Open extension'} className={MENU_ROW} role="menuitem">
+              <button type="button" onClick={toggleExtensionWindow} aria-haspopup="dialog" title={extensionOpen ? 'Close extension' : 'Open extension'} className={MENU_ROW} role="menuitem" {...explain(extensionOpen ? 'Closes the EXTENSION window.' : 'Opens the EXTENSION window: get or update the DEBASER browser add-on, then its settings.', 'The add-on lets BROWSER open sites in your own browser, signed in as you, with the machine beside them.')}>
                 [ EXTENSION ] {extensionOpen ? '[ ON ]' : '[ ▶ ]'}
               </button>
 
@@ -183,6 +192,7 @@ export default function SidebarProfile() {
                 disabled
                 title="Not built yet: what this will do is still being decided."
                 className={`${MENU_ROW} cursor-not-allowed`}
+                {...explain('Does nothing yet: SESSION OPTIONS is not built.', 'What it will hold is still being decided.')}
                 role="menuitem"
               >
                 [ SESSION OPTIONS ] :: SOON

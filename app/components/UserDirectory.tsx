@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { buildUserDirectory, countDirectoryStatuses } from '../lib/profile/directory';
 import { PANEL, PLATE_LINK, TITLE_BAR_BUTTON, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 import { useAuth } from './AuthProvider';
 import ChallengeControl from './ChallengeControl';
 import { useComms } from './CommsProvider';
@@ -99,7 +100,7 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
                 one count. `n SEEN THIS HOUR :: n ELSEWHERE` and the account total were the lamps again in
                 words; the lamps are on every row. */}
             {compact ? (
-              <Link href="/users" className={TITLE_BAR_BUTTON}>
+              <Link href="/users" className={TITLE_BAR_BUTTON} {...explain('Goes to USERS, the list of everyone on the site.', 'This panel shows only a few. The page has everyone, with who is online now and a key to message each.')}>
                 [ ALL ]
               </Link>
             ) : accountsReady ? (
@@ -151,7 +152,7 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
             panel's compact list leaves it out: the panel's own COMMS block already says it. */}
         {compact || user !== null ? null : (
           <p className="p-2 text-label text-ink">
-            <Link href="/account" className={PLATE_LINK}>
+            <Link href="/account" className={PLATE_LINK} {...explain('Goes to the ACCOUNT page to log in or make an account.', 'Messaging needs an account, so people know who they are talking to.')}>
               [ LOG IN ]
             </Link>{' '}
             TO MESSAGE

@@ -5,6 +5,7 @@ import { openReport, type ReportTarget } from '../lib/moderation/moderation-wind
 import { getModerationStore } from '../lib/moderation/repository';
 import { MODERATION_TEXT_MAX, type HiddenMark, type ModTargetKind } from '../lib/moderation/types';
 import { FIELD, PLATE, PLATE_PRESSED } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 import { useAuth } from './AuthProvider';
 import { useModeration } from './ModerationProvider';
 
@@ -140,6 +141,10 @@ export function ModToolsKey() {
       aria-label={toolsOn ? 'Hide moderator tools' : 'Show moderator tools'}
       className={`${toolsOn ? PLATE_PRESSED : PLATE} ml-1 shrink-0`}
       data-mod-tools-key
+      {...explain(
+        toolsOn ? 'Hides the moderator tools on every page.' : 'Shows the moderator tools on every page: HIDE, REMOVE, PIN and BAN keys beside posts, comments and people.',
+        'They start hidden so pages look as everyone else sees them. Only moderators have this badge.',
+      )}
     >
       {toolsOn ? '⛨ MOD' : '[ ⛨ MOD ]'}
     </button>

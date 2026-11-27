@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { isUnread } from '../lib/notifications/feed';
 import { TITLE_BAR_BUTTON } from '../lib/ui/controls';
+import { explain, NOTE } from '../lib/ui/explain';
 import { ICON_BELL } from '../lib/ui/icons';
 import NotificationMenu from './NotificationMenu';
 import PopoutWindow from './PopoutWindow';
@@ -78,6 +79,11 @@ export default function NotificationBell() {
         aria-label={`Notifications: ${notifications.summary}`}
         title={signedIn ? `Notifications: ${notifications.summary}` : 'Sign in to be tagged'}
         className={BELL_BUTTON}
+        {...explain(
+          open ? 'Closes the notifications list.' : 'Opens your notifications: replies, tags, invitations, letters and people going live.',
+          'The NEW count is how many you have not opened. Press one to go to it; it then counts as read.',
+          signedIn ? undefined : NOTE.account,
+        )}
       >
         <span aria-hidden="true" className="text-label leading-none">
           {ICON_BELL}
@@ -119,7 +125,7 @@ export function NotificationMenuButton({ className = MENU_ITEM }: { className?: 
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} role="menuitem" className={`${className} cursor-pointer`}>
+      <button type="button" onClick={() => setOpen(true)} role="menuitem" className={`${className} cursor-pointer`} {...explain('Opens your notifications in a window: replies, tags, invitations, letters and people going live.', 'The number is how many you have not opened. Press one to go to it; it then counts as read.')}>
         [ NOTIFICATIONS{unread === 0 ? '' : ` (${unread})`} ]
         {unread === 0 ? null : <UnreadDot />}
       </button>

@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { GOOGLE_ICON_SRC } from '../lib/auth/google';
 import { artOnDisk } from '../lib/ui/art/on-disk';
 import { PLATE, PLATE_LARGE } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 import { useAuth } from './AuthProvider';
 
 type GoogleSignInButtonProps = {
@@ -61,6 +62,7 @@ export default function GoogleSignInButton({ size = 'normal', label = '[ LOG IN 
           disabled={busy}
           title="Sign in with a Google account"
           className={`${key} disabled:cursor-wait`}
+          {...explain("Logs you in with your Google account: the browser goes to Google to ask, then comes back here signed in.", "The first time, it makes your account on the site. Google tells the site your email address; your Google password never reaches the site.")}
         >
           {busy ? '[ OPENING GOOGLE... ]' : label}
         </button>
@@ -71,6 +73,7 @@ export default function GoogleSignInButton({ size = 'normal', label = '[ LOG IN 
           disabled={busy}
           aria-label="Log in with Google"
           title="Sign in with a Google account"
+          {...explain("Logs you in with your Google account: the browser goes to Google to ask, then comes back here signed in.", "The first time, it makes your account on the site. Google tells the site your email address; your Google password never reaches the site.")}
           className={`${key} inline-flex items-baseline justify-center disabled:cursor-wait max-sm:min-w-tap`}
         >
           {MARK_DRAWN ? (

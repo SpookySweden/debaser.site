@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useSyncExternalStore } from 'react';
 import { PLATE } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 import { setCornerSlot } from '../lib/ui/corner-shelf';
 import { setSiteHidden, siteHidden, siteHiddenOnServer, subscribeToSiteHidden } from '../lib/ui/site-hidden';
 import { useEdgeReserve } from '../lib/ui/use-edge-reserve';
@@ -34,7 +35,7 @@ export default function CornerShelf() {
       <span ref={slot} className="contents" />
       {hidden ? (
         <span className="frame bg-sun-pale p-0.5" data-restore-window>
-          <button type="button" onClick={() => setSiteHidden(false)} className={PLATE} aria-label="Bring back the site window" title="BRING BACK THE WINDOW">
+          <button type="button" onClick={() => setSiteHidden(false)} className={PLATE} aria-label="Bring back the site window" title="BRING BACK THE WINDOW" {...explain('Brings the site window back, the way it was before HIDE WINDOW put it away.', 'While it is away the whole moving background shows; this is the only way back besides reloading.')}>
             [ ▲ WINDOW ]
           </button>
         </span>

@@ -21,6 +21,7 @@ import { readLibrary } from '../lib/character/library';
 import { getSupabaseBrowserClient } from '../lib/supabase/client';
 import { hasErrors, MIN_PASSWORD_LENGTH, validateSignUp, type CredentialErrors } from '../lib/auth/validation';
 import { FIELD, PLATE, PLATE_LARGE, PLATE_MAIN } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 import { useAuth } from './AuthProvider';
 import PopoutWindow from './PopoutWindow';
 
@@ -123,13 +124,13 @@ export default function LostAccountWindow() {
           </label>
           {message ? <p role="alert" className="text-label font-bold text-ink wrap-anywhere">{message}</p> : null}
           <div className="flex flex-wrap items-center gap-2">
-            <button type="submit" disabled={busy} className={`${PLATE_MAIN} min-h-tap`}>
+            <button type="submit" disabled={busy} className={`${PLATE_MAIN} min-h-tap`} {...explain('Looks for an old account under the address you typed.', 'Every account was lost by mistake on 6 November. If yours is found, the next step sets a new password and brings back your details and old posts.')}>
               [ FIND MY ACCOUNT ]
             </button>
-            <button type="button" onClick={away} className={`${PLATE_LARGE} min-h-tap`}>
+            <button type="button" onClick={away} className={`${PLATE_LARGE} min-h-tap`} {...explain('Closes this window without getting your account back.', 'It won\'t ask again in this browser unless something changes. The GET IT BACK line under LOG IN brings it back whenever you want.')}>
               [ NOT NOW ]
             </button>
-            <button type="button" onClick={rememberNeverHadOne} className={`${PLATE_LARGE} min-h-tap`}>
+            <button type="button" onClick={rememberNeverHadOne} className={`${PLATE_LARGE} min-h-tap`} {...explain('Says you never had an account here, so this window stops asking.', 'For people new to the site. Remembered in this browser.')}>
               [ I NEVER HAD ONE ]
             </button>
           </div>
@@ -161,10 +162,10 @@ export default function LostAccountWindow() {
         {errors.confirmPassword ? <p role="alert" className="text-label font-bold text-ink">{errors.confirmPassword}</p> : null}
         {message ? <p role="alert" className="text-label font-bold text-ink wrap-anywhere">{message}</p> : null}
         <div className="flex flex-wrap items-center gap-2">
-          <button type="submit" disabled={busy} className={`${PLATE_MAIN} min-h-tap`}>
+          <button type="submit" disabled={busy} className={`${PLATE_MAIN} min-h-tap`} {...explain('Sets your new password and brings your old account back, signed in.', 'Your details and old posts come back under your old address; then your profile opens for you to check.')}>
             [ SET PASSWORD ]
           </button>
-          <button type="button" onClick={away} className={`${PLATE_LARGE} min-h-tap`}>
+          <button type="button" onClick={away} className={`${PLATE_LARGE} min-h-tap`} {...explain('Closes this window without getting your account back.', 'It won\'t ask again in this browser unless something changes. The GET IT BACK line under LOG IN brings it back whenever you want.')}>
             [ NOT NOW ]
           </button>
         </div>
@@ -193,7 +194,7 @@ export function LostAccountLine() {
   return (
     <p className="mb-3 flex flex-wrap items-center gap-2 text-label font-bold text-ink">
       <span className="wrap-anywhere">{lost === null ? 'HAD AN ACCOUNT BEFORE 6 NOVEMBER?' : `${lost.name.toUpperCase()}, YOUR OLD ACCOUNT IS WAITING.`}</span>
-      <button type="button" onClick={askForLostAccount} className={PLATE}>
+      <button type="button" onClick={askForLostAccount} className={PLATE} {...explain('Opens the window that gets a lost account back.', 'Every account was lost by mistake on 6 November. Type your old address there to get yours back with your posts.')}>
         [ GET IT BACK ]
       </button>
     </p>

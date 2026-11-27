@@ -37,6 +37,7 @@ import { ICON_BROWSER, ICON_LEAGUE, ICON_LIVE, ICON_READ, ICON_REMOTE } from '..
 import { remoteInMainRoom } from '../lib/watch/main-room-play';
 import { useModeration } from './ModerationProvider';
 import { WipTag } from './ModulesWindow';
+import { explain, explainFrom, NOTE, type Explanation } from '../lib/ui/explain';
 import { useWatching } from '../lib/watch/use-watching';
 import GoLiveWindow from './GoLiveWindow';
 import { openWatch } from '../lib/watch/watch-window';
@@ -103,7 +104,7 @@ function RemoteKey() {
   const { role } = useModeration();
   if (!role.owner) return null;
   return (
-    <button type="button" onClick={() => remoteInMainRoom()} aria-haspopup="menu" title="Control one of your machines, in your room" className="key flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-label" data-shelf-remote>
+    <button type="button" onClick={() => remoteInMainRoom()} aria-haspopup="menu" title="Control one of your machines, in your room" className="key flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-label" data-shelf-remote {...explain('Opens your room on its list of your own machines, to see and control one of them from here.', 'Pick a computer of yours and its screen shows in the room, with your keyboard and mouse working on it. Only the site\'s owner has this key.', 'STILL BEING MADE: PARTS MAY NOT WORK YET.')}>
       <span className="min-w-0 flex-1 truncate text-left">
         [ <span aria-hidden="true">{ICON_REMOTE}</span> REMOTE ]
         <WipTag />
@@ -128,12 +129,15 @@ function ShelfKey({
   isOpen,
   onPress,
   deskKey = false,
+  words,
 }: {
   item: NavItem;
   isOpen: boolean;
   onPress: () => void;
   /** The DESK's key, marked for the first-visit tour and the drives (`data-desk-key`). */
   deskKey?: boolean;
+  /** What the key explains on hover while EXPLAIN is on (`../lib/ui/explain.ts`). */
+  words: Explanation;
 }) {
   return (
     <button
@@ -142,6 +146,7 @@ function ShelfKey({
       data-desk-key={deskKey ? '' : undefined}
       aria-haspopup="dialog"
       aria-pressed={isOpen}
+      {...explainFrom(isOpen ? { ...words, what: `Closes the ${item.label} window.` } : words)}
       className={`flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-label ${
         isOpen
           ? 'key key-fill [--key-fill:var(--color-ink)] text-paper'
@@ -166,7 +171,7 @@ function RecommendationsKey({ me }: { me: string | null }) {
   const unread = useUnreadRecommendations(me, on);
   if (!on) return null;
   return (
-    <Link href="/recommendations" className="key flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-label">
+    <Link href="/recommendations" className="key flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-label" {...explain('Goes to RECOMMENDATIONS: the things people have sent you, and the ones posted for everyone.', 'A queue of picks from people you know, to watch, read or listen to when you have time. The NEW mark counts what was sent to you and not opened yet.')}>
       <span className="min-w-0 flex-1 truncate text-left">[ RECOMMENDATIONS ]</span>
       {unread > 0 ? <span className="shrink-0 bg-ena px-1 text-ink-bar">{unread} NEW</span> : null}
     </Link>
@@ -198,6 +203,13 @@ function GoLiveKey({ user }: { user: AccountUser }) {
         type="button"
         onClick={goLive}
         data-side-go-live={hosting === null ? 'new' : 'back'}
+        {...(hosting === null
+          ? explain(
+              'Opens GO LIVE: start a room other people can join, to watch and listen together.',
+              'First you choose who can join (PRIVATE is picked to start with); nothing starts until you press START there, and nothing plays until you pick something in the room.',
+              'ONCE STARTED, PEOPLE YOU LET IN SEE AND HEAR WHAT YOU PLAY.',
+            )
+          : explain('Goes back to the live room you are hosting.', 'You are still live: people in the room see and hear what you play. Leave or end the room from inside it.', NOTE.others))}
         className="key flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-label"
       >
         <span className="min-w-0 flex-1 truncate text-left">
@@ -324,6 +336,7 @@ export default function DesktopSidebar({ foldedOnThisPage = false }: { foldedOnT
         type="button"
         onClick={() => setOpen(true)}
         title="Open the side panel (\\)"
+        {...explain('Opens the side panel again: your profile, the shelf, comms and the directory.', 'Folded away on this page to give the page more room. The backslash key (\\) does the same.')}
         className="hidden w-7 shrink-0 cursor-pointer items-center justify-center border-l-line border-ink bg-sun-pale text-title font-bold text-ink [writing-mode:vertical-rl] hover:bg-ink hover:text-paper md:flex"
       >
         [ SIDE PANEL ]
@@ -334,7 +347,7 @@ export default function DesktopSidebar({ foldedOnThisPage = false }: { foldedOnT
   if (!isOpen) {
     return (
       <div className="hidden w-7 shrink-0 flex-col items-center gap-2 border-l-line border-ink bg-sun-pale py-2 md:flex">
-        <button type="button" onClick={() => setOpen(true)} title="Open the side panel" className={TITLE_BAR_BUTTON}>
+        <button type="button" onClick={() => setOpen(true)} title="Open the side panel" className={TITLE_BAR_BUTTON} {...explain('Opens the side panel again: your profile, the shelf, comms and the directory.', 'You folded it away for more room. It stays the way you leave it on every page.')}>
           {'<'}
         </button>
         <span className="text-label font-bold text-ink [writing-mode:vertical-rl]">SIDE PANEL</span>
@@ -356,6 +369,7 @@ export default function DesktopSidebar({ foldedOnThisPage = false }: { foldedOnT
           onClick={() => setOpen(false)}
           title="Collapse the side panel"
           className={TITLE_BAR_BUTTON}
+          {...explain('Folds the side panel away to a thin strip at the edge.', 'Gives the page the whole width. The < key on the strip brings the panel back, and it stays the way you leave it on every page.')}
         >
           {'>'}
         </button>
@@ -384,23 +398,23 @@ export default function DesktopSidebar({ foldedOnThisPage = false }: { foldedOnT
           <div className="space-y-1 p-2">
             {user === null ? null : <GoLiveKey user={user} />}
             {/* The arcade's key is off the screen, its code kept (Luke, 2026-11-14; `ARCADE_KEY_SHOWN` in ./SiteNav.tsx). */}
-            {ARCADE_KEY_SHOWN ? <ShelfKey item={SIDE_ARCADE} isOpen={arcadeOpen} onPress={pressArcade} /> : null}
+            {ARCADE_KEY_SHOWN ? <ShelfKey item={SIDE_ARCADE} isOpen={arcadeOpen} onPress={pressArcade} words={{ what: 'Opens the ARCADE window, the site\'s two-player games.', why: 'Play someone on the site, or answer a challenge. It opens over the page you are on. Press again to close it.' }} /> : null}
             {/* READ, the reader's page (Luke, 2026-11-14: moved here from the top bar, where it is an off-by-default module). It wears a
                 book, a text character like its neighbours' marks (Luke, 2026-11-14: "give the 'read' button a book icon"). */}
-            <Link href="/read" className="key flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-label">
+            <Link href="/read" className="key flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-label" {...explain('Goes to READ, your books in the site\'s own e-reader.', 'Open books found on MEDIA, or your own PDF and EPUB files, which stay in this browser and are never uploaded.')}>
               <span className="min-w-0 flex-1 truncate text-left">
                 [ <span aria-hidden="true">{ICON_READ}</span> READ ]
               </span>
             </Link>
             {/* LEAGUEBOT (SPEC-leaguebot.md, Luke's 10A+B): on the shelf for everyone, as well as its top-bar key in MODULOS. */}
-            <Link href="/leaguebot" className="key flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-label">
+            <Link href="/leaguebot" className="key flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-label" {...explain('Goes to LEAGUEBOT, League of Legends stats, scouting and advice.', 'Look up a player\'s matches and champions, size up a game in progress, and get tips from your own play.', 'STILL BEING MADE: PARTS MAY NOT WORK YET.')}>
               <span className="min-w-0 flex-1 truncate text-left">
                 [ <span aria-hidden="true">{ICON_LEAGUE}</span> LEAGUEBOT ]
               </span>
             </Link>
             {/* BROWSER and REMOTE (Luke, 2026-11-23: "Add remote control and a browser button to the shelf, mark both as wip"). BROWSER is
                 its page; REMOTE is the owner's alone, as it is in a room, and opens their room on its list of machines. */}
-            <Link href="/browser" className="key flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-label" data-shelf-browser>
+            <Link href="/browser" className="key flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-label" data-shelf-browser {...explain('Goes to BROWSER, the DEBASER SEEING MACHINE: other websites opened inside the site, in its own look.', 'Type an address or a search and press GO. A page is only fetched when you ask, and nothing of it is kept unless you capture it.', 'STILL BEING MADE: PARTS MAY NOT WORK YET.')}>
               <span className="min-w-0 flex-1 truncate text-left">
                 [ <span aria-hidden="true">{ICON_BROWSER}</span> BROWSER ]
                 <WipTag />
@@ -408,12 +422,12 @@ export default function DesktopSidebar({ foldedOnThisPage = false }: { foldedOnT
             </Link>
             <RemoteKey />
             <RecommendationsKey me={user?.id ?? null} />
-            <ShelfKey item={SIDE_MUSIC} isOpen={musicOpen} onPress={pressMusic} />
-            <ShelfKey item={SIDE_QUEUES} isOpen={queuesOpen} onPress={pressQueues} />
-            <ShelfKey item={SIDE_HISTORY} isOpen={historyOpen} onPress={pressHistory} />
+            <ShelfKey item={SIDE_MUSIC} isOpen={musicOpen} onPress={pressMusic} words={{ what: 'Opens MY MUSIC, the window with your own music: what you liked, and the lists you made.', why: 'Play and sort your music while the page stays where it is. Every music file on the site is in FILES. Press again to close it.' }} />
+            <ShelfKey item={SIDE_QUEUES} isOpen={queuesOpen} onPress={pressQueues} words={{ what: 'Opens the QUEUE window: UP NEXT, your playlists, and RADI-OH.', why: 'UP NEXT is your own room\'s queue: search, add, reorder and take things out. PLAYLISTS are queues you saved; RADI-OH is what you played lately. Press again to close it.' }} />
+            <ShelfKey item={SIDE_HISTORY} isOpen={historyOpen} onPress={pressHistory} words={{ what: 'Opens HISTORY, the log of what you played, how it reached you, and when.', why: 'Find something you heard or watched again: press a line to see more, or jump back in where you left off. Only you see it. Press again to close it.' }} />
             {/* DESK (Luke, 2026-11-21: "have the desk be accessible near where notifications are accessible"): the shelf's last
                 key, straight above the COMMS line that carries the bell. Signed in only: a visitor has no desk. */}
-            {user === null ? null : <ShelfKey item={SIDE_DESK} isOpen={deskOpen} onPress={pressDesk} deskKey />}
+            {user === null ? null : <ShelfKey item={SIDE_DESK} isOpen={deskOpen} onPress={pressDesk} deskKey words={{ what: 'Opens YOUR DESK: what is waiting for you, gathered in one window.', why: 'Continue reading, replies to you, who is live now, news from people you talk to, and what is waiting for you. Press again to close it.' }} />}
           </div>
         </section>
 
