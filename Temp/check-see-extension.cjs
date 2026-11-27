@@ -5,7 +5,7 @@
  *   node Temp/check-see-extension.cjs
  *
  * - it asks for no site when it is put in, and for none of the browser's private things (cookies, history, webRequest, debugger, tabs)
- * - only https://debaser.site may speak to it, and only to say seven things, none answered with a site or a page; a theme is colours and nothing else
+ * - only https://debaser.site may speak to it, and only to say eight things, none answered with a site or a page; a theme is colours and nothing else
  * - a change to it comes with a new version (extension-versions.json), and what the site serves of it is these files and no others
  * - the site's updater (2026-11-23): nothing is written unless every file is proved, only in its own folder, and a failure leaves the old one
  * - the header rule is for frames made by its own page, of added sites, never a sign-in, and goes with the session
@@ -42,7 +42,10 @@ for (const file of files) {
   for (const src of text.matchAll(/<script[^>]*src="([^"]+)"/g)) assert.ok(!/^https?:|^\/\//.test(src[1]), file);
 }
 const worker = read('worker.js');
-assert.deepEqual([...worker.matchAll(/message\.see === '(\w+)'/g)].map((each) => each[1]).slice(0, 7), ['ping', 'theme', 'open', 'settings', 'sites', 'newest', 'reload']);
+assert.deepEqual([...worker.matchAll(/message\.see === '(\w+)'/g)].map((each) => each[1]).slice(0, 8), ['ping', 'theme', 'open', 'has', 'settings', 'sites', 'newest', 'reload']);
+// (2026-11-27) `has`: whether the one page it is asked about is on the list, and no more than a few sites asked about: never the list.
+assert.ok(worker.includes('if (read === null || asked.size >= ASKED_MOST) return answer({ on: null });'), 'about one page, and only a few sites');
+assert.ok(worker.includes('void isAllowed(read).then((on) => answer({ on, site }));'), 'whether it is on the list, and nothing else');
 const external = worker.slice(worker.indexOf('onMessageExternal'), worker.indexOf('chrome.runtime.onMessage.addListener'));
 assert.ok(!/allowedSites|chrome\.tabs\.query|chrome\.permissions|\bpages?\b.*answer/.test(external), 'the site is never told a site or a page');
 // Its whole contents, whatever the machine does with line ends.

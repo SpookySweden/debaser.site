@@ -60,6 +60,14 @@ export async function ownEyeSettings(change?: OwnEyeSettings): Promise<OwnEyeSet
   return lens === undefined || typeof wear !== 'boolean' ? null : { lens, wear };
 }
 
+/** Whether the site of this page is on its list, and that site's name as it counts sites; null when it doesn't say. */
+export async function ownEyeHas(address: string): Promise<{ on: boolean; site: string } | null> {
+  const answer = await say({ see: 'has', address });
+  const on = field(answer, 'on');
+  const site = field(answer, 'site');
+  return typeof on === 'boolean' && typeof site === 'string' && /^[a-z0-9.-]{1,253}$/.test(site) ? { on, site } : null;
+}
+
 /** Its own list of the sites it may act on, in its own page: the site is never told them. */
 export const openOwnEyeSites = async (): Promise<void> => void (await say({ see: 'sites' }));
 /** The version the site has, so its key in the browser's bar can say when an update is ready. */

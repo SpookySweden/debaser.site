@@ -97,6 +97,18 @@ Proof: `drive-see.cjs --only lenses` (DYE and GLASS measured on every theme, 5.5
   lifted by a session rule that names the machine's tab, the machine or an added site as the asker, and added sites only, never a sign-in; it goes
   when the machine's page does. `Temp/check-see-extension.cjs`, `scripts/drive-see-extension.cjs` (26, pretend sites, signed in to nothing).
 
+## OWN EYE first, the sign-in offered on YouTube, ADD THIS SITE (Luke, 2026-11-23)
+- With the extension, a page pressed for opens in OWN EYE, your own browser, in a tab of its own (`SeeingElsewhere`), with SEE IT HERE for the
+  server's eye; a page that was only open when BROWSER loaded waits for a press. `[ OPENS IN: OWN EYE | SERVER EYE ]` switches it, remembered in this
+  browser (`eye-choice.ts`). Without the extension, the server's eye as before.
+- On entering a page of a site in `SIGN_IN_OFFERED` (`youtube.com`, for now) that is not on the extension's list: LOG IN TO YOUTUBE, NOT NOW (this
+  page), DON'T ASK AGAIN (that site, for this account in this browser). Without the extension: GET THE EXTENSION first.
+- `[ ADD youtube.com ]` / `[ ✓ ON THE LIST: youtube.com ]` beside OWN EYE, and ADD in the extension's panel. The site asks the extension (`has`)
+  about the page in front only, and it answers for a few sites at most, so the list can't be gone through.
+- **What it takes, said plainly**: only the extension can ask the browser for a site, and only from its own page, on a press there. So LOG IN and ADD
+  from the site are one press here, one press on ADD in OWN EYE's page, and the browser's own box; in the extension's panel, one press and the box.
+  Signing in itself is always on the site's own page in an ordinary tab (D1). The browser's box can't be pressed by a script: not driven.
+
 ## Search (Luke, 2026-11-23: "a list of multiple search engines such as Google, bing and your best ideas")
 - `search.ts` (pure), `search-store.ts`, `SeeingEngines.tsx`. Words that are not an address go to the chosen engine; a line under the box says which of
   the two GO will do. Letters first ask an engine once (`w fog`, `!g fog`); `!` shows the list; ALL asks three, a tab each; a results page offers the

@@ -39,7 +39,8 @@ import { keptPage, keptPages, keptPagesOnServer, openKeptPagesOf, subscribeToKep
 import { partOf, type FrameScroll } from '../../lib/seeing/frame';
 import { engineFor } from '../../lib/seeing/engines';
 import { extensionState, extensionStateOnServer, lookForExtension, subscribeToExtension } from '../../lib/seeing/extension-store';
-import { openInOwnEye, tellOwnEyeTheme } from '../../lib/seeing/own-eye';
+import { openInOwnEye, ownEyeHas, tellOwnEyeTheme } from '../../lib/seeing/own-eye';
+import { chooseEye, dontAskAgain, eyeChoice, eyeChoiceOnServer, notAskedAgain, notAskedAgainOnServer, offerFor, subscribeToEyeChoice } from '../../lib/seeing/eye-choice';
 import { openExtensionWindow } from '../../lib/ui/extension-window';
 import { scriptsOff, setScriptsOff, siteSettings, siteSettingsOnServer, subscribeToSiteSettings } from '../../lib/seeing/site-settings';
 import { PLATE, PLATE_PRESSED, TITLE_BAR } from '../../lib/ui/controls';
@@ -52,7 +53,9 @@ import SeeingElapsed from './SeeingElapsed';
 import SeeingRefused from './SeeingRefused';
 import { seeingKey, type SeeingKey } from '../../lib/seeing/keys';
 import { shownLine } from '../../lib/seeing/status-line';
+import SeeingElsewhere from './SeeingElsewhere';
 import SeeingHistory from './SeeingHistory';
+import SeeingSignIn from './SeeingSignIn';
 import SeeingKeep from './SeeingKeep';
 import SeeingKept from './SeeingKept';
 import SeeingLenses from './SeeingLenses';
@@ -69,7 +72,8 @@ type Shown =
   | { key: string; state: 'busy'; at: SeeStep | null; since?: number }
   | { key: string; state: 'stopped' }
   | { key: string; state: 'shown'; document: SeenDocument; ms?: number }
-  | { key: string; state: 'refused'; reason: string; eye: string; ms: number };
+  | { key: string; state: 'refused'; reason: string; eye: string; ms: number }
+  | { key: string; state: 'elsewhere' };
 
 const NO_MEDIA: readonly FoundMedia[] = [];
 const NO_NOTES: readonly SharedNote[] = [];
@@ -160,7 +164,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
   const [turn, setTurn] = useState(0);
   const key = address === null ? '' : `${tab.id}:${tab.at}:${address}:${turn}`;
   const [shown, setShown] = useState<Shown>(NOTHING);
-  const now: Shown = shown.key === key ? shown : address === null ? NOTHING : { key, state: 'busy', at: null };
+  const held_ = shown.key === key ? shown : address === null ? NOTHING : ({ key, state: 'busy', at: null } as Shown);
   // The opening a page that was sent on has already had, under the address it ended at.
   const landed = useRef('');
   const work = useRef<AbortController | null>(null);
@@ -170,15 +174,33 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
   const onRestricted = useCallback((count: number) => setRestricted({ key, count }), [key]);
   useSyncExternalStore(subscribeToSiteSettings, siteSettings, siteSettingsOnServer);
 
+  // OWN EYE first (Luke, 2026-11-23), when the extension answers: the page in your own browser, and here the way to see it through the server.
+  const eye = useSyncExternalStore(subscribeToEyeChoice, eyeChoice, eyeChoiceOnServer);
+  const ownFirst = eye === 'own' && address !== null && /^https?:/.test(address);
+  const [here, setHere] = useState<readonly string[]>([]);
+  // A page opened by a press here goes to OWN EYE; one that was only open when the page loaded waits for a press.
+  const pressed = useRef<string | null>(null);
+  const elsewhere = ownFirst && extension === 'current' && !here.includes(key);
+  const now: Shown = elsewhere ? { key, state: 'elsewhere' } : held_;
+
   useEffect(() => {
     if (address === null) return;
     if (landed.current === key) return;
+    if (ownFirst && extension === 'asking') return;
+    if (elsewhere) {
+      if (pressed.current === address) void openInOwnEye(dialOf(address).address);
+      pressed.current = null;
+      return;
+    }
     landed.current = '';
     const going = new AbortController();
     work.current = going;
     const engine = engineFor(address);
     const began = performance.now();
-    setShown({ key, state: 'busy', at: null, since: began });
+    // (Said once the effect is over: the clock starts with the asking.)
+    queueMicrotask(() => {
+      if (!going.signal.aborted) setShown({ key, state: 'busy', at: null, since: began });
+    });
     const before = tab.at > 0 ? (tab.stops[tab.at - 1]?.address ?? null) : null;
     const cameFrom = before !== null && /^https?:/.test(before) ? before : null;
     void engine
@@ -212,7 +234,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
     return () => going.abort();
     // (The stop before is read as it was when this one was opened; it does not open the page again.)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address, key, tab.id, tab.at, turn]);
+  }, [address, key, tab.id, tab.at, turn, ownFirst, extension, elsewhere]);
 
   // A link that brought an address (`/browser#see=...`): put in the box of a new tab, waiting for GO. Any page anywhere can carry such a
   // link, so it never opens by itself, unless it is the page already in front, as it is after a reload.
@@ -283,6 +305,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
       }
       setNotice(null);
       setSent(NO_MEDIA);
+      pressed.current = read.address;
       changeTabs((all) => {
         const room = newTab ? addTab(all, freshId()) : all;
         return visit(room, room.front, read.address);
@@ -447,6 +470,8 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
       ? `SOURCE REFUSED: ${now.reason}`
       : now.state === 'busy'
         ? (now.at ?? 'ACQUIRING SOURCE')
+        : now.state === 'elsewhere'
+          ? 'IN OWN EYE, IN YOUR OWN BROWSER'
         : now.state === 'shown'
           ? shownLine(now.document, LENS_NAMES.find((each) => each.id === tab.lens)?.label ?? tab.lens, restricted.key === key ? restricted.count : 0, now.ms)
           : address === null
@@ -460,7 +485,26 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
   const tray = useMemo(() => trayOf([...sent, ...(seen?.media ?? NO_MEDIA), ...lateMedia]), [seen, lateMedia, sent]);
   const outside = address !== null && /^https?:/.test(address);
   // A refused page keeps only the keys that may help: lenses, SCAN, TIME, READ IT, OPEN SOURCE, OWN EYE (decision 46).
-  const working = outside && now.state !== 'refused';
+  // (Nor on a page shown in OWN EYE: there is nothing here for them to work on.)
+  const working = outside && now.state !== 'refused' && now.state !== 'elsewhere';
+  // Whether the site in front is on the extension's list (ADD THIS SITE), as it says for this one page.
+  const [listed, setListed] = useState<{ address: string; on: boolean; site: string } | null>(null);
+  useEffect(() => {
+    if (!outside || extension !== 'current') return;
+    let gone = false;
+    void ownEyeHas(address).then((answer) => {
+      if (!gone && answer !== null) setListed({ address, ...answer });
+    });
+    return () => {
+      gone = true;
+    };
+  }, [outside, extension, address]);
+  const onList = listed !== null && listed.address === address ? listed : null;
+  // The sign-in offered on entering a page (YouTube, for now), until it is on the list or the reader says not to.
+  const offer = offerFor(address);
+  const never = useSyncExternalStore(subscribeToEyeChoice, () => notAskedAgain(owner.id), notAskedAgainOnServer);
+  const [notNow, setNotNow] = useState('');
+  const offering = offer !== null && outside && !never.includes(offer) && notNow !== key && (extension === 'missing' || extension === 'old' || (extension === 'current' && onList?.on === false));
   const onSelect = useCallback((text: string) => setSelected({ key, text }), [key, setSelected]);
   // A kept copy in front: whose page it is, and where it came from, said above it.
   const asked = useMemo(() => (address === null ? null : askedOf(address, choices)), [address, choices]);
@@ -645,6 +689,31 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
           </a>
         ) : null}
         {outside && extension !== 'asking' && extension !== 'unable' ? (
+          <button
+            type="button"
+            aria-pressed={eye === 'own'}
+            title="Where a page opens first: your own browser, signed in, or the server, signed out"
+            onClick={() => chooseEye(eye === 'own' ? 'server' : 'own')}
+            className={PLATE}
+            data-seeing-eye={eye}
+          >
+            [ OPENS IN: {eye === 'own' ? 'OWN EYE' : 'SERVER EYE'} ]
+          </button>
+        ) : null}
+        {outside && (extension === 'missing' || extension === 'old' || onList !== null) ? (
+          // ADD THIS SITE, in words: on the list, or a press away (in OWN EYE, which asks the browser). Taking one off is in the EXTENSION window.
+          <button
+            type="button"
+            disabled={onList?.on === true}
+            title={onList?.on === true ? 'The extension may act on it. Take it off in the EXTENSION window' : 'The extension may act on it once you add it: a press in OWN EYE, and your browser asks too'}
+            onClick={() => (extension === 'current' ? void openInOwnEye(dialOf(address).address) : openExtensionWindow())}
+            className={PLATE}
+            data-seeing-add-site={onList?.on === true ? 'on' : 'off'}
+          >
+            {onList?.on === true ? `[ ✓ ON THE LIST: ${onList.site} ]` : `[ ADD ${onList?.site ?? shortName(address)} ]`}
+          </button>
+        ) : null}
+        {outside && extension !== 'asking' && extension !== 'unable' ? (
           // Missing or old, the key opens the window that gets it first.
           <button type="button" title="In your own browser, where you are signed in" onClick={() => (extension === 'current' ? void openInOwnEye(dialOf(address).address) : openExtensionWindow())} className={PLATE}>
             [ OWN EYE ↗ ]
@@ -653,6 +722,16 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
       </SeeingTools>
       </div>
 
+      {offering && offer !== null ? (
+        <SeeingSignIn
+          site={offer}
+          has={extension === 'current'}
+          onLogIn={() => void openInOwnEye(dialOf(address).address)}
+          onGet={openExtensionWindow}
+          onNotNow={() => setNotNow(key)}
+          onNever={() => dontAskAgain(owner.id, offer)}
+        />
+      ) : null}
       {theirs !== null && !leading ? (
         <p className="flex flex-wrap items-center gap-2 py-1 text-label text-ink" data-seeing-together>
           IN YOUR ROOM: {shortName(theirs.address)}
@@ -708,6 +787,8 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
           <SeeingStage key={key} drawing={key} part={partOf(address)} document={seen} lens={tab.lens} settings={settings} seam={seam} loupe={loupe} erasing={erasing} erased={erased} onErase={onErase} onOpen={go} onNotice={setNotice} onRestricted={onRestricted} onMedia={onMedia} onSelect={outside ? onSelect : null} onPlace={leading && outside ? onPlace : null} moverRef={moverRef} marks={marks} finderRef={finderRef} graffiti={page} drawn={drawing && outside} />
         ) : address === null ? (
           <SeeingStart good={memory.good} ownEye={extension === 'current'} onGo={go} />
+        ) : now.state === 'elsewhere' ? (
+          <SeeingElsewhere address={address} onOwn={() => void openInOwnEye(dialOf(address).address)} onHere={() => setHere([...here, key])} />
         ) : now.state === 'refused' ? (
           <SeeingRefused
             reason={now.reason}

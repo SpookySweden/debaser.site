@@ -165,10 +165,20 @@ const STORY = `<title>Shop</title><nav>menu</nav><article><h1>The shop</h1>${'<p
     await machine('http://www.shoptrial.test/');
     ok(/OWN EYE/.test(await status()), 'and the sites it was let');
 
+    // Asked by the site whether the page in front is on its list: that one, and never the list.
+    await page.goto('http://www.machinesite.test/');
+    const has = await say({ see: 'has', address: 'http://www.shoptrial.test/a' });
+    ok(has?.on === true && has?.site === 'shoptrial.test', 'the site asks whether the page in front is on its list');
+    ok((await say({ see: 'has', address: 'https://www.youtube.com/watch?v=x' }))?.on === false, 'and hears no for one that is not');
+    ok((await say({ see: 'has', address: 'javascript:alert(1)' }))?.on === null, 'and nothing for what is no page');
+    for (let i = 0; i < 40; i += 1) await say({ see: 'has', address: `https://s${i}.example/` });
+    ok((await say({ see: 'has', address: 'http://www.shoptrial.test/b' }))?.on === null, 'nor for more than a few sites, so the list can not be gone through');
+
     // The panel.
     await page.goto(`chrome-extension://${id}/panel.html`);
     await page.waitForTimeout(800);
     ok(/PRESS THE MACHINE/.test(await page.locator('#where').innerText()), 'the panel says when there is no page to look at');
+    ok(await page.locator('#add').isHidden(), 'and has no ADD then');
     console.log(`\n${passed} passed`);
   } finally {
     await context.close();

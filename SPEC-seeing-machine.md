@@ -116,6 +116,10 @@ Each can be changed later by saying so.
 50. **The status line weighs the page**: "· PAGE 48 KB" after REFUSED, the page's own markup counted in bytes (an old encoding is counted once read; its files are not in it), measured once a page. A readout of what really came, as an instrument would. Undo: the PAGE part in status-line.ts.
 51. **An unusual port is said before GO**: "THE SERVER'S EYE ASKS ONLY PORTS 80 AND 443 · GO TO ..." under the box for an address on another port. It is still taken as an address (GO shows the refusal, with OWN EYE to try). Undo: oddPort in search.ts.
 52. **The house's own addresses are said at the box**: [::1], 127.0.0.1, 10.x, 192.168.x, 172.16-31.x, 169.254.x and 100.64-127.x, and names ending .local, .lan, .home, .internal, .intranet, .corp, .private, .arpa, .onion or .ts.net, read NOT A PUBLIC ADDRESS before GO, as localhost:3000 already did; the server's own list still decides. Undo: INSIDE_IPV4, INSIDE_NAME and the [ test in address.ts.
+53. **OWN EYE first** (Luke, 2026-11-23: "make own eye option default in the browser"): with the extension, a page pressed for opens in your own
+    browser, signed in; the server's eye is one press away and remembered as the choice when switched. YouTube offers LOG IN on entering until it is
+    on the list, with NOT NOW and DON'T ASK AGAIN; ADD THIS SITE says in words whether the site in front is on the list. Adding a site is one press
+    here, one in the extension's page, and the browser's own box: only the extension may ask the browser, and only on a press of its own.
 
 ## Risks, said once
 1. **SERVER is beside everything.** The torrent page (no password at home), Jellyfin, the database and its dashboard, the

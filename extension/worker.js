@@ -2,7 +2,7 @@
  * The extension's worker. It lifts the no-framing header for the sites the reader has added, in the tabs the machine's own page is
  * open in and nowhere else; opens the machine when the site or the panel asks; and keeps the theme the site sends. It reads no page, cookie or password.
  */
-import { allowedSites, NEVER_HOSTS, NEVER_NAMES, originsOf, readAddress } from './sites.js';
+import { allowedSites, isAllowed, NEVER_HOSTS, NEVER_NAMES, originsOf, readAddress, siteOf } from './sites.js';
 
 const RULE = 1;
 
@@ -90,6 +90,10 @@ export function themeFrom(value) {
   return Object.values(theme).every((each) => each !== null) ? theme : null;
 }
 
+/** The sites the site has asked about since the worker woke: it may ask about the pages it shows, and not go through a list. */
+const asked = new Set();
+const ASKED_MOST = 40;
+
 // Only debaser.site can speak to it (`externally_connectable`), and only to say these things. It answers with its version and its two settings,
 // never with a site the reader has added or a page they looked at.
 chrome.runtime.onMessageExternal.addListener((message, sender, answer) => {
@@ -103,6 +107,14 @@ chrome.runtime.onMessageExternal.addListener((message, sender, answer) => {
   } else if (message.see === 'open' && typeof message.address === 'string') {
     void openMachine(message.address);
     answer({ ok: true });
+  } else if (message.see === 'has' && typeof message.address === 'string') {
+    // About the one page it is asked of, and a few at most: the site is never told the list.
+    const read = readAddress(message.address);
+    if (read === null || asked.size >= ASKED_MOST) return answer({ on: null });
+    const site = siteOf(new URL(read).hostname);
+    asked.add(site);
+    void isAllowed(read).then((on) => answer({ on, site }));
+    return true;
   } else if (message.see === 'settings') {
     const given = settingsFrom(message.settings);
     void (given === null ? Promise.resolve() : chrome.storage.local.set({ settings: given }))

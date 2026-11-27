@@ -3,7 +3,7 @@
  * that tab and no other (activeTab); a tab it has no leave for says so.
  */
 import { findMedia, findWatchers, LENSES, list, putLens, toRoom, toServerEye, wear } from './act.js';
-import { neverFramed } from './sites.js';
+import { isAllowed, neverFramed, originsOf, siteOf } from './sites.js';
 
 const at = (id) => document.getElementById(id);
 const tabNow = async () => (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
@@ -12,12 +12,24 @@ const isPage = (tab) => tab !== undefined && /^https?:/.test(tab.url ?? '');
 async function look() {
   const tab = await tabNow();
   if (!isPage(tab)) {
+    at('add').hidden = true;
     at('where').textContent = 'PRESS THE MACHINE\'S KEY ON THE PAGE YOU WANT TO SEE.';
     list(at('media'), [], '');
     list(at('watchers'), [], '');
     return;
   }
   at('where').textContent = new URL(tab.url).hostname;
+  // ADD THIS SITE: the site in front, on the list or not, in words. A press here is the press the browser needs; it asks too.
+  const site = siteOf(new URL(tab.url).hostname);
+  const on = neverFramed(tab.url) ? null : await isAllowed(tab.url);
+  const add = at('add');
+  add.hidden = on === null;
+  add.disabled = on === true;
+  add.textContent = on ? '[ ✓ ON THE LIST: ' + site + ' ]' : '[ ADD ' + site + ' ]';
+  add.onclick = async () => {
+    if (await chrome.permissions.request({ origins: originsOf(site) })) await chrome.runtime.sendMessage({ see: 'rules' });
+    await look();
+  };
   const where = { tabId: tab.id };
   list(at('media'), ((await findMedia(where).catch(() => null)) ?? []).map(({ address, title }) => ({ words: title, small: address, keys: [['TO THE ROOM ↗', () => toRoom(address, title)]] })), 'NOTHING FOUND.');
   list(at('watchers'), ((await findWatchers(where).catch(() => null)) ?? []).map(({ host, count }) => ({ words: host, small: String(count) })), 'NOBODY.');

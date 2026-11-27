@@ -21,7 +21,7 @@ Remove it in `chrome://extensions` (Edge: `edge://extensions`) and delete the fo
 ## Use it
 - **OWN EYE on debaser.site/browser** opens the page you are on in the machine's own tab. The first time for each site it asks to be let: you
   press ADD, and the browser asks too. SITES lists them, each with REMOVE.
-- **Its key in the bar** opens a panel beside an ordinary tab, with the same lenses for that tab.
+- **Its key in the bar** opens a panel beside an ordinary tab, with the same lenses for that tab, and ADD for the site in front.
 - **Sign in on the site itself, in an ordinary tab.** Sign-in pages, banks and payment pages are never shown in the machine.
 - MEDIA lists what a page plays; TO THE ROOM opens debaser.site with it waiting for your press.
 
