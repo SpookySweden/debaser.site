@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { catalogueTrack } from '../lib/media/catalogue';
 import type { CatalogueEntry, MediaKind } from '../lib/media/types';
 import { PLATE, PLATE_LINK, PLATE_PRESSED } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 import { ICON_MEDIA } from '../lib/ui/icons';
 import { WEB_HREF } from '../lib/web/bridges';
 import { SITE_FILES_SHOWN, SITE_SERVER_LABEL, siteFileHref } from '../lib/web/site-server';
@@ -49,7 +50,7 @@ export default function WebSiteFiles({ matches }: { matches: readonly CatalogueE
         ))}
       </ul>
       {matches.length > shown.length ? (
-        <button type="button" onClick={() => setAll(true)} className={`${PLATE} mt-1`}>
+        <button type="button" onClick={() => setAll(true)} className={`${PLATE} mt-1`} {...explain('Shows every one of the site\'s own files that match, not just the first few.', 'This site\'s files come first in a search over ALL SOURCES.')}>
           {`[ ALL ${matches.length} FILES ]`}
         </button>
       ) : null}
@@ -85,6 +86,7 @@ function SiteFileRow({ entry, focusFirst }: { entry: CatalogueEntry; focusFirst:
               aria-expanded={open}
               aria-label={open ? `Close the picture "${item.title}"` : `Open the picture "${item.title}" larger`}
               className="block h-full w-full cursor-pointer"
+              {...explain(open ? 'Closes the larger picture.' : 'Opens this picture larger, here in the list.', 'A picture from the site\'s own files.')}
             >
               <SheetImage src={item.src} alt="" width={96} height={72} sizes="96px" compact fit={{ mode: 'cover' }} />
             </button>
@@ -116,6 +118,7 @@ function SiteFileRow({ entry, focusFirst }: { entry: CatalogueEntry; focusFirst:
                   onClick={() => player.play(track, SITE_ORIGIN)}
                   aria-label={`Play "${item.title}" in the music player`}
                   className={PLATE}
+                  {...explain('Plays this track in the music bar at the foot of the screen.', 'One of the site\'s own music files; it keeps playing as you move round the site.')}
                 >
                   [ ▶ PLAY ]
                 </button>
@@ -132,6 +135,7 @@ function SiteFileRow({ entry, focusFirst }: { entry: CatalogueEntry; focusFirst:
                 aria-expanded={playing}
                 aria-label={playing ? `Close the player for "${item.title}"` : `Play "${item.title}" here`}
                 className={playing ? PLATE_PRESSED : PLATE}
+                {...explain(playing ? 'Stops this video and closes its player.' : 'Plays this video here, in the floating player.', 'One of the site\'s own video files. The player can float over the site while you read on.')}
               >
                 {playing ? '[ ■ CLOSE ]' : '[ ▶ PLAY ]'}
               </button>
@@ -146,11 +150,12 @@ function SiteFileRow({ entry, focusFirst }: { entry: CatalogueEntry; focusFirst:
                 aria-expanded={open}
                 aria-label={open ? `Close the picture "${item.title}"` : `View "${item.title}" larger`}
                 className={open ? PLATE_PRESSED : PLATE}
+                {...explain(open ? 'Closes the larger picture.' : 'Opens this picture larger, here in the list.', 'A picture from the site\'s own files.')}
               >
                 {open ? '[ ■ CLOSE ]' : '[ VIEW ]'}
               </button>
             ) : null}
-            <Link href={siteFileHref(entry)} aria-label={`In the catalogue: "${item.title}" on the media catalogue page, where it is used`} className={PLATE_LINK}>
+            <Link href={siteFileHref(entry)} aria-label={`In the catalogue: "${item.title}" on the media catalogue page, where it is used`} className={PLATE_LINK} {...explain('Goes to this file in FILES, the catalogue of the site\'s own files.', 'Shows where on the site the file is used.')}>
               {`[ ${ICON_MEDIA} IN THE CATALOGUE ]`}
             </Link>
           </div>

@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type DragEvent } from 'react';
 import { importTakeoutFile, readSummary, removeSummary, subscribeSummary } from '../lib/recommender/watch-summary';
 import type { WatchSummary } from '../lib/recommender/youtube-picks';
 import { PLATE } from '../lib/ui/controls';
+import { explain, NOTE } from '../lib/ui/explain';
 
 /**
  * `[ IMPORT YOUTUBE HISTORY ]` (Luke, 2026-11-14: "we will have a button for this next to the link youtube button, and
@@ -58,7 +59,7 @@ export default function ImportYouTubeHistory({ keyClass = PLATE }: { keyClass?: 
   return (
     <>
       {/* The same words and size open or shut: `aria-expanded` lights it (globals.css), so the keys beside it never move. */}
-      <button type="button" onClick={() => setOpen((now) => !now)} aria-expanded={open} aria-controls={panelId} className={keyClass} data-youtube-import>
+      <button type="button" onClick={() => setOpen((now) => !now)} aria-expanded={open} aria-controls={panelId} className={keyClass} data-youtube-import {...explain(open ? 'Folds the YouTube history import away.' : 'Folds open the steps to bring in your YouTube watch history from Google Takeout.', 'Your history helps FOR YOU and the feed pick for you. The file is read in your browser; only the channels you watch are kept.')}>
         [ IMPORT YOUTUBE HISTORY ]
       </button>
       {/* Last in its row of keys, whatever follows the key: the keys beside it stay where they are when it opens. */}
@@ -71,7 +72,7 @@ export default function ImportYouTubeHistory({ keyClass = PLATE }: { keyClass?: 
             <ol className="flex list-decimal flex-col gap-1 pl-6 text-key text-ink">
               <li>
                 OPEN{' '}
-                <a href="https://takeout.google.com/" target="_blank" rel="noopener noreferrer" className={PLATE}>
+                <a href="https://takeout.google.com/" target="_blank" rel="noopener noreferrer" className={PLATE} {...explain('Opens Google Takeout, where you can download your YouTube watch history.', 'Choose YouTube, then history, and download it; then choose the file here.', NOTE.leaves)}>
                   [ TAKEOUT.GOOGLE.COM ↗ ]
                 </a>{' '}
                 (GOOGLE&apos;S OWN PAGE, NEW TAB).
@@ -93,7 +94,7 @@ export default function ImportYouTubeHistory({ keyClass = PLATE }: { keyClass?: 
               data-youtube-import-drop
             >
               <input ref={chooser} type="file" accept=".json,.html,.htm,application/json,text/html" onChange={(event) => void take(event.target.files?.[0])} className="sr-only" aria-label="Choose your watch-history file" tabIndex={-1} />
-              <button type="button" onClick={() => chooser.current?.click()} disabled={busy} className={PLATE} data-youtube-import-choose>
+              <button type="button" onClick={() => chooser.current?.click()} disabled={busy} className={PLATE} data-youtube-import-choose {...explain('Opens a file box to pick the watch-history file you downloaded from Takeout.', 'It is read in your browser. The file itself is never uploaded.')}>
                 {busy ? '[ READING... ]' : '[ CHOOSE WATCH-HISTORY FILE ]'}
               </button>
               <span className="text-key text-ink">OR DROP IT HERE</span>
@@ -109,7 +110,7 @@ export default function ImportYouTubeHistory({ keyClass = PLATE }: { keyClass?: 
             {summary !== null ? (
               <div className="flex flex-wrap items-center gap-2" data-youtube-import-kept>
                 <p className="min-w-0 break-words text-key text-ink">{`KEPT SINCE ${summary.importedAt.slice(0, 10)}: ${names.join(', ')}${summary.channels.length > names.length ? ' AND MORE' : ''}.`}</p>
-                <button type="button" onClick={() => void remove()} className={PLATE} data-youtube-import-remove>
+                <button type="button" onClick={() => void remove()} className={PLATE} data-youtube-import-remove {...explain('Removes what was kept from your imported YouTube history.', 'The picks stop using it. You can import again any time.', "CAN'T BE UNDONE: IMPORT THE FILE AGAIN TO HAVE IT BACK.")}>
                   [ REMOVE IMPORT ]
                 </button>
               </div>

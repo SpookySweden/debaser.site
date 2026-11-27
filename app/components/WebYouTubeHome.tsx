@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { PLATE } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 import type { YourYouTube } from '../lib/web/use-your-youtube';
 import type { WebItem } from '../lib/web/types';
 import ImportYouTubeHistory from './ImportYouTubeHistory';
@@ -42,7 +43,7 @@ export default function WebYouTubeHome({
     <section aria-label="Your YouTube" className="flex flex-col gap-2" data-youtube-home>
       {!signedIn ? (
         <p className="text-key text-ink">
-          <Link href="/account" className={PLATE}>
+          <Link href="/account" className={PLATE} {...explain('Goes to the ACCOUNT page to log in or make an account.', 'YOUR YOUTUBE is kept on your account, so it needs one.')}>
             [ LOG IN ]
           </Link>{' '}
           TO LINK YOUR YOUTUBE
@@ -53,16 +54,16 @@ export default function WebYouTubeHome({
             <>
               <ImportYouTubeHistory keyClass={keyClass} />
               {/* Google's permission lasts about an hour; after that the kept copy shows, and this asks again. */}
-              <button type="button" onClick={() => void youtube.link()} className={keyClass} data-youtube-refresh>
+              <button type="button" onClick={() => void youtube.link()} className={keyClass} data-youtube-refresh {...explain('Asks YouTube again for your channels\' new videos and your likes.', 'Google\'s permission lasts about an hour; after that the saved copy shows until you refresh.')}>
                 [ REFRESH ]
               </button>
-              <button type="button" onClick={youtube.unlink} className={keyClass}>
+              <button type="button" onClick={youtube.unlink} className={keyClass} {...explain('Unlinks your YouTube from the site.', 'YOUR YOUTUBE stops reading your channels and likes. You can link it again any time.')}>
                 [ UNLINK ]
               </button>
             </>
           ) : (
             <>
-              <button type="button" onClick={() => void youtube.link()} className={keyClass} data-youtube-link>
+              <button type="button" onClick={() => void youtube.link()} className={keyClass} data-youtube-link {...explain('Links your YouTube: Google asks you to let the site read your subscriptions and likes.', 'Then YOUR YOUTUBE shows new videos from your channels, and your likes. Nothing is posted to YouTube.')}>
                 [ LINK YOUTUBE ]
               </button>
               <ImportYouTubeHistory keyClass={keyClass} />
@@ -82,7 +83,7 @@ export default function WebYouTubeHome({
       ) : null}
       {youtube.items.length > shown ? (
         <div>
-          <button type="button" onClick={onMore} className={keyClass} data-youtube-more>
+          <button type="button" onClick={onMore} className={keyClass} data-youtube-more {...explain('Shows more of your YouTube videos.', 'They come a screen at a time.')}>
             [ MORE ]
           </button>
         </div>

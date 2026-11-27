@@ -1,6 +1,7 @@
 'use client';
 
 import { MEDIA_VIEWS, setMediaView, useMediaView } from '../lib/web/media-view';
+import { explain } from '../lib/ui/explain';
 import { FILTER_KEY, FILTER_KEY_ON } from './WebFilterFold';
 
 /**
@@ -23,6 +24,7 @@ export default function WebViewKey() {
             aria-pressed={on}
             aria-label={`View: ${choice.label}. ${choice.line}`}
             className={`${on ? FILTER_KEY_ON : FILTER_KEY} flex flex-col items-start gap-1 text-left`}
+            {...explain(`Lays the results out as ${choice.label}: ${choice.line.toLowerCase()}`, 'Changes only how rows look, not what is found. The little drawing shows the layout. Saved to your account.')}
             data-view={choice.value}
           >
             <span>{on ? choice.label : `[ ${choice.label} ]`}</span>

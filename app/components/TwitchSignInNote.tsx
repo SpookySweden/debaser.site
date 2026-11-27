@@ -1,3 +1,5 @@
+import { explain, NOTE } from '../lib/ui/explain';
+
 /**
  * Why Twitch's player asks to log in, and the two ways on (Luke, 2026-11-18: "Mark, explain, list playable first").
  *
@@ -13,11 +15,11 @@ const WHY = 'TWITCH ONLY SHOWS THIS STREAM AFTER YOU SIGN IN: IT’S LABELLED FO
 export function TwitchSignInNote({ channelPage, place, linkClass }: { channelPage: string | null; place: 'row' | 'stage'; linkClass: string }) {
   const keys = (
     <>
-      <a href={TWITCH_SIGN_IN} target="_blank" rel="noopener noreferrer nofollow" className={linkClass} aria-label="Sign in to Twitch (new tab)" data-twitch-sign-in>
+      <a href={TWITCH_SIGN_IN} target="_blank" rel="noopener noreferrer nofollow" className={linkClass} aria-label="Sign in to Twitch (new tab)" data-twitch-sign-in {...explain('Opens Twitch\'s own sign-in page, to sign in there in this browser.', 'Signed in to Twitch, its player here can show streams it otherwise refuses. Your Twitch password goes to Twitch, never to this site.', NOTE.leaves)}>
         [ SIGN IN TO TWITCH ↗ ]
       </a>
       {channelPage !== null ? (
-        <a href={channelPage} target="_blank" rel="noopener noreferrer nofollow" className={linkClass} aria-label="Watch on Twitch (new tab)">
+        <a href={channelPage} target="_blank" rel="noopener noreferrer nofollow" className={linkClass} aria-label="Watch on Twitch (new tab)" {...explain('Opens this channel on Twitch itself.', 'For when the stream will not play here.', NOTE.leaves)}>
           [ WATCH ON TWITCH ↗ ]
         </a>
       ) : null}

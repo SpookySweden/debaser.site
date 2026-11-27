@@ -76,6 +76,23 @@ import {
 } from '../lib/web/web-filters';
 import { PLATFORM_LABELS, type WebItem, type WebPlatform } from '../lib/web/types';
 import { canSort, ORDER_KEYS, orderLabel, searchOrder, type SortChoice } from '../lib/web/web-sort';
+import { explain, NOTE } from '../lib/ui/explain';
+
+/** What each ORDER key does, for its explanation (EXPLAIN, Luke 2026-11-27). Counts decide the order on the server only. */
+const ORDER_WORDS: Record<string, string> = {
+  'BEST MATCH': 'Puts the results that match your words best first.',
+  POPULAR: "Puts what is most watched or played first, by each platform's own popularity order.",
+  'NEWEST FIRST': 'Puts the newest results first.',
+  'OLDEST FIRST': 'Puts the oldest results first.',
+};
+/** What each WHAT KIND key keeps, for its explanation. */
+const KIND_WORDS: Record<string, string> = {
+  all: 'Shows every kind of result: videos, sound, pictures and reading.',
+  video: 'Shows only videos.',
+  audio: 'Shows only sound: music, podcasts, audiobooks and recordings.',
+  image: 'Shows only pictures.',
+  text: 'Shows only reading: books, papers, articles and posts.',
+};
 import { FILTER_KEY, FILTER_KEY_ON, FilterRow, FOLD_KEY } from './WebFilterFold';
 import { noteHistory } from '../lib/recommender/history';
 import { isShort } from '../lib/web/shorts';
@@ -1050,6 +1067,7 @@ export default function WebStream() {
       aria-pressed={!art && boxFilters.source === option.value}
       aria-label={`Source: ${option.label}`}
       className={!art && boxFilters.source === option.value ? FILTER_KEY_ON : FILTER_KEY}
+      {...explain(option.value === 'all' ? 'Searches every source at once.' : `Searches only ${option.label}.`, `WHERE FROM: which platform or site the results come from. ${BOX}`)}
     >
       {!art && boxFilters.source === option.value ? (option.value === 'all' ? 'ALL SOURCES' : option.label) : `[ ${option.value === 'all' ? 'ALL SOURCES' : option.label} ]`}
     </button>
@@ -1317,6 +1335,7 @@ export default function WebStream() {
                   onMouseDown={(event) => event.preventDefault()}
                   onMouseMove={() => setHighlight(index)}
                   onClick={() => choose(option.word)}
+                  {...explain(`Puts ${active?.key ?? ''}:${option.word} into the search box.`, 'A suggestion for the filter word you are typing. Arrow keys move through them and Enter picks one.')}
                   className={`flex cursor-pointer items-center justify-between gap-2 px-1 py-0.5 text-label max-sm:min-h-tap ${index === highlight ? 'bg-ink text-paper' : 'text-ink'}`}
                 >
                   <span>{`${active?.key ?? ''}:${option.word}`}</span>
@@ -1326,7 +1345,7 @@ export default function WebStream() {
             </ul>
           ) : null}
         </div>
-        <button type="submit" className={PLATE}>
+        <button type="submit" className={PLATE} {...explain('Searches for what is in the box, with its filter words.', 'Words find titles and creators; filter words like in:archive or type:video narrow it. Enter in the box does the same.')}>
           [ SEARCH ]
         </button>
         {/* No CLEAR key (Luke, 2026-11-14: "Remove both"): RESET FILTERS clears the filters, and the box empties by hand. */}
@@ -1336,18 +1355,18 @@ export default function WebStream() {
       <div className="mb-2 space-y-1">
         {/* The top row (Luke, 2026-11-14): three big keys, each its own view. RECOMMENDED and DISCOVER are PICKS in FILTERS. */}
         <div className="flex flex-wrap justify-center gap-2" data-top-row>
-          <button type="button" onClick={openKino} aria-pressed={kinoOn} aria-label="KINO: films and shows, and where to watch them" className={kinoOn ? FILTER_KEY_ON : FILTER_KEY} data-kino-key>
+          <button type="button" onClick={openKino} aria-pressed={kinoOn} aria-label="KINO: films and shows, and where to watch them" className={kinoOn ? FILTER_KEY_ON : FILTER_KEY} data-kino-key {...explain('Shows KINO: films and shows, and every way to watch each one.', 'Each title\'s WATCH key lists friends\' servers that have it, free copies, and free services. Search for a title, or browse what is there.')}>
             {kinoOn ? 'KINO' : '[ KINO ]'}
           </button>
           {YOUTUBE_LINK_ON ? (
-            <button type="button" onClick={toggleHome} aria-pressed={home} aria-label="Your YouTube: new videos from your channels, and your likes" className={home ? FILTER_KEY_ON : FILTER_KEY} data-youtube-home-key>
+            <button type="button" onClick={toggleHome} aria-pressed={home} aria-label="Your YouTube: new videos from your channels, and your likes" {...explain(home ? 'Leaves YOUR YOUTUBE, back to the search or feed.' : 'Shows YOUR YOUTUBE: new videos from the channels you follow there, and your likes.', 'Read from your own YouTube once you link it. Only you see it.', NOTE.account)} className={home ? FILTER_KEY_ON : FILTER_KEY} data-youtube-home-key>
               {home ? 'YOUR YOUTUBE' : '[ YOUR YOUTUBE ]'}
             </button>
           ) : null}
           {/* Luke, 2026-11-11: your own PDF or EPUB in the site's reader, opened in the browser, never uploaded. */}
           {/* A move within the site, never a fresh page load: that took a room and what was playing down with it (Luke,
               2026-11-16). Nothing to prefetch for a page that only opens a file picker. */}
-          <button type="button" onClick={() => router.push('/read')} className={FILTER_KEY} data-own-book-key>
+          <button type="button" onClick={() => router.push('/read')} className={FILTER_KEY} data-own-book-key {...explain('Goes to READ, to open a PDF or EPUB from your own computer in the site\'s reader.', 'The file stays in your browser: it is never uploaded. The site matches it to its book where it can.')}>
             [ READ YOUR OWN BOOK ]
           </button>
         </div>
@@ -1364,17 +1383,18 @@ export default function WebStream() {
             aria-controls="media-filters-panel"
             className={FOLD_KEY}
             data-filters-key
+            {...explain(folds.has('media-filters') ? 'Folds the filters away.' : 'Folds open every filter: quick picks, picks, where from, what kind, language, mood search and creator.', 'To narrow what MEDIA shows. The line beside it says what is chosen now. Whether it is open is saved to your account.')}
           >
             {`[ ${folds.has('media-filters') ? '−' : '+'} FILTERS ]`}
           </button>
           {/* VIEW, its own key beside FILTERS (Luke, 2026-11-14: "separate the view button as a separate button next to the
               filters"): it says the view, and folds the four choices open under this row. */}
-          <button type="button" onClick={() => toggleFold('media-view')} aria-expanded={folds.has('media-view')} aria-controls="media-view-panel" className={FOLD_KEY} data-view-toggle>
+          <button type="button" onClick={() => toggleFold('media-view')} aria-expanded={folds.has('media-view')} aria-controls="media-view-panel" className={FOLD_KEY} data-view-toggle {...explain(folds.has('media-view') ? 'Folds the view choices away.' : 'Folds open the ways to lay out the results.', 'The word after VIEW is the one in use. It changes only how rows look, not what is found. Saved to your account.')}>
             {`[ VIEW: ${viewLabel(view)} ]`}
           </button>
           {/* ORDER, its own key to the right of VIEW (Luke, 2026-11-14: "make the order settings be a separate expandable button to
               the right of view and filters"): it says the order, and folds its four choices open under this row. */}
-          <button type="button" onClick={() => toggleFold('media-order')} aria-expanded={folds.has('media-order')} aria-controls="media-order-panel" className={FOLD_KEY} data-order-toggle>
+          <button type="button" onClick={() => toggleFold('media-order')} aria-expanded={folds.has('media-order')} aria-controls="media-order-panel" className={FOLD_KEY} data-order-toggle {...explain(folds.has('media-order') ? 'Folds the order choices away.' : 'Folds open the ways to order the results: best match, popular, newest or oldest first.', 'The word after ORDER is the one in use. Changing it writes sort: into the box and searches again.')}>
             {`[ ORDER: ${orderLabel(boxSort)} ]`}
           </button>
           {/* LIVE, beside ORDER (SPEC-live-streams.md, Luke 2026-11-17, 1A): only what is on now, this site's live rooms first, then
@@ -1385,6 +1405,7 @@ export default function WebStream() {
             aria-pressed={boxFilters.live === true}
             aria-label="Live: only what is on now"
             className={boxFilters.live === true ? FILTER_KEY_ON : FILTER_KEY}
+            {...explain(boxFilters.live === true ? 'Stops showing only live streams.' : 'Shows only what is live right now: this site\'s live rooms first, then Twitch and YouTube.', 'It writes is:live into the search box. A live stream plays in its own platform\'s player in a room.')}
             data-live-key
           >
             {boxFilters.live === true ? '● LIVE' : '[ ● LIVE ]'}
@@ -1395,7 +1416,7 @@ export default function WebStream() {
             {picked !== null && !home ? ` · ${picked.toUpperCase()}` : ''}
           </p>
           {hasFilters(boxFilters) || art || picked !== null ? (
-            <button type="button" onClick={resetFilters} className={FILTER_KEY} data-reset-filters>
+            <button type="button" onClick={resetFilters} className={FILTER_KEY} data-reset-filters {...explain('Puts every filter back to its start, keeping the words you searched for.', 'Where from, what kind, language, mood, creator, picks and STREAM ART all go back to ALL.')}>
               [ RESET FILTERS ]
             </button>
           ) : null}
@@ -1408,7 +1429,7 @@ export default function WebStream() {
           {ORDER_KEYS.map((key) => {
             const on = boxSort.sort === key.choice.sort && boxSort.dir === key.choice.dir;
             return (
-              <button key={key.label} type="button" onClick={() => pickSort(key.choice)} aria-pressed={on} aria-label={`Order: ${key.label}`} className={on ? FILTER_KEY_ON : FILTER_KEY}>
+              <button key={key.label} type="button" onClick={() => pickSort(key.choice)} aria-pressed={on} aria-label={`Order: ${key.label}`} className={on ? FILTER_KEY_ON : FILTER_KEY} {...explain(ORDER_WORDS[key.label] ?? `Orders the results: ${key.label.toLowerCase()}.`, 'Writes sort: into the search box and searches again. The filled key is the order in use.')}>
                 {on ? key.label : `[ ${key.label} ]`}
               </button>
             );
@@ -1419,7 +1440,7 @@ export default function WebStream() {
             {QUICK_PICKS.map((pick) => {
               const on = !art && boxFilters.source === pick.source && boxFilters.type === pick.type;
               return (
-                <button key={pick.label} type="button" onClick={() => pickQuick(pick)} aria-pressed={on} aria-label={`Quick pick: ${pick.name}`} className={on ? FILTER_KEY_ON : FILTER_KEY}>
+                <button key={pick.label} type="button" onClick={() => pickQuick(pick)} aria-pressed={on} aria-label={`Quick pick: ${pick.name}`} className={on ? FILTER_KEY_ON : FILTER_KEY} {...explain(`Shows ${pick.name}, in one press.`, 'Sets WHERE FROM and WHAT KIND together and searches once. The commonest choices, kept at the top.')}>
                   {on ? pick.label : `[ ${pick.label} ]`}
                 </button>
               );
@@ -1431,7 +1452,7 @@ export default function WebStream() {
             {PICKS.map((choice) => {
               const on = !art && !home && picked === choice.value;
               return (
-                <button key={choice.label} type="button" onClick={() => choosePicks(choice.value)} aria-pressed={on} aria-label={`Picks: ${choice.label}. ${choice.line}`} title={choice.line} className={on ? FILTER_KEY_ON : FILTER_KEY} data-picks={choice.label}>
+                <button key={choice.label} type="button" onClick={() => choosePicks(choice.value)} aria-pressed={on} aria-label={`Picks: ${choice.label}. ${choice.line}`} title={choice.line} {...explain(`Switches the list to ${choice.label}: ${choice.line.toLowerCase()}`, 'PICKS chooses whose choice the list follows. RECOMMENDED and DISCOVER filter themselves from the box, so nothing new is asked for.')} className={on ? FILTER_KEY_ON : FILTER_KEY} data-picks={choice.label}>
                   {on ? choice.label : `[ ${choice.label} ]`}
                 </button>
               );
@@ -1457,6 +1478,7 @@ export default function WebStream() {
               aria-pressed={art}
               aria-label="Source: stream art, the saved room canvases"
               className={art ? FILTER_KEY_ON : FILTER_KEY}
+              {...explain('Shows STREAM ART: the canvases people drew and saved in this site\'s rooms.', 'A source of this site\'s own, instead of the outside platforms.')}
               data-stream-art-key
             >
               [ STREAM ART ]
@@ -1471,6 +1493,7 @@ export default function WebStream() {
                 aria-pressed={boxFilters.type === option.value}
                 aria-label={`Type: ${option.label}`}
                 className={boxFilters.type === option.value ? FILTER_KEY_ON : FILTER_KEY}
+                {...explain(KIND_WORDS[option.value] ?? `Shows only ${option.label.toLowerCase()}.`, `WHAT KIND of thing the results are. ${BOX}`)}
               >
                 {boxFilters.type === option.value ? (option.value === 'all' ? 'ALL KINDS' : option.label) : `[ ${option.value === 'all' ? 'ALL KINDS' : option.label} ]`}
               </button>
@@ -1483,7 +1506,7 @@ export default function WebStream() {
             {[{ value: 'all', label: 'ANY' }, ...LANGUAGE_OPTIONS].map((option) => {
               const on = (boxFilters.lang ?? 'all') === option.value;
               return (
-                <button key={option.value} type="button" onClick={() => pickFilter('lang', option.value)} aria-pressed={on} aria-label={`Language: ${option.label}`} className={on ? FILTER_KEY_ON : FILTER_KEY} data-lang-key={option.value}>
+                <button key={option.value} type="button" onClick={() => pickFilter('lang', option.value)} aria-pressed={on} aria-label={`Language: ${option.label}`} {...explain(option.value === 'all' ? 'Shows results in any language.' : `Shows only results in ${option.label}.`, 'The Internet Archive, books and PeerTube are asked by language; other sites show a row only when its language is known. Writes lang: into the box.')} className={on ? FILTER_KEY_ON : FILTER_KEY} data-lang-key={option.value}>
                   {on ? option.label : `[ ${option.label} ]`}
                 </button>
               );
@@ -1499,7 +1522,7 @@ export default function WebStream() {
             {(['off', 'on'] as const).map((value) => {
               const on = (value === 'on') === (boxFilters.vibe === true);
               return (
-                <button key={value} type="button" onClick={() => pickFilter('vibe', value)} aria-pressed={on} aria-label={`Mood search: ${value}`} className={on ? FILTER_KEY_ON : FILTER_KEY}>
+                <button key={value} type="button" onClick={() => pickFilter('vibe', value)} aria-pressed={on} aria-label={`Mood search: ${value}`} className={on ? FILTER_KEY_ON : FILTER_KEY} {...explain(value === 'on' ? 'Turns MOOD SEARCH on: your words are read as a mood or a tag, not exact words.' : 'Turns MOOD SEARCH off: your words are matched as they are written.', 'On, a search like cosy or 80s horror finds things described that way rather than titled that way. Writes vibe: into the box.')}>
                   {on ? value.toUpperCase() : `[ ${value.toUpperCase()} ]`}
                 </button>
               );
@@ -1510,7 +1533,7 @@ export default function WebStream() {
           {authorsOf(boxFilters).length > 0 ? (
             <FilterRow label="CREATOR">
               {authorsOf(boxFilters).map((name) => (
-                <button key={name} type="button" onClick={() => applyBox(withoutAuthor(draft, name))} aria-label={`Stop showing only ${name}`} className={FILTER_KEY}>
+                <button key={name} type="button" onClick={() => applyBox(withoutAuthor(draft, name))} aria-label={`Stop showing only ${name}`} className={FILTER_KEY} {...explain(`Stops showing only things by ${name}.`, 'Takes this creator out of the search box. Pressing a creator\'s name on a row is how they get here.')}>
                   {`[ × ${name.toUpperCase()} ]`}
                 </button>
               ))}
@@ -1546,7 +1569,7 @@ export default function WebStream() {
       {shown.kind === 'search' && related?.suggestion ? (
         <p className="flex flex-wrap items-center gap-1 text-label font-bold text-ink">
           <span>DID YOU MEAN</span>
-          <button type="button" onClick={() => takeSuggestion(related.suggestion as string)} className={PLATE} aria-label={`Search for "${related.suggestion}" instead`}>
+          <button type="button" onClick={() => takeSuggestion(related.suggestion as string)} className={PLATE} {...explain('Searches for this spelling instead of what you typed.', 'A suggestion from the platforms when your words find little or look misspelt.')} aria-label={`Search for "${related.suggestion}" instead`}>
             {`[ ${related.suggestion.toUpperCase()} ]`}
           </button>
           <span>?</span>
@@ -1590,7 +1613,7 @@ export default function WebStream() {
 
       {list.held.length > 0 ? (
         <div className="my-1">
-          <button type="button" onClick={showMore} className={PLATE}>
+          <button type="button" onClick={showMore} className={PLATE} {...explain('Shows the results that arrived while you were reading.', 'New rows are held back so the list does not jump under you; this lets them in.')}>
             {`[ ${list.held.length} MORE RESULTS ]`}
           </button>
         </div>
@@ -1611,7 +1634,7 @@ export default function WebStream() {
 
       {mixed !== null && feedRows !== null && mixed.length > feedRows.length ? (
         <div className="mt-3">
-          <button type="button" onClick={moreFeed} className={PLATE_MAIN}>
+          <button type="button" onClick={moreFeed} className={PLATE_MAIN} {...explain('Shows the next screen of your feed.', 'The feed is ranked for you from what you open, play, read and recommend; each screen mixes kinds and sources.')}>
             [ LOAD MORE ]
           </button>
         </div>
@@ -1619,7 +1642,7 @@ export default function WebStream() {
 
       {(mixed === null && Object.keys(cursors).length > 0 && !empty) || (failed && empty) ? (
         <div className="mt-3">
-          <button type="button" onClick={failed && empty ? () => restart(draft) : loadMore} disabled={busy} className={PLATE_MAIN}>
+          <button type="button" onClick={failed && empty ? () => restart(draft) : loadMore} disabled={busy} className={PLATE_MAIN} {...explain(failed && empty ? 'Asks the platforms again for this search.' : 'Asks the platforms for more results for this search.', failed && empty ? 'Nothing came back the first time, often because a platform did not answer in time.' : 'Results come a page at a time from each platform; this fetches the next page.')}>
             {busy ? '[ LOADING... ]' : failed && empty ? '[ TRY AGAIN ]' : shown.kind === 'search' && shown.query !== '' ? `[ MORE FOR "${shown.query.toUpperCase()}" ]` : '[ LOAD MORE ]'}
           </button>
         </div>
@@ -1736,7 +1759,7 @@ function RelatedSection({
       <div ref={mark} className="rule-pixel flex flex-wrap items-center gap-2 py-1">
         <h3 className="text-heading font-bold text-ink wrap-anywhere">{topic.keyword !== undefined ? topic.label : `RELATED: ${topic.label}`}</h3>
         {!started ? (
-          <button type="button" onClick={start} className={PLATE}>
+          <button type="button" onClick={start} className={PLATE} {...explain(`Shows what is related to ${topic.label}.`, 'Related rows are only asked for when you want them, to keep the page quick.')}>
             [ SHOW ]
           </button>
         ) : null}
@@ -1750,7 +1773,7 @@ function RelatedSection({
       {list.shown.length > 0 ? <ul aria-label={`Related to ${topic.label}`} className={viewListClass(view)}>{list.shown.map(renderRow)}</ul> : null}
       {started && Object.keys(cursors).length > 0 && list.shown.length > 0 ? (
         <div className="mt-3">
-          <button type="button" onClick={() => askAll(cursors)} disabled={busy} className={PLATE_MAIN}>
+          <button type="button" onClick={() => askAll(cursors)} disabled={busy} className={PLATE_MAIN} {...explain(`Asks for more related to ${topic.label}.`, 'The next page from each platform for this topic.')}>
             {busy ? '[ LOADING... ]' : `[ MORE: ${topic.label} ]`}
           </button>
         </div>
@@ -2006,6 +2029,7 @@ export function WebRow({
               onClick={thumbPlay}
               title="Play"
               className="absolute inset-0 cursor-pointer"
+              {...explain('Plays this, the same as the PLAY key beside it.', 'It plays in your room, in its platform\'s own player.')}
               data-thumb-play
             />
           ) : null}
@@ -2027,6 +2051,7 @@ ${item.description}` : item.title)} className="ml-1.5" />
                 onClick={() => onCreator(item.creator ?? '')}
                 aria-label={`Search for more from ${item.creator}`}
                 title={view === 'grid' ? `More from ${item.creator}` : 'More from this creator'}
+                {...explain(`Searches for more from ${item.creator}.`, 'Adds the creator to the search box, so the list shows only their things. A × key under CREATOR takes it out again.')}
                 className={`cursor-pointer text-left text-label text-ink-quiet wrap-anywhere hover:underline max-sm:min-h-tap ${view === 'grid' ? CREATOR_ONE_LINE : ''}`}
               >
                 {item.creator}
@@ -2087,7 +2112,7 @@ ${item.description}` : item.title)} className="ml-1.5" />
               {/* A book (SPEC-books.md, SPEC-reader.md) opens in the site's reader at /read (Luke, 2026-11-11), for a
                   Gutenberg book and for an Internet Archive one (its EPUB in the reader, or the Archive's own viewer there). */}
               {readable ? (
-                <Link href={`/read/${item.id}`} onClick={opened} className={PLATE}>
+                <Link href={`/read/${item.id}`} onClick={opened} className={PLATE} {...explain('Opens this book in the site\'s reader.', 'Read it here, page by page, with your place and highlights kept.')}>
                   [ READ ]
                 </Link>
               ) : null}
@@ -2101,6 +2126,7 @@ ${item.description}` : item.title)} className="ml-1.5" />
                   onClick={opened}
                   aria-label={`Read "${item.title}" on ${outletKey} (new tab)`}
                   className={PLATE_LINK}
+                  {...explain(`Opens this story on ${outletKey}, where it was published.`, 'Reading rows link to the story\'s own site.', NOTE.leaves)}
                   data-outlet-key
                 >
                   [ READ ↗ ]
@@ -2145,7 +2171,7 @@ ${item.description}` : item.title)} className="ml-1.5" />
               <div className={`-ml-1 whitespace-nowrap ${view === 'grid' ? 'flex flex-col items-start gap-1' : 'flex flex-wrap items-center gap-1'}`} data-row-more-keys>
                 {/* M7: several copies of the work fold open from here. */}
                 {item.alsoOn.length > 0 ? (
-                  <button type="button" onClick={() => setAlsoOpen(!alsoOpen)} aria-expanded={alsoOpen} aria-controls={alsoId} className={PLATE}>
+                  <button type="button" onClick={() => setAlsoOpen(!alsoOpen)} aria-expanded={alsoOpen} aria-controls={alsoId} className={PLATE} {...explain(alsoOpen ? 'Folds the other copies away.' : 'Folds open the other places this same work is found.', 'The same video, song or book on other platforms, each with its own link.')}>
                     {`[ ALSO ON ${alsoOpen ? '▴' : '▾'} ]`}
                   </button>
                 ) : null}
@@ -2159,11 +2185,11 @@ ${item.description}` : item.title)} className="ml-1.5" />
                   <FeedbackKey item={{ kind: 'media', ref: item.id, title: item.title, maker: item.creator ?? '', words: [...(item.tags ?? []), ...(item.pickWords ?? [])] }} why={feedWhy?.why ?? null} />
                 </span>
                 {item.platform === 'books' ? (
-                  <Link href={bookPage} aria-label={`Editions of "${item.title}": every one Open Library lists`} className={PLATE}>
+                  <Link href={bookPage} aria-label={`Editions of "${item.title}": every one Open Library lists`} className={PLATE} {...explain('Goes to this book\'s page, with every edition Open Library lists.', 'Pick a translation, a year or a version to read, where a copy can be found.')}>
                     [ EDITIONS ]
                   </Link>
                 ) : item.platform === 'audiobooks' ? (
-                  <Link href={`/media/book/${item.id}`} className={PLATE}>
+                  <Link href={`/media/book/${item.id}`} className={PLATE} {...explain('Goes to this audiobook\'s book page.', 'The book behind the recording, with its details and ways to read it.')}>
                     [ BOOK PAGE ]
                   </Link>
                 ) : null}
@@ -2208,7 +2234,7 @@ ${item.description}` : item.title)} className="ml-1.5" />
           why={feedWhy}
           keys={
             readable ? (
-              <Link href={`/read/${item.id}`} onClick={opened} className={PLATE}>
+              <Link href={`/read/${item.id}`} onClick={opened} className={PLATE} {...explain('Opens this book in the site\'s reader.', 'Read it here, page by page, with your place and highlights kept.')}>
                 [ READ ]
               </Link>
             ) : playHalf !== null ? (
@@ -2308,12 +2334,12 @@ function WebDetails({
         <div className="flex flex-wrap items-center gap-1">
           {keys}
           {link === null ? null : (
-            <a href={link} target="_blank" rel="noopener noreferrer nofollow" aria-label={`Open "${item.title}" on ${goName} (new tab)`} className={PLATE_LINK} data-details-go>
+            <a href={link} target="_blank" rel="noopener noreferrer nofollow" aria-label={`Open "${item.title}" on ${goName} (new tab)`} className={PLATE_LINK} data-details-go {...explain(`Opens this on ${goName}, its own site.`, 'For what the site does not show here: comments, the full page, the platform\'s own player.', NOTE.leaves)}>
               {`[ GO TO ${goName} ↗ ]`}
             </a>
           )}
           {licence ? (
-            <a href={licence} target="_blank" rel="noopener noreferrer nofollow" aria-label={`Licence for "${item.title}" (new tab)`} className={PLATE_LINK}>
+            <a href={licence} target="_blank" rel="noopener noreferrer nofollow" aria-label={`Licence for "${item.title}" (new tab)`} className={PLATE_LINK} {...explain('Opens the licence this work is shared under.', 'Says how it may be used and shared, and who to credit.', NOTE.leaves)}>
               [ LICENCE ↗ ]
             </a>
           ) : null}
@@ -2344,6 +2370,7 @@ function AlsoOn({ item, id, open }: { item: WebStreamItem; id: string; open: boo
                   rel="noopener noreferrer nofollow"
                   aria-label={`Open "${copy.title}" on ${source} (new tab)`}
                   className={PLATE_LINK}
+                  {...explain(`Opens this copy on ${source}.`, 'Another place the same work is found.', NOTE.leaves)}
                 >
                   [ {source} ↗ ]
                 </a>
@@ -2422,6 +2449,7 @@ function useBarPlay(item: WebStreamItem, onOpen: () => void, elsewhere: { href: 
               rel="noopener noreferrer nofollow"
               aria-label={`Open "${item.title}" on ${elsewhere.source} (new tab)`}
               className={PLATE_LINK}
+              {...explain(`Opens this on ${elsewhere.source}, which can play it.`, 'This copy has no file the site can play, but that platform has one.', NOTE.leaves)}
               data-bar-play-elsewhere
             >
               {`[ OPEN ON ${elsewhere.source} ↗ ]`}

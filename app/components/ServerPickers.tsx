@@ -1,6 +1,7 @@
 'use client';
 
 import { FIELD_TIGHT, PLATE_LARGE } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 import { heldEpisodes, type MediaInfo } from '../lib/web/media-titles';
 import { filmParts, type ServerPick } from '../lib/web/server-picks';
 
@@ -41,7 +42,7 @@ export default function ServerPickers({ media, pick, onPick, wholeOffered, title
       {media.type === 'tv' && (seasons.size > 0 || wholeOffered) ? (
         <div className="mt-2 flex flex-wrap items-end gap-2">
           {wholeOffered ? (
-            <button type="button" onClick={() => onPick({ ...pick, whole: true, all: false })} aria-pressed={pick.whole} className={pick.whole ? BIG_KEY_ON : BIG_KEY} data-pick-whole>
+            <button type="button" onClick={() => onPick({ ...pick, whole: true, all: false })} aria-pressed={pick.whole} className={pick.whole ? BIG_KEY_ON : BIG_KEY} data-pick-whole {...explain('Picks the whole series, to play from the start in the server\'s own series player.', 'Instead of one season or episode. Picking a season or an episode below lets this go.')}>
               [ WHOLE SERIES ]
             </button>
           ) : null}

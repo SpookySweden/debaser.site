@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { PLATE } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 import { twitchOf, youtubeIdOf } from '../lib/watch/links';
 import { enterRoom } from '../lib/watch/use-music-room';
 import type { WatchLink } from '../lib/watch/types';
@@ -59,7 +60,7 @@ export default function WebLiveRooms({ query }: { query: string }) {
         ))}
       </ul>
       {matches.length > shown.length ? (
-        <button type="button" onClick={() => setAll(true)} className={`${PLATE} mt-1`}>
+        <button type="button" onClick={() => setAll(true)} className={`${PLATE} mt-1`} {...explain('Shows every live room that matches, not just the first few.', 'This site\'s own live rooms, listed before the outside platforms.')}>
           {`[ ALL ${matches.length} ROOMS ]`}
         </button>
       ) : null}
@@ -100,7 +101,7 @@ function RoomRow({ room, focusFirst }: { room: LiveStreamRow; focusFirst: boolea
             </span>
             <span className="bg-ice-pale px-1 font-bold text-ink">ROOM</span>
             {/* As the ROOM list joins (CytubePage.tsx): a music room folded with the bar playing it, a video room opened. */}
-            <button type="button" onClick={() => enterRoom(room.roomId, room.kind)} className={PLATE} aria-label={`Join ${room.hostName}'s room, playing "${on}"`} data-live-room-join>
+            <button type="button" onClick={() => enterRoom(room.roomId, room.kind)} className={PLATE} aria-label={`Join ${room.hostName}'s room, playing "${on}"`} data-live-room-join {...explain(`Joins ${room.hostName}\'s live room, to watch and listen along with them.`, 'A music room plays in the music bar; a video room opens its window.', 'OTHERS IN THE ROOM SEE THAT YOU JOINED.')}>
               [ ▶ JOIN ]
             </button>
           </div>

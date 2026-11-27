@@ -9,6 +9,7 @@ import { notForMe, subscribeHistory } from '../lib/recommender/history';
 import { readMineOnce, reweighMine, YOUTUBE_LINK_ON, type YouTubeMine } from '../lib/web/youtube-link';
 import { Lane, MOST, PickFoot } from './ForYouParts';
 import { STATION_KEY, Thumb } from './TagStationParts';
+import { explain, NOTE } from '../lib/ui/explain';
 
 /**
  * YOUR YOUTUBE on DISCOVER (SPEC-recommender.md step 3, Luke 2026-11-13: "incorporate the feed of whats shown into the
@@ -73,7 +74,7 @@ export function YouTubeLane({ hidden, onHide, extraHosts }: { hidden: ReadonlySe
             <Thumb src={thumb} kind="video" />
             <div className="min-w-0 flex-1">
               {link ? (
-                <a href={link} target="_blank" rel="noopener noreferrer nofollow" aria-label={`Open "${item.title}" on YouTube (new tab)`} className={`${STATION_KEY} block w-full break-words text-left`}>
+                <a href={link} target="_blank" rel="noopener noreferrer nofollow" aria-label={`Open "${item.title}" on YouTube (new tab)`} {...explain('Opens this video on YouTube.', 'A new video from a channel you follow there, or one you liked.', NOTE.leaves)} className={`${STATION_KEY} block w-full break-words text-left`}>
                   {`${item.title} ↗`}
                 </a>
               ) : (
@@ -110,7 +111,7 @@ export function YouTubeTopicChips({ index, onWord }: { index: StationIndex; onWo
     <div role="group" aria-label="Starting words from your YouTube" className="flex flex-wrap items-center gap-1" data-youtube-topics>
       <span className="text-label text-ink-quiet">FROM YOUR YOUTUBE:</span>
       {words.map((word) => (
-        <button key={word} type="button" onClick={() => onWord(word)} aria-label={`Go to ${word}`} className={STATION_KEY}>
+        <button key={word} type="button" onClick={() => onWord(word)} aria-label={`Go to ${word}`} className={STATION_KEY} {...explain(`Goes to ${word} on the map.`, 'A topic of the channels you follow on YouTube, as a place to start.')}>
           {`[ ${word.toUpperCase()} ]`}
         </button>
       ))}

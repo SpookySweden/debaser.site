@@ -32,6 +32,7 @@ import ForYouCommunity from './ForYouCommunity';
 import { YouTubeLane } from './ForYouYouTube';
 import { Lane, MOST, PickFoot } from './ForYouParts';
 import { STATION_KEY, STATION_KEY_ON, Thumb } from './TagStationParts';
+import { explain } from '../lib/ui/explain';
 
 /**
  * FOR YOU (SPEC-recommender.md, Luke 2026-11-13): lanes of picks at the top of DISCOVER, from the person's private history
@@ -224,7 +225,7 @@ export default function ForYou({ index, extraHosts, onPick }: { index: StationIn
   if (user === null) {
     return (
       <p className="text-key text-ink" data-for-you>
-        <Link href="/account" className={STATION_KEY}>
+        <Link href="/account" className={STATION_KEY} {...explain('Goes to the ACCOUNT page to log in or make an account.', 'FOR YOU is picked from what you open, play and read, which is kept on your account.')}>
           [ LOG IN ]
         </Link>{' '}
         TO GET PICKS
@@ -239,7 +240,7 @@ export default function ForYou({ index, extraHosts, onPick }: { index: StationIn
         <h2 id="for-you-title" className="title-line min-w-0 flex-1 text-accent-ink text-title font-bold">
           FOR YOU
         </h2>
-        <button type="button" onClick={() => setHistoryOpen((open) => !open)} aria-expanded={historyOpen} aria-controls="for-you-history" className={historyOpen ? STATION_KEY_ON : STATION_KEY}>
+        <button type="button" onClick={() => setHistoryOpen((open) => !open)} aria-expanded={historyOpen} aria-controls="for-you-history" className={historyOpen ? STATION_KEY_ON : STATION_KEY} {...explain(historyOpen ? 'Folds your FOR YOU history away.' : 'Folds open your FOR YOU history: what you opened, played and read that the picks learn from.', 'Kept on your account for 90 days, and only you see it.')}>
           {historyOpen ? 'HISTORY' : '[ HISTORY ]'}
         </button>
       </div>
@@ -267,7 +268,7 @@ export default function ForYou({ index, extraHosts, onPick }: { index: StationIn
                 <li key={pick.key} className="rule-pixel flex items-start gap-2 py-2">
                   <Thumb src={thumb} kind={mediaMarkKind(item as WebItem)} />
                   <div className="min-w-0 flex-1">
-                    <button type="button" onClick={() => onPick(item.id)} aria-label={`Go to ${item.title}`} className={`${STATION_KEY} block w-full break-words text-left`}>
+                    <button type="button" onClick={() => onPick(item.id)} aria-label={`Go to ${item.title}`} className={`${STATION_KEY} block w-full break-words text-left`} {...explain('Goes to this on the map.', 'A pick for you, from what you open, play and read.')}>
                       {item.title}
                     </button>
                     <p className="break-words px-1 text-label text-ink">
@@ -301,6 +302,7 @@ export default function ForYou({ index, extraHosts, onPick }: { index: StationIn
                       onClick={() => (link === null ? onPick(item.id) : void playInMainRoom({ link }, item.title))}
                       aria-label={`Watch ${item.title} in your room`}
                       className={`${STATION_KEY} block w-full break-words text-left`}
+                      {...explain('Puts this on in your room, as PLAY does on MEDIA.', 'A pick for you, from what you open, play and read.')}
                     >
                       {item.title}
                     </button>
@@ -330,6 +332,7 @@ export default function ForYou({ index, extraHosts, onPick }: { index: StationIn
                     onClick={() => player.play(track, { href: '/discover', where: 'FOR YOU' })}
                     aria-label={`Play ${track.title}`}
                     className={`${STATION_KEY} block w-full break-words text-left`}
+                    {...explain('Plays this track in the music bar.', 'A pick for you from the site\'s own music.')}
                   >
                     {`▶ ${track.title}`}
                   </button>
@@ -350,7 +353,7 @@ export default function ForYou({ index, extraHosts, onPick }: { index: StationIn
                 <li key={pick.key} className="rule-pixel flex items-start gap-2 py-2">
                   <Thumb src={item.thumbnailUrl ?? null} kind="text" />
                   <div className="min-w-0 flex-1">
-                    <Link href={`/media/book/${item.id}`} className={`${STATION_KEY} block w-full break-words text-left`}>
+                    <Link href={`/media/book/${item.id}`} className={`${STATION_KEY} block w-full break-words text-left`} {...explain('Goes to this book\'s page, with its editions and ways to read it.', 'A pick for you, from what you open and read.')}>
                       {item.title}
                     </Link>
                     {item.creator ? <p className="break-words px-1 text-label text-ink">{item.creator}</p> : null}

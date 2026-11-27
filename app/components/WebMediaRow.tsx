@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { closeFloatingIfMine, floatingState, playCount, playFloating } from '../lib/ui/floating-player';
 import { PLATE_LARGE } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 import type { WebStreamItem } from '../lib/web/dedupe';
 import { mediaServer, playerSandbox, type MediaServerId } from '../lib/web/media-servers';
 import { seasonsLine } from '../lib/web/kino';
@@ -278,7 +279,7 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
                 {phase === 'down' ? `${label(server)} IS NOT ANSWERING.` : `COULD NOT REACH ${label(server)}. TRY AGAIN.`}
               </p>
               {nextServer !== null ? (
-                <button type="button" onClick={() => pickServer(nextServer)} className={BIG_KEY}>
+                <button type="button" onClick={() => pickServer(nextServer)} className={BIG_KEY} {...explain(`Tries playing this from ${label(nextServer)} instead.`, 'The server you picked could not play it; this friend\'s server also has it.')}>
                   {`[ TRY ${label(nextServer)} ]`}
                 </button>
               ) : (
@@ -305,6 +306,7 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
                       }}
                       aria-label={`Close the player for "${item.title}"`}
                       className={BIG_KEY}
+                      {...explain('Stops this and closes its player.', 'The row stays; press the server\'s PLAY key to watch again.')}
                     >
                       [ ■ CLOSE ]
                     </button>
@@ -318,6 +320,7 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
                       disabled={!holds}
                       aria-label={holds ? `Play "${item.title}" from ${label(copy.server)}` : `${label(copy.server)}: ${missing.toLowerCase()}`}
                       className={BIG_KEY}
+                      {...explain(holds ? `Plays this from ${label(copy.server)}, a friend\'s media server, in its own player.` : `${label(copy.server)} does not have this: ${missing.toLowerCase()}.`, 'Each friend\'s server that has this title is listed; pick the one to watch from.')}
                     >
                       {holds ? `[ ▶ ON ${label(copy.server)} ]` : `[ ${label(copy.server)}: ${missing} ]`}
                     </button>

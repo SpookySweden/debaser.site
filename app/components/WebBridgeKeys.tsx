@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from 'react';
 import { PLATE } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 import { isQueueableWebLink, watchLinkForItem, webAnchor } from '../lib/web/bridges';
 import type { WebItem } from '../lib/web/types';
 import type { DiscussQuery } from '../lib/watch/types';
@@ -42,6 +43,7 @@ export function WebDiscussKey({ item, onOpen, short = false }: { item: WebItem; 
         title={short ? 'Discuss' : undefined}
         className={PLATE}
         data-discuss-key
+        {...explain('Opens the forum talk about this: what people wrote, and a box to add your own.', 'The number is how many comments it has. The talk is on the forum, for everyone to read.')}
         data-discuss-ref={item.id}
       >
         {short ? `[ ✎${count > 0 ? ` ${count}` : ''} ]` : `[ DISCUSS${count > 0 ? ` (${count})` : ''} ]`}

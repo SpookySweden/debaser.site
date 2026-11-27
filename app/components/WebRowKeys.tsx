@@ -3,6 +3,7 @@
 import { useState, type ReactNode, type Ref } from 'react';
 import type { PlaylistThing } from '../lib/audio/playlist-adding';
 import { PLATE } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 import type { LetterThing } from '../lib/letters/types';
 import AddToLetterKey from './AddToLetterKey';
 import AddToPlaylistKey from './AddToPlaylistKey';
@@ -56,6 +57,7 @@ export function ThumbInfo({ label, open, onPress, ref }: { label: string; open: 
       aria-expanded={open}
       aria-label={label}
       title="Details"
+      {...explain('Opens this result\'s details: title, creator, description, date, kind and licence.', 'With the keys to play it, go to its own site or see its licence.')}
       className="group absolute right-0 top-0 flex min-h-hit min-w-hit cursor-pointer items-start justify-end focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble max-sm:min-h-tap max-sm:min-w-tap"
       data-thumb-info
     >
@@ -123,6 +125,7 @@ export function MoreKeys({ title, unfold = 'right', inKey, children }: { title: 
       title={open ? 'Fewer options' : 'More options'}
       className={inKey ? PLATE_IN_KEY : PLATE}
       data-more-keys={open ? 'open' : 'shut'}
+      {...explain(open ? 'Folds this row\'s extra keys away.' : 'Unfolds this row\'s extra keys: discuss, recommend, add to a playlist and more.', 'Kept folded so each row stays short.')}
     >
       {inKey ? `${glyph} ]` : `[ ${glyph} ]`}
     </button>
@@ -152,6 +155,7 @@ export function MoreArrow({ title, open, onToggle, controls, inKey }: { title: s
       aria-controls={open ? controls : undefined}
       aria-label={open ? `Fewer options for "${title}"` : `More options for "${title}"`}
       title={open ? 'Fewer options' : 'More options'}
+      {...explain(open ? 'Folds this row\'s extra keys away.' : 'Folds open this row\'s extra keys: discuss, recommend, add to a playlist and more.', 'Kept folded so each row stays short.')}
       className={inKey ? PLATE_IN_KEY : PLATE}
       data-more-keys={open ? 'open' : 'shut'}
     >

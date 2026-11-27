@@ -24,6 +24,7 @@ import { useForum } from './ForumProvider';
 import { Lane, PickFoot, wordsIn } from './ForYouParts';
 import ProfileAvatarLink from './ProfileAvatarLink';
 import { STATION_KEY } from './TagStationParts';
+import { explain } from '../lib/ui/explain';
 
 /**
  * FOR YOU's community lanes (SPEC-recommender.md step 2, Luke 2026-11-13): ON THE BOARD, OPEN ROOMS, LETTERS, LORE and
@@ -253,7 +254,7 @@ export default function ForYouCommunity({ context, hidden, onHide, close, loadin
           picks={visible(board)}
           render={(pick) => (
             <li key={pick.key} className="rule-pixel flex flex-col gap-1 py-2">
-              <Link href={newsHref(pick.item.id)} className={`${STATION_KEY} block w-full break-words text-left`}>
+              <Link href={newsHref(pick.item.id)} className={`${STATION_KEY} block w-full break-words text-left`} {...explain('Goes to this post on the forum.', 'Something on the board you may like, from people and words you follow.')}>
                 {pick.item.title}
               </Link>
               <p className="break-words px-1 text-label text-ink">{pick.item.author.displayName}</p>
@@ -271,7 +272,7 @@ export default function ForYouCommunity({ context, hidden, onHide, close, loadin
             const name = room.name ?? `${room.originalHostLabel.toUpperCase()}'S ROOM`;
             return (
               <li key={pick.key} className="rule-pixel flex flex-col gap-1 py-2">
-                <button type="button" onClick={() => enterRoom(room.id, room.origin)} aria-label={`Join ${name}`} className={`${STATION_KEY} block w-full break-words text-left`}>
+                <button type="button" onClick={() => enterRoom(room.id, room.origin)} aria-label={`Join ${name}`} className={`${STATION_KEY} block w-full break-words text-left`} {...explain('Joins this open room, to watch and listen along.', 'A room open now that fits what you like.', 'OTHERS IN THE ROOM SEE THAT YOU JOINED.')}>
                   {`[ JOIN ] ${name}`}
                 </button>
                 <p className="break-words px-1 text-label text-ink">
@@ -290,7 +291,7 @@ export default function ForYouCommunity({ context, hidden, onHide, close, loadin
           picks={visible(lore)}
           render={(pick) => (
             <li key={pick.key} className="rule-pixel flex flex-col gap-1 py-2">
-              <Link href={`/lore/${pick.item.slug}`} className={`${STATION_KEY} block w-full break-words text-left`}>
+              <Link href={`/lore/${pick.item.slug}`} className={`${STATION_KEY} block w-full break-words text-left`} {...explain('Goes to this lore page about the Debaser comic.', 'A page of the comic\'s world you may not have read yet.')}>
                 {pick.item.title}
               </Link>
               {pick.item.summary ? <p className="break-words px-1 text-label text-ink">{pick.item.summary}</p> : null}
@@ -308,7 +309,7 @@ export default function ForYouCommunity({ context, hidden, onHide, close, loadin
           picks={visible(letterPicks)}
           render={(pick) => (
             <li key={pick.key} className="rule-pixel flex flex-col gap-1 py-2">
-              <button type="button" onClick={() => openLetter(pick.item.letter.id)} aria-label={`Open the letter ${pick.item.letter.name}`} className={`${STATION_KEY} block w-full break-words text-left`}>
+              <button type="button" onClick={() => openLetter(pick.item.letter.id)} aria-label={`Open the letter ${pick.item.letter.name}`} {...explain('Opens this letter in its window.', 'A letter someone sent you: a page of things they picked for you.')} className={`${STATION_KEY} block w-full break-words text-left`}>
                 {pick.item.letter.name}
               </button>
               {pick.item.letter.description ? <p className="break-words px-1 text-label text-ink">{pick.item.letter.description}</p> : null}

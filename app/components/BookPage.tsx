@@ -15,6 +15,7 @@ import GetThisBook from './GetThisBook';
 import ProfileAvatarLink from './ProfileAvatarLink';
 import { WebRow } from './WebStream';
 import TalkedAboutIn from './TalkedAboutIn';
+import { explain } from '../lib/ui/explain';
 
 const NO_HOSTS = {};
 const NOTHING = () => undefined;
@@ -101,7 +102,7 @@ export default function BookPage({ bookRef }: { bookRef: string }) {
         {/* The READ module (2026-11-13): your own PDF or EPUB of this book, opened in the reader and counted as this book. */}
         {item && item.platform === 'books' && workOf(item.id) ? (
           <p className="flex flex-wrap items-center gap-2 px-3 py-1 text-label text-ink" data-own-copy>
-            <Link href={`/read?for=${encodeURIComponent(workOf(item.id) as string)}`} className={PLATE}>
+            <Link href={`/read?for=${encodeURIComponent(workOf(item.id) as string)}`} className={PLATE} {...explain('Opens READ to pick a PDF or EPUB of this book from your own computer.', 'Your file stays in your browser: it is never uploaded. It opens matched to this book.')}>
               [ READ YOUR OWN COPY ]
             </Link>
             HAVE A PDF OR EPUB OF IT? IT OPENS IN OUR READER, STAYS ON YOUR DEVICE, AND ITS HIGHLIGHTS COUNT AS THIS BOOK&apos;S.

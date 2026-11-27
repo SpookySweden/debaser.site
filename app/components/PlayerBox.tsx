@@ -2,6 +2,7 @@
 
 import { useLayoutEffect, useRef, useSyncExternalStore } from 'react';
 import { PLATE, PLATE_PRESSED } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 import { floatingState, registerBox, setFloatAsked, subscribeToFloating, togglePlayerFullscreen } from '../lib/ui/floating-player';
 
 /**
@@ -46,7 +47,7 @@ export default function PlayerBox({ id, title, className }: { id: string; title:
   return (
     <div ref={box} data-player-box={id} className={`flex items-center justify-center ${className}`}>
       {floating ? (
-        <button type="button" onClick={() => setFloatAsked(false)} aria-label={`Back here: "${title}"`} className={PLATE}>
+        <button type="button" onClick={() => setFloatAsked(false)} aria-label={`Back here: "${title}"`} className={PLATE} {...explain('Brings the floating player back into this spot on the page.', 'It is floating over the site at the moment; it keeps playing either way.')}>
           [ ▲ BACK HERE ]
         </button>
       ) : null}
@@ -66,10 +67,11 @@ export function PipKey({ id, title }: { id: string; title: string }) {
         aria-label={`PIP: "${title}" floats over the site`}
         title="Floats over the site, even on other pages"
         className={asked ? PLATE_PRESSED : PLATE}
+        {...explain(asked ? 'Puts the player back into the page.' : 'Floats the player over the site (picture in picture), so it keeps playing on other pages.', 'Drag it where you like. BACK HERE brings it home.')}
       >
         [ PIP ]
       </button>
-      <button type="button" onClick={togglePlayerFullscreen} aria-label={`Fullscreen: "${title}"`} className={PLATE}>
+      <button type="button" onClick={togglePlayerFullscreen} aria-label={`Fullscreen: "${title}"`} className={PLATE} {...explain('Fills the screen with this player.', 'Esc brings it back.')}>
         [ FULL ]
       </button>
     </>

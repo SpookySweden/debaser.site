@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from 'react';
 import { PLATE, PLATE_PRESSED } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 import { placeOf, type RoomSource } from '../lib/ui/floating-player';
 import { useNow } from '../lib/ui/use-now';
 import type { RoomSeries } from '../lib/watch/go-live';
@@ -62,7 +63,7 @@ export default function WatchInRoomKey(props: { source: RoomSource; series?: Roo
   if (key.mode === 'start') {
     return (
       <>
-        <button type="button" onClick={key.press} aria-haspopup="dialog" aria-expanded={key.open} aria-label={key.label} className={key.open ? PLATE_PRESSED : PLATE} data-watch-in-room={key.data}>
+        <button type="button" onClick={key.press} aria-haspopup="dialog" aria-expanded={key.open} aria-label={key.label} {...explain(key.mode === 'start' ? 'Puts this on in your room and asks who can join.' : 'Adds this to the room you are in.', key.mode === 'start' ? 'Your room plays it for you, and for whoever you let in. Nothing is shared until you choose who can join.' : 'It goes in the room\'s queue; everyone in the room sees it there.')} className={key.open ? PLATE_PRESSED : PLATE} data-watch-in-room={key.data}>
           {`[ ${key.words} ]`}
         </button>
         {key.after}
@@ -71,7 +72,7 @@ export default function WatchInRoomKey(props: { source: RoomSource; series?: Roo
   }
   return (
     <>
-      <button type="button" onClick={key.press} disabled={key.disabled} aria-label={key.label} className={PLATE} data-watch-in-room={key.data}>
+      <button type="button" onClick={key.press} disabled={key.disabled} aria-label={key.label} {...explain(key.mode === 'start' ? 'Puts this on in your room.' : 'Adds this to the room you are in.', key.mode === 'start' ? 'Your room plays it for you, and for whoever you let in.' : 'It goes in the room\'s queue, where everyone in the room sees it.', key.mode === 'start' ? undefined : 'OTHERS IN THE ROOM SEE IT.')} className={PLATE} data-watch-in-room={key.data}>
         {`[ ${key.words} ]`}
       </button>
       {key.after}
@@ -177,7 +178,7 @@ export function useRoomKey({ source, series, playId, title, onPress }: { source:
     after: (
     <>
       {added ? (
-        <button type="button" onClick={() => openWatch({ kind: 'room', roomId: state.roomId })} className={PLATE}>
+        <button type="button" onClick={() => openWatch({ kind: 'room', roomId: state.roomId })} className={PLATE} {...explain('Opens the room you just added this to.', 'To see it in the queue and watch along.')}>
           [ OPEN ROOM ]
         </button>
       ) : null}

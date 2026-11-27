@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { PLATE_LARGE, PLATE_LINK, PLATE_MAIN } from '../lib/ui/controls';
+import { explain, NOTE } from '../lib/ui/explain';
 import { closeFloatingIfMine, floatingState, placeOf, playFloating, type RoomSource } from '../lib/ui/floating-player';
 import { LINK_TITLE_MAX } from '../lib/watch/link-limits';
 import { youtubeWatchUrl } from '../lib/watch/links';
@@ -95,11 +96,11 @@ function FreeCopyKeys({ copy, title, audio, open, only }: { copy: FreeCopy; titl
     <>
       <div className={`flex flex-wrap items-center gap-2 ${playing ? WATCH_PLAYING_LINE : ''}`} data-free-copy={copy.platform}>
         {playing ? (
-          <button type="button" onClick={() => closeFloatingIfMine(playId)} aria-label={`Close the player for "${title}"`} className={`${PLATE_LARGE} min-h-tap`}>
+          <button type="button" onClick={() => closeFloatingIfMine(playId)} aria-label={`Close the player for "${title}"`} className={`${PLATE_LARGE} min-h-tap`} {...explain('Stops this and closes its player.', 'Press the FREE ON key again to watch from the start.')}>
             [ ■ CLOSE ]
           </button>
         ) : (
-          <button type="button" onClick={start} aria-label={`Play "${title}" free on ${site}${facts ? `: ${facts}` : ''}`} className={`${only ? PLATE_MAIN : PLATE_LARGE} min-h-tap`}>
+          <button type="button" onClick={start} aria-label={`Play "${title}" free on ${site}${facts ? `: ${facts}` : ''}`} className={`${only ? PLATE_MAIN : PLATE_LARGE} min-h-tap`} {...explain(`Plays a free copy of this from ${site}, in its own player here.`, 'A copy that is free to watch, found for this title.')}>
             {`[ ▶ FREE ON ${site} ]`}
           </button>
         )}
@@ -131,7 +132,7 @@ function FreeService({ name, kind, title }: { name: string; kind: string; title:
       {search === null ? (
         <span className="text-prose font-bold text-ink wrap-anywhere">{shown}</span>
       ) : (
-        <a href={search} target="_blank" rel="noopener noreferrer" className={`${PLATE_LINK} min-h-tap`} aria-label={`Look for "${title}" on ${name} (opens a new tab)`}>
+        <a href={search} target="_blank" rel="noopener noreferrer" className={`${PLATE_LINK} min-h-tap`} aria-label={`Look for "${title}" on ${name} (opens a new tab)`} {...explain(`Looks for this title on ${name}, a free service that has it.`, 'From the list of free services TMDB gives, credited to JustWatch.', NOTE.leaves)}>
           {`[ ${shown} ↗ ]`}
         </a>
       )}
@@ -176,7 +177,7 @@ export function WatchList({ sources, title, audio, servers, serverCount = 0, sta
   return (
     <div className="mt-2 flex flex-col items-start gap-2" data-watch>
       <div className="order-first flex flex-wrap items-center gap-2">
-        <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} aria-label={`Watch "${title}": ${total} ${total === 1 ? 'way' : 'ways'}`} className={`${PLATE_LARGE} min-h-tap`}>
+        <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} aria-label={`Watch "${title}": ${total} ${total === 1 ? 'way' : 'ways'}`} {...explain(open ? 'Folds the ways to watch away.' : 'Folds open every way to watch this: friends\' servers that have it, free copies, and free services.', 'The number is how many ways there are.')} className={`${PLATE_LARGE} min-h-tap`}>
           {`[ WATCH · ${total} ${open ? '▴' : '▾'} ]`}
         </button>
         {beside}

@@ -13,6 +13,7 @@ import {
   type ListedEdition,
 } from '../lib/books/editions';
 import { PLATE, PLATE_PRESSED, TITLE_BAR } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 
 const SHOWS: readonly { value: EditionsShow; label: string }[] = [
   { value: 'all', label: 'ALL' },
@@ -102,6 +103,7 @@ export default function BookEditions({ bookRef, at, startShow }: { bookRef: stri
               aria-pressed={show === option.value}
               onClick={() => show !== option.value && choose({ show: option.value })}
               className={show === option.value ? PLATE_PRESSED : PLATE}
+              {...explain(option.value === 'all' ? 'Lists every edition of this book.' : option.value === 'readable' ? 'Lists only the editions that can be read here, in the site\'s reader.' : 'Lists only the editions with details: a year, a publisher, pages.', 'Which editions show. The filled key is the one in use.')}
             >
               {show === option.value ? option.label : `[ ${option.label} ]`}
             </button>
@@ -116,6 +118,7 @@ export default function BookEditions({ bookRef, at, startShow }: { bookRef: stri
               aria-pressed={order === option.value}
               onClick={() => order !== option.value && choose({ order: option.value })}
               className={order === option.value ? PLATE_PRESSED : PLATE}
+              {...explain(option.value === 'details' ? 'Puts the editions with the most details first.' : option.value === 'newest' ? 'Puts the newest editions first.' : 'Puts the oldest editions first.', 'How the editions are ordered. The filled key is the one in use.')}
             >
               {order === option.value ? option.label : `[ ${option.label} ]`}
             </button>
@@ -153,6 +156,7 @@ export default function BookEditions({ bookRef, at, startShow }: { bookRef: stri
               setOffset(answer.next ?? 0);
             }}
             className={PLATE}
+            {...explain('Shows more editions of this book.', 'Open Library lists them a page at a time.')}
           >
             {loading ? '[ READING... ]' : '[ MORE ]'}
           </button>
@@ -234,13 +238,23 @@ function EditionRow({ edition, work, marked }: { edition: ListedEdition; work: {
                           : `Read "${edition.title}"`
                   }
                   className={PLATE}
+                  {...explain(
+                    way.kind === 'borrow'
+                      ? 'Opens this edition to borrow, in the Internet Archive\'s own viewer inside the site\'s reader.'
+                      : way.kind === 'archive'
+                        ? 'Opens the Internet Archive\'s scan of this edition, in its viewer inside the site\'s reader.'
+                        : way.kind === 'none'
+                          ? 'Opens this edition in the reader, which says no free copy was found and links to Open Library.'
+                          : 'Opens this edition in the site\'s reader.',
+                    'Every edition opens inside the reader, so you never leave the site by accident.',
+                  )}
                 >
                   {WAY_LABELS[way.kind]}
                 </Link>
               </span>
             ))}
             {detailed ? (
-              <button type="button" aria-expanded={open} aria-controls={detailsId} onClick={() => setOpen((was) => !was)} className={open ? PLATE_PRESSED : PLATE}>
+              <button type="button" aria-expanded={open} aria-controls={detailsId} onClick={() => setOpen((was) => !was)} className={open ? PLATE_PRESSED : PLATE} {...explain(open ? 'Folds this edition\'s details away.' : 'Folds open this edition\'s details: publisher, year, pages and numbers.', 'Read live from Open Library.')}>
                 {open ? 'DETAILS ▴' : '[ DETAILS ▾ ]'}
               </button>
             ) : null}

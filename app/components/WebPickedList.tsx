@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { explain } from '../lib/ui/explain';
 import { loadStationIndex } from '../lib/tag-station/client';
 import { digLine, useMoreItems, type PoolAsk } from '../lib/tag-station/more';
 import { discoverList, POOL_TARGET, poolReady, recommendedList, type PickSort } from '../lib/tag-station/picks';
@@ -186,6 +187,7 @@ export default function WebPickedList({ list, sort, filters, renderRow }: { list
               if (rows.length < shown + 2 * STEP) digging.dig();
             }}
             className={STATION_KEY}
+            {...explain('Shows more of these picks.', 'More are read in the background before the list runs out.')}
           >
             {digging.digging ? '[ DIGGING... ]' : '[ MORE ]'}
           </button>

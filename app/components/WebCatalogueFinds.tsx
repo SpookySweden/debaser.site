@@ -5,6 +5,7 @@ import { digLine, useDigging, type Digging } from '../lib/tag-station/more';
 import { keepShownFirst, sinkPoor } from '../lib/tag-station/title-quality';
 import type { StationItem } from '../lib/tag-station/types';
 import { PLATE } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 import type { WebItem } from '../lib/web/types';
 import { NoPlayerRow } from './WebPickedList';
 import { useMediaView, viewListClass } from '../lib/web/media-view';
@@ -38,7 +39,7 @@ export function CatalogueLine({ finds }: { finds: CatalogueFinds }) {
     <p className="flex min-h-tap flex-wrap items-center gap-1 text-label font-bold text-ink-quiet" data-catalogue-line>
       {finds.loading ? 'TAGGED CATALOGUE: READING...' : count === 0 ? 'TAGGED CATALOGUE: NOTHING YET.' : `TAGGED CATALOGUE: ${count}${finds.more ? '+' : ''} BELOW.`}
       {count > 0 ? (
-        <button type="button" onClick={() => document.getElementById(SECTION_ID)?.scrollIntoView()} className={PLATE}>
+        <button type="button" onClick={() => document.getElementById(SECTION_ID)?.scrollIntoView()} className={PLATE} {...explain('Scrolls down to the tagged catalogue results.', 'Things in the catalogue that carry your search words as tags.')}>
           [ GO ]
         </button>
       ) : null}
@@ -74,7 +75,7 @@ export default function WebCatalogueFinds({ finds, resultIds, renderRow }: { fin
       </ul>
       {rows.length > shown || finds.more ? (
         <div className="mt-1 flex flex-wrap items-center gap-1">
-          <button type="button" onClick={press} disabled={finds.digging} className={PLATE}>
+          <button type="button" onClick={press} disabled={finds.digging} className={PLATE} {...explain('Digs further into the tagged catalogue for more matches.', 'It reads more of the catalogue each time, so it can take a moment.')}>
             {finds.digging ? '[ DIGGING... ]' : '[ MORE FROM THE CATALOGUE ]'}
           </button>
           <span className="text-label text-ink-quiet">{digLine(finds.answer)}</span>

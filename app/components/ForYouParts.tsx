@@ -4,6 +4,7 @@ import { useState, type ReactNode } from 'react';
 import type { LanePick } from '../lib/recommender/engine';
 import FeedbackKey, { type FeedbackItem } from './FeedbackKey';
 import { STATION_KEY } from './TagStationParts';
+import { explain } from '../lib/ui/explain';
 
 /** FOR YOU's lanes (SPEC-recommender.md): four picks first, four more each [ MORE ], at most this many. */
 export const FIRST = 4;
@@ -26,7 +27,7 @@ export function Lane<T>({ id, title, picks, loading, render }: { id: string; tit
         <ul className="flex flex-col">{picks.slice(0, shown).map(render)}</ul>
       )}
       {picks.length > shown && shown < MOST ? (
-        <button type="button" onClick={() => setShown((now) => now + FIRST)} className={`${STATION_KEY} w-fit`}>
+        <button type="button" onClick={() => setShown((now) => now + FIRST)} className={`${STATION_KEY} w-fit`} {...explain('Shows more picks in this lane.', 'Each lane starts short to keep the page quick.')}>
           [ MORE ]
         </button>
       ) : null}

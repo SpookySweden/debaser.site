@@ -4,6 +4,7 @@ import { setLiveWatch, useNotifySettings } from '../lib/notifications/notify-set
 import { PLATE, PLATE_PRESSED } from '../lib/ui/controls';
 import { ICON_BELL } from '../lib/ui/icons';
 import { useAuth } from './AuthProvider';
+import { explain } from '../lib/ui/explain';
 
 /**
  * The notification key on somebody's profile (SPEC-notifications.md, answer 2C): pressed in, their room going live (open or
@@ -37,6 +38,7 @@ export default function LiveWatchKey({ host }: { host: string }) {
       onClick={() => void setLiveWatch(host, !on)}
       className={on ? PLATE_PRESSED : PLATE}
       data-live-watch={on ? 'on' : 'off'}
+      {...explain(on ? 'Stops telling you when this person goes live.' : 'Tells you when this person goes live: their room going live sends you a notification.', 'Private: they are never told who picked them. Your list is in PREFERENCES under NOTIFICATIONS.')}
     >
       {on ? ICON_BELL : `[ ${ICON_BELL} ]`}
     </button>

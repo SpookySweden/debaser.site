@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { getBookLinks } from '../lib/books/get-book';
 import { PLATE, PLATE_PRESSED } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 
 /**
  * GET THIS BOOK (Luke, 2026-11-13): a dropdown on a book's page with every legal way to get it: borrow it free, find it in
@@ -13,7 +14,7 @@ export default function GetThisBook({ title, author, isbn, work }: { title: stri
   const groups = getBookLinks({ title, author, isbn, work });
   return (
     <div className="px-3 py-1">
-      <button type="button" onClick={() => setOpen((was) => !was)} aria-expanded={open} className={open ? PLATE_PRESSED : PLATE}>
+      <button type="button" onClick={() => setOpen((was) => !was)} aria-expanded={open} className={open ? PLATE_PRESSED : PLATE} {...explain(open ? 'Folds the ways to get this book away.' : 'Folds open the ways to get this book.', 'Where a copy can be had, besides reading it here.')}>
         {open ? '[ GET THIS BOOK ▴ ]' : '[ GET THIS BOOK ▾ ]'}
       </button>
       {open ? (
