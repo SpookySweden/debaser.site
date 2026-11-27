@@ -2,10 +2,11 @@
  * One account on two devices, on the LIVE site, short (Luke, 2026-11-27; the local proof is scripts/drive-same-account.cjs): what
  * only the real sign-in and the real Realtime can show. TEST ACCOUNT A is signed in on two separate browser profiles (two devices).
  *
- *   1. Device 1 plays a video from FILES in A's own room; device 2 opens and follows it (same place, playing); one leads.
- *   2. A pause on device 2 pauses device 1.
- *   3. PLAY on device 1 plays device 2 again.
- *   Then device 1 pauses the room, so nothing is left playing.
+ *   1. Device 1 puts the live catalogue's ten-second test video on in A's own room ([ WATCH IN ROOM ]), loops and pauses it;
+ *      device 2 opens on the same paused place and follows; device 1 leads.
+ *   2. Play on device 2 plays device 1, together; device 2 leads now.
+ *   3. A pause on device 2 pauses device 1.
+ *   The room is left paused.
  *
  *   node "<notes>/heavy-step.cjs" SYNC --live -- node scripts/drive-same-account-live.cjs
  *
@@ -70,16 +71,25 @@ async function open(page, path) {
   try {
     console.log('1. DEVICE 2 FOLLOWS DEVICE 1');
     await open(first, '/files?kind=video');
+    // The live catalogue's video is a ten-second test signal: it is put on with [ WATCH IN ROOM ], looped, and paused early, so
+    // the steps below have time before its end.
     title = await first.waitForFunction(() => {
-      const play = document.querySelector('button[aria-label^="Play \\""][aria-label$="\\" here"]');
-      if (play !== null) {
-        play.click();
-        return play.getAttribute('aria-label');
+      const key = [...document.querySelectorAll('button')].find((button) => button.textContent.replace(/\s+/g, ' ').trim() === '[ WATCH IN ROOM ]');
+      if (key !== undefined) {
+        const row = key.closest('li, article, div');
+        key.click();
+        return (row?.textContent ?? '').replace(/\s+/g, ' ').slice(0, 60);
       }
       [...document.querySelectorAll('button[aria-expanded="false"]')].find((button) => button.textContent.includes('[+] VIDEOS'))?.click();
       return false;
     }, null, { timeout: 60000, polling: 1000 }).then((handle) => handle.jsonValue());
-    await until(first, 'device 1 plays it', (held) => !held.paused && held.time > 2, 60000);
+    await until(first, 'device 1 plays it', (held) => !held.paused && held.time > 0.5, 60000);
+    await first.evaluate(() => {
+      const loop = document.querySelector('[data-room-loop="off"]');
+      if (loop !== null) loop.click();
+      document.querySelector('[data-dock-window="stream"] video[data-watch-video]').pause();
+    });
+    await until(first, 'device 1 paused', (held) => held.paused, 10000);
     // Device 2 opens the same page with your room's window, as it comes back on a device where it was open.
     const notes = await first.evaluate(() => ({ shown: localStorage.getItem('debaser.site.own-room-shown.v1'), open: localStorage.getItem('debaser.site.room-window-open.v1') }));
     second = await two.newPage();
@@ -90,27 +100,29 @@ async function open(page, path) {
     }, notes);
     second.on('pageerror', (error) => errors.push(`2: ${error.message}`));
     await open(second, '/files?kind=video');
-    await until(second, 'device 2 plays along', (held) => !held.paused, 45000);
-    await sleep(4000);
-    const [heard1, heard2] = [await stage(first), await stage(second)];
-    console.log(`    1: ${heard1.time.toFixed(1)}s ${heard1.role}   2: ${heard2.time.toFixed(1)}s ${heard2.role}`);
-    assert.ok(Math.abs(heard1.time - heard2.time) < 2.5, `together (${heard1.time.toFixed(1)}s and ${heard2.time.toFixed(1)}s)`);
-    assert.deepEqual([heard1.role, heard2.role], ['host', 'viewer'], 'device 1 leads, device 2 follows');
-    pass(`device 2 opened on ${title}, at device 1's place, playing, and follows it`);
+    const heard1 = await stage(first);
+    const heard2 = await until(second, 'device 2 opens on the same place, paused', (held) => held.paused && Math.abs(held.time - heard1.time) < 1, 45000);
+    await sleep(3000);
+    console.log(`    1: ${heard1.time.toFixed(1)}s ${heard1.role}   2: ${heard2.time.toFixed(1)}s ${(await stage(second)).role}`);
+    assert.deepEqual([(await stage(first)).role, (await stage(second)).role], ['host', 'viewer'], 'device 1 leads, device 2 follows');
+    assert.equal((await stage(first)).paused, true, 'opening device 2 did not start or move device 1');
+    pass(`device 2 opened on ${title}, at device 1's paused place, and follows it`);
 
-    console.log('2. A PAUSE ON DEVICE 2');
+    console.log('2. PLAY ON DEVICE 2');
+    await second.evaluate(() => void document.querySelector('[data-dock-window="stream"] video[data-watch-video]').play());
+    await until(first, 'device 1 plays with device 2', (held) => !held.paused, 10000);
+    await sleep(1500);
+    const [now1, now2] = [await stage(first), await stage(second)];
+    console.log(`    1: ${now1.time.toFixed(1)}s ${now1.role}   2: ${now2.time.toFixed(1)}s ${now2.role}`);
+    assert.ok(Math.abs(now1.time - now2.time) < 2.5, `together (${now1.time.toFixed(1)}s and ${now2.time.toFixed(1)}s)`);
+    assert.deepEqual([now1.role, now2.role], ['viewer', 'host'], 'device 2 leads now');
+    pass('play on device 2 played device 1, together, and device 2 leads');
+
+    console.log('3. A PAUSE ON DEVICE 2');
     await second.evaluate(() => document.querySelector('[data-dock-window="stream"] video[data-watch-video]').pause());
     await until(first, 'device 1 pauses with device 2', (held) => held.paused, 10000);
     pass('pausing on device 2 paused device 1');
-
-    console.log('3. PLAY ON DEVICE 1');
-    await first.evaluate(() => void document.querySelector('[data-dock-window="stream"] video[data-watch-video]').play());
-    await until(second, 'device 2 plays with device 1', (held) => !held.paused, 10000);
-    pass('play on device 1 played device 2');
     await first.screenshot({ path: join(SHOTS, 'device-1.png') });
-
-    await first.evaluate(() => document.querySelector('[data-dock-window="stream"] video[data-watch-video]').pause());
-    await until(second, 'device 2 pauses at the end', (held) => held.paused, 10000);
     assert.deepEqual(errors, [], `no page errors: ${errors.join(' | ')}`);
     console.log(`\nPASSED ${passed}`);
   } catch (error) {
