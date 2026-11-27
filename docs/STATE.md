@@ -31,8 +31,8 @@ FULLSCREEN key fix. Room sync, the context system and the first EXPLAIN and BROW
 
 ## Half-done
 - EXPLAIN: hover words on every key, shown only while `[ EXPLAIN ]` (PREFERENCES, off by default) is on; top bar, side
-  panel, MEDIA, the room and music bar, and profile and settings live (a8fcf58, eed29ea, e14e50d); next the forum, then the
-  reader and the rest, one fresh session per area (`Temp/check-explain.cjs` STILL_TO_DO; hand-over `explain-handover.md` in the group's notes folder).
+  panel, MEDIA, the room and music bar, profile and settings, and the forum live (a8fcf58, eed29ea, e14e50d, 6c2601a); next the
+  reader, then the rest, one fresh session per area (`Temp/check-explain.cjs` STILL_TO_DO; hand-over `explain-handover.md` in the group's notes folder).
 - BROWSER: EXPLAIN words on the rest of its keys, then the IMPROVE rounds (a fresh BROWSER session under the coordinator). Live:
   sign-in groups, IMPORT, the Web Store pack (90d3d69), OWN WEB (8827218, kept: Luke 2026-11-27), lenses on pages OWN EYE shows
   inside BROWSER (7b85214, extension 0.7.0), the address box following them (95a39db). The store's icon and tile are Luke's to draw.
