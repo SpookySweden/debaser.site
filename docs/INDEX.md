@@ -8,12 +8,12 @@ Sizes are rough tokens (characters / 4): read the sections you need, not the who
 
 | File | Loads | ≈ tokens |
 |---|---|---|
-| `.claude/rules/art.md` | when a file in its area is opened | 649 |
+| `.claude/rules/art.md` | when a file in its area is opened | 652 |
 | `.claude/rules/backend.md` | when a file in its area is opened | 389 |
-| `.claude/rules/browser.md` | when a file in its area is opened | 396 |
-| `.claude/rules/core.md` | every session | 3161 |
+| `.claude/rules/browser.md` | when a file in its area is opened | 401 |
+| `.claude/rules/core.md` | every session | 3178 |
 | `.claude/rules/frontend.md` | when a file in its area is opened | 954 |
-| `.claude/rules/media.md` | when a file in its area is opened | 2674 |
+| `.claude/rules/media.md` | when a file in its area is opened | 2684 |
 
 ## Skills
 
@@ -134,7 +134,7 @@ Sizes are rough tokens (characters / 4): read the sections you need, not the who
 | `SPEC-tag-station.md` | TAG STATION (Luke, 2026-11-05) | 3099 |
 | `SPEC-themes-marmalade.md` | the orange and green themes (MARMALADE, OVERDRIVE, TIGERBREAD, CLEMENTINE) | 4920 |
 | `SPEC-windows.md` | Snapping, resizable windows (desktop) | 1654 |
-| `docs/design.md` | DEBASER_OS design guide | 4784 |
+| `docs/design.md` | DEBASER_OS design guide | 4905 |
 
 ## GAMES
 
@@ -150,17 +150,17 @@ Sizes are rough tokens (characters / 4): read the sections you need, not the who
 | `SPEC-command-center.md` | the command center (helper agents, an agent cap, CLAUDE.md split into rules) | 5015 |
 | `SPEC-efficiency.md` | Efficiency pass ("say it once, say it short") | 5005 |
 | `SPEC-self-hosting.md` | hosting DEBASER_OS from Luke's PC (self-hosting) | 8947 |
-| `docs/STATE.md` | State of the site (the one current picture) | 1032 |
-| `docs/commands.md` | Commands | 1041 |
-| `docs/decisions.md` | Luke's standing decisions | 1396 |
-| `docs/handoff-archive.md` | Older handoff notes, newest first | 22841 |
-| `docs/sessions.md` | How sessions are run | 2939 |
+| `docs/STATE.md` | State of the site (the one current picture) | 1103 |
+| `docs/commands.md` | Commands | 1045 |
+| `docs/decisions.md` | Luke's standing decisions | 1406 |
+| `docs/handoff-archive.md` | Older handoff notes, newest first | 22842 |
+| `docs/sessions.md` | How sessions are run | 3135 |
 | `docs/site-review-2026-11.md` | Site review, November 2026 | 2855 |
 
 ## OTHER
 
 | File | What | ≈ tokens |
 |---|---|---|
-| `docs/how-this-works.md` | How the Claude sessions get their instructions (for Luke, 2026-11-27) | 1259 |
+| `docs/how-this-works.md` | How the Claude sessions get their instructions (for Luke, 2026-11-27) | 1312 |
 | `docs/theming.md` | Theming: how the look is changed | 2256 |
 

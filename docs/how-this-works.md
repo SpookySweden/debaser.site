@@ -48,11 +48,13 @@ Now there are three layers:
 - **SERVER runs every session**, whether you prompt from the laptop, the phone or SERVER itself. The laptop and phone
   are windows onto it: Remote Control, or the laptop app's SSH connection to SERVER over Tailscale. Nothing builds on
   the laptop: a session that finds itself anywhere else stops and says so.
-- **The gaming PC is the heavy lane:** when it's on and no League match is running, the big steps (clean builds, the
-  full checks, long browser drives) run there, so SERVER stays free for the site. Otherwise they run on SERVER. The PC
-  setup session is building that into the turn-taking tool; sessions ask for a turn as before.
-- **Tailscale is the road between them.** Only SERVER has joined so far: the laptop, phone and gaming PC each need it
-  installed and signed in with the same account (in `docs/STATE.md`, "Waiting on Luke").
+- **The gaming PC is the heavy lane:** the clean builds and the full checks are shared evenly between SERVER and the PC,
+  and go to the PC whenever SERVER is over 60% memory, unless the PC is off, asleep or in a League match. The site,
+  database and live tests always stay on SERVER. The PC setup session is building it; it starts once you run its setup
+  script on the PC.
+- **Tailscale is the road between them**, except the heavy lane, which uses a direct SSH connection over the home
+  network for now. Only SERVER has joined Tailscale so far: the laptop, phone and gaming PC each need it installed and
+  signed in with the same account (in `docs/STATE.md`, "Waiting on Luke").
 - **Cloud sessions only for reading work** (research, reviews, SPEC drafts), once you've set the cloud up for the repo.
 
 ## What you might notice

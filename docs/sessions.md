@@ -113,12 +113,17 @@ no turn: reading, editing, git, `npm run tokens`, `read`, `deploy-status`, read-
   Control (on by default for SERVER sessions), or the laptop app's SSH connection to SERVER over Tailscale. A session
   never builds on the laptop: one that finds itself on a machine other than SERVER (`hostname` is not `server`, or
   `G:\debaser.site` is missing) stops and says so.
-- **The gaming PC is the heavy lane:** when it is on and no League match is running (process `League of Legends`),
-  the big steps (`verify:clean`, the full `npm run checks`, long browser drives) run there and SERVER stays free for the
-  site; otherwise they run on SERVER as now. The lane lives in `heavy-step.cjs` (the PC setup session builds it), so a
-  session asks for the turn exactly as above and the tool picks the machine. It never runs whole sessions there.
-- **Tailscale is the road between devices** (`debaser-server` is on it; on 2026-11-27 the laptop, phone and gaming PC
-  had not joined: `docs/STATE.md`, "Waiting on Luke").
+- **The gaming PC is the heavy lane** (being built, 2026-11-27; the PC setup session owns `heavy-step.cjs` and the lane,
+  this section describes it as built; Luke: "an even split... leave the server at no more than 60%"). `verify:clean` and
+  the full `npm run checks` may run on the PC; nothing else does (not the live site, database, Docker, tunnel or engines,
+  not `--live` / `--live-check` steps). `heavy-step.cjs` picks the machine per job: the PC unreachable, asleep or in a
+  League match (process `League of Legends`) → SERVER; SERVER over 60% memory or already holding the heavy turn → the
+  PC; otherwise the two take turns. The commit goes to a worker clone on the PC and runs there at full speed; output and
+  exit code come back unchanged, so a session asks for the turn exactly as above. Whole sessions never run there.
+  Until Luke runs the PC's setup script (and OKs the test keys on the PC for the full checks), everything runs on SERVER.
+- **Between devices:** the lane uses key-only SSH from SERVER to the gaming PC over the home network for now. Tailscale
+  is the road Luke chose for the rest (`debaser-server` is on it; on 2026-11-27 the laptop, phone and gaming PC had not
+  joined; when the PC joins, the lane may use it too). `docs/STATE.md`, "Waiting on Luke".
 - **Cloud sessions only for reading work** that needs no database or house machine: research, reviews, SPEC drafts.
   They start from the pushed `main` and never push; building stays on SERVER. Setting the cloud up for the repo is
   Luke's click.

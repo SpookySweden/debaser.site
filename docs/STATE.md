@@ -33,6 +33,8 @@ built), this context system.
   and the heavy lane can reach them (his choice, 2026-11-27; `docs/sessions.md`, "Which machine does what"). Then the
   laptop app gets an SSH connection to SERVER. Cloud sessions for reading work need the cloud set up for the repo (his
   click).
+- The gaming PC as the heavy lane: run `C:\DEBASER-SETUP\pc-worker-setup.ps1` on the PC (key-only SSH from SERVER), and
+  OK putting `.env.test`/`.env.local` on the PC for the full checks. Until then everything runs on SERVER.
 - SCREENS relay: activate Cloudflare Realtime/TURN on his account (he ticks the terms and pays himself), then paste the
   key into the RELAY KEY form.
 - Off-site backup (Proton Drive, task `DebaserOffsite`) is built but off until he runs
