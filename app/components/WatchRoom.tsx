@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type MouseEvent } from 'react';
-import { createPortal } from 'react-dom';
+import { createPortal, flushSync } from 'react-dom';
 import Link from 'next/link';
 import { stopFollowing } from '../lib/audio/follow';
 import { AUTO_FILED_BODY, autoThreadTitle, threadDomId } from '../lib/forum/anchors';
@@ -211,6 +211,12 @@ type WatchRoomProps = {
    * not: the window plays on out of sight (Luke, 2026-11-16). Either way the key above the player is the way back.
    */
   pictureFloats: boolean;
+  /**
+   * Folded by `[ _ ]`: the room's picture is out of sight, so FULL on the music bar opens the room before it fills the screen (it
+   * used to fullscreen the hidden picture, and the browser showed the site instead; Luke, 2026-11-27). Floating by `[ PIP ]` it is
+   * in sight and FULL works as it is.
+   */
+  pictureHidden?: boolean;
   /** `[ PIP ]`: folds the room with its picture floating. */
   onFloatPicture: () => void;
 };
@@ -228,7 +234,7 @@ type WatchRoomProps = {
  * and jumps (off by more than two seconds) or nudges its speed (a little off). A browser that refuses to
  * start the sound gets one key, `[ ▶ JOIN PLAYBACK ]`, rather than playing on silently out of step.
  */
-export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats, onFloatPicture }: WatchRoomProps) {
+export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats, pictureHidden = false, onFloatPicture }: WatchRoomProps) {
   const { user } = useAuth();
   const catalogue = useCatalogue();
   const player = useMusicPlayer();
@@ -1427,6 +1433,10 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       void document.exitFullscreen().catch(() => undefined);
       return;
     }
+    // Folded by `[ _ ]`, the picture is out of sight: FULL on the music bar opens the room first, on screen before the ask, so the
+    // ask fills the screen with the picture and never with a hidden box the site shows through (Luke, 2026-11-27, "Open room +
+    // fullscreen"). A browser that refuses still leaves the room open, with FULL ready to press again.
+    if (pictureHidden) flushSync(() => expandWatch());
     // A floating picture goes fullscreen alone, where it stands, and comes back as it was. Otherwise the stage, with its bar.
     const target = pictureFloats ? (pictureBox.current ?? box) : box;
     if (typeof target.requestFullscreen === 'function') {
@@ -1669,14 +1679,18 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     </button>
   ) : floatKey;
   // As most video players mark them (Luke, 2026-11-17); the words stay in the name and the tooltip. The floating picture's own
-  // fullscreen counts too (`staged`), for the key on the picture's own bar.
+  // fullscreen counts too (`staged`), for the key on the picture's own bar. Folded out of sight (`pictureHidden`), it opens the room
+  // as it goes (Luke, 2026-11-27: "it can also be present without any video causing you to fullscreen the site instead of the video").
   const fullKey = (
     <button
       type="button"
       className={`${PLATE_ON_BLACK} shrink-0`}
-      aria-label={staged ? 'Leave fullscreen' : 'Fullscreen'}
-      title={staged ? 'Leave full screen' : 'Full screen'}
-      {...explain(staged ? 'Leaves full screen, back to the window.' : 'Fills the screen with the room\'s picture.', 'Esc also leaves full screen. Only your screen changes.')}
+      aria-label={staged ? 'Leave fullscreen' : pictureHidden ? 'Open the room and fullscreen its picture' : 'Fullscreen'}
+      title={staged ? 'Leave full screen' : pictureHidden ? 'Open the room, full screen' : 'Full screen'}
+      {...explain(
+        staged ? 'Leaves full screen, back to the window.' : pictureHidden ? 'Opens the room window you folded away and fills the screen with its picture.' : 'Fills the screen with the room\'s picture.',
+        'Esc also leaves full screen. Only your screen changes.',
+      )}
       onClick={toggleFullscreen}
       data-room-full={staged ? 'leave' : 'enter'}
     >
@@ -1684,11 +1698,13 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     </button>
   );
   // The REMOTE view has its FULL key whatever is playing under it, or nothing is (Luke, 2026-11-23: "when using remote, there is no
-  // full screen button, appearing only when you stream a video").
+  // full screen button, appearing only when you stream a video"). Another site's own player (LUKE'S SERVER, PeerTube, the Archive's)
+  // has its own fullscreen switched off (`withoutFullscreen`), so the room's FULL is its way, driven or not (Luke, 2026-11-27: "it
+  // dissapears when watching dolphin media", his Jellyfin before its remote said hello).
   const pictureKeys = officialOn ? (
     <>
       {floatKey}
-      {remoteOn ? fullKey : null}
+      {fullKey}
     </>
   ) : hasTransport && song === null ? (
     <>
@@ -1708,10 +1724,10 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   ) : remoteOn ? (
     fullKey
   ) : null;
-  // Fullscreen with no FULL key among the picture's keys (the blank screen's BOOKS / VIDEO / MUSIC, a song, another site's
-  // own player): the way out is still on the bar (Luke, 2026-11-16: "the unfullscreen button is still visible").
+  // Fullscreen with no FULL key among the picture's keys (the blank screen's BOOKS / VIDEO / MUSIC, a song, a held picture): the
+  // way out is still on the bar (Luke, 2026-11-16: "the unfullscreen button is still visible").
   const exitKey =
-    fullscreen && !(!officialOn && hasTransport && song === null) ? (
+    fullscreen && !(officialOn || (hasTransport && song === null)) ? (
       <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Leave fullscreen" title="Leave full screen" onClick={toggleFullscreen} data-room-exit-full {...explain('Leaves full screen, back to the window.', 'Esc does the same.')}>
         {`[ ${ROOM_LEAVE_FULL_MARK} ]`}
       </button>
@@ -1818,8 +1834,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       {officialOn ? (
         <>
           {pipKey}
-          {/* Another site's own player: no FULL key under it, but the way out of the floating picture's fullscreen is here. */}
-          {staged ? fullKey : null}
+          {/* Another site's own player has no fullscreen of its own here: the room's FULL is its way in and out. */}
+          {fullKey}
         </>
       ) : hasTransport ? (
         <>

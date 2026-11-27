@@ -603,6 +603,7 @@ function RoomWindow({
             onStay={() => setClosing(false)}
             onLeft={onLeft}
             pictureFloats={pip}
+            pictureHidden={collapsed && !pip}
             onFloatPicture={() => onCollapse(true)}
           />
         )}
