@@ -4,8 +4,9 @@
  * Whether the extension is in this browser, which version, and whether this is the one the site has (SPEC-seeing-machine.md, D1). Silence is
  * "not here". Held once for the EXTENSION window, BROWSER's OWN EYE key and the keeper that updates it.
  */
-import { isItsFolder, isNewer, listFrom, writeUpdate, type ExtensionList, type Folder } from './extension';
-import { extensionVersion, newestToOwnEye, ownEyeSettings, reloadOwnEye, type OwnEyeSettings } from './own-eye';
+import { isItsFolder, judgeVersion, listFrom, writeUpdate, type ExtensionList, type Folder } from './extension';
+import type { ExtensionFrom } from './extension-ids';
+import { extensionFound, extensionVersion, newestToOwnEye, ownEyeSettings, reloadOwnEye, type OwnEyeSettings } from './own-eye';
 
 export type ExtensionState = {
   /** `unable`: a browser that can't have it. */
@@ -17,9 +18,16 @@ export type ExtensionState = {
   settings: OwnEyeSettings | null;
   said: string | null;
   busy: boolean;
+  /** Where the copy that answered came from, and how many copies answered (a store's and the zip's both in: two). */
+  from?: ExtensionFrom | null;
+  copies?: number;
+  /** A store's copy exactly one version behind the site's: the store is still checking the new one, and updates it by itself. */
+  checking?: boolean;
+  /** The folder the site has just put it into for the first time, to be loaded in the extensions page. */
+  wroteInto?: string | null;
 };
 
-const FIRST: ExtensionState = { kind: 'asking', version: null, newest: null, folder: 'none', settings: null, said: null, busy: false };
+const FIRST: ExtensionState = { kind: 'asking', version: null, newest: null, folder: 'none', settings: null, said: null, busy: false, from: null, copies: 0, checking: false, wroteInto: null };
 let state = FIRST;
 const listeners = new Set<() => void>();
 const set = (next: Partial<ExtensionState>): void => {
@@ -83,13 +91,14 @@ export async function lookForExtension(): Promise<ExtensionState> {
     set({ kind: 'unable' });
     return state;
   }
-  const [version, list, folder] = await Promise.all([extensionVersion(), listNow(), keptFolder()]);
+  const [found, list, folder] = await Promise.all([extensionFound(), listNow(), keptFolder()]);
+  const version = found?.version ?? null;
   const permission = folder === null ? null : await folder.queryPermission?.({ mode: 'readwrite' }).catch(() => null);
-  const kind = version === null ? 'missing' : list !== null && isNewer(list.version, version) ? 'old' : 'current';
+  const { kind, checking } = judgeVersion(found, list);
   const settings = kind === 'current' ? await ownEyeSettings() : null;
   // An earlier look that answers late is old news.
   if (look !== looks) return state;
-  set({ kind, version, newest: list?.version ?? null, folder: folder === null ? 'none' : permission === 'granted' ? 'granted' : 'ask', settings });
+  set({ kind, version, newest: list?.version ?? null, folder: folder === null ? 'none' : permission === 'granted' ? 'granted' : 'ask', settings, from: found?.from ?? null, copies: found?.copies ?? 0, checking });
   if (version !== null && list !== null) void newestToOwnEye(list.version);
   return state;
 }
@@ -112,6 +121,35 @@ export async function pickExtensionFolder(): Promise<void> {
   await shelf('readwrite', (store) => store.put(folder, 'it'));
   set({ said: null, folder: 'granted' });
   if (state.kind === 'old') await updateExtension();
+}
+
+/**
+ * The first time, without a download: the reader picks a new, empty folder, and the site writes the extension into it, each file proved first
+ * (writeUpdate, `first`). A folder with anything of the reader's in it is refused, and nothing is written. The folder is kept, so later
+ * versions are written into the same one.
+ */
+export async function installIntoFolder(): Promise<void> {
+  const pick = (window as typeof window & { showDirectoryPicker?: (how: { id: string; mode: 'readwrite' }) => Promise<Kept> }).showDirectoryPicker;
+  if (pick === undefined || state.busy) return;
+  let folder: Kept;
+  try {
+    folder = await pick.call(window, { id: 'debaser-extension', mode: 'readwrite' });
+  } catch {
+    return;
+  }
+  set({ busy: true, said: 'WRITING', wroteInto: null });
+  try {
+    const list = await listNow();
+    const done = list === null ? { ok: false as const, reason: 'THE LIST DID NOT COME. NOTHING WAS WRITTEN' } : await writeUpdate(folder, list, fileNow, true);
+    if (!done.ok) {
+      set({ said: done.reason });
+      return;
+    }
+    await shelf('readwrite', (store) => store.put(folder, 'it'));
+    set({ said: null, folder: 'granted', wroteInto: folder.name });
+  } finally {
+    set({ busy: false });
+  }
 }
 
 export async function forgetExtensionFolder(): Promise<void> {

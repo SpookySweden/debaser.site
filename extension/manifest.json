@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "DEBASER SEEING MACHINE",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "description": "Own eye for debaser.site: pages in your own browser, where you are signed in, through the machine's lenses.",
   "minimum_chrome_version": "116",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsKHMLnxO5bBqGgVzvSEyMx3EsBq9YIxm9ZeVsjeZMfmmE843oukChBAKa+jSB+244avb4YADMz1tuCBkvOVUyP3egW/W8nn8JfQLlmhLOWsoEIGxE2u4z5wM4QxSvL/M3c/55WypVoLsIoXsDnb9MsrIW7fXBYRtUP2aOs3eAy8D4Gva0jR6aTCSCxj+ludP17ARKR/O5VVqWNFCLy95q6s9zrdavdCUZbR1DzAwU1COIdHeTnNf2jO89q/DvFIXm1ojJUkz4/nttX0aym5oKj4ZPwz9tnURZQqGAIK9o0T52H9Dizc91F+XA9G7uI4D4W0KBR1TxhP0LOiHr81pzQIDAQAB",
@@ -26,8 +26,19 @@
   "side_panel": {
     "default_path": "panel.html"
   },
+  "icons": {
+    "16": "icon-16.png",
+    "32": "icon-32.png",
+    "48": "icon-48.png",
+    "128": "icon-128.png"
+  },
   "action": {
-    "default_title": "DEBASER SEEING MACHINE"
+    "default_title": "DEBASER SEEING MACHINE",
+    "default_icon": {
+      "16": "icon-16.png",
+      "32": "icon-32.png",
+      "48": "icon-48.png"
+    }
   },
   "externally_connectable": {
     "matches": [

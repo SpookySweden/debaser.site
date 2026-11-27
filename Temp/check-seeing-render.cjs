@@ -119,6 +119,27 @@ assert.ok(/>UPDATE</.test(body_({ kind: 'old', version: '0.1.0', folder: 'ask' }
 assert.ok(/OPENS PAGES IN/.test(body_({ kind: 'current', version: '0.2.0', settings: { lens: 'reader', wear: true } })));
 assert.ok(/CHROME AND EDGE/.test(body_({ kind: 'unable' })));
 for (const kind of ['missing', 'old', 'current', 'unable']) assert.match(body_({ kind, version: '0.1.0' }), /NEVER READS PASSWORDS OR COOKIES/);
+// (2026-11-27, "easier to download and update") No store yet: the extension written into a new folder, the extensions page's address copied.
+const NO_STORE = { chrome: null, edge: null };
+const STORE_ID = 'abcdefghijklmnopabcdefghijklmnop';
+const get_ = (state = {}, more = {}) => html(el(ExtensionBody, { canPick: true, stores: NO_STORE, state: { kind: 'missing', version: null, newest: '0.2.0', folder: 'none', settings: null, said: null, busy: false, ...state }, ...more }));
+assert.ok(/\[ CHOOSE AN EMPTY FOLDER \]/.test(get_()) && /\[ COPY chrome:\/\/extensions \]/.test(get_()) && !/data-store-page/.test(get_()), 'no store yet: an empty folder, and the address to paste');
+assert.ok(/\[ COPY edge:\/\/extensions \]/.test(get_({}, { browser: 'edge' })), "Edge's own address in Edge");
+assert.ok(/WRITTEN INTO THE FOLDER my-ext/.test(get_({ wroteInto: 'my-ext' })) && !/CHOOSE AN EMPTY FOLDER/.test(get_({ wroteInto: 'my-ext' })) && /CHOOSE THE FOLDER my-ext/.test(get_({ wroteInto: 'my-ext' })), 'once written, which folder to load');
+assert.ok(!/CHOOSE AN EMPTY FOLDER/.test(get_({}, { canPick: false })) && /UNZIP IT/.test(get_({}, { canPick: false })), 'no folder picker: the zip');
+// Once a store has it: that store's page first, by hand under it.
+const chromeStore = get_({}, { stores: { chrome: STORE_ID, edge: null } });
+assert.ok(chromeStore.includes(`href="https://chromewebstore.google.com/detail/${STORE_ID}"`) && /GET IT FROM THE CHROME WEB STORE/.test(chromeStore) && /OR BY HAND/.test(chromeStore), "Chrome's store first");
+const edgeStore = get_({}, { browser: 'edge', stores: { chrome: STORE_ID, edge: 'ponmlkjihgfedcbaponmlkjihgfedcba' } });
+assert.ok(/microsoftedge\.microsoft\.com\/addons\/detail\//.test(edgeStore) && /EDGE ADD-ONS STORE/.test(edgeStore), "Edge's own store in Edge");
+assert.ok(/ALLOW EXTENSIONS FROM OTHER STORES/.test(get_({}, { browser: 'edge', stores: { chrome: STORE_ID, edge: null } })), "Edge with only Chrome's: says what Edge asks");
+// A store's copy: updated by the store; one behind says the store is checking; two copies in, the one by hand to take out.
+const storeCopy = (state) => body_({ kind: 'current', version: '0.2.0', settings: { lens: 'reader', wear: true }, from: 'chrome', copies: 1, ...state });
+assert.ok(/UPDATES BY ITSELF/.test(storeCopy({})) && !/CHOOSE ITS FOLDER/.test(storeCopy({})) && !/DELETE ITS FOLDER/.test(storeCopy({})), "a store's copy: no folder");
+assert.ok(/STILL CHECKING THE NEW ONE \(0\.3\.0\)/.test(storeCopy({ version: '0.2.0', newest: '0.3.0', checking: true })), 'one behind: the store is checking');
+assert.ok(/TWO COPIES ARE IN/.test(storeCopy({ copies: 2 })) && !/TWO COPIES/.test(storeCopy({})), 'two copies: take one out');
+const storeOld = body_({ kind: 'old', version: '0.1.0', from: 'edge' });
+assert.ok(/UPDATE IT FIRST/.test(storeOld) && /PRESS &ldquo;Update&rdquo;|PRESS “Update”/.test(storeOld) && !/CHOOSE ITS FOLDER/.test(storeOld), 'older than one behind: still UPDATE IT FIRST, by the store');
 assert.ok(/\[ DUCKDUCKGO ▾ \]/.test(bar({})) && !/SAYS/.test(bar({})), 'the engine is named, and nothing is said of the page already in front');
 const engines = html(el(at('SeeingEngines'), { ownEye: false, onClose: none }));
 for (const name of ['Google ↗', 'Bing ↗', 'DuckDuckGo', 'Marginalia', 'Wikipedia', 'DEBASER.SITE', 'MEDIA']) assert.ok(engines.includes(name), name);

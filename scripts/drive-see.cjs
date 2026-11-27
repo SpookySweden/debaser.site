@@ -1443,11 +1443,39 @@ async function extension(browser) {
   await page.getByRole('menuitem', { name: /\[ EXTENSION \]/ }).click();
   await kind('missing');
   const missing = await panel.innerText();
-  ok(/GET IT FIRST/.test(missing) && /chrome:\/\/extensions/.test(missing) && !/OPENS PAGES IN/.test(missing), 'without it, the window gets it first, and has no settings');
+  // The drive's browser may be Chrome or Edge (findChrome takes whichever is installed): the window names that browser's own page.
+  ok(/GET IT FIRST/.test(missing) && /(chrome|edge):\/\/extensions/.test(missing) && !/OPENS PAGES IN/.test(missing), 'without it, the window gets it first, and has no settings');
   const download = await page.request.get(`${BASE}/api/extension/zip`);
   ok(download.status() === 200 && /debaser-extension-\d/.test(download.headers()['content-disposition']) && (await download.body()).subarray(0, 2).toString() === 'PK', 'the download is there');
   ok((await page.request.get(`${BASE}/api/extension/file/..%2fpackage.json`)).status() === 404 && (await page.request.get(`${BASE}/api/extension/file/package.json`)).status() === 404, 'and nothing but its own files');
   ok(/text\/plain/.test((await page.request.get(`${BASE}/api/extension/file/worker.js`)).headers()['content-type']), 'which are words here, not scripts');
+
+  // (2026-11-27, Luke: "need the extension to be easier to download and update") The first time, with no download: written into a folder
+  // the reader picks, refused when it holds anything of theirs.
+  const builtFiles = (await (await page.request.get(`${BASE}/api/extension/list`)).json()).files.map((each) => each.name);
+  await put('mine', { 'notes.txt': 'mine' });
+  await put('fresh', {});
+  await page.evaluate(() => (window.pickThis = 'mine'));
+  await page.getByRole('button', { name: '[ CHOOSE AN EMPTY FOLDER ]' }).click();
+  await page.waitForFunction(() => /ISN'T EMPTY/.test(document.querySelector('[data-extension]')?.textContent ?? ''));
+  ok(JSON.stringify(await take('mine')) === JSON.stringify({ 'notes.txt': 'mine' }), "a folder with the reader's own things in it is refused, and nothing is written there");
+  await page.evaluate(() => (window.pickThis = 'fresh'));
+  await page.getByRole('button', { name: '[ CHOOSE AN EMPTY FOLDER ]' }).click();
+  await page.waitForFunction(() => /WRITTEN INTO THE FOLDER fresh/.test(document.querySelector('[data-extension]')?.textContent ?? ''));
+  const written = await take('fresh');
+  // (Its icons are pictures: here they are only counted; check-see-extension holds them byte for byte.)
+  ok(Object.keys(written).sort().join() === [...builtFiles].sort().join() && builtFiles.every((file) => (file.endsWith('.png') ? written[file].length > 0 : written[file] === source(file))), 'an empty folder gets the extension written into it whole: nothing to download or unzip');
+  const loadSteps = await panel.innerText();
+  ok(/CHOOSE THE FOLDER fresh/.test(loadSteps) && /COPY (chrome|edge):\/\/extensions/.test(loadSteps) && /Load unpacked/.test(loadSteps), 'then which folder to load, with the extensions page to paste and the button by its name');
+  // Forgotten again, so the old copy below starts with no folder chosen.
+  await page.evaluate(() => new Promise((done) => {
+    const open = indexedDB.open('debaser-extension', 1);
+    open.onsuccess = () => {
+      const transaction = open.result.transaction('folder', 'readwrite');
+      transaction.objectStore('folder').delete('it');
+      transaction.oncomplete = () => { open.result.close(); done(); };
+    };
+  }));
 
   // OWN EYE without it.
   await page.getByRole('button', { name: 'Close EXTENSION' }).click().catch(() => page.locator('[data-dock-window="extension"]').getByRole('button', { name: /close/i }).first().click());

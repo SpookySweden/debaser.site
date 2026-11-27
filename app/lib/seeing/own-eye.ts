@@ -5,6 +5,7 @@
  * asking it to open a page. Nothing is asked of it but that, and it answers nothing about the reader.
  */
 import { themeById, type ThemeTokens } from '../ui/themes';
+import { CHROME_STORE_ID, EDGE_STORE_ID, isExtensionId, type ExtensionFrom } from './extension-ids';
 
 /** From the `key` in extension/manifest.json; Temp/check-see-extension.cjs holds the two together. */
 export const EXTENSION_ID = 'apbecjpegfcbbjjhjbcjojpfajjpokgn';
@@ -12,7 +13,16 @@ export const EXTENSION_ID = 'apbecjpegfcbbjjhjbcjojpfajjpokgn';
 type Runtime = { sendMessage?: (id: string, message: unknown, answer?: (value: unknown) => void) => void; lastError?: unknown };
 const runtime = (): Runtime | null => (globalThis as typeof globalThis & { chrome?: { runtime?: Runtime } }).chrome?.runtime ?? null;
 
-function say(message: unknown): Promise<unknown> {
+/** Every copy the site may talk to: the zip's, and each store's once it has one (extension-ids.ts). */
+const COPIES: { id: string; from: ExtensionFrom }[] = [
+  { id: EXTENSION_ID, from: 'zip' as const },
+  { id: CHROME_STORE_ID, from: 'chrome' as const },
+  { id: EDGE_STORE_ID, from: 'edge' as const },
+].filter((copy) => isExtensionId(copy.id));
+/** The copy that answered last: a store's before the zip's when both are in. */
+let talkingTo = EXTENSION_ID;
+
+function say(message: unknown, to = talkingTo): Promise<unknown> {
   return new Promise((done) => {
     const own = runtime();
     if (own?.sendMessage === undefined) {
@@ -21,7 +31,7 @@ function say(message: unknown): Promise<unknown> {
     }
     const timer = window.setTimeout(() => done(null), 1500);
     try {
-      own.sendMessage(EXTENSION_ID, message, (value) => {
+      own.sendMessage(to, message, (value) => {
         // Read, so the browser doesn't log that nobody looked: an extension that isn't there is an answer.
         void own.lastError;
         window.clearTimeout(timer);
@@ -36,12 +46,25 @@ function say(message: unknown): Promise<unknown> {
 
 const field = (answer: unknown, name: string): unknown => (typeof answer === 'object' && answer !== null ? (answer as Record<string, unknown>)[name] : undefined);
 
-/** Its version, or null when it isn't here: silence is an answer. */
-export async function extensionVersion(): Promise<string | null> {
-  const answer = await say({ see: 'ping' });
+const versionOf = (answer: unknown): string | null => {
   const version = field(answer, 'version');
   return field(answer, 'see') === 'pong' && typeof version === 'string' && /^[\d.]{1,23}$/.test(version) ? version : null;
+};
+
+export type ExtensionFound = { version: string; from: ExtensionFrom; copies: number } | null;
+
+/** Which copy is in (a store's first), its version, and how many copies answered; null when none is here: silence is an answer. */
+export async function extensionFound(): Promise<ExtensionFound> {
+  const answers = await Promise.all(COPIES.map(async (copy) => ({ ...copy, version: versionOf(await say({ see: 'ping' }, copy.id)) })));
+  const here = answers.filter((copy) => copy.version !== null);
+  const chosen = here.find((copy) => copy.from !== 'zip') ?? here[0];
+  if (chosen === undefined || chosen.version === null) return null;
+  talkingTo = chosen.id;
+  return { version: chosen.version, from: chosen.from, copies: here.length };
 }
+
+/** Its version, or null when it isn't here. */
+export const extensionVersion = async (): Promise<string | null> => (await extensionFound())?.version ?? null;
 
 export const OWN_EYE_LENSES = [
   ['standard', 'STANDARD'],
@@ -111,7 +134,7 @@ export function holdOwnEye(onAt: (href: string, title: string) => void): OwnEyeH
   const hold = () => {
     again = null;
     try {
-      const held = connect(EXTENSION_ID, { name: 'browser' });
+      const held = connect(talkingTo, { name: 'browser' });
       held.onMessage.addListener((value) => {
         if (field(value, 'see') === 'ready') {
           tries = 0;

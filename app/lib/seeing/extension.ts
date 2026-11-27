@@ -5,22 +5,25 @@
  */
 import { EXTENSION_ID } from './own-eye';
 
-export type ExtensionList = { version: string; files: { name: string; size: number; sha256: string }[] };
+/** `previous`: the version before this one, so a store's copy that is one behind (still in the store's review) isn't told to update by hand. */
+export type ExtensionList = { version: string; previous?: string; files: { name: string; size: number; sha256: string }[] };
+const VERSION = /^\d{1,5}(?:\.\d{1,5}){0,3}$/;
 
-const NAME = /^[A-Za-z][A-Za-z0-9-]{0,40}\.(?:js|json|html|css|md)$/;
+const NAME = /^[A-Za-z][A-Za-z0-9-]{0,40}\.(?:js|json|html|css|md|png)$/;
 const FILES_MOST = 60;
 const FILE_MOST = 400_000;
 
 export function listFrom(value: unknown): ExtensionList | null {
-  const { version, files } = (typeof value === 'object' && value !== null ? value : {}) as Record<string, unknown>;
-  if (typeof version !== 'string' || !/^\d{1,5}(?:\.\d{1,5}){0,3}$/.test(version) || !Array.isArray(files) || files.length === 0 || files.length > FILES_MOST) return null;
+  const { version, previous, files } = (typeof value === 'object' && value !== null ? value : {}) as Record<string, unknown>;
+  if (typeof version !== 'string' || !VERSION.test(version) ||!Array.isArray(files) || files.length === 0 || files.length > FILES_MOST) return null;
   const read: ExtensionList['files'] = [];
   for (const each of files) {
     const { name, size, sha256 } = (typeof each === 'object' && each !== null ? each : {}) as Record<string, unknown>;
     if (typeof name !== 'string' || !NAME.test(name) || read.some((known) => known.name === name) || typeof size !== 'number' || !(size > 0 && size <= FILE_MOST) || typeof sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(sha256)) return null;
     read.push({ name, size, sha256 });
   }
-  return read.some((each) => each.name === 'manifest.json') ? { version, files: read } : null;
+  if (!read.some((each) => each.name === 'manifest.json')) return null;
+  return typeof previous === 'string' && VERSION.test(previous) ? { version, previous, files: read } : { version, files: read };
 }
 
 /** Whether one version comes after another. */
@@ -30,10 +33,35 @@ export function isNewer(one: string, other: string): boolean {
   return false;
 }
 
+/**
+ * Whether the copy in this browser is missing, old or current, and whether the store is still checking the new version: only a store's copy
+ * (talked to only once its id is set, extension-ids.ts), and only exactly one version behind. Anything older is old, and says UPDATE IT FIRST.
+ */
+export function judgeVersion(found: { version: string; from: 'zip' | 'chrome' | 'edge' } | null, list: ExtensionList | null): { kind: 'missing' | 'old' | 'current'; checking: boolean } {
+  if (found === null) return { kind: 'missing', checking: false };
+  const behind = list !== null && isNewer(list.version, found.version);
+  const checking = behind && found.from !== 'zip' && list?.previous === found.version;
+  return { kind: behind && !checking ? 'old' : 'current', checking };
+}
+
 /** What is used of a picked folder: the browser's own handle, or a check's stand-in. */
 export type Writing = { write(data: Uint8Array): Promise<void>; close(): Promise<void>; abort(): Promise<void> };
 export type FolderFile = { getFile(): Promise<{ arrayBuffer(): Promise<ArrayBuffer>; size: number }>; createWritable(): Promise<Writing> };
-export type Folder = { name: string; removeEntry?(name: string): Promise<void>; getFileHandle(name: string, options?: { create?: boolean }): Promise<FolderFile> };
+export type Folder = { name: string; keys?(): AsyncIterable<string>; removeEntry?(name: string): Promise<void>; getFileHandle(name: string, options?: { create?: boolean }): Promise<FolderFile> };
+
+/** What the computer itself leaves in a new folder: not the reader's files. */
+const THE_COMPUTERS = new Set(['desktop.ini', 'thumbs.db', '.ds_store']);
+
+/** Whether a folder holds nothing of the reader's: one the site may put the extension into for the first time. Can't tell: no. */
+export async function isEmptyFolder(folder: Folder): Promise<boolean> {
+  if (folder.keys === undefined) return false;
+  try {
+    for await (const name of folder.keys()) if (!THE_COMPUTERS.has(name.toLowerCase())) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 const hex = (bytes: ArrayBuffer): string => [...new Uint8Array(bytes)].map((each) => each.toString(16).padStart(2, '0')).join('');
 export const fingerprint = async (bytes: Uint8Array): Promise<string> => hex(await crypto.subtle.digest('SHA-256', bytes as BufferSource));
@@ -76,8 +104,11 @@ export type Updated = { ok: true } | { ok: false; reason: string };
  * (the browser's own way: what is written appears only when it is closed) and all of them are swapped at the end, the manifest last. If a swap
  * fails part of the way, what was there is put back.
  */
-export async function writeUpdate(folder: Folder, list: ExtensionList, fetchFile: (name: string, sha256: string) => Promise<Uint8Array | null>): Promise<Updated> {
-  if (!(await isItsFolder(folder))) return { ok: false, reason: "THAT ISN'T THE EXTENSION'S FOLDER" };
+export async function writeUpdate(folder: Folder, list: ExtensionList, fetchFile: (name: string, sha256: string) => Promise<Uint8Array | null>, first = false): Promise<Updated> {
+  // The first time (`first`), into a folder that is empty or already its own: never over the reader's own files.
+  if (first ? !(await isEmptyFolder(folder)) && !(await isItsFolder(folder)) : !(await isItsFolder(folder))) {
+    return { ok: false, reason: first ? "THAT FOLDER ISN'T EMPTY: MAKE A NEW ONE AND CHOOSE THAT. NOTHING WAS WRITTEN" : "THAT ISN'T THE EXTENSION'S FOLDER" };
+  }
   const files = [...list.files].sort((a, b) => Number(a.name === 'manifest.json') - Number(b.name === 'manifest.json'));
   const fresh = new Map<string, Uint8Array>();
   for (const { name, size, sha256 } of files) {

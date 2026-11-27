@@ -1,24 +1,55 @@
-# The DEBASER extension in the Chrome Web Store: what to paste, and what to press
+# The DEBASER extension in the Edge Add-ons store (and the Chrome Web Store, kept for later): what to paste and press
 
-Prepared 2026-11-27 (Luke: "Yes, prepare it"). The developer account, the fee and the publishing are Luke's. Everything here is written from the
-extension as it is (`extension/`, version in its manifest); change this file when it changes.
+Prepared 2026-11-27. Luke: "Yes, prepare it"; "need the extension to be easier to download and update"; to which stores: "Edge Add-ons
+store,Firefox, straight from our site,Bookmarks-bar key (no install)" (the Chrome Web Store not chosen); who finds it: "Unlisted / hidden
+(Recommended)"; the icon: "generate a text icon for debaser". The developer account and the publishing are Luke's. Everything here is written
+from the extension as it is (`extension/`, version in its manifest); change this file when it changes. Store rules checked 2026-11-27 against
+Microsoft's and Google's own pages (Sources, below).
 
-## What Luke has to press, in order
-1. Draw the two pictures the store needs (artwork is Luke's alone): an icon 128 x 128 (PNG, a 96 x 96 drawing with 16 transparent around it),
-   and a small promotional tile 440 x 280 (PNG or JPEG). Put them in `assets/extension/` as `icon-128.png` and `tile-440x280.png`, and tell
-   the BROWSER session: it adds the icon to the manifest (`icons` and the toolbar key) and makes a new version.
-2. Go to https://chrome.google.com/webstore/devconsole and sign in with the Google account that will own it. Pay the one-off registration fee
-   (5 US dollars) and fill in the contact page.
-3. **New item**, and upload the zip from https://debaser.site/api/extension/zip (always the version the site runs). If the upload refuses
-   the manifest's `key` line, tell the BROWSER session: it makes a store copy without it.
-4. **Store listing**: paste the words below; add the five screenshots in this folder (`store-*.png`, 1280 x 800); the tile; category
-   Productivity; language English (UK).
-5. **Privacy**: paste the single purpose, each permission's reason, and the data answers below. Privacy policy: https://debaser.site/privacy
-6. **Distribution**: Unlisted (only people with the link: the EXTENSION window would give it) or Public. Then **Submit for review**.
-7. When it is published, tell the BROWSER session the item's id (the store gives a new one). The site then asks for either id, and the
-   EXTENSION window offers the store's page instead of the zip, so it updates by itself like any extension.
+## What is ready
+- **The zip for the store**: https://debaser.site/api/extension/store-zip (always the version the site runs). The extension as people load it
+  by hand, but its manifest has no `key` line (a store gives the extension its own id). No `update_url`; "Chrome" is in neither its name nor
+  its description.
+- **The logo**: `edge-logo-300.png` in this folder (300 x 300, Edge's size). The extension's own icons are in the zip (16, 32, 48, 128).
+  Both are Luke's text icon: the word DEBASER in the site's face and inks, made by `scripts/make-text-icon.cjs` (his exception, art.md).
+  Black on Daffodil is the default; `icon-128-transparent.png` beside it is the same word with no field behind it, for Luke to choose by
+  looking (2026-11-27). Choosing it means a line in that script and a new extension version.
+- **The tile**: `tile-440x280.png` in this folder (optional in Edge; the same text).
+- **The screenshots**: `store-*.png` in this folder, 1280 x 800, pretend sites (Edge takes up to 6, and none are required).
+- **The words**: under Store listing and Privacy tab, below.
 
-Microsoft's Edge Add-ons store is the same, free: https://partner.microsoft.com/dashboard/microsoftedge (the same zip and words).
+## Edge Add-ons: Luke's steps (on a phone or a computer; free)
+1. Open https://partner.microsoft.com/dashboard/microsoftedge and sign in with a Microsoft account. Register as a developer: there is no fee.
+2. Press **Create new extension**. Upload the zip: download https://debaser.site/api/extension/store-zip first, then choose that file.
+3. **Availability**: choose **Hidden** (only people with the link find it: the EXTENSION window on debaser.site gives the link). Markets: all.
+4. **Properties**: category **Productivity**. Privacy policy: **https://debaser.site/privacy** (needed: it sends a page's address to
+   debaser.site when the reader presses to send one). Website: **https://debaser.site**. Support contact: an e-mail address of your choosing.
+5. **Store listings**, language English: paste the **Description** below (Edge wants 250 to 10,000 characters: it has enough). Logo:
+   `edge-logo-300.png`. Small promotional tile: `tile-440x280.png`. Screenshots: the five `store-*.png`. Search terms (optional, up to 7,
+   30 characters each): debaser, reader mode, lenses, x-ray, low-fi, comic. The short description comes from the extension itself: nothing to
+   paste.
+6. **Privacy**: paste the single purpose, each permission's reason, "No" to remote code, and the data answers, all below.
+7. **Submit**. In **Notes for certification** paste: "No account is needed. Press the extension's toolbar key on any https page: the side
+   panel opens with the lenses (READER, X-RAY, LOW-FI, YOUR THEME). Its own page ([ SITES ]) lists the sites it may act on; it asks for no
+   site until one is added there. debaser.site is the companion site." Microsoft says certification takes up to seven business days.
+8. When it is published, the **Extension overview** page shows its store address. Its id is the 32 letters at the end of that address: send
+   it to the coordinator (or the BROWSER session).
+
+## When the id comes in (the BROWSER session)
+Put it in `app/lib/seeing/extension-ids.ts` as `EDGE_STORE_ID`, and push. The site then talks to whichever copy is in (the store's before the
+zip's), and in Edge the EXTENSION window offers **[ GET IT FROM THE EDGE ADD-ONS STORE ↗ ]** first, the folder and the zip under OR BY HAND.
+Chrome keeps the by-hand route (CHOOSE AN EMPTY FOLDER, or the zip). A store copy updates itself.
+
+## Every new version, after that
+Each new version of the extension has to be uploaded to the store as a new package (step 2, on the extension's **Packages** page) and is
+reviewed again; then every store copy updates itself. While the store reviews it, a store copy exactly one version behind the site's isn't
+told to update (the window says the store is still checking); one two versions behind is told UPDATE IT FIRST again. So each new version
+means Luke uploading the store zip once more.
+
+## The Chrome Web Store (not chosen, 2026-11-27: kept as it was for later; not built further)
+The same zip, words and pictures would do, with Chrome's own rules: the icon 128 x 128 (in the zip already), at least one screenshot, a
+one-off registration fee, review from a few days to a few weeks; https://chrome.google.com/webstore/devconsole. Its id would go in
+`CHROME_STORE_ID`, and Chrome would then offer that store first in the same way.
 
 ## Store listing
 **Name**: DEBASER SEEING MACHINE
@@ -61,6 +92,10 @@ when the user asks.
   video to a room). Nothing is sent by itself.
 - No personally identifiable information, health, financial, authentication, personal communications, location or user-activity data.
 - Not sold, not used for anything but the extension's single purpose, not used for credit.
+
+## Sources (read 2026-11-27)
+learn.microsoft.com: microsoft-edge/extensions/publish/publish-extension, publish/create-dev-account, getting-started/extension-sideloading;
+developer.chrome.com: docs/webstore/images, publish, register, review-process, update; docs/extensions/reference/manifest/key.
 
 ## The screenshots
 Taken by `STORE_SHOTS=docs/extension-store node scripts/drive-see-extension.cjs` (pretend sites; nobody signed in to anything real): the

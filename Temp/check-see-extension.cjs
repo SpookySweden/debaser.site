@@ -18,7 +18,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..');
-const read = (file) => fs.readFileSync(path.join(ROOT, 'extension', file), 'utf8').replace(/\r\n/g, '\n');
+// (2026-11-27) Its icons are pictures, read as they are; the rest are words, whatever the machine does with line ends.
+const read = (file) => (file.endsWith('.png') ? fs.readFileSync(path.join(ROOT, 'extension', file)) : fs.readFileSync(path.join(ROOT, 'extension', file), 'utf8').replace(/\r\n/g, '\n'));
+const asText = (contents) => (typeof contents === 'string' ? contents : new TextDecoder().decode(contents));
 const files = fs.readdirSync(path.join(ROOT, 'extension'));
 const manifest = JSON.parse(read('manifest.json'));
 
@@ -46,6 +48,7 @@ assert.equal(ownEye.EXTENSION_ID, id, 'the site asks for the extension with this
 assert.ok(read('README.md').includes(id));
 
 for (const file of files) {
+  if (file.endsWith('.png')) continue;
   const text = read(file);
   assert.ok(!/BEGIN [A-Z ]*PRIVATE KEY/.test(text), file);
   if (!/\.(?:js|html)$/.test(file)) continue;
@@ -61,7 +64,7 @@ const external = worker.slice(worker.indexOf('onMessageExternal'), worker.indexO
 assert.ok(!/allowedSites|chrome\.tabs\.query|chrome\.permissions|\bpages?\b.*answer/.test(external), 'the site is never told a site or a page');
 // Its whole contents, whatever the machine does with line ends.
 const whole = crypto.createHash('sha256');
-for (const file of [...files].sort()) whole.update(file + '\n' + read(file) + '\n');
+for (const file of [...files].sort()) whole.update(file + '\n').update(read(file)).update('\n');
 const now = whole.digest('hex');
 const versions = JSON.parse(fs.readFileSync(path.join(ROOT, 'extension-versions.json'), 'utf8'));
 assert.equal(versions[manifest.version], now, `the extension changed: give it a new version in its manifest, and add "${manifest.version}": "${now}" to extension-versions.json (a version already there is never changed)`);
@@ -98,16 +101,54 @@ assert.ok(!/allow-top-navigation/.test(read('machine.html')));
   // Opened by Windows' own unzip, not by our reading of the format.
   if (process.platform === 'win32') {
     require('node:child_process').execFileSync('powershell', ['-NoProfile', '-Command', `Expand-Archive -LiteralPath '${path.join(dir, 'it.zip')}' -DestinationPath '${path.join(dir, 'out')}'`]);
-    for (const file of files) assert.equal(fs.readFileSync(path.join(dir, 'out', 'debaser-extension', file), 'utf8'), read(file), `${file} comes out as it went in`);
+    for (const file of files) assert.ok(fs.readFileSync(path.join(dir, 'out', 'debaser-extension', file)).equals(Buffer.from(read(file))), `${file} comes out as it went in`);
+  }
+  // (2026-11-27) The stores' copy: the same files, its manifest without the key (a store gives its own id).
+  const storeZip = await served.extensionZip(true);
+  assert.equal(storeZip.name, `debaser-extension-store-${manifest.version}.zip`);
+  fs.writeFileSync(path.join(dir, 'store.zip'), storeZip.bytes);
+  if (process.platform === 'win32') {
+    require('node:child_process').execFileSync('powershell', ['-NoProfile', '-Command', `Expand-Archive -LiteralPath '${path.join(dir, 'store.zip')}' -DestinationPath '${path.join(dir, 'store')}'`]);
+    const { key: _key, ...rest } = manifest;
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir, 'store', 'debaser-extension', 'manifest.json'), 'utf8')), rest, "the store's manifest is the same but for the key");
+    for (const file of files) if (file !== 'manifest.json') assert.ok(fs.readFileSync(path.join(dir, 'store', 'debaser-extension', file)).equals(Buffer.from(read(file))), `${file} in the store's copy`);
   }
   fs.rmSync(dir, { recursive: true, force: true });
+  // (2026-11-27) The version before this one, so a store's copy one behind is let be: from the record of versions, in order.
+  const versions = Object.keys(JSON.parse(fs.readFileSync(path.join(ROOT, 'extension-versions.json'), 'utf8')));
+  assert.equal(list.previous, versions[versions.indexOf(manifest.version) - 1], 'the version before');
+  assert.equal(E.listFrom({ ...list, previous: '<b>' }).previous, undefined, 'and only a version');
+  // The stores' ids: empty until Luke sends them, and then an id's shape (32 letters a to p), nothing else.
+  const ids = fs.readFileSync(path.join(ROOT, 'app', 'lib', 'seeing', 'extension-ids.ts'), 'utf8');
+  for (const name of ['CHROME_STORE_ID', 'EDGE_STORE_ID']) assert.match(ids, new RegExp(`export const ${name} = '(?:[a-p]{32})?';`), name);
   for (const bad of [null, {}, { ...list, version: 'x' }, { ...list, files: [] }, { ...list, files: [{ ...list.files[0], name: '../x.js' }] }, { ...list, files: [{ ...list.files[0], name: 'a/b.js' }] }, { ...list, files: [...list.files, list.files[0]] }, { ...list, files: list.files.filter((each) => each.name !== 'manifest.json') }, { ...list, files: list.files.map((each) => ({ ...each, sha256: 'x' })) }, { ...list, files: list.files.map((each) => ({ ...each, name: each.name.replace('.js', '.exe') })) }]) assert.equal(E.listFrom(bad), null, JSON.stringify(bad)?.slice(0, 80));
   for (const [one, other, is] of [['0.2.0', '0.1.0', true], ['0.1.0', '0.2.0', false], ['0.10.0', '0.9.9', true], ['1.0', '1.0.0', false], ['1.0.0.1', '1.0', true]]) assert.equal(E.isNewer(one, other), is, one);
+  // (2026-11-27) A store's copy one version behind is let be while the store checks the new one; older, or the zip's, still updates first.
+  const judged = { version: '0.7.1', previous: '0.7.0', files: [] };
+  for (const [found, kind, checking] of [
+    [null, 'missing', false],
+    [{ version: '0.7.1', from: 'zip' }, 'current', false],
+    [{ version: '0.7.0', from: 'zip' }, 'old', false],
+    [{ version: '0.7.0', from: 'chrome' }, 'current', true],
+    [{ version: '0.7.0', from: 'edge' }, 'current', true],
+    [{ version: '0.6.0', from: 'chrome' }, 'old', false],
+    [{ version: '0.7.1', from: 'edge' }, 'current', false],
+  ]) assert.deepEqual(E.judgeVersion(found, judged), { kind, checking }, JSON.stringify(found));
+  assert.deepEqual(E.judgeVersion({ version: '0.7.0', from: 'chrome' }, { ...judged, previous: undefined }), { kind: 'old', checking: false }, 'not knowing the version before: old');
   assert.equal(await E.idOfKey(manifest.key), id);
   assert.equal(await E.idOfKey('not a key!'), null);
+  // (2026-11-27, Luke: "generate a text icon for debaser") Its icons: the manifest names them, each a PNG of its size, and the list carries them.
+  const sizes = { 16: 'icon-16.png', 32: 'icon-32.png', 48: 'icon-48.png', 128: 'icon-128.png' };
+  assert.deepEqual(manifest.icons, sizes);
+  assert.deepEqual(manifest.action.default_icon, { 16: 'icon-16.png', 32: 'icon-32.png', 48: 'icon-48.png' });
+  for (const [size, file] of Object.entries(sizes)) {
+    const png = read(file);
+    assert.ok(png.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) && png.readUInt32BE(16) === Number(size) && png.readUInt32BE(20) === Number(size), `${file} is a ${size} x ${size} PNG`);
+  }
+  assert.equal(list.files.filter((each) => each.name.endsWith('.png')).length, 4, 'and the list carries all four, byte for byte');
 
   // The updater, on a pretend folder: the last version in it, with one file changed.
-  const bytesOf = (text) => new TextEncoder().encode(text);
+  const bytesOf = (text) => (typeof text === 'string' ? new TextEncoder().encode(text) : new Uint8Array(text));
   const folderOf = (holds, trouble = {}) => {
     const disk = new Map(Object.entries(holds).map(([name, text]) => [name, bytesOf(text)]));
     let closes = 0;
@@ -140,7 +181,7 @@ assert.ok(!/allow-top-navigation/.test(read('machine.html')));
   const fetched = async (name) => bytesOf(read(name));
   const good_ = folderOf(oldFiles);
   assert.deepEqual(await E.writeUpdate(good_, list, fetched), { ok: true });
-  assert.deepEqual(text(good_), { ...Object.fromEntries(files.map((file) => [file, read(file)])), 'mine.txt': oldFiles['mine.txt'] }, "the build's files, and nothing else touched");
+  assert.deepEqual(text(good_), { ...Object.fromEntries(files.map((file) => [file, asText(read(file))])), 'mine.txt': oldFiles['mine.txt'] }, "the build's files, and nothing else touched");
   const unchanged = async (folder, fetching, why) => {
     const answer = await E.writeUpdate(folder, list, fetching);
     assert.equal(answer.ok, false, why);
@@ -151,7 +192,7 @@ assert.ok(!/allow-top-navigation/.test(read('machine.html')));
   assert.match(await unchanged(make({ 'manifest.json': JSON.stringify({ key: 'AAAA' }) }), fetched, 'another extension'), /ISN'T THE EXTENSION'S FOLDER/);
   assert.match(await unchanged(make({ 'a.txt': 'x' }), fetched, 'a folder with no manifest'), /ISN'T/);
   assert.match(await unchanged(make({ 'manifest.json': 'not json' }), fetched, 'a manifest that is not one'), /ISN'T/);
-  assert.match(await unchanged(make(oldFiles), async (name) => bytesOf(read(name) + (name === 'worker.js' ? ' ' : '')), 'a tampered file'), /worker\.js IS NOT WHAT IT SHOULD BE/);
+  assert.match(await unchanged(make(oldFiles), async (name) => (name === 'worker.js' ? bytesOf(read(name) + ' ') : fetched(name)), 'a tampered file'), /worker\.js IS NOT WHAT IT SHOULD BE/);
   assert.match(await unchanged(make(oldFiles), async (name) => (name === 'sites.js' ? bytesOf('x'.repeat(read(name).length)) : fetched(name)), 'the right size and the wrong words'), /sites\.js IS NOT/);
   assert.match(await unchanged(make(oldFiles), async (name) => (name === 'lens.js' ? null : fetched(name)), 'a file that does not come'), /DID NOT COME/);
   assert.match(await unchanged(make(oldFiles), async () => { throw new Error('offline'); }, 'no line'), /DID NOT COME/);
@@ -161,6 +202,19 @@ assert.ok(!/allow-top-navigation/.test(read('machine.html')));
   assert.match(await unchanged(make(fewer, { write: 'manifest.json' }), fetched, 'a file that is new in this version'), /WOULDN'T WRITE/);
   assert.match(await unchanged(make(fewer, { close: files.length }), fetched, 'the same, stopped at the last swap'), /PUT BACK/);
   for (const close of [1, 4, files.length]) assert.match(await unchanged(make(oldFiles, { close }), fetched, `stopped at swap ${close}`), /THE OLD ONE WAS PUT BACK/);
+  // (2026-11-27) The first time, into a folder the reader picks: written whole when it is empty, and never over anything of the reader's.
+  const listed = (folder) => Object.assign(folder, { keys: async function* () { yield* [...folder.disk.keys()]; } });
+  const fresh_ = listed(folderOf({ 'desktop.ini': '[the computer]' }));
+  assert.deepEqual(await E.writeUpdate(fresh_, list, fetched, true), { ok: true });
+  assert.deepEqual(text(fresh_), { ...Object.fromEntries(files.map((file) => [file, asText(read(file))])), 'desktop.ini': '[the computer]' }, 'into an empty folder, the build whole');
+  for (const [holds, why] of [[{ 'mine.txt': 'x' }, "a folder of the reader's"], [{ 'manifest.json': JSON.stringify({ key: 'AAAA' }) }, "another extension's folder"]]) {
+    const folder = listed(make(holds));
+    assert.match((await E.writeUpdate(folder, list, fetched, true)).reason ?? '', /ISN'T EMPTY/, why);
+    assert.deepEqual(text(folder), holds, `${why}: nothing written`);
+  }
+  assert.match((await E.writeUpdate(make({}), list, fetched, true)).reason ?? '', /ISN'T EMPTY/, "a folder that can't be looked into is not taken for empty");
+  assert.deepEqual(await E.writeUpdate(listed(folderOf(oldFiles)), list, fetched, true), { ok: true }, 'its own folder (a zip loaded before) is written as an update');
+  assert.equal(await E.isEmptyFolder(listed(folderOf({ 'Thumbs.db': 'x', '.DS_Store': 'x' }))), true);
 
   // The pure parts, run as they are.
   const load = async (file) => import('data:text/javascript,' + encodeURIComponent(read(file).replace(/^import .*$/gm, '').replace(/^export \{.*$/gm, '')));

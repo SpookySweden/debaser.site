@@ -11,5 +11,7 @@ export function generateStaticParams(): { name: string }[] {
 export async function GET(_request: Request, { params }: { params: Promise<{ name: string }> }): Promise<Response> {
   const bytes = await extensionFile((await params).name);
   if (bytes === null) return new Response('NO SUCH FILE', { status: 404 });
-  return new Response(bytes as BodyInit, { headers: { 'Content-Type': 'text/plain; charset=utf-8', 'X-Content-Type-Options': 'nosniff' } });
+  // Its icons are pictures; everything else is words.
+  const type = (await params).name.endsWith('.png') ? 'image/png' : 'text/plain; charset=utf-8';
+  return new Response(bytes as BodyInit, { headers: { 'Content-Type': type, 'X-Content-Type-Options': 'nosniff' } });
 }

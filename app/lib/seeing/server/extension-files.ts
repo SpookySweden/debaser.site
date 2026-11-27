@@ -9,12 +9,16 @@ import { crc32, deflateRawSync } from 'node:zlib';
 import type { ExtensionList } from '../extension';
 
 /** Every file of it. `Temp/check-see-extension.cjs` holds this to the folder. */
-export const EXTENSION_FILES = ['README.md', 'act.js', 'frame.js', 'lens.js', 'machine.css', 'machine.html', 'machine.js', 'manifest.json', 'panel.css', 'panel.html', 'panel.js', 'sites.js', 'worker.js'] as const;
+export const EXTENSION_FILES = ['README.md', 'act.js', 'frame.js', 'icon-128.png', 'icon-16.png', 'icon-32.png', 'icon-48.png', 'lens.js', 'machine.css', 'machine.html', 'machine.js', 'manifest.json', 'panel.css', 'panel.html', 'panel.js', 'sites.js', 'worker.js'] as const;
 
-/** A file as it is served: the same bytes on whichever machine the site is built, whatever that machine does with line ends. */
+/**
+ * A file as it is served: the same bytes on whichever machine the site is built, whatever that machine does with line ends. Its icons
+ * (2026-11-27, Luke's text icon) are pictures, served as the bytes they are.
+ */
 export async function extensionFile(name: string): Promise<Buffer | null> {
   const known = EXTENSION_FILES.find((each) => each === name);
   if (known === undefined) return null;
+  if (known.endsWith('.png')) return readFile(join(process.cwd(), 'extension', known));
   return Buffer.from((await readFile(join(process.cwd(), 'extension', known), 'utf8')).replace(/\r\n/g, '\n'), 'utf8');
 }
 
@@ -25,7 +29,10 @@ export async function extensionList(): Promise<ExtensionList> {
     if (bytes !== null) files.push({ name, size: bytes.byteLength, sha256: createHash('sha256').update(bytes).digest('hex') });
   }
   const manifest = JSON.parse((await extensionFile('manifest.json'))?.toString('utf8') ?? '{}') as { version: string };
-  return { version: manifest.version, files };
+  // The version before this one, from the record of every version (in the order they were made).
+  const versions = Object.keys(JSON.parse(await readFile(join(process.cwd(), 'extension-versions.json'), 'utf8').catch(() => '{}')) as Record<string, string>);
+  const previous = versions[versions.indexOf(manifest.version) - 1];
+  return previous === undefined || !versions.includes(manifest.version) ? { version: manifest.version, files } : { version: manifest.version, previous, files };
 }
 
 const FOLDER = 'debaser-extension';
@@ -64,11 +71,20 @@ export function zipOf(files: readonly { name: string; bytes: Buffer }[]): Buffer
   return Buffer.concat([...parts, list, end]);
 }
 
-export async function extensionZip(): Promise<{ name: string; bytes: Buffer }> {
+/**
+ * `store`: the copy for the Chrome Web Store and Edge Add-ons, without the manifest's `key` (a store gives the extension its own id, and
+ * refuses or ignores a key of ours). The key stays in the one people load by hand, so its id is the one the site knows (EXTENSION_ID).
+ */
+export async function extensionZip(store = false): Promise<{ name: string; bytes: Buffer }> {
   const files: { name: string; bytes: Buffer }[] = [];
   for (const name of EXTENSION_FILES) {
     const bytes = await extensionFile(name);
-    if (bytes !== null) files.push({ name, bytes });
+    if (bytes === null) continue;
+    if (store && name === 'manifest.json') {
+      const manifest = JSON.parse(bytes.toString('utf8')) as Record<string, unknown>;
+      delete manifest.key;
+      files.push({ name, bytes: Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`, 'utf8') });
+    } else files.push({ name, bytes });
   }
-  return { name: `${FOLDER}-${(await extensionList()).version}.zip`, bytes: zipOf(files) };
+  return { name: `${FOLDER}-${store ? 'store-' : ''}${(await extensionList()).version}.zip`, bytes: zipOf(files) };
 }

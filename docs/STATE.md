@@ -33,8 +33,10 @@ FULLSCREEN key fix. Room sync, the context system and the first EXPLAIN and BROW
 - EXPLAIN: hover words on every key, shown only while `[ EXPLAIN ]` (PREFERENCES, off by default) is on; top bar, side
   panel, MEDIA, the room and music bar, profile and settings, and the forum live (a8fcf58, eed29ea, e14e50d, 6c2601a); next the
   reader, then the rest, one fresh session per area (`Temp/check-explain.cjs` STILL_TO_DO; hand-over `explain-handover.md` in the group's notes folder).
-- BROWSER: being built now: the easy install (`browser-easy-install-brief.md` in the 69ad notes folder: Luke's text icon, the Edge
-  Add-ons pack, hidden; CHOOSE AN EMPTY FOLDER; then a Firefox trial and a bookmarks-bar key), then the IMPROVE rounds. Live: sign-in
+- BROWSER: the easy install (`browser-easy-install-brief.md` in the 69ad notes folder). Live: Luke's text icon (extension 0.8.0), the
+  Edge Add-ons pack (`docs/extension-store/README.md`, his steps; hidden; waits on him), [ CHOOSE AN EMPTY FOLDER ] (the site writes the
+  extension into a new folder) and the copy key for the extensions page. Next, for a fresh session: the Firefox trial and the
+  bookmarks-bar key (hand-over `browser-build-handover.md`), then the IMPROVE rounds. Also live: sign-in
   groups, IMPORT, the store pack (90d3d69), OWN WEB (8827218), lenses on pages OWN EYE shows inside BROWSER (7b85214), the address box
   following them (95a39db), EXPLAIN words on every BROWSER key and the first agent review's fixes (e71c71c, extension 0.7.1).
 - The shelf: BROWSER and REMOTE are marked WIP (f648c04).
@@ -48,7 +50,9 @@ FULLSCREEN key fix. Room sync, the context system and the first EXPLAIN and BROW
   key into the RELAY KEY form.
 - Off-site backup (Proton Drive, task `DebaserOffsite`) is built but off until he runs
   `C:\DEBASER-SETUP\proton-backup-setup.ps1`; then the first upload and a restore test are owed.
-- BROWSER: `SEEING_OPEN`, the `see.debaser.site` DNS record, whether the machine puts away consent boxes.
+- BROWSER: `SEEING_OPEN`, the `see.debaser.site` DNS record, whether the machine puts away consent boxes; the Edge Add-ons listing (his
+  eight steps in `docs/extension-store/README.md`, then the id; every new extension version is his upload again); the paper or the
+  transparent icon; Firefox signing (his Mozilla account), if the trial says go.
 - Google sign-in check on debaser.site from his own browser.
 - The gaming PC's security (Defender off, dead startup entries, old encrypted files in `C:\tmp`): his to change.
 - Test leftovers on TEST ACCOUNT A/B (ROOMCHAT lines, CANVAS rooms): a delete, waits for his OK. POPOUT on hold.
