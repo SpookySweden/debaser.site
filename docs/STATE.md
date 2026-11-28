@@ -77,8 +77,14 @@ keeps one player alive in a background tab and shows a short LINING UP line.
   order: the direct line as today; a port on his router opened by the PC's engine itself (his "Yes, automatically"; the
   Virgin Hub 5 answers and has a public address, seen 2026-11-28); and through the site as the slow fallback (Luke,
   2026-11-28: "Build, capped, 20 GB (Recommended)", after being told Cloudflare's free-plan video rule covers the tunnel, no
-  bill, at worst the free account cut off; his Cloudflare billing lists "Only the domain"). Nothing built; the first two
-  ways first, the site way hidden until picture, control and sound all work.
+  bill, at worst the free account cut off; his Cloudflare billing lists "Only the domain"). The first two ways are on
+  `main` (0d7275df, 2026-11-28; SPEC-screens.md "Away from home with no setup"): the engine's `--router-port` asks the
+  router for the picture's one port, an hour at a time, and gives it back when it stops; the view says `OVER THE
+  INTERNET (DIRECT, ROUTER PORT OPENED BY THE ENGINE)` and `[ SETTINGS ]` gets a ROUTE part. Proved on the gaming PC by
+  the engine's own tests only (41 of 41, against a pretend router; a broken copy fails 10). NOT RUNNING YET: the PC still
+  has the earlier engine; the new file is built there (SHA256 B2CE8AF3...3ED9) and goes on only on Luke's word
+  (`remote-anywhere-swap.ps1` in the 69ad notes folder). Unproved until then: the real Hub giving the port; and, his own
+  try, a connection from a phone hotspot. The site way: not started, hidden until picture, control and sound all work.
 
 ## Waiting on Luke
 - Tailscale: the laptop, phone and gaming PC join his tailnet so sessions and the heavy lane can reach them (his choice,
@@ -97,6 +103,9 @@ keeps one player alive in a background tab and shows a short LINING UP line.
   REMOTE-ANYWHERE is still working (his "get it working from any wifi, remotely, no setup": a way through the site itself,
   "okay but make sure it doesnt cost and look into it"; the engine opening a router port by itself, "Yes, automatically";
   "Wait until sound works too"). Briefs and research: `remote-*.md` in the 69ad notes folder.
+- REMOTE from any Wi-Fi, two things (2026-11-28): his word to put the engine that asks the router for a port onto the
+  gaming PC (asked through the coordinator; REMOTE to the PC is off for under a minute, the earlier engine file is kept
+  beside it); and after that his own try from his phone's hotspot (the clicks come with the swap's result).
 - SCREENS relay: activate Cloudflare Realtime/TURN on his account (he ticks the terms and pays himself), then paste the
   key into the RELAY KEY form.
 - Off-site backup (Proton Drive, task `DebaserOffsite`) is built but off until he runs
