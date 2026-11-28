@@ -89,9 +89,9 @@ const TOOL_WORDS: Record<ToolId, Explanation> = {
 
 const LAYER_WORDS: Record<LayerId, Explanation> = {
   pixelate: { what: 'Switches the big pixels on or off in the figure views.', why: 'On shows the figure as it will look; off draws it at full resolution.' },
-  fine: { what: 'Switches to bigger pixels, about 12 across.', why: 'Only works while PIXELATE is on.' },
+  fine: { what: 'Switches the bigger pixels, about 12 across, on or off.', why: 'Only works while PIXELATE is on.' },
   normalLight: { what: 'Switches the shading in three hard bands on or off; off draws flat colours.', why: 'It rests while NORMAL MAP is on.' },
-  normalMap: { what: 'Shows what the light reads: each pixel coloured by the way it faces.', why: 'For checking how the surfaces will catch the light.' },
+  normalMap: { what: 'Switches the view of what the light reads on or off: each pixel coloured by the way it faces.', why: 'For checking how the surfaces will catch the light.' },
 };
 
 /** What each shape is good for, in the hover box's own sentence case. */

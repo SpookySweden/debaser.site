@@ -430,7 +430,7 @@ function PageTile(props: {
           onClick={() => replacer.current?.click()}
           {...explain(
             'Opens the file chooser, to put a new picture in this page’s place.',
-            'Its place, its words and whether it is out stay. Panel boxes fixed by hand are kept; guessed ones are guessed again.',
+            'Its place, its words and whether it is out stay. Panel boxes are guessed again only if none were fixed by hand.',
             released ? 'READERS SEE THE NEW PICTURE AT ONCE.' : undefined,
           )}
         >
