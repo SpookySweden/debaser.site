@@ -41,7 +41,7 @@ run-checks.cjs
 
 **Which to run (Luke's rule, 2026-11-04).** Every task runs `checks:changed`. The whole suite runs before a big
 feature and when `checks:changed` prints FULL RUN DUE: a week since the last whole run on this machine, or the last
-one failed (`Temp/.last-full-checks.json`). "Changed" means commits not yet on GitHub, uncommitted edits and new
+one had a failure that is not on the red-on-purpose list, `scripts/known-red-checks.cjs` (`Temp/.last-full-checks.json`). "Changed" means commits not yet on GitHub, uncommitted edits and new
 files, so another session's half-done work in the same folder can pick extra checks, and can fail them.
 
 **How it picks.** No list of areas to keep up to date: a check is picked if it is a changed file, names one, compiles
