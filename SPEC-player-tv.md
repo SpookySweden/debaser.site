@@ -76,6 +76,8 @@ never moved into the TV.
 - Between two videos of a queue the TV stays for a moment rather than blinking out.
 - No TV when the bar is hidden or folded, or at phone width. No companion (switched off, signed out): the TV alone.
 - No on/off switch (none was asked for).
+- On a profile page with a video on, the character goes to the TV rather than up into the profile's room.
+- It runs along the bar to above the TV, then crawls down; on the TV's seat a press still pokes it and it can be picked up.
 
 ## How it is built
 - **The TV** is its own small module (`app/components/PlayerTv.tsx`): the blocks above as flat page boxes placed in 3D by
@@ -89,8 +91,8 @@ never moved into the TV.
   the words and left of any key already there; its own opaque box, so the visualiser stops at its edge.
 - **The character** (`app/lib/companion/`): a new place to sit; drawn above the bar and at one block per pixel from the
   start of the way down to the end of the way up; its path stays over the black and never over a key.
-- **The crawl** is one new motion, `crawl`, in `app/lib/character/motion.ts` with its `MOTION_FALLBACK` entry (an old strip
-  plays `climb` until its owner's browser bakes again): only turns of the joints of the owner's own built character
+- **The crawl** is one new motion, `crawl`, in `app/lib/character/motion.ts` with its `MOTION_FALLBACK` entry (an older saved strip
+  plays the walk until its owner's browser bakes it again by itself, a few seconds after a page settles, on a computer): only turns of the joints of the owner's own built character
   (art.md, "Code-made motion isn't artwork"). No shapes added, no existing motion changed.
 - New files: `app/components/PlayerTv.tsx`, `app/lib/player-tv/`.
 - No database change.
@@ -103,9 +105,10 @@ never moved into the TV.
 5. Two or three local screenshots of the TV in the bar to Luke, **before the push**: his eye decides whether it looks right.
 
 ## Proof (each check seen failing first)
-- `Temp/check-player-tv.cjs`: each kind of video gets the right screen; the stills change at the right times; the TV has
-  the blocks above and no others, in token inks.
-- A check that every motion that existed before bakes the same frames as before.
+- `Temp/check-player-tv.cjs`: each kind of video gets the right screen; the stills change at the right times; every motion
+  that existed before comes out the same as before, frame for frame, and the crawl needs no bigger picture box; the way to
+  the seat never overshoots and always ends.
+- In the browser drive: the TV has the blocks above and no others.
 - A real-browser drive on a local mock server with a known test clip: screenshot pixels inside the screen change and match
   the clip, and are slanted as designed; stills for a YouTube entry; no TV with no video; the character reaches the seat and
   leaves it; the bar's keys still work; no sideways scroll at 390.

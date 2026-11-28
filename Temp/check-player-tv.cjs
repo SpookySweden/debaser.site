@@ -1,6 +1,6 @@
 /*
  * The little TV in the player bar (SPEC-player-tv.md): its rules, without a browser.
- *   npx tsc app/lib/player-tv/source.ts app/lib/character/motion.ts app/lib/character/rig.ts --outDir Temp/player-tv-check --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strict
+ *   npx tsc app/lib/player-tv/source.ts app/lib/character/motion.ts app/lib/character/rig.ts app/lib/companion/tv-seat.ts --outDir Temp/player-tv-check --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strict
  *   node Temp/check-player-tv.cjs
  *
  * What it holds:
@@ -8,6 +8,7 @@
  *     dark screen; a song, a held picture, an ended video and a file with no picture get no TV;
  *   - one TV: the video that is playing, else the floating player's;
  *   - the stills change at the thirds of the video, and turn about when its length is not known;
+ *   - the seat is in the middle of the box the TV leaves for it, and the way there never overshoots and always ends;
  *   - the crawl down to the TV is only turns of the owner's own joints, stays inside the picture box the other motions
  *     already need, and every motion there was before it comes out exactly as it did.
  */
@@ -122,6 +123,24 @@ for (const preset of RIG_PRESET_IDS) {
   for (const drawn of posed('crawl')) box(drawn, own);
   assert.ok(own.x[0] >= rest.x[0] - 1e-6 && own.x[1] <= rest.x[1] + 1e-6, `${preset}: no wider than the others need (${own.x} in ${rest.x})`);
   assert.ok(own.y[0] >= rest.y[0] - 1e-6 && own.y[1] <= rest.y[1] + 1e-6, `${preset}: no taller than the others need (${own.y} in ${rest.y})`);
+}
+
+// --- the way to the seat ---------------------------------------------------------------------------------------------
+const { seatSpot, crawlStep, CRAWL_STEP, CRAWL_FRAMES } = require(path.join(OUT, 'companion', 'tv-seat.js'));
+assert.deepEqual(seatSpot({ left: 900, top: 700, width: 40, height: 80, inWindow: false }, 40), { x: 910, y: 778 });
+for (const [from, to] of [[{ x: 100, y: 690 }, { x: 160, y: 778 }], [{ x: 500, y: 200 }, { x: 910, y: 778 }], [{ x: 10, y: 10 }, { x: 11, y: 12 }]]) {
+  const whole = Math.hypot(to.x - from.x, to.y - from.y);
+  let at = from;
+  let frames = 0;
+  while ((at.x !== to.x || at.y !== to.y) && frames < 200) {
+    const next = crawlStep(at, to, whole);
+    assert.ok(Math.hypot(to.x - next.x, to.y - next.y) < Math.hypot(to.x - at.x, to.y - at.y), 'every frame is nearer');
+    assert.ok(Math.hypot(next.x - at.x, next.y - at.y) <= Math.max(CRAWL_STEP, whole / CRAWL_FRAMES) + 1.5, 'a step at a time');
+    at = next;
+    frames += 1;
+  }
+  assert.deepEqual(at, to, 'it gets there');
+  assert.ok(frames <= CRAWL_FRAMES * 1.5, `a way down takes a few seconds at most (${frames} frames)`);
 }
 
 console.log('check-player-tv: all passed');

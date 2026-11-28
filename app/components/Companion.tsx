@@ -39,6 +39,7 @@ import { measureWindows, type Floor, type FloorBox } from '../lib/companion/floo
 import { shoveStep, shoveThrow } from '../lib/companion/shove';
 import { holdLedgeHeight } from '../lib/companion/ledge';
 import { dropsInto } from '../lib/companion/loose';
+import { crawlStep, seatOnScreen, seatSpot, type Spot } from '../lib/companion/tv-seat';
 import dynamic from 'next/dynamic';
 import type { LooseGrab } from './LooseCharacter';
 
@@ -297,7 +298,7 @@ function closePortal(portal: HTMLDivElement | null) {
  * Where it is: on its strip, climbing up into a profile's room, in it, climbing down, gone, stepping out of the portal,
  * held up by the reader's pointer, falling back to its strip, or thrown (in the air, or flat against an edge of the screen).
  */
-type Phase = VisitPhase | 'portal' | 'held' | 'fall' | 'thrown' | 'mount';
+type Phase = VisitPhase | 'portal' | 'held' | 'fall' | 'thrown' | 'mount' | 'tv';
 
 /**
  * A press on the figure: a poke until it moves, then a pick-up. `off` is where on the figure it was taken hold of, and
@@ -558,7 +559,7 @@ function Figure({ placeRef, bodyRef, markRef, label, own, ownerId, look }: Figur
       {/* The `!`: text, not art (SPEC-companion.md, decision 3). */}
       <span
         ref={markRef}
-        className={`invisible absolute right-0 border border-ink bg-sun-pale px-1 font-mono text-label leading-none text-ink ${look === null ? 'bottom-full mb-1' : ''}`}
+        className={`invisible absolute right-0 border border-ink bg-sun-pale px-1 font-mono text-label leading-none text-ink group-data-[half=true]:origin-bottom-right group-data-[half=true]:scale-200 ${look === null ? 'bottom-full mb-1' : ''}`}
         style={markBottom === undefined ? undefined : { bottom: markBottom }}
         data-companion-mark
       >
@@ -754,6 +755,17 @@ function OwnCompanion({ label, userId, roomKeys, friendShare, friendId, musicPla
     let windowsSeen: Map<string, FloorBox> | null = null;
     let windowsCooling = new Map<string, number>();
     let lastSaid: { mood: CompanionMood; target: number | null; ref: string | null; pose: MotionId | null; share: number; at: number } | null = null;
+    // By the player bar's TV (SPEC-player-tv.md): where the small figure is, which way it is headed, and how far that is.
+    let tvAt: Spot = { x: 0, y: 0 };
+    let tvDown = true;
+    let tvWhole = 0;
+    /** The companions' layer is under the music bar; over the TV's seat it has to be over the bar (or over its window). */
+    const raise = (over: 'bar' | 'window' | null) => {
+      const layer = place?.closest<HTMLElement>('[data-companion-strip]');
+      if (layer === null || layer === undefined || (layer.dataset.over ?? '') === (over ?? '')) return;
+      if (over === null) delete layer.dataset.over;
+      else layer.dataset.over = over;
+    };
     // Visiting a profile's room.
     let phase: Phase = 'strip';
     /** Its feet while it climbs, from the top of the screen. */
@@ -867,6 +879,7 @@ function OwnCompanion({ label, userId, roomKeys, friendShare, friendId, musicPla
       const now = Date.now();
       // Hearts rise only on a frame it leans in for a kiss: set again below when it does.
       if (place !== null && place.dataset.kiss !== undefined) delete place.dataset.kiss;
+      if (phase !== 'tv') raise(null);
       const room = visitRoomState();
       const pathNow = window.location.pathname;
       const pageChanged = pathNow !== path;
@@ -1112,6 +1125,47 @@ function OwnCompanion({ label, userId, roomKeys, friendShare, friendId, musicPla
         }
       }
 
+      // By the TV: down over the front of the bar, seated while the video is on, and back up when the TV goes.
+      if (phase === 'tv' && !still) {
+        const seat = seatOnScreen();
+        const goal = seat === null ? { x: tvAt.x, y: floor.y } : seatSpot(seat, size.w);
+        if ((seat !== null) !== tvDown) {
+          tvDown = seat !== null;
+          tvWhole = Math.hypot(goal.x - tvAt.x, goal.y - tvAt.y);
+        }
+        tvAt = crawlStep(tvAt, goal, tvWhole);
+        const there = tvAt.x === goal.x && tvAt.y === goal.y;
+        x = tvAt.x - Math.round(size.w / 4);
+        y = tvAt.y;
+        if (seat === null && there) {
+          // Back up: itself again, from here on.
+          phase = 'strip';
+          raise(null);
+          brain = startBrain(now);
+          lastActivity = now;
+        } else {
+          if (seat !== null) raise(seat.inWindow ? 'window' : 'bar');
+          let lift = 0;
+          if (act === null && queue.length > 0) act = { motion: queue.shift() ?? 'hop', tick: 0 };
+          // Seated, a hop or a `!` for something that happened is still played; otherwise it watches.
+          if (there && act !== null) {
+            motion = act.motion;
+            motionTick = act.tick;
+            if (look === null) lift = HOP[act.tick] ?? 0;
+            act = act.tick + 1 < actLength(look, act.motion) ? { motion: act.motion, tick: act.tick + 1 } : null;
+          } else play(there ? 'watch' : seat === null ? 'climb' : 'crawl');
+          // The TV is on its right; on the way, it faces where it is going.
+          facing = there || goal.x >= tvAt.x ? 1 : -1;
+          if (place !== null) place.dataset.tv = there ? 'seat' : seat === null ? 'up' : 'down';
+          draw(place, bodyRef.current, look, { x: tvAt.x, floorY: tvAt.y, facing, mood: there ? 'sit' : 'walk', motion, tick: motionTick, lift, half: true });
+          frame += 1;
+          if (frame % 5 === 0) yieldToKeys(place);
+          say(floor, size, false);
+          return;
+        }
+      }
+      if (place !== null && place.dataset.tv !== undefined) delete place.dataset.tv;
+
       const span: Span | null = spanFor(floor.spans, x ?? floor.screen - size.w - 48);
       if (span === null) {
         hide(place);
@@ -1156,6 +1210,31 @@ function OwnCompanion({ label, userId, roomKeys, friendShare, friendId, musicPla
         }
       }
 
+      // A video on in the player bar (SPEC-player-tv.md): over to above its TV, and down. It comes before a profile's room,
+      // music and typing; a one-off or a kiss under way is finished first.
+      const tvBox = !still && phase === 'strip' && act === null && queue.length === 0 && kiss === null ? seatOnScreen() : null;
+      if (tvBox !== null && tvBox.top >= floor.y - 4) {
+        const spot = seatSpot(tvBox, size.w);
+        const column = Math.min(span.right, Math.max(span.left, spot.x - Math.round(size.w / 4)));
+        const going = Math.abs(column - x) >= 1;
+        if (going) {
+          facing = column > x ? 1 : -1;
+          x += Math.sign(column - x) * Math.min(CHASE_STEP * 2, Math.abs(column - x));
+        } else {
+          phase = 'tv';
+          tvAt = { x: column + Math.round(size.w / 4), y: floor.y };
+          tvDown = true;
+          tvWhole = Math.hypot(spot.x - tvAt.x, spot.y - tvAt.y);
+        }
+        // What the room hears: it runs over, then sits watching, as it always has with a video on.
+        brain = { ...startBrain(now), mood: going ? 'walk' : 'sit', target: going ? column : null, pose: going ? 'run' : 'watch' };
+        posing = going ? null : 'watch';
+        play(going ? 'run' : 'crawl');
+        draw(place, bodyRef.current, look, { x, floorY: floor.y, facing, mood: brain.mood, motion, tick: motionTick, lift: 0 });
+        say(floor, size, false);
+        return;
+      }
+
       // A profile's room on screen: up it goes.
       // (Not from on top of a stream room's window: there is no way down from there but the window going.)
       if (!still && phase === 'strip' && !floor.ledge && room !== null && roomFloor(boxOf(room.stage), clipOf(room.stage), size, floor.y) !== null) {
@@ -1167,7 +1246,17 @@ function OwnCompanion({ label, userId, roomKeys, friendShare, friendId, musicPla
       if (still) {
         brain = { mood: 'stand', target: null, until: Infinity, chaseUntil: 0, pose: null, act: null, laps: 0, home: 0 };
         posing = null;
-        draw(place, bodyRef.current, look, { x, floorY: floor.y, facing, mood: 'stand', motion: 'idle', tick: 0, lift: 0 });
+        // Reduced motion: no crawl. With the TV on it is simply there, seated.
+        const stillSeat = seatOnScreen();
+        if (stillSeat !== null) {
+          const spot = seatSpot(stillSeat, size.w);
+          raise(stillSeat.inWindow ? 'window' : 'bar');
+          if (place !== null) place.dataset.tv = 'seat';
+          draw(place, bodyRef.current, look, { x: spot.x, floorY: spot.y, facing: 1, mood: 'sit', motion: 'watch', tick: 0, lift: 0, half: true });
+        } else {
+          if (place !== null) delete place.dataset.tv;
+          draw(place, bodyRef.current, look, { x, floorY: floor.y, facing, mood: 'stand', motion: 'idle', tick: 0, lift: 0 });
+        }
         if (Math.floor(now / TICK_MS) % 5 === 0) yieldToKeys(place);
         // Reduced motion: nobody walks over for a kiss, so with its friend's companion here, a still ♥ over its head at
         // the kiss's moment says it instead (on this screen only: nothing is sent for it).
@@ -1480,7 +1569,7 @@ function OwnCompanion({ label, userId, roomKeys, friendShare, friendId, musicPla
      * It can be taken hold of on its strip, on its way up to or down from a room, or thrown (caught out of the air, or
      * peeled off the glass): not in a room, gone, or already held.
      */
-    const canGrab = () => phase === 'strip' || phase === 'up' || phase === 'down' || phase === 'thrown' || phase === 'mount';
+    const canGrab = () => phase === 'strip' || phase === 'up' || phase === 'down' || phase === 'thrown' || phase === 'mount' || phase === 'tv';
     /**
      * In the hand it is placed on every move of the pointer, not at the next frame (Luke, 2026-11-16: "the character stays
      * under the pointer with no visible lag"), leaning back against the drag (`dragLook`).
@@ -1502,12 +1591,14 @@ function OwnCompanion({ label, userId, roomKeys, friendShare, friendId, musicPla
         return;
       }
       const box = place.getBoundingClientRect();
+      // Taken off the TV's seat it is full size again in the hand, held by the same part of itself.
+      const twice = place.dataset.half === 'true' ? 2 : 1;
       grab = {
         id: event.pointerId,
         startX: event.clientX,
         startY: event.clientY,
-        offX: event.clientX - box.left,
-        offY: box.bottom - event.clientY,
+        offX: (event.clientX - box.left) * twice,
+        offY: (box.bottom - event.clientY) * twice,
         moved: false,
         px: event.clientX,
         py: event.clientY,
@@ -1573,7 +1664,7 @@ function OwnCompanion({ label, userId, roomKeys, friendShare, friendId, musicPla
       grab = null;
       if (!released.moved) {
         // A press let go where it was made is a poke, on its strip only: a climb has no frames to play one in.
-        if (event.type !== 'pointerup' || phase !== 'strip') return;
+        if (event.type !== 'pointerup' || (phase !== 'strip' && phase !== 'tv')) return;
         const at = Date.now();
         if (at - lastTap <= DOUBLE_MS && place !== null) {
           // The second press of two: picked up, to follow the pointer until the next press puts it down. The first
@@ -1661,6 +1752,7 @@ function OwnCompanion({ label, userId, roomKeys, friendShare, friendId, musicPla
       sayCompanion(null);
       setCompanionInRoom(false);
       closePortal(portal);
+      raise(null);
     };
   }, [still]);
 
@@ -2145,7 +2237,7 @@ export default function Companion() {
 
   return (
     // Under the music bar (z-50) and every window, over the page. Only the figures take the pointer.
-    <div className="pointer-events-none fixed inset-0 z-40 overflow-hidden" data-companion-strip>
+    <div className="pointer-events-none fixed inset-0 z-40 overflow-hidden data-[over=bar]:z-50 data-[over=window]:z-banner" data-companion-strip>
       {mine ? (
         <>
           <MusicWatch onChange={onMusic} />

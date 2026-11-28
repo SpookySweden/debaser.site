@@ -228,7 +228,9 @@ function Picture({ shows }: { shows: TvShows }) {
  * One block: its front face where it is put, a top and a right side going back from it. Only the faces the set's angle
  * can show are made.
  */
-function Block({ at, size, front, top, side, turn, children }: {
+function Block({ kind, at, size, front, top, side, turn, children }: {
+  /** Written on it (`data-tv-block`), so the drive can count that these blocks and no others are made. */
+  kind: 'case' | 'knob' | 'aerial' | 'foot';
   at: { x: number; y: number; z?: number };
   size: { w: number; h: number; d: number };
   front: string;
@@ -248,7 +250,7 @@ function Block({ at, size, front, top, side, turn, children }: {
     transform: `translateZ(${at.z ?? 0}px) rotateZ(${turn ?? 0}deg)`,
   };
   return (
-    <span className="absolute block" style={box}>
+    <span className="absolute block" style={box} data-tv-block={kind}>
       <span className={`absolute inset-0 block ${front}`}>{children}</span>
       <span className={`absolute left-0 top-0 block ${top}`} style={{ width: size.w, height: size.d, transformOrigin: 'top', transform: 'rotateX(-90deg)' }} />
       <span className={`absolute top-0 block ${side}`} style={{ left: size.w, width: size.d, height: size.h, transformOrigin: 'left', transform: 'rotateY(90deg)' }} />
@@ -264,16 +266,16 @@ function Set({ children }: { children: ReactNode }) {
   return (
     <span className="relative block shrink-0" style={{ width: 100, height: 64, perspective: 260 }}>
       <span className="absolute block" style={{ left: 6, top: 14, width: CASE.w, height: CASE.h, transformStyle: 'preserve-3d', transform: 'rotateX(-12deg) rotateY(-26deg)' }}>
-        <Block at={{ x: 0, y: 0 }} size={CASE} front="bg-sun" top="bg-ink-bar" side="bg-ena">
+        <Block kind="case" at={{ x: 0, y: 0 }} size={CASE} front="bg-sun" top="bg-ink-bar" side="bg-ena">
           <span className="absolute block bg-ink-plate" style={{ left: SCREEN.x, top: SCREEN.y, width: SCREEN.w, height: SCREEN.h }} data-tv-screen>
             {children}
           </span>
         </Block>
-        <Block at={{ x: 69, y: 9, z: 3 }} size={{ w: 5, h: 5, d: 3 }} front="bg-bubble" top="bg-ink-bar" side="bg-ena" />
-        <Block at={{ x: 27, y: -13, z: -8 }} size={{ w: 2, h: 13, d: 2 }} turn={-34} front="bg-ink-bar" top="bg-ink-bar" side="bg-ena" />
-        <Block at={{ x: 45, y: -13, z: -8 }} size={{ w: 2, h: 13, d: 2 }} turn={34} front="bg-ink-bar" top="bg-ink-bar" side="bg-ena" />
-        <Block at={{ x: 8, y: CASE.h, z: -3 }} size={{ w: 9, h: 4, d: 9 }} front="bg-ink-bar" top="bg-ink-bar" side="bg-ena" />
-        <Block at={{ x: 61, y: CASE.h, z: -3 }} size={{ w: 9, h: 4, d: 9 }} front="bg-ink-bar" top="bg-ink-bar" side="bg-ena" />
+        <Block kind="knob" at={{ x: 69, y: 9, z: 3 }} size={{ w: 5, h: 5, d: 3 }} front="bg-bubble" top="bg-ink-bar" side="bg-ena" />
+        <Block kind="aerial" at={{ x: 27, y: -13, z: -8 }} size={{ w: 2, h: 13, d: 2 }} turn={-34} front="bg-ink-bar" top="bg-ink-bar" side="bg-ena" />
+        <Block kind="aerial" at={{ x: 45, y: -13, z: -8 }} size={{ w: 2, h: 13, d: 2 }} turn={34} front="bg-ink-bar" top="bg-ink-bar" side="bg-ena" />
+        <Block kind="foot" at={{ x: 8, y: CASE.h, z: -3 }} size={{ w: 9, h: 4, d: 9 }} front="bg-ink-bar" top="bg-ink-bar" side="bg-ena" />
+        <Block kind="foot" at={{ x: 61, y: CASE.h, z: -3 }} size={{ w: 9, h: 4, d: 9 }} front="bg-ink-bar" top="bg-ink-bar" side="bg-ena" />
       </span>
     </span>
   );

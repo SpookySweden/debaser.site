@@ -112,6 +112,8 @@ export function draw(
     tick: number;
     lift: number;
     held?: boolean;
+    /** By the player bar's TV (`./tv-seat.ts`): half size, `x` and `floorY` being the small figure's left and feet. */
+    half?: boolean;
     /** Thrown, or settling after it: its frame squashed, stretched, nudged, and copies of it trailing (`throw.ts`). */
     fx?: ThrowLook | null;
     /** Which part of a throw it is in, written on the figure (`data-throw`) for the drives to read. */
@@ -130,7 +132,11 @@ export function draw(
         tag.style.right = side === 'right' ? '0' : 'auto';
       }
     }
-    place.style.transform = `translate3d(${Math.round(frame.x)}px, ${Math.round(frame.floorY - size.h)}px, 0)`;
+    const half = frame.half === true;
+    // Half size is the whole box scaled from its top-left: two of the strip's pixels to one of the screen's, still hard.
+    place.style.transformOrigin = half ? '0 0' : '';
+    place.style.transform = `translate3d(${Math.round(frame.x)}px, ${Math.round(frame.floorY - (half ? size.h / 2 : size.h))}px, 0)${half ? ' scale(0.5)' : ''}`;
+    if ((place.dataset.half === 'true') !== half) place.dataset.half = String(half);
     place.style.visibility = 'visible';
     // Where the rules have it this frame, written on the figure for the drives: in the hand or in the air it is drawn
     // between frames too (`glide`), so its box alone is not always a frame's own place.
