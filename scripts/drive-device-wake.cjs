@@ -7,7 +7,9 @@
  * only through the debugger with `userGesture: false`, so B stays untouched until a step says otherwise. Each tab has its own
  * "touched" state, as two devices do.
  *
- *   node scripts/drive-device-wake.cjs --base http://localhost:3341 [--only file|server|bar|youtube|allowed]
+ *   node scripts/drive-device-wake.cjs --base http://localhost:3341 [--only file|server|bar|youtube|allowed|gap]
+ *
+ * `--only gap` (not in the plain run: it takes minutes) reads how far apart the two play, once a second for a minute.
  *
  * Start the server with every data source on mock (`node scripts/dev-mock-live.cjs 3341`). YouTube is the real one; LUKE'S SERVER
  * is a stand-in page running the real remote script out of the bridge on SERVER.
@@ -116,7 +118,7 @@ function serverPage() {
   });
   setInterval(() => {
     const v = document.querySelector('video');
-    parent.postMessage({ drive: 'server', player: !!v, paused: v ? v.paused : true, muted: v ? v.muted : false, time: v ? v.currentTime : 0, volume: v ? v.volume : 1 }, '*');
+    parent.postMessage({ drive: 'server', player: !!v, paused: v ? v.paused : true, muted: v ? v.muted : false, time: v ? v.currentTime : 0, at: Date.now(), volume: v ? v.volume : 1 }, '*');
   }, 250);
 </script>
 <script>${script}</script></body></html>`;
@@ -479,6 +481,62 @@ async function allowedKind(browser, errors) {
   }
 }
 
+/** Where one device's player is, with the moment that was read, so two readings can be compared. */
+const place = {
+  file: (run) =>
+    run(() => {
+      const video = document.querySelector('[data-dock-window="stream"] video[data-watch-video]');
+      return video === null || video.paused ? null : { time: video.currentTime, at: Date.now() };
+    }),
+  server: (run) => run(() => (window.__server && window.__server.player && !window.__server.paused ? { time: window.__server.time, at: window.__server.at } : null)),
+};
+/** How far B is ahead of A (seconds; behind is negative), or null while either is not running. */
+async function gapNow(kind, a, b) {
+  const [one, two] = await Promise.all([place[kind](a), place[kind](b)]);
+  return one === null || two === null ? null : two.time - one.time - (two.at - one.at) / 1000;
+}
+const hundredths = (value) => (value === null ? 'not running' : `${value >= 0 ? '+' : ''}${value.toFixed(2)}`);
+/** The gap read once a second for `seconds`: its middle, its nine-tenths and its worst. */
+async function gaps(kind, a, b, seconds, label) {
+  const read = [];
+  for (let i = 0; i < seconds; i += 1) {
+    await sleep(1000);
+    read.push(await gapNow(kind, a, b));
+  }
+  const sizes = read.filter((value) => value !== null).map(Math.abs).sort((x, y) => x - y);
+  const at = (part) => (sizes.length === 0 ? Infinity : sizes[Math.min(sizes.length - 1, Math.floor(part * sizes.length))]);
+  console.log(`    ${label}: ${read.map(hundredths).join(' ')}`);
+  console.log(`    ${label}: middle ${at(0.5).toFixed(2)} s, nine in ten within ${at(0.9).toFixed(2)} s, worst ${at(1).toFixed(2)} s (${sizes.length}/${seconds} readings)`);
+  return { middle: at(0.5), nine: at(0.9), read: sizes.length };
+}
+
+/** How far apart two devices of one account play, over a minute and after a pause, a play and a jump (`--only gap`). */
+async function gapKind(browser, kind, errors) {
+  console.log(`\n== HOW FAR APART: ${kind.toUpperCase()}${kind === 'server' ? ' (stand-in server)' : ''}`);
+  const context = await newContext(browser);
+  try {
+    const a = await openA(context, '/files?kind=video', errors);
+    const ra = readerOf(a);
+    await pressPlayInFiles(a);
+    if (!(await until(ra, 'file', true, 60000))) throw new Error('A never played the first file');
+    if (kind !== 'file') await putOnNow(a, LINKS[kind]);
+    if (!(await until(ra, kind, true, 45000))) throw new Error('A never played it');
+    const b = await openB(context, '/files?kind=video', errors);
+    if (!(await until(b.run, kind, true, 30000))) throw new Error('B never played it');
+    await sleep(8000);
+    const steady = await gaps(kind, ra, b.run, 60, `${kind}, one minute`);
+    check(steady.read >= 55 && steady.nine <= 0.15, `${kind}: over a minute the two stay within about a tenth of a second`, steady);
+    await press(a, 'Pause');
+    await sleep(3000);
+    await press(a, 'Play');
+    await sleep(3000);
+    const resumed = await gaps(kind, ra, b.run, 5, `${kind}, 3 s after pause then play`);
+    check(resumed.read === 5 && resumed.nine <= 0.15, `${kind}: in step again after pause and play`, resumed);
+  } finally {
+    await context.close();
+  }
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: findChrome(), headless: true, args: ['--autoplay-policy=document-user-activation-required', '--mute-audio', '--disable-audio-output'] });
   const errors = [];
@@ -507,6 +565,16 @@ async function allowedKind(browser, errors) {
         failed.push(`bar: ${error.message}`);
         console.log(`  FAIL  bar: ${error.stack}`);
       });
+    }
+    if (ONLY === 'gap') {
+      const allowing = await chromium.launch({ executablePath: findChrome(), headless: true, args: ['--autoplay-policy=no-user-gesture-required', '--mute-audio', '--disable-audio-output'] });
+      for (const kind of existsSync(BRIDGE) ? ['file', 'server'] : ['file']) {
+        await gapKind(allowing, kind, errors).catch((error) => {
+          failed.push(`gap ${kind}: ${error.message}`);
+          console.log(`  FAIL  gap ${kind}: ${error.stack}`);
+        });
+      }
+      await allowing.close();
     }
     if (ONLY === null || ONLY === 'allowed') {
       const allowing = await chromium.launch({ executablePath: findChrome(), headless: true, args: ['--autoplay-policy=no-user-gesture-required', '--mute-audio', '--disable-audio-output'] });
