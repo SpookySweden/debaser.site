@@ -36,9 +36,10 @@ night, on the lighter model: READER-FIXES (no EXPLAIN box over the book's page; 
 (hover words in letters, docs and lore), and ROOM-DEVICE-SYNC (one account's devices in a room staying linked: pause, play, mute,
 and a device that wakes by itself where a browser allows it; Luke, 2026-11-28: "i need this sorted so they are all smoothly
 linked"; nothing of it live yet), and INSTALL-APP (debaser.site installable as an app with the yellow text icon; Luke, 2026-11-28:
-"Yes, yellow text icon (Recommended)"; no service worker, no push; nothing live yet). To be specified with Luke before any
-build: the room as one continuous server stream for own-hosted music (his answer: "Yes but interview me regarding its
-implementation").
+"Yes, yellow text icon (Recommended)"; no service worker, no push; nothing live yet). Decided 2026-11-28 after an interview: no
+server stream for rooms (Luke: "Keep today's way, fix it (Recommended)"); each device keeps playing the media itself, and
+ROOM-DEVICE-SYNC also pulls one account's devices to about a tenth of a second apart (Luke: "Yes, pull them tight (Recommended)"),
+keeps one player alive in a background tab and shows a short LINING UP line.
 
 ## Half-done
 - EXPLAIN: hover words on every key, shown only while `[ EXPLAIN ]` (PREFERENCES, off by default) is on; top bar, side
