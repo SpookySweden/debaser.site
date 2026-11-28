@@ -33,7 +33,9 @@ FULL key ccb030a, your own devices' volume 05f4f90, `[ DEVICES ]` 2c51b18), EXPL
 review fixes and easy-install items 1 and 2, room sync and the context system. The gaming PC's heavy lane is on again
 since 2026-11-28 (Luke: "league is done we can open the pc switch and use it at full capacity too"). Also working since that
 night, on the lighter model: READER-FIXES (no EXPLAIN box over the book's page; the place saved on leaving) and EXPLAIN-REST-1
-(hover words in letters, docs and lore).
+(hover words in letters, docs and lore), and ROOM-DEVICE-SYNC (one account's devices in a room staying linked: pause, play, mute,
+and a device that wakes by itself where a browser allows it; Luke, 2026-11-28: "i need this sorted so they are all smoothly
+linked"; nothing of it live yet).
 
 ## Half-done
 - EXPLAIN: hover words on every key, shown only while `[ EXPLAIN ]` (PREFERENCES, off by default) is on; top bar, side
