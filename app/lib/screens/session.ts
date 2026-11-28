@@ -1,6 +1,6 @@
 import { fullscreenBox } from '../ui/whole-site-fullscreen';
 import { ScreenConnection, type StreamStats } from './connection';
-import { type NetRoute } from './net-route';
+import { routeThroughRouterPort, type NetRoute } from './net-route';
 import { ScreenControl, canLockKeyboard } from './control';
 import { ScreenDrawing } from './drawing';
 import { pretendNotThisPc, screenHostNow, talkToSettings, type EngineId, type SettingsAnswer } from './host-client';
@@ -16,6 +16,7 @@ import {
   wishesAfter,
   wishesForThePc,
   askedNow,
+  openRouterPort,
   soundOffered,
   SOUND_NOT_SENT,
   SOUND_WANTS_A_PRESS,
@@ -607,7 +608,8 @@ export class ScreenSession {
     // The engine knows best (a browser hides its own address); the connection's own path otherwise.
     this.learnWhetherThisIsThePc(this.host?.thisMachine ?? s.reachedOnThisMachine);
     // On the PC itself the path may still run through its home-network address: the engine's word decides.
-    const route = this.host?.thisMachine === true ? 'this-pc' : s.route;
+    // Over the internet, a path that ends at the port the engine had the router open for it says so.
+    const route = this.host?.thisMachine === true ? 'this-pc' : routeThroughRouterPort(s.route, s.farPort, openRouterPort(this.host));
     if (route !== null && route !== this.route) {
       this.route = route;
       this.emit();

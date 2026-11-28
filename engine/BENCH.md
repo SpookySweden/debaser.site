@@ -436,3 +436,28 @@ On the real PC the same day (engine file swapped on Luke's OK): its log said `vi
 watch-only viewer in SERVER's Edge (a local dev server on mock data, THE PC :: OUR ENGINE) decoded 2580x1080 H.264 sent
 from 192.168.0.30, direct on the home network, and the PC logged `viewer 1 connected 128 ms after its hello`. Not tried:
 a restart of the PC; Luke's laptop.
+
+## The router port, and a viewer from an address it never announced (2026-11-28)
+Luke, 2026-11-28, to whether the engine may ask the router for a port by itself: "Yes, automatically". `src/portmap.rs`
+(new) asks the home router by UPnP for the picture's one UDP port, an hour at a time, and gives it back at the end;
+`serve --internet --router-port` runs it. No delay was measured: the port changes which networks can connect, not how
+fast a connected picture is (the line is the same direct one as `--internet`).
+
+`cargo test` on the gaming PC over SSH (`-- --skip the_real_modes --skip the_screen_is_found`, as above): 41 of 41 pass.
+Eight are the router port's, against a pretend router on 127.0.0.1 that answers in the Virgin Hub 5's own recorded words
+(the Hub's own answers read, and a description that points anywhere but the router itself not followed; asked for an
+hour and given back; nothing opened on any doubt; a router that will not say how long it holds the port; the keeper
+asking again and giving back at the end; a refusal after it was open; a router that will not renew what it still
+holds; a router that opens the port with no time limit and then refuses to close it: asked until it does, never asked
+for a port again); one is the hello and the settings saying it; one is the direct way's own: a viewer that announces
+one address and really sends from another still connects, over real sockets. One deliberately broken build (no time
+limit asked instead of an hour; no give-back at the end; the opened port never offered; packets from an unannounced
+port ignored; a description allowed to name any address; a port with no time limit never chased) fails 10 of the 41,
+each of the six breaks caught by at least one test. Release file: 5,068,800 bytes, SHA256 B2CE8AF3...3ED9.
+
+A fresh pair of eyes read the change before it was built for the last time (the `code-reviewer` agent) and found two
+gaps, both closed and both now tested: a router's description could have sent the engine's requests to an address
+off the home network, and a port a router opened with no time limit would have stayed if its removal failed once.
+
+Not measured, not proved: the real Hub giving the port (no test engine may ask it; known once the PC runs this file);
+a packet from outside the house; a phone hotspot or a campus network (Luke's own try).

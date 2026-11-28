@@ -66,6 +66,8 @@ export type StreamStats = {
   reachedOnThisMachine: boolean | null;
   /** Which way the picture travels (net-route.ts). Null until the connection has chosen. */
   route: NetRoute | null;
+  /** The port at the far end of the chosen path (the engine's, or the router's in front of it). Null until chosen. */
+  farPort: number | null;
 };
 
 const perFrameMs = (total: unknown, count: unknown): number | null => (typeof total === 'number' && typeof count === 'number' && count > 0 ? (total / count) * 1000 : null);
@@ -247,6 +249,7 @@ export class ScreenConnection {
       sound: { packetsReceived: 0, packetsLost: 0, jitterBufferDelayMsPerSample: null, mimeType: null },
       reachedOnThisMachine: null,
       route: null,
+      farPort: null,
     };
     if (connection === null) return result;
     const report = await connection.getStats();
@@ -276,6 +279,7 @@ export class ScreenConnection {
     const nearAddress = near === undefined ? null : (textOf(near.address) ?? textOf(near.ip));
     if (address !== null && address !== '') result.reachedOnThisMachine = isLoopbackAddress(address) || (nearAddress !== null && nearAddress === address);
     result.route = routeFromStats(byId);
+    result.farPort = far === undefined ? null : numberOf(far.port);
     const roundTrip = pair === undefined ? null : numberOf(pair.currentRoundTripTime);
     result.roundTripMs = roundTrip === null ? null : roundTrip * 1000;
     if (heard.length > 0) {

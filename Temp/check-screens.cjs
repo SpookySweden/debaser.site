@@ -821,6 +821,24 @@ async function main() {
     same(route.routeOfCandidate('203.0.113.9', 'relay'), 'relay', 'a relayed path says so');
     ok(/HOME NETWORK/.test(route.ROUTE_WORDS.lan.label) && /CLOUDFLARE TUNNEL/.test(route.ROUTE_WORDS.tunnel.label) && /no port/.test(route.ROUTE_WORDS.tunnel.tip), 'the words name the home network and the tunnel, and say no port is opened');
 
+    // The router port the engine opens by itself (Luke, 2026-11-28: "Yes, automatically"): said where it is used, and only there.
+    const withPort = (routerPort) => wishes.hostSettingsFrom({ ...ENGINE_SAYS, routerPort });
+    const opened = withPort({ state: 'open', outsidePort: 57295, why: null });
+    const refused = withPort({ state: 'not given', outsidePort: null, why: 'the router refused (HTTP 500, error 606: Action not authorized)' });
+    same([wishes.openRouterPort(opened), wishes.openRouterPort(refused), wishes.openRouterPort(wishes.hostSettingsFrom(ENGINE_SAYS)), wishes.openRouterPort(null)], [57295, null, null, null], 'the open port is read from the PC\'s answer, and is nothing when it was refused, never asked for, or unknown');
+    same([withPort({ state: 'open', outsidePort: null, why: null }).routerPort, withPort({ state: 'open', outsidePort: 70000, why: null }).routerPort, withPort({ state: 'wide open' }).routerPort, withPort('open').routerPort], [null, null, null, null], 'an answer that says open without a real port, or says something else, counts as no answer');
+    same(
+      [route.routeThroughRouterPort('internet', 57295, 57295), route.routeThroughRouterPort('internet', 40112, 57295), route.routeThroughRouterPort('internet', 57295, null), route.routeThroughRouterPort('lan', 57295, 57295), route.routeThroughRouterPort('relay', 57295, 57295), route.routeThroughRouterPort(null, null, 57295)],
+      ['internet-port', 'internet', 'internet', 'lan', 'relay', null],
+      'only a direct path over the internet that ends at the opened port is said to go through it',
+    );
+    ok(/ROUTER PORT OPENED BY THE ENGINE/.test(route.ROUTE_WORDS['internet-port'].label) && /gives it back/.test(route.ROUTE_WORDS['internet-port'].tip), 'that route says the engine opened the port and gives it back');
+    ok(!/no port (is )?opened on the router/i.test(route.DIRECT_WORDS.tip + route.ROUTE_WORDS.lan.tip), 'and nothing still says no port is ever opened on the router');
+    same(wishes.routerPortSays(wishes.hostSettingsFrom(ENGINE_SAYS)), null, 'an engine never told to ask the router says nothing about a port');
+    ok(/^ROUTER PORT: OPEN \(57295\)\n/.test(wishes.routerPortSays(opened)) && /gives it back when it stops/.test(wishes.routerPortSays(opened)), 'an open port is named, with how long it is held');
+    ok(/^ROUTER PORT: NOT GIVEN\n/.test(wishes.routerPortSays(refused)) && wishes.routerPortSays(refused).includes('error 606: Action not authorized') && /Nothing is open on the router/.test(wishes.routerPortSays(refused)), 'a refusal is said with the router\'s own answer, and that nothing is open');
+    ok(/^ROUTER PORT: NOT ASKED YET\n/.test(wishes.routerPortSays(withPort({ state: 'not asked', outsidePort: null, why: null }))), 'and before the engine has asked, that is said');
+
     same(rdp.gatewayOrigin({ SCREENS_RDP_GATEWAY_URL: 'http://192.168.1.20:8479' }), null, 'a gateway on another machine is refused');
     same(rdp.socketAddress({ SCREENS_RDP_SOCKET_URL: 'javascript:alert(1)' }), '/api/screens/rdp-socket', 'a socket address that is not one is ignored');
     same(rdp.sizeFrom('{"width":99999,"height":-4}'), { width: 7680, height: 240, dpi: 96 }, 'the size asked for is kept to what a screen can be');

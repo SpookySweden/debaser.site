@@ -4,20 +4,23 @@ import { isLoopbackAddress } from './wire';
  * Which way a REMOTE picture travels, said plainly (Luke, 2026-11-21: "make sure its clear when something is done over
  * lan vs port forwarding or whatever its technically called").
  *
- * Nothing in SCREENS uses port forwarding (opening a port on the router so the internet can reach in): the router has
- * no open port. Our engine and other devices are reached straight across the home network, which is the only way
- * they can be reached today. The server by Remote Desktop goes through the Cloudflare tunnel, which the PC dials out
- * to, so it travels over the internet even from home.
+ * Port forwarding (opening a port on the router so the internet can reach in) is used in one place only, and never by
+ * hand (Luke, 2026-11-28, to whether the engine may ask the router by itself: "Yes, automatically"): the PC's engine,
+ * started with `--router-port`, asks the home router for one port for its picture, an hour at a time, and gives it
+ * back when it stops (engine/src/portmap.rs). A connection that arrives through that port says so, `internet-port`.
+ * At home nothing goes near the router. The server by Remote Desktop goes through the Cloudflare tunnel, which the PC
+ * dials out to, so it travels over the internet even from home.
  */
 
 /** this-pc: the browser is on the PC itself. lan: straight across the home network. internet: straight, but over the
- * internet. relay: through a relay server. tunnel: through the Cloudflare tunnel to the PC. */
-export type NetRoute = 'this-pc' | 'lan' | 'internet' | 'relay' | 'tunnel';
+ * internet. internet-port: the same, arriving at the port the engine had the router open for it. relay: through a
+ * relay server. tunnel: through the Cloudflare tunnel to the PC. */
+export type NetRoute = 'this-pc' | 'lan' | 'internet' | 'internet-port' | 'relay' | 'tunnel';
 
 /** Before connecting, for our engine and other devices: which way it will go is only known once connected. */
 export const DIRECT_WORDS = {
   label: 'DIRECT (HOME NETWORK OR INTERNET)',
-  tip: 'Straight between the two devices: across your home network when both are on it, otherwise across the internet. No relay and no port opened on the router. A phone on mobile data may not get through yet.',
+  tip: 'Straight between the two devices: across your home network when both are on it, otherwise across the internet. No relay. When the PC\'s engine has had the router open a port for it, the line above the picture says so.',
 };
 
 export const ROUTE_WORDS: Record<NetRoute, { label: string; tip: string }> = {
@@ -27,11 +30,15 @@ export const ROUTE_WORDS: Record<NetRoute, { label: string; tip: string }> = {
   },
   lan: {
     label: 'HOME NETWORK (LAN, DIRECT)',
-    tip: 'Straight across your home network between the two devices: nothing goes out to the internet, and no port is opened on the router.',
+    tip: 'Straight across your home network between the two devices: nothing goes out to the internet, and this way uses no port on the router.',
   },
   internet: {
     label: 'OVER THE INTERNET (DIRECT)',
     tip: 'Straight between the two devices, but across the internet: you are not on the same home network.',
+  },
+  'internet-port': {
+    label: 'OVER THE INTERNET (DIRECT, ROUTER PORT OPENED BY THE ENGINE)',
+    tip: "Straight between the two devices across the internet, arriving at the one port the PC's engine asked your home router to open for its picture. The engine holds it an hour at a time and gives it back when it stops.",
   },
   relay: {
     label: 'OVER THE INTERNET (RELAYED)',
@@ -60,6 +67,14 @@ export function routeOfCandidate(address: string | null, candidateType: string |
   if (address === null || address === '') return null;
   if (isLoopbackAddress(address)) return 'this-pc';
   return isHomeAddress(address) ? 'lan' : 'internet';
+}
+
+/**
+ * A direct path over the internet is `internet-port` when its far end is the port the engine says the router opened
+ * for it (`/settings`, "routerPort"). `openPort` is null when the engine has no such port.
+ */
+export function routeThroughRouterPort(route: NetRoute | null, farPort: number | null, openPort: number | null): NetRoute | null {
+  return route === 'internet' && openPort !== null && farPort === openPort ? 'internet-port' : route;
 }
 
 const text = (value: unknown): string | null => (typeof value === 'string' ? value : null);

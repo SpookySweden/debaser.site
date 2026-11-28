@@ -55,7 +55,7 @@ use crate::settings::{self, Asked, Limits, Plan, Shape};
 use crate::sound;
 use crate::{json, line, stats};
 
-pub const USAGE: &str = "[--shape native] [--lines 1080] [--fps 60] [--bitrate 20000] [--max-lines N] [--max-fps N] [--max-bitrate 50000] [--width W --height H] [--allow-control [--control-dry-run]] [--allow-fit] [--no-sound] [--preset 1] [--tweaks 125] [--intra-refresh] [--port 8478] [--udp-port 0] [--lan] [--internet] [--trust-host name]... [--listen 127.0.0.1] [--token text] [--seconds N]";
+pub const USAGE: &str = "[--shape native] [--lines 1080] [--fps 60] [--bitrate 20000] [--max-lines N] [--max-fps N] [--max-bitrate 50000] [--width W --height H] [--allow-control [--control-dry-run]] [--allow-fit] [--no-sound] [--preset 1] [--tweaks 125] [--intra-refresh] [--port 8478] [--udp-port 0] [--lan] [--internet [--router-port]] [--trust-host name]... [--listen 127.0.0.1] [--token text] [--seconds N]";
 
 const VIEWER_PAGE: &str = include_str!("../web/viewer.html");
 
@@ -128,6 +128,9 @@ struct Args {
     /// STUN server (stun.rs) and offered to browsers, and the engine sends connection checks of its own (full ICE)
     /// so both sides open the way through their routers. Implies `--lan`.
     internet: bool,
+    /// `--router-port`: the home router is asked, by the engine itself, to send the video port from outside to this
+    /// PC (portmap.rs), so a viewer on a hard network (a phone hotspot) gets through. Only with `--internet`.
+    router_port: bool,
     /// `--trust-host`: names besides this PC's own that a request may be addressed to, when it arrives from this
     /// PC itself (the website's own server passing a visitor's request on).
     trust_hosts: Vec<String>,
@@ -159,6 +162,7 @@ fn parse(args: &[String]) -> Result<Args, String> {
         udp_port: 0,
         lan: false,
         internet: false,
+        router_port: false,
         trust_hosts: Vec::new(),
         listen: IpAddr::V4(Ipv4Addr::LOCALHOST),
         token: None,
@@ -196,6 +200,7 @@ fn parse(args: &[String]) -> Result<Args, String> {
                 a.internet = true;
                 a.lan = true;
             }
+            "--router-port" => a.router_port = true,
             "--trust-host" => {
                 let name = value()?.to_ascii_lowercase();
                 if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-') {
@@ -223,6 +228,9 @@ fn parse(args: &[String]) -> Result<Args, String> {
     }
     if a.control_dry_run && !a.allow_control {
         return Err("--control-dry-run goes with --allow-control (it records what control would do instead of doing it)".into());
+    }
+    if a.router_port && !a.internet {
+        return Err("--router-port goes with --internet (the port is only asked for once the outside world has said what this PC's address is)".into());
     }
     if a.port == 0 {
         return Err("--port must be between 1 and 65535".into());
@@ -371,6 +379,9 @@ struct Shared {
     /// `--internet`: on, and what STUN has said (stun.rs). Locked on its own, never for long.
     internet: bool,
     stun: Mutex<crate::stun::Stun>,
+    /// `--router-port`: how the port asked of the home router stands (portmap.rs). None when the engine was not
+    /// told to ask: then the router is never spoken to at all.
+    port: Option<Arc<crate::portmap::Port>>,
     /// A viewer needs a full picture: the next frame is forced to be one.
     want_keyframe: AtomicBool,
     keyframe_requests: AtomicU64,
@@ -1119,6 +1130,16 @@ fn hello(shared: &Shared, offer_text: &str) -> Result<(String, u64), (&'static s
                 rtc.add_local_candidate(candidate);
             }
         }
+        // --router-port: and the port the router has opened for us, when that is another address than the one
+        // above (a router may show the socket to the outside under a different port than the one it opened).
+        let opened = shared.port.as_ref().and_then(|port| port.outside()).map(SocketAddr::V4);
+        if let (Some(opened), Some(base)) = (opened, base) {
+            if Some(opened) != outside {
+                if let Ok(candidate) = Candidate::server_reflexive(opened, base, "udp") {
+                    rtc.add_local_candidate(candidate);
+                }
+            }
+        }
     }
     let answer = rtc.sdp_api().accept_offer(offer).map_err(|why| ("400 Bad Request", format!("The offer could not be accepted: {why}")))?;
 
@@ -1379,6 +1400,8 @@ fn settings_json(shared: &Shared, viewer: Option<u64>) -> String {
         let ours = |ip: IpAddr| ip.is_loopback() || offered.iter().any(|c| c.ip() == ip);
         format!("\"thisMachine\": {}", source.map_or("null".to_string(), |s| ours(s.ip()).to_string()))
     };
+    // --router-port: how the port asked of the home router stands; null when this engine never asks for one.
+    let router_port_json = format!("\"routerPort\": {}", shared.port.as_ref().map_or("null".to_string(), |port| port.json()));
     let fit_json = {
         let yours = viewer.is_some_and(|id| shared.viewers.lock().unwrap().iter().any(|v| v.id == id && v.wants_fit.is_some()));
         format!("\"pcScreen\": {}", shared.fit.lock().unwrap().json(yours))
@@ -1432,7 +1455,7 @@ fn settings_json(shared: &Shared, viewer: Option<u64>) -> String {
         None => "null".to_string(),
     };
     format!(
-        "{{\"asked\": {}, \"sending\": {}, \"measured\": {}, \"screen\": {{\"width\": {}, \"height\": {}, \"hz\": {}}}, \"limits\": {}, \"hostLimits\": {}, \"cap\": {}, \"capWhy\": {}, \"applied\": {}, \"refused\": {}, \"viewers\": {}, \"control\": \"{}\", \"controlWhy\": {}, \"controlDryRun\": {}, {}, {}, {}, {}, {}}}",
+        "{{\"asked\": {}, \"sending\": {}, \"measured\": {}, \"screen\": {{\"width\": {}, \"height\": {}, \"hz\": {}}}, \"limits\": {}, \"hostLimits\": {}, \"cap\": {}, \"capWhy\": {}, \"applied\": {}, \"refused\": {}, \"viewers\": {}, \"control\": \"{}\", \"controlWhy\": {}, \"controlDryRun\": {}, {}, {}, {}, {}, {}, {}}}",
         asked_json,
         sending_json,
         measured_json,
@@ -1453,7 +1476,8 @@ fn settings_json(shared: &Shared, viewer: Option<u64>) -> String {
         sound_json,
         pointer_json,
         fit_json,
-        this_machine_json
+        this_machine_json,
+        router_port_json
     )
 }
 
@@ -1687,6 +1711,7 @@ pub fn serve(args: &[String]) -> ExitCode {
         trust_hosts: a.trust_hosts.clone(),
         internet: a.internet,
         stun: Mutex::new(crate::stun::Stun::new()),
+        port: a.router_port.then(|| Arc::new(crate::portmap::Port::new())),
         stream: Mutex::new(stream),
         control: Mutex::new(Control::new(a.allow_control, a.control_dry_run, first.region, (screen_width, screen_height))),
         match_running: AtomicBool::new(capped_at_start),
@@ -1722,6 +1747,20 @@ pub fn serve(args: &[String]) -> ExitCode {
         let shared = shared.clone();
         thread::spawn(move || sound_loop(shared));
     }
+    // --router-port: the keeper of the router port (portmap.rs). It asks nothing of the router until the outside
+    // world has said what this PC's address is, and gives the port back when the engine stops (waited for below).
+    let port_keeper = shared.port.clone().map(|port| {
+        let shared = shared.clone();
+        thread::spawn(move || {
+            let find = || crate::portmap::find_on(&(shared.own_addresses)());
+            let seen_outside = || match shared.stun.lock().unwrap().outside {
+                Some(SocketAddr::V4(outside)) => Some(*outside.ip()),
+                _ => None,
+            };
+            let stopping = || STOP.load(Ordering::SeqCst);
+            crate::portmap::keep(&port, shared.udp_port, &crate::portmap::PACE, &find, &seen_outside, &stopping);
+        })
+    });
     {
         // Looking through the list of running programs takes a few milliseconds, so it has a thread of its own
         // and never holds a frame up.
@@ -1781,6 +1820,9 @@ pub fn serve(args: &[String]) -> ExitCode {
     }
     if a.internet {
         println!("  --internet: also reachable from outside the home: the outside address is asked of {} (no key), and both sides open the way through their routers", crate::stun::DEFAULT_SERVER);
+    }
+    if a.router_port {
+        println!("  --router-port: the home router will be asked to send outside port {udp_port} (UDP) to this PC's video, an hour at a time; given back when the engine stops");
     }
     if a.lan {
         println!("  --lan: the VIDEO can reach devices on the home network; the web address is still {} only", a.listen);
@@ -2247,6 +2289,21 @@ pub fn serve(args: &[String]) -> ExitCode {
             }
         }
     }
+    // The router port is given back before the engine goes: the keeper does it once it sees the engine stopping.
+    // It is waited for two and a half seconds at most, so a router that is slow to answer never holds up the rest of
+    // the goodbye (Windows gives a closing program about four seconds). An engine that goes before the router has
+    // been told leaves the port to the router, which closes it by itself within the hour.
+    if let Some(keeper) = port_keeper {
+        let began = Instant::now();
+        while !keeper.is_finished() && began.elapsed() < Duration::from_millis(2500) {
+            thread::sleep(Duration::from_millis(20));
+        }
+        if keeper.is_finished() {
+            let _ = keeper.join();
+        } else {
+            println!("  router port: the router was not told in time that the engine is stopping; a port it holds for this PC runs out by itself within the hour");
+        }
+    }
     STOPPED.store(true, Ordering::SeqCst);
     if failure.is_some() {
         return ExitCode::from(2);
@@ -2304,6 +2361,7 @@ mod tests {
             trust_hosts: Vec::new(),
             internet: false,
             stun: Mutex::new(crate::stun::Stun::new()),
+            port: None,
             stream: Mutex::new(Stream { asked, asks: 0, acted_on: 0, host_limits, capped: false, acted_capped: false, screen, sending: None, refused: None, measured: None }),
             control: Mutex::new(Control::new(false, false, region, (screen.0, screen.1))),
             match_running: AtomicBool::new(false),
@@ -2351,6 +2409,142 @@ mod tests {
         // The network goes away altogether: only this PC itself is left.
         *pc.lock().unwrap() = vec![v4(127, 0, 0, 1)];
         assert_eq!(told_to_send_to(&engine), ["127.0.0.1"]);
+    }
+
+    /// Away from home, layer 1 (SPEC-screens.md, "Away from home with no setup", 2026-11-28). A browser on a hard
+    /// network (a phone hotspot, a campus) reaches the engine from an address it never announced, because its
+    /// router hands out a new one for every place it sends to. The engine lets it in on the connection's own
+    /// password alone and answers to where the packets really came from. So the engine never turns such a viewer
+    /// away: once its packets can arrive at all (the router port, portmap.rs), it connects.
+    #[test]
+    fn a_viewer_from_an_address_it_never_announced_connects() {
+        str0m::crypto::from_feature_flags().install_process_default();
+        // An engine as --internet runs it (it sends connection checks of its own), listening for real, on this PC only.
+        let mut engine = an_engine_on(Arc::new(Mutex::new(vec![v4(127, 0, 0, 1)])));
+        engine.udp_port = engine.socket.local_addr().unwrap().port();
+        engine.internet = true;
+        // Its outside-address question goes to a socket of ours that never answers, not out to the internet.
+        let nobody = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
+        engine.stun.lock().unwrap().server = Some(nobody.local_addr().unwrap());
+        let engine = Arc::new(engine);
+        {
+            let engine = engine.clone();
+            thread::spawn(move || network_loop(engine));
+        }
+        let engine_at = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), engine.udp_port);
+
+        // The browser says it is at 192.0.2.5:1111 (all it knows of itself). Its packets really leave from
+        // somewhere else, and what comes back there is handed to it as if it had arrived where it thinks it is:
+        // what a router in between does.
+        let believed: SocketAddr = "192.0.2.5:1111".parse().unwrap();
+        let real = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
+        real.set_read_timeout(Some(Duration::from_millis(5))).unwrap();
+        let really_at = real.local_addr().unwrap();
+        assert_ne!(really_at, believed);
+        let mut browser = Rtc::builder().build(Instant::now());
+        browser.add_local_candidate(Candidate::host(believed, "udp").unwrap());
+        let mut change = browser.sdp_api();
+        change.add_media(MediaKind::Video, str0m::media::Direction::RecvOnly, None, None, None);
+        let (offer, waiting) = change.apply().expect("an offer");
+        let offer = offer.to_sdp_string();
+        assert!(offer.contains("192.0.2.5 1111") && !offer.contains(&really_at.port().to_string()), "the engine is only told the address the browser believes it has");
+        let (answer, viewer) = hello(&engine, &offer).expect("an answer");
+        browser.sdp_api().accept_answer(waiting, str0m::change::SdpAnswer::from_sdp_string(&answer).expect("the engine's answer")).expect("the answer taken");
+
+        let mut buf = vec![0u8; 2000];
+        let began = Instant::now();
+        let mut connected = false;
+        while !connected && began.elapsed() < Duration::from_secs(10) {
+            loop {
+                match browser.poll_output().expect("the browser's side") {
+                    Output::Timeout(_) => break,
+                    Output::Transmit(packet) => {
+                        if packet.destination == engine_at {
+                            let _ = real.send_to(&packet.contents, engine_at);
+                        }
+                    }
+                    Output::Event(Event::IceConnectionStateChange(IceConnectionState::Connected | IceConnectionState::Completed)) => connected = true,
+                    Output::Event(_) => {}
+                }
+            }
+            if let Ok((length, source)) = real.recv_from(&mut buf) {
+                if let Ok(contents) = buf[..length].try_into() {
+                    let arrived = Input::Receive(Instant::now(), Receive { proto: Protocol::Udp, source, destination: believed, contents });
+                    browser.handle_input(arrived).expect("a packet from the engine");
+                }
+            }
+            browser.handle_input(Input::Timeout(Instant::now())).expect("the time");
+        }
+        assert!(connected, "the engine never answered a browser whose packets came from an address it had not announced");
+        // And the engine knows where that viewer really is.
+        let seen = engine.viewers.lock().unwrap().iter().find(|v| v.id == viewer).and_then(|v| v.last_source);
+        assert_eq!(seen, Some(really_at));
+    }
+
+    /// A browser's hello, and every address and port its answer tells that browser to try, with the kind of each
+    /// ("host": the PC's own; "srflx": one a router shows to the outside).
+    fn told_in_full(engine: &Shared) -> Vec<String> {
+        let mut browser = Rtc::builder().build(Instant::now());
+        let mut change = browser.sdp_api();
+        change.add_media(MediaKind::Video, str0m::media::Direction::RecvOnly, None, None, None);
+        let (offer, _waiting) = change.apply().expect("an offer");
+        engine.viewers.lock().unwrap().clear();
+        let (answer, _viewer) = hello(engine, &offer.to_sdp_string()).expect("an answer");
+        // "a=candidate:<name> 1 udp <priority> <address> <port> typ <kind> ..."
+        let mut told: Vec<String> = answer
+            .lines()
+            .filter(|l| l.starts_with("a=candidate:"))
+            .filter_map(|l| {
+                let parts: Vec<&str> = l.split_whitespace().collect();
+                Some(format!("{}:{} {}", parts.get(4)?, parts.get(5)?, parts.get(7)?))
+            })
+            .collect();
+        told.sort();
+        told
+    }
+
+    /// Away from home, layer 2: the port the router opened is one more address a browser is told to try, and the
+    /// settings say how it stands. An engine not told to ask says nothing of it and offers nothing more.
+    #[test]
+    fn the_router_port_is_offered_while_it_is_open_and_said_in_the_settings() {
+        use crate::portmap::{Gateway, Port, Standing};
+        str0m::crypto::from_feature_flags().install_process_default();
+        let hub = Gateway { control: "192.168.0.1:49153".parse().unwrap(), path: "/upnp/control/WANIPConnection0".to_string(), service: "urn:schemas-upnp-org:service:WANIPConnection:1".to_string() };
+        let open_at = |outside: &str| Standing::Open { outside: outside.parse().unwrap(), inside: "192.168.0.30:5000".parse().unwrap(), gateway: hub.clone(), note: None };
+        let an_engine = |port: Option<Standing>, stun_says: &str| {
+            let mut engine = an_engine_on(Arc::new(Mutex::new(vec![v4(127, 0, 0, 1), v4(192, 168, 0, 30)])));
+            engine.internet = true;
+            engine.stun.lock().unwrap().outside = Some(stun_says.parse().unwrap());
+            engine.port = port.map(|standing| Arc::new(Port::standing_as(standing)));
+            engine
+        };
+        let at_home = ["127.0.0.1:5000 host", "192.168.0.30:5000 host"];
+
+        // Never told to ask (SERVER's own engine, every test engine): as before, and the settings say null.
+        let engine = an_engine(None, "203.0.113.7:40001");
+        assert_eq!(told_in_full(&engine), [at_home[0], at_home[1], "203.0.113.7:40001 srflx"]);
+        assert!(settings_json(&engine, None).contains("\"routerPort\": null"));
+
+        // Asked and refused: nothing more is offered, and the settings carry the router's own answer.
+        let engine = an_engine(Some(Standing::NotGiven { why: "the router refused (its answer: UPnP error 606 Action not authorized (HTTP 500))".to_string() }), "203.0.113.7:40001");
+        assert_eq!(told_in_full(&engine), [at_home[0], at_home[1], "203.0.113.7:40001 srflx"]);
+        let said = settings_json(&engine, None);
+        assert!(said.contains("\"routerPort\": {\"state\": \"not given\", \"outsidePort\": null, \"why\": \"the router refused (its answer: UPnP error 606"), "{said}");
+
+        // Open, under another port than the one the outside world saw the socket at: both are offered.
+        let engine = an_engine(Some(open_at("203.0.113.7:5000")), "203.0.113.7:40001");
+        assert_eq!(told_in_full(&engine), [at_home[0], at_home[1], "203.0.113.7:40001 srflx", "203.0.113.7:5000 srflx"]);
+        assert!(settings_json(&engine, None).contains("\"routerPort\": {\"state\": \"open\", \"outsidePort\": 5000, \"why\": null}"));
+
+        // Open under the very port the outside world already saw (the usual case): offered once, not twice.
+        let engine = an_engine(Some(open_at("203.0.113.7:5000")), "203.0.113.7:5000");
+        assert_eq!(told_in_full(&engine), [at_home[0], at_home[1], "203.0.113.7:5000 srflx"]);
+
+        // The flag is only taken together with --internet.
+        let args = |words: &[&str]| parse(&words.iter().map(|w| w.to_string()).collect::<Vec<_>>());
+        assert!(args(&["--router-port"]).is_err_and(|why| why.contains("--internet")));
+        assert!(args(&["--internet", "--router-port", "--listen", "0.0.0.0", "--token", "abcdefgh"]).is_ok_and(|a| a.router_port && a.internet && a.lan));
+        assert!(args(&["--internet", "--listen", "0.0.0.0", "--token", "abcdefgh"]).is_ok_and(|a| !a.router_port));
     }
 
     #[test]

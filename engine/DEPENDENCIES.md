@@ -128,6 +128,12 @@ Cargo writes down what other systems would need. None of this is compiled into t
 | zerocopy-derive 0.8.63 | an optional part of `zerocopy` that is off | BSD-2-Clause OR Apache-2.0 OR MIT |
 | winapi-i686-pc-windows-gnu 0.4.0, winapi-x86_64-pc-windows-gnu 0.4.0 | `winapi` built with the GNU tools instead of Microsoft's (this PC uses Microsoft's) | MIT/Apache-2.0 |
 
+## The router port (2026-11-28): nothing added
+`src/portmap.rs` asks the home router to open one port (UPnP: a search by UDP, then a few small HTTP questions). It is
+written by hand on Rust's standard library, as `src/stun.rs` is: no package was added for it. The ready-made package
+for this (`igd-next`) was looked at and left out, since it would bring its own HTTP and XML packages for what is a
+few hundred lines here.
+
 ## The check scripts
 `bench/webrtc-check.cjs`, `bench/settings-check.cjs`, `bench/control-check.cjs`, `bench/still-check.cjs`,
 `bench/sound-check.cjs` and `bench/pointer-check.cjs` use `playwright-core` (Apache-2.0) from the repository's

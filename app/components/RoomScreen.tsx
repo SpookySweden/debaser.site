@@ -26,6 +26,7 @@ import {
   rateOffered,
   rateSays,
   reallySending,
+  routerPortSays,
   soundOffered,
   soundStateSays,
   troubleLines,
@@ -111,6 +112,7 @@ function EngineScreen({ roomId, audio, engine }: { roomId: string; audio: boolea
   const controlSays = controlKeySays(view.host, control.mine, control.note);
   const cap = capSays(view.host);
   const trouble = troubleLines(view.host, view.hostTrouble);
+  const routerPort = routerPortSays(view.host);
   const soundKey = soundOffered(view.host, view.thisPc);
   const volume = Math.round(wishes.volume * 100);
   const mbit = sliding ?? Math.round(asked.bitrateKbps / 1000);
@@ -359,6 +361,15 @@ function EngineScreen({ roomId, audio, engine }: { roomId: string; audio: boolea
             </div>
             <Why topic="NUMBERS">NUMBERS keeps the small readout in the corner of the picture.</Why>
           </Part>
+
+          {/* Only where the PC's engine was told to ask the router for a port: whether it has one, in its own words. */}
+          {routerPort === null ? null : (
+            <Part title="ROUTE">
+              <p className="whitespace-pre-wrap" data-screen-router-port={view.host?.routerPort?.state ?? ''}>
+                {routerPort}
+              </p>
+            </Part>
+          )}
 
           <Part title="WINDOW">
             <div>

@@ -15,6 +15,7 @@ mod control;
 mod fit;
 mod native;
 mod pointer;
+mod portmap;
 mod serve;
 mod settings;
 mod sound;

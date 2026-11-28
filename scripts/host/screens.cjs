@@ -160,10 +160,13 @@ function startEngine(lan, key = null) {
 // --allow-fit: the room's FIT THE PC TO THIS SCREEN switch is offered (off until a viewer turns it on; Luke, 2026-11-21).
 // --site-elsewhere (2026-11-22: the site moved to SERVER, the engine stayed on the gaming PC): the engine also listens
 // on the home network, demanding its key (`--listen 0.0.0.0 --token <key>`), so the site on SERVER can pass the hello on.
+// --router-port (Luke, 2026-11-28, to whether the engine may ask the router for a port by itself: "Yes, automatically"):
+// with --internet, the gaming PC's engine asks the home router for its one video port, an hour at a time, and gives it
+// back when it stops (engine/src/portmap.rs). Never SERVER's own engine, which is started elsewhere without it.
 const engineArgs = (lan, key = null) => [
   'serve', '--allow-control', '--allow-fit',
   ...(lan || key ? ['--lan'] : []),
-  ...(key ? ['--listen', '0.0.0.0', '--token', key, '--internet'] : []),
+  ...(key ? ['--listen', '0.0.0.0', '--token', key, '--internet', '--router-port'] : []),
 ];
 
 /**

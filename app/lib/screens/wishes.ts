@@ -192,7 +192,29 @@ export type HostSettings = {
   pcScreen: HostPcScreen | null;
   /** The PC's own pointer; null from an older engine. */
   pointer: { shown: boolean; shape: number; width: number; height: number } | null;
+  /** The port the engine asked the home router to open for its picture; null when it was not told to ask (or is an older engine). */
+  routerPort: HostRouterPort | null;
 };
+
+/**
+ * What the PC says of its router port (`/settings`, "routerPort"; engine/src/portmap.rs). "not asked" is the engine
+ * still waiting to learn its own outside address; `why` is the engine's own sentence when the port was not given.
+ */
+export type HostRouterPort = { state: 'open' | 'not given' | 'not asked'; outsidePort: number | null; why: string | null };
+
+function hostRouterPortFrom(value: unknown): HostRouterPort | null {
+  if (!isRecord(value) || (value.state !== 'open' && value.state !== 'not given' && value.state !== 'not asked')) return null;
+  const port = value.outsidePort;
+  const outsidePort = typeof port === 'number' && Number.isInteger(port) && port > 0 && port < 65536 ? port : null;
+  // An "open" with no port to name is not an answer the view can stand on.
+  if (value.state === 'open' && outsidePort === null) return null;
+  return { state: value.state, outsidePort: value.state === 'open' ? outsidePort : null, why: typeof value.why === 'string' ? value.why : null };
+}
+
+/** The port on the router that leads to the engine now, or null when there is none. */
+export function openRouterPort(host: HostSettings | null): number | null {
+  return host?.routerPort?.state === 'open' ? host.routerPort.outsidePort : null;
+}
 
 /** What the PC says of FIT (`/settings`, "pcScreen"). `yours` is whether the device asking is one that wants it. */
 export type HostPcScreen = { allowed: boolean; own: { width: number; height: number; hz: number }; now: { width: number; height: number; hz: number }; fitted: boolean; wantedBy: number; yours: boolean; why: string | null };
@@ -257,6 +279,7 @@ export function hostSettingsFrom(value: unknown): HostSettings | null {
     sound: hostSoundFrom(value.sound),
     pcScreen: hostPcScreenFrom(value.pcScreen),
     pointer: numbersIn(value.pointer, ['shape', 'width', 'height']) ? { ...(value.pointer as { shape: number; width: number; height: number }), shown: (value.pointer as { shown?: unknown }).shown !== false } : null,
+    routerPort: hostRouterPortFrom(value.routerPort),
   };
 }
 
@@ -312,6 +335,23 @@ export function reallySending(host: HostSettings | null): string {
 export function capSays(host: HostSettings | null): string | null {
   if (host === null || host.sending === null || host.cap === null) return null;
   return `CAPPED BY THE PC: ${host.cap}\n${host.capWhy ?? ''}. While it is, the PC sends at most ${host.limits.maxLines} lines, ${host.limits.maxFps} frames a second, ${megabits(host.limits.maxBitrateKbps)}. What was asked for comes back when it ends.`;
+}
+
+/**
+ * The panel's line about the router port (Luke, 2026-11-21: "make sure its clear when something is done over lan vs
+ * port forwarding"; 2026-11-28, the engine asking by itself: "Yes, automatically"). Null when this engine was never
+ * told to ask, so nothing is said where nothing happens.
+ */
+export function routerPortSays(host: HostSettings | null): string | null {
+  const port = host?.routerPort ?? null;
+  if (port === null) return null;
+  if (port.state === 'open') {
+    return `ROUTER PORT: OPEN (${port.outsidePort})\nThe PC's engine asked your home router to open this one port for its picture, so a device away from home can reach it directly. It holds the port an hour at a time and gives it back when it stops.`;
+  }
+  if (port.state === 'not given') {
+    return `ROUTER PORT: NOT GIVEN\nThe PC's engine asked your home router for a port and has none: ${port.why ?? 'it did not say why'}. Nothing is open on the router; every other way is tried as before.`;
+  }
+  return "ROUTER PORT: NOT ASKED YET\nThe PC's engine asks your home router for a port once it has learnt its own address on the internet. Nothing is open on the router.";
 }
 
 export function troubleLines(host: HostSettings | null, hostTrouble: string): string[] {

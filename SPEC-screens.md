@@ -174,13 +174,80 @@ The site moved to SERVER (HP ProDesk, Windows 11 Pro, Intel UHD 630, no NVIDIA).
   the engine in on the home network (Luke's call when asked). The gaming PC must be on the home network.
 
 ### Which way each connection goes (Luke, 2026-11-21)
-"Make sure its clear when something is done over lan vs port forwarding or whatever its technically called." Nothing
-in SCREENS uses port forwarding: no port is opened on the router. Every REMOTE choice says its way, with a one-line tip:
-- THE PC (our engine) and other devices: `HOME NETWORK (LAN, DIRECT)`, the only way they are reached today.
+"Make sure its clear when something is done over lan vs port forwarding or whatever its technically called." Port
+forwarding (a port opened on the router so the internet can reach in) is used in one place only, and never set by
+hand: since 2026-11-28 the gaming PC's engine may ask the router for one port by itself, and the view says so when a
+connection comes in through it ("Away from home with no setup", below). Nothing else in SCREENS opens a port. Every
+REMOTE choice says its way, with a one-line tip:
+- THE PC (our engine) and other devices: `DIRECT (HOME NETWORK OR INTERNET)` before connecting, since which of the two
+  it will be is only known once connected.
 - THE SERVER: `OVER THE INTERNET (CLOUDFLARE TUNNEL)`: out to Cloudflare and back through the tunnel the PC dials out
   to, then across the home network to the server; over the internet even from home.
 - Once connected, the view reads the real route from the connection itself (`app/lib/screens/net-route.ts`):
-  `ON THIS PC`, `HOME NETWORK (LAN, DIRECT)`, `OVER THE INTERNET (DIRECT)` or `OVER THE INTERNET (RELAYED)`.
+  `ON THIS PC`, `HOME NETWORK (LAN, DIRECT)`, `OVER THE INTERNET (DIRECT)`,
+  `OVER THE INTERNET (DIRECT, ROUTER PORT OPENED BY THE ENGINE)` or `OVER THE INTERNET (RELAYED)`.
+
+### Away from home with no setup (Luke, 2026-11-28)
+Luke, 2026-11-28: "okay now we need to pick up and get it working from any wifi, remotely, no setup, do more research ot
+persist in this result as a separate solution". "It" is REMOTE to the gaming PC from his laptop, inside debaser.site,
+with nothing installed: no app, no account, no key, no router page opened by him.
+
+His three choices the same day, word for word:
+- To a way through the site itself (the picture carried by debaser.site's own address when nothing direct works):
+  **"okay but make sure it doesnt cost and look into it"**.
+- To whether the engine may ask the router to open a port by itself: **"Yes, automatically"**.
+- To whether a first version of the site way may show before it has sound: **"Wait until sound works too"**.
+
+**Why it does not work everywhere today.** Away from home the laptop and the PC each sit behind a router. The direct
+way (2026-11-22, the engine's `--internet`) has each side learn its own address on the internet and both knock at the
+same moment, which opens a way through two ordinary home routers. It fails where the laptop's network hands every
+connection a different outside address (phone hotspots, many campus and hotel networks), because the PC then knocks
+at an address the laptop is not really using, and the home router throws away the laptop's knock as a stranger's.
+
+**The layers, tried in this order, each saying which one it is:**
+1. **Direct, as before.** `HOME NETWORK (LAN, DIRECT)` at home, `OVER THE INTERNET (DIRECT)` away. Checked in the
+   engine's own tests: a viewer that arrives from an address it never announced is still let in when it knows the
+   connection's password, so the engine was never the one turning hotspots away; the home router was.
+2. **The router port, opened by the engine itself** ("Yes, automatically"). The engine on the gaming PC, started with
+   `--router-port`, asks the home router (a Virgin Hub 5, by UPnP, the router's own "a program may ask for a port"
+   service) for ONE port: its picture's own UDP port, under the same number outside. With that port open the router
+   lets the laptop's knock through whatever network it comes from. The view then says
+   `OVER THE INTERNET (DIRECT, ROUTER PORT OPENED BY THE ENGINE)`, and `[ SETTINGS ]` has a ROUTE part:
+   `ROUTER PORT: OPEN (number)`, `NOT GIVEN` with the router's own answer, or `NOT ASKED YET`. The rules it keeps:
+   - Only that one port, only for an hour at a time, asked for again every 20 minutes while the engine runs, and
+     given back when the engine stops (it waits two and a half seconds at most for the router at its goodbye). If
+     the engine is killed without a goodbye, the router lets the port go by itself within the hour.
+   - It opens nothing on any doubt, and says why in its log and in `[ SETTINGS ]`: no router answering, a router whose
+     own outside address is not a public one or is not the address the world sees the PC at (a port there would lead
+     nowhere), the port already taken, a refusal. A router that would only open a port with NO time limit is treated
+     as a refusal: nothing is opened (asking Luke about that is held until a real router does it). One that takes
+     the request for an hour and then opens the port with no time limit anyway has it taken straight back, is asked
+     to close it again and again until it has, and is not asked for a port again while the engine runs.
+   - The engine only ever talks to the device on the home network that answered its question, at that device's own
+     address: nothing the router's answer or description names can send its requests anywhere else.
+   - A refusal never breaks the other ways; the direct way and the home network carry on as before.
+   - What is behind the open port: the engine's video socket, which answers only a connection that already holds the
+     one-time password the site handed out for it after checking the sign-in. Anything else that arrives is dropped.
+   - Never used by SERVER's own engine or a test engine: only an engine started with `--router-port`.
+   - Code: `engine/src/portmap.rs` (written by hand on the standard library, no new package), hooked into
+     `engine/src/serve.rs`; the site's words in `app/lib/screens/net-route.ts` and `wishes.ts`.
+3. **Through the site** ("okay but make sure it doesnt cost and look into it"; "Wait until sound works too"). NOT
+   BUILT. Looked into (2026-11-28): Cloudflare has no way to bill a free account that has no paid add-on, but its
+   rule against serving video through the free service does cover the tunnel debaser.site uses; the consequence it
+   names is limiting the traffic and an email, at worst ending the free service. Told that, Luke chose (2026-11-28,
+   as `docs/STATE.md` records his answers): **"Build, capped, 20 GB (Recommended)"**, and to what his Cloudflare
+   billing page lists: **"Only the domain"** (so there is nothing on the account a bill could come from). When built
+   it will say `OVER THE INTERNET (THROUGH THE SITE)`, be used only when both direct ways fail, for the owner only,
+   capped near 720p with a 20 GB monthly allowance, and show nothing until picture, control and sound all work.
+
+**What is and is not proved.** The engine's tests play the router with the Virgin Hub 5's own recorded answers, and
+the Hub itself was asked read-only questions from SERVER (it offers the service and has a public address). Built and
+tested on the gaming PC, 2026-11-28: 41 of 41 tests pass, and a deliberately broken copy (a port asked for with no
+time limit, never given back, never offered to a viewer, an engine deaf to an address a viewer did not announce, a
+router's description allowed to name any address, a no-time-limit port never chased) fails 10 of them
+(`engine/BENCH.md`). What no test here can show is a knock arriving from outside the house: that is
+Luke's own try from his phone's hotspot. Whether the real Hub gives a port for an hour is known only once the PC runs
+this engine.
 
 ### Settings in the viewport
 Luke, 2026-11-20: "it needs a settings button in the viewport for the low latency desktop control streaming feature we
