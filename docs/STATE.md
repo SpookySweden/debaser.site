@@ -30,8 +30,10 @@ then the Firefox trial and the bookmarks-bar key; hand-over `browser-firefox-han
 keeping the pages OWN EYE shows). Done, live and archived
 that day: the book reader's EXPLAIN words (f3a9828), a profile track version's "pause" key in the history really pauses (e6c051f), the room builder (the
 FULL key ccb030a, your own devices' volume 05f4f90, `[ DEVICES ]` 2c51b18), EXPLAIN for profile, settings and the forum, BROWSER's
-review fixes and easy-install items 1 and 2, room sync and the context system. The gaming PC's heavy lane is switched off
-(`remote-lane.off`) at Luke's word while League is playing: every heavy step stays on SERVER until he says it is done.
+review fixes and easy-install items 1 and 2, room sync and the context system. The gaming PC's heavy lane is on again
+since 2026-11-28 (Luke: "league is done we can open the pc switch and use it at full capacity too"). Also working since that
+night, on the lighter model: READER-FIXES (no EXPLAIN box over the book's page; the place saved on leaving) and EXPLAIN-REST-1
+(hover words in letters, docs and lore).
 
 ## Half-done
 - EXPLAIN: hover words on every key, shown only while `[ EXPLAIN ]` (PREFERENCES, off by default) is on; top bar, side
