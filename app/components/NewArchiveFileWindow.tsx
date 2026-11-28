@@ -150,7 +150,7 @@ export default function NewArchiveFileWindow({
       onClose={onClose}
       maxWidth="max-w-2xl"
       actions={
-        <button type="button" onClick={() => void fileIt()} disabled={busy} className={PLATE_MAIN} {...explain('Files the chosen audio on the shelf under this name.', 'It is also listed on the MEDIA page.', NOTE.others)}>
+        <button type="button" onClick={() => void fileIt()} disabled={busy} className={PLATE_MAIN} {...explain('Files the chosen audio on the shelf under this name.', 'It is also listed on the FILES page.', NOTE.others)}>
           {busy ? '[ FILING... ]' : '[ FILE IT ]'}
         </button>
       }

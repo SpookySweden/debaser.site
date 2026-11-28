@@ -32,7 +32,8 @@ that day: the book reader's EXPLAIN words (f3a9828), a profile track version's "
 FULL key ccb030a, your own devices' volume 05f4f90, `[ DEVICES ]` 2c51b18), EXPLAIN for profile, settings and the forum, BROWSER's
 review fixes and easy-install items 1 and 2, room sync and the context system. The gaming PC's heavy lane is on again
 since 2026-11-28 (Luke: "league is done we can open the pc switch and use it at full capacity too"). Also working since that
-night, on the lighter model: READER-FIXES (done, live as 3868301: no EXPLAIN box over the book's page; the place saved on leaving) and (done, live as a8fe1d3 and archived; EXPLAIN-REST-2 followed it: comic studio, character workbench, animate, beatbox, done and live as bd99483; EXPLAIN-REST-3, the last areas, is briefed and not started; and
+night, on the lighter model: READER-FIXES (done, live as 3868301: no EXPLAIN box over the book's page; the place saved on leaving) and (done, live as a8fe1d3 and archived; EXPLAIN-REST-2 followed it: comic studio, character workbench, animate, beatbox, done and live as bd99483; EXPLAIN-REST-3, the last areas, done and live 2026-11-28, so every key now has its hover words (1382, none left; shown
+only while `[ EXPLAIN ]` in PREFERENCES is on, off by default; `Temp/check-explain.cjs` fails a new key without them); and
 FULL-RUN-DUE, done and live as 46d286c: the quick checks stop demanding the whole suite because of the one check that is red on purpose; and
 STARFIELD-PLAY: pressing a star in the STARFIELD background does something to it, the way chosen in settings, Luke, 2026-11-28:
 "physics inspired some options including laser beams, nudges, drag/throw"; done and live, b0f7e43: NUDGE (as it comes),
@@ -51,12 +52,6 @@ ROOM-DEVICE-SYNC also pulls one account's devices to about a tenth of a second a
 and shows a short LINING UP line (the one kept player needed no change in a front tab; a background tab not tested).
 
 ## Half-done
-- EXPLAIN: hover words on every key, shown only while `[ EXPLAIN ]` (PREFERENCES, off by default) is on; top bar, side
-  panel, MEDIA, the room and music bar, profile and settings, the forum, the book reader, letters, docs and lore, and the
-  comic studio, character workbench, animate and beatbox live (a8fcf58, eed29ea, e14e50d, 6c2601a, f3a9828, and
-  2026-11-28's two pushes; 1161 keys explained, 218 to do);
-  next the rest (leaguebot, comms, tag station, recommendations, and keys in no named area), one fresh session per area
-  (`Temp/check-explain.cjs` STILL_TO_DO; hand-over `explain-handover.md` in the group's notes folder).
 - BROWSER: the easy install (`browser-easy-install-brief.md` in the 69ad notes folder). Live: Luke's text icon (extension 0.8.0), the
   Edge Add-ons pack (`docs/extension-store/README.md`, his steps; hidden; waits on him), [ CHOOSE AN EMPTY FOLDER ] (the site writes the
   extension into a new folder) and the copy key for the extensions page. Next, for a fresh session: the Firefox trial and the

@@ -345,7 +345,7 @@ export default function MediaCatalogue() {
   /** The way back to the front page, and the title of what is open. */
   const header = (title: string, count: string, extra?: ReactNode) => (
     <>
-      <Link href={pathname} className={`${PLATE_LINK} mt-3 inline-block`} {...explain('Goes back to the front page of MEDIA.', 'Where every category is listed.')}>
+      <Link href={pathname} className={`${PLATE_LINK} mt-3 inline-block`} {...explain('Goes back to the front page of FILES.', 'Where every category is listed.')}>
         [ ← ALL CATEGORIES ]
       </Link>
       <div className={`${TITLE_BAR} mt-1`}>

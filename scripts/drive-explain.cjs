@@ -597,7 +597,7 @@ async function boxContrast(page) {
     await hoverSays("a page's ZOOM explains itself", key('[ ZOOM ]'), 'on its own');
     await arrive('/comic/studio', key('[ ADD PAGES ]').first());
     await hoverSays("the studio's PANELS tab explains itself", key('[ PANELS ]'), 'panel boxes');
-    await hoverSays('ADD PAGES explains itself', key('[ ADD PAGES ]'), 'file chooser', 'QUEUED');
+    await hoverSays('ADD PAGES explains itself', key('[ ADD PAGES ]'), 'file chooser', 'wait unseen');
     await hoverSays("a page's SPREAD explains itself", key('[ SPREAD ]'), 'spread');
     await hoverSays("a page's DELETE explains itself, with its caution", page.locator('li button', { hasText: '[ DELETE ]' }).last(), 'Asks whether to delete', 'ASKS YOU FIRST');
     await key('[ RELEASE ]').first().click();
@@ -660,7 +660,7 @@ async function boxContrast(page) {
   });
 
   // EXPLAIN-REST-3 (2026-11-28): the last areas. LEAGUEBOT, COMMS, DISCOVER (the tag station), RECOMMENDATIONS, and keys
-  // that belong to no named area (STREAM, the arcade, the desk, MEDIA's front page).
+  // that belong to no named area (STREAM, the arcade, the desk, FILES' front page).
   await area('LEAGUEBOT: LOOK UP', async () => {
     await arrive('/leaguebot', key(/^LOOK UP$/).first());
     await hoverSays('LOOK UP explains itself', key(/^LOOK UP$/), 'Looks up the player', 'Enter in the box');
@@ -703,14 +703,14 @@ async function boxContrast(page) {
     await hoverSays('KEEP MY OWN LOOK explains itself', key('[ KEEP MY OWN LOOK ]'), 'your own look');
   });
 
-  await area('THE ARCADE, THE DESK AND MEDIA (keys in no named area)', async () => {
+  await area('THE ARCADE, THE DESK AND FILES (keys in no named area)', async () => {
     await arrive('/forum?arcade=1', key('[ PLAY SOLO ]').first());
     await hoverSays('PLAY SOLO explains itself', key('[ PLAY SOLO ]'), 'against the computer');
     await arrive('/forum?desk=1', page.locator('[data-desk-auto]').first());
     await hoverSays("the desk's AUTO POP-UP explains itself", page.locator('[data-desk-auto]'), 'desk');
-    await arrive('/media', key('+ UPLOAD').first());
-    await hoverSays("MEDIA's UPLOAD explains itself", key('+ UPLOAD'), 'upload a new file');
-    await page.screenshot({ path: join(OUT, 'dark-media-upload.png') });
+    await arrive('/files', key('+ UPLOAD').first());
+    await hoverSays("FILES' UPLOAD explains itself", key('+ UPLOAD'), 'upload a new file');
+    await page.screenshot({ path: join(OUT, 'dark-files-upload.png') });
   });
 
   await page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded', timeout: 240000 });

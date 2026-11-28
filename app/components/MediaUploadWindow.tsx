@@ -153,7 +153,7 @@ export default function MediaUploadWindow({
             [ USE THE ORIGINAL ]
           </button>
         ) : (
-          <button type="button" onClick={() => void fileIt()} disabled={busy || looked?.state === 'reading'} className={PLATE_MAIN} {...explain('Uploads the chosen file under this name.', 'It is then listed on the MEDIA page.', NOTE.others)}>
+          <button type="button" onClick={() => void fileIt()} disabled={busy || looked?.state === 'reading'} className={PLATE_MAIN} {...explain('Uploads the chosen file under this name.', 'It is then listed on the FILES page.', NOTE.others)}>
             {busy ? '[ FILING... ]' : '[ FILE IT ]'}
           </button>
         )
