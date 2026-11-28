@@ -65,6 +65,9 @@ keeps one player alive in a background tab and shows a short LINING UP line.
   decision 61: plan first, /privacy rewritten in the same push). Not built, his to choose: MEDIA, SEARCH THIS, WATCHERS and ERASE on a
   page OWN EYE shows.
 - The shelf: BROWSER and REMOTE are marked WIP (f648c04).
+- PLAYER-TV (Luke, 2026-11-28: "a small voxel tv at a 2.5d angle ... small enough to fit inside of the player bar ... the
+  character will also crawl down and sit to watch the tv"): a session is writing the plan and his questions; SPEC first,
+  nothing built (`player-tv-brief.md` in the 69ad notes folder).
 
 ## Waiting on Luke
 - Tailscale: the laptop, phone and gaming PC join his tailnet so sessions and the heavy lane can reach them (his choice,
@@ -78,8 +81,7 @@ keeps one player alive in a background tab and shows a short LINING UP line.
   downtime).
 - REMOTE to the gaming PC (2026-11-28): it stopped connecting because the PC's engine, started at sign-in, came up before
   the Wi-Fi had its address and handed viewers a dead one; the coordinator restarted it on his word ("Yes, restart it") and
-  it now offers 192.168.0.30, but it breaks again at the PC's next restart. Two builders are briefed and NOT started (the app
-  refuses to start a session while he is on Remote Control; they start on his first message typed in the desktop app):
+  it now offers 192.168.0.30, but it breaks again at the PC's next restart. Two builders work on it since 2026-11-28 ~07:15Z:
   REMOTE-ENGINE-ADDRESS (the lasting fix) and REMOTE-ANYWHERE (his "get it working from any wifi, remotely, no setup": a way
   through the site itself, "okay but make sure it doesnt cost and look into it"; the engine opening a router port by itself,
   "Yes, automatically"; "Wait until sound works too"). Briefs and research: `remote-*.md` in the 69ad notes folder. His own
