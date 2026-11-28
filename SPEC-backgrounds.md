@@ -78,7 +78,8 @@ canvas, coloured through a palette in steps with an ordered dither, scaled up pi
 The two Windows 98 screensavers, rebuilt as code (dots and lines; nothing of Microsoft's is copied).
 - **STARFIELD:** stars rush out of a point. Knobs: STARS, SPEED, WARP (streak length), SIZE, SPREAD, COLOURS, TWINKLE, SPIN,
   REVERSE, STEER (the pointer moves the point they come from), a pad for the same; a click on the sea is two seconds of
-  hyperspace. Looks: 98, WARP, SNOW (slow, falling, sideways drift).
+  hyperspace (since 2026-11-28 a double click unless PRESS A STAR is OFF: "A star, pressed" below). Looks: 98, WARP, SNOW
+  (slow, falling, sideways drift).
 - **MYSTIFY:** shapes whose corners bounce round the screen, trailing echoes. Knobs: SHAPES, CORNERS, TRAILS, SPEED, LINE,
   COLOUR CYCLE, GRAVITY (corners fall and bounce), SPRINGS (corners pull on each other, so shapes wobble), POINTER (pull /
   push / ignore), WINDOWS ARE SOLID (corners bounce off the site window too), TIME. Looks: 98, JELLY, CAGE.
@@ -145,6 +146,40 @@ Where the build differs from the plan above, and what a later session should kno
 - **MYSTIFY** has TRAIL GAP (how far apart the echoes are) beside TRAILS.
 - **The key on the background** is named for the background that is on and opens its window.
 - **All four simulated backgrounds went in**, not two: Luke ticked all four.
+
+## A star, pressed (STARFIELD, 2026-11-28)
+Luke (to the coordinator): "new task, in the starfield bakcround theme make it so that clicking on individual stars interacts
+with them in a few different ways that are selectable in the settings, physics inspired some options including laser beams,
+nudges, drag/throw, all with creative and interesting but still subtle graphics generated".
+Luke's answers (the coordinator's box, same day):
+- "Which of the builder's own extra modes should be added?": "PULL,BURST,TIE"
+- "which mode should be on for everyone until they change it in settings?": "NUDGE (Recommended)"
+- "With a PRESS A STAR mode on, what should a press that misses every star do?": "Hyperspace on double press" (the option read:
+  a single missed press does nothing; a quick double press on bare sky sets off the rush).
+
+As built:
+- **The knob:** A PRESS, in its own section PRESS A STAR: NUDGE (as it comes), LASER, THROW, PULL, BURST, TIE, OFF, with the
+  line PRESS EMPTY SKY TWICE: HYPERSPACE under the keys. Saved like the other knobs. The looks, MORPH and PARTY leave it as the
+  reader has it; RESET puts NUDGE back.
+- **NUDGE:** the star is shoved away from the pointer and swings back on a damped spring; its neighbours stir; a faint dotted
+  ring. **LASER:** a pulse one dot wide from the nearer side of the screen (a line and a fade, nothing drawn at its source); the
+  star glows toward white, recoils, throws a few single-dot sparks, cools. **THROW:** hold, drag, let go; it leaves at the
+  hand's speed, then WIND and FALL bend it, SPEED carries it, WARP streaks it, until it slows and is a star again; thrown off
+  the screen, a new star arrives far off. **PULL:** the star is heavy for two seconds; stars within 180 pixels bend towards it
+  as two dotted rings close in, then spring back. **BURST:** eight faint dots that slow and fade inside a second, together going
+  the way the star went; a new star arrives far off. **TIE:** one star, then another: a dotted thread swings them on a damped
+  spring for six seconds; the same star twice lets go.
+- **Finding the star:** within 28 screen pixels of its dot or of the last tenth of a second of its way; never one under a window.
+- **The empty sky, a mode on:** one press does nothing; two on empty sky within half a second and 30 pixels are hyperspace. A
+  first press on a star does not count towards it, and a drag is not a press (so a throw never sets it off). So hyperspace takes
+  a double press for everyone who has not chosen OFF.
+- **Round a fullscreen room video** a double press already leaves fullscreen, so there one press on empty sky stays hyperspace
+  (the builder's call, not put to Luke).
+- **OFF** is the starfield exactly as it was: one press anywhere on the sky is hyperspace.
+- **Presses** reach it as before (bare desk only, nothing taken from anything in front); while a press on the sky is held and a
+  mode is on, text can't be selected. With the GHOST POINTER looping, a held star stays in the real hand.
+- **Reduced motion:** a still frame, as before.
+- Where it is: `app/lib/backdrops/starfield/touch.ts`; `Temp/check-starfield-play.cjs`, `scripts/drive-starfield-play.cjs`.
 
 ## Out of scope
 Sound, sharing a background with other people, drawing pictures, 3D Pipes (reads as drawn objects, and heavy), a phone layout

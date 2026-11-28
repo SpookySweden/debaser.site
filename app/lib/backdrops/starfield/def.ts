@@ -22,6 +22,7 @@ const DEFAULTS: Values = {
   colours: 'white',
   twinkle: 20,
   time: 1,
+  touch: 'nudge',
 };
 
 const BASE: BackdropDef = {
@@ -31,6 +32,7 @@ const BASE: BackdropDef = {
     { id: 'flight', label: 'FLIGHT' },
     { id: 'sky', label: 'SKY' },
     { id: 'look', label: 'LOOK' },
+    { id: 'press', label: 'PRESS A STAR' },
   ],
   knobs: [
     { kind: 'range', key: 'stars', tab: 'flight', label: 'STARS', tip: 'HOW MANY STARS', min: 20, max: 800, step: 10, unit: '', party: [80, 600] },
@@ -60,6 +62,24 @@ const BASE: BackdropDef = {
         { value: 'dyes', label: 'DYES', tip: "THE SITE'S OWN" },
         { value: 'warm', label: 'WARM', tip: 'YELLOWS AND ORANGES' },
         { value: 'rainbow', label: 'RAINBOW', tip: 'EVERY COLOUR' },
+      ],
+    },
+    {
+      // What a press on one star does (`./touch.ts`). Not a look: the looks, MORPH and PARTY leave it as the reader has it.
+      kind: 'choice',
+      key: 'touch',
+      tab: 'press',
+      label: 'A PRESS',
+      tip: 'WHAT PRESSING ONE STAR DOES. PRESS THE EMPTY SKY TWICE, QUICKLY, FOR HYPERSPACE',
+      note: 'PRESS EMPTY SKY TWICE: HYPERSPACE',
+      options: [
+        { value: 'nudge', label: 'NUDGE', tip: 'THE STAR IS SHOVED OFF ITS PATH AND SPRINGS BACK; ITS NEIGHBOURS STIR' },
+        { value: 'laser', label: 'LASER', tip: 'A PULSE OF LIGHT FROM THE SIDE: THE STAR GLOWS, RECOILS AND COOLS' },
+        { value: 'throw', label: 'THROW', tip: 'HOLD THE STAR, DRAG IT AND LET GO: IT FLIES ON AT THE SPEED OF YOUR HAND' },
+        { value: 'pull', label: 'PULL', tip: 'THE STAR TURNS HEAVY FOR TWO SECONDS: THE STARS NEAR IT BEND TOWARDS IT, THEN SPRING BACK' },
+        { value: 'burst', label: 'BURST', tip: 'THE STAR BREAKS INTO FAINT PIECES THAT SLOW AND FADE; A NEW STAR ARRIVES FAR OFF' },
+        { value: 'tie', label: 'TIE', tip: 'PRESS ONE STAR, THEN ANOTHER: AN ELASTIC THREAD TIES THEM AND THEY TUG EACH OTHER FOR SIX SECONDS' },
+        { value: 'off', label: 'OFF', tip: 'NOTHING HAPPENS TO A STAR: ONE PRESS ON THE SKY IS HYPERSPACE, AS BEFORE' },
       ],
     },
   ],

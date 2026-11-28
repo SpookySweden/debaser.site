@@ -44,6 +44,8 @@ export type ChoiceKnob = KnobBase & {
   options: readonly { value: string; label: string; tip: string }[];
   /** PARTY leaves it alone unless this is set. */
   party?: boolean;
+  /** A line written under its keys, for what has to be seen without hovering (STARFIELD's double press). */
+  note?: string;
 };
 
 export type Knob = RangeKnob | SwitchKnob | ChoiceKnob;

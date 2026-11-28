@@ -1,5 +1,6 @@
 import { dye, mix, pixel, wheel, type Engine, type EngineEnv, type Palette, DYES } from '../engine';
 import type { Values } from '../knobs';
+import { endTouch, heatOf, inFlight, marked, missSky, newTouch, pressStar, renderTouch, starAt, stepTouch, touchMode, touching, type TouchState } from './touch';
 
 /**
  * STARFIELD (SPEC-backgrounds.md): the Windows 98 "Starfield Simulation" screensaver, rebuilt as arithmetic. Each star is a
@@ -8,7 +9,8 @@ import type { Values } from '../knobs';
  * streaks.
  *
  * On top of that: the point they come from can be moved (a pad, or the pointer), the field can spin, the stars can run
- * backwards, they can drift and fall across the screen like snow, and a press on the background is two seconds of hyperspace.
+ * backwards, they can drift and fall across the screen like snow, and a press can be two seconds of hyperspace.
+ * A press on a star does what PRESS A STAR says (`./touch.ts`); with that on, the empty sky takes two presses for hyperspace.
  */
 
 export type StarState = {
@@ -37,6 +39,8 @@ export type StarState = {
   cx: number;
   cy: number;
   inView: number;
+  /** What presses on stars have set going (`./touch.ts`). */
+  touch: TouchState;
 };
 
 export const MOST_STARS = 800;
@@ -53,7 +57,7 @@ const num = (values: Values, key: string): number => values[key] as number;
 
 export function newStars(w: number, h: number): StarState {
   const field = () => new Float32Array(MOST_STARS);
-  return { w, h, count: 0, x: field(), y: field(), z: field(), ox: field(), oy: field(), px: field(), py: field(), sx: field(), sy: field(), lit: field(), tone: field(), t: 0, hyper: 0, cx: w / 2, cy: h / 2, inView: 0 };
+  return { w, h, count: 0, x: field(), y: field(), z: field(), ox: field(), oy: field(), px: field(), py: field(), sx: field(), sy: field(), lit: field(), tone: field(), t: 0, hyper: 0, cx: w / 2, cy: h / 2, inView: 0, touch: newTouch() };
 }
 
 /** A star put somewhere new in the box: anywhere in depth when the field is first filled, at the far end after that. */
@@ -106,8 +110,14 @@ export function stepStars(state: StarState, values: Values, env: EngineEnv): voi
   state.cx += (tx - state.cx) * Math.min(1, dt * 4);
   state.cy += (ty - state.cy) * Math.min(1, dt * 4);
 
+  const sky = { fan: spread * FAN };
+  if (touchMode(values) === null && touching(state.touch)) endTouch(state, sky);
+  const flying = state.touch.flights.length > 0;
+
   let inView = 0;
   for (let n = 0; n < state.count; n += 1) {
+    // A star in the hand, or flying from it, is moved by its flight, not by the field.
+    if (flying && inFlight(state.touch, n)) continue;
     state.px[n] = state.sx[n];
     state.py[n] = Number.isNaN(state.px[n]) ? Number.NaN : state.sy[n];
     if (Number.isNaN(state.px[n]) || state.lit[n] <= 0) {
@@ -154,12 +164,40 @@ export function stepStars(state: StarState, values: Values, env: EngineEnv): voi
     state.lit[n] = Math.min(1, Math.max(0.12, 0.25 + near * 0.9)) * (1 - twinkle * 0.7 * (0.5 + 0.5 * Math.sin(state.t * (3 + state.tone[n] * 7) + state.tone[n] * 40)));
     if (sx >= 0 && sx < w && sy >= 0 && sy < h) inView += 1;
   }
+  if (touching(state.touch)) {
+    const { gone, rush: again } = stepTouch(state, values, env, dt, sky);
+    // Burst, or thrown off the screen: a new star arrives far off in its place.
+    for (const n of gone) scatter(state, n, random, speed >= 0);
+    if (again) starsPress(state);
+    for (const flight of state.touch.flights) if (flight.x >= 0 && flight.x < w && flight.y >= 0 && flight.y < h) inView += 1;
+  }
   state.inView = inView;
 }
 
-/** A press on the bare background: two seconds of hyperspace. */
+/** Two seconds of hyperspace. */
 export function starsPress(state: StarState): void {
   state.hyper = HYPER_SECONDS;
+}
+
+/**
+ * A press on the bare background, at a cell. OFF: hyperspace, as ever. Otherwise the star there answers as PRESS A STAR says,
+ * and empty sky waits for a second press (`missSky`). Except round a fullscreen picture (`values.stage`), where a double press
+ * already leaves fullscreen: there one press on empty sky stays hyperspace.
+ */
+export function pressSky(state: StarState, x: number, y: number, values: Values, env: EngineEnv): void {
+  const mode = touchMode(values);
+  if (mode === null) {
+    starsPress(state);
+    return;
+  }
+  const n = starAt(state, x, y, values, env);
+  if (n === -1) {
+    if (values.stage === true) starsPress(state);
+    else missSky(state.touch, x, y, values);
+    return;
+  }
+  const spread = (num(values, 'spread') / 100) * Math.max(state.w, state.h) * 0.9;
+  pressStar(state, n, x, y, mode, values, { fan: spread * FAN });
 }
 
 type DyeName = (typeof DYES)[number];
@@ -212,13 +250,18 @@ export function renderStars(state: StarState, values: Values, pixels: Uint32Arra
   const black = pixel(0, 0, 0);
   const biggest = Math.max(1, Math.round(num(values, 'size')));
   const warp = (state.hyper > 0 ? 1 : num(values, 'warp') / 100) * 1.0;
+  const colourOf = (tone: number) => (set === null ? wheel(tone) : set[Math.floor(tone * set.length) % set.length]);
+  const touched = touching(state.touch);
+  if (touched) renderTouch(state, pixels, palette, colourOf);
   for (let n = 0; n < state.count; n += 1) {
     const lit = state.lit[n];
     if (lit <= 0 || Number.isNaN(state.sx[n])) continue;
-    const base = set === null ? wheel(state.tone[n]) : set[Math.floor(state.tone[n] * set.length) % set.length];
-    const colour = mix(black, base, lit);
+    const base = colourOf(state.tone[n]);
+    // Lasered, it glows toward white and a size bigger, and cools.
+    const heat = touched ? heatOf(state.touch, n) : 0;
+    const colour = heat > 0 ? mix(mix(black, base, Math.max(lit, heat)), dye(palette, 'white'), heat * 0.8) : mix(black, base, lit);
     const nearness = Math.min(1, (1 - state.z[n]) / CLOSE);
-    const size = Math.max(1, Math.round(1 + (biggest - 1) * nearness * nearness));
+    const size = Math.max(1, Math.round(1 + (biggest - 1) * nearness * nearness)) + (heat > 0.35 || (touched && marked(state.touch, n)) ? 1 : 0);
     if (warp > 0 && !Number.isNaN(state.px[n])) {
       // The streak: back along the way it came, as long as WARP says.
       const [bx, by] = [state.sx[n] + (state.px[n] - state.sx[n]) * warp * 6, state.sy[n] + (state.py[n] - state.sy[n]) * warp * 6];
@@ -236,7 +279,7 @@ export const starfieldEngine: Engine<StarState> = {
   init: (env) => newStars(env.w, env.h),
   step: stepStars,
   render: renderStars,
-  press: (state) => starsPress(state),
+  press: pressSky,
   meters: (state) => [{ id: 'stars', label: 'STARS IN VIEW', value: state.inView, most: Math.max(1, state.count) }],
   stillSteps: 30,
 };

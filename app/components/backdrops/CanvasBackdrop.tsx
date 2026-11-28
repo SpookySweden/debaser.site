@@ -5,7 +5,7 @@ import type { FromBackdropThread, ToBackdropThread } from '../../lib/backdrops/b
 import { DYES, pixelFromHex, type Box, type Engine, type EngineEnv, type Palette } from '../../lib/backdrops/engine';
 import type { Values } from '../../lib/backdrops/knobs';
 import { backdropThread } from '../../lib/backdrops/threads';
-import { backgroundCovered, onBackdropAction, onBareBackground, pointerNow, setBackdropMeters, takePointerTrail, watchLiveValues, watchPointer } from '../../lib/backdrops/runtime';
+import { backgroundCovered, onBackdropAction, onBareBackground, pointerNow, setBackdropMeters, takePointerTrail, watchLiveValues, watchPointer, type PointerNow } from '../../lib/backdrops/runtime';
 import { subscribeToSiteHidden } from '../../lib/ui/site-hidden';
 import { backdropValues, subscribeToBackdropScenes } from '../../lib/backdrops/store';
 import { THEME_KEY, currentThemeId, drawnValues, subscribeToTheme, themeGround, themePalette } from '../../lib/backdrops/theme';
@@ -167,6 +167,9 @@ function Running<State>({ engine, still, stage, onPage, restart }: { engine: Eng
     let pixels = new Uint32Array(0);
     /** Held down on the bare background: what pouring and stirring ask for. */
     let held = false;
+    // STARFIELD's PRESS A STAR measures in screen pixels: it is given the grid as it is built, not a swaying GRID's value of
+    // the moment. And told when it is on a stage, where two quick presses already mean "leave fullscreen".
+    const sized = () => (engine.id === 'starfield' && (stage || values.cell !== cell) ? { ...values, cell, stage } : values);
 
     // With a thread: what it was last sent (the windows' boxes go only when they change, so the engine there still tells
     // "moved" by the array itself), and whether a step is still being worked on there. While one is, no other is sent: the
@@ -227,14 +230,18 @@ function Running<State>({ engine, still, stage, onPage, restart }: { engine: Eng
     // A press counts on the bare background: the desk round the site window, or (on a stage) the surround of a fullscreen picture.
     const onBare = (target: EventTarget | null) =>
       stage ? target instanceof Element && target.closest('[data-backdrop-press]') !== null && target.closest('[data-backdrop-solid]') === null : onBareBackground(target);
+    const noSelect = (event: Event) => event.preventDefault();
     const press = (event: PointerEvent) => {
       if (event.button !== 0 || !onBare(event.target)) return;
       held = true;
+      // A star held and dragged must not paint a text selection across whatever it passes (STARFIELD's PRESS A STAR).
+      if (engine.id === 'starfield' && values.touch !== 'off') document.addEventListener('selectstart', noSelect);
       if (thread !== null) tell({ type: 'press', x: event.clientX / cell, y: event.clientY / cell });
-      else if (state !== null) engine.press?.(state, event.clientX / cell, event.clientY / cell, values, env);
+      else if (state !== null) engine.press?.(state, event.clientX / cell, event.clientY / cell, sized(), env);
     };
     const release = () => {
       held = false;
+      document.removeEventListener('selectstart', noSelect);
     };
     /** A press anywhere (a window's title bar being dragged, its X): windows may move, so where they are is read each step. */
     let pressing = false;
@@ -312,6 +319,8 @@ function Running<State>({ engine, still, stage, onPage, restart }: { engine: Eng
     let stepped = 0;
     let reported = last;
     let looked = 0;
+    /** Where the real pointer was last, GHOST aside. */
+    let hand: PointerNow | null = null;
 
     const tick = (time: number) => {
       frame = requestAnimationFrame(tick);
@@ -360,8 +369,13 @@ function Running<State>({ engine, still, stage, onPage, restart }: { engine: Eng
           busyUntil = time + BUSY_AFTER_MS;
         }
       }
-      const spot = pointerNow();
-      env.pointer = spot === null ? null : { x: spot.x / cell, y: spot.y / cell, down: held || spot.ghost };
+      const now = pointerNow();
+      if (now?.ghost === false) hand = now;
+      // A star in the hand (STARFIELD's THROW) is held by the real hand only: the GHOST neither holds it nor takes it over when
+      // the hand rests while still pressed.
+      const stars = engine.id === 'starfield' && values.touch !== 'off';
+      const spot = stars && held && now?.ghost === true ? hand : now;
+      env.pointer = spot === null ? null : { x: spot.x / cell, y: spot.y / cell, down: held || (spot.ghost && !stars) };
       const trail = takePointerTrail();
       env.trail = spot === null || spot.ghost ? undefined : trail.map((point) => ({ x: point.x / cell, y: point.y / cell }));
       if (thread !== null) {
@@ -390,7 +404,7 @@ function Running<State>({ engine, still, stage, onPage, restart }: { engine: Eng
         return;
       }
       for (let n = 0; n < steps && state !== null; n += 1) {
-        engine.step(state, values, env);
+        engine.step(state, sized(), env);
         // The way the pointer came is spent on the first step: the ones after it see it resting where it is.
         env.trail = undefined;
       }
@@ -415,6 +429,7 @@ function Running<State>({ engine, still, stage, onPage, restart }: { engine: Eng
       stopPointer();
       stopActions();
       document.removeEventListener('pointerdown', press);
+      document.removeEventListener('selectstart', noSelect);
       window.removeEventListener('pointerup', release);
       window.removeEventListener('pointercancel', release);
       window.removeEventListener('pointerdown', pressAnywhere, { capture: true });

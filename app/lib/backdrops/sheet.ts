@@ -113,10 +113,13 @@ export function evenRows(labels: readonly string[], room: number): number[][] {
 /** The LOOKS section's first keys, in order: RESET, PARTY, then the background's ready-made looks. */
 export const looksKeys = (def: BackdropDef): string[] => ['RESET', 'PARTY', ...def.looks.map((look) => look.label)];
 
-/** A choice's height: one line of keys beside its name, or its name's line and then its lines of keys. */
+/** A choice's note: one close line of small type. */
+const NOTE = 17;
+
+/** A choice's height: one line of keys beside its name, or its name's line and then its lines of keys; its note, if any. */
 const choiceHeight = (knob: ChoiceKnob) => {
   const { beside, rows } = choiceLayout(knob);
-  return beside ? KEYS : ROW + 4 + KEYS + (rows.length - 1) * KEYS_MORE;
+  return (beside ? KEYS : ROW + 4 + KEYS + (rows.length - 1) * KEYS_MORE) + (knob.note === undefined ? 0 : NOTE);
 };
 
 function widgetsOf(def: BackdropDef): Map<string, Widget> {

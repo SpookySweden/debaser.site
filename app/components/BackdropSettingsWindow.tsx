@@ -63,6 +63,7 @@ import {
 } from '../lib/backdrops/store';
 import { THEME_KEY, currentThemeId, subscribeToTheme, themeSet, themedValues } from '../lib/backdrops/theme';
 import { resetValues } from '../lib/backdrops/theme-switch';
+import { TOUCH_KEY } from '../lib/backdrops/starfield/touch';
 import { BACKDROPS, DEFAULT_BACKDROP, backdropState, setBackdrop, subscribeToBackdrop } from '../lib/ui/backdrop-slot';
 import { themeById } from '../lib/ui/themes';
 import { PLATE, PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED, PLATE_PRESSED, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
@@ -284,7 +285,7 @@ function ChoiceRow({ knob, panel }: { knob: ChoiceKnob; panel: Panel }) {
   );
   // Beside its name when its keys fit there on one line, as a slider sits; otherwise its name's line, then its keys under it in
   // even lines (`choiceLayout`).
-  return beside ? (
+  const row = beside ? (
     <div className={LINE} role="group" aria-label={knob.label} title={byTheme ? SET_BY_THEME : knob.tip}>
       <span className={NAME}>{knob.label}</span>
       {line(rows[0])}
@@ -298,6 +299,17 @@ function ChoiceRow({ knob, panel }: { knob: ChoiceKnob; panel: Panel }) {
       </span>
       {rows.map(line)}
     </div>
+  );
+  return knob.note === undefined ? (
+    row
+  ) : (
+    <>
+      {row}
+      {/* Close under its keys, not a row's height: the sheet has to stay whole at 1366 x 768 (../lib/backdrops/sheet.ts). */}
+      <p className="text-label leading-tight text-ink" data-backdrop-note={knob.key}>
+        {knob.note}
+      </p>
+    </>
   );
 }
 
@@ -509,7 +521,7 @@ function Morph({ panel }: { panel: Panel }) {
           const from = run?.from ?? panel.values;
           const part = Number(event.target.value) / 100;
           // `[ THEME ]` stays as the reader has it through a morph, as through a look.
-          const next = keepingLocks(def, morphValues(def, from, look.values, part), panel.values, [...panel.locks, THEME_KEY]);
+          const next = keepingLocks(def, morphValues(def, from, look.values, part), panel.values, [...panel.locks, THEME_KEY, TOUCH_KEY]);
           // The same settings again (a morph between two equal looks) changes nothing, and `last` must still match what is stored.
           if (sameValues(def, next, panel.values)) setHeld({ from, last: panel.values, t: part });
           else {
@@ -568,7 +580,8 @@ export function BackdropKnobs({ id }: { id: string }) {
   const panel: Panel = { def, values, live, locks: extras.locks, sway: extras.sway, still, themed: themeOn ? themeSet(theme, id) : {}, drawn: themeOn ? themedValues(def, live, theme) : live };
   const sheet = sheetLayout(def);
   // PARTY, the looks, MORPH and RESET leave `[ THEME ]` as the reader has it, as if it were locked (RESET: `resetValues`).
-  const kept = [...panel.locks, THEME_KEY];
+  // So is STARFIELD's PRESS A STAR (`TOUCH_KEY`): what a press does is the reader's own, not part of a look.
+  const kept = [...panel.locks, THEME_KEY, TOUCH_KEY];
   const looks = <Looks panel={panel} still={still} kept={kept} />;
 
   return (
@@ -658,7 +671,7 @@ function Looks({ panel, still, kept }: { panel: Panel; still: boolean; kept: rea
   const { def } = panel;
   const id = def.id;
   const put = (next: Values) => setBackdropValues(id, keepingLocks(def, next, panel.values, kept));
-  const isLook = (look: Values) => sameValues(def, { ...panel.values, [THEME_KEY]: look[THEME_KEY] }, look);
+  const isLook = (look: Values) => sameValues(def, { ...panel.values, [THEME_KEY]: look[THEME_KEY], [TOUCH_KEY]: look[TOUCH_KEY] }, look);
   // RESET, PARTY, then each look, on even lines (`evenRows`): the n-th key of `looksKeys`.
   const key = (index: number) => {
     if (index === 0) {
