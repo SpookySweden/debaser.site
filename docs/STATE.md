@@ -104,7 +104,8 @@ and shows a short LINING UP line (the one kept player needed no change in a fron
   INTERNET (DIRECT, ROUTER PORT OPENED BY THE ENGINE)` and `[ SETTINGS ]` gets a ROUTE part. Proved on the gaming PC by
   the engine's own tests only (41 of 41, against a pretend router; a broken copy fails 10). NOT RUNNING YET: the PC still
   has the earlier engine; the new file is built there (SHA256 B2CE8AF3...3ED9) and goes on only on Luke's word
-  (`remote-anywhere-swap.ps1` in the 69ad notes folder). Unproved until then: the real Hub giving the port; and, his own
+  (`remote-anywhere-swap.ps1` in the 69ad notes folder; its one run, 2026-11-28 14:19Z, did NOT finish: see "REMOTE to
+  the gaming PC is OFF" under Waiting on Luke). Unproved until then: the real Hub giving the port; and, his own
   try, a connection from a phone hotspot. The site way: half built (the bullet above), hidden until picture, control
   and sound all work.
 
@@ -118,7 +119,17 @@ and shows a short LINING UP line (the one kept player needed no change in a fron
   System and performance, switch off "Startup boost" and "Continue running background extensions and apps", to free memory.
   Optional, never answered: moving the database tools off the connection pooler (about 210 MB freed, a minute of database
   downtime).
-- REMOTE to the gaming PC (2026-11-28): the lasting fix is in. It had stopped connecting because the PC's engine, started
+- REMOTE to the gaming PC is OFF (2026-11-28, since 14:19Z): no engine is running on the PC, because its graphics card
+  has failed. Windows shows the NVIDIA GeForce RTX 3060 as "status Error, device problem code 43" (its driver has
+  stopped), and Windows' window program (dwm.exe) crashed seven times at 13:36Z, while the game Deadlock was open. The
+  engine start says `NOT SERVING. Could not open the graphics card (0x887a0004)`. It showed when the router-port swap
+  ran (its one run, on his "Yes, swap it (Recommended)"): the new engine could not start, the script put the old engine
+  (620EEAE8...) and the old start line back, and the old engine could not start either. Nothing new is installed. The
+  engine that was up before had been started before 13:36Z and sat idle. Left beside the installed engine, unused:
+  `G:\DEBASER-HOST\engine\debaser-engine.router-port.exe` (B2CE8AF3...). The usual cure for a code 43 is restarting the
+  PC (the engine starts itself at his sign-in); untried, his call, asked through the coordinator. No session touches the
+  PC until his answer.
+- REMOTE to the gaming PC, before that (2026-11-28): the lasting fix is in. It had stopped connecting because the PC's engine, started
   at sign-in, came up before the Wi-Fi had its address; the engine now reads the PC's addresses at every viewer's hello,
   and the PC runs that engine (swapped on his "Yes, swap it"; old file kept beside it). A test viewer from SERVER got the
   picture over the home network. Owed: his own try from the laptop on the home Wi-Fi; a real PC restart is untried.
@@ -126,9 +137,10 @@ and shows a short LINING UP line (the one kept player needed no change in a fron
   "okay but make sure it doesnt cost and look into it"; the engine opening a router port by itself, "Yes, automatically";
   "Wait until sound works too"). Briefs and research: `remote-*.md` in the 69ad notes folder.
 - REMOTE from any Wi-Fi, two things (2026-11-28): he said "Yes, swap it (Recommended)" to putting the engine that asks
-  the router for a port onto the gaming PC, but the swap has NOT run: the PC had no memory left to start it (the game
-  Deadlock held 35 GB of its 50 GB limit at midday), so it waits until that game is closed or restarted (the
-  coordinator says when); and after the swap his own try from his phone's hotspot (the clicks come with its result).
+  the router for a port onto the gaming PC. Its one run (14:19Z, after he closed the game Deadlock, which had held the
+  PC's memory) did NOT finish, because of the graphics card (the bullet above); the run his word covered is used, so
+  a second run needs his word again, after the card works. Then his own try from his phone's hotspot (the clicks come
+  with its result).
 - SCREENS relay: activate Cloudflare Realtime/TURN on his account (he ticks the terms and pays himself), then paste the
   key into the RELAY KEY form.
 - Off-site backup (Proton Drive, task `DebaserOffsite`) is built but off until he runs
