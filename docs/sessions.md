@@ -154,7 +154,10 @@ gaming PC"). Which machine, and what never goes: "Which machine does what" below
   `G:\debaser.site` is missing) stops and says so.
 - **The gaming PC is the heavy lane** (live and proved 2026-11-27, built by the PC setup session, which owns
   `heavy-step.cjs` and `remote-lane.cjs`; Luke: "an even split... leave the server at no more than 60%"; on the PC "Full
-  speed"; League match or PC off: "Run on the server instead"). How a session uses it: "The heavy-step turn" above.
+  speed"; League match or PC off: "Run on the server instead"). Since 2026-11-28 the PC is the FIRST choice and SERVER the
+  fallback (Luke, to "should the gaming PC become the FIRST choice, with SERVER as the fallback, instead of today's taking
+  turns?": "PC first (Recommended)"; the old taking-turns rule is kept beside it as `remote-lane.before-pc-first.cjs`).
+  How a session uses it: "The heavy-step turn" above.
   - **Only** `verify:clean` and the full `npm run checks` can go to the PC. Never `--live`, `--live-check`, `--claim`,
     dev servers, browser drives, `checks:changed` or `checks --only`; never the live site, database, Docker, tunnel or
     engines; never whole sessions.

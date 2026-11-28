@@ -17,8 +17,8 @@ working sessions' status notes.
   tunnel plus the shadow proxy behind `/shadow`, SUNSHINE's screen engine (`G:\DEBASER-HOST\engine`).
 - The gaming PC (192.168.0.30, SSH alias `gaming-pc` from SERVER) is a SCREENS device and, since 2026-11-27, the heavy
   lane: `verify:clean` (about 70 s there) and the full checks (about 18 min; the same results as on SERVER, proved
-  2026-11-27) run there through heavy-step when SERVER is busy
-  or over 60% memory, or on alternate turns; off, asleep, busy or in a League match, they stay on SERVER. Off switch
+  2026-11-27) run there through heavy-step first, since 2026-11-28 (Luke: "PC first (Recommended)"; until then they took
+  turns with SERVER); off, asleep, busy or in a League match, they stay on SERVER. Off switch
   `remote-lane.off` beside heavy-step.cjs (`docs/sessions.md`). No sessions run there. Old session notes from it:
   `I:\work-data\claude-notes\` (history only).
 
@@ -35,7 +35,10 @@ since 2026-11-28 (Luke: "league is done we can open the pc switch and use it at 
 night, on the lighter model: READER-FIXES (no EXPLAIN box over the book's page; the place saved on leaving) and EXPLAIN-REST-1
 (hover words in letters, docs and lore), and ROOM-DEVICE-SYNC (one account's devices in a room staying linked: pause, play, mute,
 and a device that wakes by itself where a browser allows it; Luke, 2026-11-28: "i need this sorted so they are all smoothly
-linked"; nothing of it live yet).
+linked"; nothing of it live yet), and INSTALL-APP (debaser.site installable as an app with the yellow text icon; Luke, 2026-11-28:
+"Yes, yellow text icon (Recommended)"; no service worker, no push; nothing live yet). To be specified with Luke before any
+build: the room as one continuous server stream for own-hosted music (his answer: "Yes but interview me regarding its
+implementation").
 
 ## Half-done
 - EXPLAIN: hover words on every key, shown only while `[ EXPLAIN ]` (PREFERENCES, off by default) is on; top bar, side
