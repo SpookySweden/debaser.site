@@ -102,12 +102,15 @@ and shows a short LINING UP line (the one kept player needed no change in a fron
   `main` (0d7275df, 2026-11-28; SPEC-screens.md "Away from home with no setup"): the engine's `--router-port` asks the
   router for the picture's one port, an hour at a time, and gives it back when it stops; the view says `OVER THE
   INTERNET (DIRECT, ROUTER PORT OPENED BY THE ENGINE)` and `[ SETTINGS ]` gets a ROUTE part. Proved on the gaming PC by
-  the engine's own tests only (41 of 41, against a pretend router; a broken copy fails 10). NOT RUNNING YET: the PC still
-  has the earlier engine; the new file is built there (SHA256 B2CE8AF3...3ED9) and goes on only on Luke's word
-  (`remote-anywhere-swap.ps1` in the 69ad notes folder; its one run, 2026-11-28 14:19Z, did NOT finish: see "REMOTE to
-  the gaming PC is OFF" under Waiting on Luke). Unproved until then: the real Hub giving the port; and, his own
-  try, a connection from a phone hotspot. The site way: half built (the bullet above), hidden until picture, control
-  and sound all work.
+  the engine's own tests (41 of 41, against a pretend router; a broken copy fails 10). RUNNING ON THE GAMING PC since
+  2026-11-28 14:29Z (file SHA256 B2CE8AF3...3ED9, swapped in on Luke's word; the earlier engine is kept beside it as
+  `debaser-engine.before-router-port-2026-11-28.exe`). The real Virgin Hub 5 gave the port: the engine's log says
+  `router port: OPEN: outside port 54321 ... for an hour at a time, asked for again every 20 minutes`, and the Hub,
+  asked one read-only question, said UDP outside port 54321 leads to 192.168.0.30:54321, named "DEBASER engine video",
+  3540 s left (so it does give a timed port). The port number is a new one at each engine start. One watch-only viewer
+  from SERVER (home network) got the picture, and `[ SETTINGS ]` showed ROUTE `ROUTER PORT: OPEN (54321)`. NOT PROVED,
+  and not provable from inside the house: a connection from outside (his own try from a phone hotspot, owed). The site
+  way: half built (the bullet above), hidden until picture, control and sound all work.
 
 ## Waiting on Luke
 - Tailscale: the laptop, phone and gaming PC join his tailnet so sessions and the heavy lane can reach them (his choice,
@@ -119,28 +122,24 @@ and shows a short LINING UP line (the one kept player needed no change in a fron
   System and performance, switch off "Startup boost" and "Continue running background extensions and apps", to free memory.
   Optional, never answered: moving the database tools off the connection pooler (about 210 MB freed, a minute of database
   downtime).
-- REMOTE to the gaming PC is OFF (2026-11-28, since 14:19Z): no engine is running on the PC, because its graphics card
-  has failed. Windows shows the NVIDIA GeForce RTX 3060 as "status Error, device problem code 43" (its driver has
-  stopped), and Windows' window program (dwm.exe) crashed seven times at 13:36Z, while the game Deadlock was open. The
-  engine start says `NOT SERVING. Could not open the graphics card (0x887a0004)`. It showed when the router-port swap
-  ran (its one run, on his "Yes, swap it (Recommended)"): the new engine could not start, the script put the old engine
-  (620EEAE8...) and the old start line back, and the old engine could not start either. Nothing new is installed. The
-  engine that was up before had been started before 13:36Z and sat idle. Left beside the installed engine, unused:
-  `G:\DEBASER-HOST\engine\debaser-engine.router-port.exe` (B2CE8AF3...). The usual cure for a code 43 is restarting the
-  PC (the engine starts itself at his sign-in); untried, his call, asked through the coordinator. No session touches the
-  PC until his answer.
-- REMOTE to the gaming PC, before that (2026-11-28): the lasting fix is in. It had stopped connecting because the PC's engine, started
+- REMOTE to the gaming PC was off for about ten minutes (2026-11-28, 14:19Z to 14:29Z) and is back. Its graphics card
+  had failed at 13:36Z while the game Deadlock was open (Windows: NVIDIA GeForce RTX 3060 "status Error, device problem
+  code 43"; dwm.exe crashed seven times), so no engine, old or new, could start: `NOT SERVING. Could not open the
+  graphics card (0x887a0004)`. The first run of the router-port swap met that and put everything back. Luke restarted
+  the PC himself ("I'll restart it (Recommended)"), the card read well again, and the second run went through. If REMOTE
+  to the PC ever gives no picture again and the engine's log says that line: look at the card first; a restart cured it.
+- REMOTE to the gaming PC (2026-11-28): the lasting fix is in. It had stopped connecting because the PC's engine, started
   at sign-in, came up before the Wi-Fi had its address; the engine now reads the PC's addresses at every viewer's hello,
   and the PC runs that engine (swapped on his "Yes, swap it"; old file kept beside it). A test viewer from SERVER got the
-  picture over the home network. Owed: his own try from the laptop on the home Wi-Fi; a real PC restart is untried.
+  picture over the home network. Owed: his own try from the laptop on the home Wi-Fi. A real PC restart happened
+  2026-11-28 14:26Z: the engine came up by itself at his sign-in and answered.
   REMOTE-ANYWHERE is still working (his "get it working from any wifi, remotely, no setup": a way through the site itself,
   "okay but make sure it doesnt cost and look into it"; the engine opening a router port by itself, "Yes, automatically";
   "Wait until sound works too"). Briefs and research: `remote-*.md` in the 69ad notes folder.
-- REMOTE from any Wi-Fi, two things (2026-11-28): he said "Yes, swap it (Recommended)" to putting the engine that asks
-  the router for a port onto the gaming PC. Its one run (14:19Z, after he closed the game Deadlock, which had held the
-  PC's memory) did NOT finish, because of the graphics card (the bullet above); the run his word covered is used, so
-  a second run needs his word again, after the card works. Then his own try from his phone's hotspot (the clicks come
-  with its result).
+- REMOTE from any Wi-Fi (2026-11-28): the engine that asks the router for a port is on the gaming PC and the port is
+  open (above). Owed: his own try from his phone's hotspot, the only proof that it works away from home (the clicks
+  went to the coordinator with the swap's result). Later, each on his own word through the coordinator: the engine
+  with the way through the site (a second swap) and the site's gateway on SERVER's kept-running list.
 - SCREENS relay: activate Cloudflare Realtime/TURN on his account (he ticks the terms and pays himself), then paste the
   key into the RELAY KEY form.
 - Off-site backup (Proton Drive, task `DebaserOffsite`) is built but off until he runs

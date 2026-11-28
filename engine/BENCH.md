@@ -459,8 +459,21 @@ A fresh pair of eyes read the change before it was built for the last time (the 
 gaps, both closed and both now tested: a router's description could have sent the engine's requests to an address
 off the home network, and a port a router opened with no time limit would have stayed if its removal failed once.
 
-Not measured, not proved: the real Hub giving the port (no test engine may ask it; known once the PC runs this file);
-a packet from outside the house; a phone hotspot or a campus network (Luke's own try).
+On the real PC and the real Hub (2026-11-28 14:29Z, the file above swapped in on Luke's word): the engine's log said
+`router port: OPEN: outside port 54321 on the router leads to this PC's video (192.168.0.30:54321), for an hour at a
+time, asked for again every 20 minutes`, within 16 seconds of starting; its `/settings`
+said `routerPort` state `open`, outside port 54321. The Virgin Hub 5, asked one read-only question about that port
+(`GetSpecificPortMappingEntry`), answered: UDP outside port 54321 leads to 192.168.0.30:54321, named "DEBASER engine
+video", enabled, 3540 s left. So the Hub gives a timed port. One watch-only viewer from SERVER's Edge (local dev
+server, mock data, home network) decoded 2580x1080 H.264 from 192.168.0.30:54321, 134 frames in the first seconds;
+the route line read `HOME NETWORK (LAN, DIRECT)` (as it must at home) and `[ SETTINGS ]`, ROUTE read `ROUTER PORT:
+OPEN (54321)`. (A first run of the swap, ten minutes earlier, met a failed graphics card, Windows code 43 since
+13:36Z: neither engine could start, `NOT SERVING. Could not open the graphics card (0x887a0004)`; everything was put
+back, Luke restarted the PC, the card read well and the second run went through.)
+
+Not measured, not proved: a packet from outside the house; a phone hotspot or a campus network (Luke's own try);
+the port being asked for again at 20 minutes and given back when the engine stops, on the real Hub (both are in the
+tests against the pretend router only).
 
 ## The way through the site: the gate (2026-11-28)
 

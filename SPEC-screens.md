@@ -327,8 +327,13 @@ tested on the gaming PC, 2026-11-28: 41 of 41 tests pass, and a deliberately bro
 time limit, never given back, never offered to a viewer, an engine deaf to an address a viewer did not announce, a
 router's description allowed to name any address, a no-time-limit port never chased) fails 10 of them
 (`engine/BENCH.md`). What no test here can show is a knock arriving from outside the house: that is
-Luke's own try from his phone's hotspot. Whether the real Hub gives a port for an hour is known only once the PC runs
-this engine.
+Luke's own try from his phone's hotspot. The real Hub does give a port for an hour: the gaming PC has run this engine
+since 2026-11-28 14:29Z (swapped in on Luke's "Yes, swap it (Recommended)"), its log said `router port: OPEN: outside
+port 54321 on the router leads to this PC's video (192.168.0.30:54321), for an hour at a time, asked for again every
+20 minutes`, and the Hub, asked one read-only question about that one port, answered that UDP outside port 54321
+leads to 192.168.0.30:54321, named "DEBASER engine video", with 3540 s left. One watch-only viewer from SERVER then
+got the picture over the home network, and `[ SETTINGS ]` showed ROUTE as `ROUTER PORT: OPEN (54321)`. The port's
+number is a new one each time the engine starts.
 
 ### Settings in the viewport
 Luke, 2026-11-20: "it needs a settings button in the viewport for the low latency desktop control streaming feature we
