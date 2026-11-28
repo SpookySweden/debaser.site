@@ -23,6 +23,7 @@ import { buildDefaultFigure, FLOOR_Y, RIG_PRESET_IDS, RIG_PRESETS, type RigPrese
 import { jointFrames } from '../lib/character/skeleton';
 import { DEFAULT_LIGHT, useCharacterStore } from '../lib/character/store';
 import { TITLE_BAR_INACTIVE } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 
 /** The picture's frame: from the floor to just above the tallest crown (GUY), a little wider than the widest preset. */
 const PREVIEW_HEIGHT = 2.6;
@@ -68,7 +69,7 @@ function Picker() {
       >
         <div className={`${TITLE_BAR_INACTIVE} w-full`}>
           <span>NEW FIGURE</span>
-          <button type="button" onClick={close} aria-label="Close the figure picker" className="px-1 font-bold max-sm:min-h-tap">
+          <button type="button" onClick={close} aria-label="Close the figure picker" className="px-1 font-bold max-sm:min-h-tap" {...explain('Closes the figure picker and keeps your figure as it is (ESC).', 'For when you opened it by mistake.')}>
             [ × ]
           </button>
         </div>
@@ -82,6 +83,7 @@ function Picker() {
                   type="button"
                   onClick={() => setPicked(id)}
                   aria-pressed={on}
+                  {...explain(`Picks the ${RIG_PRESETS[id].label.toLowerCase()} starting figure.`, 'Nothing changes until you press START.')}
                   className={`flex w-full cursor-pointer flex-col rounded-none border-line border-ink text-left ${
                     on ? 'bg-ena text-ink-bar' : 'bg-sun-pale text-ink hover:bg-ice'
                   }`}
@@ -105,6 +107,7 @@ function Picker() {
           <button
             type="button"
             disabled={picked === null}
+            {...explain('Puts the chosen starting figure on the bench in place of the one there.', 'Pick a card first. UNDO brings the old figure back.')}
             onClick={() => {
               if (picked === null) return;
               applyPreset(picked);
@@ -117,6 +120,7 @@ function Picker() {
           <button
             type="button"
             onClick={close}
+            {...explain('Closes the picker without changing your figure.', 'The ESC key does the same.')}
             className="cursor-pointer rounded-none border-line border-ink bg-sun-pale px-3 py-2 text-key font-bold text-ink hover:bg-ice max-sm:min-h-tap"
           >
             [ CANCEL ]

@@ -10,6 +10,7 @@ import { makeSmart } from '../../lib/animate/smart';
 import { updateSettings, useStudio, type ToolId } from '../../lib/animate/store';
 import { snapBack } from '../../lib/animate/trace';
 import { PLATE_MEDIUM, PLATE_PRESSED } from '../../lib/ui/controls';
+import { explain } from '../../lib/ui/explain';
 
 const TOOL_WORD: Record<ToolId, string> = { ...BRUSH_LABELS, lasso: 'LASSO', rect: 'BOX', pick: 'PICK', hand: 'HAND', shift: 'TRACE' };
 
@@ -37,7 +38,7 @@ export function StatusWords() {
 export function PlayKey() {
   const playing = useStudio((state) => state.playing);
   return (
-    <button type="button" className={playing ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={playing} title="ENTER" onClick={() => togglePlaying(getEngine())}>
+    <button type="button" className={playing ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={playing} title="ENTER" onClick={() => togglePlaying(getEngine())} {...explain(playing ? 'Stops the playback (ENTER).' : 'Plays the animation (ENTER).', 'For checking how the movement reads.')}>
       [ {playing ? 'STOP' : 'PLAY'} ]
     </button>
   );
@@ -55,7 +56,7 @@ export function FrameWords() {
 export function FramesKey() {
   const open = useStudio((state) => state.panel === 'frames');
   return (
-    <button type="button" className={open ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={open} title="SHIFT + F" onClick={toggleFramesMenu} data-animate-frames-key>
+    <button type="button" className={open ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={open} title="SHIFT + F" onClick={toggleFramesMenu} data-animate-frames-key {...explain('Opens or closes the timeline menu: drawings, holds, range, onion and sound (SHIFT + F).', 'Everything to do with frames is in it.')}>
       [ FRAMES ]
     </button>
   );
@@ -63,7 +64,7 @@ export function FramesKey() {
 
 export function ToolsKey() {
   return (
-    <button type="button" className={PLATE_MEDIUM} title="X, OR THE PEN'S RIGHT BUTTON" onClick={toggleTools} data-animate-tools-key>
+    <button type="button" className={PLATE_MEDIUM} title="X, OR THE PEN'S RIGHT BUTTON" onClick={toggleTools} data-animate-tools-key {...explain('Opens the tool pop-up: tools, undo, colours and brush size (X).', "The pen's right button opens it too, where the pen is.")}>
       [ TOOLS ]
     </button>
   );
@@ -72,7 +73,7 @@ export function ToolsKey() {
 export function LayersKey() {
   const shown = useStudio((state) => state.settings.showLayers);
   return (
-    <button type="button" className={shown ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={shown} title="L" onClick={() => updateSettings({ showLayers: !shown })} data-animate-layers-key>
+    <button type="button" className={shown ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={shown} title="L" onClick={() => updateSettings({ showLayers: !shown })} data-animate-layers-key {...explain(shown ? 'Hides the layer list (L).' : 'Shows the layer list (L).', 'For more room to draw, or for working with layers.')}>
       [ LAYERS ]
     </button>
   );
@@ -80,7 +81,7 @@ export function LayersKey() {
 
 export function MenuKey() {
   return (
-    <button type="button" className={PLATE_MEDIUM} title="?" onClick={toggleMenu} data-animate-menu-key>
+    <button type="button" className={PLATE_MEDIUM} title="?" onClick={toggleMenu} data-animate-menu-key {...explain('Opens or closes the menu of everything the studio can do, with its keys (?).', 'For finding anything that has no key of its own on screen.')}>
       [ MENU ]
     </button>
   );
@@ -100,22 +101,22 @@ export function WhenItApplies() {
       {tool === 'shift' && (
         <div role="group" aria-label="Shift and Trace" className="flex flex-wrap gap-x-1" data-animate-trace-keys>
           {(['prev', 'next'] as const).map((value) => (
-            <button key={value} type="button" className={side === value ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={side === value} onClick={() => useStudio.setState({ traceSide: value })}>
+            <button key={value} type="button" className={side === value ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={side === value} onClick={() => useStudio.setState({ traceSide: value })} {...explain(value === 'prev' ? 'Picks the drawing before this one as the one you move about.' : 'Picks the drawing after this one as the one you move about.', 'Only where it shows on screen moves; the drawing is not changed.')}>
               [ {value === 'prev' ? 'BEFORE' : 'AFTER'} ]
             </button>
           ))}
           {(['move', 'turn', 'scale'] as const).map((value) => (
-            <button key={value} type="button" className={mode === value ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={mode === value} onClick={() => useStudio.setState({ traceMode: value })}>
+            <button key={value} type="button" className={mode === value ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={mode === value} onClick={() => useStudio.setState({ traceMode: value })} {...explain(value === 'move' ? 'Makes dragging slide the traced drawing.' : value === 'turn' ? 'Makes dragging turn the traced drawing.' : 'Makes dragging make the traced drawing bigger or smaller.', 'For lining it up under what you are drawing.')}>
               [ {value.toUpperCase()} ]
             </button>
           ))}
-          <button type="button" className={PLATE_MEDIUM} disabled={!on} onClick={snapBack} title="SHIFT + J">
+          <button type="button" className={PLATE_MEDIUM} disabled={!on} onClick={snapBack} title="SHIFT + J" {...explain('Puts the shifted drawings back where they belong (SHIFT + J).', 'Greyed out until one has been shifted. No drawing is changed.')}>
             [ SNAP BACK ]
           </button>
         </div>
       )}
       {hasSelection && (
-        <button type="button" className={PLATE_MEDIUM} onClick={() => void makeSmart()} title="SHIFT + Q" data-animate-make-smart>
+        <button type="button" className={PLATE_MEDIUM} onClick={() => void makeSmart()} title="SHIFT + Q" data-animate-make-smart {...explain("Treats the selected colour as if it had been drawn with this layer tag's smarts (SHIFT + Q).", 'The layer needs a tag with smarts. UNDO takes it back.')}>
           [ MAKE SMART ]
         </button>
       )}

@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import { openCharacterBrowser } from '../lib/character/browser-window';
 import { PLATE, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import ProfileCharacterPicker from './ProfileCharacterPicker';
+import { explain } from '../lib/ui/explain';
 
 /**
  * The canvas is loaded in the browser only, and this is the whole reason the import is wrapped.
@@ -54,7 +55,7 @@ export default function CharacterEditorPanel() {
         <span className="flex items-center gap-2">
           {/* The door to the shelf. A plain function rather than a prop, the way every other window here opens -
               and it is inside the title bar so it reads as part of the workbench's chrome. */}
-          <button type="button" onClick={openCharacterBrowser} className={PLATE}>
+          <button type="button" onClick={openCharacterBrowser} className={PLATE} {...explain('Opens your saved characters: keep the figure on the bench, load one back or remove one.', 'For keeping more than one figure.')}>
             [ SAVED CHARACTERS ]
           </button>
         </span>

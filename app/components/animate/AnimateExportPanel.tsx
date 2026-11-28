@@ -5,6 +5,7 @@ import { exportSize, startExport, stopExport, type ExportKind } from '../../lib/
 import { useStudio } from '../../lib/animate/store';
 import { PLATE_MEDIUM, PLATE_PRESSED } from '../../lib/ui/controls';
 import { AnimatePanelFrame } from './AnimatePanels';
+import { explain } from '../../lib/ui/explain';
 
 const SCALES = [
   { scale: 1, label: '100%' },
@@ -28,7 +29,7 @@ export default function AnimateExportPanel() {
         <div role="group" aria-label="Size" className="flex flex-wrap items-center gap-1">
           <span>SIZE</span>
           {SCALES.map((item) => (
-            <button key={item.scale} type="button" className={scale === item.scale ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={scale === item.scale} onClick={() => setScale(item.scale)}>
+            <button key={item.scale} type="button" className={scale === item.scale ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={scale === item.scale} onClick={() => setScale(item.scale)} {...explain(`Exports at ${item.label.replace('%', ' percent')} of the sheet's size.`, 'Smaller makes a lighter file. The size in pixels shows beside the keys.')}>
               [ {item.label} ]
             </button>
           ))}
@@ -45,22 +46,22 @@ export default function AnimateExportPanel() {
           PNG WITH NO PAPER
         </label>
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" className={PLATE_MEDIUM} disabled={progress !== null} onClick={() => run('gif')}>
+          <button type="button" className={PLATE_MEDIUM} disabled={progress !== null} onClick={() => run('gif')} {...explain('Builds an animated GIF and saves it where you choose.', 'It has the paper behind it and no sound.')}>
             [ GIF ]
           </button>
-          <button type="button" className={PLATE_MEDIUM} disabled={progress !== null} onClick={() => run('png')}>
+          <button type="button" className={PLATE_MEDIUM} disabled={progress !== null} onClick={() => run('png')} {...explain('Builds one PNG picture per frame, in a zip, and saves it where you choose.', 'Tick PNG WITH NO PAPER for a see-through background.')}>
             [ PNG FRAMES ]
           </button>
-          <button type="button" className={PLATE_MEDIUM} disabled={progress !== null} onClick={() => run('mp4')}>
+          <button type="button" className={PLATE_MEDIUM} disabled={progress !== null} onClick={() => run('mp4')} {...explain('Builds an MP4 video and saves it where you choose.', 'With the sound if this browser can; if not, it says so.')}>
             [ MP4 ]
           </button>
-          <button type="button" className={PLATE_MEDIUM} disabled={progress !== null} onClick={() => run('webm')}>
+          <button type="button" className={PLATE_MEDIUM} disabled={progress !== null} onClick={() => run('webm')} {...explain('Builds a WebM video and saves it where you choose.', 'With the sound if this browser can; if not, it says so.')}>
             [ WEBM ]
           </button>
           {progress !== null && (
             <>
               <span role="status">{progress}</span>
-              <button type="button" className={PLATE_MEDIUM} onClick={stopExport}>
+              <button type="button" className={PLATE_MEDIUM} onClick={stopExport} {...explain('Stops the export that is being built.', 'Your project is not changed.')}>
                 [ STOP ]
               </button>
             </>

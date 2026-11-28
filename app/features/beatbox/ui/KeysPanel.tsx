@@ -14,6 +14,7 @@ import {
 } from "./keyBindings";
 import { FIXED_KEYS } from "./keyHelp";
 import { smallKey, titleLine } from "./looks";
+import { explain } from '../../../lib/ui/explain';
 
 /** Every key, what it does, and a way to change it. */
 export function KeysPanel({
@@ -150,7 +151,7 @@ export function KeysPanel({
           <span>Keyboard keys</span>
         </h3>
         <p className="text-bb-large">Press Change, then the key you want. These stay on this browser.</p>
-        <button type="button" onClick={onReset} className={smallKey()}>
+        <button type="button" onClick={onReset} className={smallKey()} {...explain("Puts every beat box key back to what it started as, at once.", "For undoing your key changes.")}>
           Put all the keys back
         </button>
         {KEY_GROUPS.map((group) => (
@@ -172,6 +173,7 @@ export function KeysPanel({
                       data-change-key={id}
                       aria-label={listening === id ? `Leave the key for ${label} as it is` : `Change the key for ${label}, now ${keyWords(bindings[id])}`}
                       onClick={() => listen(id)}
+                      {...explain(listening === id ? "Stops waiting and leaves this key as it is." : "Waits for the next key you press and gives it this job.", "Your keys are kept in this browser.")}
                       className={smallKey(listening === id)}
                     >
                       {listening === id ? "Cancel" : "Change"}
@@ -189,10 +191,10 @@ export function KeysPanel({
                       {keyWords(clash.stroke)} is already: {actionLabel(clash.other)}.
                     </p>
                     <div className="flex flex-wrap gap-bb-gutter">
-                      <button type="button" data-swap-key onClick={swap} className={smallKey()}>
+                      <button type="button" data-swap-key onClick={swap} className={smallKey()} {...explain("Swaps the keys of the two jobs, so both still have one.", "For when the key you want is already taken.")}>
                         Swap them
                       </button>
-                      <button type="button" onClick={keepAsItWas} className={smallKey()}>
+                      <button type="button" onClick={keepAsItWas} className={smallKey()} {...explain("Leaves both keys as they were.", "Nothing is changed.")}>
                         Leave it
                       </button>
                     </div>

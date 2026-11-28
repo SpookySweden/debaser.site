@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { keyHelp } from "./keyHelp";
 import type { Bindings } from "./keyBindings";
 import { bigKey } from "./looks";
+import { explain } from '../../../lib/ui/explain';
 
 /** Every key, in a panel that can also be printed. */
 export function HelpPanel({ open, bindings, onClose }: { open: boolean; bindings: Bindings; onClose: () => void }) {
@@ -28,10 +29,10 @@ export function HelpPanel({ open, bindings, onClose }: { open: boolean; bindings
           Keys
         </h2>
         <div className="flex flex-wrap gap-bb-gutter print:hidden">
-          <button type="button" onClick={onClose} title="Close (Esc)" className={bigKey()}>
+          <button type="button" onClick={onClose} title="Close (Esc)" className={bigKey()} {...explain("Closes this list of keys (Esc).", "For getting back to the song.")}>
             Close
           </button>
-          <button type="button" onClick={() => window.print()} className={bigKey()}>
+          <button type="button" onClick={() => window.print()} className={bigKey()} {...explain("Opens your browser's print window for this list of keys.", "For keeping the keys on paper beside you.")}>
             Print
           </button>
         </div>

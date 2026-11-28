@@ -6,6 +6,7 @@ import type { ComicChapter, ComicContents, ComicPanel, LoreLink } from '../../li
 import { FIELD_TIGHT, PLATE, PLATE_PRESSED, TITLE_BAR } from '../../lib/ui/controls';
 import ComicPageImage from './ComicPageImage';
 import { pageInHand, StudioPagePicker } from './StudioPanels';
+import { explain } from '../../lib/ui/explain';
 
 type Props = {
   contents: ComicContents;
@@ -98,6 +99,7 @@ export default function StudioLore(props: Props) {
                 aria-pressed={selected === each.id}
                 aria-label={`PANEL ${index + 1}`}
                 onClick={() => setSelected(selected === each.id ? null : each.id)}
+                {...explain(selected === each.id ? 'Lets go of this panel, so no panel is picked.' : 'Picks this panel, so lore pages can be tagged on it.', 'A lit panel already has a tag.')}
                 className={`comic-panel absolute cursor-pointer ${(tags[each.id]?.length ?? 0) > 0 ? 'comic-panel-lit' : ''} ${selected === each.id ? 'comic-panel-open' : ''}`}
                 style={{ left: `${each.x * 100}%`, top: `${each.y * 100}%`, width: `${each.w * 100}%`, height: `${each.h * 100}%` }}
               >
@@ -121,6 +123,7 @@ export default function StudioLore(props: Props) {
                         type="button"
                         className={PLATE}
                         aria-label={`UNTAG ${link.title}`}
+                        {...explain('Takes this lore page off the picked panel. Saved at once.', 'For a tag put on the wrong panel.')}
                         onClick={() => run(() => getComicRepository().setTags(panel.id, panelTags.filter((each) => each.docId !== link.docId).map((each) => each.docId)))}
                       >
                         [ × ]
@@ -142,6 +145,7 @@ export default function StudioLore(props: Props) {
                           type="button"
                           className={PLATE}
                           onClick={() => run(() => getComicRepository().setTags(panel.id, [...panelTags.map((each) => each.docId), link.docId]))}
+                          {...explain('Tags this lore page on the picked panel. Saved at once.', 'Readers then see it under WHO when they press the panel.')}
                         >
                           [ + TAG ]
                         </button>
@@ -172,6 +176,10 @@ export default function StudioLore(props: Props) {
                 aria-pressed={link.isCharacter}
                 className={link.isCharacter ? PLATE_PRESSED : PLATE}
                 onClick={() => run(() => getComicRepository().setCharacter(link.docId, !link.isCharacter))}
+                {...explain(
+                  link.isCharacter ? 'Takes the character mark off this lore page. Saved at once.' : 'Marks this lore page as a character. Saved at once.',
+                  'A character’s lore page shows the panel where the character first appears.',
+                )}
               >
                 [ CHARACTER ]
               </button>

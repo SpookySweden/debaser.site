@@ -13,6 +13,7 @@ import {
 import { GLYPHS } from "./keyHelp";
 import { windowCloseKey } from "./looks";
 import { clampPlace, type Size, type WindowName, type WindowStore } from "./windowStore";
+import { explain } from '../../../lib/ui/explain';
 
 const ARROW_STEP = 32;
 const ARROWS: Record<string, readonly [number, number]> = {
@@ -130,6 +131,7 @@ export function PopWindow({
               onPointerUp={endDrag}
               onPointerCancel={endDrag}
               onKeyDown={titleKeyDown}
+              {...explain("Moves this window: drag it, or use the arrow keys.", "For getting it out of the way of what you are looking at.")}
               className={`${titleWords} cursor-move touch-none select-none focus:outline-(length:--focus-width) focus:outline-bb-pink`}
             >
               {title}
@@ -138,7 +140,7 @@ export function PopWindow({
             <span className={`${titleWords} flex items-center`}>{title}</span>
           )}
         </h2>
-        <button type="button" aria-label={`Close ${title}`} title="Close (Esc)" onClick={onClose} className={windowCloseKey}>
+        <button type="button" aria-label={`Close ${title}`} title="Close (Esc)" onClick={onClose} className={windowCloseKey} {...explain("Closes this window (Esc).", "Its key on the top bar brings it back.")}>
           {GLYPHS.close}
         </button>
       </div>

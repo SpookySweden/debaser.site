@@ -13,6 +13,7 @@ import AnimatePalettePanel from './AnimatePalettePanel';
 import AnimateSettings from './AnimateSettings';
 import AnimateSoundPanel from './AnimateSoundPanel';
 import AnimateTagPanel from './AnimateTagPanel';
+import { explain, NOTE } from '../../lib/ui/explain';
 
 /** The panel that floats over the studio. Esc-free: its key or `[ CLOSE ]` shuts it; the studio's keys still work behind it. */
 export function AnimatePanelFrame({ title, children, wide = false }: { title: string; children: ReactNode; wide?: boolean }) {
@@ -23,7 +24,7 @@ export function AnimatePanelFrame({ title, children, wide = false }: { title: st
       <div role="dialog" aria-label={title} className={`pointer-events-auto flex h-fit max-h-full max-w-full flex-col frame bg-paper p-3 text-key text-ink ${wide ? 'w-[44rem]' : 'w-[28rem]'}`} style={{ zoom: uiScale }}>
         <div className="mb-2 flex items-center justify-between gap-2">
           <h2 className={TITLE_BAR}>{title}</h2>
-          <button type="button" className={PLATE_MEDIUM} onClick={() => useStudio.setState({ panel: 'none' })}>
+          <button type="button" className={PLATE_MEDIUM} onClick={() => useStudio.setState({ panel: 'none' })} {...explain('Closes this panel again.', 'For getting back to the whole sheet.')}>
             [ CLOSE ]
           </button>
         </div>
@@ -89,7 +90,7 @@ function ProjectsPanel() {
         <SizeField label="WIDE" value={size.width} min={16} max={7680} onChange={(width) => setSize({ ...size, width })} />
         <SizeField label="TALL" value={size.height} min={16} max={7680} onChange={(height) => setSize({ ...size, height })} />
         <SizeField label="FPS" value={size.fps} min={1} max={60} onChange={(fps) => setSize({ ...size, fps })} />
-        <button type="submit" className={PLATE_MEDIUM}>
+        <button type="submit" className={PLATE_MEDIUM} {...explain('Starts a new project at the size and speed typed beside it.', 'The one you are in is saved in this browser first; if it cannot be, nothing new is started.')}>
           [ NEW ]
         </button>
       </form>
@@ -100,7 +101,7 @@ function ProjectsPanel() {
           <li key={row.id} className="flex flex-wrap items-center gap-2">
             <span className={`min-w-0 flex-1 truncate ${row.id === currentId ? 'text-accent-ink' : ''}`}>{row.name}</span>
             {row.id !== currentId && (
-              <button type="button" className={PLATE_MEDIUM} onClick={() => void getEngine().switchProject(row.id)}>
+              <button type="button" className={PLATE_MEDIUM} onClick={() => void getEngine().switchProject(row.id)} {...explain('Opens this project in place of the one you are in.', 'The one you are in is saved in this browser first.')}>
                 [ OPEN ]
               </button>
             )}
@@ -108,6 +109,7 @@ function ProjectsPanel() {
               <button
                 type="button"
                 className={PLATE_MEDIUM}
+                {...explain('Deletes this project and its drawings from this browser.', 'A file you saved from it is not touched.', NOTE.undo)}
                 onClick={() => {
                   setConfirming(null);
                   void getEngine().deleteProject(row.id).then(reload);
@@ -116,7 +118,7 @@ function ProjectsPanel() {
                 [ REALLY DELETE ]
               </button>
             ) : (
-              <button type="button" className={PLATE_MEDIUM} onClick={() => setConfirming(row.id)}>
+              <button type="button" className={PLATE_MEDIUM} onClick={() => setConfirming(row.id)} {...explain('Asks whether to delete this project: the key changes and wants a second press.', 'For clearing out projects you no longer want.', NOTE.asks)}>
                 [ DELETE ]
               </button>
             )}
@@ -130,7 +132,7 @@ function ProjectsPanel() {
             {versions.map((version) => (
               <li key={version.name} className="flex items-center gap-2">
                 <span className="min-w-0 flex-1 truncate">{new Date(version.time).toLocaleString()}</span>
-                <button type="button" className={PLATE_MEDIUM} onClick={() => void getEngine().openVersion(version.name)}>
+                <button type="button" className={PLATE_MEDIUM} onClick={() => void getEngine().openVersion(version.name)} {...explain('Opens this older version as a new project of its own.', 'The project you have now stays as it is.')}>
                   [ OPEN A COPY ]
                 </button>
               </li>

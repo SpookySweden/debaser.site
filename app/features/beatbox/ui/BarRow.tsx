@@ -15,6 +15,7 @@ import { Playhead } from "./Playhead";
 import { ScrollRail } from "./ScrollRail";
 import { barsUsingPattern, setBarPattern, setLoop } from "./songEdit";
 import { useElementSize } from "./useElementSize";
+import { explain } from '../../../lib/ui/explain';
 
 export interface BarPick {
   readonly channel: number;
@@ -398,13 +399,13 @@ export function BarRow({
         <div className="flex flex-wrap items-center gap-1">
           {barKeys}
           <div role="group" aria-label="This bar's pattern" className="flex flex-wrap items-center gap-1">
-            <button type="button" aria-label="Previous pattern" title="Previous pattern (-, in the bars)" onClick={() => setPattern(pattern - 1)} className={glyphKey()}>
+            <button type="button" aria-label="Previous pattern" title="Previous pattern (-, in the bars)" onClick={() => setPattern(pattern - 1)} className={glyphKey()} {...explain('Puts the pattern numbered one lower in this bar of this channel.', 'Pattern 0 is silence. A pattern used in several bars plays the same in each.')}>
               -
             </button>
-            <button type="button" aria-label="Next pattern" title="Next pattern (+, in the bars)" onClick={() => setPattern(pattern + 1)} className={glyphKey()}>
+            <button type="button" aria-label="Next pattern" title="Next pattern (+, in the bars)" onClick={() => setPattern(pattern + 1)} className={glyphKey()} {...explain('Puts the pattern numbered one higher in this bar of this channel.', 'For choosing which written part plays here.')}>
               +
             </button>
-            <button type="button" aria-label="Fill" title="This bar's pattern on the whole loop (F, in the bars)" onClick={fillLoop} className={glyphKey()}>
+            <button type="button" aria-label="Fill" title="This bar's pattern on the whole loop (F, in the bars)" onClick={fillLoop} className={glyphKey()} {...explain("Puts this bar's pattern on every bar of the loop, for this channel.", 'For repeating a part without setting each bar.')}>
               {GLYPHS.fill}
             </button>
             {footKeys}
@@ -465,6 +466,7 @@ export function BarRow({
                       type="button"
                       tabIndex={-1}
                       data-pick-channel={index}
+                      {...explain(`Picks ${channelName(song, index)} as the channel you are working on.`, 'The notes and sounds shown are then its own.')}
                       aria-label={`Pick ${channelName(song, index)}`}
                       aria-pressed={pick.channel === index}
                       title={`Pick ${channelName(song, index)}`}

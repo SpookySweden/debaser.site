@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import type { ComicPage } from '../../lib/comic/types';
 import { PLATE, TITLE_BAR } from '../../lib/ui/controls';
 import ComicPageImage from './ComicPageImage';
+import { explain } from '../../lib/ui/explain';
 
 type Props = { page: ComicPage; label: string; onClose: () => void };
 
@@ -31,7 +32,7 @@ export default function ComicZoom({ page, label, onClose }: Props) {
     <div role="dialog" aria-modal="true" aria-label={`${label}, ZOOMED`} className="fixed inset-0 z-50 flex flex-col bg-paper">
       <div className="flex items-center gap-2 px-3 py-1">
         <h2 className={`${TITLE_BAR} flex-1`}>{label}</h2>
-        <button ref={closeKey} type="button" onClick={onClose} className={PLATE}>
+        <button ref={closeKey} type="button" onClick={onClose} className={PLATE} {...explain('Closes the large view and goes back to the chapter.', 'Esc does the same.')}>
           [ CLOSE ]
         </button>
       </div>

@@ -12,6 +12,7 @@ import type { BehaviourSet, BlendMode, Tag } from '../../lib/animate/types';
 import { PLATE_MEDIUM, PLATE_PRESSED } from '../../lib/ui/controls';
 import { AnimatePanelFrame } from './AnimatePanels';
 import AnimateSlider from './AnimateSlider';
+import { explain } from '../../lib/ui/explain';
 
 const TEXT_FIELD = 'frame min-w-0 bg-paper px-1 py-0.5 font-mono text-key text-ink outline-none focus:outline-2 focus:outline-dotted focus:outline-bubble';
 
@@ -74,10 +75,10 @@ function TagEditor({ tag }: { tag: Tag }) {
       <Switch label="ONION SKIN" on={b.onionSkin.on} onChange={(on) => set({ onionSkin: { ...b.onionSkin, on } })} />
       {b.onionSkin.on && (
         <div role="group" aria-label="Onion for this tag" className="flex items-center gap-1">
-          <button type="button" className={b.onionSkin.mode === 'tint' ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={b.onionSkin.mode === 'tint'} onClick={() => set({ onionSkin: { ...b.onionSkin, mode: 'tint' } })}>
+          <button type="button" className={b.onionSkin.mode === 'tint' ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={b.onionSkin.mode === 'tint'} onClick={() => set({ onionSkin: { ...b.onionSkin, mode: 'tint' } })} {...explain('Shows onion skin as a tint on layers with this tag.', 'Each tag can show its neighbours its own way.')}>
             [ TINT ]
           </button>
-          <button type="button" className={b.onionSkin.mode === 'outline' ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={b.onionSkin.mode === 'outline'} onClick={() => set({ onionSkin: { ...b.onionSkin, mode: 'outline' } })}>
+          <button type="button" className={b.onionSkin.mode === 'outline' ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={b.onionSkin.mode === 'outline'} onClick={() => set({ onionSkin: { ...b.onionSkin, mode: 'outline' } })} {...explain('Shows onion skin as outlines on layers with this tag.', 'Each tag can show its neighbours its own way.')}>
             [ OUTLINE ]
           </button>
         </div>
@@ -145,17 +146,18 @@ export default function AnimateTagPanel() {
   return (
     <AnimatePanelFrame title="TAGS" wide>
       <div className="mb-2 flex flex-wrap gap-1">
-        <button type="button" className={PLATE_MEDIUM} onClick={() => makeTag(null)}>
+        <button type="button" className={PLATE_MEDIUM} onClick={() => makeTag(null)} {...explain('Makes a new blank tag and opens it for setting up.', 'For a way of behaving that none of the tags has yet.')}>
           [ NEW TAG ]
         </button>
         <button
           type="button"
           className={PLATE_MEDIUM}
+          {...explain('Saves your own tags, and the one that is open, to a file (animate-tags.json).', 'For carrying them to another project.')}
           onClick={() => void saveBlobAs(new Blob([exportTagPreset(tags.filter((tag) => !tag.builtin || tag.id === openId))], { type: 'application/json' }), 'animate-tags.json', 'Tag preset', ['.json'])}
         >
           [ SAVE TAGS ]
         </button>
-        <button type="button" className={PLATE_MEDIUM} onClick={() => file.current?.click()}>
+        <button type="button" className={PLATE_MEDIUM} onClick={() => file.current?.click()} {...explain('Adds the tags from a tag file to this project.', 'The tags already here stay.')}>
           [ LOAD TAGS ]
         </button>
         <input
@@ -198,13 +200,13 @@ export default function AnimateTagPanel() {
             </span>
             <span className="min-w-24 flex-1 truncate" title={tag.name}>{tag.name}</span>
             {index < 9 && <span title="A new layer with this tag">CTRL + {index + 1}</span>}
-            <button type="button" className={tag.on ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={tag.on} aria-label={`${tag.name} smarts ${tag.on ? 'on' : 'off'}`} onClick={() => change(tag.id, { on: !tag.on })}>
+            <button type="button" className={tag.on ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={tag.on} aria-label={`${tag.name} smarts ${tag.on ? 'on' : 'off'}`} onClick={() => change(tag.id, { on: !tag.on })} {...explain(tag.on ? "Switches this tag's smarts off." : "Switches this tag's smarts on.", 'The tag stays on its layers either way.')}>
               [ {tag.on ? 'ON' : 'OFF'} ]
             </button>
-            <button type="button" className={openId === tag.id ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={openId === tag.id} aria-label={`Edit ${tag.name}`} onClick={() => setOpenId(openId === tag.id ? null : tag.id)}>
+            <button type="button" className={openId === tag.id ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={openId === tag.id} aria-label={`Edit ${tag.name}`} onClick={() => setOpenId(openId === tag.id ? null : tag.id)} {...explain(openId === tag.id ? "Closes this tag's settings." : "Opens this tag's settings below the list.", 'Its name, mark, colour and every way it behaves.')}>
               [ EDIT ]
             </button>
-            <button type="button" className={PLATE_MEDIUM} aria-label={`Copy ${tag.name}`} onClick={() => makeTag(tag)}>
+            <button type="button" className={PLATE_MEDIUM} aria-label={`Copy ${tag.name}`} onClick={() => makeTag(tag)} {...explain('Makes a new tag that behaves like this one, and opens it.', 'For a variation without changing the original.')}>
               [ COPY ]
             </button>
             {!tag.builtin && (
@@ -212,6 +214,7 @@ export default function AnimateTagPanel() {
                 type="button"
                 className={PLATE_MEDIUM}
                 aria-label={`Delete ${tag.name}`}
+                {...explain('Deletes this tag and takes it off its layers, at once.', 'The layers and drawings stay, and UNDO brings the tag back.')}
                 onClick={() => {
                   engine.edit('DELETE TAG', (project) => ({
                     ...project,
@@ -225,7 +228,7 @@ export default function AnimateTagPanel() {
               </button>
             )}
             {node !== null && (
-              <button type="button" className={node.tagId === tag.id ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={node.tagId === tag.id} aria-label={`Put ${tag.name} on ${node.name}`} onClick={() => applyTag(layerId, node.tagId === tag.id ? null : tag.id)}>
+              <button type="button" className={node.tagId === tag.id ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={node.tagId === tag.id} aria-label={`Put ${tag.name} on ${node.name}`} onClick={() => applyTag(layerId, node.tagId === tag.id ? null : tag.id)} {...explain(node.tagId === tag.id ? 'Takes this tag off the row you have picked.' : 'Puts this tag on the row you have picked.', "A layer takes the tag's starting settings; a folder passes the tag down.")}>
                 [ PUT ON ]
               </button>
             )}

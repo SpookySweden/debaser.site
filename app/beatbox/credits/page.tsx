@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import SiteWindow from '../../components/SiteWindow';
 import { PLATE } from '../../lib/ui/controls';
+import { explain } from '../../lib/ui/explain';
 
 export const metadata: Metadata = {
   title: 'DEBASER.SITE - Beat Box Credits',
@@ -42,7 +43,7 @@ export default function BeatBoxCreditsPage() {
           </a>
         </p>
         <pre className="max-w-full text-label whitespace-pre-wrap text-ink wrap-anywhere">{BEEPBOX_LICENCE}</pre>
-        <Link href="/beatbox" className={PLATE}>
+        <Link href="/beatbox" className={PLATE} {...explain('Goes back to the beat box.', 'For making music again.')}>
           [ BACK TO THE BEAT BOX ]
         </Link>
       </div>

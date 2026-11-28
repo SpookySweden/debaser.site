@@ -4,6 +4,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { GLYPHS } from "./keyHelp";
 import { focusOnly, glyphKey, smallKey, titleLine } from "./looks";
 import { MOST_RECENT_SONGS, type RecentSong, type RecentStore } from "./recentStore";
+import { explain } from '../../../lib/ui/explain';
 
 function when(time: number): string {
   return new Date(time).toLocaleString([], { dateStyle: "short", timeStyle: "short" });
@@ -63,6 +64,7 @@ function RecentRow({
         aria-pressed={hearing}
         title={hearing ? "Stop" : "Hear it, without opening it"}
         onClick={() => onHear(hearing ? null : version.data)}
+        {...explain(hearing ? "Stops playing this older song." : "Plays this older song so you can hear it, without opening it.", "For finding the one you want.")}
         className={glyphKey(hearing)}
       >
         {hearing ? GLYPHS.stop : GLYPHS.play}
@@ -71,6 +73,7 @@ function RecentRow({
         type="button"
         aria-label={armed ? `Open the song from ${when(version.time)}, replacing the one on screen` : `Open the song from ${when(version.time)}`}
         onClick={() => (armed ? onOpen(version.data) : onArm(version.time))}
+        {...explain(armed ? "Opens this older song in place of the one on screen." : "Asks to be pressed again before this older song replaces the one on screen.", "For going back to how a song was.")}
         className={smallKey(armed)}
       >
         {armed ? "Open, replacing" : "Open"}

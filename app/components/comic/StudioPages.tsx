@@ -7,6 +7,7 @@ import type { ComicChapter, ComicContents, ComicPage } from '../../lib/comic/typ
 import { pageFileProblem, uploadPage } from '../../lib/comic/upload';
 import { FIELD, FIELD_TIGHT, PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR } from '../../lib/ui/controls';
 import ComicPageImage from './ComicPageImage';
+import { explain, explainFrom, NOTE, type Explanation } from '../../lib/ui/explain';
 
 type Props = {
   contents: ComicContents;
@@ -16,6 +17,26 @@ type Props = {
 };
 
 type Upload = { key: string; name: string; fraction: number; state: 'waiting' | 'sending' | 'done' | 'failed'; error?: string };
+
+/** NamedRow serves volumes and chapters, so its keys take their words from which one it is. */
+const NAMED_WORDS: Record<'volume' | 'chapter', Record<'rename' | 'save' | 'cancel' | 'del' | 'yes' | 'no', Explanation>> = {
+  volume: {
+    rename: { what: 'Opens boxes for this volume’s number and title.', why: 'For naming it or putting the volumes in order.' },
+    save: { what: 'Saves the number and title typed here.', why: 'The number has to be one no other volume uses.' },
+    cancel: { what: 'Closes the boxes and saves nothing.', why: 'The volume stays as it was.' },
+    del: { what: 'Asks whether to delete this volume.', why: 'A volume that still has chapters can’t be deleted.', note: NOTE.asks },
+    yes: { what: 'Deletes this empty volume.', why: 'It is refused while the volume still has chapters.', note: NOTE.undo },
+    no: { what: 'Keeps the volume and closes the question.', why: 'Nothing is deleted.' },
+  },
+  chapter: {
+    rename: { what: 'Opens boxes for this chapter’s number and title.', why: 'For naming it or moving it in the order.' },
+    save: { what: 'Saves the number and title typed here.', why: 'The number has to be one no other chapter uses.', note: 'THE NUMBER IS PART OF THE CHAPTER’S ADDRESS.' },
+    cancel: { what: 'Closes the boxes and saves nothing.', why: 'The chapter stays as it was.' },
+    del: { what: 'Asks whether to delete this chapter and everything in it.', why: 'For a chapter made by mistake.', note: NOTE.asks },
+    yes: { what: 'Deletes the chapter with its pages, panel boxes and lore tags.', why: 'A chapter with released pages wants the word DELETE typed first.', note: NOTE.undo },
+    no: { what: 'Keeps the chapter and closes the question.', why: 'Nothing is deleted.' },
+  },
+};
 
 function newId(): string {
   return crypto.randomUUID();
@@ -100,6 +121,7 @@ export default function StudioPages({ contents, reload, chapter, onChapter }: Pr
         {volumes.map((volume) => (
           <div key={volume.id} className="flex flex-col gap-1">
             <NamedRow
+              words={NAMED_WORDS.volume}
               label={`VOLUME ${volume.number}`}
               number={volume.number}
               title={volume.title}
@@ -109,10 +131,17 @@ export default function StudioPages({ contents, reload, chapter, onChapter }: Pr
             <ul className="flex flex-col gap-1 pl-4">
               {chaptersOfVolume(contents, volume.id).map((each) => (
                 <li key={each.id} className="flex flex-wrap items-center gap-2">
-                  <button type="button" aria-pressed={chapter?.id === each.id} onClick={() => onChapter(each.id)} className={chapter?.id === each.id ? PLATE_PRESSED : PLATE}>
+                  <button
+                    type="button"
+                    aria-pressed={chapter?.id === each.id}
+                    onClick={() => onChapter(each.id)}
+                    className={chapter?.id === each.id ? PLATE_PRESSED : PLATE}
+                    {...explain('Shows this chapter’s pages below.', 'The PANELS and LORE tabs work on the chapter picked here too.')}
+                  >
                     {`[ CHAPTER ${each.number} ]`}
                   </button>
                   <NamedRow
+                    words={NAMED_WORDS.chapter}
                     label=""
                     number={each.number}
                     title={each.title}
@@ -127,6 +156,7 @@ export default function StudioPages({ contents, reload, chapter, onChapter }: Pr
                   type="button"
                   className={PLATE}
                   onClick={() => act(() => repository.addChapter({ volumeId: volume.id, number: nextNumber(contents.chapters), title: '' }), 'THE CHAPTER COULD NOT BE ADDED.')}
+                  {...explain('Adds an empty chapter to this volume, with the next number and no title.', 'RENAME gives it a title; pages go in once it is picked.')}
                 >
                   [ + CHAPTER ]
                 </button>
@@ -138,6 +168,7 @@ export default function StudioPages({ contents, reload, chapter, onChapter }: Pr
           type="button"
           className={`${PLATE} w-fit`}
           onClick={() => act(() => repository.addVolume({ number: nextNumber(contents.volumes), title: '' }), 'THE VOLUME COULD NOT BE ADDED.')}
+          {...explain('Adds an empty volume with the next number and no title.', 'For starting the next book of the comic.')}
         >
           [ + VOLUME ]
         </button>
@@ -154,7 +185,16 @@ export default function StudioPages({ contents, reload, chapter, onChapter }: Pr
             className="frame flex flex-wrap items-center gap-2 bg-paper p-3"
           >
             <span className="text-label text-ink">{busy ? 'SENDING PAGES…' : 'DROP PAGES HERE'}</span>
-            <button type="button" className={PLATE_MAIN} disabled={busy} onClick={() => picker.current?.click()}>
+            <button
+              type="button"
+              className={PLATE_MAIN}
+              disabled={busy}
+              onClick={() => picker.current?.click()}
+              {...explain(
+                'Opens the file chooser for PNG, JPEG, WEBP or TIFF pages; several can be picked.',
+                'They go up one at a time in file-name order, their panel boxes are guessed, and they wait as QUEUED until released.',
+              )}
+            >
               [ ADD PAGES ]
             </button>
             <input
@@ -213,6 +253,7 @@ function NamedRow(props: {
   onSave: (number: number, title: string) => Promise<void>;
   onDelete: () => Promise<void>;
   confirmWord?: string;
+  words: (typeof NAMED_WORDS)['volume'];
 }) {
   const [editing, setEditing] = useState(false);
   const [number, setNumber] = useState(String(props.number));
@@ -239,10 +280,10 @@ function NamedRow(props: {
           TITLE
           <input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={120} className={`${FIELD_TIGHT} w-64`} />
         </label>
-        <button type="submit" className={PLATE}>
+        <button type="submit" className={PLATE} {...explainFrom(props.words.save)}>
           [ SAVE ]
         </button>
-        <button type="button" className={PLATE} onClick={() => setEditing(false)}>
+        <button type="button" className={PLATE} onClick={() => setEditing(false)} {...explainFrom(props.words.cancel)}>
           [ CANCEL ]
         </button>
       </form>
@@ -253,11 +294,11 @@ function NamedRow(props: {
     <div className="flex flex-wrap items-center gap-2">
       {props.label.length > 0 ? <span className="text-label text-accent-ink">{props.label}</span> : null}
       <span className="text-label text-ink">{props.title.length > 0 ? props.title : 'NO TITLE'}</span>
-      <button type="button" className={PLATE} onClick={() => setEditing(true)}>
+      <button type="button" className={PLATE} onClick={() => setEditing(true)} {...explainFrom(props.words.rename)}>
         [ RENAME ]
       </button>
       {!asking ? (
-        <button type="button" className={PLATE} onClick={() => setAsking(true)}>
+        <button type="button" className={PLATE} onClick={() => setAsking(true)} {...explainFrom(props.words.del)}>
           [ DELETE ]
         </button>
       ) : (
@@ -273,10 +314,11 @@ function NamedRow(props: {
             className={PLATE}
             disabled={props.confirmWord !== undefined && typed.trim().toUpperCase() !== props.confirmWord}
             onClick={() => void props.onDelete().then(() => setAsking(false))}
+            {...explainFrom(props.words.yes)}
           >
             [ YES, DELETE ]
           </button>
-          <button type="button" className={PLATE} onClick={() => setAsking(false)}>
+          <button type="button" className={PLATE} onClick={() => setAsking(false)} {...explainFrom(props.words.no)}>
             [ NO ]
           </button>
         </span>
@@ -340,10 +382,10 @@ function PageTile(props: {
         {replacing ? <span>{replacing}</span> : null}
       </div>
       <div className="flex flex-wrap gap-0.5">
-        <button type="button" className={PLATE} aria-label={`MOVE PAGE ${number} EARLIER`} disabled={number === 1} onClick={() => props.onMove(number - 2)}>
+        <button type="button" className={PLATE} aria-label={`MOVE PAGE ${number} EARLIER`} disabled={number === 1} onClick={() => props.onMove(number - 2)} {...explain('Moves this page one place earlier. Saved at once.', 'Pages can also be dragged into order.')}>
           [ ◄ ]
         </button>
-        <button type="button" className={PLATE} aria-label={`MOVE PAGE ${number} LATER`} disabled={number === props.count} onClick={() => props.onMove(number)}>
+        <button type="button" className={PLATE} aria-label={`MOVE PAGE ${number} LATER`} disabled={number === props.count} onClick={() => props.onMove(number)} {...explain('Moves this page one place later. Saved at once.', 'Pages can also be dragged into order.')}>
           [ ► ]
         </button>
         <button
@@ -351,6 +393,10 @@ function PageTile(props: {
           aria-pressed={page.isSpread}
           className={page.isSpread ? PLATE_PRESSED : PLATE}
           onClick={() => act(() => repository.updatePage(page.id, { isSpread: !page.isSpread }), 'THE PAGE COULD NOT BE SAVED.')}
+          {...explain(
+            page.isSpread ? 'Takes the spread mark off, so this counts as a single page.' : 'Marks this page as a spread, a double page.',
+            'A page wider than it is tall gets the mark by itself. The reader shows every page at the column’s width either way.',
+          )}
         >
           [ SPREAD ]
         </button>
@@ -359,13 +405,35 @@ function PageTile(props: {
           aria-pressed={props.isCover}
           className={props.isCover ? PLATE_PRESSED : PLATE}
           onClick={() => act(() => repository.updateChapter(chapter.id, { coverPageId: props.isCover ? null : page.id }), 'THE COVER COULD NOT BE SAVED.')}
+          {...explain(
+            props.isCover ? 'Stops using this page as the cover; the first page takes its place.' : 'Makes this page the chapter’s cover on the contents page.',
+            'With no page picked, the first page is the cover.',
+          )}
         >
           [ COVER ]
         </button>
-        <button type="button" aria-expanded={words !== null} className={PLATE} onClick={() => setWords(words === null ? page.words : null)}>
+        <button
+          type="button"
+          aria-expanded={words !== null}
+          className={PLATE}
+          onClick={() => setWords(words === null ? page.words : null)}
+          {...explain(
+            words === null ? 'Opens a box for the words written on this page.' : 'Closes the words box without saving what you typed.',
+            'Screen readers say these words in place of the picture.',
+          )}
+        >
           [ WORDS ]
         </button>
-        <button type="button" className={PLATE} onClick={() => replacer.current?.click()}>
+        <button
+          type="button"
+          className={PLATE}
+          onClick={() => replacer.current?.click()}
+          {...explain(
+            'Opens the file chooser, to put a new picture in this page’s place.',
+            'Its place, its words and whether it is out stay. Panel boxes fixed by hand are kept; guessed ones are guessed again.',
+            released ? 'READERS SEE THE NEW PICTURE AT ONCE.' : undefined,
+          )}
+        >
           [ REPLACE ]
         </button>
         <input
@@ -380,7 +448,7 @@ function PageTile(props: {
           }}
         />
         {!asking ? (
-          <button type="button" className={PLATE} onClick={() => setAsking(true)}>
+          <button type="button" className={PLATE} onClick={() => setAsking(true)} {...explain('Asks whether to delete this page.', 'For a page put up by mistake. REPLACE swaps the picture instead.', NOTE.asks)}>
             [ DELETE ]
           </button>
         ) : null}
@@ -398,10 +466,11 @@ function PageTile(props: {
             className={PLATE}
             disabled={released && typed.trim().toUpperCase() !== 'DELETE'}
             onClick={() => act(() => repository.deletePage(page.id), 'THE PAGE COULD NOT BE DELETED.')}
+            {...explain('Deletes this page with its panel boxes and lore tags.', 'A released page wants the word DELETE typed first.', NOTE.undo)}
           >
             [ YES, DELETE ]
           </button>
-          <button type="button" className={PLATE} onClick={() => setAsking(false)}>
+          <button type="button" className={PLATE} onClick={() => setAsking(false)} {...explain('Keeps the page and closes the question.', 'Nothing is deleted.')}>
             [ NO ]
           </button>
         </div>
@@ -419,7 +488,7 @@ function PageTile(props: {
             <textarea value={words} onChange={(event) => setWords(event.target.value)} maxLength={WORDS_MAX} rows={4} className={FIELD} />
           </label>
           <span className="text-label text-ink">READABLE IN THE PAGE&apos;S CODE: NEVER A PUZZLE ANSWER.</span>
-          <button type="submit" className={`${PLATE} w-fit`}>
+          <button type="submit" className={`${PLATE} w-fit`} {...explain('Saves these words for the page and closes the box.', 'They are what a screen reader says for the page.', 'ANYONE CAN READ THEM IN THE PAGE’S CODE.')}>
             [ SAVE WORDS ]
           </button>
         </form>

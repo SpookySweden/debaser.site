@@ -8,6 +8,7 @@ import type { OnionSettings, OnionSide } from '../../lib/animate/types';
 import { PLATE_MEDIUM, PLATE_PRESSED } from '../../lib/ui/controls';
 import { AnimatePanelFrame } from './AnimatePanels';
 import AnimateSlider from './AnimateSlider';
+import { explain } from '../../lib/ui/explain';
 
 function change(patch: Partial<OnionSettings>): void {
   getEngine().tweak((project) => ({ ...project, onion: { ...project.onion, ...patch } }));
@@ -49,14 +50,14 @@ export default function AnimateOnionPanel() {
   return (
     <AnimatePanelFrame title="ONION SKIN">
       <div className="flex flex-col gap-3">
-        <button type="button" className={onion.on ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={onion.on} onClick={() => setOnion(!onion.on)}>
+        <button type="button" className={onion.on ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={onion.on} onClick={() => setOnion(!onion.on)} {...explain(onion.on ? 'Turns onion skin off.' : 'Turns onion skin on: the drawings either side show faintly.', 'For lining a drawing up with its neighbours.')}>
           [ ONION {onion.on ? 'ON' : 'OFF'} ]
         </button>
         <div role="group" aria-label="How it draws" className="flex flex-wrap items-center gap-1">
-          <button type="button" className={onion.mode === 'tint' ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={onion.mode === 'tint'} onClick={() => change({ mode: 'tint' })}>
+          <button type="button" className={onion.mode === 'tint' ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={onion.mode === 'tint'} onClick={() => change({ mode: 'tint' })} {...explain('Shows the neighbouring drawings washed in a tint colour.', 'BEFORE and AFTER each have their own colour below.')}>
             [ TINT ]
           </button>
-          <button type="button" className={onion.mode === 'outline' ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={onion.mode === 'outline'} onClick={() => change({ mode: 'outline' })}>
+          <button type="button" className={onion.mode === 'outline' ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={onion.mode === 'outline'} onClick={() => change({ mode: 'outline' })} {...explain('Shows the neighbouring drawings as outlines.', 'Less cluttered when colour is in the way.')}>
             [ OUTLINE ]
           </button>
         </div>

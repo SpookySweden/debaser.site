@@ -54,6 +54,7 @@ import { BarKeys } from "./BarKeys";
 import { SoundsPanel } from "./SoundsPanel";
 import { useElementSize } from "./useElementSize";
 import { createWindowStore, type WindowName } from "./windowStore";
+import { explain } from '../../../lib/ui/explain';
 
 export type BeatBoxTheme = "default" | "high-contrast";
 
@@ -75,6 +76,15 @@ const WINDOW_KEYS: readonly { readonly name: WindowName; readonly label: string;
   { name: "song", label: "Song", glyph: GLYPHS.song, action: "windowSong", hint: "Song: open, save and share" },
   { name: "settings", label: "Settings", glyph: GLYPHS.settings, action: "windowSettings", hint: "Settings: how it looks and sounds, and every key" },
 ];
+
+/** What the hover box says for each window's key (shown only while [ EXPLAIN ] is on). */
+const WINDOW_WORDS: Record<WindowName, { what: string; why: string }> = {
+  sounds: { what: "Opens the Sounds window: the kinds of instrument.", why: "For changing how a channel sounds." },
+  recorder: { what: "Opens the Recorder window: how recording works.", why: "Count-in, metronome, snapping and more." },
+  playing: { what: "Opens the Playing window: computer keys, pads and a MIDI keyboard.", why: "For playing notes yourself." },
+  song: { what: "Opens the Song window: open, save and share.", why: "For getting songs in and out." },
+  settings: { what: "Opens the Settings window: how it looks and sounds, and every key.", why: "For setting the beat box up your way." },
+};
 
 /** What's on a small key: its glyph, and its name under it for anyone who's asked for them in Settings. */
 function KeyFace({ glyph, name, names }: { glyph: string; name: string; names: boolean }) {
@@ -770,7 +780,7 @@ export function BeatBox({
 
   const loopWords = `bars ${song.loopStart + 1} to ${song.loopStart + song.loopLength}`;
   const handKey = (
-    <button type="button" aria-label="Hand" aria-pressed={hand} title={`Hand: dragging moves the view (${keyFor("hand")})`} onClick={toggleHand} className={glyphKey(hand)}>
+    <button type="button" aria-label="Hand" aria-pressed={hand} title={`Hand: dragging moves the view (${keyFor("hand")})`} onClick={toggleHand} className={glyphKey(hand)} {...explain(hand ? "Turns the hand off, so dragging works on the notes again." : "Turns the hand on: dragging moves the view, not the notes.", "For getting around without changing anything.")}>
       {GLYPHS.hand}
     </button>
   );
@@ -786,11 +796,11 @@ export function BeatBox({
       <div className="contents print:hidden">
         <div className="contents">
           {barsShowing && (
-            <button type="button" onClick={() => goToGrid("Bars for")} className={`${smallKey()} sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-bb-nigrosine`}>
+            <button type="button" onClick={() => goToGrid("Bars for")} className={`${smallKey()} sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-bb-nigrosine`} {...explain("Jumps the keyboard to the bars.", "A short cut past the keys on top, for keyboard use.")}>
               Go to the bars
             </button>
           )}
-          <button type="button" onClick={() => goToGrid("Notes")} className={`${smallKey()} sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-bb-nigrosine`}>
+          <button type="button" onClick={() => goToGrid("Notes")} className={`${smallKey()} sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-bb-nigrosine`} {...explain("Jumps the keyboard to the notes.", "A short cut past the keys on top, for keyboard use.")}>
             Go to the notes
           </button>
         </div>
@@ -805,11 +815,12 @@ export function BeatBox({
               onClick={togglePlay}
               title={`${playing ? "Pause" : "Play"} (${keyFor("playPause")})`}
               aria-keyshortcuts={ariaKeys(bindings.playPause)}
+              {...explain(playing ? "Pauses the song where it is." : "Plays the song from the picked bar.", playing ? "Play carries on from the same place if you stay on the same bar." : "For hearing what you have made.")}
               className={barMainGlyph}
             >
               <KeyFace glyph={playing ? GLYPHS.pause : GLYPHS.play} name={playing ? "Pause" : "Play"} names={names} />
             </button>
-            <button type="button" aria-label="Stop" onClick={stop} title={`Stop, and go back to the picked bar (${keyFor("stop")})`} className={barGlyph()}>
+            <button type="button" aria-label="Stop" onClick={stop} title={`Stop, and go back to the picked bar (${keyFor("stop")})`} className={barGlyph()} {...explain("Stops the music and goes back to the picked bar.", "A pass you recorded is kept.")}>
               <KeyFace glyph={GLYPHS.stop} name="Stop" names={names} />
             </button>
             <button
@@ -817,6 +828,7 @@ export function BeatBox({
               aria-label={looping ? `Loop ${loopWords}` : "Loop off"}
               aria-pressed={looping}
               onClick={toggleLoop}
+              {...explain(looping ? "Turns the loop off: the whole song plays through once." : "Turns the loop on: the looped bars play round and round.", "For working on one stretch, or hearing it all.")}
               title={looping ? `Loop on: ${loopWords} repeat. Press for the whole song, once (${keyFor("loop")})` : `Loop off: the whole song, once. Press to repeat ${loopWords} (${keyFor("loop")})`}
               className={focusView ? "hidden" : barGlyph(looping)}
             >
@@ -828,6 +840,7 @@ export function BeatBox({
             type="button"
             aria-pressed={recordSettings.recording}
             onClick={session.toggleRecord}
+            {...explain(recordSettings.recording ? "Stops recording; the music keeps playing." : "Records what you play, as the music goes round.", "Play with the computer keys, the pads or a MIDI keyboard.")}
             title={`Record, or stop recording and keep playing (${keyFor("record")})`}
             aria-label={recordSettings.recording ? `Recording pass ${recordSettings.pass}` : "Record"}
             aria-keyshortcuts={ariaKeys(bindings.record)}
@@ -841,14 +854,14 @@ export function BeatBox({
               <KeyFace glyph={GLYPHS.record} name="Record" names={names} />
             )}
           </button>
-          <button type="button" aria-label="Undo" onClick={undo} title={`Undo (${keyFor("undo")})`} aria-keyshortcuts={ariaKeys(bindings.undo)} className={focusView ? "hidden" : barGlyph()}>
+          <button type="button" aria-label="Undo" onClick={undo} title={`Undo (${keyFor("undo")})`} aria-keyshortcuts={ariaKeys(bindings.undo)} className={focusView ? "hidden" : barGlyph()} {...explain("Takes back your last change.", "A whole recorded pass counts as one change.")}>
             <KeyFace glyph={GLYPHS.undo} name="Undo" names={names} />
           </button>
-          <button type="button" aria-label="Redo" onClick={redo} title={`Redo (${keyFor("redo")})`} aria-keyshortcuts={ariaKeys(bindings.redo)} className={focusView ? "hidden" : barGlyph()}>
+          <button type="button" aria-label="Redo" onClick={redo} title={`Redo (${keyFor("redo")})`} aria-keyshortcuts={ariaKeys(bindings.redo)} className={focusView ? "hidden" : barGlyph()} {...explain("Puts back the change you last took back.", "For when you undid one step too many.")}>
             <KeyFace glyph={GLYPHS.redo} name="Redo" names={names} />
           </button>
           <div role="group" aria-label="Speed" className={focusView ? "hidden" : "flex flex-wrap items-stretch gap-x-1"}>
-            <button type="button" aria-label="Slower" title={`Slower (${keyFor("slower")})`} onClick={() => changeTempo(-TEMPO_STEP)} className={barGlyph()}>
+            <button type="button" aria-label="Slower" title={`Slower (${keyFor("slower")})`} onClick={() => changeTempo(-TEMPO_STEP)} className={barGlyph()} {...explain("Makes the song slower by a step.", "The number beside it is the speed in beats a minute.")}>
               <KeyFace glyph="-" name="Slower" names={names} />
             </button>
             <span title="The speed, in beats a minute" className="flex items-center text-bb-large font-bold whitespace-nowrap">
@@ -856,7 +869,7 @@ export function BeatBox({
               <span aria-hidden="true">{GLYPHS.beat}</span>
               {song.tempo}
             </span>
-            <button type="button" aria-label="Faster" title={`Faster (${keyFor("faster")})`} onClick={() => changeTempo(TEMPO_STEP)} className={barGlyph()}>
+            <button type="button" aria-label="Faster" title={`Faster (${keyFor("faster")})`} onClick={() => changeTempo(TEMPO_STEP)} className={barGlyph()} {...explain("Makes the song faster by a step.", "The number beside it is the speed in beats a minute.")}>
               <KeyFace glyph="+" name="Faster" names={names} />
             </button>
           </div>
@@ -869,13 +882,14 @@ export function BeatBox({
                 aria-label={label}
                 aria-expanded={openWindows.includes(name)}
                 onClick={() => pressWindowKey(name)}
+                {...explain(WINDOW_WORDS[name].what, WINDOW_WORDS[name].why, "PRESSED WHILE IT IS IN FRONT, IT CLOSES IT.")}
                 title={`${hint} (${keyFor(action)})`}
                 className={focusView && name !== "settings" ? "hidden" : barGlyph(openWindows.includes(name))}
               >
                 <KeyFace glyph={glyph} name={label} names={names} />
               </button>
             ))}
-            <button type="button" aria-label="All the keys" onClick={() => setHelpOpen(true)} title={`All the keys (${keyFor("help")})`} className={barGlyph()}>
+            <button type="button" aria-label="All the keys" onClick={() => setHelpOpen(true)} title={`All the keys (${keyFor("help")})`} className={barGlyph()} {...explain("Opens the list of every key the beat box knows.", "It can be printed from there.")}>
               <KeyFace glyph="?" name="Keys" names={names} />
             </button>
           </div>
@@ -909,14 +923,14 @@ export function BeatBox({
                 <p className="text-bb-large wrap-anywhere">These play notes: {NOTE_KEY_LABELS}</p>
                 <div role="group" aria-label="Computer keys" className="flex flex-wrap items-center gap-bb-gutter">
                   <span className="text-bb-large font-bold uppercase">Octave {octave}</span>
-                  <button type="button" aria-label="Lower" title="Lower (Z)" onClick={() => shiftOctave(-1)} className={glyphKey()}>
+                  <button type="button" aria-label="Lower" title="Lower (Z)" onClick={() => shiftOctave(-1)} className={glyphKey()} {...explain("Moves the computer keys down an octave.", "For playing lower notes.")}>
                     {GLYPHS.down}
                   </button>
-                  <button type="button" aria-label="Higher" title="Higher (X)" onClick={() => shiftOctave(1)} className={glyphKey()}>
+                  <button type="button" aria-label="Higher" title="Higher (X)" onClick={() => shiftOctave(1)} className={glyphKey()} {...explain("Moves the computer keys up an octave.", "For playing higher notes.")}>
                     {GLYPHS.up}
                   </button>
                 </div>
-                <button type="button" aria-pressed={padsShown} onClick={() => setPadsShown(!padsShown)} className={smallKey(padsShown)}>
+                <button type="button" aria-pressed={padsShown} onClick={() => setPadsShown(!padsShown)} className={smallKey(padsShown)} {...explain(padsShown ? "Hides the note pads." : "Shows pads you can press to play notes.", "For playing with the mouse or a touch screen.")}>
                   Pads {padsShown ? "on" : "off"}
                 </button>
               </section>
@@ -940,21 +954,21 @@ export function BeatBox({
                 <h3 className={titleLine}>
                   <span>Seeing and hearing</span>
                 </h3>
-                <ChoiceGroup label="Audio mode" keyName={keyFor("audioMode")} value={audioMode} options={AUDIO_MODES} onChange={changeAudioMode} look={stripKey} stacked />
+                <ChoiceGroup label="Audio mode" keyName={keyFor("audioMode")} value={audioMode} options={AUDIO_MODES} onChange={changeAudioMode} look={stripKey} stacked words={(mode) => ({ what: `Sets the audio mode to ${AUDIO_MODES.find((option) => option.value === mode)?.label ?? mode}.`, why: AUDIO_MODES.find((option) => option.value === mode)?.explanation })} />
                 <div className="flex flex-wrap items-center gap-bb-gutter">
-                  <button type="button" aria-pressed={theme === "high-contrast"} title={`Key: ${keyFor("contrast")}`} onClick={toggleTheme} className={smallKey(theme === "high-contrast")}>
+                  <button type="button" aria-pressed={theme === "high-contrast"} title={`Key: ${keyFor("contrast")}`} onClick={toggleTheme} className={smallKey(theme === "high-contrast")} {...explain(theme === "high-contrast" ? "Turns high contrast off." : "Turns high contrast on, for stronger colours against each other.", "For reading the beat box more easily.")}>
                     High contrast {theme === "high-contrast" ? "on" : "off"}
                   </button>
-                  <button type="button" aria-pressed={follow} title={`Key: ${keyFor("follow")}`} onClick={toggleFollow} className={smallKey(follow)}>
+                  <button type="button" aria-pressed={follow} title={`Key: ${keyFor("follow")}`} onClick={toggleFollow} className={smallKey(follow)} {...explain(follow ? "Turns follow off: the view stays where you put it." : "Turns follow on: the notes shown follow the bar that is playing.", "For watching along, or for editing while it plays.")}>
                     Follow {follow ? "on" : "off"}
                   </button>
-                  <button type="button" aria-pressed={focusView} title={`Key: ${keyFor("focusView")}`} onClick={toggleFocusView} className={smallKey(focusView)}>
+                  <button type="button" aria-pressed={focusView} title={`Key: ${keyFor("focusView")}`} onClick={toggleFocusView} className={smallKey(focusView)} {...explain(focusView ? "Turns focus view off and brings every key back." : "Turns focus view on, which puts some of the keys away.", "For fewer things on screen.")}>
                     Focus view {focusView ? "on" : "off"}
                   </button>
-                  <button type="button" aria-pressed={names} onClick={toggleNames} className={smallKey(names)}>
+                  <button type="button" aria-pressed={names} onClick={toggleNames} className={smallKey(names)} {...explain(names ? "Takes the names off the top keys, leaving their signs." : "Writes each top key's name beside its sign.", "For telling the keys apart.")}>
                     Names on keys {names ? "on" : "off"}
                   </button>
-                  <button type="button" onClick={putWindowsBack} className={smallKey()}>
+                  <button type="button" onClick={putWindowsBack} className={smallKey()} {...explain("Puts the windows back where they started.", "For when one has been dragged somewhere awkward.")}>
                     Put windows back
                   </button>
                 </div>
@@ -1025,7 +1039,7 @@ export function BeatBox({
                       <>
                         <div role="group" aria-label="Where the grid is" className="flex items-center">
                           {gridSize !== MIDI_KEYBOARD && gridSize !== ALL_NOTES && (
-                            <button type="button" aria-label="Grid down an octave" aria-disabled={!canMoveRange(gridSize, baseOctave, -1)} title={`The grid down an octave (${keyFor("gridDown")})`} onClick={() => moveGrid(-1)} className={glyphKey()}>
+                            <button type="button" {...explain("Moves the grid down an octave.", "For seeing and writing lower notes.")} aria-label="Grid down an octave" aria-disabled={!canMoveRange(gridSize, baseOctave, -1)} title={`The grid down an octave (${keyFor("gridDown")})`} onClick={() => moveGrid(-1)} className={glyphKey()}>
                               {GLYPHS.down}
                             </button>
                           )}
@@ -1039,7 +1053,7 @@ export function BeatBox({
                             {range.widened ? <span className="sr-only"> grown to fit this song</span> : null}
                           </span>
                           {gridSize !== MIDI_KEYBOARD && gridSize !== ALL_NOTES && (
-                            <button type="button" aria-label="Grid up an octave" aria-disabled={!canMoveRange(gridSize, baseOctave, 1)} title={`The grid up an octave (${keyFor("gridUp")})`} onClick={() => moveGrid(1)} className={glyphKey()}>
+                            <button type="button" {...explain("Moves the grid up an octave.", "For seeing and writing higher notes.")} aria-label="Grid up an octave" aria-disabled={!canMoveRange(gridSize, baseOctave, 1)} title={`The grid up an octave (${keyFor("gridUp")})`} onClick={() => moveGrid(1)} className={glyphKey()}>
                               {GLYPHS.up}
                             </button>
                           )}
@@ -1048,7 +1062,7 @@ export function BeatBox({
                       </>
                     )}
                     {handKey}
-                    <button type="button" aria-label="Bars" aria-pressed={!barsFolded} title={`Show or hide the bars (${keyFor("bars")})`} onClick={toggleBars} className={glyphKey(!barsFolded)}>
+                    <button type="button" aria-label="Bars" aria-pressed={!barsFolded} title={`Show or hide the bars (${keyFor("bars")})`} onClick={toggleBars} className={glyphKey(!barsFolded)} {...explain(barsFolded ? "Shows the bars of the song again." : "Hides the bars of the song.", "For more room for the notes.")}>
                       {GLYPHS.bars}
                     </button>
                   </>

@@ -7,6 +7,7 @@ import { saveBlobAs } from '../../lib/animate/project-file';
 import { useStudio } from '../../lib/animate/store';
 import { PLATE_MEDIUM } from '../../lib/ui/controls';
 import { AnimatePanelFrame } from './AnimatePanels';
+import { explain } from '../../lib/ui/explain';
 
 /** Any colour at all, the palette, and carrying a palette between projects as a file. The pop-up has the swatches; this is the rest. */
 export default function AnimatePalettePanel() {
@@ -35,6 +36,7 @@ export default function AnimatePalettePanel() {
             aria-label={swatch.name}
             aria-pressed={colour === swatch.colour}
             title={swatch.name}
+            {...explain(`Takes up the colour ${swatch.name.toLowerCase()}.`, 'These squares are the palette of this project.')}
             className="flex h-9 w-9 cursor-pointer items-center justify-center border-line border-ink text-key"
             style={{ backgroundColor: swatch.colour, color: inkOn(swatch.colour) }}
             onClick={() => useStudio.setState({ colour: swatch.colour })}
@@ -49,6 +51,7 @@ export default function AnimatePalettePanel() {
           className={PLATE_MEDIUM}
           disabled={has}
           aria-label="Keep this colour in the palette"
+          {...explain('Adds the colour you have now to the palette.', 'Greyed out if it is already there.')}
           onClick={() => engine.edit('PALETTE', (project) => ({ ...project, palette: [...project.palette, { name: colour.toUpperCase(), colour }] }))}
         >
           [ KEEP IT ]
@@ -58,6 +61,7 @@ export default function AnimatePalettePanel() {
           className={PLATE_MEDIUM}
           disabled={!has}
           aria-label="Take this colour out of the palette"
+          {...explain('Takes the colour you have now out of the palette.', 'Greyed out if it is not in it. UNDO brings it back.')}
           onClick={() => engine.edit('PALETTE', (project) => ({ ...project, palette: project.palette.filter((swatch) => swatch.colour !== colour) }))}
         >
           [ DROP IT ]
@@ -66,11 +70,12 @@ export default function AnimatePalettePanel() {
           type="button"
           className={PLATE_MEDIUM}
           aria-label="Save the palette as a file"
+          {...explain('Saves the palette to a file (palette.json) where you choose.', 'For carrying these colours to another project.')}
           onClick={() => void saveBlobAs(new Blob([JSON.stringify({ animatePalette: 1, swatches: palette }, null, 2)], { type: 'application/json' }), 'palette.json', 'Palette', ['.json'])}
         >
           [ SAVE ]
         </button>
-        <button type="button" className={PLATE_MEDIUM} aria-label="Load a palette file" onClick={() => file.current?.click()}>
+        <button type="button" className={PLATE_MEDIUM} aria-label="Load a palette file" onClick={() => file.current?.click()} {...explain('Loads a palette file in place of the whole palette.', 'UNDO brings the old palette back.')}>
           [ LOAD ]
         </button>
         <input

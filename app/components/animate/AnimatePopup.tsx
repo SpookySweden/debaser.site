@@ -10,6 +10,7 @@ import { updateSettings, useStudio } from '../../lib/animate/store';
 import { setOnion } from '../../lib/animate/timeline';
 import { MAX_BRUSH_SIZE, MIN_BRUSH_SIZE } from '../../lib/animate/brushes';
 import { Stepper, TileGrid, useTileColumns, type TileItem } from './AnimateTiles';
+import { explain } from '../../lib/ui/explain';
 
 const close = () => useStudio.setState({ popup: null });
 
@@ -31,6 +32,7 @@ function Colours() {
           aria-label={swatch.name}
           aria-pressed={colour === swatch.colour}
           title={swatch.name}
+          {...explain(`Takes up the colour ${swatch.name.toLowerCase()} and closes the pop-up.`, 'For changing colour without leaving the sheet.')}
           className="flex h-9 w-9 cursor-pointer items-center justify-center border-line border-ink text-key"
           style={{ backgroundColor: swatch.colour, color: inkOn(swatch.colour) }}
           onClick={() => {
@@ -66,6 +68,8 @@ function BrushSteps() {
         canMore={size < MAX_BRUSH_SIZE}
         less={() => engine.setBrushSize(brush, Math.max(MIN_BRUSH_SIZE, Math.min(size - 1, size / 1.25)))}
         more={() => engine.setBrushSize(brush, Math.min(MAX_BRUSH_SIZE, Math.max(size + 1, size * 1.25)))}
+        lessWords={{ what: 'Makes the brush a step smaller.', why: 'The pop-up stays open, so you can press it again.' }}
+        moreWords={{ what: 'Makes the brush a step bigger.', why: 'The pop-up stays open, so you can press it again.' }}
       />
       <Stepper
         label="OPACITY"
@@ -74,6 +78,8 @@ function BrushSteps() {
         canMore={opacity < 1}
         less={() => engine.setBrushValue(brush, { opacity: opacity <= STEP ? LEAST_OPACITY : nearest(Math.max(STEP, opacity - STEP)) })}
         more={() => engine.setBrushValue(brush, { opacity: opacity < STEP ? STEP : nearest(Math.min(1, opacity + STEP)) })}
+        lessWords={{ what: 'Makes the brush more see-through by one step.', why: 'For building colour up in thin layers.' }}
+        moreWords={{ what: 'Makes the brush more solid by one step.', why: 'At full it covers what is under it.' }}
       />
       <Stepper
         label="STEADY"
@@ -82,6 +88,8 @@ function BrushSteps() {
         canMore={stabiliser < 1}
         less={() => engine.setBrushValue(brush, { stabiliser: nearest(Math.max(0, stabiliser - STEP)) })}
         more={() => engine.setBrushValue(brush, { stabiliser: nearest(Math.min(1, stabiliser + STEP)) })}
+        lessWords={{ what: 'Lowers the steadying of your line by one step.', why: 'The line follows your hand more closely.' }}
+        moreWords={{ what: 'Raises the steadying of your line by one step.', why: 'It smooths out a shaky hand.' }}
       />
     </div>
   );
@@ -120,32 +128,32 @@ export default function AnimatePopup() {
 
   if (popup === null) return null;
   const engine = getEngine();
-  const pick = (id: typeof tool, label: string): TileItem => ({ label, on: tool === id, run: () => engine.setTool(id) });
+  const pick = (id: typeof tool, label: string, does: string, why: string): TileItem => ({ label, on: tool === id, run: () => engine.setTool(id), words: { what: does, why: why } });
   const tools: TileItem[] = [
-    pick('ink', 'INK'),
-    pick('pencil', 'PENCIL'),
-    pick('flat', 'FLAT'),
-    pick('eraser', 'ERASER'),
-    pick('fill', 'BUCKET'),
-    pick('fillbrush', 'FILL BRUSH'),
-    pick('filleraser', 'FILL ERASER'),
-    pick('pick', 'PICK COLOUR'),
-    pick('lasso', 'LASSO'),
-    pick('rect', 'BOX'),
-    pick('shift', 'TRACE'),
-    pick('hand', 'HAND'),
+    pick('ink', 'INK', 'Takes up the ink brush, a smooth line that thins and thickens with the pen.', 'For clean lines.'),
+    pick('pencil', 'PENCIL', 'Takes up the pencil, a grainy line.', 'For rough drawing and sketching.'),
+    pick('flat', 'FLAT', 'Takes up the flat colour brush, which paints a wide, even stroke.', 'On a figure layer it paints on the colour plane, apart from the lines.'),
+    pick('eraser', 'ERASER', 'Takes up the eraser, which rubs out what you draw over.', 'For taking out part of a drawing.'),
+    pick('fill', 'BUCKET', 'Takes up the bucket: one press colours the area you press.', 'For filling a shape you have drawn round.'),
+    pick('fillbrush', 'FILL BRUSH', 'Takes up the fill brush: every area your stroke crosses is coloured.', 'For filling many small areas in one go.'),
+    pick('filleraser', 'FILL ERASER', 'Takes up the fill eraser: every area your stroke crosses loses its colour.', 'For emptying many areas in one go.'),
+    pick('pick', 'PICK COLOUR', 'Takes up the colour picker: press the drawing to take its colour.', 'For matching a colour already used.'),
+    pick('lasso', 'LASSO', 'Takes up the lasso: draw round part of a drawing to select it.', 'What is selected can be moved, sized or turned.'),
+    pick('rect', 'BOX', 'Takes up the box select: drag a box round part of a drawing to select it.', 'What is selected can be moved, sized or turned.'),
+    pick('shift', 'TRACE', 'Takes up Shift and Trace: move a neighbouring drawing on screen to draw over it.', 'That drawing itself is not changed.'),
+    pick('hand', 'HAND', 'Takes up the hand, for dragging the sheet around the window.', 'The drawing is not moved on the sheet.'),
   ];
   const actions: TileItem[] = [
-    { label: 'UNDO', disabled: !canUndo, run: () => engine.undo() },
-    { label: 'REDO', disabled: !canRedo, run: () => engine.redo() },
-    { label: 'NEW LAYER', run: () => newRow('layer') },
-    { label: 'ONION', on: onionOn, run: () => setOnion(!onionOn) },
-    { label: 'SMART', on: smartOn, run: toggleSmarts },
-    { label: 'LAYERS', on: showLayers, run: () => updateSettings({ showLayers: !showLayers }) },
+    { label: 'UNDO', disabled: !canUndo, run: () => engine.undo(), words: { what: 'Takes back your last change.', why: 'Greyed out while there is nothing to take back.' } },
+    { label: 'REDO', disabled: !canRedo, run: () => engine.redo(), words: { what: 'Puts back the change you last took back.', why: 'Greyed out until something has been undone.' } },
+    { label: 'NEW LAYER', run: () => newRow('layer'), words: { what: 'Adds a new empty layer and picks it.', why: 'For drawing something apart from what is already there.' } },
+    { label: 'ONION', on: onionOn, run: () => setOnion(!onionOn), words: { what: onionOn ? 'Turns onion skin off.' : 'Turns onion skin on: the drawings either side show faintly.', why: 'For lining a drawing up with its neighbours.' } },
+    { label: 'SMART', on: smartOn, run: toggleSmarts, words: { what: smartOn ? 'Turns the smarts off, so strokes land exactly as drawn.' : 'Turns the smarts back on for the layers whose tags have them.', why: 'Smarts are what keep colour inside and under the lines.' } },
+    { label: 'LAYERS', on: showLayers, run: () => updateSettings({ showLayers: !showLayers }), words: { what: showLayers ? 'Hides the layer list.' : 'Shows the layer list.', why: 'For more room to draw, or for working with layers.' } },
     // In full screen this is the way back for a pen with no keyboard to hand.
-    { label: full ? 'LEAVE FULL' : 'FULL SCREEN', run: toggleFull },
-    { label: 'MENU', run: toggleMenu },
-    { label: 'COLOURS', run: () => useStudio.setState({ panel: 'palette' }) },
+    { label: full ? 'LEAVE FULL' : 'FULL SCREEN', run: toggleFull, words: { what: full ? 'Leaves full screen and brings the keys back.' : 'Goes full screen: just the sheet and the timeline.', why: 'This pop-up still opens there, so a pen can get back.' } },
+    { label: 'MENU', run: toggleMenu, words: { what: 'Opens the menu of everything the studio can do, with its keys.', why: 'For anything that is not in this pop-up.' } },
+    { label: 'COLOURS', run: () => useStudio.setState({ panel: 'palette' }), words: { what: 'Opens the colours panel: any colour, and the palette.', why: 'For a colour that is not among these squares.' } },
   ];
 
   // Arrows walk the block, for a person on the keyboard.

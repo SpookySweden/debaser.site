@@ -15,6 +15,7 @@ import { useForum } from '../ForumProvider';
 import ComicFollowKey from './ComicFollowKey';
 import ComicPageImage from './ComicPageImage';
 import ComicZoom from './ComicZoom';
+import { explain } from '../../lib/ui/explain';
 
 const COMMENTS_KEY = 'debaser.site.comic.comments';
 
@@ -144,7 +145,7 @@ export default function ComicChapter({ chapterNumber, pageNumber }: { chapterNum
     return (
       <div className="flex flex-col gap-2 p-4">
         <p className="text-label text-ink">THIS CHAPTER ISN&apos;T OUT YET.</p>
-        <Link href={COMIC_HOME} className={PLATE_LINK}>
+        <Link href={COMIC_HOME} className={PLATE_LINK} {...explain('Goes back to the comic’s contents page.', 'This chapter has nothing released to read, so pick another one there.')}>
           [ CONTENTS ]
         </Link>
       </div>
@@ -158,14 +159,23 @@ export default function ComicChapter({ chapterNumber, pageNumber }: { chapterNum
   return (
     <div className="flex flex-col gap-2 p-2 sm:p-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Link href={COMIC_HOME} className={PLATE_LINK}>
+        <Link href={COMIC_HOME} className={PLATE_LINK} {...explain('Goes back to the comic’s contents page, with every volume and chapter.', 'For choosing another chapter.')}>
           [ CONTENTS ]
         </Link>
         <h2 className={`${TITLE_BAR} min-w-0 flex-1`}>
           {volume ? <span className="sr-only">{`VOLUME ${volume.number}, `}</span> : null}
           {heading}
         </h2>
-        <button type="button" aria-pressed={commentsOn} onClick={toggleComments} className={commentsOn ? PLATE_PRESSED : PLATE}>
+        <button
+          type="button"
+          aria-pressed={commentsOn}
+          onClick={toggleComments}
+          className={commentsOn ? PLATE_PRESSED : PLATE}
+          {...explain(
+            commentsOn ? 'Turns the comments on the panels off and closes the panel pane.' : 'Turns on the comments on the panels: every panel can be pressed, and the ones with comments or lore light up.',
+            'For reading what people said about one panel, or seeing who is in it. The choice is kept in this browser.',
+          )}
+        >
           [ COMMENTS ]
         </button>
       </div>
@@ -192,6 +202,7 @@ export default function ComicChapter({ chapterNumber, pageNumber }: { chapterNum
                             aria-pressed={isOpen}
                             aria-label={`PANEL ${panelIndex + 1}`}
                             onClick={() => setSelected(isOpen ? null : choice)}
+                            {...explain(isOpen ? 'Closes the pane for this panel.' : 'Opens the pane for this panel: who is in it, and what people said about it.', 'A lit panel already has comments or lore links.')}
                             className={`comic-panel absolute cursor-pointer ${lit ? 'comic-panel-lit' : ''} ${isOpen ? 'comic-panel-open' : ''}`}
                             style={{ left: `${panel.x * 100}%`, top: `${panel.y * 100}%`, width: `${panel.w * 100}%`, height: `${panel.h * 100}%` }}
                           />
@@ -202,7 +213,7 @@ export default function ComicChapter({ chapterNumber, pageNumber }: { chapterNum
                 <div className="flex items-center gap-2 py-0.5">
                   <span className="text-label text-ink">{`P ${num}`}</span>
                   {admin && page.releasedAt === null ? <span className="bg-bubble-pale px-1 text-label text-ink-bar">PREVIEW: NOT RELEASED</span> : null}
-                  <button type="button" onClick={() => setZoomed(page)} className={`${PLATE} ml-auto`}>
+                  <button type="button" onClick={() => setZoomed(page)} className={`${PLATE} ml-auto`} {...explain('Shows this page on its own, larger and sharper, so you can drag around it.', 'For small lettering and detail. Esc or CLOSE brings you back.')}>
                     [ ZOOM ]
                   </button>
                 </div>
@@ -211,7 +222,7 @@ export default function ComicChapter({ chapterNumber, pageNumber }: { chapterNum
           })}
           <li className="flex flex-wrap items-center gap-2 py-3">
             {next ? (
-              <Link href={chapterPath(next.number)} className={PLATE_LINK}>
+              <Link href={chapterPath(next.number)} className={PLATE_LINK} {...explain('Goes to the next chapter, at its first page.', 'For carrying straight on from the end of this one.')}>
                 [ NEXT CHAPTER ]
               </Link>
             ) : (
@@ -227,7 +238,7 @@ export default function ComicChapter({ chapterNumber, pageNumber }: { chapterNum
           <aside aria-label="PANEL" className="frame sticky top-2 hidden w-72 shrink-0 flex-col gap-2 bg-paper p-2 md:flex">
             <div className="flex items-center gap-1">
               <h3 className={`${TITLE_BAR} flex-1`}>{`CH ${chapter.number} · P ${selected.pageNumber} · PANEL ${selected.panelNumber}`}</h3>
-              <button type="button" onClick={() => setSelected(null)} className={PLATE} aria-label="CLOSE THE PANEL">
+              <button type="button" onClick={() => setSelected(null)} className={PLATE} aria-label="CLOSE THE PANEL" {...explain('Closes the pane beside the page.', 'For giving the page the room back.')}>
                 [ × ]
               </button>
             </div>
@@ -242,7 +253,7 @@ export default function ComicChapter({ chapterNumber, pageNumber }: { chapterNum
         <div className="frame sticky bottom-0 flex flex-col gap-2 bg-paper p-2 md:hidden">
           <div className="flex items-center gap-1">
             <h3 className={`${TITLE_BAR} flex-1`}>{`CH ${chapter.number} · P ${selected.pageNumber} · PANEL ${selected.panelNumber}`}</h3>
-            <button type="button" onClick={() => setSelected(null)} className={PLATE} aria-label="CLOSE THE PANEL">
+            <button type="button" onClick={() => setSelected(null)} className={PLATE} aria-label="CLOSE THE PANEL" {...explain('Closes the pane at the foot of the window.', 'For giving the page the room back.')}>
               [ × ]
             </button>
           </div>

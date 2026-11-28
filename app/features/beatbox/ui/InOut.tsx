@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type Key
 import type { Engine } from "../engine";
 import { audioToWav, songToMidi } from "../engine/exportFiles";
 import { bigKey, focusOnly, mainKey, smallKey, titleLine } from "./looks";
+import { explain } from '../../../lib/ui/explain';
 
 // The example song from BeepBox's own README (MIT licence, see CREDITS.md).
 const EXAMPLE_LINK =
@@ -146,13 +147,13 @@ export function InOut({
           className={textBox}
         />
         <div className="flex flex-wrap gap-bb-gutter">
-          <button type="submit" className={bigKey()}>
+          <button type="submit" className={bigKey()} {...explain("Opens the song from the link or song text typed above.", "The song on screen goes on the recent list first.")}>
             Open song
           </button>
-          <button type="button" onClick={() => setLink(EXAMPLE_LINK)} className={bigKey()}>
+          <button type="button" onClick={() => setLink(EXAMPLE_LINK)} className={bigKey()} {...explain("Puts an example song's link in the box above.", "Nothing opens until you press OPEN SONG.")}>
             Use example song
           </button>
-          <button type="button" onClick={() => filePicker.current?.click()} className={bigKey()}>
+          <button type="button" onClick={() => filePicker.current?.click()} className={bigKey()} {...explain("Opens a song file from your computer.", "For a song saved as a file before.")}>
             Open a song file
           </button>
           <input
@@ -171,25 +172,26 @@ export function InOut({
 
       <div role="group" aria-label="Save" className="flex flex-wrap gap-bb-gutter">
         {onSave && (
-          <button type="button" onClick={save} className={mainKey}>
+          <button type="button" onClick={save} className={mainKey} {...explain("Saves the song that is on screen.", "For keeping your work.")}>
             Save song
           </button>
         )}
-        <button type="button" onClick={saveMidi} className={smallKey()}>
+        <button type="button" onClick={saveMidi} className={smallKey()} {...explain("Saves the song as a MIDI file.", "For carrying the notes into other music programs.")}>
           Save MIDI (.mid)
         </button>
         <button
           type="button"
           onClick={() => void saveWav()}
+          {...explain("Makes the song into a sound file (.wav) and saves it.", "The music keeps playing while it is made.")}
           aria-disabled={renderProgress !== null}
           className={smallKey()}
         >
           {renderProgress === null ? "Save sound (.wav)" : `Making sound: ${Math.round(renderProgress * 100)}%`}
         </button>
-        <button type="button" onClick={saveJson} className={smallKey()}>
+        <button type="button" onClick={saveJson} className={smallKey()} {...explain("Saves the song as a song file.", "OPEN A SONG FILE brings it back.")}>
           Save song file (.json)
         </button>
-        <button type="button" onClick={() => void copyShareLink()} className={smallKey()}>
+        <button type="button" onClick={() => void copyShareLink()} className={smallKey()} {...explain("Copies a link that opens this song.", "For sending it to someone. If copying is refused, the link is shown in a box.")}>
           Copy share link
         </button>
       </div>

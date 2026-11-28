@@ -8,6 +8,7 @@ import { getBeatBoxSongRepository } from '../lib/beatbox/repository';
 import { SONG_TEXT_MAX, SONG_TITLE_MAX, type SavedBeatBoxSong } from '../lib/beatbox/types';
 import { useAuth } from './AuthProvider';
 import AddToLetterKey from './AddToLetterKey';
+import { explain, NOTE } from '../lib/ui/explain';
 
 const FIELD =
   'bb-field w-full bg-bb-black p-bb-gutter text-bb-large text-bb-white focus:outline-(length:--focus-width) focus:outline-offset-(length:--focus-width) focus:outline-bb-daffodil';
@@ -149,7 +150,7 @@ function OwnSongs({
             className={FIELD}
           />
         </label>
-        <button type="button" onClick={() => void saveNew()} className={smallKey()}>
+        <button type="button" onClick={() => void saveNew()} className={smallKey()} {...explain('Saves what is on screen as a new song, under the title typed beside it.', 'Only you can see your saved songs. It needs a title.')}>
           Save as new song
         </button>
       </div>
@@ -165,6 +166,7 @@ function OwnSongs({
                 type="button"
                 aria-label={armed === `open:${entry.id}` ? `Open ${entry.title}, replacing what's here` : `Open ${entry.title}`}
                 onClick={() => twoPresses(`open:${entry.id}`, () => onOpen(entry.song))}
+                {...explain(armed === `open:${entry.id}` ? 'Opens this saved song in place of the one on screen.' : 'Asks to be pressed again before this saved song replaces the one on screen.', 'For going back to a song you kept.', armed === `open:${entry.id}` ? undefined : NOTE.asks)}
                 className={smallKey()}
               >
                 {armed === `open:${entry.id}` ? 'Replace what is here?' : 'Open'}
@@ -173,6 +175,7 @@ function OwnSongs({
                 type="button"
                 aria-label={armed === `over:${entry.id}` ? `Save over ${entry.title}, really` : `Save over ${entry.title}`}
                 onClick={() => twoPresses(`over:${entry.id}`, () => void saveOver(entry))}
+                {...explain(armed === `over:${entry.id}` ? 'Writes what is on screen over this saved song.' : 'Asks to be pressed again before writing what is on screen over this saved song.', 'For keeping your changes to a song you saved before.', armed === `over:${entry.id}` ? NOTE.undo : NOTE.asks)}
                 className={smallKey()}
               >
                 {armed === `over:${entry.id}` ? 'Really save over?' : 'Save over'}
@@ -181,6 +184,7 @@ function OwnSongs({
                 type="button"
                 aria-label={armed === `delete:${entry.id}` ? `Delete ${entry.title}, really` : `Delete ${entry.title}`}
                 onClick={() => twoPresses(`delete:${entry.id}`, () => void remove(entry))}
+                {...explain(armed === `delete:${entry.id}` ? 'Deletes this saved song.' : 'Asks to be pressed again before deleting this saved song.', 'The song on screen is not touched.', armed === `delete:${entry.id}` ? NOTE.undo : NOTE.asks)}
                 className={smallKey()}
               >
                 {armed === `delete:${entry.id}` ? 'Really delete?' : 'Delete'}

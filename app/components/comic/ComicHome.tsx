@@ -10,6 +10,7 @@ import { readPlace, subscribePlace } from '../../lib/comic/place';
 import { PLATE_LINK, TITLE_BAR } from '../../lib/ui/controls';
 import ComicFollowKey from './ComicFollowKey';
 import ComicPageImage from './ComicPageImage';
+import { explain, NOTE } from '../../lib/ui/explain';
 
 /**
  * COMIC's contents (`/comic`, SPEC-comic.md): each volume a title line, its chapters under it with their covers and titles.
@@ -55,13 +56,13 @@ export default function ComicHome() {
     <div className="flex flex-col gap-4 p-3 sm:p-4">
       <div className="flex flex-wrap items-center gap-2">
         {placeReadable && place ? (
-          <Link href={pagePath(place.chapter, place.page)} className={PLATE_LINK}>
+          <Link href={pagePath(place.chapter, place.page)} className={PLATE_LINK} {...explain('Opens the comic where you stopped reading.', 'So you need not find your page again. The place is kept in this browser.')}>
             {`[ CONTINUE: CH ${place.chapter} P ${place.page} ]`}
           </Link>
         ) : null}
         <ComicFollowKey />
         {admin ? (
-          <Link href={COMIC_STUDIO} className={`${PLATE_LINK} ml-auto`}>
+          <Link href={COMIC_STUDIO} className={`${PLATE_LINK} ml-auto`} {...explain('Opens the comic studio: pages, panel boxes, lore tags and releasing.', 'Where new pages are put up and sent out.', NOTE.moderators)}>
             [ STUDIO ]
           </Link>
         ) : null}
@@ -105,7 +106,7 @@ export default function ComicHome() {
       })}
 
       {admin && volumes.length === 0 ? (
-        <Link href={COMIC_STUDIO} className={PLATE_LINK}>
+        <Link href={COMIC_STUDIO} className={PLATE_LINK} {...explain('Opens the comic studio, to make the first volume and chapter.', 'There is nothing on this page until pages go up there.', NOTE.moderators)}>
           [ OPEN THE STUDIO ]
         </Link>
       ) : null}

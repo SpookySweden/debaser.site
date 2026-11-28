@@ -26,6 +26,7 @@ import { PLATE, PLATE_LARGE, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import InfoFold from './InfoFold';
 import PopoutWindow from './PopoutWindow';
+import { explain, NOTE } from '../lib/ui/explain';
 
 /** A placement half done is not a figure yet: ✓ or ✗ it first. */
 function placingRefusal(figure: Figure, placing: Placing | null): string | null {
@@ -184,7 +185,7 @@ export default function CharacterBrowserWindow() {
               />
             </label>
 
-            <button type="button" onClick={keep} className={PLATE_LARGE}>
+            <button type="button" onClick={keep} className={PLATE_LARGE} {...explain('Saves the figure on the bench to this shelf, under the name typed beside the key.', 'Kept in this browser, and on your account when signed in. A figure with something loose or half placed is refused, with the reason.')}>
               [ SAVE ]
             </button>
           </div>
@@ -225,6 +226,7 @@ export default function CharacterBrowserWindow() {
                   <button
                     type="button"
                     className={PLATE}
+                    {...explain('Puts this figure on the bench in place of the one there, and closes this window.', 'It does not ask first, and UNDO does not bring the old figure back, so save that one before if you want it.', NOTE.undo)}
                     onClick={() => {
                       loadFigure(character.figure, isRigPresetId(character.presetId) ? character.presetId : 'base');
                       noteLoadedCharacter(character.id);
@@ -245,6 +247,7 @@ export default function CharacterBrowserWindow() {
                       <button
                         type="button"
                         className="key key-fill cursor-pointer [--key-fill:var(--color-bubble-pale)] px-2 py-0.5 text-label text-ink-bar hover:[--key-fill:var(--color-sun)] hover:text-ink-plate focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-acid active:translate-y-press active:[--key-fill:var(--color-bubble)] active:text-ink-plate max-sm:min-h-tap max-sm:px-3 max-sm:py-2 max-sm:text-sm"
+                        {...explain('Removes this saved figure from the shelf for good.', 'It also comes off your profile if it is the one shown there.', NOTE.undo)}
                         onClick={() => {
                           update(removeCharacter(shelf, character.id));
                           // Removing the one on the profile takes it off the profile too.
@@ -256,7 +259,7 @@ export default function CharacterBrowserWindow() {
                       >
                         [ YES ]
                       </button>
-                      <button type="button" className={PLATE} onClick={() => confirmCharacterRemoval(null)}>
+                      <button type="button" className={PLATE} onClick={() => confirmCharacterRemoval(null)} {...explain('Keeps the saved figure and closes the question.', 'Nothing is removed.')}>
                         [ NO ]
                       </button>
                     </>
@@ -266,6 +269,7 @@ export default function CharacterBrowserWindow() {
                       className={PLATE}
                       onClick={() => confirmCharacterRemoval(character.id)}
                       aria-label={`Forget ${character.name}`}
+                      {...explain('Asks whether to remove this saved figure.', 'For clearing out figures you no longer want.', NOTE.asks)}
                     >
                       [ REMOVE ]
                     </button>

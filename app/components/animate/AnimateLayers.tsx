@@ -9,6 +9,7 @@ import { isFigure, tagOf } from '../../lib/animate/tags';
 import type { BlendMode, LayerNode, PlaneName, Project } from '../../lib/animate/types';
 import { PLATE_MEDIUM, PLATE_PRESSED } from '../../lib/ui/controls';
 import AnimateSlider from './AnimateSlider';
+import { explain, explainFrom, type Explanation } from '../../lib/ui/explain';
 
 const SMALL_KEY = 'key inline-flex h-6 w-5 shrink-0 cursor-pointer items-center justify-center text-key leading-none';
 
@@ -28,9 +29,9 @@ export function TagChip({ project, node }: { project: Project; node: LayerNode }
   );
 }
 
-function Toggle({ on, label, letter, off, onPress }: { on: boolean; label: string; letter: string; off?: string; onPress: () => void }) {
+function Toggle({ on, label, letter, off, onPress, words }: { on: boolean; label: string; letter: string; off?: string; onPress: () => void; words: Explanation }) {
   return (
-    <button type="button" className={on ? `${SMALL_KEY} key-on` : SMALL_KEY} aria-pressed={on} aria-label={label} title={label} onClick={onPress}>
+    <button type="button" className={on ? `${SMALL_KEY} key-on` : SMALL_KEY} aria-pressed={on} aria-label={label} title={label} onClick={onPress} {...explainFrom(words)}>
       {on ? letter : (off ?? '.')}
     </button>
   );
@@ -46,13 +47,14 @@ function Row({ project, node, active, dropMark, onGrab }: { project: Project; no
       style={{ paddingLeft: 4 + depth * 12 }}
     >
       {node.label !== null && <span aria-hidden="true" className="h-4 w-1.5 shrink-0" style={{ backgroundColor: node.label }} />}
-      {node.kind === 'folder' && <Toggle on={!node.collapsed} label={node.collapsed ? 'Open the folder' : 'Close the folder'} letter="-" off="+" onPress={() => toggleRow(node.id, 'collapsed')} />}
-      <Toggle on={node.visible} label={`${node.visible ? 'Hide' : 'Show'} ${node.name}`} letter="V" onPress={() => toggleRow(node.id, 'visible')} />
-      <Toggle on={node.locked} label={`${node.locked ? 'Unlock' : 'Lock'} ${node.name}`} letter="L" onPress={() => toggleRow(node.id, 'locked')} />
-      <Toggle on={node.solo} label={`Solo ${node.name}`} letter="S" onPress={() => toggleRow(node.id, 'solo')} />
+      {node.kind === 'folder' && <Toggle on={!node.collapsed} label={node.collapsed ? 'Open the folder' : 'Close the folder'} letter="-" off="+" onPress={() => toggleRow(node.id, 'collapsed')} words={{ what: node.collapsed ? 'Opens the folder, so the layers inside are listed.' : 'Closes the folder, so the layers inside are tucked away in the list.', why: 'Nothing on the sheet changes.' }} />}
+      <Toggle on={node.visible} label={`${node.visible ? 'Hide' : 'Show'} ${node.name}`} letter="V" onPress={() => toggleRow(node.id, 'visible')} words={{ what: node.visible ? 'Hides this row from the sheet.' : 'Shows this row on the sheet again.', why: 'Nothing in it is changed.' }} />
+      <Toggle on={node.locked} label={`${node.locked ? 'Unlock' : 'Lock'} ${node.name}`} letter="L" onPress={() => toggleRow(node.id, 'locked')} words={{ what: node.locked ? 'Unlocks this row, so it can be drawn on again.' : 'Locks this row, so nothing can be drawn on it.', why: 'For keeping finished work safe.' }} />
+      <Toggle on={node.solo} label={`Solo ${node.name}`} letter="S" onPress={() => toggleRow(node.id, 'solo')} words={{ what: node.solo ? 'Ends solo on this row.' : 'Shows only this row, and any others set to solo.', why: 'For looking at one thing on its own without hiding the rest one by one.' }} />
       <button
         type="button"
         aria-pressed={active}
+        {...explain('Picks this row to work on; drag it to move it in the list.', 'Drop it on the middle of a folder to put it inside.')}
         className="min-w-0 flex-1 cursor-grab touch-none truncate text-left"
         onPointerDown={(event) => onGrab(event, node.id)}
         onClick={(event) => {
@@ -79,18 +81,21 @@ function PlaneRows({ project, node, active }: { project: Project; node: LayerNod
             label={`${node.planeHidden[name] ? 'Show' : 'Hide'} the ${name} plane`}
             letter="V"
             onPress={() => setRow(node.id, { planeHidden: { ...node.planeHidden, [name]: !node.planeHidden[name] } }, 'PLANE')}
+            words={{ what: node.planeHidden[name] ? `Shows the ${name} plane of this layer again.` : `Hides the ${name} plane of this layer.`, why: 'Lines and colour can be looked at apart.' }}
           />
           <Toggle
             on={node.planeLocked[name]}
             label={`${node.planeLocked[name] ? 'Unlock' : 'Lock'} the ${name} plane`}
             letter="L"
             onPress={() => setRow(node.id, { planeLocked: { ...node.planeLocked, [name]: !node.planeLocked[name] } }, 'PLANE')}
+            words={{ what: node.planeLocked[name] ? `Unlocks the ${name} plane, so it can be drawn on again.` : `Locks the ${name} plane, so nothing can be drawn on it.`, why: 'One plane can be kept safe while you work on the other.' }}
           />
           <button
             type="button"
             className={active && plane === name ? PLATE_PRESSED : PLATE_MEDIUM}
             aria-pressed={active && plane === name}
             data-animate-plane={name}
+            {...explain(`Picks the ${name} plane as the one you draw on.`, 'Line and colour are kept apart, so one can be changed without the other.')}
             onClick={() => {
               selectRow(node.id);
               useStudio.setState({ plane: name });
@@ -152,7 +157,7 @@ function Details({ project, node }: { project: Project; node: LayerNode }) {
         </select>
       </label>
       <div role="group" aria-label="Colour label" className="flex flex-wrap items-center gap-1">
-        <button type="button" className={SMALL_KEY} aria-label="No label" aria-pressed={node.label === null} onClick={() => setRow(node.id, { label: null }, 'LABEL')}>
+        <button type="button" className={SMALL_KEY} aria-label="No label" aria-pressed={node.label === null} onClick={() => setRow(node.id, { label: null }, 'LABEL')} {...explain('Takes the colour label off this row.', 'The drawing is not changed.')}>
           X
         </button>
         {LABEL_COLOURS.map((colour) => (
@@ -160,6 +165,7 @@ function Details({ project, node }: { project: Project; node: LayerNode }) {
             key={colour}
             type="button"
             aria-label={`Label ${colour}`}
+            {...explain('Gives this row this colour label.', 'A strip of it shows beside the name, for telling rows apart.')}
             aria-pressed={node.label === colour}
             className={`h-5 w-5 cursor-pointer border-line ${node.label === colour ? 'border-bubble' : 'border-ink'}`}
             style={{ backgroundColor: colour }}
@@ -167,7 +173,7 @@ function Details({ project, node }: { project: Project; node: LayerNode }) {
           />
         ))}
       </div>
-      <button type="button" className={PLATE_MEDIUM} onClick={() => deleteRow(node.id)} title="ALT + DELETE">
+      <button type="button" className={PLATE_MEDIUM} onClick={() => deleteRow(node.id)} title="ALT + DELETE" {...explain(node.kind === 'folder' ? 'Deletes this folder and everything inside it, at once.' : 'Deletes this layer and its drawings, at once.', 'UNDO brings it back. The last layer always stays.')}>
         [ DELETE {node.kind === 'folder' ? 'FOLDER' : 'LAYER'} ]
       </button>
     </div>
@@ -226,13 +232,13 @@ export default function AnimateLayers() {
   return (
     <aside aria-label="Layers" className="flex h-full w-60 max-w-full flex-col border-l-line border-ink bg-sun-pale text-key">
       <div className="flex flex-wrap items-center gap-1 p-1">
-        <button type="button" className={PLATE_MEDIUM} onClick={() => newRow('layer')} title="SHIFT + N">
+        <button type="button" className={PLATE_MEDIUM} onClick={() => newRow('layer')} title="SHIFT + N" {...explain('Adds a new empty layer by the one you are on, and picks it (SHIFT + N).', 'For drawing something apart from what is already there.')}>
           [ + LAYER ]
         </button>
-        <button type="button" className={PLATE_MEDIUM} onClick={() => newRow('folder')} title="SHIFT + G">
+        <button type="button" className={PLATE_MEDIUM} onClick={() => newRow('folder')} title="SHIFT + G" {...explain('Adds a new folder to the layer list (SHIFT + G).', 'For keeping related layers together.')}>
           [ + FOLDER ]
         </button>
-        <button type="button" className={PLATE_MEDIUM} onClick={() => useStudio.setState({ panel: 'tags' })} title="SHIFT + T">
+        <button type="button" className={PLATE_MEDIUM} onClick={() => useStudio.setState({ panel: 'tags' })} title="SHIFT + T" {...explain('Opens the layer tags (SHIFT + T).', 'A tag gives a layer a colour mark and smart ways of behaving.')}>
           [ TAGS ]
         </button>
       </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type PointerEvent, type RefObject } from "react";
 import { glyphKey } from "./looks";
+import { explain } from '../../../lib/ui/explain';
 
 const HOLD_BEFORE_REPEAT_MS = 300;
 const REPEAT_MS = 80;
@@ -121,6 +122,7 @@ export function ScrollRail({
       aria-label={name}
       aria-disabled={!can}
       title={name}
+      {...explain(`Moves the view along: ${name.toLowerCase()}.`, "Hold it to keep going. Only the view moves.")}
       onPointerDown={(event) => holdArrow(event, direction)}
       onPointerUp={stopHolding}
       onPointerLeave={stopHolding}

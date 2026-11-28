@@ -6,6 +6,7 @@ import { updateSettings, useStudio } from '../../lib/animate/store';
 import { PLATE_MEDIUM } from '../../lib/ui/controls';
 import { AnimatePanelFrame } from './AnimatePanels';
 import AnimateSlider from './AnimateSlider';
+import { explain } from '../../lib/ui/explain';
 
 /** The sound for this shot: one file, where it starts, how loud, and whether stepping through frames plays it. */
 export default function AnimateSoundPanel() {
@@ -19,11 +20,11 @@ export default function AnimateSoundPanel() {
     <AnimatePanelFrame title="SOUND">
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" className={PLATE_MEDIUM} onClick={() => file.current?.click()}>
+          <button type="button" className={PLATE_MEDIUM} onClick={() => file.current?.click()} {...explain(track === null ? 'Picks an audio file to play along with this shot.' : 'Picks another audio file in place of this sound.', 'It is kept in this browser with the project.')}>
             [ {track === null ? 'ADD A SOUND' : 'CHANGE THE SOUND'} ]
           </button>
           {track !== null && (
-            <button type="button" className={PLATE_MEDIUM} onClick={removeSound}>
+            <button type="button" className={PLATE_MEDIUM} onClick={removeSound} {...explain('Takes the sound out of this shot.', 'UNDO brings it back.')}>
               [ REMOVE ]
             </button>
           )}

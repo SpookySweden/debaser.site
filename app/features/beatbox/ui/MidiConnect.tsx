@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { connectMidi, type MidiConnection, type MidiNavigator } from "../input/webMidi";
 import type { LiveNotes } from "./liveNotes";
 import { bigKey, titleLine } from "./looks";
+import { explain } from '../../../lib/ui/explain';
 
 function describeInputs(names: string[]): string {
   return names.length === 0
@@ -55,7 +56,7 @@ export function MidiConnect({ live }: { live: LiveNotes }) {
       {!connected && (
         <>
           <p className="text-bb-large wrap-anywhere">Your browser will ask to let this page hear the notes you play.</p>
-          <button type="button" onClick={() => void connect()} className={bigKey()}>
+          <button type="button" onClick={() => void connect()} className={bigKey()} {...explain("Asks your browser to let this page hear a MIDI keyboard.", "The pads and computer keys work without it.")}>
             Connect MIDI keyboard
           </button>
         </>

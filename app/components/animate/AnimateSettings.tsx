@@ -9,6 +9,7 @@ import { UI_SCALES, updateSettings, useStudio } from '../../lib/animate/store';
 import { PLATE_MEDIUM, PLATE_PRESSED } from '../../lib/ui/controls';
 import { AnimatePanelFrame } from './AnimatePanels';
 import AnimateSlider from './AnimateSlider';
+import { explain } from '../../lib/ui/explain';
 
 const CURVE_SIZE = 160;
 const SOFT_CURVE: PressureCurve = [0.1, 0.5, 0.45, 0.9];
@@ -113,13 +114,13 @@ function CurveEditor() {
     <div className="flex flex-col gap-1">
       <div className="flex flex-wrap items-center gap-2">
         <span>CURVE</span>
-        <button type="button" className={PLATE_MEDIUM} onClick={() => updateSettings({ pressure: SOFT_CURVE })}>
+        <button type="button" className={PLATE_MEDIUM} onClick={() => updateSettings({ pressure: SOFT_CURVE })} {...explain('Sets the pen curve soft: a light touch already gives a strong line.', 'For a light hand.')}>
           [ SOFT ]
         </button>
-        <button type="button" className={PLATE_MEDIUM} onClick={() => updateSettings({ pressure: LINEAR_CURVE })}>
+        <button type="button" className={PLATE_MEDIUM} onClick={() => updateSettings({ pressure: LINEAR_CURVE })} {...explain('Sets the pen curve even: the line follows your pressure as it is.', 'The starting setting.')}>
           [ EVEN ]
         </button>
-        <button type="button" className={PLATE_MEDIUM} onClick={() => updateSettings({ pressure: FIRM_CURVE })}>
+        <button type="button" className={PLATE_MEDIUM} onClick={() => updateSettings({ pressure: FIRM_CURVE })} {...explain('Sets the pen curve firm: you press harder to get a strong line.', 'For a heavy hand.')}>
           [ FIRM ]
         </button>
       </div>
@@ -182,14 +183,15 @@ function ShortcutList() {
         <button
           type="button"
           className={PLATE_MEDIUM}
+          {...explain('Saves your own key choices to a file (animate-keys.json).', 'For carrying them to another computer.')}
           onClick={() => void saveBlobAs(new Blob([JSON.stringify({ animateKeys: 1, shortcuts }, null, 2)], { type: 'application/json' }), 'animate-keys.json', 'Key set', ['.json'])}
         >
           [ SAVE KEY SET ]
         </button>
-        <button type="button" className={PLATE_MEDIUM} onClick={() => importFile.current?.click()}>
+        <button type="button" className={PLATE_MEDIUM} onClick={() => importFile.current?.click()} {...explain('Loads a key set file in place of your key choices.', 'The file is one made with SAVE KEY SET.')}>
           [ LOAD KEY SET ]
         </button>
-        <button type="button" className={PLATE_MEDIUM} onClick={() => updateSettings({ shortcuts: {} })}>
+        <button type="button" className={PLATE_MEDIUM} onClick={() => updateSettings({ shortcuts: {} })} {...explain('Puts every key back to what it started as, at once and without asking.', 'Save your key set first if you may want it again.')}>
           [ ALL BACK TO START ]
         </button>
         <input
@@ -231,6 +233,10 @@ function ShortcutList() {
                   className={waiting === action.id ? PLATE_PRESSED : PLATE_MEDIUM}
                   aria-label={`Change the key for ${action.label}`}
                   data-animate-remap={action.id}
+                  {...explain(
+                    waiting === action.id ? 'Press the new key now; ESC leaves it as it was.' : `Waits for the next key you press and gives it to ${action.label.toLowerCase()}.`,
+                    'If that key already does something else, the other thing is left with no key.',
+                  )}
                   onClick={() => setWaiting(action.id)}
                 >
                   [ {waiting === action.id ? 'PRESS A KEY' : keyOf(action) === '' ? 'NONE' : keyLabel(keyOf(action))} ]
@@ -276,7 +282,7 @@ export default function AnimateSettings() {
       <Group title="SMART TAGS">
         <AnimateSlider label="A NEW TAG'S GAP SIZE" min={1} max={40} step={1} value={settings.defaultGap} unit=" PX" onChange={(defaultGap) => updateSettings({ defaultGap })} />
         <Check label="BIG SMART OFF BADGE" on={settings.bigBadge} onChange={(bigBadge) => updateSettings({ bigBadge })} />
-        <button type="button" className={PLATE_MEDIUM} onClick={() => useStudio.setState({ panel: 'tags' })}>
+        <button type="button" className={PLATE_MEDIUM} onClick={() => useStudio.setState({ panel: 'tags' })} {...explain('Opens the tags panel.', 'Where each smart way of behaving is set.')}>
           [ EDIT TAGS ]
         </button>
       </Group>
@@ -288,7 +294,7 @@ export default function AnimateSettings() {
         <div role="group" aria-label="Interface size" className="flex flex-wrap items-center gap-1">
           <span>SIZE</span>
           {UI_SCALES.map((scale) => (
-            <button key={scale} type="button" className={settings.uiScale === scale ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={settings.uiScale === scale} onClick={() => updateSettings({ uiScale: scale })}>
+            <button key={scale} type="button" className={settings.uiScale === scale ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={settings.uiScale === scale} onClick={() => updateSettings({ uiScale: scale })} {...explain(`Sets the studio's keys and panels to ${Math.round(scale * 100)} percent size.`, 'Bigger is easier to read; smaller leaves more room for the sheet.')}>
               [ {Math.round(scale * 100)}% ]
             </button>
           ))}

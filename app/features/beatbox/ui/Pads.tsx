@@ -5,6 +5,7 @@ import { DRUM_ROW_COUNT, midiToPitch, pitchName, type SongData } from "../engine
 import type { NoteEvent } from "../input/noteEvents";
 import { channelName, noteShapeStyle } from "./channelLooks";
 import type { LiveNotes } from "./liveNotes";
+import { explain } from '../../../lib/ui/explain';
 
 const PAD_VELOCITY = 100;
 const PAD_KEYS = new Set(["Enter", " "]);
@@ -60,6 +61,7 @@ function Pad({
     <button
       type="button"
       aria-pressed={lit}
+      {...explain("Plays this note for as long as you hold it.", "While recording, what you play here is taken down.")}
       onPointerDown={pointerDown}
       onPointerUp={(event) => letGo(event.timeStamp)}
       onPointerCancel={(event) => letGo(event.timeStamp)}

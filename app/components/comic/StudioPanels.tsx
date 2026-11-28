@@ -6,6 +6,7 @@ import { chapterPages, chaptersInOrder } from '../../lib/comic/rules';
 import type { ComicChapter, ComicContents, ComicPage, PanelBox } from '../../lib/comic/types';
 import { FIELD_TIGHT, PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR } from '../../lib/ui/controls';
 import ComicPageImage from './ComicPageImage';
+import { explain } from '../../lib/ui/explain';
 
 type PickerProps = {
   contents: ComicContents;
@@ -34,7 +35,15 @@ export function StudioPagePicker({ contents, chapter, onChapter, pageId, onPage,
         {pages.map((page, index) => {
           const on = page.id === (pageId ?? pages[0]?.id);
           return (
-            <button key={page.id} type="button" disabled={locked} aria-pressed={on} onClick={() => onPage(page.id)} className={on ? PLATE_PRESSED : PLATE}>
+            <button
+              key={page.id}
+              type="button"
+              disabled={locked}
+              aria-pressed={on}
+              onClick={() => onPage(page.id)}
+              className={on ? PLATE_PRESSED : PLATE}
+              {...explain('Opens this page of the chapter in the tab below.', 'Greyed out while panel boxes are not saved yet.')}
+            >
               {`[ P ${index + 1} ]`}
             </button>
           );
@@ -178,22 +187,23 @@ export default function StudioPanels(props: Omit<PickerProps, 'locked'>) {
       {problem ? <p className="w-fit bg-bubble-pale px-1 text-label text-ink-bar">{problem}</p> : null}
       <h2 className={TITLE_BAR}>{`CHAPTER ${chapter?.number} · P ${held.number}: PANELS`}</h2>
       <div className="flex flex-wrap items-center gap-1">
-        <button type="button" className={PLATE_MAIN} disabled={!dirty} onClick={() => void save()}>
+        <button type="button" className={PLATE_MAIN} disabled={!dirty} onClick={() => void save()} {...explain('Saves the boxes on this page, in their numbered order.', 'Greyed out until something has changed.', 'LORE TAGS AND COMMENTS STAY WITH THE NUMBER, NOT THE BOX.')}>
           [ SAVE ]
         </button>
-        <button type="button" className={PLATE} disabled={!dirty} onClick={() => setLoadCount((count) => count + 1)}>
+        <button type="button" className={PLATE} disabled={!dirty} onClick={() => setLoadCount((count) => count + 1)} {...explain('Throws away the changes since the last save and shows the saved boxes again.', 'Greyed out until something has changed.', 'UNSAVED CHANGES GO AT ONCE, WITH NO QUESTION.')}>
           [ UNDO CHANGES ]
         </button>
-        <button type="button" className={PLATE} disabled={selected === null} onClick={() => selected !== null && reorder(selected, selected - 1)}>
+        <button type="button" className={PLATE} disabled={selected === null} onClick={() => selected !== null && reorder(selected, selected - 1)} {...explain('Moves the picked box one place earlier in the reading order.', 'Pick a box first. The numbers on the boxes are the order.', 'ON SAVE, TAGS AND COMMENTS STAY WITH THE NUMBER.')}>
           [ ▲ EARLIER ]
         </button>
-        <button type="button" className={PLATE} disabled={selected === null} onClick={() => selected !== null && reorder(selected, selected + 1)}>
+        <button type="button" className={PLATE} disabled={selected === null} onClick={() => selected !== null && reorder(selected, selected + 1)} {...explain('Moves the picked box one place later in the reading order.', 'Pick a box first. The numbers on the boxes are the order.', 'ON SAVE, TAGS AND COMMENTS STAY WITH THE NUMBER.')}>
           [ ▼ LATER ]
         </button>
         <button
           type="button"
           className={PLATE}
           disabled={selected === null}
+          {...explain('Removes the picked box. Nothing is saved until SAVE.', 'For a guessed box that is not a panel.', 'ON SAVE, LATER BOXES TAKE THE TAGS AND COMMENTS OF THE NUMBERS THEY MOVE INTO.')}
           onClick={() => {
             if (selected === null) return;
             setBoxes((now) => now.filter((_, at) => at !== selected));
@@ -207,6 +217,7 @@ export default function StudioPanels(props: Omit<PickerProps, 'locked'>) {
         <button
           type="button"
           className={PLATE}
+          {...explain('Adds one box as big as the whole page, last in the order.', 'For a page that is a single picture. Nothing is saved until SAVE.')}
           onClick={() => {
             setBoxes((now) => [...now, { x: 0, y: 0, w: 1, h: 1, guessed: false, key: crypto.randomUUID() }]);
             setSelected(boxes.length);
@@ -235,6 +246,7 @@ export default function StudioPanels(props: Omit<PickerProps, 'locked'>) {
             tabIndex={0}
             aria-pressed={selected === index}
             aria-label={`PANEL ${index + 1}`}
+            {...explain('Picks this panel box. Drag it to move it, or drag its corner square to size it.', 'Its number is its place in the reading order; a ? means it is still a guess.')}
             onPointerDown={(event) => onPointerDown(event, 'move', index)}
             onKeyDown={(event) => {
               if (event.key === 'Enter' || event.key === ' ') setSelected(index);

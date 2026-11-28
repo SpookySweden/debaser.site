@@ -2,6 +2,7 @@
 
 import { useRef, type KeyboardEvent } from "react";
 import { smallKey } from "./looks";
+import { explainFrom, type Explanation } from '../../../lib/ui/explain';
 
 /** Where the arrow keys go in a set of choices. Null if the key isn't for moving. */
 export function nextChoiceIndex(key: string, index: number, count: number): number | null {
@@ -24,6 +25,7 @@ export function ChoiceGroup<T extends string | number>({
   onChange,
   look = smallKey,
   stacked = false,
+  words,
 }: {
   label: string;
   /** The page-wide key that also changes this, shown beside the name. */
@@ -34,6 +36,8 @@ export function ChoiceGroup<T extends string | number>({
   look?: (on: boolean) => string;
   /** Its name above, and the choices lined up in two columns, for a window. */
   stacked?: boolean;
+  /** What the hover box says for each choice. */
+  words: (value: T) => Explanation;
 }) {
   const group = useRef<HTMLDivElement>(null);
   const chosen = options.findIndex((option) => option.value === value);
@@ -55,6 +59,7 @@ export function ChoiceGroup<T extends string | number>({
       aria-checked={option.value === value}
       tabIndex={option.value === value ? 0 : -1}
       onClick={() => onChange(option.value)}
+      {...explainFrom(words(option.value))}
       className={stacked ? `${look(option.value === value)} text-left whitespace-normal! wrap-anywhere` : look(option.value === value)}
     >
       {option.value === value ? "> " : ""}

@@ -11,6 +11,7 @@ import { soundPeaks } from '../../lib/animate/sound';
 import type { Cel, CelMark, LayerNode } from '../../lib/animate/types';
 import { FrameWords, FramesKey, PlayKey } from './AnimateBars';
 import { TagChip } from './AnimateLayers';
+import { explain } from '../../lib/ui/explain';
 
 const ROW_HEIGHT = 30;
 const RULER_HEIGHT = 24;
@@ -116,6 +117,7 @@ function CelBox({ cel, layerId, cellWidth, active }: { cel: Cel; layerId: string
       <button
         type="button"
         aria-label={`Drawing at frame ${cel.frame + 1}, held ${cel.length} frames, ${cel.mark}`}
+        {...explain('Goes to the frame where this drawing starts; drag it to move the drawing along the timeline.', 'Drag its right edge to hold it longer; with SHIFT the later drawings are pushed along.')}
         className="flex h-full min-w-0 flex-1 cursor-pointer items-center gap-0.5 overflow-hidden text-label"
         onPointerDown={(event) => drag(event, 'move')}
         onClick={(event) => {
@@ -259,6 +261,7 @@ function RowName({ node }: { node: LayerNode }) {
       style={{ height: ROW_HEIGHT }}
       onClick={() => selectRow(node.id)}
       data-animate-row-name={node.id}
+      {...explain(node.kind === 'folder' ? 'Picks this folder in the layer list too.' : 'Picks this layer to draw on.', 'The row shows its drawings across the frames.')}
     >
       <span className="truncate" style={{ paddingLeft: depthOf(project, node) * 8 }}>
         {node.kind === 'folder' ? `${node.name} /` : node.name}

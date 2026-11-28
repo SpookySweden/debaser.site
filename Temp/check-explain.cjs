@@ -39,21 +39,25 @@ const APP = path.join(ROOT, 'app');
 /** Pages only the developer looks at, left out (Luke's OK, 2026-11-27: the specimen sheet of tokens). */
 const EXEMPT = ['app/specimen/'];
 
+/**
+ * Clickable things that are not keys, so words on them would open the box wherever the pointer went. Each says which file, a
+ * piece of the element that names it, and why. An entry that matches nothing any more fails, so none is left behind.
+ */
+const NOT_KEYS = [
+  { file: 'app/components/animate/AnimateFramesMenu.tsx', has: 'aria-label="Close the timeline menu"', why: 'the unseen sheet behind the menu: a press outside closes it' },
+  { file: 'app/components/animate/AnimatePopup.tsx', has: 'aria-label="Close the tools"', why: 'the unseen sheet behind the pop-up: a press outside closes it' },
+  { file: 'app/features/beatbox/ui/NoteGrid.tsx', has: 'bb-canvas', why: 'the whole note grid you draw on, not one key' },
+  { file: 'app/features/beatbox/ui/BarRow.tsx', has: 'bb-canvas', why: 'the whole bar strip you work on, not one key' },
+];
+
 /** Files whose keys have no words yet. Each area's files come off as that area is done. */
 const STILL_TO_DO = new Set([
   // STILL_TO_DO_START
-  'app/beatbox/credits/page.tsx',
   'app/components/AnchorLink.tsx',
   'app/components/AsciiEmoticonPicker.tsx',
   'app/components/AudioTagChooser.tsx',
   'app/components/AudioTagPill.tsx',
-  'app/components/BeatBoxRoom.tsx',
-  'app/components/BeatBoxSongs.tsx',
   'app/components/ChallengeControl.tsx',
-  'app/components/CharacterBrowserWindow.tsx',
-  'app/components/CharacterEditorPanel.tsx',
-  'app/components/CharacterPresetPicker.tsx',
-  'app/components/CharacterViewport.tsx',
   'app/components/CommsConsole.tsx',
   'app/components/CommsGroupBar.tsx',
   'app/components/CommsThreadPanel.tsx',
@@ -103,45 +107,6 @@ const STILL_TO_DO = new Set([
   'app/components/TreePicker.tsx',
   'app/components/UnsavedPrompt.tsx',
   'app/components/VanityView.tsx',
-  'app/components/animate/AnimateBars.tsx',
-  'app/components/animate/AnimateExportPanel.tsx',
-  'app/components/animate/AnimateFramesMenu.tsx',
-  'app/components/animate/AnimateLayers.tsx',
-  'app/components/animate/AnimateMenu.tsx',
-  'app/components/animate/AnimateOnionPanel.tsx',
-  'app/components/animate/AnimatePalettePanel.tsx',
-  'app/components/animate/AnimatePanels.tsx',
-  'app/components/animate/AnimatePopup.tsx',
-  'app/components/animate/AnimateSettings.tsx',
-  'app/components/animate/AnimateSoundPanel.tsx',
-  'app/components/animate/AnimateTagPanel.tsx',
-  'app/components/animate/AnimateTiles.tsx',
-  'app/components/animate/AnimateTimeline.tsx',
-  'app/components/comic/ComicChapter.tsx',
-  'app/components/comic/ComicFollowKey.tsx',
-  'app/components/comic/ComicHome.tsx',
-  'app/components/comic/ComicStudio.tsx',
-  'app/components/comic/ComicZoom.tsx',
-  'app/components/comic/StudioLore.tsx',
-  'app/components/comic/StudioPages.tsx',
-  'app/components/comic/StudioPanels.tsx',
-  'app/components/comic/StudioRelease.tsx',
-  'app/features/beatbox/ui/BarKeys.tsx',
-  'app/features/beatbox/ui/BarRow.tsx',
-  'app/features/beatbox/ui/BeatBox.tsx',
-  'app/features/beatbox/ui/ChoiceGroup.tsx',
-  'app/features/beatbox/ui/GridSizeKeys.tsx',
-  'app/features/beatbox/ui/HelpPanel.tsx',
-  'app/features/beatbox/ui/InOut.tsx',
-  'app/features/beatbox/ui/KeysPanel.tsx',
-  'app/features/beatbox/ui/MidiConnect.tsx',
-  'app/features/beatbox/ui/NoteGrid.tsx',
-  'app/features/beatbox/ui/Pads.tsx',
-  'app/features/beatbox/ui/PopWindow.tsx',
-  'app/features/beatbox/ui/RecentSongs.tsx',
-  'app/features/beatbox/ui/RecordPanel.tsx',
-  'app/features/beatbox/ui/ScrollRail.tsx',
-  'app/features/beatbox/ui/SoundsPanel.tsx',
   // STILL_TO_DO_END
 ]);
 
@@ -230,6 +195,7 @@ function scan() {
   const missing = new Map();
   const weak = [];
   let explained = 0;
+  const spared = new Set();
   for (const file of files) {
     const rel = path.relative(ROOT, file).split(path.sep).join('/');
     if (EXEMPT.some((prefix) => rel.startsWith(prefix))) continue;
@@ -240,7 +206,9 @@ function scan() {
         if (kind !== null) {
           const line = source.getLineAndCharacterOfPosition(node.getStart()).line + 1;
           const { found, words } = explanationOf(node);
-          if (!found) {
+          const notKey = found ? undefined : NOT_KEYS.find((entry) => entry.file === rel && node.getText().includes(entry.has));
+          if (notKey !== undefined) spared.add(notKey);
+          else if (!found) {
             if (!missing.has(rel)) missing.set(rel, []);
             missing.get(rel).push(`${rel}:${line} (${kind})`);
           } else {
@@ -256,6 +224,9 @@ function scan() {
       ts.forEachChild(node, visit);
     };
     visit(source);
+  }
+  for (const entry of NOT_KEYS) {
+    if (!spared.has(entry)) weak.push(`${entry.file}: the exemption for ${entry.has} matches nothing: take it out of NOT_KEYS`);
   }
   return { files, missing, weak, explained };
 }

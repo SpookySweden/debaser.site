@@ -6,6 +6,7 @@ import type { SongData } from "../engine/songData";
 import { channelName, noteShapeStyle } from "./channelLooks";
 import { nextChoiceIndex } from "./ChoiceGroup";
 import { listRow } from "./looks";
+import { explain } from '../../../lib/ui/explain';
 
 const SONGS_OWN = "own";
 
@@ -81,6 +82,7 @@ export function SoundsPanel({
               tabIndex={on ? 0 : -1}
               title={channelName(song, index)}
               onClick={() => onPickChannel(index)}
+              {...explain(`Picks ${channelName(song, index)} as the channel whose sound you are choosing.`, "Each channel has its own sound.")}
               className={`${listRow(on)} w-auto! gap-1 ${on ? "" : "text-bb-daffodil"}`}
             >
               <span
@@ -104,6 +106,7 @@ export function SoundsPanel({
                 type="button"
                 aria-pressed={on}
                 onClick={() => setOpen({ channel, group: other.id })}
+                {...explain(`Opens the list of ${other.label.toLowerCase()} sounds.`, "The channel keeps its sound until you choose one.")}
                 className={`${listRow(false)} uppercase ${on ? "text-bb-daffodil underline decoration-(length:--beat-line)" : ""}`}
               >
                 {other.label}
@@ -122,6 +125,7 @@ export function SoundsPanel({
                 aria-checked={on}
                 tabIndex={index === tabStop ? 0 : -1}
                 onClick={() => pick(choice.value)}
+                {...explain(on ? "Plays this sound, which the channel already has." : `Gives this channel the sound ${choice.label.toLowerCase()}.`, "For hearing and choosing how the channel sounds.")}
                 className={listRow(on)}
               >
                 {choice.label}

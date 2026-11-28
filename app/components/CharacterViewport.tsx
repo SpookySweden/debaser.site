@@ -47,6 +47,7 @@ import { TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import { MASS_SHAPE_GLYPHS, TOOL_GLYPHS } from '../lib/ui/icons';
 import CharacterPresetPicker from './CharacterPresetPicker';
 import CharacterScene, { toPane } from './CharacterScene';
+import { explain, explainFrom, NOTE, type Explanation } from '../lib/ui/explain';
 
 /** Each tool's name, the few words the options bar shows, and the full sentence for its tooltip. */
 const TOOLS: Record<ToolId, { label: string; status: string; hint: string }> = {
@@ -73,6 +74,35 @@ const TOOLS: Record<ToolId, { label: string; status: string; hint: string }> = {
   },
   pose: { label: 'POSE', status: 'DRAG A NODE', hint: 'DRAG A GREEN NODE. PINNED SHAPES FOLLOW AND TURN WITH THEIR BONE.' },
   delete: { label: 'DELETE', status: 'CLICK TO REMOVE', hint: 'CLICK A SHAPE TO REMOVE IT. UNDO BRINGS IT BACK.' },
+};
+
+/** What the hover box says about each tool (shown only while [ EXPLAIN ] is on). */
+const TOOL_WORDS: Record<ToolId, Explanation> = {
+  select: { what: 'Takes up the SELECT tool: press a shape to pick it, drag it to move it, and use the yellow square to size it or the green knob to turn it.', why: 'For changing one shape; its properties show beside the figure.' },
+  add: { what: 'Opens the list of shapes to add: pick one, press the node it hangs from, then press inside the ring to place it.', why: 'For building up the figure.' },
+  move: { what: 'Takes up the MOVE tool: drag any shape to slide it.', why: 'For placing shapes without sizing or turning them by accident.' },
+  turn: { what: 'Takes up the TURN tool: drag any shape round its middle to spin it, like a dial.', why: 'For angling a shape.' },
+  size: { what: 'Takes up the SIZE tool: drag right on a shape to widen it, or up to make it taller.', why: 'For changing how big a shape is.' },
+  pose: { what: 'Takes up the POSE tool: drag a green node, and the shapes pinned to it follow and turn with their bone.', why: 'For posing the figure, and for picking a node to remove.' },
+  delete: { what: 'Takes up the DELETE tool: every shape you press after this is removed at once.', why: 'For clearing shapes away quickly; UNDO brings one back.' },
+};
+
+const LAYER_WORDS: Record<LayerId, Explanation> = {
+  pixelate: { what: 'Switches the big pixels on or off in the figure views.', why: 'On shows the figure as it will look; off draws it at full resolution.' },
+  fine: { what: 'Switches to bigger pixels, about 12 across.', why: 'Only works while PIXELATE is on.' },
+  normalLight: { what: 'Switches the shading in three hard bands on or off; off draws flat colours.', why: 'It rests while NORMAL MAP is on.' },
+  normalMap: { what: 'Shows what the light reads: each pixel coloured by the way it faces.', why: 'For checking how the surfaces will catch the light.' },
+};
+
+/** What each shape is good for, in the hover box's own sentence case. */
+const SHAPE_WORDS: Record<MassShapeId, string> = {
+  box: 'A flat-faced block, good for heads, hands and feet.',
+  sphere: 'Round in every direction, good for torsos and bellies.',
+  cone: 'Tapers to a point, good for forearms and shins.',
+  cylinder: 'Evenly thick with flat ends, good for upper arms and necks.',
+  capsule: 'A cylinder with rounded ends, good for limbs that bend.',
+  wedge: 'Flat on one side and sloped on the other, good for shoulders and chins.',
+  prism: 'A triangle seen from the front that runs forward, good for feet and snouts.',
 };
 
 /** The LAYERS switches: what the live pixel render draws (see `pixel-render.ts`), and the skeleton drawn over it. */
@@ -234,6 +264,7 @@ function ToolStrip() {
       onClick={() => setTool(id)}
       aria-pressed={tool === id}
       title={TOOLS[id].hint}
+      {...explainFrom(TOOL_WORDS[id])}
       className={`${STRIP_BUTTON} ${pressable(tool === id)}`}
     >
       <span aria-hidden className="text-title leading-none">
@@ -256,13 +287,13 @@ function ToolStrip() {
         <AddNodeButton />
       </StripBlock>
       <StripBlock label="History">
-        <button type="button" onClick={undo} disabled={!canUndo} title="UNDO (CTRL+Z)" className={`${STRIP_BUTTON} ${pressable(false)}`}>
+        <button type="button" onClick={undo} disabled={!canUndo} title="UNDO (CTRL+Z)" className={`${STRIP_BUTTON} ${pressable(false)}`} {...explain('Takes back the last change to the figure (CTRL+Z).', 'Greyed out while there is nothing to take back.')}>
           <span aria-hidden className="text-title leading-none">
             {TOOL_GLYPHS.undo}
           </span>
           UNDO
         </button>
-        <button type="button" onClick={redo} disabled={!canRedo} title="REDO (CTRL+Y)" className={`${STRIP_BUTTON} ${pressable(false)}`}>
+        <button type="button" onClick={redo} disabled={!canRedo} title="REDO (CTRL+Y)" className={`${STRIP_BUTTON} ${pressable(false)}`} {...explain('Puts back the change that UNDO last took away (CTRL+Y).', 'Greyed out until something has been undone.')}>
           <span aria-hidden className="text-title leading-none">
             {TOOL_GLYPHS.redo}
           </span>
@@ -272,6 +303,7 @@ function ToolStrip() {
           type="button"
           onClick={() => setPresetPicker(true)}
           title="START A NEW FIGURE FROM ONE OF THE PRESETS"
+          {...explain('Opens the figure picker, to start again from one of the starting figures.', 'The figure on the bench is only replaced once you press START there, and UNDO brings it back.')}
           className={`${STRIP_BUTTON} ${pressable(false)}`}
         >
           <span aria-hidden className="text-title leading-none">
@@ -340,6 +372,7 @@ function AddToolButton() {
         aria-expanded={open}
         aria-disabled={full}
         title={full ? FULL_SHAPES : TOOLS.add.hint}
+        {...explainFrom(full ? { what: 'Rests: the figure holds as many shapes as it can.', why: 'Delete a shape to add another.' } : TOOL_WORDS.add)}
         className={`${STRIP_BUTTON} ${pressable(tool === 'add')}`}
       >
         <span aria-hidden className="text-title leading-none">
@@ -364,6 +397,7 @@ function AddToolButton() {
               }}
               aria-pressed={addKind === kind}
               title={MASS_SHAPES[kind].note}
+              {...explain(`Starts a new ${MASS_SHAPES[kind].label.toLowerCase()}: next press the node it hangs from, then place it inside the ring.`, SHAPE_WORDS[kind])}
               className={`flex h-8 items-center gap-2 px-2 text-left text-label ${pressable(addKind === kind)}`}
             >
               <span aria-hidden className="w-4 shrink-0 text-center text-key leading-none">
@@ -396,6 +430,13 @@ function AddNodeButton() {
       aria-pressed={placingNode}
       aria-disabled={full && !placingNode}
       title={full && !placingNode ? FULL_NODES : 'ADD A NODE: CLICK ITS PARENT NODE, DRAG IT INTO PLACE, THEN ✓.'}
+      {...explainFrom(
+        placingNode
+          ? { what: 'Drops the new node and leaves the figure as it was.', why: 'For changing your mind half way through.' }
+          : full
+            ? { what: 'Rests: the figure holds as many nodes as it can.', why: 'Delete a node to add another.' }
+            : { what: 'Starts a new node: press the node it hangs from, drag it into place, then press the tick.', why: 'Nodes are the joints that shapes are pinned to and posed by.' },
+      )}
       className={`${STRIP_BUTTON} ${pressable(placingNode)}`}
     >
       <span aria-hidden className="text-title leading-none">
@@ -479,6 +520,7 @@ function PlacingOptions() {
         onClick={cancelPlacing}
         aria-label={`Cancel the new ${placing.what}`}
         title="CANCEL: THE FIGURE GOES BACK EXACTLY AS IT WAS (ESC)"
+        {...explain(`Drops the new ${placing.what}: the figure goes back exactly as it was (ESC).`, 'For changing your mind half way through placing.')}
         className={`h-8 w-8 shrink-0 text-key leading-none max-sm:w-tap ${pressable(false)}`}
       >
         ✗
@@ -513,6 +555,11 @@ function PoseOptions() {
           }}
           aria-pressed={stretch === on}
           title={on ? 'A DRAG STRETCHES: BONES GET LONGER OR SHORTER.' : 'A DRAG BENDS: LIMBS SWING, BONES KEEP THEIR LENGTH.'}
+          {...explainFrom(
+            on
+              ? { what: 'Makes dragging a node stretch the bone, so it gets longer or shorter.', why: 'For changing proportions rather than the pose.' }
+              : { what: 'Makes dragging a node bend the limb: it swings and the bones keep their length.', why: 'For posing without changing proportions.' },
+          )}
           className={`shrink-0 px-2 py-1 text-label ${pressable(stretch === on)}`}
         >
           {on ? 'STRETCHES' : 'BENDS'}
@@ -550,6 +597,7 @@ function LayerSwitches() {
           aria-pressed={layers[id]}
           disabled={layerRests(id, layers)}
           title={LAYERS[id].hint}
+          {...explainFrom(LAYER_WORDS[id])}
           className={switchClass(layers[id])}
         >
           {LAYERS[id].label}
@@ -560,6 +608,7 @@ function LayerSwitches() {
         onClick={toggleSkeleton}
         aria-pressed={showSkeleton}
         title="DRAW THE SKELETON OVER THE FIGURE. IT ALWAYS SHOWS WHILE POSING OR PLACING."
+        {...explain('Draws the skeleton over the figure, or hides it.', 'It always shows while you pose or place something.')}
         className={switchClass(showSkeleton)}
       >
         SKELETON
@@ -621,6 +670,7 @@ function LightControl() {
         aria-expanded={open}
         aria-label="Light"
         title={lightOn ? 'THE LIGHT: TURN IT, RAISE IT, SWITCH IT OFF' : 'THE LIGHT IS OFF'}
+        {...explain('Opens or closes the light controls: turn the light, raise or lower it, or switch it off.', lightOn ? 'For seeing the figure lit from another side.' : 'The light is off just now, so the figure is evenly lit.')}
         className={`h-8 w-8 text-title leading-none max-sm:w-tap ${pressable(open)}`}
       >
         <span aria-hidden>{lightOn ? '☀' : '☼'}</span>
@@ -648,18 +698,19 @@ function LightPad() {
           disabled={elevation >= LIGHT_HIGHEST - 1e-6}
           aria-label="Raise the light"
           title="RAISE THE LIGHT 30°"
+          {...explain('Raises the light by 30 degrees.', 'Greyed out once it is as high as it goes.')}
           className={key}
         >
           ▲
         </button>
         <span />
-        <button type="button" onClick={() => stepLight('left')} aria-label="Turn the light left" title="TURN THE LIGHT 45° LEFT" className={key}>
+        <button type="button" onClick={() => stepLight('left')} aria-label="Turn the light left" title="TURN THE LIGHT 45° LEFT" className={key} {...explain('Turns the light 45 degrees to the left.', 'For lighting the figure from another side.')}>
           ◀
         </button>
-        <button type="button" onClick={resetLight} aria-label="Reset the light" title="BACK TO THE STARTING LIGHT" className={key}>
+        <button type="button" onClick={resetLight} aria-label="Reset the light" title="BACK TO THE STARTING LIGHT" className={key} {...explain('Puts the light back where it started.', 'For when it has been turned somewhere unhelpful.')}>
           ◎
         </button>
-        <button type="button" onClick={() => stepLight('right')} aria-label="Turn the light right" title="TURN THE LIGHT 45° RIGHT" className={key}>
+        <button type="button" onClick={() => stepLight('right')} aria-label="Turn the light right" title="TURN THE LIGHT 45° RIGHT" className={key} {...explain('Turns the light 45 degrees to the right.', 'For lighting the figure from another side.')}>
           ▶
         </button>
         <span />
@@ -669,6 +720,7 @@ function LightPad() {
           disabled={elevation <= -LIGHT_HIGHEST + 1e-6}
           aria-label="Lower the light"
           title="LOWER THE LIGHT 30°"
+          {...explain('Lowers the light by 30 degrees.', 'Greyed out once it is as low as it goes.')}
           className={key}
         >
           ▼
@@ -680,6 +732,7 @@ function LightPad() {
         onClick={toggleLightOn}
         aria-pressed={lightOn}
         title={lightOn ? 'SWITCH THE LIGHT OFF: THE FIGURE IS EVENLY LIT' : 'SWITCH THE LIGHT BACK ON'}
+        {...explain(lightOn ? 'Switches the light off, so the figure is evenly lit.' : 'Switches the light back on.', 'For comparing the figure with and without shading.')}
         className={`px-2 py-1 text-label ${pressable(lightOn)}`}
       >
         {lightOn ? 'LIGHT ON' : 'LIGHT OFF'}
@@ -771,6 +824,11 @@ function PlacingButtons({ view }: { view: ViewportKind }) {
             aria-label={`Keep the new ${thing}`}
             aria-disabled={block !== null}
             title={block === null ? 'KEEP IT. ONE PRESS OF UNDO TAKES IT AWAY AGAIN.' : `NOT YET: ${block}`}
+            {...explainFrom(
+              block === null
+                ? { what: `Keeps the new ${thing} where it is now.`, why: 'One press of UNDO takes it away again.' }
+                : { what: `Rests: the new ${thing} can't be kept yet.`, why: `Not yet: ${block}` },
+            )}
             className={`${key} cursor-pointer bg-acid text-ink-plate aria-disabled:cursor-not-allowed aria-disabled:opacity-40`}
           >
             ✓
@@ -780,6 +838,7 @@ function PlacingButtons({ view }: { view: ViewportKind }) {
             onClick={cancelPlacing}
             aria-label={`Cancel the new ${thing}`}
             title="CANCEL: THE FIGURE GOES BACK EXACTLY AS IT WAS (ESC)"
+            {...explain(`Drops the new ${thing}: the figure goes back exactly as it was (ESC).`, 'For changing your mind half way through placing.')}
             className={`${key} cursor-pointer bg-bubble-pale text-ink-bar`}
           >
             ✗
@@ -871,6 +930,10 @@ function ShapesList() {
         onClick={toggleList}
         aria-expanded={listOpen}
         title={brokenCount > 0 ? `${brokenCount} NOT CONNECTED: CAN'T SAVE YET.` : undefined}
+        {...explain(
+          listOpen ? 'Folds the list of shapes away.' : 'Opens the list of shapes in the figure.',
+          brokenCount > 0 ? `${brokenCount} not connected: the figure can't be saved until that is fixed.` : 'The numbers are how many shapes are used, out of the most a figure can have.',
+        )}
         className={`${TITLE_BAR_INACTIVE} w-full cursor-pointer hover:bg-ice max-sm:min-h-tap`}
       >
         <span>
@@ -895,6 +958,7 @@ function ShapesList() {
                   aria-pressed={!shape.hidden}
                   aria-label={`${shape.hidden ? 'Show' : 'Hide'} ${shape.name}`}
                   title={shape.hidden ? 'HIDDEN - CLICK TO SHOW' : 'SHOWN - CLICK TO HIDE'}
+                  {...explain(shape.hidden ? 'Shows this shape again.' : 'Hides this shape without deleting it.', "While hidden it doesn't count for touching, pixels or sag.")}
                   className={`${small} ${pressable(false)}`}
                 >
                   {shape.hidden ? '◌' : '◉'}
@@ -903,6 +967,14 @@ function ShapesList() {
                   type="button"
                   onClick={() => selectShape(shape.id)}
                   aria-pressed={picked}
+                  {...explain(
+                    'Picks this shape and shows its properties.',
+                    shape.hidden
+                      ? "It is hidden now: it doesn't count for touching, pixels or sag."
+                      : problem !== undefined
+                        ? `${problem}. The figure can't be saved like this.`
+                        : 'For renaming, reshaping, dyeing or pinning it.',
+                  )}
                   title={
                     shape.hidden
                       ? "HIDDEN: IT DOESN'T COUNT FOR TOUCHING, PIXELS OR SAG."
@@ -927,6 +999,7 @@ function ShapesList() {
                   onClick={() => reorder(shape.id, -1)}
                   disabled={index === 0}
                   aria-label={`Move ${shape.name} up the list`}
+                  {...explain('Moves this shape one place up the list.', 'For keeping the list in an order you can read; UNDO takes it back.')}
                   className={`${small} ${pressable(false)}`}
                 >
                   ▲
@@ -936,6 +1009,7 @@ function ShapesList() {
                   onClick={() => reorder(shape.id, 1)}
                   disabled={index === shapes.length - 1}
                   aria-label={`Move ${shape.name} down the list`}
+                  {...explain('Moves this shape one place down the list.', 'For keeping the list in an order you can read; UNDO takes it back.')}
                   className={`${small} ${pressable(false)}`}
                 >
                   ▼
@@ -977,7 +1051,7 @@ function ShapeProperties({ shape }: { shape: Shape }) {
     <section aria-label="Shape properties" className={PANEL}>
       <PanelTitle>
         <span>PROPERTIES</span>
-        <button type="button" onClick={() => selectShape(null)} className="px-1 text-label font-bold underline max-sm:min-h-tap">
+        <button type="button" onClick={() => selectShape(null)} className="px-1 text-label font-bold underline max-sm:min-h-tap" {...explain('Lets go of the picked shape and closes its properties.', 'Your changes are already made; nothing is lost.')}>
           [ DONE ]
         </button>
       </PanelTitle>
@@ -996,6 +1070,7 @@ function ShapeProperties({ shape }: { shape: Shape }) {
               aria-pressed={shape.kind === kind}
               aria-label={MASS_SHAPES[kind].label}
               title={`${MASS_SHAPES[kind].label} - ${MASS_SHAPES[kind].note}`}
+              {...explain(`Turns the picked shape into a ${MASS_SHAPES[kind].label.toLowerCase()}.`, SHAPE_WORDS[kind])}
               className={`h-8 w-8 text-key leading-none max-sm:h-tap max-sm:w-tap ${pressable(shape.kind === kind)}`}
             >
               {MASS_SHAPE_GLYPHS[kind]}
@@ -1016,6 +1091,7 @@ function ShapeProperties({ shape }: { shape: Shape }) {
                 aria-pressed={on}
                 aria-label={dye.label}
                 title={dye.label}
+                {...explain(dye.value === null ? 'Gives the picked shape the figure’s own colour.' : `Dyes the picked shape ${dye.label.toLowerCase()}.`, 'The colour changes at once, and UNDO takes it back.')}
                 className={`h-7 w-7 cursor-pointer rounded-none border-line max-sm:h-tap max-sm:w-tap ${on ? 'border-ink outline outline-2 outline-bubble' : 'border-ink'}`}
                 style={{ background: dye.value ?? MODEL_INK }}
               />
@@ -1050,11 +1126,16 @@ function ShapeProperties({ shape }: { shape: Shape }) {
           }}
           aria-disabled={full}
           title={full ? FULL_SHAPES : 'A COPY, BESIDE IT, PINNED TO THE SAME NODE.'}
+          {...explainFrom(
+            full
+              ? { what: 'Rests: the figure holds as many shapes as it can.', why: 'Delete a shape to make room.' }
+              : { what: 'Makes a copy of this shape beside it, pinned to the same node, and picks the copy.', why: 'For pairs that should match, such as two arms.' },
+          )}
           className={`flex-1 px-2 py-1 text-label ${pressable(false)}`}
         >
           [ DUPLICATE ]
         </button>
-        <button type="button" onClick={() => deleteShape(shape.id)} className={`flex-1 px-2 py-1 text-label ${pressable(false)} hover:bg-bubble-pale`}>
+        <button type="button" onClick={() => deleteShape(shape.id)} className={`flex-1 px-2 py-1 text-label ${pressable(false)} hover:bg-bubble-pale`} {...explain('Removes this shape at once, with no question.', 'UNDO brings it back.')}>
           [ DELETE ]
         </button>
       </div>
@@ -1104,6 +1185,7 @@ function Section({ id, label, children }: { id: SectionId; label: string; childr
         type="button"
         onClick={() => toggleSection(id)}
         aria-expanded={open}
+        {...explain(open ? `Folds the ${label.toLowerCase()} settings away.` : `Opens the ${label.toLowerCase()} settings.`, 'The values stay as they are either way.')}
         className="flex w-full cursor-pointer items-center justify-between px-2 py-1 text-label font-bold text-ink hover:bg-ice max-sm:min-h-tap"
       >
         <span>{label}</span>
@@ -1138,6 +1220,7 @@ function FigureSettings() {
           type="button"
           onClick={() => setPresetPicker(true)}
           title="START AGAIN FROM ONE OF THE PRESETS. UNDO BRINGS THIS ONE BACK."
+          {...explain('Opens the figure picker, to start again from one of the starting figures.', 'UNDO brings the figure you have now back.')}
           className={`px-2 py-2 text-key ${pressable(false)}`}
         >
           [ NEW FIGURE... ]
@@ -1168,10 +1251,10 @@ function NodeDelete({ nodeId }: { nodeId: string }) {
           DELETE {removed.length === 1 ? 'THIS NODE' : `${removed.length} NODES`}? UNPINS {losing.map((shape) => shape.name).join(', ')}.
         </p>
         <div className="flex gap-1">
-          <button type="button" onClick={() => deleteNode(nodeId)} className={`flex-1 px-2 py-1 text-label ${pressable(false)} hover:bg-bubble-pale`}>
+          <button type="button" onClick={() => deleteNode(nodeId)} className={`flex-1 px-2 py-1 text-label ${pressable(false)} hover:bg-bubble-pale`} {...explain('Removes what the question names and unpins those shapes.', 'The shapes stay where they are, and UNDO brings the node back.')}>
             [ YES ]
           </button>
-          <button type="button" onClick={() => setAsking(false)} className={`flex-1 px-2 py-1 text-label ${pressable(false)}`}>
+          <button type="button" onClick={() => setAsking(false)} className={`flex-1 px-2 py-1 text-label ${pressable(false)}`} {...explain('Keeps the node and closes the question.', 'Nothing is changed.')}>
             [ NO ]
           </button>
         </div>
@@ -1188,6 +1271,13 @@ function NodeDelete({ nodeId }: { nodeId: string }) {
         else deleteNode(nodeId);
       }}
       aria-disabled={root}
+      {...explainFrom(
+        root
+          ? { what: "Rests: the root node holds the figure up, so it can't go.", why: 'Pick another node to remove one.' }
+          : losing.length > 0
+            ? { what: 'Asks whether to remove this node and any below it.', why: 'Shapes pinned there would be unpinned; UNDO brings it all back.', note: NOTE.asks }
+            : { what: 'Removes this node and any below it at once.', why: 'No shapes are pinned there, and UNDO brings it back.' },
+      )}
       title={
         root
           ? "THE ROOT NODE HOLDS THE FIGURE UP: IT CAN'T GO."

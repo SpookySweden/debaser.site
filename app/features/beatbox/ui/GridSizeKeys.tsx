@@ -4,6 +4,7 @@ import { useRef, type KeyboardEvent } from "react";
 import { nextChoiceIndex } from "./ChoiceGroup";
 import { GRID_SIZES, type GridSize } from "./gridView";
 import { focusOnly } from "./looks";
+import { explain } from '../../../lib/ui/explain';
 
 /** How many notes the grid shows: a row of small numbers, one Tab stop, and the arrow keys change it. */
 export function GridSizeKeys({ size, shortcut, onChoose }: { size: GridSize; shortcut: string; onChoose: (size: GridSize) => void }) {
@@ -34,6 +35,7 @@ export function GridSizeKeys({ size, shortcut, onChoose }: { size: GridSize; sho
             tabIndex={on ? 0 : -1}
             title={`${option.words} (${shortcut})`}
             onClick={() => onChoose(option.size)}
+            {...explain(`Sets how many notes the grid shows: ${option.words}.`, "The grid grows if the song has notes outside that.")}
             className={`flex min-h-bb-target-min min-w-bb-target-min cursor-pointer items-center justify-center text-display font-bold uppercase ${focusOnly} active:translate-y-(--press-drop) active:bg-bb-pink active:text-bb-black ${on ? "bg-bb-emerald text-bb-black" : "text-bb-daffodil hover:bg-bb-daffodil hover:text-bb-nigrosine"}`}
           >
             {option.label}

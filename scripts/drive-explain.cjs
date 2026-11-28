@@ -142,7 +142,8 @@ async function boxContrast(page) {
 }
 
 (async () => {
-  const browser = await chromium.launch({ executablePath: findChrome(), headless: true });
+  // The character workbench is three.js (`ssr: false`): a headless browser only has WebGL with the software renderer.
+  const browser = await chromium.launch({ executablePath: findChrome(), headless: true, args: ['--use-angle=swiftshader'] });
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   let live = 0;
   await context.route(/supabase\.(co|in)\/|debaser-site\.vercel\.app|api\.debaser\.site|debaser\.site\//, (route) => {
@@ -553,6 +554,107 @@ async function boxContrast(page) {
   await sleep(2500);
   const boardLinkWords = await sayOf(boardLink);
   check(said(boardLinkWords, 'MESSAGE BOARD page'), 'a link on the link shelf explains itself', boardLinkWords ?? 'none');
+
+  // EXPLAIN-REST-2 (2026-11-28): the comic, the character workbench, animate and beatbox. One area failing to be reached is
+  // counted as a failure and the next area still runs, so a run on old code lists every area.
+  const area = async (name, run) => {
+    console.log(name);
+    try {
+      await run();
+    } catch (error) {
+      check(false, `${name}: the step did not finish`, String(error.message).split('\n')[0]);
+    }
+  };
+  const arrive = async (path, ready) => {
+    await page.goto(`${BASE}${path}`, { waitUntil: 'domcontentloaded', timeout: 240000 });
+    await ready.waitFor({ timeout: 240000 });
+    await page.waitForLoadState('networkidle', { timeout: 60000 }).catch(() => {});
+    await sleep(2000);
+  };
+  const hoverSays = async (what, locator, ...parts) => {
+    let words = null;
+    try {
+      await locator.first().waitFor({ timeout: 20000 });
+      words = await sayOf(locator.first());
+    } catch (error) {
+      words = null;
+    }
+    check(said(words, ...parts), what, words ?? 'none');
+  };
+  const key = (words, within = page) => within.locator('button, a', { hasText: words });
+
+  await area('COMIC: THE CONTENTS, A CHAPTER AND THE STUDIO', async () => {
+    // The mock moderator is this drive's person, so the studio opens.
+    await page.evaluate((id) => window.localStorage.setItem('debaser.moderation.mock.v1', JSON.stringify({ moderators: [{ id, owner: true, addedAt: new Date().toISOString() }] })), ME.id);
+    await arrive('/comic', key('[ STUDIO ]').first());
+    await hoverSays('the contents page: FOLLOW explains itself', key('FOLLOW'), 'new pages', 'bell');
+    await hoverSays('STUDIO explains itself', key('[ STUDIO ]'), 'comic studio');
+    await arrive('/comic/1', key('[ COMMENTS ]').first());
+    await hoverSays("a chapter's COMMENTS explains itself", key('[ COMMENTS ]'), 'comments on the panels');
+    await hoverSays("a page's ZOOM explains itself", key('[ ZOOM ]'), 'on its own');
+    await arrive('/comic/studio', key('[ ADD PAGES ]').first());
+    await hoverSays("the studio's PANELS tab explains itself", key('[ PANELS ]'), 'panel boxes');
+    await hoverSays('ADD PAGES explains itself', key('[ ADD PAGES ]'), 'file chooser', 'QUEUED');
+    await hoverSays("a page's SPREAD explains itself", key('[ SPREAD ]'), 'spread');
+    await hoverSays("a page's DELETE explains itself, with its caution", page.locator('li button', { hasText: '[ DELETE ]' }).last(), 'Asks whether to delete', 'ASKS YOU FIRST');
+    await key('[ RELEASE ]').first().click();
+    await hoverSays('RELEASE tab: TICK ALL explains itself', key('[ TICK ALL ]'), 'Ticks every page');
+    await page.screenshot({ path: join(OUT, 'dark-comic-studio.png') });
+  });
+
+  await area('THE CHARACTER WORKBENCH (three.js, drawn in the browser only)', async () => {
+    await arrive('/account', page.locator('button', { hasText: '[ EDIT PROFILE ]' }).first());
+    await page.locator('button', { hasText: '[ EDIT PROFILE ]' }).first().click();
+    await page.locator('button', { hasText: '[ CHAR' }).first().click();
+    const tool = (name) => page.locator('button', { hasText: name });
+    const shelf = page.locator('button', { hasText: '[ SAVED CHARACTERS ]' }).first();
+    await shelf.waitFor({ timeout: 120000 });
+    await page.locator('canvas').first().waitFor({ timeout: 120000 });
+    await sleep(3000);
+    await hoverSays("the workbench's SELECT explains itself", tool('SELECT'), 'Takes up the SELECT tool');
+    await hoverSays('its ADD explains itself', page.locator('button[aria-expanded]', { hasText: 'ADD' }), 'list of shapes');
+    await hoverSays('its UNDO explains itself, greyed out or not', tool('UNDO'), 'Takes back the last change');
+    await hoverSays('the PIXELATE layer switch explains itself', tool('PIXELATE'), 'big pixels');
+    await hoverSays('the light key explains itself', page.locator('button[aria-label="Light"]'), 'light controls');
+    await tool('NEW').first().click();
+    await hoverSays("the figure picker's START explains itself", tool('[ START ]'), 'chosen starting figure', 'UNDO');
+    await page.locator('button[aria-label="Close the figure picker"]').click();
+    await hoverSays('SAVED CHARACTERS explains itself', shelf, 'saved characters');
+    await shelf.click();
+    await hoverSays("the shelf's SAVE explains itself", page.locator('button', { hasText: '[ SAVE ]' }).last(), 'figure on the bench');
+    await page.screenshot({ path: join(OUT, 'dark-workbench.png') });
+  });
+
+  await area('ANIMATE: THE BARS, THE LAYERS, THE MENU AND THE TIMELINE MENU', async () => {
+    await arrive('/animate', page.locator('[data-animate-menu-key]').first());
+    await hoverSays("animate's FRAMES explains itself", page.locator('[data-animate-frames-key]'), 'timeline menu');
+    await hoverSays('TOOLS explains itself', page.locator('[data-animate-tools-key]'), 'tool pop-up');
+    const layers = page.locator('[data-animate-layers-key]').first();
+    if ((await layers.getAttribute('aria-pressed')) !== 'true') await layers.click();
+    await hoverSays('+ LAYER explains itself', key('[ + LAYER ]'), 'new empty layer');
+    await page.locator('[data-animate-tools-key]').first().click();
+    await hoverSays('a tool in the pop-up explains itself', page.locator('[data-animate-tile="ERASER"]'), 'eraser');
+    await page.keyboard.press('Escape');
+    await page.locator('[data-animate-frames-key]').first().click();
+    await hoverSays("the timeline menu's COPY IT explains itself", page.locator('[data-animate-tile="COPY IT"]'), 'copy of this drawing');
+    await page.keyboard.press('Escape');
+    await page.screenshot({ path: join(OUT, 'dark-animate.png') });
+  });
+
+  await area('BEATBOX: THE MAIN KEYS, A WINDOW AND THE CREDITS', async () => {
+    const main = page.locator('[role="group"][aria-label="Main keys"]');
+    await arrive('/beatbox', main);
+    await hoverSays("beatbox's Play explains itself", main.locator('button[aria-label="Play"]'), 'Plays the song', 'picked bar');
+    await hoverSays('Stop explains itself', main.locator('button[aria-label="Stop"]'), 'Stops the music');
+    await hoverSays('Record explains itself', main.locator('button[aria-label="Record"]'), 'Records');
+    await hoverSays('the Sounds window key explains itself', main.locator('button[data-window-key="sounds"]'), 'Sounds window');
+    await main.locator('button[data-window-key="settings"]').click();
+    await hoverSays('Follow explains itself', page.locator('button', { hasText: /^Follow (on|off)$/ }), 'follow');
+    // CREDITS sits in the Song window, under open and save.
+    await main.locator('button[data-window-key="song"]').click();
+    await hoverSays('CREDITS explains itself', key('[ CREDITS ]'), 'credits page');
+    await page.screenshot({ path: join(OUT, 'dark-beatbox.png') });
+  });
 
   await page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded', timeout: 240000 });
   await media.waitFor({ timeout: 120000 });

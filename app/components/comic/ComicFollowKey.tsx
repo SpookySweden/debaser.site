@@ -3,6 +3,7 @@
 import { setNotifySwitch, useNotifySettings } from '../../lib/notifications/notify-settings-store';
 import { PLATE, PLATE_PRESSED } from '../../lib/ui/controls';
 import { useAuth } from '../AuthProvider';
+import { explain } from '../../lib/ui/explain';
 
 /**
  * COMIC's `[ FOLLOW ]` (SPEC-comic.md, Q12), on the contents page and at the end of each chapter. Following the comic IS
@@ -19,6 +20,10 @@ export default function ComicFollowKey() {
       aria-pressed={prefs.comic}
       disabled={!ready}
       onClick={() => void setNotifySwitch('comic', !prefs.comic)}
+      {...explain(
+        prefs.comic ? 'Stops the bell telling you about new pages of the comic.' : 'Tells you in the bell when new pages of the comic come out.',
+        'One alert for each release. It is the same switch as COMIC NEW PAGES in your notification settings.',
+      )}
       className={prefs.comic ? PLATE_PRESSED : PLATE}
     >
       {prefs.comic ? '[ ✓ FOLLOWING ]' : '[ FOLLOW ]'}

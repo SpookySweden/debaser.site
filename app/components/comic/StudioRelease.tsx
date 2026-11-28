@@ -6,6 +6,7 @@ import { chapterPages, chaptersInOrder, releaseTitle } from '../../lib/comic/rul
 import type { ComicContents } from '../../lib/comic/types';
 import { PLATE, PLATE_MAIN, TITLE_BAR } from '../../lib/ui/controls';
 import ComicPageImage from './ComicPageImage';
+import { explain, NOTE } from '../../lib/ui/explain';
 
 /**
  * The studio's RELEASE (SPEC-comic.md, Q7, Q8): every queued page in reading order. Luke ticks the ones to send out and presses
@@ -64,23 +65,23 @@ export default function StudioRelease({ contents, reload }: { contents: ComicCon
       {queue.length > 0 ? (
         <div className="flex flex-wrap items-center gap-2">
           {!asking ? (
-            <button type="button" className={PLATE_MAIN} disabled={ready.length === 0 || busy} onClick={() => setAsking(true)}>
+            <button type="button" className={PLATE_MAIN} disabled={ready.length === 0 || busy} onClick={() => setAsking(true)} {...explain('Asks to release the ticked pages. Nothing goes out until you answer yes.', 'Greyed out until a ticked page is ready to go.', NOTE.asks)}>
               [ RELEASE ]
             </button>
           ) : (
             <>
-              <button type="button" className={PLATE_MAIN} disabled={busy} onClick={() => void release()}>
+              <button type="button" className={PLATE_MAIN} disabled={busy} onClick={() => void release()} {...explain('Releases these pages to readers now, all together, with one alert to everyone following the comic.', 'There is no schedule: this is the moment they go out.', "READERS SEE THEM AT ONCE. CAN'T BE UNDONE.")}>
                 {`[ YES, RELEASE ${ready.length} ${ready.length === 1 ? 'PAGE' : 'PAGES'} ]`}
               </button>
-              <button type="button" className={PLATE} disabled={busy} onClick={() => setAsking(false)}>
+              <button type="button" className={PLATE} disabled={busy} onClick={() => setAsking(false)} {...explain('Backs out without releasing anything.', 'The ticks stay as they are.')}>
                 [ NO ]
               </button>
             </>
           )}
-          <button type="button" className={PLATE} onClick={() => setTicked(new Set(queue.map((entry) => entry.page.id)))}>
+          <button type="button" className={PLATE} onClick={() => setTicked(new Set(queue.map((entry) => entry.page.id)))} {...explain('Ticks every page in the queue.', 'For sending out everything at once. A page with no copies yet is left behind.')}>
             [ TICK ALL ]
           </button>
-          <button type="button" className={PLATE} disabled={ticked.size === 0} onClick={() => setTicked(new Set())}>
+          <button type="button" className={PLATE} disabled={ticked.size === 0} onClick={() => setTicked(new Set())} {...explain('Takes the tick off every page in the queue.', 'For starting the choice again.')}>
             [ UNTICK ALL ]
           </button>
         </div>
