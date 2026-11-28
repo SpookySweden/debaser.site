@@ -89,13 +89,13 @@ keeps one player alive in a background tab and shows a short LINING UP line.
   System and performance, switch off "Startup boost" and "Continue running background extensions and apps", to free memory.
   Optional, never answered: moving the database tools off the connection pooler (about 210 MB freed, a minute of database
   downtime).
-- REMOTE to the gaming PC (2026-11-28): it stopped connecting because the PC's engine, started at sign-in, came up before
-  the Wi-Fi had its address and handed viewers a dead one; the coordinator restarted it on his word ("Yes, restart it") and
-  it now offers 192.168.0.30, but it breaks again at the PC's next restart. Two builders work on it since 2026-11-28 ~07:15Z:
-  REMOTE-ENGINE-ADDRESS (the lasting fix) and REMOTE-ANYWHERE (his "get it working from any wifi, remotely, no setup": a way
-  through the site itself, "okay but make sure it doesnt cost and look into it"; the engine opening a router port by itself,
-  "Yes, automatically"; "Wait until sound works too"). Briefs and research: `remote-*.md` in the 69ad notes folder. His own
-  try from the laptop on the home Wi-Fi is owed.
+- REMOTE to the gaming PC (2026-11-28): the lasting fix is in. It had stopped connecting because the PC's engine, started
+  at sign-in, came up before the Wi-Fi had its address; the engine now reads the PC's addresses at every viewer's hello,
+  and the PC runs that engine (swapped on his "Yes, swap it"; old file kept beside it). A test viewer from SERVER got the
+  picture over the home network. Owed: his own try from the laptop on the home Wi-Fi; a real PC restart is untried.
+  REMOTE-ANYWHERE is still working (his "get it working from any wifi, remotely, no setup": a way through the site itself,
+  "okay but make sure it doesnt cost and look into it"; the engine opening a router port by itself, "Yes, automatically";
+  "Wait until sound works too"). Briefs and research: `remote-*.md` in the 69ad notes folder.
 - SCREENS relay: activate Cloudflare Realtime/TURN on his account (he ticks the terms and pays himself), then paste the
   key into the RELAY KEY form.
 - Off-site backup (Proton Drive, task `DebaserOffsite`) is built but off until he runs
