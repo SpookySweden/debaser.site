@@ -10,6 +10,7 @@ import { useWebItem } from '../lib/web/use-web-item';
 import PopoutWindow from './PopoutWindow';
 import { WebRow } from './WebStream';
 import SeeKey from './SeeKey';
+import { explain, NOTE } from '../lib/ui/explain';
 
 const NO_HOSTS = {};
 const NOTHING = () => undefined;
@@ -54,7 +55,7 @@ export default function LetterItemPopout({
       onClose={onClose}
       maxWidth="max-w-xl"
       centred
-      actions={owner ? <button type="button" onClick={() => void remove()} className={PLATE}>[ TAKE OUT ]</button> : undefined}
+      actions={owner ? <button type="button" onClick={() => void remove()} {...explain('Takes this thing off the letter.', 'The thing itself stays where it lives; add it again any time.', 'NO QUESTION IS ASKED.')} className={PLATE}>[ TAKE OUT ]</button> : undefined}
     >
       {item.kind === 'web' && webItem ? (
         <ul
@@ -80,7 +81,7 @@ export default function LetterItemPopout({
             <p className="mt-3">
               {outside ? (
                 <>
-                <a href={href} target="_blank" rel="noopener noreferrer nofollow" onClick={() => onUse?.()} className={PLATE_MAIN}>
+                <a href={href} target="_blank" rel="noopener noreferrer nofollow" onClick={() => onUse?.()} {...explain('Opens the pasted address on its own site.', 'This letter stays open here behind it.', NOTE.leaves)} className={PLATE_MAIN}>
                   {verb} ↗
                 </a>
                 <SeeKey href={href} />
@@ -92,6 +93,7 @@ export default function LetterItemPopout({
                     onUse?.();
                     onClose();
                   }}
+                  {...explain('Goes to the page on this site where this thing lives.', 'To watch, listen to or read it. This small window closes.')}
                   className={PLATE_MAIN}
                 >
                   {verb}

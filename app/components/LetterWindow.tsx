@@ -19,6 +19,7 @@ import { noteHistory } from '../lib/recommender/history';
 import { armPlayContext } from '../lib/history/plays';
 import { accountName } from '../lib/history/names';
 import { fileMade } from '../lib/forum/made-filing';
+import { explain, NOTE } from '../lib/ui/explain';
 
 /**
  * One letter, in a window over whatever page it was opened from (SPEC-letters.md). Its name at the top in its own colour,
@@ -101,14 +102,14 @@ function LetterWindowBody({ letterId, onClose }: { letterId: string; onClose: ()
                 </span>
               </h2>
               {owner ? (
-                <button type="button" onClick={() => setSettings(true)} aria-label="Letter settings" title="SETTINGS" className={PLATE}>
+                <button type="button" onClick={() => setSettings(true)} {...explain('Opens this letter\'s settings.', 'Its stamp picture, name, description and text colour, and deleting it. Only its owner sees this key.')} aria-label="Letter settings" title="SETTINGS" className={PLATE}>
                   [ ⚙ ]
                 </button>
               ) : null}
               {/* SEND TO (SPEC-letter-drag.md): recommending the whole letter without dragging it, for anyone signed in who
                   can see it: its owner, or a reader passing a public letter on. */}
               {user !== null ? (
-                <button type="button" onClick={() => setSending(true)} aria-haspopup="dialog" className={PLATE} disabled={held.length === 0} title={held.length === 0 ? EMPTY_LETTER : undefined}>
+                <button type="button" onClick={() => setSending(true)} {...explain('Opens a box to send this whole letter to people, as a recommendation.', 'Pick who gets it and add a note if you like. Greyed out while the letter is empty.', NOTE.others)} aria-haspopup="dialog" className={PLATE} disabled={held.length === 0} title={held.length === 0 ? EMPTY_LETTER : undefined}>
                   [ SEND TO ]
                 </button>
               ) : null}
@@ -118,13 +119,14 @@ function LetterWindowBody({ letterId, onClose }: { letterId: string; onClose: ()
                     type="button"
                     onClick={() => void flipLock()}
                     aria-pressed={!value.isPublic}
+                    {...explain(value.isPublic ? 'Makes this letter private, so only you can see it.' : 'Makes this letter public, so anyone can see it.', value.isPublic ? 'It is public now. Pressing locks it at once.' : 'It is private now. Pressing opens it up at once.', value.isPublic ? undefined : NOTE.others)}
                     aria-label={value.isPublic ? 'Public: anyone can see this letter. Press to make it private.' : 'Private: only you can see this letter. Press to make it public.'}
                     title={value.isPublic ? 'PUBLIC' : 'PRIVATE'}
                     className={PLATE}
                   >
                     {value.isPublic ? '[ 🔓 PUBLIC ]' : '[ 🔒 PRIVATE ]'}
                   </button>
-                  <button type="button" onClick={() => void shuffle()} className={PLATE} disabled={held.length < 2}>
+                  <button type="button" onClick={() => void shuffle()} {...explain('Throws every card on this letter to a new random spot and tilt.', 'For a fresh layout. Greyed out with fewer than two things.', 'THE NEW PLACES ARE SAVED AT ONCE.')} className={PLATE} disabled={held.length < 2}>
                     [ SHUFFLE ]
                   </button>
                 </>

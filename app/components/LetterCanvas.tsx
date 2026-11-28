@@ -3,6 +3,7 @@
 import type { CSSProperties } from 'react';
 import type { Letter, LetterItem } from '../lib/letters/types';
 import { cardPicture, KIND_LABELS } from '../lib/letters/things';
+import { explain } from '../lib/ui/explain';
 
 /**
  * A letter's canvas (SPEC-letters.md): the stamp picture repeating behind at the letter's opacity and density, and the
@@ -56,6 +57,7 @@ function LetterCard({ item, onOpen }: { item: LetterItem; onOpen: (item: LetterI
     <button
       type="button"
       onClick={() => onOpen(item)}
+      {...explain('Opens this thing\'s details in a small window.', 'Its picture, title and the key to watch, listen to, read or open it.')}
       aria-label={`${KIND_LABELS[item.kind]}: ${item.title || item.ref}. Open its details.`}
       className="block w-full cursor-pointer border border-ink bg-sun-pale p-0.5 text-left hover:bg-paper focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-ink"
     >

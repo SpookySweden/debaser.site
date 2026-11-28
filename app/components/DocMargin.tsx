@@ -8,6 +8,7 @@ import { getDocsRepository } from '../lib/docs/repository';
 import type { DocComment, DocRole, DocViewer } from '../lib/docs/types';
 import { DOC_FAULT, DOC_KEY, DOC_KEY_MAIN, dateWords } from '../lib/docs/ui';
 import { FIELD, TITLE_BAR } from '../lib/ui/controls';
+import { explain, NOTE } from '../lib/ui/explain';
 
 /** Words picked for a new comment: where they are (relative places) and what they say. */
 export type CommentDraft = {
@@ -245,7 +246,7 @@ export default function DocMargin({ editor, docId, viewer, role, draft, beside, 
       <div className={TITLE_BAR}>
         <span>COMMENTS</span>
         {resolvedCount === 0 ? null : (
-          <button type="button" className={DOC_KEY} onClick={() => setShowResolved((value) => !value)}>
+          <button type="button" {...explain(showResolved ? 'Hides the comments marked done.' : 'Shows the comments marked done as well.', 'Done comments are put away, not deleted.')} className={DOC_KEY} onClick={() => setShowResolved((value) => !value)}>
             {showResolved ? '[ HIDE DONE ]' : `[ SHOW DONE ${resolvedCount} ]`}
           </button>
         )}
@@ -270,10 +271,10 @@ export default function DocMargin({ editor, docId, viewer, role, draft, beside, 
               autoFocus
             />
             <div className="mt-1 flex flex-wrap gap-2">
-              <button type="button" className={DOC_KEY_MAIN} disabled={busy || body.trim().length === 0} onClick={() => void leave()}>
+              <button type="button" {...explain('Leaves your comment beside the selected words.', 'Everyone who can open the document sees it.', NOTE.others)} className={DOC_KEY_MAIN} disabled={busy || body.trim().length === 0} onClick={() => void leave()}>
                 [ ADD COMMENT ]
               </button>
-              <button type="button" className={DOC_KEY} onClick={onDraftDone}>
+              <button type="button" {...explain('Drops this new comment without leaving it.', 'What you typed is lost.')} className={DOC_KEY} onClick={onDraftDone}>
                 [ CANCEL ]
               </button>
             </div>
@@ -312,7 +313,7 @@ export default function DocMargin({ editor, docId, viewer, role, draft, beside, 
                   </p>
                   <p className="docs-meta whitespace-pre-wrap break-words text-ink">{answerRow.body}</p>
                   {viewer !== null && answerRow.authorId === viewer.id ? (
-                    <button type="button" className={DOC_KEY} onClick={() => void act(() => repository.deleteComment(answerRow.id))}>
+                    <button type="button" {...explain('Deletes your reply at once.', 'No question is asked.', NOTE.undo)} className={DOC_KEY} onClick={() => void act(() => repository.deleteComment(answerRow.id))}>
                       [ DELETE ]
                     </button>
                   ) : null}
@@ -334,24 +335,24 @@ export default function DocMargin({ editor, docId, viewer, role, draft, beside, 
                     autoFocus
                   />
                   <div className="mt-1 flex flex-wrap gap-2">
-                    <button type="button" className={DOC_KEY} disabled={busy || reply.trim().length === 0} onClick={() => void answer(comment.id)}>
+                    <button type="button" {...explain('Posts your reply under this comment.', 'Everyone who can open the document sees it.', NOTE.others)} className={DOC_KEY} disabled={busy || reply.trim().length === 0} onClick={() => void answer(comment.id)}>
                       [ SEND ]
                     </button>
-                    <button type="button" className={DOC_KEY} onClick={() => setReplyTo(null)}>
+                    <button type="button" {...explain('Closes the reply box without posting.', 'The comment stays as it was.')} className={DOC_KEY} onClick={() => setReplyTo(null)}>
                       [ CANCEL ]
                     </button>
                   </div>
                 </div>
               ) : editing && viewer !== null ? (
                 <div className="mt-1 flex flex-wrap gap-x-2">
-                  <button type="button" className={DOC_KEY} onClick={() => setReplyTo(comment.id)}>
+                  <button type="button" {...explain('Opens a box to answer this comment.', 'The answer sits under it.')} className={DOC_KEY} onClick={() => setReplyTo(comment.id)}>
                     [ REPLY ]
                   </button>
-                  <button type="button" className={DOC_KEY} onClick={() => void act(() => repository.setResolved(comment.id, !comment.resolved, viewer))}>
+                  <button type="button" {...explain(comment.resolved ? 'Opens this comment again, back among the others.' : 'Marks this comment as dealt with and puts it away.', comment.resolved ? 'For when it still needs something done.' : 'It is kept: SHOW DONE brings it back.', NOTE.others)} className={DOC_KEY} onClick={() => void act(() => repository.setResolved(comment.id, !comment.resolved, viewer))}>
                     {comment.resolved ? '[ OPEN AGAIN ]' : '[ DONE ]'}
                   </button>
                   {mine || role === 'owner' ? (
-                    <button type="button" className={DOC_KEY} onClick={() => void act(() => repository.deleteComment(comment.id))}>
+                    <button type="button" {...explain('Deletes this comment and every reply under it, at once.', 'To keep it but put it away, press DONE instead. No question is asked.', NOTE.undo)} className={DOC_KEY} onClick={() => void act(() => repository.deleteComment(comment.id))}>
                       [ DELETE ]
                     </button>
                   ) : null}

@@ -5,6 +5,7 @@ import { addThing } from '../lib/letters/store';
 import { isWebAddress } from '../lib/letters/things';
 import { LETTER_TITLE_MAX } from '../lib/letters/types';
 import { FIELD_TIGHT, PLATE } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 
 /**
  * Any web address, pasted into a letter (SPEC-letters.md): a plain link card with the title the person gives it, or the
@@ -60,7 +61,7 @@ export default function LetterLinkForm({ letterId }: { letterId: string }) {
         maxLength={LETTER_TITLE_MAX}
         className={`${FIELD_TIGHT} min-w-0 flex-1 basis-32`}
       />
-      <button type="submit" className={PLATE} disabled={busy}>
+      <button type="submit" {...explain('Adds the pasted address to this letter as a link card.', 'With no title given, the card takes the site\'s name. Nothing is read from the page.')} className={PLATE} disabled={busy}>
         [ + ADD LINK ]
       </button>
       {note ? (

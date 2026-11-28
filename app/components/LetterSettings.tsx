@@ -12,6 +12,7 @@ import { FIELD, PLATE, PLATE_MAIN, PLATE_PRESSED } from '../lib/ui/controls';
 import LetterStamp, { StampCircle } from './LetterStamp';
 import { nameInkStyle } from './NameColourWindow';
 import PopoutWindow from './PopoutWindow';
+import { explain, NOTE } from '../lib/ui/explain';
 
 /**
  * A letter's settings, behind the cog next to its name (SPEC-letters.md): the stamp picture (upload one, or pick the picture
@@ -93,14 +94,15 @@ export default function LetterSettings({ letter, items, onClose }: { letter: Let
     <PopoutWindow
       title="LETTER SETTINGS"
       onClose={close}
+      closeWords={{ what: 'Closes the letter settings without saving.', why: 'With changes not yet saved, it asks you first. Esc does the same.', note: NOTE.asks }}
       dismissOnBackdrop={false}
       maxWidth="max-w-xl"
       actions={
         <>
-          <button type="button" onClick={() => setConfirmDelete(true)} className={PLATE} disabled={busy}>
+          <button type="button" onClick={() => setConfirmDelete(true)} {...explain('Asks whether to delete this letter and everything on it.', 'The question appears at the bottom of these settings; nothing goes until you answer yes.')} className={PLATE} disabled={busy}>
             [ DELETE LETTER ]
           </button>
-          <button type="button" onClick={() => void save()} className={PLATE_MAIN} disabled={busy}>
+          <button type="button" onClick={() => void save()} {...explain('Saves the picture, name, description and colour, then closes the settings.', 'Nothing changed here is kept until you press it. A letter needs a name.')} className={PLATE_MAIN} disabled={busy}>
             SAVE
           </button>
         </>
@@ -116,7 +118,7 @@ export default function LetterSettings({ letter, items, onClose }: { letter: Let
             </h3>
           </div>
           <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <label className="flex items-center gap-2 text-label text-ink">
+            <label className="flex items-center gap-2 text-label text-ink" {...explain('Slides how strongly the stamp picture shows behind the cards.', 'Left is invisible, right is solid. Kept when you press SAVE.')}>
               <span className="w-20 shrink-0">OPACITY</span>
               <input
                 type="range"
@@ -128,7 +130,7 @@ export default function LetterSettings({ letter, items, onClose }: { letter: Let
               />
               <span className="w-10 shrink-0 text-right">{draft.stampOpacity}%</span>
             </label>
-            <label className="flex items-center gap-2 text-label text-ink">
+            <label className="flex items-center gap-2 text-label text-ink" {...explain('Slides how many times the stamp picture repeats across the letter.', 'Left is one big picture, right is ten small ones across. Kept when you press SAVE.')}>
               <span className="w-20 shrink-0">DENSITY</span>
               <input
                 type="range"
@@ -141,11 +143,11 @@ export default function LetterSettings({ letter, items, onClose }: { letter: Let
               <span className="w-10 shrink-0 text-right">{draft.stampDensity}</span>
             </label>
             <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => fileRef.current?.click()} className={PLATE} disabled={busy}>
+              <button type="button" onClick={() => fileRef.current?.click()} {...explain('Picks a picture from your computer to be the stamp.', 'PNG, JPG, WEBP or GIF. It is uploaded at once; SAVE puts it on the letter.')} className={PLATE} disabled={busy}>
                 [ UPLOAD PICTURE ]
               </button>
               {draft.stampUrl ? (
-                <button type="button" onClick={() => setDraft((held) => ({ ...held, stampUrl: undefined }))} className={PLATE} disabled={busy}>
+                <button type="button" onClick={() => setDraft((held) => ({ ...held, stampUrl: undefined }))} {...explain('Takes the picture off the stamp.', 'No picture in the envelope or behind the cards. Kept when you press SAVE.')} className={PLATE} disabled={busy}>
                   [ NO PICTURE ]
                 </button>
               ) : null}
@@ -173,6 +175,7 @@ export default function LetterSettings({ letter, items, onClose }: { letter: Let
                     type="button"
                     aria-pressed={draft.stampUrl === src}
                     aria-label="Use this picture"
+                    {...explain('Makes this picture the letter\'s stamp.', 'It is the picture of a thing already on the letter. Kept when you press SAVE.')}
                     onClick={() => setDraft((held) => ({ ...held, stampUrl: src }))}
                     className={`block p-0.5 ${draft.stampUrl === src ? 'outline outline-2 outline-accent-ink' : ''}`}
                   >
@@ -212,6 +215,7 @@ export default function LetterSettings({ letter, items, onClose }: { letter: Let
               <button
                 type="button"
                 aria-pressed={draft.textColour === undefined}
+                {...explain('Gives the name and description the site\'s usual text colour.', 'It follows whatever theme the reader uses. Kept when you press SAVE.')}
                 onClick={() => setDraft((held) => ({ ...held, textColour: undefined }))}
                 className={draft.textColour === undefined ? PLATE_PRESSED : PLATE}
               >
@@ -224,6 +228,7 @@ export default function LetterSettings({ letter, items, onClose }: { letter: Let
                   type="button"
                   aria-pressed={draft.textColour === colour.hex}
                   aria-label={colour.label}
+                  {...explain(`Colours the letter's name, description and envelope ${colour.label}.`, 'The line underneath shows the name in it. Kept when you press SAVE.')}
                   title={colour.label}
                   onClick={() => setDraft((held) => ({ ...held, textColour: colour.hex }))}
                   className={`name-ink block h-8 w-8 border border-ink bg-current ${draft.textColour === colour.hex ? 'outline outline-2 outline-accent-ink' : ''}`}
@@ -245,10 +250,10 @@ export default function LetterSettings({ letter, items, onClose }: { letter: Let
               DELETE &quot;{letter.name}&quot; AND THE {items.length} {items.length === 1 ? 'THING' : 'THINGS'} ON IT? THIS CAN&apos;T BE UNDONE.
             </p>
             <p className="mt-2 flex gap-2">
-              <button type="button" onClick={() => void remove()} className={PLATE} disabled={busy}>
+              <button type="button" onClick={() => void remove()} {...explain('Deletes this letter and everything on it, for good.', 'The things themselves stay where they live on the site; only the letter goes.', NOTE.undo)} className={PLATE} disabled={busy}>
                 [ YES, DELETE ]
               </button>
-              <button type="button" onClick={() => setConfirmDelete(false)} className={PLATE} disabled={busy}>
+              <button type="button" onClick={() => setConfirmDelete(false)} {...explain('Puts the question away and keeps the letter.', 'Nothing is deleted.')} className={PLATE} disabled={busy}>
                 [ KEEP IT ]
               </button>
             </p>
@@ -315,7 +320,7 @@ function StampSearch({ chosen, onPick }: { chosen?: string; onPick: (src: string
           aria-label="Search pictures for the stamp"
           className={`${FIELD} mt-0 min-w-0 flex-1`}
         />
-        <button type="button" onClick={() => void find()} className={PLATE} disabled={busy}>
+        <button type="button" onClick={() => void find()} {...explain('Searches free picture collections for the words in the box.', 'Openverse, Wikimedia Commons and the Internet Archive. Enter does the same.')} className={PLATE} disabled={busy}>
           {busy ? '[ ... ]' : '[ FIND ]'}
         </button>
       </div>
@@ -328,6 +333,7 @@ function StampSearch({ chosen, onPick }: { chosen?: string; onPick: (src: string
                 type="button"
                 aria-pressed={chosen === picture.src}
                 aria-label={`Use "${picture.title}" as the stamp`}
+                {...explain(`Makes "${picture.title}" the letter's stamp.`, 'The picture stays where it lives; nothing is copied. Kept when you press SAVE.')}
                 title={picture.title}
                 onClick={() => onPick(picture.src)}
                 className={`block p-0.5 ${chosen === picture.src ? 'outline outline-2 outline-accent-ink' : ''}`}

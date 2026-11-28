@@ -25,6 +25,7 @@ import DocsScale from './DocsScale';
 import { useForum } from './ForumProvider';
 import TalkedAboutIn from './TalkedAboutIn';
 import { docPath } from '../lib/docs/rules';
+import { explain, NOTE } from '../lib/ui/explain';
 
 type DocViewProps = {
   target: DocTarget;
@@ -101,11 +102,11 @@ export default function DocView({ target }: DocViewProps) {
         {/* The same words whether it does not exist or is not yours to see: nothing is given away. */}
         <p className="docs-key text-ink">NO DOCUMENT HERE{viewer === null ? ' - OR IT NEEDS AN ACCOUNT' : ' THAT YOU CAN OPEN'}.</p>
         <div className="flex flex-wrap gap-3">
-          <Link href={'slug' in target ? LORE_PATH : '/docs'} className={DOC_KEY}>
+          <Link href={'slug' in target ? LORE_PATH : '/docs'} className={DOC_KEY} {...explain('slug' in target ? 'Goes back to the list of lore pages.' : 'Goes back to the list of documents.', 'There is nothing to open at this address.')}>
             {'slug' in target ? '[ < LORE ]' : '[ < ALL DOCUMENTS ]'}
           </Link>
           {viewer === null ? (
-            <Link href="/account" className={DOC_KEY}>
+            <Link href="/account" className={DOC_KEY} {...explain('Goes to the account page to sign in or sign up.', 'This document may open once you are signed in.')}>
               [ LOG IN ]
             </Link>
           ) : null}
@@ -156,13 +157,13 @@ export default function DocView({ target }: DocViewProps) {
   return (
     <DocsScale className="space-y-3">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <Link href={lore ? LORE_PATH : folderPath(record.folderId)} className={DOC_KEY}>
+        <Link href={lore ? LORE_PATH : folderPath(record.folderId)} className={DOC_KEY} {...explain(lore ? 'Goes back to the list of lore pages.' : 'Goes back to the folder or list this document is in.', live.editing ? 'Your writing is saved on the way out.' : 'To pick another one.')}>
           {lore ? '[ < LORE ]' : '[ < ALL DOCUMENTS ]'}
         </Link>
         <span className="ml-auto inline-flex flex-wrap items-center gap-x-4 gap-y-2">
           <span className="docs-meta text-ink">WHO CAN OPEN IT: {accessWords(record.access, owner)}</span>
           {owner && viewer !== null ? (
-            <button type="button" className={DOC_KEY_MAIN} onClick={() => setOpen('sharing')}>
+            <button type="button" {...explain('Opens the sharing window: the link, and who can open this document.', 'To let other people read it or write in it. Only its owner sees this key.')} className={DOC_KEY_MAIN} onClick={() => setOpen('sharing')}>
               [ SHARE ]
             </button>
           ) : null}
@@ -175,6 +176,7 @@ export default function DocView({ target }: DocViewProps) {
             {live.editing ? (
               <button
                 type="button"
+                {...explain('Turns the title into a box so you can rename the document.', 'To give it a better one. Nothing changes until you press SAVE NAME.')}
                 className={`key inline-flex max-w-full cursor-pointer flex-wrap items-baseline gap-x-4 px-1 py-1 text-left ${KEY_FOCUS}`}
                 onClick={() => setRenaming(record.title)}
               >
@@ -207,10 +209,10 @@ export default function DocView({ target }: DocViewProps) {
               autoComplete="off"
               autoFocus
             />
-            <button type="submit" className={DOC_KEY} disabled={renaming.trim().length === 0}>
+            <button type="submit" {...explain('Gives the document the name in the box.', 'Everyone who opens it sees the new name.', NOTE.others)} className={DOC_KEY} disabled={renaming.trim().length === 0}>
               [ SAVE NAME ]
             </button>
-            <button type="button" className={DOC_KEY} onClick={() => setRenaming(null)}>
+            <button type="button" {...explain('Puts the name box away without renaming.', 'The document keeps its old name.')} className={DOC_KEY} onClick={() => setRenaming(null)}>
               [ CANCEL ]
             </button>
           </form>
@@ -240,7 +242,7 @@ export default function DocView({ target }: DocViewProps) {
 
       {viewer === null ? (
         <p className="docs-key text-ink">
-          <Link href="/account" className={DOC_KEY}>
+          <Link href="/account" className={DOC_KEY} {...explain('Goes to the account page to sign in or sign up.', 'Writing in this document needs an account.')}>
             [ LOG IN ]
           </Link>{' '}
           TO WRITE
@@ -248,7 +250,7 @@ export default function DocView({ target }: DocViewProps) {
       ) : null}
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <button type="button" className={DOC_KEY} onClick={() => setOpen('history')}>
+        <button type="button" {...explain('Opens the earlier versions of this document.', 'To look back at old writing, keep a named copy, or bring an old one back.')} className={DOC_KEY} onClick={() => setOpen('history')}>
           [ HISTORY ]
         </button>
         <CommentPopout anchor={docAnchor(record)} label="BOARD THREAD" className={DOC_KEY} />
@@ -257,15 +259,15 @@ export default function DocView({ target }: DocViewProps) {
           <span className="ml-auto inline-flex flex-wrap items-center gap-x-3 gap-y-2">
             {deleting ? (
               <>
-                <button type="button" className={DOC_KEY} onClick={() => void remove()}>
+                <button type="button" {...explain('Deletes this document for everyone, at once.', 'Its comments, history and its own post on the board go with it.', NOTE.undo)} className={DOC_KEY} onClick={() => void remove()}>
                   [ REALLY DELETE IT? IT CANNOT COME BACK ]
                 </button>
-                <button type="button" className={DOC_KEY} onClick={() => setDeleting(false)}>
+                <button type="button" {...explain('Puts the question away and keeps the document.', 'Nothing is deleted.')} className={DOC_KEY} onClick={() => setDeleting(false)}>
                   [ KEEP IT ]
                 </button>
               </>
             ) : (
-              <button type="button" className={DOC_KEY} onClick={() => setDeleting(true)}>
+              <button type="button" {...explain('Asks whether to delete this document.', 'A second press is needed before anything goes. Only its owner sees this key.', NOTE.asks)} className={DOC_KEY} onClick={() => setDeleting(true)}>
                 [ DELETE THIS DOCUMENT ]
               </button>
             )}

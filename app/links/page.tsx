@@ -4,6 +4,7 @@ import ProjectSectionNav from '../components/ProjectSectionNav';
 import SiteWindow from '../components/SiteWindow';
 import { projectSection } from '../lib/projects/debaser';
 import { ARCHIVE_LINKS, OUTBOUND_LINKS } from '../lib/projects/links';
+import { explain } from '../lib/ui/explain';
 
 export const metadata: Metadata = {
   title: 'DEBASER.SITE - Links',
@@ -38,7 +39,7 @@ export default function LinksPage() {
             key={link.id}
             className="rule-pixel flex flex-wrap items-baseline gap-x-2 gap-y-1 p-2 text-label font-bold"
           >
-            <Link href={link.href} className="text-key underline hover:bg-pointed max-sm:inline-flex max-sm:min-h-tap max-sm:items-center">
+            <Link href={link.href} {...explain(`Goes to the ${link.label} page of this site.`, link.summary)} className="text-key underline hover:bg-pointed max-sm:inline-flex max-sm:min-h-tap max-sm:items-center">
               {link.label}
             </Link>
             <span className="text-ink">:: {link.summary}</span>

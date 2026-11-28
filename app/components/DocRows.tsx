@@ -4,6 +4,7 @@ import { docPath } from '../lib/docs/rules';
 import type { DocFolder, DocSummary } from '../lib/docs/types';
 import { accessWords, whenWords } from '../lib/docs/ui';
 import { KEY_FOCUS } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 
 /** A whole row to press: the pointed-at fill, which carries the field's own inks in every theme. */
 const ROW_LINK = `flex min-w-0 flex-1 items-start gap-3 px-2 py-3 text-ink hover:bg-pointed ${KEY_FOCUS}`;
@@ -37,7 +38,7 @@ export function DocRow({ doc, viewerId, now, folderName = null, action }: DocRow
 
   return (
     <li className="rule-pixel flex items-center gap-2" data-doc-row={doc.id}>
-      <Link href={docPath(doc)} className={ROW_LINK}>
+      <Link href={docPath(doc)} className={ROW_LINK} {...explain('Opens this document.', 'The whole row opens it, to read it or write in it, whichever you are allowed.')}>
         <span className={ROW_MARK} aria-hidden="true">
           ≡
         </span>
@@ -61,7 +62,7 @@ type FolderRowProps = {
 export function FolderRow({ folder, href }: FolderRowProps) {
   return (
     <li className="rule-pixel flex items-center gap-2" data-doc-folder={folder.id}>
-      <Link href={href} className={ROW_LINK}>
+      <Link href={href} className={ROW_LINK} {...explain('Opens this folder and lists what is in it.', 'The whole row opens it.')}>
         <span className={ROW_MARK} aria-hidden="true">
           ■
         </span>

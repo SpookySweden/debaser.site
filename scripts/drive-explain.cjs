@@ -340,11 +340,16 @@ async function boxContrast(page) {
   await boardRow.waitFor({ timeout: 120000 });
   await sleep(1500);
   const sayOf = async (locator) => {
-    await page.mouse.move(700, 900);
-    await sleep(300);
-    await locator.hover();
-    await sleep(800);
-    return boxText(page);
+    // A page still waking up misses a hover: no box is tried again, twice, before it counts.
+    let words = null;
+    for (let tries = 0; tries < 3 && words === null; tries += 1) {
+      await page.mouse.move(700, 900);
+      await sleep(tries === 0 ? 300 : 2000);
+      await locator.hover();
+      await sleep(800);
+      words = await boxText(page);
+    }
+    return words;
   };
   const galleryWords = await sayOf(boardRow.locator('button', { hasText: 'GALLERY' }));
   check(galleryWords !== null && galleryWords.includes('carry a picture'), "the board's GALLERY tab explains itself", galleryWords ?? 'none');
@@ -448,6 +453,107 @@ async function boxContrast(page) {
   await page.screenshot({ path: join(OUT, 'dark-reader-look.png') });
   console.log(`  (Open Library was answered here, never asked: ${library} request${library === 1 ? '' : 's'} caught)`);
 
+  // Letters (EXPLAIN-REST-1, 2026-11-28): a letter made here on the mock, its window, its settings and one thing on it.
+  console.log('LETTERS: A LETTER, ITS SETTINGS AND A THING ON IT');
+  await page.goto(`${BASE}/profile/${ME.id}`, { waitUntil: 'domcontentloaded', timeout: 240000 });
+  const newLetter = page.locator('[data-new-letter-key]');
+  await newLetter.waitFor({ timeout: 240000 });
+  await sleep(1500);
+  await newLetter.click();
+  await page.locator('#new-letter-name').fill('ZZQX EXPLAIN LETTER');
+  await page.keyboard.press('Enter');
+  const letter = page.locator('[data-dock-window="letter"]');
+  await letter.waitFor({ timeout: 60000 });
+  await sleep(1500);
+  const sendToWords = await sayOf(letter.locator('button', { hasText: 'SEND TO' }));
+  check(said(sendToWords, 'send this whole letter', 'Greyed out while the letter is empty'), "the letter's SEND TO explains itself, greyed out or not", sendToWords ?? 'none');
+  const lockWords = await sayOf(letter.locator('button', { hasText: 'PRIVATE' }).or(letter.locator('button', { hasText: 'PUBLIC' })).first());
+  check(said(lockWords, 'Makes this letter'), "the letter's lock explains itself", lockWords ?? 'none');
+  await letter.locator('input[aria-label="Link address"]').fill('https://example.com/zzqx');
+  const addLinkWords = await sayOf(letter.locator('button', { hasText: 'ADD LINK' }));
+  check(said(addLinkWords, 'link card'), '+ ADD LINK explains itself', addLinkWords ?? 'none');
+  await letter.locator('button', { hasText: 'ADD LINK' }).click();
+  const thing = letter.locator('button[aria-label$="Open its details."]').first();
+  await thing.waitFor({ timeout: 30000 });
+  const thingWords = await sayOf(thing);
+  check(said(thingWords, "Opens this thing's details"), 'a card on the letter explains itself', thingWords ?? 'none');
+  await thing.click();
+  const takeOut = page.locator('button', { hasText: 'TAKE OUT' });
+  await takeOut.waitFor({ timeout: 30000 });
+  const takeOutWords = await sayOf(takeOut);
+  check(said(takeOutWords, 'Takes this thing off the letter', 'NO QUESTION IS ASKED'), 'TAKE OUT explains itself, with its caution', takeOutWords ?? 'none');
+  await page.keyboard.press('Escape');
+  await takeOut.waitFor({ state: 'detached', timeout: 15000 });
+  await letter.locator('button[aria-label="Letter settings"]').click();
+  const deleteLetter = page.locator('button', { hasText: 'DELETE LETTER' });
+  await deleteLetter.waitFor({ timeout: 30000 });
+  const densityWords = await sayOf(page.locator('label', { hasText: 'DENSITY' }));
+  check(said(densityWords, 'how many times the stamp picture repeats'), 'the DENSITY slider explains itself', densityWords ?? 'none');
+  const deleteLetterWords = await sayOf(deleteLetter);
+  check(said(deleteLetterWords, 'Asks whether to delete this letter'), 'DELETE LETTER explains itself', deleteLetterWords ?? 'none');
+  await page.screenshot({ path: join(OUT, 'dark-letter-settings.png') });
+
+  // Docs (EXPLAIN-REST-1): the front page's one line of keys, a new document, its toolbar, SHARE and HISTORY.
+  console.log('DOCS: THE FRONT PAGE, A NEW DOCUMENT, SHARE AND HISTORY');
+  await page.goto(`${BASE}/docs`, { waitUntil: 'domcontentloaded', timeout: 240000 });
+  const newDoc = page.locator('button[aria-label="New document"]');
+  await newDoc.waitFor({ timeout: 240000 });
+  await sleep(1500);
+  const mineWords = await sayOf(page.locator('nav[aria-label="Where to look"] a', { hasText: 'MINE' }));
+  check(said(mineWords, 'your own documents'), "DOCS' MINE explains itself", mineWords ?? 'none');
+  const newDocWords = await sayOf(newDoc);
+  check(said(newDocWords, 'name and make a new document'), "DOCS' + NEW explains itself", newDocWords ?? 'none');
+  await newDoc.click();
+  await page.locator('#doc-new-title').fill('ZZQX EXPLAIN DOCUMENT');
+  const createWords = await sayOf(page.locator('button[type="submit"]', { hasText: 'CREATE' }));
+  check(said(createWords, 'Makes the document and opens it'), 'CREATE explains itself', createWords ?? 'none');
+  await page.locator('button[type="submit"]', { hasText: 'CREATE' }).click();
+  const tools = page.locator('[role="toolbar"][aria-label="Writing tools"]');
+  await tools.waitFor({ timeout: 240000 });
+  await sleep(1500);
+  const boldWords = await sayOf(tools.locator('button', { hasText: 'BOLD' }));
+  check(said(boldWords, 'selected words bold'), "the editor's BOLD explains itself", boldWords ?? 'none');
+  const commentsWords = await sayOf(page.locator('button', { hasText: 'COMMENTS' }).first());
+  check(said(commentsWords, 'comments panel'), 'COMMENTS explains itself', commentsWords ?? 'none');
+  const deleteDocWords = await sayOf(page.locator('button', { hasText: 'DELETE THIS DOCUMENT' }));
+  check(said(deleteDocWords, 'Asks whether to delete this document', 'ASKS YOU FIRST'), 'DELETE THIS DOCUMENT explains itself', deleteDocWords ?? 'none');
+  await page.locator('button', { hasText: '[ SHARE ]' }).click();
+  const everyone = page.locator('label', { has: page.locator('input[name="doc-access"][value="public"]') });
+  await everyone.waitFor({ timeout: 30000 });
+  const everyoneWords = await sayOf(everyone);
+  check(said(everyoneWords, 'anyone at all can read it'), "SHARE's EVERYONE row explains itself", everyoneWords ?? 'none');
+  await page.screenshot({ path: join(OUT, 'dark-doc-share.png') });
+  await page.keyboard.press('Escape');
+  await everyone.waitFor({ state: 'detached', timeout: 15000 });
+  await page.locator('button', { hasText: '[ HISTORY ]' }).last().click();
+  const keepVersion = page.locator('button', { hasText: '[ KEEP ]' });
+  await keepVersion.waitFor({ timeout: 30000 });
+  const keepVersionWords = await sayOf(keepVersion);
+  check(said(keepVersionWords, 'Keeps a copy of the document'), "HISTORY's KEEP explains itself", keepVersionWords ?? 'none');
+  await page.keyboard.press('Escape');
+
+  // Lore (EXPLAIN-REST-1): the shelf, the project's strip and the link shelf.
+  console.log('LORE: THE SHELF, THE PROJECT STRIP AND THE LINK SHELF');
+  await page.goto(`${BASE}/lore`, { waitUntil: 'domcontentloaded', timeout: 240000 });
+  const newPage = page.locator('button', { hasText: '[ NEW PAGE ]' });
+  await newPage.waitFor({ timeout: 240000 });
+  await sleep(1500);
+  const newPageWords = await sayOf(newPage);
+  check(said(newPageWords, 'new lore page', 'OTHER PEOPLE SEE THIS'), "LORE's NEW PAGE explains itself", newPageWords ?? 'none');
+  const inDocsWords = await sayOf(page.locator('a', { hasText: '[ IN DOCS ]' }));
+  check(said(inDocsWords, 'LORE folder'), 'IN DOCS explains itself', inDocsWords ?? 'none');
+  const notesChipWords = await sayOf(page.locator('a', { hasText: '[ NOTES ]' }).first());
+  check(said(notesChipWords, "project's NOTES shelf"), "the project strip's NOTES explains itself", notesChipWords ?? 'none');
+  await page.screenshot({ path: join(OUT, 'dark-lore.png') });
+  await page.goto(`${BASE}/links`, { waitUntil: 'domcontentloaded', timeout: 240000 });
+  // The shelf's own list: the words are in the served page, but the box needs the page awake.
+  const boardLink = page.locator('li a', { hasText: 'MESSAGE BOARD' }).first();
+  await boardLink.waitFor({ timeout: 240000 });
+  await page.waitForLoadState('networkidle', { timeout: 60000 }).catch(() => {});
+  await sleep(2500);
+  const boardLinkWords = await sayOf(boardLink);
+  check(said(boardLinkWords, 'MESSAGE BOARD page'), 'a link on the link shelf explains itself', boardLinkWords ?? 'none');
+
   await page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded', timeout: 240000 });
   await media.waitFor({ timeout: 120000 });
 
@@ -459,6 +565,12 @@ async function boxContrast(page) {
   const themeNow = await page.evaluate(() => document.documentElement.getAttribute('data-theme'));
   await page.locator('[data-search-key]').hover();
   await sleep(800);
+  for (let tries = 0; tries < 2 && (await boxText(page)) === null; tries += 1) {
+    await page.mouse.move(700, 900);
+    await sleep(2000);
+    await page.locator('[data-search-key]').hover();
+    await sleep(800);
+  }
   const bright = await boxContrast(page);
   check(bright.words >= 4.5, `its words read 4.5:1 on the ${themeNow} theme`, bright.words.toFixed(2));
   await page.screenshot({ path: join(OUT, 'bright-search.png') });

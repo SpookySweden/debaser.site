@@ -9,6 +9,7 @@ import { DOC_FAULT, DOC_KEY, DOC_KEY_MAIN } from '../lib/docs/ui';
 import { FIELD } from '../lib/ui/controls';
 import DocsScale from './DocsScale';
 import PopoutWindow from './PopoutWindow';
+import { explain, NOTE } from '../lib/ui/explain';
 
 type NewDocWindowProps = {
   viewer: DocViewer;
@@ -97,10 +98,10 @@ export default function NewDocWindow({ viewer, folder, onClose }: NewDocWindowPr
           {error === null ? null : <p className={`${DOC_FAULT} mt-3`}>{error}</p>}
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            <button type="submit" disabled={busy || !usable} className={DOC_KEY_MAIN}>
+            <button type="submit" {...explain(lore ? 'Makes the lore page and opens it.' : 'Makes the document and opens it.', lore ? 'Its address comes from the name and cannot change later.' : 'Who can open it can be changed afterwards with SHARE.', lore ? NOTE.others : undefined)} disabled={busy || !usable} className={DOC_KEY_MAIN}>
               {busy ? '[ CREATING... ]' : '[ CREATE ]'}
             </button>
-            <button type="button" onClick={onClose} className={DOC_KEY}>
+            <button type="button" {...explain('Closes this window without making anything.', 'What you typed is dropped.')} onClick={onClose} className={DOC_KEY}>
               [ CANCEL ]
             </button>
           </div>

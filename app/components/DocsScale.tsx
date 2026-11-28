@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { DOCS_SIZE_MAX, DOCS_SIZE_MIN, DOC_BAR_KEY, DOC_KEY } from '../lib/docs/ui';
 import { useDocsSize } from '../lib/docs/use-docs-size';
+import { explain } from '../lib/ui/explain';
 
 type DocsScaleProps = {
   children: ReactNode;
@@ -36,10 +37,10 @@ export function DocsSizeKeys({ bar = false }: { bar?: boolean }) {
   return (
     <span className="docs-meta inline-flex items-center gap-1 whitespace-nowrap text-ink">
       {bar ? null : 'TEXT SIZE'}
-      <button type="button" className={key} disabled={size <= DOCS_SIZE_MIN} onClick={() => step(-1)} aria-label="Smaller text" title={bar ? 'Smaller text' : undefined}>
+      <button type="button" {...explain('Makes the text on the DOCS screens one step smaller.', 'To fit more on the screen. Remembered in this browser.')} className={key} disabled={size <= DOCS_SIZE_MIN} onClick={() => step(-1)} aria-label="Smaller text" title={bar ? 'Smaller text' : undefined}>
         [ A− ]
       </button>
-      <button type="button" className={key} disabled={size >= DOCS_SIZE_MAX} onClick={() => step(1)} aria-label="Bigger text" title={bar ? 'Bigger text' : undefined}>
+      <button type="button" {...explain('Makes the text on the DOCS screens one step bigger.', 'To read and write more comfortably. Remembered in this browser.')} className={key} disabled={size >= DOCS_SIZE_MAX} onClick={() => step(1)} aria-label="Bigger text" title={bar ? 'Bigger text' : undefined}>
         [ A+ ]
       </button>
     </span>

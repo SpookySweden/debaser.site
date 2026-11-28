@@ -8,6 +8,7 @@ import { DOC_FAULT, DOC_KEY, DOC_KEY_MAIN } from '../lib/docs/ui';
 import { FIELD } from '../lib/ui/controls';
 import DocsScale from './DocsScale';
 import PopoutWindow from './PopoutWindow';
+import { explain, NOTE } from '../lib/ui/explain';
 
 type NewDocFolderWindowProps = {
   viewer: DocViewer;
@@ -71,7 +72,7 @@ export default function NewDocFolderWindow({ viewer, parent, kind, onMade, onClo
 
           {folderKind === 'shared' ? <p className="docs-meta mt-3 text-ink">EVERYONE SIGNED IN SEES A SHARED FOLDER.</p> : null}
 
-          <label className="docs-meta mt-3 block text-ink" htmlFor="doc-folder-access">
+          <label className="docs-meta mt-3 block text-ink" htmlFor="doc-folder-access" {...explain('Picks who can open each new document made in this folder.', 'It can be changed later in the folder\'s settings.')}>
             WHO CAN OPEN A NEW DOCUMENT MADE IN IT
           </label>
           <select
@@ -91,10 +92,10 @@ export default function NewDocFolderWindow({ viewer, parent, kind, onMade, onClo
           {error === null ? null : <p className={`${DOC_FAULT} mt-3`}>{error}</p>}
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            <button type="submit" disabled={busy || name.trim().length === 0} className={DOC_KEY_MAIN}>
+            <button type="submit" {...explain('Makes the folder and opens it.', 'It needs a name first.', folderKind === 'shared' ? NOTE.others : undefined)} disabled={busy || name.trim().length === 0} className={DOC_KEY_MAIN}>
               {busy ? '[ CREATING... ]' : '[ CREATE ]'}
             </button>
-            <button type="button" onClick={onClose} className={DOC_KEY}>
+            <button type="button" {...explain('Closes this window without making a folder.', 'What you typed is dropped.')} onClick={onClose} className={DOC_KEY}>
               [ CANCEL ]
             </button>
           </div>

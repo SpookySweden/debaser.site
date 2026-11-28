@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { DEBASER_PROJECT, PROJECT_SECTIONS } from '../lib/projects/debaser';
 import { SHELF_CHIP } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 
 const CURRENT =
   'key key-fill [--key-fill:var(--color-ink)] px-2 py-0.5 text-paper max-sm:inline-flex max-sm:min-h-tap max-sm:items-center max-sm:px-3 max-sm:text-sm';
@@ -22,7 +23,7 @@ type ProjectSectionNavProps = {
 export default function ProjectSectionNav({ current }: ProjectSectionNavProps) {
   return (
     <div className="mb-4 flex flex-wrap items-center gap-1 text-label text-ink">
-      <Link href={DEBASER_PROJECT.href} className={SHELF_CHIP}>
+      <Link href={DEBASER_PROJECT.href} className={SHELF_CHIP} {...explain('Goes back to the DEBASER project page.', 'Where all the parts of the comic\'s project are gathered.')}>
         [ &lt; {DEBASER_PROJECT.title} ]
       </Link>
 
@@ -34,7 +35,7 @@ export default function ProjectSectionNav({ current }: ProjectSectionNavProps) {
             [ {section.label} ]
           </span>
         ) : (
-          <Link key={section.id} href={section.href} className={SHELF_CHIP} title={section.summary}>
+          <Link key={section.id} href={section.href} className={SHELF_CHIP} title={section.summary} {...explain(`Goes to the project's ${section.label} shelf.`, section.summary)}>
             [ {section.label} ]
           </Link>
         ),

@@ -9,6 +9,15 @@ import { FIELD, TITLE_BAR } from '../lib/ui/controls';
 import { useComms } from './CommsProvider';
 import DocsScale from './DocsScale';
 import PopoutWindow from './PopoutWindow';
+import { explain, explainFrom, NOTE, type Explanation } from '../lib/ui/explain';
+
+/** What each "who can open it" row explains (EXPLAIN): the choice only counts once SAVE is pressed. */
+const ACCESS_WORDS: Record<DocAccess, Explanation> = {
+  private: { what: 'Chooses that only you can open this document.', why: 'For private writing. Press SAVE to make it so.' },
+  shared: { what: 'Chooses a named list of people, and shows it below.', why: 'Add each person and say whether they can write. Press SAVE to make it so.' },
+  signed_in: { what: 'Chooses that every account can read it and write in it.', why: 'For writing together. Press SAVE to make it so.' },
+  public: { what: 'Chooses that anyone at all can read it.', why: 'Accounts can write in it too. Press SAVE to make it so.' },
+};
 
 type DocSharingWindowProps = {
   record: DocRecord;
@@ -103,7 +112,7 @@ export default function DocSharingWindow({ record, announce, viewer, onChanged, 
             The document&apos;s link
           </label>
           <input id="doc-share-link" value={link} readOnly onFocus={(event) => event.target.select()} className={`${FIELD} docs-meta min-w-0 flex-1`} />
-          <button type="button" className={`${DOC_KEY} whitespace-nowrap`} onClick={() => void copyLink()}>
+          <button type="button" {...explain('Copies this document\'s address to your clipboard.', 'Paste it to somebody. It only opens for people allowed below.')} className={`${DOC_KEY} whitespace-nowrap`} onClick={() => void copyLink()}>
             [ COPY LINK ]
           </button>
         </div>
@@ -121,6 +130,7 @@ export default function DocSharingWindow({ record, announce, viewer, onChanged, 
             return (
               <label
                 key={level}
+                {...explainFrom(ACCESS_WORDS[level])}
                 className={`my-1 flex min-h-tap cursor-pointer items-start gap-3 px-2 py-2 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-1 has-[:focus-visible]:outline-bubble ${
                   on ? 'bg-ink text-paper' : 'text-ink hover:bg-pointed'
                 }`}
@@ -152,6 +162,7 @@ export default function DocSharingWindow({ record, announce, viewer, onChanged, 
                   <span className="docs-key min-w-0 flex-1 break-words">{share.personLabel}</span>
                   <button
                     type="button"
+                    {...explain('Lets this person read the document and write in it.', 'Saved at once.')}
                     className={share.canEdit ? DOC_KEY_ON : DOC_KEY}
                     aria-pressed={share.canEdit}
                     disabled={busy}
@@ -161,6 +172,7 @@ export default function DocSharingWindow({ record, announce, viewer, onChanged, 
                   </button>
                   <button
                     type="button"
+                    {...explain('Lets this person read the document but not change it.', 'Saved at once.')}
                     className={share.canEdit ? DOC_KEY : DOC_KEY_ON}
                     aria-pressed={!share.canEdit}
                     disabled={busy}
@@ -168,7 +180,7 @@ export default function DocSharingWindow({ record, announce, viewer, onChanged, 
                   >
                     [ CAN ONLY READ ]
                   </button>
-                  <button type="button" className={DOC_KEY} disabled={busy} onClick={() => void run(() => repository.removeShare(record.id, share.personId))}>
+                  <button type="button" {...explain('Takes this person off the list of people you picked.', 'Saved at once, with no question. They can be added again.')} className={DOC_KEY} disabled={busy} onClick={() => void run(() => repository.removeShare(record.id, share.personId))}>
                     [ REMOVE ]
                   </button>
                 </li>
@@ -193,6 +205,7 @@ export default function DocSharingWindow({ record, announce, viewer, onChanged, 
               </select>
               <button
                 type="button"
+                {...explain('Adds the person picked to the list, able to write.', 'Saved at once. Press CAN ONLY READ after if they should not change it.')}
                 className={DOC_KEY}
                 disabled={busy || picked.length === 0}
                 onClick={() => {
@@ -209,10 +222,10 @@ export default function DocSharingWindow({ record, announce, viewer, onChanged, 
         ) : null}
 
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <button type="button" className={DOC_KEY_MAIN} disabled={busy} onClick={() => void apply()}>
+          <button type="button" {...explain('Makes the chosen "who can open it" count, then closes the window.', 'Opening it to everyone or to every account may post about it on the board.', NOTE.others)} className={DOC_KEY_MAIN} disabled={busy} onClick={() => void apply()}>
             [ SAVE ]
           </button>
-          <button type="button" className={DOC_KEY} onClick={onClose}>
+          <button type="button" {...explain('Closes the window without changing who can open it.', 'People you already added or removed stay as they are.')} className={DOC_KEY} onClick={onClose}>
             [ CANCEL ]
           </button>
         </div>

@@ -9,6 +9,7 @@ import { useComms } from './CommsProvider';
 import LetterStamp from './LetterStamp';
 import PopoutWindow from './PopoutWindow';
 import ProfileName from './ProfileName';
+import { explain, NOTE } from '../lib/ui/explain';
 
 /**
  * SEND TO, from an opened letter (SPEC-letter-drag.md; Luke, 2026-11-14, Q4: "SEND TO in letter"): the way to recommend a
@@ -66,10 +67,10 @@ export default function LetterSendBox({
       centred
       actions={
         <>
-          <button type="button" onClick={onClose} className={PLATE} disabled={busy}>
+          <button type="button" onClick={onClose} {...explain('Closes this box without sending anything.', 'Back to the letter.')} className={PLATE} disabled={busy}>
             [ CANCEL ]
           </button>
-          <button type="button" onClick={() => void send()} className={PLATE_MAIN} disabled={busy || to.length === 0}>
+          <button type="button" onClick={() => void send()} {...explain('Sends the letter to the people ticked, with your note.', 'Greyed out until somebody is ticked. A very long letter sends its first fifty things.', NOTE.others)} className={PLATE_MAIN} disabled={busy || to.length === 0}>
             SEND
           </button>
         </>
@@ -94,7 +95,7 @@ export default function LetterSendBox({
             const picked = to.includes(person.id);
             return (
               <li key={person.id}>
-                <label className="flex cursor-pointer items-center gap-2 text-label max-sm:min-h-tap">
+                <label className="flex cursor-pointer items-center gap-2 text-label max-sm:min-h-tap" {...explain(picked ? 'Unticks this person, so the letter is not sent to them.' : 'Ticks this person to be sent the letter.', 'Tick up to twenty people, then press SEND.')}>
                   <input
                     type="checkbox"
                     checked={picked}

@@ -23,6 +23,7 @@ import DocFace from './DocFace';
 import DocMargin, { type CommentDraft } from './DocMargin';
 import DocPointers from './DocPointers';
 import { DocsSizeKeys } from './DocsScale';
+import { explain, explainFrom, type Explanation } from '../lib/ui/explain';
 
 /** The gap kept between the typing spot and the edge of what can be seen, in pixels of scroll (not a look value). */
 const CARET_ROOM = 12;
@@ -51,6 +52,8 @@ function keepCaretInView(view: Editor['view']): boolean {
 }
 
 type ToolKeyProps = {
+  /** What it explains while EXPLAIN is on. */
+  words: Explanation;
   /** A text character beside the word (never a drawn icon): hidden from screen readers, which read the word. */
   glyph: ReactNode;
   label: string;
@@ -61,9 +64,9 @@ type ToolKeyProps = {
 };
 
 /** One key of the toolbar: big, labelled, a thumb tall. `[ B BOLD ]`. */
-function ToolKey({ glyph, label, on, disabled = false, onClick }: ToolKeyProps) {
+function ToolKey({ words, glyph, label, on, disabled = false, onClick }: ToolKeyProps) {
   return (
-    <button type="button" className={`${on === true ? DOC_KEY_ON : DOC_KEY} whitespace-nowrap`} aria-pressed={on} disabled={disabled} onClick={onClick}>
+    <button type="button" {...explainFrom(words)} className={`${on === true ? DOC_KEY_ON : DOC_KEY} whitespace-nowrap`} aria-pressed={on} disabled={disabled} onClick={onClick}>
       [ <span aria-hidden="true">{glyph}</span> {label} ]
     </button>
   );
@@ -280,7 +283,7 @@ export default function DocEditor({
             )}
           </span>
           {editing && saveError !== null && !pending && !saving ? (
-            <button type="button" className={DOC_KEY} onClick={saveNow}>
+            <button type="button" {...explain('Tries saving your writing again.', 'The last save failed; your words are still on the screen.')} className={DOC_KEY} onClick={saveNow}>
               [ TRY AGAIN ]
             </button>
           ) : null}
@@ -297,6 +300,7 @@ export default function DocEditor({
             <DocsSizeKeys />
             <button
               type="button"
+              {...explain(showComments ? 'Shuts the comments panel.' : 'Opens the comments panel.', 'The notes left on words of this document. The number is how many are still open.')}
               className={`${showComments ? DOC_KEY_ON : DOC_KEY} whitespace-nowrap`}
               aria-expanded={showComments}
               disabled={draft !== null}
@@ -309,15 +313,15 @@ export default function DocEditor({
 
         {tools ? (
           <div className="flex flex-wrap items-center gap-x-1 gap-y-1 pb-2" role="toolbar" aria-label="Writing tools">
-            <ToolKey glyph="↶" label="UNDO" onClick={() => editor.chain().focus().undo().run()} />
-            <ToolKey glyph="↷" label="REDO" onClick={() => editor.chain().focus().redo().run()} />
-            <ToolKey glyph="B" label="BOLD" on={marks.bold} onClick={() => editor.chain().focus().toggleBold().run()} />
-            <ToolKey glyph="I" label="ITALIC" on={marks.italic} onClick={() => editor.chain().focus().toggleItalic().run()} />
-            <ToolKey glyph="H" label="HEADING" on={marks.h1} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} />
-            <ToolKey glyph="•" label="LIST" on={marks.bullets} onClick={() => editor.chain().focus().toggleBulletList().run()} />
-            <ToolKey glyph="1." label="NUMBERS" on={marks.numbers} onClick={() => editor.chain().focus().toggleOrderedList().run()} />
-            <ToolKey glyph="☑" label="CHECKLIST" on={marks.checklist} onClick={() => editor.chain().focus().toggleTaskList().run()} />
-            <ToolKey glyph="▣" label={uploading ? 'ADDING...' : 'PICTURE'} disabled={uploading} onClick={() => pictureInput.current?.click()} />
+            <ToolKey words={{ what: 'Takes back your own last change.', why: 'What other people typed stays. Ctrl+Z does the same.' }} glyph="↶" label="UNDO" onClick={() => editor.chain().focus().undo().run()} />
+            <ToolKey words={{ what: 'Puts back the change you just took away.', why: 'Only your own changes.' }} glyph="↷" label="REDO" onClick={() => editor.chain().focus().redo().run()} />
+            <ToolKey words={{ what: 'Makes the selected words bold, or plain again.', why: 'To make words stand out. Ctrl+B does the same.' }} glyph="B" label="BOLD" on={marks.bold} onClick={() => editor.chain().focus().toggleBold().run()} />
+            <ToolKey words={{ what: 'Slants the selected words, or sets them upright again.', why: 'For titles or emphasis. Ctrl+I does the same.' }} glyph="I" label="ITALIC" on={marks.italic} onClick={() => editor.chain().focus().toggleItalic().run()} />
+            <ToolKey words={{ what: 'Turns this line into a big heading, or back to ordinary writing.', why: 'To start a new part of the page.' }} glyph="H" label="HEADING" on={marks.h1} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} />
+            <ToolKey words={{ what: 'Starts a list with dots, or turns it back into ordinary lines.', why: 'For things in no particular order.' }} glyph="•" label="LIST" on={marks.bullets} onClick={() => editor.chain().focus().toggleBulletList().run()} />
+            <ToolKey words={{ what: 'Starts a numbered list, or turns it back into ordinary lines.', why: 'For steps or things in order.' }} glyph="1." label="NUMBERS" on={marks.numbers} onClick={() => editor.chain().focus().toggleOrderedList().run()} />
+            <ToolKey words={{ what: 'Starts a list with tick boxes, or turns it back into ordinary lines.', why: 'For things to do and cross off.' }} glyph="☑" label="CHECKLIST" on={marks.checklist} onClick={() => editor.chain().focus().toggleTaskList().run()} />
+            <ToolKey words={{ what: 'Picks a picture from your computer and puts it where you are typing.', why: 'It is made smaller first if it is large.' }} glyph="▣" label={uploading ? 'ADDING...' : 'PICTURE'} disabled={uploading} onClick={() => pictureInput.current?.click()} />
             <input
               ref={pictureInput}
               type="file"
@@ -327,8 +331,8 @@ export default function DocEditor({
               aria-label="Picture to add"
               onChange={(event) => void addPicture(event.target.files?.[0])}
             />
-            <ToolKey glyph="✎" label="COMMENT" onClick={startComment} />
-            <button type="button" className={`${more ? DOC_KEY_ON : DOC_KEY} whitespace-nowrap`} aria-expanded={more} onClick={() => setMore((value) => !value)}>
+            <ToolKey words={{ what: 'Starts a comment on the words you have selected.', why: 'To say something about them without changing the writing. Select words first.' }} glyph="✎" label="COMMENT" onClick={startComment} />
+            <button type="button" {...explain(more ? 'Folds the second row of writing tools away.' : 'Shows a second row of writing tools.', 'Small heading, strike out, quote and line across.')} className={`${more ? DOC_KEY_ON : DOC_KEY} whitespace-nowrap`} aria-expanded={more} onClick={() => setMore((value) => !value)}>
               [ MORE <span aria-hidden="true">{more ? '▴' : '▾'}</span> ]
             </button>
           </div>
@@ -336,10 +340,10 @@ export default function DocEditor({
 
         {tools && more ? (
           <div className="flex flex-wrap items-center gap-x-1 gap-y-1 pb-2" role="toolbar" aria-label="More writing tools">
-            <ToolKey glyph="h" label="SMALL HEADING" on={marks.h2} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} />
-            <ToolKey glyph={<span className="line-through">S</span>} label="STRIKE OUT" on={marks.strike} onClick={() => editor.chain().focus().toggleStrike().run()} />
-            <ToolKey glyph="❝" label="QUOTE" on={marks.quote} onClick={() => editor.chain().focus().toggleBlockquote().run()} />
-            <ToolKey glyph="—" label="LINE ACROSS" onClick={() => editor.chain().focus().setHorizontalRule().run()} />
+            <ToolKey words={{ what: 'Turns this line into a smaller heading, or back to ordinary writing.', why: 'For a part inside a part.' }} glyph="h" label="SMALL HEADING" on={marks.h2} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} />
+            <ToolKey words={{ what: 'Draws a line through the selected words, or takes it off.', why: 'To show something is crossed out without deleting it.' }} glyph={<span className="line-through">S</span>} label="STRIKE OUT" on={marks.strike} onClick={() => editor.chain().focus().toggleStrike().run()} />
+            <ToolKey words={{ what: 'Sets this part apart as a quotation, or back to ordinary writing.', why: 'For words somebody else said.' }} glyph="❝" label="QUOTE" on={marks.quote} onClick={() => editor.chain().focus().toggleBlockquote().run()} />
+            <ToolKey words={{ what: 'Draws a line across the page where you are typing.', why: 'To divide one part from the next.' }} glyph="—" label="LINE ACROSS" onClick={() => editor.chain().focus().setHorizontalRule().run()} />
           </div>
         ) : null}
 

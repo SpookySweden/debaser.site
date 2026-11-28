@@ -15,6 +15,7 @@ import { dateWords, DOC_FAULT, DOC_KEY, DOC_KEY_MAIN } from '../lib/docs/ui';
 import { FIELD, TITLE_BAR } from '../lib/ui/controls';
 import DocsScale from './DocsScale';
 import PopoutWindow from './PopoutWindow';
+import { explain, NOTE } from '../lib/ui/explain';
 
 type DocHistoryWindowProps = {
   docId: string;
@@ -148,7 +149,7 @@ export default function DocHistoryWindow({ docId, doc, editor, viewer, editing, 
                   KEEP A COPY OF IT AS IT IS NOW, UNDER A NAME
                   <input value={name} onChange={(event) => setName(event.target.value)} maxLength={80} className={`${FIELD} docs-meta`} />
                 </label>
-                <button type="button" className={DOC_KEY_MAIN} disabled={busy || name.trim().length === 0} onClick={() => void keep()}>
+                <button type="button" {...explain('Keeps a copy of the document as it is now, under the name typed.', 'Type a name first. Use it before a big change you may want to undo.')} className={DOC_KEY_MAIN} disabled={busy || name.trim().length === 0} onClick={() => void keep()}>
                   [ KEEP ]
                 </button>
               </div>
@@ -176,11 +177,11 @@ export default function DocHistoryWindow({ docId, doc, editor, viewer, editing, 
                         {version.snippet.length === 0 ? '' : ` · ${version.snippet}`}
                       </span>
                     </span>
-                    <button type="button" className={DOC_KEY} onClick={() => void view(version)}>
+                    <button type="button" {...explain('Shows what the document said in this version.', 'Only a look: the document is not changed.')} className={DOC_KEY} onClick={() => void view(version)}>
                       [ VIEW ]
                     </button>
                     {owner ? (
-                      <button type="button" className={DOC_KEY} onClick={() => void remove(version)}>
+                      <button type="button" {...explain('Removes this saved version from the history, at once.', 'The document itself is not changed. Only its owner sees this key. No question is asked.', NOTE.undo)} className={DOC_KEY} onClick={() => void remove(version)}>
                         [ REMOVE ]
                       </button>
                     ) : null}
@@ -201,11 +202,11 @@ export default function DocHistoryWindow({ docId, doc, editor, viewer, editing, 
             </div>
             <div className="flex flex-wrap gap-3">
               {editing && editor !== null ? (
-                <button type="button" className={DOC_KEY_MAIN} onClick={restore}>
+                <button type="button" {...explain('Puts this old writing back into the live document.', 'Everyone in it sees it at once. UNDO in the editor takes it back.', NOTE.others)} className={DOC_KEY_MAIN} onClick={restore}>
                   [ RESTORE ]
                 </button>
               ) : null}
-              <button type="button" className={DOC_KEY} onClick={() => setOpen(null)}>
+              <button type="button" {...explain('Goes back to the list of earlier versions.', 'Nothing is changed.')} className={DOC_KEY} onClick={() => setOpen(null)}>
                 [ &lt; ALL VERSIONS ]
               </button>
             </div>

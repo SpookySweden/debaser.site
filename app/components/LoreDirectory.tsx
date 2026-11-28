@@ -11,6 +11,7 @@ import { useAuth } from './AuthProvider';
 import { DocRow } from './DocRows';
 import DocsScale, { DocsSizeKeys } from './DocsScale';
 import NewDocWindow from './NewDocWindow';
+import { explain, NOTE } from '../lib/ui/explain';
 
 /** The LORE folder as NEW PAGE needs it: shared, open to EVERYONE by default. */
 const LORE_FOLDER: DocFolder = {
@@ -76,19 +77,19 @@ export default function LoreDirectory() {
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2">
           {viewer !== null ? (
-            <button type="button" onClick={() => setOpening(true)} className={DOC_KEY_MAIN}>
+            <button type="button" {...explain('Opens a small window to name and make a new lore page.', 'A new page about the world, written together.', NOTE.others)} onClick={() => setOpening(true)} className={DOC_KEY_MAIN}>
               [ NEW PAGE ]
             </button>
           ) : (
             <p className="docs-key text-ink">
-              <Link href="/account" className={DOC_KEY}>
+              <Link href="/account" className={DOC_KEY} {...explain('Goes to the account page to sign in or sign up.', 'Making a lore page needs an account.')}>
                 [ LOG IN ]
               </Link>{' '}
               TO OPEN A PAGE
             </p>
           )}
 
-          <Link href={folderPath(LORE_FOLDER_ID)} className={DOC_KEY}>
+          <Link href={folderPath(LORE_FOLDER_ID)} className={DOC_KEY} {...explain('Opens the LORE folder on the DOCS page.', 'The same pages, among the other documents and folders.')}>
             [ IN DOCS ]
           </Link>
 
@@ -112,7 +113,7 @@ export default function LoreDirectory() {
         )}
 
         <div className="pt-3">
-          <button type="button" onClick={refresh} className={DOC_KEY}>
+          <button type="button" {...explain('Reads the list of lore pages again.', 'For pages made or changed by others since you opened this one.')} onClick={refresh} className={DOC_KEY}>
             [ ↻ CHECK FOR NEW ONES ]
           </button>
         </div>

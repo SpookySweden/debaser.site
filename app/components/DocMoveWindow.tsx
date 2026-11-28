@@ -5,6 +5,7 @@ import type { DocFolder, DocSummary } from '../lib/docs/types';
 import { DOC_FAULT, DOC_KEY, DOC_KEY_ON } from '../lib/docs/ui';
 import DocsScale from './DocsScale';
 import PopoutWindow from './PopoutWindow';
+import { explain } from '../lib/ui/explain';
 
 type DocMoveWindowProps = {
   doc: DocSummary;
@@ -48,6 +49,7 @@ export default function DocMoveWindow({ doc, folders, onMove, onClose }: DocMove
               <li key={place.id ?? 'home'} className="py-1">
                 <button
                   type="button"
+                  {...explain(here ? 'The document is filed here now.' : `Files the document in ${place.name}.`, here ? 'Pick another place to move it.' : 'It moves at once and the window closes. Who can open it stays the same.')}
                   className={`${here ? DOC_KEY_ON : DOC_KEY} w-full text-left`}
                   aria-pressed={here}
                   disabled={busy || here}
@@ -60,7 +62,7 @@ export default function DocMoveWindow({ doc, folders, onMove, onClose }: DocMove
           })}
         </ul>
         <div className="mt-3">
-          <button type="button" className={DOC_KEY} onClick={onClose}>
+          <button type="button" {...explain('Closes this window and leaves the document where it is.', 'Nothing is moved.')} className={DOC_KEY} onClick={onClose}>
             [ CANCEL ]
           </button>
         </div>

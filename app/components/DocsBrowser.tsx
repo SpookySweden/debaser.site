@@ -14,12 +14,21 @@ import { DocRow, FolderRow } from './DocRows';
 import DocsScale, { DocsSizeKeys } from './DocsScale';
 import NewDocFolderWindow from './NewDocFolderWindow';
 import NewDocWindow from './NewDocWindow';
+import { explain, explainFrom, NOTE, type Explanation } from '../lib/ui/explain';
 
 /**
  * Where the browser is: RECENT (everything this reader can open, newest first), MY DOCUMENTS, everything
  * else shared with them, the shared folders' top, or one folder (its id).
  */
 type Place = 'recent' | 'mine' | 'others' | 'shared' | string;
+
+/** What each of the big "where to look" keys explains (EXPLAIN). */
+const PLACE_WORDS: Record<string, Explanation> = {
+  recent: { what: 'Lists every document you can open, newest change first.', why: 'To pick up whatever was last being written.' },
+  mine: { what: 'Shows your own documents and your own folders.', why: 'Ones you filed in a shared folder are listed in that folder instead.' },
+  others: { what: 'Lists documents other people let you open that are not in a shared folder.', why: 'For writing somebody else shared with you.' },
+  shared: { what: 'Shows the shared folders, LORE among them.', why: 'Folders everybody shares, for documents on one subject.' },
+};
 
 /** How many rows RECENT shows before [ SHOW ALL ]. */
 const RECENT_ROWS = 30;
@@ -176,25 +185,25 @@ export default function DocsBrowser() {
           TEXT SIZE step makes them bigger, and then the line wraps again. */}
       <div className="flex flex-wrap items-center gap-x-2 gap-y-2 pb-3">
         {signedIn ? (
-          <button type="button" className={DOC_BAR_KEY_MAIN} onClick={() => setMaking('doc')} aria-label={lore ? undefined : 'New document'} title={lore ? undefined : 'New document'}>
+          <button type="button" {...explain(lore ? 'Opens a small window to name and make a new lore page.' : 'Opens a small window to name and make a new document.', lore ? 'The page is open for everyone to read.' : 'It is filed in the folder you are in, or in your own documents.')} className={DOC_BAR_KEY_MAIN} onClick={() => setMaking('doc')} aria-label={lore ? undefined : 'New document'} title={lore ? undefined : 'New document'}>
             {lore ? '[ + NEW LORE PAGE ]' : '[ + NEW ]'}
           </button>
         ) : status === 'loading' ? null : (
           <p className="docs-key text-ink">
-            <Link href="/account" className={DOC_KEY}>
+            <Link href="/account" className={DOC_KEY} {...explain('Goes to the account page to sign in or sign up.', 'Making documents needs an account.')}>
               [ LOG IN ]
             </Link>{' '}
             TO MAKE DOCUMENTS
           </p>
         )}
         {canMakeFolder ? (
-          <button type="button" className={DOC_BAR_KEY} onClick={() => setMaking('folder')}>
+          <button type="button" {...explain('Opens a small window to name and make a folder here.', 'To keep documents on one subject together.')} className={DOC_BAR_KEY} onClick={() => setMaking('folder')}>
             [ + NEW FOLDER ]
           </button>
         ) : null}
         <nav className="flex flex-wrap items-center gap-x-2 gap-y-2" aria-label="Where to look">
           {tabs.map((entry) => (
-            <Link key={entry.place} href={placeHref(entry.place)} className={tab === entry.place ? DOC_BAR_KEY_ON : DOC_BAR_KEY} aria-current={place === entry.place ? 'page' : undefined} title={entry.full}>
+            <Link key={entry.place} {...explainFrom(entry.place === 'recent' && !signedIn ? { what: 'Lists the documents anyone may read, newest change first.', why: 'What can be read without an account.' } : (PLACE_WORDS[entry.place] ?? { what: 'Shows the documents in this place.' }))} href={placeHref(entry.place)} className={tab === entry.place ? DOC_BAR_KEY_ON : DOC_BAR_KEY} aria-current={place === entry.place ? 'page' : undefined} title={entry.full}>
               [ {entry.label} ]
             </Link>
           ))}
@@ -211,11 +220,11 @@ export default function DocsBrowser() {
 
         {back === null ? null : (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 pt-2">
-            <Link href={back.href} className={DOC_KEY}>
+            <Link href={back.href} className={DOC_KEY} {...explain('Goes back up one step, out of this folder.', 'To the folder or list it sits inside.')}>
               [ &lt; {back.label} ]
             </Link>
             {ownsFolder ? (
-              <button type="button" className={settings ? DOC_KEY_ON : DOC_KEY} aria-expanded={settings} onClick={() => {
+              <button type="button" {...explain(settings ? 'Folds the folder settings away.' : 'Opens this folder\'s settings below.', 'Rename it, choose who can open new documents made in it, or remove it. Only its maker sees this key.')} className={settings ? DOC_KEY_ON : DOC_KEY} aria-expanded={settings} onClick={() => {
                   setSettingsFor(settings ? null : folder.id);
                   setRenaming(null);
                   setRemoving(false);
@@ -230,7 +239,7 @@ export default function DocsBrowser() {
           <div className="docs-meta space-y-3 py-3 text-ink">
             <div className="flex flex-wrap items-center gap-2">
               {renaming === null ? (
-                <button type="button" className={DOC_KEY} onClick={() => setRenaming(folder.name)}>
+                <button type="button" {...explain('Opens a box to type a new name for this folder.', 'Nothing changes until you press SAVE NAME.')} className={DOC_KEY} onClick={() => setRenaming(folder.name)}>
                   [ RENAME THE FOLDER ]
                 </button>
               ) : (
@@ -247,6 +256,7 @@ export default function DocsBrowser() {
                   />
                   <button
                     type="button"
+                    {...explain('Gives the folder the name in the box.', 'Everyone who sees the folder sees the new name.')}
                     className={DOC_KEY}
                     disabled={renaming.trim().length === 0}
                     onClick={() => {
@@ -257,13 +267,13 @@ export default function DocsBrowser() {
                   >
                     [ SAVE NAME ]
                   </button>
-                  <button type="button" className={DOC_KEY} onClick={() => setRenaming(null)}>
+                  <button type="button" {...explain('Puts the name box away without renaming.', 'The folder keeps its old name.')} className={DOC_KEY} onClick={() => setRenaming(null)}>
                     [ CANCEL ]
                   </button>
                 </>
               )}
             </div>
-            <label className="flex flex-wrap items-center gap-2">
+            <label className="flex flex-wrap items-center gap-2" {...explain('Picks who can open each new document made in this folder.', 'Saved as soon as you pick. Documents already here keep their own choice.')}>
               WHO CAN OPEN A NEW DOCUMENT MADE HERE
               <select
                 value={folder.defaultAccess ?? ''}
@@ -285,6 +295,7 @@ export default function DocsBrowser() {
                 <>
                   <button
                     type="button"
+                    {...explain('Removes this folder, and any folders inside it, at once.', 'The documents are not deleted: they go back to their owners.', NOTE.undo)}
                     className={DOC_KEY}
                     onClick={() => {
                       setRemoving(false);
@@ -297,12 +308,12 @@ export default function DocsBrowser() {
                   >
                     [ REALLY REMOVE IT? ITS DOCUMENTS GO BACK TO THEIR OWNERS ]
                   </button>
-                  <button type="button" className={DOC_KEY} onClick={() => setRemoving(false)}>
+                  <button type="button" {...explain('Puts the question away and keeps the folder.', 'Nothing is removed.')} className={DOC_KEY} onClick={() => setRemoving(false)}>
                     [ KEEP IT ]
                   </button>
                 </>
               ) : (
-                <button type="button" className={DOC_KEY} onClick={() => setRemoving(true)}>
+                <button type="button" {...explain('Asks whether to remove this folder.', 'Its documents go back to their owners.', NOTE.asks)} className={DOC_KEY} onClick={() => setRemoving(true)}>
                   [ REMOVE THE FOLDER ]
                 </button>
               )}
@@ -330,7 +341,7 @@ export default function DocsBrowser() {
                 folderName={place === 'recent' && doc.folderId !== null ? (folderNames.get(doc.folderId) ?? null) : null}
                 action={
                   doc.ownerId !== null && doc.ownerId === viewer?.id && doc.slug === null ? (
-                    <button type="button" className={DOC_KEY} onClick={() => setMoving(doc)} aria-label={`Move ${doc.title}`}>
+                    <button type="button" {...explain('Opens the list of folders this document can be filed in.', 'Filing it elsewhere does not change who can open it.')} className={DOC_KEY} onClick={() => setMoving(doc)} aria-label={`Move ${doc.title}`}>
                       [ MOVE ]
                     </button>
                   ) : null
@@ -342,11 +353,11 @@ export default function DocsBrowser() {
 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 pt-3">
           {shown.length < inPlace.length ? (
-            <button type="button" className={DOC_KEY} onClick={() => setShowAll(true)}>
+            <button type="button" {...explain('Shows every document in the list, not just the newest ones.', 'For finding an older one.')} className={DOC_KEY} onClick={() => setShowAll(true)}>
               [ SHOW ALL {inPlace.length} ]
             </button>
           ) : null}
-          <button type="button" className={DOC_KEY} onClick={refresh}>
+          <button type="button" {...explain('Reads the list of documents and folders again.', 'For ones made or changed by others since you opened this page.')} className={DOC_KEY} onClick={refresh}>
             [ ↻ CHECK FOR NEW ONES ]
           </button>
         </div>
