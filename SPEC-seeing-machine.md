@@ -128,8 +128,9 @@ Each can be changed later by saying so.
     debasers browser module"; it replaces 54's default): the page in a frame on BROWSER's page, signed in where the site lets its sign-in work inside
     another site, a real tab and the machine's page one press away. YouTube's videos are its own player. Nothing loosens a site's cookies.
     **Every key named OWN EYE does that, whichever eye is the choice** (Luke, 2026-11-27: "it seems own eye still opens a new tab in edge when
-    i click it, i did ask before for this to open inside of my site as a new tab in the browser module"): the key on the tool row, a refused
-    page's, the "needs your own browser" page's, and words to an engine that turns the house away. A tab of the browser is opened only by a
+    i click it, i did ask before for this to open inside of my site as a new tab in the browser module"): the eye switch's OWN EYE key on the tool row (one control
+    with both eyes since the same day, the eye showing the page drawn pressed, a press remembered: "these need to really state their purpose
+    better"), a refused page's, the "needs your own browser" page's, and words to an engine that turns the house away. A tab of the browser is opened only by a
     key whose name says tab (`[ IN A TAB ↗ ]`; `LOG IN TO … IN A TAB ↗`, since a sign-in page is never framed, D1).
 56. **A sign-in brings its company** (Luke, 2026-11-27: "link your sign ins to add all related pages ... and have an import button"): adding a
     Google, Microsoft, Apple, Meta or Amazon site offers all of that company's sites, named first, in one box of the browser's. IMPORT reads the
@@ -144,6 +145,22 @@ Each can be changed later by saying so.
 59. **Lenses on a signed-in page** (Luke, 2026-11-27: "incorporate the things so that the lenses work while people are still able to be signed in
     on the sites"): a lens on the page OWN EYE shows inside BROWSER is worn by the extension on the site's own page, in the reader's own browser, so
     they stay signed in; nothing of the page is fetched by the house or kept. The house-only lenses say so.
+60. **The extension may be allowed on every site in one press, for whoever wants that** (Luke, 2026-11-27, to "BROWSER extension: may it be
+    allowed on every site in one press, instead of adding each site one at a time (today even the default search, DuckDuckGo, must be added
+    before OWN EYE shows it inside BROWSER)?": "One optional key (Recommended)"): a key ALLOW EVERY SITE beside the site list, the browser's
+    own box, and a way to take it back. Site by site, sign-in groups and IMPORT stay. Sign-in pages are still never framed. Not built yet.
+61. **OWN WEB keeps the pages OWN EYE shows too, by itself** (Luke, 2026-11-27, to "OWN WEB: should pages you open through OWN EYE (your own
+    signed-in browser) be kept in your web too? Today only pages fetched by the server's eye are kept, so with OWN EYE as the default your
+    web barely fills.": "Keep every page"; chosen over a KEEP press with the risk stated: the text of signed-in pages, mail and bank
+    included, is stored on SERVER). It changes decision 58's "never what his own browser shows" once built. Not built yet: a plan first
+    (what leaves the browser and where it lands, who can read it, how it is removed, what the person sees), any database change only on
+    his own word, and /privacy rewritten in the same push.
+62. **The server's eye stays Luke's alone** (Luke, 2026-11-27, to "BROWSER's server's eye (pages fetched by SERVER itself, for someone
+    without the extension): who may use it? Today only you; any other account without the extension sees THE MACHINE HAS NO EYE YET.":
+    "Only me (Recommended)"). `SEEING_OPEN` stays unset; nothing to build.
+63. **No Chrome Web Store listing for now** (Luke, 2026-11-27, to "BROWSER extension: prepare the Chrome Web Store listing the same way as
+    Edge's (your morning answer was "Yes, prepare it", your later routes answer left Chrome out)?": "not now actually because chrome costs
+    money to have an extension i think"). Chrome keeps the by-hand route.
 
 ## Risks, said once
 1. **SERVER is beside everything.** The torrent page (no password at home), Jellyfin, the database and its dashboard, the

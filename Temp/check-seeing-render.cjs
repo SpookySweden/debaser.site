@@ -79,9 +79,9 @@ assert.ok(refused({ ms: 15234 }).includes('· 15.2 S'));
 // none of them is marked as leaving (↗); a tab of the browser is behind a key whose name says tab, and only there.
 const TAB_KEY = /IN A TAB ↗/;
 const ownRefused = refused({ reason: 'TOO LARGE', ownEye: true });
-assert.ok(ownRefused.includes('[ OWN EYE ]') && !/OWN EYE ↗/.test(ownRefused) && !/OPENS A NEW TAB/.test(ownRefused), "a refused page's OWN EYE key says nothing of a tab");
+assert.ok(ownRefused.includes('[ SHOW IT WITH OWN EYE: YOUR BROWSER ]') && !/OWN EYE ↗/.test(ownRefused) && !/OPENS A NEW TAB/.test(ownRefused), "a refused page's OWN EYE key says nothing of a tab");
 const shellPage = (extension) => html(el(at('SeeingShell'), { site: 'x.com', extension, onOwn: none, onTab: none, onGet: none, onAnyway: none }));
-assert.ok(shellPage('current').includes('SHOW IT HERE WITH OWN EYE') && !/OWN EYE ↗/.test(shellPage('current')) && shellPage('current').includes('[ IN A TAB ↗ ]'), 'a site the house can\'t show: OWN EYE here, and a tab under its own name');
+assert.ok(shellPage('current').includes('SHOW IT HERE WITH OWN EYE: YOUR BROWSER, SIGNED IN') && !/OWN EYE ↗/.test(shellPage('current')) && shellPage('current').includes('[ IN A TAB ↗ ]'), 'a site the house can\'t show: OWN EYE here, and a tab under its own name');
 assert.ok(!TAB_KEY.test(shellPage('missing')) && shellPage('missing').includes('GET THE EXTENSION'), 'without the extension, the extension first');
 const signInLine = html(el(at('SeeingSignIn'), { site: 'youtube.com', has: true, onLogIn: none, onGet: none, onNotNow: none, onNever: none }));
 assert.ok(signInLine.includes('LOG IN TO YOUTUBE IN A TAB ↗'), 'signing in is in a tab, and the key says so');
@@ -110,6 +110,8 @@ assert.equal(html(el(SeeKey.default, { href: 'https://example.com/' })), '', 'no
 assert.equal(html(el(SeeKey.SeeKeysIn, { text: 'see https://example.com/ and javascript:x' })), '');
 const tray = html(el(at('SeeingTray'), { items: [{ key: 'a', title: '<b>x</b>', site: 'y.org', kind: 'VIDEO', seconds: 61, rung: 2, link: { url: 'https://y.org/a.mp4', kind: 'file', title: 'x' } }, { key: 'b', title: 'z', site: 'z.org', kind: 'VIDEO', seconds: null, rung: 5, reason: 'WHY' }] }));
 assert.ok(tray.includes('&lt;b&gt;x') && /▶ PLAY IN ROOM/.test(tray) && /\+ QUEUE/.test(tray) && tray.includes('1:01') && tray.includes('WHY'));
+// The tray's two halves each say what they do and why (EXPLAIN; the morning's gap G3).
+assert.ok(tray.includes('data-explain="Plays this in your room now') && tray.includes('data-explain="Adds this to the queue'), "the tray's PLAY IN ROOM and + QUEUE each explain themselves");
 assert.match(html(el(at('SeeingTray'), { items: [] })), /NOTHING FOUND\./);
 const history = html(el(at('SeeingHistory'), { onGo: none, onClose: none }));
 assert.ok(/ONLY YOU SEE THIS\. 90 DAYS\./.test(history) && /NOTHING YET\./.test(history) && /TRAIL/.test(history));

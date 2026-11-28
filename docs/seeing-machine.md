@@ -115,7 +115,9 @@ Proof: `drive-see.cjs --only lenses` (DYE and GLASS measured on every theme, 5.5
 - The first visit (`SeeingFirstVisit`): what each eye is for, what each lets you do, and that the server's eye writes down which sites it opens,
   kept with no end date (D3), until UNDERSTOOD. The same is on /privacy, with the extension's own section.
 - The Chrome Web Store: `docs/extension-store/` holds what to paste, the screenshots (1280 x 800, from `STORE_SHOTS=... drive-see-extension`) and
-  exactly what Luke presses. The icon and the promotional tile are his to draw.
+  exactly what Luke presses. The icon and the store's logo and tile are the word DEBASER as letters, made by `scripts/make-text-icon.cjs`
+  (Luke, 2026-11-27: "generate a text icon for debaser"; his pick of the two: "Yellow square (Recommended)", Black on Daffodil). Nothing
+  is his to draw for the listing.
 
 ## OWN EYE inside BROWSER's own tab (Luke, 2026-11-27: "not open in a new tab but inside a 'new tab' inside of debasers browser module")
 - With the extension, OWN EYE shows the page in BROWSER's tab, in a frame on debaser.site (`SeeingOwnFrame`), sandboxed so it can't move or read
@@ -127,6 +129,11 @@ Proof: `drive-see.cjs --only lenses` (DYE and GLASS measured on every theme, 5.5
   round that: it would weaken them everywhere. IN A TAB and IN THE MACHINE are one press away, and a page that says nothing in 8 seconds is said not
   to have shown here.
 - A YouTube video is YouTube's own player (`/embed/`): its watch page stops itself in a frame (the white page). Sign-in pages are never framed (D1).
+- **A video clicked inside the frame** (Luke, 2026-11-27: "shorts will play but clicking a video will return a white page"): the click moves
+  the frame to YouTube's watch page, white in a frame. BROWSER's half is in: told by the extension that the frame got to a `/watch` page
+  (`watchPageOf`), `SeeingMachine` makes that video the tab's next stop, and YouTube's own player takes over (BACK returns). Proved with a
+  stand-in for the extension (`drive-see --only owneye`). The extension's half comes with its next version: today it tells of a new page
+  loaded, not of an address changed inside one page, which is how YouTube usually does it. Heard only when youtube.com is on its list.
 - Proved with real cookies on pretend https sites: `scripts/drive-see-own-frame.cjs` (11); BROWSER's side: `drive-see --only owneye` (31).
 - The address box follows it (2026-11-27): where the extension says the framed page got to (an http(s) address only) is put in the box,
   without reloading the frame; GO there makes it a stop of the tab's own. YouTube's player reads as its watch page (`boxAddress`).
@@ -135,10 +142,22 @@ Proof: `drive-see.cjs --only lenses` (DYE and GLASS measured on every theme, 5.5
   house's only and say so. Nothing of the page leaves the reader's browser; they stay signed in.
 - The eyes say their purpose: OWN EYE "your browser, signed in as you"; SERVER EYE "from the house, never signed in, rebuilt through the lenses".
 - **Every key named OWN EYE shows the page here** (Luke, 2026-11-27: "it seems own eye still opens a new tab in edge when i click it"), whichever
-  eye is the choice: `[ OWN EYE ]` on the tool row (put away while OWN EYE shows the page), a refused page's `[ OWN EYE ]`, SHOW IT HERE WITH OWN
-  EYE on the "needs your own browser" page, and words to an engine marked ↗ (with the extension in; without it, a tab of the browser's as
-  before). `SeeingMachine`'s `there` holds the addresses asked for that way, for this visit; the eye chosen for other pages is not changed, and
-  `[ FROM THE HOUSE ]` is the way back. A tab of the browser is opened only by a key whose name says tab: `[ IN A TAB ↗ ]` (on the frame's line,
+  eye is the choice: the switch's OWN EYE key (below), a refused page's `[ SHOW IT WITH OWN EYE: YOUR BROWSER ]`, SHOW IT HERE WITH OWN EYE:
+  YOUR BROWSER, SIGNED IN on the "needs your own browser" page, and words to an engine marked ↗ (with the extension in; without it, a tab of
+  the browser's as before). `SeeingMachine`'s `there` holds the addresses asked for that way, for this visit; `[ FROM THE HOUSE ]` is the way
+  back for one page.
+- **The eye switch is one control with both eyes** (Luke, 2026-11-27: "make it clearer between own and eye server eye, these need to really
+  state their purpose better"): `THIS PAGE THROUGH: [ OWN EYE: YOUR BROWSER, SIGNED IN ] [ SERVER EYE: THE HOUSE, SIGNED OUT ]`. The eye
+  showing the page in front is the one drawn pressed (`showing`; a site the house can't show is still the server's eye in front, saying so).
+  A press on the other shows this page through it, here, and is the choice for the pages opened next (`throughOwn`, `throughServer`).
+  Without the extension the first key reads `[ GET OWN EYE: YOUR BROWSER, SIGNED IN ]` and opens the EXTENSION window. It replaced a single
+  key that named the eye that was on while a press switched away from it, beside a second key named `[ OWN EYE ]`.
+- **What works on a page OWN EYE shows, said on the page** (the same morning: "so that the lesnes work while people are still able to be signed
+  in"): one line under the tool row (`data-seeing-own-tools`) says only the lenses reach it, on a site that was added, and that the other
+  tools on the row (NOTES, GRAFFITI, SEARCH THIS, SCRIPTS OFF, SHOW MY ROOM, SEAM, LOUPE, ERASE, MEDIA, SONIFY) need the house's copy, which
+  `[ FROM THE HOUSE ]` shows. It says what the tools need, not what the site can never do, so it stays true when OWN WEB keeps OWN EYE's
+  pages (decision 61). A lens pressed while the site is not on the list (YouTube's player shows without that) says
+  `A LENS NEEDS <site> ADDED FIRST` instead of doing nothing. A tab of the browser is opened only by a key whose name says tab: `[ IN A TAB ↗ ]` (on the frame's line,
   and on the "needs your own browser" page) and `LOG IN TO YOUTUBE IN A TAB ↗` (a sign-in page is never framed, D1). A framed page that says
   nothing in 8 seconds says why (the site refuses to be inside another, or it is a sign-in page) and its tab key becomes OPEN IT IN A TAB ↗, the
   main key. `drive-see --only owneye` (its last steps fail on the old machine file: the key opened a tab).
@@ -210,7 +229,10 @@ In OWN EYE these are your own browser's, where they answer as they always do; no
 - 0.1.0 doesn't know the word `reload`: after its first update the reader presses ↻ once.
 
 ## History, TRAIL and kept pages (Phase 5; on the site since Luke's yes to the tables, 2026-11-23)
-- **History** (`history.ts`, `history-store.ts`): 90 days, 2,000 rows, under the account's own key in this browser; one key clears it. **TRAIL**
+- **History** (`history.ts`, `history-store.ts`): 90 days, 2,000 rows, under the account's own key in this browser; one key clears it. Pages
+  OWN EYE shows are rows too (2026-11-27, Luke: "use it like they would chrome or edge"): the address and title the extension reports (a
+  video in YouTube's own player as soon as it is asked for), marked `own`, shown in HISTORY as OWN EYE · KEPT IN THIS BROWSER ONLY, and
+  never sent to the account (`forAccount`): whether the account keeps them too is Luke's to say, asked 2026-11-27. **TRAIL**
   (`trail.ts`): the same rows as a map of sites; the same walk always makes the same map.
 - **KEEP PAGE**: `POST /api/see/keep` (`server/keep.ts`) looks at the page again, signed out, and answers with a card and a copy: scripts, frames and
   forms gone, sheets and shrunk pictures written into it, 10 MB at most, so it asks for nothing from anywhere. Files are held by addresses under a

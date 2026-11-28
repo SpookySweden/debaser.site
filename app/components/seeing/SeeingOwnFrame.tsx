@@ -31,6 +31,21 @@ export function boxAddress(href: string): string {
   }
 }
 
+/**
+ * A YouTube video's watch page, when a page framed here got to one (a video clicked inside YouTube's player or one of its pages): the page that is
+ * white in a frame. Shorts, the player itself and everything else are not it.
+ */
+export function watchPageOf(href: string): string | null {
+  try {
+    const url = new URL(href);
+    if (url.pathname !== '/watch' || !/(^|\.)youtube\.com$/.test(url.hostname)) return null;
+    const id = youtubeId(url);
+    return id === null ? null : `https://www.youtube.com/watch?v=${id}`;
+  } catch {
+    return null;
+  }
+}
+
 type Props = { address: string; onList: boolean | null; site: string; at: { href: string; title: string } | null; onTab: () => void; onMachine: () => void; onHouse: () => void; onAdd: () => void };
 
 /**

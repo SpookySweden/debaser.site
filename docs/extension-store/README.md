@@ -47,6 +47,8 @@ told to update (the window says the store is still checking); one two versions b
 means Luke uploading the store zip once more.
 
 ## The Chrome Web Store (not chosen, 2026-11-27: kept as it was for later; not built further)
+Asked again the same day ("prepare the Chrome Web Store listing the same way as Edge's?"), Luke: "not now actually because chrome costs
+money to have an extension i think" (SPEC-seeing-machine.md, decision 63).
 The same zip, words and pictures would do, with Chrome's own rules: the icon 128 x 128 (in the zip already), at least one screenshot, a
 one-off registration fee, review from a few days to a few weeks; https://chrome.google.com/webstore/devconsole. Its id would go in
 `CHROME_STORE_ID`, and Chrome would then offer that store first in the same way.

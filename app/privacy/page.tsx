@@ -67,7 +67,7 @@ const SECTIONS: { heading: string; lines: string[] }[] = [
   {
     heading: 'BROWSER, THE SEEING MACHINE',
     lines: [
-      'BROWSER shows other websites in two ways. OWN EYE is your own browser, signed in as you, through the DEBASER extension: the page comes from your own connection, nothing of it passes through the site, and nothing about it is written down.',
+      'BROWSER shows other websites in two ways. OWN EYE is your own browser, signed in as you, through the DEBASER extension: the page comes from your own connection, nothing of it passes through the site, and the site writes nothing down about it. Its address and title go into your HISTORY in this browser only, never onto your account, so you can find the page again; CLEAR in HISTORY empties it.',
       'The server’s eye fetches a page you ask for from the site’s server, on its owner’s home connection, never signed in: the website sees that connection, not yours. Nothing it fetches is kept, except a page you press KEEP PAGE for.',
       'For every account but the owner’s, the server’s eye writes down which site it opened (its name only, never the page or its address) and when. This record is kept with no end date and read only by the site’s owner, so that anything done from the house’s connection can be traced to an account. To see or have your lines removed, ask; it is done by hand.',
       'Your BROWSER history and open tabs are kept on your account, read by you alone, and cleared by one key. Notes you leave on a page are seen by people with an account who open it; a page you keep is seen by everyone, its full copy by people with an account.',

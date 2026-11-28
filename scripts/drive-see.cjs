@@ -1314,6 +1314,12 @@ async function ownEyeFirst(browser) {
     await page.evaluate(() => window.hearAt({ see: 'at', href: 'javascript:alert(1)', title: 'X' }));
     await page.waitForTimeout(300);
     ok((await page.locator('[data-seeing-address]').inputValue()) === `${SITE}/b`, 'and what is not a web address is never put there');
+    // HISTORY holds OWN EYE's pages too (Luke, 2026-11-27: "use it like they would chrome or edge"): address and title, in this browser, marked as its own.
+    const ownRows = await page.evaluate(() => Object.keys(localStorage).filter((each) => each.startsWith('debaser-seeing-history-v1:')).flatMap((each) => JSON.parse(localStorage.getItem(each) ?? '[]')).filter((row) => row.own === true).map((row) => `${row.address} ${row.title} ${row.from}`));
+    ok(ownRows.includes(`${SITE}/b B ${SITE}/a`), `a page OWN EYE shows goes into HISTORY once the extension says it is there, in this browser, marked as OWN EYE's, with the page it was come to from (${ownRows.join(' | ')})`);
+    await key(page, '[ HISTORY ]').click();
+    ok(/B\s*OWN EYE · KEPT IN THIS BROWSER ONLY/.test(await page.locator('[data-seeing-history]').innerText()) && /NOT ON YOUR ACCOUNT/.test(await page.locator('[data-seeing-history]').innerText()), 'and HISTORY says of it that it is kept in this browser only, not on the account');
+    await page.locator('[data-seeing-history]').getByRole('button', { name: 'Close history' }).click();
     ok((await page.locator('[data-seeing-own-frame]').getAttribute('sandbox')) === 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads', "in a frame that can't move BROWSER's page");
     ok((await page.locator('[data-seeing-get-signed-in]').count()) === 0, 'and nothing is asked for first');
     ok(!net.asked.some((each) => each.path === '/a'), 'and the server asks nothing for it');
@@ -1329,9 +1335,15 @@ async function ownEyeFirst(browser) {
     await page.locator('[data-seeing-own-frame]').waitFor();
     ok((await page.locator('[data-seeing-own-frame]').getAttribute('src')) === 'https://www.youtube.com/embed/aqz-KE-bpKQ?autoplay=1', "a YouTube video is YouTube's own player inside BROWSER's tab, added or not: the watch page stops itself in a frame (the white page)");
     ok((await offer.count()) === 0, 'and the sign-in line is not shown: OWN EYE is signed in already where it can be');
+    ok(await page.evaluate((video) => Object.keys(localStorage).filter((each) => each.startsWith('debaser-seeing-history-v1:')).flatMap((each) => JSON.parse(localStorage.getItem(each) ?? '[]')).some((row) => row.own === true && row.address === video), YT), "a video in YouTube's own player is in HISTORY as soon as it is asked for (the player says nothing unless its site was added)");
     await page.evaluate(() => window.hearAt({ see: 'at', href: 'https://www.youtube.com/embed/zzzzzzzzzzz?autoplay=1', title: 'Next' }));
     await page.waitForTimeout(300);
     ok((await page.locator('[data-seeing-address]').inputValue()) === 'https://www.youtube.com/watch?v=zzzzzzzzzzz', "the next video in YouTube's player reads in the address box as its watch page");
+    // The morning's gap G1 (Luke, 2026-11-27: "shorts will play but clicking a video will return a white page"): a video clicked inside the
+    // frame moves it to YouTube's watch page, white in a frame. Told of it by the extension, BROWSER puts YouTube's own player there.
+    await page.evaluate(() => window.hearAt({ see: 'at', href: 'https://www.youtube.com/watch?v=yyyyyyyyyyy&t=3', title: 'Clicked' }));
+    await page.waitForFunction(() => document.querySelector('[data-seeing-own-frame]')?.getAttribute('src') === 'https://www.youtube.com/embed/yyyyyyyyyyy?autoplay=1', null, { timeout: 8000 }).catch(() => undefined);
+    ok((await page.locator('[data-seeing-own-frame]').getAttribute('src')) === 'https://www.youtube.com/embed/yyyyyyyyyyy?autoplay=1' && (await page.locator('[data-seeing-address]').inputValue()) === 'https://www.youtube.com/watch?v=yyyyyyyyyyy' && (await opened()).length === 0, "a video clicked inside the frame, which moves it to YouTube's white watch page, is put in YouTube's own player here, as the tab's next stop");
     await go(page, 'https://www.youtube.com/');
     await page.locator('[data-seeing-own="add"]').waitFor();
     ok(/SHOW YOUTUBE\.COM HERE/.test(await page.locator('[data-seeing-own]').innerText()), "YouTube's own pages, not added: BROWSER offers to add it, to show it here");
@@ -1343,10 +1355,15 @@ async function ownEyeFirst(browser) {
     await go(page, YT);
     await page.locator('[data-seeing-own-frame]').waitFor();
     ok(/\[ ADD youtube\.com \]/.test(await page.locator('[data-seeing-add-site]').innerText()), 'ADD youtube.com, in words');
+    // A lens on YouTube's player while its site is not added: the extension can't put it on, and BROWSER says so (never a silent nothing).
+    await page.locator('[data-seeing-lenses]').getByRole('button', { name: '[ READER ]' }).click();
+    await page.waitForTimeout(300);
+    ok(/A LENS NEEDS YOUTUBE\.COM ADDED FIRST/.test(await page.locator('[data-seeing-status]').innerText()), "a lens pressed on a page whose site is not added says why it can't be put on, and what to press");
+    await page.locator('[data-seeing-lenses]').getByRole('button', { name: '[ STANDARD ]' }).click();
     await page.locator('[data-seeing-add-site]').click();
     await page.waitForTimeout(300);
     ok((await opened('machine')).at(-1) === YT, "which opens the machine's own page, where a site is added");
-    await page.locator('[data-seeing-eye]').click();
+    await page.locator('[data-seeing-eye-key="server"]').click();
     await offer.waitFor();
     ok((await offer.getAttribute('data-seeing-sign-in')) === 'add', "through the server's eye, YouTube not on the list: LOG IN TO YOUTUBE");
     const before = (await opened()).length;
@@ -1359,7 +1376,7 @@ async function ownEyeFirst(browser) {
     await page.locator('[data-seeing-tabs]').waitFor({ timeout: 60000 });
     await page.waitForTimeout(1500);
     ok((await offer.count()) === 0, 'and not after a reload either');
-    await page.locator('[data-seeing-eye]').click();
+    await page.locator('[data-seeing-eye-key="own"]').click();
     await page.evaluate(() => localStorage.removeItem(Object.keys(localStorage).find((each) => each.startsWith('debaser-seeing-not-again-v1:'))));
     await pretend({ version, sites: ['seeing-fixture.org', 'youtube.com'] });
     await page.reload({ waitUntil: 'domcontentloaded' });
@@ -1371,7 +1388,7 @@ async function ownEyeFirst(browser) {
     // The default switched, and remembered.
     // (The server asks for the page and is told there is no such site: the pretend internet has no YouTube. Either way it is asked here.)
     const here = () => page.waitForFunction(() => /REFUSED|RECONSTRUCTED|NOT ASKED OF THE SERVER/.test(document.querySelector('[data-seeing-status]')?.textContent ?? '') && document.querySelector('[data-seeing-own]') === null, null, { timeout: 30000 });
-    await page.locator('[data-seeing-eye]').click();
+    await page.locator('[data-seeing-eye-key="server"]').click();
     await here();
     ok(true, 'OPENS IN: SERVER EYE asks for it here');
     await page.reload({ waitUntil: 'domcontentloaded' });
@@ -1384,23 +1401,35 @@ async function ownEyeFirst(browser) {
     const frame = page.locator('[data-seeing-own-frame]');
     const framed = async () => ((await frame.waitFor({ timeout: 5000 }).then(() => true, () => false)) ? frame.getAttribute('src') : null);
     const tabs = async () => (await opened()).length;
-    const ownKey = page.locator('[data-seeing-keyrow]').getByRole('button', { name: /^\[ OWN EYE( ↗)? \]$/ });
+    const ownKey = page.locator('[data-seeing-eye-key="own"]');
+    const serverKey = page.locator('[data-seeing-eye-key="server"]');
+    const chosen = () => page.locator('[data-seeing-eye]').getAttribute('data-seeing-eye');
+    const pressedKey = async () => `${await ownKey.getAttribute('aria-pressed')} ${await serverKey.getAttribute('aria-pressed')}`;
     // (Engines and sites of the real internet are never asked by this drive: the frame's address is what is read.)
     await context.route(/^https:\/\/(www\.)?(google|x|instagram)\.com\//, (route) => route.abort());
     await go(page, `${SITE}/a`);
     await say(page, 'SERVER EYE');
+    // The eye switch (Luke, 2026-11-27: "make it clearer between own and eye server eye, these need to really state their purpose better"):
+    // both eyes side by side, each named by what it is, the one showing the page drawn pressed.
+    ok(/THIS PAGE THROUGH:/.test(await page.locator('[data-seeing-eye]').innerText()) && (await ownKey.innerText()) === '[ OWN EYE: YOUR BROWSER, SIGNED IN ]' && (await serverKey.innerText()) === '[ SERVER EYE: THE HOUSE, SIGNED OUT ]' && (await pressedKey()) === 'false true', "the eye switch names both eyes by what they are, and the server's eye, showing the page, is the one drawn pressed");
     let before2 = await tabs();
     await ownKey.click();
     ok((await framed()) === `${SITE}/a` && (await tabs()) === before2, "the key named OWN EYE, in the server's eye: the page is shown here, inside BROWSER, and no tab of the browser is opened");
-    ok((await page.locator('[data-seeing-eye]').getAttribute('data-seeing-eye')) === 'server' && (await ownKey.count()) === 0 && /OWN EYE: YOUR OWN BROWSER/.test(await page.locator('[data-seeing-status]').innerText()), 'the status line says OWN EYE, the key is put away while it shows the page, and the eye chosen for other pages is as it was');
+    ok((await pressedKey()) === 'true false' && (await chosen()) === 'own' && /OWN EYE: YOUR OWN BROWSER/.test(await page.locator('[data-seeing-status]').innerText()), 'the status line says OWN EYE, its key is now the pressed one, and the choice is remembered for the pages opened next');
+    ok(/ONLY THE LENSES REACH IT/.test(await page.locator('[data-seeing-own-tools]').innerText()) && /\[ FROM THE HOUSE \] SHOWS THIS PAGE THAT WAY/.test(await page.locator('[data-seeing-own-tools]').innerText()), "a page OWN EYE shows says which tools need the house's copy, and the key that shows it that way");
     await page.getByRole('button', { name: '[ FROM THE HOUSE ]' }).click();
     await say(page, 'SERVER EYE');
-    ok((await page.locator('[data-seeing-own]').count()) === 0 && (await ownKey.count()) === 1, 'FROM THE HOUSE is the server again, with the key back');
+    ok((await page.locator('[data-seeing-own]').count()) === 0 && (await page.locator('[data-seeing-own-tools]').count()) === 0 && (await pressedKey()) === 'false true' && (await chosen()) === 'own', 'FROM THE HOUSE is the server for this page: SERVER EYE is the pressed one, and the choice for other pages is as it was');
+    await ownKey.click();
+    ok((await framed()) === `${SITE}/a` && (await pressedKey()) === 'true false', 'a press on OWN EYE brings the page back to your own browser');
+    await serverKey.click();
+    await say(page, 'SERVER EYE');
+    ok((await page.locator('[data-seeing-own]').count()) === 0 && (await pressedKey()) === 'false true' && (await chosen()) === 'server', 'a press on SERVER EYE shows the page from the house, and is remembered');
     // A page the house refuses (an unusual port): its own OWN EYE key.
     await go(page, `${SITE}:8444/a`);
     await page.locator('[data-seeing-refused]').waitFor();
     before2 = await tabs();
-    await page.locator('[data-seeing-refused]').getByRole('button', { name: /^\[ OWN EYE( ↗)? \]$/ }).click();
+    await page.locator('[data-seeing-refused]').getByRole('button', { name: '[ SHOW IT WITH OWN EYE: YOUR BROWSER ]', exact: true }).click();
     ok((await framed()) === `${SITE}:8444/a` && (await tabs()) === before2, "a refused page's OWN EYE key shows it here too, and opens no tab");
     // It stays blank (nothing answers there): said, and the tab key becomes the one to press.
     await page.locator('[data-seeing-own="silent"]').waitFor({ timeout: 20000 });
@@ -1532,7 +1561,7 @@ async function extension(browser) {
   await page.getByRole('button', { name: 'Close EXTENSION' }).click().catch(() => page.locator('[data-dock-window="extension"]').getByRole('button', { name: /close/i }).first().click());
   await go(page, 'https://example.com/');
   await page.waitForTimeout(800);
-  await page.getByRole('button', { name: '[ OWN EYE ]', exact: true }).click();
+  await page.getByRole('button', { name: '[ GET OWN EYE: YOUR BROWSER, SIGNED IN ]', exact: true }).click();
   await kind('missing');
   ok(true, 'a key that needs it opens the window that gets it');
 

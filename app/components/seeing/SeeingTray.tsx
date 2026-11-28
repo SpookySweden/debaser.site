@@ -6,6 +6,7 @@ import { probeVideoLink } from '../../lib/watch/links';
 import { playInMainRoom } from '../../lib/watch/main-room-play';
 import { addToMyQueue, NO_ROOM_YET, queueIsALiveRoom } from '../../lib/watch/my-queue';
 import { TITLE_BAR_INACTIVE } from '../../lib/ui/controls';
+import { NOTE } from '../../lib/ui/explain';
 import { useAuth } from '../AuthProvider';
 import SplitKey from '../SplitKey';
 
@@ -70,6 +71,7 @@ function TrayRow({ item }: { item: TrayItem }) {
             label: `Play in room: ${item.title}`,
             disabled: busy,
             busy,
+            explain: { what: 'Plays this in your room now, in the room\'s own player: the video or sound this page holds, without the page round it.', why: 'To watch or hear it with whoever is in the room, or by yourself with the room\'s controls. With no room yet, it says so and plays nothing.', note: NOTE.others },
             press: () =>
               void run(() => {
                 const went = playInMainRoom({ link: item.link }, item.title);
@@ -80,6 +82,7 @@ function TrayRow({ item }: { item: TrayItem }) {
             words: '+ QUEUE',
             label: `Queue: ${item.title}`,
             disabled: busy,
+            explain: { what: 'Adds this to the queue: the room\'s, when you are in a live room, or else your own.', why: 'It plays after everything already waiting, so what is playing now is not cut off.', note: 'IN A LIVE ROOM, OTHERS THERE SEE IT.' },
             press: () =>
               void run(async () => {
                 const added = await addToMyQueue({ title: item.title, link: item.link }, user?.id ?? null);

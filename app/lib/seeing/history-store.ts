@@ -2,7 +2,7 @@
  * Whose history it is, and where it is kept: on the account, which nobody else reads, and in this browser under the account's own key.
  */
 import { accountHistory, addToAccountHistory, clearAccountHistory, forgetInAccountHistory } from './account';
-import { keptRows, rowsFrom, without, withVisit, type Seen } from './history';
+import { forAccount, keptRows, rowsFrom, without, withVisit, type Seen } from './history';
 
 const STORAGE_PREFIX = 'debaser-seeing-history-v1:';
 const NONE: readonly Seen[] = [];
@@ -53,7 +53,8 @@ export function openHistoryOf(owner: string | null): void {
       // What was seen here and the account has not heard of (a line that was down, or from before it was kept there) goes to it.
       const known = new Set(kept.map((row) => `${row.at} ${row.address}`));
       const unheard = held.rows.filter((row) => !known.has(`${row.at} ${row.address}`));
-      void addToAccountHistory(unheard).catch(() => undefined);
+      // (A page OWN EYE showed stays in this browser: the account is never told of it.)
+      void addToAccountHistory(forAccount(unheard)).catch(() => undefined);
       keep(keptRows([...kept, ...unheard].sort((a, b) => b.at - a.at), Date.now()));
     });
 }
@@ -63,13 +64,13 @@ export function noteSeen(seen: Seen): void {
   const before = readKept(held.owner) ?? held.rows;
   const after = withVisit(before, seen);
   keep(after);
-  if (after.length > 0 && after[0].at === seen.at && after[0].address === seen.address) void addToAccountHistory([after[0]]).catch(() => undefined);
+  if (after.length > 0 && after[0].at === seen.at && after[0].address === seen.address) void addToAccountHistory(forAccount([after[0]])).catch(() => undefined);
 }
 
 export function forgetOne(row: Seen): void {
   if (held.owner === null) return;
   keep(without(readKept(held.owner) ?? held.rows, row.at, row.address));
-  void forgetInAccountHistory(row).catch(() => undefined);
+  if (row.own !== true) void forgetInAccountHistory(row).catch(() => undefined);
 }
 
 /** One key clears it. */

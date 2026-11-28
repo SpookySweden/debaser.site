@@ -54,7 +54,7 @@ import SeeingElapsed from './SeeingElapsed';
 import SeeingRefused from './SeeingRefused';
 import { seeingKey, type SeeingKey } from '../../lib/seeing/keys';
 import { shownLine } from '../../lib/seeing/status-line';
-import SeeingOwnFrame, { boxAddress } from './SeeingOwnFrame';
+import SeeingOwnFrame, { boxAddress, framedAddress, watchPageOf } from './SeeingOwnFrame';
 import SeeingShell from './SeeingShell';
 import SeeingGetSignedIn from './SeeingGetSignedIn';
 import SeeingFirstVisit from './SeeingFirstVisit';
@@ -366,6 +366,18 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
     setHere(here.filter((each) => each !== key));
     if (!there.includes(address)) setThere([...there, address]);
   };
+  // The eye switch: which eye shows the page in front (a site the house can't show is still the server's eye in front, saying so), and a
+  // press on either eye, which shows this page through it and is the choice for the pages opened next.
+  const showing: 'own' | 'server' = now.state === 'elsewhere' ? 'own' : 'server';
+  const throughOwn = () => {
+    if (extension === 'current') chooseEye('own');
+    showOwn();
+  };
+  const throughServer = () => {
+    chooseEye('server');
+    setNotice(null);
+    if (address !== null) setThere(there.filter((each) => each !== address));
+  };
 
   /** What was typed: an address, or words for an engine. */
   const goBox = (text: string) => {
@@ -567,14 +579,46 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
   // Where the page OWN EYE shows here got to, by a link followed inside it: the address box follows it (the frame is not reloaded; GO there
   // makes it a stop of the tab's own).
   const followed = now.state === 'elsewhere' && framedAt !== null && framedAt.key === key ? boxAddress(framedAt.href) : null;
+  // HISTORY and SEEN LAST hold OWN EYE's pages too (Luke, 2026-11-27: "use it like they would chrome or edge"): the address and the title,
+  // in this browser only, never on the account. A page is seen once the extension says it is there; YouTube's own player says nothing
+  // unless its site was added, so a video is seen as soon as it is asked for.
+  const ownPlayer = now.state === 'elsewhere' && address !== null && framedAddress(address) !== address ? address : null;
+  const ownSeen = now.state === 'elsewhere' && framedAt !== null && framedAt.key === key ? framedAt : null;
+  const stopBefore = tab.at > 0 ? (tab.stops[tab.at - 1]?.address ?? null) : null;
+  const ownCameFrom = stopBefore !== null && /^https?:/.test(stopBefore) ? stopBefore : null;
+  useEffect(() => {
+    if (ownPlayer !== null) noteSeen({ address: ownPlayer, title: ownPlayer, at: Date.now(), from: ownCameFrom, own: true });
+  }, [ownPlayer, key, ownCameFrom]);
+  useEffect(() => {
+    if (ownSeen === null || address === null) return;
+    const at = boxAddress(ownSeen.href);
+    // A link followed inside the frame was come to from the page the tab asked for.
+    noteSeen({ address: at, title: ownSeen.title || at, at: Date.now(), from: at === address ? ownCameFrom : address, own: true });
+  }, [ownSeen, address, ownCameFrom]);
+  // A video clicked inside a page OWN EYE shows moves that frame to YouTube's watch page, which is white in a frame (Luke, 2026-11-27:
+  // "shorts will play but clicking a video will return a white page"). Once the extension says the frame got there, the video becomes this
+  // tab's next stop, so YouTube's own player takes over and BACK returns. Heard only when youtube.com is on the extension's list.
+  const ownWatch = ownSeen === null ? null : watchPageOf(ownSeen.href);
+  useEffect(() => {
+    if (ownWatch === null) return;
+    // After this drawing, not inside it.
+    const soon = window.setTimeout(() => go(ownWatch, false, true), 0);
+    return () => window.clearTimeout(soon);
+    // Once for each place the frame says it got to, not again when `go` is made anew.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ownWatch, ownSeen]);
   // The lens in front, on the page OWN EYE shows here: worn by the extension on the site's own page, so the reader stays signed in.
   const ownLens = now.state === 'elsewhere' ? tab.lens : null;
+  const lensNeeds = onList !== null && !onList.on ? onList.site : null;
   useEffect(() => {
     if (ownLens === null) return;
     const worn = holdRef.current?.lens(ownLens) ?? 'unheard';
     if (worn === 'house') setNotice('THIS LENS IS THE HOUSE\'S ONLY: FROM THE HOUSE SHOWS IT');
     else if (worn === 'unheard' && ownLens !== 'standard') setNotice('THE EXTENSION DID NOT ANSWER: PICK THE LENS AGAIN, OR RELOAD THE PAGE');
-  }, [ownLens, framedAt]);
+    // Never a silent nothing (the morning's gap G5): the extension may put a lens only on a site that was added (YouTube's player
+    // shows here without that).
+    else if (ownLens !== 'standard' && lensNeeds !== null) queueMicrotask(() => setNotice(`A LENS NEEDS ${lensNeeds.toUpperCase()} ADDED FIRST: PRESS [ ADD ${lensNeeds} ], THEN PICK THE LENS AGAIN`));
+  }, [ownLens, framedAt, lensNeeds]);
   // The sign-in offered on entering a page (YouTube, for now), until it is on the list or the reader says not to.
   const offer = offerFor(address);
   const never = useSyncExternalStore(subscribeToEyeChoice, () => notAskedAgain(owner.id), notAskedAgainOnServer);
@@ -776,17 +820,47 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
           </a>
         ) : null}
         {outside && extension !== 'asking' && extension !== 'unable' ? (
-          <button
-            type="button"
-            aria-pressed={eye === 'own'}
-            title="How a page is shown. OWN EYE: your own browser, signed in as you, the page as the site makes it. SERVER EYE: looked at from the house, never signed in, rebuilt through the lenses. Press to switch"
-            onClick={() => chooseEye(eye === 'own' ? 'server' : 'own')}
-            className={PLATE}
-            data-seeing-eye={eye}
-            {...explain(eye === 'own' ? 'Switches to SERVER EYE: the page fetched by the house, signed out, rebuilt through the lenses.' : 'Switches to OWN EYE: the page from your own browser, signed in as you, as the site makes it.', 'OWN EYE is for sites you are signed in to; SERVER EYE is for every lens. The choice is remembered.')}
-          >
-            {eye === 'own' ? '[ OWN EYE: YOUR BROWSER, SIGNED IN ]' : '[ SERVER EYE: FROM THE HOUSE, SIGNED OUT ]'}
-          </button>
+          // The two eyes side by side, each named by what it is (Luke, 2026-11-27: "make it clearer between own and eye server eye, these
+          // need to really state their purpose better"). The eye showing the page in front is the one drawn pressed; a press on the other
+          // shows this page through it, here, and is remembered for the pages opened next. Without the extension, OWN EYE's key gets it.
+          <span role="group" aria-label="Which eye shows this page" className="inline-flex flex-wrap items-center gap-1 text-label text-ink" data-seeing-eye={eye} data-seeing-eye-showing={showing}>
+            THIS PAGE THROUGH:
+            <button
+              type="button"
+              aria-pressed={showing === 'own'}
+              title="OWN EYE: your own browser shows the page here, signed in as you, as the site makes it"
+              onClick={throughOwn}
+              className={showing === 'own' ? `${PLATE_PRESSED} cursor-pointer` : PLATE}
+              data-seeing-eye-key="own"
+              {...explain(
+                extension !== 'current'
+                  ? 'Opens the EXTENSION window, to get or update the DEBASER extension that OWN EYE needs.'
+                  : showing === 'own'
+                    ? 'OWN EYE is showing this page now: your own browser, signed in as you, the page as the site makes it.'
+                    : 'Shows this page here through OWN EYE: your own browser, signed in as you, the page as the site makes it. No tab of your browser is opened.',
+                'For sites you are signed in to, and sites that turn the house away. Remembered: the pages you open next come through OWN EYE too.',
+              )}
+            >
+              {extension === 'current' ? '[ OWN EYE: YOUR BROWSER, SIGNED IN ]' : '[ GET OWN EYE: YOUR BROWSER, SIGNED IN ]'}
+            </button>
+            <button
+              type="button"
+              aria-pressed={showing === 'server'}
+              title="SERVER EYE: the house fetches the page, never signed in, and rebuilds it through the lenses"
+              onClick={throughServer}
+              className={showing === 'server' ? `${PLATE_PRESSED} cursor-pointer` : PLATE}
+              data-seeing-eye-key="server"
+              {...explain(
+                showing === 'server'
+                  ? 'SERVER EYE is showing this page now: fetched by the house, never signed in, rebuilt through the lenses.'
+                  : 'Shows this page through SERVER EYE: fetched by the house, never signed in, rebuilt through the lenses.',
+                'For reading a page without it seeing you, and for every lens and tool. Remembered: the pages you open next come through SERVER EYE too.',
+                'THE SITE NAME AND THE TIME ARE WRITTEN DOWN.',
+              )}
+            >
+              [ SERVER EYE: THE HOUSE, SIGNED OUT ]
+            </button>
+          </span>
         ) : null}
         {outside && (extension === 'missing' || extension === 'old' || onList !== null) ? (
           // ADD THIS SITE, in words: on the list, or a press away (in OWN EYE, which asks the browser). Taking one off is in the EXTENSION window.
@@ -802,26 +876,16 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
             {onList?.on === true ? `[ ✓ ON THE LIST: ${onList.site} ]` : `[ ADD ${onList?.site ?? shortName(address)} ]`}
           </button>
         ) : null}
-        {outside && extension !== 'asking' && extension !== 'unable' && now.state !== 'elsewhere' ? (
-          // The key named OWN EYE shows the page here, never in a tab of the browser (Luke, 2026-11-27); a page OWN EYE shows already has
-          // no use for it. Missing or old, the key opens the window that gets the extension first.
-          <button
-            type="button"
-            title="Here, inside BROWSER, from your own browser, where you are signed in"
-            onClick={showOwn}
-            data-seeing-own-key
-            {...explain(
-              extension === 'current' ? 'Shows this page here, inside BROWSER, from your own browser: signed in as you where the site allows it. No tab of your browser is opened.' : 'Opens the EXTENSION window, to get or update the extension OWN EYE needs.',
-              'For a site you are signed in to, or one that turns the house away. A real tab of your browser is one press further: [ IN A TAB ↗ ], on the line above the page.',
-            )}
-            className={PLATE}
-          >
-            [ OWN EYE ]
-          </button>
-        ) : null}
       </SeeingTools>
       </div>
 
+      {now.state === 'elsewhere' ? (
+        // Why most of the tools are put away or greyed on a page OWN EYE shows (the morning's gap G5): said, not left to be guessed.
+        <p className="py-1 text-label text-ink-quiet" data-seeing-own-tools>
+          THIS PAGE IS FROM YOUR OWN BROWSER, SO ONLY THE LENSES REACH IT (ON A SITE YOU ADDED). THE OTHER TOOLS ON THIS ROW (NOTES, GRAFFITI, SEARCH THIS, SCRIPTS OFF, SHOW MY ROOM,
+          SEAM, LOUPE, ERASE, MEDIA, SONIFY) NEED THE HOUSE&apos;S COPY OF A PAGE: [ FROM THE HOUSE ] SHOWS THIS PAGE THAT WAY, SIGNED OUT.
+        </p>
+      ) : null}
       <SeeingFirstVisit owner={owner.id} />
       {extension === 'missing' || extension === 'old' || extension === 'unable' ? <SeeingGetSignedIn extension={extension} onGet={openExtensionWindow} /> : null}
       {offering && offer !== null ? (

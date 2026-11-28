@@ -38,7 +38,7 @@ export default function SeeingRefused({ reason, eye, ms, address, canOld, ownEye
               </button>
             ) : each === 'own' ? (
               <button key={each} type="button" title="Here, inside BROWSER, from your own browser, where you are signed in" onClick={onOwn} className={PLATE} {...explain('Shows this page here, inside BROWSER, from your own browser, through the extension: signed in as you where the site allows it. No tab of your browser is opened.', 'Some sites only show themselves to a browser that is signed in, or refuse the house.')}>
-                [ OWN EYE ]
+                [ SHOW IT WITH OWN EYE: YOUR BROWSER ]
               </button>
             ) : (
               <a key={each} href={address} target="_blank" rel="noopener noreferrer" className={`${PLATE} inline-flex items-center`} {...explain('Opens the page on its own site, outside BROWSER.', 'The last thing to try: the site as it is, with nothing of the house\'s in between.', NOTE.leaves)}>

@@ -283,6 +283,13 @@ assert.deepEqual(H.recentPages([seen('https://a.example/#2', 9), seen('https://b
 assert.equal(H.without(h, NOW, 'https://b.example/x?secret=1').length, 1);
 assert.deepEqual(H.rowsFrom([seen('javascript:x', NOW), seen('https://a.example/', 'x'), null, { address: 'https://c.example/', title: 'A\u202eB', at: NOW, from: 'javascript:x' }], NOW), [{ address: 'https://c.example/', title: 'A B', at: NOW, from: null }]);
 assert.deepEqual(H.rowsFrom('x', NOW), []);
+// A page OWN EYE showed (the morning's gap G6): a row of this browser's, read back as one, and never one the account hears of.
+const ownRow = { ...seen('https://own.example/', NOW), own: true };
+assert.deepEqual(H.rowsFrom([ownRow, { ...seen('https://b.example/', NOW - 1), own: 'yes' }], NOW), [ownRow, seen('https://b.example/', NOW - 1)], "OWN EYE's row is read back as OWN EYE's; anything but true is not");
+assert.deepEqual(H.forAccount([ownRow, seen('https://b.example/', NOW - 1)]).map((row) => row.address), ['https://b.example/'], "the account is never told of a page OWN EYE showed");
+assert.deepEqual(H.withVisit([ownRow], { ...seen('https://own.example/', NOW + 5, null, 'Real'), own: true })[0], { ...ownRow, title: 'Real' }, "the same visit in OWN EYE stays OWN EYE's, with the title it brought");
+assert.equal(H.withVisit([seen('https://own.example/', NOW)], { ...seen('https://own.example/', NOW + 5), own: true })[0].own, undefined, 'a row the account has heard of stays an ordinary one');
+assert.equal(H.withVisit([{ ...ownRow, title: 'Real' }], { ...seen('https://own.example/', NOW + 5, null, 'https://own.example/'), own: true })[0].title, 'Real', 'a look that brought no title keeps the one already there');
 const walk = [seen('https://c.example/2', NOW, 'https://b.example/'), seen('https://b.example/', NOW - 1, 'https://www.a.example/'), seen('https://www.a.example/', NOW - 2), seen('https://b.example/old', NOW - 3, 'https://www.a.example/')];
 const trail = trailOf(walk);
 assert.deepEqual(trail.places.map((place) => [place.site, place.visits, place.last]), [['b.example', 2, 'https://b.example/'], ['a.example', 1, 'https://www.a.example/'], ['c.example', 1, 'https://c.example/2']]);
