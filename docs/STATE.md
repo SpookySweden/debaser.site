@@ -27,16 +27,18 @@ One coordinator, the only main session (top level, pinned; the first coordinator
 Luke's word). Its notes: `coordinator-notes.md` in the group's notes folder (`docs/sessions.md`). Working under it since the
 evening of 2026-11-27, each in its own worktree: BROWSER-FIREFOX (first the key named OWN EYE showing its page inside BROWSER,
 then the Firefox trial and the bookmarks-bar key; hand-over `browser-firefox-handover.md` in the `local_83ffacf4-…` notes folder; then the morning's BROWSER gaps and Luke's two evening choices: an optional ALLOW EVERY SITE key, and OWN WEB
-keeping the pages OWN EYE shows) and EXPLAIN-READER (hover words in the reader; `explain-handover.md`). Done, live and archived
-that day: a profile track version's "pause" key in the history really pauses (e6c051f), the room builder (the
+keeping the pages OWN EYE shows). Done, live and archived
+that day: the book reader's EXPLAIN words (f3a9828), a profile track version's "pause" key in the history really pauses (e6c051f), the room builder (the
 FULL key ccb030a, your own devices' volume 05f4f90, `[ DEVICES ]` 2c51b18), EXPLAIN for profile, settings and the forum, BROWSER's
 review fixes and easy-install items 1 and 2, room sync and the context system. The gaming PC's heavy lane is switched off
 (`remote-lane.off`) at Luke's word while League is playing: every heavy step stays on SERVER until he says it is done.
 
 ## Half-done
 - EXPLAIN: hover words on every key, shown only while `[ EXPLAIN ]` (PREFERENCES, off by default) is on; top bar, side
-  panel, MEDIA, the room and music bar, profile and settings, and the forum live (a8fcf58, eed29ea, e14e50d, 6c2601a); next the
-  reader, then the rest, one fresh session per area (`Temp/check-explain.cjs` STILL_TO_DO; hand-over `explain-handover.md` in the group's notes folder).
+  panel, MEDIA, the room and music bar, profile and settings, the forum and the book reader live (a8fcf58, eed29ea, e14e50d,
+  6c2601a, f3a9828; 844 keys explained, 539 to do); next the rest (letters, docs, lore, comic studio, character workbench,
+  animate, beatbox, leaguebot, comms, tag station, recommendations), one fresh session per area (`Temp/check-explain.cjs`
+  STILL_TO_DO; hand-over `explain-handover.md` in the group's notes folder).
 - BROWSER: the easy install (`browser-easy-install-brief.md` in the 69ad notes folder). Live: Luke's text icon (extension 0.8.0), the
   Edge Add-ons pack (`docs/extension-store/README.md`, his steps; hidden; waits on him), [ CHOOSE AN EMPTY FOLDER ] (the site writes the
   extension into a new folder) and the copy key for the extensions page. Next, for a fresh session: the Firefox trial and the
