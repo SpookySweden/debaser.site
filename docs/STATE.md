@@ -51,7 +51,14 @@ implementation").
   extension into a new folder) and the copy key for the extensions page. Next, for a fresh session: the Firefox trial and the
   bookmarks-bar key (hand-over `browser-build-handover.md`), then the IMPROVE rounds. Also live: sign-in
   groups, IMPORT, the store pack (90d3d69), OWN WEB (8827218), lenses on pages OWN EYE shows inside BROWSER (7b85214), the address box
-  following them (95a39db), EXPLAIN words on every BROWSER key and the first agent review's fixes (e71c71c, extension 0.7.1).
+  following them (95a39db), EXPLAIN words on every BROWSER key and the first agent review's fixes (e71c71c, extension 0.7.1), every key
+  named OWN EYE showing the page inside BROWSER (fa1c1b7), and the site's half of the morning's gaps (84517f1): one switch with both
+  eyes named, hover words on the tray, a lens that can't be worn says why, a line on what works on an OWN EYE page, OWN EYE's pages in
+  HISTORY (this browser only). Next extension version (0.8.1, built, held on branch `claude/gaps-ext-wip`): a clicked YouTube video
+  followed, no ADD key that leads nowhere, hover words on the extension's own pages, with ALLOW EVERY SITE (Luke: "One optional key
+  (Recommended)", decision 60) in the same version so he updates once. Then OWN WEB keeping OWN EYE's pages (his "Keep every page",
+  decision 61: plan first, /privacy rewritten in the same push). Not built, his to choose: MEDIA, SEARCH THIS, WATCHERS and ERASE on a
+  page OWN EYE shows.
 - The shelf: BROWSER and REMOTE are marked WIP (f648c04).
 
 ## Waiting on Luke
@@ -68,9 +75,11 @@ implementation").
   key into the RELAY KEY form.
 - Off-site backup (Proton Drive, task `DebaserOffsite`) is built but off until he runs
   `C:\DEBASER-SETUP\proton-backup-setup.ps1`; then the first upload and a restore test are owed.
-- BROWSER: `SEEING_OPEN`, the `see.debaser.site` DNS record, whether the machine puts away consent boxes; the Edge Add-ons listing (his
-  eight steps in `docs/extension-store/README.md`, then the id; every new extension version is his upload again); the paper or the
-  transparent icon; Firefox signing (his Mozilla account), if the trial says go.
+- BROWSER: the `see.debaser.site` DNS record, whether the machine puts away consent boxes; the Edge Add-ons listing (his eight steps in
+  `docs/extension-store/README.md`, then the id; every new extension version is his upload again); whether OWN EYE's pages in HISTORY
+  go on his account too (today: this browser only); which tools he wants on a page OWN EYE shows; Firefox signing (his Mozilla
+  account), if the trial says go. Decided 2026-11-27: the server's eye stays his alone ("Only me (Recommended)", decision 62), the
+  icon is the yellow square, no Chrome Web Store for now (decision 63).
 - Google sign-in check on debaser.site from his own browser.
 - The gaming PC's security (Defender off, dead startup entries, old encrypted files in `C:\tmp`): his to change.
 - Test leftovers on TEST ACCOUNT A/B (ROOMCHAT lines, CANVAS rooms): a delete, waits for his OK. POPOUT on hold.
