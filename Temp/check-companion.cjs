@@ -279,7 +279,8 @@ ok('picking it up: any, a drag not a press, nothing under reduced motion, and ne
   assert.match(strip, /Math\.hypot\(event\.clientX - grab\.startX, event\.clientY - grab\.startY\) < GRAB_SLOP/, 'a press that has not moved is a poke');
   assert.match(strip, /if \(still \|\| !canGrab\(\)\) \{/, 'nothing is carried under reduced motion, or out of a room it is in');
   assert.match(strip, /if \(!canGrab\(\)\) \{\s*grab = null;\s*return;\s*\}/, 'a press held while it climbed into the room picks nothing up');
-  assert.match(strip, /if \(event\.type !== 'pointerup' \|\| phase !== 'strip'\) return;/, 'a poke (or a double press) only on its strip');
+  // (2026-11-28, SPEC-player-tv.md: seated by the player bar's TV it can still be poked or picked up. Updated on purpose.)
+  assert.match(strip, /if \(event\.type !== 'pointerup' \|\| \(phase !== 'strip' && phase !== 'tv'\)\) return;/, 'a poke (or a double press) only on its strip or its seat by the TV');
   assert.match(strip, /window\.addEventListener\('pointerup', onDrop/, 'a let-go is heard anywhere on the window');
   assert.match(strip, /window\.addEventListener\('pointercancel', onDrop/);
   // (2026-11-14: the line moved into `hangAt`, so a let-go starts from the same place a carry draws it; the rule is the same.)

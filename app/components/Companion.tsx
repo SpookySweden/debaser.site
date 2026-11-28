@@ -1569,7 +1569,7 @@ function OwnCompanion({ label, userId, roomKeys, friendShare, friendId, musicPla
      * It can be taken hold of on its strip, on its way up to or down from a room, or thrown (caught out of the air, or
      * peeled off the glass): not in a room, gone, or already held.
      */
-    const canGrab = () => phase === 'strip' || phase === 'up' || phase === 'down' || phase === 'thrown' || phase === 'mount' || phase === 'tv';
+    const canGrab = () => phase === 'strip' || phase === 'tv' || phase === 'up' || phase === 'down' || phase === 'thrown' || phase === 'mount';
     /**
      * In the hand it is placed on every move of the pointer, not at the next frame (Luke, 2026-11-16: "the character stays
      * under the pointer with no visible lag"), leaning back against the drag (`dragLook`).
