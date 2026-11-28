@@ -13,8 +13,8 @@ driving another. **The relay** is Cloudflare's live-video service that copies on
 **The yardstick** is Sunshine (on the PC) to the Moonlight app (on the laptop), the thing to beat.
 
 ## Where it stands (2026-11-21)
-Everything below is on the branch `claude/sunshine-research-8a2591`, not on main, and not live. The numbers and what
-is and is not proved are in `engine/BENCH.md`.
+This section is the first slice as it was on 2026-11-21, before the merge: the engine is on `main` and running since
+2026-11-22 ("Our engine both ways", below). The numbers and what is and is not proved are in `engine/BENCH.md`.
 - **The engine** (`engine/`): grabs the screen, encodes on the NVIDIA chip, sends to a browser by WebRTC, changes
   shape, size, rate and bitrate while streaming, caps itself during a League match, takes mouse and keys from the
   viewer (`--allow-control`; refused during a match). Best measured on this PC: about 9.6 ms from its screen to the
@@ -163,6 +163,11 @@ The site moved to SERVER (HP ProDesk, Windows 11 Pro, Intel UHD 630, no NVIDIA).
   names one with `?engine=server`.
 - `[ REMOTE ]` lists `THE PC :: OUR ENGINE` and `THE SERVER :: OUR ENGINE` when each answers. The server's WAY IN switch
   goes both ways: `[ OUR ENGINE ]` / `[ WINDOWS REMOTE DESKTOP (GUACAMOLE) ]`, from either view.
+- **The addresses a viewer is told to send the picture to are read at every hello** (2026-11-28), never once at start:
+  the gaming PC's engine starts at sign-in, before its Wi-Fi has an address, and handed viewers only `127.0.0.1` (the
+  viewer's own device) until it was restarted. The engine's log says `video leaves from ...` at start and again whenever
+  a hello finds the addresses changed. Its test: `cargo test a_hello` in `engine/`, on a PC with the Rust tools (the
+  gaming PC; SERVER has none, so the site's checks do not run it).
 - Catches, said once: the engine captures the screen session on the physical display, so SERVER's login must be on
   its screen (the Kamvas), not inside Remote Desktop or disconnected after it: a restart puts it back (auto sign-in), or
   `C:\DEBASER-SETUP\back-to-screen.ps1` from inside Remote Desktop (admin). Windows' firewall on each machine must let

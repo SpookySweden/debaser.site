@@ -422,3 +422,17 @@ FIRST packet arrives, so it includes the time the rest of the frame takes to arr
 - The viewer's readout averaged since the start of the connection; it now looks at the last 3 seconds and splits the
   number into "frame arriving" and "held", with the round trip beside it (app/lib/screens/frame-times.ts).
 - Not measured: Luke's laptop itself (the readout now shows it there); SERVER to a viewer on a cable.
+
+## The picture's addresses, read at every hello (2026-11-28)
+The gaming PC's engine, started at sign-in, read this PC's addresses once, before the Wi-Fi had one: four starts in a row
+logged `video leaves from 127.0.0.1` only, and no viewer in those runs ever connected. They are now read at every
+viewer's hello. `cargo test` on the gaming PC (2026-11-28): the new test (a pretend address list; the real hello)
+fails with the list read once (`["127.0.0.1"]` after the Wi-Fi "came up") and passes with the fix. Run over SSH, 31 of
+33 pass; `the_real_modes_are_listed_without_changing_anything` and `the_screen_is_found_without_opening_anything` need a
+signed-in screen and fail the same way on the source before this change (the second crashes the test program, so skip
+both there: `cargo test -- --skip the_real_modes --skip the_screen_is_found`).
+
+On the real PC the same day (engine file swapped on Luke's OK): its log said `video leaves from ... 192.168.0.30`; a
+watch-only viewer in SERVER's Edge (a local dev server on mock data, THE PC :: OUR ENGINE) decoded 2580x1080 H.264 sent
+from 192.168.0.30, direct on the home network, and the PC logged `viewer 1 connected 128 ms after its hello`. Not tried:
+a restart of the PC; Luke's laptop.
