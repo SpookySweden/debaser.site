@@ -32,7 +32,7 @@ that day: the book reader's EXPLAIN words (f3a9828), a profile track version's "
 FULL key ccb030a, your own devices' volume 05f4f90, `[ DEVICES ]` 2c51b18), EXPLAIN for profile, settings and the forum, BROWSER's
 review fixes and easy-install items 1 and 2, room sync and the context system. The gaming PC's heavy lane is on again
 since 2026-11-28 (Luke: "league is done we can open the pc switch and use it at full capacity too"). Also working since that
-night, on the lighter model: READER-FIXES (done, live as 3868301: no EXPLAIN box over the book's page; the place saved on leaving) and (done, live as a8fe1d3 and archived; EXPLAIN-REST-2 follows it: comic studio, character workbench, animate, beatbox; and
+night, on the lighter model: READER-FIXES (done, live as 3868301: no EXPLAIN box over the book's page; the place saved on leaving) and (done, live as a8fe1d3 and archived; EXPLAIN-REST-2 followed it: comic studio, character workbench, animate, beatbox, done and live as bd99483; EXPLAIN-REST-3, the last areas, is briefed and not started; and
 FULL-RUN-DUE, done and live as 46d286c: the quick checks stop demanding the whole suite because of the one check that is red on purpose; and
 STARFIELD-PLAY: pressing a star in the STARFIELD background does something to it, the way chosen in settings, Luke, 2026-11-28:
 "physics inspired some options including laser beams, nudges, drag/throw"; of these three only FULL-RUN-DUE is live) EXPLAIN-REST-1
@@ -67,8 +67,17 @@ keeps one player alive in a background tab and shows a short LINING UP line.
   page OWN EYE shows.
 - The shelf: BROWSER and REMOTE are marked WIP (f648c04).
 - PLAYER-TV (Luke, 2026-11-28: "a small voxel tv at a 2.5d angle ... small enough to fit inside of the player bar ... the
-  character will also crawl down and sit to watch the tv"): a session is writing the plan and his questions; SPEC first,
-  nothing built (`player-tv-brief.md` in the 69ad notes folder).
+  character will also crawl down and sit to watch the tv"): a session is writing `SPEC-player-tv.md`; nothing built
+  (`player-tv-brief.md`, `player-tv-handover.md` in the 69ad notes folder). His answers, 2026-11-28: who makes the TV, "use
+  voxels same as with the backrounds" and then "Yes, code builds it" (a new art-rule exception, this TV only, to be written
+  into `.claude/rules/art.md` with the SPEC); YouTube, "Stills (Recommended)"; his server films through a change to the
+  bridge on SERVER, "Not now" (they get a dark screen); the character, "Half size (Recommended)".
+- REMOTE from any Wi-Fi (REMOTE-ANYWHERE; plan `remote-anywhere-plan.md` in the 69ad notes folder): three ways, tried in
+  order: the direct line as today; a port on his router opened by the PC's engine itself (his "Yes, automatically"; the
+  Virgin Hub 5 answers and has a public address, seen 2026-11-28); and through the site as the slow fallback (Luke,
+  2026-11-28: "Build, capped, 20 GB (Recommended)", after being told Cloudflare's free-plan video rule covers the tunnel, no
+  bill, at worst the free account cut off; his Cloudflare billing lists "Only the domain"). Nothing built; the first two
+  ways first, the site way hidden until picture, control and sound all work.
 
 ## Waiting on Luke
 - Tailscale: the laptop, phone and gaming PC join his tailnet so sessions and the heavy lane can reach them (his choice,
