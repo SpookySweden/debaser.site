@@ -8,7 +8,7 @@ Sizes are rough tokens (characters / 4): read the sections you need, not the who
 
 | File | Loads | ≈ tokens |
 |---|---|---|
-| `.claude/rules/art.md` | when a file in its area is opened | 907 |
+| `.claude/rules/art.md` | when a file in its area is opened | 1032 |
 | `.claude/rules/backend.md` | when a file in its area is opened | 389 |
 | `.claude/rules/browser.md` | when a file in its area is opened | 522 |
 | `.claude/rules/core.md` | every session | 3178 |
@@ -162,7 +162,7 @@ Sizes are rough tokens (characters / 4): read the sections you need, not the who
 
 | File | What | ≈ tokens |
 |---|---|---|
-| `SPEC-player-tv.md` | a little TV in the player bar, and the character who watches it (Luke, 2026-11-28) | 2319 |
+| `SPEC-player-tv.md` | a little TV in the player bar, and the character who watches it (Luke, 2026-11-28) | 2186 |
 | `docs/how-this-works.md` | How the Claude sessions get their instructions (for Luke, 2026-11-27) | 1465 |
 | `docs/theming.md` | Theming: how the look is changed | 2256 |
 

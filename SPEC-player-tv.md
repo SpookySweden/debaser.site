@@ -18,8 +18,7 @@ sits on the left inside the black sapce of the player bar."
   a plain TV out of blocks in code in the site's own inks, seen at the 2.5D angle; he draws or builds nothing; written into
   the art rules as an exception for this TV only; the risk named: the first object, not a background, that code may
   depict). He did not choose "Code now, mine later".
-  - **The rule line is not in `.claude/rules/art.md` yet** (see "The art rule line" below). No code that builds the TV is
-    written until it is.
+  - The line is in `.claude/rules/art.md` (2026-11-28, on Luke's own "Yes, add it", typed to this session after reading it).
 - **YouTube: stills.** Luke, 2026-11-28, to "... What should the little TV do while a YouTube video plays?": "Stills
   (Recommended)": the TV shows YouTube's own three still pictures from that video, changing as it plays, and the character
   sits and watches. Vimeo and Twitch have no stills: dark screen, the character still watches.
@@ -50,14 +49,9 @@ sits on the left inside the black sapce of the player bar."
 Flat faces in the house inks (tokens only), a different ink for the front, side and top so the angle reads. No outline art,
 no texture, no face, no logo, no words. It stands at a fixed three-quarter angle and does not turn or move.
 
-## The art rule line (proposed, to be added to `.claude/rules/art.md` under "A simulated background isn't artwork")
-> - The player bar's TV (Luke, 2026-11-28: "use voxels same as with the backrounds", and to "Do you mean code may build the
->   little TV itself out of plain voxel blocks, as a new exception to your art rule (the way code is allowed to draw the
->   backgrounds)?": "Yes, code builds it"): code may build this one TV from plain blocks (case, screen, aerials, feet and a
->   knob at most) in the house inks from the tokens. Only the player bar's TV; nothing else is made that way; never a
->   character, never an icon.
-
-The character is not touched by this: still only the owner's own hand-built character, its joints turned.
+## The art rule
+The exception is the "player bar's TV" line in `.claude/rules/art.md`: this one TV, plain blocks, token inks, nothing else
+made that way. The character is not touched by it: still only the owner's own hand-built character, its joints turned.
 
 ## What the screen shows
 | The video | The TV's screen |
@@ -103,7 +97,7 @@ never moved into the TV.
 
 ## Order
 1. The rules (which source shows what, which still) with their check.
-2. The TV: blocks and picture, once the art rule line is in.
+2. The TV: blocks and picture.
 3. The crawl and the seat.
 4. The lines in the bar and the room's strip, **only after ROOM-DEVICE-SYNC has pushed** (those files are its until then).
 5. Two or three local screenshots of the TV in the bar to Luke, **before the push**: his eye decides whether it looks right.
