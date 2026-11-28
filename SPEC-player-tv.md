@@ -10,10 +10,16 @@ the player bar at the bottom of the site,  the character will also crawl down an
 display a small just about legible version of the video. this is all done to the right of the live audio visualiser which
 sits on the left inside the black sapce of the player bar."
 
-## Decisions
-- **The TV's artwork: NOT SETTLED.** Luke, 2026-11-28, to "TV in the player bar: the little TV is artwork, so code can't
-  draw it (your art rule). Who makes it?": "use voxels same as with the backrounds". The coordinator is asking him what he
-  means. Until it is settled the TV is an art slot with its placeholder, and code draws nothing.
+## Decisions (all 2026-11-28; relayed word for word by the coordinator, who asked him)
+- **The TV: code builds it.** Luke, to "TV in the player bar: the little TV is artwork, so code can't draw it (your art
+  rule). Who makes it?": "use voxels same as with the backrounds". Then, to "TV in the player bar: you answered "use voxels
+  same as with the backrounds". Do you mean code may build the little TV itself out of plain voxel blocks, as a new
+  exception to your art rule (the way code is allowed to draw the backgrounds)?": "Yes, code builds it" (the option read:
+  a plain TV out of blocks in code in the site's own inks, seen at the 2.5D angle; he draws or builds nothing; written into
+  the art rules as an exception for this TV only; the risk named: the first object, not a background, that code may
+  depict). He did not choose "Code now, mine later".
+  - **The rule line is not in `.claude/rules/art.md` yet** (see "The art rule line" below). No code that builds the TV is
+    written until it is.
 - **YouTube: stills.** Luke, 2026-11-28, to "... What should the little TV do while a YouTube video plays?": "Stills
   (Recommended)": the TV shows YouTube's own three still pictures from that video, changing as it plays, and the character
   sits and watches. Vimeo and Twitch have no stills: dark screen, the character still watches.
@@ -31,6 +37,27 @@ sits on the left inside the black sapce of the player bar."
    and watches.
 3. The video stops, ends or is closed: the TV goes and the character climbs back up.
 4. With no video, the bar looks as it does today.
+
+## The TV, block by block (plain and small; nothing else is added)
+| Block | What it is |
+|---|---|
+| 1 case | the box of the set |
+| 1 screen | the flat face on the front of the case where the picture goes |
+| 2 aerials | thin square rods on top, leaning apart |
+| 2 feet | small blocks under the case |
+| 1 knob | a small block beside the screen |
+
+Flat faces in the house inks (tokens only), a different ink for the front, side and top so the angle reads. No outline art,
+no texture, no face, no logo, no words. It stands at a fixed three-quarter angle and does not turn or move.
+
+## The art rule line (proposed, to be added to `.claude/rules/art.md` under "A simulated background isn't artwork")
+> - The player bar's TV (Luke, 2026-11-28: "use voxels same as with the backrounds", and to "Do you mean code may build the
+>   little TV itself out of plain voxel blocks, as a new exception to your art rule (the way code is allowed to draw the
+>   backgrounds)?": "Yes, code builds it"): code may build this one TV from plain blocks (case, screen, aerials, feet and a
+>   knob at most) in the house inks from the tokens. Only the player bar's TV; nothing else is made that way; never a
+>   character, never an icon.
+
+The character is not touched by this: still only the owner's own hand-built character, its joints turned.
 
 ## What the screen shows
 | The video | The TV's screen |
@@ -57,12 +84,12 @@ never moved into the TV.
 - No on/off switch (none was asked for).
 
 ## How it is built
-- **The TV's art** is a slot (`app/lib/ui/art/slots.ts`, shown by `SpriteSlot`): `assets/sprites/player-tv.png`. While the
-  file is missing the slot is the site's dithered field. The screen's four corners are four numbers beside it
-  (`app/lib/player-tv/`), so his TV drops in by swapping the file and the corners.
-- **The picture** is a small canvas fed from the one `<video>` already playing (no second download or decode), at no more
-  than 12 frames a second, pinned onto the four corners with a CSS `matrix3d` four-point transform (true perspective). The
-  element comes from `app/lib/ui/floating-player.ts` and `app/lib/audio/room-screen-sound.ts`.
+- **The TV** is its own small module (`app/components/PlayerTv.tsx`): the blocks above as flat page boxes placed in 3D by
+  CSS (`perspective`, `preserve-3d`), so the browser does the perspective itself. No 3D library, no picture file. Kept in
+  one place so it could be swapped later; no swapping machinery.
+- **The picture** is a small canvas lying on the screen face (so it is slanted exactly as the face is), fed from the one
+  `<video>` already playing (no second download or decode), at no more than 12 frames a second. The element comes from
+  `app/lib/ui/floating-player.ts` and `app/lib/audio/room-screen-sound.ts`.
 - **Stills** use `youtubeStills` (`app/lib/watch/bar-watch.ts`) and the player's own clock.
 - **Where:** in the normal bar (`MusicPlayer.tsx`) and a room's strip (`WatchRoom.tsx`), inside `[data-bar-led]`, right of
   the words and left of any key already there; its own opaque box, so the visualiser stops at its edge.
@@ -75,22 +102,22 @@ never moved into the TV.
 - No database change.
 
 ## Order
-1. The rules (which source shows what, which still, the corner transform) with their check.
-2. The TV with its placeholder slot.
+1. The rules (which source shows what, which still) with their check.
+2. The TV: blocks and picture, once the art rule line is in.
 3. The crawl and the seat.
 4. The lines in the bar and the room's strip, **only after ROOM-DEVICE-SYNC has pushed** (those files are its until then).
-5. Luke's TV, when the art question is settled.
+5. Two or three local screenshots of the TV in the bar to Luke, **before the push**: his eye decides whether it looks right.
 
 ## Proof (each check seen failing first)
-- `Temp/check-player-tv.cjs`: the transform puts the picture's corners on the TV's corners; each kind of video gets the
-  right screen; the stills change at the right times.
+- `Temp/check-player-tv.cjs`: each kind of video gets the right screen; the stills change at the right times; the TV has
+  the blocks above and no others, in token inks.
 - A check that every motion that existed before bakes the same frames as before.
 - A real-browser drive on a local mock server with a known test clip: screenshot pixels inside the screen change and match
   the clip, and are slanted as designed; stills for a YouTube entry; no TV with no video; the character reaches the seat and
   leaves it; the bar's keys still work; no sideways scroll at 390.
 - Cost while playing, measured once.
-- The house loop (verify, checks:changed, capture + audit, verify:clean, push, deploy-status, read), then local
-  screenshots to Luke through the coordinator. Whether it LOOKS right is his to judge.
+- Local screenshots to Luke through the coordinator, then the house loop (verify, checks:changed, capture + audit,
+  verify:clean, push, deploy-status, read). Whether it LOOKS right is his to judge.
 
 ## Out of scope
 - LUKE'S SERVER's bridge (`G:\MEDIA-HOST`): not touched.

@@ -162,7 +162,7 @@ Sizes are rough tokens (characters / 4): read the sections you need, not the who
 
 | File | What | ≈ tokens |
 |---|---|---|
-| `SPEC-player-tv.md` | a little TV in the player bar, and the character who watches it (Luke, 2026-11-28) | 1813 |
+| `SPEC-player-tv.md` | a little TV in the player bar, and the character who watches it (Luke, 2026-11-28) | 2319 |
 | `docs/how-this-works.md` | How the Claude sessions get their instructions (for Luke, 2026-11-27) | 1465 |
 | `docs/theming.md` | Theming: how the look is changed | 2256 |
 
