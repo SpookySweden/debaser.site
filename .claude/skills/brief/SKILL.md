@@ -11,6 +11,11 @@ the decisions; it points at files instead of copying them.
 ## Before starting it
 - Its own worktree (`use_worktree: true`) unless it only reads. Check no running session owns the files you will give
   it (`coordinator-notes.md`). Few heavy builders at once: SERVER has 16 GB.
+- The lightest model that can do the job (Luke, 2026-11-28: "new tasks need to be started in lighter models where
+  possible"): pass `model` to start_session. Sonnet for words-only work (EXPLAIN areas), small fixes with a clear proof,
+  docs and read-only work; Haiku for spelled-out bulk edits; the coordinator's own model only for design-heavy work, a
+  SPEC interview, or a task that leans on a long history (BROWSER). A card Luke starts himself inherits the coordinator's
+  model: switch it with `set_session_model` as soon as it starts. Say in the report to Luke which model each session got.
 - Write the brief to `<task>-brief.md` in the group's notes folder first, then start the session with a short prompt
   that names that file and repeats the goal, so nothing depends on the message alone.
 - Record it in `coordinator-notes.md`: name, id, task, worktree, files owned, STATE.

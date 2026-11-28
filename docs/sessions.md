@@ -191,6 +191,8 @@ gaming PC"). Which machine, and what never goes: "Which machine does what" below
 - **Cloud sessions only for reading work** that needs no database or house machine: research, reviews, SPEC drafts.
   They start from the pushed `main` and never push; building stays on SERVER. Setting the cloud up for the repo is
   Luke's click.
+- **Which model:** a new session starts on the lightest model that can do its job (Luke, 2026-11-28: "new tasks need to
+  be started in lighter models where possible"; the `brief` skill says which for what).
 - **Inside a session:** subagents for contained jobs, read-only ones on a cheaper model where they suit; skills for
   repeated recipes (`brief`, `interview`, `handoff`, `verify-site`, `add-web-adapter`); hooks for the guards; memory
   for Luke's standing rules about Claude itself.
