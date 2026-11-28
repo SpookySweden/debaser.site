@@ -270,6 +270,13 @@ at an address the laptop is not really using, and the home router throws away th
    fails: 360 frames reached the stranger). The gate carries no picture, sound or control, and the gateway is not on
    SERVER's kept-running list. The rest is written only if the numbers are good (`engine/BENCH.md`).
 
+   **The gate's result (one run, ten minutes, 2026-11-28).** Through Cloudflare and the tunnel: there and back 52 ms
+   in the middle (99%: 70 ms), so about 26 to 38 ms one way, inside the 30 to 45 ms that was hoped for; not one frame
+   lost or skipped; no pause over a quarter of a second. About 1 frame in 22 arrives paired with the one before
+   (mild, not the "held back and sent in lumps" failure), and a build running on SERVER makes frames up to 268 ms
+   late for a few seconds. Not measured: a real picture, a viewer away from home, a poor line. The go/no-go is the
+   coordinator's and Luke's; nothing past the gate is written until it is given.
+
 **What is and is not proved.** The engine's tests play the router with the Virgin Hub 5's own recorded answers, and
 the Hub itself was asked read-only questions from SERVER (it offers the service and has a public address). Built and
 tested on the gaming PC, 2026-11-28: 41 of 41 tests pass, and a deliberately broken copy (a port asked for with no

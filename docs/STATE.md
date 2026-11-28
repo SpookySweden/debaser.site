@@ -79,6 +79,14 @@ keeps one player alive in a background tab and shows a short LINING UP line.
   voxels same as with the backrounds" and then "Yes, code builds it" (a new art-rule exception, this TV only, to be written
   into `.claude/rules/art.md` with the SPEC); YouTube, "Stills (Recommended)"; his server films through a change to the
   bridge on SERVER, "Not now" (they get a dark screen); the character, "Half size (Recommended)".
+- REMOTE through the site, the third way: only its GATE is built and live (b52c814, 2026-11-28), hidden: a measurement
+  with made-up frames that decides whether the rest is written (`scripts/host/screens-site-gateway.cjs`, started and
+  stopped by `engine/bench/site-way-gate.cjs`; not kept running; no page asks for it; one line in `next.config.ts`
+  passes `debaser.site/api/screens/site-socket` to it, so no tunnel rule). Measured once, ten minutes, 3.5 Mbit/s, 60
+  frames a second, from a hidden browser on SERVER through Cloudflare and the tunnel: there and back 52 ms in the
+  middle (99%: 70 ms), no frame lost or skipped, no pause over a quarter second; about 1 frame in 22 arrives paired
+  with the one before; a build on SERVER at the same time made frames up to 268 ms late for a few seconds
+  (`engine/BENCH.md`). The numbers are with the coordinator as a go/no-go; nothing more of it is written yet.
 - REMOTE from any Wi-Fi (REMOTE-ANYWHERE; plan `remote-anywhere-plan.md` in the 69ad notes folder): three ways, tried in
   order: the direct line as today; a port on his router opened by the PC's engine itself (his "Yes, automatically"; the
   Virgin Hub 5 answers and has a public address, seen 2026-11-28); and through the site as the slow fallback (Luke,
@@ -109,9 +117,10 @@ keeps one player alive in a background tab and shows a short LINING UP line.
   REMOTE-ANYWHERE is still working (his "get it working from any wifi, remotely, no setup": a way through the site itself,
   "okay but make sure it doesnt cost and look into it"; the engine opening a router port by itself, "Yes, automatically";
   "Wait until sound works too"). Briefs and research: `remote-*.md` in the 69ad notes folder.
-- REMOTE from any Wi-Fi, two things (2026-11-28): his word to put the engine that asks the router for a port onto the
-  gaming PC (asked through the coordinator; REMOTE to the PC is off for under a minute, the earlier engine file is kept
-  beside it); and after that his own try from his phone's hotspot (the clicks come with the swap's result).
+- REMOTE from any Wi-Fi, two things (2026-11-28): he said "Yes, swap it (Recommended)" to putting the engine that asks
+  the router for a port onto the gaming PC, but the swap has NOT run: the PC had no memory left to start it (the game
+  Deadlock held 35 GB of its 50 GB limit at midday), so it waits until that game is closed or restarted (the
+  coordinator says when); and after the swap his own try from his phone's hotspot (the clicks come with its result).
 - SCREENS relay: activate Cloudflare Realtime/TURN on his account (he ticks the terms and pays himself), then paste the
   key into the RELAY KEY form.
 - Off-site backup (Proton Drive, task `DebaserOffsite`) is built but off until he runs

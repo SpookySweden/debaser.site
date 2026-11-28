@@ -461,3 +461,51 @@ off the home network, and a port a router opened with no time limit would have s
 
 Not measured, not proved: the real Hub giving the port (no test engine may ask it; known once the PC runs this file);
 a packet from outside the house; a phone hotspot or a campus network (Luke's own try).
+
+## The way through the site: the gate (2026-11-28)
+
+Measured before anything of it is built (SPEC-screens.md, "Away from home with no setup"): a made-up stream of random
+bytes at the real size and pace (60 frames a second, 3.5 Mbit/s, one 45,000-byte "full picture" every ten seconds),
+sent by `scripts/host/screens-site-gateway.cjs --gate` on SERVER and watched by `engine/bench/site-way-gate.cjs` down
+three paths at the same time for ten minutes, with `npm run build` started 240 seconds in (it ran 59 seconds):
+
+    node engine/bench/site-way-gate.cjs --via gateway=ws://127.0.0.1:8481 --via site=ws://127.0.0.1:3000 \
+         --via tunnel=wss://debaser.site --browser tunnel --seconds 600 --during "npm run build" --at 240
+
+Results file: `bench/results/site-way-gate-20261128-121948.json`. One run, SERVER, commit b52c814 live.
+
+| path | there and back, ms (middle / 95% / 99% / worst) | frames lost or skipped | gaps over 100 ms / 250 ms | frames arriving paired |
+|---|---|---|---|---|
+| straight from the gateway (this script) | 0.5 / 1 / 2 / 17 | 0 | 1 / 1 (the last second, see below) | 0.06% |
+| through the site's own program only (this script) | 0.7 / 1.8 / 5.2 / 385 | 0 | 6 / 2 | 0.24% |
+| through Cloudflare and the tunnel (hidden browser on a page of debaser.site) | 52.1 / 63.4 / 69.9 / 172 | 0 | 6 / 0 | 4.48% |
+
+- **There and back** is a frame out and the browser's word back, the browser's own handling time taken off, on the
+  gateway's clock alone. One way, for the picture, is about half: 26 ms. The other reading, the frame's stamp against
+  the browser's clock, said 38 ms in the middle (least 25, 95% 48, 99% 53, worst 268), but two programs on one machine
+  do not agree on the time to better than a few ms (the script's own watcher read 5.7 ms on a path whose round trip
+  was 0.5 ms), so the true one-way figure lies between the two. The plan's bar was 30 to 45 ms one way: met.
+- **Lumps.** Through the tunnel about 1 frame in 22 arrived within a millisecond of the one before although they left
+  16 ms apart, and the time between frames was 20 ms in the middle and 40 ms at 99%. Pairs, not batches: nothing was
+  held back for longer and released together. The viewer will need a few frames of patience to play it evenly.
+- **Stalls.** No gap over a quarter of a second through the tunnel in ten minutes; 36 gaps over 50 ms, 6 over 100 ms.
+- **A heavy step on SERVER shows.** During the build the tunnel path's 99% went from about 52 ms late to 148 ms and
+  its worst to 268 ms; the site-only path's worst went from about 15 ms to 159 ms; straight from the gateway stayed
+  under 20 ms. So it is the hop through the site's own program (and the tunnel's) that waits when SERVER is busy, not
+  the gateway. It recovered by itself, and nothing was lost or skipped. One more blip 30 to 60 seconds in (tunnel 211
+  ms, site 118 ms) with nothing of mine running: SERVER was busy with something else.
+- **The line never backed up:** the gateway skipped no frame and never had a byte waiting on the tunnel path.
+- **The door:** by every path, a stranger with the wrong words or none got a closed line and no frame. With the
+  gateway's check broken on purpose the same test fails (360 frames reached the stranger).
+- **The site's program passes a websocket along** (one `rewrites()` line): first proved on a local build
+  (127.0.0.1:3391: 1,199 frames in 20 s, none lost, no lumps), then on the live site above. No tunnel rule was added.
+
+Not what it looks like: the "worst" of 413 and 463 ms on the two local paths is the last second of the run, when the
+measuring script was busy fetching the browser's numbers and read its own two sockets late. The browser's path has
+no such second.
+
+Not measured, not proved: a real picture (these are random bytes: no decoding, no engine, no home-network hop from
+the gaming PC); a viewer away from home (this browser sat on SERVER, so its leg to Cloudflare was the house's own
+line; an away viewer has theirs instead); a poor line (a websocket resends what is lost instead of skipping it, so a
+bad line will stall where the direct way would only smear); how it feels. Screen to screen through the site is still
+an estimate: 80 to 150 ms, against 12 to 17 at home.
