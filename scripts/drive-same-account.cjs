@@ -321,8 +321,26 @@ async function jellyfinStep(browser, errors, bridge) {
     return route.fulfill({ response });
   });
   const film = { url: 'https://media.debaser.site/debaser/play/movie/10378', kind: 'embed', title: 'BIG BUCK BUNNY' };
+  // What each device's film requests did and what its pages complained of, listened to only (nothing is caught): printed when
+  // this step fails. Addresses are cut before their query, which can carry a key.
+  const begun = Date.now();
+  const heard = [];
+  const names = new Map();
+  const note = (page, line) => heard.push(`${((Date.now() - begun) / 1000).toFixed(1)}s ${names.get(page) ?? '?'} ${line.replace(/\?[^\s"']*/g, '?…').slice(0, 220)}`);
+  const filmRequest = (request, line) => {
+    if (!/\/videos\//i.test(request.url())) return;
+    note(request.frame().page(), `${line} ${new URL(request.url()).pathname} ${request.headers().range ?? ''}`);
+  };
+  context.on('request', (request) => filmRequest(request, 'asked'));
+  context.on('response', (response) => filmRequest(response.request(), `answered ${response.status()}`));
+  context.on('requestfinished', (request) => filmRequest(request, 'finished'));
+  context.on('requestfailed', (request) => filmRequest(request, `FAILED (${request.failure()?.errorText})`));
+  context.on('console', (message) => {
+    if (message.type() === 'error' || message.type() === 'warning') note(message.page(), `console ${message.type()}: ${message.text()}`);
+  });
   try {
     const a = await context.newPage();
+    names.set(a, 'A');
     a.on('pageerror', (error) => errors.push(`server A: ${error.message}`));
     await open(a, '/files?kind=video');
     await pressPlay(a, 'SAME ACCOUNT ONE');
@@ -340,6 +358,7 @@ async function jellyfinStep(browser, errors, bridge) {
     await a.reload({ waitUntil: 'domcontentloaded' });
     await a.waitForSelector('[data-server-remote="on"]', { timeout: 60000 });
     const b = await context.newPage();
+    names.set(b, 'B');
     b.on('pageerror', (error) => errors.push(`server B: ${error.message}`));
     await open(b, '/files?kind=video');
     await b.waitForSelector('[data-server-remote="on"]', { timeout: 60000 });
@@ -371,6 +390,18 @@ async function jellyfinStep(browser, errors, bridge) {
     await jellyfinUntil(b, 'B plays on from 5:00 with A', (held) => !held.paused && held.time > 300, 20000);
     pass('PLAY on A played both on from 5:00');
     await a.screenshot({ path: join(SHOTS, 'server-a.png') });
+  } catch (error) {
+    for (const [page, name] of names) {
+      const video = await page.frames().find((candidate) => candidate.url().startsWith('https://media.debaser.site/web/'))
+        ?.evaluate(() => {
+          const held = document.querySelector('video');
+          return held && { networkState: held.networkState, readyState: held.readyState, buffered: held.buffered.length, paused: held.paused };
+        }).catch(() => null);
+      console.log(`    ${name}'s video: ${JSON.stringify(video ?? null)}`);
+    }
+    console.log(`    film requests and complaints (${heard.length}; the last 40):`);
+    for (const line of heard.slice(-40)) console.log(`      ${line}`);
+    throw error;
   } finally {
     await context.close();
   }
