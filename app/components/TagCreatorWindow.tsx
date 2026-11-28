@@ -9,6 +9,7 @@ import {
 } from '../lib/forum/tag-vocabulary';
 import PopoutWindow from './PopoutWindow';
 import { TagMark, tagChipClasses, tagMarkColourFromColour } from './TagBadge';
+import { explain } from '../lib/ui/explain';
 
 type TagCreatorWindowProps = {
   /** Labels already in use, so the editor can warn when a name folds onto one. */
@@ -63,6 +64,7 @@ export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: Ta
           type="button"
           onClick={handleCreate}
           className="cursor-pointer key px-1.5 py-1.5 text-key font-bold"
+          {...explain('Makes this tag and puts it on your post.', 'A name close to an existing tag folds onto that one.')}
         >
           [ CREATE TAG ]
         </button>
@@ -101,6 +103,7 @@ export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: Ta
                 className={`flex cursor-pointer items-center justify-center rounded-none border border-bubble-pale bg-bubble-pale py-1 ${
                   colour === swatch ? 'outline-2 outline-ink' : 'hover:bg-sun'
                 }`}
+                {...explain('Gives the new tag this colour.', 'The colour is the mark beside its name.')}
               >
                 <TagMark colour={swatch} />
               </button>

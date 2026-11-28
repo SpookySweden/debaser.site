@@ -38,6 +38,7 @@ import QueuePictureKey from './QueuePictureKey';
 import WatchInRoomKey from './WatchInRoomKey';
 import AddToLetterKey from './AddToLetterKey';
 import { fileMade } from '../lib/forum/made-filing';
+import { explain, NOTE } from '../lib/ui/explain';
 
 type Sort = 'newest' | 'title' | 'used';
 
@@ -278,7 +279,7 @@ export default function MediaCatalogue() {
     return (
       <section key={key} aria-label={title} className="mt-1">
         <div className={TITLE_BAR}>
-          <button type="button" onClick={() => toggleShelf(key)} aria-expanded={open} className="cursor-pointer text-left hover:underline max-sm:min-h-tap">
+          <button type="button" onClick={() => toggleShelf(key)} aria-expanded={open} className="cursor-pointer text-left hover:underline max-sm:min-h-tap" {...explain(open ? 'Folds this part of the shelf away.' : 'Opens this part and lists what is in it.', open ? 'To keep the page short.' : 'Nothing in it is shown until you do.')}>
             {open ? '[-]' : '[+]'} {title}
           </button>
           <span className="text-label text-ink">
@@ -294,7 +295,7 @@ export default function MediaCatalogue() {
   /** `[ + FILE ]` into a music folder, for an account. */
   const fileInto = (path: string) =>
     user === null ? null : (
-      <button type="button" onClick={() => setCreating({ kind: 'file', parent: path })} className={`${PLATE} ml-2`}>
+      <button type="button" onClick={() => setCreating({ kind: 'file', parent: path })} className={`${PLATE} ml-2`} {...explain('Opens a window to add audio into this folder.', 'It is filed straight there.')}>
         [ + FILE ]
       </button>
     );
@@ -344,7 +345,7 @@ export default function MediaCatalogue() {
   /** The way back to the front page, and the title of what is open. */
   const header = (title: string, count: string, extra?: ReactNode) => (
     <>
-      <Link href={pathname} className={`${PLATE_LINK} mt-3 inline-block`}>
+      <Link href={pathname} className={`${PLATE_LINK} mt-3 inline-block`} {...explain('Goes back to the front page of MEDIA.', 'Where every category is listed.')}>
         [ ← ALL CATEGORIES ]
       </Link>
       <div className={`${TITLE_BAR} mt-1`}>
@@ -369,7 +370,7 @@ export default function MediaCatalogue() {
           <section key={section.kind} aria-label={section.label} className="mt-3">
             <div className={TITLE_BAR}>
               <h2>{section.label}</h2>
-              <Link href={`${pathname}?kind=${section.kind}`} className={PLATE_LINK}>
+              <Link href={`${pathname}?kind=${section.kind}`} className={PLATE_LINK} {...explain('Lists everything of this kind.', 'The front page shows only a part of it.')}>
                 [ ALL {total} ]
               </Link>
             </div>
@@ -379,6 +380,7 @@ export default function MediaCatalogue() {
                   <Link
                     href={`${pathname}?cat=${encodeURIComponent(candidate.id)}`}
                     className={`${PLATE_LINK} block w-full text-left wrap-anywhere`}
+                    {...explain('Lists what is filed in this category.', 'The number is how many things it holds.')}
                   >
                     [ {candidate.label} ({candidate.entries.length}) ]
                   </Link>
@@ -416,7 +418,7 @@ export default function MediaCatalogue() {
             <p className="mt-2 flex flex-wrap items-center gap-2 text-label font-bold text-ink">
               <span>TAGGED {tagKeys.map((key) => key.toUpperCase()).join(', ')}:</span>
               <span>{fileCount(matches.count)}</span>
-              <Link href={pathname} className={PLATE}>
+              <Link href={pathname} className={PLATE} {...explain('Stops filtering by these tags.', 'To see everything again.')}>
                 [ CLEAR ]
               </Link>
             </p>
@@ -526,7 +528,7 @@ export default function MediaCatalogue() {
 
         {user === null ? (
           <span className="text-label font-bold text-ink-quiet">
-            <Link href="/account" className={PLATE_LINK}>
+            <Link href="/account" className={PLATE_LINK} {...explain('Goes to the account page to sign in.', 'Adding files needs an account.')}>
               [ LOG IN ]
             </Link>{' '}
             TO FILE
@@ -534,15 +536,15 @@ export default function MediaCatalogue() {
         ) : onMusic ? (
           /* The shelf's own two ways of adding something, in the place the other screens keep UPLOAD. */
           <span className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={() => setCreating({ kind: 'folder', parent: null })} className={PLATE}>
+            <button type="button" onClick={() => setCreating({ kind: 'folder', parent: null })} className={PLATE} {...explain('Opens a window to make a new folder.', 'To sort the music on the shelf.')}>
               [ + NEW FOLDER ]
             </button>
-            <button type="button" onClick={() => setCreating({ kind: 'file', parent: category?.folderPath ?? null })} className={PLATE_MAIN} data-main-key>
+            <button type="button" onClick={() => setCreating({ kind: 'file', parent: category?.folderPath ?? null })} className={PLATE_MAIN} data-main-key {...explain('Opens a window to add new audio to the shelf.', 'If a folder is open it is filed there.')}>
               + NEW FILE
             </button>
           </span>
         ) : (
-          <button type="button" onClick={() => setUploading(true)} className={PLATE_MAIN} data-main-key>
+          <button type="button" onClick={() => setUploading(true)} className={PLATE_MAIN} data-main-key {...explain('Opens a window to upload a new file.', 'It is then listed here for everyone.')}>
             + UPLOAD
           </button>
         )}
@@ -670,7 +672,7 @@ function CatalogueRow({
       <div className="flex flex-wrap items-start gap-2">
         {/* The picture itself, small; a glyph for sound and video, which have no face. */}
         {item.kind === 'image' ? (
-          <button type="button" onClick={onToggle} className="shrink-0 cursor-pointer" title={open ? 'Close' : 'Open'}>
+          <button type="button" onClick={onToggle} className="shrink-0 cursor-pointer" title={open ? 'Close' : 'Open'} {...explain(open ? 'Folds this file shut again.' : 'Opens this file to see it bigger.', open ? 'The small picture stays.' : 'With where it is used underneath.')}>
             <span className="block w-12 rounded-none border border-ink bg-paper">
               <SheetImage src={item.src} alt={item.title} width={item.width ?? 48} height={item.height ?? 48} sizes="48px" compact />
             </span>
@@ -683,7 +685,7 @@ function CatalogueRow({
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <button type="button" onClick={onToggle} aria-expanded={open} className="min-w-0 cursor-pointer text-left text-sm font-bold text-ink hover:underline">
+            <button type="button" onClick={onToggle} aria-expanded={open} className="min-w-0 cursor-pointer text-left text-sm font-bold text-ink hover:underline" {...explain(open ? 'Folds this file shut again.' : 'Opens this file and shows more about it.', open ? 'To get back to the list.' : 'And the places on the site that use it.')}>
               {open ? '[-]' : '[+]'} {number === undefined ? null : <span className="mr-1">{number}</span>} {barred ? <BarredTitle>{item.title}</BarredTitle> : item.title}
             </button>
             <span className="text-label font-bold text-ink-quiet">{KIND_LABELS[item.kind]}</span>
@@ -726,7 +728,7 @@ function CatalogueRow({
         {track === undefined ? null : (
           <span className="flex shrink-0 flex-wrap items-center justify-end gap-1 max-sm:w-full max-sm:justify-start max-sm:pl-14">
             <SongMenuKey open={menuOpen} onToggle={() => setMenuOpen((current) => !current)} title={track.title} />
-            <button type="button" onClick={() => onPlay(track)} className={PLATE}>
+            <button type="button" onClick={() => onPlay(track)} className={PLATE} {...explain('Plays this in the music player.', 'It carries on while you move about the site.')}>
               [ ▶ PLAY ]
             </button>
             {source ? (
@@ -735,6 +737,7 @@ function CatalogueRow({
                 onClick={onToggle}
                 aria-expanded={open}
                 className={open ? PLATE_PRESSED : PLATE}
+                {...explain(open ? 'Folds this file shut again.' : 'Opens this file to show where it comes from.', open ? 'To get back to the list.' : 'And the places on the site that use it.')}
               >
                 [ SOURCE ]
               </button>
@@ -767,7 +770,7 @@ function CatalogueRow({
               <>
                 <PlayerBox id={playId} title={item.title} className="aspect-video w-full max-w-md border border-ink bg-ink-plate" />
                 <div className="mt-1 flex flex-wrap items-center gap-1">
-                  <button type="button" onClick={() => closeFloatingIfMine(playId)} aria-label={`Close the player for "${item.title}"`} className={PLATE_PRESSED}>
+                  <button type="button" onClick={() => closeFloatingIfMine(playId)} aria-label={`Close the player for "${item.title}"`} className={PLATE_PRESSED} {...explain('Closes the player for this video.', 'The video stops.')}>
                     [ ■ CLOSE ]
                   </button>
                   <PipKey id={playId} title={item.title} />
@@ -779,6 +782,7 @@ function CatalogueRow({
                 onClick={() => playFloating({ id: playId, title: item.title, shape: 'video', room: { mediaItemId: item.id }, player: { kind: 'file', src: item.src } })}
                 aria-label={`Play "${item.title}" here`}
                 className={PLATE}
+                {...explain('Plays this video here on the page.', 'It carries on floating if you move on.')}
               >
                 [ ▶ PLAY ]
               </button>
@@ -835,7 +839,7 @@ function CatalogueRow({
             editing ? (
               <EditItemForm item={item} onClose={() => setEditing(false)} onSaved={(message) => { setEditing(false); onChanged(message); }} />
             ) : (
-              <button type="button" onClick={() => setEditing(true)} className={`${PLATE} mt-2`}>
+              <button type="button" onClick={() => setEditing(true)} className={`${PLATE} mt-2`} {...explain('Opens a form to change what this file says about itself.', 'Its name, credit and tags.')}>
                 [ EDIT ]
               </button>
             )
@@ -891,10 +895,10 @@ function EditItemForm({ item, onClose, onSaved }: { item: MediaItem; onClose: ()
       <input id={`edit-credit-${item.id}`} value={credit} onChange={(event) => setCredit(event.target.value)} className={`${FIELD_TIGHT} mt-1 w-full`} />
       <AudioTagChooser id={`edit-tags-${item.id}`} value={tags} onChange={setTags} />
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <button type="submit" disabled={busy} className={PLATE_MAIN}>
+        <button type="submit" disabled={busy} className={PLATE_MAIN} {...explain('Saves your changes to this file.', 'Everyone then sees the new details.', NOTE.others)}>
           {busy ? '[ SAVING... ]' : '[ SAVE ]'}
         </button>
-        <button type="button" onClick={onClose} className={PLATE}>
+        <button type="button" onClick={onClose} className={PLATE} {...explain('Closes the form without saving.', 'The file stays as it was.')}>
           [ CANCEL ]
         </button>
         {error === null ? null : <span className="bg-bubble-pale px-1 text-label font-bold text-ink-bar">{error}</span>}

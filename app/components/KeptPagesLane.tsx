@@ -9,6 +9,7 @@ import { keptAddress, pageWords } from '../lib/seeing/pages';
 import { keptPages, keptPagesOnServer, openKeptPagesOf, subscribeToKeptPages } from '../lib/seeing/pages-store';
 import { PLATE } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
+import { explain } from '../lib/ui/explain';
 
 const SHOWN = 6;
 
@@ -47,6 +48,7 @@ export default function KeptPagesLane({ search = null, tags = null }: { search?:
               }}
               title={page.address}
               className={`${PLATE} max-w-full min-w-0 truncate`}
+              {...explain(page.hasCopy ? 'Opens the kept copy of this page in BROWSER.' : 'Opens this page in BROWSER.', page.hasCopy ? 'It is still there if the real page changes or goes.' : 'To see it without leaving the site.')}
             >
               {page.title}
             </button>
@@ -57,7 +59,7 @@ export default function KeptPagesLane({ search = null, tags = null }: { search?:
         ))}
       </ul>
       {found.length > shown.length ? (
-        <button type="button" onClick={() => setAll(true)} className={`${PLATE} mt-1`}>
+        <button type="button" onClick={() => setAll(true)} className={`${PLATE} mt-1`} {...explain('Lists every kept page that fits here.', 'Only the first six are shown to start with.')}>
           {`[ ALL ${found.length} PAGES ]`}
         </button>
       ) : null}

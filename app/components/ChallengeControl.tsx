@@ -6,6 +6,7 @@ import { challengeRefusal } from '../lib/games/challenges';
 import type { ForumAuthor } from '../lib/forum/types';
 import type { PresenceStatus } from '../lib/profile/presence';
 import { PLATE } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 
 type ChallengeControlProps = {
   /** The account the post is credited to. */
@@ -43,6 +44,7 @@ export default function ChallengeControl({ author, status, viewerId }: Challenge
       title={refusal ?? `Challenge ${label}`}
       onClick={() => openArcade({ kind: 'challenge', opponentId: targetId, game: ARCADE_DEFAULT_GAME })}
       className={PLATE}
+      {...explain(refusal === null ? 'Opens the arcade, ready to invite them to a game.' : `This key is off for now. ${refusal}`, 'A game opens on both screens at once. Nothing is sent until you press INVITE there.')}
     >
       [ CHALLENGE ]
     </button>

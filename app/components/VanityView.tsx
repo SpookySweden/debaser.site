@@ -38,9 +38,19 @@ import LibraryRow from './LibraryRow';
 import { useMusicLibrary } from './MusicLibraryProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import ProfileAvatar from './ProfileAvatar';
+import { explain, explainFrom, NOTE, type Explanation } from '../lib/ui/explain';
 
 
 type Tab = 'foryou' | 'artist' | 'album' | 'song' | 'mirror';
+
+/** What each VANITY view's key says it does (EXPLAIN). */
+const TAB_WORDS: Record<Tab, Explanation> = {
+  foryou: { what: 'Shows songs picked for you from what people play.', why: 'To find something without searching.' },
+  artist: { what: 'Lays the songs out by who made them.', why: 'To go through one maker at a time.' },
+  album: { what: 'Lays the songs out album by album.', why: 'To hear a record as one thing.' },
+  song: { what: 'Lists the songs one by one.', why: 'To look through all of them.' },
+  mirror: { what: 'Shows who listens to the songs you filed.', why: 'Only you see this view.' },
+};
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'foryou', label: 'FOR YOU' },
@@ -226,6 +236,7 @@ export default function VanityView() {
               setNotice(null);
             }}
             className={tab === entry.key ? `${PLATE_PRESSED} cursor-pointer` : PLATE}
+            {...explainFrom(TAB_WORDS[entry.key])}
           >
             [ {entry.label} ]
           </button>
@@ -272,6 +283,7 @@ export default function VanityView() {
                 aria-pressed={radio.on}
                 className={radio.on ? `${PLATE_PRESSED} cursor-pointer self-start` : `${PLATE} self-start`}
                 title={radio.on ? 'Stop the endless queue of picks' : 'Play an endless queue of your picks'}
+                {...explain(radio.on ? 'Stops the endless queue of picks.' : 'Starts an endless queue of your picks.', radio.on ? 'The song playing now is left as it is.' : 'To keep music going without choosing.')}
               >
                 {radio.on ? '[ ■ PLAYING FOR YOU ]' : '[ ▶ PLAY FOR YOU ]'}
               </button>
@@ -374,7 +386,7 @@ function PickRow({ title, onSave, children }: { title: React.ReactNode; onSave?:
       <div className={`${TITLE_BAR} flex items-center justify-between gap-2`}>
         <span className="min-w-0 truncate">{title}</span>
         {onSave === undefined ? null : (
-          <button type="button" onClick={onSave} className={PLATE}>
+          <button type="button" onClick={onSave} className={PLATE} {...explain('Saves these songs as a playlist in MY MUSIC.', 'To play them again whenever you like.')}>
             [ SAVE AS PLAYLIST ]
           </button>
         )}
@@ -410,7 +422,7 @@ function PickList({ items, onOpen }: { items: Pick<AudioTrack>[]; onOpen: (key: 
     <ul>
       {items.map((pick) => (
         <li key={pick.key} className="border-b border-dotted border-ink bg-paper px-2 py-1 hover:bg-pointed">
-          <button type="button" onClick={() => onOpen(pick.key)} className="block w-full min-w-0 cursor-pointer text-left" title={`Open ${pick.name}`}>
+          <button type="button" onClick={() => onOpen(pick.key)} className="block w-full min-w-0 cursor-pointer text-left" title={`Open ${pick.name}`} {...explain('Opens this and lists its songs.', 'To play one, or save them all.')}>
             <span className="block truncate text-key font-bold text-ink">{pick.name}</span>
             <span className="block truncate text-label text-ink">
               {[pick.sub, `${pick.songs.length} SONG${pick.songs.length === 1 ? '' : 'S'}`, playsLabel(pick.songs.reduce((total, song) => total + song.plays, 0))]
@@ -475,7 +487,7 @@ function PersonFace({ personId, tip, srcs }: { personId: string; tip: string; sr
       </span>
     </Link>
     {broadcast === null ? null : (
-      <button type="button" onClick={() => open(broadcast)} className={PLATE} title={`${name} is playing this now: join their room`}>
+      <button type="button" onClick={() => open(broadcast)} className={PLATE} title={`${name} is playing this now: join their room`} {...explain('Joins their music room, where this is playing now.', 'To hear it along with them.', NOTE.others)}>
         [ ● LIVE ]
       </button>
     )}
@@ -502,6 +514,7 @@ function Tiles({
             onClick={() => onOpen(item.key)}
             className="flex w-full min-w-0 cursor-pointer flex-col items-start gap-1 p-1 text-left hover:bg-pointed"
             title={`Open ${item.name}`}
+            {...explain('Opens this one and shows what it holds.', 'To get to its songs.')}
           >
             <UploaderFace uploaderId={item.uploaderId} size={72} />
             <span className="block w-full truncate text-key font-bold text-ink">{item.name}</span>
@@ -528,7 +541,7 @@ function ArtistPage({
   return (
     <div>
       <div className="mb-2 flex flex-wrap items-center gap-2">
-        <button type="button" onClick={onBack} className={PLATE}>
+        <button type="button" onClick={onBack} className={PLATE} {...explain('Goes back to the list you came from.', 'To pick something else.')}>
           [ ← BACK ]
         </button>
         <UploaderFace uploaderId={artist.uploaderId} size={40} />
@@ -577,7 +590,7 @@ function AlbumPage({
   return (
     <div>
       <div className="mb-2 flex flex-wrap items-center gap-2">
-        <button type="button" onClick={onBack} className={PLATE}>
+        <button type="button" onClick={onBack} className={PLATE} {...explain('Goes back to where you opened this from.', 'To pick something else.')}>
           [ ← BACK ]
         </button>
         <UploaderFace uploaderId={album.uploaderId} size={40} />
@@ -588,7 +601,7 @@ function AlbumPage({
           </span>
         </span>
         {canSave ? (
-          <button type="button" onClick={onSave} className={PLATE}>
+          <button type="button" onClick={onSave} className={PLATE} {...explain('Saves these songs as a playlist in MY MUSIC.', 'To play them again whenever you like.')}>
             [ SAVE AS PLAYLIST ]
           </button>
         ) : null}

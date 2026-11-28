@@ -8,6 +8,7 @@ import { FIELD, PLATE, PLATE_MAIN, PLATE_PRESSED } from '../lib/ui/controls';
 import AudioTagChooser from './AudioTagChooser';
 import PopoutWindow from './PopoutWindow';
 import SheetImage from './SheetImage';
+import { explain, NOTE } from '../lib/ui/explain';
 
 type MediaUploadWindowProps = {
   /** Who is filing; null for a guest, who is told why the key does nothing. */
@@ -148,11 +149,11 @@ export default function MediaUploadWindow({
       status={`PICTURES ${formatBytes(MEDIA_LIMITS.image)} :: VIDEO ${formatBytes(MEDIA_LIMITS.video)}`}
       actions={
         looked?.state === 'original' ? (
-          <button type="button" onClick={() => takeOriginal(looked.item)} className={PLATE_MAIN}>
+          <button type="button" onClick={() => takeOriginal(looked.item)} className={PLATE_MAIN} {...explain('Uses the copy that is already filed.', 'The same file is never filed twice.')}>
             [ USE THE ORIGINAL ]
           </button>
         ) : (
-          <button type="button" onClick={() => void fileIt()} disabled={busy || looked?.state === 'reading'} className={PLATE_MAIN}>
+          <button type="button" onClick={() => void fileIt()} disabled={busy || looked?.state === 'reading'} className={PLATE_MAIN} {...explain('Uploads the chosen file under this name.', 'It is then listed on the MEDIA page.', NOTE.others)}>
             {busy ? '[ FILING... ]' : '[ FILE IT ]'}
           </button>
         )
@@ -171,12 +172,13 @@ export default function MediaUploadWindow({
               if (fileInput.current !== null) fileInput.current.value = '';
             }}
             className={kind === option ? PLATE_PRESSED : PLATE}
+            {...explain('Sets what kind of file you are adding.', 'Any press here clears the file you chose.')}
           >
             [ {option.toUpperCase()} ]
           </button>
         ))}
         {onAudioWanted === undefined ? null : (
-          <button type="button" onClick={onAudioWanted} className={PLATE}>
+          <button type="button" onClick={onAudioWanted} className={PLATE} {...explain('Switches to the window for adding audio.', 'Sound files are filed there.')}>
             [ AUDIO ]
           </button>
         )}
@@ -221,10 +223,10 @@ export default function MediaUploadWindow({
                 LOOKS LIKE &quot;{looked.item.title}&quot;.
               </p>
               <div className="mt-1 flex flex-wrap gap-2">
-                <button type="button" onClick={() => takeOriginal(looked.item)} className={PLATE_MAIN}>
+                <button type="button" onClick={() => takeOriginal(looked.item)} className={PLATE_MAIN} {...explain('Uses the one already filed instead of yours.', 'So the same thing is not kept twice.')}>
                   [ USE THE ORIGINAL ]
                 </button>
-                <button type="button" onClick={() => setLooked({ state: 'new', fingerprint: looked.fingerprint })} className={PLATE}>
+                <button type="button" onClick={() => setLooked({ state: 'new', fingerprint: looked.fingerprint })} className={PLATE} {...explain('Says yours is a different file from that one.', 'FILE IT then uploads it as its own.')}>
                   [ KEEP MINE ]
                 </button>
               </div>

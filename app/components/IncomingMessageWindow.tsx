@@ -5,6 +5,7 @@ import { resolveAuthor, threadLabel } from '../lib/comms/threads';
 import type { CommsThread } from '../lib/comms/types';
 import CommsThreadPanel from './CommsThreadPanel';
 import PopoutWindow from './PopoutWindow';
+import { explain } from '../lib/ui/explain';
 
 type IncomingMessageWindowProps = {
   thread: CommsThread;
@@ -60,6 +61,7 @@ export default function IncomingMessageWindow({
         <Link
           href="/comms"
           className="key px-1 py-1"
+          {...explain('Goes to the COMMS page.', 'To see the whole conversation, not only its last few lines.')}
         >
           [ OPEN COMMS ]
         </Link>

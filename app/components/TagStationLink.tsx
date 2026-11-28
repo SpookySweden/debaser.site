@@ -8,6 +8,7 @@ import { rowAddresses, type ExtraHosts } from '../lib/web/row-addresses';
 import { PLATFORM_LABELS } from '../lib/web/types';
 import { webSessionHeaders } from '../lib/web/web-session';
 import { STATION_KEY, Thumb, WordChip } from './TagStationParts';
+import { explain, NOTE } from '../lib/ui/explain';
 
 export type LinkState = { link: string; answer: LinkAnswer | null; error: boolean };
 
@@ -101,7 +102,7 @@ export function LinkInput({
       <p className="text-label text-ink-quiet">NOT SAVED.</p>
       {item ? play(item) : null}
       {card ? (
-        <a href={card.link} target="_blank" rel="noopener noreferrer nofollow" aria-label={`Open "${card.title}" on ${card.source} (new tab)`} className={STATION_KEY}>
+        <a href={card.link} target="_blank" rel="noopener noreferrer nofollow" aria-label={`Open "${card.title}" on ${card.source} (new tab)`} className={STATION_KEY} {...explain('Opens the pasted link on its own site.', 'To see the thing itself.', NOTE.leaves)}>
           [ OPEN ↗ ]
         </a>
       ) : null}

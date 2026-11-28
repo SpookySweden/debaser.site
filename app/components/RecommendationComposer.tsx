@@ -26,6 +26,7 @@ import { useMusicLibrary } from './MusicLibraryProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import { parseWebTrackId } from '../lib/web/web-audio';
 import ProfileName from './ProfileName';
+import { explain, NOTE } from '../lib/ui/explain';
 
 type Source = 'pre' | 'letters' | 'playlists' | 'search';
 type Dragged = { from: 'pre' | 'queue'; at: number };
@@ -155,13 +156,13 @@ export default function RecommendationComposer({ me, onSend }: { me: string; onS
               >
                 <span className="w-6 shrink-0 text-right text-label text-ink-quiet">{at + 1}</span>
                 <span className="min-w-0 flex-1 truncate text-label text-queue-next-ink">{thing.title || thing.ref}</span>
-                <button type="button" className={PLATE} aria-label={`Move "${thing.title}" up`} disabled={at === 0} onClick={() => move(at, at - 1)}>
+                <button type="button" className={PLATE} aria-label={`Move "${thing.title}" up`} disabled={at === 0} onClick={() => move(at, at - 1)} {...explain('Moves this thing one place up your queue.', 'The queue is the order it is sent in.')}>
                   [ ↑ ]
                 </button>
-                <button type="button" className={PLATE} aria-label={`Move "${thing.title}" down`} disabled={at === queue.length - 1} onClick={() => move(at, at + 2)}>
+                <button type="button" className={PLATE} aria-label={`Move "${thing.title}" down`} disabled={at === queue.length - 1} onClick={() => move(at, at + 2)} {...explain('Moves this thing one place down your queue.', 'The queue is the order it is sent in.')}>
                   [ ↓ ]
                 </button>
-                <button type="button" className={PLATE} aria-label={`Take "${thing.title}" out of the queue`} onClick={() => backToPre(at)}>
+                <button type="button" className={PLATE} aria-label={`Take "${thing.title}" out of the queue`} onClick={() => backToPre(at)} {...explain('Takes this out of your queue and back to the pre-list.', 'It is not sent, but stays to hand.')}>
                   [ × ]
                 </button>
               </li>
@@ -172,17 +173,17 @@ export default function RecommendationComposer({ me, onSend }: { me: string; onS
         <section aria-label="Pre-list and sources" className="min-w-0 flex-1 border border-ink">
           <h3 className={TITLE_BAR}>PRE-LIST</h3>
           <div className="flex flex-wrap gap-1 p-1">
-            <button type="button" onClick={() => setSource('letters')} className={source === 'letters' ? PLATE_PRESSED : PLATE}>
+            <button type="button" onClick={() => setSource('letters')} className={source === 'letters' ? PLATE_PRESSED : PLATE} {...explain('Lists your letters, to take things out of one.', 'Or to add a whole letter at once.')}>
               [ YOUR LETTERS ]
             </button>
-            <button type="button" onClick={() => setSource('playlists')} className={source === 'playlists' ? PLATE_PRESSED : PLATE}>
+            <button type="button" onClick={() => setSource('playlists')} className={source === 'playlists' ? PLATE_PRESSED : PLATE} {...explain('Lists your music playlists, to take songs out of one.', 'Or to add a whole playlist at once.')}>
               [ YOUR PLAYLISTS ]
             </button>
-            <button type="button" onClick={() => setSource('search')} className={source === 'search' ? PLATE_PRESSED : PLATE}>
+            <button type="button" onClick={() => setSource('search')} className={source === 'search' ? PLATE_PRESSED : PLATE} {...explain('Opens a search of MEDIA and your kept pages in place of the list.', 'A pasted link can be added there too.')}>
               [ SEARCH ]
             </button>
             {source !== 'pre' ? (
-              <button type="button" onClick={() => setSource('pre')} className={PLATE}>
+              <button type="button" onClick={() => setSource('pre')} className={PLATE} {...explain('Goes back to the pre-list from this source.', 'The number is how many things wait on it.')}>
                 [ BACK TO THE PRE-LIST ({pre.length}) ]
               </button>
             ) : null}
@@ -200,11 +201,11 @@ export default function RecommendationComposer({ me, onSend }: { me: string; onS
                   onDragStart={() => setDragged({ from: 'pre', at })}
                   className="rule-pixel flex cursor-grab items-center gap-1 px-1 py-1"
                 >
-                  <button type="button" className={PLATE} aria-label={`Put "${thing.title}" at the end of your queue`} onClick={() => toQueue(at)}>
+                  <button type="button" className={PLATE} aria-label={`Put "${thing.title}" at the end of your queue`} onClick={() => toQueue(at)} {...explain('Puts this at the end of your queue.', 'Dragging it across does the same, and lets you pick the spot.')}>
                     [ ← ]
                   </button>
                   <span className="min-w-0 flex-1 truncate text-label text-ink">{thing.title || thing.ref}</span>
-                  <button type="button" className={PLATE} aria-label={`Take "${thing.title}" off the pre-list`} onClick={() => setPre((held) => held.filter((_, index) => index !== at))}>
+                  <button type="button" className={PLATE} aria-label={`Take "${thing.title}" off the pre-list`} onClick={() => setPre((held) => held.filter((_, index) => index !== at))} {...explain('Takes this off the pre-list.', 'To drop what you will not send.')}>
                     [ × ]
                   </button>
                 </li>
@@ -229,7 +230,7 @@ export default function RecommendationComposer({ me, onSend }: { me: string; onS
         <p className="flex flex-wrap items-center gap-2 text-label text-ink">
           <LetterStamp letter={letterCopy} />
           <span>GOES AS A LETTER</span>
-          <button type="button" className={PLATE} onClick={() => setLetterCopy(null)}>
+          <button type="button" className={PLATE} onClick={() => setLetterCopy(null)} {...explain('Takes the letter and its look off what you are sending.', 'Your queue stays as it is. Nothing is sent yet.')}>
             [ NOT AS A LETTER ]
           </button>
         </p>
@@ -238,7 +239,7 @@ export default function RecommendationComposer({ me, onSend }: { me: string; onS
       <SendTo me={me} isPublic={isPublic} onPublic={setIsPublic} to={to} onTo={setTo} />
 
       <p className="flex flex-wrap items-center gap-2">
-        <button type="submit" className={PLATE_MAIN} disabled={busy}>
+        <button type="submit" className={PLATE_MAIN} disabled={busy} {...explain('Sends your queue to the people ticked, and posts it if PUBLIC is ticked.', 'A public one also gets a thread on the board.', NOTE.others)}>
           SEND
         </button>
         {note ? (
@@ -316,7 +317,7 @@ function FromLetters({
         {!letters.loading && (letters.value ?? []).length === 0 ? <li className="text-label text-ink">NO LETTERS YET: MAKE ONE ON YOUR PROFILE.</li> : null}
         {(letters.value ?? []).map((letter) => (
           <li key={letter.id}>
-            <button type="button" onClick={() => setLetterId(letter.id)} className={`${PLATE} w-full text-left`}>
+            <button type="button" onClick={() => setLetterId(letter.id)} className={`${PLATE} w-full text-left`} {...explain('Opens this letter and lists what is on it.', 'To pick from it, or add the whole letter.')}>
               [ {letter.name} ]
             </button>
           </li>
@@ -326,7 +327,7 @@ function FromLetters({
   }
   return (
     <div className="p-1">
-      <button type="button" onClick={() => setLetterId(null)} className={PLATE}>
+      <button type="button" onClick={() => setLetterId(null)} className={PLATE} {...explain('Goes back to the list of your letters.', 'To pick another one.')}>
         [ ALL LETTERS ]
       </button>
       <WholeLetter
@@ -362,7 +363,7 @@ function FromPlaylists({ onAdd, onAddLetter }: { onAdd: (thing: LetterThing) => 
         {playlists.length === 0 ? <li className="text-label text-ink">NO PLAYLISTS YET: MAKE ONE FROM A SONG&apos;S MENU.</li> : null}
         {playlists.map((each) => (
           <li key={each.id}>
-            <button type="button" onClick={() => setListId(each.id)} className={`${PLATE} w-full text-left`}>
+            <button type="button" onClick={() => setListId(each.id)} className={`${PLATE} w-full text-left`} {...explain('Opens this playlist and lists its songs.', 'To pick from it, or add the whole playlist.')}>
               [ {each.name} ({each.items.length}) ]
             </button>
           </li>
@@ -383,7 +384,7 @@ function FromPlaylists({ onAdd, onAddLetter }: { onAdd: (thing: LetterThing) => 
     .filter((thing, index, all) => all.findIndex((other) => other.kind === thing.kind && other.ref === thing.ref) === index);
   return (
     <div className="p-1">
-      <button type="button" onClick={() => setListId(null)} className={PLATE}>
+      <button type="button" onClick={() => setListId(null)} className={PLATE} {...explain('Goes back to the list of your playlists.', 'To pick another one.')}>
         [ ALL PLAYLISTS ]
       </button>
       <WholeLetter key={list.id} name={list.name} things={things} onAdd={onAdd} onAddLetter={onAddLetter} what="PLAYLIST" />
@@ -416,7 +417,7 @@ function WholeLetter({
   return (
     <>
       <p className="mt-1 flex flex-wrap items-center gap-1">
-        <button type="button" className={PLATE} disabled={kept.length === 0} onClick={() => onAddLetter(kept, name)}>
+        <button type="button" className={PLATE} disabled={kept.length === 0} onClick={() => onAddLetter(kept, name)} {...explain(what === 'LETTER' ? 'Puts every ticked thing of this letter into your queue at once.' : 'Puts every ticked song of this playlist into your queue at once.', 'Its name becomes the message, so the title. Untick what to leave out first.')}>
           [ ADD THE {what} ({kept.length} OF {things.length}) ]
         </button>
       </p>
@@ -433,7 +434,7 @@ function WholeLetter({
                 onChange={() => setLeft((held) => (ticked ? [...held, key] : held.filter((each) => each !== key)))}
               />
               <span className={`min-w-0 flex-1 truncate text-label ${ticked ? 'text-ink' : 'text-ink-quiet line-through'}`}>{thing.title || thing.ref}</span>
-              <button type="button" className={PLATE} aria-label={`Add "${thing.title}" to the pre-list on its own`} onClick={() => onAdd(thing)}>
+              <button type="button" className={PLATE} aria-label={`Add "${thing.title}" to the pre-list on its own`} onClick={() => onAdd(thing)} {...explain('Adds just this one to the pre-list.', 'When you do not want the whole of it.')}>
                 [ + ]
               </button>
             </li>
@@ -497,7 +498,7 @@ function FromSearch({ onAdd }: { onAdd: (thing: LetterThing) => void }) {
           aria-label="Search MEDIA or paste a link"
           className={`${FIELD_TIGHT} min-w-0 flex-1`}
         />
-        <button type="button" onClick={(event) => void find(event as unknown as FormEvent)} className={PLATE} disabled={busy}>
+        <button type="button" onClick={(event) => void find(event as unknown as FormEvent)} className={PLATE} disabled={busy} {...explain('Searches for what you typed, or adds a pasted link to the pre-list.', 'Enter in the box does the same.')}>
           [ FIND ]
         </button>
       </div>
@@ -506,7 +507,7 @@ function FromSearch({ onAdd }: { onAdd: (thing: LetterThing) => void }) {
         {found.map((thing) => (
           <li key={thing.ref} className="rule-pixel flex items-center gap-1 py-1">
             <span className="min-w-0 flex-1 truncate text-label text-ink">{thing.title}</span>
-            <button type="button" className={PLATE} aria-label={`Add "${thing.title}" to the pre-list`} onClick={() => onAdd(thing)}>
+            <button type="button" className={PLATE} aria-label={`Add "${thing.title}" to the pre-list`} onClick={() => onAdd(thing)} {...explain('Adds this search result to the pre-list.', 'Move it across to your queue to send it.')}>
               [ + ]
             </button>
           </li>

@@ -2,6 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { resolveAnchorTarget } from '../lib/forum/anchors';
 import type { ForumAnchor } from '../lib/forum/types';
+import { explain } from '../lib/ui/explain';
 
 type AnchorLinkProps = {
   anchor: ForumAnchor;
@@ -40,6 +41,7 @@ export default function AnchorLink({ anchor, prefix = 'GO TO', preview = 'hover'
         href={target.href}
         title={`Open ${anchor.label} at ${target.href}`}
         className="key px-1 py-1 text-label font-bold"
+        {...explain('Goes to the thing this post is a comment on.', 'To see what is being talked about.')}
       >
         {label}
       </Link>

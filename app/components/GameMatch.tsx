@@ -29,6 +29,7 @@ import type { GameId, GameInvite } from '../lib/games/types';
 import { PANEL, PLATE_MEDIUM, STATUS_BAR, TITLE_BAR } from '../lib/ui/controls';
 import PaddleDuelCourt from './PaddleDuelCourt';
 import TicTacToeBoard from './TicTacToeBoard';
+import { explain } from '../lib/ui/explain';
 
 /**
  * One game, being played.
@@ -320,10 +321,10 @@ export default function GameMatch({
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <button type="button" className={PLATE_MEDIUM} onClick={rematch}>
+              <button type="button" className={PLATE_MEDIUM} onClick={rematch} {...explain('Starts a new game of the same kind.', 'Against a person, only the press of whoever sent the invitation restarts it for both.')}>
                 [ REMATCH ]
               </button>
-              <button type="button" className={PLATE_MEDIUM} onClick={onLeave}>
+              <button type="button" className={PLATE_MEDIUM} onClick={onLeave} {...explain('Leaves this game and goes back to the arcade.', 'To pick another game or person.')}>
                 [ LEAVE ]
               </button>
             </div>

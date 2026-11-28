@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { ASCII_EMOTICONS } from '../lib/comms/ascii-emoticons';
 import { PLATE } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 
 const CHIP =
   'cursor-pointer rounded-none border border-ink bg-paper px-1 py-0.25 font-mono text-key text-ink hover:bg-sun-pale';
@@ -27,7 +28,7 @@ export default function AsciiEmoticonPicker({ onPick, disabled = false }: AsciiE
 
   return (
     <div className="relative">
-      <button type="button" onClick={() => setOpen(!open)} disabled={disabled} className={PLATE}>
+      <button type="button" onClick={() => setOpen(!open)} disabled={disabled} className={PLATE} {...explain(open ? 'Folds the shelf of text faces away.' : 'Opens a shelf of faces made out of characters.', open ? 'To get back to your message.' : 'To drop one into your message.')}>
         {open ? '[ CLOSE ]' : '[ :) EMOTICONS ]'}
       </button>
 
@@ -44,6 +45,7 @@ export default function AsciiEmoticonPicker({ onPick, disabled = false }: AsciiE
                       onClick={() => onPick(emoticon.text)}
                       className={CHIP}
                       title={emoticon.about}
+                      {...explain('Puts this face into the message you are writing.', 'It is plain characters, so it survives being copied anywhere.')}
                     >
                       {emoticon.text}
                     </button>

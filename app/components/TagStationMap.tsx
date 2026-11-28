@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerE
 import { clampView, HOME_VIEW, nearestInDirection, placeLabels, toScreen, zoomed, type Direction, type MapSize, type MapView, type PlacedLabel } from '../lib/tag-station/map-layout';
 import type { RelatedTag, StationIndex } from '../lib/tag-station/query';
 import { STATION_KEY, STATION_RING } from './TagStationParts';
+import { explain } from '../lib/ui/explain';
 
 const ARROWS: Partial<Record<string, Direction>> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
 /** How many of the closest words are lit and tied to the choice. */
@@ -180,17 +181,17 @@ export default function TagStationMap({
   return (
     <div className="flex min-w-0 flex-col gap-1">
       <div role="group" aria-label="Map controls" className="flex flex-wrap items-center gap-1">
-        <button type="button" onClick={() => zoom(1)} aria-label="Zoom in" className={STATION_KEY}>
+        <button type="button" onClick={() => zoom(1)} aria-label="Zoom in" className={STATION_KEY} {...explain('Zooms into the map.', 'To spread out words that sit close together. The + key does it too when a word has focus.')}>
           [ + ]
         </button>
-        <button type="button" onClick={() => zoom(-1)} aria-label="Zoom out" className={STATION_KEY}>
+        <button type="button" onClick={() => zoom(-1)} aria-label="Zoom out" className={STATION_KEY} {...explain('Zooms out of the map.', 'To see more of the words at once. The - key does it too when a word has focus.')}>
           [ − ]
         </button>
-        <button type="button" onClick={() => setMoved({ key: focusKey, view: HOME_VIEW })} className={STATION_KEY}>
+        <button type="button" onClick={() => setMoved({ key: focusKey, view: HOME_VIEW })} className={STATION_KEY} {...explain('Puts the map back to showing the whole of it.', 'When zooming or dragging has lost you.')}>
           [ WHOLE MAP ]
         </button>
         {(['left', 'up', 'down', 'right'] as const).map((direction) => (
-          <button key={direction} type="button" onClick={() => pan(direction)} aria-label={`Move the map ${direction}`} className={STATION_KEY}>
+          <button key={direction} type="button" onClick={() => pan(direction)} aria-label={`Move the map ${direction}`} className={STATION_KEY} {...explain(`Moves the view of the map ${direction}.`, 'Dragging the map with the pointer does the same.')}>
             {{ left: '◀', up: '▲', down: '▼', right: '▶' }[direction]}
           </button>
         ))}
@@ -244,6 +245,7 @@ export default function TagStationMap({
               className={`absolute inline-flex items-center justify-center overflow-hidden whitespace-nowrap text-label ${STATION_RING} ${
                 chosen ? 'key key-fill key-on [--key-fill:var(--color-ink)] text-paper' : near ? 'key not-hover:bg-paper underline decoration-2 underline-offset-2' : 'key not-hover:bg-paper'
               }`}
+              {...explain('Picks this word, and the page shows what is around it.', 'Arrow keys move between words, A adds the one you are on to the recipe.')}
             >
               {mark}
               {name}

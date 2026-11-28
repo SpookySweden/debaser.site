@@ -8,8 +8,16 @@ import { FIELD_TIGHT } from '../lib/ui/controls';
 import { PLATFORM_LABELS, type WebItemKind, type WebPlatform } from '../lib/web/types';
 import { KeyGroup, presentChoices, STATION_KEY, STATION_KEY_ON, STATION_RING } from './TagStationParts';
 import TagStationPresets from './TagStationPresets';
+import { explain, explainFrom, type Explanation } from '../lib/ui/explain';
 
 type WordList = 'must' | 'any' | 'not';
+/** What each recipe list's key does with a word (EXPLAIN). */
+const LIST_WORDS: Record<WordList, Explanation> = {
+  must: { what: 'Puts this word among those an item must have.', why: 'To find only things that carry it. STRICT says how many of these are needed.' },
+  any: { what: 'Puts this word among those where one is enough.', why: 'To find things that carry at least one of them.' },
+  not: { what: 'Puts this word among those to leave out.', why: 'To hide every item that carries it, and the word itself from the map.' },
+};
+
 const LISTS: readonly { list: WordList; label: string; title: string }[] = [
   { list: 'must', label: 'MUST', title: 'MUST HAVE' },
   { list: 'any', label: 'ANY', title: 'ANY OF' },
@@ -30,11 +38,11 @@ function RecipeWord({ recipe, word, onMap, found, looking, onChange }: { recipe:
       <span className="min-w-0 break-words text-prose text-ink">{word}</span>
       {!found && current !== 'not' ? <span className="text-label text-ink">{looking ? 'LOOKING...' : 'NO SUCH WORD'}</span> : null}
       {(current === 'not' ? LISTS : listsFor(onMap)).map(({ list, label }) => (
-        <button key={list} type="button" aria-pressed={current === list} aria-label={`${word}: ${label}`} onClick={() => onChange(withWordIn(recipe, word, list))} className={current === list ? STATION_KEY_ON : STATION_KEY}>
+        <button key={list} type="button" aria-pressed={current === list} aria-label={`${word}: ${label}`} onClick={() => onChange(withWordIn(recipe, word, list))} className={current === list ? STATION_KEY_ON : STATION_KEY} {...explainFrom(LIST_WORDS[list])}>
           {current === list ? label : `[ ${label} ]`}
         </button>
       ))}
-      <button type="button" aria-label={`Take ${word} out of the recipe`} onClick={() => onChange(withWordIn(recipe, word, null))} className={STATION_KEY}>
+      <button type="button" aria-label={`Take ${word} out of the recipe`} onClick={() => onChange(withWordIn(recipe, word, null))} className={STATION_KEY} {...explain('Takes this word out of the recipe.', 'It no longer narrows what is found.')}>
         [ × ]
       </button>
     </li>
@@ -98,11 +106,11 @@ export default function TagStationFilters({ index, mapIndex, recipe, looking, on
   return (
     <section aria-label="Recipe" className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-1">
-        <button type="button" aria-expanded={open} onClick={() => setOpen((current) => !current)} className={open ? STATION_KEY_ON : STATION_KEY}>
+        <button type="button" aria-expanded={open} onClick={() => setOpen((current) => !current)} className={open ? STATION_KEY_ON : STATION_KEY} {...explain(open ? 'Folds the filters away.' : 'Opens the filters and the recipe words.', open ? 'They stay switched on.' : 'To say what the items and words must be like.')}>
           {open ? 'FILTERS' : '[ FILTERS ]'}
         </button>
         {hasFilters(recipe) ? (
-          <button type="button" onClick={() => onChange(clearedFilters(recipe))} className={STATION_KEY}>
+          <button type="button" onClick={() => onChange(clearedFilters(recipe))} className={STATION_KEY} {...explain('Empties the recipe and puts every filter back to how it started.', 'The word or item you picked stays picked.', 'NO QUESTION IS ASKED.')}>
             [ CLEAR ]
           </button>
         ) : null}
@@ -131,7 +139,7 @@ export default function TagStationFilters({ index, mapIndex, recipe, looking, on
                   <li key={tag.name} className="flex flex-wrap items-center gap-1">
                     <span className="min-w-0 break-words text-prose text-ink">{tag.name}</span>
                     {listsFor(findTag(mapIndex, tag.name) !== null).map(({ list, label }) => (
-                      <button key={list} type="button" aria-label={`Add ${tag.name}: ${label}`} onClick={() => addWord(tag.name, list)} className={STATION_KEY}>
+                      <button key={list} type="button" aria-label={`Add ${tag.name}: ${label}`} onClick={() => addWord(tag.name, list)} className={STATION_KEY} {...explainFrom(LIST_WORDS[list])}>
                         [ {label} ]
                       </button>
                     ))}
@@ -142,7 +150,7 @@ export default function TagStationFilters({ index, mapIndex, recipe, looking, on
                     <span className="min-w-0 break-words text-prose text-ink">{lookUp}</span>
                     <span className="text-label text-ink-quiet">LOOK IN THE CATALOGUE</span>
                     {listsFor(false).map(({ list, label }) => (
-                      <button key={list} type="button" aria-label={`Add ${lookUp}: ${label}`} onClick={() => addWord(lookUp, list)} className={STATION_KEY}>
+                      <button key={list} type="button" aria-label={`Add ${lookUp}: ${label}`} onClick={() => addWord(lookUp, list)} className={STATION_KEY} {...explainFrom(LIST_WORDS[list])}>
                         [ {label} ]
                       </button>
                     ))}
@@ -156,6 +164,11 @@ export default function TagStationFilters({ index, mapIndex, recipe, looking, on
 
           <KeyGroup<Strict>
             label="STRICT"
+            words={{
+              all: { what: 'Finds only items that have every must-have word.', why: 'The tightest search.' },
+              most: { what: 'Finds items that have about two thirds of the must-have words.', why: 'When asking for all of them finds too little.' },
+              any: { what: 'Finds items that have at least one must-have word.', why: 'The loosest search.' },
+            }}
             value={recipe.strict}
             onChange={(strict) => onChange({ ...recipe, strict })}
             options={[
@@ -166,6 +179,12 @@ export default function TagStationFilters({ index, mapIndex, recipe, looking, on
           />
           <KeyGroup<Niche>
             label="NICHE"
+            words={{
+              all: { what: 'Shows words and items however common they are.', why: 'No narrowing by how well known.' },
+              main: { what: 'Shows only the words and items that turn up a lot here.', why: 'The well-trodden part of the catalogue.' },
+              mid: { what: 'Shows only those neither common nor rare here.', why: 'Between the well known and the obscure.' },
+              rare: { what: 'Shows only the words and items that barely turn up here.', why: 'To dig for things you would not come across.' },
+            }}
             value={recipe.niche}
             onChange={(niche) => onChange({ ...recipe, niche })}
             options={[
@@ -177,6 +196,11 @@ export default function TagStationFilters({ index, mapIndex, recipe, looking, on
           />
           <KeyGroup<Near>
             label="HOW FAR"
+            words={{
+              near: { what: 'Keeps to what is closest to your choice.', why: 'Items must share two of its words when it has two or more, and only close words are listed.' },
+              wider: { what: 'Takes anything that shares a word with your choice.', why: 'The usual reach.' },
+              far: { what: 'Also reaches one step further, through the close words.', why: 'To wander off from your choice into its surroundings.' },
+            }}
             value={recipe.near}
             onChange={(near) => onChange({ ...recipe, near })}
             options={[
@@ -187,6 +211,11 @@ export default function TagStationFilters({ index, mapIndex, recipe, looking, on
           />
           <KeyGroup<WordSourceFilter>
             label="WORDS FROM"
+            words={{
+              both: { what: "Counts the words from Claude and from the platforms.", why: 'The most words to go on.' },
+              claude: { what: 'Counts only the words Claude gave.', why: 'To ignore what uploaders typed.' },
+              platform: { what: "Counts only the words the platforms' own pages carry.", why: 'To ignore what Claude added.' },
+            }}
             value={recipe.src}
             onChange={(src) => onChange({ ...recipe, src })}
             options={[

@@ -659,6 +659,60 @@ async function boxContrast(page) {
     await page.screenshot({ path: join(OUT, 'dark-beatbox.png') });
   });
 
+  // EXPLAIN-REST-3 (2026-11-28): the last areas. LEAGUEBOT, COMMS, DISCOVER (the tag station), RECOMMENDATIONS, and keys
+  // that belong to no named area (STREAM, the arcade, the desk, MEDIA's front page).
+  await area('LEAGUEBOT: LOOK UP', async () => {
+    await arrive('/leaguebot', key(/^LOOK UP$/).first());
+    await hoverSays('LOOK UP explains itself', key(/^LOOK UP$/), 'Looks up the player', 'Enter in the box');
+    await page.screenshot({ path: join(OUT, 'dark-leaguebot.png') });
+  });
+
+  await area('COMMS: THE KEYS ABOVE THE CONVERSATIONS', async () => {
+    await arrive('/comms', key('[ + NEW MESSAGE ]').first());
+    await hoverSays('NEW MESSAGE explains itself', key('[ + NEW MESSAGE ]'), 'accounts you can message');
+    await hoverSays('NEW GROUP explains itself', key('[ + NEW GROUP ]'), 'name a group');
+    await hoverSays('PURGE LOCAL COMMS explains itself, with its caution', key('[ PURGE LOCAL COMMS ]'), 'test conversation', 'NO QUESTION IS ASKED');
+    await page.screenshot({ path: join(OUT, 'dark-comms.png') });
+  });
+
+  await area('DISCOVER (the tag station): SIZE, COPY LINK, FILTERS AND PRESETS', async () => {
+    await arrive('/discover', key('[ COPY LINK ]').first());
+    await hoverSays('COPY LINK explains itself', key('[ COPY LINK ]'), 'Copies the address');
+    await hoverSays('a text size key explains itself', page.locator('button[aria-label="Text size L"]'), 'size L');
+    await hoverSays('FILTERS explains itself', key('[ FILTERS ]'), 'Opens the filters');
+    await hoverSays('PRESETS explains itself', key('[ PRESETS ]'), 'saved presets');
+    await page.screenshot({ path: join(OUT, 'dark-discover.png') });
+  });
+
+  await area('RECOMMENDATIONS: THE TABS AND THE COMPOSER', async () => {
+    await arrive('/recommendations', key('MAKE A RECOMMENDATION').first());
+    await hoverSays('a tab explains itself', page.locator('[role="tab"]').first(), 'posted for everyone');
+    await hoverSays('MAKE A RECOMMENDATION explains itself', key('MAKE A RECOMMENDATION'), 'put a recommendation together');
+    await key('MAKE A RECOMMENDATION').first().click();
+    await hoverSays("the composer's YOUR LETTERS explains itself", key('[ YOUR LETTERS ]'), 'Lists your letters');
+    await hoverSays('its SEARCH explains itself', key('[ SEARCH ]'), 'kept pages');
+    await page.screenshot({ path: join(OUT, 'dark-recommendations.png') });
+  });
+
+  await area('STREAM: THE LOOKS AND GO LIVE', async () => {
+    await arrive('/stream', key('[ GO LIVE ]').first());
+    await hoverSays('GO LIVE explains itself', key('[ GO LIVE ]'), 'your own stream');
+    await hoverSays('a STREAM tab explains itself', page.locator('[role="tablist"][aria-label="STREAM"] [role="tab"]').first(), 'rooms that are live');
+    await hoverSays('CUSTOMIZE LAYOUT explains itself', key('[ CUSTOMIZE LAYOUT ]'), 'looks your room');
+    await key('[ CUSTOMIZE LAYOUT ]').first().click();
+    await hoverSays('KEEP MY OWN LOOK explains itself', key('[ KEEP MY OWN LOOK ]'), 'your own look');
+  });
+
+  await area('THE ARCADE, THE DESK AND MEDIA (keys in no named area)', async () => {
+    await arrive('/forum?arcade=1', key('[ PLAY SOLO ]').first());
+    await hoverSays('PLAY SOLO explains itself', key('[ PLAY SOLO ]'), 'against the computer');
+    await arrive('/forum?desk=1', page.locator('[data-desk-auto]').first());
+    await hoverSays("the desk's AUTO POP-UP explains itself", page.locator('[data-desk-auto]'), 'desk');
+    await arrive('/media', key('+ UPLOAD').first());
+    await hoverSays("MEDIA's UPLOAD explains itself", key('+ UPLOAD'), 'upload a new file');
+    await page.screenshot({ path: join(OUT, 'dark-media-upload.png') });
+  });
+
   await page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded', timeout: 240000 });
   await media.waitFor({ timeout: 120000 });
 

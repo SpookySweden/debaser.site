@@ -14,6 +14,7 @@ import { FIELD, PLATE, PLATE_MAIN, PLATE_PRESSED } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import DockWindow from './DockWindow';
 import { useModeration } from './ModerationProvider';
+import { explain } from '../lib/ui/explain';
 
 /**
  * REPORT (SPEC-moderation.md, 6B and 8A): a report is about a person, with a reason and a line of the reporter's own. Opened from
@@ -48,7 +49,7 @@ function ReportForm({ target, me }: { target: ReportTarget; me: string }) {
     return (
       <div className="flex flex-col items-start gap-2 p-2">
         <p role="status" className="text-sm font-bold text-ink">REPORT SENT.</p>
-        <button type="button" onClick={closeReport} className={PLATE}>
+        <button type="button" onClick={closeReport} className={PLATE} {...explain('Closes this report window.', 'Your report has already gone.')}>
           [ CLOSE ]
         </button>
       </div>
@@ -70,6 +71,7 @@ function ReportForm({ target, me }: { target: ReportTarget; me: string }) {
             aria-checked={reason === option.id}
             onClick={() => setReason(option.id)}
             className={reason === option.id ? PLATE_PRESSED : PLATE}
+            {...explain('Picks this as the reason for your report.', 'So the moderators know what to look for.')}
           >
             {reason === option.id ? option.label : `[ ${option.label} ]`}
           </button>
@@ -91,7 +93,7 @@ function ReportForm({ target, me }: { target: ReportTarget; me: string }) {
         </p>
       ) : null}
       <div>
-        <button type="button" disabled={busy} onClick={() => void send()} className={PLATE_MAIN}>
+        <button type="button" disabled={busy} onClick={() => void send()} className={PLATE_MAIN} {...explain('Sends your report to the moderators.', 'So they can look at what you point to.')}>
           {busy ? 'SENDING...' : 'SEND REPORT'}
         </button>
       </div>
@@ -148,7 +150,7 @@ function BlockPart({ target }: { target: ReportTarget }) {
           ? `YOU BLOCKED ${target.name}.`
           : 'WHAT THEY WRITE DISAPPEARS FOR YOU, AND THEY CAN’T MESSAGE YOU, COMMENT ON YOUR PROFILE OR JOIN YOUR ROOM. THEY ARE NEVER TOLD.'}
       </p>
-      <button type="button" disabled={busy} onClick={() => void press()} onBlur={() => setConfirming(false)} className={PLATE} data-block-key>
+      <button type="button" disabled={busy} onClick={() => void press()} onBlur={() => setConfirming(false)} className={PLATE} data-block-key {...explain(blocked ? 'Unblocks this person again.' : confirming ? 'Blocks this person now.' : 'Asks you to confirm blocking this person.', blocked ? 'What they write shows up for you again.' : 'What they write disappears for you and they cannot message you. They are never told.')}>
         {label}
       </button>
       {error !== null ? (

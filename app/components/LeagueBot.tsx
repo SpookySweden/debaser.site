@@ -22,6 +22,7 @@ import LeagueIcon from './LeagueIcon';
 import LeagueLive from './LeagueLive';
 import LeagueReview from './LeagueReview';
 import LeagueStats from './LeagueStats';
+import { explain, explainFrom, type Explanation } from '../lib/ui/explain';
 
 type Tab = 'stats' | 'live' | 'review';
 const TABS: { tab: Tab; label: string }[] = [
@@ -29,6 +30,13 @@ const TABS: { tab: Tab; label: string }[] = [
   { tab: 'live', label: 'LIVE' },
   { tab: 'review', label: 'REVIEW' },
 ];
+
+/** What each tab's key says it does (EXPLAIN). */
+const TAB_WORDS: Record<Tab, Explanation> = {
+  stats: { what: "Shows this player's ranked numbers.", why: 'Champions, lanes, LP over time and what to work on. Left and right arrows move between the tabs.' },
+  live: { what: 'Shows the game this player is in right now.', why: 'All ten players, the lane matchup and a match clock, once the game has loaded.' },
+  review: { what: "Lists this player's recent games to go through.", why: 'Any one of them, minute by minute against the lane opponent.' },
+};
 
 type Looked = { id: RiotId; region: RegionId; answer: PlayerAnswer };
 
@@ -197,7 +205,7 @@ export default function LeagueBot() {
               ))}
             </select>
           </label>
-          <button type="submit" className={PLATE_MAIN} disabled={busy}>
+          <button type="submit" className={PLATE_MAIN} disabled={busy} {...explain('Looks up the player written in RIOT ID on the server chosen beside it.', 'To see their rank, ranked games and the game they are in. Enter in the box does the same.')}>
             {busy ? 'LOOKING...' : 'LOOK UP'}
           </button>
           {saved && !isMine ? (
@@ -210,6 +218,7 @@ export default function LeagueBot() {
                 setRegion(saved.region);
                 void lookUp(id, saved.region);
               }}
+              {...explain('Writes your saved Riot ID back into the box and looks it up on its own server.', 'The quick way home after looking at somebody else.')}
             >
               [ MINE: {formatRiotId(saved)} ]
             </button>
@@ -269,18 +278,18 @@ export default function LeagueBot() {
             <span>
               {answer.profileSource ? `RANK FROM ${answer.profileSource}` : 'NO RANK'} · {answer.matchesSource ? `GAMES FROM ${answer.matchesSource}` : 'NO GAMES'}
             </span>
-            <button type="button" className={PLATE} onClick={() => void lookUp(looked.id, looked.region, true)} disabled={busy}>
+            <button type="button" className={PLATE} onClick={() => void lookUp(looked.id, looked.region, true)} disabled={busy} {...explain('Asks for this player again instead of showing the answer kept from before.', 'After a game has just finished.', 'THE SITE ASKS AFRESH AT MOST ONCE EVERY TWO MINUTES FOR ONE PLAYER.')}>
               [ REFRESH ]
             </button>
             {isMine ? (
               <>
                 <span>· YOUR RIOT ID{riotIdInBrowser(signedIn) ? ', KEPT IN THIS BROWSER' : ', KEPT ON YOUR ACCOUNT'}</span>
-                <button type="button" className={PLATE} onClick={() => void forgetMine()}>
+                <button type="button" className={PLATE} onClick={() => void forgetMine()} {...explain('Stops keeping this Riot ID as your own.', 'LEAGUEBOT no longer opens on it. THIS IS ME saves one again.')}>
                   [ FORGET ]
                 </button>
               </>
             ) : (
-              <button type="button" className={PLATE} onClick={() => void saveMine()}>
+              <button type="button" className={PLATE} onClick={() => void saveMine()} {...explain('Keeps the player on screen as your own Riot ID.', 'LEAGUEBOT then opens on it next time. Signed in it is kept privately on your account, otherwise in this browser.')}>
                 [ THIS IS ME ]
               </button>
             )}
@@ -327,6 +336,7 @@ export default function LeagueBot() {
                 tabIndex={tab === each.tab ? 0 : -1}
                 onClick={() => setTab(each.tab)}
                 className={tab === each.tab ? `${PLATE_PRESSED} cursor-pointer` : PLATE}
+                {...explainFrom(TAB_WORDS[each.tab])}
               >
                 [ {each.label} ]
               </button>

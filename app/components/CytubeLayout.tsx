@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { LOOKS, lookClass, type LookChoice, type LookId } from '../lib/cytube/looks';
 import { saveLookChoice, useLookChoice } from '../lib/cytube/use-looks';
 import { PLATE, PLATE_PRESSED, TITLE_BAR } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 
 /**
  * CUSTOMIZE LAYOUT (SPEC-cytube.md): the look your room is drawn in when you broadcast - one of five presets, or
@@ -56,6 +57,7 @@ function LookOption({ id, label, note, chosen, onPick }: { id: LookId | null; la
       onClick={onPick}
       className={`flex w-full cursor-pointer flex-col gap-1 p-1 text-left ${chosen ? 'bg-ink text-paper' : 'text-ink hover:bg-pointed'}`}
       data-cytube-look={id ?? 'none'}
+      {...explain(id === null ? 'Draws your room in no special look: your own site theme.' : 'Draws your room in this look when you broadcast.', 'People in your room see it, unless they keep their own look.')}
     >
       <span className="flex items-center gap-2 text-key font-bold">
         <span>{chosen ? '(●)' : '( )'}</span>
@@ -87,10 +89,10 @@ export function LookPreview({ look }: { look: LookId | null }) {
 export function LookToggle({ choice, onChange, compact = false }: { choice: LookChoice; onChange: (patch: Partial<LookChoice>) => void; compact?: boolean }) {
   return (
     <div className={`flex flex-wrap items-center gap-1 ${compact ? '' : 'text-label text-ink'}`} role="radiogroup" aria-label="Whose look you see in other people's rooms" data-cytube-look-toggle>
-      <button type="button" role="radio" aria-checked={choice.showHostLook} onClick={() => onChange({ showHostLook: true })} className={choice.showHostLook ? PLATE_PRESSED : PLATE}>
+      <button type="button" role="radio" aria-checked={choice.showHostLook} onClick={() => onChange({ showHostLook: true })} className={choice.showHostLook ? PLATE_PRESSED : PLATE} {...explain('Shows other people\'s rooms in the look their host picked.', 'To see each room as its owner made it.')}>
         [ SHOW THE HOST&apos;S LOOK ]
       </button>
-      <button type="button" role="radio" aria-checked={!choice.showHostLook} onClick={() => onChange({ showHostLook: false })} className={!choice.showHostLook ? PLATE_PRESSED : PLATE}>
+      <button type="button" role="radio" aria-checked={!choice.showHostLook} onClick={() => onChange({ showHostLook: false })} className={!choice.showHostLook ? PLATE_PRESSED : PLATE} {...explain('Shows other people\'s rooms in your own look instead.', 'For when a host\'s colours are hard to read.')}>
         [ KEEP MY OWN LOOK ]
       </button>
     </div>

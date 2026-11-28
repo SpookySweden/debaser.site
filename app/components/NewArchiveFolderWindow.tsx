@@ -6,6 +6,7 @@ import type { MusicFolder } from '../lib/audio/repository';
 import type { ForumAuthor } from '../lib/forum/types';
 import { FIELD, PLATE_MAIN } from '../lib/ui/controls';
 import PopoutWindow from './PopoutWindow';
+import { explain, NOTE } from '../lib/ui/explain';
 
 type NewArchiveFolderWindowProps = {
   /** The folder it is made inside; `null` makes it at the root of the archive. */
@@ -65,7 +66,7 @@ export default function NewArchiveFolderWindow({ parent, author, create, onCreat
       onClose={onClose}
       maxWidth="max-w-md"
       actions={
-        <button type="button" onClick={() => void make()} disabled={busy} className={PLATE_MAIN}>
+        <button type="button" onClick={() => void make()} disabled={busy} className={PLATE_MAIN} {...explain('Makes a folder with the name you typed.', 'To sort the files on the shelf.', NOTE.others)}>
           {busy ? '[ MAKING... ]' : '[ MAKE FOLDER ]'}
         </button>
       }

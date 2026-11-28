@@ -7,6 +7,7 @@ import type { RoomGuest } from '../lib/watch/types';
 import { nameRoomGuest } from '../lib/watch/use-room-guest';
 import AccountForms from './AccountForms';
 import PopoutWindow from './PopoutWindow';
+import { explain, NOTE } from '../lib/ui/explain';
 
 /**
  * What opens the first time somebody without an account speaks or draws (SPEC-guests.md, Luke 2026-11-06): on the left, log in or create
@@ -72,7 +73,7 @@ export default function GuestWindow({ onNamed, onClose }: { onNamed: (guest: Roo
               />
             </label>
             <div>
-              <button type="submit" className={PLATE_MAIN} disabled={busy || name.trim().length === 0} data-guest-name-save>
+              <button type="submit" className={PLATE_MAIN} disabled={busy || name.trim().length === 0} data-guest-name-save {...explain('Takes the name in the box as your guest name here.', 'To talk or draw in the room. It shows with [GUEST] after it.', NOTE.others)}>
                 {busy ? '[ JUST A MOMENT... ]' : '[ CONTINUE AS A GUEST ]'}
               </button>
             </div>

@@ -6,6 +6,7 @@ import { isGroupOwner } from '../lib/comms/threads';
 import { MAX_GROUP_MEMBERS, MAX_GROUP_NAME_LENGTH, type CommsThread } from '../lib/comms/types';
 import { FIELD, PLATE } from '../lib/ui/controls';
 import ProfileName from './ProfileName';
+import { explain, NOTE } from '../lib/ui/explain';
 
 type CommsGroupBarProps = {
   thread: CommsThread;
@@ -77,7 +78,7 @@ export default function CommsGroupBar({
   return (
     <div className="mb-2 space-y-1 text-label font-bold text-ink">
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" onClick={() => setAdding(!adding)} className={PLATE}>
+        <button type="button" onClick={() => setAdding(!adding)} className={PLATE} {...explain(adding ? 'Closes the list without adding anybody.' : 'Lists the accounts that are not in this group yet.', adding ? 'The group stays as it was.' : 'To bring somebody else into the group.')}>
           {adding ? '[ CANCEL ]' : '[ + ADD MEMBER ]'}
         </button>
 
@@ -90,6 +91,7 @@ export default function CommsGroupBar({
                 setDraftName(thread.name);
               }}
               className={PLATE}
+              {...explain(renaming ? 'Closes the name box without renaming.' : 'Opens a box to type a new name for the group.', renaming ? 'The group keeps its name.' : 'Nothing changes until you press SAVE NAME. Only the owner sees this key.')}
             >
               {renaming ? '[ CANCEL ]' : '[ RENAME ]'}
             </button>
@@ -99,6 +101,7 @@ export default function CommsGroupBar({
               onClick={() => setHandingOver(!handingOver)}
               disabled={others.length === 0}
               className={PLATE}
+              {...explain(handingOver ? 'Closes the list and keeps the group yours.' : 'Lists the members so you can make one of them the owner.', handingOver ? 'Nothing changes.' : 'To pass on the renaming and removing. Only the owner sees this key.')}
             >
               {handingOver ? '[ CANCEL ]' : '[ HAND OVER ]'}
             </button>
@@ -120,6 +123,7 @@ export default function CommsGroupBar({
           }}
           disabled={busy}
           className={PLATE}
+          {...explain(confirmingLeave ? 'Takes you out of this group now.' : 'Asks you to confirm that you want to leave this group.', confirmingLeave ? 'An owner who leaves passes the group on; the last one out deletes it and its messages for good.' : 'Nothing happens until you press CONFIRM LEAVE.', NOTE.others)}
         >
           {busy ? '[ WORKING... ]' : confirmingLeave ? '[ CONFIRM LEAVE ]' : '[ LEAVE GROUP ]'}
         </button>
@@ -159,6 +163,7 @@ export default function CommsGroupBar({
               })
             }
             className={PLATE}
+            {...explain('Gives the group the name in the box.', 'So everybody in it can tell what it is for.', NOTE.others)}
           >
             [ SAVE NAME ]
           </button>
@@ -180,6 +185,7 @@ export default function CommsGroupBar({
                   })
                 }
                 className={`${PLATE} w-full max-w-md text-left`}
+                {...explain('Makes this person the group\'s owner.', 'They get the rename, hand over and remove keys, and you lose them.', 'NO QUESTION IS ASKED. ONLY THE NEW OWNER CAN HAND IT BACK.')}
               >
                 {nameFor(id)}
                 {id === thread.ownerId ? ' [ ALREADY THE OWNER ]' : ''}
@@ -214,6 +220,7 @@ export default function CommsGroupBar({
                   });
                 }}
                 className="ml-1 cursor-pointer bg-bubble-pale px-1 text-ink-bar underline hover:bg-ena"
+                {...explain(confirmingRemoval === id ? 'Takes this person out of the group now.' : 'Asks whether to take this person out of the group.', confirmingRemoval === id ? 'The group closes to them.' : 'Nothing happens until you press SURE?. Only the owner sees this key.', NOTE.others)}
               >
                 {confirmingRemoval === id ? 'SURE?' : 'remove'}
               </button>
@@ -233,6 +240,7 @@ export default function CommsGroupBar({
                 disabled={busy}
                 onClick={() => void attempt(() => onAdd(account.id))}
                 className={`${PLATE} w-full max-w-md text-left`}
+                {...explain('Adds this person to the group.', 'They can read it and write in it from then on.', NOTE.others)}
               >
                 + {account.displayName}
               </button>

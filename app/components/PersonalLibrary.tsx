@@ -24,6 +24,7 @@ import { useMusicPlayer } from './MusicPlayerProvider';
 import LibraryRow from './LibraryRow';
 import ListRow from './ListRow';
 import { useMusicLibrary } from './MusicLibraryProvider';
+import { explain } from '../lib/ui/explain';
 
 /**
  * The reader's own music: what they liked, and the lists they made.
@@ -203,7 +204,7 @@ export default function PersonalLibrary() {
   if (userId === null) {
     return (
       <p className="p-3 text-label text-ink">
-        <Link href="/account" className={PLATE_LINK}>
+        <Link href="/account" className={PLATE_LINK} {...explain('Goes to the account page to sign in.', 'Your library is kept on your account.')}>
           [ LOG IN ]
         </Link>{' '}
         TO KEEP LIKES AND LISTS
@@ -228,7 +229,7 @@ export default function PersonalLibrary() {
           LIBRARY OFFLINE. NOTHING IS LOST.
         </p>
 
-        <button type="button" onClick={refresh} className={`${PLATE} mt-2`}>
+        <button type="button" onClick={refresh} className={`${PLATE} mt-2`} {...explain('Asks for your library again.', 'For when it did not answer the first time.')}>
           [ TRY AGAIN ]
         </button>
       </section>
@@ -302,10 +303,10 @@ export default function PersonalLibrary() {
                   if (event.key === 'Escape') setNaming(false);
                 }}
               />
-              <button type="button" onClick={() => void makeList()} className={PLATE}>
+              <button type="button" onClick={() => void makeList()} className={PLATE} {...explain('Makes a playlist with the name in the box.', 'Enter in the box does the same.')}>
                 [ MAKE IT ]
               </button>
-              <button type="button" onClick={() => setNaming(false)} className={PLATE}>
+              <button type="button" onClick={() => setNaming(false)} className={PLATE} {...explain('Closes the name box without making a playlist.', 'Nothing is changed.')}>
                 [ CANCEL ]
               </button>
             </div>
@@ -317,6 +318,7 @@ export default function PersonalLibrary() {
                 setNotice(null);
               }}
               className={PLATE}
+              {...explain('Opens a box to name a new playlist.', 'To keep songs together under one name.')}
             >
               [ + NEW PLAYLIST ]
             </button>
@@ -376,10 +378,10 @@ export default function PersonalLibrary() {
                 <span className="min-w-0 flex-1 truncate font-bold" title={otherTitle(item)}>
                   ▶ {otherTitle(item)}
                 </span>
-                <button type="button" className={PLATE} aria-label={`Add ${otherTitle(item)} to your queue`} onClick={() => void queueOther(item)}>
+                <button type="button" className={PLATE} aria-label={`Add ${otherTitle(item)} to your queue`} onClick={() => void queueOther(item)} {...explain('Adds this video or file to your queue.', 'It then plays in its turn.')}>
                   [ + QUEUE ]
                 </button>
-                <button type="button" className={PLATE} aria-label={`Take ${otherTitle(item)} out of ${current.name}`} onClick={() => void library.togglePlaylistTrack(current.id, item.trackId).catch(() => setNotice('THE LIBRARY DID NOT ANSWER.'))}>
+                <button type="button" className={PLATE} aria-label={`Take ${otherTitle(item)} out of ${current.name}`} onClick={() => void library.togglePlaylistTrack(current.id, item.trackId).catch(() => setNotice('THE LIBRARY DID NOT ANSWER.'))} {...explain('Takes this out of the playlist at once.', 'The file or video itself stays where it is.')}>
                   [ × ]
                 </button>
               </li>

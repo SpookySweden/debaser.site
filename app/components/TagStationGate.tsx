@@ -4,6 +4,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { PLATE_MAIN } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
+import { explain } from '../lib/ui/explain';
 
 /**
  * TAG STATION is for signed-in people only, like MEDIA (SPEC-tag-station.md). This gate is the page's manners: the route refuses
@@ -27,7 +28,7 @@ export default function TagStationGate({ children }: { children: ReactNode }) {
       <h2 id="tag-station-sign-in-title" className="text-headline font-bold text-ink">
         SIGN IN TO USE DISCOVER
       </h2>
-      <Link href="/account" className={PLATE_MAIN}>
+      <Link href="/account" className={PLATE_MAIN} {...explain('Goes to the account page to sign in.', 'DISCOVER needs an account.')}>
         [ SIGN IN ]
       </Link>
     </section>

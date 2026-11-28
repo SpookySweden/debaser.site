@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { MAX_AUDIO_TAGS, STARTER_AUDIO_TAGS, audioTagKey, normaliseAudioTags } from '../lib/audio/tags';
 import { FIELD_TIGHT, PLATE } from '../lib/ui/controls';
 import AudioTagPill from './AudioTagPill';
+import { explain } from '../lib/ui/explain';
 
 type AudioTagChooserProps = {
   id: string;
@@ -88,6 +89,7 @@ export default function AudioTagChooser({ id, value, onChange, suggestions = STA
             setDraft('');
           }}
           className={PLATE}
+          {...explain('Picks the tag typed in the box for this file.', 'Kept when you save or file it. Enter does the same, and a tag already picked is unpicked instead.')}
         >
           [ + ADD ]
         </button>

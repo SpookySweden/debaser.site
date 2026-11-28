@@ -20,6 +20,7 @@ import {
   type TourStep,
 } from '../lib/ui/first-visit-tour';
 import { useAuth } from './AuthProvider';
+import { explain } from '../lib/ui/explain';
 
 type Box = { top: number; left: number; width: number; height: number };
 
@@ -209,16 +210,16 @@ function TourRun({ steps, onEnd }: { steps: TourStep[]; onEnd: (how: 'done' | 's
         </div>
         <p className="px-2 pt-2 text-prose text-ink">{step.line}</p>
         <div className="flex flex-wrap items-center gap-2 p-2">
-          <button ref={next} type="button" onClick={() => (last ? onEnd('done') : setIndex(index + 1))} className={`${PLATE_MAIN} min-h-tap`} data-tour-next>
+          <button ref={next} type="button" onClick={() => (last ? onEnd('done') : setIndex(index + 1))} className={`${PLATE_MAIN} min-h-tap`} data-tour-next {...explain(last ? 'Ends the tour here.' : 'Moves to the next thing the tour points at.', last ? 'It will not start by itself again.' : 'The count above says how far along you are.')}>
             {last ? '[ DONE ]' : '[ NEXT ► ]'}
           </button>
           {index > 0 ? (
-            <button type="button" onClick={() => setIndex(index - 1)} className={`${PLATE} min-h-tap`}>
+            <button type="button" onClick={() => setIndex(index - 1)} className={`${PLATE} min-h-tap`} {...explain('Goes back one step of the tour.', 'To read it again.')}>
               [ ◄ BACK ]
             </button>
           ) : null}
           {last ? null : (
-            <button type="button" onClick={() => onEnd('skipped')} className={`${PLATE} ml-auto min-h-tap`} data-tour-skip>
+            <button type="button" onClick={() => onEnd('skipped')} className={`${PLATE} ml-auto min-h-tap`} data-tour-skip {...explain('Ends the tour now.', 'It will not start by itself again. MODULOS has a TOUR key to play it again.')}>
               [ SKIP ]
             </button>
           )}

@@ -10,6 +10,7 @@ import { eraOf } from '../lib/tag-station/words';
 import { sourceLabel } from '../lib/tag-station/query';
 import { rowAddresses, type ExtraHosts } from '../lib/web/row-addresses';
 import SeeKey from './SeeKey';
+import { explain, explainFrom, NOTE, type Explanation } from '../lib/ui/explain';
 
 /**
  * The small pieces every TAG STATION panel shares (SPEC-tag-station.md): keys at least 44px tall with a thick focus ring, word
@@ -33,12 +34,12 @@ export function TitleLine({ children, id }: { children: ReactNode; id?: string }
 }
 
 /** A row of keys where one is on: strictness, the niche dial, how far out. */
-export function KeyGroup<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: readonly { value: T; label: string }[]; onChange: (value: T) => void }) {
+export function KeyGroup<T extends string>({ label, value, options, words, onChange }: { label: string; value: T; options: readonly { value: T; label: string }[]; words: Record<T, Explanation>; onChange: (value: T) => void }) {
   return (
     <div role="group" aria-label={label} className="flex flex-wrap items-center gap-1">
       <span className="text-label font-bold text-ink-quiet">{label}</span>
       {options.map((option) => (
-        <button key={option.value} type="button" aria-pressed={option.value === value} onClick={() => onChange(option.value)} className={option.value === value ? STATION_KEY_ON : STATION_KEY}>
+        <button key={option.value} type="button" aria-pressed={option.value === value} onClick={() => onChange(option.value)} className={option.value === value ? STATION_KEY_ON : STATION_KEY} {...explainFrom(words[option.value])}>
           {option.value === value ? option.label : `[ ${option.label} ]`}
         </button>
       ))}
@@ -84,12 +85,13 @@ export function WordChip({
         aria-pressed={active ?? false}
         aria-label={`Go to ${word}${source ? `, ${source.label}` : ''}${facet ? `, ${facet === 'form' ? 'a form' : facet === 'era' ? 'an era' : `a ${facet}`}` : ''}`}
         className={active ? STATION_KEY_ON : STATION_KEY}
+        {...explain('Picks this word, and the page shows what is around it.', 'To follow it to related words and items.')}
       >
         {source ? <span className={active ? 'mr-1' : 'mr-1 text-ink-quiet'}>{source.letters}</span> : null}
         {facet ? <span className={active ? 'mr-1' : 'mr-1 text-ink-quiet'}>{FACET_LETTERS[facet]}</span> : null}
         {word}
       </button>
-      <button type="button" onClick={() => onAdd(word)} aria-label={`Add ${word} to the recipe`} className={STATION_KEY}>
+      <button type="button" onClick={() => onAdd(word)} aria-label={`Add ${word} to the recipe`} className={STATION_KEY} {...explain('Adds this word to the recipe.', 'As a word an item must have, unless it is already in one of the lists.')}>
         [ + ]
       </button>
     </span>
@@ -116,7 +118,7 @@ export function Thumb({ src, kind, wide }: { src: string | null; kind: MediaMark
 /** A search result nobody saved has no address here, so this finds it again through MEDIA's own search. */
 export function FindInMedia({ item }: { item: Pick<StationItem, 'title'> }) {
   return (
-    <Link href={`/media?q=${encodeURIComponent(item.title.slice(0, 100))}`} aria-label={`Find "${item.title}" in MEDIA`} className={STATION_KEY}>
+    <Link href={`/media?q=${encodeURIComponent(item.title.slice(0, 100))}`} aria-label={`Find "${item.title}" in MEDIA`} className={STATION_KEY} {...explain('Searches MEDIA for this title.', 'This one was only seen in a search and never saved, so MEDIA has to find it again.')}>
       [ FIND IN MEDIA ]
     </Link>
   );
@@ -131,7 +133,7 @@ export function ItemRow({ item, note, extraHosts, onPick }: { item: StationItem;
     <li className="rule-pixel flex items-start gap-2 py-2">
       <Thumb src={thumb} kind={mediaMarkKind(item)} />
       <div className="min-w-0 flex-1">
-        <button type="button" onClick={() => onPick(item.id)} aria-label={`Go to ${item.title}`} className={`key block min-h-tap w-full cursor-pointer break-words px-1 py-1 text-left text-label ${STATION_RING} ${PRESS}`}>
+        <button type="button" onClick={() => onPick(item.id)} aria-label={`Go to ${item.title}`} className={`key block min-h-tap w-full cursor-pointer break-words px-1 py-1 text-left text-label ${STATION_RING} ${PRESS}`} {...explain('Picks this item, and the page shows it and what is around it.', 'To see its words and play it.')}>
           {item.title}
         </button>
         <p className="break-words px-1 text-label text-ink">
@@ -141,7 +143,7 @@ export function ItemRow({ item, note, extraHosts, onPick }: { item: StationItem;
         </p>
         {note ? <p className="break-words px-1 text-label text-ink-quiet">{note}</p> : null}
         {link ? (
-          <a href={link} target="_blank" rel="noopener noreferrer nofollow" aria-label={`Open "${item.title}" on ${source} (new tab)`} className={STATION_KEY}>
+          <a href={link} target="_blank" rel="noopener noreferrer nofollow" aria-label={`Open "${item.title}" on ${source} (new tab)`} className={STATION_KEY} {...explain('Opens this item on the site it comes from.', 'To see it there.', NOTE.leaves)}>
             [ OPEN ↗ ]
           </a>
         ) : null}

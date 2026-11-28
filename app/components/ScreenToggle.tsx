@@ -84,7 +84,7 @@ function RelayKey() {
           </label>
           <span className="flex items-center gap-1">
             {saying ? <span role="status">{saying}</span> : null}
-            <button type="submit" className={PLATE_ON_BLACK} disabled={busy || !status.ready} title={status.ready ? undefined : 'The PC that serves the site has no place set for the key yet'} data-remote-relay-save>
+            <button type="submit" className={PLATE_ON_BLACK} disabled={busy || !status.ready} title={status.ready ? undefined : 'The PC that serves the site has no place set for the key yet'} data-remote-relay-save {...explain(status.ready ? 'Tries the key with Cloudflare and keeps it on the server.' : 'This key is off for now.', status.ready ? 'The token is never shown again.' : 'The PC that serves the site has no place set for the key yet.')}>
               [ SAVE ON THE SERVER ]
             </button>
           </span>
@@ -188,6 +188,7 @@ export default function ScreenToggle({
         title={onScreen ? 'Picture' : 'Remote'}
         onClick={onPress}
         data-screen-toggle={onScreen ? 'on' : 'off'}
+        {...explain(onScreen ? "Goes back to the room's own picture." : choosing ? 'Closes the list of devices again.' : 'Opens the list of devices whose screen you can show here.', onScreen ? "The room's queue carries on untouched underneath." : choosing ? 'Nothing is shown from any of them.' : 'Only your own view changes, and only you have this key.')}
       >
         [ REMOTE ]
       </button>
@@ -203,6 +204,10 @@ export default function ScreenToggle({
               onClick={() => show(choice.source)}
               title={choice.tip}
               data-remote-choice={keyOf(choice.source)}
+              {...explain(
+                choice.source.kind === 'engine' ? "Shows that machine's screen here, for you to watch and control." : choice.source.kind === 'rdp' ? 'Shows the server here through Windows Remote Desktop.' : 'Asks that device to share its screen, for you to watch only.',
+                choice.source.kind === 'engine' ? 'To use that machine from this screen.' : choice.source.kind === 'rdp' ? choice.tip : 'Somebody there has to press SHARE and choose a screen.',
+              )}
             >
               {`[ ${choice.label} ]`}
             </button>
@@ -218,6 +223,7 @@ export default function ScreenToggle({
                 onClick={() => void flipServer()}
                 title="The server remote is Windows Remote Desktop through Apache Guacamole on the PC: a separate thing from our own engine, with its own switch. Off, nothing reaches the server this way."
                 data-remote-server-switch={rdp.on ? 'on' : 'off'}
+                {...explain(rdp.on ? 'Switches the server remote off, on the server itself.' : 'Switches the server remote on, on the server itself.', rdp.on ? 'Then nothing reaches the server by Windows Remote Desktop.' : 'The server then joins this list, by Windows Remote Desktop.')}
               >
                 {`[ SERVER REMOTE (WINDOWS REMOTE DESKTOP THROUGH GUACAMOLE): ${rdp.on ? 'ON' : 'OFF'} ]`}
               </button>

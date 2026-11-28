@@ -7,6 +7,7 @@ import { pictureTiles } from '../lib/media/uses';
 import { PLATE } from '../lib/ui/controls';
 import MediaPicker from './MediaPicker';
 import MediaUploadWindow from './MediaUploadWindow';
+import { explain } from '../lib/ui/explain';
 
 type PicturePickerProps = {
   id: string;
@@ -42,6 +43,7 @@ export default function PicturePicker({ id, value, onChange, author, heightClass
             type="button"
             onClick={() => setUploading(true)}
             className={PLATE}
+            {...explain('Opens a window to upload a new file.', 'Once it is filed it is chosen here for you.')}
           >
             [ + UPLOAD ]
           </button>

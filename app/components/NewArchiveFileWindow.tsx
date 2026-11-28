@@ -17,6 +17,7 @@ import type { ForumAuthor } from '../lib/forum/types';
 import { FIELD, FIELD_TIGHT, PLATE_MAIN } from '../lib/ui/controls';
 import AudioTagChooser from './AudioTagChooser';
 import PopoutWindow from './PopoutWindow';
+import { explain, NOTE } from '../lib/ui/explain';
 
 type NewArchiveFileWindowProps = {
   /** The folder the button was pressed in; the file is filed here unless another is chosen. */
@@ -149,7 +150,7 @@ export default function NewArchiveFileWindow({
       onClose={onClose}
       maxWidth="max-w-2xl"
       actions={
-        <button type="button" onClick={() => void fileIt()} disabled={busy} className={PLATE_MAIN}>
+        <button type="button" onClick={() => void fileIt()} disabled={busy} className={PLATE_MAIN} {...explain('Files the chosen audio on the shelf under this name.', 'It is also listed on the MEDIA page.', NOTE.others)}>
           {busy ? '[ FILING... ]' : '[ FILE IT ]'}
         </button>
       }

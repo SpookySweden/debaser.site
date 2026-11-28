@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { explain } from '../lib/ui/explain';
 
 export type TreePickerItem = {
   key: string;
@@ -66,6 +67,7 @@ export default function TreePicker({ id, groups, value, onChange, openInitially 
               onClick={() => toggle(group.label)}
               aria-label={`${isOpen ? 'Close' : 'Open'} ${group.label}`}
               className="flex w-full cursor-pointer items-center gap-1 rounded-none px-1 py-0.5 text-left text-label font-bold text-ink hover:bg-ice-pale max-sm:min-h-tap"
+              {...explain(isOpen ? 'Folds this folder shut again.' : 'Opens this folder and lists what is inside.', isOpen ? 'To keep the list short.' : 'To pick something from it.')}
             >
               <span className="inline-block w-6 shrink-0 text-center font-mono">{isOpen ? '[-]' : '[+]'}</span>
               <span className="truncate">{group.label}</span>
@@ -88,6 +90,7 @@ export default function TreePicker({ id, groups, value, onChange, openInitially 
                         className={`flex w-full cursor-pointer items-center gap-1 rounded-none px-1 py-0.5 text-left text-label font-bold max-sm:min-h-tap ${
                           selected ? 'bg-ena text-ink-bar' : 'text-ink hover:bg-ice-pale'
                         }`}
+                        {...explain('Picks this to file your post under.', 'The post then links back to it.')}
                       >
                         <span className="inline-block w-4 shrink-0 text-center font-mono">-</span>
                         <span className="truncate">{item.label}</span>

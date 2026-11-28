@@ -1,6 +1,7 @@
 'use client';
 
 import { tttDraw, tttWinningLine, tttWinner, type Board, type Mark } from '../lib/games/tic-tac-toe';
+import { explain } from '../lib/ui/explain';
 
 /**
  * The nine-plate board.
@@ -51,6 +52,7 @@ export default function TicTacToeBoard({
                     ? 'border-t-ink-bar border-l-ink-bar border-r-ink-plate border-b-ink-plate bg-sun-pale hover:bg-ice-pale'
                     : 'border-t-ink-plate border-l-ink-plate border-r-ink-bar border-b-ink-bar bg-paper'
               } ${open ? 'cursor-pointer' : 'cursor-default'}`}
+              {...explain('Puts your mark in this square.', 'Three in a row wins the game.')}
             >
               <span className={cell === 'X' ? 'text-accent-ink' : 'text-bubble-pale'}>
                 {cell === null ? (open ? '' : '·') : cell}

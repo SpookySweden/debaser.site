@@ -6,6 +6,7 @@ import { useAuth } from './AuthProvider';
 import MarqueeText from './MarqueeText';
 import { PLATE_ON_BLACK } from '../lib/ui/controls';
 import { useEdgeReserve } from '../lib/ui/use-edge-reserve';
+import { explain } from '../lib/ui/explain';
 
 /**
  * The guest fault: a fixed strip pinned across the top of the viewport while nobody is signed in.
@@ -79,6 +80,7 @@ export default function GuestPrompt() {
           href="/account"
           className={`shrink-0 ${PLATE_ON_BLACK}`}
           data-tour="login"
+          {...explain('Goes to the account page to sign in.', 'To post, comment and keep your settings.')}
         >
           [ LOG IN ]
         </Link>

@@ -28,6 +28,7 @@ import PopoutWindow from './PopoutWindow';
 import ProfileAvatarLink from './ProfileAvatarLink';
 import RecommendationComposer from './RecommendationComposer';
 import TimeStamp from './TimeStamp';
+import { explain, explainFrom, NOTE, type Explanation } from '../lib/ui/explain';
 
 /** PUBLIC first, and what the page opens on (Luke, 2026-11-11). */
 const TABS: { tab: RecommendationTab; label: string; signedIn: boolean }[] = [
@@ -35,6 +36,13 @@ const TABS: { tab: RecommendationTab; label: string; signedIn: boolean }[] = [
   { tab: 'for_me', label: 'FOR YOU', signedIn: true },
   { tab: 'sent', label: 'SENT', signedIn: true },
 ];
+
+/** What each tab's key says it does (EXPLAIN). */
+const TAB_WORDS: Record<RecommendationTab, Explanation> = {
+  public: { what: 'Shows the recommendations posted for everyone.', why: 'No account is needed to look.' },
+  for_me: { what: 'Shows the recommendations people have sent to you.', why: 'To see what is waiting for you.' },
+  sent: { what: 'Shows the recommendations you have sent.', why: 'To see who has played something in them, or delete one.' },
+};
 
 const FACES_SHOWN = 5;
 
@@ -79,6 +87,7 @@ export default function RecommendationsPage() {
               aria-selected={tab === each.tab}
               onClick={() => setTab(each.tab)}
               className={tab === each.tab ? PLATE_PRESSED : PLATE}
+              {...explainFrom(TAB_WORDS[each.tab])}
             >
               {each.label}
             </button>
@@ -127,7 +136,7 @@ function ComposerSection({ me }: { me: string }) {
   const [open, setOpen] = useState(false);
   return (
     <section aria-label="Make a recommendation" className="px-2">
-      <button type="button" onClick={() => setOpen(true)} aria-haspopup="dialog" className={PLATE_MAIN} data-main-key>
+      <button type="button" onClick={() => setOpen(true)} aria-haspopup="dialog" className={PLATE_MAIN} data-main-key {...explain('Opens a window to put a recommendation together and send it.', 'To pass songs, videos, pages and links on to people.')}>
         MAKE A RECOMMENDATION
       </button>
       {open ? (
@@ -203,6 +212,7 @@ function RecommendationRow({
             aria-label={`Open the letter "${rec.letter.name}"`}
             title="Open the letter"
             className="relative flex cursor-pointer items-center px-1.5 py-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-ink max-sm:min-h-tap"
+            {...explain('Opens the letter this recommendation was sent as.', 'To see its canvas with the things where they were laid out.')}
           >
             {/* The slim envelope (Luke, 2026-11-14); the padding round it is the room a finger needs, and is not drawn. */}
             <LetterStamp letter={rec.letter} />
@@ -225,6 +235,7 @@ function RecommendationRow({
           aria-expanded={open}
           aria-label={open ? `Close "${rec.title}"` : `Open "${rec.title}"`}
           className={`relative ${open ? PLATE_PRESSED : PLATE}`}
+          {...explain(open ? 'Folds this recommendation shut.' : 'Opens this recommendation and lists what is in it.', open ? 'To get back to the list.' : 'Pressing anywhere along the row does the same.')}
         >
           {open ? '[ ▾ ]' : '[ ▸ ]'}
         </button>
@@ -248,6 +259,7 @@ function RecommendationRow({
               if (!window.confirm('Delete this recommendation? It goes for everyone it was sent to.')) return;
               deleteRecommendation(rec.id).catch((error: unknown) => setFault(error instanceof Error ? error.message : 'Not deleted.'));
             }}
+            {...explain('Deletes this recommendation for everyone it was sent to.', 'Only its sender sees this key.', NOTE.asks)}
           >
             [ DELETE ]
           </button>
@@ -322,7 +334,7 @@ function RecommendationQueue({ id, me }: { id: string; me: string | null }) {
         {(items.value ?? []).map((item, at) => (
           <li key={item.id} className="rule-pixel flex items-center gap-2 py-1">
             <span className="w-6 shrink-0 text-right text-label text-ink-quiet">{at + 1}</span>
-            <button type="button" onClick={() => setOpened(item)} className="min-w-0 flex-1 cursor-pointer truncate text-left text-label text-queue-next-ink hover:underline">
+            <button type="button" onClick={() => setOpened(item)} className="min-w-0 flex-1 cursor-pointer truncate text-left text-label text-queue-next-ink hover:underline" {...explain('Opens this one to watch, listen to or read it.', 'Using it puts your face beside the recommendation.')}>
               {item.title || item.ref}
             </button>
           </li>

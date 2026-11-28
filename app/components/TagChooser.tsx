@@ -6,6 +6,7 @@ import { useForum } from './ForumProvider';
 import { TagMark, tagMarkColour } from './TagBadge';
 import TagCreatorWindow from './TagCreatorWindow';
 import { PLATE } from '../lib/ui/controls';
+import { explain } from '../lib/ui/explain';
 
 type TagChooserProps = {
   id: string;
@@ -101,6 +102,7 @@ export default function TagChooser({
                 onClick={() => toggle(label)}
                 title={`Remove tag ${tag.label}`}
                 className="inline-flex cursor-pointer items-center gap-0.75 font-bold hover:underline"
+                {...explain('Takes this tag off what you are writing.', 'It will not be attached when you post.')}
               >
                 <TagMark colour={tagMarkColour(tag)} compact />
                 <span className="text-ink">{tagNamespace(tag)}:</span>
@@ -131,6 +133,7 @@ export default function TagChooser({
                   className={`inline-flex cursor-pointer items-center gap-0.75 px-1 font-bold max-sm:min-h-tap max-sm:px-2 max-sm:text-sm ${
                     isSelected ? 'bg-ena text-ink-bar' : 'text-ink hover:underline'
                   }`}
+                  {...explain(isSelected ? 'Takes this tag off what you are writing.' : 'Puts this tag on what you are writing.', isSelected ? 'The number says how often it has been used.' : 'The number says how often it has been used.')}
                 >
                   <TagMark colour={tagMarkColour(tag)} compact />
                   {option.key}
@@ -149,6 +152,7 @@ export default function TagChooser({
           type="button"
           onClick={() => setCreatorOpen(true)}
           className={PLATE}
+          {...explain('Opens a window to make a new tag.', 'You give it a name and a colour.')}
         >
           [ + NEW TAG ]
         </button>

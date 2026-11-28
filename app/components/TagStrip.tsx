@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { ForumTag } from '../lib/forum/types';
 import { TagLink } from './TagBadge';
+import { explain } from '../lib/ui/explain';
 
 type TagStripProps = {
   tags: ForumTag[];
@@ -53,6 +54,7 @@ export default function TagStrip({ tags, limit, className, emptyLabel }: TagStri
           onClick={() => setOpen(true)}
           title="Show the rest of the tags"
           className="hit cursor-pointer font-bold text-ink hover:underline"
+          {...explain('Shows the rest of the tags.', 'Only some of them fit on the line.')}
         >
           {`[+${hidden}]`}
         </button>
@@ -64,6 +66,7 @@ export default function TagStrip({ tags, limit, className, emptyLabel }: TagStri
           onClick={() => setOpen(false)}
           title="Fold the tags back to one line"
           className="hit cursor-pointer font-bold text-ink hover:underline"
+          {...explain('Folds the tags back to one line.', 'To keep the post short again.')}
         >
           [-]
         </button>

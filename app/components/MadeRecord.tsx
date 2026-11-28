@@ -6,6 +6,7 @@ import { useMadeThings } from '../lib/forum/made-things';
 import { catalogueTrack } from '../lib/media/catalogue';
 import { MADE_KINDS } from '../lib/settings/settings-rules';
 import { useMusicPlayer } from './MusicPlayerProvider';
+import { explain } from '../lib/ui/explain';
 
 /**
  * A MADE row on the board (SPEC-forum-v3.md, M3A and M4A), drawn from the things themselves, never from the post: the way
@@ -65,6 +66,7 @@ function MadeLine({ thing }: { thing: MadeThing }) {
               const track = catalogueTrack(thing.track as NonNullable<MadeThing['track']>, player.queue);
               player.play(track, { origin: 'shelf', href: thing.href, where: 'THE BOARD' });
             }}
+            {...explain('Plays the track made with this post in the music player.', 'To hear it without leaving the board.')}
           >
             [ ▶ PLAY ]
           </button>

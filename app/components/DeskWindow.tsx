@@ -53,6 +53,7 @@ import { useNotifications } from './NotificationsProvider';
 import { usePresenceDirectory } from './PresenceProvider';
 import ProfileName from './ProfileName';
 import RelativeShort from './RelativeShort';
+import { explain } from '../lib/ui/explain';
 
 /** The desk's sections, in their fixed order (SPEC-forum-v3.md, Luke's D2A and D3A). */
 type SectionKey = 'reading' | 'replies' | 'live' | 'people' | 'waiting';
@@ -192,6 +193,7 @@ function AutoPopUpKey() {
       title={on ? 'Opens by itself once a day' : 'Opens only when you press DESK'}
       className={`cursor-pointer px-1 py-0.75 text-label leading-none ${on ? 'key key-fill key-on [--key-fill:var(--color-ink)] text-paper' : 'key'}`}
       data-desk-auto={on ? 'on' : 'off'}
+      {...explain(on ? 'Stops the desk opening by itself.' : 'Lets the desk open by itself again.', on ? 'It then opens only when you press DESK.' : 'It does so on your first visit to the forum each day.')}
     >
       {on ? '[ AUTO POP-UP: ON ]' : '[ AUTO POP-UP: OFF ]'}
     </button>
@@ -233,6 +235,7 @@ function Section({
           aria-label={folded ? `Show ${title}` : `Fold ${title} away`}
           title={folded ? 'Show' : 'Fold away'}
           className="key cursor-pointer px-1 py-0.75 text-label leading-none"
+          {...explain(folded ? 'Shows this part of the desk again.' : 'Folds this part of the desk away.', folded ? 'To read what is in it.' : 'To keep only what you read in view.')}
         >
           {folded ? '[ + ]' : '[ − ]'}
         </button>
@@ -531,17 +534,17 @@ export function DeskBody({ me, onLeave }: { me: string; onLeave: () => void }) {
           {/* The counts as keys in one row: what is waiting reads at a glance, and each is one press to it. */}
           <p className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 py-1">
             {letters.length > 0 ? (
-              <Link href={(letters.length === 1 ? notificationHref(letters[0]) : null) ?? '/recommendations'} onClick={onLeave} className={PLATE}>
+              <Link href={(letters.length === 1 ? notificationHref(letters[0]) : null) ?? '/recommendations'} onClick={onLeave} className={PLATE} {...explain('Goes to the letters waiting for you.', 'With one, straight to it; with more, to the recommendations page.')}>
                 {`[ ${letters.length} ${letters.length === 1 ? 'LETTER' : 'LETTERS'} ]`}
               </Link>
             ) : null}
             {unreadTotal > 0 ? (
-              <Link href="/comms" onClick={onLeave} className={PLATE}>
+              <Link href="/comms" onClick={onLeave} className={PLATE} {...explain('Goes to COMMS, where your unread messages are.', 'To read and answer them.')}>
                 {`[ ${unreadTotal} ${unreadTotal === 1 ? 'MESSAGE' : 'MESSAGES'} ]`}
               </Link>
             ) : null}
             {recommendations > 0 ? (
-              <Link href="/recommendations" onClick={onLeave} className={PLATE}>
+              <Link href="/recommendations" onClick={onLeave} className={PLATE} {...explain('Goes to the recommendations page.', 'To see what people have sent you.')}>
                 {`[ ${recommendations} ${recommendations === 1 ? 'RECOMMENDATION' : 'RECOMMENDATIONS'} ]`}
               </Link>
             ) : null}

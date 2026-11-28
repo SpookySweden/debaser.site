@@ -5,6 +5,7 @@ import { forgetOne, notForMe, pressHistory } from '../lib/recommender/history';
 import { makerRef, type HistoryKind } from '../lib/recommender/types';
 import { PLATE, PLATE_PRESSED } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
+import { explain } from '../lib/ui/explain';
 
 /**
  * The one feedback key on a result (Luke, 2026-11-14: "make sure the 'not for me etc' options are a single expandable
@@ -158,6 +159,7 @@ export default function FeedbackKey({
         aria-label={`Picks: more or less like ${item.title}`}
         title="More or less like this"
         className={PLATE}
+        {...explain(open ? 'Closes this little list of choices.' : 'Opens choices about picks like this one.', open ? 'Nothing more is changed.' : 'To steer what gets suggested to you.')}
       >
         [ ⋯ ]
       </button>
@@ -171,19 +173,19 @@ export default function FeedbackKey({
           style={place ?? { top: 0, left: 0 }}
           data-feedback-menu
         >
-          <button type="button" role="menuitemcheckbox" aria-checked={thing === 'not_for_me'} onClick={() => void press('not_for_me')} className={thing === 'not_for_me' ? ITEM_ON : ITEM}>
+          <button type="button" role="menuitemcheckbox" aria-checked={thing === 'not_for_me'} onClick={() => void press('not_for_me')} className={thing === 'not_for_me' ? ITEM_ON : ITEM} {...explain(onNotForMe ? 'Hides this pick and says it is not for you.' : 'Says this is not for you, so it counts against suggestions like it.', onNotForMe ? 'While your history is on, its words and maker then count for less.' : 'Its words and maker count for less. Press again to take it back.')}>
             NOT FOR ME
           </button>
           {item.maker.trim() !== '' ? (
-            <button type="button" role="menuitemcheckbox" aria-checked={less} onClick={() => void press('less')} className={less ? ITEM_ON : ITEM}>
+            <button type="button" role="menuitemcheckbox" aria-checked={less} onClick={() => void press('less')} className={less ? ITEM_ON : ITEM} {...explain(`Asks for less from this ${makerWord.toLowerCase()} in your picks.`, 'Press again to take it back.')}>
               {`SHOW LESS FROM THIS ${makerWord}`}
             </button>
           ) : null}
-          <button type="button" role="menuitemcheckbox" aria-checked={thing === 'more'} onClick={() => void press('more')} className={thing === 'more' ? ITEM_ON : ITEM}>
+          <button type="button" role="menuitemcheckbox" aria-checked={thing === 'more'} onClick={() => void press('more')} className={thing === 'more' ? ITEM_ON : ITEM} {...explain('Asks for more suggestions like this one.', 'Press again to take it back. Nothing is kept while your history is paused.')}>
             MORE LIKE THIS
           </button>
           {why !== null && why !== '' ? (
-            <button type="button" role="menuitem" aria-expanded={whyShown} onClick={() => setWhyShown((shown) => !shown)} className={ITEM}>
+            <button type="button" role="menuitem" aria-expanded={whyShown} onClick={() => setWhyShown((shown) => !shown)} className={ITEM} {...explain(whyShown ? 'Folds the reason away again.' : 'Shows why this was suggested to you.', whyShown ? 'The choices stay open.' : 'So the picks are not a mystery.')}>
               WHY THIS
             </button>
           ) : null}

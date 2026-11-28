@@ -12,6 +12,7 @@ import CommsThreadPanel from './CommsThreadPanel';
 import { useComms } from './CommsProvider';
 import ProfileName from './ProfileName';
 import TimeStamp from './TimeStamp';
+import { explain, NOTE } from '../lib/ui/explain';
 
 /**
  * The comms console: conversations down the left, the open one on the right.
@@ -113,7 +114,7 @@ export default function CommsConsole() {
   if (userId === null) {
     return (
       <p className="text-label text-ink">
-        <Link href="/account" className={PLATE_LINK}>
+        <Link href="/account" className={PLATE_LINK} {...explain('Goes to the account page to sign in.', 'Messages travel between accounts, so a guest has no inbox.')}>
           [ LOG IN ]
         </Link>{' '}
         TO MESSAGE PEOPLE
@@ -131,7 +132,7 @@ export default function CommsConsole() {
           <span className="min-w-0 flex-1 break-words">
             <span className="bg-bubble-pale px-1 text-ink-bar box-decoration-clone">{error}</span>
           </span>
-          <button type="button" onClick={retry} className={PLATE}>
+          <button type="button" onClick={retry} className={PLATE} {...explain('Tries to read your conversations again.', 'After the connection or the server comes back.')}>
             [ RETRY ]
           </button>
         </div>
@@ -144,7 +145,7 @@ export default function CommsConsole() {
         </div>
 
         <div className="p-2">
-          <button type="button" onClick={() => setPicking(!picking)} className={PLATE}>
+          <button type="button" onClick={() => setPicking(!picking)} className={PLATE} {...explain(picking ? 'Closes the list of accounts without opening anything.' : 'Opens the list of accounts you can message.', picking ? 'Your conversations stay as they were.' : 'To start talking to one person.')}>
             {picking ? '[ CANCEL ]' : '[ + NEW MESSAGE ]'}
           </button>
 
@@ -163,6 +164,7 @@ export default function CommsConsole() {
                         type="button"
                         onClick={() => void openWith(account.id)}
                         className={`${PLATE} inline-flex items-center gap-1`}
+                        {...explain('Opens your conversation with this person.', 'The one you already have, or a new empty one.', 'NOTHING IS SENT UNTIL YOU PRESS SEND.')}
                       >
                         [ MESSAGE ]{' '}
                         <ProfileName author={{ id: account.id, displayName: account.displayName }} />
@@ -182,6 +184,7 @@ export default function CommsConsole() {
               setGroupError(null);
             }}
             className={`ml-1 mt-1 ${PLATE}`}
+            {...explain(grouping ? 'Closes the new group form without making a group.' : 'Opens a form to name a group and tick who is in it.', grouping ? 'No group is made.' : 'To talk to several people at once.')}
           >
             {grouping ? '[ CANCEL ]' : '[ + NEW GROUP ]'}
           </button>
@@ -231,7 +234,7 @@ export default function CommsConsole() {
                 </ul>
               )}
 
-              <button type="button" onClick={() => void openGroup()} className={`mt-1 ${PLATE}`}>
+              <button type="button" onClick={() => void openGroup()} className={`mt-1 ${PLATE}`} {...explain('Makes a group with this name and the ticked members, and puts it on screen.', 'It is yours: only you can rename it, hand it over or remove people.', NOTE.others)}>
                 [ OPEN GROUP ]
               </button>
 
@@ -256,6 +259,7 @@ export default function CommsConsole() {
                         ? 'border-ink-plate bg-pointed'
                         : 'border-ink bg-ice-pale hover:bg-pointed'
                     }`}
+                    {...explain('Puts this conversation on screen.', 'To read it and answer. Anything unread in it is marked as read.')}
                   >
                     <span className="flex flex-wrap items-center justify-between gap-1">
                       {thread.kind === 'group' ? (
@@ -287,6 +291,7 @@ export default function CommsConsole() {
               type="button"
               onClick={() => setMobileView('list')}
               className="shrink-0 cursor-pointer key px-1 py-1 text-label font-bold leading-none lg:hidden"
+              {...explain('Goes back to the list of conversations.', 'On a narrow screen the list and the open conversation take turns.')}
             >
               [ ← LIST ]
             </button>
@@ -338,10 +343,10 @@ export default function CommsConsole() {
         {source === 'mock' ? (
           <div className="flex flex-wrap items-center gap-2 border-t border-ink p-2 text-label font-bold text-ink">
             <span className="text-ink">LOCAL MODE</span>
-            <button type="button" onClick={() => void simulateIncoming()} className={PLATE}>
+            <button type="button" onClick={() => void simulateIncoming()} className={PLATE} {...explain('Makes a pretend message arrive from another account.', 'A test of how an incoming message looks, in local mode only.', 'NOTHING IS SENT TO ANYBODY.')}>
               [ SIMULATE INCOMING ]
             </button>
-            <button type="button" onClick={() => void purgeLocal()} className={PLATE}>
+            <button type="button" onClick={() => void purgeLocal()} className={PLATE} {...explain('Deletes every test conversation kept in this browser, at once.', 'To start testing from empty. Local mode only.', 'NO QUESTION IS ASKED.')}>
               [ PURGE LOCAL COMMS ]
             </button>
             {testNote === null ? null : <span className="bg-bubble-pale px-1 text-ink-bar">{testNote}</span>}

@@ -6,6 +6,7 @@ import { useEdgeReserve } from '../lib/ui/use-edge-reserve';
 import { useComms } from './CommsProvider';
 import SpriteSlot from './SpriteSlot';
 import StartMenu from './StartMenu';
+import { explain } from '../lib/ui/explain';
 
 /**
  * NOT DRAWN since 2026-11-14 (Luke: "remove the 'start' button and the extra section it occupies"). Kept on his word, not deleted.
@@ -51,6 +52,7 @@ export default function Taskbar() {
             ? 'cursor-pointer key key-fill [--key-fill:var(--color-ink)] px-2 py-0.5 text-label font-bold text-paper'
             : PLATE
         }`}
+        {...explain(menuOpen ? 'Closes the site menu again.' : 'Opens the site menu.', menuOpen ? 'Nothing else changes.' : 'To get to the other parts of the site.')}
       >
         [ START ]
       </button>

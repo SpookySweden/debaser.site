@@ -21,6 +21,7 @@ import { useForum } from './ForumProvider';
 import { useLiveStreams, usePrivateRoomLines, type LiveStreamRow } from './CytubeLiveStreams';
 import StreamArtShelf, { PastCanvasShelf } from './StreamArtShelf';
 import StreamQueueWindow from './StreamQueueWindow';
+import { explain, explainFrom, type Explanation } from '../lib/ui/explain';
 
 /**
  * The CYTUBE page (SPEC-cytube.md): what streaming here is, the live rooms, the stream canvases, and - always
@@ -36,6 +37,13 @@ type Tab = 'about' | 'live' | 'canvases';
 // ROOMS first and the default, ABOUT last (Luke, 2026-11-14: "re order the sub pages so that 'rooms' is the default and
 // 'about' is the last option"). It read ROOM from 2026-11-05; ROOMS now, as he calls it and as it lists them. The key
 // stays 'live', so an old `?tab=live` link still opens it.
+/** What each STREAM tab's key says it does (EXPLAIN). */
+const TAB_WORDS: Record<Tab, Explanation> = {
+  live: { what: 'Lists the rooms that are live now.', why: 'To join one, or look at its queue first.' },
+  canvases: { what: 'Shows the drawing canvases: open now, saved, and past ones.', why: 'To join a drawing or look back at one.' },
+  about: { what: 'Explains in plain words how streaming works here.', why: 'To read before going live or joining.' },
+};
+
 const TABS: readonly { key: Tab; label: string }[] = [
   { key: 'live', label: 'ROOMS' },
   { key: 'canvases', label: 'CANVASES' },
@@ -82,7 +90,7 @@ function StreamTabs({ user }: { user: AccountUser | null }) {
     <div className="flex min-w-0 flex-col gap-3">
       {user === null ? (
         <p className="text-label font-bold text-ink" data-cytube-visitor>
-          <Link href="/account" className={PLATE_MAIN}>
+          <Link href="/account" className={PLATE_MAIN} {...explain('Goes to the account page to sign in.', 'Needed to go live or to pick your look.')}>
             [ LOG IN ]
           </Link>{' '}
           TO GO LIVE OR PICK YOUR LOOK. YOU CAN JOIN A ROOM WITHOUT AN ACCOUNT.
@@ -90,7 +98,7 @@ function StreamTabs({ user }: { user: AccountUser | null }) {
       ) : (
         <div className="flex flex-wrap items-center gap-2">
           <GoLiveKey user={user} />
-          <button type="button" aria-expanded={layoutOpen} onClick={() => setLayoutOpen((open) => !open)} className={layoutOpen ? PLATE_PRESSED : PLATE} data-cytube-layout-key>
+          <button type="button" aria-expanded={layoutOpen} onClick={() => setLayoutOpen((open) => !open)} className={layoutOpen ? PLATE_PRESSED : PLATE} data-cytube-layout-key {...explain(layoutOpen ? 'Folds the looks away.' : 'Opens the looks your room can be drawn in.', layoutOpen ? 'Your pick is already saved.' : 'And whether you see other hosts in their look or yours.')}>
             [ CUSTOMIZE LAYOUT ]
           </button>
         </div>
@@ -110,6 +118,7 @@ function StreamTabs({ user }: { user: AccountUser | null }) {
             aria-controls={`cytube-panel-${entry.key}`}
             onClick={() => show(entry.key)}
             className={`shrink-0 ${tab === entry.key ? `${PLATE_PRESSED} cursor-pointer` : PLATE}`}
+            {...explainFrom(TAB_WORDS[entry.key])}
           >
             [ {entry.label} ]
           </button>
@@ -141,7 +150,7 @@ function GoLiveKey({ user }: { user: AccountUser }) {
 
   return (
     <>
-      <button type="button" onClick={goLive} className={PLATE_MAIN} data-main-key data-cytube-go-live={hosting === null ? 'new' : 'back'}>
+      <button type="button" onClick={goLive} className={PLATE_MAIN} data-main-key data-cytube-go-live={hosting === null ? 'new' : 'back'} {...explain(hosting === null ? 'Starts your own stream, asking first who can join.' : 'Opens the room you are already hosting.', hosting === null ? 'So others can watch and talk along with you.' : 'You only ever have one live room at a time.')}>
         {hosting === null ? '[ GO LIVE ]' : '[ BACK TO YOUR ROOM ]'}
       </button>
       {asking ? <GoLiveWindow user={user} createThread={forum.createThread} onClose={() => setAsking(false)} /> : null}
@@ -250,10 +259,10 @@ function LiveRooms() {
             </span>
             <span className="flex shrink-0 items-center gap-1">
               {/* As QUEUES joins: a music room folded with the bar playing it, a video stream opened. */}
-              <button type="button" onClick={() => enterRoom(room.roomId, room.kind)} className={PLATE} aria-label={`Join ${room.hostName}'s room`} data-cytube-join>
+              <button type="button" onClick={() => enterRoom(room.roomId, room.kind)} className={PLATE} aria-label={`Join ${room.hostName}'s room`} data-cytube-join {...explain('Joins this room, to watch or listen along.', 'A music room plays from the bar at the foot of the screen.')}>
                 [ JOIN ]
               </button>
-              <button type="button" onClick={() => setQueueFor(room.roomId)} aria-haspopup="dialog" className={PLATE} aria-label={`${room.hostName}'s queue`}>
+              <button type="button" onClick={() => setQueueFor(room.roomId)} aria-haspopup="dialog" className={PLATE} aria-label={`${room.hostName}'s queue`} {...explain('Opens a window showing this room\'s queue.', 'To see what is on and what comes next.')}>
                 [ QUEUE ]
               </button>
             </span>
@@ -308,7 +317,7 @@ function Canvases() {
               <li key={room.roomId} className="rule-pixel flex flex-wrap items-center gap-2 py-1.5 text-label text-ink" data-cytube-canvas-room={room.roomId}>
                 <span className="font-bold">{room.hostName.toUpperCase()}</span>
                 <span className="min-w-0 flex-1 truncate">{room.kind === 'music' ? 'MUSIC' : 'STREAM'}</span>
-                <button type="button" onClick={() => enterRoom(room.roomId, room.kind)} className={PLATE} aria-label={`Join ${room.hostName}'s room`}>
+                <button type="button" onClick={() => enterRoom(room.roomId, room.kind)} className={PLATE} aria-label={`Join ${room.hostName}'s room`} {...explain('Joins this room, where a canvas is open.', 'Anybody in the room can draw on it.')}>
                   [ JOIN ]
                 </button>
               </li>

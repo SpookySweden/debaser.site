@@ -1,5 +1,7 @@
 'use client';
 
+import { explain } from '../lib/ui/explain';
+
 /**
  * One list in the LISTS panel: a plate that opens it, and - for a list of the reader's own - a plate
  * that takes it away.
@@ -36,6 +38,7 @@ export default function ListRow({
         className={`flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-none px-1 py-0.5 text-left text-label font-bold max-sm:min-h-tap max-sm:text-sm ${
           selected ? 'text-ink-bar' : 'text-ink hover:bg-ice'
         }`}
+        {...explain('Opens this list and shows what is in it.', 'To play or change what it holds.')}
       >
         <span aria-hidden="true" className="shrink-0">
           {symbol}
@@ -53,6 +56,7 @@ export default function ListRow({
           className={`shrink-0 cursor-pointer key px-1 text-label max-sm:min-h-tap max-sm:min-w-tap max-sm:text-sm ${
             selected ? '[--key-ink:var(--color-ink-bar)] [--key-hover-ink:var(--color-ink-plate)]' : ''
           }`}
+          {...explain('Deletes this playlist at once.', 'The songs themselves stay on the site.', 'NO QUESTION IS ASKED.')}
         >
           [ × ]
         </button>

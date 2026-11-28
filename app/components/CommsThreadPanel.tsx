@@ -13,6 +13,7 @@ import TimeStamp from './TimeStamp';
 import { ReportKey } from './ModerationKeys';
 import { SeeKeysIn } from './SeeKey';
 import { PLATE, PLATE_MAIN } from '../lib/ui/controls';
+import { explain, NOTE } from '../lib/ui/explain';
 
 type CommsThreadPanelProps = {
   thread: CommsThread;
@@ -185,6 +186,7 @@ export default function CommsThreadPanel({
                       onClick={() => openArcade({ kind: 'invite', inviteId: message.event!.inviteId })}
                       title="Open in the arcade"
                       className={PLATE}
+                      {...explain('Opens this game invitation in the arcade.', 'One still waiting for your answer is accepted by this.')}
                     >
                       [ OPEN ]
                     </button>
@@ -222,6 +224,7 @@ export default function CommsThreadPanel({
             onClick={() => void handleSend()}
             disabled={busy}
             className={PLATE_MAIN}
+            {...explain('Sends what you have typed to this conversation.', 'Enter does the same; Shift and Enter start a new line.', NOTE.others)}
           >
             {busy ? '[ SENDING... ]' : '[ SEND ]'}
           </button>

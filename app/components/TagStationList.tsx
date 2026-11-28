@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { wordItemsLine, type RelatedTag, type StationIndex } from '../lib/tag-station/query';
 import { STATION_KEY, WordChip } from './TagStationParts';
+import { explain } from '../lib/ui/explain';
 
 const STEP = 60;
 
@@ -57,7 +58,7 @@ export default function TagStationList({
         ))}
       </ul>
       {rows.length > shown ? (
-        <button type="button" onClick={() => setShown((current) => current + STEP)} className={STATION_KEY}>
+        <button type="button" onClick={() => setShown((current) => current + STEP)} className={STATION_KEY} {...explain('Shows more words further down the list.', 'The ones further from your choice.')}>
           [ MORE WORDS ]
         </button>
       ) : null}

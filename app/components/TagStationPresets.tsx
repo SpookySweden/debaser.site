@@ -5,6 +5,7 @@ import { cleanPresetName, getPresetStore, MAX_PRESET_NAME, MAX_PRESETS, presetSe
 import type { Recipe } from '../lib/tag-station/recipe';
 import { FIELD_TIGHT } from '../lib/ui/controls';
 import { STATION_KEY, STATION_KEY_ON } from './TagStationParts';
+import { explain, NOTE } from '../lib/ui/explain';
 
 /**
  * `[ PRESETS ]` (SPEC-discover.md): the page's filters are how your algorithm is applied, saved under a name, with one active, which MEDIA's DISCOVER
@@ -52,7 +53,7 @@ export default function TagStationPresets({ recipe, onPick }: { recipe: Recipe; 
   return (
     <div className="flex flex-col gap-1" data-presets>
       <div>
-        <button type="button" aria-expanded={open} onClick={() => setOpen((current) => !current)} className={open ? STATION_KEY_ON : STATION_KEY}>
+        <button type="button" aria-expanded={open} onClick={() => setOpen((current) => !current)} className={open ? STATION_KEY_ON : STATION_KEY} {...explain(open ? 'Folds the presets away.' : 'Opens your saved presets.', open ? 'The one in use stays in use.' : 'A preset is the filters as they are now, kept under a name.', 'SIGNED IN, THEY ARE KEPT ON YOUR ACCOUNT.')}>
           {open ? 'PRESETS' : '[ PRESETS ]'}
         </button>
       </div>
@@ -81,10 +82,11 @@ export default function TagStationPresets({ recipe, onPick }: { recipe: Recipe; 
                         });
                       }}
                       className={STATION_KEY}
+                      {...explain('Gives the preset the name in the box.', 'To tell your presets apart.')}
                     >
                       [ SAVE NAME ]
                     </button>
-                    <button type="button" onClick={() => setRenaming(null)} className={STATION_KEY}>
+                    <button type="button" onClick={() => setRenaming(null)} className={STATION_KEY} {...explain('Closes the name box without renaming.', 'The preset keeps its old name.')}>
                       [ KEEP IT ]
                     </button>
                   </>
@@ -101,10 +103,11 @@ export default function TagStationPresets({ recipe, onPick }: { recipe: Recipe; 
                         })
                       }
                       className={preset.active ? STATION_KEY_ON : STATION_KEY}
+                      {...explain(preset.active ? 'Stops using this preset.' : 'Uses this preset and sets the filters to it.', preset.active ? 'The filters on screen stay as they are.' : 'The one in use is also what MEDIA\'s DISCOVER filter reads.')}
                     >
                       {preset.active ? `${preset.name} · ON` : `[ ${preset.name} ]`}
                     </button>
-                    <button type="button" aria-label={`Rename ${preset.name}`} onClick={() => setRenaming({ id: preset.id, name: preset.name })} className={STATION_KEY}>
+                    <button type="button" aria-label={`Rename ${preset.name}`} onClick={() => setRenaming({ id: preset.id, name: preset.name })} className={STATION_KEY} {...explain('Opens a box to type a new name for this preset.', 'Nothing changes until you press SAVE NAME.')}>
                       [ RENAME ]
                     </button>
                     {deleting === preset.id ? (
@@ -119,11 +122,12 @@ export default function TagStationPresets({ recipe, onPick }: { recipe: Recipe; 
                         }
                         onBlur={() => setDeleting(null)}
                         className={STATION_KEY_ON}
+                        {...explain('Deletes this preset now.', 'Press anywhere else to keep it.', NOTE.undo)}
                       >
                         REALLY DELETE?
                       </button>
                     ) : (
-                      <button type="button" aria-label={`Delete ${preset.name}`} onClick={() => setDeleting(preset.id)} className={STATION_KEY}>
+                      <button type="button" aria-label={`Delete ${preset.name}`} onClick={() => setDeleting(preset.id)} className={STATION_KEY} {...explain('Asks whether to delete this preset.', 'Nothing is deleted until you press REALLY DELETE?.', NOTE.asks)}>
                         [ DELETE ]
                       </button>
                     )}
@@ -144,7 +148,7 @@ export default function TagStationPresets({ recipe, onPick }: { recipe: Recipe; 
                 SAVE THESE AS
                 <input type="text" value={name} maxLength={MAX_PRESET_NAME} onChange={(event) => setName(event.target.value)} className={`${FIELD_TIGHT} min-h-tap min-w-0 flex-1`} />
               </label>
-              <button type="submit" disabled={cleanPresetName(name) === null} className={STATION_KEY}>
+              <button type="submit" disabled={cleanPresetName(name) === null} className={STATION_KEY} {...explain('Saves the filters as they are now under the name in the box.', 'To get back to this mix in one press. Twenty is the most you can keep.')}>
                 [ SAVE ]
               </button>
             </form>

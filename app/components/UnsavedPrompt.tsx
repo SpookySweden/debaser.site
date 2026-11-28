@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { PLATE, PLATE_LARGE } from '../lib/ui/controls';
 import { summarise, type UnsavedChange } from '../lib/profile/unsaved-changes';
 import PopoutWindow from './PopoutWindow';
+import { explain, NOTE } from '../lib/ui/explain';
 
 type UnsavedPromptProps = {
   /** What would be lost. Empty means the prompt should not be shown at all - see the caller. */
@@ -62,6 +63,7 @@ export default function UnsavedPrompt({ changes, intent, onStay, onDiscard, onSa
             aria-expanded={open}
             aria-controls="unsaved-list"
             className="flex w-full cursor-pointer items-center justify-between border-b-line border-b-ink-plate px-2 py-1 text-left font-bold hover:bg-ice"
+            {...explain(open ? 'Folds the list of changes away.' : 'Lists what you changed and have not saved.', open ? 'The count stays in view.' : 'To decide whether it is worth keeping.')}
           >
             <span>{open ? '▼' : '▶'} WHAT IS UNSAVED</span>
             <span>[ {changes.length} ]</span>
@@ -91,7 +93,7 @@ export default function UnsavedPrompt({ changes, intent, onStay, onDiscard, onSa
         ) : null}
 
         <div className="flex flex-wrap items-center gap-2 pt-1">
-          <button type="button" onClick={onStay} className={PLATE_LARGE} autoFocus>
+          <button type="button" onClick={onStay} className={PLATE_LARGE} autoFocus {...explain('Closes this question and goes back to editing.', 'Nothing is lost.')}>
             [ KEEP EDITING ]
           </button>
 
@@ -106,6 +108,7 @@ export default function UnsavedPrompt({ changes, intent, onStay, onDiscard, onSa
                 // write is in flight cannot fire a second one.
                 void Promise.resolve(onSave()).finally(() => setBusy(false));
               }}
+              {...explain('Saves what can be saved, then carries on.', 'Not kept by this: the CHAR figure, and an uploaded picture or track you have not filed.')}
             >
               {busy ? '[ SAVING… ]' : '[ SAVE ]'}
             </button>
@@ -117,6 +120,7 @@ export default function UnsavedPrompt({ changes, intent, onStay, onDiscard, onSa
             type="button"
             onClick={onDiscard}
             className="key key-fill cursor-pointer [--key-fill:var(--color-bubble-pale)] px-2 py-0.5 text-label text-ink-bar hover:[--key-fill:var(--color-sun)] hover:text-ink-plate focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-acid active:translate-y-press active:[--key-fill:var(--color-bubble)] active:text-ink-plate max-sm:min-h-tap max-sm:px-3 max-sm:py-2 max-sm:text-sm"
+            {...explain('Throws your unsaved changes away and carries on.', 'For when they are not worth keeping.', NOTE.undo)}
           >
             [ DISCARD ]
           </button>

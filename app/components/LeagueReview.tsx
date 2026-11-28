@@ -22,6 +22,7 @@ import { PLATE, TITLE_BAR } from '../lib/ui/controls';
 import LeagueAdvice from './LeagueAdvice';
 import LeagueChart from './LeagueChart';
 import LeagueIcon from './LeagueIcon';
+import { explain } from '../lib/ui/explain';
 
 const ago = (ms: number, now: number) => {
   const hours = Math.max(0, Math.round((now - ms) / 3_600_000));
@@ -326,6 +327,7 @@ export default function LeagueReview({
               setReview(null);
               setError(null);
             }}
+            {...explain('Closes this game and goes back to the list of recent games.', 'To open another one.')}
           >
             [ ◄ ALL GAMES ]
           </button>
@@ -356,6 +358,7 @@ export default function LeagueReview({
                 setOpen(game);
               }}
               className="flex w-full cursor-pointer items-center gap-3 px-1 py-2 text-left text-prose text-ink hover:bg-pointed focus-visible:outline-2 focus-visible:outline-bubble"
+              {...explain('Opens this game\'s review.', 'Your game minute by minute against your lane opponent, with your build and the timeline, read from U.GG.')}
             >
               <span className={`w-8 shrink-0 text-center font-mono ${game.win ? 'bg-sun text-ink-plate' : 'bg-ena text-ink-bar'}`}>
                 <span aria-hidden="true">{game.win ? 'W' : 'L'}</span>

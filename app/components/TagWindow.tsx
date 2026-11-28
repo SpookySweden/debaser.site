@@ -18,6 +18,7 @@ import PopoutWindow from './PopoutWindow';
 import { TagMark, tagMarkColour } from './TagBadge';
 import TimeStamp from './TimeStamp';
 import { PLATE } from '../lib/ui/controls';
+import { explain, explainFrom, type Explanation } from '../lib/ui/explain';
 
 /**
  * Every tag the board has, in one window, with the music filed under it.
@@ -38,6 +39,12 @@ import { PLATE } from '../lib/ui/controls';
  */
 
 type TabKey = 'main' | 'music';
+
+/** What each tab's key says it does (EXPLAIN). */
+const TAB_WORDS: Record<TabKey, Explanation> = {
+  main: { what: 'Shows every tag the board uses.', why: 'To filter the posts by what they are tagged.' },
+  music: { what: "Shows the board's music, its sound tags and its files.", why: 'To find and play what has been posted.' },
+};
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'main', label: '[ MAIN ]' },
@@ -66,6 +73,7 @@ function TagTick({
       className={`inline-flex cursor-pointer items-center gap-0.75 px-1 text-label font-bold max-sm:min-h-tap max-sm:px-2 max-sm:text-sm ${
         active ? 'bg-ena text-ink-bar' : 'text-ink hover:underline'
       }`}
+      {...explain(active ? 'Takes this tag out of the filter.' : 'Adds this tag to the filter.', active ? 'The number says how many things carry it.' : 'The number says how many things carry it.')}
     >
       <TagMark colour={tagMarkColour(tag)} compact />
       {tagKey(tag.label)}
@@ -183,7 +191,7 @@ export default function TagWindow({
           ALL
         </label>
 
-        <button type="button" onClick={onClearTags} disabled={tagKeys.length === 0} className={PLATE}>
+        <button type="button" onClick={onClearTags} disabled={tagKeys.length === 0} className={PLATE} {...explain('Takes every post tag out of the filter.', 'To see all the posts again.')}>
           [ CLEAR TAGS ]
         </button>
 
@@ -241,6 +249,7 @@ export default function TagWindow({
               className={`cursor-pointer px-1 font-bold ${
                 fileSort === entry.value ? 'bg-ena text-ink-bar' : 'text-ink hover:underline'
               }`}
+              {...explain(`Orders the files in this list: ${entry.hint.toLowerCase()}.`, 'Only the list in this window changes.')}
             >
               {entry.label}
             </button>
@@ -270,11 +279,11 @@ export default function TagWindow({
                   </span>
 
                   <span className="ml-auto flex items-center gap-1">
-                    <button type="button" onClick={() => player.play(file.track)} className={PLATE}>
+                    <button type="button" onClick={() => player.play(file.track)} className={PLATE} {...explain('Plays this file in the music player.', 'To hear it without leaving the board.')}>
                       [ PLAY ]
                     </button>
                     {file.filings[0] === undefined ? null : (
-                      <a href={file.filings[0].href} onClick={onClose} className={PLATE}>
+                      <a href={file.filings[0].href} onClick={onClose} className={PLATE} {...explain('Goes to the post this file was filed with.', 'To read what was said about it.')}>
                         [ OPEN POST ]
                       </a>
                     )}
@@ -299,7 +308,7 @@ export default function TagWindow({
       maxWidth="max-w-3xl"
       onClose={onClose}
       actions={
-        <button type="button" onClick={onClose} className={PLATE}>
+        <button type="button" onClick={onClose} className={PLATE} {...explain('Closes the tag index.', 'The filter you set stays on.')}>
           [ CLOSE ]
         </button>
       }
@@ -315,6 +324,7 @@ export default function TagWindow({
             className={`inline-flex cursor-pointer items-center px-2 py-0.75 text-label font-bold max-sm:min-h-tap max-sm:px-3 max-sm:text-sm ${
               tab === entry.key ? 'bg-ena text-ink-bar' : 'text-ink hover:bg-ice'
             }`}
+            {...explainFrom(TAB_WORDS[entry.key])}
           >
             {entry.label}
           </button>

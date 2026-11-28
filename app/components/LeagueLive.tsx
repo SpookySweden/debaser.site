@@ -21,6 +21,7 @@ import { PLATE, PLATE_PRESSED, TITLE_BAR } from '../lib/ui/controls';
 import LeagueChampion from './LeagueChampion';
 import LeagueAdvice from './LeagueAdvice';
 import LeagueIcon from './LeagueIcon';
+import { explain } from '../lib/ui/explain';
 
 const WAITING_EVERY_MS = 60_000;
 const PLAYING_EVERY_MS = 120_000;
@@ -119,6 +120,7 @@ function Team({ title, id, players, me, data, picked, onPick }: { title: string;
                         aria-controls="lb-champ"
                         onClick={() => onPick(p)}
                         className={`flex items-center gap-2 ${picked === pickOf(p) ? `${PLATE_PRESSED} cursor-pointer` : PLATE}`}
+                        {...explain('Reads this champion out below the two teams.', 'Their matchup, crowd control, the player on it, their build and abilities.')}
                       >
                         <LeagueIcon src={champion?.icon} name={champ} size="md" decorative />
                         <span className="whitespace-nowrap">{champ}</span>
@@ -273,7 +275,7 @@ export default function LeagueLive({ id, region, data }: { id: RiotId; region: R
             </p>
           ))}
         </div>
-        <button type="button" className={PLATE} onClick={() => void check()} disabled={checking}>
+        <button type="button" className={PLATE} onClick={() => void check()} disabled={checking} {...explain('Asks right now whether the game has started.', 'Instead of waiting: it already asks once a minute while this tab is on screen.')}>
           {checking ? '[ CHECKING... ]' : '[ CHECK NOW ]'}
         </button>
       </div>
@@ -307,7 +309,7 @@ export default function LeagueLive({ id, region, data }: { id: RiotId; region: R
             </p>
           ) : null}
         </div>
-        <button type="button" className={PLATE} onClick={() => void check()} disabled={checking}>
+        <button type="button" className={PLATE} onClick={() => void check()} disabled={checking} {...explain('Asks again right now about the game in progress.', 'Instead of waiting: it already asks every two minutes while this tab is on screen.')}>
           {checking ? '[ CHECKING... ]' : '[ CHECK NOW ]'}
         </button>
       </div>

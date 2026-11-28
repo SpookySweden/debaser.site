@@ -5,6 +5,7 @@ import { MUSIC_HREF } from '../lib/audio/music-window';
 import { audioTagColour, audioTagKey, audioTagLabel } from '../lib/audio/tags';
 import type { ForumTag } from '../lib/forum/types';
 import { TagMark, tagChipClasses, tagMarkColour } from './TagBadge';
+import { explain } from '../lib/ui/explain';
 
 /**
  * An audio tag, worn as the site's own chip.
@@ -73,6 +74,7 @@ export default function AudioTagPill({ tag, onToggle, active = false, count, com
       aria-pressed={active}
       title={active ? `Stop filtering by ${label}` : `Filter by ${label}`}
       className={`cursor-pointer ${className}`}
+      {...explain(active ? 'Unpicks this tag for the file.' : 'Picks this tag for the file.', active ? 'The file is not changed until you save or file it.' : 'Kept when you save or file it. Nothing happens once the most tags are picked.')}
     >
       <TagMark colour={mark} compact={compact} />
       {label}

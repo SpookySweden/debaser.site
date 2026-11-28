@@ -9,6 +9,7 @@ import { useNotifySettings } from '../lib/notifications/notify-settings-store';
 import { PLATE } from '../lib/ui/controls';
 import { openNotificationMenu } from './NotificationBell';
 import { useNotifications } from './NotificationsProvider';
+import { explain } from '../lib/ui/explain';
 
 /**
  * The balloon (SPEC-notifications.md, answer 4A): a notification that arrives while the site is open pops up at the
@@ -74,6 +75,7 @@ function Balloon() {
               setHeld(false);
               router.push(href);
             }}
+            {...explain('Goes to what this is about and marks it read.', item.kind === 'invite' ? 'A game invitation still waiting is accepted by this.' : 'To deal with it now.')}
           >
             [ OPEN ]
           </button>
@@ -87,6 +89,7 @@ function Balloon() {
               setHeld(false);
               openNotificationMenu();
             }}
+            {...explain('Opens the bell\'s list with all of them.', 'The other waiting balloons are cleared away.')}
           >
             [ +{more} MORE ]
           </button>
@@ -100,6 +103,7 @@ function Balloon() {
             setState(balloonDismiss);
             setHeld(false);
           }}
+          {...explain('Closes this balloon without opening it.', 'It stays unread in the bell.')}
         >
           [ × ]
         </button>

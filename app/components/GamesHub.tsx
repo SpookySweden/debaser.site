@@ -16,6 +16,7 @@ import GameMatch from './GameMatch';
 import { useNotifications } from './NotificationsProvider';
 import { usePresenceDirectory } from './PresenceProvider';
 import UserDirectoryRow from './UserDirectoryRow';
+import { explain, explainFrom, NOTE, type Explanation } from '../lib/ui/explain';
 
 /** What the arcade window was opened to do. */
 type GamesHubProps = {
@@ -43,6 +44,9 @@ type GamesHubProps = {
  * anything tells anybody about it. That pair lives in `lib/games/challenges.ts`, so this screen and
  * the plate that opened it cannot file an invitation two different ways.
  */
+/** An answered or old invitation's CLEAR key (EXPLAIN). */
+const CLEAR_WORDS: Explanation = { what: 'Removes this invitation for both of you.', why: 'Your conversation with them gets a line, which they see, saying it was called off.', note: NOTE.undo };
+
 export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
   const { user } = useAuth();
   const { accounts, allAccounts, recordGameEvent } = useComms();
@@ -314,6 +318,7 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
                 className={PLATE_LARGE}
                 disabled={busy !== null || challengeRefusalText !== null}
                 onClick={() => void invitePlayer(challengeOpponent)}
+                {...explain(`Sends them an invitation to ${picked.title}.`, 'The PICK key on a game card changes which game. It shows in their notifications.', NOTE.others)}
               >
                 {busy === challengeOpponent.id ? '[ ASKING... ]' : '[ INVITE ]'}
               </button>
@@ -366,10 +371,11 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
                     setMatch(null);
                     setSolo(game.id);
                   }}
+                  {...explain('Starts this game against the computer.', 'No account or other person is needed.')}
                 >
                   [ PLAY SOLO ]
                 </button>
-                <button type="button" className={chosen === game.id ? PLATE_PRESSED : PLATE} disabled={chosen === game.id} onClick={() => setChosen(game.id)}>
+                <button type="button" className={chosen === game.id ? PLATE_PRESSED : PLATE} disabled={chosen === game.id} onClick={() => setChosen(game.id)} {...explain('Chooses this game for your invitations.', 'Only one game is picked at a time.')}>
                   {chosen === game.id ? '[ PICKED ]' : '[ PICK ]'}
                 </button>
               </div>
@@ -400,8 +406,8 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
               text={inviteSummary(invite, userId ?? '', gameById(invite.game).title)}
               tone="firm"
               actions={[
-                { label: '[ ACCEPT ]', run: () => void answer(invite, 'accepted'), busy: busy === invite.id },
-                { label: '[ DECLINE ]', run: () => void answer(invite, 'declined'), busy: busy === invite.id },
+                { label: '[ ACCEPT ]', words: { what: 'Accepts the invitation and opens the game at once.', why: 'The other person is told you said yes.' }, run: () => void answer(invite, 'accepted'), busy: busy === invite.id },
+                { label: '[ DECLINE ]', words: { what: 'Turns the invitation down.', why: 'The other person is told you said no.' }, run: () => void answer(invite, 'declined'), busy: busy === invite.id },
               ]}
             />
           ))}
@@ -411,7 +417,7 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
               key={invite.id}
               text={inviteSummary(invite, userId ?? '', gameById(invite.game).title)}
               tone="plain"
-              actions={[{ label: '[ CANCEL ]', run: () => void drop(invite), busy: busy === invite.id }]}
+              actions={[{ label: '[ CANCEL ]', words: { what: 'Takes back the invitation you sent.', why: 'It goes for both of you, and your conversation with them says it was called off.', note: NOTE.undo }, run: () => void drop(invite), busy: busy === invite.id }]}
             />
           ))}
 
@@ -422,9 +428,9 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
               tone="plain"
               actions={[
                 ...(invite.status === 'accepted'
-                  ? [{ label: '[ OPEN ]', run: () => setMatch(invite), busy: false }]
+                  ? [{ label: '[ OPEN ]', words: { what: 'Opens the game that was accepted.', why: 'To start playing.' }, run: () => setMatch(invite), busy: false }]
                   : []),
-                { label: '[ CLEAR ]', run: () => void drop(invite), busy: busy === invite.id },
+                { label: '[ CLEAR ]', words: CLEAR_WORDS, run: () => void drop(invite), busy: busy === invite.id },
               ]}
             />
           ))}
@@ -434,7 +440,7 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
               key={invite.id}
               text={`${inviteSummary(invite, userId ?? '', gameById(invite.game).title)} (OLD)`}
               tone="faint"
-              actions={[{ label: '[ CLEAR ]', run: () => void drop(invite), busy: busy === invite.id }]}
+              actions={[{ label: '[ CLEAR ]', words: CLEAR_WORDS, run: () => void drop(invite), busy: busy === invite.id }]}
             />
           ))}
         </div>
@@ -451,7 +457,7 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
               plates here; each `[ INVITE ]` names the picked game in its tip. */}
           {userId === null ? (
             <p className="text-label text-ink">
-              <Link href="/account" className={PLATE_LINK}>
+              <Link href="/account" className={PLATE_LINK} {...explain('Goes to the account page to sign in.', 'Inviting somebody needs an account.')}>
                 [ LOG IN ]
               </Link>{' '}
               TO INVITE
@@ -476,6 +482,7 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
                       disabled={busy === row.account.id}
                       title={picked.title}
                       onClick={() => void invitePlayer({ id: row.account.id, displayName: row.account.displayName })}
+                      {...explain(`Sends them an invitation to ${picked.title}.`, 'It shows in their notifications. Pick another game on its card first.', NOTE.others)}
                     >
                       {busy === row.account.id ? '[ ASKING... ]' : '[ INVITE ]'}
                     </button>
@@ -498,7 +505,7 @@ function InviteLine({
 }: {
   text: string;
   tone: 'firm' | 'plain' | 'faint';
-  actions: { label: string; run: () => void; busy: boolean }[];
+  actions: { label: string; words: Explanation; run: () => void; busy: boolean }[];
 }) {
   const frame =
     tone === 'firm'
@@ -512,7 +519,7 @@ function InviteLine({
     <div className={`flex flex-wrap items-center gap-2 px-2 py-1 text-label font-bold ${frame}`}>
       <span className="min-w-0 flex-1 truncate">{text}</span>
       {actions.map((action) => (
-        <button key={action.label} type="button" className={PLATE} disabled={action.busy} onClick={action.run}>
+        <button key={action.label} type="button" className={PLATE} disabled={action.busy} onClick={action.run} {...explainFrom(action.words)}>
           {action.label}
         </button>
       ))}

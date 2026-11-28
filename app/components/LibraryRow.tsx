@@ -7,6 +7,7 @@ import { PLATE } from '../lib/ui/controls';
 import AudioTagPill from './AudioTagPill';
 import { useMusicLibrary } from './MusicLibraryProvider';
 import { BarredTitle, SongMenuKey, SongMenuPanel } from './SongMenu';
+import { explain } from '../lib/ui/explain';
 
 type LibraryRowProps = {
   track: AudioTrack;
@@ -72,6 +73,7 @@ export default function LibraryRow({ track, index, playing, current, duration, o
             onClick={onPlay}
             className={PLATE}
             title={playing ? `Pause ${track.title}` : `Play ${track.title}`}
+            {...explain(playing ? 'Pauses this track for now.' : 'Plays this track in the music player.', playing ? 'Press again to carry on.' : 'It carries on while you move about the site.')}
           >
             {playing ? '[ ❚❚ ]' : '[ ▶ PLAY ]'}
           </button>

@@ -33,6 +33,7 @@ import { noteHistory } from '../lib/recommender/history';
 import ForYou from './ForYou';
 import SeeKey from './SeeKey';
 import { YouTubeTopicChips } from './ForYouYouTube';
+import { explain, NOTE } from '../lib/ui/explain';
 
 const PAGE_PATH = '/discover';
 const ITEMS_STEP = 12;
@@ -186,17 +187,17 @@ function PlayKeys({ item, extraHosts }: { item: StationItem; extraHosts: ExtraHo
     <div className="flex flex-col gap-1">
       <div className="flex flex-wrap items-center gap-1">
         {inBar && !open ? (
-          <button type="button" onClick={() => void pressBar()} aria-pressed={sounding} aria-busy={state === 'finding'} aria-label={sounding ? `Pause "${item.title}" in the music player` : `Play "${item.title}" in the music player`} className={sounding ? STATION_KEY_ON : STATION_KEY}>
+          <button type="button" onClick={() => void pressBar()} aria-pressed={sounding} aria-busy={state === 'finding'} aria-label={sounding ? `Pause "${item.title}" in the music player` : `Play "${item.title}" in the music player`} className={sounding ? STATION_KEY_ON : STATION_KEY} {...explain(sounding ? 'Pauses this in the music player.' : 'Plays this in the music player.', sounding ? 'Press again to carry on.' : 'It carries on while you move about the site.')}>
             {state === 'finding' ? '[ … FINDING ]' : sounding ? '❚❚ PAUSE' : '[ ▶ PLAY ]'}
           </button>
         ) : embed ? (
-          <button type="button" onClick={() => (open ? stopPlayer() : startPlayer())} aria-expanded={open} aria-label={open ? `Close the ${source} player for "${item.title}"` : `Play "${item.title}" (loads the ${source} player)`} className={open ? STATION_KEY_ON : STATION_KEY}>
+          <button type="button" onClick={() => (open ? stopPlayer() : startPlayer())} aria-expanded={open} aria-label={open ? `Close the ${source} player for "${item.title}"` : `Play "${item.title}" (loads the ${source} player)`} className={open ? STATION_KEY_ON : STATION_KEY} {...explain(open ? 'Closes this player and stops it.' : 'Loads the player of the site it comes from and plays it.', open ? 'To get the room back.' : 'The player is not loaded until you press.')}>
             {open ? '■ CLOSE' : '[ ▶ PLAY ]'}
           </button>
         ) : null}
         {floats && open ? <PipKey id={playId} title={item.title} /> : null}
         {link ? (
-          <a href={link} target="_blank" rel="noopener noreferrer nofollow" aria-label={`Open "${item.title}" on ${source} (new tab)`} className={STATION_KEY}>
+          <a href={link} target="_blank" rel="noopener noreferrer nofollow" aria-label={`Open "${item.title}" on ${source} (new tab)`} className={STATION_KEY} {...explain('Opens this item on the site it comes from.', 'To see it there, with whatever else that site shows.', NOTE.leaves)}>
             [ OPEN ↗ ]
           </a>
         ) : null}
@@ -239,7 +240,7 @@ function ItemInput({ item, extraHosts, onPick, onAdd }: { item: StationItem; ext
       {item.seenOnly ? <FindInMedia item={item} /> : <PlayKeys item={item} extraHosts={extraHosts} />}
       {item.description ? <p className="break-words text-prose text-ink">{item.description}</p> : null}
       {licence ? (
-        <a href={licence} target="_blank" rel="noopener noreferrer nofollow" className={STATION_KEY}>
+        <a href={licence} target="_blank" rel="noopener noreferrer nofollow" className={STATION_KEY} {...explain('Opens the page of the licence this item is shared under.', 'To see what you may do with it.', NOTE.leaves)}>
           [ LICENCE ↗ ]
         </a>
       ) : null}
@@ -381,12 +382,12 @@ export function Station({ index: mapIndex }: { index: StationIndex }) {
         <TagStationSearch index={index} inputRef={searchBox} onTag={pickTag} onItem={pickItem} onLink={(link) => go({ ...recipe, link, tag: null, item: null }, 'push')} />
         <div role="group" aria-label="Text size" className="flex items-center gap-1">
           {(Object.keys(TEXT_SIZES) as TextSize[]).map((size) => (
-            <button key={size} type="button" aria-pressed={size === textSize} aria-label={`Text size ${size}`} onClick={() => writeTextSize(size)} className={size === textSize ? STATION_KEY_ON : STATION_KEY}>
+            <button key={size} type="button" aria-pressed={size === textSize} aria-label={`Text size ${size}`} onClick={() => writeTextSize(size)} className={size === textSize ? STATION_KEY_ON : STATION_KEY} {...explain(`Sets the words on this page to size ${size}.`, 'M is the usual size. This browser remembers your pick.')}>
               {size === textSize ? size : `[ ${size} ]`}
             </button>
           ))}
         </div>
-        <button type="button" onClick={copyLink} onBlur={() => setCopied(false)} className={STATION_KEY}>
+        <button type="button" onClick={copyLink} onBlur={() => setCopied(false)} className={STATION_KEY} {...explain('Copies the address of what you are looking at.', 'The choice and the filters are in it, so you can keep it or send it to somebody.')}>
           {copied ? '[ COPIED ]' : '[ COPY LINK ]'}
         </button>
         <InfoFold topic="Discover">
@@ -418,7 +419,7 @@ export function Station({ index: mapIndex }: { index: StationIndex }) {
             <div className="flex flex-col gap-2">
               <p className="break-words text-headline font-bold text-ink">{chosenTag.name}</p>
               {eraOf(chosenTag.name) !== null ? <p className="text-label text-ink">E · AN ERA</p> : null}
-              <button type="button" onClick={() => addWord(chosenTag.name)} aria-label={`Add ${chosenTag.name} to the recipe`} className={STATION_KEY}>
+              <button type="button" onClick={() => addWord(chosenTag.name)} aria-label={`Add ${chosenTag.name} to the recipe`} className={STATION_KEY} {...explain('Adds this word to the recipe.', 'As a word an item must have, unless it is already in one of the lists.')}>
                 [ + ADD TO RECIPE ]
               </button>
             </div>
@@ -455,7 +456,7 @@ export function Station({ index: mapIndex }: { index: StationIndex }) {
           <TitleLine id="ts-words">WORDS</TitleLine>
           <div role="group" aria-label="Show words as" className="flex flex-wrap items-center gap-1">
             {(['map', 'list'] as const).map((view) => (
-              <button key={view} type="button" aria-pressed={recipe.view === view} onClick={() => go({ ...recipe, view })} className={recipe.view === view ? STATION_KEY_ON : STATION_KEY}>
+              <button key={view} type="button" aria-pressed={recipe.view === view} onClick={() => go({ ...recipe, view })} className={recipe.view === view ? STATION_KEY_ON : STATION_KEY} {...explain(view === 'map' ? 'Shows the words as a map, with close words near each other.' : 'Shows the same words as a list, closest first.', 'Both hold the same words; pick whichever reads better.')}>
                 {recipe.view === view ? view.toUpperCase() : `[ ${view.toUpperCase()} ]`}
               </button>
             ))}
@@ -511,7 +512,7 @@ export function Station({ index: mapIndex }: { index: StationIndex }) {
               <ul aria-label="Ways to find more" className="flex flex-col items-start gap-1 py-1">
                 {hints.map((hint) => (
                   <li key={hint.label}>
-                    <button type="button" onClick={() => go(hint.recipe)} className={`${STATION_KEY} break-words text-left`}>
+                    <button type="button" onClick={() => go(hint.recipe)} className={`${STATION_KEY} break-words text-left`} {...explain('Loosens the recipe in the way this key names.', 'Few items were found: the number says how many more this would bring.')}>
                       [ {hint.label}: {hint.more} MORE ]
                     </button>
                   </li>
@@ -536,6 +537,7 @@ export function Station({ index: mapIndex }: { index: StationIndex }) {
                     if (listed.length < shownCount + 2 * ITEMS_STEP) digging.dig();
                   }}
                   className={STATION_KEY}
+                  {...explain('Shows more items, reading further into the catalogue when it needs to.', 'When the ones on screen are not enough.')}
                 >
                   {digging.digging ? '[ DIGGING... ]' : '[ MORE ITEMS ]'}
                 </button>

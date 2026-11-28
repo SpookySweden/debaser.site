@@ -6,6 +6,7 @@ import NewsCrawl from './NewsCrawl';
 import { PLATE, TITLE_BAR } from '../lib/ui/controls';
 import { noteSettingChanged, subscribeToAccountSettings } from '../lib/settings/settings-bus';
 import { useEffect, useState } from 'react';
+import { explain } from '../lib/ui/explain';
 
 /**
  * The wire: everything filed on the board, crawling across one strip.
@@ -86,6 +87,7 @@ export default function NewsTicker() {
           title={paused ? 'Start the newswire' : 'Stop the newswire'}
           className={`${PLATE} hit shrink-0 motion-reduce:hidden`}
           data-wire-pause
+          {...explain(paused ? 'Starts the newswire crawling again.' : 'Stops the newswire crawling along.', paused ? 'This browser remembers your choice.' : 'This browser remembers your choice.')}
         >
           {paused ? '[ ▶ ]' : '[ ❚❚ ]'}
         </button>
