@@ -175,6 +175,8 @@ function Picture({ shows }: { shows: TvShows }) {
     let frames = 0;
     let drawnFrom: HTMLVideoElement | null = null;
     const draw = () => {
+      // Not on the page (a phone's width, a folded or covered bar): nothing is copied.
+      if (canvas.getClientRects().length === 0) return;
       const video = from === 'room' ? roomVideo() : floatVideo();
       if (video === null || video.readyState < 2) return;
       // Paused, the same moment is not drawn again. Under reduced motion one still is all there is.
@@ -198,6 +200,7 @@ function Picture({ shows }: { shows: TvShows }) {
     let asked = -1;
     let over = false;
     const show = () => {
+      if (canvas.getClientRects().length === 0) return;
       const player = from === 'room' ? (roomScreenSound()?.element ?? null) : null;
       const clock = from === 'float' ? floatingClock() : null;
       const index = stillIndex(

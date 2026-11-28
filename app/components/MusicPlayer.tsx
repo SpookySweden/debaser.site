@@ -44,6 +44,7 @@ import { lengthSeconds, queueContext, trackContext } from '../lib/audio/track-co
 import MusicOptionsPrompt from './MusicOptionsPrompt';
 import PopoutWindow from './PopoutWindow';
 import SoundGraph, { TabListenKey } from './SoundGraph';
+import PlayerTv from './PlayerTv';
 import LoveBuzzOnArrival from './LoveBuzzOnArrival';
 import { explain } from '../lib/ui/explain';
 import { noticePress, soundWaiting, subscribeSoundGate } from '../lib/watch/sound-gate';
@@ -754,6 +755,8 @@ function DockedBar({ roomId, onHide, onSettings }: BarControls) {
               <span className="block h-1 bg-acid" style={{ width: `${videoOn ? 0 : Math.round(progress * 100)}%` }} />
             </span>
             </span>
+            {/* While a video plays: the little TV, at the right of the black (SPEC-player-tv.md). */}
+            <PlayerTv />
             <TabListenKey />
           </span>
 

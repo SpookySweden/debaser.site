@@ -142,6 +142,7 @@ import { LookToggle } from './CytubeLayout';
 import ProfileAvatarLink from './ProfileAvatarLink';
 import LanguageFlag from './LanguageFlag';
 import MarqueeText from './MarqueeText';
+import PlayerTv from './PlayerTv';
 import ProfileName from './ProfileName';
 import { QualityKey, SpeakerKey, SubsKey } from './StreamBarKeys';
 import StreamCrawl from './StreamCrawl';
@@ -2461,11 +2462,11 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     keysOnMusicBar && barTarget !== null
       ? createPortal(
           <>
-            <span className={`relative min-w-0 flex-1 frame bg-hardware px-2 py-1 text-label ${lookLines}`} data-stream-bar-screen data-bar-led>
+            <span className={`relative flex min-w-0 flex-1 gap-2 frame bg-hardware px-2 py-1 text-label ${lookLines}`} data-stream-bar-screen data-bar-led>
               {/* The music bar's sound graph behind these words too (list 4: "not always appearing in the black in the bottom
                   player bar"); its colours keep the site theme's words 4.5:1, so not under a room's own look. */}
               {look === null ? <SoundGraph /> : null}
-              <span className="relative block min-w-0">
+              <span className="relative block min-w-0 flex-1">
               <span className="flex min-w-0 items-center gap-2 font-bold text-ink-bar">
                 <span className={`shrink-0 px-1 ${live ? 'bg-acid text-ink-plate' : 'bg-bubble-pale text-ink-bar'}`}>{music ? (!live ? 'CLOSED' : room.isPublic ? 'LIVE' : accountHosts ? 'PRIVATE' : 'BY LINK') : live ? 'LIVE' : 'ENDED'}</span>
                 <span className="truncate">
@@ -2485,6 +2486,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
                 </span>
               ) : null}
               </span>
+              {/* While a video plays: the little TV, at the right of the black (SPEC-player-tv.md). */}
+              <PlayerTv />
             </span>
             {/* `relative`: QUALITY and SUBS open their lists over their keys, above the bar. */}
             <span className={`relative flex shrink-0 flex-wrap items-center gap-1 frame bg-hardware px-1 py-0.5 text-label text-sun ${lookLines} ${lookKeys}`} data-watch-bar="music">
