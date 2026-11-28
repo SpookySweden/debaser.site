@@ -32,7 +32,7 @@ that day: the book reader's EXPLAIN words (f3a9828), a profile track version's "
 FULL key ccb030a, your own devices' volume 05f4f90, `[ DEVICES ]` 2c51b18), EXPLAIN for profile, settings and the forum, BROWSER's
 review fixes and easy-install items 1 and 2, room sync and the context system. The gaming PC's heavy lane is on again
 since 2026-11-28 (Luke: "league is done we can open the pc switch and use it at full capacity too"). Also working since that
-night, on the lighter model: READER-FIXES (done, live as 3868301: no EXPLAIN box over the book's page; the place saved on leaving) and (done, live as a8fe1d3 and archived; EXPLAIN-REST-2 followed it: comic studio, character workbench, animate, beatbox, done and live as bd99483; EXPLAIN-REST-3, the last areas, done and live 2026-11-28, so every key now has its hover words (1382, none left; shown
+night, on the lighter model: READER-FIXES (done, live as 3868301: no EXPLAIN box over the book's page; the place saved on leaving) and (done, live as a8fe1d3 and archived; EXPLAIN-REST-2 followed it: comic studio, character workbench, animate, beatbox, done and live as bd99483; EXPLAIN-REST-3, the last areas, done and live 2026-11-28, so every key now has its hover words (none left; shown
 only while `[ EXPLAIN ]` in PREFERENCES is on, off by default; `Temp/check-explain.cjs` fails a new key without them); and
 FULL-RUN-DUE, done and live as 46d286c: the quick checks stop demanding the whole suite because of the one check that is red on purpose; and
 STARFIELD-PLAY: pressing a star in the STARFIELD background does something to it, the way chosen in settings, Luke, 2026-11-28:
