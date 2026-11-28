@@ -65,6 +65,29 @@ function join(client, topic, heard) {
     for (const word of devicesWords) assert.deepEqual(heardA2.find((payload) => payload.kind === word.kind), word, `A's second connection heard ${word.kind} whole`);
     console.log('  ok    DEVICES\' hello, pair and mute-device crossed A\'s line whole');
 
+    // The leading device's place (SPEC-room-devices.md, 12): a follower asks, the leader answers. Timed there and back, 5 times.
+    const trips = [];
+    const wait = async (heard, match) => {
+      for (let tick = 0; tick < 1000; tick += 1) {
+        const found = heard.find(match);
+        if (found !== undefined) return found;
+        await sleep(5);
+      }
+      return null;
+    };
+    for (let turn = 0; turn < 5; turn += 1) {
+      const asked = Date.now();
+      const ask = { kind: 'ask-place', roomId: 'own-line-check', from: 'check-device-2', asked };
+      await joinA2.channel.send({ type: 'broadcast', event: 'own', payload: ask });
+      assert.deepEqual(await wait(heardA1, (payload) => payload.kind === 'ask-place' && payload.asked === asked), ask, 'the leader heard the ask whole');
+      const place = { kind: 'place', roomId: 'own-line-check', from: 'check-device-1', to: 'check-device-2', asked, entryId: 'check-entry', seconds: 12.5 };
+      await joinA1.channel.send({ type: 'broadcast', event: 'own', payload: place });
+      assert.deepEqual(await wait(heardA2, (payload) => payload.kind === 'place' && payload.asked === asked), place, 'the follower heard the place whole');
+      trips.push(Date.now() - asked);
+      await sleep(1000);
+    }
+    console.log(`  ok    ask-place and place crossed A's line whole; there and back in ms: ${trips.join(', ')}`);
+
     const intruder = await join(b.client, topic, heardB);
     assert.notEqual(intruder.status, 'SUBSCRIBED', 'B may not join A\'s line');
     console.log(`  ok    TEST ACCOUNT B could not join A's line (${intruder.status})`);
