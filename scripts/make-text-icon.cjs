@@ -4,8 +4,11 @@
  * key), rendered to PNG by a headless browser: letters on a plain field, no drawn shapes, no picture. At 16 to 48 px the word can't be read, so
  * those carry its first letter.
  *   node scripts/make-text-icon.cjs
+ *   node scripts/make-text-icon.cjs public/     only the files whose path starts so
  * Writes extension/icon-16.png, -32, -48, -128 (the manifest's), docs/extension-store/edge-logo-300.png and tile-440x280.png. Run it again
  * when the face or the inks change, and make a new extension version.
+ * Also public/app-icon-*.png, the installed site's icon (app/manifest.ts; Luke, 2026-11-28: "Yes, yellow text icon"). The maskable one is
+ * the same word set narrower, so a phone that cuts the icon to a circle keeps all of it.
  */
 const fs = require('node:fs');
 const path = require('node:path');
@@ -19,8 +22,11 @@ const INK = dye('black');
 const FIELD = dye('daffodil');
 const face = fs.readFileSync(path.join(ROOT, 'app', 'theme', 'faces', 'ibm-plex-mono-600-latin.woff2')).toString('base64');
 
-// [file, width, height, words (one line each), size of the letters as a share of the height]
+// [file, width, height, words (one line each), size of the letters as a share of the height, 'clear' for no field, width of a word as a share]
 const MADE = [
+  ['public/app-icon-192.png', 192, 192, ['DEBASER'], 0.5],
+  ['public/app-icon-512.png', 512, 512, ['DEBASER'], 0.5],
+  ['public/app-icon-maskable-512.png', 512, 512, ['DEBASER'], 0.5, '', 0.72],
   ['extension/icon-16.png', 16, 16, ['D'], 0.95],
   ['extension/icon-32.png', 32, 32, ['D'], 0.9],
   ['extension/icon-48.png', 48, 48, ['D'], 0.9],
@@ -34,7 +40,8 @@ const MADE = [
 (async () => {
   const browser = await chromium.launch({ executablePath: findChrome(), headless: true });
   const page = await browser.newPage({ deviceScaleFactor: 1 });
-  for (const [file, width, height, lines, share, clear] of MADE) {
+  const only = process.argv[2] ?? '';
+  for (const [file, width, height, lines, share, clear, fills = 0.86] of MADE.filter(([name]) => name.startsWith(only))) {
     const big = Math.round(height * share);
     await page.setViewportSize({ width, height });
     await page.setContent(`<!doctype html><style>
@@ -50,7 +57,7 @@ const MADE = [
       const first = document.querySelector('.first');
       const wide = first.getBoundingClientRect().width;
       if (wide > room) first.style.fontSize = `${(parseFloat(getComputedStyle(first).fontSize) * room) / wide}px`;
-    }, [width * (lines[0].length > 1 ? 0.86 : 1)]);
+    }, [width * (lines[0].length > 1 ? fills : 1)]);
     await page.screenshot({ path: path.join(ROOT, file), clip: { x: 0, y: 0, width, height }, omitBackground: Boolean(clear) });
     console.log(`${file} ${width}x${height}`);
   }
