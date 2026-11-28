@@ -70,10 +70,15 @@ and shows a short LINING UP line (the one kept player needed no change in a fron
   key (Recommended)", decision 60; off until pressed). Every site allowed never switches a site's script-safety rules off; a site
   added by name is shown with them off, and ADD says so ("Keep your default", decision 67: DuckDuckGo and GitHub need ADD by name).
   OWN EYE's pages in HISTORY now go on the account too ("On the account too", decision 64). The extension's lines in a framed page
-  now speak only for the one frame BROWSER made for OWN EYE, never the floating player or another embed on the site. Next, extension 0.8.2: OWN WEB keeping
-  OWN EYE's pages (his "Keep every page", decision 61; never-keep list "none", decision 66; a switch in the extension, off for
-  everybody), MEDIA, SEARCH THIS, WATCHERS and ERASE on a page OWN EYE shows (decision 65), the bookmarks-bar key; then the Firefox
-  trial.
+  now speak only for the one frame BROWSER made for OWN EYE, never the floating player or another embed on the site. Extension 0.8.2 (2026-11-28, a14ec2d; Luke updates his copy
+  again): OWN WEB keeps the pages OWN EYE shows inside BROWSER (his "Keep every page", decision 61; never-keep list "none", decision
+  66) behind a switch that is the extension's own, off for everybody and per browser: on only by two presses on its SITES page
+  (`[ KEEP OWN EYE'S PAGES ]`, `[ YES, KEEP THEM ]`), off from either side; visible words only, never a box, password or hidden field;
+  no database change (proved live with TEST ACCOUNT A and B). MEDIA, SEARCH THIS, WATCHERS and ERASE work on a page OWN EYE shows
+  (decision 65). The bookmarks-bar key (DEBASER LENSES, no install) is in the EXTENSION window for a browser without the extension:
+  tried in Edge only so far. Next: openfront.io playing inside BROWSER (Luke, 2026-11-28: "find a way at all costs and persist in
+  making openfront.io work and be user friednly within debaser.site browser"), then the theme as the default lens, more sites and
+  daily use (plan first), and the Firefox/Chrome trial in a lighter session (`browser-firefox-trial-brief.md`).
 - The shelf: BROWSER and REMOTE are marked WIP (f648c04).
 - REMOTE through the site, the third way: HIDDEN, half built (2026-11-28). Its GATE came first (b52c814): a
   measurement with made-up frames (`scripts/host/screens-site-gateway.cjs --gate`, started and stopped by
@@ -139,8 +144,9 @@ and shows a short LINING UP line (the one kept player needed no change in a fron
 - Off-site backup (Proton Drive, task `DebaserOffsite`) is built but off until he runs
   `C:\DEBASER-SETUP\proton-backup-setup.ps1`; then the first upload and a restore test are owed.
 - BROWSER: the `see.debaser.site` DNS record, whether the machine puts away consent boxes; the Edge Add-ons listing (his eight steps in
-  `docs/extension-store/README.md`, then the id; every new extension version is his upload again); updating his Edge copy to 0.8.1
-  and, if he wants it, one press on `[ ALLOW EVERY SITE ]` (the browser's own box is his first real press: not driven); Firefox
+  `docs/extension-store/README.md`, then the id; every new extension version is his upload again); updating his Edge copy to 0.8.2
+  and, if he wants them, one press on `[ ALLOW EVERY SITE ]` (the browser's own box is his first real press: not driven) and the two
+  presses that switch OWN WEB on for OWN EYE's pages; Firefox
   signing (his Mozilla account), if the trial says go. Decided 2026-11-27: the server's eye stays his alone ("Only me (Recommended)", decision 62), the
   icon is the yellow square, no Chrome Web Store for now (decision 63).
 - PLAYER-TV, done and live 2026-11-28 (SPEC-player-tv.md; he said "Yes, push it" to local screenshots; not yet seen by
