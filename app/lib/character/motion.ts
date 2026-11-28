@@ -81,6 +81,8 @@ export const MOTION_FALLBACK = {
   flung: 'idle',
   splat: 'stand',
   dizzy: 'idle',
+  // (Luke, 2026-11-28: "the character will also crawl down and sit to watch the tv", SPEC-player-tv.md.)
+  crawl: 'walk',
 } as const satisfies Record<string, CoreMotionId>;
 export type ExtraMotionId = keyof typeof MOTION_FALLBACK;
 export const EXTRA_MOTION_IDS = Object.keys(MOTION_FALLBACK) as ExtraMotionId[];
@@ -473,6 +475,19 @@ const BASE: Record<MotionId, Motion> = {
       { yaw: 180, root: { y: 0.05 } },
     ],
   },
+
+  // Crawling down over the player bar to its TV: pitched right forward, head up to see where it is going, rocking from
+  // one side to the other.
+  crawl: {
+    facing: 'side',
+    loop: true,
+    frames: [
+      { joints: { hips: { x: 12, z: 9 }, body: { x: 24, z: -6 }, head: { x: -26 } }, root: { y: -0.04 } },
+      { joints: { hips: { x: 12 }, body: { x: 30 }, head: { x: -32 } }, root: { y: -0.07 } },
+      { joints: { hips: { x: 12, z: -9 }, body: { x: 24, z: 6 }, head: { x: -26 } }, root: { y: -0.04 } },
+      { joints: { hips: { x: 12 }, body: { x: 30 }, head: { x: -32 } }, root: { y: -0.07 } },
+    ],
+  },
 };
 
 /** A motion with GUY's arms added, frame by frame: each arm's turn, on top of what the frame already turns. */
@@ -551,6 +566,8 @@ const GUY: Partial<Record<MotionId, Motion>> = {
   }),
   // Reaching up, one hand then the other.
   climb: withArms(BASE.climb, (index) => ({ left: { z: [-165, -150, -135, -150][index] }, right: { z: [135, 150, 165, 150][index] } })),
+  // One hand reaching ahead, then the other.
+  crawl: withArms(BASE.crawl, (index) => ({ left: { x: [-100, -75, -50, -75][index] }, right: { x: [-50, -75, -100, -75][index] } })),
   walk: {
     facing: 'side',
     loop: true,
