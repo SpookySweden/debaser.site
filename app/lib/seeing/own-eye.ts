@@ -83,12 +83,18 @@ export async function ownEyeSettings(change?: OwnEyeSettings): Promise<OwnEyeSet
   return lens === undefined || typeof wear !== 'boolean' ? null : { lens, wear };
 }
 
-/** Whether the site of this page is on its list, and that site's name as it counts sites; null when it doesn't say. */
-export async function ownEyeHas(address: string): Promise<{ on: boolean; site: string } | null> {
+/**
+ * Whether this page may be shown from the reader's own browser (`on`: its site was added by name, or EVERY SITE is on), whether its site is on
+ * the list by name (`named`; null from a copy that doesn't say), and that site's name as the extension counts sites. Null when it doesn't say.
+ */
+export async function ownEyeHas(address: string): Promise<{ on: boolean; site: string; named: boolean | null } | null> {
   const answer = await say({ see: 'has', address });
   const on = field(answer, 'on');
   const site = field(answer, 'site');
-  return typeof on === 'boolean' && typeof site === 'string' && /^[a-z0-9.-]{1,253}$/.test(site) ? { on, site } : null;
+  const named = field(answer, 'named');
+  // Past the few sites an hour it answers for, with every site allowed, it says that alone (`every`) and nothing of the list: not by name, then.
+  const unnamed = typeof named !== 'boolean' && field(answer, 'every') === true;
+  return typeof on === 'boolean' && typeof site === 'string' && /^[a-z0-9.-]{1,253}$/.test(site) ? { on, site, named: typeof named === 'boolean' ? named : unnamed ? false : null } : null;
 }
 
 /** Its own list of the sites it may act on, in its own page: the site is never told them. */

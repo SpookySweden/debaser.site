@@ -32,7 +32,54 @@ assert.deepEqual(manifest.optional_permissions, ['history'], 'nothing else to as
 assert.ok(read('machine.js').includes("await chrome.permissions.remove({ permissions: ['history'] }).catch(() => undefined);") && !/chrome\.history/.test(read('worker.js') + read('panel.js') + read('act.js')), 'given back after the one read, and read nowhere else');
 assert.equal(manifest.content_scripts, undefined, 'and on no page until it is asked');
 // (2026-11-27) and in one of BROWSER's tabs on debaser.site, where OWN EYE shows a page in a frame too.
-assert.equal(read('frame.js').replace(/^\/\*[\s\S]*?\*\/\n/, ''), "if (window !== window.top && window.parent === window.top && (location.ancestorOrigins[0] === 'chrome-extension://' + chrome.runtime.id || location.ancestorOrigins[0] === 'https://debaser.site')) {\n  chrome.runtime.sendMessage({ see: 'frame', href: location.href, title: document.title.slice(0, 160) }).catch(() => undefined);\n}\n", "what runs on an added site says where it is, in the machine's frame or BROWSER's, and nothing else");
+assert.equal(read('frame.js').replace(/^\/\*[\s\S]*?\*\/\n/, ''), [
+  "if (window !== window.top && window.parent === window.top && (location.ancestorOrigins[0] === 'chrome-extension://' + chrome.runtime.id || location.ancestorOrigins[0] === 'https://debaser.site')) {",
+  "  let told = '';",
+  '  let looking = 0;',
+  '  const tell = () => {',
+  '    if (location.href === told) return;',
+  '    told = location.href;',
+  '    try {',
+  "      chrome.runtime.sendMessage({ see: 'frame', href: told, title: document.title.slice(0, 160) }).catch(() => undefined);",
+  '    } catch {',
+  '      // The extension was reloaded under this page: nobody is left to tell.',
+  '      clearInterval(looking);',
+  '    }',
+  '  };',
+  '  const begin = () => {',
+  '    if (looking !== 0) return;',
+  '    looking = setInterval(tell, 500);',
+  '    tell();',
+  '  };',
+  "  if (location.ancestorOrigins[0] !== 'https://debaser.site') begin();",
+  '  else {',
+  "    addEventListener('message', (event) => {",
+  "      if (event.source === window.parent && event.origin === 'https://debaser.site' && event.data?.see === 'own-eye') begin();",
+  '    });',
+  "    window.parent.postMessage({ see: 'own-eye?' }, 'https://debaser.site');",
+  '  }',
+  '}',
+  '',
+].join('\n'), "what runs on an added site says where it is, in the machine's frame or the one frame BROWSER made for OWN EYE (asked of BROWSER's page, 2026-11-28: no other frame on the site is answered for), once for each address it is at (the morning's gap G1, 2026-11-27: a video clicked on YouTube changes the address with no new page), and nothing else");
+// The other half: BROWSER's page says yes to its own OWN EYE frame, and to no other window that asks.
+assert.ok(read('../app/components/seeing/SeeingOwnFrame.tsx').includes("if (from === null || from === undefined || event.source !== from || (event.data as { see?: unknown } | null)?.see !== 'own-eye?') return;"), "BROWSER answers the frame it made, and nobody else");
+// (2026-11-27, the morning's gaps) G2: the page BROWSER's ADD key opens for a site that stops itself in a frame has the ADD key on it. G3: every
+// key the extension's pages hold says what it does and why when the pointer rests on it. G4: the server's eye is named for what it is.
+{
+  const machine = read('machine.js');
+  const tabDoor = machine.slice(machine.indexOf('if (inATab(read)) {'), machine.indexOf('if (neverFramed(read)) {'));
+  assert.ok(tabDoor.includes('door2(') && tabDoor.includes('`ADD ${site}`, add([site]), KEY_WORDS.add') && tabDoor.includes('if (await isAllowed(read)) {'), 'a site that opens in a tab can still be added from the page its ADD key opens, and says so once it is');
+  for (const page of ['machine.html', 'panel.html']) {
+    const keys = read(page).match(/<button\b[^>]*>/g) ?? [];
+    const bare = keys.filter((each) => !/\bhidden\b/.test(each) && !/ title="[^"]{30,}"/.test(each));
+    assert.deepEqual(bare, [], `${page}: every key has hover words`);
+    assert.ok(read(page).includes('[ SERVER EYE: SIGNED OUT, ON DEBASER.SITE ↗ ]') && !read(page).includes('[ SERVER EYE ↗ ]'), `${page}: the server's eye says what it is`);
+  }
+  const act = read('act.js');
+  for (const lens of ['standard', 'reader', 'xray', 'lowfi', 'yours']) assert.match(act, new RegExp(`\\n  ${lens}: '[^\\n]{40,}',\\n`), `the ${lens} lens says what it does`);
+  assert.ok(/key\.title = LENS_WORDS\[id\]/.test(machine) && /key\.title = LENS_WORDS\[id\]/.test(read('panel.js')), 'on both pages');
+  assert.ok(act.includes('if (about) key.title = about;') && machine.includes('}, KEY_WORDS.remove]]') && machine.includes('KEY_WORDS.toRoom]]') && read('panel.js').includes('KEY_WORDS.toRoom]]'), 'and the keys in its lists: REMOVE, TO THE ROOM');
+}
 // (2026-11-27, the review) and only its top frame: debaser.site framed inside another site's tab must not unlock frames in that tab.
 assert.ok(read('worker.js').includes("if (port.name !== 'browser' || port.sender?.origin !== SITE || tab === undefined || port.sender?.frameId !== 0) return port.disconnect();"), "only debaser.site's own page, its top frame, holds a tab open for frames");
 // (2026-11-27, the review) asks about a site go one at a time, so asks at once can't overrun the hour's few.
@@ -58,7 +105,8 @@ for (const file of files) {
 const worker = read('worker.js');
 assert.deepEqual([...worker.matchAll(/message\.see === '(\w+)'/g)].map((each) => each[1]).slice(0, 8), ['ping', 'theme', 'open', 'has', 'settings', 'sites', 'newest', 'reload']);
 // (2026-11-27) `has`: whether the one page it is asked about is on the list, and no more than a few sites asked about: never the list.
-assert.ok(worker.includes('void mayAsk(site).then(async (may) => answer(may ? { on: await isAllowed(read), site } : { on: null }));'), 'whether the one page is on the list, and nothing else');
+// (2026-11-28, ALLOW EVERY SITE) and whether its site is there by name; with every site allowed, "yes" past the few says nothing of the list.
+assert.ok(worker.includes('void Promise.all([mayAsk(site), everySite()]).then(async ([may, every]) => answer(may ? { on: await isAllowed(read), site, named: await isNamed(read) } : every ? { on: true, site, named: null, every: true } : { on: null }));'), 'whether the one page may be shown and is on the list, and nothing else');
 assert.ok(/if \(asked\.sites\.length >= ASKED_MOST\) return false;/.test(worker) && /chrome\.storage\.session\.set\(\{ asked \}\)/.test(worker), 'a few sites an hour, counted while the browser is open, not while the worker is awake');
 const external = worker.slice(worker.indexOf('onMessageExternal'), worker.indexOf('chrome.runtime.onMessage.addListener'));
 assert.ok(!/allowedSites|chrome\.tabs\.query|chrome\.permissions|\bpages?\b.*answer/.test(external), 'the site is never told a site or a page');
@@ -76,8 +124,33 @@ try {
 }
 assert.match(worker, /sender\.origin !== 'https:\/\/debaser\.site'\) return;/, 'who is speaking is asked first');
 // (2026-11-27, on purpose) BROWSER's own tab on debaser.site may frame an added site too, asked for by that page or the site itself.
-assert.ok(worker.includes('condition: { tabIds, initiatorDomains: [chrome.runtime.id, new URL(SITE).hostname, ...sites], requestDomains: sites, excludedRequestDomains'), "only in the machine's own tabs and BROWSER's, only added sites");
-assert.ok(worker.includes('sites.length === 0 || tabIds.length === 0 ? [] :') && worker.includes('const tabIds = [...new Set([...machines.values(), ...browsers.values()])];'), 'and no rule at all with no machine and no BROWSER open');
+// (2026-11-28, ALLOW EVERY SITE, decisions 60 and 67) Every rule is for frames in the machine's own tabs and BROWSER's, never a sign-in, and
+// only for a page that refuses to be framed: it is told who may frame it here in place of that, so a page shown here can't put a third site
+// inside itself with that site's protection gone.
+assert.ok(worker.includes("const scope = { tabIds, resourceTypes: ['sub_frame'] };"), "frames only, in the machine's own tabs and BROWSER's");
+assert.deepEqual([(worker.match(/\bcondition: \{/g) ?? []).length, (worker.match(/\.\.\.scope\b/g) ?? []).length], [6, 6], 'every rule there is, in those tabs only');
+assert.ok(worker.includes("{ id: RULE, priority: 1, condition: { ...scope, requestDomains: sites, excludedRequestDomains: never, responseHeaders: [refused], excludedResponseHeaders: [framing] }, action: lift('append', named) },"), 'an added site refused by X-Frame-Options alone keeps its own policy whole');
+assert.ok(worker.includes("{ id: RULE + 3001, priority: 1, condition: { ...scope, requestDomains: sites, excludedRequestDomains: never, responseHeaders: [framing] }, action: lift('set', named) },"), 'an added site whose policy refuses framing has it replaced, as it always was for a site added by name');
+assert.ok(worker.includes("{ id: RULE + 3002, priority: 1, condition: { ...scope, excludedRequestDomains: [...never, ...sites], responseHeaders: [refused], excludedResponseHeaders: [framing] }, action: lift('append', anyone) },"), 'under EVERY SITE the same, for any site but a sign-in');
+assert.ok(worker.includes("{ id: RULE + 3003, priority: 1, condition: { ...scope, excludedRequestDomains: [...never, ...sites], responseHeaders: [framing], excludedResponseHeaders: [{ header: 'content-security-policy', values: PROTECTS }] }, action: lift('set', anyone) },"), 'and under EVERY SITE alone a policy is replaced only when it holds no script-safety rule (decision 67)');
+assert.deepEqual([(worker.match(/lift\('set', anyone\)/g) ?? []).length, (worker.match(/lift\('append', anyone\)/g) ?? []).length, (worker.match(/operation: 'remove'/g) ?? []).length], [1, 1, 1], 'no other rule takes a header away');
+assert.ok(worker.includes("const framing = { header: 'content-security-policy', values: ['*frame-ancestors*'] };") && worker.includes("const lift = (operation, policy) => ({ type: 'modifyHeaders', responseHeaders: [{ header: 'x-frame-options', operation: 'remove' }, { header: 'content-security-policy', operation, value: policy }] });"), 'what is lifted is the no-framing line, and what is put is who may frame it here');
+assert.ok(worker.includes('(sites.length === 0 && !every) || tabIds.length === 0 ? [] :') && worker.includes('const tabIds = [...new Set([...machines.values(), ...browsers.values()])];'), 'and no rule at all with no machine and no BROWSER open, or nothing allowed');
+// ALLOW EVERY SITE is asked for by a press on the machine's own page and nowhere else, for exactly what the manifest says may be asked.
+assert.ok(read('sites.js').includes("export const EVERY_SITE = ['https://*/*', 'http://*/*'];") && JSON.stringify(manifest.optional_host_permissions) === JSON.stringify(['https://*/*', 'http://*/*']), 'every site is the two patterns the manifest may ask for later');
+assert.deepEqual([read('machine.js'), read('panel.js'), worker, read('act.js')].map((each) => (each.match(/permissions\.request\(\{ origins: EVERY_SITE \}\)/g) ?? []).length), [1, 0, 0, 0], 'asked for in one place: the key on the SITES page');
+assert.ok(read('machine.js').includes('if (every) await chrome.permissions.remove({ origins: EVERY_SITE });') && read('machine.js').includes("everyKey.title = every ? KEY_WORDS.everyBack : KEY_WORDS.every;"), 'the same key takes it back, and says what it does either way');
+assert.ok(worker.includes('const matches = every ? EVERY_SITE : sites.flatMap(originsOf);'), 'the few lines that say where a framed page is go on every site only then');
+{
+  const act = read('act.js');
+  const cost = /export const NAMED_COST = '([^']+)';/.exec(act)?.[1];
+  assert.ok(cost !== undefined && /switching off its own script-safety rules/.test(cost) && /DuckDuckGo/.test(cost), 'what adding a site by name costs, in plain words');
+  assert.ok(act.includes("Your browser asks you too. ' + NAMED_COST,"), 'said on every ADD key');
+  assert.ok(fs.readFileSync(path.join(ROOT, 'app', 'components', 'seeing', 'SeeingOwnFrame.tsx'), 'utf8').includes(`export const NAMED_COST = '${cost}';`), "and in the same words on BROWSER's own page");
+  assert.ok(read('machine.js').includes("cost.textContent = 'ADDED BY NAME: ' + NAMED_COST.toUpperCase()"), "and on the SITES page");
+  for (const key of ['every', 'everyBack']) assert.match(act, new RegExp(`\\n  ${key}: '[^\\n]{120,}',\\n`), `${key}: the key says what it does`);
+  assert.ok(/Off until you press this; the same key takes it back\./.test(act) && /reading and sending nothing, unless the page is shown directly inside a debaser\.site page or the machine/.test(act), 'what it allows, what runs on every page, and how to take it back');
+}
 assert.match(worker, /port\.sender\?\.url\?\.startsWith\(chrome\.runtime\.getURL\('machine\.html'\)\) !== true/, "a tab is the machine's only while the machine's own page is in it");
 assert.ok(!/updateDynamicRules|rule_resources/.test(worker + JSON.stringify(manifest)), 'the rule lasts as long as the browser is open');
 assert.match(read('machine.html'), /sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads"/, 'a site in the frame cannot move the machine');
@@ -234,6 +307,13 @@ assert.ok(!/allow-top-navigation/.test(read('machine.html')));
   assert.equal(sites.siteOf('a.alice.github.io'), 'alice.github.io', "one person's, not everybody's");
   assert.equal(sites.siteOf('192.168.1.1'), '192.168.1.1');
   assert.deepEqual(sites.originsOf('192.168.1.1'), ['https://192.168.1.1/*', 'http://192.168.1.1/*']);
+  // (2026-11-28) Who may frame a page shown here: itself, BROWSER's page, the machine's, and the sites added by name; never everybody.
+  assert.equal(sites.framedBy('abcdefgh'), "frame-ancestors 'self' https://debaser.site chrome-extension://abcdefgh");
+  assert.equal(sites.framedBy('abcdefgh', ['example.com', '192.168.1.1']), "frame-ancestors 'self' https://debaser.site chrome-extension://abcdefgh https://example.com https://*.example.com https://192.168.1.1");
+  assert.ok(!/ \*(?: |$)|https:\/\/\*(?: |$)|http:/.test(sites.framedBy('abcdefgh', ['example.com'])), 'never any site at all, never plain http');
+  assert.equal(sites.framedBy('x', Array.from({ length: 300 }, (_, i) => `site${i}.example`)).split(' ').length, 4 + 200, 'a long list is cut, not sent whole');
+  assert.ok(['script-src', 'default-src', 'object-src', 'base-uri', 'form-action', 'sandbox', 'require-trusted-types-for', 'upgrade-insecure-requests'].every((rule) => sites.PROTECTS.some((each) => new RegExp('^' + each.replace(/[-]/g, '\\-').replace(/\*/g, '.*') + '$').test(`frame-ancestors 'none'; ${rule} 'self'`))), 'a policy holding any script-safety rule is one EVERY SITE leaves alone');
+  assert.ok(!sites.PROTECTS.some((each) => new RegExp('^' + each.replace(/\*/g, '.*') + '$').test("frame-ancestors 'self' https://example.com; report-uri /r")), 'and one that is only about framing is not');
   const themeFrom = new Function(`${/export (function themeFrom[\s\S]*?\n\})/.exec(worker)[1]} return themeFrom;`)();
   const { THEMES } = require('./see-extension-out/lib/ui/themes.js');
   for (const theme of THEMES) assert.deepEqual(themeFrom(ownEye.ownEyeTheme(theme.tokens, theme.scheme)), ownEye.ownEyeTheme(theme.tokens, theme.scheme), `${theme.id} is worn as it is`);

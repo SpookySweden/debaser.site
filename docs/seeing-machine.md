@@ -94,8 +94,9 @@ Proof: `drive-see.cjs --only lenses` (DYE and GLASS measured on every theme, 5.5
 - **`[ SEE ]`** (`SeeKey`) beside outside links in posts, comms, letters, MEDIA's reading rows and a forum thread about a MEDIA item, for people whose bar has BROWSER on it.
 - **The extension** (`extension/`, how to put it in: its README): OWN EYE. Its own page frames a site the reader has ADDED, with its cookies, in the
   theme the site told it; a panel beside an ordinary tab has the same lenses. It asks for no site when it is put in. The no-framing header is
-  lifted by a session rule that names the machine's tab, the machine or an added site as the asker, and added sites only, never a sign-in; it goes
-  when the machine's page does. `Temp/check-see-extension.cjs`, `scripts/drive-see-extension.cjs` (26, pretend sites, signed in to nothing).
+  lifted by session rules that name the machine's tab (or BROWSER's, while held), for added sites, or every site once that is allowed, never
+  a sign-in; they go when the page does (what they do to a page's headers: "ALLOW EVERY SITE" below). `Temp/check-see-extension.cjs`,
+  `scripts/drive-see-extension.cjs` (pretend sites, signed in to nothing).
 
 ## OWN WEB (Luke, 2026-11-27: "Yes, change it", to keeping every page he opens; .claude/rules/browser.md)
 - The server says which page may be kept (`ownWeb` on the document: the owner's eye, or the local drives' `dev`; status 200; not a page that is
@@ -129,12 +130,22 @@ Proof: `drive-see.cjs --only lenses` (DYE and GLASS measured on every theme, 5.5
   round that: it would weaken them everywhere. IN A TAB and IN THE MACHINE are one press away, and a page that says nothing in 8 seconds is said not
   to have shown here.
 - A YouTube video is YouTube's own player (`/embed/`): its watch page stops itself in a frame (the white page). Sign-in pages are never framed (D1).
-- **A video clicked inside the frame** (Luke, 2026-11-27: "shorts will play but clicking a video will return a white page"): the click moves
-  the frame to YouTube's watch page, white in a frame. BROWSER's half is in: told by the extension that the frame got to a `/watch` page
-  (`watchPageOf`), `SeeingMachine` makes that video the tab's next stop, and YouTube's own player takes over (BACK returns). Proved with a
-  stand-in for the extension (`drive-see --only owneye`). The extension's half comes with its next version: today it tells of a new page
-  loaded, not of an address changed inside one page, which is how YouTube usually does it. Heard only when youtube.com is on its list.
-- Proved with real cookies on pretend https sites: `scripts/drive-see-own-frame.cjs` (11); BROWSER's side: `drive-see --only owneye` (31).
+- **A video clicked inside the frame** (Luke, 2026-11-27: "shorts will play but clicking a video will return a white page"; extension 0.8.1):
+  the click moves the frame to YouTube's watch page, often with no new page loaded, so `frame.js` looks twice a second and tells each new
+  address once; told of a `/watch` page (`watchPageOf`), `SeeingMachine` makes that video the tab's next stop, and YouTube's own player
+  takes over (BACK returns). Heard only when youtube.com is on the extension's list, or every site is allowed: without either nothing in
+  the player can speak, the click still goes white, and pasting the video's address is the way. Proved on pretend sites
+  (`drive-see-own-frame`: an address pushed inside one page is told; `drive-see --only owneye`: told of a watch page, the player is put
+  there); not on real YouTube.
+- **Every key on the extension's own pages has hover words** (the same morning: "hovering over any buttons gives a detailed explaination of the
+  function and purpose"; 0.8.1): a plain `title`, always on, since the site's `[ EXPLAIN ]` switch can't reach an extension's page
+  (`LENS_WORDS`, `KEY_WORDS` in act.js; the rest in machine.html and panel.html). Its way to the server's eye reads
+  `[ SERVER EYE: SIGNED OUT, ON DEBASER.SITE ↗ ]`.
+- **No ADD key that leads nowhere** (0.8.1): BROWSER's `[ ADD youtube.com ]` opens the machine's page, which sends YouTube, X, Instagram,
+  Facebook and TikTok to a tab; that page now has the ADD key under its OPEN IT IN A TAB (the site, or its whole sign-in group), and once the
+  site may be shown says so and offers no ADD.
+- Proved with real cookies on pretend https sites: `scripts/drive-see-own-frame.cjs` (by name, and with every site allowed); BROWSER's
+  side: `drive-see --only owneye`.
 - The address box follows it (2026-11-27): where the extension says the framed page got to (an http(s) address only) is put in the box,
   without reloading the frame; GO there makes it a stop of the tab's own. YouTube's player reads as its watch page (`boxAddress`).
 - Lenses on it (2026-11-27): a lens pressed in BROWSER is sent over the held port; the extension wears it on the framed page (act.js putLens
@@ -161,6 +172,46 @@ Proof: `drive-see.cjs --only lenses` (DYE and GLASS measured on every theme, 5.5
   and on the "needs your own browser" page) and `LOG IN TO YOUTUBE IN A TAB ↗` (a sign-in page is never framed, D1). A framed page that says
   nothing in 8 seconds says why (the site refuses to be inside another, or it is a sign-in page) and its tab key becomes OPEN IT IN A TAB ↗, the
   main key. `drive-see --only owneye` (its last steps fail on the old machine file: the key opened a tab).
+
+## ALLOW EVERY SITE, and what the frame rule does to a page's headers (extension 0.8.1)
+Luke, 2026-11-27, to "may it be allowed on every site in one press, instead of adding each site one at a time": "One optional key
+(Recommended)" (decision 60). 2026-11-28, on sites that only show with their script-safety rules off: "Keep your default" (decision 67).
+- **The key**: SITES on the extension's own page has `[ ALLOW EVERY SITE ]` (off until pressed; the browser's own box asks; `[ TAKE IT BACK ]`
+  undoes it and leaves the sites added by name). BROWSER's "not on the list" panel has `[ ALLOW EVERY SITE ↗ ]`, which opens that page
+  (`openOwnEyeSites`, the `sites` message): only the extension's own page, on a press there, can ask the browser. With it on, the tool row
+  reads `[ ✓ EVERY SITE IS ALLOWED ]` for a site not added by name. The extension still answers the site yes or no for the one page asked
+  of (`has`: `{ on, site, named }`), never the list.
+- **What stays as it was**: sign-in pages, banks and payments are never framed (`NEVER_HOSTS`, `NEVER_NAMES`, the never-paths), allowed or
+  not; YouTube, X, Instagram, Facebook and TikTok still open in a tab from the machine's page (`TAB_SITES`); nothing is lifted unless
+  BROWSER's page (or the machine's) holds that tab open to the extension, and only for frames in that tab.
+- **Three kinds of page** (`frameRule` in worker.js; rules matched on the response's own headers):
+  1. Refused by `X-Frame-Options` alone: that header is removed and one policy of ours is added beside the site's own. Its own policy,
+     script-safety rules and all, is kept whole.
+  2. A `Content-Security-Policy` that is only about framing (`frame-ancestors` and nothing in `PROTECTS`): replaced by ours.
+  3. A policy that mixes its no-framing line with script-safety rules (`script-src` and the like): replacing it switches those rules off
+     while the page is inside BROWSER. That is done ONLY for a site added by name, and ADD says so wherever it is offered (`NAMED_COST`,
+     the same words in act.js and `SeeingOwnFrame`). Under EVERY SITE alone such a page is left whole and does not show; BROWSER says
+     IT DIDN'T SHOW HERE and offers a tab or `ADD <site> BY NAME ↗`.
+- **Ours** (`framedBy` in sites.js): `frame-ancestors 'self' https://debaser.site chrome-extension://<id>`, plus the sites added by name
+  (the first 100) for a site added by name. So a page shown here can't put a third, refusing site inside itself with that site's
+  protection gone (before 0.8.1 the rule only named who asked, and a framed page could); one added site inside another still shows.
+- **The few lines on every page**: with every site allowed, `frame.js` is registered for every site, so it runs in every tab of the
+  browser. Its first line asks whether the page is directly inside a debaser.site page or the machine; anywhere else it returns, reading
+  and sending nothing. Proved in an ordinary tab and in a frame inside an ordinary tab (`drive-see-own-frame`).
+- **Only BROWSER's own frame is answered for** (0.8.1, the coordinator, 2026-11-28; before it, `frame.js` spoke from any frame directly
+  inside any debaser.site page, so with YouTube added the floating player on /browser could report its address and take the lens). Inside
+  a debaser.site page `frame.js` posts `{ see: 'own-eye?' }` to its parent and begins telling only when the parent posts back
+  `{ see: 'own-eye' }` (from `window.parent`, origin debaser.site). `SeeingOwnFrame` answers only when the asker is its own iframe's
+  window. In the machine's page (the extension's own) it begins at once: that page has one frame. The word is no secret: a page on the
+  site that answered falsely would only let a frame it made itself be followed, and the worker still drops it unless BROWSER's page holds
+  that tab. Proved: `drive-see-own-frame` (an embed beside the OWN EYE frame is drawn, says nothing, gets no lens; `--mutant anyframe`
+  fails), `drive-see` owneye (the real `SeeingOwnFrame` says yes to its frame and nothing to another).
+- **A reading of 20 well-known sites' front pages, 2026-11-28, signed out (a signed-in page may differ)**: kind 3 (need adding by name):
+  DuckDuckGo, GitHub, BBC, Stack Overflow, LinkedIn, Hacker News, Spotify. Kind 1 (shown under EVERY SITE, their policy kept): Reddit,
+  Twitch, Discord, Google search, Gmail, the Guardian, the New York Times, Netflix. No no-framing rule at all: Wikipedia, Amazon, IMDb and
+  the rest. A site that stops itself in a frame by script, or whose sign-in is not sent inside another site, is no different than before.
+- **Not driven**: the browser's own box and its words (a script can't press it; the drives use a copy of the extension that already holds
+  the leave), and that TAKE IT BACK leaves the named sites. Real sites.
 
 ## Signed in by default, as in Chrome or Edge (Luke, 2026-11-27)
 - **An ordinary tab** of the reader's own browser (`openTab` in the extension's worker; since decision 55 only behind a key whose name says tab),
@@ -231,8 +282,11 @@ In OWN EYE these are your own browser's, where they answer as they always do; no
 ## History, TRAIL and kept pages (Phase 5; on the site since Luke's yes to the tables, 2026-11-23)
 - **History** (`history.ts`, `history-store.ts`): 90 days, 2,000 rows, under the account's own key in this browser; one key clears it. Pages
   OWN EYE shows are rows too (2026-11-27, Luke: "use it like they would chrome or edge"): the address and title the extension reports (a
-  video in YouTube's own player as soon as it is asked for), marked `own`, shown in HISTORY as OWN EYE · KEPT IN THIS BROWSER ONLY, and
-  never sent to the account (`forAccount`): whether the account keeps them too is Luke's to say, asked 2026-11-27. **TRAIL**
+  video in YouTube's own player as soon as it is asked for), marked `own`. Since 2026-11-28 (Luke: "On the account too", decision 64)
+  they go to the account like the rest, by address and title, read by that account alone and emptied by CLEAR: each is noted `told`, and
+  `forAccount` sends a told row (the rows and the "own history" rule that were there already; no database change). The table has no
+  column for the mark, so `asHere` puts OWN EYE back on a row in the browser that showed it; on another device it reads as any row. A row
+  OWN EYE showed before that (own, not told) stays where it was, marked OWN EYE · KEPT IN THIS BROWSER ONLY, and is never sent. **TRAIL**
   (`trail.ts`): the same rows as a map of sites; the same walk always makes the same map.
 - **KEEP PAGE**: `POST /api/see/keep` (`server/keep.ts`) looks at the page again, signed out, and answers with a card and a copy: scripts, frames and
   forms gone, sheets and shrunk pictures written into it, 10 MB at most, so it asks for nothing from anywhere. Files are held by addresses under a

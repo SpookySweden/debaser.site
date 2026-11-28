@@ -39,7 +39,7 @@ import { keptPage, keptPages, keptPagesOnServer, openKeptPagesOf, subscribeToKep
 import { partOf, type FrameScroll } from '../../lib/seeing/frame';
 import { engineFor } from '../../lib/seeing/engines';
 import { extensionState, extensionStateOnServer, lookForExtension, subscribeToExtension } from '../../lib/seeing/extension-store';
-import { holdOwnEye, openInOwnEye, ownEyeHas, tellOwnEyeTheme, type OwnEyeHold } from '../../lib/seeing/own-eye';
+import { holdOwnEye, openInOwnEye, openOwnEyeSites, ownEyeHas, tellOwnEyeTheme, type OwnEyeHold } from '../../lib/seeing/own-eye';
 import { chooseEye, dontAskAgain, eyeChoice, eyeChoiceOnServer, notAskedAgain, notAskedAgainOnServer, offerFor, subscribeToEyeChoice } from '../../lib/seeing/eye-choice';
 import { openExtensionWindow } from '../../lib/ui/extension-window';
 import { scriptsOff, setScriptsOff, siteSettings, siteSettingsOnServer, subscribeToSiteSettings } from '../../lib/seeing/site-settings';
@@ -547,7 +547,8 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
   // (Nor on a page shown in OWN EYE: there is nothing here for them to work on.)
   const working = outside && now.state !== 'refused' && now.state !== 'elsewhere' && now.state !== 'shell';
   // Whether the site in front is on the extension's list (ADD THIS SITE), as it says for this one page.
-  const [listed, setListed] = useState<{ address: string; on: boolean; site: string } | null>(null);
+  // `on`: the extension may show it (added by name, or EVERY SITE is on); `named`: on the list itself (null from a copy that doesn't say).
+  const [listed, setListed] = useState<{ address: string; on: boolean; site: string; named: boolean | null } | null>(null);
   useEffect(() => {
     if (!outside || extension !== 'current') return;
     let gone = false;
@@ -564,6 +565,8 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
     };
   }, [outside, extension, address]);
   const onList = listed !== null && listed.address === address ? listed : null;
+  // Shown because EVERY SITE is on, this site not being on the list by name.
+  const everySite = onList !== null && onList.on && onList.named === false;
   // While OWN EYE shows pages here: held open to the extension, which says where a framed page got to.
   const [framedAt, setFramedAt] = useState<{ key: string; href: string; title: string } | null>(null);
   const holdRef = useRef<OwnEyeHold | null>(null);
@@ -587,13 +590,13 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
   const stopBefore = tab.at > 0 ? (tab.stops[tab.at - 1]?.address ?? null) : null;
   const ownCameFrom = stopBefore !== null && /^https?:/.test(stopBefore) ? stopBefore : null;
   useEffect(() => {
-    if (ownPlayer !== null) noteSeen({ address: ownPlayer, title: ownPlayer, at: Date.now(), from: ownCameFrom, own: true });
+    if (ownPlayer !== null) noteSeen({ address: ownPlayer, title: ownPlayer, at: Date.now(), from: ownCameFrom, own: true, told: true });
   }, [ownPlayer, key, ownCameFrom]);
   useEffect(() => {
     if (ownSeen === null || address === null) return;
     const at = boxAddress(ownSeen.href);
     // A link followed inside the frame was come to from the page the tab asked for.
-    noteSeen({ address: at, title: ownSeen.title || at, at: Date.now(), from: at === address ? ownCameFrom : address, own: true });
+    noteSeen({ address: at, title: ownSeen.title || at, at: Date.now(), from: at === address ? ownCameFrom : address, own: true, told: true });
   }, [ownSeen, address, ownCameFrom]);
   // A video clicked inside a page OWN EYE shows moves that frame to YouTube's watch page, which is white in a frame (Luke, 2026-11-27:
   // "shorts will play but clicking a video will return a white page"). Once the extension says the frame got there, the video becomes this
@@ -863,17 +866,26 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
           </span>
         ) : null}
         {outside && (extension === 'missing' || extension === 'old' || onList !== null) ? (
-          // ADD THIS SITE, in words: on the list, or a press away (in OWN EYE, which asks the browser). Taking one off is in the EXTENSION window.
+          // ADD THIS SITE, in words: on the list, shown because every site is, or a press away (in OWN EYE, which asks the browser). Taking one
+          // off is in the EXTENSION window. With EVERY SITE on there is nothing to add here: a page that needs its site added by name says so
+          // where it stayed blank, with the key beside it.
           <button
             type="button"
             disabled={onList?.on === true}
-            title={onList?.on === true ? 'The extension may act on it. Take it off in the EXTENSION window' : 'The extension may act on it once you add it: a press in OWN EYE, and your browser asks too'}
+            title={everySite ? 'Every site is allowed: the extension may show this one and put a lens on it. Take that back under SITES in the EXTENSION window' : onList?.on === true ? 'The extension may act on it. Take it off in the EXTENSION window' : 'The extension may act on it once you add it: a press in OWN EYE, and your browser asks too'}
             onClick={() => (extension === 'current' ? void openInOwnEye(dialOf(address).address, 'machine') : openExtensionWindow())}
             className={PLATE}
-            data-seeing-add-site={onList?.on === true ? 'on' : 'off'}
-            {...explain(onList?.on === true ? 'This site is on the extension\'s list already: OWN EYE may show it here. Take it off in the EXTENSION window.' : 'Adds this site to the extension\'s list, so OWN EYE may show it here, signed in.', 'Your browser asks you too before the extension may act on a site.')}
+            data-seeing-add-site={everySite ? 'every' : onList?.on === true ? 'on' : 'off'}
+            {...explain(
+              everySite
+                ? 'You allowed every site: OWN EYE may show this one here, signed in, with no ADD step. Take that back under SITES in the EXTENSION window.'
+                : onList?.on === true
+                  ? 'This site is on the extension\'s list already: OWN EYE may show it here. Take it off in the EXTENSION window.'
+                  : 'Adds this site to the extension\'s list, so OWN EYE may show it here, signed in.',
+              everySite ? 'A site that stays blank here says why, and offers a tab or adding it by name.' : 'Your browser asks you too before the extension may act on a site.',
+            )}
           >
-            {onList?.on === true ? `[ ✓ ON THE LIST: ${onList.site} ]` : `[ ADD ${onList?.site ?? shortName(address)} ]`}
+            {everySite ? '[ ✓ EVERY SITE IS ALLOWED ]' : onList?.on === true ? `[ ✓ ON THE LIST: ${onList.site} ]` : `[ ADD ${onList?.site ?? shortName(address)} ]`}
           </button>
         ) : null}
       </SeeingTools>
@@ -968,12 +980,14 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
             key={key}
             address={dialOf(address).address}
             onList={onList?.on ?? null}
+            named={onList?.named ?? null}
             site={onList?.site ?? shortName(address)}
             at={framedAt !== null && framedAt.key === key ? framedAt : null}
             onTab={() => void openInOwnEye(dialOf(address).address)}
             onMachine={() => void openInOwnEye(dialOf(address).address, 'machine')}
             onHouse={() => setHere([...here, key])}
             onAdd={() => void openInOwnEye(dialOf(address).address, 'machine')}
+            onEvery={() => void openOwnEyeSites()}
           />
         ) : now.state === 'shell' && shell !== null ? (
           <SeeingShell site={shell} extension={extension} onOwn={showOwn} onTab={() => void openInOwnEye(dialOf(address).address)} onGet={openExtensionWindow} onAnyway={() => setHere([...here, key])} />

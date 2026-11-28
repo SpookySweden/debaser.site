@@ -48,7 +48,7 @@ export default function SeeingHistory({ onGo, onClose }: { onGo: (address: strin
           [ × ]
         </button>
       </div>
-      <p className="text-ink-quiet">ONLY YOU SEE THIS. {HISTORY_DAYS} DAYS. PAGES OWN EYE SHOWED ARE KEPT IN THIS BROWSER ONLY, NOT ON YOUR ACCOUNT.</p>
+      <p className="text-ink-quiet">ONLY YOU SEE THIS. {HISTORY_DAYS} DAYS. KEPT ON YOUR ACCOUNT, SO IT FOLLOWS YOU TO ANOTHER DEVICE: THE PAGES OWN EYE SHOWED TOO, BY ADDRESS AND TITLE.</p>
       {failed ? <p role="status">IT COULD NOT BE CLEARED FROM YOUR ACCOUNT: TRY AGAIN.</p> : null}
       {rows.length === 0 ? (
         <p className="p-1">NOTHING YET.</p>
@@ -76,8 +76,8 @@ function List({ rows, onGo }: { rows: readonly Seen[]; onGo: (address: string) =
               {row.title}
             </button>
             {row.own === true ? (
-              <span className="text-ink-quiet" data-seeing-history-own>
-                OWN EYE · KEPT IN THIS BROWSER ONLY
+              <span className="text-ink-quiet" data-seeing-history-own={row.told === true ? 'account' : 'here'} title={row.told === true ? 'Shown by your own browser, signed in. Its address and title are in your history on your account, like the rest; this mark is kept in this browser.' : 'Shown by your own browser before your account kept such pages: this one stays in this browser only.'}>
+                {row.told === true ? 'OWN EYE' : 'OWN EYE · KEPT IN THIS BROWSER ONLY'}
               </span>
             ) : null}
             <button type="button" aria-label={`Forget ${row.title}`} title="Forget" onClick={() => forgetOne(row)} className={PLATE} {...explain('Takes this one visit out of your history.', 'To forget a single page without clearing the rest.', NOTE.undo)}>

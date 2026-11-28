@@ -8,17 +8,17 @@
 <script type="module" src="machine.js"></script>
 </head>
 <body>
-<h1 style="padding:4px 8px">THE SEEING MACHINE: OWN EYE</h1>
+<h1 style="padding:4px 8px">THE SEEING MACHINE: OWN EYE, YOUR OWN BROWSER, SIGNED IN AS YOU</h1>
 <form class="bar" id="go">
-<button type="button" id="back" aria-label="Back" title="Back">◄</button>
-<button type="button" id="forward" aria-label="Forward" title="Forward">►</button>
-<button type="button" id="reload" aria-label="Reload" title="Reload">↻</button>
-<input id="address" aria-label="Address" placeholder="ADDRESS" autocomplete="off" spellcheck="false" inputmode="url" maxlength="4000">
-<button type="submit">[ GO ]</button>
+<button type="button" id="back" aria-label="Back" title="Back: the page this tab showed before this one.">◄</button>
+<button type="button" id="forward" aria-label="Forward" title="Forward: the page you came back from.">►</button>
+<button type="button" id="reload" aria-label="Reload" title="Reload: asks the site for this page again, for what changed since.">↻</button>
+<input id="address" aria-label="Address" placeholder="ADDRESS" autocomplete="off" spellcheck="false" inputmode="url" maxlength="4000" title="The address of the page shown. Type or paste another and press GO.">
+<button type="submit" title="Shows the address in the box here, from your own browser, signed in as you. A site must be on the list first: the machine asks, and so does your browser.">[ GO ]</button>
 </form>
 <div class="bar"><span id="lenses" role="group" aria-label="Lens"></span>
-<button id="media" aria-expanded="false">[ MEDIA ]</button><button id="watchers" aria-expanded="false">[ WATCHERS ]</button><button id="sites" aria-expanded="false">[ SITES ]</button>
-<button id="tab">[ OPEN IN A TAB ↗ ]</button><button id="server">[ SERVER EYE ↗ ]</button></div>
+<button id="media" aria-expanded="false" title="Lists the videos and sounds this page holds, each with a key that sends it to your room on debaser.site. Nothing is fetched or played by looking.">[ MEDIA ]</button><button id="watchers" aria-expanded="false" title="Lists the other companies this page called out to while it loaded (ad networks, trackers, fonts), with how many times each. It shows them; it blocks nothing.">[ WATCHERS ]</button><button id="sites" aria-expanded="false" title="The sites you let the machine act on. Take one off, add a company's whole sign-in in one press, or import the sites this browser has been to.">[ SITES ]</button>
+<button id="tab" title="Opens this page in an ordinary tab of your browser, where every site works as usual. The lenses are in the side panel there.">[ OPEN IN A TAB ↗ ]</button><button id="server" title="Opens this page in BROWSER on debaser.site through the SERVER EYE: fetched by the house, never signed in, rebuilt through the lenses. The site sees the house, not you. The site name and the time are written down there.">[ SERVER EYE: SIGNED OUT, ON DEBASER.SITE ↗ ]</button></div>
 <div id="stage"><div id="door" hidden></div><iframe id="page" title="Page" hidden referrerpolicy="no-referrer-when-downgrade" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads"></iframe><div id="beside" hidden></div></div>
 <p class="bar" role="status" id="status">READY</p>
 </body>

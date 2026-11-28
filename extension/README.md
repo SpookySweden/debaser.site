@@ -33,8 +33,17 @@ Remove it in `chrome://extensions` (Edge: `edge://extensions`) and delete the fo
 - MEDIA lists what a page plays; TO THE ROOM opens debaser.site with it waiting for your press.
 
 ## What it can and can't do
-It acts only on sites you add, and on the tab you press its key on. It never reads passwords or cookies. It sends debaser.site nothing but what
-you press: a media item's address, or a page's address for the server's eye. To show a site in a frame it lifts that site's no-framing rule, in the
-machine's own tab only, while it is open there.
+It acts only on sites you add, and on the tab you press its key on; or on every site, once you press ALLOW EVERY SITE under SITES (off until
+then; the browser asks first; TAKE IT BACK undoes it). It never reads passwords or cookies. It sends debaser.site nothing but what you press: a
+media item's address, or a page's address for the server's eye. To show a site in a frame it lifts that site's no-framing rule, in the machine's
+own tab and in BROWSER's tab on debaser.site only, while one is open there, and tells the page in its place who may frame it here.
+
+A site added by name is shown even when that means switching off its own script-safety rules (its Content-Security-Policy) while it is inside
+BROWSER or the machine; some sites (DuckDuckGo and GitHub among them) only show that way. ALLOW EVERY SITE alone never does that: such a page
+says it didn't show, and offers a tab or ADD. With every site allowed, a few lines of the extension run on every page of the browser and stop at
+their first line, reading and sending nothing, unless the page is shown directly inside a debaser.site page or the machine. Inside a
+debaser.site page they ask that page one fixed question (is this the frame BROWSER made for OWN EYE?) and say nothing more unless it answers yes:
+BROWSER answers its own OWN EYE frame alone, so no other frame on the site (the floating player, a video in a post) is followed, told to BROWSER or
+given a lens (0.8.1; before it, any frame directly inside any debaser.site page was).
 
 Its id is `apbecjpegfcbbjjhjbcjojpfajjpokgn` (from the `key` in the manifest: a public key whose private half was thrown away).

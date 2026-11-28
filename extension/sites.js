@@ -180,4 +180,28 @@ export async function allowedSites() {
   return [...sites].sort();
 }
 
+/** Allowed, by name or because every site is (below). */
 export const isAllowed = async (address) => chrome.permissions.contains({ origins: ['https://' + siteOf(new URL(address).hostname) + '/*'] });
+
+/**
+ * ALLOW EVERY SITE (Luke, 2026-11-27: "One optional key (Recommended)"): one leave for every site, asked for in one press on the machine's
+ * own page and taken back by the same key. Off until then. The sites added by name stay a list of their own, under it.
+ */
+export const EVERY_SITE = ['https://*/*', 'http://*/*'];
+export const everySite = async () => chrome.permissions.contains({ origins: ['https://*/*'] });
+/** Added by name: on the list itself, whatever EVERY SITE says. */
+export const isNamed = async (address) => (await allowedSites()).includes(siteOf(new URL(address).hostname));
+
+/**
+ * What a page shown here is told in place of its own no-framing line: it may be framed by itself, by BROWSER's page and by the machine's, and by
+ * the sites named beside them (the ones added by name, as before), each directly. A page it frames in turn is told the same, so a page shown
+ * here can't put a third site inside itself with that site's protection gone.
+ */
+export const framedBy = (id, sites = []) =>
+  ["frame-ancestors 'self'", SITE, 'chrome-extension://' + id, ...sites.slice(0, 100).flatMap((site) => (/^[\d.]+$/.test(site) ? ['https://' + site] : ['https://' + site, 'https://*.' + site]))].join(' ');
+
+/**
+ * What a page's own Content-Security-Policy says besides who may frame it: its script-safety rules. A page whose one policy holds both can't be
+ * framed and keep them (a header is kept or replaced whole), so it is shown here only when its site was added by name (decision 67).
+ */
+export const PROTECTS = ['*-src*', '*base-uri*', '*form-action*', '*sandbox*', '*upgrade-insecure-requests*', '*trusted-types*', '*block-all-mixed-content*'];

@@ -63,11 +63,15 @@ keeps one player alive in a background tab and shows a short LINING UP line.
   following them (95a39db), EXPLAIN words on every BROWSER key and the first agent review's fixes (e71c71c, extension 0.7.1), every key
   named OWN EYE showing the page inside BROWSER (fa1c1b7), and the site's half of the morning's gaps (84517f1): one switch with both
   eyes named, hover words on the tray, a lens that can't be worn says why, a line on what works on an OWN EYE page, OWN EYE's pages in
-  HISTORY (this browser only). Next extension version (0.8.1, built, held on branch `claude/gaps-ext-wip`): a clicked YouTube video
-  followed, no ADD key that leads nowhere, hover words on the extension's own pages, with ALLOW EVERY SITE (Luke: "One optional key
-  (Recommended)", decision 60) in the same version so he updates once. Then OWN WEB keeping OWN EYE's pages (his "Keep every page",
-  decision 61: plan first, /privacy rewritten in the same push). Not built, his to choose: MEDIA, SEARCH THIS, WATCHERS and ERASE on a
-  page OWN EYE shows.
+  HISTORY. Extension 0.8.1 (2026-11-28; Luke updates his copy from the EXTENSION window): a clicked YouTube video followed, no ADD
+  key that leads nowhere, hover words on the extension's own pages, and `[ ALLOW EVERY SITE ]` on its SITES page (Luke: "One optional
+  key (Recommended)", decision 60; off until pressed). Every site allowed never switches a site's script-safety rules off; a site
+  added by name is shown with them off, and ADD says so ("Keep your default", decision 67: DuckDuckGo and GitHub need ADD by name).
+  OWN EYE's pages in HISTORY now go on the account too ("On the account too", decision 64). The extension's lines in a framed page
+  now speak only for the one frame BROWSER made for OWN EYE, never the floating player or another embed on the site. Next, extension 0.8.2: OWN WEB keeping
+  OWN EYE's pages (his "Keep every page", decision 61; never-keep list "none", decision 66; a switch in the extension, off for
+  everybody), MEDIA, SEARCH THIS, WATCHERS and ERASE on a page OWN EYE shows (decision 65), the bookmarks-bar key; then the Firefox
+  trial.
 - The shelf: BROWSER and REMOTE are marked WIP (f648c04).
 - PLAYER-TV (Luke, 2026-11-28: "a small voxel tv at a 2.5d angle ... small enough to fit inside of the player bar ... the
   character will also crawl down and sit to watch the tv"): a session is writing `SPEC-player-tv.md`; nothing built
@@ -113,9 +117,9 @@ keeps one player alive in a background tab and shows a short LINING UP line.
 - Off-site backup (Proton Drive, task `DebaserOffsite`) is built but off until he runs
   `C:\DEBASER-SETUP\proton-backup-setup.ps1`; then the first upload and a restore test are owed.
 - BROWSER: the `see.debaser.site` DNS record, whether the machine puts away consent boxes; the Edge Add-ons listing (his eight steps in
-  `docs/extension-store/README.md`, then the id; every new extension version is his upload again); whether OWN EYE's pages in HISTORY
-  go on his account too (today: this browser only); which tools he wants on a page OWN EYE shows; Firefox signing (his Mozilla
-  account), if the trial says go. Decided 2026-11-27: the server's eye stays his alone ("Only me (Recommended)", decision 62), the
+  `docs/extension-store/README.md`, then the id; every new extension version is his upload again); updating his Edge copy to 0.8.1
+  and, if he wants it, one press on `[ ALLOW EVERY SITE ]` (the browser's own box is his first real press: not driven); Firefox
+  signing (his Mozilla account), if the trial says go. Decided 2026-11-27: the server's eye stays his alone ("Only me (Recommended)", decision 62), the
   icon is the yellow square, no Chrome Web Store for now (decision 63).
 - Google sign-in check on debaser.site from his own browser.
 - The gaming PC's security (Defender off, dead startup entries, old encrypted files in `C:\tmp`): his to change.

@@ -286,7 +286,14 @@ assert.deepEqual(H.rowsFrom('x', NOW), []);
 // A page OWN EYE showed (the morning's gap G6): a row of this browser's, read back as one, and never one the account hears of.
 const ownRow = { ...seen('https://own.example/', NOW), own: true };
 assert.deepEqual(H.rowsFrom([ownRow, { ...seen('https://b.example/', NOW - 1), own: 'yes' }], NOW), [ownRow, seen('https://b.example/', NOW - 1)], "OWN EYE's row is read back as OWN EYE's; anything but true is not");
-assert.deepEqual(H.forAccount([ownRow, seen('https://b.example/', NOW - 1)]).map((row) => row.address), ['https://b.example/'], "the account is never told of a page OWN EYE showed");
+// (Luke, 2026-11-28: "On the account too") A page OWN EYE shows from now on is one the account is told of (`told`); a row noted before that,
+// under the words KEPT IN THIS BROWSER ONLY, never is.
+const toldRow = { ...seen('https://own.example/new', NOW), own: true, told: true };
+assert.deepEqual(H.forAccount([ownRow, toldRow, seen('https://b.example/', NOW - 1)]).map((row) => row.address), ['https://own.example/new', 'https://b.example/'], "the account is told of a page OWN EYE shows now, and never of one noted while they were kept in this browser only");
+assert.deepEqual(H.rowsFrom([toldRow, { ...seen('https://b.example/', NOW - 1), told: true }, { ...seen('https://c.example/', NOW - 2), own: true, told: 'yes' }], NOW), [toldRow, seen('https://b.example/', NOW - 1), { ...seen('https://c.example/', NOW - 2), own: true }], 'told is read back only as true, and only on a row of OWN EYE');
+assert.deepEqual(H.asHere([seen('https://own.example/new', NOW), seen('https://b.example/', NOW - 1), seen('https://own.example/', NOW - 9)], [toldRow, ownRow]), [toldRow, seen('https://b.example/', NOW - 1), seen('https://own.example/', NOW - 9)], "what the account knows of keeps this browser's OWN EYE mark, by time and address; another row at the same address does not");
+assert.deepEqual(H.withVisit([toldRow], { ...seen('https://own.example/new', NOW + 5, null, 'Real'), own: true, told: true })[0], { ...toldRow, title: 'Real' }, 'the same visit stays one the account was told of');
+assert.equal(H.withVisit([ownRow], { ...seen('https://own.example/', NOW + 5), own: true, told: true })[0].told, undefined, 'a row from before stays in this browser, whatever looks at it again');
 assert.deepEqual(H.withVisit([ownRow], { ...seen('https://own.example/', NOW + 5, null, 'Real'), own: true })[0], { ...ownRow, title: 'Real' }, "the same visit in OWN EYE stays OWN EYE's, with the title it brought");
 assert.equal(H.withVisit([seen('https://own.example/', NOW)], { ...seen('https://own.example/', NOW + 5), own: true })[0].own, undefined, 'a row the account has heard of stays an ordinary one');
 assert.equal(H.withVisit([{ ...ownRow, title: 'Real' }], { ...seen('https://own.example/', NOW + 5, null, 'https://own.example/'), own: true })[0].title, 'Real', 'a look that brought no title keeps the one already there');

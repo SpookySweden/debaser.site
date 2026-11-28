@@ -2,7 +2,7 @@
  * Whose history it is, and where it is kept: on the account, which nobody else reads, and in this browser under the account's own key.
  */
 import { accountHistory, addToAccountHistory, clearAccountHistory, forgetInAccountHistory } from './account';
-import { forAccount, keptRows, rowsFrom, without, withVisit, type Seen } from './history';
+import { asHere, forAccount, keptRows, rowsFrom, without, withVisit, type Seen } from './history';
 
 const STORAGE_PREFIX = 'debaser-seeing-history-v1:';
 const NONE: readonly Seen[] = [];
@@ -53,9 +53,9 @@ export function openHistoryOf(owner: string | null): void {
       // What was seen here and the account has not heard of (a line that was down, or from before it was kept there) goes to it.
       const known = new Set(kept.map((row) => `${row.at} ${row.address}`));
       const unheard = held.rows.filter((row) => !known.has(`${row.at} ${row.address}`));
-      // (A page OWN EYE showed stays in this browser: the account is never told of it.)
+      // (An OWN EYE row from before the account kept them stays in this browser, as it was promised: `forAccount`.)
       void addToAccountHistory(forAccount(unheard)).catch(() => undefined);
-      keep(keptRows([...kept, ...unheard].sort((a, b) => b.at - a.at), Date.now()));
+      keep(keptRows([...asHere(kept, held.rows), ...unheard].sort((a, b) => b.at - a.at), Date.now()));
     });
 }
 
@@ -70,7 +70,7 @@ export function noteSeen(seen: Seen): void {
 export function forgetOne(row: Seen): void {
   if (held.owner === null) return;
   keep(without(readKept(held.owner) ?? held.rows, row.at, row.address));
-  if (row.own !== true) void forgetInAccountHistory(row).catch(() => undefined);
+  if (forAccount([row]).length > 0) void forgetInAccountHistory(row).catch(() => undefined);
 }
 
 /** One key clears it. */

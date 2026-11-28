@@ -7,13 +7,20 @@ import { cleanTitle } from './tabs';
 
 /**
  * One page seen. `from` is the page it was come to from, in the same tab, for the TRAIL. `own`: a page OWN EYE showed (the reader's own
- * browser, signed in): kept in this browser only, never on the account (Luke, 2026-11-27: "by default people are using this browser signed
- * in and can use it like they would chrome or edge"; whether the account keeps them too is his to say).
+ * browser, signed in; Luke, 2026-11-27: "by default people are using this browser signed in and can use it like they would chrome or edge").
+ * `told`: the account keeps it too, address and title, as it keeps the rest (Luke, 2026-11-28: "On the account too"). An OWN EYE row without
+ * it is from before that: it was noted under the words KEPT IN THIS BROWSER ONLY, and stays here.
  */
-export type Seen = { address: string; title: string; at: number; from: string | null; own?: true };
+export type Seen = { address: string; title: string; at: number; from: string | null; own?: true; told?: true };
 
-/** The rows the account may hear of: never a page OWN EYE showed. */
-export const forAccount = (rows: readonly Seen[]): Seen[] => rows.filter((row) => row.own !== true);
+/** The rows the account may hear of: every row but an OWN EYE row from before the account kept them. */
+export const forAccount = (rows: readonly Seen[]): Seen[] => rows.filter((row) => row.own !== true || row.told === true);
+
+/** What the account knows of, as this browser has it: a row OWN EYE showed here keeps saying so (the account has no mark for it). */
+export function asHere(kept: readonly Seen[], here: readonly Seen[]): Seen[] {
+  const own = new Set(here.filter((row) => row.own === true).map((row) => `${row.at} ${row.address}`));
+  return kept.map((row) => (own.has(`${row.at} ${row.address}`) ? { ...row, own: true as const, told: true as const } : row));
+}
 
 export const HISTORY_DAYS = 90;
 export const HISTORY_MOST = 2000;
@@ -36,7 +43,7 @@ export function withVisit(rows: readonly Seen[], seen: Seen): Seen[] {
     // A look that brought no title of its own (its address stands in for one) keeps the title already there.
     const title = seen.title && seen.title !== seen.address ? seen.title : last.title;
     const same: Seen = { address: last.address, title, at: last.at, from: last.from };
-    return [last.own === true && seen.own === true ? { ...same, own: true } : same, ...rows.slice(1)];
+    return [last.own === true && seen.own === true ? { ...same, own: true, ...(last.told === true ? { told: true as const } : {}) } : same, ...rows.slice(1)];
   }
   return keptRows([seen, ...rows], seen.at);
 }
@@ -69,11 +76,11 @@ export function rowsFrom(value: unknown, now: number): Seen[] {
   const rows: Seen[] = [];
   for (const each of value.slice(0, HISTORY_MOST)) {
     if (typeof each !== 'object' || each === null) continue;
-    const { address, title, at, from, own } = each as Record<string, unknown>;
+    const { address, title, at, from, own, told } = each as Record<string, unknown>;
     const read = typeof address === 'string' ? readAddress(address) : null;
     if (read === null || !read.ok || !isOutside(read.address) || typeof at !== 'number' || !Number.isFinite(at)) continue;
     const came = typeof from === 'string' ? readAddress(from) : null;
-    rows.push({ address: read.address, title: (typeof title === 'string' ? cleanTitle(title) : null) ?? read.address, at, from: came !== null && came.ok && isOutside(came.address) ? came.address : null, ...(own === true ? { own: true as const } : {}) });
+    rows.push({ address: read.address, title: (typeof title === 'string' ? cleanTitle(title) : null) ?? read.address, at, from: came !== null && came.ok && isOutside(came.address) ? came.address : null, ...(own === true ? { own: true as const } : {}), ...(own === true && told === true ? { told: true as const } : {}) });
   }
   return keptRows(rows.sort((a, b) => b.at - a.at), now);
 }

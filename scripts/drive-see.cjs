@@ -1238,7 +1238,8 @@ async function ownEyeFirst(browser) {
           if (message.see === 'has') {
             const host = new URL(message.address).hostname.replace(/^www\./, '');
             const site = host.split('.').slice(-2).join('.');
-            return setTimeout(() => answer({ on: it.sites.includes(site), site }), 5);
+            // `every`: ALLOW EVERY SITE was pressed (0.8.1): any page may be shown, and `named` still says whether this site is on the list itself.
+            return setTimeout(() => answer({ on: it.every === true || it.sites.includes(site), site, named: it.sites.includes(site) }), 5);
           }
           if (message.see === 'settings') return setTimeout(() => answer({ see: 'settings', settings: { lens: 'standard', wear: true } }), 5);
           return setTimeout(() => answer({ ok: true }), 5);
@@ -1315,10 +1316,11 @@ async function ownEyeFirst(browser) {
     await page.waitForTimeout(300);
     ok((await page.locator('[data-seeing-address]').inputValue()) === `${SITE}/b`, 'and what is not a web address is never put there');
     // HISTORY holds OWN EYE's pages too (Luke, 2026-11-27: "use it like they would chrome or edge"): address and title, in this browser, marked as its own.
-    const ownRows = await page.evaluate(() => Object.keys(localStorage).filter((each) => each.startsWith('debaser-seeing-history-v1:')).flatMap((each) => JSON.parse(localStorage.getItem(each) ?? '[]')).filter((row) => row.own === true).map((row) => `${row.address} ${row.title} ${row.from}`));
+    const ownRows = await page.evaluate(() => Object.keys(localStorage).filter((each) => each.startsWith('debaser-seeing-history-v1:')).flatMap((each) => JSON.parse(localStorage.getItem(each) ?? '[]')).filter((row) => row.own === true && row.told === true).map((row) => `${row.address} ${row.title} ${row.from}`));
     ok(ownRows.includes(`${SITE}/b B ${SITE}/a`), `a page OWN EYE shows goes into HISTORY once the extension says it is there, in this browser, marked as OWN EYE's, with the page it was come to from (${ownRows.join(' | ')})`);
     await key(page, '[ HISTORY ]').click();
-    ok(/B\s*OWN EYE · KEPT IN THIS BROWSER ONLY/.test(await page.locator('[data-seeing-history]').innerText()) && /NOT ON YOUR ACCOUNT/.test(await page.locator('[data-seeing-history]').innerText()), 'and HISTORY says of it that it is kept in this browser only, not on the account');
+    // (Luke, 2026-11-28: "On the account too") marked as one the account is told of, and HISTORY's line says the account keeps them.
+    ok((await page.locator('[data-seeing-history-own="account"]').count()) >= 1 && (await page.locator('[data-seeing-history-own="here"]').count()) === 0 && /B\s*OWN EYE(?! ·)/.test(await page.locator('[data-seeing-history]').innerText()) && /KEPT ON YOUR ACCOUNT, SO IT FOLLOWS YOU TO ANOTHER DEVICE: THE PAGES OWN EYE SHOWED TOO/.test(await page.locator('[data-seeing-history]').innerText()), 'and HISTORY says of it that OWN EYE showed it, and that the account keeps such pages too');
     await page.locator('[data-seeing-history]').getByRole('button', { name: 'Close history' }).click();
     ok((await page.locator('[data-seeing-own-frame]').getAttribute('sandbox')) === 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads', "in a frame that can't move BROWSER's page");
     ok((await page.locator('[data-seeing-get-signed-in]').count()) === 0, 'and nothing is asked for first');
@@ -1455,9 +1457,45 @@ async function ownEyeFirst(browser) {
     await go(page, 'g fog');
     await page.locator('[data-seeing-own="add"]').waitFor({ timeout: 5000 }).catch(() => undefined);
     ok((await page.locator('[data-seeing-own="add"]').count()) === 1 && (await box(page).inputValue()) === 'https://www.google.com/search?q=fog' && (await tabs()) === before2 && context.pages().length === windows, 'words to an engine that turns the house away are asked here, in OWN EYE: no tab of the browser, no window');
+    // ALLOW EVERY SITE (Luke, 2026-11-27: "One optional key (Recommended)"): offered beside ADD, with what adding by name costs said under it.
+    const addPanel = page.locator('[data-seeing-own="add"]');
+    ok(/A SITE ADDED BY NAME IS SHOWN EVEN WHEN THAT MEANS SWITCHING OFF ITS OWN SCRIPT-SAFETY RULES/.test(await addPanel.locator('[data-seeing-own-cost]').innerText()) && /switching off its own script-safety rules/.test((await addPanel.locator('[data-seeing-own-add]').getAttribute('title')) ?? ''), 'where ADD is offered, it says what adding a site by name costs');
+    await addPanel.getByRole('button', { name: '[ ALLOW EVERY SITE ↗ ]', exact: true }).click();
+    await page.waitForTimeout(300);
+    ok((await told()).some(([see]) => see === 'sites') && (await tabs()) === before2, "[ ALLOW EVERY SITE ↗ ] opens the extension's own SITES page, where the press is made: BROWSER's page only asks for it");
+    // Pressed there: any page is shown with no ADD step, and the tool row's key says why.
+    await pretend({ version, sites: ['seeing-fixture.org', 'youtube.com'], every: true });
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await page.locator('[data-seeing-own-frame]').waitFor({ timeout: 10000 });
+    ok((await framed()) === 'https://www.google.com/search?q=fog' && (await page.locator('[data-seeing-add-site]').getAttribute('data-seeing-add-site')) === 'every' && (await page.locator('[data-seeing-add-site]').innerText()) === '[ ✓ EVERY SITE IS ALLOWED ]', 'with every site allowed, a site that was never added is shown here, and the key in the tool row says every site is allowed');
+    // It stays blank (a page that only shows with its script-safety rules off is left whole): said in those words, with ADD BY NAME beside it.
+    await page.locator('[data-seeing-own="silent"]').waitFor({ timeout: 30000 });
+    const blank = await page.locator('[data-seeing-own]').innerText();
+    ok(/GOOGLE\.COM ONLY SHOWS INSIDE BROWSER WITH ITS OWN SCRIPT-SAFETY RULES SWITCHED OFF, WHICH \[ ALLOW EVERY SITE \] NEVER DOES/.test(blank) && /ADDED BY NAME, IT IS SHOWN HERE WITH THOSE RULES OFF/.test(blank), 'a page that stays blank under EVERY SITE says why, and what adding its site by name would do');
+    await page.locator('[data-seeing-own]').getByRole('button', { name: 'ADD google.com BY NAME ↗', exact: true }).click();
+    await page.waitForTimeout(300);
+    ok((await opened('machine')).at(-1) === 'https://www.google.com/search?q=fog', "and its ADD key opens the machine's page on that site, where it is added by name");
     await pretend({ version, sites: ['seeing-fixture.org', 'youtube.com', 'google.com'] });
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-    ok((await framed()) === 'https://www.google.com/search?q=fog' && (await tabs()) === before2, 'and with the engine on the list, its results are shown here');
+    await page.waitForFunction(() => document.querySelector('[data-seeing-add-site]')?.getAttribute('data-seeing-add-site') === 'on', null, { timeout: 5000 }).catch(() => undefined);
+    ok((await framed()) === 'https://www.google.com/search?q=fog' && (await tabs()) === before2 && /ON THE LIST: google\.com/.test(await page.locator('[data-seeing-add-site]').innerText()) && (await page.locator('[data-seeing-own]').getByRole('button', { name: 'ADD google.com BY NAME ↗', exact: true }).count()) === 0, 'and with the engine on the list by name, its results are shown here and no ADD is offered');
+    // The extension's few lines in a framed page ask whether theirs is the frame BROWSER made for OWN EYE (the coordinator, 2026-11-28):
+    // BROWSER says yes to its own frame, and to no other frame in its page (the floating player, a video in a post).
+    const heard = [];
+    await context.route(/^https:\/\/www\.google\.com\/(asks|heard)/, (route) => {
+      const url = new URL(route.request().url());
+      if (url.pathname === '/heard') heard.push(url.search);
+      return route.fulfill({ status: 200, contentType: 'text/html', body: "<script>addEventListener('message', (event) => event.data && event.data.see === 'own-eye' && fetch('/heard?yes=' + location.search.slice(5))); parent.postMessage({ see: 'own-eye?' }, '*'); setTimeout(() => fetch('/heard?asked=' + location.search.slice(5)), 900);</script>" });
+    });
+    // The frame BROWSER made is sent to a pretend page that asks (as a link followed inside it would); a second frame is put beside it.
+    await page.evaluate(() => {
+      document.querySelector('[data-seeing-own-frame]').src = 'https://www.google.com/asks?who=own';
+      const embed = document.createElement('iframe');
+      embed.src = 'https://www.google.com/asks?who=embed';
+      document.body.append(embed);
+    });
+    for (let waited = 0; waited < 8000 && !(heard.includes('?asked=own') && heard.includes('?asked=embed')); waited += 250) await page.waitForTimeout(250);
+    ok(heard.includes('?asked=own') && heard.includes('?asked=embed') && heard.includes('?yes=own') && !heard.includes('?yes=embed'), `BROWSER says yes to the frame it made for OWN EYE when the page in it asks, and nothing to another frame in its page that asks the same (${heard.join(' ')})`);
     await context.close();
   } finally {
     net.close();

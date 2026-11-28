@@ -161,6 +161,28 @@ Each can be changed later by saying so.
 63. **No Chrome Web Store listing for now** (Luke, 2026-11-27, to "BROWSER extension: prepare the Chrome Web Store listing the same way as
     Edge's (your morning answer was "Yes, prepare it", your later routes answer left Chrome out)?": "not now actually because chrome costs
     money to have an extension i think"). Chrome keeps the by-hand route.
+64. **OWN EYE's pages go into HISTORY on the account too** (Luke, 2026-11-28, to "BROWSER's HISTORY: should pages OWN EYE shows (your own
+    browser, signed in) also be kept on your account like other history, so they follow you to another device?": "On the account too";
+    as he read it: "The address and title of signed-in pages are stored on SERVER, read by you alone, cleared by the same CLEAR key.").
+    Address and title only, through `browse_history` and its "own history" rule as they are; no schema change. It replaces the
+    this-browser-only half built first (84517f1).
+65. **Four tools also work on a page OWN EYE shows, done by the extension** (Luke, 2026-11-28, to "BROWSER: which tools should also work
+    on a page OWN EYE shows (your signed-in browser), done by the extension instead of by the house's copy? Each needs an extension
+    update.": "MEDIA,SEARCH THIS,WATCHERS,ERASE"). SEAM, LOUPE, SCRIPTS OFF, SONIFY, SHOW MY ROOM stay the house's. Not built yet.
+66. **OWN WEB keeps every page OWN EYE shows, with no never-keep rule** (Luke, 2026-11-28, to "OWN WEB, now that it will keep every page
+    OWN EYE shows automatically (your choice): which pages should it never keep?", offered pages with a password box, sites he marks
+    NEVER KEEP, a starting list of mail and banks: "none"). The house's lines stand whatever is kept (the coordinator's, not his taste):
+    the page's visible words only, never what is typed in any box, a password, a hidden or one-time-code field, cookies, storage or
+    headers; read by that account alone; the page says it is being kept. The switch for it is its own, lives in the extension (so
+    the extension refuses to hand a page's words to anything while it is off), is per browser, starts OFF for everybody and is turned
+    on by a press on the extension's own page with the plain words; only pages shown inside BROWSER, never an ordinary tab. The last
+    three are the builder's safe defaults, named to Luke by the coordinator. Not built yet.
+67. **A page keeps its own script-safety rules inside BROWSER, unless its site was added by name** (Luke, 2026-11-28, told that a site
+    he ADDED has always run without its Content-Security-Policy while shown inside BROWSER, and asked "Do you want to choose between A,
+    B and C for sites that only show with their script-safety rules off: "Ask me now" or "Keep your default"?": "Keep your default").
+    The default he had read: "C. Only for sites you added by name: EVERY SITE shows the unaffected sites with nothing lost; an affected
+    site shows only if you also ADD it by name, and the ADD key says what that costs. Same as today for sites you add; nothing wider."
+    The three kinds of page and the reading of 20 sites: docs/seeing-machine.md, "What the frame rule does to a page's headers".
 
 ## Risks, said once
 1. **SERVER is beside everything.** The torrent page (no password at home), Jellyfin, the database and its dashboard, the

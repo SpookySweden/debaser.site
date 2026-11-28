@@ -3,14 +3,17 @@
  * open in and nowhere else; opens the machine when the site or the panel asks; and keeps the theme the site sends. It reads no page, cookie or password.
  */
 import { putLens } from './act.js';
-import { allowedSites, isAllowed, NEVER_HOSTS, NEVER_NAMES, originsOf, readAddress, SITE, siteOf } from './sites.js';
+import { allowedSites, EVERY_SITE, everySite, framedBy, isAllowed, isNamed, NEVER_HOSTS, NEVER_NAMES, originsOf, PROTECTS, readAddress, SITE, siteOf } from './sites.js';
 
 const RULE = 1;
 
 /** On added sites, the few lines that say which frame the machine's page is (frame.js), and no others. */
-async function frameScript(sites) {
+async function frameScript(sites, every) {
   await chrome.scripting.unregisterContentScripts().catch(() => undefined);
-  if (sites.length > 0) await chrome.scripting.registerContentScripts([{ id: 'frame', matches: sites.flatMap(originsOf), js: ['frame.js'], allFrames: true, runAt: 'document_idle', persistAcrossSessions: false }]);
+  // With EVERY SITE on it is on every page of the browser, and ends at its first line anywhere but directly inside a debaser.site page or the
+  // machine's; inside a debaser.site page it speaks only once that page says its frame is the one BROWSER made for OWN EYE.
+  const matches = every ? EVERY_SITE : sites.flatMap(originsOf);
+  if (matches.length > 0) await chrome.scripting.registerContentScripts([{ id: 'frame', matches, js: ['frame.js'], allFrames: true, runAt: 'document_idle', persistAcrossSessions: false }]);
 }
 
 /**
@@ -68,26 +71,41 @@ chrome.runtime.onConnectExternal.addListener((port) => {
   void again().then(() => port.postMessage({ see: 'ready' })).catch(() => undefined);
 });
 
-/** One rule, for this session: frames in the machine's tabs and BROWSER's, of added sites, never of a sign-in. */
+/**
+ * The rules, for this session: frames in the machine's tabs and BROWSER's, never of a sign-in. A page that refuses to be framed is told, in place
+ * of that refusal, who may frame it here (`framedBy`), and nothing else of its headers is touched where that can be helped:
+ *   - refused by X-Frame-Options alone: that line goes and ours is added beside the page's own policy, which stays whole;
+ *   - a policy that is only about framing: replaced by ours;
+ *   - a policy that mixes framing with script-safety rules: replaced by ours, so those rules are off for that page here, ONLY when its site was
+ *     added by name (as it always was for added sites); under EVERY SITE alone it is left as it is, and the page does not show (decision 67).
+ */
 async function frameRule() {
-  const sites = await allowedSites();
-  await frameScript(sites);
+  const [sites, every] = await Promise.all([allowedSites(), everySite()]);
+  await frameScript(sites, every);
   const tabIds = [...new Set([...machines.values(), ...browsers.values()])];
-  const never = [...NEVER_NAMES, ...NEVER_HOSTS.filter((each) => !each.includes('/'))];
-  // A sign-in kept under a site's own name (github.com/login): its headers are left alone, which is stronger than the rule below.
+  const never = [...new Set([...NEVER_NAMES, ...NEVER_HOSTS.filter((each) => !each.includes('/'))])];
+  // A sign-in kept under a site's own name (github.com/login): its headers are left alone, which is stronger than the rules below.
   const paths = NEVER_HOSTS.filter((each) => each.includes('/'));
+  const scope = { tabIds, resourceTypes: ['sub_frame'] };
+  const refused = { header: 'x-frame-options' };
+  const framing = { header: 'content-security-policy', values: ['*frame-ancestors*'] };
+  const lift = (operation, policy) => ({ type: 'modifyHeaders', responseHeaders: [{ header: 'x-frame-options', operation: 'remove' }, { header: 'content-security-policy', operation, value: policy }] });
+  const named = framedBy(chrome.runtime.id, sites);
+  const anyone = framedBy(chrome.runtime.id);
   const old = (await chrome.declarativeNetRequest.getSessionRules()).map((rule) => rule.id);
   await chrome.declarativeNetRequest.updateSessionRules({
     removeRuleIds: old,
-    addRules: sites.length === 0 || tabIds.length === 0 ? [] : [
-      ...paths.map((each, index) => ({ id: RULE + 1 + index, priority: 10, condition: { urlFilter: '||' + each + '^', tabIds, resourceTypes: ['sub_frame'] }, action: { type: 'allow' } })),
-      ...paths.map((each, index) => ({ id: RULE + 1001 + index, priority: 10, condition: { urlFilter: '||' + each + '|', tabIds, resourceTypes: ['sub_frame'] }, action: { type: 'allow' } })),
-      {
-        id: RULE,
-        priority: 1,
-        condition: { tabIds, initiatorDomains: [chrome.runtime.id, new URL(SITE).hostname, ...sites], requestDomains: sites, excludedRequestDomains: [...new Set(never)], resourceTypes: ['sub_frame'] },
-        action: { type: 'modifyHeaders', responseHeaders: [{ header: 'x-frame-options', operation: 'remove' }, { header: 'content-security-policy', operation: 'remove' }] },
-      },
+    addRules: (sites.length === 0 && !every) || tabIds.length === 0 ? [] : [
+      ...paths.map((each, index) => ({ id: RULE + 1 + index, priority: 10, condition: { urlFilter: '||' + each + '^', ...scope }, action: { type: 'allow' } })),
+      ...paths.map((each, index) => ({ id: RULE + 1001 + index, priority: 10, condition: { urlFilter: '||' + each + '|', ...scope }, action: { type: 'allow' } })),
+      ...(sites.length === 0 ? [] : [
+        { id: RULE, priority: 1, condition: { ...scope, requestDomains: sites, excludedRequestDomains: never, responseHeaders: [refused], excludedResponseHeaders: [framing] }, action: lift('append', named) },
+        { id: RULE + 3001, priority: 1, condition: { ...scope, requestDomains: sites, excludedRequestDomains: never, responseHeaders: [framing] }, action: lift('set', named) },
+      ]),
+      ...(!every ? [] : [
+        { id: RULE + 3002, priority: 1, condition: { ...scope, excludedRequestDomains: [...never, ...sites], responseHeaders: [refused], excludedResponseHeaders: [framing] }, action: lift('append', anyone) },
+        { id: RULE + 3003, priority: 1, condition: { ...scope, excludedRequestDomains: [...never, ...sites], responseHeaders: [framing], excludedResponseHeaders: [{ header: 'content-security-policy', values: PROTECTS }] }, action: lift('set', anyone) },
+      ]),
     ],
   });
 }
@@ -186,7 +204,9 @@ chrome.runtime.onMessageExternal.addListener((message, sender, answer) => {
     const read = readAddress(message.address);
     if (read === null) return answer({ on: null });
     const site = siteOf(new URL(read).hostname);
-    void mayAsk(site).then(async (may) => answer(may ? { on: await isAllowed(read), site } : { on: null }));
+    // `on`: this page may be shown (its site was added by name, or EVERY SITE is on, which says nothing of the list). `named`: this one site is
+    // on the list itself; past the few it may ask about, that half is not said, only that every site is allowed.
+    void Promise.all([mayAsk(site), everySite()]).then(async ([may, every]) => answer(may ? { on: await isAllowed(read), site, named: await isNamed(read) } : every ? { on: true, site, named: null, every: true } : { on: null }));
     return true;
   } else if (message.see === 'settings') {
     const given = settingsFrom(message.settings);

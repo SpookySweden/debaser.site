@@ -31,7 +31,7 @@ Microsoft's and Google's own pages (Sources, below).
 6. **Privacy**: paste the single purpose, each permission's reason, "No" to remote code, and the data answers, all below.
 7. **Submit**. In **Notes for certification** paste: "No account is needed. Press the extension's toolbar key on any https page: the side
    panel opens with the lenses (READER, X-RAY, LOW-FI, YOUR THEME). Its own page ([ SITES ]) lists the sites it may act on; it asks for no
-   site until one is added there. debaser.site is the companion site." Microsoft says certification takes up to seven business days.
+   site until one is added there, or [ ALLOW EVERY SITE ] is pressed there (off until then). debaser.site is the companion site." Microsoft says certification takes up to seven business days.
 8. When it is published, the **Extension overview** page shows its store address. Its id is the 32 letters at the end of that address: send
    it to the coordinator (or the BROWSER session).
 
@@ -65,11 +65,15 @@ BROWSER shows other websites inside debaser.site. With this extension it shows t
 site lets its sign-in work inside another site; and it puts the machine's lenses on any page: READER (the words alone), X-RAY (how a page
 is built), LOW-FI (plain, in the site's colours) and YOUR THEME.
 
-- It acts only on sites you add to it, and on the tab you press its key on. Adding a site that shares a sign-in (Google, Microsoft, Apple,
+- It acts only on sites you add to it, and on the tab you press its key on; or on every site, once you press ALLOW EVERY SITE on its own
+  page (off until then; your browser asks first; TAKE IT BACK undoes it). Adding a site that shares a sign-in (Google, Microsoft, Apple,
   Meta, Amazon) offers the rest of that company's sites, named first.
+- A site added by name is shown even when that means switching off its own script-safety rules (its Content-Security-Policy) while it is
+  inside BROWSER; some sites only show that way. ALLOW EVERY SITE alone never does that.
 - It never reads your passwords or cookies, and sign-in pages are never shown inside anything: you sign in on the site itself.
-- It tells debaser.site only its version, its two settings, whether the page in front of you is on its list, and what you press to send
-  (a page to look at through the site's own eye, a video to a room).
+- It tells debaser.site only its version, its two settings, whether the page in front of you may be shown, the address and title of a page
+  it is showing inside BROWSER (for the address box and your HISTORY there), and what you press to send (a page to look at through the
+  site's own eye, a video to a room).
 - IMPORT FROM THIS BROWSER offers the sites your browser has been to in the last 30 days; the browser asks first, and the permission is given
   back at once. Nothing of it leaves your browser.
 
@@ -78,20 +82,30 @@ is built), LOW-FI (plain, in the site's colours) and YOUR THEME.
 when the user asks.
 
 **Permission reasons**:
-- `declarativeNetRequestWithHostAccess`: to lift a site's "don't show me inside another site" rule, only for sites the user added, only in frames
-  in the extension's own page or debaser.site's BROWSER tab while it is open, and never for a sign-in page. The rule lasts only for the session.
+- `declarativeNetRequestWithHostAccess`: to lift a site's "don't show me inside another site" rule, only for sites the user added (or every
+  site, once the user presses ALLOW EVERY SITE), only in frames in the extension's own page or debaser.site's BROWSER tab while it is open,
+  and never for a sign-in page. The rule lasts only for the session. A site's script-safety rules (the rest of its Content-Security-Policy)
+  are switched off only for a site the user added by name, and the ADD key says so.
 - `scripting`: to put a lens on a page when the user presses one (it changes how the page looks; nothing is read from it but what it shows).
 - `sidePanel`: the lenses beside an ordinary tab.
 - `storage`: the user's two settings, the site's colours, and which sites it was asked about this hour.
 - `activeTab`: the tab the user presses the extension's key on, and only it.
-- Optional host permissions (any https and http site): asked for one site, or one company's sign-in, at a time, when the user presses ADD.
+- Optional host permissions (any https and http site): asked for one site, or one company's sign-in, at a time, when the user presses ADD;
+  or for every site at once, only when the user presses ALLOW EVERY SITE on the extension's own page (off until then; TAKE IT BACK gives
+  it back). With every site allowed, one small script of the extension (frame.js) runs in every tab of the browser: its first line asks
+  whether the page is shown directly inside a debaser.site page or the extension's own page, and anywhere else it returns at once, reading
+  nothing and sending nothing. Directly inside a debaser.site page it asks that page one fixed question (is this the frame BROWSER made for
+  OWN EYE?) and says nothing more unless the page answers yes, which BROWSER does for its own OWN EYE frame alone. Only in that frame, and in
+  the extension's own page, does it tell the extension the page's address and title, for BROWSER's address box and the lenses.
 - Optional `history`: asked for only when the user presses IMPORT FROM THIS BROWSER, used once to list site names, and given back at once.
 
 **Remote code**: No. Every script is in the package.
 
 **Data use** (what the store calls collected: sent off the device):
-- Web browsing activity: only the address of a page the user presses to send to debaser.site (to look at it through the site's own eye, or a
-  video to a room). Nothing is sent by itself.
+- Web browsing activity: the address of a page the user presses to send to debaser.site (to look at it through the site's own eye, or a
+  video to a room); and the address and title of a page the user is looking at inside debaser.site's BROWSER, told to that page, which
+  keeps them in the user's own HISTORY on their debaser.site account (read by that user alone; CLEAR empties it). Nothing of any other
+  tab is sent.
 - No personally identifiable information, health, financial, authentication, personal communications, location or user-activity data.
 - Not sold, not used for anything but the extension's single purpose, not used for credit.
 
