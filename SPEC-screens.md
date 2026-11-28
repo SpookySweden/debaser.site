@@ -311,13 +311,13 @@ at an address the laptop is not really using, and the home router throws away th
    thousand bytes of it and the next good pass is refused without the engine being asked. Broken on purpose (a pass
    allowed twice; the allowance never stopping the picture) the check fails each time.
 
-   **The PC's half: written, NOT built.** The engine's side (`engine/src/site.rs`, its joins in `serve.rs`, and the
-   cap: while a viewer is connected through the site the whole stream is held to 720 lines, 60 frames a second and
-   3,500 kbit/s for everyone watching, said in the settings as `THROUGH THE SITE`) is written with its tests, but
-   only on the session's branch (`claude/remote-anywhere-612f26`), not on `main`: Rust is only built on the gaming
-   PC, which was in use, so it has never been compiled. Until it is built and tested there and swapped in on
-   Luke's own word, the engine the PC runs answers the gateway with "nothing here", which the gateway says as `THE
-   PC'S ENGINE IS TOO OLD FOR THE WAY THROUGH THE SITE`. So no real picture has gone through the site yet.
+   **The PC's half: built and tested, NOT installed.** The engine's side (`engine/src/site.rs`, its joins in
+   `serve.rs`, and the cap: while a viewer is connected through the site the whole stream is held to 720 lines, 60
+   frames a second and 3,500 kbit/s for everyone watching, said in the settings as `THROUGH THE SITE`) compiled on
+   the gaming PC on 2026-11-28 with no warnings; 50 of 50 tests pass, and broken copies fail them (`engine/BENCH.md`).
+   The release file (SHA256 9E7E38A5…1D96) is not installed: until it is swapped in on Luke's own word, the engine
+   the PC runs answers the gateway with "nothing here", which the gateway says as `THE PC'S ENGINE IS TOO OLD FOR
+   THE WAY THROUGH THE SITE`. So no real picture has gone through the site yet.
    Still to come after that: the page's side (decoding, drawing, sound and control in the browser), then the
    reveal with the allowance line and the route's words.
 

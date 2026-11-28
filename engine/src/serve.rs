@@ -19,6 +19,11 @@
 //! Besides the picture, three smaller things travel on the same connection: CONTROL (control.rs: a viewer's mouse,
 //! keys and game controller), the PC's own pointer shape (pointer.rs), and the sound.
 //!
+//! THROUGH THE SITE (site.rs) is a second kind of viewer: not a browser sending packets here, but a plain line
+//! held by the site's own gateway (`GET /site`), for a network where nothing direct gets through. It is handed the
+//! same frames and sound and heard on the same two channels' bytes; each such line lives on the thread of the
+//! request that opened it. While one is connected the whole stream is held to that way's cap (settings.rs).
+//!
 //! Settings (settings.rs) can change while the stream runs. This thread works out what should be sent from what
 //! was asked and what the PC allows; when that differs from what is being sent, it closes the native session and
 //! opens it again with the new piece of screen, size, rate and bitrate. The WebRTC connections stay up: viewers
@@ -52,6 +57,7 @@ use crate::fit::Fit;
 use crate::native;
 use crate::pointer;
 use crate::settings::{self, Asked, Limits, Plan, Shape};
+use crate::site;
 use crate::sound;
 use crate::{json, line, stats};
 
@@ -285,6 +291,10 @@ struct Stream {
     capped: bool,
     /// The cap state the encoding thread last acted on. While it differs from `capped`, a change is on its way.
     acted_capped: bool,
+    /// A viewer is connected THROUGH THE SITE (site.rs): that way's cap is in force, for everyone watching. And
+    /// the state the encoding thread last acted on, as with the match cap.
+    site_capped: bool,
+    acted_site_capped: bool,
     /// The screen: width, height, refresh rate.
     screen: (i32, i32, i32),
     sending: Option<Sending>,
@@ -296,7 +306,14 @@ struct Stream {
 impl Stream {
     /// The limits in force now.
     fn limits(&self) -> Limits {
-        if self.capped { self.host_limits.within(settings::MATCH_CAP) } else { self.host_limits }
+        let mut limits = self.host_limits;
+        if self.capped {
+            limits = limits.within(settings::MATCH_CAP);
+        }
+        if self.site_capped {
+            limits = limits.within(settings::SITE_CAP);
+        }
+        limits
     }
 
     fn plan(&self) -> Plan {
@@ -407,6 +424,9 @@ struct Shared {
     /// FIT (fit.rs): the PC's own screen and whether it has been changed for a viewer. Never held while another
     /// of these locks is asked for.
     fit: Mutex<Fit>,
+    /// The viewers watching THROUGH THE SITE (site.rs): lines held by the site's gateway, not browsers sending
+    /// packets here. Its own locks are asked for last and never held while another of these is asked for.
+    site: site::Lines,
 }
 
 impl Shared {
@@ -506,14 +526,27 @@ fn tell_pointer(v: &mut Viewer, news: &pointer::News) -> bool {
 
 /// Tells every viewer that is behind about the PC's pointer, now.
 fn tell_everyone_pointer(shared: &Shared) {
-    let mut viewers = shared.viewers.lock().unwrap();
-    let news = shared.pointer.lock().unwrap();
-    let now = Instant::now();
-    for v in viewers.iter_mut() {
-        if v.rtc.is_alive() && tell_pointer(v, &news) {
-            pump(v, shared, now);
+    {
+        let mut viewers = shared.viewers.lock().unwrap();
+        let news = shared.pointer.lock().unwrap();
+        let now = Instant::now();
+        for v in viewers.iter_mut() {
+            if v.rtc.is_alive() && tell_pointer(v, &news) {
+                pump(v, shared, now);
+            }
         }
     }
+    tell_site_pointer(shared);
+}
+
+/// The same for the viewers watching through the site (site.rs): the news is copied out first, so the pointer's
+/// lock is not held while their lines are asked for.
+fn tell_site_pointer(shared: &Shared) {
+    let (number, shape, shown) = {
+        let news = shared.pointer.lock().unwrap();
+        (news.number, news.message.clone(), news.shown)
+    };
+    shared.site.tell_pointer(number, shape.as_deref(), shown.map(|shown| (shown, pointer::shown_message(shown))));
 }
 
 fn on_event(v: &mut Viewer, shared: &Shared, event: Event) {
@@ -732,7 +765,7 @@ fn network_loop(shared: Arc<Shared>) {
         // gone or silent)? Whoever held it is told, and everything they held down has already been let go.
         let (ended, pad_news) = {
             let mut control = shared.control.lock().unwrap();
-            let ended = control.watch(now, shared.match_running.load(Ordering::SeqCst), |id| viewers.iter().any(|v| v.id == id && v.rtc.is_alive() && v.keys.is_some()));
+            let ended = control.watch(now, shared.match_running.load(Ordering::SeqCst), |id| viewers.iter().any(|v| v.id == id && v.rtc.is_alive() && v.keys.is_some()) || shared.site.alive(id));
             // CONTROLLER: whoever holds control is told when the pretend controller is plugged in, or why not.
             (ended, control.pad_news())
         };
@@ -740,12 +773,17 @@ fn network_loop(shared: Arc<Shared>) {
             if let Some(v) = viewers.iter_mut().find(|v| v.id == id && v.rtc.is_alive()) {
                 say(v, what);
                 pump(v, &shared, now);
+            } else {
+                // The holder may be watching through the site: it is told on its line.
+                shared.site.say(id, &[control::STATE, what]);
             }
         }
         if let Some((id, what)) = pad_news {
             if let Some(v) = viewers.iter_mut().find(|v| v.id == id && v.rtc.is_alive()) {
                 say_as(v, control::PAD_SAYS, what);
                 pump(v, &shared, now);
+            } else {
+                shared.site.say(id, &[control::PAD_SAYS, what]);
             }
         }
         // The PC's pointer: a viewer whose channel has just opened, or that missed a shape, is brought up to date.
@@ -757,6 +795,7 @@ fn network_loop(shared: Arc<Shared>) {
                 }
             }
         }
+        tell_site_pointer(&shared);
         viewers.retain(|v| {
             if !v.rtc.is_alive() {
                 println!("  viewer {} gone", v.id);
@@ -847,7 +886,14 @@ fn send_frame(shared: &Shared, data: &Arc<[u8]>, keyframe: bool, profile: Option
         // str0m cuts the frame into packets when it is next told the time, so `pump` tells it now.
         pump(v, shared, now);
     }
-    sent
+    drop(viewers);
+    // The viewers watching through the site (site.rs): the same frame, onto their lines. One whose line had
+    // fallen behind has dropped what was waiting and needs a full picture to start again from.
+    let (through_the_site, fell_behind) = shared.site.frame(data, keyframe, rtp_time, now);
+    if fell_behind {
+        shared.want_keyframe.store(true, Ordering::SeqCst);
+    }
+    sent + through_the_site
 }
 
 /// Hands one Opus packet (10 ms of sound) to every viewer that asked for sound. Returns how many it went to.
@@ -878,7 +924,8 @@ fn send_sound(shared: &Shared, packet: &Arc<[u8]>, samples_before: u64) -> usize
         sent += 1;
         pump(v, shared, now);
     }
-    sent
+    drop(viewers);
+    sent + shared.site.sound(packet, samples_before, now)
 }
 
 /// Where the sound thread's sound comes from.
@@ -919,7 +966,8 @@ fn sound_loop(shared: Arc<Shared>) {
     while !STOP.load(Ordering::SeqCst) {
         let listeners = {
             let now = Instant::now();
-            shared.viewers.lock().unwrap().iter().filter(|v| v.wants_sound && v.audio_mid.is_some() && v.watching(now)).count()
+            let direct = shared.viewers.lock().unwrap().iter().filter(|v| v.wants_sound && v.audio_mid.is_some() && v.watching(now)).count();
+            direct + shared.site.listeners(now)
         };
         shared.sound.lock().unwrap().listeners = listeners;
         if listeners == 0 {
@@ -1203,6 +1251,7 @@ fn handle_request(mut stream: TcpStream, shared: &Shared) {
     let mut content_length = 0usize;
     let mut content_type = String::new();
     let mut host = String::new();
+    let mut upgrade = String::new();
     for header in lines {
         let Some((name, value)) = header.split_once(':') else { continue };
         let value = value.trim();
@@ -1210,6 +1259,7 @@ fn handle_request(mut stream: TcpStream, shared: &Shared) {
             "content-length" => content_length = value.parse().unwrap_or(usize::MAX),
             "content-type" => content_type = value.to_ascii_lowercase(),
             "host" => host = value.to_ascii_lowercase(),
+            "upgrade" => upgrade = value.to_ascii_lowercase(),
             _ => {}
         }
     }
@@ -1305,9 +1355,83 @@ fn handle_request(mut stream: TcpStream, shared: &Shared) {
             }
             respond(&mut stream, "200 OK", "application/json", settings_json(shared, viewer).as_bytes());
         }
-        (_, "/") | (_, "/offer") | (_, "/settings") | (_, "/control-log") => refuse(&mut stream, "405 Method Not Allowed", "GET / for the page, POST /offer for the hello, GET or POST /settings, GET /control-log"),
+        // THROUGH THE SITE (site.rs): the site's gateway asks for a line of its own, for one viewer. A browser's page
+        // cannot ask this: a page is not allowed to send an Upgrade of its own choosing.
+        ("GET", "/site") => {
+            if upgrade != "debaser-site" {
+                return refuse(&mut stream, "426 Upgrade Required", "This is the line the site's gateway holds: ask for it with Upgrade: debaser-site");
+            }
+            let leftover = data[head_end + 4..].to_vec();
+            site_line(stream, &leftover, shared);
+        }
+        (_, "/") | (_, "/offer") | (_, "/settings") | (_, "/control-log") | (_, "/site") => {
+            refuse(&mut stream, "405 Method Not Allowed", "GET / for the page, POST /offer for the hello, GET or POST /settings, GET /control-log, GET /site for the site's gateway")
+        }
         _ => refuse(&mut stream, "404 Not Found", "Nothing here"),
     }
+}
+
+/// One viewer watching THROUGH THE SITE, from the gateway's request being let in until its line ends (site.rs).
+/// This request's own thread carries the line for as long as it lasts.
+fn site_line(mut stream: TcpStream, leftover: &[u8], shared: &Shared) {
+    let id = shared.viewers_ever.fetch_add(1, Ordering::Relaxed) + 1;
+    let Some(line) = shared.site.join(id, Instant::now()) else {
+        return refuse(&mut stream, "503 Service Unavailable", &format!("{} viewers are already watching through the site.", site::MAX_LINES));
+    };
+    // It starts from a full picture; and from the encoding thread's next turn the stream is held to this way's cap.
+    shared.want_keyframe.store(true, Ordering::SeqCst);
+    println!("  viewer {id} connected THROUGH THE SITE (the site's gateway holds its line)");
+    let hello = format!("HTTP/1.1 101 Switching Protocols\r\nUpgrade: debaser-site\r\nConnection: Upgrade\r\nDebaser-Viewer: {id}\r\n\r\n");
+    let stopping = || STOP.load(Ordering::SeqCst);
+    let mut heard = |kind: u8, contents: &[u8]| site_heard(shared, &line, kind, contents);
+    let why = site::run(stream, &hello, leftover, &line, &stopping, &mut heard);
+    shared.site.leave(id);
+    println!("  viewer {id} (through the site) gone: {why}");
+}
+
+/// One message from the site's gateway on a viewer's line: the same things a browser says on its two channels
+/// (`on_event`), and the two things only this way has.
+fn site_heard(shared: &Shared, line: &site::Line, kind: u8, contents: &[u8]) {
+    match kind {
+        site::KEYS | site::POINTER => {
+            let lane = if kind == site::KEYS { Lane::Keys } else { Lane::Pointer };
+            // SOUND on or off is not about control: any viewer may listen, whoever holds control.
+            if lane == Lane::Keys && contents.first() == Some(&SOUND_ASKED) {
+                let wanted = contents.get(1) == Some(&1);
+                let given = wanted && shared.sound_allowed;
+                line.want_sound(given);
+                line.say(&[SOUND_SAYS, if !wanted { 0 } else if given { 1 } else { 2 }]);
+                println!("  viewer {} (through the site) {}", line.id, if given { "asked for the PC's sound" } else if wanted { "asked for sound, which this PC is not sending" } else { "turned the sound off" });
+                return;
+            }
+            // Acted on here and now, on the line's own thread: an input never waits for a frame.
+            let answer = shared.control.lock().unwrap().message(line.id, lane, contents, Instant::now(), shared.match_running.load(Ordering::SeqCst));
+            if let Some(what) = answer {
+                line.say(&[control::STATE, what]);
+            }
+        }
+        // Its browser lost its place (the gateway skipped frames that could not leave) and asks for a full picture.
+        site::FULL_PICTURE_PLEASE => {
+            shared.keyframe_requests.fetch_add(1, Ordering::Relaxed);
+            shared.want_keyframe.store(true, Ordering::SeqCst);
+        }
+        // Its browser is still being heard from. One that had gone quiet is back, and needs a full picture.
+        site::STILL_WATCHING => {
+            if line.beat(Instant::now()) {
+                println!("  viewer {} (through the site) is back", line.id);
+                shared.want_keyframe.store(true, Ordering::SeqCst);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Notes whether anyone is connected through the site, for the encoding thread: while someone is, the stream is
+/// held to that way's cap (`Stream::limits`). Called once each turn of the encoding thread.
+fn note_site_cap(shared: &Shared) {
+    let through_the_site = shared.site.connected() > 0;
+    let mut stream = shared.stream.lock().unwrap();
+    stream.site_capped = through_the_site;
 }
 
 /// Takes "pcScreen" out of a settings request, when it is there, and notes the wish against the viewer that sent
@@ -1364,7 +1488,8 @@ fn take_fit_wish(shared: &Shared, viewer: Option<u64>, pairs: &mut Vec<(String, 
 fn settings_json(shared: &Shared, viewer: Option<u64>) -> String {
     let watching = {
         let now = Instant::now();
-        shared.viewers.lock().unwrap().iter().filter(|v| v.watching(now)).count()
+        let direct = shared.viewers.lock().unwrap().iter().filter(|v| v.watching(now)).count();
+        direct + shared.site.watching(now)
     };
     let (control_stands, control_allowed, control_dry_run, pad) = {
         let control = shared.control.lock().unwrap();
@@ -1423,7 +1548,20 @@ fn settings_json(shared: &Shared, viewer: Option<u64>) -> String {
     } else {
         "null".to_string()
     };
+    let through_the_site = shared.site.connected();
     let stream = shared.stream.lock().unwrap();
+    // Which caps are on, and why: a League match on the PC, a viewer watching through the site, or both at once
+    // (the limits in force are then the smaller of each).
+    let match_why = format!("{} is running on the PC", settings::MATCH_PROCESS);
+    let (cap_json, cap_why_json) = match (stream.capped, stream.site_capped) {
+        (false, false) => ("null".to_string(), "null".to_string()),
+        (true, false) => (settings::quoted(settings::MATCH_CAP_NAME), settings::quoted(&match_why)),
+        (false, true) => (settings::quoted(settings::SITE_CAP_NAME), settings::quoted("A viewer is watching through debaser.site")),
+        (true, true) => (
+            settings::quoted(&format!("{} + {}", settings::MATCH_CAP_NAME, settings::SITE_CAP_NAME)),
+            settings::quoted(&format!("{match_why}, and a viewer is watching through debaser.site")),
+        ),
+    };
     let number_or_null = |n: i32| if n > 0 { n.to_string() } else { "null".to_string() };
     let limits_json = |l: Limits| format!("{{\"maxLines\": {}, \"maxFps\": {}, \"maxBitrateKbps\": {}}}", l.max_lines, l.max_fps, l.max_bitrate_kbps);
     let asked = &stream.asked;
@@ -1455,7 +1593,7 @@ fn settings_json(shared: &Shared, viewer: Option<u64>) -> String {
         None => "null".to_string(),
     };
     format!(
-        "{{\"asked\": {}, \"sending\": {}, \"measured\": {}, \"screen\": {{\"width\": {}, \"height\": {}, \"hz\": {}}}, \"limits\": {}, \"hostLimits\": {}, \"cap\": {}, \"capWhy\": {}, \"applied\": {}, \"refused\": {}, \"viewers\": {}, \"control\": \"{}\", \"controlWhy\": {}, \"controlDryRun\": {}, {}, {}, {}, {}, {}, {}}}",
+        "{{\"asked\": {}, \"sending\": {}, \"measured\": {}, \"screen\": {{\"width\": {}, \"height\": {}, \"hz\": {}}}, \"limits\": {}, \"hostLimits\": {}, \"cap\": {}, \"capWhy\": {}, \"applied\": {}, \"refused\": {}, \"viewers\": {}, \"throughTheSite\": {}, \"control\": \"{}\", \"controlWhy\": {}, \"controlDryRun\": {}, {}, {}, {}, {}, {}, {}}}",
         asked_json,
         sending_json,
         measured_json,
@@ -1464,11 +1602,12 @@ fn settings_json(shared: &Shared, viewer: Option<u64>) -> String {
         stream.screen.2,
         limits_json(stream.limits()),
         limits_json(stream.host_limits),
-        if stream.capped { settings::quoted(settings::MATCH_CAP_NAME) } else { "null".to_string() },
-        if stream.capped { settings::quoted(&format!("{} is running on the PC", settings::MATCH_PROCESS)) } else { "null".to_string() },
-        stream.acted_on >= stream.asks && stream.acted_capped == stream.capped,
+        cap_json,
+        cap_why_json,
+        stream.acted_on >= stream.asks && stream.acted_capped == stream.capped && stream.acted_site_capped == stream.site_capped,
         stream.refused.as_deref().map_or("null".to_string(), settings::quoted),
         watching,
+        through_the_site,
         control_stands,
         control_why,
         control_dry_run,
@@ -1676,7 +1815,7 @@ pub fn serve(args: &[String]) -> ExitCode {
     let pretend = Pretend::from_environment();
     let pretending = pretend.asked_for();
     let capped_at_start = match_running(&pretend);
-    let mut stream = Stream { asked, asks: 0, acted_on: 0, host_limits, capped: capped_at_start, acted_capped: capped_at_start, screen: (screen_width, screen_height, screen_hz), sending: None, refused: None, measured: None };
+    let mut stream = Stream { asked, asks: 0, acted_on: 0, host_limits, capped: capped_at_start, acted_capped: capped_at_start, site_capped: false, acted_site_capped: false, screen: (screen_width, screen_height, screen_hz), sending: None, refused: None, measured: None };
 
     let mut current = stream.plan();
     let mut session = match open_session(&a, &current, false) {
@@ -1690,6 +1829,7 @@ pub fn serve(args: &[String]) -> ExitCode {
     let first = sending_of(&session.as_ref().expect("just opened").info, &current);
     stream.sending = Some(first);
     let mut current_capped = stream.capped;
+    let mut current_site = stream.site_capped;
     let mut current_screen = stream.screen;
 
     // The encryption WebRTC requires comes from Windows itself (str0m's "wincrypto").
@@ -1721,6 +1861,7 @@ pub fn serve(args: &[String]) -> ExitCode {
         sound: Mutex::new(SoundState::default()),
         pretend_tone: std::env::var("DEBASER_PRETEND_TONE").is_ok_and(|value| value == "1"),
         fit: Mutex::new(fit),
+        site: site::Lines::default(),
     });
     if a.allow_control && !a.control_dry_run {
         // If the engine itself fails, whatever a viewer was holding down is let go before it goes.
@@ -1920,9 +2061,10 @@ pub fn serve(args: &[String]) -> ExitCode {
         // What should be sent now, from what was asked and what the PC allows. When that is not what is being
         // sent, the native session is closed and opened again as the new plan says. Its first frame is a full
         // picture in the new size, and the viewers' connections carry on.
-        let (wanted, capped_now, screen_now) = {
+        note_site_cap(&shared);
+        let (wanted, capped_now, site_now, screen_now) = {
             let stream = shared.stream.lock().unwrap();
-            (stream.plan(), stream.capped, stream.screen)
+            (stream.plan(), stream.capped, stream.site_capped, stream.screen)
         };
         if asks != asks_seen {
             refused_plan = None;
@@ -1930,6 +2072,8 @@ pub fn serve(args: &[String]) -> ExitCode {
         if session.is_none() || (wanted != current && refused_plan != Some(wanted)) {
             let why = if capped_now != current_capped {
                 if capped_now { format!("{} is running: the {} cap is on", settings::MATCH_PROCESS, settings::MATCH_CAP_NAME) } else { format!("the {} cap is lifted", settings::MATCH_CAP_NAME) }
+            } else if site_now != current_site {
+                if site_now { format!("a viewer is watching through the site: the {} cap is on", settings::SITE_CAP_NAME) } else { format!("nobody is watching through the site now: the {} cap is lifted", settings::SITE_CAP_NAME) }
             } else if screen_now != current_screen {
                 "the PC's screen changed".to_string()
             } else {
@@ -1971,20 +2115,23 @@ pub fn serve(args: &[String]) -> ExitCode {
             }
             next_due = 0;
         }
-        if asks != asks_seen || capped_now != current_capped {
+        if asks != asks_seen || capped_now != current_capped || site_now != current_site {
             // Whatever was due has now been dealt with, and the settings routes may say so.
             let mut stream = shared.stream.lock().unwrap();
             stream.acted_on = asks;
             stream.acted_capped = capped_now;
+            stream.acted_site_capped = site_now;
         }
         asks_seen = asks;
         current_capped = capped_now;
+        current_site = site_now;
         current_screen = screen_now;
 
         // Nobody watching: nothing is grabbed or encoded, so the graphics card is left alone.
         let watching = {
             let now = Instant::now();
-            shared.viewers.lock().unwrap().iter().filter(|v| v.watching(now)).count()
+            let direct = shared.viewers.lock().unwrap().iter().filter(|v| v.watching(now)).count();
+            direct + shared.site.watching(now)
         };
         if watching == 0 {
             if !idle {
@@ -2270,6 +2417,8 @@ pub fn serve(args: &[String]) -> ExitCode {
             if let Some(v) = viewers.iter_mut().find(|v| v.id == id && v.rtc.is_alive()) {
                 say(v, control::Ended::Stopping.says());
                 pump(v, &shared, Instant::now());
+            } else {
+                shared.site.say(id, &[control::STATE, control::Ended::Stopping.says()]);
             }
         }
     }
@@ -2362,7 +2511,7 @@ mod tests {
             internet: false,
             stun: Mutex::new(crate::stun::Stun::new()),
             port: None,
-            stream: Mutex::new(Stream { asked, asks: 0, acted_on: 0, host_limits, capped: false, acted_capped: false, screen, sending: None, refused: None, measured: None }),
+            stream: Mutex::new(Stream { asked, asks: 0, acted_on: 0, host_limits, capped: false, acted_capped: false, site_capped: false, acted_site_capped: false, screen, sending: None, refused: None, measured: None }),
             control: Mutex::new(Control::new(false, false, region, (screen.0, screen.1))),
             match_running: AtomicBool::new(false),
             pointer: Mutex::new(pointer::News::default()),
@@ -2371,6 +2520,7 @@ mod tests {
             sound: Mutex::new(SoundState::default()),
             pretend_tone: false,
             fit: Mutex::new(Fit::start(false, screen).unwrap()),
+            site: site::Lines::default(),
         }
     }
 
@@ -2545,6 +2695,124 @@ mod tests {
         assert!(args(&["--router-port"]).is_err_and(|why| why.contains("--internet")));
         assert!(args(&["--internet", "--router-port", "--listen", "0.0.0.0", "--token", "abcdefgh"]).is_ok_and(|a| a.router_port && a.internet && a.lan));
         assert!(args(&["--internet", "--listen", "0.0.0.0", "--token", "abcdefgh"]).is_ok_and(|a| !a.router_port));
+    }
+
+    /// One request to the engine's web address, over a real connection on this PC. The asker's end comes back, and
+    /// the thread that is answering it.
+    fn ask_the_engine(engine: &Arc<Shared>, request: &str) -> (TcpStream, thread::JoinHandle<()>) {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).expect("a port on this PC");
+        let address = listener.local_addr().unwrap();
+        let engine = engine.clone();
+        let answering = thread::spawn(move || {
+            let (stream, _) = listener.accept().expect("the request");
+            handle_request(stream, &engine);
+        });
+        let mut asker = TcpStream::connect(address).expect("the engine");
+        asker.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+        asker.write_all(request.as_bytes()).unwrap();
+        (asker, answering)
+    }
+
+    /// The head of the engine's answer: everything up to the blank line.
+    fn head_of(asker: &mut TcpStream) -> String {
+        let mut head = Vec::new();
+        let mut byte = [0u8; 1];
+        while !head.ends_with(b"\r\n\r\n") {
+            asker.read_exact(&mut byte).expect("the answer's head");
+            head.push(byte[0]);
+        }
+        String::from_utf8_lossy(&head).into_owned()
+    }
+
+    /// The next message on a line through the site: what it is, and its contents.
+    fn message_from(asker: &mut TcpStream) -> (u8, Vec<u8>) {
+        let mut length = [0u8; 4];
+        asker.read_exact(&mut length).expect("a message's length");
+        let mut rest = vec![0u8; u32::from_be_bytes(length) as usize];
+        asker.read_exact(&mut rest).expect("the message");
+        (rest[0], rest[1..].to_vec())
+    }
+
+    /// THROUGH THE SITE (site.rs), from the request the site's gateway makes to the line's end: the viewer gets
+    /// the picture on its line, is heard as any viewer is, holds the stream to that way's cap while it is
+    /// connected, and only so many may watch that way. Nothing of the screen or the encoder is touched.
+    #[test]
+    fn a_viewer_through_the_site_is_sent_the_picture_and_heard() {
+        const ASK: &str = "GET /site HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: Upgrade\r\nUpgrade: debaser-site\r\n\r\n";
+        let engine = Arc::new(an_engine_on(Arc::new(Mutex::new(vec![v4(127, 0, 0, 1)]))));
+
+        // Without the Upgrade it is not the gateway asking: refused, and nobody has joined.
+        let (mut stranger, answering) = ask_the_engine(&engine, "GET /site HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n");
+        let refused = head_of(&mut stranger);
+        assert!(refused.starts_with("HTTP/1.1 426 "), "{refused}");
+        answering.join().unwrap();
+        assert_eq!(engine.site.connected(), 0);
+        assert!(!engine.want_keyframe.load(Ordering::SeqCst));
+
+        // The gateway's request: a line, the viewer's number, and a full picture asked of the encoder.
+        let (mut gateway, first_line) = ask_the_engine(&engine, ASK);
+        let head = head_of(&mut gateway);
+        assert!(head.starts_with("HTTP/1.1 101 ") && head.contains("Upgrade: debaser-site\r\n") && head.contains("Debaser-Viewer: 1\r\n"), "{head}");
+        assert!(engine.want_keyframe.load(Ordering::SeqCst));
+        assert_eq!(engine.site.connected(), 1);
+
+        // A full picture goes onto its line, with its place in time.
+        let picture: Arc<[u8]> = Arc::from(&b"a full picture"[..]);
+        assert_eq!(send_frame(&engine, &picture, true, None, 9000, Instant::now()), 1);
+        let (kind, contents) = message_from(&mut gateway);
+        assert_eq!(kind, site::FULL_PICTURE);
+        assert_eq!(&contents[..8], &9000u64.to_be_bytes()[..]);
+        assert_eq!(&contents[8..], &b"a full picture"[..]);
+
+        // While it is connected the stream is held to this way's cap, and the settings say so (and that the
+        // encoding thread has not acted on it yet: no encoding thread runs here).
+        note_site_cap(&engine);
+        assert_eq!(engine.stream.lock().unwrap().limits(), Limits { max_lines: 720, max_fps: 60, max_bitrate_kbps: 3500 });
+        let said = settings_json(&engine, None);
+        assert!(said.contains("\"cap\": \"THROUGH THE SITE\"") && said.contains("\"capWhy\": \"A viewer is watching through debaser.site\""), "{said}");
+        assert!(said.contains("\"throughTheSite\": 1") && said.contains("\"applied\": false"), "{said}");
+
+        // What its page says on "keys" is heard as from any viewer: it asks for the PC's sound, which this engine
+        // is not sending, and is told so.
+        gateway.write_all(&site::message(site::KEYS, &[&[SOUND_ASKED, 1][..]])).unwrap();
+        assert_eq!(message_from(&mut gateway), (site::SAYS, vec![SOUND_SAYS, 2]));
+
+        // "Send a full picture": counted, and asked of the encoder.
+        engine.want_keyframe.store(false, Ordering::SeqCst);
+        gateway.write_all(&site::message(site::FULL_PICTURE_PLEASE, &[])).unwrap();
+        let began = Instant::now();
+        while !engine.want_keyframe.load(Ordering::SeqCst) && began.elapsed() < Duration::from_secs(5) {
+            thread::sleep(Duration::from_millis(5));
+        }
+        assert!(engine.want_keyframe.load(Ordering::SeqCst));
+        assert_eq!(engine.keyframe_requests.load(Ordering::Relaxed), 1);
+
+        // A second viewer this way is let in; a third is refused, in words the gateway passes on.
+        let (mut second, second_line) = ask_the_engine(&engine, ASK);
+        let head = head_of(&mut second);
+        assert!(head.starts_with("HTTP/1.1 101 ") && head.contains("Debaser-Viewer: 2\r\n"), "{head}");
+        let (mut third, answering) = ask_the_engine(&engine, ASK);
+        let refused = head_of(&mut third);
+        assert!(refused.starts_with("HTTP/1.1 503 "), "{refused}");
+        let mut words = String::new();
+        third.read_to_string(&mut words).expect("the refusal's words");
+        assert_eq!(words, "2 viewers are already watching through the site.");
+        answering.join().unwrap();
+        assert_eq!(engine.site.connected(), 2);
+
+        // The gateway closes the first line: that viewer has gone. The cap stays while the second is connected,
+        // and lifts when it has gone too.
+        drop(gateway);
+        first_line.join().unwrap();
+        note_site_cap(&engine);
+        assert_eq!(engine.site.connected(), 1);
+        assert_eq!(engine.stream.lock().unwrap().limits().max_lines, 720);
+        drop(second);
+        second_line.join().unwrap();
+        note_site_cap(&engine);
+        assert_eq!(engine.site.connected(), 0);
+        assert_eq!(engine.stream.lock().unwrap().limits(), Limits { max_lines: 1080, max_fps: 60, max_bitrate_kbps: 20000 });
+        assert!(settings_json(&engine, None).contains("\"cap\": null"));
     }
 
     #[test]

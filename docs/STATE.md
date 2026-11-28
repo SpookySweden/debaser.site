@@ -90,9 +90,9 @@ and shows a short LINING UP line (the one kept player needed no change in a fron
   coordinator gave the go. SERVER's half is on `main`: the owner's pass (`/api/screens/site-way`), the gateway
   carrying real frames, sound and control between a browser and the PC's engine without ever queueing, and the
   20 GB month counted in `G:\DEBASER-HOST\screens-site-usage.json` (no database; a lost file restarts that month's
-  count), proved against a pretend engine. NOT there yet: the PC's half is written but never compiled (branch
-  `claude/remote-anywhere-612f26` only; Rust builds only on the gaming PC, which was in use), the browser's side is
-  not written, the gateway is not kept running and no page asks for it. No real picture has gone through the site.
+  count), proved against a pretend engine. The PC's half is built and tested on the gaming PC (50 of 50 tests,
+  2026-11-28; file SHA256 9E7E38A5...1D96) but NOT installed: the PC still runs B2CE8AF3...; NOT there yet: the
+  browser's side is not written, the gateway is not kept running and no page asks for it. No real picture has gone through the site.
 - REMOTE from any Wi-Fi (REMOTE-ANYWHERE; plan `remote-anywhere-plan.md` in the 69ad notes folder): three ways, tried in
   order: the direct line as today; a port on his router opened by the PC's engine itself (his "Yes, automatically"; the
   Virgin Hub 5 answers and has a public address, seen 2026-11-28); and through the site as the slow fallback (Luke,

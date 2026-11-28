@@ -80,6 +80,12 @@ pub const MATCH_CAP: Limits = Limits { max_lines: 1080, max_fps: 60, max_bitrate
 pub const MATCH_CAP_NAME: &str = "LEAGUE MATCH";
 pub const MATCH_PROCESS: &str = "League of Legends.exe";
 
+/// While a viewer is connected THROUGH THE SITE (site.rs) the stream is held to this, for everyone watching: one
+/// encoder serves every viewer, and that way is slow and has a monthly allowance (SPEC-screens.md; Luke,
+/// 2026-11-28: "Build, capped, 20 GB (Recommended)": 720 lines, about 12 hours a month).
+pub const SITE_CAP: Limits = Limits { max_lines: 720, max_fps: 60, max_bitrate_kbps: 3500 };
+pub const SITE_CAP_NAME: &str = "THROUGH THE SITE";
+
 pub const LINES_CHOICES: [i32; 3] = [720, 1080, 1440];
 pub const FPS_CHOICES: [i32; 4] = [30, 60, 120, 180];
 /// AUTO takes any whole rate a screen may have (144, 165, 240...), but never less than this.
@@ -375,6 +381,12 @@ mod tests {
         assert_eq!((p.width, p.height, p.fps, p.bitrate_kbps), (2580, 1080, 60, 12000));
         let p = plan(&a, &Limits { max_lines: 1440, max_fps: 144, max_bitrate_kbps: 50000 }, 3440, 1440);
         assert_eq!((p.width, p.height, p.fps, p.bitrate_kbps), (3440, 1440, 144, 40000));
+        // THROUGH THE SITE: 720 lines, 60 a second, 3,500 kbit/s, whatever is asked; and both caps at once.
+        let p = plan(&a, &OPEN.within(SITE_CAP), 3440, 1440);
+        assert_eq!((p.width, p.height, p.fps, p.bitrate_kbps), (1720, 720, 60, 3500));
+        assert_eq!(OPEN.within(MATCH_CAP).within(SITE_CAP), SITE_CAP);
+        // 20 GB a month at that rate is about twelve hours.
+        assert_eq!(20_000_000_000u64 * 8 / (SITE_CAP.max_bitrate_kbps as u64 * 1000) / 3600, 12);
     }
 
     #[test]

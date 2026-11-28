@@ -522,3 +522,35 @@ the gaming PC); a viewer away from home (this browser sat on SERVER, so its leg 
 line; an away viewer has theirs instead); a poor line (a websocket resends what is lost instead of skipping it, so a
 bad line will stall where the direct way would only smear); how it feels. Screen to screen through the site is still
 an estimate: 80 to 150 ms, against 12 to 17 at home.
+
+## The way through the site: the engine's half built and tested (2026-11-28, about 15:30Z)
+
+The engine's side (`src/site.rs`, its joins in `serve.rs`, the `THROUGH THE SITE` cap in `settings.rs`) compiled for
+the first time on the gaming PC, in the usual build folder, with no errors and no warnings. Tests (`cargo test`,
+the two that need the real screen left out): **50 passed, 0 failed**, among them all eight in `site.rs`,
+`a_viewer_through_the_site_is_sent_the_picture_and_heard` in `serve.rs` (the gateway's request through to a full
+picture on the line, the cap and its words in the settings, sound asked for and answered, "send a full picture"
+heard, a second viewer let in and a third refused in words) and the cap's lines in `limits_and_the_match_cap_win`.
+
+Broken on purpose, one copy of each file with the breaks in it, the tests fail: 7 tests failed, 43 passed.
+
+| Break | Caught by |
+|---|---|
+| A: a viewer may start from any frame | `a_viewer_starts_from_a_full_picture` (a frame before the first full picture was queued) |
+| B: a line that falls behind queues | `a_line_that_falls_behind_drops_what_waits_and_starts_again_from_a_full_picture` |
+| C: three may watch through the site | `only_so_many_watch_this_way_at_once` |
+| D: sound to those who did not ask | `sound_goes_only_to_those_who_asked_and_never_piles_up` |
+| E: a viewer gone quiet is still sent the picture | `a_viewer_gone_quiet_is_sent_nothing_and_starts_again_when_it_is_back` |
+| F: the cap lets 1080 lines through | `limits_and_the_match_cap_win` and the serve test (1080 where 720 was wanted) |
+| G: "send a full picture" ignored; H: a sound asker told nothing | NOT SHOWN ALONE: they sat in the same copy of `serve.rs` as the cap's break F, which stopped the serve test before it reached them. A round with each alone was tried at 16:53Z and refused itself: League of Legends was running on the PC. |
+
+Release file: **5,108,224 bytes, SHA256 9E7E38A536C0A6CCFC9A32F225BE3BAD605CF90653464BC8F4C6C61B1A0F1D96**, built in
+9 s (the first compile had done the rest), its usage line unchanged from the running engine's. It is NOT installed:
+the PC still runs B2CE8AF3…3ED9; putting it in is a second swap on Luke's own word. The build folder was put back as
+found (only its own untracked `bench/results/encode.json`, at f92dc478).
+
+One idle gateway on SERVER (no viewer, twenty seconds, a spare port): 54 MB held, 23 MB of it its own, 0.16 s of
+processor in total.
+
+Not proved: a real picture through the site (no browser side yet, and the new engine is not running anywhere); G and
+H alone (above); how it behaves on the real PC's encoder with a site line connected.
