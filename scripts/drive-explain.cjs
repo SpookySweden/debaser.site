@@ -435,14 +435,17 @@ async function boxContrast(page) {
   check(said(forwardWords, 'Turns forward one page', 'FINISHED'), 'the page-forward key explains itself', forwardWords ?? 'none');
   const sliderWords = await sayOf(page.locator('label', { has: page.locator('[data-reader-percent]') }));
   check(said(sliderWords, 'how far through the book you are'), 'the progress bar explains itself', sliderWords ?? 'none');
-  // The book itself is one large clickable box: its words must still land inside the screen.
-  const bookWords = await sayOf(page.locator('[role="document"][aria-label="The book"]'));
-  check(said(bookWords, 'The book itself', 'left third'), 'the page of the book explains its edges', bookWords ?? 'none');
-  if (bookWords !== null) {
-    const where = await rect(box(page));
-    check(where.left >= 0 && where.top >= 0 && where.right <= 1440 && where.bottom <= 900, 'and that box stays inside the screen', JSON.stringify({ left: Math.round(where.left), top: Math.round(where.top), right: Math.round(where.right), bottom: Math.round(where.bottom) }));
-  }
+  // The book's own page shows no box (Luke, 2026-11-28: "No box on the page (Recommended)"), so nothing covers the text:
+  // resting on it opens nothing, and moving onto it from a key puts that key's box away.
+  const book = page.locator('[role="document"][aria-label="The book"]');
+  const bookWords = await sayOf(book);
+  check(bookWords === null, 'resting on the page of the book shows no box', bookWords ?? 'none');
   await page.screenshot({ path: join(OUT, 'dark-reader-book.png') });
+  await sayOf(page.locator('button[aria-label="Page forward"]'));
+  await book.hover({ position: { x: 200, y: 200 } });
+  await sleep(900);
+  const afterKey = await boxText(page);
+  check(afterKey === null, "from a key onto the page: the key's box goes and none opens", afterKey ?? 'none');
   await lookKey.click();
   const lookPanel = page.locator('aside[aria-label="LOOK"]');
   const bigger = lookPanel.locator('button[aria-label="text size bigger"]');

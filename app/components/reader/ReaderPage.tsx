@@ -166,6 +166,22 @@ function remember(key: string, value: string): void {
   }
 }
 
+/** Whose place this browser's copy is (an account's id, empty for a visitor), so it is only ever sent to that account. */
+const saverKey = (ref: string) => `debaser-reader-saver:${ref}`;
+
+/**
+ * Your place on the account (it follows you between devices). A tab closed straight after a page turn can be gone before
+ * that save arrives: when this browser kept a newer place for the same person, it is the place, and is sent now.
+ */
+async function accountPlace(person: string, ref: string, kept: BookPlace | null): Promise<BookPlace | null> {
+  const books = getBooksRepository();
+  const held = await books.place(person, ref).catch(() => null);
+  if (!held || !kept || remembered(saverKey(ref)) !== person) return held;
+  if (!(Date.parse(kept.updatedAt) > Date.parse(held.updatedAt))) return held;
+  void books.savePlace(person, ref, kept).catch(() => undefined);
+  return kept;
+}
+
 const PAPER_CLASS: Record<ReaderSettings['paper'], string> = {
   light: 'bg-reader-light-paper text-reader-light-ink',
   dark: 'bg-reader-dark-paper text-reader-dark-ink',
@@ -233,7 +249,7 @@ type Shown = { highlight: BookHighlight; spot: BarSpot };
  * [BOOK]" thread), the LOOK settings, a progress bar to drag, and focus mode, which hides everything but the book.
  *
  * Since Luke's asks of 2026-11-11 it also reads an Internet Archive book: its own EPUB, else its PDF a slice at a time (fixed
- * pages: no highlights there, the engine can't draw them on a PDF), else the Archive's own viewer. And a reader's own PDF or
+ * pages; since 2026-11-13 they take highlights too, painted over the page's words), else the Archive's own viewer. And a reader's own PDF or
  * EPUB (`bookRef` null, at /read): opened in this browser from their device, never sent anywhere. Since
  * SPEC-reading-places.md (2026-11-13) it is known by a fingerprint of its bytes (`own:<SHA-256>`), so its place, the title
  * written inside it and how far you are save like any book's; the bytes themselves still go nowhere.
@@ -263,6 +279,8 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
   const barsOpenRef = useRef(false);
   const turnTimer = useRef<number | null>(null);
   const placeTimer = useRef<number | null>(null);
+  // The save waiting on that timer, so leaving can run it at once (flushPlace).
+  const pendingPlace = useRef<(() => void) | null>(null);
   const meRef = useRef(me);
   // Keeping your place (SPEC-reading-places.md): the ref places are saved under (the book's, or `own:<fingerprint>` for your
   // own file), what was saved when it opened, your pace in it, the title to save, and whether the reader has moved yet (the
@@ -625,6 +643,25 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
       live = false;
     };
   }, [phase, kind, copyRef, highlights, found]);
+
+  // ---------- keeping your place ----------
+
+  /**
+   * Saves the place still waiting on its 1.5 s, at once: when the 1.5 s are up, on leaving the reader (or opening another
+   * book in it), and when the page itself goes (a reload, a closed tab), so the last page turn is never dropped.
+   */
+  const flushPlace = useCallback(() => {
+    if (placeTimer.current !== null) window.clearTimeout(placeTimer.current);
+    placeTimer.current = null;
+    const save = pendingPlace.current;
+    pendingPlace.current = null;
+    save?.();
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('pagehide', flushPlace);
+    return () => window.removeEventListener('pagehide', flushPlace);
+  }, [flushPlace]);
 
   // ---------- opening the book ----------
 
@@ -1048,10 +1085,10 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
             page,
           });
           const ref = placeRefOf.current;
-          // Saved only once the reader has moved from where the book opened, 1.5 s after the last turn.
+          // Saved only once the reader has moved from where the book opened, 1.5 s after the last turn, or at once on leaving.
           if (!cfi || !ref || !opened.current) return;
           if (placeTimer.current !== null) window.clearTimeout(placeTimer.current);
-          placeTimer.current = window.setTimeout(() => {
+          pendingPlace.current = () => {
             const held = heldPlace.current;
             const finishedAt = finishedAfter(fraction, held?.finishedAt ?? null);
             if (finishedAt && !held?.finishedAt && !own && bookRef) {
@@ -1071,8 +1108,10 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
             remember(paceKey(ref), JSON.stringify(pace.current));
             heldPlace.current = { bookRef: ref, ...save, title: save.title || held?.title || '', updatedAt: new Date().toISOString() };
             const person = meRef.current;
+            remember(saverKey(ref), person?.id ?? '');
             if (person) void getBooksRepository().savePlace(person.id, ref, save).catch(() => undefined);
-          }, 1500);
+          };
+          placeTimer.current = window.setTimeout(flushPlace, 1500);
         });
         view.addEventListener('create-overlay', () => drawAll());
         view.addEventListener('draw-annotation', (event) => {
@@ -1126,7 +1165,8 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
         let elsewhere: number | null = null;
         if (ref) {
           const person = meRef.current;
-          const saved = (person ? await getBooksRepository().place(person.id, ref).catch(() => null) : null) ?? placeFromStored(ref, remembered(placeKey(ref)));
+          const kept = placeFromStored(ref, remembered(placeKey(ref)));
+          const saved = (person ? await accountPlace(person.id, ref, kept) : null) ?? kept;
           heldPlace.current = saved;
           pace.current = paceFrom(remembered(paceKey(ref)));
           if (!start && saved?.cfi) {
@@ -1167,7 +1207,8 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
       live = false;
       leaving.abort();
       answerAsk.current = null;
-      if (placeTimer.current !== null) window.clearTimeout(placeTimer.current);
+      // A turn still waiting to be saved is saved now, before the book is closed.
+      flushPlace();
       (view?.book as { destroy?: () => void } | undefined)?.destroy?.();
       view?.close();
       view?.remove();
@@ -1458,6 +1499,8 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
       ) : null}
 
       <div ref={stageRef} className={`relative min-h-0 flex-1 overflow-hidden ${PAPER_CLASS[settings.paper]}`}>
+        {/* No explain words on the page itself (Luke, 2026-11-28: "No box on the page"): a box here sat over the text being
+            read. Named in Temp/check-explain.cjs (NO_BOX). */}
         <div
           ref={hostRef}
           className="absolute inset-0"
@@ -1465,10 +1508,6 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
           role="document"
           onClick={(event) => tapAt(event.clientX)}
           onDoubleClick={cancelTurn}
-          {...explain(
-            'The book itself. A click on the left third of the reading area turns back a page, and one on the right third turns forward; the middle does nothing.',
-            "A double-click chooses a word instead of turning. Drag across words and the highlight bar opens beside them (not on a scan's page pictures). This box stays while the pointer rests on the page: move the pointer off the page to put it away.",
-          )}
         />
 
         {flip && ready ? (

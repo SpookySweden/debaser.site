@@ -50,6 +50,18 @@ const NOT_KEYS = [
   { file: 'app/features/beatbox/ui/BarRow.tsx', has: 'bb-canvas', why: 'the whole bar strip you work on, not one key' },
 ];
 
+/**
+ * Single boxes that must show no explanation, each named with its reason. Each must still be there (found once, by its
+ * `aria-label`) and must carry no words: a gone or re-worded one fails, so this never covers anything else.
+ */
+const NO_BOX = [
+  {
+    file: 'app/components/reader/ReaderPage.tsx',
+    label: 'The book',
+    why: 'Luke, 2026-11-28: "No box on the page (Recommended)": a box on the page of the book sits over the text being read.',
+  },
+];
+
 /** Files whose keys have no words yet. Each area's files come off as that area is done. */
 const STILL_TO_DO = new Set([
   // STILL_TO_DO_START
@@ -194,6 +206,7 @@ function scan() {
   const files = walk(APP, []);
   const missing = new Map();
   const weak = [];
+  const noBox = NO_BOX.map((entry) => ({ ...entry, seen: 0, worded: 0 }));
   let explained = 0;
   const spared = new Set();
   for (const file of files) {
@@ -203,7 +216,11 @@ function scan() {
     const visit = (node) => {
       if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
         const kind = keyKind(node);
-        if (kind !== null) {
+        const silent = noBox.find((entry) => entry.file === rel && attributeText(attribute(node, 'aria-label')) === entry.label);
+        if (silent !== undefined) {
+          silent.seen += 1;
+          if (explanationOf(node).found) silent.worded += 1;
+        } else if (kind !== null) {
           const line = source.getLineAndCharacterOfPosition(node.getStart()).line + 1;
           const { found, words } = explanationOf(node);
           const notKey = found ? undefined : NOT_KEYS.find((entry) => entry.file === rel && node.getText().includes(entry.has));
@@ -228,7 +245,7 @@ function scan() {
   for (const entry of NOT_KEYS) {
     if (!spared.has(entry)) weak.push(`${entry.file}: the exemption for ${entry.has} matches nothing: take it out of NOT_KEYS`);
   }
-  return { files, missing, weak, explained };
+  return { files, missing, weak, explained, noBox };
 }
 
 /** `placeExplainBox`, compiled from the TypeScript as it is. */
@@ -278,7 +295,7 @@ function checkRender() {
   assert.equal(explainOnFrom('yes'), false, 'anything else stored: off');
 }
 
-const { files, missing, weak, explained } = scan();
+const { files, missing, weak, explained, noBox } = scan();
 
 if (process.argv.includes('--list')) {
   for (const [file, rows] of [...missing].sort()) console.log(`${String(rows.length).padStart(4)}  ${file}${STILL_TO_DO.has(file) ? '' : '   <- not on STILL_TO_DO'}`);
@@ -296,6 +313,10 @@ for (const file of STILL_TO_DO) {
   else if (!missing.has(file)) failures.push(`${file} is on STILL_TO_DO but every key in it has words now: take it off the list`);
 }
 failures.push(...weak);
+for (const { file, label, why, seen, worded } of noBox) {
+  if (seen !== 1) failures.push(`${file}: expected one element named "${label}" that shows no box, found ${seen}`);
+  if (worded > 0) failures.push(`${file}: "${label}" carries explain words again. ${why}`);
+}
 
 const waiting = [...STILL_TO_DO].reduce((sum, file) => sum + (missing.get(file)?.length ?? 0), 0);
 if (failures.length > 0) {
