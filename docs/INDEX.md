@@ -151,7 +151,7 @@ Sizes are rough tokens (characters / 4): read the sections you need, not the who
 | `SPEC-command-center.md` | the command center (helper agents, an agent cap, CLAUDE.md split into rules) | 5015 |
 | `SPEC-efficiency.md` | Efficiency pass ("say it once, say it short") | 5005 |
 | `SPEC-self-hosting.md` | hosting DEBASER_OS from Luke's PC (self-hosting) | 8947 |
-| `docs/STATE.md` | State of the site (the one current picture) | 2852 |
+| `docs/STATE.md` | State of the site (the one current picture) | 3157 |
 | `docs/commands.md` | Commands | 1126 |
 | `docs/decisions.md` | Luke's standing decisions | 1982 |
 | `docs/handoff-archive.md` | Older handoff notes, newest first | 22842 |
@@ -162,7 +162,7 @@ Sizes are rough tokens (characters / 4): read the sections you need, not the who
 
 | File | What | ≈ tokens |
 |---|---|---|
-| `SPEC-player-tv.md` | a little TV in the player bar, and the character who watches it (Luke, 2026-11-28) | 2186 |
+| `SPEC-player-tv.md` | a little TV in the player bar, and the character who watches it (Luke, 2026-11-28) | 2215 |
 | `docs/how-this-works.md` | How the Claude sessions get their instructions (for Luke, 2026-11-27) | 1465 |
 | `docs/theming.md` | Theming: how the look is changed | 2256 |
 
