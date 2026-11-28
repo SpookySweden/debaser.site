@@ -862,6 +862,28 @@ async function main() {
     ok(!/8478|127\.0\.0\.1|localhost/.test(text), `${client} never names the engine's own address: the browser only ever asks the site`);
   }
 
+  /* ---------------------------------------------------------------- the way THROUGH THE SITE: only its gate, and hidden */
+  {
+    const siteWay = require(path.join(ROOT, 'scripts/host/screens-site-gateway.cjs'));
+    same([siteWay.originIsOurs('https://debaser.site'), siteWay.originIsOurs('http://127.0.0.1:3391'), siteWay.originIsOurs('http://localhost:3000')], [true, true, true], 'the site-way gateway takes a browser on the site\'s own page, or on this PC');
+    same([siteWay.originIsOurs('https://debaser.site.example.com'), siteWay.originIsOurs('https://example.com'), siteWay.originIsOurs('http://debaser.site'), siteWay.originIsOurs('null'), siteWay.originIsOurs('http://127.0.0.1.example.com')], [false, false, false, false, false], 'and no other page, however like the site\'s its name is');
+    const words = 'a'.repeat(32);
+    same([siteWay.wordsMatch(words, words), siteWay.wordsMatch(`${words}b`, words), siteWay.wordsMatch(undefined, words), siteWay.wordsMatch('', ''), siteWay.wordsMatch('short', 'short'), siteWay.wordsMatch(words, undefined)], [true, false, false, false, false, false], 'the one-time words must be said whole, and words too short to be a secret open nothing');
+    const frame = siteWay.madeUpFrame(siteWay.KIND.frame, 77, 1234.5);
+    const full = siteWay.madeUpFrame(siteWay.KIND.fullPicture, 78, 1250.25);
+    same([frame.length, frame[0], frame.readUInt32BE(1), frame.readDoubleBE(5), full.length, full[0], full.readUInt32BE(1), full.readDoubleBE(5)], [siteWay.FRAME_BYTES, 1, 77, 1234.5, siteWay.FULL_PICTURE_BYTES, 2, 78, 1250.25], 'a made-up frame carries its number and the moment it left, at the size of a real one');
+    same(siteWay.FRAME_BYTES * 60 * 8, 3_500_160, 'sixty of them a second are the cap: 3.5 Mbit/s');
+    const started = require('node:child_process').spawnSync(process.execPath, [path.join(ROOT, 'scripts/host/screens-site-gateway.cjs')], { encoding: 'utf8', timeout: 20000, env: { ...process.env, SITE_WAY_GATE_PASS: '' } });
+    same([started.status, /Only the gate/.test(started.stdout)], [2, true], 'started without --gate, the gateway stops at once: nothing but the measurement is built');
+    const wordless = require('node:child_process').spawnSync(process.execPath, [path.join(ROOT, 'scripts/host/screens-site-gateway.cjs'), '--gate'], { encoding: 'utf8', timeout: 20000, env: { ...process.env, SITE_WAY_GATE_PASS: 'too-short' } });
+    same(wordless.status, 2, 'and the gate does not start without that run\'s own words');
+    const config = fs.readFileSync(path.join(ROOT, 'next.config.ts'), 'utf8');
+    ok(config.includes(`{ source: '${siteWay.PATH}', destination: 'http://127.0.0.1:${siteWay.PORT}${siteWay.PATH}' }`), 'the site passes the socket\'s one address to the gateway\'s own port on this PC, and nothing else');
+    same((config.match(/destination: 'http:\/\/127\.0\.0\.1/g) || []).length, 1, 'that is the only address the site passes along to this PC');
+    // Luke, 2026-11-28: "Wait until sound works too". Until picture, control and sound all work, no page may ask for it.
+    same(files.filter(({ text }) => /site-socket/.test(text)).map(({ file }) => file), [], 'HIDDEN: nothing in the site asks for the way through the site yet');
+  }
+
   console.log(`ok: ${passed} assertions (SCREENS: owner only, this PC only, the dev switch dead in production, the settings sums, CONTROL's bytes, sound, the controller, the PC's pointer, the first key listener)`);
   process.exitCode = 0;
 }

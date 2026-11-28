@@ -232,13 +232,43 @@ at an address the laptop is not really using, and the home router throws away th
    - Code: `engine/src/portmap.rs` (written by hand on the standard library, no new package), hooked into
      `engine/src/serve.rs`; the site's words in `app/lib/screens/net-route.ts` and `wishes.ts`.
 3. **Through the site** ("okay but make sure it doesnt cost and look into it"; "Wait until sound works too"). NOT
-   BUILT. Looked into (2026-11-28): Cloudflare has no way to bill a free account that has no paid add-on, but its
-   rule against serving video through the free service does cover the tunnel debaser.site uses; the consequence it
-   names is limiting the traffic and an email, at worst ending the free service. Told that, Luke chose (2026-11-28,
-   as `docs/STATE.md` records his answers): **"Build, capped, 20 GB (Recommended)"**, and to what his Cloudflare
-   billing page lists: **"Only the domain"** (so there is nothing on the account a bill could come from). When built
-   it will say `OVER THE INTERNET (THROUGH THE SITE)`, be used only when both direct ways fail, for the owner only,
-   capped near 720p with a 20 GB monthly allowance, and show nothing until picture, control and sound all work.
+   BUILT: only its gate, a measurement (below). Looked into (2026-11-28): Cloudflare has no way to bill a free
+   account that has no paid add-on, but its rule against serving video through the free service does cover the
+   tunnel debaser.site uses; the consequence it names is limiting the traffic and an email, at worst ending the free
+   service. Luke's two answers, 2026-11-28, word for word:
+   - To "REMOTE through debaser.site (the slow fallback for networks that block everything but web pages): the
+     session looked into it. It can't bill you on the free plan, but Cloudflare's rule against video on the free
+     plan DOES cover the tunnel. What they say they do is limit that traffic and email you; at the far end they can
+     stop serving a free account, which would take debaser.site down until fixed. Your films on media.debaser.site
+     already go the same way, at many times the volume. Build it?": **"Build, capped, 20 GB (Recommended)"**. As he
+     read that choice: "On a blocked network the PC's screen still comes up through the site, at 720 lines, slower
+     (estimated 80 to 150 ms against 12 to 17 at home), with a line saying how much of the month's 20 GB (about 12
+     hours) is left; used up, it says so until next month. Why: small beside the films, with a hard stop on a
+     mistake. Four more pushes of work." He passed over "Build, capped, no limit", "After the hotspot try" and
+     "Don't build it".
+   - To "So "it can't cost" is checked and not assumed: in your Cloudflare dashboard (Manage Account, Billing,
+     Subscriptions), is anything listed besides the domain? A paid add-on already switched on is the only way found
+     for the site way to cost anything, and no session may log in to your account.": **"Only the domain"** (as he
+     read it: "You're sure nothing else is listed. The session builds on that."). So there is nothing on the account
+     a bill could come from.
+
+   When built it will say `OVER THE INTERNET (THROUGH THE SITE)`, be used only when both direct ways fail, for the
+   owner only, capped at 720 lines and 3.5 Mbit/s with a 20 GB monthly allowance, and show nothing until picture,
+   control and sound all work.
+
+   **Its path, and why no tunnel rule is needed.** The browser opens one websocket (a kept-open two-way line) at
+   `debaser.site/api/screens/site-socket`. The site's own program on SERVER only passes it along (one `rewrites()`
+   line in `next.config.ts`) to a gateway on the same PC, `scripts/host/screens-site-gateway.cjs`, on 127.0.0.1:8481.
+   The tunnel already carries the site's address, so nothing is added to it.
+
+   **The gate (2026-11-28): measure before building.** The gateway so far has one mode, `--gate`: it sends MADE-UP
+   frames (random bytes at the real size and pace: 60 a second, 3.5 Mbit/s, each stamped with the moment it left) to
+   a viewer that says how late each one came. `engine/bench/site-way-gate.cjs` starts it, watches the stream down
+   several paths at once (straight from the gateway, through the site's program only, and through Cloudflare and the
+   tunnel from a hidden browser), runs something heavy part-way through, and stops it again. It first checks the
+   door: a stranger with the wrong words or none gets a closed line and not one frame (broken on purpose, the check
+   fails: 360 frames reached the stranger). The gate carries no picture, sound or control, and the gateway is not on
+   SERVER's kept-running list. The rest is written only if the numbers are good (`engine/BENCH.md`).
 
 **What is and is not proved.** The engine's tests play the router with the Virgin Hub 5's own recorded answers, and
 the Hub itself was asked read-only questions from SERVER (it offers the service and has a public address). Built and
