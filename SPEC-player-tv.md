@@ -28,6 +28,9 @@ sits on the left inside the black sapce of the player bar."
 - **The character: half size.** Luke, 2026-11-28, to "... How should it sit to watch?": "Half size (Recommended)": it
   climbs down over the front of the bar, shrinks to one block per pixel, and sits inside the black beside the TV. The bar's
   words and keys stay clear.
+- **The look: yes.** Luke, 2026-11-28, after four screenshots from a local copy, to "Does the little TV look right to push
+  live?": "Yes, push it", as pictured: the sound graph's strip runs on under the TV and the character, and the title beside
+  the TV has less room and scrolls.
 
 ## What Luke sees
 1. A video starts (from MEDIA, your room, or a stream room's screen). A small TV appears at the right end of the player

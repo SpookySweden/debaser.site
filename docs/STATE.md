@@ -75,12 +75,6 @@ and shows a short LINING UP line (the one kept player needed no change in a fron
   everybody), MEDIA, SEARCH THIS, WATCHERS and ERASE on a page OWN EYE shows (decision 65), the bookmarks-bar key; then the Firefox
   trial.
 - The shelf: BROWSER and REMOTE are marked WIP (f648c04).
-- PLAYER-TV (Luke, 2026-11-28: "a small voxel tv at a 2.5d angle ... small enough to fit inside of the player bar ... the
-  character will also crawl down and sit to watch the tv"): a session is writing `SPEC-player-tv.md`; nothing built
-  (`player-tv-brief.md`, `player-tv-handover.md` in the 69ad notes folder). His answers, 2026-11-28: who makes the TV, "use
-  voxels same as with the backrounds" and then "Yes, code builds it" (a new art-rule exception, this TV only, to be written
-  into `.claude/rules/art.md` with the SPEC); YouTube, "Stills (Recommended)"; his server films through a change to the
-  bridge on SERVER, "Not now" (they get a dark screen); the character, "Half size (Recommended)".
 - REMOTE through the site, the third way: HIDDEN, half built (2026-11-28). Its GATE came first (b52c814): a
   measurement with made-up frames (`scripts/host/screens-site-gateway.cjs --gate`, started and stopped by
   `engine/bench/site-way-gate.cjs`; one line in `next.config.ts` passes `debaser.site/api/screens/site-socket` to
@@ -149,6 +143,11 @@ and shows a short LINING UP line (the one kept player needed no change in a fron
   and, if he wants it, one press on `[ ALLOW EVERY SITE ]` (the browser's own box is his first real press: not driven); Firefox
   signing (his Mozilla account), if the trial says go. Decided 2026-11-27: the server's eye stays his alone ("Only me (Recommended)", decision 62), the
   icon is the yellow square, no Chrome Web Store for now (decision 63).
+- PLAYER-TV, done and live 2026-11-28 (SPEC-player-tv.md; he said "Yes, push it" to local screenshots; not yet seen by
+  him on the live site): while a video plays, a small voxel TV sits at the right of the player bar's black and the
+  character crawls down to watch it at half size. A file of the site's own plays on the screen; YouTube shows stills;
+  Vimeo, Twitch and his server films a dark screen ("Not now" to the bridge change that would show them). Proved on a
+  local mock server only; the floating player's TV was not driven.
 - Google sign-in check on debaser.site from his own browser.
 - The gaming PC's security (Defender off, dead startup entries, old encrypted files in `C:\tmp`): his to change.
 - Test leftovers on TEST ACCOUNT A/B (ROOMCHAT lines, CANVAS rooms): a delete, waits for his OK. POPOUT on hold.
