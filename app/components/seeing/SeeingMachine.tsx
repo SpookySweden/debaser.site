@@ -39,7 +39,7 @@ import { keptPage, keptPages, keptPagesOnServer, openKeptPagesOf, subscribeToKep
 import { partOf, type FrameScroll } from '../../lib/seeing/frame';
 import { engineFor } from '../../lib/seeing/engines';
 import { extensionState, extensionStateOnServer, lookForExtension, subscribeToExtension } from '../../lib/seeing/extension-store';
-import { holdOwnEye, openInOwnEye, openOwnEyeSites, ownEyeHas, tellOwnEyeTheme, type OwnEyeHold } from '../../lib/seeing/own-eye';
+import { holdOwnEye, openInOwnEye, openOwnEyeSites, ownEyeErase, ownEyeHas, ownEyeKeep, ownEyeMedia, ownEyeSelection, ownEyeWatchers, ownEyeWords, tellOwnEyeTheme, type OwnEyeHold } from '../../lib/seeing/own-eye';
 import { chooseEye, dontAskAgain, eyeChoice, eyeChoiceOnServer, notAskedAgain, notAskedAgainOnServer, offerFor, subscribeToEyeChoice } from '../../lib/seeing/eye-choice';
 import { openExtensionWindow } from '../../lib/ui/extension-window';
 import { scriptsOff, setScriptsOff, siteSettings, siteSettingsOnServer, subscribeToSiteSettings } from '../../lib/seeing/site-settings';
@@ -54,7 +54,7 @@ import SeeingElapsed from './SeeingElapsed';
 import SeeingRefused from './SeeingRefused';
 import { seeingKey, type SeeingKey } from '../../lib/seeing/keys';
 import { shownLine } from '../../lib/seeing/status-line';
-import SeeingOwnFrame, { boxAddress, framedAddress, watchPageOf } from './SeeingOwnFrame';
+import SeeingOwnFrame, { boxAddress, framedAddress, SeeingOwnWatchers, watchPageOf } from './SeeingOwnFrame';
 import SeeingShell from './SeeingShell';
 import SeeingGetSignedIn from './SeeingGetSignedIn';
 import SeeingFirstVisit from './SeeingFirstVisit';
@@ -64,7 +64,7 @@ import SeeingSignIn from './SeeingSignIn';
 import SeeingKeep from './SeeingKeep';
 import SeeingKept from './SeeingKept';
 import SeeingOwnWeb from './SeeingOwnWeb';
-import { isOwnWeb, keepInOwnWeb } from '../../lib/seeing/own-web';
+import { isOwnWeb, keepFromOwnEye, keepInOwnWeb } from '../../lib/seeing/own-web';
 import SeeingLenses from './SeeingLenses';
 import SeeingMargins from './SeeingMargins';
 import SeeingStage, { type Loupe } from './SeeingStage';
@@ -127,6 +127,9 @@ export default function SeeingMachine() {
     </div>
   );
 }
+
+/** How long after a page OWN EYE shows got there its words are asked for: time for it to draw them. */
+const OWN_KEEP_AFTER_MS = 2500;
 
 function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: string } }) {
   const tab = frontTab(state);
@@ -572,7 +575,8 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
   const holdRef = useRef<OwnEyeHold | null>(null);
   useEffect(() => {
     if (!(ownAsked && extension === 'current')) return;
-    const hold = holdOwnEye((href, title) => setFramedAt({ key, href, title }));
+    // (ERASE's press on the framed page comes back the same way: BROWSER keeps the list, as for a page from the house.)
+    const hold = holdOwnEye((href, title) => setFramedAt({ key, href, title }), erase);
     holdRef.current = hold;
     return () => {
       holdRef.current = null;
@@ -598,6 +602,76 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
     // A link followed inside the frame was come to from the page the tab asked for.
     noteSeen({ address: at, title: ownSeen.title || at, at: Date.now(), from: at === address ? ownCameFrom : address, own: true, told: true });
   }, [ownSeen, address, ownCameFrom]);
+  // OWN WEB keeps the pages OWN EYE shows here (Luke, 2026-11-27: "Keep every page"), while the switch in the extension is on: it is the
+  // extension's, off for everybody until two presses on its own SITES page, and this page can only read it and switch it off.
+  const [ownKeep, setOwnKeep] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!(ownAsked && extension === 'current')) return;
+    let gone = false;
+    const askIt = () =>
+      void ownEyeKeep().then((on) => {
+        if (!gone) setOwnKeep(on);
+      });
+    askIt();
+    // Switched on in the extension's own tab: asked again on coming back.
+    window.addEventListener('focus', askIt);
+    return () => {
+      gone = true;
+      window.removeEventListener('focus', askIt);
+    };
+  }, [ownAsked, extension]);
+  // The words a reader can see on it, asked of the extension a moment after the page got there (so it has drawn them), and kept on this
+  // person's own account, private. YouTube's own player has no words to keep. Whether this page was kept is said above it.
+  const [ownKept, setOwnKept] = useState<{ href: string; kept: boolean } | null>(null);
+  useEffect(() => {
+    if (ownSeen === null || ownKeep !== true || boxAddress(ownSeen.href) !== ownSeen.href) return;
+    const href = ownSeen.href;
+    let gone = false;
+    const soon = window.setTimeout(() => {
+      void ownEyeWords(href).then(async (read) => {
+        const kept = read === null ? 'refused' : await keepFromOwnEye(read, { id: ownerId, label: ownerLabel });
+        if (gone) return;
+        setOwnKept({ href, kept: kept !== 'refused' });
+        // No words came: the switch may have been turned off in the extension since.
+        if (read === null) void ownEyeKeep().then((on) => (gone ? undefined : setOwnKeep(on)));
+      });
+    }, OWN_KEEP_AFTER_MS);
+    return () => {
+      gone = true;
+      window.clearTimeout(soon);
+    };
+  }, [ownSeen, ownKeep, ownerId, ownerLabel]);
+  // MEDIA, WATCHERS, SEARCH THIS and ERASE on a page OWN EYE shows (Luke, 2026-11-28: "MEDIA,SEARCH THIS,WATCHERS,ERASE"): the house has no
+  // copy of it, so the extension does each on that one frame, when its key is pressed or its lens is in front.
+  const ownHref = ownSeen?.href ?? null;
+  const [ownMedia, setOwnMedia] = useState<{ at: string; media: readonly FoundMedia[] } | null>(null);
+  useEffect(() => {
+    if (ownHref === null || !trayOpen) return;
+    let gone = false;
+    void ownEyeMedia().then((found) => {
+      if (!gone && found !== null) setOwnMedia({ at: ownHref, media: found.map((each) => ({ address: each.address, title: each.title, from: 'link', seconds: null })) });
+    });
+    return () => {
+      gone = true;
+    };
+  }, [ownHref, trayOpen]);
+  const ownTray = useMemo(() => (ownHref !== null && ownMedia !== null && ownMedia.at === ownHref ? trayOf([...sent, ...ownMedia.media]) : tray), [ownHref, ownMedia, sent, tray]);
+  const ownWatching = now.state === 'elsewhere' && tab.lens === 'watchers';
+  const [ownWatchers, setOwnWatchers] = useState<{ at: string; hosts: { host: string; count: number }[] | null } | null>(null);
+  useEffect(() => {
+    if (ownHref === null || !ownWatching) return;
+    let gone = false;
+    void ownEyeWatchers().then((hosts) => {
+      if (!gone) setOwnWatchers({ at: ownHref, hosts });
+    });
+    return () => {
+      gone = true;
+    };
+  }, [ownHref, ownWatching]);
+  const ownErased = erasedOn(ownHref);
+  useEffect(() => {
+    if (ownHref !== null) void ownEyeErase(erasing, ownErased);
+  }, [ownHref, erasing, ownErased]);
   // A video clicked inside a page OWN EYE shows moves that frame to YouTube's watch page, which is white in a frame (Luke, 2026-11-27:
   // "shorts will play but clicking a video will return a white page"). Once the extension says the frame got there, the video becomes this
   // tab's next stop, so YouTube's own player takes over and BACK returns. Heard only when youtube.com is on the extension's list.
@@ -616,6 +690,8 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
   useEffect(() => {
     if (ownLens === null) return;
     const worn = holdRef.current?.lens(ownLens) ?? 'unheard';
+    // (WATCHERS is listed beside the page by the extension, the page left plain.)
+    if (worn === 'house' && ownLens === 'watchers') return;
     if (worn === 'house') setNotice('THIS LENS IS THE HOUSE\'S ONLY: FROM THE HOUSE SHOWS IT');
     else if (worn === 'unheard' && ownLens !== 'standard') setNotice('THE EXTENSION DID NOT ANSWER: PICK THE LENS AGAIN, OR RELOAD THE PAGE');
     // Never a silent nothing (the morning's gap G5): the extension may put a lens only on a site that was added (YouTube's player
@@ -664,7 +740,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
                   setWebOpen(!webOpen);
                   setKeptOpen(false);
                   setHistoryOpen(false);
-                }} className={PLATE} {...explain('Every page you opened from the house, kept whole on your account for you alone: found by words or site, deleted by page, site or all.', 'A page still opens here after the site changes it or takes it down.')}>
+                }} className={PLATE} {...explain('Every page you opened from the house, kept whole on your account for you alone, and the words of pages OWN EYE showed while you had that switched on in the extension: found by words or site, deleted by page, site or all.', 'A page still opens here after the site changes it or takes it down.')}>
                 [ OWN WEB {ownWebCount} ]
               </button>
             ) : null}
@@ -721,11 +797,12 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
       <SeeingTools
         address={address}
         ready={seen !== null}
+        eraseReady={seen !== null || ownHref !== null}
         refused={now.state === 'refused'}
         seam={seam}
         loupe={loupe}
         erasing={erasing}
-        erased={erased.length}
+        erased={(now.state === 'elsewhere' ? ownErased : erased).length}
         good={address !== null && memory.good.some((each) => each.address === address)}
         onSeam={(next) => {
           setSeam(next);
@@ -742,7 +819,9 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
           uncover();
         }}
         onBringBack={() => {
-          if (address !== null) bringBack(address);
+          // On a page OWN EYE shows, the list is the one of the site that page is on now.
+          const at = now.state === 'elsewhere' ? ownHref : address;
+          if (at !== null) bringBack(at);
         }}
         onScan={() => go(SCAN_ADDRESS)}
         onGood={(good) => {
@@ -764,8 +843,8 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
           </>
         ) : null}
         {(address !== null && now.state !== 'refused') || sent.length > 0 ? (
-          <button type="button" aria-expanded={trayOpen} disabled={seen === null && sent.length === 0} onClick={() => setTrayOpen(!trayOpen)} className={PLATE} {...explain('Opens the MEDIA tray beside the page: the videos and sounds this page plays, each with keys to play it in your room; press again to close it.', 'Video and sound never come through the house: the tray hands them to the Room. The number is how many there are.')}>
-          [ MEDIA {tray.length} ]
+          <button type="button" aria-expanded={trayOpen} disabled={seen === null && sent.length === 0 && ownHref === null} onClick={() => setTrayOpen(!trayOpen)} className={PLATE} {...explain('Opens the MEDIA tray beside the page: the videos and sounds this page plays, each with keys to play it in your room; press again to close it.', 'Video and sound never come through the house: the tray hands them to the Room. The number is how many there are.')}>
+          [ MEDIA {ownTray.length} ]
         </button>
         ) : null}
         {outside && seen !== null && (seen.feeds ?? []).length > 0 ? (
@@ -776,6 +855,26 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
         ) : null}
         {working ? (
           <button type="button" disabled={pickedWords === ''} title="Words selected on the page, to the engine in front, in a new tab" onClick={() => ask(engineChosen(choices), pickedWords, true)} {...explain('Searches for the words you selected on the page, with the engine in front, in a new BROWSER tab.', 'Select words on the page first; this page stays where it is.')} className={PLATE}>
+            [ SEARCH THIS ]
+          </button>
+        ) : null}
+        {now.state === 'elsewhere' ? (
+          // On a page OWN EYE shows, the extension says which words are selected, when the key is pressed (never ones inside a box).
+          <button
+            type="button"
+            disabled={ownHref === null}
+            title="Words selected on the page, to the engine in front, in a new tab"
+            onClick={() =>
+              void ownEyeSelection().then((text) => {
+                const words = cleanWords(text ?? '');
+                if (words !== '') ask(engineChosen(choices), words, true);
+                else setNotice(text === null ? 'THE EXTENSION DID NOT ANSWER: PRESS SEARCH THIS AGAIN, OR RELOAD THE PAGE' : 'SELECT WORDS ON THE PAGE FIRST, THEN PRESS SEARCH THIS');
+              })
+            }
+            className={PLATE}
+            data-seeing-own-search
+            {...explain('Searches for the words you selected on the page, with the engine in front, in a new BROWSER tab.', 'Select words on the page first, then press this; the page stays where it is. The extension reads the selection from your own browser when you press, never words inside a box you type in.')}
+          >
             [ SEARCH THIS ]
           </button>
         ) : null}
@@ -894,8 +993,8 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
       {now.state === 'elsewhere' ? (
         // Why most of the tools are put away or greyed on a page OWN EYE shows (the morning's gap G5): said, not left to be guessed.
         <p className="py-1 text-label text-ink-quiet" data-seeing-own-tools>
-          THIS PAGE IS FROM YOUR OWN BROWSER, SO ONLY THE LENSES REACH IT (ON A SITE YOU ADDED). THE OTHER TOOLS ON THIS ROW (NOTES, GRAFFITI, SEARCH THIS, SCRIPTS OFF, SHOW MY ROOM,
-          SEAM, LOUPE, ERASE, MEDIA, SONIFY) NEED THE HOUSE&apos;S COPY OF A PAGE: [ FROM THE HOUSE ] SHOWS THIS PAGE THAT WAY, SIGNED OUT.
+          THIS PAGE IS FROM YOUR OWN BROWSER: THE LENSES, MEDIA, WATCHERS, SEARCH THIS AND ERASE REACH IT THROUGH THE EXTENSION (ON A SITE IT MAY SHOW). THE OTHER TOOLS ON THIS ROW (NOTES,
+          GRAFFITI, SCRIPTS OFF, SHOW MY ROOM, SEAM, LOUPE, SONIFY) NEED THE HOUSE&apos;S COPY OF A PAGE: [ FROM THE HOUSE ] SHOWS THIS PAGE THAT WAY, SIGNED OUT.
         </p>
       ) : null}
       <SeeingFirstVisit owner={owner.id} />
@@ -976,6 +1075,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
         ) : address === null ? (
           <SeeingStart good={memory.good} ownEye={extension === 'current'} onGo={go} />
         ) : now.state === 'elsewhere' ? (
+          <>
           <SeeingOwnFrame
             key={key}
             address={dialOf(address).address}
@@ -988,7 +1088,13 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
             onHouse={() => setHere([...here, key])}
             onAdd={() => void openInOwnEye(dialOf(address).address, 'machine')}
             onEvery={() => void openOwnEyeSites()}
+            keeping={ownKeep}
+            kept={ownSeen !== null && ownKept !== null && ownKept.href === ownSeen.href ? ownKept.kept : null}
+            onKeep={() => void openOwnEyeSites()}
+            onStopKeeping={() => void ownEyeKeep(true).then(setOwnKeep)}
           />
+          {ownWatching ? <SeeingOwnWatchers said={ownHref !== null} hosts={ownHref !== null && ownWatchers !== null && ownWatchers.at === ownHref ? ownWatchers.hosts : undefined} /> : null}
+          </>
         ) : now.state === 'shell' && shell !== null ? (
           <SeeingShell site={shell} extension={extension} onOwn={showOwn} onTab={() => void openInOwnEye(dialOf(address).address)} onGet={openExtensionWindow} onAnyway={() => setHere([...here, key])} />
         ) : now.state === 'refused' ? (
@@ -1012,7 +1118,7 @@ function Machine({ state, owner }: { state: Tabs; owner: { id: string; label: st
         ) : null}
         {keeping && outside && seen !== null ? <SeeingKeep key={`keep ${key}`} address={address} owner={owner} selected={selected.key === key ? selected.text : ''} onOpen={go} onClose={() => setKeeping(false)} /> : null}
         {/* (The start, the refusal and the busy view each fill what the tray leaves, so it needs no spacer.) */}
-        {trayOpen && (seen !== null || sent.length > 0) ? <SeeingTray items={tray} /> : null}
+        {trayOpen && (seen !== null || sent.length > 0 || ownHref !== null) ? <SeeingTray items={ownTray} /> : null}
       </div>
 
       <p role="status" className={`my-1 max-w-full truncate tabular-nums ${fault ? FAULT : 'text-label text-ink'}`} data-seeing-status>

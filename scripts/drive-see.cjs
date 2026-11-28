@@ -1232,8 +1232,19 @@ async function ownEyeFirst(browser) {
         },
         sendMessage: (id, message, answer) => {
           const it = kept();
-          window.toldIt = [...(window.toldIt ?? []), [message.see, message.address ?? null, message.in ?? null]];
+          window.toldIt = [...(window.toldIt ?? []), [message.see, message.address ?? message.tool ?? (message.off === true ? 'off' : null), message.in ?? null]];
           if (it.version === null) return setTimeout(() => answer(undefined), 5);
+          // 0.8.2: OWN WEB's switch is the extension's (read, or switched OFF from here; never on), a page's words only while it is on, and
+          // four tools done by the extension on the page OWN EYE shows.
+          if (message.see === 'keep') {
+            if (message.off === true) sessionStorage.setItem('pretend', JSON.stringify({ ...it, keep: false }));
+            return setTimeout(() => answer({ see: 'keep', on: message.off === true ? false : it.keep === true }), 5);
+          }
+          if (message.see === 'words') return setTimeout(() => answer(it.keep === true && it.words ? { see: 'words', words: { ...it.words, href: message.address } } : { see: 'words', why: 'off' }), 5);
+          if (message.see === 'tool') {
+            window.toolsAsked = [...(window.toolsAsked ?? []), [message.tool, message.on ?? null, (message.erased ?? []).join(' ')]];
+            return setTimeout(() => answer({ see: 'tool', tool: message.tool, found: (it.tools ?? {})[message.tool] ?? null }), 5);
+          }
           if (message.see === 'ping') return setTimeout(() => answer({ see: 'pong', version: it.version }), 5);
           if (message.see === 'has') {
             const host = new URL(message.address).hostname.replace(/^www\./, '');
@@ -1293,10 +1304,14 @@ async function ownEyeFirst(browser) {
     await page.locator('[data-seeing-lenses]').getByRole('button', { name: '[ READER ]' }).click();
     await page.waitForTimeout(300);
     ok((await page.evaluate(() => window.lensesAsked ?? [])).includes('reader'), "a lens pressed is asked of the extension, to wear on the page framed here: it stays the site's own, signed in");
-    await page.locator('[data-seeing-lenses]').getByRole('button', { name: '[ WATCHERS ]' }).click();
+    await page.locator('[data-seeing-lenses]').getByRole('button', { name: '[ GLASS ]' }).click();
     await page.waitForTimeout(300);
     ok(/THE HOUSE'S ONLY/.test(await page.locator('[data-seeing-status]').innerText()), 'and one only the house has says so');
     ok((await page.evaluate(() => window.lensesAsked ?? [])).at(-1) === 'standard', 'and the framed page goes back to plain, not left in the lens before (the review, 2026-11-27)');
+    // WATCHERS is the extension's on a page OWN EYE shows (0.8.2): until the extension says the page is there, the panel says it is waiting.
+    await page.locator('[data-seeing-lenses]').getByRole('button', { name: '[ WATCHERS ]' }).click();
+    await page.waitForTimeout(300);
+    ok(/WAITING FOR THE EXTENSION TO SAY THIS PAGE IS THERE/.test(await page.locator('[data-seeing-own-watchers]').innerText()) && (await page.evaluate(() => (window.toolsAsked ?? []).length)) === 0, 'WATCHERS on a page the extension has said nothing of waits, says why, and asks nothing');
     await page.locator('[data-seeing-lenses]').getByRole('button', { name: '[ READER ]' }).click();
     await page.waitForTimeout(300);
     // The extension's worker restarts: BROWSER holds itself open again, and asks again for the lens that was on.
@@ -1418,7 +1433,7 @@ async function ownEyeFirst(browser) {
     await ownKey.click();
     ok((await framed()) === `${SITE}/a` && (await tabs()) === before2, "the key named OWN EYE, in the server's eye: the page is shown here, inside BROWSER, and no tab of the browser is opened");
     ok((await pressedKey()) === 'true false' && (await chosen()) === 'own' && /OWN EYE: YOUR OWN BROWSER/.test(await page.locator('[data-seeing-status]').innerText()), 'the status line says OWN EYE, its key is now the pressed one, and the choice is remembered for the pages opened next');
-    ok(/ONLY THE LENSES REACH IT/.test(await page.locator('[data-seeing-own-tools]').innerText()) && /\[ FROM THE HOUSE \] SHOWS THIS PAGE THAT WAY/.test(await page.locator('[data-seeing-own-tools]').innerText()), "a page OWN EYE shows says which tools need the house's copy, and the key that shows it that way");
+    ok(/THE LENSES, MEDIA, WATCHERS, SEARCH THIS AND ERASE REACH IT THROUGH THE EXTENSION/.test(await page.locator('[data-seeing-own-tools]').innerText()) &&/\[ FROM THE HOUSE \] SHOWS THIS PAGE THAT WAY/.test(await page.locator('[data-seeing-own-tools]').innerText()), "a page OWN EYE shows says which tools need the house's copy, and the key that shows it that way");
     await page.getByRole('button', { name: '[ FROM THE HOUSE ]' }).click();
     await say(page, 'SERVER EYE');
     ok((await page.locator('[data-seeing-own]').count()) === 0 && (await page.locator('[data-seeing-own-tools]').count()) === 0 && (await pressedKey()) === 'false true' && (await chosen()) === 'own', 'FROM THE HOUSE is the server for this page: SERVER EYE is the pressed one, and the choice for other pages is as it was');
@@ -1496,6 +1511,85 @@ async function ownEyeFirst(browser) {
     });
     for (let waited = 0; waited < 8000 && !(heard.includes('?asked=own') && heard.includes('?asked=embed')); waited += 250) await page.waitForTimeout(250);
     ok(heard.includes('?asked=own') && heard.includes('?asked=embed') && heard.includes('?yes=own') && !heard.includes('?yes=embed'), `BROWSER says yes to the frame it made for OWN EYE when the page in it asks, and nothing to another frame in its page that asks the same (${heard.join(' ')})`);
+
+    // ---- 0.8.2: OWN WEB keeps the pages OWN EYE shows (Luke, 2026-11-27: "Keep every page"), the switch being the extension's, off until
+    // pressed there; and MEDIA, WATCHERS, SEARCH THIS and ERASE on such a page (Luke, 2026-11-28), each done by the extension. ----
+    const SEEN = `${SITE}/a`;
+    const tools = { media: [{ address: 'https://www.youtube.com/watch?v=abcdefghijk', title: 'a film' }], watchers: [{ host: 'tracker.example', count: 3 }], selection: '' };
+    const words = { title: 'A page kept', description: 'From my own browser', language: 'en', paragraphs: [{ heading: true, words: 'Dear reader' }, { heading: false, words: 'words from my own browser' }] };
+    await pretend({ version, sites: ['seeing-fixture.org'], keep: false, tools });
+    await fresh();
+    await go(page, SEEN);
+    await page.waitForTimeout(1500);
+    if ((await frame.count()) === 0) await ownKey.click();
+    await frame.waitFor({ timeout: 20000 });
+    const sayAt = () => page.evaluate((at) => window.hearAt({ see: 'at', href: at, title: 'A page' }), SEEN);
+    const toldOf = async (what) => (await told()).filter(([see]) => see === what);
+    const toolsAsked = () => page.evaluate(() => window.toolsAsked ?? []);
+    await sayAt();
+    const keepKey = page.locator('[data-seeing-own-keep]');
+    await keepKey.waitFor({ timeout: 8000 });
+    await page.waitForTimeout(3200);
+    ok((await keepKey.innerText()) === '[ OWN WEB: OFF ↗ ]' && (await page.locator('[data-seeing-own-keeping]').count()) === 0 && (await toldOf('words')).length === 0, "OWN WEB is off for a page OWN EYE shows until it is switched on in the extension: the line says so, and the page's words are never asked for");
+    const sitesAsked = (await toldOf('sites')).length;
+    await keepKey.click();
+    await page.waitForTimeout(300);
+    ok((await toldOf('sites')).length === sitesAsked + 1 && (await toldOf('keep')).every(([, how]) => how === null), "its key opens the extension's own SITES page, where the two presses are made: BROWSER's page can only ask for that page");
+    const ownWebKey = page.getByRole('button', { name: /^\[ OWN WEB \d+ \]$/ });
+    const ownWebCount = async () => ((await ownWebKey.count()) === 0 ? 0 : Number(/\d+/.exec(await ownWebKey.innerText())[0]));
+    const keptBefore = await ownWebCount();
+    // Switched on there (the pretend extension now says so); BROWSER asks again on coming back.
+    await pretend({ version, sites: ['seeing-fixture.org'], keep: true, words, tools });
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    for (let waited = 0; waited < 9000 && (await ownWebCount()) !== keptBefore + 1; waited += 300) await page.waitForTimeout(300);
+    ok((await ownWebCount()) === keptBefore + 1 && (await toldOf('words')).at(-1)?.[1] === SEEN && /KEEPING THIS PAGE'S WORDS IN YOUR OWN WEB/.test(await page.locator('[data-seeing-own-keeping="on"]').innerText()), "switched on, the words of the page OWN EYE shows are asked of the extension and kept in OWN WEB, and the line above the page says it is keeping them");
+    await sayAt();
+    await page.waitForTimeout(3400);
+    ok((await ownWebCount()) === keptBefore + 1, 'once a day for an address: the same page told again is not kept twice');
+    await ownWebKey.click();
+    const ownWeb = page.locator('[data-seeing-own-web]');
+    await ownWeb.waitFor();
+    ok(/A page kept/.test(await ownWeb.innerText()) && / · OWN EYE/.test(await ownWeb.innerText()) && /ITS WORDS ONLY, NEVER WHAT YOU TYPE/.test(await page.locator('[data-seeing-own-web-says]').innerText()) && /A PAGE IN A TAB OF YOUR BROWSER IS NEVER KEPT/.test(await page.locator('[data-seeing-own-web-says]').innerText()), "OWN WEB lists it, marked OWN EYE, and says what is kept of such a page and that a tab's pages never are");
+    await ownWebKey.click();
+    await page.locator('[data-seeing-own-stop]').click();
+    await keepKey.waitFor({ timeout: 5000 });
+    ok((await toldOf('keep')).some(([, how]) => how === 'off') && (await page.locator('[data-seeing-own-keeping]').count()) === 0, '[ STOP KEEPING ] switches it off in the extension at once, and the line says OFF again');
+
+    // The four tools.
+    ok(/THE LENSES, MEDIA, WATCHERS, SEARCH THIS AND ERASE REACH IT THROUGH THE EXTENSION/.test(await page.locator('[data-seeing-own-tools]').innerText()), 'the line under the tools names the four that now reach a page OWN EYE shows');
+    const mediaKey = page.getByRole('button', { name: /^\[ MEDIA \d+ \]$/ });
+    await mediaKey.click();
+    await page.locator('[data-seeing-tray]').waitFor();
+    await page.waitForFunction(() => [...document.querySelectorAll('button')].some((each) => each.textContent.trim() === '[ MEDIA 1 ]'), null, { timeout: 5000 }).catch(() => undefined);
+    ok((await mediaKey.innerText()) === '[ MEDIA 1 ]' && /a film/.test(await page.locator('[data-seeing-tray]').innerText()) && (await toolsAsked()).some(([tool]) => tool === 'media'), "MEDIA on a page OWN EYE shows: the tray lists what the extension found on it, asked when the tray is opened");
+    await mediaKey.click();
+    await page.locator('[data-seeing-lenses]').getByRole('button', { name: '[ WATCHERS ]' }).click();
+    await page.locator('[data-seeing-own-watchers="1"]').waitFor({ timeout: 5000 });
+    ok(/tracker\.example/.test(await page.locator('[data-seeing-own-watchers]').innerText()) && !/THE HOUSE'S ONLY/.test(await page.locator('[data-seeing-status]').innerText()), "WATCHERS lists beside the page the outside hosts it spoke to, as the extension counted them");
+    await page.locator('[data-seeing-lenses]').getByRole('button', { name: '[ STANDARD ]' }).click();
+    const eraseKey = page.locator('[data-seeing-tools]').getByRole('button', { name: '[ ERASE ]', exact: true });
+    ok(!(await eraseKey.isDisabled()), 'ERASE is not greyed on a page OWN EYE shows');
+    await eraseKey.click();
+    await page.waitForTimeout(400);
+    ok(JSON.stringify((await toolsAsked()).at(-1)) === JSON.stringify(['erase', true, '']), 'ERASE on: the extension is asked to point and take presses on that page');
+    await page.evaluate((at) => window.hearAt({ see: 'erased', href: at, selector: '#ad' }), SEEN);
+    await page.locator('[data-seeing-tools]').getByRole('button', { name: '[ BRING BACK 1 ]', exact: true }).waitFor({ timeout: 5000 });
+    await page.waitForTimeout(300);
+    ok(JSON.stringify((await toolsAsked()).at(-1)) === JSON.stringify(['erase', true, '#ad']), "a part pressed there is kept on BROWSER's own list for that site, and sent back to be hidden");
+    await page.locator('[data-seeing-tools]').getByRole('button', { name: '[ BRING BACK 1 ]', exact: true }).click();
+    await page.waitForTimeout(400);
+    ok(JSON.stringify((await toolsAsked()).at(-1)) === JSON.stringify(['erase', true, '']), 'BRING BACK empties the list, and the page is told');
+    await eraseKey.click();
+    await page.waitForTimeout(400);
+    ok(JSON.stringify((await toolsAsked()).at(-1)) === JSON.stringify(['erase', false, '']), 'and ERASE off stops the pointing');
+    const searchKey = page.locator('[data-seeing-own-search]');
+    await searchKey.click();
+    await page.waitForTimeout(400);
+    ok(/SELECT WORDS ON THE PAGE FIRST/.test(await page.locator('[data-seeing-status]').innerText()), 'SEARCH THIS with nothing selected says to select words first');
+    await pretend({ version, sites: ['seeing-fixture.org'], keep: false, tools: { ...tools, selection: 'fog and rain' } });
+    await searchKey.click();
+    await page.waitForFunction(() => /fog/.test(document.querySelector('[data-seeing-address]')?.value ?? ''), null, { timeout: 8000 }).catch(() => undefined);
+    ok(/fog(\+|%20)and(\+|%20)rain/.test(await box(page).inputValue()), 'with words selected, the extension says which when the key is pressed, and they are searched in a new BROWSER tab');
     await context.close();
   } finally {
     net.close();

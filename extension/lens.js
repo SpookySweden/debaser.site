@@ -7,17 +7,41 @@ globalThis.debaserSee ??= (() => {
   const MARK = 'debaser-see';
   let sheet = null;
   let cover = null;
+  let rules = [];
 
   function off() {
     sheet?.remove();
     cover?.remove();
+    for (const [root, made] of rules) root.adoptedStyleSheets = root.adoptedStyleSheets.filter((each) => each !== made);
     sheet = null;
     cover = null;
+    rules = [];
+  }
+  /*
+   * Run as the page itself (the bookmarks-bar key, not the extension), rules go on as a sheet object: a page's own content policy forbids
+   * style elements, and is told of each one tried. The extension, out of the page's reach, uses an element as it always did.
+   */
+  const AS_PAGE = globalThis.chrome?.runtime?.id === undefined && globalThis.browser?.runtime?.id === undefined;
+  function styled(root, css) {
+    if (AS_PAGE) {
+      try {
+        const made = new CSSStyleSheet();
+        made.replaceSync(css);
+        root.adoptedStyleSheets = [...root.adoptedStyleSheets, made];
+        rules.push([root, made]);
+        return null;
+      } catch {
+        // A browser without sheet objects: an element, where the page lets one be.
+      }
+    }
+    const style = document.createElement('style');
+    style.textContent = css;
+    return style;
   }
   function dress(css) {
-    sheet = document.createElement('style');
+    sheet = styled(document, css);
+    if (sheet === null) return;
     sheet.id = MARK;
-    sheet.textContent = css;
     document.documentElement.append(sheet);
   }
 
@@ -69,14 +93,14 @@ globalThis.debaserSee ??= (() => {
     if (from === null) return 'NO MAIN TEXT FOUND.';
     cover = document.createElement('div');
     const shadow = cover.attachShadow({ mode: 'closed' });
-    const style = document.createElement('style');
-    style.textContent = `:host{all:initial;position:fixed;inset:0;z-index:2147483647;overflow:auto;background:${theme.paper};color:${theme.ink};font:18px/1.6 'IBM Plex Mono','Courier New',monospace}main{max-width:42rem;margin:0 auto;padding:1.5rem;overflow-wrap:break-word}h1,h2,h3,h4{font-weight:400;line-height:1.25}a{color:${theme.accent}}img{max-width:100%;height:auto}pre{white-space:pre-wrap}blockquote{margin-left:0;padding-left:1rem;border-left:2px solid ${theme.ink}}td,th{border:1px solid ${theme.ink};padding:.25rem .5rem;text-align:left;font-weight:400}`;
+    const style = styled(shadow, `:host{all:initial;position:fixed;inset:0;z-index:2147483647;overflow:auto;background:${theme.paper};color:${theme.ink};font:18px/1.6 'IBM Plex Mono','Courier New',monospace}main{max-width:42rem;margin:0 auto;padding:1.5rem;overflow-wrap:break-word}h1,h2,h3,h4{font-weight:400;line-height:1.25}a{color:${theme.accent}}img{max-width:100%;height:auto}pre{white-space:pre-wrap}blockquote{margin-left:0;padding-left:1rem;border-left:2px solid ${theme.ink}}td,th{border:1px solid ${theme.ink};padding:.25rem .5rem;text-align:left;font-weight:400}`);
     const page = document.createElement('main');
     const title = document.createElement('h1');
     title.textContent = (document.querySelector('h1')?.textContent ?? document.title).trim();
     page.append(title);
     copy(from, page);
-    shadow.append(style, page);
+    if (style !== null) shadow.append(style);
+    shadow.append(page);
     document.documentElement.append(cover);
     return null;
   }

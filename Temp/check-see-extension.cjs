@@ -1,7 +1,7 @@
 /*
  * BROWSER's extension, OWN EYE (SPEC-seeing-machine.md, D1 and phase 4; Luke 2026-11-23), read as files and its pure parts run. (In a real
  * browser: scripts/drive-see-extension.cjs.)
- *   npx tsc app/lib/seeing/own-eye.ts app/lib/seeing/extension.ts app/lib/seeing/server/extension-files.ts app/lib/seeing/server/sign-ins.ts app/lib/ui/themes.ts --rootDir app --outDir Temp/see-extension-out --module commonjs --target es2022 --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
+ *   npx tsc app/lib/seeing/own-eye.ts app/lib/seeing/extension.ts app/lib/seeing/server/extension-files.ts app/lib/seeing/server/sign-ins.ts app/lib/seeing/bookmark-key.ts app/lib/ui/themes.ts --rootDir app --outDir Temp/see-extension-out --module commonjs --target es2022 --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
  *   node Temp/check-see-extension.cjs
  *
  * - it asks for no site when it is put in, and for none of the browser's private things (cookies, history, webRequest, debugger, tabs)
@@ -11,6 +11,7 @@
  * - the header rule is for frames made by its own page, of added sites, never a sign-in, and goes with the session
  * - its never-framed list is the server's own, and its id is the one the site asks for
  * - no remote code, no cookies, no passwords, no markup written from a page's words
+ * - the bookmarks-bar key (2026-11-27): the same lens file and its strip as one address, which parses, holds colours and nothing else, and asks for nothing
  */
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
@@ -103,7 +104,18 @@ for (const file of files) {
   for (const src of text.matchAll(/<script[^>]*src="([^"]+)"/g)) assert.ok(!/^https?:|^\/\//.test(src[1]), file);
 }
 const worker = read('worker.js');
-assert.deepEqual([...worker.matchAll(/message\.see === '(\w+)'/g)].map((each) => each[1]).slice(0, 8), ['ping', 'theme', 'open', 'has', 'settings', 'sites', 'newest', 'reload']);
+assert.deepEqual([...worker.matchAll(/message\.see === '(\w+)'/g)].map((each) => each[1]).slice(0, 11), ['ping', 'theme', 'open', 'has', 'settings', 'sites', 'keep', 'words', 'tool', 'newest', 'reload']);
+// (2026-11-28, extension 0.8.2; Luke: "Keep every page") OWN WEB's switch is the extension's: the site reads it or switches it OFF, and the only
+// place the worker ever writes it is `false`; a page's words are refused while it is off. (What is read, and from where: the real extension
+// on pretend pages, scripts/drive-see-own-frame.cjs with its mutants keepoff, boxes and nevertool.)
+assert.ok(worker.includes("void (message.off === true ? chrome.storage.local.set({ keep: false }) : Promise.resolve()).then(keeping).then((on) => answer({ see: 'keep', on }));"), 'the site may read the switch or switch it off');
+assert.deepEqual([...worker.matchAll(/storage\.local\.set\(\{ keep: (\w+) \}\)/g)].map((each) => each[1]), ['false'], 'the worker never switches keeping on: only the SITES page does');
+assert.ok(worker.includes("if (!(await keeping())) return { why: 'off' };"), "while the switch is off a page's words are handed to nothing");
+assert.deepEqual(
+  files.filter((file) => file.endsWith('.js') && /storage\.local\.set\(\{ keep\b/.test(read(file))).sort(),
+  ['machine.js', 'worker.js'],
+  'the switch is written in two places only: the SITES page (on and off, by a press) and the worker (off)',
+);
 // (2026-11-27) `has`: whether the one page it is asked about is on the list, and no more than a few sites asked about: never the list.
 // (2026-11-28, ALLOW EVERY SITE) and whether its site is there by name; with every site allowed, "yes" past the few says nothing of the list.
 assert.ok(worker.includes('void Promise.all([mayAsk(site), everySite()]).then(async ([may, every]) => answer(may ? { on: await isAllowed(read), site, named: await isNamed(read) } : every ? { on: true, site, named: null, every: true } : { on: null }));'), 'whether the one page may be shown and is on the list, and nothing else');
@@ -326,6 +338,46 @@ assert.ok(!/allow-top-navigation/.test(read('machine.html')));
   assert.deepEqual(ownEye.OWN_EYE_LENSES.map(([each]) => each), ['standard', 'reader', 'xray', 'lowfi', 'yours']);
   const newer = pure('newer');
   for (const [one, other, is] of [['0.3.0', '0.2.0', true], ['0.2.0', '0.2.0', false], ['<b>', '0.1', false], ['9', '10', false], ['0.10', '0.9', true]]) assert.equal(newer(one, other), is, one);
+  // (2026-11-27) The bookmarks-bar key: the lens file the extension wears and its strip of keys, as one address. (In a real browser, on pages
+  // with and without a rule about scripts: scripts/drive-bookmark-key.cjs.)
+  const vm = require('node:vm');
+  const K = require('./see-extension-out/lib/seeing/bookmark-key.js');
+  const strip = fs.readFileSync(path.join(ROOT, 'bookmark', 'strip.js'), 'utf8');
+  const keyCode = K.composeBookmarkKey(read('lens.js'), strip);
+  assert.equal(keyCode.split(K.BOOKMARK_THEME_SLOT).length, 2, 'one place for the colours');
+  assert.deepEqual([...new Set(keyCode.match(/https?:\/\/[^"'`\s]*/g))], ['https://debaser.site'], 'the only address written in it is the site');
+  assert.ok(!/document\.cookie|type=["']?password|innerHTML|outerHTML|insertAdjacentHTML|document\.write|\beval\(|new Function|importScripts|XMLHttpRequest|\bfetch\(|WebSocket|sendBeacon|\bimport\(|localStorage|sessionStorage|indexedDB|createElement\(['"]script/i.test(keyCode), 'the key: no cookies, passwords, markup from words, remote code, storage or requests of its own');
+  assert.ok(!/createElement\(['"](img|iframe|link|audio|video|source|object|embed)['"]\)/.test(strip), 'the strip makes nothing that loads');
+  for (const theme of THEMES) {
+    const address = K.bookmarkAddress(keyCode, ownEye.ownEyeTheme(theme.tokens, theme.scheme));
+    assert.ok(address.startsWith('javascript:') && address.length < 60000, `${theme.id}: an address a bookmark holds (Firefox keeps 65,536 characters)`);
+    const ran = decodeURIComponent(address.slice('javascript:'.length));
+    assert.doesNotThrow(() => new vm.Script(ran), `${theme.id}: it parses`);
+    assert.ok(!ran.includes(K.BOOKMARK_THEME_SLOT) && ran.includes(JSON.stringify(theme.tokens.paper)) && !ran.includes('"scheme"'), `${theme.id}: its colours are in it, and nothing else of the theme`);
+  }
+  const forged = decodeURIComponent(K.bookmarkAddress(keyCode, { ...good, paper: '"});alert(1);({//', ink: 'red;}*{background:url(https://evil.example/)' }).slice('javascript:'.length));
+  assert.ok(!forged.includes('alert(1)') && !forged.includes('evil.example') && forged.includes(JSON.stringify(good.accent)), 'a theme is colours and nothing else: the rest never reaches the address');
+  // Run as it is, on a page made of the few things it touches: the strip goes on with five lenses, MEDIA and PUT AWAY; a second press takes it off.
+  const made = [];
+  const node = (tag) => {
+    const it = { tag, children: [], attributes: {}, dataset: {}, style: {}, hidden: false, listeners: {}, append: (...more) => it.children.push(...more), replaceChildren: (...more) => (it.children = more), setAttribute: (name, value) => (it.attributes[name] = value), getAttribute: (name) => it.attributes[name] ?? null, addEventListener: (name, hear) => (it.listeners[name] = hear), remove: () => (it.gone = true), attachShadow: () => (it.shadow = Object.assign(node('#shadow'), { adoptedStyleSheets: [] })) };
+    made.push(it);
+    return it;
+  };
+  const html_ = node('html');
+  const page = { documentElement: html_, adoptedStyleSheets: [], createElement: node, getElementById: (id) => made.find((each) => each.id === id && !each.gone) ?? null, querySelector: () => null, querySelectorAll: () => [], title: 'A page' };
+  const world = { document: page, CSSStyleSheet: class { replaceSync(css) { this.css = css; } }, window: { open: () => null }, location: { href: 'https://example.com/a' }, getComputedStyle: () => ({}) };
+  const press = () => vm.runInNewContext(decodeURIComponent(K.bookmarkAddress(keyCode, good).slice('javascript:'.length)), world);
+  press();
+  const host = page.getElementById('debaser-key');
+  const keys = made.filter((each) => each.tag === 'button' && !each.gone).map((each) => each.textContent);
+  assert.deepEqual(keys, ['[ STANDARD ]', '[ READER ]', '[ X-RAY ]', '[ LOW-FI ]', '[ YOUR THEME ]', '[ MEDIA ]', '[ PUT AWAY ]'], 'its seven keys, in words');
+  assert.ok(host !== null && html_.children.includes(host) && host.shadow.adoptedStyleSheets.length === 1 && host.shadow.adoptedStyleSheets[0].css.includes(good.paper), 'its strip is on the page, dressed as a sheet object in the theme');
+  assert.ok(!made.some((each) => each.tag === 'style'), 'and no style element, which a page with a rule would refuse and be told of');
+  made.find((each) => each.dataset.lens === 'lowfi').listeners.click();
+  assert.ok(page.adoptedStyleSheets.length === 1 && page.adoptedStyleSheets[0].css.includes(good.ink), "LOW-FI goes on the page as a sheet object, in the theme's ink");
+  press();
+  assert.ok(page.getElementById('debaser-key') === null && page.adoptedStyleSheets.length === 0, 'pressed again: put away, and the page as it was');
   console.log(`the extension: no site until it is added, ${sites.NEVER_HOSTS.length + sites.NEVER_NAMES.length} never framed, ${THEMES.length} themes worn`);
 })().catch((error) => {
   console.error(error);

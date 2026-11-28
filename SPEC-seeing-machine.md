@@ -152,9 +152,10 @@ Each can be changed later by saying so.
 61. **OWN WEB keeps the pages OWN EYE shows too, by itself** (Luke, 2026-11-27, to "OWN WEB: should pages you open through OWN EYE (your own
     signed-in browser) be kept in your web too? Today only pages fetched by the server's eye are kept, so with OWN EYE as the default your
     web barely fills.": "Keep every page"; chosen over a KEEP press with the risk stated: the text of signed-in pages, mail and bank
-    included, is stored on SERVER). It changes decision 58's "never what his own browser shows" once built. Not built yet: a plan first
-    (what leaves the browser and where it lands, who can read it, how it is removed, what the person sees), any database change only on
-    his own word, and /privacy rewritten in the same push.
+    included, is stored on SERVER). It changed decision 58's "never what his own browser shows". Built in extension 0.8.2 (2026-11-28),
+    after a plan read by the coordinator: the words go from the person's browser to their own account, private, once a day per address;
+    no database change was needed (the rules already let a person keep their own private page, proved once with TEST ACCOUNT A and B);
+    /privacy was rewritten in the same push. How it is built: docs/seeing-machine.md, "OWN WEB keeps the pages OWN EYE shows".
 62. **The server's eye stays Luke's alone** (Luke, 2026-11-27, to "BROWSER's server's eye (pages fetched by SERVER itself, for someone
     without the extension): who may use it? Today only you; any other account without the extension sees THE MACHINE HAS NO EYE YET.":
     "Only me (Recommended)"). `SEEING_OPEN` stays unset; nothing to build.
@@ -168,7 +169,9 @@ Each can be changed later by saying so.
     this-browser-only half built first (84517f1).
 65. **Four tools also work on a page OWN EYE shows, done by the extension** (Luke, 2026-11-28, to "BROWSER: which tools should also work
     on a page OWN EYE shows (your signed-in browser), done by the extension instead of by the house's copy? Each needs an extension
-    update.": "MEDIA,SEARCH THIS,WATCHERS,ERASE"). SEAM, LOUPE, SCRIPTS OFF, SONIFY, SHOW MY ROOM stay the house's. Not built yet.
+    update.": "MEDIA,SEARCH THIS,WATCHERS,ERASE"). SEAM, LOUPE, SCRIPTS OFF, SONIFY, SHOW MY ROOM stay the house's. Built in extension 0.8.2
+    (2026-11-28): each is done by the extension on the one frame BROWSER made, on a press, and what it finds is handed to BROWSER's page
+    in the reader's browser and stored nowhere on the site; never on a never-list page.
 66. **OWN WEB keeps every page OWN EYE shows, with no never-keep rule** (Luke, 2026-11-28, to "OWN WEB, now that it will keep every page
     OWN EYE shows automatically (your choice): which pages should it never keep?", offered pages with a password box, sites he marks
     NEVER KEEP, a starting list of mail and banks: "none"). The house's lines stand whatever is kept (the coordinator's, not his taste):
@@ -176,7 +179,9 @@ Each can be changed later by saying so.
     headers; read by that account alone; the page says it is being kept. The switch for it is its own, lives in the extension (so
     the extension refuses to hand a page's words to anything while it is off), is per browser, starts OFF for everybody and is turned
     on by a press on the extension's own page with the plain words; only pages shown inside BROWSER, never an ordinary tab. The last
-    three are the builder's safe defaults, named to Luke by the coordinator. Not built yet.
+    three are the builder's safe defaults, named to Luke by the coordinator. Built in extension 0.8.2 (2026-11-28) as written here; the
+    extension's own never-list (sign-ins, the listed banks, payments) is still never framed, so never read. One limit told to him: a
+    page that prints what is typed somewhere else on itself can't be told from ordinary words.
 67. **A page keeps its own script-safety rules inside BROWSER, unless its site was added by name** (Luke, 2026-11-28, told that a site
     he ADDED has always run without its Content-Security-Policy while shown inside BROWSER, and asked "Do you want to choose between A,
     B and C for sites that only show with their script-safety rules off: "Ask me now" or "Keep your default"?": "Keep your default").

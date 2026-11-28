@@ -3,7 +3,7 @@
  * because this page is the extension's and has leave for that site. The frame can't move this page (no allow-top-navigation). Signing in is
  * always done in an ordinary tab: a sign-in page is never framed.
  */
-import { findMedia, findWatchers, KEY_WORDS, LENS_WORDS, LENSES, list, NAMED_COST, putLens, settings, toRoom, toServerEye, wear } from './act.js';
+import { findMedia, findWatchers, KEEP_WORDS, KEY_WORDS, LENS_WORDS, LENSES, list, NAMED_COST, putLens, settings, toRoom, toServerEye, wear } from './act.js';
 import { allowedSites, EVERY_SITE, everySite, groupOf, inATab, isAllowed, isNamed, neverFramed, originsOf, originsOfAll, readAddress, SIGN_IN_GROUPS, siteOf } from './sites.js';
 
 const at = (id) => document.getElementById(id);
@@ -168,7 +168,39 @@ async function open(which) {
     const cost = document.createElement('p');
     cost.id = 'named-cost';
     cost.textContent = 'ADDED BY NAME: ' + NAMED_COST.toUpperCase() + ' EVERY SITE ALONE NEVER SWITCHES THEM OFF: SUCH A PAGE SAYS IT DIDN\'T SHOW, AND OFFERS A TAB OR ADD.';
-    into.prepend(all, cost);
+    // OWN WEB for OWN EYE's pages (Luke, 2026-11-27: "Keep every page"): the switch is this extension's, off for everybody, on in two presses
+    // with the plain words between them. debaser.site can only read it and switch it off.
+    const keeps = (await chrome.storage.local.get('keep')).keep === true;
+    const kept = document.createElement('div');
+    kept.className = 'row';
+    kept.id = 'keep';
+    const keptSaid = document.createElement('span');
+    const keyFor = (words, title, press) => {
+      const key = document.createElement('button');
+      key.textContent = words;
+      key.title = title;
+      key.addEventListener('click', () => void press());
+      return key;
+    };
+    const setKeep = async (next) => {
+      await chrome.storage.local.set({ keep: next });
+      await open('sites');
+    };
+    if (keeps) {
+      keptSaid.textContent = 'OWN WEB: ON. THE WORDS OF EVERY PAGE OWN EYE SHOWS INSIDE BROWSER ARE KEPT ON DEBASER.SITE, PRIVATE TO YOU. NEVER WHAT YOU TYPE, NEVER A PAGE IN A TAB.';
+      kept.append(keptSaid, keyFor('[ STOP KEEPING ]', KEY_WORDS.keepStop, () => setKeep(false)));
+    } else {
+      keptSaid.textContent = 'OWN WEB: OFF. NO PAGE OWN EYE SHOWS IS READ OR KEPT.';
+      kept.append(
+        keptSaid,
+        keyFor('[ KEEP OWN EYE\'S PAGES ]', KEY_WORDS.keep, () => {
+          // The first press: the plain words, and the two keys. Nothing is stored yet.
+          keptSaid.textContent = KEEP_WORDS;
+          kept.replaceChildren(keptSaid, keyFor('[ YES, KEEP THEM ]', KEY_WORDS.keepYes, () => setKeep(true)), keyFor('[ NO ]', KEY_WORDS.keepNo, () => open('sites')));
+        }),
+      );
+    }
+    into.prepend(all, cost, kept);
     // Sign-ins, each a whole company's sites in one press; and IMPORT, the sites this browser has been to.
     const offers = document.createElement('div');
     const heading = document.createElement('h2');

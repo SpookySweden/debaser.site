@@ -55,6 +55,8 @@ export const LENS_WORDS = {
 };
 /** What adding a site by name costs, said wherever ADD is offered (decision 67). */
 export const NAMED_COST = 'A site added by name is shown even when that means switching off its own script-safety rules (its Content-Security-Policy) while it is inside BROWSER or the machine. Some sites, DuckDuckGo and GitHub among them, only show that way.';
+/** What turning OWN WEB on for OWN EYE's pages means, said before the second press (the coordinator, 2026-11-28: "Keep those words as you wrote them"). */
+export const KEEP_WORDS = 'THE WORDS OF EVERY PAGE OWN EYE SHOWS HERE, SIGNED IN, YOUR MAIL INCLUDED, ARE STORED ON DEBASER.SITE\'S SERVER, PRIVATE TO YOU. THE SERVER\'S OWNER AND ITS BACKUPS HOLD THEM TOO.';
 export const KEY_WORDS = {
   serverEye: 'Opens this page in BROWSER on debaser.site through the SERVER EYE: fetched by the house, never signed in, rebuilt through the lenses. The site sees the house, not you. The site name and the time are written down there.',
   tab: 'Opens this page in an ordinary tab of your browser, where every site works as usual. The lenses are in the side panel there.',
@@ -63,6 +65,10 @@ export const KEY_WORDS = {
   add: 'Adds this site to the list, so the machine and BROWSER on debaser.site may show it from your own browser, signed in as you, and put a lens on it. Your browser asks you too. ' + NAMED_COST,
   every: 'Lets the machine and BROWSER on debaser.site show ANY site from your own browser, signed in as you, with no ADD step for each one, like an ordinary browser. Your browser asks you first, in its own box, and says the extension may read and change your data on all websites: it needs that leave to show a page inside another and to put a lens on it. The few lines it then runs on every page stop at their first line, reading and sending nothing, unless the page is shown directly inside a debaser.site page or the machine. Inside a debaser.site page they ask that page one fixed question, whether this is the frame BROWSER made for OWN EYE, and say nothing more unless it answers yes. Only in that one frame, and in the machine, do they tell this extension the address and title of the page, for the address box in BROWSER and the lenses. Sign-in pages, banks and payments are still never shown inside anything. Off until you press this; the same key takes it back.',
   everyBack: 'Takes back the leave for every site, at once and with no box. Sites you added by name stay on the list below; every other site needs ADD again before it is shown.',
+  keep: 'OWN WEB, for the pages OWN EYE shows inside BROWSER on debaser.site: keeps the words of each such page on your debaser.site account, private to you, so you can find and read it again. Off until you turn it on here, in two presses. The next press shows exactly what is stored; nothing is kept until you say yes.',
+  keepYes: 'Turns it on, in this browser only. From now on, while BROWSER shows a page through OWN EYE, the words a reader can see on it are stored on debaser.site, private to you. Never what is typed in a box, never a password, never a page opened in an ordinary tab, never a sign-in, bank or payment page.',
+  keepNo: 'Leaves it off. No page is read and nothing is kept.',
+  keepStop: 'Stops keeping, at once. Pages already kept stay in OWN WEB on debaser.site until you delete them there, one page, one site or all.',
   addGroup: 'Adds every site this company signs you in across, in one press, so its sign-in works here. Your browser asks you too, naming them.',
 };
 

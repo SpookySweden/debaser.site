@@ -12,8 +12,8 @@ Microsoft's and Google's own pages (Sources, below).
   its description.
 - **The logo**: `edge-logo-300.png` in this folder (300 x 300, Edge's size). The extension's own icons are in the zip (16, 32, 48, 128).
   Both are Luke's text icon: the word DEBASER in the site's face and inks, made by `scripts/make-text-icon.cjs` (his exception, art.md).
-  Black on Daffodil is the default; `icon-128-transparent.png` beside it is the same word with no field behind it, for Luke to choose by
-  looking (2026-11-27). Choosing it means a line in that script and a new extension version.
+  Black on a Daffodil square is the icon: Luke's choice (2026-11-27, asked the yellow square or no field behind the word: "Yellow square
+  (Recommended)"). `icon-128-transparent.png` beside it is the look he did not choose, kept only to show it; nothing uses it.
 - **The tile**: `tile-440x280.png` in this folder (optional in Edge; the same text).
 - **The screenshots**: `store-*.png` in this folder, 1280 x 800, pretend sites (Edge takes up to 6, and none are required).
 - **The words**: under Store listing and Privacy tab, below.
@@ -71,9 +71,15 @@ is built), LOW-FI (plain, in the site's colours) and YOUR THEME.
 - A site added by name is shown even when that means switching off its own script-safety rules (its Content-Security-Policy) while it is
   inside BROWSER; some sites only show that way. ALLOW EVERY SITE alone never does that.
 - It never reads your passwords or cookies, and sign-in pages are never shown inside anything: you sign in on the site itself.
-- It tells debaser.site only its version, its two settings, whether the page in front of you may be shown, the address and title of a page
+- It tells debaser.site only its version, its settings, whether the page in front of you may be shown, the address and title of a page
   it is showing inside BROWSER (for the address box and your HISTORY there), and what you press to send (a page to look at through the
   site's own eye, a video to a room).
+- Four of BROWSER's tools work on a page it shows there, each when you press its key: MEDIA (the videos and sounds the page names),
+  WATCHERS (the outside hosts the page spoke to), SEARCH THIS (the words you selected) and ERASE (hides the part you press). What they
+  find is shown to you in BROWSER and stored nowhere.
+- KEEP OWN EYE'S PAGES is off until you turn it on in two presses on the extension's own page. While it is on, the words you can see on
+  each page shown inside BROWSER are stored on your debaser.site account, private to you, so you can find and read the page again
+  (OWN WEB). Never what is typed in a box, never a password, never a page in an ordinary tab. STOP KEEPING turns it off at once.
 - IMPORT FROM THIS BROWSER offers the sites your browser has been to in the last 30 days; the browser asks first, and the permission is given
   back at once. Nothing of it leaves your browser.
 
@@ -86,9 +92,13 @@ when the user asks.
   site, once the user presses ALLOW EVERY SITE), only in frames in the extension's own page or debaser.site's BROWSER tab while it is open,
   and never for a sign-in page. The rule lasts only for the session. A site's script-safety rules (the rest of its Content-Security-Policy)
   are switched off only for a site the user added by name, and the ADD key says so.
-- `scripting`: to put a lens on a page when the user presses one (it changes how the page looks; nothing is read from it but what it shows).
+- `scripting`: to put a lens on a page when the user presses one (it changes how the page looks); and, only in the one frame
+  debaser.site's BROWSER made for the page, to do the tool the user presses there (list the media the page names, the outside hosts it
+  spoke to, the words the user selected, or hide the part the user presses) and, only while the user has switched KEEP OWN EYE'S PAGES
+  on, to read the words shown on that page. It never reads the value of an input, a password, a hidden field, cookies or storage.
 - `sidePanel`: the lenses beside an ordinary tab.
-- `storage`: the user's two settings, the site's colours, and which sites it was asked about this hour.
+- `storage`: the user's settings (the KEEP OWN EYE'S PAGES switch among them, off by default), the site's colours, and which sites it was
+  asked about this hour.
 - `activeTab`: the tab the user presses the extension's key on, and only it.
 - Optional host permissions (any https and http site): asked for one site, or one company's sign-in, at a time, when the user presses ADD;
   or for every site at once, only when the user presses ALLOW EVERY SITE on the extension's own page (off until then; TAKE IT BACK gives
@@ -106,7 +116,16 @@ when the user asks.
   video to a room); and the address and title of a page the user is looking at inside debaser.site's BROWSER, told to that page, which
   keeps them in the user's own HISTORY on their debaser.site account (read by that user alone; CLEAR empties it). Nothing of any other
   tab is sent.
-- No personally identifiable information, health, financial, authentication, personal communications, location or user-activity data.
+- Website content: yes, when the user switches it on (since 0.8.2). KEEP OWN EYE'S PAGES is off by default and is turned on only by two
+  presses on the extension's own page, after the plain words of what is stored. While on, the visible words of a page the user is
+  looking at inside debaser.site's BROWSER are told to that page, which keeps them on the user's own debaser.site account, private to
+  that user, to find and read again; the user deletes one page, a site or all of them there. Never the value of an input, a password,
+  a hidden field, cookies or storage; never a page in an ordinary tab; never a sign-in, bank or payment page. And on a press of a tool
+  there: the media addresses a page names, the names of outside hosts it spoke to, or the words the user selected, shown to the user
+  and not stored.
+- Personal communications: the extension never picks them out, but a page the user chose to keep can be their own mail. If the form
+  asks, the truthful answer is yes, for that reason alone.
+- No personally identifiable information, health, financial, authentication or location data is asked for or picked out by the extension.
 - Not sold, not used for anything but the extension's single purpose, not used for credit.
 
 ## Sources (read 2026-11-27)

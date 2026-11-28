@@ -22,14 +22,14 @@ const COPIES: { id: string; from: ExtensionFrom }[] = [
 /** The copy that answered last: a store's before the zip's when both are in. */
 let talkingTo = EXTENSION_ID;
 
-function say(message: unknown, to = talkingTo): Promise<unknown> {
+function say(message: unknown, to = talkingTo, wait = 1500): Promise<unknown> {
   return new Promise((done) => {
     const own = runtime();
     if (own?.sendMessage === undefined) {
       done(null);
       return;
     }
-    const timer = window.setTimeout(() => done(null), 1500);
+    const timer = window.setTimeout(() => done(null), wait);
     try {
       own.sendMessage(to, message, (value) => {
         // Read, so the browser doesn't log that nobody looked: an extension that isn't there is an answer.
@@ -97,6 +97,78 @@ export async function ownEyeHas(address: string): Promise<{ on: boolean; site: s
   return typeof on === 'boolean' && typeof site === 'string' && /^[a-z0-9.-]{1,253}$/.test(site) ? { on, site, named: typeof named === 'boolean' ? named : unnamed ? false : null } : null;
 }
 
+/**
+ * OWN WEB for the pages OWN EYE shows (Luke, 2026-11-27: "Keep every page"). The switch is the extension's, in this browser, off until two presses
+ * on its own SITES page: the site can read it and switch it OFF, never on. Null from a copy too old to have it, or none.
+ */
+export async function ownEyeKeep(off = false): Promise<boolean | null> {
+  const answer = await say(off ? { see: 'keep', off: true } : { see: 'keep' });
+  const on = field(answer, 'on');
+  return field(answer, 'see') === 'keep' && typeof on === 'boolean' ? on : null;
+}
+
+export type OwnEyeWords = { href: string; title: string; description: string; language: string; paragraphs: { heading: boolean; words: string }[] };
+const WORDS_MOST = 200_000;
+
+/**
+ * The words a reader can see on the page OWN EYE is showing in this tab, as the extension read them: never what is in a box, never anything not
+ * drawn. Null when it gives none (its switch is off, the page moved on, a never-list page, an older copy). What comes back is a stranger's: only
+ * strings of a known shape and size are taken.
+ */
+export async function ownEyeWords(address: string): Promise<OwnEyeWords | null> {
+  const read = field(await say({ see: 'words', address }, talkingTo, 8000), 'words');
+  const href = field(read, 'href');
+  const paragraphs = field(read, 'paragraphs');
+  if (typeof href !== 'string' || !/^https?:\/\//.test(href) || href.length > 4000 || !Array.isArray(paragraphs)) return null;
+  const text = (value: unknown, most: number): string => (typeof value === 'string' ? value.slice(0, most) : '');
+  let room = WORDS_MOST;
+  const kept: OwnEyeWords['paragraphs'] = [];
+  for (const each of paragraphs) {
+    const words = text(field(each, 'words'), room);
+    if (words === '') continue;
+    kept.push({ heading: field(each, 'heading') === true, words });
+    room -= words.length;
+    if (room <= 0) break;
+  }
+  return { href, title: text(field(read, 'title'), 200), description: text(field(read, 'description'), 300), language: text(field(read, 'language'), 20), paragraphs: kept };
+}
+
+/**
+ * Four of BROWSER's tools on a page OWN EYE shows (Luke, 2026-11-28: "MEDIA,SEARCH THIS,WATCHERS,ERASE"), done by the extension on the one frame
+ * BROWSER made in this tab, each when its key is pressed. What comes back is a stranger's: only strings of a known shape and size are taken.
+ */
+const tool = async (name: 'media' | 'watchers' | 'selection' | 'erase', more: Record<string, unknown> = {}): Promise<unknown> => {
+  const answer = await say({ see: 'tool', tool: name, ...more }, talkingTo, 5000);
+  return field(answer, 'see') === 'tool' && field(answer, 'tool') === name ? field(answer, 'found') : null;
+};
+/** The videos and sounds the page names, by address and title; null when the extension gave none. */
+export async function ownEyeMedia(): Promise<{ address: string; title: string }[] | null> {
+  const found = await tool('media');
+  if (!Array.isArray(found)) return null;
+  return found.slice(0, 40).flatMap((each) => {
+    const address = field(each, 'address');
+    const title = field(each, 'title');
+    return typeof address === 'string' && /^https?:\/\//.test(address) && address.length <= 2000 ? [{ address, title: typeof title === 'string' ? title.slice(0, 160) : '' }] : [];
+  });
+}
+/** The outside hosts the page spoke to, most asked first, as its own browser counted them; null when the extension gave none. */
+export async function ownEyeWatchers(): Promise<{ host: string; count: number }[] | null> {
+  const found = await tool('watchers');
+  if (!Array.isArray(found)) return null;
+  return found.slice(0, 100).flatMap((each) => {
+    const host = field(each, 'host');
+    const count = field(each, 'count');
+    return typeof host === 'string' && /^[a-z0-9.-]{1,253}$/i.test(host) && typeof count === 'number' && Number.isFinite(count) ? [{ host: host.toLowerCase(), count: Math.max(1, Math.round(count)) }] : [];
+  });
+}
+/** The words selected on the page, as one line (never ones inside a box); '' when none are, null when the extension didn't say. */
+export async function ownEyeSelection(): Promise<string | null> {
+  const found = await tool('selection');
+  return typeof found === 'string' ? found.slice(0, 200) : null;
+}
+/** ERASE on the page: what is taken out of it (BROWSER's own list for the site), and whether pressing a part takes it out now. */
+export const ownEyeErase = async (on: boolean, erased: readonly string[]): Promise<boolean> => (await tool('erase', { on, erased: [...erased] })) === true;
+
 /** Its own list of the sites it may act on, in its own page: the site is never told them. */
 export const openOwnEyeSites = async (): Promise<void> => void (await say({ see: 'sites' }));
 /** The version the site has, so its key in the browser's bar can say when an update is ready. */
@@ -127,7 +199,7 @@ const HELD_AGAIN_MS = 1500;
 const HELD_AGAIN_MOST = 5;
 
 /** BROWSER's page, held open to the extension while it is drawn: an added site may then be framed in its tabs. What a framed page says is a stranger's. */
-export function holdOwnEye(onAt: (href: string, title: string) => void): OwnEyeHold {
+export function holdOwnEye(onAt: (href: string, title: string) => void, onErased: (href: string, selector: string) => void = () => undefined): OwnEyeHold {
   const own = (globalThis as typeof globalThis & { chrome?: { runtime?: { connect?: (id: string, info: { name: string }) => HeldPort } } }).chrome?.runtime;
   if (own?.connect === undefined) return { lens: () => 'unheard', release: () => undefined };
   const connect = own.connect;
@@ -149,6 +221,9 @@ export function holdOwnEye(onAt: (href: string, title: string) => void): OwnEyeH
         }
         const href = field(value, 'href');
         const title = field(value, 'title');
+        // ERASE's press on the framed page: which part, of which page. The list is BROWSER's own (memory.ts reads the selector's shape again).
+        const selector = field(value, 'selector');
+        if (field(value, 'see') === 'erased' && typeof href === 'string' && /^https?:\/\//.test(href) && href.length <= 4000 && typeof selector === 'string' && selector.length <= 500) onErased(href, selector);
         if (field(value, 'see') === 'at' && typeof href === 'string' && /^https?:\/\//.test(href) && href.length <= 4000) onAt(href, typeof title === 'string' ? title.slice(0, 160) : '');
       });
       held.onDisconnect.addListener(() => {

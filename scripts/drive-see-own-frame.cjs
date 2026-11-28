@@ -10,6 +10,9 @@
  *   node scripts/drive-see-own-frame.cjs --mutant nest      the fix taken out: a page shown here may be framed by anybody (must FAIL)
  *   node scripts/drive-see-own-frame.cjs --mutant scripts   EVERY SITE replacing any policy, script-safety rules or not (must FAIL)
  *   node scripts/drive-see-own-frame.cjs --mutant anyframe  the extension's lines speaking from any frame inside the site's page (must FAIL)
+ *   node scripts/drive-see-own-frame.cjs --mutant keepoff   the extension handing out a page's words while OWN WEB's switch is off (must FAIL)
+ *   node scripts/drive-see-own-frame.cjs --mutant boxes     the words read without leaving out boxes and editable parts (must FAIL)
+ *   node scripts/drive-see-own-frame.cjs --mutant nevertool the four tools acting on a never-list page the frame moved itself to (must FAIL)
  */
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -32,6 +35,16 @@ const MUTANT = process.argv.includes('--mutant') ? process.argv[process.argv.ind
 const FAMILIES = ['shoptrial.test', 'pairtrial.test', 'othertrial.test', 'thirdtrial.test', 'machinesite.test'];
 const NAMED = ['https://shoptrial.test/*', 'https://*.shoptrial.test/*', 'https://pairtrial.test/*', 'https://*.pairtrial.test/*'];
 const WRITES = "<p id=kept>as sent</p><script>document.getElementById('kept').textContent = 'script ran'</script>";
+/** Every word here ending in -SECRET, and the one-time code, must never leave the page; `plain` is another site's page framed inside it. */
+const LETTER = [
+  '<title>Letter</title><meta name="description" content="A letter kept"><p id=cookie>letter</p><h2 id=head>Dear reader</h2><p id=pick>pick these words</p>',
+  '<form><input id=typed value="TYPED-SECRET"><input type=password id=pass value="PASSWORD-SECRET"><input type=hidden value="HIDDEN-SECRET"><input autocomplete="one-time-code" value="246810">',
+  '<textarea id=area>AREA-SECRET</textarea><select><option>OPTION-SECRET</option></select></form><div id=edit contenteditable>EDIT-SECRET</div>',
+  '<p style="display:none">UNDRAWN-SECRET</p><p style="position:absolute;left:-9999px">OFFPAGE-SECRET</p><p style="position:absolute;width:1px;height:1px;overflow:hidden">TINY-SECRET</p><p hidden>HIDDENATTR-SECRET</p>',
+  '<script>var kept = "SCRIPT-SECRET"</script><p><a id=ad href="/second">an advert</a></p><p><a id=film href="https://www.youtube.com/watch?v=abcdefghijk">a film</a></p>',
+  '<img src="https://www.thirdtrial.test/pixel.png" width=1 height=1><iframe src="https://www.pairtrial.test/plain"></iframe>',
+].join('');
+const SECRETS = ['SECRET', '246810', 'plain'];
 
 (async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'see-own-frame-'));
@@ -45,12 +58,15 @@ const WRITES = "<p id=kept>as sent</p><script>document.getElementById('kept').te
     const guarded = { ...html, 'x-frame-options': 'DENY', 'content-security-policy': "frame-ancestors 'none'" };
     const shop = `<title>Shop ${request.url}</title><p id=cookie>${request.headers.cookie ?? 'signed out'}</p><a id=next href="/second">second</a><a id=inside href="/inside" onclick="history.pushState(null, '', '/inside'); document.title = 'Shop inside'; return false">inside</a>`;
     if (host === 'www.machinesite.test') return answer.writeHead(200, html).end('<title>BROWSER</title><p>the pretend BROWSER page');
-    if (host === 'accounts.google.com') return answer.writeHead(200, guarded).end('<title>Sign in</title><p id=signin>sign in');
+    // `/open`: a page on the never-list that lets itself be framed (the browser shows it; the extension must still read nothing of it).
+    if (host === 'accounts.google.com') return answer.writeHead(200, request.url === '/open' ? html : guarded).end('<title>Sign in</title><p id=signin>sign in</p><p id=open>never read</p><a href="https://www.youtube.com/watch?v=abcdefghijk">a film</a>');
     if (request.url === '/signin') return answer.writeHead(200, { ...html, 'set-cookie': ['session=1; SameSite=None; Secure; Path=/', 'lax=1; SameSite=Lax; Secure; Path=/'] }).end('in');
     if (request.url === '/leave') return answer.writeHead(200, guarded).end('<script>try { top.location.href = "https://www.shoptrial.test/escaped"; } catch (error) {} try { document.title = String(parent.document.title); } catch (error) { document.title = error.name; }</script><p id=left>leaving');
     // A page that lets itself be framed, and frames another inside itself.
     if (request.url.startsWith('/nest?to=')) return answer.writeHead(200, html).end(`<title>Nest</title><p id=cookie>nest</p><iframe id=in src="${decodeURIComponent(request.url.slice(9)).replace(/"/g, '')}"></iframe>`);
     if (request.url === '/plain') return answer.writeHead(200, html).end('<title>Plain</title><p id=cookie>plain</p>');
+    // A signed-in page with everything on it that OWN WEB must never keep, and something for each of the four tools (0.8.2).
+    if (request.url === '/letter') return answer.writeHead(200, guarded).end(LETTER);
     // Kind 1: refused by X-Frame-Options alone, with a strict policy of its own that says nothing of framing.
     if (request.url === '/xfo-csp') return answer.writeHead(200, { ...html, 'x-frame-options': 'DENY', 'content-security-policy': "default-src 'none'" }).end(`<title>Kind one</title><p id=cookie>kind one</p>${WRITES}`);
     // Kind 3: one policy holding both its no-framing line and its script-safety rules.
@@ -79,6 +95,20 @@ const WRITES = "<p id=kept>as sent</p><script>document.getElementById('kept').te
         const asks = "if (location.ancestorOrigins[0] !== 'https://www.machinesite.test') begin();";
         assert.ok(text.includes(asks), 'the mutant finds what it changes');
         text = text.replace(asks, 'if (true) begin();');
+      }
+      if (file === 'worker.js' && MUTANT === 'keepoff') {
+        const refuses = "if (!(await keeping())) return { why: 'off' };";
+        assert.ok(text.includes(refuses), 'the mutant finds what it changes');
+        text = text.replace(refuses, '');
+      }
+      if (file === 'worker.js' && MUTANT === 'nevertool') {
+        const guards = "if (typeof at?.result !== 'string' || neverFramed(at.result)) return null;";
+        assert.ok(text.includes(guards), 'the mutant finds what it changes');
+        text = text.replace(guards, '');
+      }
+      if (file === 'worker.js' && MUTANT === 'boxes') {
+        assert.ok(/const NEVER = '[^']+';/.test(text), 'the mutant finds what it changes');
+        text = text.replace(/const NEVER = '[^']+';/, "const NEVER = 'script,style';");
       }
       if (file === 'sites.js' && MUTANT === 'scripts') {
         assert.ok(/export const PROTECTS = \[[^\]]+\];/.test(text), 'the mutant finds what it changes');
@@ -138,14 +168,16 @@ const WRITES = "<p id=kept>as sent</p><script>document.getElementById('kept').te
     };
     /** What the site's page is told when it asks about one page. */
     const has = (address) => page.evaluate(([extensionId, about]) => new Promise((done) => chrome.runtime.sendMessage(extensionId, { see: 'has', address: about }, done)), [id, address]);
-    return { context, id, page, frameOf, inner, within, text, drawn, told, hold, has };
+    /** Anything a debaser.site page may say to the extension, from `from` (BROWSER's page unless another is given). */
+    const say = (message, from = page) => from.evaluate(([extensionId, said]) => new Promise((done) => chrome.runtime.sendMessage(extensionId, said, (answer) => done(chrome.runtime.lastError ? null : (answer ?? null)))), [id, message]);
+    return { context, id, page, frameOf, inner, within, text, drawn, told, hold, has, say };
   };
 
   // ---- Sites added by name, as it has been since 0.7 ----
   console.log('\nADDED BY NAME (shoptrial.test, pairtrial.test)');
   const named = await browserWith('named', NAMED);
   try {
-    const { context, page, frameOf, inner, within, text, drawn, told, hold, has } = named;
+    const { context, page, frameOf, inner, within, text, drawn, told, hold, has, say } = named;
     // Signed in on the shop, in its own tab, as a reader would be.
     await page.goto('https://www.shoptrial.test/signin');
     await page.goto('https://www.shoptrial.test/');
@@ -185,6 +217,84 @@ const WRITES = "<p id=kept>as sent</p><script>document.getElementById('kept').te
     await page.evaluate(() => window.held.postMessage({ see: 'lens', lens: '<script>' }));
     ok(true, 'and what is not a lens is nothing');
 
+    // OWN WEB keeps the pages OWN EYE shows (0.8.2; Luke, 2026-11-27: "Keep every page"). The switch is the extension's own, off for
+    // everybody; while it is off the extension hands out no words, whatever debaser.site's page asks (the coordinator, 2026-11-28).
+    const LETTER_AT = 'https://www.shoptrial.test/letter';
+    await frameOf(LETTER_AT);
+    await page.waitForTimeout(700);
+    ok((await drawn()) === 'letter' && told.some((each) => each.see === 'at' && each.href === LETTER_AT), 'a signed-in page with boxes on it is shown, and told');
+    await inner().locator('#typed').fill('TYPED-LIVE-SECRET');
+    await inner().locator('#pass').fill('PASSWORD-LIVE-SECRET');
+    await inner().locator('#area').fill('AREA-LIVE-SECRET');
+    await page.locator('body').click({ position: { x: 5, y: 5 } });
+    ok(JSON.stringify(await say({ see: 'keep' })) === JSON.stringify({ see: 'keep', on: false }), "OWN WEB's switch for OWN EYE's pages is off until the reader turns it on");
+    const refused = await say({ see: 'words', address: LETTER_AT });
+    ok(refused !== null && refused.words === undefined && refused.why === 'off', `with the switch off, BROWSER's page asks for the page's words and gets nothing (${JSON.stringify(refused).slice(0, 80)})`);
+    await say({ see: 'keep', on: true });
+    ok((await say({ see: 'keep' })).on === false && (await say({ see: 'words', address: LETTER_AT })).words === undefined, "debaser.site's page can't switch it on");
+    // The reader's own two presses, on the extension's own SITES page, with the plain words between them.
+    const sites = await context.newPage();
+    await sites.goto(`chrome-extension://${named.id}/machine.html#sites`);
+    await sites.locator('#keep button').click();
+    ok((await sites.locator('#keep span').innerText()).startsWith('THE WORDS OF EVERY PAGE OWN EYE SHOWS HERE, SIGNED IN, YOUR MAIL INCLUDED, ARE STORED ON') && (await say({ see: 'keep' })).on === false, 'the first press shows what is stored, in plain words, and turns nothing on');
+    await sites.locator('#keep button', { hasText: 'YES, KEEP THEM' }).click();
+    await sites.locator('#keep button', { hasText: 'STOP KEEPING' }).waitFor({ timeout: 5000 });
+    ok((await say({ see: 'keep' })).on === true, 'the second press turns it on');
+    await sites.close();
+    await page.bringToFront();
+    const given = await say({ see: 'words', address: LETTER_AT });
+    const read = JSON.stringify(given?.words ?? null);
+    ok(given?.words?.href === LETTER_AT && given.words.title === 'Letter' && given.words.description === 'A letter kept' && read.includes('Dear reader') && read.includes('pick these words') && read.includes('an advert'), `switched on, the words a reader can see are handed to BROWSER's page (${read.slice(0, 120)})`);
+    ok(given.words.paragraphs.some((each) => each.heading && each.words === 'Dear reader'), 'a heading comes as a heading');
+    ok(SECRETS.every((each) => !read.includes(each)), `never what is in a box (typed, password, hidden, one-time code, text area, editable part), never what is not drawn, never a frame inside the page: ${SECRETS.filter((each) => read.includes(each)).join(' ') || 'none of it'}`);
+    ok((await say({ see: 'words', address: 'https://www.shoptrial.test/second' })).words === undefined, 'only for the page BROWSER already knows it is showing: another address gets nothing');
+
+    // Four of BROWSER's tools on a page OWN EYE shows (Luke, 2026-11-28: "MEDIA,SEARCH THIS,WATCHERS,ERASE"), each done by the extension.
+    const tool = async (name, more = {}, from = page) => (await say({ see: 'tool', tool: name, ...more }, from))?.found ?? null;
+    const media = await tool('media');
+    ok(Array.isArray(media) && media.some((each) => each.address === 'https://www.youtube.com/watch?v=abcdefghijk' && each.title === 'a film'), `MEDIA: the videos the page names, by address and title (${JSON.stringify(media).slice(0, 100)})`);
+    const watchers = await tool('watchers');
+    ok(Array.isArray(watchers) && watchers.some((each) => each.host === 'www.thirdtrial.test') && watchers.every((each) => !each.host.endsWith('shoptrial.test')), `WATCHERS: the outside hosts the page spoke to, never its own (${JSON.stringify(watchers).slice(0, 100)})`);
+    ok((await tool('selection')) === '', 'SEARCH THIS: nothing selected is nothing');
+    const pick = (id) => inner().evaluate((which) => {
+      // As a press on plain words does: whatever box was typed in last lets go.
+      document.activeElement?.blur();
+      const range = document.createRange();
+      range.selectNodeContents(document.getElementById(which));
+      getSelection().removeAllRanges();
+      getSelection().addRange(range);
+    }, id);
+    await pick('pick');
+    ok((await tool('selection')) === 'pick these words', 'the words selected on the page are told when the key is pressed');
+    await pick('edit');
+    ok((await tool('selection')) === '', 'words selected inside an editable part are not');
+    await inner().locator('#typed').selectText();
+    ok((await tool('selection')) === '', 'nor what is typed in a box, selected');
+    await inner().evaluate(() => {
+      document.activeElement?.blur();
+      getSelection().removeAllRanges();
+    });
+    ok((await tool('erase', { on: true, erased: [] })) === true, 'ERASE is switched on in the page');
+    await inner().locator('#ad').click();
+    await page.waitForTimeout(700);
+    ok(told.some((each) => each.see === 'erased' && each.selector === '#ad' && each.href === LETTER_AT) && (await drawn()) === 'letter' && !told.some((each) => each.see === 'at' && each.href === 'https://www.shoptrial.test/second' && told.indexOf(each) > told.findIndex((one) => one.see === 'at' && one.href === LETTER_AT)), "a press on a part tells BROWSER which part, and is not followed (the link doesn't open)");
+    await tool('erase', { on: false, erased: ['#ad', 'p{display:block} body'] });
+    ok(!(await inner().locator('#ad').isVisible()) && (await inner().locator('#pick').isVisible()), "the part on BROWSER's list is gone from the page; what isn't a part's name is dropped");
+    await tool('erase', { on: false, erased: [] });
+    ok(await inner().locator('#ad').isVisible(), 'BRING BACK puts it back');
+    await inner().locator('#film').hover();
+    ok((await inner().locator('[data-debaser-see-pointed]').count()) === 0, 'and with ERASE off nothing is pointed at');
+
+    // Switched OFF from BROWSER ([ STOP KEEPING ]): at once.
+    ok((await say({ see: 'keep', off: true })).on === false && (await say({ see: 'words', address: LETTER_AT })).words === undefined, '[ STOP KEEPING ] on the site switches it off, and no words are handed out again');
+    // On again for the rest (the refusals below are then not the switch's doing), set from the extension's own page.
+    const setting = await context.newPage();
+    await setting.goto(`chrome-extension://${named.id}/machine.html#sites`);
+    await setting.evaluate(() => chrome.storage.local.set({ keep: true }));
+    await setting.close();
+    await page.bringToFront();
+    ok((await say({ see: 'keep' })).on === true && (await say({ see: 'words', address: LETTER_AT })).words !== undefined, 'switched on again, the words are there again');
+
     // What the rule does to a page's own headers (2026-11-28, decision 67), for a site added by name.
     await frameOf('https://www.shoptrial.test/xfo-csp');
     ok((await drawn()) === 'kind one' && (await text(inner(), '#kept')) === 'as sent', "a page refused by X-Frame-Options alone is shown with its own policy kept whole: its script-safety rules still hold");
@@ -203,6 +313,7 @@ const WRITES = "<p id=kept>as sent</p><script>document.getElementById('kept').te
 
     await frameOf('https://accounts.google.com/');
     ok((await inner()?.locator('#signin').count().catch(() => 0)) === 0, 'a sign-in page is never shown inside it (D1)');
+    ok((await say({ see: 'words', address: 'https://accounts.google.com/' })).words === undefined && (await tool('media')) === null && (await tool('selection')) === null, 'and it has no words to keep and no tool to answer, with OWN WEB switched on');
     await frameOf('https://www.shoptrial.test/leave');
     await page.waitForTimeout(800);
     ok(page.url() === 'https://www.machinesite.test/' && !asked.includes('www.shoptrial.test/escaped'), "the framed site can't move BROWSER's page");
@@ -220,6 +331,8 @@ const WRITES = "<p id=kept>as sent</p><script>document.getElementById('kept').te
     }), SANDBOX);
     const otherFrame = other.frames().find((each) => each.parentFrame() === other.mainFrame());
     ok((await otherFrame?.locator('#cookie').count().catch(() => 0)) === 0, 'another tab of the same site, not held open, is refused as it always was');
+    const asksLeave = await say({ see: 'words', address: 'https://www.shoptrial.test/leave' }, other);
+    ok(asksLeave.words === undefined && asksLeave.why === 'not-browser' && (await tool('media', {}, other)) === null && (await tool('erase', { on: true, erased: ['#left'] }, other)) === null, "a debaser.site page that isn't BROWSER holding its tab gets no page's words and no tool, switched on or not");
     await other.close();
 
     await page.evaluate(() => window.held.disconnect());
@@ -234,7 +347,7 @@ const WRITES = "<p id=kept>as sent</p><script>document.getElementById('kept').te
   console.log('\nEVERY SITE ALLOWED (shoptrial.test and pairtrial.test still by name)');
   const every = await browserWith('every', ['https://*/*', 'http://*/*', ...NAMED]);
   try {
-    const { context, page, frameOf, inner, within, text, drawn, told, hold, has } = every;
+    const { context, page, frameOf, inner, within, text, drawn, told, hold, has, say } = every;
     await page.goto('https://www.machinesite.test/');
     await frameOf('https://www.othertrial.test/');
     ok((await drawn()) === null, 'with no BROWSER page held open, every site keeps its no-framing rule, EVERY SITE or not');
@@ -301,6 +414,28 @@ const WRITES = "<p id=kept>as sent</p><script>document.getElementById('kept').te
     ok((await drawn()) === 'signed out', 'that same site, directly in BROWSER, is shown');
     await frameOf('https://www.shoptrial.test/nest?to=' + encodeURIComponent('https://www.pairtrial.test/'));
     ok((await text(within())) === 'signed out', 'one site added by name inside another still is, as before');
+
+    // OWN WEB and the four tools with every site allowed: a site never added by name is read the same way, and the never-list never is, even
+    // when the framed page moves itself to one that lets itself be framed.
+    const tool = async (name, more = {}) => (await say({ see: 'tool', tool: name, ...more }))?.found ?? null;
+    ok((await say({ see: 'words', address: 'https://www.shoptrial.test/nest?to=' + encodeURIComponent('https://www.pairtrial.test/') })).why === 'off', 'in this second browser OWN WEB is off, as in every browser until it is switched on there');
+    const setting = await context.newPage();
+    await setting.goto(`chrome-extension://${every.id}/machine.html#sites`);
+    await setting.evaluate(() => chrome.storage.local.set({ keep: true }));
+    await setting.close();
+    await page.bringToFront();
+    const LETTER_ELSEWHERE = 'https://www.othertrial.test/letter';
+    await frameOf(LETTER_ELSEWHERE);
+    await page.waitForTimeout(700);
+    const elsewhere = JSON.stringify((await say({ see: 'words', address: LETTER_ELSEWHERE })).words ?? null);
+    ok(elsewhere.includes('Dear reader') && SECRETS.every((each) => !elsewhere.includes(each)) && (await tool('media')).length === 1, 'switched on, a page of a site allowed by EVERY SITE alone is read the same way: its words, nothing in a box');
+    await inner().evaluate(() => {
+      location.href = 'https://accounts.google.com/open';
+    });
+    await page.waitForTimeout(1200);
+    const neverRead = await say({ see: 'words', address: 'https://accounts.google.com/open' });
+    ok((await text(inner(), '#open')) === 'never read' && neverRead.words === undefined && neverRead.why === 'never' && (await say({ see: 'words', address: LETTER_ELSEWHERE })).words === undefined, 'the framed page moves itself to a page on the never-list (sign-ins, banks, payments) that lets itself be framed: none of its words are handed out, whichever address is asked for');
+    ok((await tool('media')) === null && (await tool('watchers')) === null && (await tool('selection')) === null && (await tool('erase', { on: true, erased: [] })) === null, 'and no tool acts on it');
 
     ok(JSON.stringify(await has('https://www.othertrial.test/a')) === JSON.stringify({ on: true, site: 'othertrial.test', named: false }) && JSON.stringify(await has('https://www.shoptrial.test/a')) === JSON.stringify({ on: true, site: 'shoptrial.test', named: true }), "BROWSER's page is told the page may be shown, and whether its site is on the list by name");
     await frameOf('https://accounts.google.com/');

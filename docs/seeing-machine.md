@@ -104,8 +104,39 @@ Proof: `drive-see.cjs --only lenses` (DYE and GLASS measured on every theme, 5.5
   day per address. On the phase 5 tables (seen_pages, seen_page_copies, the seen store), so their rules hold: his alone, at most 200 a day.
 - `[ OWN WEB n ]` beside KEPT (`SeeingOwnWeb`): find by words, filter by site, open the copy kept that day or the page now, delete a page, a site
   or everything (two presses), and switch keeping off (KEEPING WHAT I OPEN). KEPT, Ctrl+K and the lanes leave OWN WEB's pages out.
-- Never kept: what OWN EYE shows (his own browser, signed in: the site never sees it), a sign-in, a page that wasn't the page itself, a form.
-- Not built: the files on I: (the store is where the database keeps its files); other accounts (a switch of their own, off, when Luke asks).
+- Never kept from the house: a sign-in, a page that wasn't the page itself, a form.
+- Not built: the files on I: (the store is where the database keeps its files); other accounts' pages from the house (the server's eye is his alone).
+
+## OWN WEB keeps the pages OWN EYE shows (extension 0.8.2; Luke, 2026-11-27: "Keep every page"; never-keep list, 2026-11-28: "none")
+- **The switch is the extension's**, not the site's: `chrome.storage.local` `keep`, off for everybody, per browser. On = two presses on the
+  extension's SITES page (row `#keep` in machine.js: `[ KEEP OWN EYE'S PAGES ]`, then `KEEP_WORDS` with `[ YES, KEEP THEM ]` / `[ NO ]`).
+  The site reads it (`{see:'keep'}`) and may switch it OFF (`{see:'keep', off:true}`, BROWSER's `[ STOP KEEPING ]`); nothing from the
+  site switches it on. Above the page (`SeeingOwnFrame`): `[ OWN WEB: OFF ↗ ]` (opens the SITES page), or `KEEPING THIS PAGE'S WORDS IN
+  YOUR OWN WEB` with `[ STOP KEEPING ]`, or `OWN WEB IS ON, BUT THIS PAGE WAS NOT KEPT`.
+- **What is read**: `{see:'words', address}` from BROWSER's page, answered only when the sender is the top page of a tab holding a
+  `browser` port, the switch is on, the one frame BROWSER made is at that address and it is not on the never-list (`wordsFor`; the
+  refusals are `not-browser`, `off`, `no-page`, `moved`, `never`). `visibleWords` runs in that frame: the text a reader can see, as
+  headings and paragraphs, at most 200,000 characters. Never a box (input, textarea, select, an editable part), a password, a hidden or
+  one-time-code field, anything not drawn, a frame inside, the page's code, pictures, cookies or storage.
+- **Where it lands**: `SeeingMachine` asks 2.5 s after the frame says where it is (`OWN_KEEP_AFTER_MS`), then `keepFromOwnEye`
+  (`own-web.ts`) writes from the person's own signed-in session, with no server code between: the card in `seen_pages` (private, tags OWN
+  WEB + OWN EYE), the words as plain escaped headings and paragraphs in the `seen` store at `<account>/<page>`, and the first 20,000
+  characters in `seen_page_copies.words` for finding. Once a day per address. The rules that were there already allow it and keep it
+  the owner's alone ("keep your own", "copy of your own", "seen copies added"; reads follow the card): no database change. Limits are
+  the database's: 200 kept pages a day (trigger `seen_pages_own`), 20,000 search characters (the column's check).
+- **Not kept**: a page in an ordinary tab (IN A TAB), YouTube's own player, a never-list page. OWN WEB's list marks these rows
+  ` · OWN EYE` and says so under its title. A page that prints what is typed somewhere else on itself can't be told from ordinary words.
+- **Proved**: `scripts/drive-see-own-frame.cjs` with the real extension on pretend sites (a `/letter` page with every kind of box filled
+  in; mutants `keepoff`, `boxes`, `nevertool` must each fail), BROWSER's side in `drive-see --only owneye`, and once on the live database
+  with TEST ACCOUNT A and B (`scripts/see-own-web-live.cjs`: B and a visitor read nothing of A's page; A removes it).
+
+## Four tools on a page OWN EYE shows (extension 0.8.2; Luke, 2026-11-28: "MEDIA,SEARCH THIS,WATCHERS,ERASE")
+- `{see:'tool', tool}` from BROWSER's page, answered by `toolFor` under the same sender rule as the words; it asks the frame where it is
+  NOW and refuses a never-list page. MEDIA (`findMedia`: the tray, asked when the tray is opened), WATCHERS (`findWatchers`: a panel
+  beside the page, `SeeingOwnWatchers`; the page is left plain), SEARCH THIS (`selectionIn`: the selected words, never a selection
+  inside a box) and ERASE (`eraseIn`: a USER stylesheet hides the listed parts, `erasePicker` outlines the part under the pointer and a
+  press is told to that tab's BROWSER page as `{see:'erased', selector, href}`; the list stays in the reader's browser, `memory.ts`).
+- Nothing they find is stored by the site. NOTES, GRAFFITI, SCRIPTS OFF, SHOW MY ROOM, SEAM, LOUPE and SONIFY still need the house's copy.
 
 ## Sign-in groups, IMPORT, the first visit, the store (Luke, 2026-11-27)
 - `SIGN_IN_GROUPS` (extension/sites.js): adding a site that shares a sign-in offers the whole company's sites, named before the press, in one box
@@ -149,8 +180,8 @@ Proof: `drive-see.cjs --only lenses` (DYE and GLASS measured on every theme, 5.5
 - The address box follows it (2026-11-27): where the extension says the framed page got to (an http(s) address only) is put in the box,
   without reloading the frame; GO there makes it a stop of the tab's own. YouTube's player reads as its watch page (`boxAddress`).
 - Lenses on it (2026-11-27): a lens pressed in BROWSER is sent over the held port; the extension wears it on the framed page (act.js putLens
-  on that tab's frame) and again on each page the frame goes to. READER, X-RAY, LOW-FI and DYE (its YOUR THEME); WATCHERS, GLASS and CUSTOM are the
-  house's only and say so. Nothing of the page leaves the reader's browser; they stay signed in.
+  on that tab's frame) and again on each page the frame goes to. READER, X-RAY, LOW-FI and DYE (its YOUR THEME); GLASS and CUSTOM are the
+  house's only and say so (WATCHERS is a panel beside the page since 0.8.2, below). A lens sends nothing of the page anywhere; they stay signed in.
 - The eyes say their purpose: OWN EYE "your browser, signed in as you"; SERVER EYE "from the house, never signed in, rebuilt through the lenses".
 - **Every key named OWN EYE shows the page here** (Luke, 2026-11-27: "it seems own eye still opens a new tab in edge when i click it"), whichever
   eye is the choice: the switch's OWN EYE key (below), a refused page's `[ SHOW IT WITH OWN EYE: YOUR BROWSER ]`, SHOW IT HERE WITH OWN EYE:
@@ -164,10 +195,9 @@ Proof: `drive-see.cjs --only lenses` (DYE and GLASS measured on every theme, 5.5
   Without the extension the first key reads `[ GET OWN EYE: YOUR BROWSER, SIGNED IN ]` and opens the EXTENSION window. It replaced a single
   key that named the eye that was on while a press switched away from it, beside a second key named `[ OWN EYE ]`.
 - **What works on a page OWN EYE shows, said on the page** (the same morning: "so that the lesnes work while people are still able to be signed
-  in"): one line under the tool row (`data-seeing-own-tools`) says only the lenses reach it, on a site that was added, and that the other
-  tools on the row (NOTES, GRAFFITI, SEARCH THIS, SCRIPTS OFF, SHOW MY ROOM, SEAM, LOUPE, ERASE, MEDIA, SONIFY) need the house's copy, which
-  `[ FROM THE HOUSE ]` shows. It says what the tools need, not what the site can never do, so it stays true when OWN WEB keeps OWN EYE's
-  pages (decision 61). A lens pressed while the site is not on the list (YouTube's player shows without that) says
+  in"): one line under the tool row (`data-seeing-own-tools`) says the lenses, MEDIA, WATCHERS, SEARCH THIS and ERASE reach it through
+  the extension, on a site it may show, and that the other tools on the row (NOTES, GRAFFITI, SCRIPTS OFF, SHOW MY ROOM, SEAM, LOUPE,
+  SONIFY) need the house's copy, which `[ FROM THE HOUSE ]` shows (until 0.8.2 it said only the lenses reach it). A lens pressed while the site is not on the list (YouTube's player shows without that) says
   `A LENS NEEDS <site> ADDED FIRST` instead of doing nothing. A tab of the browser is opened only by a key whose name says tab: `[ IN A TAB ↗ ]` (on the frame's line,
   and on the "needs your own browser" page) and `LOG IN TO YOUTUBE IN A TAB ↗` (a sign-in page is never framed, D1). A framed page that says
   nothing in 8 seconds says why (the site refuses to be inside another, or it is a sign-in page) and its tab key becomes OPEN IT IN A TAB ↗, the
@@ -261,6 +291,22 @@ Each tried once in the server's eye, 2026-11-23 (`scripts/see-table.cjs --engine
 | Open Library | did not answer in time | ↗ |
 
 In OWN EYE these are your own browser's, where they answer as they always do; not tried here, where nobody is signed in to anything.
+
+## The bookmarks-bar key (Luke, 2026-11-27, asked which install routes to build: "Bookmarks-bar key (no install)")
+- **What it is**: a key in the EXTENSION window (`BookmarkKey`, shown without the extension or with an old one) to drag to the browser's
+  bookmarks bar. Its address is a `javascript:` one holding all of its code: `extension/lens.js` (the very file the extension wears) and
+  `bookmark/strip.js` (a strip of keys in words: STANDARD, READER, X-RAY, LOW-FI, YOUR THEME, MEDIA, PUT AWAY), put together when the site
+  is built (`app/lib/seeing/bookmark-key.ts`, served as plain text by `/api/extension/key`). The window writes the reader's theme colours
+  into it and sets the address on the key by hand, after the page is up (React refuses a `javascript:` address). The key keeps the
+  colours it was dragged with; a new version of the lenses means dragging it again.
+- **What it is not**: it is not inside debaser.site and not OWN EYE. It changes the page in front, in that tab, until the page is loaded
+  again. It loads no code and tells the site nothing; MEDIA's `[ TO DEBASER ↗ ]` opens `https://debaser.site/browser#media=...` in a new tab,
+  the same address the extension's panel opens (READER copies the page's own pictures, which the browser may ask the page's site for again).
+- **Why the lens file changed** (extension 0.8.2): run as the page, its rules go on as sheet objects (`adoptedStyleSheets`), because a
+  page's own content policy refuses a style element and reports each one tried. In the extension nothing changes: it still uses an element.
+- **Proved**: `Temp/check-see-extension.cjs` (the address parses for every theme, holds colours and nothing else of a theme, names no
+  address but the site's, and run on a pretend page puts its seven keys on and takes them off) and `scripts/drive-bookmark-key.cjs` in a
+  real browser, below. `strip.js` is outside `app/` because it holds the house colours as values, which `npm run tokens` refuses there.
 
 ## The EXTENSION window, and how it is kept up to date (Luke, 2026-11-23)
 - Under the profile's `[ ⚙ SETTINGS ]`: `ExtensionWindow.tsx`. Without the extension it gets it first (the download), with an old one it updates it

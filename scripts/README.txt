@@ -462,3 +462,25 @@ BROWSER's extension trial (phase 2b): a throwaway extension on pretend sites (wh
 drive-see-extension.cjs
 -----------------------
 BROWSER's extension (extension/) in a real browser with a throwaway profile, on pretend sites the script serves on port 80. Signs in to nothing.
+
+drive-bookmark-key.cjs
+----------------------
+BROWSER's bookmarks-bar key (the lenses as a bookmark, no install) pressed in a real browser on pretend pages the script serves, each with a
+stricter rule about scripts and styles than the last; --real adds a few real kinds of page, read once each, signed in to nothing. It says
+what worked where (the line in the EXTENSION window about where the key won't work comes from its table) and fails only where a page with
+no rule, or a loose one, didn't work. --browser edge | chrome | firefox, --exe <path> for a browser that isn't the one found.
+
+trial-own-eye-cookies.cjs, marionette.cjs
+-----------------------------------------
+The Firefox question (2026-11-27): does a site framed in an extension's own page get its cookies (no SameSite, Lax, None, Strict), and is
+the no-framing header lifted, the same in Firefox as in Chrome and Edge? A throwaway extension and a pretend https shop that writes down
+which cookies each request brought; the table is the answer. --browser edge | chrome | firefox, --exe <path>. marionette.cjs is the small
+client that drives a real Firefox over its own remote protocol (playwright-core only drives a Firefox of its own). Neither fetches a
+browser, and neither changes a cookie setting: the browser is as it ships.
+
+see-own-web-live.cjs
+--------------------
+OWN WEB keeping a page OWN EYE showed (extension 0.8.2), on the LIVE database with TEST ACCOUNT A and B: A keeps one private page through
+the site's own `keepFromOwnEye`; B and a signed-out visitor are refused its card, its words, its file and a search for its words, and B
+can't delete it; A removes it. It makes one card and one file and removes them; no SQL. Short, one session at a time, only when the
+keeping code or those tables' rules change (run once, 2026-11-28: 11 passed).

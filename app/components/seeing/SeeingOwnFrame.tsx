@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { explain, NOTE } from '../../lib/ui/explain';
-import { PLATE, PLATE_MAIN } from '../../lib/ui/controls';
+import { PLATE, PLATE_MAIN, TITLE_BAR_INACTIVE } from '../../lib/ui/controls';
 import { youtubeId } from '../../lib/watch/links';
 
 /** What the frame may do: run, keep its own site's sign-in, send forms, open windows of its own; never move this page. */
@@ -52,6 +52,40 @@ export function watchPageOf(href: string): string | null {
  */
 export const NAMED_COST = 'A site added by name is shown even when that means switching off its own script-safety rules (its Content-Security-Policy) while it is inside BROWSER or the machine. Some sites, DuckDuckGo and GitHub among them, only show that way.';
 
+/**
+ * WATCHERS beside a page OWN EYE shows (Luke, 2026-11-28): the outside hosts that page spoke to, as the reader's own browser counted them, read
+ * by the extension when the lens is put in front. Facts about the page, never about people. `undefined`: asked, not answered yet.
+ */
+export function SeeingOwnWatchers({ hosts, said }: { hosts: { host: string; count: number }[] | null | undefined; said: boolean }) {
+  return (
+    <section aria-label="Watchers" className="flex w-64 shrink-0 flex-col overflow-y-auto border-l-line border-ink bg-paper p-2" data-seeing-own-watchers={hosts?.length ?? ''}>
+      <h2 className={TITLE_BAR_INACTIVE}>WATCHERS</h2>
+      <p className="p-1 text-label text-ink-quiet">THE OUTSIDE HOSTS THIS PAGE SPOKE TO, IN YOUR OWN BROWSER, AND HOW MANY TIMES.</p>
+      {!said ? (
+        // The extension has not said this page is there: it is still loading, or it is one the extension never reads.
+        <p className="p-1 text-label text-ink" data-seeing-own-watchers-unsaid>
+          WAITING FOR THE EXTENSION TO SAY THIS PAGE IS THERE. A SITE THAT IS NOT ADDED, OR YOUTUBE&apos;S OWN PLAYER, IS NEVER READ: [ FROM THE HOUSE ] LISTS ITS WATCHERS.
+        </p>
+      ) : hosts === undefined ? (
+        <p className="p-1 text-label text-ink">ASKING THE EXTENSION…</p>
+      ) : hosts === null ? (
+        <p className="p-1 text-label text-ink">THE EXTENSION DID NOT ANSWER: PICK THE LENS AGAIN, OR RELOAD THE PAGE.</p>
+      ) : hosts.length === 0 ? (
+        <p className="p-1 text-label text-ink">NOBODY.</p>
+      ) : (
+        <ul>
+          {hosts.map((each) => (
+            <li key={each.host} className="rule-pixel flex justify-between gap-2 py-1.5 text-label text-ink">
+              <span className="min-w-0 break-all">{each.host}</span>
+              <span className="tabular-nums text-ink-quiet">{each.count}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 type Props = {
   address: string;
   /** Whether the extension may show this page: its site was added by name, or EVERY SITE is on. Null: it hasn't said. */
@@ -65,13 +99,19 @@ type Props = {
   onHouse: () => void;
   onAdd: () => void;
   onEvery: () => void;
+  /** OWN WEB's switch for the pages shown here, as the extension holds it. Null: it hasn't said (an older copy never does). */
+  keeping: boolean | null;
+  /** Whether this page's words were kept. Null: not asked yet. */
+  kept: boolean | null;
+  onKeep: () => void;
+  onStopKeeping: () => void;
 };
 
 /**
  * OWN EYE in one of BROWSER's own tabs (Luke, 2026-11-27): the page from your own browser, signed in as you where the site lets its sign-in work
  * inside another site. A real tab, the machine's own page, and the house's look are each one press away.
  */
-export default function SeeingOwnFrame({ address, onList, named, site, at, onTab, onMachine, onHouse, onAdd, onEvery }: Props) {
+export default function SeeingOwnFrame({ address, onList, named, site, at, onTab, onMachine, onHouse, onAdd, onEvery, keeping, kept, onKeep, onStopKeeping }: Props) {
   const src = framedAddress(address);
   const embedded = src !== address;
   const [loadedAt, setLoadedAt] = useState<number | null>(null);
@@ -149,6 +189,20 @@ export default function SeeingOwnFrame({ address, onList, named, site, at, onTab
         {byName ? (
           <button type="button" onClick={onAdd} title={NAMED_COST} className={PLATE} data-seeing-own-add {...explain('Opens the machine\'s page on this site, where one press adds it to the extension\'s list by name; your browser asks too.', NAMED_COST, NOTE.leaves)}>
             ADD {site} BY NAME ↗
+          </button>
+        ) : null}
+        {/* OWN WEB (Luke, 2026-11-27: "Keep every page"): said plainly on the page while its words are being kept, with the key that stops it.
+            The switch is the extension's own, off until two presses on its SITES page; YouTube's player has no words to keep. */}
+        {!silent && !embedded && keeping === true ? (
+          <>
+            <span data-seeing-own-keeping={kept === false ? 'not' : 'on'}>{kept === false ? 'OWN WEB IS ON, BUT THIS PAGE WAS NOT KEPT' : "KEEPING THIS PAGE'S WORDS IN YOUR OWN WEB"}</span>
+            <button type="button" onClick={onStopKeeping} className={PLATE} data-seeing-own-stop {...explain('Stops keeping the pages OWN EYE shows, at once: the switch in the extension goes off.', 'While it is on, the words a reader can see on each page shown here are stored on your debaser.site account, private to you: never what you type in a box, never a page opened in a tab of your browser. A page is not kept when today\'s 200 are reached or it had no words yet. Pages already kept stay in [ OWN WEB ] until you delete them there. Turning it on again is two presses on the extension\'s SITES page.')}>
+              [ STOP KEEPING ]
+            </button>
+          </>
+        ) : !silent && !embedded && keeping === false ? (
+          <button type="button" onClick={onKeep} className={PLATE} data-seeing-own-keep {...explain('OWN WEB is off for the pages OWN EYE shows: nothing of them is read or kept. This opens the extension\'s SITES page, where two presses turn it on.', 'On, the words a reader can see on each page shown here, signed in, your mail included, are stored on debaser.site\'s server, private to you; the server\'s owner and its backups hold them too. Never what you type in a box, never a page opened in a tab of your browser.', NOTE.leaves)}>
+            [ OWN WEB: OFF ↗ ]
           </button>
         ) : null}
         {keys}

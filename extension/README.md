@@ -35,7 +35,10 @@ Remove it in `chrome://extensions` (Edge: `edge://extensions`) and delete the fo
 ## What it can and can't do
 It acts only on sites you add, and on the tab you press its key on; or on every site, once you press ALLOW EVERY SITE under SITES (off until
 then; the browser asks first; TAKE IT BACK undoes it). It never reads passwords or cookies. It sends debaser.site nothing but what you press: a
-media item's address, or a page's address for the server's eye. To show a site in a frame it lifts that site's no-framing rule, in the machine's
+media item's address, or a page's address for the server's eye; and, for the one page BROWSER shows through OWN EYE, what MEDIA, WATCHERS,
+SEARCH THIS and ERASE find when you press them there (0.8.2). OWN WEB (SITES, first row; 0.8.2) is off until you press KEEP OWN EYE'S PAGES and
+then YES: while it is on, the words you can see on each page BROWSER shows through OWN EYE are stored on your debaser.site account, private to
+you; never what is typed in a box, a password, or a page in an ordinary tab. While it is off the extension hands a page's words to nothing. To show a site in a frame it lifts that site's no-framing rule, in the machine's
 own tab and in BROWSER's tab on debaser.site only, while one is open there, and tells the page in its place who may frame it here.
 
 A site added by name is shown even when that means switching off its own script-safety rules (its Content-Security-Policy) while it is inside

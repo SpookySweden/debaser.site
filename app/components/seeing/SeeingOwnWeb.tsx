@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useSyncExternalStore } from 'react';
 import { matchesWords, searchWords } from '../../lib/search/site-search';
-import { forgetOwnWeb, isOwnWeb, ownWebOn, ownWebOnServer, setOwnWeb, subscribeToOwnWeb } from '../../lib/seeing/own-web';
+import { forgetOwnWeb, isOwnWeb, OWN_EYE_TAG, ownWebOn, ownWebOnServer, setOwnWeb, subscribeToOwnWeb } from '../../lib/seeing/own-web';
 import { keptAddress, pageWords, type SeenPage } from '../../lib/seeing/pages';
 import { keptPages, keptPagesOnServer, removePage, subscribeToKeptPages } from '../../lib/seeing/pages-store';
 import { explain, NOTE } from '../../lib/ui/explain';
@@ -38,7 +38,9 @@ export default function SeeingOwnWeb({ onGo, onClose }: { onGo: (address: string
           [ × ]
         </button>
       </div>
-      <p className="text-ink-quiet">YOURS ALONE. EVERY PAGE YOU OPEN FROM THE HOUSE, KEPT WHOLE ONCE A DAY. NEVER WHAT YOUR OWN BROWSER SHOWS, A SIGN-IN, OR A FORM.</p>
+      <p className="text-ink-quiet" data-seeing-own-web-says>
+        YOURS ALONE. EVERY PAGE YOU OPEN FROM THE HOUSE, KEPT WHOLE ONCE A DAY; NEVER A SIGN-IN OR A FORM. A PAGE OWN EYE SHOWS INSIDE BROWSER (MARKED OWN EYE): ITS WORDS ONLY, NEVER WHAT YOU TYPE, AND ONLY WHILE OWN WEB IS ON IN THE EXTENSION&apos;S SITES PAGE. A PAGE IN A TAB OF YOUR BROWSER IS NEVER KEPT.
+      </p>
       {sites.length > 0 ? (
         <p className="flex flex-wrap items-center gap-1 py-1">
           {sites.slice(0, 40).map(([name, count]) => (
@@ -74,7 +76,10 @@ function Row({ page, onGo }: { page: SeenPage; onGo: (address: string) => void }
       <button type="button" onClick={() => onGo(keptAddress(page.id))} title={page.address} className={`${PLATE} max-w-full min-w-0 truncate`} {...explain('Opens the copy kept that day, here, with nothing asked of the site.', 'It still opens if the site has changed or gone.')}>
         {page.title}
       </button>
-      <span className="text-ink-quiet">{page.site}</span>
+      <span className="text-ink-quiet">
+        {page.site}
+        {page.tags.includes(OWN_EYE_TAG) ? ' · OWN EYE' : ''}
+      </span>
       <button type="button" onClick={() => onGo(page.address)} className={PLATE} {...explain('Opens the page as it is now, from the house.')}>
         [ NOW ]
       </button>

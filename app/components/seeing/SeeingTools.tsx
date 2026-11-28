@@ -12,6 +12,8 @@ type Props = {
   address: string | null;
   /** A page is drawn (not busy, not refused): SEAM, LOUPE and ERASE work on one. */
   ready: boolean;
+  /** ERASE alone also works on a page OWN EYE shows, through the extension. Left out: as `ready`. */
+  eraseReady?: boolean;
   /** The page was refused: SEAM, LOUPE and ERASE are put away, not greyed (decision 46). */
   refused: boolean;
   seam: LensId | null;
@@ -32,7 +34,7 @@ type Props = {
 const on = (pressed: boolean): string => (pressed ? `${PLATE_PRESSED} cursor-pointer` : PLATE);
 
 /** SEAM, LOUPE, ERASE, SCAN and the TIME DIAL. */
-export default function SeeingTools({ address, ready, refused, seam, loupe, erasing, erased, good, onSeam, onLoupe, onErasing, onBringBack, onScan, onGood, onGo, children }: Props) {
+export default function SeeingTools({ address, ready, eraseReady, refused, seam, loupe, erasing, erased, good, onSeam, onLoupe, onErasing, onBringBack, onScan, onGood, onGo, children }: Props) {
   // A new tab shows only what works without a page: SCAN, then HISTORY and KEPT.
   const page = address !== null && !refused;
   const outside = address !== null && /^https?:/.test(address);
@@ -85,7 +87,7 @@ export default function SeeingTools({ address, ready, refused, seam, loupe, eras
           ))}
         </select>
       ) : null}
-      <button type="button" aria-pressed={erasing} disabled={!ready && !erasing} title="Point, press, gone" onClick={() => onErasing(!erasing)} className={on(erasing)} {...explain('While it is on, pressing a part of the page takes it away. Press again to stop.', 'To clear away a banner, a box or anything in the way of reading. The page is remembered without it next time.')}>
+      <button type="button" aria-pressed={erasing} disabled={!(eraseReady ?? ready) && !erasing} title="Point, press, gone" onClick={() => onErasing(!erasing)} className={on(erasing)} {...explain('While it is on, pressing a part of the page takes it away. Press again to stop.', 'To clear away a banner, a box or anything in the way of reading. The page is remembered without it next time.')}>
         [ ERASE ]
       </button>
       {erased > 0 ? (

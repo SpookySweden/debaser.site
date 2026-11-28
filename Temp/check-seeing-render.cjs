@@ -134,6 +134,15 @@ assert.ok(/>UPDATE</.test(body_({ kind: 'old', version: '0.1.0', folder: 'ask' }
 assert.ok(/OPENS PAGES IN/.test(body_({ kind: 'current', version: '0.2.0', settings: { lens: 'reader', wear: true } })));
 assert.ok(/CHROME AND EDGE/.test(body_({ kind: 'unable' })));
 for (const kind of ['missing', 'old', 'current', 'unable']) assert.match(body_({ kind, version: '0.1.0' }), /NEVER READS PASSWORDS OR COOKIES/);
+// (2026-11-27, "Bookmarks-bar key (no install)") In a browser without the extension, or with an old one: the key to drag, what it is and isn't,
+// and where it won't work. No address on it until the page is up (React refuses a javascript: one; it is written on by hand, with the theme's colours).
+for (const kind of ['missing', 'old', 'unable']) {
+  const drawn = body_({ kind, version: '0.1.0' });
+  assert.ok(/A BOOKMARKS-BAR KEY/.test(drawn) && />DEBASER LENSES<\/a>/.test(drawn) && /DRAG THIS KEY TO YOUR BOOKMARKS BAR/.test(drawn), `${kind}: the key to drag`);
+  assert.ok(/IT IS NOT INSIDE DEBASER\.SITE/.test(drawn) && /<p data-bookmark-wont="true">WHERE IT WON&#x27;T WORK: [A-Z]/.test(drawn) && !/TO BE WRITTEN/.test(drawn), `${kind}: said plainly, what it is not and where it won't work`);
+  assert.ok(!/javascript:/.test(drawn) && /data-bookmark-key="waiting"/.test(drawn) && /data-explain="A key to drag/.test(drawn), `${kind}: no address until the page is up, and its own explanation`);
+}
+assert.ok(!/BOOKMARKS-BAR KEY/.test(body_({ kind: 'current', version: '0.2.0', settings: { lens: 'reader', wear: true } })) && !/BOOKMARKS-BAR KEY/.test(body_({ kind: 'asking' })), 'with the extension in, or while looking for it, no key');
 // (2026-11-27, "easier to download and update") No store yet: the extension written into a new folder, the extensions page's address copied.
 const NO_STORE = { chrome: null, edge: null };
 const STORE_ID = 'abcdefghijklmnopabcdefghijklmnop';

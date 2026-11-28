@@ -1,11 +1,14 @@
 'use client';
 
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { BOOKMARK_THEME_SLOT, bookmarkAddress } from '../lib/seeing/bookmark-key';
 import { changeExtensionSettings, extensionState, extensionStateOnServer, folderCanBePicked, forgetExtensionFolder, installIntoFolder, lookForExtension, pickExtensionFolder, subscribeToExtension, updateExtension, type ExtensionState } from '../lib/seeing/extension-store';
 import { STORE_PAGE, storeIdFor } from '../lib/seeing/extension-ids';
-import { OWN_EYE_LENSES, openOwnEyeSites } from '../lib/seeing/own-eye';
+import { OWN_EYE_LENSES, openOwnEyeSites, ownEyeTheme } from '../lib/seeing/own-eye';
 import { closeExtensionWindow, extensionWindowState, subscribeToExtensionWindow } from '../lib/ui/extension-window';
 import { PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
+import { subscribeToTheme, themeState } from '../lib/ui/theme-slot';
+import { themeById } from '../lib/ui/themes';
 import DockWindow from './DockWindow';
 import { explain, NOTE } from '../lib/ui/explain';
 
@@ -64,7 +67,13 @@ function ExtensionPanel() {
 
 /** Said wherever the folder is asked for: it is the whole of what is given. */
 const TRUST = "IT LETS THIS SITE CHANGE THE EXTENSION'S CODE: WHOEVER RUNS THIS SITE COULD.";
-const STORE_NAME: Record<Browser, string> = { chrome: 'THE CHROME WEB STORE', edge: 'THE EDGE ADD-ONS STORE' };
+/**
+ * Where the bookmarks-bar key does nothing: the pages are from the drive's table (`scripts/drive-bookmark-key.cjs`, Edge), and a browser's
+ * own pages never run a bookmark's code. Chrome and Firefox are tried next (the Firefox trial); the line names what was tried.
+ */
+const BOOKMARK_WONT =
+  'WHERE IT WON\'T WORK: ON A PAGE THAT ALLOWS NO SCRIPTS AT ALL (A RAW FILE ON GITHUB, FOR ONE), ON YOUR BROWSER\'S OWN PAGES (SETTINGS, A NEW TAB, ITS ADD-ONS STORE) AND IN A PDF. IT SIGNS YOU IN TO NOTHING AND SHOWS NOTHING INSIDE DEBASER: IT IS THE LENSES AND MEDIA ONLY. TRIED IN EDGE SO FAR; CHROME AND FIREFOX COME NEXT.';
+const STORE_NAME: Record<Browser, string> ={ chrome: 'THE CHROME WEB STORE', edge: 'THE EDGE ADD-ONS STORE' };
 
 /** The store this browser gets it from, once that store has it: Edge's own, or Chrome's (Edge can take Chrome's too, once allowed). */
 function storeFor(browser: Browser, stores: Stores): { page: string; name: string; note: string | null } | null {
@@ -83,14 +92,68 @@ export function ExtensionBody({ state, canPick, browser = 'chrome', stores = STO
       {state.kind === 'old' ? <Update state={state} canPick={canPick} browser={browser} /> : null}
       {state.kind === 'current' ? <Settings state={state} canPick={canPick} browser={browser} /> : null}
       {state.said !== null ? <p role="status">{state.said}</p> : null}
+      {state.kind === 'asking' || state.kind === 'current' ? null : <BookmarkKey />}
       <section>
         <h3 className={TITLE_BAR_INACTIVE}>WHAT IT CAN SEE</h3>
         <p className="py-1">
-          ONLY SITES YOU ADD, AND THE TAB YOU PRESS ITS KEY ON. IT NEVER READS PASSWORDS OR COOKIES. IT TELLS THIS SITE ITS VERSION, ITS TWO SETTINGS, AND WHAT YOU PRESS TO SEND. TO TAKE IT OUT: REMOVE IT IN THE BROWSER&apos;S EXTENSIONS PAGE
+          ONLY SITES YOU ADD (OR EVERY SITE, IF YOU ALLOW THAT ON ITS OWN SITES PAGE), AND THE TAB YOU PRESS ITS KEY ON. IT NEVER READS PASSWORDS OR COOKIES. IT TELLS THIS SITE ITS VERSION, ITS SETTINGS, WHAT YOU PRESS TO SEND, AND, FOR A PAGE OWN EYE SHOWS IN BROWSER, WHAT THE TOOLS YOU PRESS THERE FIND. A PAGE&apos;S WORDS ONLY IF YOU SWITCH ON KEEP OWN EYE&apos;S PAGES THERE: OFF UNTIL YOU DO. TO TAKE IT OUT: REMOVE IT IN THE BROWSER&apos;S EXTENSIONS PAGE
           {fromStore ? '.' : ', AND DELETE ITS FOLDER.'}
         </p>
       </section>
     </div>
+  );
+}
+
+/**
+ * The bookmarks-bar key (Luke, 2026-11-27: "Bookmarks-bar key (no install)"): the lenses as a bookmark that holds all of its own code, for a
+ * browser with no extension. Its address is written onto the key by hand, after the page is up: React refuses a `javascript:` address, and the
+ * address carries the colours the reader's theme has now. A press here does nothing: it is for dragging.
+ */
+function BookmarkKey() {
+  const key = useRef<HTMLAnchorElement>(null);
+  const [code, setCode] = useState<string | null>(null);
+  const [pressed, setPressed] = useState(false);
+  const themeId = useSyncExternalStore(subscribeToTheme, themeState, themeState).id;
+  useEffect(() => {
+    let gone = false;
+    void fetch('/api/extension/key')
+      .then((answer) => (answer.ok ? answer.text() : ''))
+      .then((text) => {
+        if (!gone && text.includes(BOOKMARK_THEME_SLOT)) setCode(text);
+      })
+      .catch(() => undefined);
+    return () => {
+      gone = true;
+    };
+  }, []);
+  useEffect(() => {
+    if (code === null || key.current === null) return;
+    const theme = themeById(themeId);
+    key.current.setAttribute('href', bookmarkAddress(code, ownEyeTheme(theme.tokens, theme.scheme)));
+  }, [code, themeId]);
+  return (
+    <section className="space-y-2" data-bookmark-key={code === null ? 'waiting' : 'ready'}>
+      <h3 className={TITLE_BAR_INACTIVE}>OR NO INSTALL: A BOOKMARKS-BAR KEY</h3>
+      <p>
+        <a
+          ref={key}
+          draggable={code !== null}
+          onClick={(event) => {
+            event.preventDefault();
+            setPressed(true);
+          }}
+          className={PLATE_MAIN}
+          {...explain('A key to drag to your browser\'s bookmarks bar. Pressed there, on any page, it puts a strip of keys on that page: READER, X-RAY, LOW-FI, YOUR THEME, and MEDIA to send a video to DEBASER.', 'For a browser without the extension: nothing is installed, and the key holds all of its own code. It changes the page in front of you only; it is not signed-in browsing inside DEBASER.', 'DRAG IT: A PRESS HERE DOES NOTHING.')}
+        >
+          DEBASER LENSES
+        </a>{' '}
+        DRAG THIS KEY TO YOUR BOOKMARKS BAR (CTRL+SHIFT+B SHOWS THE BAR).
+      </p>
+      {pressed ? <p role="status">DRAG IT TO THE BOOKMARKS BAR: A PRESS HERE DOES NOTHING.</p> : null}
+      <p>THEN, ON ANY PAGE, PRESS IT THERE: A STRIP OF KEYS COMES UP ON THAT PAGE, WITH READER, X-RAY, LOW-FI AND YOUR THEME, AND [ MEDIA ] TO SEND A VIDEO ON THE PAGE TO DEBASER. PRESS IT AGAIN TO PUT IT AWAY.</p>
+      <p>NOTHING IS INSTALLED, AND IT ASKS THE NETWORK FOR NOTHING. IT IS NOT INSIDE DEBASER.SITE: IT CHANGES THE PAGE IN FRONT OF YOU, IN THAT TAB, UNTIL THE PAGE IS LOADED AGAIN. IT KEEPS THE COLOURS YOUR THEME HAD WHEN YOU DRAGGED IT.</p>
+      <p data-bookmark-wont>{BOOKMARK_WONT}</p>
+    </section>
   );
 }
 
