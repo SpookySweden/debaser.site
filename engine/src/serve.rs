@@ -346,16 +346,31 @@ struct SoundState {
     problem: Option<String>,
 }
 
+/// Where this PC's own addresses come from: Windows' list (`native::local_ipv4`), or a test's pretend one.
+type OwnAddresses = Box<dyn Fn() -> Vec<Ipv4Addr> + Send + Sync>;
+
+/// The addresses browsers are told to send video to, and what has been worked out from them. They are NOT settled
+/// once at start: the gaming PC's engine starts at sign-in, which can be before its Wi-Fi has an address, and a
+/// network can drop, come back or change its address later. So they are read again at every viewer's hello.
+struct Reach {
+    /// All on the one socket (`video_addresses`).
+    offered: Vec<SocketAddr>,
+    /// For a socket on every address: which of ours a sender's packets arrive at, remembered per sender.
+    routes: HashMap<IpAddr, IpAddr>,
+}
+
 struct Shared {
     viewers: Mutex<Vec<Viewer>>,
     socket: UdpSocket,
-    /// The addresses browsers are told to send to (all on the one socket).
-    candidates: Vec<SocketAddr>,
+    /// The video socket's port, and `--lan`: with `listen`, what the offered addresses are worked out from.
+    udp_port: u16,
+    lan: bool,
+    own_addresses: OwnAddresses,
+    /// Locked after `viewers` when both are, and never for long.
+    reach: Mutex<Reach>,
     /// `--internet`: on, and what STUN has said (stun.rs). Locked on its own, never for long.
     internet: bool,
     stun: Mutex<crate::stun::Stun>,
-    /// For a socket on every address: which of ours a sender's packets arrive at, remembered per sender.
-    routes: Mutex<HashMap<IpAddr, IpAddr>>,
     /// A viewer needs a full picture: the next frame is forced to be one.
     want_keyframe: AtomicBool,
     keyframe_requests: AtomicU64,
@@ -384,18 +399,37 @@ struct Shared {
 }
 
 impl Shared {
+    /// The addresses as they were last read.
+    fn offered(&self) -> Vec<SocketAddr> {
+        self.reach.lock().unwrap().offered.clone()
+    }
+
+    /// The addresses as they are now, asked of the PC afresh. When they differ from the last reading that is said
+    /// on the console, and what was worked out from the old ones is forgotten.
+    fn read_offered(&self) -> Vec<SocketAddr> {
+        let now = video_addresses(self.listen, self.lan, &(self.own_addresses)(), self.udp_port);
+        let mut reach = self.reach.lock().unwrap();
+        if reach.offered != now {
+            println!("  video leaves from {} (this PC's addresses have changed)", spoken(&now));
+            reach.offered.clone_from(&now);
+            reach.routes.clear();
+        }
+        now
+    }
+
     /// Which of our addresses a packet from `source` arrived at. With one address there is no question. With the
     /// socket on every address, Windows does not say, so it is worked out: this PC itself reaches us on 127.0.0.1,
     /// and anyone else on the address Windows would use to send back to them.
     fn arrived_at(&self, source: SocketAddr) -> SocketAddr {
-        if self.candidates.len() == 1 {
-            return self.candidates[0];
+        let mut reach = self.reach.lock().unwrap();
+        let Reach { offered, routes } = &mut *reach;
+        if offered.len() == 1 {
+            return offered[0];
         }
-        let port = self.candidates[0].port();
+        let port = self.udp_port;
         if source.ip().is_loopback() {
             return SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), port);
         }
-        let mut routes = self.routes.lock().unwrap();
         let ours = *routes.entry(source.ip()).or_insert_with(|| {
             // "Connecting" a UDP socket sends nothing: it only makes Windows choose the address it would send from.
             let found = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0)).and_then(|probe| {
@@ -403,8 +437,8 @@ impl Shared {
                 probe.local_addr()
             });
             match found {
-                Ok(local) if self.candidates.iter().any(|c| c.ip() == local.ip()) => local.ip(),
-                _ => self.candidates.iter().map(|c| c.ip()).find(|ip| !ip.is_loopback()).unwrap_or(self.candidates[0].ip()),
+                Ok(local) if offered.iter().any(|c| c.ip() == local.ip()) => local.ip(),
+                _ => offered.iter().map(|c| c.ip()).find(|ip| !ip.is_loopback()).unwrap_or(offered[0].ip()),
             }
         });
         SocketAddr::new(ours, port)
@@ -1070,14 +1104,16 @@ fn hello(shared: &Shared, offer_text: &str) -> Result<(String, u64), (&'static s
         .set_extension(5, Extension::PlayoutDelay)
         .set_stats_interval(None)
         .build(now);
-    for address in &shared.candidates {
+    // Read afresh for every hello: this PC's addresses can have changed since the engine started (`Reach`).
+    let offered = shared.read_offered();
+    for address in &offered {
         let candidate = Candidate::host(*address, "udp").map_err(|why| ("500 Internal Server Error", format!("Bad local address {address}: {why}")))?;
         rtc.add_local_candidate(candidate);
     }
     // --internet: the socket's outside address too, on the home-network address it belongs to.
     if shared.internet {
         let outside = shared.stun.lock().unwrap().outside;
-        let base = shared.candidates.iter().copied().find(|c| c.is_ipv4() && !c.ip().is_loopback());
+        let base = offered.iter().copied().find(|c| c.is_ipv4() && !c.ip().is_loopback());
         if let (Some(outside), Some(base)) = (outside, base) {
             if let Ok(candidate) = Candidate::server_reflexive(outside, base, "udp") {
                 rtc.add_local_candidate(candidate);
@@ -1339,7 +1375,8 @@ fn settings_json(shared: &Shared, viewer: Option<u64>) -> String {
     // addresses. Null until it has sent any (or when no viewer number was given).
     let this_machine_json = {
         let source = viewer.and_then(|id| shared.viewers.lock().unwrap().iter().find(|v| v.id == id).and_then(|v| v.last_source));
-        let ours = |ip: IpAddr| ip.is_loopback() || shared.candidates.iter().any(|c| c.ip() == ip);
+        let offered = shared.offered();
+        let ours = |ip: IpAddr| ip.is_loopback() || offered.iter().any(|c| c.ip() == ip);
         format!("\"thisMachine\": {}", source.map_or("null".to_string(), |s| ours(s.ip()).to_string()))
     };
     let fit_json = {
@@ -1462,6 +1499,11 @@ fn video_addresses(listen: IpAddr, lan: bool, own: &[Ipv4Addr], port: u16) -> Ve
     offered
 }
 
+/// Those addresses as the console says them.
+fn spoken(addresses: &[SocketAddr]) -> String {
+    addresses.iter().map(|a| a.to_string()).collect::<Vec<_>>().join(" and ")
+}
+
 /// The most a viewer can ask this PC for, with the screen as it now is.
 fn host_limits_for(a: &Args, screen: (i32, i32, i32)) -> Limits {
     Limits { max_lines: a.max_lines.unwrap_or(screen.1).min(screen.1), max_fps: a.max_fps.unwrap_or(screen.2).min(screen.2), max_bitrate_kbps: a.max_bitrate }
@@ -1571,9 +1613,9 @@ pub fn serve(args: &[String]) -> ExitCode {
         }
     };
     let udp_port = socket.local_addr().map(|address| address.port()).unwrap_or(a.udp_port);
-    // The addresses a browser is told it can reach us at.
-    let own_addresses = if video_at.is_unspecified() { native::local_ipv4() } else { Vec::new() };
-    let candidates = video_addresses(a.listen, a.lan, &own_addresses, udp_port);
+    // The addresses a browser is told it can reach us at, as they are now; read again at every hello (`Reach`).
+    let own_addresses: OwnAddresses = Box::new(native::local_ipv4);
+    let offered = video_addresses(a.listen, a.lan, &own_addresses(), udp_port);
 
     // The screen as it is now (only read: the engine never changes the PC's display mode), the PC's limits, and
     // how the stream starts before any viewer has asked for anything.
@@ -1633,8 +1675,10 @@ pub fn serve(args: &[String]) -> ExitCode {
     let shared = Arc::new(Shared {
         viewers: Mutex::new(Vec::new()),
         socket,
-        candidates,
-        routes: Mutex::new(HashMap::new()),
+        udp_port,
+        lan: a.lan,
+        own_addresses,
+        reach: Mutex::new(Reach { offered, routes: HashMap::new() }),
         want_keyframe: AtomicBool::new(false),
         keyframe_requests: AtomicU64::new(0),
         viewers_ever: AtomicU64::new(0),
@@ -1708,9 +1752,10 @@ pub fn serve(args: &[String]) -> ExitCode {
             settings::MATCH_CAP.max_bitrate_kbps
         );
     }
-    let shown_host = if a.listen.is_unspecified() { shared.candidates.last().map_or("127.0.0.1".to_string(), |c| c.ip().to_string()) } else { a.listen.to_string() };
+    let offered = shared.offered();
+    let shown_host = if a.listen.is_unspecified() { offered.last().map_or("127.0.0.1".to_string(), |c| c.ip().to_string()) } else { a.listen.to_string() };
     println!("  open http://{}:{}/{} in Chrome or Edge", shown_host, a.port, if a.token.is_some() { "?token=<your token>" } else { "" });
-    println!("  video leaves from {}", shared.candidates.iter().map(|c| c.to_string()).collect::<Vec<_>>().join(" and "));
+    println!("  video leaves from {}", spoken(&offered));
     if !a.listen.is_loopback() {
         println!("  OPEN TO OTHER DEVICES on {}: anyone with the token sees this whole screen", a.listen);
     }
@@ -2231,6 +2276,81 @@ mod tests {
         assert_eq!(offered, ["127.0.0.1:5000", "192.168.1.20:5000", "10.8.0.3:5000", "172.16.5.5:5000"]);
         // A PC with no network still offers itself.
         assert_eq!(video_addresses(loopback, true, &[], 5000), vec!["127.0.0.1:5000".parse().unwrap()]);
+    }
+
+    /// An engine started as the gaming PC's is (`--lan --listen 0.0.0.0`), on a PC whose own addresses are whatever
+    /// `pc` holds at the moment they are asked for. Nothing of the screen, the mouse or the sound is touched.
+    fn an_engine_on(pc: Arc<Mutex<Vec<Ipv4Addr>>>) -> Shared {
+        let asked_of = pc.clone();
+        let own_addresses: OwnAddresses = Box::new(move || asked_of.lock().unwrap().clone());
+        let listen = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
+        let offered = video_addresses(listen, true, &own_addresses(), 5000);
+        let screen = (1920, 1080, 60);
+        let host_limits = Limits { max_lines: 1080, max_fps: 60, max_bitrate_kbps: 20000 };
+        let asked = Asked { shape: Shape::Native, view_width: 0, view_height: 0, cut_width: 0, cut_height: 0, lines: 1080, fps: 60, fps_auto: false, view_hz: 0, bitrate_kbps: 20000 };
+        let region = native::Region { x: 0, y: 0, width: screen.0, height: screen.1 };
+        Shared {
+            viewers: Mutex::new(Vec::new()),
+            socket: UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).unwrap(),
+            udp_port: 5000,
+            lan: true,
+            own_addresses,
+            reach: Mutex::new(Reach { offered, routes: HashMap::new() }),
+            want_keyframe: AtomicBool::new(false),
+            keyframe_requests: AtomicU64::new(0),
+            viewers_ever: AtomicU64::new(0),
+            token: None,
+            listen,
+            trust_hosts: Vec::new(),
+            internet: false,
+            stun: Mutex::new(crate::stun::Stun::new()),
+            stream: Mutex::new(Stream { asked, asks: 0, acted_on: 0, host_limits, capped: false, acted_capped: false, screen, sending: None, refused: None, measured: None }),
+            control: Mutex::new(Control::new(false, false, region, (screen.0, screen.1))),
+            match_running: AtomicBool::new(false),
+            pointer: Mutex::new(pointer::News::default()),
+            pretend_pointer: None,
+            sound_allowed: false,
+            sound: Mutex::new(SoundState::default()),
+            pretend_tone: false,
+            fit: Mutex::new(Fit::start(false, screen).unwrap()),
+        }
+    }
+
+    /// A browser's hello to the engine, and the addresses its answer tells that browser to send to.
+    fn told_to_send_to(engine: &Shared) -> Vec<String> {
+        let mut browser = Rtc::builder().build(Instant::now());
+        let mut change = browser.sdp_api();
+        change.add_media(MediaKind::Video, str0m::media::Direction::RecvOnly, None, None, None);
+        let (offer, _waiting) = change.apply().expect("an offer");
+        engine.viewers.lock().unwrap().clear(); // only so many may watch at once, and these never connect
+        let (answer, _viewer) = hello(engine, &offer.to_sdp_string()).expect("an answer");
+        // "a=candidate:<name> 1 udp <priority> <address> <port> typ host"
+        let mut told: Vec<String> = answer.lines().filter(|l| l.starts_with("a=candidate:")).filter_map(|l| l.split_whitespace().nth(4)).map(str::to_string).collect();
+        told.sort();
+        told.dedup();
+        told
+    }
+
+    #[test]
+    fn a_hello_is_answered_with_the_addresses_the_pc_has_now() {
+        str0m::crypto::from_feature_flags().install_process_default();
+        // The gaming PC's case (2026-11-28): the engine starts at sign-in, before the Wi-Fi has its address.
+        let pc = Arc::new(Mutex::new(vec![v4(127, 0, 0, 1)]));
+        let engine = an_engine_on(pc.clone());
+        assert_eq!(told_to_send_to(&engine), ["127.0.0.1"]);
+        // The Wi-Fi comes up: the very next hello says so, with nothing restarted, and packets from the home
+        // network are taken as arriving there.
+        *pc.lock().unwrap() = vec![v4(127, 0, 0, 1), v4(192, 168, 0, 30)];
+        assert_eq!(told_to_send_to(&engine), ["127.0.0.1", "192.168.0.30"]);
+        let laptop: SocketAddr = "192.168.0.200:50000".parse().unwrap();
+        assert_eq!(engine.arrived_at(laptop), "192.168.0.30:5000".parse().unwrap());
+        // The address changes: the old one is no longer offered, nor remembered for anyone.
+        *pc.lock().unwrap() = vec![v4(127, 0, 0, 1), v4(192, 168, 0, 77)];
+        assert_eq!(told_to_send_to(&engine), ["127.0.0.1", "192.168.0.77"]);
+        assert_eq!(engine.arrived_at(laptop), "192.168.0.77:5000".parse().unwrap());
+        // The network goes away altogether: only this PC itself is left.
+        *pc.lock().unwrap() = vec![v4(127, 0, 0, 1)];
+        assert_eq!(told_to_send_to(&engine), ["127.0.0.1"]);
     }
 
     #[test]
