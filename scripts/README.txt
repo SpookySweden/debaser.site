@@ -478,6 +478,17 @@ which cookies each request brought; the table is the answer. --browser edge | ch
 client that drives a real Firefox over its own remote protocol (playwright-core only drives a Firefox of its own). Neither fetches a
 browser, and neither changes a cookie setting: the browser is as it ships.
 
+trial-real-site.cjs
+-------------------
+How one REAL site fares inside BROWSER's OWN EYE frame (Luke, 2026-11-28: "make sure as many websites as possible are working such as
+openfront.io"). The extension as it is, in a test Edge with a throwaway profile, signed in to nothing; the site is opened in an ordinary
+tab (the baseline) and then in the frame BROWSER makes (the same sandbox and `allow` line as SeeingOwnFrame.tsx), and it prints what came
+back and what the page could do: headers, sockets, canvases, WebGL, sound, fullscreen, the keys drawn, errors. `--press "words"` presses
+those words in the frame; `--sandbox "+allow-modals"` and `--allow "fullscreen; autoplay"` try a looser frame; `--shots <folder>` keeps
+pictures. It types nothing, downloads nothing and NEVER answers an are-you-a-person check: where a site puts one in front of the test
+browser (openfront.io does, in an ordinary tab too), the report says so and stops there, and only a look in a real browser can say more.
+A trial, not a check: read the report, not the exit code. Through heavy-step, one site at a time, briefly.
+
 see-own-web-live.cjs
 --------------------
 OWN WEB keeping a page OWN EYE showed (extension 0.8.2), on the LIVE database with TEST ACCOUNT A and B: A keeps one private page through
