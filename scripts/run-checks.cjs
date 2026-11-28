@@ -34,6 +34,7 @@ const { execSync } = require('node:child_process');
 const { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } = require('node:fs');
 const { join, relative } = require('node:path');
 const { changedFiles, pickChecks } = require('./checks-changed.cjs');
+const KNOWN_RED = require('./known-red-checks.cjs');
 
 /**
  * Where the checks live. `Temp/` holds the scratch ones, written against whatever is being worked on;
@@ -114,8 +115,16 @@ if (CHANGED) {
     last = null;
   }
   const days = Math.floor((Date.now() - Date.parse(last?.at)) / 86_400_000);
-  if (!Number.isFinite(days) || days >= FULL_RUN_DAYS || last.failed !== 0) {
-    const state = Number.isFinite(days) ? `${days} day(s) ago, ${last.failed} failed` : 'none on this machine yet';
+  // A failure owes another full run unless it is red on purpose. A stamp that does not say which failed counts as owed.
+  const named = Array.isArray(last?.failedChecks);
+  const unexpected = named ? last.failedChecks.filter((name) => !KNOWN_RED.some(({ check }) => check === name)) : [];
+  const unnamed = !named && last?.failed !== 0;
+  if (!Number.isFinite(days) || days >= FULL_RUN_DAYS || unnamed || unexpected.length > 0) {
+    let state = 'none on this machine yet';
+    if (Number.isFinite(days)) {
+      const count = unnamed ? `${last.failed} failed, which ones not recorded` : `${last.failed} failed`;
+      state = `${days} day(s) ago, ${unexpected.length > 0 ? `failed: ${unexpected.join(', ')}` : count}`;
+    }
     console.log(`*** FULL RUN DUE: npm run checks (last: ${state}) ***`);
   }
   console.log('');
@@ -223,7 +232,8 @@ for (const { dir, name } of files) {
 }
 
 if (!CHANGED && onlyAt === -1) {
-  writeFileSync(LAST_FULL_RUN, JSON.stringify({ at: new Date().toISOString(), total: files.length, failed: failures.length }));
+  const stamp = { at: new Date().toISOString(), total: files.length, failed: failures.length, failedChecks: failures };
+  writeFileSync(LAST_FULL_RUN, JSON.stringify(stamp));
 }
 
 console.log(`\n${files.length - failures.length}/${files.length} checks passed`);

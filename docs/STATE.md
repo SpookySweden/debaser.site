@@ -93,6 +93,8 @@ keeps one player alive in a background tab and shows a short LINING UP line.
   (about 1.5 GB held while idle).
 
 ## Known red checks
+The list the runner reads is `scripts/known-red-checks.cjs` (with each one's date and reason; adding to it is Luke's
+call): a full run failing only these no longer makes `checks:changed` say FULL RUN DUE.
 - `check-hidden-accounts` (the house account, Luke's choice).
 - The whole suite on SERVER, 2026-11-27 (475d48d): 268/269, only `check-hidden-accounts`. Earlier that day: 261/264, then the two that were the coordinator's own change fixed (check-backdrops,
   check-build-trace); the live-database checks that were red after the move pass since 2026-11-22 (vault locks re-made,
