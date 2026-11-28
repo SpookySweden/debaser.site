@@ -83,8 +83,21 @@ smoothly linked." His answers that day:
 10. **A tab in the background follows on time** (the follower's clock runs on a worker) and reads the room again when it comes
     back on screen.
 
-Not covered yet: your own room's video on the floating screen with no room window open (an untouched device may wait for a
-press there); the tightening, the one kept player and the LINING UP line (the next push).
+11. **Pulled tight** (his answer, "Yes, pull them tight (Recommended)"). A follower plays a touch fast or slow (at most 10%
+    fast, 8% slow, smaller as the gap closes) until within 0.05 s. A jump closes a gap over 1 s (over 0.5 s on YouTube, which
+    takes no fine speeds), at most once every 15 s; over 2 s it always jumps. This is the follow rule of every room, so it
+    applies to other accounts watching too.
+12. **The leading device says where it is.** In your own room, while something plays and another of your devices follows, the
+    follower asks every 2 s on the account's line and the leader answers with its place (`ask-place`, `place`): by design 60
+    messages a minute for two devices, none while paused or alone. It aims at that place, not at the room's saved record.
+    Nothing is stored; no database change.
+13. **LINING UP.** A follower out of step for more than 0.4 s says `LINING UP` over its player (text, not a key).
+14. **The one kept player** (his answer, no server stream): measured first, and no change was needed: after one press a second
+    device keeps its sound when the room goes from video to a song and back (`--only kept`). A tab in the background was not
+    tested.
+
+Not covered: your own room's video on the floating screen with no room window open (an untouched device may wait for a press
+there).
 
 ## Where it is
 - `app/lib/watch/sound-gate.ts`: whether this page may start sound yet.

@@ -41,12 +41,14 @@ judged by him) EXPLAIN-REST-1
 (hover words in letters, docs and lore), and ROOM-DEVICE-SYNC (one account's devices in a room staying linked: pause, play, mute,
 and a device that wakes by itself where a browser allows it; Luke, 2026-11-28: "i need this sorted so they are all smoothly
 linked"; first push live: an untouched device starts muted and in step (video) or says SOUND IS WAITING (the music bar
-alone), and no longer pauses the others; not yet tried on a real phone; the tightening is still to come), and INSTALL-APP (debaser.site installable as an app with the yellow text icon; Luke, 2026-11-28:
+alone), and no longer pauses the others; second push: devices pulled tight (on a local stand-in 0.03 s apart on a file and
+about 0.11 s on a server film, from 0.33 s and swings to 0.8 s) with a LINING UP line; not yet tried on a real phone or a real
+server film), and INSTALL-APP (debaser.site installable as an app with the yellow text icon; Luke, 2026-11-28:
 "Yes, yellow text icon (Recommended)"; no service worker, no push; done and live, 2b1980e: installed from the browser's own
 menu; not yet tried as a real install on his PC or phone). Decided 2026-11-28 after an interview: no
 server stream for rooms (Luke: "Keep today's way, fix it (Recommended)"); each device keeps playing the media itself, and
-ROOM-DEVICE-SYNC also pulls one account's devices to about a tenth of a second apart (Luke: "Yes, pull them tight (Recommended)"),
-keeps one player alive in a background tab and shows a short LINING UP line.
+ROOM-DEVICE-SYNC also pulls one account's devices to about a tenth of a second apart (Luke: "Yes, pull them tight (Recommended)")
+and shows a short LINING UP line (the one kept player needed no change in a front tab; a background tab not tested).
 
 ## Half-done
 - EXPLAIN: hover words on every key, shown only while `[ EXPLAIN ]` (PREFERENCES, off by default) is on; top bar, side

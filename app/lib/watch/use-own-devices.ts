@@ -22,6 +22,14 @@ export type OwnDevices = {
   rename: (typed: string) => void;
   /** Lifts a mute from DEVICES on this device (its own speaker key, or UNMUTE in its window). */
   unholdSelf: () => void;
+  /** Asks the device that keeps the room where its player is (it answers through `places.current.heard`). */
+  askPlace: () => void;
+};
+
+/** What the room gives for places: where this device's player is if it keeps the room, and what to do with another's. */
+export type OwnPlaces = {
+  mine: () => { entryId: string; seconds: number } | null;
+  heard: (place: { entryId: string; seconds: number; at: number }) => void;
 };
 
 const noBook = () => EMPTY_BOOK;
@@ -35,7 +43,7 @@ function ways(from: DeviceBook): Record<string, OwnDeviceWay> {
  * [ DEVICES ] (Luke, 2026-11-27; own-device-modes.ts): your devices in one room say who they are to each other on the account's
  * own line, agree the way each pair goes, and pass MUTE from one to another. `open` while another device of yours is here.
  */
-export function useOwnDevices(repository: WatchRepository, accountId: string | null, roomId: string, myKey: string, otherKeys: readonly string[], open: boolean): OwnDevices {
+export function useOwnDevices(repository: WatchRepository, accountId: string | null, roomId: string, myKey: string, otherKeys: readonly string[], open: boolean, places: { readonly current: OwnPlaces | null }): OwnDevices {
   const [deviceId, setDeviceId] = useState<string | null>(null);
   useEffect(() => {
     if (accountId === null) return;
@@ -90,6 +98,17 @@ export function useOwnDevices(repository: WatchRepository, accountId: string | n
     }
     if (message.kind === 'pair' && message.to === deviceId) {
       change((before) => hearMode(before, message.from, message.mode, message.keeper, message.at));
+      return;
+    }
+    if (message.kind === 'ask-place') {
+      const mine = places.current?.mine() ?? null;
+      if (mine !== null) line.current?.send({ kind: 'place', roomId, from: deviceId, to: message.from, asked: message.asked, ...mine });
+      return;
+    }
+    if (message.kind === 'place' && message.to === deviceId) {
+      // `asked` is this device's own clock, so no two clocks are compared: the answer is half the round trip old.
+      const now = Date.now();
+      places.current?.heard({ entryId: message.entryId, seconds: message.seconds + Math.max(0, now - message.asked) / 2000, at: now });
       return;
     }
     if (message.kind === 'mute-device' && message.to === deviceId) {
@@ -147,5 +166,10 @@ export function useOwnDevices(repository: WatchRepository, accountId: string | n
     sayHello(true);
   }, [readBook, change, sayHello]);
 
-  return { deviceId, book, name, here, choose, muteDevice, rename, unholdSelf };
+  const askPlace = useCallback(() => {
+    if (deviceId === null) return;
+    line.current?.send({ kind: 'ask-place', roomId, from: deviceId, asked: Date.now() });
+  }, [deviceId, roomId]);
+
+  return { deviceId, book, name, here, choose, muteDevice, rename, unholdSelf, askPlace };
 }

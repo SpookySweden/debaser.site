@@ -7,7 +7,7 @@
  * only through the debugger with `userGesture: false`, so B stays untouched until a step says otherwise. Each tab has its own
  * "touched" state, as two devices do.
  *
- *   node scripts/drive-device-wake.cjs --base http://localhost:3341 [--only file|server|bar|youtube|allowed|gap]
+ *   node scripts/drive-device-wake.cjs --base http://localhost:3341 [--only file|server|bar|youtube|allowed|gap|kept]
  *
  * `--only gap` (not in the plain run: it takes minutes) reads how far apart the two play, once a second for a minute.
  *
@@ -187,7 +187,8 @@ const look = (run) =>
     const inRoom = (button) => button.closest('[data-dock-window="stream"], [data-stream-bar]') !== null;
     const keys = [...document.querySelectorAll('button[aria-label]')].filter(inRoom).map((button) => button.getAttribute('aria-label'));
     const video = document.querySelector('[data-dock-window="stream"] video[data-watch-video]');
-    const audio = window.__audios && window.__audios.length ? window.__audios[window.__audios.length - 1] : null;
+    // Not sound-gate's silent `data:` clip, which may be the last Audio a page made.
+    const audio = [...(window.__audios ?? [])].reverse().find((held) => !held.src.startsWith('data:')) ?? null;
     const input = [...document.querySelectorAll('input[aria-label="Volume"]')].find((held) => inRoom(held) && held.offsetParent !== null);
     const server = document.querySelector('[data-server-remote]') !== null ? (window.__server ?? null) : null;
     const yt = window.__youtube ?? null;
@@ -537,6 +538,44 @@ async function gapKind(browser, kind, errors) {
   }
 }
 
+/** Pressed once, then the room goes video, song, video: do B's players, new ones included, still play with sound? (`--only kept`) */
+async function keptKind(browser, errors) {
+  console.log('\n== ONE PRESS, THEN VIDEO, SONG, VIDEO');
+  const context = await newContext(browser);
+  // A song is a row holding a link of kind `audio` (songs.ts), a video a file from the catalogue.
+  const putOn = (page, what) =>
+    page.evaluate((wanted) => {
+      const tables = JSON.parse(localStorage.getItem('debaser.watch.v1'));
+      const room = tables.rooms.find((held) => held.origin === 'music' && held.endedAt === null);
+      const at = new Date().toISOString();
+      const entry = crypto.randomUUID();
+      tables.queue.push({ id: entry, roomId: room.id, position: 99 + tables.queue.length, inQueue: true, mediaItemId: wanted.item ?? null, link: wanted.link ?? null, series: null, addedBy: room.hostId, addedAt: at, playedAt: at, playIndex: 9 + tables.queue.length });
+      Object.assign(room, { currentEntryId: entry, positionSeconds: 0, isPlaying: true, updatedAt: at });
+      localStorage.setItem('debaser.watch.v1', JSON.stringify(tables));
+      const wire = new BroadcastChannel('debaser-watch');
+      wire.postMessage({ type: 'changed', roomId: room.id });
+      wire.close();
+    }, what);
+  try {
+    const a = await openA(context, '/files?kind=video', errors);
+    const ra = readerOf(a);
+    await pressPlayInFiles(a);
+    if (!(await until(ra, 'file', true, 60000))) throw new Error('A never played the first file');
+    const b = await openB(context, '/files?kind=video', errors);
+    await sleep(4000);
+    await b.page.mouse.click(5, 450);
+    await sleep(2000);
+    await putOn(a,{ link: { url: `${SOUND}/tone.wav`, kind: 'audio', title: 'WAKE TONE' } });
+    const song = await watch('the room goes to a song', ra, b.run, 8, (seen) => `${shapes.bar(seen)} | ${shapes.file(seen)}`);
+    check(running.bar(song.b) && !hushed.bar(song.b), 'kept: after one press, B plays the song with sound', shapes.bar(song.b));
+    await putOn(a, { item: 'wake-1' });
+    const back = await watch('and back to a video', ra, b.run, 10, shapes.file);
+    check(running.file(back.b) && !hushed.file(back.b) && !back.b.join && !back.b.waiting, 'kept: and the video after it, with sound and no further press', shapes.file(back.b));
+  } finally {
+    await context.close();
+  }
+}
+
 (async () => {
   const browser = await chromium.launch({ executablePath: findChrome(), headless: true, args: ['--autoplay-policy=document-user-activation-required', '--mute-audio', '--disable-audio-output'] });
   const errors = [];
@@ -564,6 +603,12 @@ async function gapKind(browser, kind, errors) {
       await barKind(browser, errors).catch((error) => {
         failed.push(`bar: ${error.message}`);
         console.log(`  FAIL  bar: ${error.stack}`);
+      });
+    }
+    if (ONLY === 'kept') {
+      await keptKind(browser, errors).catch((error) => {
+        failed.push(`kept: ${error.message}`);
+        console.log(`  FAIL  kept: ${error.stack}`);
       });
     }
     if (ONLY === 'gap') {

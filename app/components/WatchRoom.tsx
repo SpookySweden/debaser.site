@@ -28,7 +28,9 @@ import { afterFile, blankPrefill, blankStart, screenIsBlank, type BlankKey } fro
 import { getWatchRepository, repositoryFor, type OwnDeviceLine } from '../lib/watch/repository';
 import { OWN_ASK_AFTER_MS, OWN_VOLUME_SAY_MS } from '../lib/watch/own-devices';
 import { playbackRole, takesSoundFrom, type DeviceMode } from '../lib/watch/own-device-modes';
-import { useOwnDevices } from '../lib/watch/use-own-devices';
+import { useOwnDevices, type OwnPlaces } from '../lib/watch/use-own-devices';
+import { OWN_PLACE_ASK_MS, OWN_PLACE_KEEPS_MS } from '../lib/watch/own-devices';
+import { YouTubePlayable } from '../lib/watch/youtube-player';
 import { offerRoomDevices } from '../lib/watch/room-devices-key';
 import RoomDevicesWindow from './RoomDevicesWindow';
 import { ownRoomState, subscribeToOwnRoom, takeComeBack } from '../lib/watch/own-room-client';
@@ -84,6 +86,7 @@ import {
   accountsPresent,
   currentEntry,
   followerJump,
+  NEAR_SEEK_EVERY_MS,
   formatMediaTime,
   jumpLanded,
   handoverTo,
@@ -185,6 +188,10 @@ function newTabKey(): string {
 const JOIN_KEY = PLATE_MAIN.replace('px-3 py-1 text-key', 'min-h-tap px-6 py-2 text-heading');
 /** How often a follower checks itself against the host. */
 const FOLLOW_TICK_MS = 500;
+/** A follower out of step this long says LINING UP over its player (a moment's wobble does not). */
+const LINING_UP_AFTER_MS = 400;
+/** Further off than this is not in step yet. */
+const LINING_UP_GAP_SECONDS = 0.5;
 /**
  * A following device of the host's account waits this long at the end of a file for the device that leads to move the room on;
  * then it moves on itself (the leading device was shut mid-file: device-lead.ts).
@@ -528,7 +535,11 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     [members, me, myKey],
   );
   /** [ DEVICES ] (Luke, 2026-11-27; own-device-modes.ts): how each of your other devices here goes with this one. */
-  const ownDevices = useOwnDevices(repository, accountId, roomId, myKey, otherDeviceKeys, accountId !== null && otherDeviceHere);
+  /** Where this device's player is, for your other devices, and where the one keeping the room last said it was. */
+  const ownPlaces = useRef<OwnPlaces | null>(null);
+  const leaderPlace = useRef<{ entryId: string; seconds: number; at: number } | null>(null);
+  const [liningUp, setLiningUp] = useState(false);
+  const ownDevices = useOwnDevices(repository, accountId, roomId, myKey, otherDeviceKeys, accountId !== null && otherDeviceHere, ownPlaces);
   /**
    * In your own room, what DEVICES leaves this device: following one of yours it was set to follow (it never takes the room),
    * ON ITS OWN beside the one that keeps the room (APART), leading one set to follow it, or free (today's rule).
@@ -867,6 +878,33 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   const roomNow = useEffectEvent(() => room);
 
   const currentId = useEffectEvent(() => room.currentEntryId);
+  useEffect(() => {
+    ownPlaces.current = {
+      // Only the device keeping your own room answers, and only while its player runs.
+      mine: () => {
+        const video = videoRef.current;
+        if (!accountHosts || !amHost || !room.isPlaying || room.currentEntryId === null || video === null || video.paused || video.readyState < 3) return null;
+        return { entryId: room.currentEntryId, seconds: video.currentTime };
+      },
+      heard: (place) => {
+        leaderPlace.current = place;
+      },
+    };
+  });
+  /** The room as a follower aims at it: your leading device's own place while it is fresh, else the room's record. */
+  const followedRoom = useEffectEvent(() => {
+    const place = leaderPlace.current;
+    if (place === null || !accountHosts || !room.isPlaying || place.entryId !== room.currentEntryId || Date.now() - place.at > OWN_PLACE_KEEPS_MS) return room;
+    return { ...room, positionSeconds: place.seconds, updatedAt: new Date(place.at).toISOString() };
+  });
+  // Asked only while something plays, another of your devices is here and this one follows it.
+  const askPlace = useEffectEvent(() => ownDevices.askPlace());
+  const asksPlace = accountHosts && !amHost && !onItsOwn && live && room.isPlaying && otherDeviceHere;
+  useEffect(() => {
+    if (!asksPlace) return;
+    askPlace();
+    return steadyInterval(() => askPlace(), OWN_PLACE_ASK_MS);
+  }, [asksPlace]);
   // A tab that hands the transport on forgets where it was: if it hosts again, the room says.
   useEffect(() => {
     if (amHost) return;
@@ -982,12 +1020,20 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     if (videoRef.current !== null && followed !== null) roomStartFor(videoRef.current, followed);
     /** Since when this follower's player has sat at the end of the play the room still names, playing. */
     let endedSince: number | null = null;
+    /** Since when this player has not been in step: shown as LINING UP once it has lasted. */
+    let offSince: number | null = null;
+    const inStep = (yes: boolean) => {
+      offSince = yes ? null : (offSince ?? Date.now());
+      setLiningUp(offSince !== null && Date.now() - offSince >= LINING_UP_AFTER_MS);
+    };
     const tick = () => {
       noticePress();
       const video = videoRef.current;
-      if (video === null || video.readyState < 1 || Date.now() - pressedLead.current < PRESS_HOLD_MS) return;
+      if (video === null || video.readyState < 1) return inStep(!roomPlaying());
+      if (Date.now() - pressedLead.current < PRESS_HOLD_MS) return;
       // A live stream has no shared position: everybody plays and pauses with the host, at the live edge.
       if (stageLiveNow()) {
+        inStep(true);
         ordered.seek = Date.now();
         toLiveEdge(video);
         if (video.playbackRate !== 1) video.playbackRate = 1;
@@ -1003,11 +1049,14 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       // The device of yours that leads went away mid-file (a laptop shut): at the end, this one moves the room on.
       endedSince = video.ended && roomPlaying() ? (endedSince ?? Date.now()) : null;
       if (endedSince !== null && Date.now() - endedSince > LEAD_GONE_AT_END_MS && leadWhenGone()) return;
+      const aim = followedRoom();
+      const mayJumpNear = lastJump === null || Date.now() - lastJump.at > NEAR_SEEK_EVERY_MS;
       const step = viewerStep(
-        roomNow(),
-        { seconds: video.currentTime, duration: video.duration, playing: !video.paused, ended: video.ended },
+        aim,
+        { seconds: video.currentTime, duration: video.duration, playing: !video.paused, ended: video.ended, mayJumpNear, coarse: video instanceof YouTubePlayable },
         Date.now(),
       );
+      inStep(!step.playing || video.ended || (step.at === undefined && !video.paused && Math.abs(hostPosition(aim, Date.now(), video.duration) - video.currentTime) <= LINING_UP_GAP_SECONDS));
 
       // Only a jump being fetched (`seeking`), not a stall from a slow download, which no jump would mend.
       const loading = video instanceof HTMLMediaElement && video.seeking;
@@ -1021,7 +1070,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
           video.currentTime = Number.isFinite(video.duration) && video.duration > 1 ? Math.min(jump.to, video.duration - 0.5) : jump.to;
         }
       }
-      if (Math.abs(video.playbackRate - step.rate) > 0.01) video.playbackRate = step.rate;
+      if (Math.abs(video.playbackRate - step.rate) > 0.004) video.playbackRate = step.rate;
       if (step.playing && video.paused && !heldForPress(video)) {
         ordered.play = Date.now();
         void video.play().then(
@@ -1059,6 +1108,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     video?.addEventListener('seeked', onSeeked);
     return () => {
       followNow.current = null;
+      setLiningUp(false);
       stopTicking();
       document.removeEventListener('visibilitychange', back);
       video?.removeEventListener('play', onPlay);
@@ -1068,7 +1118,11 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     };
   }, [amHost, live, onItsOwn, src, videoElement, refusedPlay, heldForPress, roomId]);
   // The room said play, pause or another place: a follower does it now.
-  useEffect(() => followNow.current?.(), [room.isPlaying, room.positionSeconds, room.currentEntryId]);
+  useEffect(() => {
+    // A place heard before this change is of the room as it was.
+    leaderPlace.current = null;
+    followNow.current?.();
+  }, [room.isPlaying, room.positionSeconds, room.currentEntryId]);
 
   // A room that ended stops the picture where it is. Not the song of the person who started it and is ending it:
   // that carries on for them alone, on the bar (SPEC-rooms-queues.md, phase 3).
@@ -2335,6 +2389,12 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
             <button type="button" onClick={joinPlayback} className={`${JOIN_KEY} pointer-events-auto`} data-watch-join {...explain('Starts the room\'s video on your screen, in step with everyone else.', 'Browsers won\'t play sound until you press something; this is that press.')}>
               [ ▶ JOIN PLAYBACK ]
             </button>
+          </div>
+        ) : null}
+        {/* This device is not yet in step with the one it follows (loading, waking, jumping): said, not pressed. */}
+        {liningUp && live && !amHost && !needsPress && !linkDead ? (
+          <div className="pointer-events-none absolute inset-0 z-20 flex items-start justify-center pt-3" data-watch-lining-up>
+            <span className="bg-ink-plate px-2 text-label text-sun">LINING UP</span>
           </div>
         ) : null}
         {/* The browser is holding this device's sound (sound-gate.ts): it plays muted and in step. Any press on the page brings

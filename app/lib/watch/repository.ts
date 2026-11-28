@@ -98,6 +98,9 @@ export type RoomChange =
  * takes the sound only from one it follows. A device in the room says who it is (`hello`: its presence key, name, the ways it
  * holds with the others, and whether it is muted from DEVICES; `answer` when it replies to one), a way chosen for a pair is told
  * to the other end (`pair`, as the sender sees it), and MUTE silences one device from another (`mute-device`).
+ *
+ * While something plays, a following device asks the one that keeps the room where its player is (`ask-place`, with when it
+ * asked) and is told (`place`), so the two line up closer than the room's record allows (Luke, 2026-11-28).
  */
 export type OwnDeviceMessage =
   | { kind: 'volume'; roomId: string; volume: number; muted: boolean; from?: string }
@@ -105,7 +108,9 @@ export type OwnDeviceMessage =
   | { kind: 'ask-room' | 'ask-bar'; roomId: string; since: number; from?: string }
   | { kind: 'hello'; roomId: string; from: string; key: string; name: string; modes: Record<string, OwnDeviceWay>; held: boolean; answer: boolean }
   | ({ kind: 'pair'; roomId: string; from: string; to: string } & OwnDeviceWay)
-  | { kind: 'mute-device'; roomId: string; from: string; to: string; on: boolean };
+  | { kind: 'mute-device'; roomId: string; from: string; to: string; on: boolean }
+  | { kind: 'ask-place'; roomId: string; from: string; asked: number }
+  | { kind: 'place'; roomId: string; from: string; to: string; asked: number; entryId: string; seconds: number };
 
 /** How one device holds with another, as that device sees it, stamped so two ends that disagree settle on the later choice. */
 export type OwnDeviceWay = { mode: DeviceMode | null; keeper: string | null; at: number };

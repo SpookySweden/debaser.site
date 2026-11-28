@@ -18,6 +18,10 @@ export function ownDevicesTopic(userId: string): string {
 export const OWN_ASK_AFTER_MS = [400, 2000, 5000] as const;
 /** A dragged volume tells your other devices at most this often (the last place always arrives). */
 export const OWN_VOLUME_SAY_MS = 150;
+/** A following device asks where the leading one is this often, while something plays (two messages each time). */
+export const OWN_PLACE_ASK_MS = 2000;
+/** A place heard longer ago than this is not followed: the room's record is used instead. */
+export const OWN_PLACE_KEEPS_MS = 5000;
 
 const clampVolume = (volume: number) => Math.min(1, Math.max(0, volume));
 const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
@@ -45,8 +49,10 @@ export function readOwnDeviceMessage(data: unknown): OwnDeviceMessage | null {
     }
     return { kind: 'hello', roomId, from, key: said.key.slice(0, 200), name: said.name.slice(0, NAME_MAX), modes, held: said.held, answer: said.answer };
   }
+  if (said.kind === 'ask-place' && isNumber(said.asked)) return { kind: 'ask-place', roomId, from, asked: said.asked };
   if (typeof said.to !== 'string') return null;
   const to = said.to;
+  if (said.kind === 'place' && isNumber(said.asked) && isNumber(said.seconds) && typeof said.entryId === 'string' && said.entryId.length <= ID_MAX) return { kind: 'place', roomId, from, to, asked: said.asked, entryId: said.entryId, seconds: Math.max(0, said.seconds) };
   if (said.kind === 'pair') {
     const way = readWay(said);
     return way === null ? null : { kind: 'pair', roomId, from, to, ...way };

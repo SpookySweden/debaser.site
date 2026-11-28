@@ -70,7 +70,15 @@ const member = (key, userId, joinedAt, name = key) => ({ key, userId, name, join
     assert.deepEqual(rules.viewerStep(host, mine(15), T0), { at: 20, rate: 1, playing: true });
     assert.deepEqual(rules.viewerStep(host, mine(19), T0), { at: undefined, rate: rules.CATCH_UP_RATE, playing: true });
     assert.deepEqual(rules.viewerStep(host, mine(21), T0), { at: undefined, rate: rules.HOLD_BACK_RATE, playing: true });
-    assert.deepEqual(rules.viewerStep(host, mine(20.1), T0), { at: undefined, rate: 1, playing: true });
+    // Tight (Luke, 2026-11-28: "Yes, pull them tight (Recommended)"): held only within 0.05 s, and the nudge grows with the gap.
+    assert.deepEqual(rules.viewerStep(host, mine(20.04), T0), { at: undefined, rate: 1, playing: true });
+    assert.deepEqual(rules.viewerStep(host, mine(19.9), T0), { at: undefined, rate: 1.04, playing: true });
+    assert.deepEqual(rules.viewerStep(host, mine(20.1), T0), { at: undefined, rate: 0.96, playing: true });
+    // A gap over 1 s (0.5 s with no fine speeds) may be closed by one jump, only when the last jump is long past.
+    assert.deepEqual(rules.viewerStep(host, mine(18.5, { mayJumpNear: true }), T0), { at: 20, rate: 1, playing: true });
+    assert.equal(rules.viewerStep(host, mine(18.5), T0).at, undefined);
+    assert.deepEqual(rules.viewerStep(host, mine(19.3, { mayJumpNear: true, coarse: true }), T0), { at: 20, rate: 1, playing: true });
+    assert.equal(rules.viewerStep(host, mine(19.3, { mayJumpNear: true }), T0).at, undefined);
     assert.deepEqual(rules.viewerStep(room({ positionSeconds: 20, isPlaying: false }), mine(20.2), T0), { at: undefined, rate: 1, playing: false });
     assert.deepEqual(rules.viewerStep(room({ positionSeconds: 20, isPlaying: false }), mine(25), T0), { at: 20, rate: 1, playing: false });
   });

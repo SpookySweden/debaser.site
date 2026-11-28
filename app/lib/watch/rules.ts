@@ -39,9 +39,17 @@ export const TAKE_OVER_RETRY_MS = 2000;
 
 /** Followers jump when they are this far off; inside it they nudge their speed. */
 export const SEEK_GAP_SECONDS = 2;
-/** Inside this nobody is nudged: two machines reading one row are never closer than this. */
-export const SETTLE_GAP_SECONDS = 0.35;
-/** The nudge: a touch fast to catch up, a touch slow to let the host catch up. */
+/**
+ * One tidy jump may also close a smaller gap (Luke, 2026-11-28: "Yes, pull them tight (Recommended)"): over 1 s, or over half a
+ * second on a player with no fine speeds (YouTube). Only when the last jump is long past, so a slow player is not jumped to and fro.
+ */
+export const NEAR_SEEK_GAP_SECONDS = 1;
+export const COARSE_SEEK_GAP_SECONDS = 0.5;
+export const NEAR_SEEK_EVERY_MS = 15000;
+/** Inside this nobody is nudged. */
+export const SETTLE_GAP_SECONDS = 0.05;
+/** The nudge grows with the gap, up to these: a touch fast to catch up, a touch slow to let the host catch up. */
+export const NUDGE_PER_SECOND = 0.4;
 export const CATCH_UP_RATE = 1.1;
 export const HOLD_BACK_RATE = 0.92;
 
@@ -490,6 +498,10 @@ export type ViewerClock = {
   duration: number;
   playing: boolean;
   ended: boolean;
+  /** No jump has been sent for a while: a smaller gap may be closed by one (NEAR_SEEK_EVERY_MS). */
+  mayJumpNear?: boolean;
+  /** This player has no fine speeds (YouTube): it closes a gap by that one jump, from a smaller size. */
+  coarse?: boolean;
 };
 
 export type ViewerStep = {
@@ -515,11 +527,12 @@ export function viewerStep(room: WatchRoom, mine: ViewerClock, now: number): Vie
   if (mine.ended && nearEnd) return { at: undefined, rate: 1, playing: false };
 
   const gap = target - mine.seconds;
-  if (Math.abs(gap) > SEEK_GAP_SECONDS) return { at: target, rate: 1, playing: true };
-  if (gap > SETTLE_GAP_SECONDS) return { at: undefined, rate: CATCH_UP_RATE, playing: true };
-  if (gap < -SETTLE_GAP_SECONDS) return { at: undefined, rate: HOLD_BACK_RATE, playing: true };
+  const jumpOver = mine.mayJumpNear ? (mine.coarse ? COARSE_SEEK_GAP_SECONDS : NEAR_SEEK_GAP_SECONDS) : SEEK_GAP_SECONDS;
+  if (Math.abs(gap) > jumpOver) return { at: target, rate: 1, playing: true };
+  if (Math.abs(gap) <= SETTLE_GAP_SECONDS) return { at: undefined, rate: 1, playing: true };
 
-  return { at: undefined, rate: 1, playing: true };
+  const rate = Math.round(Math.min(CATCH_UP_RATE, Math.max(HOLD_BACK_RATE, 1 + gap * NUDGE_PER_SECOND)) * 1000) / 1000;
+  return { at: undefined, rate, playing: true };
 }
 
 /**

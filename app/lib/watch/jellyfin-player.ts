@@ -49,9 +49,14 @@ export function isJellyfinHello(event: MessageEvent, frame: HTMLIFrameElement, o
 
 /** How long a start may take before the frame has a player (its play key pressed, the film loading) and still count as on its way. */
 const START_WAIT_MS = 12000;
+/** The frame says where it is about four times a second; its time is counted on from that word, no further than this. */
+const COUNT_ON_MS = 500;
 
 export class JellyfinPlayable extends EmbedPlayer {
   private time = 0;
+  /** When that time was said. */
+  private heardAt = 0;
+  private speed = 1;
   private length = 0;
   private playingHere = false;
   private startingSince: number | null = null;
@@ -78,6 +83,7 @@ export class JellyfinPlayable extends EmbedPlayer {
     const state = asState(event.data);
     if (state === null) return;
     this.time = state.time;
+    this.heardAt = performance.now();
     this.length = state.duration;
     // A new video element in the frame comes up with its own sound: it is told this device's volume and mute again.
     if (state.event === 'player' || state.event === 'loadedmetadata') this.siteVolume(this.volume, this.muted);
@@ -115,7 +121,8 @@ export class JellyfinPlayable extends EmbedPlayer {
   }
 
   protected siteTime(): number {
-    return this.time;
+    if (!this.playingHere || this.bufferingNow) return this.time;
+    return this.time + (Math.min(COUNT_ON_MS, performance.now() - this.heardAt) / 1000) * this.speed;
   }
 
   protected siteDuration(): number {
@@ -132,6 +139,7 @@ export class JellyfinPlayable extends EmbedPlayer {
 
   protected siteSeek(seconds: number): void {
     this.time = seconds;
+    this.heardAt = performance.now();
     this.send({ cmd: 'seek', seconds });
   }
 
@@ -140,6 +148,7 @@ export class JellyfinPlayable extends EmbedPlayer {
   }
 
   protected siteRate(rate: number): void {
+    this.speed = rate;
     this.send({ cmd: 'rate', rate });
   }
 
