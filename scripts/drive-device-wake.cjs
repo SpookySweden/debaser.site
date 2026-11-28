@@ -7,7 +7,7 @@
  * only through the debugger with `userGesture: false`, so B stays untouched until a step says otherwise. Each tab has its own
  * "touched" state, as two devices do.
  *
- *   node scripts/drive-device-wake.cjs --base http://localhost:3341 [--only file|server|bar|youtube|allowed|gap|kept]
+ *   node scripts/drive-device-wake.cjs --base http://localhost:3341 [--only file|server|bar|youtube|allowed|gap|kept|lining]
  *
  * `--only gap` (not in the plain run: it takes minutes) reads how far apart the two play, once a second for a minute.
  *
@@ -200,6 +200,7 @@ const look = (run) =>
       join: document.querySelector('[data-watch-join]') !== null,
       waiting: document.querySelector('[data-watch-sound-waiting]') !== null,
       barWaiting: document.querySelector('[data-bar-sound-waiting]') !== null,
+      lining: document.querySelector('[data-watch-lining-up]') !== null,
       role: video?.getAttribute('data-watch-video') ?? null,
       video: video === null ? null : { paused: video.paused, muted: video.muted, time: Math.round(video.currentTime * 10) / 10, file: video.currentSrc !== '' },
       server: server === null ? null : { player: server.player, paused: server.paused, muted: server.muted, time: Math.round(server.time * 10) / 10 },
@@ -226,7 +227,7 @@ async function watch(label, a, b, seconds, pick) {
   }
   return last;
 }
-const says = (seen) => `${seen.key ?? 'no-key'}${seen.join ? '+JOIN' : ''}${seen.waiting ? '+SOUND-WAITING' : ''}`;
+const says = (seen) => `${seen.key ?? 'no-key'}${seen.join ? '+JOIN' : ''}${seen.waiting ? '+SOUND-WAITING' : ''}${seen.lining ? '+LINING-UP' : ''}`;
 /** Whether this device's player is silent. */
 const hushed = {
   file: (seen) => seen.video !== null && seen.video.muted,
@@ -352,6 +353,7 @@ async function roomKind(browser, kind, errors) {
     now = await watch('B touched once', ra, b.run, 4, shape);
     check(running[kind](now.b) === now.a.room.playing, `${kind}: after one touch B is in step`, `B ${shape(now.b)} room ${now.a.room.playing}`);
     check(!hushed[kind](now.b) && now.b.muteKey === 'shows-sound' && !now.b.waiting, `${kind}: after one touch B has its sound`, `${shape(now.b)} ${now.b.muteKey}`);
+    check(!now.a.lining && !now.b.lining, `${kind}: in step, nobody says LINING UP`, `A ${shape(now.a)} | B ${shape(now.b)}`);
     const turns = [
       [a, 'Pause'],
       [b.page, 'Play'],
@@ -373,6 +375,8 @@ async function roomKind(browser, kind, errors) {
       const key = want ? 'shows-playing' : 'shows-paused';
       check(running[kind](now.a) === want && running[kind](now.b) === want && now.a.key === key && now.b.key === key, `${kind}: turn ${index + 1}: ${who} ${label} - both pictures and both keys agree`, `A ${shape(now.a)} | B ${shape(now.b)}`);
     }
+
+    check(!now.a.lining && !now.b.lining, `${kind}: after the six turns, nobody is left saying LINING UP`, `A ${shape(now.a)} | B ${shape(now.b)}`);
 
     // 5. B mutes, A pauses and plays.
     await press(b.page, 'Mute');
@@ -406,6 +410,39 @@ async function roomKind(browser, kind, errors) {
       check(!hushed[kind](now.b) && now.b.muteKey === 'shows-sound', `${kind}: pressing the speaker key first brings the sound`, `${shape(now.b)} ${now.b.muteKey}`);
       check(!hushed[kind](now.a) && now.a.muteKey === 'shows-sound' && running[kind](now.a) && now.a.room.playing, `${kind}: and mutes or stops nobody else`, `${shape(now.a)} ${now.a.muteKey}`);
     }
+  } finally {
+    await context.close();
+  }
+}
+
+/** A second device whose film is slow to arrive says LINING UP, and stops saying it once it plays in step (--only lining). */
+async function liningKind(browser, errors) {
+  console.log('\n== LINING UP: the second device gets its film late');
+  const context = await newContext(browser);
+  let slow = false;
+  await context.route(/drive-media\.example\.org/, async (route) => {
+    if (slow) await sleep(4000);
+    await route.fallback().catch(() => undefined);
+  });
+  try {
+    const a = await openA(context, '/files?kind=video', errors);
+    const ra = readerOf(a);
+    await pressPlayInFiles(a);
+    if (!(await until(ra, 'file', true, 60000))) throw new Error('A never played the first file');
+    await sleep(4000);
+    slow = true;
+    const b = await openB(context, '/files?kind=video', errors);
+    let said = false;
+    for (const end = Date.now() + 15000; !said && Date.now() < end; await sleep(100)) said = (await look(b.run)).lining;
+    check(said, 'lining: a device still waiting for its film says LINING UP', 'never said');
+    slow = false;
+    if (!(await until(b.run, 'file', true, 40000))) throw new Error('B never played it');
+    await sleep(8000);
+    let stayed = 0;
+    for (let i = 0; i < 10; i += 1, await sleep(500)) if ((await look(b.run)).lining) stayed += 1;
+    const now = await look(b.run);
+    check(stayed === 0 && running.file(now), 'lining: once it plays in step the line is gone and stays gone', `seen ${stayed} of 10 | ${shapes.file(now)}`);
+    check(!(await look(ra)).lining, 'lining: the leading device never says it', 'said');
   } finally {
     await context.close();
   }
@@ -603,6 +640,12 @@ async function keptKind(browser, errors) {
       await barKind(browser, errors).catch((error) => {
         failed.push(`bar: ${error.message}`);
         console.log(`  FAIL  bar: ${error.stack}`);
+      });
+    }
+    if (ONLY === null || ONLY === 'lining') {
+      await liningKind(browser, errors).catch((error) => {
+        failed.push(`lining: ${error.message}`);
+        console.log(`  FAIL  lining: ${error.stack}`);
       });
     }
     if (ONLY === 'kept') {

@@ -178,6 +178,7 @@ drive-device-wake.cjs
     --only gap   how far apart the two devices play, over a minute and after a pause and play (fails if nine in ten
                  readings are over 0.15 s)
     --only kept  after one press, the second device keeps its sound through video, song, video
+    --only lining  a device that gets its film late says LINING UP, and stops once in step
 
 One account on two devices where the second has never been pressed, in a browser that keeps its real autoplay rule: it must
 start muted and in step and say its sound is waiting (the music bar on its own cannot start muted there: it says so and starts
