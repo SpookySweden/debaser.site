@@ -109,6 +109,7 @@ import {
 import type { WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoomRead } from '../lib/watch/types';
 import { previousPlay, registerRoomReplay } from '../lib/watch/room-transport';
 import { steadyInterval } from '../lib/watch/steady-timer';
+import { askForSound, everPressed, noticePress, soundAllowed, soundJustCame, soundRefused, soundWaiting, subscribeSoundGate } from '../lib/watch/sound-gate';
 import { UP_NEXT_EVERY_MS, notInStepId, notInStepNote, upNextRepeats, type RoomNote } from '../lib/watch/room-notes';
 import { attachStream, playsDirectly, type StreamHandle } from '../lib/watch/stream-player';
 import { applyLocalChange } from '../lib/watch/use-watch-room';
@@ -342,13 +343,49 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   const [volume, setVolume] = useState(1);
   const [muted, setMuted] = useState(false);
   const [needsPress, setNeedsPress] = useState(false);
+  /** The browser holds this page's sound until a press (sound-gate.ts): the room plays muted and in step meanwhile. */
+  const soundHeld = useSyncExternalStore(subscribeSoundGate, soundWaiting, () => false);
+  useEffect(() => askForSound(), []);
+  /** The player a muted start is being tried on, and the player that was refused even muted (asked again only after a press). */
+  const mutedTry = useRef<Playable | null>(null);
+  const refusedOn = useRef<Playable | null>(null);
   /**
-   * A play() the browser turned down: the large JOIN PLAYBACK key. Not for a start that was only cut short (a pause or a new file
-   * arriving first, an AbortError): that player is not refused, and the key over a host who is paused would play this one alone.
+   * A play() the browser turned down. On a page nobody has pressed yet it is tried again muted, so this device is in step at once
+   * (Luke, 2026-11-28: sound first, muted only where the browser refuses); only if that is refused too, or on a pressed page, the
+   * large JOIN PLAYBACK key. Not for a start that was only cut short (a pause or a new file arriving first, an AbortError): that
+   * player is not refused, and the key over a host who is paused would play this one alone.
    */
   const refusedPlay = useCallback((error: unknown) => {
-    if (refusedByBrowser(error)) setNeedsPress(true);
+    if (!refusedByBrowser(error)) return;
+    const video = videoRef.current;
+    if (video !== null && !everPressed()) {
+      // The muted start of this player is already under way.
+      if (mutedTry.current === video) return;
+      const name = error instanceof Error ? error.name : '';
+      // An outside player that never started says so late and in its own words: that counts unless sound is known to be allowed.
+      const forSound = name === 'NotAllowedError' || (name !== 'NotSupportedError' && !(video instanceof HTMLMediaElement) && !soundAllowed());
+      if (!video.muted && forSound) {
+        mutedTry.current = video;
+        soundRefused();
+        video.muted = true;
+        void video.play().then(
+          () => {
+            mutedTry.current = null;
+            setNeedsPress(false);
+          },
+          () => {
+            mutedTry.current = null;
+            refusedOn.current = video;
+            setNeedsPress(true);
+          },
+        );
+        return;
+      }
+      refusedOn.current = video;
+    }
+    setNeedsPress(true);
   }, []);
+  const blockedByPlayer = useCallback(() => refusedPlay(new DOMException('Blocked.', 'NotAllowedError')), [refusedPlay]);
   const [notice, setNotice] = useState<string | null>(null);
   const [fault, setFault] = useState<string | null>(null);
 
@@ -598,7 +635,9 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
    * screen would say why this device was silent.
    */
   const heldMuted = otherDeviceHere ? ownDevices.book.heldMuted : null;
-  const silent = muted || heldMuted !== null;
+  // Also silent while the browser holds this page's sound: the speaker key says what is heard, and nothing unmutes early
+  // (a browser pauses a video a script unmutes on an unpressed page).
+  const silent = muted || heldMuted !== null || soundHeld;
   const { unholdSelf } = ownDevices;
   const turnVolume = useCallback((next: number) => {
     turnedHere.current = true;
@@ -606,7 +645,14 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     setVolume(next);
   }, []);
   const turnMuted = useCallback(
-    (next: boolean) => {
+    (wanted: boolean) => {
+      let next = wanted;
+      // The press that has just brought this page its sound is only that: it turns nothing on your other devices, unless they
+      // really are muted (then it asks to hear, like any press of the speaker key).
+      if (soundJustCame()) {
+        if (!muted && heldMuted === null) return;
+        next = false;
+      }
       // Sound asked for at this device lifts a mute from DEVICES: whoever presses it is standing here and wants to hear.
       if (!next && heldMuted !== null) {
         unholdSelf();
@@ -658,6 +704,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     // and pauses it) would write the next play's name with the old player's place, and if that write landed after the start's own
     // (0, playing) everybody's new video jumped there (seen live, 2026-11-08: the next file named at 24.1s). The start says it.
     if (!hostMayPublish(hostEntry.current, room.currentEntryId)) return;
+    // Refused a start here (the browser would not even play it muted): that is not a pause, and the room plays on.
+    if (needsPress && video.paused) return;
 
     void repository
       .writePlayback(roomId, {
@@ -877,13 +925,18 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     // Taking the transport over mid-file: carry on from where this player is, and say so at once. A follower
     // waits at the end of a file for the host to move on, so a hand-over at that moment finds this player
     // already ended - its `ended` came before it was host and will not come again: move on now.
+    let starting = false;
     if (pressed) {
       // Nothing to put back: the press is the news.
     } else if (cameBack) {
       video.pause();
     } else if (roomPlaying() && video.ended) fileEnded();
-    else if (roomPlaying() && video.paused) void video.play().catch(refusedPlay);
-    say();
+    else if (roomPlaying() && video.paused) {
+      starting = true;
+      void video.play().catch(refusedPlay);
+    }
+    // A start still being asked for is said by its own `play`: a browser that refuses it must not pause the room first.
+    if (!starting) say();
 
     return () => {
       video.removeEventListener('play', played);
@@ -907,6 +960,11 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
 
   /* --- following ------------------------------------------------------------------------------- */
 
+  /** A player the browser refused even muted is not asked again until something here is pressed: asking only flickers. */
+  const heldForPress = useCallback((video: Playable) => refusedOn.current === video && !everPressed(), []);
+  /** The follower's look at the room, so a change that has just arrived is followed at once, not on the next tick. */
+  const followNow = useRef<(() => void) | null>(null);
+
   useEffect(() => {
     // ON ITS OWN (DEVICES, APART in your own room): this player is left where it is, and its presses move only itself.
     if (amHost || !live || onItsOwn) return;
@@ -925,6 +983,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     /** Since when this follower's player has sat at the end of the play the room still names, playing. */
     let endedSince: number | null = null;
     const tick = () => {
+      noticePress();
       const video = videoRef.current;
       if (video === null || video.readyState < 1 || Date.now() - pressedLead.current < PRESS_HOLD_MS) return;
       // A live stream has no shared position: everybody plays and pauses with the host, at the live edge.
@@ -932,7 +991,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
         ordered.seek = Date.now();
         toLiveEdge(video);
         if (video.playbackRate !== 1) video.playbackRate = 1;
-        if (roomPlaying() && video.paused) {
+        if (roomPlaying() && video.paused && !heldForPress(video)) {
           ordered.play = Date.now();
           void video.play().then(() => setNeedsPress(false), refusedPlay);
         } else if (!roomPlaying() && !video.paused) {
@@ -963,7 +1022,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
         }
       }
       if (Math.abs(video.playbackRate - step.rate) > 0.01) video.playbackRate = step.rate;
-      if (step.playing && video.paused) {
+      if (step.playing && video.paused && !heldForPress(video)) {
         ordered.play = Date.now();
         void video.play().then(
           () => setNeedsPress(false),
@@ -976,7 +1035,16 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     };
 
     tick();
-    const timer = window.setInterval(tick, FOLLOW_TICK_MS);
+    followNow.current = tick;
+    // On a worker's clock: a background tab's own timers are slowed to a crawl, and this device would follow late.
+    const stopTicking = steadyInterval(tick, FOLLOW_TICK_MS);
+    // Back on screen: the room is read again (a sleeping tab can miss word of a change) and followed at once.
+    const back = () => {
+      if (document.visibilityState !== 'visible') return;
+      applyLocalChange(roomId, { kind: 'refresh' });
+      tick();
+    };
+    document.addEventListener('visibilitychange', back);
     const video = videoRef.current;
     // A device of the host's account hears its own player's presses (its keys, the music bar's, the site's own player's) and leads.
     const heard = (kind: 'play' | 'pause' | 'seek') => () => {
@@ -990,13 +1058,17 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     video?.addEventListener('pause', onPause);
     video?.addEventListener('seeked', onSeeked);
     return () => {
-      window.clearInterval(timer);
+      followNow.current = null;
+      stopTicking();
+      document.removeEventListener('visibilitychange', back);
       video?.removeEventListener('play', onPlay);
       video?.removeEventListener('pause', onPause);
       video?.removeEventListener('seeked', onSeeked);
       if (video !== null) video.playbackRate = 1;
     };
-  }, [amHost, live, onItsOwn, src, videoElement, refusedPlay]);
+  }, [amHost, live, onItsOwn, src, videoElement, refusedPlay, heldForPress, roomId]);
+  // The room said play, pause or another place: a follower does it now.
+  useEffect(() => followNow.current?.(), [room.isPlaying, room.positionSeconds, room.currentEntryId]);
 
   // A room that ended stops the picture where it is. Not the song of the person who started it and is ending it:
   // that carries on for them alone, on the bar (SPEC-rooms-queues.md, phase 3).
@@ -1005,7 +1077,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
    * does not say (the check keeps a slow start or a stall from counting as a press).
    */
   const pressedOnPlayer = useEffectEvent((kind: 'play' | 'pause' | 'seek', video: Playable) => {
-    if (!accountHosts || amHost || stageLive) return;
+    // A device nobody has pressed since its page loaded cannot have been pressed: its player did this by itself.
+    if (!accountHosts || amHost || stageLive || !everPressed()) return;
     const now = Date.now();
     const differs =
       kind === 'pause' ? room.isPlaying && video.paused && !video.ended
@@ -2148,7 +2221,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
               setRemoteEntry((held) => (held !== null && held.entryId === entryId ? null : held));
             }}
             onTime={onTime}
-            onBlocked={() => setNeedsPress(true)}
+            onBlocked={blockedByPlayer}
             onPlaying={() => setNeedsPress(false)}
           />
         ) : link !== null && isEmbedKind(link.kind) ? (
@@ -2175,7 +2248,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
               setOfflineEntry(why === 'offline' ? entryId : null);
               setDeadEntry(entryId);
             }}
-            onBlocked={() => setNeedsPress(true)}
+            onBlocked={blockedByPlayer}
             role={amHost ? 'host' : 'viewer'}
           />
         ) : (
@@ -2262,6 +2335,17 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
             <button type="button" onClick={joinPlayback} className={`${JOIN_KEY} pointer-events-auto`} data-watch-join {...explain('Starts the room\'s video on your screen, in step with everyone else.', 'Browsers won\'t play sound until you press something; this is that press.')}>
               [ ▶ JOIN PLAYBACK ]
             </button>
+          </div>
+        ) : null}
+        {/* The browser is holding this device's sound (sound-gate.ts): it plays muted and in step. Any press on the page brings
+            the sound; this says so, and is something to press. */}
+        {soundHeld && live && !needsPress && !linkDead && (videoElement !== null || song !== null) ? (
+          <div className="pointer-events-none absolute inset-0 z-20 flex items-end justify-center pb-3">
+            <span className="pointer-events-auto bg-ink-plate">
+              <button type="button" className={PLATE_ON_BLACK} onClick={noticePress} data-watch-sound-waiting {...explain('Turns the sound on here. Pressing anything else on the page does the same.', 'Your browser, not this site, is holding this device\'s sound until you press something. It is already in step.')}>
+                [ SOUND IS WAITING ]
+              </button>
+            </span>
           </div>
         ) : null}
         {/* This viewer's music visualiser (Luke, 2026-11-11): hears the bar's song or the room's own player's file. */}

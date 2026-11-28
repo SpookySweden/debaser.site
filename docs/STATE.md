@@ -38,7 +38,8 @@ STARFIELD-PLAY: pressing a star in the STARFIELD background does something to it
 "physics inspired some options including laser beams, nudges, drag/throw"; of these three only FULL-RUN-DUE is live) EXPLAIN-REST-1
 (hover words in letters, docs and lore), and ROOM-DEVICE-SYNC (one account's devices in a room staying linked: pause, play, mute,
 and a device that wakes by itself where a browser allows it; Luke, 2026-11-28: "i need this sorted so they are all smoothly
-linked"; nothing of it live yet), and INSTALL-APP (debaser.site installable as an app with the yellow text icon; Luke, 2026-11-28:
+linked"; first push live: an untouched device starts muted and in step (video) or says SOUND IS WAITING (the music bar
+alone), and no longer pauses the others; not yet tried on a real phone; the tightening is still to come), and INSTALL-APP (debaser.site installable as an app with the yellow text icon; Luke, 2026-11-28:
 "Yes, yellow text icon (Recommended)"; no service worker, no push; done and live, 2b1980e: installed from the browser's own
 menu; not yet tried as a real install on his PC or phone). Decided 2026-11-28 after an interview: no
 server stream for rooms (Luke: "Keep today's way, fix it (Recommended)"); each device keeps playing the media itself, and

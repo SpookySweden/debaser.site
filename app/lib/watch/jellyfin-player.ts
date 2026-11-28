@@ -79,6 +79,8 @@ export class JellyfinPlayable extends EmbedPlayer {
     if (state === null) return;
     this.time = state.time;
     this.length = state.duration;
+    // A new video element in the frame comes up with its own sound: it is told this device's volume and mute again.
+    if (state.event === 'player' || state.event === 'loadedmetadata') this.siteVolume(this.volume, this.muted);
     if (state.event === 'blocked') {
       this.startingSince = null;
       this.blockedByBrowser();

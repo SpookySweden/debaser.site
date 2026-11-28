@@ -110,6 +110,7 @@ type YTNamespace = {
         onStateChange: (event: { data: number }) => void;
         onError: (event: { data: number }) => void;
         onApiChange?: () => void;
+        onAutoplayBlocked?: () => void;
       };
     },
   ) => YTPlayer;
@@ -221,6 +222,7 @@ export class YouTubePlayable extends EventTarget implements EmbedPlayable, Quali
             onStateChange: (event) => this.onState(event.data),
             onError: (event) => this.onError(event.data),
             onApiChange: () => this.readCaptions(),
+            onAutoplayBlocked: () => this.onAutoplayBlocked(),
           },
         });
         this.layout();
@@ -301,12 +303,11 @@ export class YouTubePlayable extends EventTarget implements EmbedPlayable, Quali
     if (this.mutedNow) this.player.mute();
     if (this.pendingSeek !== null) this.player.seekTo(this.pendingSeek, true);
     this.pendingSeek = null;
-    // Through play(), so a start the browser blocks (autoplay rules) is noticed: `paused` comes back
-    // true, the room hears a pause, and the stage offers JOIN PLAYBACK (`blocked`).
+    // Through play(), so a start the browser blocks (autoplay rules) is noticed: `paused` comes back true and the
+    // room is told it was refused (`blocked`). Never as a `pause`, which would read like a press here.
     if (this.wanted)
       void this.play().catch(() => {
         if (this.destroyed) return;
-        this.emit('pause');
         this.emit('blocked');
       });
     this.ticker = window.setInterval(() => this.emit('timeupdate'), 250);
@@ -317,6 +318,16 @@ export class YouTubePlayable extends EventTarget implements EmbedPlayable, Quali
       // An older or newer player without the module: no SUBS key, nothing else changes.
     }
     this.emit('loadedmetadata');
+  }
+
+  /** YouTube's own word that the browser turned the start down: said at once, not after `PLAY_WAIT_MS`. */
+  private onAutoplayBlocked() {
+    if (this.destroyed) return;
+    this.wanted = false;
+    // Refused even muted: the press may have to land on YouTube's own play key, so the cover steps aside.
+    if (this.mutedNow && this.state !== STATE.ended) this.setCover('aside');
+    this.settle(new DOMException('Blocked.', 'NotAllowedError'));
+    this.emit('blocked');
   }
 
   private onState(next: number) {

@@ -61,7 +61,33 @@ Built the same day, on top of the volume sync of `SPEC-rooms-your-room.md` Part 
 7. **No icons drawn** (his answer, "Text keys only"): bracket keys, a filled pill for the one chosen, font symbols (`══▶ ◀══ ═╳═
    ◀═▶ ♪`). No SpriteSlot, no CSS or SVG art.
 
+## Waking and staying linked (Luke, 2026-11-28)
+Typed to the coordinator: "okay i also noticed some bugs with video and control going out of sync when one is paused or muted
+and the video not waking up automatically when clicked play on another signed in device, i need this sorted so they are all
+smoothly linked." His answers that day:
+- Phones: "Android".
+- A server stream for rooms: "Keep today's way, fix it (Recommended)" (none; each device keeps playing the media itself).
+- Pulling devices closer than about half a second: "Yes, pull them tight (Recommended)".
+- PAUSE, PLAY and SKIP: "Act at once, then line up (Recommended)"; while lining up: "Short LINING UP, then go (Recommended)".
+- Sound on a device that wakes: sound is tried first; muted only where the browser refuses (as the coordinator relayed it).
+
+8. **Sound first, muted only where refused.** A browser refuses sound on a page nobody has pressed since it loaded (an installed
+   app or an allowed site is let through). There the device plays MUTED and in step, its speaker key shows muted, and
+   `[ SOUND IS WAITING ]` (over the room's picture; above the music bar for a song) says the browser is holding it. A press on
+   anything brings the sound; a press on the speaker key as that first press only brings it, and mutes nobody. A browser that
+   refuses even muted gets `[ JOIN PLAYBACK ]`. The music bar with no room window open is that case for songs (Chrome allows a
+   muted start for video only): the bar stays still, says `[ SOUND IS WAITING ]`, and the first press anywhere starts the song
+   at the room's place (a press on its play key as that first press starts it, and pauses nobody).
+9. **A device nobody has touched never takes the room.** A start the browser refused is not read as a pause, and nothing its
+   player does by itself makes it lead.
+10. **A tab in the background follows on time** (the follower's clock runs on a worker) and reads the room again when it comes
+    back on screen.
+
+Not covered yet: your own room's video on the floating screen with no room window open (an untouched device may wait for a
+press there); the tightening, the one kept player and the LINING UP line (the next push).
+
 ## Where it is
+- `app/lib/watch/sound-gate.ts`: whether this page may start sound yet.
 - `app/lib/watch/own-device-modes.ts`: the ways, with no React or browser (`playbackRole`, `takesSoundFrom`, `hearMode`,
   `nextStamp`, `guessDeviceName`).
 - `app/lib/watch/own-device-book.ts`: this tab's device id (Web Locks) and its book in local storage.
@@ -77,6 +103,8 @@ Built the same day, on top of the volume sync of `SPEC-rooms-your-room.md` Part 
   FOLLOWS ME, I FOLLOW and APART for play, pause, jumps and volume; MUTE silencing only that device and lifted by its own
   speaker key; the way kept through a reload of either tab; the key going when one device leaves. Shown failing on the code
   before DEVICES.
+- `scripts/drive-device-wake.cjs`: an untouched device in a browser that keeps its real autoplay rule (video file, LUKE'S
+  SERVER stand-in, YouTube, the music bar), and one where sound is allowed.
 - `Temp/check-explain.cjs`: words on every new key.
 - Live: one short check with two TEST ACCOUNT A connections, that the new words cross the account line.
 

@@ -24,6 +24,7 @@ import { webTrackNow } from '../lib/web/web-track-lookup';
 import { useAuth } from './AuthProvider';
 import { useMusicPlayer, type MusicPlayerValue } from './MusicPlayerProvider';
 import { useOwnBarVolume } from '../lib/watch/use-own-bar-volume';
+import { soundWaiting, subscribeSoundGate } from '../lib/watch/sound-gate';
 
 /**
  * The keeper of your own room (SPEC-rooms-queues.md; it was the music room's keeper, SPEC-music-queues.md). Draws nothing.
@@ -267,6 +268,14 @@ export default function MusicRoomKeeper() {
     }
     orderFloating(room.isPlaying ? 'play' : 'pause');
   });
+
+  /** The browser has let this page have its sound: a song another device put on, which could not start, starts now, in step. */
+  const followAfterSound = useEffectEvent(() => {
+    const held = session?.read() ?? null;
+    if (soundWaiting() || lead.current !== 'follow' || held === null || !held.room.isPlaying) return;
+    followOther(held);
+  });
+  useEffect(() => subscribeSoundGate(() => followAfterSound()), []);
 
   const heldNow = read ?? null;
   useEffect(() => {

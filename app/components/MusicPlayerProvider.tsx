@@ -14,6 +14,7 @@ import { LOCAL_TRACKS, buildQueue } from '../lib/audio/tracks';
 import { useAuth } from './AuthProvider';
 import { prepareForAnalysis } from '../lib/watch/audio-tap';
 import { noteHistory } from '../lib/recommender/history';
+import { everPressed, soundJustCame, soundRefused, soundWaiting, subscribeSoundGate } from '../lib/watch/sound-gate';
 
 /**
  * The site's one audio element, and the queue it plays.
@@ -158,6 +159,8 @@ export type MusicPlayerValue = {
    * one gate covers the archive, lists, the queue, post MP3s and profile songs alike.
    */
   barrAsk: AudioTrack | null;
+  /** A song was asked for that the browser would not start until a press (sound-gate.ts says whether it still waits). */
+  soundStartHeld: boolean;
   /** True while a followed broadcast is playing a barred song: in step, but this speaker is silent. */
   barrMuted: boolean;
   /** PLAY ANYWAY / LISTEN ANYWAY: this song sounds this time. */
@@ -361,7 +364,11 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
   const [volume, setVolumeState] = useState(() => loadSettings().volume);
   const [silenced, setSilenced] = useState(false);
   const silencedNow = useRef(silenced);
-  const [loop, setLoopState] = useState(() => loadSettings().loop);
+  /** The browser holds this page's sound until a press (sound-gate.ts): the bar plays muted and in step meanwhile. */
+  const soundHeld = useSyncExternalStore(subscribeSoundGate, soundWaiting, () => false);
+  /** A song was asked for that the browser would not start until a press. */
+  const [soundStartHeld, setSoundStartHeld] = useState(false);
+  const [loop,setLoopState] = useState(() => loadSettings().loop);
   const [playbackRate, setPlaybackRateState] = useState(1);
   /** The songs queued by hand (`enqueue`), and the same list as a ref for the `ended` handler. */
   const [upNext, setUpNext] = useState<AudioTrack[]>([]);
@@ -696,14 +703,14 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
     }
 
     // A barred song in a followed broadcast: stay in step, silent on this speaker only.
-    audio.muted = gate === 'mute' || silencedNow.current;
+    audio.muted = gate === 'mute' || silencedNow.current || soundWaiting();
 
     if (!playing || held) {
       audio.pause();
       return;
     }
 
-    audio.play().catch(() => {
+    const wouldNotPlay = () => {
       intendsToPlay.current = false;
       // A follow cannot carry on through a browser that will not play: the follower would ask again
       // every second and the error would flash for ever.
@@ -726,6 +733,31 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
           ? 'SHELF EMPTY.'
           : 'PRESS PLAY TO START.',
       );
+    };
+
+    // Held until a press: the bar reads as paused and says the sound is waiting; the room keeper starts it in step then.
+    const heldForSound = (refusal?: unknown) => {
+      if (refusal instanceof Error && refusal.name === 'AbortError') return;
+      intendsToPlay.current = false;
+      setPlaying(false);
+      setSoundStartHeld(true);
+    };
+
+    audio.play().catch((refusal: unknown) => {
+      // A page nobody has pressed since it loaded may not start sound (a play another of your devices sent). Muted is tried
+      // first (sound-gate.ts); Chrome refuses a song even muted, so there it waits for the press. A song handed over to start
+      // by itself keeps its own way (the first touch starts it).
+      if (refusal instanceof Error && refusal.name === 'NotAllowedError' && !autoplayWanted.current && !everPressed()) {
+        soundRefused();
+        if (audio.muted) {
+          heldForSound();
+          return;
+        }
+        audio.muted = true;
+        void audio.play().catch(heldForSound);
+        return;
+      }
+      wouldNotPlay();
     });
   }, [armAutoplay, gate, held, playing, track]);
 
@@ -996,6 +1028,8 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
   }, []);
 
   const toggle = useCallback(() => {
+    // The press that has just brought this page its sound, and with it the song, is only that: it does not pause it again.
+    if (intendsToPlay.current && soundStartHeld && soundJustCame()) return;
     setError(null);
     stopFollowing('');
     hostingRoom();
@@ -1012,7 +1046,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
     }
 
     setPlaying((current) => !current);
-  }, [held, hostingRoom, track]);
+  }, [held, hostingRoom, soundStartHeld, track]);
 
   /**
    * Stop: silence, and back to the start of the track.
@@ -1161,6 +1195,8 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
 
   const cue = useCallback(
     (wanted: AudioTrack, start?: PlayStart, play = true) => {
+      // A song another device or a host put on is not a hand-over still waiting for its first touch.
+      autoplayWanted.current = false;
       startTracks(wanted, [], undefined, { ...start, follow: true });
       if (!play) setPlaying(false);
     },
@@ -1194,8 +1230,8 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
   useEffect(() => {
     silencedNow.current = silenced;
     const audio = audioRef.current;
-    if (audio !== null) audio.muted = gate === 'mute' || silenced;
-  }, [silenced, gate]);
+    if (audio !== null) audio.muted = gate === 'mute' || silenced || soundHeld;
+  }, [silenced, gate, soundHeld]);
 
   /**
    * The shelf's repeat switch, and an explicit statement about the *shelf*.
@@ -1353,7 +1389,8 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       replaceUpNext,
       shelfSize,
       barrAsk: held ? (track ?? null) : null,
-      barrMuted: playing && gate === 'mute',
+      soundStartHeld,
+      barrMuted:playing && gate === 'mute',
       playAnyway,
       skipBarred,
       bindRoom,
@@ -1367,6 +1404,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       track,
       index,
       playing,
+      soundStartHeld,
       loading,
       error,
       elapsed,

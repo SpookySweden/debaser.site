@@ -46,6 +46,7 @@ import PopoutWindow from './PopoutWindow';
 import SoundGraph, { TabListenKey } from './SoundGraph';
 import LoveBuzzOnArrival from './LoveBuzzOnArrival';
 import { explain } from '../lib/ui/explain';
+import { noticePress, soundWaiting, subscribeSoundGate } from '../lib/watch/sound-gate';
 
 /**
  * The station: the site's player, pinned to the bottom of every page.
@@ -555,9 +556,13 @@ function PlayerSongKeys({ plate, side, anchor }: { plate: string; side: 'left' |
  *
  *   on your own player   `BARRED :: <title> - PLAY ANYWAY?` [ PLAY ] [ SKIP ]
  *   following somebody   `BARRED SONG PLAYING :: [ LISTEN ANYWAY ]` - in step, this speaker silent
+ *
+ * With no BARR to say, the same place says `[ SOUND IS WAITING ]` while the browser holds this page's sound until a press
+ * (sound-gate.ts): a song another of your devices put on starts here, in step, at the first press.
  */
 function BarrNotice({ anchor }: { anchor: RefObject<HTMLElement | null> }) {
   const player = useMusicPlayer();
+  const soundHeld = useSyncExternalStore(subscribeSoundGate, soundWaiting, () => false);
   const box = 'w-[min(26rem,calc(100vw-1rem))] frame bg-sun-pale p-2 text-label text-ink';
 
   if (player.barrAsk !== null) {
@@ -589,6 +594,16 @@ function BarrNotice({ anchor }: { anchor: RefObject<HTMLElement | null> }) {
             [ LISTEN ANYWAY ]
           </button>
         </p>
+      </AboveAnchor>
+    );
+  }
+
+  if (soundHeld && (player.playing || player.soundStartHeld)) {
+    return (
+      <AboveAnchor anchor={anchor} side="left" className="w-fit frame bg-sun-pale p-1 text-label text-ink">
+        <button type="button" onClick={noticePress} className={PLATE} data-bar-sound-waiting {...explain('Starts the sound here, in step with your other devices. Pressing anything else on the page does the same.', 'Your browser, not this site, is holding this device\'s sound until you press something.')}>
+          [ SOUND IS WAITING ]
+        </button>
       </AboveAnchor>
     );
   }

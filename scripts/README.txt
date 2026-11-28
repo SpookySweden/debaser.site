@@ -170,6 +170,17 @@ drive-watch-in-room.cjs
 `[ WATCH IN ROOM ]` and `[ ADD TO ROOM ]` in a real browser (SPEC-floating-player.md, part 3). Live it starts two rooms as A
 and ends them, and prints their ids: each leaves an ended record and a board thread to delete, so ask Luke.
 
+drive-device-wake.cjs
+---------------------
+    node scripts/dev-mock-live.cjs 3341                                                  first: a local server, every switch on mock
+    node scripts/drive-device-wake.cjs --base http://localhost:3341                      an untouched second device (--only file,
+                                                                                         server, youtube, bar or allowed)
+
+One account on two devices where the second has never been pressed, in a browser that keeps its real autoplay rule: it must
+start muted and in step and say its sound is waiting (the music bar on its own cannot start muted there: it says so and starts
+in step at the first press). The first device is never disturbed by it. Test media are made by the drive; YouTube and
+LUKE'S SERVER are stand-ins.
+
 drive-same-account.cjs
 ----------------------
     node scripts/dev-mock-live.cjs 3319                                                  first: a local server, every switch on mock

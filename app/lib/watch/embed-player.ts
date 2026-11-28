@@ -91,13 +91,12 @@ export abstract class EmbedPlayer extends EventTarget implements EmbedPlayable {
     this.siteVolume(this.vol, this.mutedNow);
     if (this.pendingSeek !== null) this.siteSeek(this.pendingSeek);
     this.pendingSeek = null;
-    // Through play(), so a start the browser blocks is noticed: `paused` comes back true, the room hears
-    // a pause, and the stage offers JOIN PLAYBACK (`blocked`).
+    // Through play(), so a start the browser blocks is noticed: `paused` comes back true and the room is told it was
+    // refused (`blocked`). Never as a `pause`: that reads like a press here and would pause everybody (ROOM-DEVICE-SYNC).
     if (this.wanted)
       void this.play().catch(() => {
         if (this.destroyed || this.refusal !== null || this.saidBlocked) return;
         this.saidBlocked = true;
-        this.emit('pause');
         this.emit('blocked');
       });
     this.ticker = window.setInterval(() => this.emit('timeupdate'), 250);
@@ -147,10 +146,9 @@ export abstract class EmbedPlayer extends EventTarget implements EmbedPlayable {
   protected blockedByBrowser() {
     this.wanted = false;
     this.bufferingNow = false;
-    this.settle(new Error('Blocked.'));
+    this.settle(new DOMException('Blocked.', 'NotAllowedError'));
     if (this.saidBlocked) return;
     this.saidBlocked = true;
-    this.emit('pause');
     this.emit('blocked');
   }
 
