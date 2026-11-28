@@ -39,10 +39,10 @@ linked"; nothing of it live yet).
 
 ## Half-done
 - EXPLAIN: hover words on every key, shown only while `[ EXPLAIN ]` (PREFERENCES, off by default) is on; top bar, side
-  panel, MEDIA, the room and music bar, profile and settings, the forum and the book reader live (a8fcf58, eed29ea, e14e50d,
-  6c2601a, f3a9828; 844 keys explained, 539 to do); next the rest (letters, docs, lore, comic studio, character workbench,
-  animate, beatbox, leaguebot, comms, tag station, recommendations), one fresh session per area (`Temp/check-explain.cjs`
-  STILL_TO_DO; hand-over `explain-handover.md` in the group's notes folder).
+  panel, MEDIA, the room and music bar, profile and settings, the forum, the book reader, and letters, docs and lore live
+  (a8fcf58, eed29ea, e14e50d, 6c2601a, f3a9828, and 2026-11-28's letters/docs/lore push; 933 keys explained, 450 to do);
+  next the rest (comic studio, character workbench, animate, beatbox, leaguebot, comms, tag station, recommendations), one
+  fresh session per area (`Temp/check-explain.cjs` STILL_TO_DO; hand-over `explain-handover.md` in the group's notes folder).
 - BROWSER: the easy install (`browser-easy-install-brief.md` in the 69ad notes folder). Live: Luke's text icon (extension 0.8.0), the
   Edge Add-ons pack (`docs/extension-store/README.md`, his steps; hidden; waits on him), [ CHOOSE AN EMPTY FOLDER ] (the site writes the
   extension into a new folder) and the copy key for the extensions page. Next, for a fresh session: the Firefox trial and the
