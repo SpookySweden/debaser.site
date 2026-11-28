@@ -192,7 +192,7 @@ export default function StudioPages({ contents, reload, chapter, onChapter }: Pr
               onClick={() => picker.current?.click()}
               {...explain(
                 'Opens the file chooser for PNG, JPEG, WEBP or TIFF pages; several can be picked.',
-                'They go up one at a time in file-name order, their panel boxes are guessed, and they wait as QUEUED until released.',
+                'They go up one at a time in file-name order, their panel boxes are guessed, and they wait unseen until you release them.',
               )}
             >
               [ ADD PAGES ]

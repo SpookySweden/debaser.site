@@ -153,7 +153,7 @@ export default function AnimatePopup() {
     // In full screen this is the way back for a pen with no keyboard to hand.
     { label: full ? 'LEAVE FULL' : 'FULL SCREEN', run: toggleFull, words: { what: full ? 'Leaves full screen and brings the keys back.' : 'Goes full screen: just the sheet and the timeline.', why: 'This pop-up still opens there, so a pen can get back.' } },
     { label: 'MENU', run: toggleMenu, words: { what: 'Opens the menu of everything the studio can do, with its keys.', why: 'For anything that is not in this pop-up.' } },
-    { label: 'COLOURS', run: () => useStudio.setState({ panel: 'palette' }), words: { what: 'Opens the colours panel: any colour, and the palette.', why: 'For a colour that is not among these squares.' } },
+    { label: 'COLOURS', run: () => useStudio.setState({ panel: 'palette' }), words: { what: 'Opens the colours panel, with every colour and the palette.', why: 'For a colour that is not among these squares.' } },
   ];
 
   // Arrows walk the block, for a person on the keyboard.

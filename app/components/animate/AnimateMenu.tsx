@@ -24,7 +24,7 @@ const MENU_WORDS: Record<string, [string, string]> = {
   'tool.rect': ['Takes up the box select: drag a box round part of a drawing to select it.', 'What is selected can be moved, sized or turned.'],
   'tool.shift': ['Takes up Shift and Trace: move a neighbouring drawing on screen to draw over it.', 'That drawing itself is not changed.'],
   'tools.popup': ['Opens the tool pop-up on the sheet.', 'The same block of tools the pen’s right button opens.'],
-  'palette.panel': ['Opens the colours panel: any colour, and the palette.', 'For choosing a colour or saving a set of them.'],
+  'palette.panel': ['Opens the colours panel, with every colour and the palette.', 'For choosing a colour or saving a set of them.'],
   'select.none': ['Lets go of the selection.', 'The drawing stays as it is.'],
   'select.delete': ['Rubs out what is selected.', 'UNDO brings it back.'],
   'edit.undo': ['Takes back your last change.', 'For a stroke or an edit you did not mean.'],
