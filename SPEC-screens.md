@@ -274,8 +274,52 @@ at an address the laptop is not really using, and the home router throws away th
    in the middle (99%: 70 ms), so about 26 to 38 ms one way, inside the 30 to 45 ms that was hoped for; not one frame
    lost or skipped; no pause over a quarter of a second. About 1 frame in 22 arrives paired with the one before
    (mild, not the "held back and sent in lumps" failure), and a build running on SERVER makes frames up to 268 ms
-   late for a few seconds. Not measured: a real picture, a viewer away from home, a poor line. The go/no-go is the
-   coordinator's and Luke's; nothing past the gate is written until it is given.
+   late for a few seconds. Not measured: a real picture, a viewer away from home, a poor line. The coordinator gave
+   the go on those numbers the same day (Luke had already chosen "Build, capped, 20 GB (Recommended)").
+
+   **Past the gate: SERVER's half (2026-11-28; HIDDEN, nothing kept running).** Three parts are written. No page
+   asks for any of them, and the gateway is still not on SERVER's kept-running list: it runs only inside its checks.
+   - *The pass.* `POST /api/screens/site-way` (owner only, by the same session check as the engine's routes) hands
+     the owner's browser a pass: good for 60 seconds, once, signed with the secret SERVER's gateways already share
+     (`SCREENS_RDP_SECRET` in `site.env`) over words of its own, so a Remote Desktop pass opens nothing here and
+     this one opens nothing at the Remote Desktop gateway. `GET` says whether the way is there and how much of the
+     month is used. Anyone else is told only "Not available", and the gateway is never asked on their behalf.
+     Neither the picture nor the engine's key ever passes through the site's own program.
+   - *The gateway, for real.* Without `--gate` it holds, for each viewer (two at most), one plain line across the
+     home network to the PC's engine (`GET /site`, with the engine's key), and passes messages both ways: frames,
+     full pictures, sound and the PC's own words out; the page's control bytes, "send a full picture" and "still
+     watching" in. It never queues. When the browser's line is backed up (256 KiB waiting) or the browser is more
+     than 45 frames behind what was sent, frames are skipped and the engine is asked for a full picture: a slow
+     line shows as a skip, never as a picture falling further and further behind. A socket that shows no pass
+     within 3 seconds, a wrong or used pass, or a page from another site gets a closed line and nothing else, and
+     the engine is never asked. The messages' shapes are written at the top of
+     `scripts/host/screens-site-gateway.cjs` and of `engine/src/site.rs`.
+   - *The allowance, with no database.* The gateway counts every byte it sends to or takes from a browser and
+     keeps the month's total in ONE small file on SERVER, outside the repository:
+     `G:\DEBASER-HOST\screens-site-usage.json` (saved every ten seconds, when a viewer leaves, and when the gateway
+     stops). At 20,000,000,000 bytes it ends every viewer with `THIS MONTH'S ALLOWANCE THROUGH THE SITE IS USED UP`
+     and lets nobody in until the month's name changes. A setting can lower that limit, never raise it. **If that
+     file is lost or cannot be read, that month's count starts again from nothing** (the gateway says so on its
+     console); a gateway that cannot write the file does not start at all.
+
+   Proved on SERVER by `Temp/check-screens.cjs`, with a pretend engine (a few lines of Node speaking the engine's
+   side of the line) and the real gateway on a spare port with settings and a count file of its own in a temporary
+   folder: strangers and silent sockets get nothing and the engine is never asked; a pass works once; frames, a
+   full picture, sound and the PC's words arrive in order with a frame before the first full picture skipped;
+   control bytes reach the right lane; "still watching" stops 3 seconds after the browser falls silent; a busy or
+   too-old engine is said in words; and with the limit set just above what was counted, a flood stops within a few
+   thousand bytes of it and the next good pass is refused without the engine being asked. Broken on purpose (a pass
+   allowed twice; the allowance never stopping the picture) the check fails each time.
+
+   **The PC's half: written, NOT built.** The engine's side (`engine/src/site.rs`, its joins in `serve.rs`, and the
+   cap: while a viewer is connected through the site the whole stream is held to 720 lines, 60 frames a second and
+   3,500 kbit/s for everyone watching, said in the settings as `THROUGH THE SITE`) is written with its tests, but
+   only on the session's branch (`claude/remote-anywhere-612f26`), not on `main`: Rust is only built on the gaming
+   PC, which was in use, so it has never been compiled. Until it is built and tested there and swapped in on
+   Luke's own word, the engine the PC runs answers the gateway with "nothing here", which the gateway says as `THE
+   PC'S ENGINE IS TOO OLD FOR THE WAY THROUGH THE SITE`. So no real picture has gone through the site yet.
+   Still to come after that: the page's side (decoding, drawing, sound and control in the browser), then the
+   reveal with the allowance line and the route's words.
 
 **What is and is not proved.** The engine's tests play the router with the Virgin Hub 5's own recorded answers, and
 the Hub itself was asked read-only questions from SERVER (it offers the service and has a public address). Built and

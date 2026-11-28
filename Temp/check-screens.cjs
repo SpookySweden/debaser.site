@@ -1,7 +1,7 @@
 /*
  * SCREENS in the site (SPEC-screens.md, phase 3, first slice): the owner's PC screen in his own room. Offline: the
  * only server it talks to is a pretend engine it starts itself on 127.0.0.1.
- *   npx tsc app/api/screens/host/route.ts app/api/screens/offer/route.ts app/api/screens/settings/route.ts app/api/screens/devices/route.ts app/api/screens/mail/route.ts app/api/screens/rdp/route.ts app/lib/screens/rdp-server.ts app/lib/screens/keysyms.ts app/lib/screens/net-route.ts app/lib/screens/frame-times.ts app/lib/screens/relay-server.ts app/api/screens/ice/route.ts app/api/screens/relay/route.ts app/lib/screens/device-mail.ts app/components/RoomDeviceScreen.tsx app/components/DeviceShareGate.tsx app/lib/screens/wishes.ts app/lib/screens/wire.ts app/lib/screens/key-gate.ts app/components/ScreenKeyGate.tsx app/lib/watch/canvas.ts node_modules/next/types/global.d.ts --outDir Temp/out-screens --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop --moduleResolution node --jsx react-jsx
+ *   npx tsc app/api/screens/host/route.ts app/api/screens/offer/route.ts app/api/screens/settings/route.ts app/api/screens/devices/route.ts app/api/screens/mail/route.ts app/api/screens/rdp/route.ts app/lib/screens/rdp-server.ts app/api/screens/site-way/route.ts app/lib/screens/site-way-server.ts app/lib/screens/keysyms.ts app/lib/screens/net-route.ts app/lib/screens/frame-times.ts app/lib/screens/relay-server.ts app/api/screens/ice/route.ts app/api/screens/relay/route.ts app/lib/screens/device-mail.ts app/components/RoomDeviceScreen.tsx app/components/DeviceShareGate.tsx app/lib/screens/wishes.ts app/lib/screens/wire.ts app/lib/screens/key-gate.ts app/components/ScreenKeyGate.tsx app/lib/watch/canvas.ts node_modules/next/types/global.d.ts --outDir Temp/out-screens --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop --moduleResolution node --jsx react-jsx
  *   node Temp/check-screens.cjs
  *
  * - WHERE THE ENGINE IS: `SCREENS_ENGINE_URL` is taken only when it is a plain http address on this PC itself; anything
@@ -851,7 +851,7 @@ async function main() {
   const importers = files.filter(({ text }) => /from\s+['"][^'"]*screens\/host-server['"]/.test(text) || /from\s+['"]\.\/host-server['"]/.test(text)).map(({ file }) => file);
   // (2026-11-23) BROWSER's gate and its routes too (SPEC-seeing-machine.md): the owner's account is the same one setting, and its session is
   // checked the same way. They sit on the server's side of the same wall (check-web-types.cjs), and take nothing of the engine's.
-  same(importers.sort(), ['app/api/screens/host/route.ts', 'app/api/screens/offer/route.ts', 'app/api/screens/settings/route.ts', 'app/lib/screens/device-mail.ts', 'app/lib/screens/rdp-server.ts', 'app/lib/screens/relay-server.ts', 'app/lib/seeing/server/gate.ts', 'app/lib/seeing/server/open.ts'], 'only the three routes, the devices\' mailbox and the Remote Desktop rules (each only for its own routes) import the server file');
+  same(importers.sort(), ['app/api/screens/host/route.ts', 'app/api/screens/offer/route.ts', 'app/api/screens/settings/route.ts', 'app/lib/screens/device-mail.ts', 'app/lib/screens/rdp-server.ts', 'app/lib/screens/relay-server.ts', 'app/lib/screens/site-way-server.ts', 'app/lib/seeing/server/gate.ts', 'app/lib/seeing/server/open.ts'], 'only the three routes, the devices\' mailbox, the Remote Desktop rules and the way through the site (each only for its own routes) import the server file');
   const naming = files.filter(({ text }) => /SCREENS_(OWNER_ID|ENGINE_URL|DEV_OPEN)/.test(text.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, ''))).map(({ file }) => file);
   same(naming, ['app/lib/screens/host-server.ts'], 'and the settings are read in that file alone');
   ok(!files.some(({ text }) => /NEXT_PUBLIC_SCREENS/.test(text)), 'none of it is a NEXT_PUBLIC value');
@@ -862,7 +862,7 @@ async function main() {
     ok(!/8478|127\.0\.0\.1|localhost/.test(text), `${client} never names the engine's own address: the browser only ever asks the site`);
   }
 
-  /* ---------------------------------------------------------------- the way THROUGH THE SITE: only its gate, and hidden */
+  /* ---------------------------------------------------------------- the way THROUGH THE SITE: its gate, and HIDDEN */
   {
     const siteWay = require(path.join(ROOT, 'scripts/host/screens-site-gateway.cjs'));
     same([siteWay.originIsOurs('https://debaser.site'), siteWay.originIsOurs('http://127.0.0.1:3391'), siteWay.originIsOurs('http://localhost:3000')], [true, true, true], 'the site-way gateway takes a browser on the site\'s own page, or on this PC');
@@ -873,15 +873,358 @@ async function main() {
     const full = siteWay.madeUpFrame(siteWay.KIND.fullPicture, 78, 1250.25);
     same([frame.length, frame[0], frame.readUInt32BE(1), frame.readDoubleBE(5), full.length, full[0], full.readUInt32BE(1), full.readDoubleBE(5)], [siteWay.FRAME_BYTES, 1, 77, 1234.5, siteWay.FULL_PICTURE_BYTES, 2, 78, 1250.25], 'a made-up frame carries its number and the moment it left, at the size of a real one');
     same(siteWay.FRAME_BYTES * 60 * 8, 3_500_160, 'sixty of them a second are the cap: 3.5 Mbit/s');
-    const started = require('node:child_process').spawnSync(process.execPath, [path.join(ROOT, 'scripts/host/screens-site-gateway.cjs')], { encoding: 'utf8', timeout: 20000, env: { ...process.env, SITE_WAY_GATE_PASS: '' } });
-    same([started.status, /Only the gate/.test(started.stdout)], [2, true], 'started without --gate, the gateway stops at once: nothing but the measurement is built');
     const wordless = require('node:child_process').spawnSync(process.execPath, [path.join(ROOT, 'scripts/host/screens-site-gateway.cjs'), '--gate'], { encoding: 'utf8', timeout: 20000, env: { ...process.env, SITE_WAY_GATE_PASS: 'too-short' } });
     same(wordless.status, 2, 'and the gate does not start without that run\'s own words');
     const config = fs.readFileSync(path.join(ROOT, 'next.config.ts'), 'utf8');
     ok(config.includes(`{ source: '${siteWay.PATH}', destination: 'http://127.0.0.1:${siteWay.PORT}${siteWay.PATH}' }`), 'the site passes the socket\'s one address to the gateway\'s own port on this PC, and nothing else');
     same((config.match(/destination: 'http:\/\/127\.0\.0\.1/g) || []).length, 1, 'that is the only address the site passes along to this PC');
-    // Luke, 2026-11-28: "Wait until sound works too". Until picture, control and sound all work, no page may ask for it.
-    same(files.filter(({ text }) => /site-socket/.test(text)).map(({ file }) => file), [], 'HIDDEN: nothing in the site asks for the way through the site yet');
+    // Luke, 2026-11-28: "Wait until sound works too". Until picture, control and sound all work, no page may ask for it:
+    // the socket's address is named by the server's own file alone, that file is used by its one route alone, and no
+    // file anywhere in the site names the route.
+    same(files.filter(({ text }) => /site-socket/.test(text)).map(({ file }) => file), ['app/lib/screens/site-way-server.ts'], 'HIDDEN: only the server\'s own file names the socket of the way through the site');
+    same(files.filter(({ text }) => /site-way-server/.test(text)).map(({ file }) => file), ['app/api/screens/site-way/route.ts'], 'HIDDEN: only its one route uses that file');
+    same(files.filter(({ file, text }) => /screens\/site-way(?!-server)/.test(text) && !['app/api/screens/site-way/route.ts', 'app/lib/screens/site-way-server.ts'].includes(file)).map(({ file }) => file), [], 'HIDDEN: no page, component or browser file asks that route');
+    ok(!/['"]use client['"]/.test(files.find(({ file }) => file === 'app/lib/screens/site-way-server.ts').text), 'and the file is not a browser file');
+  }
+
+  /* ---------------------------------------------------------------- the way THROUGH THE SITE: the pass, the allowance, the rules of the line */
+  {
+    const net = require('node:net');
+    const os = require('node:os');
+    const { spawn, spawnSync } = require('node:child_process');
+    const siteWay = require(path.join(ROOT, 'scripts/host/screens-site-gateway.cjs'));
+    const siteServer = require(path.join(OUT, 'lib/screens/site-way-server.js'));
+    const rdp = require(path.join(OUT, 'lib/screens/rdp-server.js'));
+    const rdpGateway = require(path.join(ROOT, 'scripts/host/rdp-gateway.cjs'));
+    const GATEWAY_FILE = path.join(ROOT, 'scripts/host/screens-site-gateway.cjs');
+    const SECRET = 'c'.repeat(24) + 'd'.repeat(24);
+    const KEY = 'pretend-engine-key-0123456789';
+    const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'debaser-site-way-'));
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const until = async (what, ms = 6000) => {
+      const end = Date.now() + ms;
+      while (Date.now() < end) {
+        if (what()) return true;
+        await sleep(20);
+      }
+      return false;
+    };
+
+    // The pass: the site's own, taken once, for a minute, by this gateway alone.
+    const now = 1_800_000_000_000;
+    const pass = siteServer.makeSitePass(SECRET, now);
+    same(siteWay.passIsGood(pass, SECRET, new Map(), now), true, "the gateway takes the site's pass");
+    {
+      const used = new Map();
+      same([siteWay.passIsGood(pass, SECRET, used, now), siteWay.passIsGood(pass, SECRET, used, now + 1000)], [true, false], 'once');
+    }
+    same(siteWay.passIsGood(pass, SECRET, new Map(), now + 61_000), false, 'and not after a minute');
+    same(siteWay.passIsGood(pass, 'e'.repeat(48), new Map(), now), false, 'nor with another secret');
+    same(siteWay.passIsGood(pass.replace(/^./, (c) => (c === 'e' ? 'f' : 'e')), SECRET, new Map(), now), false, 'nor changed');
+    same([siteWay.passIsGood(undefined, SECRET, new Map(), now), siteWay.passIsGood('', SECRET, new Map(), now), siteWay.passIsGood(`${pass}.x`, SECRET, new Map(), now), siteWay.passIsGood(pass, null, new Map(), now)], [false, false, false, false], 'nor nothing, nor with a part added, nor when no secret is set');
+    same(siteWay.passIsGood(siteWay.makePass(SECRET, now), SECRET, new Map(), now), true, "(the gateway's own copy of the recipe makes the same kind of pass)");
+    const rdpPass = rdp.makePass(SECRET, { width: 1920, height: 1080, dpi: 96 }, now);
+    same(siteWay.passIsGood(rdpPass, SECRET, new Map(), now), false, 'a Remote Desktop pass, signed with the very same secret, opens nothing here');
+    same(rdpGateway.passIsGood(pass, SECRET, now), null, 'and a pass for this way opens nothing at the Remote Desktop gateway');
+    // A pass that says the right things but was signed the Remote Desktop way (no words of this way's own mixed in).
+    {
+      const body = Buffer.from(JSON.stringify({ exp: Math.floor(now / 1000) + 60, nonce: 'abcdefghijkl', way: 'site' })).toString('base64url');
+      const plain = `${body}.${require('node:crypto').createHmac('sha256', SECRET).update(body).digest('base64url')}`;
+      same(siteWay.passIsGood(plain, SECRET, new Map(), now), false, 'the signature is over this way\'s own words, so the claim alone is not enough');
+    }
+
+    // Where the engine is: this PC, or a home-network number WITH the key; nothing else.
+    same(siteWay.engineAddress({ SCREENS_ENGINE_URL: 'http://192.168.0.30:8478', SCREENS_ENGINE_TOKEN: KEY }), { host: '192.168.0.30', port: 8478, key: KEY }, 'the engine on the home network, with its key');
+    same(siteWay.engineAddress({ SCREENS_ENGINE_URL: 'http://192.168.0.30:8478' }), null, 'the same address without a key: refused');
+    same(siteWay.engineAddress({}), { host: '127.0.0.1', port: 8478, key: null }, 'nothing set: this PC itself');
+    for (const address of ['http://8.8.8.8:8478', 'https://192.168.0.30:8478', 'http://debaser.site:8478', 'http://192.168.0.30:8478/site', 'http://user:pass@192.168.0.30:8478', 'http://192.168.0.30.example.com:8478', 'not an address']) {
+      same(siteWay.engineAddress({ SCREENS_ENGINE_URL: address, SCREENS_ENGINE_TOKEN: KEY }), null, `not an engine's address: ${address}`);
+    }
+
+    // The month's allowance: one small file, 20 GB and never more.
+    same([siteWay.MONTH_LIMIT_BYTES, siteWay.limitFrom(undefined), siteWay.limitFrom('99000000000'), siteWay.limitFrom('-5'), siteWay.limitFrom('5000')], [20_000_000_000, 20_000_000_000, 20_000_000_000, 20_000_000_000, 5000], 'the limit is 20 GB; a check may ask for less, nothing can ask for more');
+    same([siteWay.monthOf(new Date(2026, 10, 28)), siteWay.monthOf(new Date(2027, 0, 1))], ['2026-11', '2027-01'], "the month is the server's own calendar's");
+    {
+      const file = path.join(folder, 'count.json');
+      let today = new Date(2026, 10, 28);
+      const first = siteWay.usageIn(file, 1000, () => today);
+      same(first.says(), { name: '2026-11', usedBytes: 0, limitBytes: 1000 }, 'no file yet: nothing used');
+      first.add(400);
+      same([first.left(), first.save(), JSON.parse(fs.readFileSync(file, 'utf8')).bytes, JSON.parse(fs.readFileSync(file, 'utf8')).month], [600, true, 400, '2026-11'], 'what is used is written to the file');
+      const second = siteWay.usageIn(file, 1000, () => today);
+      second.add(700);
+      same([second.says().usedBytes, second.left()], [1100, 0], 'a gateway started again carries on from the file, and past the limit nothing is left');
+      second.save();
+      today = new Date(2026, 11, 1);
+      same([second.says(), second.left()], [{ name: '2026-12', usedBytes: 0, limitBytes: 1000 }, 1000], 'a new month starts from nothing, with no restart');
+      same(siteWay.usageIn(file, 1000, () => today).says().usedBytes, 0, "and last month's file is not this month's count");
+      fs.writeFileSync(file, 'not a count');
+      same(siteWay.usageIn(file, 1000, () => today).says().usedBytes, 0, 'a file that cannot be read counts as nothing used (said in the SPEC: a lost file restarts the month)');
+      same(siteWay.usageIn(path.join(folder, 'no-such-folder', 'count.json'), 1000, () => today).save(), false, 'a count that cannot be written says so');
+    }
+
+    // The engine's line: messages whole, however the bytes arrive.
+    {
+      const a = siteWay.lineMessage(siteWay.KIND.fullPicture, Buffer.from('picture'));
+      const b = siteWay.lineMessage(siteWay.KIND.stillWatching);
+      same([a.readUInt32BE(0), a[4], a.subarray(5).toString(), b.length, b.readUInt32BE(0), b[4]], [8, 2, 'picture', 5, 1, 19], 'a message: how long the rest is, what it is, its contents');
+      const read = siteWay.lineReader();
+      const all = Buffer.concat([a, b, a]);
+      const got = [];
+      for (let at = 0; at < all.length; at += 3) for (const message of read(all.subarray(at, at + 3))) got.push([message.kind, message.contents.toString()]);
+      same(got, [[2, 'picture'], [19, ''], [2, 'picture']], 'read back whole, three bytes at a time');
+      const tooLong = Buffer.alloc(4);
+      tooLong.writeUInt32BE(5 * 1024 * 1024, 0);
+      assert.throws(() => siteWay.lineReader()(tooLong), /not the engine/);
+      passed += 1;
+      const header = siteWay.browserHeader(siteWay.KIND.sound, 41, 1234.5);
+      same([header.length, header[0], header.readUInt32BE(1), header.readDoubleBE(5)], [13, 3, 41, 1234.5], "what the browser gets in front: what it is, its number, when it left the gateway");
+    }
+
+    // Never queueing: what happens to a frame, from how the viewer stands.
+    {
+      const viewer = () => ({ needFull: true, catchingUp: false, catchingUpSince: 0, lastSent: 0, got: 0, heardOf: false });
+      const v = viewer();
+      same(siteWay.frameRule(v, siteWay.KIND.frame, 0), { what: 'skip', ask: true }, 'a viewer starts from a full picture: an ordinary frame first is skipped, and a full picture asked for');
+      same([siteWay.frameRule(v, siteWay.KIND.fullPicture, 0), v.needFull], [{ what: 'send', ask: false }, false], 'the full picture is sent');
+      same(siteWay.frameRule(v, siteWay.KIND.frame, 1000), { what: 'send', ask: false }, 'and the frames after it');
+      same([siteWay.frameRule(v, siteWay.KIND.frame, siteWay.BACKED_UP_BYTES + 1), v.needFull], [{ what: 'skip', ask: false }, true], 'a backed-up line: the frame is skipped, not kept');
+      same(siteWay.frameRule(v, siteWay.KIND.fullPicture, siteWay.BACKED_UP_BYTES + 1), { what: 'skip', ask: false }, 'even a full picture is not put on a backed-up line');
+      same(siteWay.frameRule(v, siteWay.KIND.frame, 0), { what: 'skip', ask: true }, 'cleared: still nothing until a full picture, which is asked for');
+      same(siteWay.frameRule(v, siteWay.KIND.fullPicture, 0), { what: 'send', ask: false }, 'and from that it carries on');
+      const behind = { ...viewer(), needFull: false, heardOf: true, lastSent: 100, got: 100 - siteWay.TOO_FAR_BEHIND - 1 };
+      same([siteWay.frameRule(behind, siteWay.KIND.frame, 0), behind.catchingUp], [{ what: 'skip', ask: false }, true], 'a browser too far behind is sent nothing');
+      same(siteWay.frameRule(behind, siteWay.KIND.fullPicture, 0), { what: 'skip', ask: false }, 'not even a full picture, until it has caught up');
+      behind.got = 99;
+      same([siteWay.frameRule(behind, siteWay.KIND.frame, 0), behind.catchingUp, behind.needFull], [{ what: 'skip', ask: true }, false, true], 'caught up: a full picture is asked for');
+      same(siteWay.frameRule(behind, siteWay.KIND.fullPicture, 0), { what: 'send', ask: false }, 'and it starts again from that');
+      const silent = { ...viewer(), needFull: false, heardOf: false, lastSent: 500, got: 0 };
+      same(siteWay.frameRule(silent, siteWay.KIND.frame, 0), { what: 'send', ask: false }, 'a browser that has not said where it is yet is not called behind (the backed-up rule still holds it)');
+    }
+
+    // The site's route: the owner alone, and what the gateway itself says.
+    {
+      const month = { name: '2026-11', usedBytes: 1_500_000_000, limitBytes: 20_000_000_000 };
+      const health = (more = {}) => async () => new Response(JSON.stringify({ ok: true, gate: false, engineSet: true, passesSet: true, viewers: 0, month, ...more }), { status: 200 });
+      const env = { ...live, SCREENS_RDP_SECRET: SECRET };
+      for (const [who, how] of strangers) {
+        const w = world(env, { accounts, engine: health() });
+        same(JSON.parse((await read(await siteServer.siteWayAnswer(ask('/api/screens/site-way', how), w.deps))).text), { available: false }, `through the site, ${who}: not available`);
+        same((await read(await siteServer.siteWayAnswer(ask('/api/screens/site-way', { ...how, method: 'POST' }), w.deps))).status, 403, `through the site, ${who}: no pass`);
+        same(w.seen.engine.length, 0, `and the gateway is never asked for ${who}`);
+      }
+      const w = world(env, { accounts, engine: health() });
+      const said = await read(await siteServer.siteWayAnswer(ask('/api/screens/site-way', { token: liveOwner }), w.deps));
+      same(JSON.parse(said.text), { available: true, usedUp: false, month, socket: '/api/screens/site-socket' }, "the owner: there, with the month as the gateway counts it");
+      same([said.kept, w.seen.engine[0].url], ['private, no-store', 'http://127.0.0.1:8481/health'], 'never kept; the gateway asked on this PC');
+      const handed = await read(await siteServer.siteWayAnswer(ask('/api/screens/site-way', { token: liveOwner, method: 'POST' }), w.deps));
+      same([handed.status, JSON.parse(handed.text).socket, siteWay.passIsGood(JSON.parse(handed.text).pass, SECRET, new Map(), world.now)], [200, '/api/screens/site-socket', true], 'the owner is handed a pass the gateway takes');
+      ok(!handed.text.includes(SECRET) && !said.text.includes(SECRET), 'the secret itself is never in an answer');
+      const full = world(env, { accounts, engine: health({ month: { ...month, usedBytes: month.limitBytes } }) });
+      same(JSON.parse((await read(await siteServer.siteWayAnswer(ask('/api/screens/site-way', { token: liveOwner }), full.deps))).text).usedUp, true, 'the month used up: said');
+      const refused = await read(await siteServer.siteWayAnswer(ask('/api/screens/site-way', { token: liveOwner, method: 'POST' }), full.deps));
+      same([refused.status, 'pass' in JSON.parse(refused.text)], [409, false], 'and no pass is handed out, even to the owner');
+      const answers = async (deps, method) => read(await siteServer.siteWayAnswer(ask('/api/screens/site-way', { token: liveOwner, method }), deps));
+      same(JSON.parse((await answers(world(env, { accounts, engine: health({ gate: true }) }).deps, 'GET')).text), { available: false }, 'the measuring gateway (made-up frames) is not this way');
+      same((await answers(world(env, { accounts, engine: health({ gate: true }) }).deps, 'POST')).status, 502, 'and gets no pass');
+      same(JSON.parse((await answers(world(env, { accounts }).deps, 'GET')).text), { available: false }, 'no gateway answering: not there');
+      same(JSON.parse((await answers(world({ ...live, SCREENS_RDP_SECRET: 'short' }, { accounts, engine: health() }).deps, 'GET')).text), { available: false }, 'a secret too short to trust: off');
+      same(JSON.parse((await answers(world(env, { accounts, engine: health({ month: 'plenty' }) }).deps, 'GET')).text), { available: false }, 'a gateway that does not say its count: off (no pass without the count)');
+      same([JSON.parse((await answers(world(env, { accounts, engine: health({ engineSet: false }) }).deps, 'GET')).text).available, (await answers(world(env, { accounts, engine: health({ engineSet: false }) }).deps, 'POST')).status], [false, 502], "a gateway that does not know the PC's engine: not available, no pass");
+      const elsewhere = world({ ...env, SCREENS_SITE_WAY_GATEWAY_URL: 'http://192.168.1.20:8481' }, { accounts, engine: health() });
+      same([JSON.parse((await answers(elsewhere.deps, 'GET')).text), elsewhere.seen.engine.length], [{ available: false }, 0], 'a gateway on another machine is refused, and never asked');
+      same(siteServer.siteSocketAddress({ SCREENS_SITE_WAY_SOCKET_URL: 'javascript:alert(1)' }), '/api/screens/site-socket', 'a socket address that is not one is ignored');
+    }
+
+    // THE DOOR AND THE LINE, with the real gateway program, a pretend engine and a pretend browser, all on this PC.
+    const stamp = (n) => {
+      const bytes = Buffer.alloc(8);
+      bytes.writeBigUInt64BE(BigInt(n));
+      return bytes;
+    };
+    const engine = { mode: 'ok', requests: [], messages: [], lines: [] };
+    const pretendEngine = net.createServer((line) => {
+      let head = Buffer.alloc(0);
+      let readLine = null;
+      line.on('error', () => {});
+      line.on('data', (chunk) => {
+        let rest = chunk;
+        if (readLine === null) {
+          head = Buffer.concat([head, chunk]);
+          const end = head.indexOf('\r\n\r\n');
+          if (end < 0) return;
+          const text = head.subarray(0, end).toString('latin1');
+          engine.requests.push(text);
+          if (!text.startsWith(`GET /site?token=${KEY} HTTP/1.1\r\n`) || !/\r\nUpgrade: debaser-site(\r\n|$)/.test(text)) return void line.end('HTTP/1.1 403 Forbidden\r\nContent-Length: 2\r\nConnection: close\r\n\r\nno');
+          if (engine.mode === 'old') return void line.end('HTTP/1.1 404 Not Found\r\nContent-Length: 9\r\nConnection: close\r\n\r\nnot found');
+          if (engine.mode === 'busy') return void line.end('HTTP/1.1 503 Service Unavailable\r\nContent-Length: 48\r\nConnection: close\r\n\r\n2 viewers are already watching through the site.');
+          line.write('HTTP/1.1 101 Switching Protocols\r\nUpgrade: debaser-site\r\nConnection: Upgrade\r\nDebaser-Viewer: 7\r\n\r\n');
+          readLine = siteWay.lineReader(64 * 1024);
+          engine.lines.push(line);
+          if (engine.mode === 'flood') {
+            for (let i = 0; i < 40; i += 1) line.write(siteWay.lineMessage(siteWay.KIND.fullPicture, Buffer.concat([stamp(i * 1500), Buffer.alloc(1000, 7)])));
+          } else {
+            line.write(siteWay.lineMessage(siteWay.KIND.says, Buffer.from([0x80, 0x00])));
+            line.write(siteWay.lineMessage(siteWay.KIND.frame, Buffer.concat([stamp(1500), Buffer.from('a frame before any full picture')])));
+            line.write(siteWay.lineMessage(siteWay.KIND.fullPicture, Buffer.concat([stamp(3000), Buffer.from('FULL PICTURE')])));
+            line.write(siteWay.lineMessage(siteWay.KIND.frame, Buffer.concat([stamp(4500), Buffer.from('frame')])));
+            line.write(siteWay.lineMessage(siteWay.KIND.sound, Buffer.concat([stamp(480), Buffer.from('opus')])));
+            line.write(siteWay.lineMessage(99, Buffer.from('a kind nobody knows')));
+          }
+          rest = head.subarray(end + 4);
+          if (rest.length === 0) return;
+        }
+        for (const message of readLine(rest)) engine.messages.push({ kind: message.kind, contents: Buffer.from(message.contents) });
+      });
+    });
+    await new Promise((resolve) => pretendEngine.listen(0, '127.0.0.1', resolve));
+    const freePort = async () => {
+      const probe = net.createServer();
+      await new Promise((resolve) => probe.listen(0, '127.0.0.1', resolve));
+      const { port } = probe.address();
+      await new Promise((resolve) => probe.close(resolve));
+      return port;
+    };
+    const settingsFile = path.join(folder, 'site.env');
+    const usageFile = path.join(folder, 'usage.json');
+    fs.writeFileSync(settingsFile, `# a pretend site.env\nSCREENS_ENGINE_URL=http://127.0.0.1:${pretendEngine.address().port}\nSCREENS_ENGINE_TOKEN=${KEY}\nSCREENS_RDP_SECRET="${SECRET}"\n`);
+    same(siteWay.settingsFrom(settingsFile).SCREENS_RDP_SECRET, SECRET, 'the settings file is read as name=value lines');
+    const gatewayEnv = (more) => ({ ...process.env, DEBASER_SITE_WAY_SETTINGS: settingsFile, DEBASER_SITE_WAY_USAGE: usageFile, DEBASER_HOST_FOLDER: folder, ...more });
+    const startGateway = async (more = {}) => {
+      const port = await freePort();
+      const child = spawn(process.execPath, [GATEWAY_FILE], { env: gatewayEnv({ DEBASER_SITE_WAY_PORT: String(port), ...more }), stdio: ['ignore', 'pipe', 'pipe'] });
+      let said = '';
+      child.stdout.on('data', (chunk) => (said += chunk));
+      ok(await until(() => /listens on 127\.0\.0\.1/.test(said), 15000), 'the gateway starts when the settings hold a pass secret and the count can be written');
+      return { port, child, said: () => said, stop: () => new Promise((resolve) => (child.exitCode !== null || child.signalCode !== null ? resolve() : (child.once('exit', resolve), child.kill()))) };
+    };
+    const browser = (port, first) => {
+      const socket = new WebSocket(`ws://127.0.0.1:${port}${siteWay.PATH}`);
+      socket.binaryType = 'arraybuffer';
+      const seen = { socket, texts: [], bytes: [], closed: false };
+      socket.onopen = () => first !== undefined && socket.send(first);
+      socket.onmessage = (event) => (typeof event.data === 'string' ? seen.texts.push(JSON.parse(event.data)) : seen.bytes.push(Buffer.from(event.data)));
+      socket.onclose = () => (seen.closed = true);
+      socket.onerror = () => {};
+      return seen;
+    };
+    const goodPass = () => JSON.stringify({ pass: siteServer.makeSitePass(SECRET, Date.now()) });
+
+    // Without a pass secret in the settings it does not start at all; neither when the count has nowhere to be kept.
+    {
+      const secretless = spawnSync(process.execPath, [GATEWAY_FILE], { encoding: 'utf8', timeout: 20000, env: gatewayEnv({ DEBASER_SITE_WAY_SETTINGS: path.join(folder, 'no-such.env'), DEBASER_SITE_WAY_PORT: String(await freePort()) }) });
+      same([secretless.status, /NOT STARTED/.test(secretless.stdout)], [2, true], 'no pass secret in the settings: the gateway does not start, so nobody could be let in by mistake');
+      const countless = spawnSync(process.execPath, [GATEWAY_FILE], { encoding: 'utf8', timeout: 20000, env: gatewayEnv({ DEBASER_SITE_WAY_USAGE: path.join(folder, 'no-such-folder', 'usage.json'), DEBASER_SITE_WAY_PORT: String(await freePort()) }) });
+      same([countless.status, /NOT STARTED/.test(countless.stdout)], [2, true], 'nowhere to keep the count: it does not start, so the limit cannot be lost');
+    }
+
+    let gateway = await startGateway();
+    try {
+      const healthNow = async () => (await fetch(`http://127.0.0.1:${gateway.port}/health`)).json();
+      same(await healthNow(), { ok: true, gate: false, engineSet: true, passesSet: true, viewers: 0, month: { name: siteWay.monthOf(), usedBytes: 0, limitBytes: 20_000_000_000 } }, 'its health: the real way, the engine and the secret set, nothing used, 20 GB');
+      ok(!gateway.said().includes(KEY) && !gateway.said().includes(SECRET), 'neither the key nor the secret is in what it prints');
+
+      // Strangers: a closed line, not one byte of picture, and the engine never hears of them.
+      for (const [who, first] of [
+        ['words that are not a pass', JSON.stringify({ pass: 'open sesame' })],
+        ['a Remote Desktop pass signed with the same secret', JSON.stringify({ pass: rdp.makePass(SECRET, { width: 1920, height: 1080, dpi: 96 }, Date.now()) })],
+        ['a pass that ran out', JSON.stringify({ pass: siteServer.makeSitePass(SECRET, Date.now() - 120_000) })],
+        ['a pass signed with another secret', JSON.stringify({ pass: siteServer.makeSitePass('e'.repeat(48), Date.now()) })],
+        ['something that is not a message', 'hello'],
+      ]) {
+        const stranger = browser(gateway.port, first);
+        ok(await until(() => stranger.closed), `${who}: the line is closed`);
+        same([stranger.bytes.length, stranger.texts.length, engine.requests.length], [0, 0, 0], `${who}: nothing sent, and the engine never asked`);
+      }
+      {
+        const silent = browser(gateway.port);
+        ok(await until(() => silent.closed, 5000), 'saying nothing for three seconds: the line is closed');
+        same([silent.bytes.length, engine.requests.length], [0, 0], 'with nothing sent and the engine never asked');
+      }
+
+      // The owner's browser, with a pass from the site.
+      const first = goodPass();
+      const owner = browser(gateway.port, first);
+      ok(await until(() => owner.bytes.length >= 4), "a good pass: the engine's line is opened and its messages come through");
+      await sleep(150);
+      same(engine.requests.length, 1, 'the engine was asked once, with its key, on its own line');
+      same(owner.texts[0], { ok: true, viewer: 7, month: owner.texts[0].month }, "the browser is told it is in, with the engine's own viewer number");
+      same(owner.bytes.map((message) => [message[0], message.readUInt32BE(1), message.subarray(13).toString('latin1')]), [
+        [4, 0, '\x80\x00'],
+        [2, 2, `${stamp(3000).toString('latin1')}FULL PICTURE`],
+        [1, 3, `${stamp(4500).toString('latin1')}frame`],
+        [3, 1, `${stamp(480).toString('latin1')}opus`],
+      ], "the PC's words, the full picture, the frame after it and the sound arrive untouched, each with its number; the frame from BEFORE the full picture is skipped (number 1 never comes), and a kind nobody knows is dropped");
+      ok(owner.bytes.every((message) => Math.abs(message.readDoubleBE(5) - Date.now()) < 60_000), 'each carries the moment it left the gateway');
+      ok(await until(() => engine.messages.some((message) => message.kind === siteWay.KIND.fullPicturePlease)), 'the skipped frame made the gateway ask the engine for a full picture');
+      const again = browser(gateway.port, first);
+      ok(await until(() => again.closed), 'the same pass a second time: closed');
+      same([again.bytes.length, engine.requests.length], [0, 1], 'nothing sent, the engine not asked again');
+
+      // Control goes to the PC on the right lane, byte for byte; the engine hears that the viewer is still watching.
+      await sleep(300);
+      engine.messages.length = 0;
+      owner.socket.send(Buffer.from([siteWay.KIND.keys, 0x01, 0x02, 0x03]));
+      owner.socket.send(Buffer.from([siteWay.KIND.pointer, 0x09, 0x08]));
+      owner.socket.send(Buffer.from([siteWay.KIND.fullPicturePlease]));
+      owner.socket.send(Buffer.from([0x63, 0x01]));
+      owner.socket.send(JSON.stringify({ got: 3, sent: owner.bytes[2].readDoubleBE(5), at: 10, now: 12 }));
+      ok(await until(() => engine.messages.some((message) => message.kind === siteWay.KIND.stillWatching) && engine.messages.filter((message) => message.kind !== siteWay.KIND.stillWatching).length >= 3), 'the browser\'s bytes reach the engine');
+      same(engine.messages.filter((message) => message.kind !== siteWay.KIND.stillWatching).map((message) => [message.kind, [...message.contents]]), [[16, [1, 2, 3]], [17, [9, 8]], [18, []]], 'keys on the keys lane, the pointer on the pointer lane, "a full picture, please"; a lane nobody knows is dropped');
+      // A browser gone silent: the engine is no longer told it is watching (it stops sending to one it hears nothing of).
+      await sleep(3700);
+      engine.messages.length = 0;
+      await sleep(1300);
+      same(engine.messages.filter((message) => message.kind === siteWay.KIND.stillWatching).length, 0, 'three seconds of silence from the browser: the engine is no longer told it is watching');
+
+      // The engine closes its end: the browser is told why, in words, and its line closes.
+      engine.lines[0].destroy();
+      ok(await until(() => owner.closed), "the engine's line closing closes the browser's");
+      same(owner.texts.at(-1).ended, "THE PC'S ENGINE CLOSED THE LINE", 'after saying why');
+
+      // An engine that says no, and one too old to know this way.
+      engine.mode = 'busy';
+      const third = browser(gateway.port, goodPass());
+      ok(await until(() => third.closed), 'the engine refusing: closed');
+      same([third.bytes.length, third.texts.at(-1).ended], [0, 'THE PC SAID NO: 2 viewers are already watching through the site.'], "with the PC's own words");
+      engine.mode = 'old';
+      const old = browser(gateway.port, goodPass());
+      ok(await until(() => old.closed), 'an engine from before this way: closed');
+      same(old.texts.at(-1).ended, "THE PC'S ENGINE IS TOO OLD FOR THE WAY THROUGH THE SITE", 'and said');
+      engine.mode = 'ok';
+
+      // The count: every byte to and from a browser, kept in the file.
+      const counted = (await healthNow()).month.usedBytes;
+      const received = owner.bytes.reduce((sum, message) => sum + message.length, 0);
+      ok(counted > received && counted < received + 4000, `what was sent is counted (${counted} bytes for ${received} of picture and sound, plus the words and the browser's own)`);
+      ok(await until(() => { try { return JSON.parse(fs.readFileSync(usageFile, 'utf8')).bytes === counted; } catch { return false; } }), 'and the file holds the same figure');
+      same(JSON.parse(fs.readFileSync(usageFile, 'utf8')).month, siteWay.monthOf(), 'under this month');
+      await gateway.stop();
+
+      // Started again with the file: it carries on. With a limit a little above that: it stops in the middle and says so.
+      gateway = await startGateway({ DEBASER_SITE_WAY_LIMIT_BYTES: String(counted + 5000) });
+      same((await healthNow()).month, { name: siteWay.monthOf(), usedBytes: counted, limitBytes: counted + 5000 }, 'a gateway started again reads the count back');
+      engine.mode = 'flood';
+      engine.requests.length = 0;
+      const flooded = browser(gateway.port, goodPass());
+      ok(await until(() => flooded.closed), 'forty thousand bytes of picture against five thousand left: the line is closed');
+      const through = flooded.bytes.reduce((sum, message) => sum + message.length, 0);
+      ok(through >= 3000 && through <= 6100, `the gateway itself stopped at the limit (${through} bytes of picture got through, of 40,520 sent by the engine)`);
+      same(flooded.texts.at(-1).ended, siteWay.USED_UP, 'and said why');
+      ok((await healthNow()).month.usedBytes >= counted + 5000, 'the month is used up');
+      const late = browser(gateway.port, goodPass());
+      ok(await until(() => late.closed), 'after that, even a good pass: closed');
+      same([late.bytes.length, late.texts.at(-1).ended, engine.requests.length], [0, siteWay.USED_UP, 1], 'no picture, the same words, and the engine not asked again');
+      await gateway.stop();
+      // Nothing can raise the limit.
+      gateway = await startGateway({ DEBASER_SITE_WAY_LIMIT_BYTES: '99000000000' });
+      same((await healthNow()).month.limitBytes, 20_000_000_000, 'asked for more than 20 GB, the gateway keeps 20 GB');
+    } finally {
+      await gateway.stop();
+      for (const line of engine.lines) line.destroy();
+      await new Promise((resolve) => pretendEngine.close(resolve));
+      fs.rmSync(folder, { recursive: true, force: true });
+    }
   }
 
   console.log(`ok: ${passed} assertions (SCREENS: owner only, this PC only, the dev switch dead in production, the settings sums, CONTROL's bytes, sound, the controller, the PC's pointer, the first key listener)`);

@@ -81,14 +81,19 @@ and shows a short LINING UP line (the one kept player needed no change in a fron
   voxels same as with the backrounds" and then "Yes, code builds it" (a new art-rule exception, this TV only, to be written
   into `.claude/rules/art.md` with the SPEC); YouTube, "Stills (Recommended)"; his server films through a change to the
   bridge on SERVER, "Not now" (they get a dark screen); the character, "Half size (Recommended)".
-- REMOTE through the site, the third way: only its GATE is built and live (b52c814, 2026-11-28), hidden: a measurement
-  with made-up frames that decides whether the rest is written (`scripts/host/screens-site-gateway.cjs`, started and
-  stopped by `engine/bench/site-way-gate.cjs`; not kept running; no page asks for it; one line in `next.config.ts`
-  passes `debaser.site/api/screens/site-socket` to it, so no tunnel rule). Measured once, ten minutes, 3.5 Mbit/s, 60
-  frames a second, from a hidden browser on SERVER through Cloudflare and the tunnel: there and back 52 ms in the
-  middle (99%: 70 ms), no frame lost or skipped, no pause over a quarter second; about 1 frame in 22 arrives paired
-  with the one before; a build on SERVER at the same time made frames up to 268 ms late for a few seconds
-  (`engine/BENCH.md`). The numbers are with the coordinator as a go/no-go; nothing more of it is written yet.
+- REMOTE through the site, the third way: HIDDEN, half built (2026-11-28). Its GATE came first (b52c814): a
+  measurement with made-up frames (`scripts/host/screens-site-gateway.cjs --gate`, started and stopped by
+  `engine/bench/site-way-gate.cjs`; one line in `next.config.ts` passes `debaser.site/api/screens/site-socket` to
+  it, so no tunnel rule). Measured once, ten minutes, 3.5 Mbit/s, 60 frames a second, from a hidden browser on
+  SERVER through Cloudflare and the tunnel: there and back 52 ms in the middle (99%: 70 ms), no frame lost or
+  skipped, no pause over a quarter second; about 1 frame in 22 arrives paired with the one before; a build on
+  SERVER at the same time made frames up to 268 ms late for a few seconds (`engine/BENCH.md`). On those numbers the
+  coordinator gave the go. SERVER's half is on `main`: the owner's pass (`/api/screens/site-way`), the gateway
+  carrying real frames, sound and control between a browser and the PC's engine without ever queueing, and the
+  20 GB month counted in `G:\DEBASER-HOST\screens-site-usage.json` (no database; a lost file restarts that month's
+  count), proved against a pretend engine. NOT there yet: the PC's half is written but never compiled (branch
+  `claude/remote-anywhere-612f26` only; Rust builds only on the gaming PC, which was in use), the browser's side is
+  not written, the gateway is not kept running and no page asks for it. No real picture has gone through the site.
 - REMOTE from any Wi-Fi (REMOTE-ANYWHERE; plan `remote-anywhere-plan.md` in the 69ad notes folder): three ways, tried in
   order: the direct line as today; a port on his router opened by the PC's engine itself (his "Yes, automatically"; the
   Virgin Hub 5 answers and has a public address, seen 2026-11-28); and through the site as the slow fallback (Luke,
@@ -100,7 +105,8 @@ and shows a short LINING UP line (the one kept player needed no change in a fron
   the engine's own tests only (41 of 41, against a pretend router; a broken copy fails 10). NOT RUNNING YET: the PC still
   has the earlier engine; the new file is built there (SHA256 B2CE8AF3...3ED9) and goes on only on Luke's word
   (`remote-anywhere-swap.ps1` in the 69ad notes folder). Unproved until then: the real Hub giving the port; and, his own
-  try, a connection from a phone hotspot. The site way: not started, hidden until picture, control and sound all work.
+  try, a connection from a phone hotspot. The site way: half built (the bullet above), hidden until picture, control
+  and sound all work.
 
 ## Waiting on Luke
 - Tailscale: the laptop, phone and gaming PC join his tailnet so sessions and the heavy lane can reach them (his choice,

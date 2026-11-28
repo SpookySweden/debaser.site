@@ -85,9 +85,10 @@ const nextConfig: NextConfig = {
    * only passes it along to a gateway on the same PC (`scripts/host/screens-site-gateway.cjs`, 127.0.0.1 only). That
    * is why no tunnel rule is needed: the tunnel already carries the site's address.
    *
-   * HIDDEN, and only the gate so far (2026-11-28): no page asks for this address, the gateway is not kept running,
-   * and when it does run (for the minutes of a measurement) it gives nothing to anyone without that run's one-time
-   * words. With no gateway running, this address answers with an error and nothing else.
+   * HIDDEN (2026-11-28): no page asks for this address, and the gateway is not kept running. When it does run (inside
+   * a check or a measurement) it gives nothing to anyone without a pass: the owner's, from `/api/screens/site-way`,
+   * good for a minute and once; or, as the measuring gate, that run's one-time words. With no gateway running, this
+   * address answers with an error and nothing else.
    *
    * Not on the Vercel copy: there is no gateway there to pass anything to.
    */
